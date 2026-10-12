@@ -1,4 +1,5 @@
 import { imageRect, selectCrop, type CropLabels } from "./crop-selection";
+import { encodeCanvasPng } from "./png";
 
 export async function cropSharedScreen(
   video: HTMLVideoElement,
@@ -87,7 +88,7 @@ export async function cropSharedScreen(
         area.width,
         area.height,
       );
-    return result.toDataURL("image/png");
+    return encodeCanvasPng(result);
   } catch (error) {
     if (
       error instanceof DOMException &&

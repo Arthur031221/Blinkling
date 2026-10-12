@@ -1,4 +1,5 @@
 import { hasSensitiveContent } from "./privacy";
+import { encodeCanvasPng } from "./png";
 
 export type CaptureKind = "visible" | "full" | "region" | "element" | "screen";
 export type CaptureResult = { image: string; label: string };
@@ -310,7 +311,11 @@ function crop(
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("capture_failed"));
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/png"));
+      try {
+        resolve(encodeCanvasPng(canvas));
+      } catch (error) {
+        reject(error);
+      }
     };
     img.onerror = () => reject(new Error("capture_failed"));
     img.src = image;
@@ -353,7 +358,7 @@ async function stitch(
       h,
     );
   }
-  return canvas.toDataURL("image/png");
+  return encodeCanvasPng(canvas);
 }
 
 export async function captureScreen(): Promise<{
@@ -367,18 +372,26 @@ export async function captureScreen(): Promise<{
     preferCurrentTab: false,
   } as DisplayMediaStreamOptions);
   const video = document.createElement("video");
-  video.srcObject = stream;
-  await video.play();
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  const scale = Math.min(
-    1,
-    1600 / Math.max(video.videoWidth, video.videoHeight),
-  );
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-  canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const image = canvas.toDataURL("image/png");
-  video.srcObject = null;
-  return { stream, image };
+  try {
+    video.srcObject = stream;
+    await video.play();
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const scale = Math.min(
+      1,
+      1600 / Math.max(video.videoWidth, video.videoHeight),
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    canvas
+      .getContext("2d")
+      ?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const image = encodeCanvasPng(canvas);
+    return { stream, image };
+  } catch (error) {
+    for (const track of stream.getTracks()) track.stop();
+    throw error;
+  } finally {
+    video.srcObject = null;
+  }
 }

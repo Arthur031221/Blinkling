@@ -2223,6 +2223,200 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
   ).toBe("");
 });
 
+for (const backend of ["bridge", "api"] as const) {
+  test(`large shared screen crop reaches the provider in ${backend} mode`, async () => {
+    const receivedImages: string[] = [];
+    if (backend === "api") {
+      await context.route(
+        "https://api.anthropic.com/v1/messages",
+        async (route) => {
+          const headers = {
+            "access-control-allow-origin": "*",
+            "access-control-allow-headers": "*",
+            "access-control-allow-methods": "POST, OPTIONS",
+          };
+          if (route.request().method() === "OPTIONS") {
+            await route.fulfill({ status: 204, headers });
+            return;
+          }
+          const request = route.request().postDataJSON();
+          for (const message of request.messages) {
+            for (const content of message.content) {
+              if (content.type === "image")
+                receivedImages.push(
+                  `data:image/png;base64,${content.source.data}`,
+                );
+            }
+          }
+          await route.fulfill({
+            contentType: "text/event-stream",
+            headers,
+            body: [
+              {
+                type: "content_block_delta",
+                delta: {
+                  type: "text_delta",
+                  text: JSON.stringify({
+                    questions: ["First?", "Second?", "Third?"],
+                  }),
+                },
+              },
+              { type: "message_stop" },
+            ]
+              .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+              .join(""),
+          });
+        },
+      );
+      await worker.evaluate(async () => {
+        await chrome.storage.local.set({ backend: "api" });
+        await chrome.storage.session.set({ apiKey: "fixture-key" });
+      });
+      await panel.reload();
+    }
+    await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    await panel
+      .locator(".composer textarea")
+      .fill("Describe this large shared screen crop.");
+    await panel.evaluate(() => {
+      navigator.mediaDevices.getDisplayMedia = async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 4096;
+        canvas.height = 2160;
+        const drawing = canvas.getContext("2d")!;
+        const pixels = drawing.createImageData(canvas.width, canvas.height);
+        const words = new Uint32Array(pixels.data.buffer);
+        let seed = 0x12345678;
+        for (let index = 0; index < words.length; index++) {
+          seed ^= seed << 13;
+          seed ^= seed >>> 17;
+          seed ^= seed << 5;
+          words[index] = (seed & 0xffffff) | 0xff000000;
+        }
+        drawing.putImageData(pixels, 0, 0);
+        // Keep the real canvas and its real MediaStream alive throughout selection.
+        document.body.append(canvas);
+        canvas.style.display = "none";
+        return canvas.captureStream(2);
+      };
+    });
+    await panel.locator(".float-start button").click();
+    await clickInBubble(en.share);
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            window.documentPictureInPicture.window!.document.querySelector(
+              "video",
+            )?.videoWidth,
+        ),
+      )
+      .toBe(4096);
+    await clickInBubble(en.region);
+    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    await expect(frozen).toBeVisible();
+    const nativeFrame = await frozen
+      .locator("img")
+      .evaluate((node: HTMLImageElement) => ({
+        width: node.naturalWidth,
+        height: node.naturalHeight,
+        length: node.src.length,
+      }));
+    expect(nativeFrame).toMatchObject({ width: 4096, height: 2160 });
+    expect(nativeFrame.length).toBeGreaterThan(5_000_000);
+    const bounds = (await frozen.locator("img").boundingBox())!;
+    await panel.mouse.move(
+      bounds.x + bounds.width * 0.05,
+      bounds.y + bounds.height * 0.05,
+    );
+    await panel.mouse.down();
+    await panel.mouse.move(
+      bounds.x + bounds.width * 0.95,
+      bounds.y + bounds.height * 0.95,
+    );
+    await panel.mouse.up();
+    await expect(frozen.locator("[data-handle]")).toHaveCount(8);
+    const selectedBounds = (await frozen.locator(".selection").boundingBox())!;
+    const nativeCrop = await frozen
+      .locator("img")
+      .evaluate((node: HTMLImageElement, bounds) => {
+        const imageBounds = node.getBoundingClientRect();
+        const scale = node.naturalWidth / imageBounds.width;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(bounds.width * scale);
+        canvas.height = Math.round(bounds.height * scale);
+        canvas
+          .getContext("2d")!
+          .drawImage(
+            node,
+            (bounds.x - imageBounds.x) * scale,
+            (bounds.y - imageBounds.y) * scale,
+            canvas.width,
+            canvas.height,
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+        return {
+          width: canvas.width,
+          height: canvas.height,
+          length: canvas.toDataURL("image/png").length,
+        };
+      }, selectedBounds);
+    expect(nativeCrop.length).toBeGreaterThan(5_000_000);
+    await panel.keyboard.press("Enter");
+    await expect(frozen).toHaveCount(0);
+    await panel.evaluate(() =>
+      window.documentPictureInPicture
+        .window!.document.querySelector<HTMLButtonElement>(".composer .send")!
+        .click(),
+    );
+    await expect
+      .poll(
+        () =>
+          backend === "api"
+            ? receivedImages.length
+            : providerRequests.filter(
+                (request) =>
+                  request.question ===
+                  "Describe this large shared screen crop.",
+              ).length,
+        { timeout: 5000 },
+      )
+      .toBe(1);
+    const image =
+      backend === "api"
+        ? receivedImages[0]
+        : providerRequests
+            .find(
+              (request) =>
+                request.question === "Describe this large shared screen crop.",
+            )!
+            .image!.toString("base64");
+    const received =
+      backend === "api" ? image : `data:image/png;base64,${image}`;
+    const outgoing = await panel.evaluate(
+      () =>
+        window.documentPictureInPicture.window!.document.querySelector<HTMLImageElement>(
+          ".capture-chip img",
+        )!.src,
+    );
+    expect(outgoing.startsWith("data:image/png;base64,")).toBe(true);
+    expect(outgoing.length).toBeLessThanOrEqual(5_000_000);
+    if (backend === "api") expect(received).toBe(outgoing);
+    const dimensions = await panel.evaluate(async (data) => {
+      const decoded = await createImageBitmap(await (await fetch(data)).blob());
+      const result = [decoded.width, decoded.height];
+      decoded.close();
+      return result;
+    }, received);
+    expect(dimensions[0]).toBeGreaterThan(500);
+    expect(dimensions[0]).toBeLessThan(nativeCrop.width);
+    expect(dimensions[0] / dimensions[1]).toBeCloseTo(4096 / 2160, 1);
+  });
+}
+
 test("Shift selects a region directly on the page with handles and Enter", async () => {
   await site.bringToFront();
   await site.keyboard.down("Shift");
@@ -2355,6 +2549,137 @@ test("bubble has no horizontal overflow in light and dark modes at compact width
   expect(backgrounds.size).toBeGreaterThan(1);
   await responsive.close();
 });
+
+for (const backend of ["bridge", "api"] as const) {
+  test(`dense PDF page thumbnails reach the provider in ${backend} mode`, async () => {
+    const receivedImages: string[] = [];
+    if (backend === "api") {
+      await context.route(
+        "https://api.anthropic.com/v1/messages",
+        async (route) => {
+          const headers = {
+            "access-control-allow-origin": "*",
+            "access-control-allow-headers": "*",
+            "access-control-allow-methods": "POST, OPTIONS",
+          };
+          if (route.request().method() === "OPTIONS") {
+            await route.fulfill({ status: 204, headers });
+            return;
+          }
+          const request = route.request().postDataJSON();
+          for (const message of request.messages)
+            for (const content of message.content) {
+              if (content.type === "image")
+                receivedImages.push(
+                  `data:image/png;base64,${content.source.data}`,
+                );
+            }
+          await route.fulfill({
+            contentType: "text/event-stream",
+            headers,
+            body: [
+              {
+                type: "content_block_delta",
+                delta: {
+                  type: "text_delta",
+                  text: JSON.stringify({
+                    questions: ["First?", "Second?", "Third?"],
+                  }),
+                },
+              },
+              { type: "message_stop" },
+            ]
+              .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+              .join(""),
+          });
+        },
+      );
+      await worker.evaluate(async () => {
+        await chrome.storage.local.set({ backend: "api" });
+        await chrome.storage.session.set({ apiKey: "fixture-key" });
+      });
+      await panel.reload();
+    }
+    const reader = await context.newPage();
+    await reader.goto(`chrome-extension://${extensionId}/reader.html`);
+    await reader
+      .locator("#file")
+      .setInputFiles(resolve("public/assets/glimpselet-welcome-sample.pdf"));
+    await expect(reader.locator(".pdf-page")).toBeVisible();
+    const nativeLength = await reader
+      .locator(".pdf-page canvas")
+      .evaluate((canvas: HTMLCanvasElement) => {
+        canvas.width = canvas.height = 1600;
+        const drawing = canvas.getContext("2d")!;
+        const pixels = drawing.createImageData(1600, 1600);
+        const words = new Uint32Array(pixels.data.buffer);
+        let seed = 0x12345678;
+        for (let index = 0; index < words.length; index++) {
+          seed ^= seed << 13;
+          seed ^= seed >>> 17;
+          seed ^= seed << 5;
+          words[index] = (seed & 0xffffff) | 0xff000000;
+        }
+        drawing.putImageData(pixels, 0, 0);
+        drawing.fillStyle = "rgb(220,30,50)";
+        drawing.fillRect(0, 0, 200, 200);
+        drawing.fillStyle = "rgb(30,70,220)";
+        drawing.fillRect(1400, 1400, 200, 200);
+        return canvas.toDataURL("image/png").length;
+      });
+    expect(nativeLength).toBeGreaterThan(5_000_000);
+    await reader.locator('[data-action="summary"]').click();
+    await expect
+      .poll(
+        () =>
+          backend === "api"
+            ? receivedImages.length
+            : providerRequests.filter((request) =>
+                request.question.startsWith("Summarize this PDF page"),
+              ).length,
+        { timeout: 5000 },
+      )
+      .toBe(1);
+    const image =
+      backend === "api"
+        ? receivedImages[0]
+        : `data:image/png;base64,${providerRequests.find((request) => request.question.startsWith("Summarize this PDF page"))!.image!.toString("base64")}`;
+    expect(image.length).toBeGreaterThan(1000);
+    expect(image.length).toBeLessThanOrEqual(5_000_000);
+    const decoded = await panel.evaluate(async (data) => {
+      const bitmap = await createImageBitmap(await (await fetch(data)).blob());
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const drawing = canvas.getContext("2d")!;
+      drawing.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const sample = (position: number) =>
+        Array.from(
+          drawing.getImageData(
+            Math.floor(canvas.width * position),
+            Math.floor(canvas.height * position),
+            1,
+            1,
+          ).data,
+        );
+      return {
+        width: canvas.width,
+        height: canvas.height,
+        first: sample(0.05),
+        last: sample(0.95),
+      };
+    }, image);
+    expect(decoded.width).toBeGreaterThanOrEqual(640);
+    expect(decoded.width).toBeLessThan(1600);
+    expect(decoded.height).toBe(decoded.width);
+    expect(decoded.first).toEqual([220, 30, 50, 255]);
+    expect(decoded.last).toEqual([30, 70, 220, 255]);
+    await expect(reader.locator("#status")).toContainText("Summary");
+    await expect(panel.locator(".status")).toHaveText(en.answerReady);
+    await reader.close();
+  });
+}
 
 test("PDF guide takes priority over automatic page suggestions", async () => {
   const reader = await context.newPage();

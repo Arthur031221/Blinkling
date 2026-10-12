@@ -40816,9 +40816,8 @@ function readPanelImage(value) {
   if (typeof value !== "string" || value.length > Math.ceil(MAX_PNG_BYTES * 4 / 3) + 128)
     throw new PanelError("image_limit", "The PNG image exceeds 8 MiB.", 413);
   const encoded = value.replace(/^data:image\/png;base64,/, "");
-  if (!encoded || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
-    encoded
-  ))
+  const unpadded = encoded.endsWith("==") ? encoded.slice(0, -2) : encoded.endsWith("=") ? encoded.slice(0, -1) : encoded;
+  if (!encoded || encoded.length % 4 !== 0 || /[^A-Za-z0-9+/]/.test(unpadded))
     throw new PanelError("invalid_image", "Supply a valid PNG image.");
   try {
     return normalizePng(Buffer.from(encoded, "base64"));

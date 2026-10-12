@@ -1,3 +1,5 @@
+import { MAX_PNG_LENGTH } from "./png";
+
 export type Model = "sonnet" | "opus" | "haiku";
 export type Effort = "low" | "medium" | "high";
 export type PageContext = {
@@ -32,7 +34,6 @@ export type Usage = {
 export type BridgeMessage = { type: string; [key: string]: unknown };
 
 const MAX_QUESTION = 8_000;
-const MAX_IMAGE = 5_000_000;
 const MAX_ANSWER = 40_000;
 const MAX_FOLLOWUPS = 8;
 const MAX_FOLLOWUP_CHARS = 4_000;
@@ -200,7 +201,7 @@ export function validateAsk(input: AskInput): void {
     throw new Error("question_limit");
   if (
     input.image &&
-    (input.image.length > MAX_IMAGE ||
+    (input.image.length > MAX_PNG_LENGTH ||
       !input.image.startsWith("data:image/png;base64,"))
   )
     throw new Error("image_limit");

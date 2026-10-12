@@ -94,6 +94,12 @@ describe("extension bridge payloads", () => {
     expect(() =>
       validateAsk({ ...ask, image: "data:image/jpeg;base64,a" }),
     ).toThrow("image_limit");
+    expect(() =>
+      validateAsk({
+        ...ask,
+        image: "data:image/png;base64," + "a".repeat(5_000_000),
+      }),
+    ).toThrow("image_limit");
     expect(() => validateAsk({ ...ask, question: "x".repeat(8_001) })).toThrow(
       "question_limit",
     );

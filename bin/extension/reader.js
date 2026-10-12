@@ -26993,6 +26993,34 @@ if (!contentScope.glimpseletContentReady) {
   initObserver();
 }
 
+// extension/png.ts
+var MAX_PNG_LENGTH = 5e6;
+var MAX_EDGE = 8e3;
+var MAX_PIXELS = 4e7;
+function encodeCanvasPng(source) {
+  if (!source.width || !source.height || source.width * source.height > 9e7)
+    throw new Error("image_limit");
+  let canvas = source;
+  let scale = 1;
+  while (true) {
+    const image = canvas.toDataURL("image/png");
+    if (!image.startsWith("data:image/png;base64,"))
+      throw new Error("image_decode");
+    if (image.length <= MAX_PNG_LENGTH && canvas.width <= MAX_EDGE && canvas.height <= MAX_EDGE && canvas.width * canvas.height <= MAX_PIXELS)
+      return image;
+    if (canvas.width === 1 && canvas.height === 1)
+      throw new Error("image_limit");
+    scale *= 0.8;
+    if (canvas === source)
+      canvas = source.ownerDocument.createElement("canvas");
+    canvas.width = Math.max(1, Math.floor(source.width * scale));
+    canvas.height = Math.max(1, Math.floor(source.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("image_decode");
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  }
+}
+
 // extension/reader-locales.ts
 var readerLocales = {
   en: {
@@ -27560,7 +27588,7 @@ async function ask(action) {
       thumbnail.width = Math.round(canvas.width * scale);
       thumbnail.height = Math.round(canvas.height * scale);
       thumbnail.getContext("2d")?.drawImage(canvas, 0, 0, thumbnail.width, thumbnail.height);
-      image = thumbnail.toDataURL("image/png");
+      image = encodeCanvasPng(thumbnail);
     }
     const response = await chrome.runtime.sendMessage({
       type: "glimpselet:reader-action",

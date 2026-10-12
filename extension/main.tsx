@@ -1,4 +1,5 @@
 import { listenForShiftCrop } from "./shift-crop";
+import { encodeCanvasPng } from "./png";
 import { attachmentToPng } from "./attachment";
 import React, {
   useCallback,
@@ -103,7 +104,7 @@ function canvasToPng(video: HTMLVideoElement): string {
     (canvas.width * video.videoHeight) / video.videoWidth,
   );
   canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/png");
+  return encodeCanvasPng(canvas);
 }
 function errorLabel(error: unknown, t: Record<string, string>): string {
   const code =
@@ -816,7 +817,7 @@ function App() {
         await askWith({
           question: t.passivePrompt,
           kind: "passive",
-          image: frame.toDataURL("image/png"),
+          image: encodeCanvasPng(frame),
           silent: true,
         });
       } finally {

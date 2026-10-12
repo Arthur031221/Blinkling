@@ -10,12 +10,13 @@ export function readPanelImage(value: unknown): NormalizedPng {
   )
     throw new PanelError("image_limit", "The PNG image exceeds 8 MiB.", 413);
   const encoded = value.replace(/^data:image\/png;base64,/, "");
-  if (
-    !encoded ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
-      encoded,
-    )
-  )
+  // A flat scan avoids regex stack overflow on multi-megabyte PNG uploads.
+  const unpadded = encoded.endsWith("==")
+    ? encoded.slice(0, -2)
+    : encoded.endsWith("=")
+      ? encoded.slice(0, -1)
+      : encoded;
+  if (!encoded || encoded.length % 4 !== 0 || /[^A-Za-z0-9+/]/.test(unpadded))
     throw new PanelError("invalid_image", "Supply a valid PNG image.");
   try {
     return normalizePng(Buffer.from(encoded, "base64"));

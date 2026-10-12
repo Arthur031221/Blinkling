@@ -68,10 +68,12 @@ describe("image attachment normalization", () => {
     const image = await attachmentToPng(
       new File(["image"], "image.png", { type: "image/png" }),
     );
-    expect(draw.mock.calls.map((args) => args.slice(3))).toEqual([
-      [2048, 1024],
-      [1024, 512],
-    ]);
+    expect(draw.mock.calls[0]).toEqual([bitmap, 0, 0, 2048, 1024]);
+    const retry = draw.mock.calls[1];
+    expect(retry[0]).toBeInstanceOf(HTMLCanvasElement);
+    expect(retry[3]).toBeLessThan(2048);
+    expect(retry[4]).toBeLessThan(1024);
+    expect(retry[3] / retry[4]).toBeCloseTo(2, 2);
     expect(image.length).toBeLessThanOrEqual(5_000_000);
     expect(bitmap.close).toHaveBeenCalledOnce();
   });

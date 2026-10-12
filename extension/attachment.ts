@@ -1,3 +1,5 @@
+import { encodeCanvasPng } from "./png";
+
 const supportedTypes = new Set([
   "image/png",
   "image/jpeg",
@@ -22,23 +24,13 @@ export async function attachmentToPng(file: File): Promise<string> {
     )
       throw new Error("image_limit");
     const canvas = document.createElement("canvas");
-    let scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
-    while (true) {
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("image_decode");
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const image = canvas.toDataURL("image/png");
-      if (
-        image.startsWith("data:image/png;base64,") &&
-        image.length <= 5_000_000
-      )
-        return image;
-      if (canvas.width === 1 && canvas.height === 1)
-        throw new Error("image_limit");
-      scale /= 2;
-    }
+    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("image_decode");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return encodeCanvasPng(canvas);
   } finally {
     bitmap.close();
   }

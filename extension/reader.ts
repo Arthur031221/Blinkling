@@ -1,6 +1,7 @@
 import * as pdfjs from "pdfjs-dist";
 import "./content";
 import { buildPageContext } from "./page-context";
+import { encodeCanvasPng } from "./png";
 import {
   formatReaderText,
   readerLocales,
@@ -315,7 +316,7 @@ async function ask(
       thumbnail
         .getContext("2d")
         ?.drawImage(canvas, 0, 0, thumbnail.width, thumbnail.height);
-      image = thumbnail.toDataURL("image/png");
+      image = encodeCanvasPng(thumbnail);
     }
     const response = (await chrome.runtime.sendMessage({
       type: "glimpselet:reader-action",

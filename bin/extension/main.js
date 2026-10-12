@@ -12333,6 +12333,34 @@ function listenForShiftCrop(view, allowed, start) {
   };
 }
 
+// extension/png.ts
+var MAX_PNG_LENGTH = 5e6;
+var MAX_EDGE = 8e3;
+var MAX_PIXELS = 4e7;
+function encodeCanvasPng(source) {
+  if (!source.width || !source.height || source.width * source.height > 9e7)
+    throw new Error("image_limit");
+  let canvas = source;
+  let scale = 1;
+  while (true) {
+    const image = canvas.toDataURL("image/png");
+    if (!image.startsWith("data:image/png;base64,"))
+      throw new Error("image_decode");
+    if (image.length <= MAX_PNG_LENGTH && canvas.width <= MAX_EDGE && canvas.height <= MAX_EDGE && canvas.width * canvas.height <= MAX_PIXELS)
+      return image;
+    if (canvas.width === 1 && canvas.height === 1)
+      throw new Error("image_limit");
+    scale *= 0.8;
+    if (canvas === source)
+      canvas = source.ownerDocument.createElement("canvas");
+    canvas.width = Math.max(1, Math.floor(source.width * scale));
+    canvas.height = Math.max(1, Math.floor(source.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("image_decode");
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  }
+}
+
 // extension/attachment.ts
 var supportedTypes = /* @__PURE__ */ new Set([
   "image/png",
@@ -12353,20 +12381,13 @@ async function attachmentToPng(file) {
     if (!bitmap.width || !bitmap.height || bitmap.width * bitmap.height > 9e7)
       throw new Error("image_limit");
     const canvas = document.createElement("canvas");
-    let scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
-    while (true) {
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("image_decode");
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const image = canvas.toDataURL("image/png");
-      if (image.startsWith("data:image/png;base64,") && image.length <= 5e6)
-        return image;
-      if (canvas.width === 1 && canvas.height === 1)
-        throw new Error("image_limit");
-      scale /= 2;
-    }
+    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("image_decode");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return encodeCanvasPng(canvas);
   } finally {
     bitmap.close();
   }
@@ -12379,7 +12400,6 @@ var import_react_dom = __toESM(require_react_dom(), 1);
 
 // extension/api.ts
 var MAX_QUESTION = 8e3;
-var MAX_IMAGE = 5e6;
 var MAX_ANSWER = 4e4;
 var MAX_FOLLOWUPS = 8;
 var MAX_FOLLOWUP_CHARS = 4e3;
@@ -12484,7 +12504,7 @@ function estimateCost(model, inputTokens, outputTokens) {
 function validateAsk(input) {
   if (!input.question.trim() || input.question.length > MAX_QUESTION)
     throw new Error("question_limit");
-  if (input.image && (input.image.length > MAX_IMAGE || !input.image.startsWith("data:image/png;base64,")))
+  if (input.image && (input.image.length > MAX_PNG_LENGTH || !input.image.startsWith("data:image/png;base64,")))
     throw new Error("image_limit");
   if (input.page && (input.page.text.length > 24e3 || input.page.elements.length > 120))
     throw new Error("page_limit");
@@ -13190,7 +13210,11 @@ function crop(image, rect, viewportWidth) {
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("capture_failed"));
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/png"));
+      try {
+        resolve(encodeCanvasPng(canvas));
+      } catch (error) {
+        reject(error);
+      }
     };
     img.onerror = () => reject(new Error("capture_failed"));
     img.src = image;
@@ -13224,7 +13248,7 @@ async function stitch(frames, width, height, viewportWidth, viewportHeight, fram
       h
     );
   }
-  return canvas.toDataURL("image/png");
+  return encodeCanvasPng(canvas);
 }
 async function captureScreen() {
   const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -13234,20 +13258,26 @@ async function captureScreen() {
     preferCurrentTab: false
   });
   const video = document.createElement("video");
-  video.srcObject = stream;
-  await video.play();
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  const scale = Math.min(
-    1,
-    1600 / Math.max(video.videoWidth, video.videoHeight)
-  );
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-  canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const image = canvas.toDataURL("image/png");
-  video.srcObject = null;
-  return { stream, image };
+  try {
+    video.srcObject = stream;
+    await video.play();
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const scale = Math.min(
+      1,
+      1600 / Math.max(video.videoWidth, video.videoHeight)
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const image = encodeCanvasPng(canvas);
+    return { stream, image };
+  } catch (error) {
+    for (const track of stream.getTracks()) track.stop();
+    throw error;
+  } finally {
+    video.srcObject = null;
+  }
 }
 
 // extension/crop-selection.ts
@@ -13579,7 +13609,7 @@ async function cropSharedScreen(video, bubble, labels) {
       area.width,
       area.height
     );
-    return result.toDataURL("image/png");
+    return encodeCanvasPng(result);
   } catch (error) {
     if (error instanceof DOMException && ["NotAllowedError", "TypeError"].includes(error.name))
       throw new Error("crop_fullscreen_denied");
@@ -15163,7 +15193,7 @@ function canvasToPng(video) {
     canvas.width * video.videoHeight / video.videoWidth
   );
   canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/png");
+  return encodeCanvasPng(canvas);
 }
 function errorLabel(error, t) {
   const code = error instanceof Error ? error.code || error.message : "";
@@ -15736,7 +15766,7 @@ Selected text (untrusted): ${selected}` : ""}`;
         await askWith({
           question: t.passivePrompt,
           kind: "passive",
-          image: frame.toDataURL("image/png"),
+          image: encodeCanvasPng(frame),
           silent: true
         });
       } finally {
