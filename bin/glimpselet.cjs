@@ -41050,8 +41050,16 @@ var FloatingPreferences = class {
   constructor(path) {
     this.path = path;
   }
-  writeQueue = Promise.resolve();
-  async read() {
+  operationQueue = Promise.resolve();
+  read() {
+    const operation = this.operationQueue.then(() => this.readFile());
+    this.operationQueue = operation.then(
+      () => void 0,
+      () => void 0
+    );
+    return operation;
+  }
+  async readFile() {
     if (!this.path) return { version: 1, dimensions: {} };
     try {
       const beforeOpen = await (0, import_promises2.lstat)(this.path);
@@ -41079,8 +41087,8 @@ var FloatingPreferences = class {
   }
   write(value) {
     if (!this.path) return Promise.resolve(false);
-    const operation = this.writeQueue.then(() => this.writeFile(value));
-    this.writeQueue = operation.then(
+    const operation = this.operationQueue.then(() => this.writeFile(value));
+    this.operationQueue = operation.then(
       () => void 0,
       () => void 0
     );

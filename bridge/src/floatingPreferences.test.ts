@@ -93,6 +93,24 @@ describe("floating geometry preferences", () => {
     expect(await readFile(path, "utf8")).toContain('"version":1');
   });
 
+  it("reads queued saves in order before later saves can replace them", async () => {
+    const path = join(await temporaryDirectory(), "geometry.json");
+    const store = new FloatingPreferences(path);
+    const values = [410, 470, 520].map((width) => ({
+      version: 1 as const,
+      dimensions: { compact: { popup: { width, height: 615 } } },
+    }));
+    expect(await store.write(values[0]!)).toBe(true);
+    const firstSave = store.write(values[1]!);
+    const firstRead = store.read();
+    const secondSave = store.write(values[2]!);
+    const secondRead = store.read();
+    expect(await firstSave).toBe(true);
+    expect(await firstRead).toEqual(values[1]);
+    expect(await secondSave).toBe(true);
+    expect(await secondRead).toEqual(values[2]);
+  });
+
   it("serializes simultaneous writes and keeps geometry files private", async () => {
     const path = join(await temporaryDirectory(), "geometry.json");
     const store = new FloatingPreferences(path);

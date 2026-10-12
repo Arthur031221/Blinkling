@@ -119,11 +119,20 @@ export function defaultFloatingPreferencesPath(): string {
 }
 
 export class FloatingPreferences {
-  private writeQueue: Promise<void> = Promise.resolve();
+  private operationQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly path: string | null) {}
 
-  async read(): Promise<FloatingGeometry> {
+  read(): Promise<FloatingGeometry> {
+    const operation = this.operationQueue.then(() => this.readFile());
+    this.operationQueue = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }
+
+  private async readFile(): Promise<FloatingGeometry> {
     if (!this.path) return { version: 1, dimensions: {} };
     try {
       const beforeOpen = await lstat(this.path);
@@ -158,8 +167,8 @@ export class FloatingPreferences {
 
   write(value: FloatingGeometry): Promise<boolean> {
     if (!this.path) return Promise.resolve(false);
-    const operation = this.writeQueue.then(() => this.writeFile(value));
-    this.writeQueue = operation.then(
+    const operation = this.operationQueue.then(() => this.writeFile(value));
+    this.operationQueue = operation.then(
       () => undefined,
       () => undefined,
     );
