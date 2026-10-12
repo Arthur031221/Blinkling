@@ -26,9 +26,10 @@
   "actionProblems": "Buscar problemas",
   "actionExplain": "Explicar el código",
   "freeze": "Congelar imagen",
+  "resumeLive": "Reanudar vista en directo",
   "reset": "Restablecer recorte y máscaras",
   "select": "Seleccionar área",
-  "dragHint": "Arrastra para seleccionar el área",
+  "dragHint": "Arrastra para seleccionar. Las flechas mueven. Mayús + flechas cambia el tamaño. Intro aplica. Escape cancela.",
   "thinking": "Pensando...",
   "cancel": "Cancelar respuesta",
   "answer": "Respuesta",
@@ -101,5 +102,15 @@
   "errorSessionLimit": "Hay demasiados paneles abiertos. Cierra uno anterior e inténtalo de nuevo.",
   "passiveOff": "Modo pasivo desactivado",
   "popupFallbackAction": "Abrir ventana emergente",
-  "popupFallbackHelp": "No se pudo abrir la ventana flotante. Abre una ventana emergente en su lugar."
+  "popupFallbackHelp": "No se pudo abrir la ventana flotante. Abre una ventana emergente en su lugar.",
+  "unpin": "Desfijar",
+  "scopeFull": "Imagen completa",
+  "scopeArea": "Área seleccionada",
+  "scopeFrozen": "Congelada",
+  "scopeLive": "En directo",
+  "maskCount": "Máscaras: {count}",
+  "answerWaiting": "La respuesta aparecerá aquí.",
+  "statusAnswerCancelled": "Respuesta cancelada. Tu pregunta sigue aquí.",
+  "resizePanel": "Cambiar el tamaño del panel",
+  "resizeHelp": "Arrastra para cambiar el tamaño o usa las teclas de flecha. También puedes arrastrar los bordes de la ventana."
 }

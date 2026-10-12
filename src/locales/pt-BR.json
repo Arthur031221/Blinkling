@@ -26,9 +26,10 @@
   "actionProblems": "Encontrar problemas",
   "actionExplain": "Explicar o código",
   "freeze": "Congelar quadro",
+  "resumeLive": "Retomar visualização ao vivo",
   "reset": "Redefinir recorte e máscaras",
   "select": "Selecionar área",
-  "dragHint": "Arraste para selecionar a área",
+  "dragHint": "Arraste para selecionar. As setas movem. Shift + setas redimensiona. Enter aplica. Escape cancela.",
   "thinking": "Pensando...",
   "cancel": "Cancelar resposta",
   "answer": "Resposta",
@@ -101,5 +102,15 @@
   "errorSessionLimit": "Há painéis demais abertos. Feche um painel antigo e tente novamente.",
   "passiveOff": "Modo passivo desativado",
   "popupFallbackAction": "Abrir janela pop-up",
-  "popupFallbackHelp": "Não foi possível abrir a janela flutuante. Abra uma janela pop-up no lugar."
+  "popupFallbackHelp": "Não foi possível abrir a janela flutuante. Abra uma janela pop-up no lugar.",
+  "unpin": "Desafixar",
+  "scopeFull": "Quadro inteiro",
+  "scopeArea": "Área selecionada",
+  "scopeFrozen": "Congelado",
+  "scopeLive": "Ao vivo",
+  "maskCount": "Máscaras: {count}",
+  "answerWaiting": "A resposta aparecerá aqui.",
+  "statusAnswerCancelled": "Resposta cancelada. Sua pergunta continua aqui.",
+  "resizePanel": "Redimensionar painel",
+  "resizeHelp": "Arraste para redimensionar ou use as teclas de seta. Você também pode arrastar as bordas da janela."
 }

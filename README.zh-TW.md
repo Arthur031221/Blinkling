@@ -2,13 +2,23 @@
 
 <p align="center"><a href="README.md">English</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.ko.md">한국어</a>  |  <a href="README.es.md">Español</a>  |  <a href="README.fr.md">Français</a>  |  <a href="README.de.md">Deutsch</a>  |  <a href="README.pt-BR.md">Português (Brasil)</a></p>
 
-> 在小型浮動視窗中，向你的程式設計助理詢問正在分享的畫面。
+> 在精簡的浮動面板中，向程式設計助理詢問你選取的螢幕。凍結畫面、裁切或遮住私人資訊，再提出問題。
 
-已檢查的測試結果：20 項合成螢幕閱讀任務全數通過，作者逐一檢查每個回答。透過整合套件使用 CLI Haiku 進行實測。中位數 2.609 秒，p95 為 3.263 秒。[結果與方法](assets/benchmark.json)。
+<p align="center"><img src="assets/demo.gif" width="800" alt="Glimpselet 面板中的測試畫面與預錄回答"></p>
 
-| 操作前       | 操作後                               |
-| ------------ | ------------------------------------ |
-| 畫面資訊太多 | 凍結畫面、裁切或遮住細節，再提出問題 |
+<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">開啟靜態示範</a>。示範使用測試圖片與預錄回答，不會呼叫任何服務。</p>
+
+<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="420 px 淺色主題"><img src="assets/screenshots/dark-420.png" width="49%" alt="420 px 深色主題"></p>
+
+<details>
+<summary>全部六種尺寸與主題</summary>
+
+<p><img src="assets/screenshots/light-360.png" width="140" alt="淺色面板 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="淺色面板 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="淺色面板 520 px"></p>
+<p><img src="assets/screenshots/dark-360.png" width="140" alt="深色面板 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="深色面板 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="深色面板 520 px"></p>
+
+</details>
+
+浮動模式需要桌面版 Chromium 瀏覽器。安裝前請備妥 Node.js 22 以上版本，以及已安裝的程式設計助理。
 
 透過兩個斜線指令安裝整合套件：
 
@@ -18,10 +28,6 @@
 ```
 
 接著執行 `/glimpselet:glimpse`。需要 Node.js 22 以上版本，不需要瀏覽器擴充功能。
-
-<p align="center"><img src="assets/demo.gif" width="800" alt="Glimpselet 使用標示清楚的測試畫面和預錄回答，不會呼叫模型"></p>
-
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">開啟靜態示範</a>  |  預錄範例，不會送出供應商請求</p>
 
 ## 平常怎麼用
 
@@ -35,9 +41,18 @@
 
 提出問題或啟用被動筆記前，畫面只留在本機。不透明遮罩會修改送出的影像。被動筆記每兩秒取樣一次，為變動畫面送出簡短描述請求，預設每個滾動分鐘最多六次（每小時最多 360 次）。這是請求數上限，不代表費用，也可調低。
 
+呼叫 MCP 螢幕工具時，影像會回傳給程式工作階段。面板截圖在裁切和遮罩處理後，最長邊限制為 1536 像素，總像素數限制為 180 萬。較小的選取區域會保留原始解析度。
+
 **畫面由你決定何時分享，程式不會自行開始觀看。**
 
 ## 詳細說明
+
+<details>
+<summary>操作與狀態</summary>
+
+使用面板的尺寸控制或方向鍵調整大小。瀏覽器允許時，也可拖曳視窗邊緣調整。在裁切或遮罩模式中，方向鍵移動選取區域，Shift 加方向鍵調整大小，Enter 套用，Escape 取消。在問題輸入框中按 Escape 會暫停被動筆記，並保留輸入內容後取消目前的問題。設定會以模態視窗開啟。可以解除較早回答的釘選。**Resume live view** 會保留裁切與遮罩。向上捲動會停止跟隨串流回答。面板會顯示分享、模型與被動筆記狀態。
+
+</details>
 
 <details>
 <summary>安裝與開啟</summary>
@@ -49,14 +64,14 @@
 <details>
 <summary>提問、追問與檢視</summary>
 
-可選 `sonnet`、`opus` 或 `haiku` 模型別名。問題會透過已安裝且受限的命令列工具串流處理，也可由本機橋接程式發出選用 API 請求。受限 CLI 會移除一般命令工具，但企業管理的 hooks 仍可能執行，因此它不是作業系統層級的沙箱，仍須信任已安裝的 CLI 及組織設定的政策 hooks。追問可帶入範圍有限的近期脈絡。面板支援裁切、凍結、不透明遮罩、複製、釘選、最近十分鐘時間軸、摘要和 Markdown 匯出。摘要使用現有的被動筆記，不會另外傳送新的影像。清除會中止工作並移除本機影格、筆記、歷史與記憶體中的 API 金鑰。
+問題會透過已安裝的程式設計助理處理，也可由本機橋接程式發出選用 API 請求。受限 CLI 會移除一般命令工具，但企業管理的 hooks 仍可能執行，因此它不是作業系統層級的沙箱，仍須信任已安裝的 CLI 及組織設定的政策 hooks。追問可帶入範圍有限的近期脈絡。面板支援裁切、凍結、不透明遮罩、複製、釘選、最近十分鐘時間軸、摘要和 Markdown 匯出。摘要使用現有的被動筆記，不會另外傳送新的影像。清除會中止工作並移除本機影格、筆記、歷史與記憶體中的 API 金鑰。
 
 </details>
 
 <details>
 <summary>浮動視窗與瀏覽器支援</summary>
 
-開啟浮動面板需要使用者操作。Chrome 和 Edge 116 以上版本在支援時可使用 Document Picture-in-Picture。若此功能拒絕開啟，請再點一次「Open popup」以一般彈出視窗開啟。彈出視窗不保證總是在其他視窗上方。視窗位置由瀏覽器控制，瀏覽器也可能沿用先前的位置。此分頁會記住緊湊或展開的選擇。瀏覽器和作業系統的擷取權限及選項各有不同。
+支援的桌面 Chromium 瀏覽器可使用 Document Picture-in-Picture。此視窗的位置由瀏覽器控制。瀏覽器允許時會記住彈出視窗位置。精簡與展開尺寸分別記憶。
 
 </details>
 

@@ -1,7 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 import { BlinkAvatar } from "./BlinkAvatar";
+import {
+  readFloatingGeometry,
+  rememberFloatingGeometry,
+  type FloatingKind,
+} from "./floatingWindow";
 import { Timeline } from "./Timeline";
 import {
   readSettings,
@@ -10,7 +15,12 @@ import {
   type Settings,
 } from "./settings";
 import { messages, type Locale } from "./locales";
-import { changedPixels, imageSignature, processScreenImage } from "./screen";
+import {
+  changedPixels,
+  imageSignature,
+  processScreenImage,
+  screenDimensions,
+} from "./screen";
 import { readAnswerStream } from "./answerStream";
 import { safeMarkdown } from "./sanitize";
 import "./style.css";
@@ -115,6 +125,7 @@ function App() {
   const shareRef = useRef<MediaStream | null>(null);
   const frameRef = useRef("");
   const imageRef = useRef<HTMLImageElement>(null);
+  const demoFrame = useRef("");
   const generation = useRef(0);
   const activeRequest = useRef<AbortController | null>(null);
   const frozenRef = useRef(frozen);
@@ -125,6 +136,20 @@ function App() {
   masksRef.current = masks;
   const pauseInFlight = useRef<Promise<void> | null>(null);
   const cheerTimer = useRef<number | null>(null);
+  const settingsButton = useRef<HTMLButtonElement>(null);
+  const floatingButton = useRef<HTMLButtonElement>(null);
+  const wasFloating = useRef(false);
+  const settingsDialog = useRef<HTMLDialogElement>(null);
+  const answerEnd = useRef<HTMLDivElement>(null);
+  const followAnswer = useRef(true);
+  const floatingKind = useRef<FloatingKind>("pip");
+  const floatingSize = useRef(settings.size);
+  const resizeStart = useRef<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   shareRef.current = share;
   frameRef.current = liveFrame;
   const t = messages[settings.locale];
@@ -136,9 +161,42 @@ function App() {
     t.actionExplain,
   ];
   const hostWindow = floatDoc?.defaultView || window;
+  useLayoutEffect(() => {
+    if (floatDoc) {
+      wasFloating.current = true;
+      floatDoc
+        .querySelector<HTMLElement>(".composer textarea, .welcome .primary")
+        ?.focus({ preventScroll: true });
+    } else if (wasFloating.current) {
+      wasFloating.current = false;
+      floatingButton.current?.focus({ preventScroll: true });
+    }
+  }, [floatDoc]);
+  useEffect(() => {
+    hostWindow.document.documentElement.lang = settings.locale;
+  }, [settings.locale, hostWindow]);
 
   useEffect(() => {
-    sessionStorage.setItem("glimpselet-settings", JSON.stringify(settings));
+    const dialog = settingsDialog.current;
+    if (!showSettings || !dialog) return;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      settingsButton.current?.focus({ preventScroll: true });
+    };
+  }, [showSettings, floatDoc]);
+
+  useLayoutEffect(() => {
+    if (followAnswer.current && !showSettings && (answer || (busy && !passive)))
+      answerEnd.current?.scrollIntoView({ block: "nearest" });
+  }, [answer, busy, passive, showSettings, floatDoc]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("glimpselet-settings", JSON.stringify(settings));
+    } catch {
+      // The panel remains usable when browser storage is unavailable.
+    }
   }, [settings]);
   useEffect(() => {
     if (video.current && share) {
@@ -152,6 +210,7 @@ function App() {
         .then((r) => r.text())
         .then((svg) => {
           const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+          demoFrame.current = url;
           setLiveFrame(url);
           setPreview(url);
           setFrozen(true);
@@ -254,11 +313,10 @@ function App() {
               (demo && source)
                 ? await makeOutput(source)
                 : "";
-            if (captureGeneration !== generation.current) return;
             if (channel.readyState === WebSocket.OPEN)
               channel.send(
                 JSON.stringify(
-                  img
+                  captureGeneration === generation.current && img
                     ? { type: "capture", id: m.id, image: img }
                     : { type: "capture", id: m.id, error: "unavailable" },
                 ),
@@ -324,13 +382,24 @@ function App() {
   useEffect(() => {
     if (!share || frozen) return;
     const id = hostWindow.setInterval(() => {
-      const next = captureCurrent();
+      const next = captureCurrent(true);
       if (next) setLiveFrame(next);
     }, 500);
     return () => hostWindow.clearInterval(id);
   }, [share, frozen, floatDoc]);
   useEffect(() => {
-    if (!liveFrame || !frozen || demo) return;
+    const image = imageRef.current;
+    const container = stage.current;
+    if (!image || !container) return;
+    const observer = new ResizeObserver(() =>
+      setImageReady((value) => value + 1),
+    );
+    observer.observe(image);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [liveFrame, floatDoc]);
+  useEffect(() => {
+    if (!liveFrame || !frozen || demo || selectionMode) return;
     let active = true;
     void makeOutput(liveFrame).then((output) => {
       if (active && output) {
@@ -341,23 +410,51 @@ function App() {
     return () => {
       active = false;
     };
-  }, [liveFrame, rect, masks, frozen, demo]);
+  }, [liveFrame, rect, masks, frozen, demo, selectionMode]);
   useEffect(() => {
     if (!floatDoc) return;
+    const child = floatDoc.defaultView;
+    if (!child) return;
+    let pending = 0;
+    const remember = () => rememberWindow(child);
+    const resize = () => {
+      child.clearTimeout(pending);
+      pending = child.setTimeout(remember, 150);
+    };
     const close = () => {
+      child.clearTimeout(pending);
+      remember();
       setFloatDoc(null);
       stopShare();
     };
-    floatDoc.defaultView?.addEventListener("pagehide", close, { once: true });
-    return () => floatDoc.defaultView?.removeEventListener("pagehide", close);
+    child.addEventListener("resize", resize);
+    child.addEventListener("pagehide", close, { once: true });
+    return () => {
+      child.clearTimeout(pending);
+      child.removeEventListener("resize", resize);
+      child.removeEventListener("pagehide", close);
+    };
   }, [floatDoc]);
   useEffect(() => {
     const windows = new Set([window, hostWindow]);
     const handlers = new Map<Window, (event: KeyboardEvent) => void>();
     windows.forEach((win) => {
       const keydown = (e: KeyboardEvent) => {
+        if (showSettings || e.isComposing) return;
+        if (e.key === "Escape" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+          if (selectionMode && !safeKeyTarget(e.target, win)) {
+            setSelectionMode("");
+            setDrag(null);
+            return;
+          }
+          if (passive) void pausePassive();
+          else if (activeRequest.current) cancelAnswer();
+          else generation.current++;
+          setSelectionMode("");
+          setDrag(null);
+          return;
+        }
         if (
-          e.isComposing ||
           e.altKey ||
           e.ctrlKey ||
           e.metaKey ||
@@ -365,17 +462,6 @@ function App() {
           safeKeyTarget(e.target, win)
         )
           return;
-        if (e.key === "Escape") {
-          if (passive) void pausePassive();
-          else {
-            generation.current++;
-            activeRequest.current?.abort();
-            setBusy(false);
-          }
-          setSelectionMode("");
-          setDrag(null);
-          return;
-        }
         if (e.key.toLowerCase() === "s") startSelection("crop");
         if (e.key.toLowerCase() === "e") void ask(t.actionExplain);
         if (e.key.toLowerCase() === "t") void chooseAction(t.actionTranslate);
@@ -554,13 +640,16 @@ function App() {
       );
     return value;
   }
-  function captureCurrent() {
+  function captureCurrent(previewOnly = false) {
     const videoElement = video.current;
     if (!videoElement?.videoWidth) return "";
     const c = document.createElement("canvas");
-    c.width = videoElement.videoWidth;
-    c.height = videoElement.videoHeight;
-    c.getContext("2d")?.drawImage(videoElement, 0, 0);
+    const dimensions = previewOnly
+      ? screenDimensions(videoElement.videoWidth, videoElement.videoHeight)
+      : { width: videoElement.videoWidth, height: videoElement.videoHeight };
+    c.width = dimensions.width;
+    c.height = dimensions.height;
+    c.getContext("2d")?.drawImage(videoElement, 0, 0, c.width, c.height);
     return c.toDataURL("image/png");
   }
   async function startShare() {
@@ -648,6 +737,8 @@ function App() {
     }
     setSentPreview(false);
     setSelectionMode(mode);
+    setDrag(null);
+    stage.current?.focus({ preventScroll: true });
   }
   async function makeOutput(source: string) {
     return processScreenImage(source, rectRef.current, masksRef.current);
@@ -668,7 +759,7 @@ function App() {
       if (mode !== "passive") setStatus(t.errorBusy);
       return false;
     }
-    const id = ++generation.current;
+    const id = mode === "passive" ? generation.current : ++generation.current;
     const controller = new AbortController();
     activeRequest.current = controller;
     if (signal?.aborted) controller.abort();
@@ -677,7 +768,11 @@ function App() {
         once: true,
       });
     setBusy(true);
-    if (mode !== "passive") setAnswer("");
+    if (mode !== "passive") {
+      followAnswer.current = true;
+      setCopyState("");
+      setAnswer("");
+    }
     setStatus(mode === "passive" ? t.statusNoticing : t.statusThinking);
     abort.current = controller;
     try {
@@ -771,6 +866,8 @@ function App() {
     setSentPreview(true);
     if (demo) {
       const sample = t.demoAnswer;
+      followAnswer.current = true;
+      setCopyState("");
       setAnswer(sample);
       setHistory((h) => [
         ...h,
@@ -827,26 +924,100 @@ function App() {
     setDrag(null);
     setSelectionMode("");
   }
+  function selectionKey(e: React.KeyboardEvent) {
+    if (
+      !selectionMode ||
+      e.altKey ||
+      e.ctrlKey ||
+      e.metaKey ||
+      e.nativeEvent.isComposing
+    )
+      return;
+    if (
+      e.key !== "Enter" &&
+      !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)
+    )
+      return;
+    e.preventDefault();
+    e.stopPropagation();
+    const box: [number, number, number, number] = drag
+      ? [
+          Math.min(drag[0], drag[2]),
+          Math.min(drag[1], drag[3]),
+          Math.max(drag[0], drag[2]),
+          Math.max(drag[1], drag[3]),
+        ]
+      : [0.25, 0.25, 0.75, 0.75];
+    if (e.key === "Enter") {
+      const selected: [number, number, number, number] = [
+        box[0],
+        box[1],
+        box[2] - box[0],
+        box[3] - box[1],
+      ];
+      if (
+        selected[2] * (imageRef.current?.naturalWidth || 1) >= 8 &&
+        selected[3] * (imageRef.current?.naturalHeight || 1) >= 8
+      ) {
+        if (selectionMode === "mask")
+          setMasks((previous) => [...previous, selected]);
+        else setRect(selected);
+      }
+      setDrag(null);
+      setSelectionMode("");
+      return;
+    }
+    const axis = e.key === "ArrowLeft" || e.key === "ArrowRight" ? 0 : 1;
+    const delta = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -0.02 : 0.02;
+    if (e.shiftKey) {
+      const pixels =
+        axis === 0
+          ? imageRef.current?.naturalWidth
+          : imageRef.current?.naturalHeight;
+      const minimum = Math.min(1, 8 / (pixels || 1));
+      box[axis + 2] = Math.max(
+        box[axis] + minimum,
+        Math.min(1, box[axis + 2]! + delta),
+      );
+    } else {
+      const move = Math.max(-box[axis], Math.min(1 - box[axis + 2]!, delta));
+      box[axis] += move;
+      box[axis + 2]! += move;
+    }
+    setDrag(box);
+  }
   async function openFloat(usePopup = false) {
     try {
       const pip = usePopup
         ? undefined
         : (window as PipHost).documentPictureInPicture;
+      floatingKind.current = pip ? "pip" : "popup";
+      floatingSize.current = settings.size;
+      const geometry = readFloatingGeometry(
+        settings.size,
+        floatingKind.current,
+        screenBounds(window),
+      );
       const child = pip
         ? await pip.requestWindow({
-            width: 420,
-            height: settings.size === "compact" ? 520 : 680,
+            width: geometry.width,
+            height: geometry.height,
           })
         : window.open(
             "",
             "glimpselet",
-            `popup,width=420,height=${settings.size === "compact" ? 520 : 680}`,
+            `popup,width=${geometry.width},height=${geometry.height}${geometry.left === undefined ? "" : `,left=${geometry.left},top=${geometry.top}`}`,
           );
       if (!child) {
         setStatus(t.statusPopupBlocked);
         return;
       }
+      child.document.body.replaceChildren();
+      child.document.head
+        .querySelectorAll('link[rel="stylesheet"], style')
+        .forEach((sheet) => sheet.remove());
       child.document.title = "Glimpselet";
+      child.document.documentElement.lang = settings.locale;
       setPopupFallback(false);
       child.document.body.className = settings.theme;
       document.head
@@ -858,20 +1029,62 @@ function App() {
         });
       setFloatDoc(child.document);
       if (!pip) setStatus(t.popupNote);
-      child.addEventListener(
-        "pagehide",
-        () => {
-          setFloatDoc(null);
-          stopShare();
-        },
-        { once: true },
-      );
     } catch (e) {
       if (!usePopup) {
         setPopupFallback(true);
         setStatus(t.popupFallbackHelp);
       } else setStatus(errorText(e));
     }
+  }
+  function screenBounds(win: Window) {
+    const screen = win.screen as Screen & {
+      availLeft?: number;
+      availTop?: number;
+    };
+    return {
+      left: screen.availLeft ?? 0,
+      top: screen.availTop ?? 0,
+      width: screen.availWidth,
+      height: screen.availHeight,
+    };
+  }
+  function rememberWindow(child: Window) {
+    rememberFloatingGeometry(floatingSize.current, floatingKind.current, {
+      innerWidth: child.innerWidth,
+      innerHeight: child.innerHeight,
+      outerWidth: child.outerWidth,
+      outerHeight: child.outerHeight,
+      left: child.screenX,
+      top: child.screenY,
+    });
+  }
+  function resizeWindow(width: number, height: number) {
+    const child = floatDoc?.defaultView;
+    if (!child) return;
+    try {
+      child.resizeTo(
+        Math.max(320, width) + Math.max(0, child.outerWidth - child.innerWidth),
+        Math.max(360, height) +
+          Math.max(0, child.outerHeight - child.innerHeight),
+      );
+    } catch {
+      setStatus(t.resizeHelp);
+    }
+  }
+  function toggleSize() {
+    const size = settings.size === "compact" ? "expanded" : "compact";
+    const child = floatDoc?.defaultView;
+    if (child) {
+      rememberWindow(child);
+      const geometry = readFloatingGeometry(
+        size,
+        floatingKind.current,
+        screenBounds(child),
+      );
+      floatingSize.current = size;
+      resizeWindow(geometry.width, geometry.height);
+    }
+    setSettings((s) => ({ ...s, size }));
   }
   const chooseAction = (label: string) => {
     const prompt =
@@ -892,6 +1105,12 @@ function App() {
       setCopyState(t.copyError);
     }
   }
+  function cancelAnswer() {
+    generation.current++;
+    activeRequest.current?.abort();
+    setBusy(false);
+    setStatus(t.statusAnswerCancelled);
+  }
   function exportNotes() {
     const rows = history
       .filter((h) => Date.now() - h.at < 600_000)
@@ -908,10 +1127,11 @@ function App() {
   }
   function resetLocal() {
     stopShare();
-    frameRef.current = "";
-    setLiveFrame("");
-    setPreview("");
-    setFrozen(false);
+    const frame = demo ? demoFrame.current : "";
+    frameRef.current = frame;
+    setLiveFrame(frame);
+    setPreview(frame);
+    setFrozen(demo);
     setSentPreview(false);
     setRect(null);
     setMasks([]);
@@ -922,6 +1142,7 @@ function App() {
     setPinnedAnswer("");
     setHistory([]);
     setKey("");
+    setCopyState("");
   }
   async function clearHistory() {
     resetLocal();
@@ -949,11 +1170,16 @@ function App() {
     if (version !== generation.current) return;
     await askRequest(undefined, t.summaryPrompt, "summary");
   }
-  useEffect(() => {
-    (floatDoc || document).querySelector("main.app")?.scrollTo({ top: 0 });
-  }, [showSettings, floatDoc]);
   const mainPanel = (
-    <main className={`app ${settings.theme} ${settings.size}`}>
+    <main
+      className={`app ${settings.theme} ${settings.size}`}
+      onScroll={(e) => {
+        const end = answerEnd.current?.getBoundingClientRect();
+        if (end)
+          followAnswer.current =
+            end.bottom <= e.currentTarget.getBoundingClientRect().bottom + 48;
+      }}
+    >
       <style>{`@font-face{font-family:Fraunces;src:url('${import.meta.env.BASE_URL}assets/Fraunces.ttf') format('truetype');font-display:swap}@font-face{font-family:Inter;src:url('${import.meta.env.BASE_URL}assets/Inter.ttf') format('truetype');font-display:swap}`}</style>
       <header>
         <BlinkAvatar
@@ -978,14 +1204,7 @@ function App() {
           <button
             title={settings.size === "compact" ? t.expand : t.compact}
             aria-label={settings.size === "compact" ? t.expand : t.compact}
-            onClick={() => {
-              const size = settings.size === "compact" ? "expanded" : "compact";
-              setSettings((s) => ({ ...s, size }));
-              (floatDoc?.defaultView || window).resizeTo?.(
-                420,
-                size === "compact" ? 520 : 680,
-              );
-            }}
+            onClick={toggleSize}
           >
             <svg viewBox="0 0 20 20" aria-hidden="true">
               <path
@@ -996,8 +1215,10 @@ function App() {
             </svg>
           </button>
           <button
+            ref={settingsButton}
             title={t.settings}
             aria-label={t.settings}
+            aria-haspopup="dialog"
             onClick={() => setShowSettings((v) => !v)}
           >
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -1008,14 +1229,34 @@ function App() {
         </div>
       </header>
       <div className="status">
-        <span className={`dot ${share || demo ? "live" : ""}`} />
-        {demo
-          ? t.demo
-          : share
-            ? `${t.sharing}${share.getVideoTracks()[0] ? ` · ${sourceLabel(share.getVideoTracks()[0]!.getSettings().displaySurface, t) || share.getVideoTracks()[0]!.label}` : ""}`
-            : t.notSharing}{" "}
-        · {settings.model} · {settings.backend.toUpperCase()} ·{" "}
-        {passive ? t.passiveOn : passivePaused ? t.passivePaused : t.passiveOff}
+        <span className="status-source">
+          <span
+            className={`dot ${share || demo ? "live" : ""}`}
+            aria-hidden="true"
+          />
+          {demo
+            ? t.demo
+            : share
+              ? `${t.sharing}${share.getVideoTracks()[0] ? ` · ${sourceLabel(share.getVideoTracks()[0]!.getSettings().displaySurface, t) || t.sourceWindow}` : ""}`
+              : t.notSharing}
+          {(share || demo || (frozen && liveFrame)) && (
+            <>
+              {" "}
+              · {rect ? t.scopeArea : t.scopeFull} ·{" "}
+              {frozen ? t.scopeFrozen : t.scopeLive}
+              {masks.length > 0 &&
+                ` · ${t.maskCount.replace("{count}", String(masks.length))}`}
+            </>
+          )}
+        </span>
+        <span className="status-details">
+          {settings.model} · {settings.backend.toUpperCase()} ·{" "}
+          {passive
+            ? t.passiveOn
+            : passivePaused
+              ? t.passivePaused
+              : t.passiveOff}
+        </span>
       </div>
       <div className="body">
         {!(share || demo || (frozen && liveFrame)) ? (
@@ -1039,15 +1280,17 @@ function App() {
               {!demo && share && (
                 <button
                   onClick={() => {
-                    const f = captureCurrent();
+                    const f = captureCurrent(frozen);
                     setLiveFrame(f);
                     setPreview(f);
-                    setFrozen(true);
+                    setFrozen(!frozen);
                     setSentPreview(false);
-                    setStatus(t.frozen);
+                    setSelectionMode("");
+                    setDrag(null);
+                    setStatus(frozen ? t.statusLiveReady : t.frozen);
                   }}
                 >
-                  {t.freeze}
+                  {frozen ? t.resumeLive : t.freeze}
                 </button>
               )}
               <button
@@ -1098,6 +1341,13 @@ function App() {
             <div
               ref={stage}
               className={`stage ${selectionMode ? "drawing" : ""}`}
+              tabIndex={0}
+              role="group"
+              aria-label={t.previewAlt}
+              aria-describedby={
+                selectionMode ? "selection-instructions" : undefined
+              }
+              onKeyDown={selectionKey}
               onPointerDown={pointerDown}
               onPointerMove={pointerMove}
               onPointerUp={pointerUp}
@@ -1170,7 +1420,15 @@ function App() {
                     </div>
                   );
                 })()}
-              {selectionMode && <span className="hint">{t.dragHint}</span>}
+              {selectionMode && (
+                <span
+                  id="selection-instructions"
+                  className="hint"
+                  role="status"
+                >
+                  {t.dragHint}
+                </span>
+              )}
             </div>
             <div className="chips">
               {actions.map((index) => (
@@ -1213,7 +1471,8 @@ function App() {
         {busy && (
           <button
             className="text-button"
-            onClick={() => abort.current?.abort()}
+            aria-keyshortcuts="Escape"
+            onClick={cancelAnswer}
           >
             {t.cancel}
           </button>
@@ -1224,6 +1483,7 @@ function App() {
               <BlinkAvatar mood="idle" label={t.blinkAlt} />
               <span>{t.pinned}</span>
               <button onClick={() => void copy(pinnedAnswer)}>{t.copy}</button>
+              <button onClick={() => setPinnedAnswer("")}>{t.unpin}</button>
             </div>
             <div
               className="markdown"
@@ -1233,29 +1493,48 @@ function App() {
             />
           </article>
         )}
-        {answer && (
+        {(answer || (busy && !passive)) && (
           <article
-            className={`answer ${pinnedAnswer === answer ? "pinned" : ""}`}
+            className={`answer ${answer && pinnedAnswer === answer ? "pinned" : ""}`}
+            aria-busy={busy && !passive}
           >
             <div className="answer-top">
               <BlinkAvatar
                 label={t.blinkAlt}
                 mood={busy ? "think" : celebrating ? "done" : "idle"}
               />
-              <span>{pinnedAnswer === answer ? t.pinned : t.answer}</span>
-              <button onClick={() => void copy(answer)}>{t.copy}</button>
+              <span>
+                {answer && pinnedAnswer === answer ? t.pinned : t.answer}
+              </span>
+              {busy && !passive && (
+                <span className="thinking-dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              )}
+              <button disabled={!answer} onClick={() => void copy(answer)}>
+                {t.copy}
+              </button>
               <button
+                disabled={busy}
+                aria-pressed={Boolean(answer && pinnedAnswer === answer)}
                 onClick={() => {
-                  setPinnedAnswer(answer);
+                  setPinnedAnswer((value) => (value === answer ? "" : answer));
                 }}
               >
-                {t.pin}
+                {answer && pinnedAnswer === answer ? t.unpin : t.pin}
               </button>
             </div>
-            <div
-              className="markdown"
-              dangerouslySetInnerHTML={{ __html: safeMarkdown(answer) }}
-            />
+            {answer ? (
+              <div
+                className="markdown"
+                dangerouslySetInnerHTML={{ __html: safeMarkdown(answer) }}
+              />
+            ) : (
+              <p className="answer-empty">{t.answerWaiting}</p>
+            )}
+            <div ref={answerEnd} className="answer-end" />
           </article>
         )}
         {(share || demo || history.length > 0) && (
@@ -1278,8 +1557,29 @@ function App() {
           </p>
         )}
         {showSettings && (
-          <section className="settings">
-            <h2>{t.settings}</h2>
+          <dialog
+            ref={settingsDialog}
+            className="settings"
+            aria-labelledby="settings-title"
+            onCancel={() => setShowSettings(false)}
+            onKeyDown={(e) => {
+              if (e.key !== "Tab") return;
+              const controls = e.currentTarget.querySelectorAll<HTMLElement>(
+                "button:not(:disabled), input:not(:disabled), select:not(:disabled)",
+              );
+              const first = controls[0];
+              const last = controls[controls.length - 1];
+              const active = e.currentTarget.ownerDocument.activeElement;
+              if (e.shiftKey && active === first) {
+                e.preventDefault();
+                last?.focus();
+              } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                first?.focus();
+              }
+            }}
+          >
+            <h2 id="settings-title">{t.settings}</h2>
             <label>
               {t.language}
               <select
@@ -1403,17 +1703,78 @@ function App() {
               <button onClick={() => void clearHistory()}>{t.clear}</button>
               <button onClick={() => setShowSettings(false)}>{t.done}</button>
             </div>
-          </section>
+          </dialog>
         )}
       </div>
       <footer>
         <span>{demo ? t.demo : t.localCapture}</span>
+        {floatDoc && (
+          <button
+            className="resize-handle"
+            aria-label={t.resizePanel}
+            title={t.resizeHelp}
+            onPointerDown={(e) => {
+              const child = floatDoc.defaultView;
+              if (!child) return;
+              resizeStart.current = {
+                x: e.screenX,
+                y: e.screenY,
+                width: child.innerWidth,
+                height: child.innerHeight,
+              };
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              const start = resizeStart.current;
+              if (start)
+                resizeWindow(
+                  start.width + e.screenX - start.x,
+                  start.height + e.screenY - start.y,
+                );
+            }}
+            onPointerUp={() => {
+              resizeStart.current = null;
+            }}
+            onPointerCancel={() => {
+              resizeStart.current = null;
+            }}
+            onLostPointerCapture={() => {
+              resizeStart.current = null;
+            }}
+            onKeyDown={(e) => {
+              const child = floatDoc.defaultView;
+              if (
+                !child ||
+                !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+                  e.key,
+                )
+              )
+                return;
+              e.preventDefault();
+              resizeWindow(
+                child.innerWidth +
+                  (e.key === "ArrowRight"
+                    ? 24
+                    : e.key === "ArrowLeft"
+                      ? -24
+                      : 0),
+                child.innerHeight +
+                  (e.key === "ArrowDown" ? 24 : e.key === "ArrowUp" ? -24 : 0),
+              );
+            }}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="m4 12 8-8m-3 8 3-3" />
+            </svg>
+          </button>
+        )}
         {popupFallback && (
           <button onClick={() => void openFloat(true)}>
             {t.popupFallbackAction}
           </button>
         )}
         <button
+          ref={floatingButton}
           onClick={() =>
             floatDoc
               ? (floatDoc.defaultView?.focus(), setStatus(t.returnPanel))

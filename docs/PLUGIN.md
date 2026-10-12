@@ -7,4 +7,4 @@
 - `bin/glimpselet.cjs` contains the bridge and its runtime dependencies.
 - `bin/panel/` contains the static browser application.
 
-The bundled plugin does not require a browser extension, separate bridge install or checkout at runtime. After changing bridge or panel sources, run `npm run build:plugin` to rebuild generated files. Do not edit generated bundle files by hand.
+The bundled plugin does not require a browser extension, separate bridge install or checkout at runtime. Run `npm run build:plugin` to build a fresh panel and then bundle the bridge into generated files. Do not edit generated bundle files by hand.

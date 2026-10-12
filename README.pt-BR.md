@@ -2,13 +2,23 @@
 
 <p align="center"><a href="README.md">English</a>  |  <a href="README.zh-TW.md">繁體中文</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.ko.md">한국어</a>  |  <a href="README.es.md">Español</a>  |  <a href="README.fr.md">Français</a>  |  <a href="README.de.md">Deutsch</a></p>
 
-> Pergunte ao seu assistente de programação sobre a tela compartilhada, em uma pequena janela flutuante.
+> Pergunte ao seu assistente de programação sobre uma tela escolhida, em um painel flutuante compacto. Congele um quadro, recorte, cubra detalhes privados e pergunte.
 
-Resultado nos fixtures: 20/20 tarefas sintéticas de leitura de tela passaram. O autor conferiu cada resposta. Execução real do plugin integrado com CLI Haiku. Mediana: 2,609 s, p95: 3,263 s. [Resultados e método](assets/benchmark.json).
+<p align="center"><img src="assets/demo.gif" width="800" alt="Imagem de teste e resposta gravada no painel Glimpselet"></p>
 
-| Antes                      | Depois                                                |
-| -------------------------- | ----------------------------------------------------- |
-| Uma tela cheia de detalhes | Congele um quadro, recorte ou oculte áreas e pergunte |
+<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Abrir a demonstração estática</a>. Ela mostra uma imagem de teste e uma resposta gravada. Não faz chamadas a provedores.</p>
+
+<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="Tema claro em 420 px"><img src="assets/screenshots/dark-420.png" width="49%" alt="Tema escuro em 420 px"></p>
+
+<details>
+<summary>Os seis tamanhos e temas</summary>
+
+<p><img src="assets/screenshots/light-360.png" width="140" alt="Painel claro 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="Painel claro 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="Painel claro 520 px"></p>
+<p><img src="assets/screenshots/dark-360.png" width="140" alt="Painel escuro 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="Painel escuro 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="Painel escuro 520 px"></p>
+
+</details>
+
+O modo flutuante requer um navegador Chromium para desktop. Antes de instalar, tenha Node.js 22 ou mais recente e um assistente de programação instalado.
 
 Instale o plugin com dois comandos de barra:
 
@@ -18,10 +28,6 @@ Instale o plugin com dois comandos de barra:
 ```
 
 Depois execute `/glimpselet:glimpse`. É necessário Node.js 22 ou mais recente. Não há extensão de navegador.
-
-<p align="center"><img src="assets/demo.gif" width="800" alt="Demonstração com imagem de teste identificada e resposta gravada, nenhum modelo é chamado"></p>
-
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Abrir a demonstração estática</a>  |  amostra gravada, sem solicitações a provedores</p>
 
 ## No dia a dia
 
@@ -35,9 +41,18 @@ Copie ou fixe a resposta e limpe a sessão local quando terminar.
 
 A imagem fica no seu computador até você fazer uma pergunta ou ativar as notas passivas. Máscaras opacas alteram a imagem enviada. As notas passivas coletam uma amostra a cada dois segundos e pedem uma descrição curta quando a imagem muda. O padrão é de até seis solicitações por minuto móvel, no máximo 360 por hora. Esse é um limite de solicitações, não uma estimativa de custo. É possível escolher um limite menor.
 
+As ferramentas MCP de tela retornam imagens à sessão de programação quando solicitadas. As capturas do painel são limitadas a 1536 pixels no lado mais longo e a 1,8 milhão de pixels após o recorte e as máscaras. Áreas selecionadas menores mantêm a resolução original.
+
 **Você decide quando compartilhar, nada começa a observar por conta própria.**
 
 ## Detalhes
+
+<details>
+<summary>Controles e status</summary>
+
+Redimensione pelo controle do painel ou pelas setas. Você também pode arrastar as bordas da janela quando o navegador permitir. No modo de recorte ou máscara, as setas movem a seleção, Shift mais as setas redimensionam, Enter aplica e Escape cancela. Escape no campo de pergunta pausa as notas passivas e cancela a pergunta atual sem apagar o texto. Configurações abre em uma janela modal. É possível desafixar uma resposta antiga. **Resume live view** mantém o recorte e as máscaras. Ao rolar para cima, o acompanhamento da resposta em streaming para. O painel mostra o estado do compartilhamento, do modelo e das notas passivas.
+
+</details>
 
 <details>
 <summary>Instalar e abrir</summary>
@@ -49,14 +64,14 @@ Os dois comandos acima adicionam e instalam o plugin integrado. `/glimpselet:gli
 <details>
 <summary>Perguntar, continuar e revisar</summary>
 
-Escolha o alias de modelo `sonnet`, `opus` ou `haiku`. As perguntas passam pelo CLI instalado e restrito ou por uma solicitação opcional de API feita pela ponte local. O CLI restrito remove as ferramentas de comando comuns, mas hooks gerenciados pela empresa ainda podem ser executados. Portanto, ele não é um sandbox no nível do sistema operacional. É preciso confiar no CLI instalado e nos hooks de política configurados pela organização. Perguntas seguintes podem incluir contexto recente limitado. O painel oferece recorte, congelamento, máscaras opacas, cópia, fixação, linha do tempo dos últimos dez minutos, resumo e exportação Markdown. O resumo usa as notas passivas existentes e não envia uma nova imagem. **Clear** cancela trabalhos ativos e remove quadros locais, notas, histórico e a chave de API da memória.
+As perguntas passam pelo assistente de programação instalado ou, opcionalmente, por uma solicitação de API feita pela ponte local. O CLI restrito remove as ferramentas de comando comuns, mas hooks gerenciados pela empresa ainda podem ser executados. Portanto, ele não é um sandbox no nível do sistema operacional. É preciso confiar no CLI instalado e nos hooks de política configurados pela organização. Perguntas seguintes podem incluir contexto recente limitado. O painel oferece recorte, congelamento, máscaras opacas, cópia, fixação, linha do tempo dos últimos dez minutos, resumo e exportação Markdown. O resumo usa as notas passivas existentes e não envia uma nova imagem. **Clear** cancela trabalhos ativos e remove quadros locais, notas, histórico e a chave de API da memória.
 
 </details>
 
 <details>
 <summary>Janela flutuante e navegadores</summary>
 
-É preciso uma ação do usuário para abrir o painel flutuante. Chrome e Edge 116 ou mais recentes podem usar Document Picture-in-Picture quando disponível. Se a solicitação for rejeitada, faça um segundo gesto e clique em **Open popup** para abrir uma janela pop-up comum, que talvez não fique acima das demais. O navegador controla a posição e pode reutilizar a posição anterior. Esta aba memoriza a opção compacta ou expandida. Permissões e opções de captura variam conforme o navegador e o sistema operacional.
+Document Picture-in-Picture está disponível em navegadores Chromium compatíveis para desktop. O navegador controla a posição dessa janela. A posição do pop-up é lembrada quando o navegador permite. As dimensões compacta e expandida são lembradas separadamente.
 
 </details>
 

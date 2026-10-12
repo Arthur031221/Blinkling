@@ -2,13 +2,23 @@
 
 <p align="center"><a href="README.md">English</a>  |  <a href="README.zh-TW.md">繁體中文</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.ko.md">한국어</a>  |  <a href="README.es.md">Español</a>  |  <a href="README.fr.md">Français</a>  |  <a href="README.pt-BR.md">Português (Brasil)</a></p>
 
-> Stell deinem Coding-Assistenten in einem kleinen, schwebenden Fenster Fragen zu dem Bildschirm, den du teilst.
+> Frag deinen Coding-Assistenten in einem kompakten schwebenden Fenster zu einem Bildschirm, den du auswählst. Friere ein Bild ein, schneide es zu, decke private Details ab und stelle deine Frage.
 
-Geprüftes Ergebnis: 20/20 synthetische Bildschirm-Leseaufgaben bestanden, jede Antwort wurde vom Autor geprüft. Live-Lauf des gebündelten Plugins mit CLI Haiku. Median: 2,609 s, p95: 3,263 s. [Ergebnisse und Methode](assets/benchmark.json).
+<p align="center"><img src="assets/demo.gif" width="800" alt="Testbild und aufgezeichnete Antwort im Glimpselet-Fenster"></p>
 
-| Vorher                        | Nachher                                               |
-| ----------------------------- | ----------------------------------------------------- |
-| Ein Bildschirm voller Details | Bild einfrieren, zuschneiden oder abdecken und fragen |
+<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Statische Demo öffnen</a>. Sie zeigt ein Testbild und eine aufgezeichnete Antwort. Es gibt keine Anbieteranfragen.</p>
+
+<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="Helles Design bei 420 px"><img src="assets/screenshots/dark-420.png" width="49%" alt="Dunkles Design bei 420 px"></p>
+
+<details>
+<summary>Alle sechs Größen und Designs</summary>
+
+<p><img src="assets/screenshots/light-360.png" width="140" alt="Helles Bedienfeld 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="Helles Bedienfeld 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="Helles Bedienfeld 520 px"></p>
+<p><img src="assets/screenshots/dark-360.png" width="140" alt="Dunkles Bedienfeld 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="Dunkles Bedienfeld 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="Dunkles Bedienfeld 520 px"></p>
+
+</details>
+
+Für den schwebenden Modus brauchst du einen Desktop-Browser auf Chromium-Basis. Halte Node.js 22 oder neuer und einen installierten Coding-Assistenten bereit.
 
 Installiere das Plugin mit zwei Slash-Befehlen:
 
@@ -18,10 +28,6 @@ Installiere das Plugin mit zwei Slash-Befehlen:
 ```
 
 Starte danach `/glimpselet:glimpse`. Node.js 22 oder neuer ist erforderlich. Eine Browser-Erweiterung gibt es nicht.
-
-<p align="center"><img src="assets/demo.gif" width="800" alt="Demo mit einem beschrifteten Testbild und einer aufgezeichneten Antwort, kein Modellaufruf"></p>
-
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Statische Demo öffnen</a>  |  aufgezeichnetes Beispiel, keine Anfrage an einen Anbieter</p>
 
 ## Im Alltag
 
@@ -35,9 +41,18 @@ Kopiere oder hefte die Antwort an und lösche danach die lokale Sitzung.
 
 Das Bild bleibt auf deinem Rechner, bis du eine Frage stellst oder passive Notizen aktivierst. Undurchsichtige Masken verändern das gesendete Bild. Passive Notizen erfassen alle zwei Sekunden ein Bild und senden bei Änderungen eine Anfrage für eine kurze Beschreibung. Standardmäßig sind es höchstens sechs Anfragen pro rollender Minute, also maximal 360 pro Stunde. Das ist eine Anfragengrenze und keine Kostenangabe. Eine niedrigere Grenze ist möglich.
 
+MCP Bildschirmwerkzeuge geben Bilder auf Anfrage an die Programmiersitzung zurück. Aufnahmen aus dem Panel sind nach Zuschnitt und Abdeckung auf 1536 Pixel an der längsten Seite und 1,8 Millionen Pixel begrenzt. Kleinere ausgewählte Bereiche behalten ihre ursprüngliche Auflösung.
+
 **Du entscheidest, wann du teilst, die Beobachtung startet nie von allein.**
 
 ## Einzelheiten
+
+<details>
+<summary>Bedienung und Status</summary>
+
+Ziehe zum Ändern der Größe an den Fensterkanten oder nutze die Größensteuerung und Pfeiltasten. Im Zuschneide- oder Abdeckmodus verschieben die Pfeile die Auswahl, Umschalt plus Pfeiltasten ändern ihre Größe, Enter übernimmt sie und Escape bricht ab. Escape im Fragefeld pausiert passive Notizen und bricht die aktuelle Frage ab, ohne ihren Text zu löschen. Einstellungen öffnen sich in einem Dialog. Ältere Antworten lassen sich lösen. **Resume live view** behält Zuschnitt und Masken bei. Beim Scrollen nach oben endet das Folgen einer gestreamten Antwort. Das Panel zeigt den Freigabe-, Modell- und Passivnotiz-Status.
+
+</details>
 
 <details>
 <summary>Installation und Start</summary>
@@ -49,14 +64,14 @@ Die beiden Befehle oben fügen das gebündelte Plugin hinzu und installieren es.
 <details>
 <summary>Fragen, Nachfragen und Prüfen</summary>
 
-Wähle den Modellalias `sonnet`, `opus` oder `haiku`. Fragen laufen über das installierte, eingeschränkte CLI oder optional über eine API-Anfrage der lokalen Bridge. Das eingeschränkte CLI entfernt gewöhnliche Kommandozeilenwerkzeuge, aber von Unternehmen verwaltete Hooks können weiterhin ausgeführt werden. Es ist daher keine Sandbox auf Betriebssystemebene. Du musst dem installierten CLI und den von deiner Organisation konfigurierten Richtlinien-Hooks vertrauen. Nachfragen können begrenzten jüngsten Kontext enthalten. Das Panel bietet Zuschneiden, Einfrieren, undurchsichtige Masken, Kopieren, Anheften, eine Zeitleiste der letzten zehn Minuten, Zusammenfassung und Markdown-Export. Die Zusammenfassung nutzt vorhandene passive Notizen und sendet kein neues Bild. **Clear** bricht laufende Jobs ab und entfernt lokale Bilder, Notizen, Verlauf und den API-Schlüssel im Arbeitsspeicher.
+Fragen laufen über den installierten Coding-Assistenten oder optional über eine API-Anfrage der lokalen Bridge. Das eingeschränkte CLI entfernt gewöhnliche Kommandozeilenwerkzeuge, aber von Unternehmen verwaltete Hooks können weiterhin ausgeführt werden. Es ist daher keine Sandbox auf Betriebssystemebene. Du musst dem installierten CLI und den von deiner Organisation konfigurierten Richtlinien-Hooks vertrauen. Nachfragen können begrenzten jüngsten Kontext enthalten. Das Panel bietet Zuschneiden, Einfrieren, undurchsichtige Masken, Kopieren, Anheften, eine Zeitleiste der letzten zehn Minuten, Zusammenfassung und Markdown-Export. Die Zusammenfassung nutzt vorhandene passive Notizen und sendet kein neues Bild. **Clear** bricht laufende Jobs ab und entfernt lokale Bilder, Notizen, Verlauf und den API-Schlüssel im Arbeitsspeicher.
 
 </details>
 
 <details>
 <summary>Schwebendes Fenster und Browser</summary>
 
-Zum Öffnen des schwebenden Panels ist eine Benutzeraktion nötig. Chrome und Edge ab Version 116 können, sofern verfügbar, Document Picture-in-Picture verwenden. Wird diese Anfrage abgelehnt, klicke in einer zweiten Benutzeraktion auf **Open popup**, um ein normales Popup zu öffnen, das möglicherweise nicht über anderen Fenstern bleibt. Der Browser bestimmt die Position und kann die vorherige Position wiederverwenden. Dieser Tab merkt sich die kompakte oder erweiterte Größe. Berechtigungen und Auswahlmöglichkeiten unterscheiden sich je nach Browser und Betriebssystem.
+Document Picture-in-Picture ist in unterstützten Desktop Chromium Browsern verfügbar. Der Browser bestimmt die Position dieses Fensters. Popup Positionen werden gespeichert, sofern der Browser das zulässt. Kompakte und erweiterte Maße werden getrennt gespeichert.
 
 </details>
 

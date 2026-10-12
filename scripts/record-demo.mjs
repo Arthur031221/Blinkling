@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -151,8 +151,17 @@ try {
 
   for (const theme of ["light", "dark"]) {
     for (const width of [360, 420, 520]) {
-      await appPage.setViewportSize({ width, height: 860 });
-      if (width !== 420) await appPage.waitForTimeout(120);
+      await appPage.setViewportSize({ width, height: 960 });
+      await appPage.waitForTimeout(120);
+      const contentHeight = await appPage
+        .locator("main.app")
+        .evaluate((node) => {
+          return node.scrollHeight;
+        });
+      if (contentHeight > 960) {
+        await appPage.setViewportSize({ width, height: contentHeight + 24 });
+        await appPage.waitForTimeout(120);
+      }
       const overflow = await appPage.evaluate(() => ({
         page: document.documentElement.scrollWidth > window.innerWidth,
         app:
@@ -160,6 +169,15 @@ try {
       }));
       if (overflow.page || overflow.app) {
         throw new Error(`Horizontal overflow at ${width}px in ${theme} theme`);
+      }
+      await appPage.locator("main.app").evaluate((node) => {
+        node.scrollTop = 0;
+      });
+      const footerFits = await appPage.locator("footer").evaluate((node) => {
+        return node.getBoundingClientRect().bottom <= window.innerHeight;
+      });
+      if (!footerFits) {
+        throw new Error(`Footer clipped at ${width}px in ${theme} theme`);
       }
       await appPage.screenshot({
         path: join(screenshots, `${theme}-${width}.png`),
@@ -265,6 +283,51 @@ try {
   await captureFor(2100);
   await phase("A little answer, kept close.");
   await captureFor(1600);
+
+  for (const theme of ["light", "dark"]) {
+    const panels = await Promise.all(
+      [360, 420, 520].map(async (width) => ({
+        width,
+        image: `data:image/png;base64,${(await readFile(join(screenshots, `${theme}-${width}.png`))).toString("base64")}`,
+      })),
+    );
+    await appPage.evaluate(
+      async ({ theme, panels }) => {
+        document.querySelector("#layout-board")?.remove();
+        const board = document.createElement("aside");
+        board.id = "layout-board";
+        board.style.cssText = `position:fixed;inset:0;z-index:20;padding:28px 40px 22px;background:${theme === "dark" ? "#0a0a0b" : "#f2efe8"};color:${theme === "dark" ? "#eeeae1" : "#282720"};display:flex;flex-direction:column;align-items:center;gap:14px`;
+        const heading = document.createElement("h2");
+        heading.textContent = `${theme === "dark" ? "Dark" : "Light"} panels at three window sizes`;
+        heading.style.cssText =
+          "font:500 30px/1.2 Fraunces,Georgia,serif;margin:0";
+        board.append(heading);
+        const row = document.createElement("div");
+        row.style.cssText =
+          "display:flex;align-items:flex-start;justify-content:center;gap:28px;min-height:0;flex:1";
+        board.append(row);
+        for (const panel of panels) {
+          const figure = document.createElement("figure");
+          figure.style.cssText =
+            "margin:0;display:flex;flex-direction:column;align-items:center;gap:8px";
+          const caption = document.createElement("figcaption");
+          caption.textContent = `${panel.width} px`;
+          caption.style.cssText = "font:500 13px Inter,system-ui,sans-serif";
+          const image = document.createElement("img");
+          image.src = panel.image;
+          image.alt = `${theme} panel at ${panel.width} pixels`;
+          image.style.cssText =
+            "height:540px;width:auto;border-radius:16px;box-shadow:0 12px 28px #0002";
+          figure.append(caption, image);
+          row.append(figure);
+          await image.decode();
+        }
+        document.body.append(board);
+      },
+      { theme, panels },
+    );
+    await captureFor(2000);
+  }
 
   if (pageErrors.length)
     throw new Error(`Browser errors: ${pageErrors.join(" | ")}`);

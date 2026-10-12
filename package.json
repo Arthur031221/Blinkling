@@ -1,6 +1,6 @@
 {
   "name": "glimpselet",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "check": "npm run lint && npm run format:check && npm test && npm run build && npm run build:plugin && npm run test:plugin && npm run validate:plugin",
-    "build:plugin": "node scripts/build-plugin.mjs",
+    "build:plugin": "npm run build && node scripts/build-plugin.mjs",
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "validate:plugin:claude": "claude plugin validate . --strict",
     "test:plugin": "node --test bridge/test/*.test.mjs",

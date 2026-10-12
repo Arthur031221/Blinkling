@@ -58,10 +58,11 @@ select:focus-visible {
   --surface: #fffdf8;
   --hover: #fff;
   --card: #fffdf8;
-  --clay: #ad6149;
+  --clay: #a65b43;
   --green: #168454;
   --shadow: 0 16px 46px #352b1b18;
   color: var(--ink);
+  color-scheme: light;
   background: var(--paper);
   height: 100%;
   min-height: 500px;
@@ -153,10 +154,18 @@ select:focus-visible {
   font-size: 11px;
   color: var(--muted);
   padding: 9px 18px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
   border-bottom: 1px solid var(--line);
+}
+.status-source {
+  flex-basis: 100%;
+}
+.status-details {
+  padding-left: 15px;
 }
 .dot {
   display: inline-block;
@@ -286,6 +295,10 @@ kbd {
 .stage.drawing {
   cursor: crosshair;
 }
+.stage:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 3px;
+}
 .selection {
   position: absolute;
   border: 2px solid var(--clay);
@@ -306,6 +319,8 @@ kbd {
   padding: 6px 9px;
   border-radius: 9px;
   font-size: 11px;
+  max-width: calc(100% - 16px);
+  line-height: 1.5;
 }
 .chips {
   display: flex;
@@ -369,7 +384,62 @@ kbd {
   margin-left: auto;
   font-size: 10px;
   padding: 4px 8px;
-  min-height: 30px;
+  min-height: 38px;
+}
+.answer-top button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.thinking-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.thinking-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--clay);
+  animation: thinking 1.4s ease-in-out infinite;
+}
+.thinking-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.thinking-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+footer .resize-handle {
+  width: 38px;
+  padding: 8px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.resize-handle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+@keyframes thinking {
+  0%,
+  80%,
+  100% {
+    opacity: 0.4;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.answer-empty {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+.answer-end {
+  height: 1px;
+  scroll-margin-bottom: 18px;
 }
 .answer-top button + button {
   margin-left: 0;
@@ -410,11 +480,29 @@ kbd {
   margin: 10px 0 0;
 }
 .settings {
-  margin-top: 14px;
+  margin: auto;
+  width: min(440px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  color: var(--ink);
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 14px;
+  padding: 18px;
+  box-shadow:
+    0 24px 64px #26251f26,
+    0 4px 12px #26251f12;
+}
+.settings::backdrop {
+  background: #26251f66;
+}
+.dark .settings {
+  box-shadow:
+    0 24px 64px #0009,
+    0 4px 12px #0006;
+}
+.dark .settings::backdrop {
+  background: #0009;
 }
 .settings h2 {
   font:
@@ -509,8 +597,24 @@ footer button {
   padding-top: 10px;
 }
 .compact .stage {
-  max-height: 180px;
-  height: 42vw;
+  min-height: 100px;
+  max-height: 140px;
+  height: 27vh;
+}
+.compact .chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-block: 9px;
+}
+.compact .chips button {
+  flex-shrink: 0;
+}
+.compact .composer {
+  position: sticky;
+  bottom: 12px;
+  z-index: 1;
+  background: var(--paper);
+  box-shadow: 0 0 0 6px var(--paper);
 }
 .opener-card {
   height: 100%;
@@ -607,6 +711,10 @@ footer button {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .thinking-dots i {
+    animation: none !important;
+    opacity: 0.7;
+  }
   *,
   *::before,
   *::after {

@@ -26,9 +26,10 @@
   "actionProblems": "Chercher des problèmes",
   "actionExplain": "Expliquer le code",
   "freeze": "Figer l'image",
+  "resumeLive": "Reprendre la vue en direct",
   "reset": "Réinitialiser le recadrage et les masques",
   "select": "Sélectionner une zone",
-  "dragHint": "Faites glisser pour sélectionner une zone",
+  "dragHint": "Faites glisser pour sélectionner. Les flèches déplacent. Maj + flèches redimensionne. Entrée applique. Échap annule.",
   "thinking": "Réflexion...",
   "cancel": "Annuler la réponse",
   "answer": "Réponse",
@@ -101,5 +102,15 @@
   "errorSessionLimit": "Trop de panneaux sont ouverts. Fermez-en un plus ancien et réessayez.",
   "passiveOff": "Mode passif désactivé",
   "popupFallbackAction": "Ouvrir une fenêtre contextuelle",
-  "popupFallbackHelp": "La fenêtre flottante n’a pas pu s’ouvrir. Ouvrez plutôt une fenêtre contextuelle."
+  "popupFallbackHelp": "La fenêtre flottante n’a pas pu s’ouvrir. Ouvrez plutôt une fenêtre contextuelle.",
+  "unpin": "Désépingler",
+  "scopeFull": "Image complète",
+  "scopeArea": "Zone sélectionnée",
+  "scopeFrozen": "Figée",
+  "scopeLive": "En direct",
+  "maskCount": "Masques : {count}",
+  "answerWaiting": "La réponse apparaîtra ici.",
+  "statusAnswerCancelled": "Réponse annulée. Votre question est toujours là.",
+  "resizePanel": "Redimensionner le panneau",
+  "resizeHelp": "Faites glisser pour le redimensionner ou utilisez les touches fléchées. Vous pouvez aussi faire glisser les bords de la fenêtre."
 }
