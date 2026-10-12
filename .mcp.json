@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "glimpselet": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/glimpselet.cjs"]
+    }
+  }
+}

@@ -1,0 +1,33 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  verify:
+    strategy:
+      matrix:
+        node: [22, 24]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Install recording tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg xvfb
+      - run: npm install --global @anthropic-ai/claude-code@2.1.296
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:plugin
+      - run: npm run validate:plugin
+      - run: npm run validate:plugin:claude
+      - run: npm run test:plugin
+      - run: npm run test:e2e
+      - run: npm run test:screen
+      - run: npm run demo
+      - run: npm run record-demo

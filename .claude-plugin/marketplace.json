@@ -1,0 +1,16 @@
+{
+  "name": "glimpselet",
+  "owner": {
+    "name": "Arthur031221"
+  },
+  "metadata": {
+    "description": "A local screen companion plugin"
+  },
+  "plugins": [
+    {
+      "name": "glimpselet",
+      "source": "./",
+      "description": "A local floating screen companion"
+    }
+  ]
+}

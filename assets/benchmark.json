@@ -1,0 +1,294 @@
+{
+  "runAt": "2026-10-12T02:10:24.180Z",
+  "method": "Twenty local synthetic screen fixtures rendered in Chromium at 960 by 540. Real bundled plugin HTTP requests through installed CLI Haiku. Regex checks validate required facts, followed by author review. Sequential warm local session, no baseline or human speed claim. These results do not measure arbitrary screen accuracy.",
+  "node": "v24.21.0",
+  "model": "haiku",
+  "count": 20,
+  "passed": 20,
+  "medianMs": 2609,
+  "p95Ms": 3263,
+  "results": [
+    {
+      "title": "Japanese error",
+      "content": "接続がタイムアウトしました。もう一度お試しください。\nエラーコード: GL-472",
+      "question": "Translate this error into English and include its exact code.",
+      "expected": ["GL-472", "time.*out"],
+      "answer": "**Translation:** \"The connection timed out. Please try again.\"\n\n**Error code:** `GL-472`",
+      "passed": true,
+      "durationMs": 3263,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 143,
+        "costUsd": 0.00062499
+      }
+    },
+    {
+      "title": "Traditional Chinese dialog",
+      "content": "儲存失敗\n磁碟空間不足，請釋放至少 256 MB 後重試。",
+      "question": "In English, why did saving fail and how much space must be freed?",
+      "expected": ["256", "(space|disk)"],
+      "answer": "**Why saving failed:** The disk doesn't have enough free space.\n\n**How much to free:** At least **256 MB**. After freeing that, retry the save.",
+      "passed": true,
+      "durationMs": 3196,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 266,
+        "costUsd": 0.0004845
+      }
+    },
+    {
+      "title": "Simplified Chinese dialog",
+      "content": "上传失败\n文件超过 15 MB 限制，请压缩后重试。",
+      "question": "In English, what is the upload limit shown?",
+      "expected": ["15", "MB"],
+      "answer": "The upload limit shown is **15 MB**.\n\nThe dialog says \"Upload failed. The file exceeds the 15 MB limit. Please compress it and try again.\"",
+      "passed": true,
+      "durationMs": 2459,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 134,
+        "costUsd": 0.0004372
+      }
+    },
+    {
+      "title": "Spanish notice",
+      "content": "Su sesión ha caducado. Inicie sesión de nuevo.\nReferencia: ES-204",
+      "question": "Translate the notice into English, preserving the reference.",
+      "expected": ["ES-204", "expir"],
+      "answer": "**Translation:** \"Your session has expired. Please sign in again.\"\n**Reference:** `ES-204`",
+      "passed": true,
+      "durationMs": 2404,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 117,
+        "costUsd": 0.00045200000000000004
+      }
+    },
+    {
+      "title": "German notice",
+      "content": "Datei nicht gefunden: bericht.csv\nBitte prüfen Sie den Dateipfad.",
+      "question": "Which exact filename was not found?",
+      "expected": ["bericht\\.csv"],
+      "answer": "The filename is **`bericht.csv`**.\n\nThe German notice reads \"Datei nicht gefunden: bericht.csv\" (\"File not found: bericht.csv\"), followed by \"Bitte prüfen Sie den Dateipfad.\" (\"Please check the file path.\")",
+      "passed": true,
+      "durationMs": 2635,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 173,
+        "costUsd": 0.00049699
+      }
+    },
+    {
+      "title": "Build log",
+      "content": "$ npm run build\nerror TS2322: Type 'string' is not assignable to type 'number'.\nsrc/settings.ts:18:5",
+      "question": "Which file and line has the error, and what is its error code?",
+      "expected": ["settings\\.ts", "18", "TS2322"],
+      "answer": "The error is in **`src/settings.ts`** at **line 18** (column 5). The error code is **`TS2322`**: \"Type 'string' is not assignable to type 'number'.\"",
+      "passed": true,
+      "durationMs": 2897,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 207,
+        "costUsd": 0.0005453000000000001
+      }
+    },
+    {
+      "title": "Missing file",
+      "content": "Error: ENOENT: no such file or directory, open '/app/config.json'\n    at loadConfig (src/config.ts:31:9)",
+      "question": "Name the missing file and the error code.",
+      "expected": ["config\\.json", "ENOENT"],
+      "answer": "The missing file is **`/app/config.json`**.\n\nThe error code is **`ENOENT`** (\"no such file or directory\"). It was raised by `loadConfig` at `src/config.ts:31:9`.",
+      "passed": true,
+      "durationMs": 2648,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 148,
+        "costUsd": 0.00053555
+      }
+    },
+    {
+      "title": "HTTP log",
+      "content": "GET /api/users 200 24ms\nPOST /api/export 413 9ms\nGET /health 200 1ms",
+      "question": "Which request failed and what HTTP status did it return?",
+      "expected": ["/api/export", "413"],
+      "answer": "The failed request was **`POST /api/export`**, which returned HTTP status **413** (taking 9ms). The other two requests, `GET /api/users` and `GET /health`, both returned 200.",
+      "passed": true,
+      "durationMs": 2846,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 211,
+        "costUsd": 0.00059392
+      }
+    },
+    {
+      "title": "Test summary",
+      "content": "PASS auth.test.ts (8 tests)\nFAIL crop.test.ts (1 failed, 5 passed)\nTest Files: 1 failed | 1 passed\nTests: 1 failed | 13 passed",
+      "question": "Which test file failed and how many individual tests passed?",
+      "expected": ["crop\\.test\\.ts", "13"],
+      "answer": "The failed file is **`crop.test.ts`**, with 1 test failed and 5 passed.\n\nAcross the whole run, **13 individual tests passed**. That is the 8 in `auth.test.ts` plus the 5 in `crop.test.ts`.",
+      "passed": true,
+      "durationMs": 3272,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 269,
+        "costUsd": 0.00064602
+      }
+    },
+    {
+      "title": "Dependency warning",
+      "content": "npm ERR! ERESOLVE unable to resolve dependency tree\nFound: react@19.1.1\npeer react@^18.0.0 from older-widget@2.0.0",
+      "question": "Which package wants React 18 and what error code appears?",
+      "expected": ["older-widget", "ERESOLVE"],
+      "answer": "**Package:** `older-widget@2.0.0` wants React 18 (`peer react@^18.0.0`).\n\n**Error code:** `ERESOLVE` (\"unable to resolve dependency tree\"), because the project has `react@19.1.1` installed.",
+      "passed": true,
+      "durationMs": 2293,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 167,
+        "costUsd": 0.00060552
+      }
+    },
+    {
+      "title": "Weekly visits",
+      "content": "WEEKLY VISITS\nMonday 120\nTuesday 240\nWednesday 180\nThursday 300\nFriday 210",
+      "question": "Which day has the most visits and how many?",
+      "expected": ["Thursday", "300"],
+      "answer": "Thursday has the most visits, with **300**.\n\nThe screenshot lists Monday through Friday only, so Saturday and Sunday aren't shown.",
+      "passed": true,
+      "durationMs": 2605,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 131,
+        "costUsd": 0.00059298
+      }
+    },
+    {
+      "title": "Support queue",
+      "content": "SUPPORT QUEUE\nNew 12\nInvestigating 7\nWaiting for customer 9\nResolved 42",
+      "question": "How many tickets are waiting for the customer?",
+      "expected": ["9"],
+      "answer": "**9 tickets** are waiting for the customer, per the \"Waiting for customer 9\" line in the Support queue panel.",
+      "passed": true,
+      "durationMs": 2730,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 122,
+        "costUsd": 0.00058764
+      }
+    },
+    {
+      "title": "GPU memory",
+      "content": "GPU MEMORY\nDevice 0: 12.5 / 24 GB\nDevice 1: 21.0 / 24 GB\nDevice 2: 8.0 / 24 GB",
+      "question": "Which device uses the most memory and how many GB?",
+      "expected": ["(Device|GPU).*1", "21"],
+      "answer": "Device 1 uses the most memory, with **21.0 GB** of its 24 GB in use.",
+      "passed": true,
+      "durationMs": 2382,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 115,
+        "costUsd": 0.00058518
+      }
+    },
+    {
+      "title": "Order receipt",
+      "content": "ORDER GL-1082\nSubtotal $80.00\nShipping $5.00\nTax $6.40\nTotal $91.40",
+      "question": "What is the total and the order number?",
+      "expected": ["91\\.40", "GL-1082"],
+      "answer": "The total is **$91.40**, and the order number is **GL-1082**.",
+      "passed": true,
+      "durationMs": 2324,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 104,
+        "costUsd": 0.0005614400000000001
+      }
+    },
+    {
+      "title": "Chart legend",
+      "content": "EXPERIMENT RESULTS\nBaseline: 71.2%\nSmall model: 76.8%\nLarge model: 83.1%",
+      "question": "Name the best model and its accuracy.",
+      "expected": ["Large", "83\\.1"],
+      "answer": "The best model is the **Large model, at 83.1% accuracy**. It beats the Small model (76.8%) and the Baseline (71.2%).",
+      "passed": true,
+      "durationMs": 2709,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 130,
+        "costUsd": 0.0005672800000000001
+      }
+    },
+    {
+      "title": "Environment setting",
+      "content": "DATABASE_URL=postgres://localhost/demo\nPORT=8088\nLOG_LEVEL=warn\nPUBLIC_ORIGIN=http://localhost:8088",
+      "question": "What port is configured and what is the log level?",
+      "expected": ["8088", "warn"],
+      "answer": "The configured port is **8088** (`PORT=8088`), and the log level is **warn** (`LOG_LEVEL=warn`).",
+      "passed": true,
+      "durationMs": 2612,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 126,
+        "costUsd": 0.0005600399999999999
+      }
+    },
+    {
+      "title": "Code array",
+      "content": "const stages = [\n  { name: 'decode', ms: 12 },\n  { name: 'normalize', ms: 4 },\n  { name: 'infer', ms: 87 },\n];",
+      "question": "Which stage takes the longest and how many milliseconds?",
+      "expected": ["infer", "87"],
+      "answer": "The longest stage is **`infer`**, at **87 ms**.\n\nFor comparison, `decode` takes 12 ms and `normalize` takes 4 ms.",
+      "passed": true,
+      "durationMs": 2557,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 135,
+        "costUsd": 0.00056306
+      }
+    },
+    {
+      "title": "Mobile form",
+      "content": "CREATE ACCOUNT\nEmail: alex@example.test\nPassword: [hidden]\nError: Password must be at least 12 characters.\n[Create account]",
+      "question": "What exact minimum password length is required?",
+      "expected": ["12"],
+      "answer": "The minimum password length is **12 characters**, according to the error message in the \"Create Account\" form: \"Password must be at least 12 characters.\"",
+      "passed": true,
+      "durationMs": 2546,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 126,
+        "costUsd": 0.00055015
+      }
+    },
+    {
+      "title": "Calendar card",
+      "content": "DESIGN REVIEW\nWednesday, October 14\n14:30 to 15:15\nRoom C, second floor",
+      "question": "When does the meeting start and in which room?",
+      "expected": ["14:30", "(Room|room).*C"],
+      "answer": "The Design Review starts at **14:30** (2:30 PM) on Wednesday, October 14, and runs until 15:15. It's in **Room C, second floor**.",
+      "passed": true,
+      "durationMs": 2478,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 137,
+        "costUsd": 0.0005455799999999999
+      }
+    },
+    {
+      "title": "French status",
+      "content": "Échec de synchronisation\nDernière synchronisation: 08:42\nRéessayez dans 30 secondes.",
+      "question": "In English, how long should the user wait before retrying?",
+      "expected": ["30", "second"],
+      "answer": "The user should wait **30 seconds** before retrying. The French line \"Réessayez dans 30 secondes\" means \"Retry in 30 seconds.\"",
+      "passed": true,
+      "durationMs": 2231,
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 131,
+        "costUsd": 0.00054426
+      }
+    }
+  ],
+  "cliVersion": "2.1.296",
+  "review": "All twenty answers were read by the author and matched the required visible facts. No answer invented a missing value. The questions are short screen-reading tasks, not an evaluation of coding or general reasoning."
+}

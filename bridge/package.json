@@ -1,0 +1,33 @@
+{
+  "name": "@arthur031221/glimpselet-bridge",
+  "version": "1.0.0",
+  "description": "Local MCP bridge for already-redacted Glimpselet captures",
+  "type": "module",
+  "bin": {
+    "glimpselet-bridge": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "pngjs": "7.0.0",
+    "ws": "8.22.0",
+    "zod": "4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "@types/pngjs": "^6.0.5",
+    "@types/ws": "8.18.1",
+    "typescript": "5.9.2"
+  },
+  "private": true,
+  "license": "MIT"
+}
