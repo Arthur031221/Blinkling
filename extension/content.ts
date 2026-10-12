@@ -3,6 +3,7 @@ import { listenForShiftCrop } from "./shift-crop";
 import {
   buildPageContext,
   contextTextNode,
+  restorableTextNode,
   stableElementId,
 } from "./page-context";
 import { pageRevision } from "./page-revision";
@@ -15,7 +16,10 @@ if (!contentScope.glimpseletContentReady) {
   contentScope.glimpseletContentReady = true;
   type Labels = { explain: string; translate: string; ask: string };
   type GuideStep = { elementId: string; note: string; action?: string };
-  const originals = new Map<string, { node: Text; text: string }>();
+  const originals = new Map<
+    string,
+    { node: Text; text: string; lastWritten?: string }
+  >();
   const nodeIds = new WeakMap<Text, string>();
   let nextTextId = 1;
   let labels: Labels = {
@@ -700,19 +704,29 @@ if (!contentScope.glimpseletContentReady) {
             index++;
             continue;
           }
-          const id = textNodeId(node);
-          const original = originals.get(id)?.text || node.nodeValue!;
-          if (original.length > 12_000) {
+          let id = textNodeId(node);
+          let original = originals.get(id);
+          if (
+            original &&
+            node.nodeValue !== (original.lastWritten ?? original.text)
+          ) {
+            originals.delete(id);
+            nodeIds.delete(node);
+            id = textNodeId(node);
+            original = undefined;
+          }
+          const sourceText = original?.text ?? node.nodeValue!;
+          if (sourceText.length > 12_000) {
             index++;
             continue;
           }
-          if (nodes.length >= 160 || size + original.length > 24_000) {
+          if (nodes.length >= 160 || size + sourceText.length > 24_000) {
             hasMore = true;
             break;
           }
-          if (!originals.has(id)) originals.set(id, { node, text: original });
-          nodes.push({ id, text: original });
-          size += original.length;
+          if (!original) originals.set(id, { node, text: sourceText });
+          nodes.push({ id, text: sourceText });
+          size += sourceText.length;
           index++;
         }
         respond({ nodes, ...(hasMore ? { nextCursor: index } : {}) });
@@ -740,7 +754,15 @@ if (!contentScope.glimpseletContentReady) {
           )
             continue;
           if (entry.text.length > 12_000) continue;
+          if (
+            original.node.nodeValue !== (original.lastWritten ?? original.text)
+          ) {
+            originals.delete(entry.id);
+            nodeIds.delete(original.node);
+            continue;
+          }
           original.node.nodeValue = entry.text;
+          original.lastWritten = entry.text;
           original.node.parentElement?.setAttribute(
             "data-glimpselet-translated",
             "true",
@@ -753,7 +775,12 @@ if (!contentScope.glimpseletContentReady) {
       if (message.type === "glimpselet:restore") {
         let restored = 0;
         for (const [id, entry] of originals) {
-          if (entry.node.isConnected) {
+          if (
+            entry.node.isConnected &&
+            restorableTextNode(entry.node) &&
+            entry.lastWritten !== undefined &&
+            entry.node.nodeValue === entry.lastWritten
+          ) {
             entry.node.nodeValue = entry.text;
             entry.node.parentElement?.removeAttribute(
               "data-glimpselet-translated",
@@ -761,6 +788,7 @@ if (!contentScope.glimpseletContentReady) {
             restored++;
           }
           originals.delete(id);
+          nodeIds.delete(entry.node);
         }
         respond({ restored });
         return;

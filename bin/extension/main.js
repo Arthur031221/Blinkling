@@ -15420,14 +15420,10 @@ function App() {
           setStatus(t.captureReady);
         }).catch((error) => setStatus(errorLabel(error, t)));
       }
-      if (value.type === "glimpselet:reader-context" && value.context) {
+      if (value.type === "glimpselet:reader-context" && value.context && senderTabId !== void 0 && senderTabId === activeTabId.current) {
         const context = value.context;
         setPage(context);
-        if (sender.tab?.id) {
-          activeTabId.current = sender.tab.id;
-          setCurrentActiveTab(sender.tab.id);
-          scheduleRevisionRefresh(sender.tab.id, pageRevision(context));
-        }
+        scheduleRevisionRefresh(senderTabId, pageRevision(context));
       }
       if (value.type === "glimpselet:reader-action") {
         if (!consented || readerAdmissionRef.current) {

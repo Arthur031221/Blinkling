@@ -325,7 +325,7 @@
     const text = (element.getAttribute("aria-label") || element.getAttribute("title") || pieces.join(" ")).replace(/\s+/g, " ").trim();
     return text.slice(0, limit);
   }
-  function isExcluded(element) {
+  function isExcluded(element, includeHidden = false) {
     if (element.closest(
       "[data-glimpselet-overlay], [data-private], [data-sensitive]"
     ))
@@ -339,7 +339,7 @@
       return true;
     if (element instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(element.type))
       return true;
-    return element.getAttribute("aria-hidden") === "true" || element.hasAttribute("hidden") || element.getAttribute("type") === "password";
+    return !includeHidden && (element.getAttribute("aria-hidden") === "true" || element.hasAttribute("hidden")) || element.getAttribute("type") === "password";
   }
   function visible(element) {
     for (let current = element; current; current = current.parentElement) {
@@ -399,11 +399,11 @@
   }
   function contextTextNode(node) {
     const parent = node.parentElement;
-    if (!parent || !node.nodeValue?.trim() || hasSensitiveAncestor(parent) || parent.closest("[data-glimpselet-overlay]"))
-      return false;
-    if (isExcluded(parent) || isChoiceContent(parent) || isFormControl(parent) || parent.getAttribute("role")?.toLowerCase() === "combobox" || !visible(parent))
-      return false;
-    return true;
+    return !!(parent && node.nodeValue?.trim() && restorableTextNode(node) && visible(parent));
+  }
+  function restorableTextNode(node) {
+    const parent = node.parentElement;
+    return !!(parent && !hasSensitiveAncestor(parent) && !isExcluded(parent, true) && !isChoiceContent(parent) && !isFormControl(parent) && parent.getAttribute("role")?.toLowerCase() !== "combobox");
   }
   function isFormControl(element) {
     return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
@@ -1041,19 +1041,26 @@
               index++;
               continue;
             }
-            const id = textNodeId(node);
-            const original = originals.get(id)?.text || node.nodeValue;
-            if (original.length > 12e3) {
+            let id = textNodeId(node);
+            let original = originals.get(id);
+            if (original && node.nodeValue !== (original.lastWritten ?? original.text)) {
+              originals.delete(id);
+              nodeIds.delete(node);
+              id = textNodeId(node);
+              original = void 0;
+            }
+            const sourceText = original?.text ?? node.nodeValue;
+            if (sourceText.length > 12e3) {
               index++;
               continue;
             }
-            if (nodes.length >= 160 || size + original.length > 24e3) {
+            if (nodes.length >= 160 || size + sourceText.length > 24e3) {
               hasMore = true;
               break;
             }
-            if (!originals.has(id)) originals.set(id, { node, text: original });
-            nodes.push({ id, text: original });
-            size += original.length;
+            if (!original) originals.set(id, { node, text: sourceText });
+            nodes.push({ id, text: sourceText });
+            size += sourceText.length;
             index++;
           }
           respond({ nodes, ...hasMore ? { nextCursor: index } : {} });
@@ -1068,7 +1075,13 @@
             if (!original || !original.node.isConnected || !contextTextNode(original.node))
               continue;
             if (entry.text.length > 12e3) continue;
+            if (original.node.nodeValue !== (original.lastWritten ?? original.text)) {
+              originals.delete(entry.id);
+              nodeIds.delete(original.node);
+              continue;
+            }
             original.node.nodeValue = entry.text;
+            original.lastWritten = entry.text;
             original.node.parentElement?.setAttribute(
               "data-glimpselet-translated",
               "true"
@@ -1081,7 +1094,7 @@
         if (message.type === "glimpselet:restore") {
           let restored = 0;
           for (const [id, entry] of originals) {
-            if (entry.node.isConnected) {
+            if (entry.node.isConnected && restorableTextNode(entry.node) && entry.lastWritten !== void 0 && entry.node.nodeValue === entry.lastWritten) {
               entry.node.nodeValue = entry.text;
               entry.node.parentElement?.removeAttribute(
                 "data-glimpselet-translated"
@@ -1089,6 +1102,7 @@
               restored++;
             }
             originals.delete(id);
+            nodeIds.delete(entry.node);
           }
           respond({ restored });
           return;

@@ -1137,6 +1137,67 @@ test("guide follows offscreen elements, translation restores and element selecti
   expect(width).toBeLessThan(350);
 });
 
+test("translation preserves dynamic site updates and invalidates delayed node responses", async () => {
+  const send = async (message: Record<string, unknown>) =>
+    worker.evaluate(
+      async ({ url, message }) => {
+        const tab = (await chrome.tabs.query({})).find(
+          (entry) => entry.url === url,
+        );
+        if (!tab?.id) throw new Error("Source tab missing");
+        return chrome.tabs.sendMessage(tab.id, message);
+      },
+      { url: site.url(), message },
+    );
+  const update = (value: string) =>
+    site.locator("#foreign").evaluate((element, value) => {
+      element.firstChild!.nodeValue = value;
+    }, value);
+  const collect = async () => {
+    const result = (await send({ type: "glimpselet:text-nodes" })) as {
+      nodes: Array<{ id: string; text: string }>;
+    };
+    return result.nodes.find((node) => node.text.startsWith("Price $"))!;
+  };
+  const translate = (id: string, text: string) =>
+    send({ type: "glimpselet:translate", nodes: [{ id, text }] });
+  await update("Price $10");
+  const first = await collect();
+  expect(first.text).toBe("Price $10");
+  await update("Price $12");
+  expect(await translate(first.id, "Stale price")).toEqual({ applied: 0 });
+  await expect(site.locator("#foreign")).toHaveText("Price $12");
+  const second = await collect();
+  expect(second.id).not.toBe(first.id);
+  expect(second.text).toBe("Price $12");
+  expect(await translate(second.id, "Prix 12")).toEqual({ applied: 1 });
+  await update("Price $15");
+  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 0 });
+  await expect(site.locator("#foreign")).toHaveText("Price $15");
+  const third = await collect();
+  expect(third.id).not.toBe(second.id);
+  expect(await translate(second.id, "Stale restored price")).toEqual({
+    applied: 0,
+  });
+  expect(await translate(third.id, "Prix 15")).toEqual({ applied: 1 });
+  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
+  await expect(site.locator("#foreign")).toHaveText("Price $15");
+  const fourth = await collect();
+  expect(await translate(fourth.id, "Prix 15")).toEqual({ applied: 1 });
+  await site.locator("#foreign").evaluate((element) => {
+    element.hidden = true;
+  });
+  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
+  await site.locator("#foreign").evaluate((element) => {
+    element.hidden = false;
+  });
+  await expect(site.locator("#foreign")).toHaveText("Price $15");
+  const fifth = await collect();
+  expect(await translate(fifth.id, "")).toEqual({ applied: 1 });
+  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
+  await expect(site.locator("#foreign")).toHaveText("Price $15");
+});
+
 test("full page capture stitches native frames and restores the source scroll", async () => {
   await site.evaluate(() => scrollTo(0, 320));
   const metrics = await site.evaluate(() => ({
@@ -1483,6 +1544,86 @@ test("PDF guide takes priority over automatic page suggestions", async () => {
   await expect(panel.locator(".status")).toHaveText(en.answerReady);
   await reader.close();
 });
+
+for (const mode of ["suggestions", "passive"] as const) {
+  test(`background PDF context never redirects ${mode} from the active web page`, async () => {
+    if (mode === "passive")
+      await panel
+        .getByRole("button", { name: en.passive, exact: true })
+        .click();
+    const automatic = () =>
+      providerRequests.filter((request) =>
+        mode === "passive"
+          ? request.question === en.passivePrompt
+          : request.question.startsWith("Give 3 to 5"),
+      );
+    await expect.poll(() => automatic().length).toBeGreaterThan(0);
+    await expect(
+      panel.getByRole("button", { name: en.stop, exact: true }),
+    ).toHaveCount(0);
+    const reader = await context.newPage();
+    await reader.goto(`chrome-extension://${extensionId}/reader.html`);
+    await site.bringToFront();
+    await expect.poll(() => automatic().at(-1)?.page?.url).toBe(origin + "/");
+    await site.waitForTimeout(1200);
+    await expect(
+      panel.getByRole("button", { name: en.stop, exact: true }),
+    ).toHaveCount(0);
+    const before = automatic().length;
+    await reader.locator("#file").setInputFiles({
+      name: "background-pages.pdf",
+      mimeType: "application/pdf",
+      buffer: twoPagePdf(),
+    });
+    await expect(reader.locator("#page-label")).toContainText("Page 1 of 2");
+    await reader.waitForTimeout(1500);
+    expect(automatic()).toHaveLength(before);
+    expect(
+      automatic().some((request) =>
+        request.page?.text.includes("PDF_PAGE_ALPHA"),
+      ),
+    ).toBe(false);
+    await panel
+      .locator(".composer textarea")
+      .fill("Check the current foreground source.");
+    await panel.locator(".composer button.send").click();
+    await expect
+      .poll(() =>
+        providerRequests.some(
+          (request) =>
+            request.question === "Check the current foreground source." &&
+            request.page?.url === origin + "/",
+        ),
+      )
+      .toBe(true);
+    await expect(
+      panel.getByRole("button", { name: en.stop, exact: true }),
+    ).toHaveCount(0);
+    await reader.bringToFront();
+    await expect
+      .poll(() =>
+        automatic().some((request) =>
+          request.page?.text.includes("PDF_PAGE_ALPHA"),
+        ),
+      )
+      .toBe(true);
+    await expect(
+      panel.getByRole("button", { name: en.stop, exact: true }),
+    ).toHaveCount(0);
+    const readerCount = automatic().length;
+    await reader.locator("#next").click();
+    await expect(reader.locator("#page-label")).toContainText("Page 2 of 2");
+    await expect
+      .poll(() =>
+        automatic().some((request) =>
+          request.page?.text.includes("PDF_PAGE_BETA"),
+        ),
+      )
+      .toBe(true);
+    expect(automatic()).toHaveLength(readerCount + 1);
+    await reader.close();
+  });
+}
 
 for (const mode of ["suggestions", "passive"] as const) {
   test(`same-URL PDF page revisions refresh ${mode} context`, async () => {

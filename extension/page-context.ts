@@ -78,7 +78,7 @@ export function textForElement(element: Element, limit = 240): string {
   return text.slice(0, limit);
 }
 
-function isExcluded(element: Element): boolean {
+function isExcluded(element: Element, includeHidden = false): boolean {
   if (
     element.closest(
       "[data-glimpselet-overlay], [data-private], [data-sensitive]",
@@ -106,8 +106,9 @@ function isExcluded(element: Element): boolean {
   )
     return true;
   return (
-    element.getAttribute("aria-hidden") === "true" ||
-    element.hasAttribute("hidden") ||
+    (!includeHidden &&
+      (element.getAttribute("aria-hidden") === "true" ||
+        element.hasAttribute("hidden"))) ||
     element.getAttribute("type") === "password"
   );
 }
@@ -198,22 +199,24 @@ export function buildPageContext(doc: Document = document): PageContext {
 
 export function contextTextNode(node: Node): boolean {
   const parent = node.parentElement;
-  if (
-    !parent ||
-    !node.nodeValue?.trim() ||
-    hasSensitiveAncestor(parent) ||
-    parent.closest("[data-glimpselet-overlay]")
-  )
-    return false;
-  if (
-    isExcluded(parent) ||
-    isChoiceContent(parent) ||
-    isFormControl(parent) ||
-    parent.getAttribute("role")?.toLowerCase() === "combobox" ||
-    !visible(parent)
-  )
-    return false;
-  return true;
+  return !!(
+    parent &&
+    node.nodeValue?.trim() &&
+    restorableTextNode(node) &&
+    visible(parent)
+  );
+}
+
+export function restorableTextNode(node: Node): boolean {
+  const parent = node.parentElement;
+  return !!(
+    parent &&
+    !hasSensitiveAncestor(parent) &&
+    !isExcluded(parent, true) &&
+    !isChoiceContent(parent) &&
+    !isFormControl(parent) &&
+    parent.getAttribute("role")?.toLowerCase() !== "combobox"
+  );
 }
 
 function isFormControl(element: Element): boolean {
