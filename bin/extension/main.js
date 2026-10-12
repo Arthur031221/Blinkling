@@ -12461,6 +12461,7 @@ var BridgeClient = class extends EventTarget {
   closed = false;
   cancelPair = null;
   storageWrite = Promise.resolve();
+  credentialsRevision = 0;
   pending = /* @__PURE__ */ new Map();
   url = "ws://127.0.0.1:37115/extension";
   token = "";
@@ -12471,11 +12472,15 @@ var BridgeClient = class extends EventTarget {
   liveAvailable = false;
   live = false;
   async load() {
+    if (this.closed || this.credentialsRevision !== 0) return;
+    const revision = this.credentialsRevision;
     const stored = await chrome.storage.session.get([
       "bridgeToken",
       "bridgeMode",
       "bridgeUrl"
     ]);
+    if (this.closed || revision !== this.credentialsRevision) return;
+    this.credentialsRevision++;
     this.token = typeof stored.bridgeToken === "string" ? stored.bridgeToken : "";
     this.mode = stored.bridgeMode === "tunnel" ? "tunnel" : "direct";
     this.url = typeof stored.bridgeUrl === "string" ? stored.bridgeUrl : this.url;
@@ -12525,6 +12530,7 @@ var BridgeClient = class extends EventTarget {
         clearTimeout(timeout);
         this.cancelPair = null;
         this.retireSocket();
+        this.credentialsRevision++;
         this.url = url;
         this.token = m.token;
         this.mode = m.mode === "tunnel" ? "tunnel" : "direct";
@@ -12612,7 +12618,7 @@ var BridgeClient = class extends EventTarget {
         this.dispatchEvent(new CustomEvent("message", { detail: m }));
       } else this.dispatchEvent(new CustomEvent("message", { detail: m }));
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (this.socket !== ws) return;
       this.socket = null;
       for (const pending of this.pending.values())
@@ -12620,7 +12626,7 @@ var BridgeClient = class extends EventTarget {
       this.pending.clear();
       this.liveAvailable = false;
       this.dispatchEvent(new Event("disconnected"));
-      if (!this.closed && this.token) {
+      if (!this.closed && this.token && event.code !== 4002) {
         this.reconnectTimer = window.setTimeout(() => {
           this.connect();
         }, this.retry);

@@ -6,7 +6,7 @@ class Socket {
   static instances: Socket[] = [];
   readyState = 0;
   onopen?: () => void;
-  onclose?: () => void;
+  onclose?: (event: { code: number }) => void;
   onerror?: () => void;
   onmessage?: (event: { data: string }) => void;
   sent: Array<Record<string, unknown>> = [];
@@ -23,9 +23,9 @@ class Socket {
   receive(message: Record<string, unknown>) {
     this.onmessage?.({ data: JSON.stringify(message) });
   }
-  close() {
+  close(code = 1000) {
     this.readyState = 3;
-    this.onclose?.();
+    this.onclose?.({ code });
   }
 }
 const question: AskInput = {
@@ -45,7 +45,7 @@ describe("paired browser bridge", () => {
     vi.stubGlobal("chrome", {
       storage: {
         session: {
-          get: async () => ({ bridgeToken: "token" }),
+          get: vi.fn(async () => ({ bridgeToken: "token" })),
           set: vi.fn(async () => {}),
         },
       },
@@ -143,6 +143,24 @@ describe("paired browser bridge", () => {
     expect(client.live).toBe(true);
   });
 
+  it("does not reclaim ownership automatically after another panel replaces it", async () => {
+    const socket = Socket.instances[0]!;
+    socket.open();
+    socket.receive({ type: "paired", token: "token" });
+    const answer = client.ask(question, () => {});
+    const rejected = expect(answer).rejects.toThrow("bridge_disconnected");
+    socket.close(4002);
+    await rejected;
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(Socket.instances).toHaveLength(1);
+    expect(client.token).toBe("token");
+    client.connect();
+    expect(Socket.instances).toHaveLength(2);
+    const replacement = Socket.instances[1]!;
+    replacement.open();
+    expect(replacement.sent[0]).toEqual({ type: "pair", token: "token" });
+  });
+
   async function pairReplacement(url = "ws://127.0.0.1:41002/extension") {
     const paired = client.pair("BBBBBBBBBBBBBBBB", url);
     const socket = Socket.instances.at(-1)!;
@@ -217,7 +235,7 @@ describe("paired browser bridge", () => {
         sessionId: "old-session",
       }),
     });
-    oldClose();
+    oldClose({ code: 4002 });
     oldError();
     replacement.receive({
       type: "done",
@@ -353,5 +371,96 @@ describe("paired browser bridge", () => {
     release();
     await rejected;
     expect(Socket.instances.at(-1)!.readyState).toBe(3);
+  });
+
+  for (const storedToken of ["old-token", "new-token"]) {
+    it(`keeps the accepted pairing when a delayed startup read returns ${storedToken}`, async () => {
+      client.close();
+      client = new BridgeClient();
+      let release!: (stored: Record<string, unknown>) => void;
+      vi.mocked(chrome.storage.session.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+      );
+      const loading = client.load();
+      const replacement = await pairReplacement();
+      release({
+        bridgeToken: storedToken,
+        bridgeMode: "tunnel",
+        bridgeUrl: "ws://127.0.0.1:41001/extension",
+      });
+      await loading;
+      expect(client.token).toBe("new-token");
+      expect(client.mode).toBe("direct");
+      expect(client.project).toBe("/project/NEW");
+      replacement.close();
+      await vi.advanceTimersByTimeAsync(500);
+      const reconnect = Socket.instances.at(-1)!;
+      expect(reconnect.url).toBe("ws://127.0.0.1:41002/extension");
+      reconnect.open();
+      expect(reconnect.sent[0]).toEqual({ type: "pair", token: "new-token" });
+      reconnect.receive({
+        type: "paired",
+        project: "/project/NEW",
+        sessionId: "new-session",
+      });
+      const answer = client.ask(question, () => {});
+      reconnect.receive({
+        type: "done",
+        id: question.id,
+        answer: "Still the new project",
+      });
+      await expect(answer).resolves.toMatchObject({
+        answer: "Still the new project",
+      });
+    });
+  }
+
+  it("ignores startup credentials that arrive after shutdown", async () => {
+    client.close();
+    client = new BridgeClient();
+    let release!: (stored: Record<string, unknown>) => void;
+    vi.mocked(chrome.storage.session.get).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const loading = client.load();
+    client.close();
+    release({
+      bridgeToken: "late-token",
+      bridgeMode: "tunnel",
+      bridgeUrl: "ws://127.0.0.1:41001/extension",
+    });
+    await loading;
+    expect(client.token).toBe("");
+    expect(client.mode).toBe("direct");
+    expect(Socket.instances).toHaveLength(1);
+  });
+
+  it("does not reload old credentials after pairing while persistence is delayed", async () => {
+    let release!: () => void;
+    vi.mocked(chrome.storage.session.set).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const paired = pairReplacement();
+    void paired.catch(() => {});
+    await Promise.resolve();
+    await Promise.resolve();
+    vi.mocked(chrome.storage.session.get).mockClear();
+    try {
+      await client.load();
+      expect(client.token).toBe("new-token");
+      expect(chrome.storage.session.get).not.toHaveBeenCalled();
+    } finally {
+      release();
+      await paired;
+    }
   });
 });

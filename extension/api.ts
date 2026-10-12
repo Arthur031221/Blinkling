@@ -226,6 +226,7 @@ export class BridgeClient extends EventTarget {
   private closed = false;
   private cancelPair: (() => void) | null = null;
   private storageWrite: Promise<void> = Promise.resolve();
+  private credentialsRevision = 0;
   private pending = new Map<
     string,
     {
@@ -244,11 +245,15 @@ export class BridgeClient extends EventTarget {
   live = false;
 
   async load(): Promise<void> {
+    if (this.closed || this.credentialsRevision !== 0) return;
+    const revision = this.credentialsRevision;
     const stored = await chrome.storage.session.get([
       "bridgeToken",
       "bridgeMode",
       "bridgeUrl",
     ]);
+    if (this.closed || revision !== this.credentialsRevision) return;
+    this.credentialsRevision++;
     this.token =
       typeof stored.bridgeToken === "string" ? stored.bridgeToken : "";
     this.mode = stored.bridgeMode === "tunnel" ? "tunnel" : "direct";
@@ -301,6 +306,7 @@ export class BridgeClient extends EventTarget {
         clearTimeout(timeout);
         this.cancelPair = null;
         this.retireSocket();
+        this.credentialsRevision++;
         this.url = url;
         this.token = m.token;
         this.mode = m.mode === "tunnel" ? "tunnel" : "direct";
@@ -406,7 +412,7 @@ export class BridgeClient extends EventTarget {
         this.dispatchEvent(new CustomEvent("message", { detail: m }));
       } else this.dispatchEvent(new CustomEvent("message", { detail: m }));
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (this.socket !== ws) return;
       this.socket = null;
       for (const pending of this.pending.values())
@@ -414,7 +420,7 @@ export class BridgeClient extends EventTarget {
       this.pending.clear();
       this.liveAvailable = false;
       this.dispatchEvent(new Event("disconnected"));
-      if (!this.closed && this.token) {
+      if (!this.closed && this.token && event.code !== 4002) {
         this.reconnectTimer = window.setTimeout(() => {
           this.connect();
         }, this.retry);

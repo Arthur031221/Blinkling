@@ -250,118 +250,247 @@ test("automatic questions exclude nested form choices while preserving safe labe
   );
 });
 
-test("re-pairing moves questions, page text and captures to the new project", async () => {
-  const secondServer = createServer();
-  let secondOrigin = "";
-  const secondRequests: ProviderRequest[] = [];
-  const secondDirectory = await mkdtemp(join(directory, "new-project-"));
-  const secondBridge = new ExtensionBridge(secondServer, () => secondOrigin, {
-    provider: (request) => {
-      secondRequests.push(request);
-      return providerResponder(request);
-    },
-    sessions: new ExtensionSessions(secondDirectory, async () => []),
-  });
-  try {
-    secondServer.listen(0, "127.0.0.1");
-    await once(secondServer, "listening");
-    const address = secondServer.address();
-    if (!address || typeof address === "string")
-      throw new Error("No second port");
-    secondOrigin = `http://127.0.0.1:${address.port}`;
-    const previousSession = await panel
-      .locator(".foot span")
-      .first()
-      .innerText();
-    await panel.getByRole("button", { name: en.settings, exact: true }).click();
-    await panel
-      .locator(".dialog input")
-      .nth(0)
-      .fill(secondOrigin.replace("http:", "ws:") + "/extension");
-    await panel.locator(".dialog input").nth(1).fill(secondBridge.issueCode());
-    await panel.getByRole("button", { name: en.pair, exact: true }).click();
-    await expect(panel.locator(".connection")).toContainText(
-      secondDirectory.split("/").at(-1)!,
-    );
-    await expect(panel.locator(".foot span").first()).not.toHaveText(
-      previousSession,
-    );
-    await panel.getByRole("button", { name: en.close, exact: true }).click();
-    await panel.getByRole("button", { name: en.visible, exact: true }).click();
-    await expect(panel.locator(".capture-chip img")).toBeVisible();
-    await panel
-      .locator(".composer textarea")
-      .fill("Only the new project should receive this capture.");
-    await panel.locator(".composer button.send").click();
-    await expect
-      .poll(() =>
-        secondRequests.some(
-          (request) =>
-            request.question ===
-            "Only the new project should receive this capture.",
-        ),
-      )
-      .toBe(true);
-    const request = secondRequests.find(
-      (entry) =>
-        entry.question === "Only the new project should receive this capture.",
-    )!;
-    expect(request.cliSession?.project).toBe(secondDirectory);
-    expect(request.page?.title).toBe("Notebook exports");
-    expect(request.page?.text).toContain(
-      "このページは研究ノートの使い方を説明します。",
-    );
-    await expect(panel.locator(".foot span").first()).toContainText(
-      request.cliSession!.id.slice(0, 8),
-    );
-    expect(Buffer.isBuffer(request.image)).toBe(true);
-    expect(request.image!.length).toBeGreaterThan(100);
-    expect(
-      providerRequests.some((entry) => entry.question === request.question),
-    ).toBe(false);
-    await expect(panel.locator(".composer button.send")).toBeVisible();
-    const expectedToken = await worker.evaluate(
-      async () => (await chrome.storage.session.get("bridgeToken")).bridgeToken,
-    );
-    const expectedSession = await panel
-      .locator(".foot span")
-      .first()
-      .innerText();
-    await panel.reload();
-    await expect(panel.locator(".connection")).toContainText(
-      secondDirectory.split("/").at(-1)!,
-    );
-    await expect(panel.locator(".foot span").first()).toHaveText(
-      expectedSession,
-    );
-    expect(
-      await worker.evaluate(
+for (const startup of [false, true]) {
+  test(`${startup ? "startup auto-pairing" : "re-pairing"} moves questions, page text and captures to the new project`, async () => {
+    const secondServer = createServer();
+    let secondOrigin = "";
+    const secondRequests: ProviderRequest[] = [];
+    const secondDirectory = await mkdtemp(join(directory, "new-project-"));
+    const secondBridge = new ExtensionBridge(secondServer, () => secondOrigin, {
+      provider: (request) => {
+        secondRequests.push(request);
+        return providerResponder(request);
+      },
+      sessions: new ExtensionSessions(secondDirectory, async () => []),
+    });
+    try {
+      secondServer.listen(0, "127.0.0.1");
+      await once(secondServer, "listening");
+      const address = secondServer.address();
+      if (!address || typeof address === "string")
+        throw new Error("No second port");
+      secondOrigin = `http://127.0.0.1:${address.port}`;
+      const previousSession = await panel
+        .locator(".foot span")
+        .first()
+        .innerText();
+      if (startup) {
+        await context.addInitScript(() => {
+          if (!location.search.includes("delayedCredentials=1")) return;
+          const session = chrome.storage.session;
+          const read = session.get.bind(session);
+          session.get = (async (keys: string[]) => {
+            const saved = await read(keys);
+            if (!keys.includes("bridgeToken")) return saved;
+            return new Promise((resolve) => {
+              (
+                window as Window & { releaseCredentials?: () => void }
+              ).releaseCredentials = () => resolve(saved);
+            });
+          }) as typeof session.get;
+        });
+        const automaticUrl = new URL(panel.url());
+        automaticUrl.searchParams.set("pairPort", String(address.port));
+        automaticUrl.searchParams.set("pairCode", secondBridge.issueCode());
+        automaticUrl.searchParams.set("delayedCredentials", "1");
+        await panel.close();
+        const opened = context.waitForEvent("page");
+        await worker.evaluate(
+          (url) =>
+            chrome.windows.create({
+              url,
+              type: "popup",
+              width: 460,
+              height: 720,
+            }),
+          automaticUrl.href,
+        );
+        panel = await opened;
+        await panel.waitForLoadState();
+        await expect(panel.locator(".connection")).toContainText(
+          secondDirectory.split("/").at(-1)!,
+        );
+        await panel.evaluate(() => {
+          (window as Window & { releaseCredentials?: () => void })
+            .releaseCredentials!();
+          history.replaceState(null, "", location.pathname);
+        });
+        await expect(panel.locator(".suggestions button")).toHaveCount(3);
+        const sockets = (
+          secondBridge as unknown as {
+            sockets: { clients: Set<import("ws").WebSocket> };
+          }
+        ).sockets.clients;
+        const retiredSockets = [...sockets];
+        for (const socket of retiredSockets)
+          socket.close(4000, "Reconnect probe");
+        await expect
+          .poll(() =>
+            [...sockets].some(
+              (socket) =>
+                socket.readyState === 1 && !retiredSockets.includes(socket),
+            ),
+          )
+          .toBe(true);
+        await expect(panel.locator(".connection")).toHaveClass(/online/);
+        await expect(panel.locator(".connection")).toContainText(
+          secondDirectory.split("/").at(-1)!,
+        );
+      } else {
+        await panel
+          .getByRole("button", { name: en.settings, exact: true })
+          .click();
+        await panel
+          .locator(".dialog input")
+          .nth(0)
+          .fill(secondOrigin.replace("http:", "ws:") + "/extension");
+        await panel
+          .locator(".dialog input")
+          .nth(1)
+          .fill(secondBridge.issueCode());
+        await panel.getByRole("button", { name: en.pair, exact: true }).click();
+      }
+      await expect(panel.locator(".connection")).toContainText(
+        secondDirectory.split("/").at(-1)!,
+      );
+      await expect(panel.locator(".foot span").first()).not.toHaveText(
+        previousSession,
+      );
+      if (!startup)
+        await panel
+          .getByRole("button", { name: en.close, exact: true })
+          .click();
+      await panel
+        .getByRole("button", { name: en.visible, exact: true })
+        .click();
+      await expect(panel.locator(".capture-chip img")).toBeVisible();
+      await panel
+        .locator(".composer textarea")
+        .fill("Only the new project should receive this capture.");
+      await panel.locator(".composer button.send").click();
+      await expect
+        .poll(() =>
+          secondRequests.some(
+            (request) =>
+              request.question ===
+              "Only the new project should receive this capture.",
+          ),
+        )
+        .toBe(true);
+      const request = secondRequests.find(
+        (entry) =>
+          entry.question ===
+          "Only the new project should receive this capture.",
+      )!;
+      expect(request.cliSession?.project).toBe(secondDirectory);
+      expect(request.page?.title).toBe("Notebook exports");
+      expect(request.page?.text).toContain(
+        "このページは研究ノートの使い方を説明します。",
+      );
+      await expect(panel.locator(".foot span").first()).toContainText(
+        request.cliSession!.id.slice(0, 8),
+      );
+      expect(Buffer.isBuffer(request.image)).toBe(true);
+      expect(request.image!.length).toBeGreaterThan(100);
+      expect(
+        providerRequests.some((entry) => entry.question === request.question),
+      ).toBe(false);
+      await expect(panel.locator(".composer button.send")).toBeVisible();
+      const expectedToken = await worker.evaluate(
         async () =>
           (await chrome.storage.session.get("bridgeToken")).bridgeToken,
-      ),
-    ).toBe(expectedToken);
-    await panel
-      .locator(".composer textarea")
-      .fill("Stay in the new project after reloading.");
-    await panel.locator(".composer button.send").click();
-    await expect
-      .poll(() =>
-        secondRequests.some(
+      );
+      const expectedSession = await panel
+        .locator(".foot span")
+        .first()
+        .innerText();
+      await panel.reload();
+      await expect(panel.locator(".connection")).toContainText(
+        secondDirectory.split("/").at(-1)!,
+      );
+      await expect(panel.locator(".foot span").first()).toHaveText(
+        expectedSession,
+      );
+      expect(
+        await worker.evaluate(
+          async () =>
+            (await chrome.storage.session.get("bridgeToken")).bridgeToken,
+        ),
+      ).toBe(expectedToken);
+      await panel
+        .locator(".composer textarea")
+        .fill("Stay in the new project after reloading.");
+      await panel.locator(".composer button.send").click();
+      await expect
+        .poll(() =>
+          secondRequests.some(
+            (entry) =>
+              entry.question === "Stay in the new project after reloading.",
+          ),
+        )
+        .toBe(true);
+      expect(
+        providerRequests.some(
           (entry) =>
             entry.question === "Stay in the new project after reloading.",
         ),
-      )
-      .toBe(true);
+      ).toBe(false);
+    } finally {
+      await secondBridge.close();
+      if (secondServer.listening)
+        await new Promise<void>((resolve) =>
+          secondServer.close(() => resolve()),
+        );
+    }
+  });
+}
+
+test("a second live panel keeps ownership long enough to finish its answer", async () => {
+  const originalProvider = providerResponder;
+  providerResponder = async (request) => {
+    if (request.question !== "Finish in the new panel")
+      return originalProvider(request);
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, 1800);
+      request.signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(timer);
+          reject(new Error("Answer interrupted by another panel"));
+        },
+        { once: true },
+      );
+    });
+    return {
+      answer: "New panel answer completed",
+      sessionId: request.cliSession?.id,
+    };
+  };
+  const opened = context.waitForEvent("page");
+  await worker.evaluate(
+    (url) =>
+      chrome.windows.create({ url, type: "popup", width: 420, height: 620 }),
+    panel.url(),
+  );
+  const second = await opened;
+  try {
+    await expect(second.locator(".connection")).toHaveClass(/online/);
+    await expect(panel.locator(".connection")).not.toHaveClass(/online/);
+    await expect(second.locator(".suggestions button")).toHaveCount(3);
+    await second.locator(".composer textarea").fill("Finish in the new panel");
+    await second.locator(".composer button.send").click();
+    await expect(second.locator(".thread article").last()).toContainText(
+      "New panel answer completed",
+    );
     expect(
-      providerRequests.some(
-        (entry) =>
-          entry.question === "Stay in the new project after reloading.",
+      providerRequests.filter(
+        (request) => request.question === "Finish in the new panel",
       ),
-    ).toBe(false);
+    ).toHaveLength(1);
+    await expect(second.locator(".connection")).toHaveClass(/online/);
+    await expect(panel.locator(".connection")).not.toHaveClass(/online/);
   } finally {
-    await secondBridge.close();
-    if (secondServer.listening)
-      await new Promise<void>((resolve) => secondServer.close(() => resolve()));
+    await second.close();
   }
 });
 

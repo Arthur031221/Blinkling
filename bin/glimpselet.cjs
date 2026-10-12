@@ -67547,13 +67547,20 @@ var ExtensionBridge = class {
     client.once("close", () => {
       clearTimeout(timer);
       this.sockets.clients.delete(client);
-      pair?.job?.controller.abort();
-      if (pair?.client === client) pair.client = void 0;
+      if (pair?.client === client) {
+        pair.job?.controller.abort();
+        pair.selecting = void 0;
+        pair.client = void 0;
+      }
       if (this.sharingClient === client) this.sharingClient = void 0;
       for (const pending of this.pendingCaptures.values())
         if (pending.client === client) pending.finish();
     });
     client.on("message", (raw) => {
+      if (pair && pair.client !== client) {
+        client.close(4002, "Opened in another window");
+        return;
+      }
       let message;
       try {
         const parsed = JSON.parse(raw.toString());
@@ -67602,9 +67609,14 @@ var ExtensionBridge = class {
           const installation = this.installation.get(code);
           if (installation) installation.token = pairToken;
         }
-        if (pair.client && pair.client !== client)
-          pair.client.close(4002, "Opened in another window");
+        const previous = pair.client;
+        if (previous && previous !== client) {
+          pair.job?.controller.abort();
+          pair.selecting = void 0;
+        }
         pair.client = client;
+        if (previous && previous !== client)
+          previous.close(4002, "Opened in another window");
         clearTimeout(timer);
         send(client, {
           type: "paired",
@@ -67684,7 +67696,8 @@ var ExtensionBridge = class {
         throw new Error(
           "Stop the current answer before changing the conversation."
         );
-      pair.selecting = true;
+      const selection = { id: message.id };
+      pair.selecting = selection;
       try {
         if (message.sessionId === "live") {
           if (!this.channel?.ready)
@@ -67694,6 +67707,7 @@ var ExtensionBridge = class {
           pair.live = true;
         } else {
           const thread = message.sessionId === void 0 ? this.sessions.create() : await this.sessions.resume(message.sessionId);
+          if (pair.client !== client || pair.selecting !== selection) return;
           pair.thread = thread;
           pair.live = false;
         }
@@ -67706,7 +67720,7 @@ var ExtensionBridge = class {
           live: !!pair.live
         });
       } finally {
-        pair.selecting = false;
+        if (pair.selecting === selection) pair.selecting = void 0;
       }
       return;
     }
@@ -67829,6 +67843,14 @@ var ExtensionBridge = class {
     this.sharingClient = void 0;
     await Promise.all(
       [...this.pairs.values()].map(async (pair) => {
+        if (pair.selecting && pair.client)
+          send(pair.client, {
+            type: "error",
+            id: pair.selecting.id,
+            code: "cancelled",
+            message: cancelled().message
+          });
+        pair.selecting = void 0;
         pair.job?.controller.abort();
         await pair.job?.done;
         pair.history = [];

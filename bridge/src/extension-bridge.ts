@@ -17,7 +17,7 @@ import { cancelled, PanelError } from "./errors.js";
 
 type Page = NonNullable<ProviderRequest["page"]> & { hasPassword: boolean };
 type Pair = {
-  selecting?: boolean;
+  selecting?: { id: string };
   live?: boolean;
   origin: string;
   expires: number;
@@ -200,13 +200,20 @@ export class ExtensionBridge {
     client.once("close", () => {
       clearTimeout(timer);
       this.sockets.clients.delete(client);
-      pair?.job?.controller.abort();
-      if (pair?.client === client) pair.client = undefined;
+      if (pair?.client === client) {
+        pair.job?.controller.abort();
+        pair.selecting = undefined;
+        pair.client = undefined;
+      }
       if (this.sharingClient === client) this.sharingClient = undefined;
       for (const pending of this.pendingCaptures.values())
         if (pending.client === client) pending.finish();
     });
     client.on("message", (raw) => {
+      if (pair && pair.client !== client) {
+        client.close(4002, "Opened in another window");
+        return;
+      }
       let message: Record<string, unknown>;
       try {
         const parsed = JSON.parse(raw.toString());
@@ -261,9 +268,14 @@ export class ExtensionBridge {
           const installation = this.installation.get(code);
           if (installation) installation.token = pairToken;
         }
-        if (pair.client && pair.client !== client)
-          pair.client.close(4002, "Opened in another window");
+        const previous = pair.client;
+        if (previous && previous !== client) {
+          pair.job?.controller.abort();
+          pair.selecting = undefined;
+        }
         pair.client = client;
+        if (previous && previous !== client)
+          previous.close(4002, "Opened in another window");
         clearTimeout(timer);
         send(client, {
           type: "paired",
@@ -359,7 +371,8 @@ export class ExtensionBridge {
         throw new Error(
           "Stop the current answer before changing the conversation.",
         );
-      pair.selecting = true;
+      const selection = { id: message.id };
+      pair.selecting = selection;
       try {
         if (message.sessionId === "live") {
           if (!this.channel?.ready)
@@ -372,6 +385,7 @@ export class ExtensionBridge {
             message.sessionId === undefined
               ? this.sessions.create()
               : await this.sessions.resume(message.sessionId);
+          if (pair.client !== client || pair.selecting !== selection) return;
           pair.thread = thread;
           pair.live = false;
         }
@@ -388,7 +402,7 @@ export class ExtensionBridge {
           live: !!pair.live,
         });
       } finally {
-        pair.selecting = false;
+        if (pair.selecting === selection) pair.selecting = undefined;
       }
       return;
     }
@@ -540,6 +554,14 @@ export class ExtensionBridge {
     this.sharingClient = undefined;
     await Promise.all(
       [...this.pairs.values()].map(async (pair) => {
+        if (pair.selecting && pair.client)
+          send(pair.client, {
+            type: "error",
+            id: pair.selecting.id,
+            code: "cancelled",
+            message: cancelled().message,
+          });
+        pair.selecting = undefined;
         pair.job?.controller.abort();
         await pair.job?.done;
         pair.history = [];

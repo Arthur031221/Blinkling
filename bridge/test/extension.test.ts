@@ -95,6 +95,266 @@ const ask = {
 };
 
 describe("extension pairing and answers", () => {
+  function serverSocket(app: Awaited<ReturnType<typeof setup>>) {
+    const clients = (
+      app.bridge as unknown as { sockets: { clients: Set<WebSocket> } }
+    ).sockets.clients;
+    return [...clients][0]!;
+  }
+
+  it("ignores the retired server socket's delayed close and cancellation", async () => {
+    const requests: ProviderRequest[] = [];
+    let complete!: () => void;
+    const app = await setup(async (request) => {
+      requests.push(request);
+      await new Promise<void>((resolve) => {
+        complete = resolve;
+      });
+      return { answer: "Completed normally" };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    const paired = await a.wait("paired");
+    const retired = serverSocket(app);
+    const delayedClose = vi
+      .spyOn(retired, "close")
+      .mockImplementation(() => {});
+    try {
+      const b = await app.client();
+      b.send({ type: "pair", token: paired.token });
+      await b.wait("paired");
+      b.send(ask);
+      await vi.waitFor(() => expect(requests).toHaveLength(1));
+      retired.emit("close", 4002, Buffer.from("Opened in another window"));
+      expect(requests[0]!.signal.aborted).toBe(false);
+      retired.emit(
+        "message",
+        Buffer.from(JSON.stringify({ type: "cancel", id: ask.id })),
+        false,
+      );
+      expect(requests[0]!.signal.aborted).toBe(false);
+      complete();
+      expect((await b.wait("done")).answer).toBe("Completed normally");
+    } finally {
+      complete?.();
+      delayedClose.mockRestore();
+      retired.terminate();
+    }
+  });
+
+  it("aborts the previous owned job during replacement and waits for cleanup before new work", async () => {
+    const requests: ProviderRequest[] = [];
+    let cleanupOld!: () => void;
+    const app = await setup(async (request) => {
+      requests.push(request);
+      if (requests.length === 1) {
+        await new Promise<void>((resolve) => {
+          cleanupOld = resolve;
+        });
+        return { answer: "Old answer" };
+      }
+      return { answer: "New answer" };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    const paired = await a.wait("paired");
+    a.send(ask);
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    const retired = serverSocket(app);
+    const delayedClose = vi
+      .spyOn(retired, "close")
+      .mockImplementation(() => {});
+    try {
+      const b = await app.client();
+      b.send({ type: "pair", token: paired.token });
+      await b.wait("paired");
+      expect(requests[0]!.signal.aborted).toBe(true);
+      b.send({ ...ask, id: "too-early" });
+      await b.wait("error");
+      expect(requests).toHaveLength(1);
+      cleanupOld();
+      await a.wait("error");
+      b.send({ ...ask, id: "new-question" });
+      expect((await b.wait("done")).answer).toBe("New answer");
+      expect(requests).toHaveLength(2);
+    } finally {
+      cleanupOld?.();
+      delayedClose.mockRestore();
+      retired.terminate();
+    }
+  });
+
+  it("rejects sharing, session changes and new questions from a retired server client", async () => {
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Current client answer" };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    const paired = await a.wait("paired");
+    const retired = serverSocket(app);
+    const delayedClose = vi
+      .spyOn(retired, "close")
+      .mockImplementation(() => {});
+    try {
+      const b = await app.client();
+      b.send({ type: "pair", token: paired.token });
+      await b.wait("paired");
+      for (const message of [
+        { type: "share", active: true },
+        { type: "session", id: "retired-session", sessionId: sourceId },
+        { ...ask, id: "retired-question" },
+      ])
+        retired.emit("message", Buffer.from(JSON.stringify(message)), false);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(app.bridge.isSharing).toBe(false);
+      expect(requests).toHaveLength(0);
+      b.send(ask);
+      await b.wait("done");
+      expect(requests[0]!.cliSession?.id).toBe(paired.sessionId);
+    } finally {
+      delayedClose.mockRestore();
+      retired.terminate();
+    }
+  });
+
+  it("ignores a retired client's conversation lookup that completes after replacement", async () => {
+    let finishLookup!: (thread: ExtensionThread) => void;
+    const lookup = vi
+      .spyOn(ExtensionSessions.prototype, "resume")
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishLookup = resolve;
+          }),
+      );
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Original paired conversation" };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    const paired = await a.wait("paired");
+    a.send({ type: "session", id: "pending-selection", sessionId: sourceId });
+    await vi.waitFor(() => expect(lookup).toHaveBeenCalledOnce());
+    const retired = serverSocket(app);
+    const delayedClose = vi
+      .spyOn(retired, "close")
+      .mockImplementation(() => {});
+    try {
+      const b = await app.client();
+      b.send({ type: "pair", token: paired.token });
+      expect((await b.wait("paired")).sessionId).toBe(paired.sessionId);
+      b.send({ ...ask, id: "before-retired-lookup" });
+      await b.wait("done");
+      expect(requests[0]!.cliSession?.id).toBe(paired.sessionId);
+      finishLookup(new ExtensionThread("/fixture/project", sourceId));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      b.send(ask);
+      await b.wait("done");
+      expect(requests[1]!.cliSession?.id).toBe(paired.sessionId);
+    } finally {
+      finishLookup?.(new ExtensionThread("/fixture/project", sourceId));
+      lookup.mockRestore();
+      delayedClose.mockRestore();
+      retired.terminate();
+    }
+  });
+
+  it("clearing cancels an outstanding session selection and keeps the fresh conversation", async () => {
+    let finishLookup!: (thread: ExtensionThread) => void;
+    const lookup = vi
+      .spyOn(ExtensionSessions.prototype, "resume")
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishLookup = resolve;
+          }),
+      );
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Fresh conversation" };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    a.send({ type: "session", id: "obsolete-selection", sessionId: sourceId });
+    await vi.waitFor(() => expect(lookup).toHaveBeenCalledOnce());
+    try {
+      await app.bridge.clear();
+      expect(await a.wait("error")).toMatchObject({
+        id: "obsolete-selection",
+        code: "cancelled",
+      });
+      a.send(ask);
+      await a.wait("done");
+      const freshId = requests[0]!.cliSession!.id;
+      expect(freshId).not.toBe(sourceId);
+      finishLookup(new ExtensionThread("/fixture/project", sourceId));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      a.send({ ...ask, id: "after-obsolete-lookup" });
+      await a.wait("done");
+      expect(requests[1]!.cliSession?.id).toBe(freshId);
+      expect(a.messages).not.toContainEqual(
+        expect.objectContaining({ type: "session", id: "obsolete-selection" }),
+      );
+    } finally {
+      finishLookup?.(new ExtensionThread("/fixture/project", sourceId));
+      lookup.mockRestore();
+    }
+  });
+
+  it("an obsolete selection cannot release the lock held by a newer selection", async () => {
+    const finish: Array<(thread: ExtensionThread) => void> = [];
+    const lookup = vi
+      .spyOn(ExtensionSessions.prototype, "resume")
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish.push(resolve);
+          }),
+      );
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Selected conversation" };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    a.send({ type: "session", id: "old-selection", sessionId: sourceId });
+    await vi.waitFor(() => expect(finish).toHaveLength(1));
+    const nextId = "a88b5348-a13b-42fd-9685-000000000002";
+    try {
+      await app.bridge.clear();
+      await a.wait("error");
+      a.send({ type: "session", id: "new-selection", sessionId: nextId });
+      await vi.waitFor(() => expect(finish).toHaveLength(2));
+      finish[0]!(new ExtensionThread("/fixture/project", sourceId));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      a.send({ ...ask, id: "while-current-selection" });
+      expect(await a.wait("error")).toMatchObject({
+        id: "while-current-selection",
+      });
+      expect(requests).toHaveLength(0);
+      finish[1]!(new ExtensionThread("/fixture/project", nextId));
+      expect(await a.wait("session")).toMatchObject({
+        id: "new-selection",
+        sessionId: nextId,
+      });
+      a.send(ask);
+      await a.wait("done");
+      expect(requests[0]!.cliSession?.id).toBe(nextId);
+    } finally {
+      for (const resolve of finish)
+        resolve(new ExtensionThread("/fixture/project", sourceId));
+      lookup.mockRestore();
+    }
+  });
+
   for (const transcriptCreated of [true, false]) {
     it(`continues after a cancelled first turn when transcript creation is ${transcriptCreated}`, async () => {
       const persisted = new Set<string>();
