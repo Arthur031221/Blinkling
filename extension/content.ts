@@ -5,6 +5,7 @@ import {
   contextTextNode,
   stableElementId,
 } from "./page-context";
+import { pageRevision } from "./page-revision";
 import { validateGuideSteps } from "./page-tools";
 
 const contentScope = globalThis as typeof globalThis & {
@@ -34,6 +35,7 @@ if (!contentScope.glimpseletContentReady) {
       }
     | undefined;
   let lastUrl = location.href;
+  let lastRevision = "";
   let pageTimer = 0;
   let selecting = false;
   let cropLabels: CropLabels = {
@@ -358,26 +360,81 @@ if (!contentScope.glimpseletContentReady) {
       });
   }
 
-  function reportPageChange(): void {
-    if (location.href !== lastUrl) {
-      lastUrl = location.href;
-      send({ type: "glimpselet:page-changed", url: lastUrl });
+  function reportPageChange(checkContent = false): void {
+    const url = location.href;
+    if (url === lastUrl && !checkContent) return;
+    const revision = pageRevision(buildPageContext());
+    if (url !== lastUrl || (checkContent && revision !== lastRevision)) {
+      lastUrl = url;
+      lastRevision = revision;
+      send({ type: "glimpselet:page-changed", url, revision });
     }
+  }
+
+  function relevantMutation(record: MutationRecord): boolean {
+    const target =
+      record.target instanceof Element
+        ? record.target
+        : record.target.parentElement;
+    if (!target) return false;
+    if (
+      record.type === "attributes" &&
+      [
+        "type",
+        "data-private",
+        "data-sensitive",
+        "contenteditable",
+        "aria-hidden",
+        "hidden",
+      ].includes(record.attributeName ?? "")
+    )
+      return true;
+    if (
+      target.closest(
+        "[data-glimpselet-overlay], [data-glimpselet-crop], [data-private], [data-sensitive], [contenteditable]:not([contenteditable=false])",
+      )
+    )
+      return false;
+    if (
+      target instanceof HTMLInputElement &&
+      /^(password|hidden|file)$/i.test(target.type)
+    )
+      return false;
+    if (record.type === "characterData")
+      return target.tagName === "TITLE" || contextTextNode(record.target);
+    return true;
   }
 
   function initObserver(): void {
     observer?.disconnect();
-    observer = new MutationObserver(() => {
+    lastRevision = pageRevision(buildPageContext());
+    observer = new MutationObserver((records) => {
+      if (!records.some(relevantMutation)) return;
       window.clearTimeout(pageTimer);
-      pageTimer = window.setTimeout(reportPageChange, 250);
+      pageTimer = window.setTimeout(() => reportPageChange(true), 250);
     });
     observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: [
+        "aria-label",
+        "aria-hidden",
+        "class",
+        "contenteditable",
+        "data-private",
+        "data-sensitive",
+        "hidden",
+        "role",
+        "style",
+        "title",
+        "type",
+      ],
     });
     window.setInterval(reportPageChange, 650);
-    window.addEventListener("popstate", reportPageChange);
-    window.addEventListener("hashchange", reportPageChange);
+    window.addEventListener("popstate", () => reportPageChange());
+    window.addEventListener("hashchange", () => reportPageChange());
     window.addEventListener("scroll", updateGuidePosition, { passive: true });
     window.addEventListener("resize", updateGuidePosition, { passive: true });
     document.addEventListener("selectionchange", onSelectionChange);

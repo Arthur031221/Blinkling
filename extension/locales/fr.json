@@ -154,5 +154,6 @@
   "allowSite": "Autoriser sur ce site",
   "allowAllSites": "Autoriser sur tous les sites",
   "siteAccessHint": "Autorise les résumés et les outils de sélection dans les nouveaux onglets.",
-  "siteAccessGranted": "Accès à la page autorisé."
+  "siteAccessGranted": "Accès à la page autorisé.",
+  "sessionInitialization": "Cette conversation a été interrompue avant de commencer. Choisissez « Nouvelle session » pour réessayer."
 }

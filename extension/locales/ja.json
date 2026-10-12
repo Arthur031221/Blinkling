@@ -154,5 +154,6 @@
   "allowSite": "このサイトで許可",
   "allowAllSites": "すべてのサイトで許可",
   "siteAccessHint": "新しいタブでページの要約とテキスト選択ツールを使えるようにします。",
-  "siteAccessGranted": "ページへのアクセスを許可しました。"
+  "siteAccessGranted": "ページへのアクセスを許可しました。",
+  "sessionInitialization": "この会話は開始前に停止しました。「新しいセッション」を選んでもう一度お試しください。"
 }

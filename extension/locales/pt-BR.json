@@ -154,5 +154,6 @@
   "allowSite": "Permitir neste site",
   "allowAllSites": "Permitir em todos os sites",
   "siteAccessHint": "Permite resumos e ferramentas de seleção em novas abas.",
-  "siteAccessGranted": "Acesso à página permitido."
+  "siteAccessGranted": "Acesso à página permitido.",
+  "sessionInitialization": "Esta conversa foi interrompida antes de começar. Escolha «Nova sessão» para tentar novamente."
 }

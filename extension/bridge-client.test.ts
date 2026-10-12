@@ -53,6 +53,24 @@ describe("paired browser bridge", () => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
+  it("preserves a bridge error code and readable message for localized recovery", async () => {
+    const socket = Socket.instances[0];
+    socket.open();
+    socket.receive({ type: "paired", token: "token" });
+    const pending = client.ask(question, () => {});
+    const rejected = expect(pending).rejects.toMatchObject({
+      code: "session_initialization",
+      message: "Choose New session to try again.",
+    });
+    socket.receive({
+      type: "error",
+      id: question.id,
+      code: "session_initialization",
+      message: "Choose New session to try again.",
+    });
+    await rejected;
+  });
+
   it("waits for pairing and renders every streaming chunk cumulatively", async () => {
     const socket = Socket.instances[0];
     const connected = vi.fn();

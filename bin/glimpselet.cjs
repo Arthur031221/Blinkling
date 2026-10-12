@@ -18774,7 +18774,7 @@ Untrusted page context: ${JSON.stringify(request.page || null)}`;
 };
 
 // bridge/src/server.ts
-var import_promises16 = require("node:fs/promises");
+var import_promises17 = require("node:fs/promises");
 
 // node_modules/zod/v3/helpers/util.js
 var util;
@@ -40753,7 +40753,7 @@ function normalizePng(input, requestedLongEdge = DEFAULT_LONG_EDGE) {
 var import_node_crypto8 = require("node:crypto");
 var import_node_child_process4 = require("node:child_process");
 var import_node_fs4 = require("node:fs");
-var import_promises15 = require("node:fs/promises");
+var import_promises16 = require("node:fs/promises");
 var import_node_http = require("node:http");
 var import_node_path6 = require("node:path");
 
@@ -41336,6 +41336,7 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
       let buffer = "";
       let answer = "";
       let received = 0;
+      let stderr = "";
       let result;
       const decoder = new import_node_string_decoder.StringDecoder("utf8");
       const kill = (signal) => {
@@ -41471,7 +41472,9 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
             )
           );
       });
-      child.stderr.resume();
+      child.stderr.on("data", (chunk) => {
+        stderr = (stderr + chunk.toString()).slice(-4096);
+      });
       child.once("error", () => {
         failure = new PanelError(
           "cli_missing",
@@ -41486,6 +41489,16 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
         if (buffer.trim()) consume(buffer);
         if (request.signal.aborted) return reject(cancelled());
         if (failure) return reject(failure);
+        if (code !== 0 && request.cliSession && !request.cliSession.resume && stderr.includes(
+          `Session ID ${request.cliSession.id} is already in use.`
+        ))
+          return reject(
+            new PanelError(
+              "session_initialization",
+              "This conversation stopped before it could start. Choose New session to try again.",
+              409
+            )
+          );
         if (code !== 0 || !result || !answer.trim())
           return reject(
             new PanelError(
@@ -41675,18 +41688,19 @@ var import_path4 = require("path");
 var Se = __toESM(require("fs"), 1);
 var import_promises5 = require("fs/promises");
 var xe = __toESM(require("path"), 1);
-var import_fs2 = require("fs");
 var import_promises6 = require("fs/promises");
+var import_fs2 = require("fs");
+var import_promises7 = require("fs/promises");
 var import_os3 = require("os");
 var import_path5 = require("path");
-var import_promises7 = require("fs/promises");
+var import_promises8 = require("fs/promises");
 var import_os4 = require("os");
 var import_node_path4 = __toESM(require("node:path"), 1);
 var import_node_os4 = __toESM(require("node:os"), 1);
 var import_node_process3 = __toESM(require("node:process"), 1);
 var import_path6 = require("path");
 var import_fs3 = require("fs");
-var import_promises8 = require("fs/promises");
+var import_promises9 = require("fs/promises");
 var import_path7 = require("path");
 var import_child_process = require("child_process");
 var import_util6 = require("util");
@@ -41697,23 +41711,23 @@ var import_path9 = require("path");
 var import_crypto3 = require("crypto");
 var import_fs5 = require("fs");
 var import_path10 = require("path");
-var import_promises9 = require("fs/promises");
+var import_promises10 = require("fs/promises");
 var import_path11 = require("path");
 var import_path12 = require("path");
-var import_promises10 = require("fs/promises");
+var import_promises11 = require("fs/promises");
 var import_path13 = require("path");
 var import_path14 = require("path");
 var import_fs6 = require("fs");
-var import_promises11 = require("fs/promises");
+var import_promises12 = require("fs/promises");
 var import_path15 = require("path");
 var import_async_hooks = require("async_hooks");
 var import_fs7 = require("fs");
 var import_path16 = require("path");
 var import_path17 = require("path");
 var import_buffer = require("buffer");
-var import_promises12 = require("fs/promises");
-var import_fs8 = require("fs");
 var import_promises13 = require("fs/promises");
+var import_fs8 = require("fs");
+var import_promises14 = require("fs/promises");
 var import_path18 = require("path");
 var import_util7 = require("util");
 var import_path19 = require("path");
@@ -50141,6 +50155,10 @@ var lXe = new Fe(() => ze());
 function V(e13, t) {
   return { code: "InvalidArgument", argument: e13, ...t !== void 0 && { reason: t } };
 }
+var Q3 = "ByteViewUnsupported";
+function dk(e13) {
+  return e13.code === "Failed" && "telemetryCode" in e13 && e13.telemetryCode === Q3;
+}
 var Vp = { home: (e13) => ({ space: "home", path: e13 }), workspace: (e13) => ({ space: "workspace", path: e13 }), system: (e13) => ({ space: "system", path: e13 }), userNamed: (e13) => ({ space: "userNamed", path: e13 }) };
 var Vy = globalThis.process?.getBuiltinModule?.("async_hooks");
 var fk = Vy !== void 0;
@@ -50354,6 +50372,9 @@ function ie(e13, t, n) {
   } finally {
     it(o, i, a);
   }
+}
+function Rk(e13) {
+  return JSON.parse(e13);
 }
 function Nr(e13, t) {
   let r = [];
@@ -52519,7 +52540,7 @@ var tI = class {
 };
 var RQ;
 function xQ() {
-  return RQ ??= new tI({ platform: process.platform, env: process.env, readProcVersionSync: Ef, readProcVersion: () => (0, import_promises7.readFile)("/proc/version", { encoding: "utf8" }), osRelease: import_os4.release, readOsRelease: () => (0, import_promises7.readFile)("/etc/os-release", "utf8") });
+  return RQ ??= new tI({ platform: process.platform, env: process.env, readProcVersionSync: Ef, readProcVersion: () => (0, import_promises8.readFile)("/proc/version", { encoding: "utf8" }), osRelease: import_os4.release, readOsRelease: () => (0, import_promises8.readFile)("/etc/os-release", "utf8") });
 }
 function It() {
   return xQ().getPlatform();
@@ -52592,7 +52613,7 @@ var cI = ["git", "node", "npm", "npx", "yarn", "pnpm", "bun", "deno", "tsc", "py
 var HQ = 1e3;
 async function jQ(e13) {
   try {
-    return /appinstaller/i.test(await (0, import_promises6.readlink)(e13));
+    return /appinstaller/i.test(await (0, import_promises7.readlink)(e13));
   } catch {
     return false;
   }
@@ -52607,7 +52628,7 @@ async function KQ(e13, t) {
     if (!await BQ(i)) return;
     let a;
     try {
-      a = await (0, import_promises6.readdir)(i, { withFileTypes: true });
+      a = await (0, import_promises7.readdir)(i, { withFileTypes: true });
     } catch {
       return;
     }
@@ -52627,7 +52648,7 @@ async function KQ(e13, t) {
         let p = (0, import_path5.join)(i, c.name);
         if ((c.isSymbolicLink() || nI(c)) && await oS((0, import_path5.resolve)(p))) continue;
         try {
-          await (0, import_promises6.access)(p, import_fs2.constants.X_OK);
+          await (0, import_promises7.access)(p, import_fs2.constants.X_OK);
         } catch {
           continue;
         }
@@ -52760,9 +52781,9 @@ var pI = class {
   }
   async prime() {
     if (this.primedWslInteropExists !== void 0 || process.platform !== "linux") return;
-    let [e13, t, n] = await Promise.all([(0, import_promises6.access)("/proc/sys/fs/binfmt_misc/WSLInterop").then(() => true, () => false), (0, import_promises6.readFile)("/sys/hypervisor/uuid", { encoding: "utf8" }).then((r) => r.trim().toLowerCase(), () => {
+    let [e13, t, n] = await Promise.all([(0, import_promises7.access)("/proc/sys/fs/binfmt_misc/WSLInterop").then(() => true, () => false), (0, import_promises7.readFile)("/sys/hypervisor/uuid", { encoding: "utf8" }).then((r) => r.trim().toLowerCase(), () => {
       return;
-    }), (0, import_promises6.access)("/.dockerenv").then(() => true, () => false)]);
+    }), (0, import_promises7.access)("/.dockerenv").then(() => true, () => false)]);
     this.primedWslInteropExists = e13, this.primedHypervisorUuid = t ?? "", this.primedDockerenvExists = n, this.wslEnvironment = void 0, this.npmFromWindowsPath = void 0, this.deploymentEnvironment = void 0;
   }
 };
@@ -53875,6 +53896,19 @@ var jye = {};
 var N7e = WS(jye, null);
 var Bye = {};
 var U7e = WS(Bye, null);
+var Kye = /^[A-Za-z0-9_.:-]{1,128}$/;
+function Bc(e13) {
+  return typeof e13 === "string" && Kye.test(e13) ? e13 : void 0;
+}
+function VS(e13) {
+  if (e13?.kind !== "task-notification") return e13;
+  let t = Bc(e13.runId);
+  return { kind: "task-notification", ...e13.subkind !== void 0 && { subkind: e13.subkind }, ...e13.fireReason !== void 0 && { fireReason: e13.fireReason }, ...e13.producer !== void 0 && { producer: e13.producer }, ...t !== void 0 && { runId: t } };
+}
+function _I(e13, t, n) {
+  let r = VS(e13) ?? (t === "task-notification" ? { kind: "task-notification" } : void 0), o = Bc(n);
+  return o !== void 0 && r?.kind === "task-notification" && r.runId === void 0 ? { ...r, runId: o } : r;
+}
 var yI = 1e4;
 async function yr(e13, t, n) {
   let r = Math.max(1, Math.floor(n?.maxPages ?? 1e4)), o;
@@ -54100,6 +54134,9 @@ function qS(e13, t) {
   }
   return;
 }
+function xf(e13, t) {
+  return e13?.realWorkspacePath === void 0 ? void 0 : { hoverRestOn: t, realPath: e13.realWorkspacePath };
+}
 function Tf(e13) {
   let t = 0, n = { commandFallback: "" };
   while (t < e13.length) {
@@ -54182,9 +54219,9 @@ async function pi(e13, t) {
   if (t !== void 0 && t.hoverRestOn) return FI(t.source);
   try {
     if (AI === import_fs3.constants.O_RDONLY) {
-      if (!(await (0, import_promises8.lstat)(e13)).isFile()) return null;
+      if (!(await (0, import_promises9.lstat)(e13)).isFile()) return null;
     }
-    let n = await (0, import_promises8.open)(e13, AI);
+    let n = await (0, import_promises9.open)(e13, AI);
     try {
       let r = await n.stat();
       if (!r.isFile()) return null;
@@ -54239,7 +54276,7 @@ async function zI(e13, t, n, r, o) {
       let a = await o.realPath(e13);
       if (!a.ok || !a.value.found) return false;
       s = Be(a.value.path);
-    } else s = Be(await (0, import_promises8.realpath)(e13));
+    } else s = Be(await (0, import_promises9.realpath)(e13));
   } catch {
     return false;
   }
@@ -54280,7 +54317,7 @@ async function Eo(e13, t) {
       let n = await t.realPath(e13);
       return Be(n.ok && n.value.found ? n.value.path : e13);
     }
-    return Be(await (0, import_promises8.realpath)(e13));
+    return Be(await (0, import_promises9.realpath)(e13));
   } catch {
     return Be(e13);
   }
@@ -54301,7 +54338,7 @@ async function Za(e13, t, n, r) {
   }
   let i = Va(t), a;
   try {
-    a = await (0, import_promises8.readdir)(e13, { withFileTypes: true });
+    a = await (0, import_promises9.readdir)(e13, { withFileTypes: true });
   } catch {
     return false;
   }
@@ -54344,14 +54381,14 @@ async function zn(e13, t, n = ct()) {
   if (t !== void 0 && t.hoverRestOn) return SSe(e13, t);
   let r = qa(e13, n), o = [];
   try {
-    await (0, import_promises8.readdir)(r), o.push(r);
+    await (0, import_promises9.readdir)(r), o.push(r);
   } catch {
   }
   let s = JS(e13);
   if (s !== void 0) {
     let p = (0, import_path7.join)(n, s);
     try {
-      await (0, import_promises8.readdir)(p), o.push(p);
+      await (0, import_promises9.readdir)(p), o.push(p);
     } catch {
     }
     return o;
@@ -54360,7 +54397,7 @@ async function zn(e13, t, n = ct()) {
   if (i.length <= So) return o;
   let a = process.platform === "win32", l = (p) => a ? p.toLowerCase() : p, c = l(i.slice(0, So) + "-"), d = l(r);
   try {
-    for (let p of await (0, import_promises8.readdir)(n, { withFileTypes: true })) {
+    for (let p of await (0, import_promises9.readdir)(n, { withFileTypes: true })) {
       if (!p.isDirectory() || !l(p.name).startsWith(c)) continue;
       let f = (0, import_path7.join)(n, p.name);
       if (l(f) !== d && await Za(f, e13, a)) o.push(f);
@@ -54405,12 +54442,266 @@ async function QS(e13, t, n, r) {
   }
   return [...f ? [s] : [], ...m !== void 0 ? [m] : [], ...y];
 }
+async function ESe(e13, t, n = ct()) {
+  let r = [];
+  for (let o of await yo(e13)) {
+    if (o === e13) continue;
+    let s = await zn(o, t, n);
+    if (t !== void 0 && t.hoverRestOn) {
+      let i = qa(o);
+      if (!s.includes(i)) s.push(i);
+    }
+    for (let i of s) r.push({ worktreePath: o, projectDir: i });
+  }
+  return r;
+}
+async function us(e13, t, n, r, o = ct()) {
+  let s = `${e13}.jsonl`, i = r && n !== void 0 && n.isKeySegment(e13) ? ZS(n) : void 0, a = i === void 0 ? void 0 : { source: i, hoverRestOn: r };
+  async function l(d, p) {
+    let f = (0, import_path7.join)(d, s);
+    if (i) {
+      let m = fi(d, i.isKeySegment);
+      if (m !== void 0) {
+        try {
+          let g = await i.backend.stat(i.transcriptKey(m, e13));
+          if (g.ok) {
+            let _ = g.value.storedBytes ?? g.value.size;
+            if (_ > 0) return { filePath: f, projectPath: p, fileSize: _ };
+          }
+        } catch {
+        }
+        return;
+      }
+    }
+    try {
+      let m = await (0, import_promises9.stat)(f);
+      if (m.size > 0) return { filePath: f, projectPath: p, fileSize: m.size };
+    } catch {
+    }
+    return;
+  }
+  if (t) {
+    let d = await Eo(t, xf(n, r)), p = /* @__PURE__ */ new Set();
+    for (let f of XS(t, d)) for (let m of await zn(f, a, o)) {
+      let g = process.platform === "win32" ? m.toLowerCase() : m;
+      if (p.has(g)) continue;
+      p.add(g);
+      let _ = await l(m, f);
+      if (_) return _;
+    }
+    for (let { worktreePath: f, projectDir: m } of await ESe(d, a, o)) {
+      let g = await l(m, f);
+      if (g) return g;
+    }
+    return;
+  }
+  if (i) {
+    let d = /* @__PURE__ */ new Map();
+    try {
+      if ((await yr((m) => i.backend.listEntries({ namespace: "transcript" }, m !== void 0 ? { cursor: m } : void 0), (m) => {
+        for (let g of m) {
+          let _ = wf(g, i.isKeySegment);
+          if (_ === void 0) continue;
+          let y = g.kind === "scope" && g.mtimeMs !== void 0 ? g.mtimeMs : Number.NEGATIVE_INFINITY, S = d.get(_);
+          if (S === void 0) d.set(_, { projectKey: _, mtimeMs: y });
+          else if (y > S.mtimeMs) S.mtimeMs = y;
+        }
+      })).status === "error") return;
+    } catch {
+      return;
+    }
+    let p = [...d.values()];
+    p.sort((f, m) => f.mtimeMs !== m.mtimeMs ? m.mtimeMs - f.mtimeMs : f.projectKey < m.projectKey ? -1 : f.projectKey > m.projectKey ? 1 : 0);
+    for (let { projectKey: f } of p) {
+      let m = await l((0, import_path7.join)(o, f), void 0);
+      if (m) return m;
+    }
+    return;
+  }
+  let c;
+  try {
+    c = await (0, import_promises9.readdir)(o);
+  } catch {
+    return;
+  }
+  for (let d of c) {
+    let p = await l((0, import_path7.join)(o, d), void 0);
+    if (p) return p;
+  }
+  return;
+}
+var jI = 1048576;
+var BI = 5242880;
 var bSe = Buffer.from('"compact_boundary"');
+function KI(e13) {
+  try {
+    let t = JSON.parse(e13);
+    if (t.type !== "system" || t.subtype !== "compact_boundary") return null;
+    return { hasPreservedSegment: Boolean(t.compactMetadata?.preservedSegment || t.compactMetadata?.preservedMessages) };
+  } catch {
+    return null;
+  }
+}
+function di(e13, t, n, r) {
+  let o = r - n;
+  if (o <= 0) return;
+  if (e13.len + o > e13.buf.length) {
+    let s = Buffer.allocUnsafe(Math.min(Math.max(e13.buf.length * 2, e13.len + o), e13.cap));
+    e13.buf.copy(s, 0, 0, e13.len), e13.buf = s;
+  }
+  t.copy(e13.buf, e13.len, n, r), e13.len += o;
+}
+function Af(e13, t, n, r) {
+  return r - n >= t.length && e13.compare(t, 0, t.length, n, n + t.length) === 0;
+}
 var vf = Buffer.from('{"type":"attribution-snapshot"');
 var CSe = Buffer.from('{"type":"system"');
 var Wc = 10;
 var ASe = Buffer.from([Wc]);
+var vSe = 256;
+function xI(e13, t, n) {
+  if (e13.straddleSnapCarryLen = 0, e13.straddleSnapTailEnd = 0, e13.carryLen === 0) return 0;
+  let r = e13.carryBuf, o = t.indexOf(Wc);
+  if (o === -1 || o >= n) return 0;
+  let s = o + 1;
+  if (Af(r, vf, 0, e13.carryLen)) e13.straddleSnapCarryLen = e13.carryLen, e13.straddleSnapTailEnd = s, e13.lastSnapSrc = null;
+  else if (e13.carryLen < vf.length) return 0;
+  else {
+    if (Af(r, CSe, 0, e13.carryLen)) {
+      let i = KI(r.toString("utf-8", 0, e13.carryLen) + t.toString("utf-8", 0, o));
+      if (i?.hasPreservedSegment) e13.hasPreservedSegment = true;
+      else if (i) e13.out.len = 0, e13.boundaryStartOffset = e13.bufFileOff, e13.hasPreservedSegment = false, e13.lastSnapSrc = null;
+    }
+    di(e13.out, r, 0, e13.carryLen), di(e13.out, t, 0, s);
+  }
+  return e13.bufFileOff += e13.carryLen + s, e13.carryLen = 0, s;
+}
+function TI(e13, t, n) {
+  let r = t.indexOf(n), o = 0, s = 0, i = -1, a = -1, l = t.indexOf(Wc);
+  while (l !== -1) {
+    let c = l + 1;
+    if (r !== -1 && r < s) r = t.indexOf(n, s);
+    if (Af(t, vf, s, c)) di(e13.out, t, o, s), i = s, a = c, o = c;
+    else if (r >= s && r < Math.min(s + vSe, c)) {
+      let d = KI(t.toString("utf-8", s, l));
+      if (d?.hasPreservedSegment) e13.hasPreservedSegment = true;
+      else if (d) e13.out.len = 0, e13.boundaryStartOffset = e13.bufFileOff + s, e13.hasPreservedSegment = false, e13.lastSnapSrc = null, i = -1, e13.straddleSnapCarryLen = 0, o = s;
+      r = t.indexOf(n, r + n.length);
+    }
+    s = c, l = t.indexOf(Wc, s);
+  }
+  return di(e13.out, t, o, s), { lastSnapStart: i, lastSnapEnd: a, trailStart: s };
+}
+function wI(e13, t, n, r, o) {
+  if (r !== -1) {
+    if (e13.lastSnapLen = o - r, e13.lastSnapBuf === void 0 || e13.lastSnapLen > e13.lastSnapBuf.length) e13.lastSnapBuf = Buffer.allocUnsafe(e13.lastSnapLen);
+    t.copy(e13.lastSnapBuf, 0, r, o), e13.lastSnapSrc = e13.lastSnapBuf;
+  } else if (e13.straddleSnapCarryLen > 0) {
+    if (e13.lastSnapLen = e13.straddleSnapCarryLen + e13.straddleSnapTailEnd, e13.lastSnapBuf === void 0 || e13.lastSnapLen > e13.lastSnapBuf.length) e13.lastSnapBuf = Buffer.allocUnsafe(e13.lastSnapLen);
+    e13.carryBuf.copy(e13.lastSnapBuf, 0, 0, e13.straddleSnapCarryLen), n.copy(e13.lastSnapBuf, e13.straddleSnapCarryLen, 0, e13.straddleSnapTailEnd), e13.lastSnapSrc = e13.lastSnapBuf;
+  }
+}
+function OI(e13, t, n) {
+  if (e13.carryLen = t.length - n, e13.carryLen > 0) {
+    if (e13.carryBuf === void 0 || e13.carryLen > e13.carryBuf.length) e13.carryBuf = Buffer.allocUnsafe(e13.carryLen);
+    t.copy(e13.carryBuf, 0, n, t.length);
+  }
+}
+function kI(e13) {
+  if (e13.carryLen > 0) {
+    let t = e13.carryBuf;
+    if (Af(t, vf, 0, e13.carryLen)) e13.lastSnapSrc = t, e13.lastSnapLen = e13.carryLen;
+    else di(e13.out, t, 0, e13.carryLen);
+  }
+  if (e13.lastSnapSrc) {
+    if (e13.out.len > 0 && e13.out.buf[e13.out.len - 1] !== Wc) di(e13.out, ASe, 0, 1);
+    di(e13.out, e13.lastSnapSrc, 0, e13.lastSnapLen);
+  }
+}
+async function RSe(e13, t, n, r) {
+  let o = 0, s;
+  while (o < n) {
+    let i = await e13.readRecords(t, { order: "forward", maxBytes: jI, ...s !== void 0 && { fromSeq: s } });
+    if (!i.ok) throw Error("transcript record page failed during load", { cause: i.error });
+    let a = [], l = 0;
+    for (let d of i.value.items) {
+      if (o + l + d.data.byteLength > n) break;
+      a.push(d.data), l += d.data.byteLength;
+    }
+    if (l > 0) r(Buffer.concat(a, l)), o += l;
+    let c = i.value.nextSeq;
+    if (c === void 0 || a.length < i.value.items.length) return;
+    if (s !== void 0 && c <= s) throw Error("transcript record cursor did not advance during load");
+    s = c;
+  }
+}
+async function GI(e13, t, n) {
+  let r = bSe, o = jI, s = { out: { buf: Buffer.allocUnsafe(Math.min(t, 8388608)), len: 0, cap: t + 1 }, boundaryStartOffset: 0, hasPreservedSegment: false, lastSnapSrc: null, lastSnapLen: 0, lastSnapBuf: void 0, bufFileOff: 0, carryLen: 0, carryBuf: void 0, straddleSnapCarryLen: 0, straddleSnapTailEnd: 0 };
+  if (n !== void 0 && n.hoverRestOn) {
+    let { backend: l, key: c } = n.source, d = 0, p = (f) => {
+      let m = f.length;
+      d += m;
+      let g = xI(s, f, m), _;
+      if (s.carryLen > 0) {
+        let S = s.carryLen + (m - g);
+        _ = Buffer.allocUnsafe(S), s.carryBuf.copy(_, 0, 0, s.carryLen), f.copy(_, s.carryLen, g, m);
+      } else _ = f.subarray(g, m);
+      let y = TI(s, _, r);
+      wI(s, _, f, y.lastSnapStart, y.lastSnapEnd), OI(s, _, y.trailStart), s.bufFileOff += y.trailStart;
+    };
+    while (d < t) {
+      let f = await l.read([{ key: c, offset: d, length: Math.min(o, t - d) }]);
+      if (!f.ok) {
+        if (d === 0 && dk(f.error)) {
+          await RSe(l, c, t, p);
+          break;
+        }
+        throw Error("transcript ranged read failed", { cause: f.error });
+      }
+      let [m] = f.value.items;
+      if (!m.found) throw Error("transcript stream absent during load");
+      if (m.value.length === 0) break;
+      p(Buffer.from(m.value.buffer, m.value.byteOffset, m.value.length));
+    }
+    return kI(s), { boundaryStartOffset: s.boundaryStartOffset, postBoundaryBuf: s.out.buf.subarray(0, s.out.len), hasPreservedSegment: s.hasPreservedSegment };
+  }
+  let i = Buffer.allocUnsafe(o), a = await (0, import_promises9.open)(e13, "r");
+  try {
+    let l = 0;
+    while (l < t) {
+      let { bytesRead: c } = await a.read(i, 0, Math.min(o, t - l), l);
+      if (c === 0) break;
+      l += c;
+      let d = xI(s, i, c), p;
+      if (s.carryLen > 0) {
+        let m = s.carryLen + (c - d);
+        p = Buffer.allocUnsafe(m), s.carryBuf.copy(p, 0, 0, s.carryLen), i.copy(p, s.carryLen, d, c);
+      } else p = i.subarray(d, c);
+      let f = TI(s, p, r);
+      wI(s, p, i, f.lastSnapStart, f.lastSnapEnd), OI(s, p, f.trailStart), s.bufFileOff += f.trailStart;
+    }
+    kI(s);
+  } finally {
+    await a.close();
+  }
+  return { boundaryStartOffset: s.boundaryStartOffset, postBoundaryBuf: s.out.buf.subarray(0, s.out.len), hasPreservedSegment: s.hasPreservedSegment };
+}
 var WI = /^[0-9a-f]{16}(?:[0-9a-f]{48})?@v\d+$/;
+var qI = ["[Request interrupted by user]", "[Request interrupted by user for tool use]", "[Tool call did not complete: the turn was ended to deliver the message that follows. Nothing refused it; re-run it if still needed.]", "[Tool call interrupted: the session ended before this call's result was recorded, so its outcome is unknown. Check whether it took effect before relying on it or running it again.]", "[Tool call result not in this copy: this session was copied from another session before that session recorded this call's result. The call may have finished there, may still be running there, or may never have run. Check whether it took effect before relying on it or running it again.]", "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed.", "[Tool call skipped: the turn was stopped before this call ran, by the check whose denial is on another call in this batch. Nothing refused this call and it had no effects; re-run it if still needed.]", "[Tool call skipped: the turn ended to deliver the message that follows before this call ran. Nothing refused it; re-run it if still needed.]"];
+function ZI(e13) {
+  if (e13.type !== "user") return false;
+  let t = e13.message?.content;
+  if (typeof t === "string") return qI.some((n) => t.startsWith(n));
+  if (!Array.isArray(t)) return false;
+  return t.length > 0 && t.every((n) => {
+    let r = n?.type === "text" ? n.text : n?.type === "tool_result" && n.is_error === true ? n.content : void 0;
+    return typeof r === "string" && qI.some((o) => r.startsWith(o));
+  });
+}
+var xSe = ["stream-closed"];
+function YI(e13) {
+  return xSe.find((t) => t === e13);
+}
 var eE = "Tool permission request failed";
 var TSe = "Tool permission stream closed before response received";
 var wSe = "Stream closed";
@@ -57738,7 +58029,57 @@ function P(e13) {
   return Kbe.lazy(e13);
 }
 var Gbe = P(() => v({ lineage: h().min(1), source: fe().optional() }));
+function Wbe(e13) {
+  let t = Gbe().safeParse(e13);
+  if (!t.success) return;
+  let { lineage: n, source: r } = t.data;
+  return { lineage: n, source: r === "typed" || r === "relay" || r === "owner" ? r : "unattributed" };
+}
+function VM(e13) {
+  return e13.type === "queued_command" && Wbe(e13.forwardedIntent) !== void 0;
+}
+function qM(e13, t) {
+  if (VM(e13)) return;
+  return { uuid: typeof e13.source_uuid === "string" && e13.source_uuid ? e13.source_uuid : t, content: e13.prompt, isMeta: Boolean(e13.isMeta), origin: _I(e13.origin, e13.commandMode, e13.runId) };
+}
+function ZM(e13, t) {
+  let n = e13.type === "attachment" ? e13.attachment : void 0;
+  if (typeof n !== "object" || n === null || !("type" in n) || n.type !== "queued_command") return;
+  let r = Reflect.get(n, t);
+  return typeof r === "string" && r ? r : void 0;
+}
+function Su(e13) {
+  return ZM(e13, "source_uuid");
+}
+function WC(e13) {
+  return ZM(e13, "delivery_id");
+}
+function qC(e13) {
+  return qbe(e13, { udsInboxEnabled: true });
+}
+function JM(e13) {
+  return Vbe(e13) ? e13 : void 0;
+}
+function Vbe(e13) {
+  return typeof e13 === "object" && e13 !== null && "kind" in e13 && typeof e13.kind === "string";
+}
+function qbe(e13, { udsInboxEnabled: t }) {
+  if (e13?.kind === "channel") return true;
+  if (e13?.kind === "observer") return true;
+  if (e13?.kind === "observer-activity") return true;
+  if (e13?.kind === "slack-ping") return true;
+  if (e13?.kind === "peer") {
+    if (e13.senderTaskId !== void 0) return true;
+    if (t) return true;
+  }
+  return false;
+}
 var Zbe = [[`<${kS}>`, "record"], [`<${PS}>`, "output"], [`<${IS}>`, "output"], [`<${DS}>`, "caveat"]];
+function XM(e13) {
+  let t = e13.message?.content, n = Array.isArray(t) ? t.findLast((r) => r?.type === "text")?.text : typeof t === "string" ? t : void 0;
+  if (typeof n !== "string") return;
+  return Zbe.find(([r]) => n.startsWith(r))?.[1];
+}
 var Ybe = String.fromCharCode(0);
 var Jbe = /^\.[0-9a-f]{16}\.aside$/;
 function Xbe(e13) {
@@ -58107,6 +58448,428 @@ function On(e13) {
 function Yt(e13) {
   return e13 === void 0 ? void 0 : { source: e13, hoverRestOn: Ee() };
 }
+async function nAe(e13, t, n) {
+  try {
+    let r = Yt(Cr(e13, n));
+    if (t > BI && !Fn.CLAUDE_CODE_DISABLE_PRECOMPACT_SKIP) return (await GI(e13, t, r)).postBoundaryBuf;
+    if (r !== void 0 && r.hoverRestOn) {
+      let o = await r.source.backend.read([r.source.key]);
+      if (!o.ok) return null;
+      let s = o.value.items[0];
+      if (!s.found) return null;
+      return Buffer.from(s.value.buffer, s.value.byteOffset, s.value.byteLength);
+    }
+    return await (0, import_promises6.readFile)(e13);
+  } catch {
+    return null;
+  }
+}
+var ON = 524288;
+var kN = 8192;
+function eA(e13) {
+  return `delivery:${e13}`;
+}
+function tA(e13) {
+  return `uuid:${e13}`;
+}
+function PN() {
+  return { counts: /* @__PURE__ */ new Map(), copies: /* @__PURE__ */ new Map(), mixed: /* @__PURE__ */ new Set(), deliveryCopies: /* @__PURE__ */ new Map(), deliveryCopyUuids: /* @__PURE__ */ new Set() };
+}
+function IN(e13) {
+  return `entry:${e13}`;
+}
+function DN(e13, t) {
+  if (e13.type === "queue-operation" && e13.operation === "remove" && e13.reason === "absorbed_mid_turn" && (typeof e13.deliveryId === "string" || typeof e13.commandUuid === "string")) {
+    let i = typeof e13.deliveryId === "string" && e13.deliveryId !== "" ? eA(e13.deliveryId) : typeof e13.commandUuid === "string" ? tA(e13.commandUuid) : void 0;
+    if (i !== void 0) t.counts.set(i, (t.counts.get(i) ?? 0) + 1);
+    return;
+  }
+  let n = typeof e13.type === "string" && typeof e13.uuid === "string" ? WC({ type: e13.type, uuid: e13.uuid, attachment: e13.attachment }) : void 0;
+  if (n !== void 0) {
+    if (typeof e13.uuid === "string" && !t.deliveryCopyUuids.has(e13.uuid)) {
+      t.deliveryCopyUuids.add(e13.uuid);
+      let i = eA(n), a = t.deliveryCopies.get(i);
+      if (a) a.push(e13.uuid);
+      else t.deliveryCopies.set(i, [e13.uuid]);
+    }
+    return;
+  }
+  let r = typeof e13.type === "string" && typeof e13.uuid === "string" ? Su({ type: e13.type, uuid: e13.uuid, attachment: e13.attachment }) : void 0;
+  if (r === void 0) return;
+  let o;
+  try {
+    o = ie(e13.attachment);
+  } catch {
+    t.mixed.add(r);
+    return;
+  }
+  let s = t.copies.get(r);
+  if (s === void 0) t.copies.set(r, o);
+  else if (s !== o) t.mixed.add(r);
+}
+function LN(e13) {
+  for (let t of e13.mixed) e13.counts.delete(tA(t));
+  for (let [t, n] of e13.deliveryCopies) {
+    let r = e13.counts.get(t) ?? 0;
+    for (let o of n.slice(Math.max(0, n.length - r))) e13.counts.set(IN(o), 1);
+  }
+  return e13.counts;
+}
+async function rAe(e13) {
+  let l = [];
+  try {
+    const t = st(l, Pt`parseTranscriptEntries(${e13.length} bytes)`, 0);
+    let n = [];
+    let r = PN();
+    let o = 10;
+    let s = e13.length;
+    let i = 0;
+    let a = ON;
+    while (i < s) {
+      if (i >= a) await new Promise((_) => setImmediate(_)), a = i + ON;
+      let f = e13.indexOf(o, i);
+      if (f === -1) f = s;
+      let m = i;
+      while (m < f && e13[m] <= 32) m++;
+      if (i = f + 1, m >= f) continue;
+      let g = e13.toString("utf-8", m, f);
+      try {
+        let _ = Rk(g), y = _.type;
+        if ((y === "user" || y === "assistant" || y === "progress" || y === "system" || y === "attachment") && typeof _.uuid === "string") n.push(_);
+        DN(_, r);
+      } catch {
+      }
+    }
+    return { entries: n, delivered: LN(r) };
+  } catch (c) {
+    var d = c, p = 1;
+  } finally {
+    it(l, d, p);
+  }
+}
+async function Ru(e13, t) {
+  let n = /* @__PURE__ */ new Map();
+  for (let S of e13) n.set(S.uuid, S);
+  let r = 0;
+  for (let S of n.values()) {
+    if (S.type !== "system" || S.subtype !== "compact_boundary") continue;
+    let b = S.compactMetadata?.preservedMessages, E = S.compactMetadata?.preservedSegment;
+    if (b) {
+      if (b.uuids.length === 0 || b.uuids.some((L) => !n.has(L))) continue;
+      let C = b.anchorUuid;
+      for (let L of b.uuids) {
+        let z = n.get(L);
+        n.set(L, { ...z, parentUuid: C }), C = L;
+      }
+      let A = b.uuids[0], w = b.uuids.at(-1);
+      for (let [L, z] of n) {
+        if (++r % kN === 0) await new Promise((U) => setImmediate(U));
+        if (z.parentUuid === b.anchorUuid && L !== A) n.set(L, { ...z, parentUuid: w });
+      }
+    } else if (E) {
+      let C = n.get(E.headUuid);
+      if (C) n.set(E.headUuid, { ...C, parentUuid: E.anchorUuid });
+      for (let [A, w] of n) {
+        if (++r % kN === 0) await new Promise((L) => setImmediate(L));
+        if (w.parentUuid === E.anchorUuid && A !== E.headUuid) n.set(A, { ...w, parentUuid: E.tailUuid });
+      }
+    }
+  }
+  let o = /* @__PURE__ */ new Map();
+  for (let S = 0; S < e13.length; S++) o.set(e13[S].uuid, S);
+  let s = /* @__PURE__ */ new Set();
+  for (let S of n.values()) if (S.parentUuid) s.add(S.parentUuid);
+  let i = [...n.values()].filter((S) => !s.has(S.uuid)), a = (S) => !S.isSidechain && !S.teamName && S.type !== "progress" && !(S.type === "attachment" && S.attachment?.type === "fork_briefing"), l = /* @__PURE__ */ new Set();
+  for (let S of n.values()) if (S.parentUuid && a(S)) l.add(S.parentUuid);
+  let c = [...n.values()].filter((S) => a(S) && !l.has(S.uuid)).sort((S, b) => (o.get(b.uuid) ?? -1) - (o.get(S.uuid) ?? -1)), d = /* @__PURE__ */ new Set(), p, f;
+  for (let S of c) {
+    let b = [], E = /* @__PURE__ */ new Set(), C = S;
+    while (C && !d.has(C.uuid) && !E.has(C.uuid)) {
+      if (C.type === "user" || C.type === "assistant") {
+        p = C, f = S;
+        break;
+      }
+      E.add(C.uuid), b.push(C.uuid), C = C.parentUuid ? n.get(C.parentUuid) : void 0;
+    }
+    if (p) break;
+    for (let A of b) d.add(A);
+  }
+  let m = p;
+  if (!m) {
+    let S = [];
+    for (let C of i) {
+      let A = C, w = /* @__PURE__ */ new Set();
+      while (A) {
+        if (w.has(A.uuid)) break;
+        if (w.add(A.uuid), A.type === "user" || A.type === "assistant") {
+          S.push(A);
+          break;
+        }
+        A = A.parentUuid ? n.get(A.parentUuid) : void 0;
+      }
+    }
+    if (S.length === 0) return [];
+    let b = S.filter((C) => !C.isSidechain && !C.teamName && !C.isMeta), E = (C) => C.reduce((A, w) => (o.get(w.uuid) ?? -1) > (o.get(A.uuid) ?? -1) ? w : A);
+    m = b.length > 0 ? E(b) : E(S);
+  }
+  let g = [], _ = /* @__PURE__ */ new Set(), y = n.get(m.uuid);
+  while (y) {
+    if (_.has(y.uuid)) break;
+    _.add(y.uuid), g.push(y), y = y.parentUuid ? n.get(y.parentUuid) : void 0;
+  }
+  if (g.reverse(), await new Promise((S) => setImmediate(S)), t?.found) t.found.terminal = m === p ? f : void 0, t.found.leaf = m;
+  return oAe(n, g, _);
+}
+function fm(e13) {
+  if (e13.type !== "assistant") return;
+  let t = e13.message;
+  if (typeof t !== "object" || t === null) return;
+  let n = t.id;
+  return typeof n === "string" ? n : void 0;
+}
+function MN(e13) {
+  if (e13.type !== "user" || !e13.parentUuid) return false;
+  let t = e13.message;
+  if (typeof t !== "object" || t === null) return false;
+  let n = t.content;
+  if (!Array.isArray(n)) return false;
+  return n.some((r) => typeof r === "object" && r !== null && r.type === "tool_result");
+}
+function oAe(e13, t, n) {
+  let r = t.filter((E) => E.type === "assistant");
+  if (r.length === 0) return t;
+  let o = /* @__PURE__ */ new Map();
+  for (let E of r) {
+    let C = fm(E);
+    if (C) o.set(C, E);
+  }
+  let s = /* @__PURE__ */ new Map(), i = /* @__PURE__ */ new Map(), a = /* @__PURE__ */ new Map(), l = [];
+  for (let E of e13.values()) {
+    let C = fm(E);
+    if (C) {
+      let A = s.get(C);
+      if (A) A.push(E);
+      else s.set(C, [E]);
+      for (let w of vu(E, "tool_use", "id")) {
+        let L = a.get(w);
+        a.set(w, L === void 0 || L !== null && fm(L) === C ? E : null);
+      }
+    } else if (MN(E)) l.push(E);
+  }
+  let c = /* @__PURE__ */ new Set(), d = (E, C) => {
+    if (c.has(E + `
+` + C.uuid)) return;
+    c.add(E + `
+` + C.uuid);
+    let A = i.get(E);
+    if (A) A.push(C);
+    else i.set(E, [C]);
+  }, p = (E, C) => (E.isSidechain ?? false) === (C.isSidechain ?? false) && E.agentId === C.agentId;
+  for (let E of l) {
+    d(E.parentUuid, E);
+    let C = typeof E.sourceToolAssistantUUID === "string" && E.sourceToolAssistantUUID !== E.parentUuid ? e13.get(E.sourceToolAssistantUUID) : void 0;
+    if (C && p(E, C)) d(C.uuid, E);
+    for (let A of vu(E, "tool_result", "tool_use_id")) {
+      let w = a.get(A);
+      if (w && p(E, w)) d(w.uuid, E);
+    }
+  }
+  let f = /* @__PURE__ */ new Set();
+  for (let E of t) for (let C of vu(E, "tool_result", "tool_use_id")) f.add(C);
+  let m, g = (E) => {
+    if (m === void 0) {
+      m = /* @__PURE__ */ new Map();
+      let C = 0;
+      for (let A of e13.keys()) m.set(A, C++);
+    }
+    return m.get(E.uuid) ?? Number.MAX_SAFE_INTEGER;
+  }, _ = /* @__PURE__ */ new Set(), y = /* @__PURE__ */ new Map(), S = 0;
+  for (let E of r) {
+    let C = fm(E);
+    if (!C || _.has(C)) continue;
+    _.add(C);
+    let A = s.get(C) ?? [E], w = new Set(A.map((D) => D.uuid)), L = A.filter((D) => !n.has(D.uuid)), z = [], U = [], de = /* @__PURE__ */ new Set();
+    for (let D of A) for (let B of i.get(D.uuid) ?? []) {
+      if (n.has(B.uuid) || de.has(B.uuid)) continue;
+      if (de.add(B.uuid), w.has(B.parentUuid)) z.push(B);
+      else U.push(B);
+    }
+    if (U.length > 0) {
+      let D = new Set(f);
+      for (let B of z) for (let oe of vu(B, "tool_result", "tool_use_id")) D.add(oe);
+      U.sort((B, oe) => g(B) - g(oe));
+      for (let B of U) {
+        let oe = vu(B, "tool_result", "tool_use_id");
+        if (!oe.some((J) => {
+          let K = a.get(J);
+          return !D.has(J) && !!K && w.has(K.uuid);
+        })) continue;
+        for (let J of oe) D.add(J);
+        z.push(B);
+      }
+    }
+    if (L.length === 0 && z.length === 0) continue;
+    let x = (D, B) => (D.timestamp ?? "").localeCompare(B.timestamp ?? "");
+    L.sort(x), z.sort(x);
+    let R = o.get(C), O = [...L, ...z];
+    for (let D of O) n.add(D.uuid);
+    S += O.length, y.set(R.uuid, O);
+  }
+  if (S === 0) return t;
+  let b = [];
+  for (let E of t) {
+    b.push(E);
+    let C = y.get(E.uuid);
+    if (C) b.push(...C);
+  }
+  return b;
+}
+function vu(e13, t, n) {
+  let r = e13.message;
+  if (typeof r !== "object" || r === null) return [];
+  let o = r.content;
+  if (!Array.isArray(o)) return [];
+  let s = [];
+  for (let i of o) {
+    if (typeof i !== "object" || i === null) continue;
+    if (i.type !== t) continue;
+    let a = i[n];
+    if (typeof a === "string") s.push(a);
+  }
+  return s;
+}
+function sAe(e13, t) {
+  let n = [], r;
+  for (let o = e13.length - 1; o >= 0; o--) {
+    let s = e13[o];
+    if (n[o] = r === "reply", s.type === "assistant" || MN(s) || ZI({ type: s.type, message: s.message })) r = "reply";
+    else if (s.type === "user" && !s.isMeta && !s.isCompactSummary && !t.has(o)) r = "prompt";
+  }
+  return n;
+}
+function iAe(e13) {
+  let t = /* @__PURE__ */ new Set(), n = (r) => r.promptSource === void 0 ? XM(r) : void 0;
+  return e13.forEach((r, o) => {
+    if (r.type !== "user" || !r.isMeta || n(r) !== "caveat") return;
+    let s = false;
+    for (let i = o + 1; i < e13.length; i++) {
+      let a = e13[i];
+      if (a.type === "assistant") break;
+      if (a.type !== "user" || a.isMeta) continue;
+      let l = n(a);
+      if (l === "record" && !s) s = true;
+      else if (l !== "output" || !s) break;
+      t.add(i);
+    }
+  }), t;
+}
+function nA(e13, { keepMeta: t, trailingIds: n, delivered: r }) {
+  let o = iAe(e13), s = sAe(e13, o), i = aAe(e13, r), a = new Set(e13.map((l) => l.uuid));
+  return e13.map((l, c) => o.has(c) ? { ...l, isCompletedLocalCommand: true } : lAe(l, i.get(c) ?? (s[c] || (n?.has(l.uuid) ?? false)), a, t));
+}
+function aAe(e13, t) {
+  let n = /* @__PURE__ */ new Map();
+  if (t === void 0 || t.size === 0) return n;
+  let r = /* @__PURE__ */ new Map();
+  e13.forEach((o, s) => {
+    let i = WC(o), a = Su(o), l = i !== void 0 ? eA(i) : a !== void 0 ? tA(a) : void 0;
+    if (l === void 0 || !t.has(l)) return;
+    let c = r.get(l);
+    if (c) c.push(s);
+    else r.set(l, [s]);
+  });
+  for (let [o, s] of r) {
+    if (o.startsWith("delivery:")) {
+      for (let a of s) n.set(a, t.has(IN(e13[a].uuid)));
+      continue;
+    }
+    let i = t.get(o);
+    s.forEach((a, l) => {
+      n.set(a, l >= s.length - i);
+    });
+  }
+  return n;
+}
+function lAe(e13, t, n, r) {
+  if (!t || e13.type !== "attachment" || typeof e13.attachment !== "object" || e13.attachment === null) return e13;
+  let o = e13.attachment, s = o.prompt, i = JM(o.origin);
+  if (o.type !== "queued_command" || Boolean(o.isMeta) && !r && !qC(i) || typeof s !== "string" && !Array.isArray(s)) return e13;
+  let a = qM({ type: "queued_command", prompt: s, source_uuid: typeof o.source_uuid === "string" ? o.source_uuid : void 0, isMeta: o.isMeta, forwardedIntent: o.forwardedIntent, commandMode: typeof o.commandMode === "string" ? o.commandMode : void 0, origin: i, runId: o.runId }, e13.uuid);
+  if (a === void 0 || a.uuid !== e13.uuid && n.has(a.uuid)) return e13;
+  return n.add(a.uuid), { type: "user", uuid: a.uuid, parentUuid: e13.parentUuid, sessionId: e13.sessionId, timestamp: e13.timestamp, message: { role: "user", content: a.content }, isMeta: a.isMeta, ...a.origin !== void 0 && { origin: a.origin }, isQueuedCommand: true, isSidechain: e13.isSidechain, teamName: e13.teamName };
+}
+function cAe(e13, t) {
+  if (e13.type === "user" || e13.type === "assistant") ;
+  else if (e13.type === "system" && t) ;
+  else return false;
+  if (e13.isMeta && !qC(e13.origin ?? void 0)) return false;
+  if (e13.isSidechain) return false;
+  if (e13.teamName) return false;
+  return true;
+}
+function rA(e13, t, n) {
+  let r = e13.origin != null ? VS(e13.origin) : void 0, o = YI(e13.toolDenialUnanswered);
+  return { type: e13.type, uuid: e13.uuid, session_id: e13.sessionId, message: e13.message, parent_tool_use_id: t ?? null, parent_agent_id: n ?? null, ...e13.interruptedByShutdown === true && { interruptedByShutdown: true }, ...o !== void 0 && { toolDenialUnanswered: o }, ...e13.isCompactSummary === true && { isCompactSummary: true }, ...(e13.isMeta === true || e13.isCompactSummary === true || e13.isVisibleInTranscriptOnly === true) && { is_meta: true }, ...e13.isQueuedCommand === true && { isQueuedCommand: true }, ...e13.isCompletedLocalCommand === true && { isCompletedLocalCommand: true }, timestamp: e13.timestamp, ...r && { origin: r } };
+}
+function oA(e13, t) {
+  let n = t?.offset ?? 0;
+  if (t?.limit !== void 0 && t.limit > 0) return e13.slice(n, n + t.limit);
+  if (n > 0) return e13.slice(n);
+  return e13;
+}
+async function NN(e13, t) {
+  let n = [], r = PN();
+  for (let o of e13) {
+    if (typeof o !== "object" || o === null) continue;
+    let s = o;
+    DN(s, r);
+    let i = s.type;
+    if ((i === "user" || i === "assistant" || i === "progress" || i === "system" || i === "attachment") && typeof s.uuid === "string") n.push(s);
+  }
+  return UN(n, t, LN(r));
+}
+function uAe(e13, t, n) {
+  if (n === void 0) return [];
+  let r = /* @__PURE__ */ new Map();
+  for (let d of e13) if (d.parentUuid && d.type !== "user" && d.type !== "assistant") {
+    let p = r.get(d.parentUuid);
+    if (p) p.push(d);
+    else r.set(d.parentUuid, [d]);
+  }
+  let o = (d, p) => (d.timestamp ?? "") < (p.timestamp ?? "") ? -1 : (d.timestamp ?? "") > (p.timestamp ?? "") ? 1 : 0, s = new Set(t.map((d) => d.uuid)), i = new Map(e13.map((d) => [d.uuid, d])), a = /* @__PURE__ */ new Set();
+  for (let d of e13) if ((d.type === "user" || d.type === "assistant") && !d.isSidechain && !d.teamName && !s.has(d.uuid)) {
+    let p = d.parentUuid ? i.get(d.parentUuid) : void 0;
+    while (p && !s.has(p.uuid) && !a.has(p.uuid)) a.add(p.uuid), p = p.parentUuid ? i.get(p.parentUuid) : void 0;
+  }
+  let l = [], c = [n];
+  while (c.length > 0) {
+    let d = c.pop();
+    if (d !== n) {
+      if (s.has(d.uuid)) continue;
+      if (s.add(d.uuid), dAe(d) && !a.has(d.uuid)) l.push(d);
+    }
+    let p = r.get(d.uuid) ?? [], f = p.length > 1 ? [...p].sort(o) : p;
+    for (let m = f.length - 1; m >= 0; m--) if (!s.has(f[m].uuid)) c.push(f[m]);
+  }
+  return l;
+}
+function dAe(e13) {
+  let t = e13.attachment;
+  return e13.type === "attachment" && typeof t === "object" && t !== null && "type" in t && t.type === "queued_command";
+}
+async function UN(e13, t, n) {
+  let r = {}, o = await Ru(e13, { found: r }), s = t?.includeSystemMessages ?? false, i = uAe(e13, o, r.leaf), l = nA(o.concat(i), { keepMeta: false, trailingIds: new Set(i.map((c) => c.uuid)), delivered: n }).filter((c) => cAe(c, s)).map((c) => rA(c));
+  return oA(l, t);
+}
+async function FN(e13, t, n, r) {
+  if (!$e(e13)) return [];
+  let o = Ee(), s = o ? n : void 0, i = await us(e13, t?.dir, On(s), o, r);
+  if (!i) return [];
+  let a = await nAe(i.filePath, i.fileSize, s);
+  if (!a) return [];
+  let { entries: l, delivered: c } = await rAe(a);
+  return UN(l, t, c);
+}
 function gAe() {
   return (0, import_path11.join)(at(), "projects");
 }
@@ -58184,7 +58947,7 @@ async function AAe(e13, t) {
   }
   if (ho()) return;
   try {
-    return await (0, import_promises10.readFile)(e13, "utf8");
+    return await (0, import_promises11.readFile)(e13, "utf8");
   } catch {
     return;
   }
@@ -58234,8 +58997,8 @@ async function YN(e13, t, n, r, o) {
   if (Cr(e13, o) !== void 0) return true;
   try {
     let s = process.platform !== "win32";
-    if (!s && !(await (0, import_promises11.lstat)(e13)).isFile()) return false;
-    let i = await (0, import_promises11.open)(e13, s ? import_fs6.constants.O_RDONLY | import_fs6.constants.O_NOFOLLOW | import_fs6.constants.O_NONBLOCK : import_fs6.constants.O_RDONLY);
+    if (!s && !(await (0, import_promises12.lstat)(e13)).isFile()) return false;
+    let i = await (0, import_promises12.open)(e13, s ? import_fs6.constants.O_RDONLY | import_fs6.constants.O_NOFOLLOW | import_fs6.constants.O_NONBLOCK : import_fs6.constants.O_RDONLY);
     try {
       if (!(await i.stat()).isFile()) return false;
       let a = Buffer.allocUnsafe(VN + xu.length), l = 0, c = 0;
@@ -58301,7 +59064,7 @@ async function gm(e13, t, n, r, o, s) {
   }
   let a;
   try {
-    a = await (0, import_promises9.readdir)(e13);
+    a = await (0, import_promises10.readdir)(e13);
   } catch {
     return [];
   }
@@ -58312,7 +59075,7 @@ async function gm(e13, t, n, r, o, s) {
     let p = (0, import_path12.join)(e13, c);
     if (!t) return { sessionId: d, filePath: p, mtime: 0, projectPath: n, ownWorktrees: s };
     try {
-      let f = await (0, import_promises9.stat)(p);
+      let f = await (0, import_promises10.stat)(p);
       return { sessionId: d, filePath: p, mtime: f.mtime.getTime(), projectPath: n, ownWorktrees: s };
     } catch {
       return null;
@@ -58394,7 +59157,7 @@ async function zAe(e13, t, n, r, o) {
   if (f === null) {
     let S;
     try {
-      S = await (0, import_promises9.readdir)(r, { withFileTypes: true });
+      S = await (0, import_promises10.readdir)(r, { withFileTypes: true });
     } catch {
       return JN(a, n, r, o, void 0);
     }
@@ -58424,7 +59187,7 @@ async function $Ae(e13, t, n) {
   if (o === null) {
     let a;
     try {
-      a = await (0, import_promises9.readdir)(t, { withFileTypes: true });
+      a = await (0, import_promises10.readdir)(t, { withFileTypes: true });
     } catch {
       return [];
     }
@@ -61377,7 +62140,7 @@ async function ZB(e13, t) {
     let { resolvedPath: r, isSymlink: o } = Da(n, e13);
     if (o) q(`Reading through symlink: ${e13} -> ${r}`);
     th(await n.stat(e13), e13, t);
-    const s = st(i, await (0, import_promises12.open)(e13, tS()), 1);
+    const s = st(i, await (0, import_promises13.open)(e13, tS()), 1);
     return await LNe(s, e13, t);
   } catch (a) {
     var l = a, c = 1;
@@ -62113,7 +62876,7 @@ async function eUe(e13, { ask: t, path: n }) {
     case "realpath":
       return go(await (0, import_util7.promisify)(import_fs8.realpath.native)(n));
     case "writable":
-      return await (0, import_promises13.access)(n, import_fs8.constants.W_OK), true;
+      return await (0, import_promises14.access)(n, import_fs8.constants.W_OK), true;
   }
 }
 function* hK(e13, t, n, r) {
@@ -66486,6 +67249,10 @@ function yn(e13, t) {
   return (t.CLAUDE_CONFIG_DIR ? Jy(t.CLAUDE_CODE_PROJECT_DIR_NAME) : void 0) ?? qc(n);
 }
 process.env.NoDefaultCurrentDirectoryInExePath = "1";
+async function nIt(e13, t) {
+  if (t?.sessionStore) return LWe(t.sessionStore, e13, t);
+  return FN(e13, t);
+}
 async function rIt(e13) {
   if (e13?.sessionStore) return PWe(e13.sessionStore, e13);
   return QN(e13);
@@ -66548,14 +67315,22 @@ async function LZ(e13, t, n) {
   if (!o || o.length === 0) return null;
   return kZ(o);
 }
+async function LWe(e13, t, n) {
+  if (!$e(t)) return [];
+  let r = yn(n.dir), o = await e13.load({ projectKey: r, sessionId: t });
+  if (!o || o.length === 0) return [];
+  return NN(o, { limit: n.limit, offset: n.offset, includeSystemMessages: n.includeSystemMessages });
+}
 
 // bridge/src/extension-sessions.ts
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var isSessionId = (value) => typeof value === "string" && UUID.test(value);
+var sessionExists = async (id2, project) => (await nIt(id2, { dir: project, limit: 1 })).length > 0;
 var ExtensionSessions = class {
-  constructor(project = process.env.CLAUDE_PROJECT_DIR || process.cwd(), list = rIt) {
+  constructor(project = process.env.CLAUDE_PROJECT_DIR || process.cwd(), list = rIt, persisted = sessionExists) {
     this.project = project;
     this.list = list;
+    this.persisted = persisted;
   }
   async recent() {
     const sessions = await this.list({
@@ -66570,19 +67345,20 @@ var ExtensionSessions = class {
     }));
   }
   create() {
-    return new ExtensionThread(this.project);
+    return new ExtensionThread(this.project, void 0, false, this.persisted);
   }
   async resume(id2) {
     if (!isSessionId(id2) || !(await this.recent()).some((s) => s.id === id2))
       throw new Error(
         "That session is no longer in this project. Choose a recent session again."
       );
-    return new ExtensionThread(this.project, id2);
+    return new ExtensionThread(this.project, id2, false, this.persisted);
   }
 };
 var ExtensionThread = class {
-  constructor(project, source, fork = false) {
+  constructor(project, source, fork = false, persisted = sessionExists) {
     this.project = project;
+    this.persisted = persisted;
     this.id = source ?? (0, import_node_crypto5.randomUUID)();
     this.started = !!source;
     this.forkPending = fork;
@@ -66590,6 +67366,10 @@ var ExtensionThread = class {
   id;
   started;
   forkPending;
+  async reconcile() {
+    if (!this.started && await this.persisted(this.id, this.project))
+      this.started = true;
+  }
   get options() {
     return {
       id: this.id,
@@ -66965,6 +67745,10 @@ var ExtensionBridge = class {
     pair.job = job;
     try {
       const conversational = message.kind === "ask" || message.kind === "guide";
+      if (conversational && !pair.live) {
+        await pair.thread.reconcile();
+        if (controller.signal.aborted) throw cancelled();
+      }
       const result = await (conversational && pair.live ? this.channel.ask.bind(this.channel) : this.provider)({
         image,
         page,
@@ -67064,7 +67848,7 @@ var ExtensionBridge = class {
 };
 
 // bridge/src/extension-install.ts
-var import_promises14 = require("node:fs/promises");
+var import_promises15 = require("node:fs/promises");
 var import_node_os5 = require("node:os");
 var import_node_path5 = require("node:path");
 var import_node_child_process3 = require("node:child_process");
@@ -67111,9 +67895,9 @@ function selectedStoreUrl(config2 = DEFAULT_DISTRIBUTION, browser = "chrome") {
 }
 var extensionFolder = () => (0, import_node_path5.join)((0, import_node_os5.homedir)(), ".glimpselet", "extension");
 async function installExtension(source, destination = extensionFolder()) {
-  await (0, import_promises14.readFile)((0, import_node_path5.join)(source, "manifest.json"));
-  await (0, import_promises14.mkdir)(destination, { recursive: true, mode: 448 });
-  await (0, import_promises14.cp)(source, destination, { recursive: true, force: true });
+  await (0, import_promises15.readFile)((0, import_node_path5.join)(source, "manifest.json"));
+  await (0, import_promises15.mkdir)(destination, { recursive: true, mode: 448 });
+  await (0, import_promises15.cp)(source, destination, { recursive: true, force: true });
   return destination;
 }
 function tunnelCommand(port, env = process.env) {
@@ -67532,7 +68316,7 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
           (0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] || ".")),
           "launch-browser.mjs"
         );
-        await (0, import_promises15.stat)(launcher);
+        await (0, import_promises16.stat)(launcher);
         const child = (0, import_node_child_process4.spawn)(process.execPath, [launcher], {
           env: {
             ...process.env,
@@ -67671,7 +68455,7 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
     if (!pathWithinPanel || pathWithinPanel === ".." || pathWithinPanel.startsWith(`..${import_node_path6.sep}`) || (0, import_node_path6.isAbsolute)(pathWithinPanel))
       throw new PanelError("not_found", "Not found.", 404);
     try {
-      if (!(await (0, import_promises15.stat)(file2)).isFile()) throw new Error("Not a file");
+      if (!(await (0, import_promises16.stat)(file2)).isFile()) throw new Error("Not a file");
     } catch {
       throw new PanelError(
         "not_found",
@@ -67989,7 +68773,7 @@ async function createGlimpselet(options = {}) {
       if (process.env.GLIMPSELET_TEST_MODE !== "1")
         throw new Error("Fixtures require GLIMPSELET_TEST_MODE=1.");
       const normalized2 = normalizePng(
-        await (0, import_promises16.readFile)(options.fixturePath),
+        await (0, import_promises17.readFile)(options.fixturePath),
         longEdge
       );
       check2();

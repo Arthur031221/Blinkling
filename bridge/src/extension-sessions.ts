@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { listSessions } from "@anthropic-ai/claude-agent-sdk";
+import {
+  getSessionMessages,
+  listSessions,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { ProviderRequest, ProviderResult } from "./provider-request.js";
 
 const UUID =
@@ -7,11 +10,15 @@ const UUID =
 export const isSessionId = (value: unknown): value is string =>
   typeof value === "string" && UUID.test(value);
 export type RecentSession = { id: string; title: string; updatedAt: number };
+type SessionExists = (id: string, project: string) => Promise<boolean>;
+const sessionExists: SessionExists = async (id, project) =>
+  (await getSessionMessages(id, { dir: project, limit: 1 })).length > 0;
 
 export class ExtensionSessions {
   constructor(
     readonly project = process.env.CLAUDE_PROJECT_DIR || process.cwd(),
     private readonly list = listSessions,
+    private readonly persisted: SessionExists = sessionExists,
   ) {}
 
   async recent(): Promise<RecentSession[]> {
@@ -30,7 +37,7 @@ export class ExtensionSessions {
   }
 
   create(): ExtensionThread {
-    return new ExtensionThread(this.project);
+    return new ExtensionThread(this.project, undefined, false, this.persisted);
   }
 
   async resume(id: unknown): Promise<ExtensionThread> {
@@ -38,7 +45,7 @@ export class ExtensionSessions {
       throw new Error(
         "That session is no longer in this project. Choose a recent session again.",
       );
-    return new ExtensionThread(this.project, id);
+    return new ExtensionThread(this.project, id, false, this.persisted);
   }
 }
 
@@ -50,10 +57,16 @@ export class ExtensionThread {
     readonly project: string,
     source?: string,
     fork = false,
+    private readonly persisted: SessionExists = sessionExists,
   ) {
     this.id = source ?? randomUUID();
     this.started = !!source;
     this.forkPending = fork;
+  }
+
+  async reconcile(): Promise<void> {
+    if (!this.started && (await this.persisted(this.id, this.project)))
+      this.started = true;
   }
 
   get options(): NonNullable<ProviderRequest["cliSession"]> {

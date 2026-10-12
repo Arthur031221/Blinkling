@@ -199,7 +199,7 @@ async function keepScene(ms = 900) {
 async function askFromFloat(question) {
   const ui = pipPage || appPage;
   await ui.locator(".composer textarea").fill(question);
-  await ui.locator(".composer button").last().click();
+  await ui.locator(".composer button.send").click();
   await expect(ui.locator(".message .answer p").last()).not.toBeEmpty({
     timeout: 15000,
   });

@@ -93,6 +93,7 @@ export async function runCliProvider(
       let buffer = "";
       let answer = "";
       let received = 0;
+      let stderr = "";
       let result: Record<string, unknown> | undefined;
       const decoder = new StringDecoder("utf8");
       const kill = (signal: NodeJS.Signals) => {
@@ -230,7 +231,9 @@ export async function runCliProvider(
             ),
           );
       });
-      child.stderr.resume();
+      child.stderr.on("data", (chunk: Buffer) => {
+        stderr = (stderr + chunk.toString()).slice(-4096);
+      });
       child.once("error", () => {
         failure = new PanelError(
           "cli_missing",
@@ -245,6 +248,21 @@ export async function runCliProvider(
         if (buffer.trim()) consume(buffer);
         if (request.signal.aborted) return reject(cancelled());
         if (failure) return reject(failure);
+        if (
+          code !== 0 &&
+          request.cliSession &&
+          !request.cliSession.resume &&
+          stderr.includes(
+            `Session ID ${request.cliSession.id} is already in use.`,
+          )
+        )
+          return reject(
+            new PanelError(
+              "session_initialization",
+              "This conversation stopped before it could start. Choose New session to try again.",
+              409,
+            ),
+          );
         if (code !== 0 || !result || !answer.trim())
           return reject(
             new PanelError(

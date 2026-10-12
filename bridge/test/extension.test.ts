@@ -24,16 +24,21 @@ async function setup(
     r: ProviderRequest,
   ) => Promise<{ answer: string; sessionId?: string }>,
   now = Date.now,
+  persisted?: (id: string, project: string) => Promise<boolean>,
 ) {
   const server: Server = createServer();
   let url = "";
-  const sessions = new ExtensionSessions("/fixture/project", async () => [
-    {
-      sessionId: sourceId,
-      summary: "Export preferences",
-      lastModified: 1700000000000,
-    },
-  ]);
+  const sessions = new ExtensionSessions(
+    "/fixture/project",
+    async () => [
+      {
+        sessionId: sourceId,
+        summary: "Export preferences",
+        lastModified: 1700000000000,
+      },
+    ],
+    persisted,
+  );
   const bridge = new ExtensionBridge(server, () => url, {
     provider,
     sessions,
@@ -90,9 +95,102 @@ const ask = {
 };
 
 describe("extension pairing and answers", () => {
+  for (const transcriptCreated of [true, false]) {
+    it(`continues after a cancelled first turn when transcript creation is ${transcriptCreated}`, async () => {
+      const persisted = new Set<string>();
+      const requests: ProviderRequest[] = [];
+      const inspect = vi.fn(async (id: string, project: string) => {
+        expect(project).toBe("/fixture/project");
+        return persisted.has(id);
+      });
+      const app = await setup(
+        async (request) => {
+          requests.push(request);
+          const session = request.cliSession!;
+          if (requests.length === 1) {
+            if (transcriptCreated) persisted.add(session.id);
+            request.onText("Partial first answer");
+            await new Promise<void>((resolve) =>
+              request.signal.addEventListener("abort", () => resolve(), {
+                once: true,
+              }),
+            );
+            throw new Error("The answer stopped");
+          }
+          if (session.resume !== persisted.has(session.id))
+            throw new Error(
+              "Session launch mode does not match its transcript",
+            );
+          return { answer: "Followup accepted", sessionId: session.id };
+        },
+        Date.now,
+        inspect,
+      );
+      const a = await app.client();
+      a.send({ type: "pair", code: app.bridge.issueCode() });
+      const paired = await a.wait("paired");
+      a.send(ask);
+      await a.wait("delta");
+      a.send({ type: "cancel", id: "stop-first", jobId: ask.id });
+      await a.wait("cancelled");
+      a.send({ ...ask, id: "retry-first", question: "Continue this answer" });
+      expect((await a.wait("done")).answer).toBe("Followup accepted");
+      expect(requests[1].cliSession).toMatchObject({
+        id: paired.sessionId,
+        resume: transcriptCreated,
+      });
+    });
+  }
+
+  it("holds session ownership while reconciling and stops before provider launch", async () => {
+    let finishLookup: ((persisted: boolean) => void) | undefined;
+    const inspect = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishLookup = resolve;
+        }),
+    );
+    const provider = vi.fn(async () => ({ answer: "Unexpected launch" }));
+    const app = await setup(provider, Date.now, inspect);
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    a.send(ask);
+    await vi.waitFor(() => expect(finishLookup).toBeDefined());
+    a.send({ ...ask, id: "concurrent-reconcile" });
+    expect((await a.wait("error")).message).toContain("current answer");
+    a.send({ type: "session", id: "select-reconcile", sessionId: "new" });
+    expect((await a.wait("error")).message).toContain("current answer");
+    a.send({ type: "cancel", id: "stop-reconcile", jobId: ask.id });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(a.messages.some((message) => message.type === "cancelled")).toBe(
+      false,
+    );
+    finishLookup!(false);
+    expect((await a.wait("cancelled")).id).toBe("stop-reconcile");
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("does not reconcile a conversation for automatic page questions", async () => {
+    const inspect = vi.fn(async () => false);
+    const provider = vi.fn(async (request: ProviderRequest) => ({
+      answer: request.question,
+    }));
+    const app = await setup(provider, Date.now, inspect);
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    a.send({ ...ask, kind: "suggest" });
+    await a.wait("done");
+    expect(provider).toHaveBeenCalledOnce();
+    expect(provider.mock.calls[0][0].cliSession).toBeUndefined();
+    expect(inspect).not.toHaveBeenCalled();
+  });
+
   it("routes live chat into the connected MCP channel and keeps replies paired", async () => {
     const provider = vi.fn(async () => ({ answer: "wrong provider" }));
-    const app = await setup(provider);
+    const inspect = vi.fn(async () => false);
+    const app = await setup(provider, Date.now, inspect);
     const pushed: Array<{ params: { meta: Record<string, string> } }> = [];
     const channel = new LiveChannel(async (event) => {
       pushed.push(event);
@@ -122,6 +220,7 @@ describe("extension pairing and answers", () => {
     expect((await a.wait("done")).answer).toBe("From your terminal");
     expect(provider).not.toHaveBeenCalled();
     channel.close();
+    expect(inspect).not.toHaveBeenCalled();
   });
   it("consumes a pairing code, streams answers, keeps dedicated follow-ups and binds reconnect tokens to the extension", async () => {
     const requests: ProviderRequest[] = [];

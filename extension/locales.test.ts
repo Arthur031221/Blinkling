@@ -48,6 +48,7 @@ describe("extension locale bundles", () => {
       "capturePermission",
       "crop_fullscreen_denied",
       "share_ended",
+      "sessionInitialization",
     ])
       keys.add(key);
     const expected = [...keys].sort();
@@ -55,6 +56,7 @@ describe("extension locale bundles", () => {
       expect(Object.keys(bundle).sort(), locale).toEqual(expected);
       for (const [key, value] of Object.entries(bundle))
         expect(value.trim(), `${locale}.${key}`).not.toBe("");
+      expect(bundle.sessionInitialization, locale).toContain(bundle.newThread);
     }
     expect(en.pair).toBe("Connect");
     expect(en.pairCode).toBe("Pairing code");

@@ -13,7 +13,7 @@ import {
   type ExtensionThread,
 } from "./extension-sessions.js";
 import { SlidingWindowLimiter } from "./limiter.js";
-import { PanelError } from "./errors.js";
+import { cancelled, PanelError } from "./errors.js";
 
 type Page = NonNullable<ProviderRequest["page"]> & { hasPassword: boolean };
 type Pair = {
@@ -444,6 +444,10 @@ export class ExtensionBridge {
     pair.job = job;
     try {
       const conversational = message.kind === "ask" || message.kind === "guide";
+      if (conversational && !pair.live) {
+        await pair.thread.reconcile();
+        if (controller.signal.aborted) throw cancelled();
+      }
       const result = await (
         conversational && pair.live
           ? this.channel!.ask.bind(this.channel)

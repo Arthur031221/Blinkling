@@ -154,5 +154,6 @@
   "allowSite": "이 사이트에서 허용",
   "allowAllSites": "모든 사이트에서 허용",
   "siteAccessHint": "새 탭에서 페이지 요약과 텍스트 선택 도구를 사용할 수 있게 합니다.",
-  "siteAccessGranted": "페이지 접근을 허용했습니다."
+  "siteAccessGranted": "페이지 접근을 허용했습니다.",
+  "sessionInitialization": "이 대화는 시작되기 전에 중단되었습니다. 새 세션를 선택하고 다시 시도하세요."
 }

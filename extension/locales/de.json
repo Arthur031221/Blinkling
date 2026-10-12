@@ -154,5 +154,6 @@
   "allowSite": "Auf dieser Website erlauben",
   "allowAllSites": "Auf allen Websites erlauben",
   "siteAccessHint": "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
-  "siteAccessGranted": "Seitenzugriff erlaubt."
+  "siteAccessGranted": "Seitenzugriff erlaubt.",
+  "sessionInitialization": "Dieses Gespräch wurde vor dem Start abgebrochen. Wählen Sie „Neue Sitzung“ und versuchen Sie es erneut."
 }

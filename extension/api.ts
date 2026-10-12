@@ -349,7 +349,10 @@ export class BridgeClient extends EventTarget {
           this.pending.delete(id);
           if (m.type === "error")
             request.reject(
-              new Error(String(m.message || m.code || "request_failed")),
+              Object.assign(
+                new Error(String(m.message || m.code || "request_failed")),
+                { code: typeof m.code === "string" ? m.code : "" },
+              ),
             );
           else request.resolve(m);
         }

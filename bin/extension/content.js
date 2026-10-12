@@ -444,6 +444,32 @@
     return false;
   }
 
+  // extension/page-revision.ts
+  function pageRevision(context) {
+    const elements = context.elements.slice(0, 120).map((element) => [
+      normalize(element.role, 64),
+      normalize(element.text, 240)
+    ]);
+    const source = JSON.stringify([
+      normalize(context.url, 2048),
+      normalize(context.title, 500),
+      normalize(context.text, 24e3),
+      context.hasPassword,
+      elements
+    ]);
+    let first = 2166136261;
+    let second = 2654435769;
+    for (let i = 0; i < source.length; i++) {
+      const code = source.charCodeAt(i);
+      first = Math.imul(first ^ code, 16777619);
+      second = Math.imul(second ^ code, 2246822507);
+    }
+    return `v1-${(first >>> 0).toString(16).padStart(8, "0")}${(second >>> 0).toString(16).padStart(8, "0")}`;
+  }
+  function normalize(value, limit) {
+    return value.replace(/\s+/g, " ").trim().slice(0, limit);
+  }
+
   // extension/page-tools.ts
   function validateGuideSteps(value, knownElementIds) {
     if (!value || typeof value !== "object" || !Array.isArray(value.steps))
@@ -663,24 +689,66 @@
           guideFrame = 0;
           renderGuide();
         });
-    }, reportPageChange = function() {
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        send({ type: "glimpselet:page-changed", url: lastUrl });
+    }, reportPageChange = function(checkContent = false) {
+      const url = location.href;
+      if (url === lastUrl && !checkContent) return;
+      const revision = pageRevision(buildPageContext());
+      if (url !== lastUrl || checkContent && revision !== lastRevision) {
+        lastUrl = url;
+        lastRevision = revision;
+        send({ type: "glimpselet:page-changed", url, revision });
       }
+    }, relevantMutation = function(record) {
+      const target = record.target instanceof Element ? record.target : record.target.parentElement;
+      if (!target) return false;
+      if (record.type === "attributes" && [
+        "type",
+        "data-private",
+        "data-sensitive",
+        "contenteditable",
+        "aria-hidden",
+        "hidden"
+      ].includes(record.attributeName ?? ""))
+        return true;
+      if (target.closest(
+        "[data-glimpselet-overlay], [data-glimpselet-crop], [data-private], [data-sensitive], [contenteditable]:not([contenteditable=false])"
+      ))
+        return false;
+      if (target instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(target.type))
+        return false;
+      if (record.type === "characterData")
+        return target.tagName === "TITLE" || contextTextNode(record.target);
+      return true;
     }, initObserver = function() {
       observer?.disconnect();
-      observer = new MutationObserver(() => {
+      lastRevision = pageRevision(buildPageContext());
+      observer = new MutationObserver((records) => {
+        if (!records.some(relevantMutation)) return;
         window.clearTimeout(pageTimer);
-        pageTimer = window.setTimeout(reportPageChange, 250);
+        pageTimer = window.setTimeout(() => reportPageChange(true), 250);
       });
       observer.observe(document.documentElement, {
         childList: true,
-        subtree: true
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: [
+          "aria-label",
+          "aria-hidden",
+          "class",
+          "contenteditable",
+          "data-private",
+          "data-sensitive",
+          "hidden",
+          "role",
+          "style",
+          "title",
+          "type"
+        ]
       });
       window.setInterval(reportPageChange, 650);
-      window.addEventListener("popstate", reportPageChange);
-      window.addEventListener("hashchange", reportPageChange);
+      window.addEventListener("popstate", () => reportPageChange());
+      window.addEventListener("hashchange", () => reportPageChange());
       window.addEventListener("scroll", updateGuidePosition, { passive: true });
       window.addEventListener("resize", updateGuidePosition, { passive: true });
       document.addEventListener("selectionchange", onSelectionChange);
@@ -809,6 +877,7 @@
     let selectionPopover;
     let currentGuide;
     let lastUrl = location.href;
+    let lastRevision = "";
     let pageTimer = 0;
     let selecting = false;
     let cropLabels = {

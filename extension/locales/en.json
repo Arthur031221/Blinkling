@@ -154,5 +154,6 @@
   "allowSite": "Allow on this site",
   "allowAllSites": "Allow on all sites",
   "siteAccessHint": "Allow page summaries and selection tools on new tabs.",
-  "siteAccessGranted": "Page access allowed."
+  "siteAccessGranted": "Page access allowed.",
+  "sessionInitialization": "This conversation stopped before it could start. Choose New session to try again."
 }

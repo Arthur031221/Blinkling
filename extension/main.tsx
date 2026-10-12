@@ -29,6 +29,7 @@ import {
 import "./style.css";
 import { cropSharedScreen } from "./screen-crop";
 import { differenceHash, ScreenChanges } from "./screen-change";
+import { pageRevision } from "./page-revision";
 import en from "./locales/en.json";
 import zhTW from "./locales/zh-TW.json";
 import zhCN from "./locales/zh-CN.json";
@@ -98,12 +99,16 @@ function canvasToPng(video: HTMLVideoElement): string {
   return canvas.toDataURL("image/png");
 }
 function errorLabel(error: unknown, t: Record<string, string>): string {
-  const code = error instanceof Error ? error.message : "";
+  const code =
+    error instanceof Error
+      ? (error as Error & { code?: string }).code || error.message
+      : "";
   const keys: Record<string, string> = {
     bridge_disconnected: "bridgeLost",
     bridge_unavailable: "bridgeLost",
     pair_timeout: "bridgeLost",
     api_key_missing: "keyMissing",
+    session_initialization: "sessionInitialization",
     api_auth: "apiAuth",
     anthropic_protocol: "replyInterrupted",
     anthropic_incomplete: "replyInterrupted",
@@ -191,6 +196,7 @@ function App() {
   const loadPageRef = useRef<() => Promise<void>>(loadPageAndSuggestions);
   const pageRefreshTimer = useRef<number | undefined>(undefined);
   const pageRequestKey = useRef("");
+  const pageRevisionRef = useRef("");
   const pageVersion = useRef(0);
   const pendingPageRefresh = useRef(false);
   loadPageRef.current = loadPageAndSuggestions;
@@ -534,11 +540,14 @@ function App() {
           schedulePageRefresh();
         }
       }
+      const senderTabId = sender.tab?.id;
       if (
         value.type === "glimpselet:page-changed" &&
-        sender.tab?.id === activeTabId.current
+        senderTabId === activeTabId.current
       ) {
-        schedulePageRefresh();
+        if (typeof value.revision === "string" && senderTabId !== undefined)
+          scheduleRevisionRefresh(senderTabId, value.revision);
+        else schedulePageRefresh();
       }
       if (value.type === "glimpselet:selection") {
         const selected = String(value.text || "").slice(0, 1200);
@@ -595,11 +604,12 @@ function App() {
           .catch((error) => setStatus(errorLabel(error, t)));
       }
       if (value.type === "glimpselet:reader-context" && value.context) {
-        setPage(value.context as PageContext);
+        const context = value.context as PageContext;
+        setPage(context);
         if (sender.tab?.id) {
           activeTabId.current = sender.tab.id;
           setCurrentActiveTab(sender.tab.id);
-          schedulePageRefresh();
+          scheduleRevisionRefresh(sender.tab.id, pageRevision(context));
         }
       }
       if (value.type === "glimpselet:reader-action") {
@@ -854,6 +864,12 @@ function App() {
       void loadPageRef.current();
     }, 500);
   }
+  function scheduleRevisionRefresh(tabId: number, revision: string) {
+    const key = `${tabId}:${revision}`;
+    if (pageRevisionRef.current === key) return;
+    pageRevisionRef.current = key;
+    schedulePageRefresh(true);
+  }
   async function loadPageAndSuggestions() {
     if (!consented || requestIdRef.current || translationController.current)
       return;
@@ -904,7 +920,7 @@ function App() {
         setSuggestions([]);
         return;
       }
-      const key = `${sourceTabId}:${next.url}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
+      const key = `${sourceTabId}:${pageRevision(next)}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
       if (requestIdRef.current || translationController.current) {
         pendingPageRefresh.current = true;
         return;

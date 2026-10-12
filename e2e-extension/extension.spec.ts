@@ -13,6 +13,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { ExtensionBridge } from "../bridge/src/extension-bridge";
+import { PanelError } from "../bridge/src/errors";
 import { ExtensionSessions } from "../bridge/src/extension-sessions";
 import { runCliProvider } from "../bridge/src/provider-cli";
 import type { AnswerProvider, ProviderRequest } from "../bridge/src/provider";
@@ -42,6 +43,35 @@ let server: Server,
 let extensionId: string;
 let providerRequests: ProviderRequest[];
 let providerResponder: AnswerProvider;
+
+function twoPagePdf(): Buffer {
+  const streams = [
+    "BT /F1 20 Tf 54 720 Td (PDF_PAGE_ALPHA) Tj ET",
+    "BT /F1 20 Tf 54 720 Td (PDF_PAGE_BETA) Tj ET",
+  ];
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 6 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 7 0 R >>",
+    `<< /Length ${Buffer.byteLength(streams[0])} >>\nstream\n${streams[0]}\nendstream`,
+    `<< /Length ${Buffer.byteLength(streams[1])} >>\nstream\n${streams[1]}\nendstream`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const [index, object] of objects.entries()) {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  }
+  const xref = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets.slice(1))
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(pdf);
+}
+
 test.beforeEach(async () => {
   providerRequests = [];
   providerResponder = (request) =>
@@ -218,6 +248,158 @@ test("automatic questions exclude nested form choices while preserving safe labe
   expect(page.elements.map((element) => element.text)).toContain(
     "Safe dropdown label",
   );
+});
+
+test("interrupted session initialization offers a working new session", async () => {
+  providerResponder = async (request) => {
+    if (request.question === "Start failed conversation")
+      throw new PanelError(
+        "session_initialization",
+        "Choose New session to try again.",
+        409,
+      );
+    return {
+      answer: "A new conversation works",
+      sessionId: request.cliSession?.id,
+    };
+  };
+  await panel.locator(".composer textarea").fill("Start failed conversation");
+  await panel.locator(".composer button.send").click();
+  await expect(panel.locator(".status")).toHaveText(en.sessionInitialization);
+  const previous = providerRequests.find(
+    (request) => request.question === "Start failed conversation",
+  )!.cliSession!.id;
+  await panel.getByRole("button", { name: en.sessions, exact: true }).click();
+  await panel.getByRole("button", { name: en.newThread }).click();
+  await expect(panel.locator(".sessions")).toHaveCount(0);
+  await panel.locator(".composer textarea").fill("Try the new conversation");
+  await panel.locator(".composer button.send").click();
+  await expect(panel.locator(".thread article").last()).toContainText(
+    "A new conversation works",
+  );
+  const current = providerRequests.find(
+    (request) => request.question === "Try the new conversation",
+  )!.cliSession!;
+  expect(current.id).not.toBe(previous);
+  expect(current.resume).toBe(false);
+});
+
+test("same-URL semantic DOM changes refresh once and ignore identical re-renders", async () => {
+  const automaticRequests = () =>
+    providerRequests.filter((request) =>
+      request.question.startsWith("Give 3 to 5"),
+    );
+  await expect.poll(() => automaticRequests().length).toBeGreaterThan(0);
+  const initialCount = automaticRequests().length;
+  await site.evaluate(() => {
+    document.querySelector("#foreign")!.textContent =
+      "Same URL refreshed article marker.";
+  });
+  await expect
+    .poll(() =>
+      automaticRequests().some((request) =>
+        request.page?.text.includes("Same URL refreshed article marker."),
+      ),
+    )
+    .toBe(true);
+  const refreshedCount = automaticRequests().length;
+  expect(refreshedCount).toBe(initialCount + 1);
+  await site.evaluate(() => {
+    const paragraph = document.querySelector("#foreign")!;
+    paragraph.replaceWith(paragraph.cloneNode(true));
+    document
+      .querySelector("#export")!
+      .setAttribute("aria-label", "Export notebook");
+    const privateBlock = document.createElement("div");
+    privateBlock.dataset.private = "true";
+    privateBlock.textContent = "Private data";
+    document.body.append(privateBlock);
+    privateBlock.firstChild!.textContent = "Changed private data";
+    const password = document.createElement("input");
+    password.type = "password";
+    password.value = "secret input value";
+    document.body.append(password);
+    const overlay = document.createElement("div");
+    overlay.dataset.glimpseletOverlay = "true";
+    overlay.textContent = "Overlay only";
+    document.body.append(overlay);
+    overlay.firstChild!.textContent = "Changed overlay only";
+  });
+  await site.waitForTimeout(1300);
+  expect(automaticRequests()).toHaveLength(refreshedCount);
+});
+
+test("same-URL password field changes pause and restore automatic questions", async () => {
+  await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  const input = await site.evaluateHandle(() => {
+    const field = document.createElement("input");
+    field.type = "text";
+    field.value = "PRIVATE_PASSWORD_VALUE";
+    document.body.append(field);
+    return field;
+  });
+  await site.waitForTimeout(800);
+  const initialCount = providerRequests.length;
+  await input.evaluate((field) => (field.type = "password"));
+  await expect(panel.locator(".suggestions button")).toHaveCount(0);
+  await site.waitForTimeout(800);
+  expect(providerRequests).toHaveLength(initialCount);
+  await input.evaluate((field) => (field.type = "text"));
+  await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  expect(providerRequests.length).toBeGreaterThan(initialCount);
+  expect(
+    providerRequests.some((request) =>
+      request.page?.text.includes("PRIVATE_PASSWORD_VALUE"),
+    ),
+  ).toBe(false);
+});
+
+test("same-URL changes queue behind a foreground answer and refresh afterward", async () => {
+  let releaseForeground: (() => void) | undefined;
+  providerResponder = (request) => {
+    if (request.question === "Hold same-URL foreground answer.")
+      return new Promise((resolveAnswer) => {
+        releaseForeground = () =>
+          resolveAnswer({ answer: "Foreground answer completed." });
+      });
+    return Promise.resolve({
+      answer: JSON.stringify({
+        questions: [
+          "Updated page question one?",
+          "Updated page question two?",
+          "Updated page question three?",
+        ],
+      }),
+    });
+  };
+  try {
+    await panel
+      .locator(".composer textarea")
+      .fill("Hold same-URL foreground answer.");
+    await panel.locator(".composer button.send").click();
+    await expect.poll(() => Boolean(releaseForeground)).toBe(true);
+    await site.evaluate(() => {
+      document.querySelector("#foreign")!.textContent =
+        "Queued same URL page revision.";
+    });
+    await expect(panel.locator(".suggestions button")).toHaveCount(0);
+    releaseForeground!();
+    await expect(panel.locator(".thread article").last()).toContainText(
+      "Foreground answer completed.",
+    );
+    await expect
+      .poll(() =>
+        providerRequests.some(
+          (request) =>
+            request.question.startsWith("Give 3 to 5") &&
+            request.page?.text.includes("Queued same URL page revision."),
+        ),
+      )
+      .toBe(true);
+    await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  } finally {
+    releaseForeground?.();
+  }
 });
 
 for (const backend of ["bridge", "api"] as const) {
@@ -1301,6 +1483,51 @@ test("PDF guide takes priority over automatic page suggestions", async () => {
   await expect(panel.locator(".status")).toHaveText(en.answerReady);
   await reader.close();
 });
+
+for (const mode of ["suggestions", "passive"] as const) {
+  test(`same-URL PDF page revisions refresh ${mode} context`, async () => {
+    if (mode === "passive")
+      await panel
+        .getByRole("button", { name: en.passive, exact: true })
+        .click();
+    const automatic = () =>
+      providerRequests.filter((request) =>
+        mode === "passive"
+          ? request.question === en.passivePrompt
+          : request.question.startsWith("Give 3 to 5"),
+      );
+    const reader = await context.newPage();
+    reader.setDefaultTimeout(15000);
+    await reader.goto(`chrome-extension://${extensionId}/reader.html`);
+    await reader.locator("#file").setInputFiles({
+      name: "two-pages.pdf",
+      mimeType: "application/pdf",
+      buffer: twoPagePdf(),
+    });
+    await expect(reader.locator("#page-label")).toContainText("Page 1 of 2");
+    await expect
+      .poll(() =>
+        automatic().some((request) =>
+          request.page?.text.includes("PDF_PAGE_ALPHA"),
+        ),
+      )
+      .toBe(true);
+    const firstCount = automatic().length;
+    await reader.locator("#next").click();
+    await expect(reader.locator("#page-label")).toContainText("Page 2 of 2");
+    await expect
+      .poll(() =>
+        automatic().some((request) =>
+          request.page?.text.includes("PDF_PAGE_BETA"),
+        ),
+      )
+      .toBe(true);
+    expect(automatic()).toHaveLength(firstCount + 1);
+    if (mode === "passive")
+      await expect(panel.locator(".thread article")).toHaveCount(2);
+    await reader.close();
+  });
+}
 
 test("bundled PDF.js reader renders the sample, exposes page context and selected text", async () => {
   const reader = await context.newPage();

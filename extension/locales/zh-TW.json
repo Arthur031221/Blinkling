@@ -154,5 +154,6 @@
   "allowSite": "允許在此網站使用",
   "allowAllSites": "允許在所有網站使用",
   "siteAccessHint": "允許在新分頁使用網頁摘要與文字選取工具。",
-  "siteAccessGranted": "已允許存取網頁。"
+  "siteAccessGranted": "已允許存取網頁。",
+  "sessionInitialization": "這段對話在開始前就停止了。請選擇「新增工作階段」再試一次。"
 }

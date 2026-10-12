@@ -154,5 +154,6 @@
   "allowSite": "允许在此网站使用",
   "allowAllSites": "允许在所有网站使用",
   "siteAccessHint": "允许在新标签页使用网页摘要与文字选择工具。",
-  "siteAccessGranted": "已允许访问网页。"
+  "siteAccessGranted": "已允许访问网页。",
+  "sessionInitialization": "这段对话在开始前就停止了。请选择“新建会话”再试一次。"
 }

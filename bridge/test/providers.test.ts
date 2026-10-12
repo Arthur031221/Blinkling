@@ -152,6 +152,21 @@ describe("CLI provider protocol", () => {
     ).toHaveLength(0);
   });
 
+  it("reports an interrupted session initialization without discarding its transcript", async () => {
+    const root = await temp();
+    const id = "a88b5348-a13b-42fd-9685-000000000099";
+    const child = await script(
+      root,
+      `process.stderr.write('Error: Session ID ${id} is already in use.\\n'); process.exitCode = 1;`,
+    );
+    await expect(
+      runCliProvider(
+        request({ cliSession: { id, project: root, resume: false } }),
+        { command: process.execPath, argsPrefix: [child], tempRoot: root },
+      ),
+    ).rejects.toMatchObject({ code: "session_initialization", status: 409 });
+  });
+
   it("rejects protocol errors and streams without a successful result", async () => {
     const root = await temp();
     const malformed = await script(

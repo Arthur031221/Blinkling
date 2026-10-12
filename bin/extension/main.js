@@ -12558,7 +12558,10 @@ var BridgeClient = class extends EventTarget {
           this.pending.delete(id);
           if (m.type === "error")
             request.reject(
-              new Error(String(m.message || m.code || "request_failed"))
+              Object.assign(
+                new Error(String(m.message || m.code || "request_failed")),
+                { code: typeof m.code === "string" ? m.code : "" }
+              )
             );
           else request.resolve(m);
         }
@@ -13495,6 +13498,32 @@ var ScreenChanges = class {
   }
 };
 
+// extension/page-revision.ts
+function pageRevision(context) {
+  const elements = context.elements.slice(0, 120).map((element) => [
+    normalize(element.role, 64),
+    normalize(element.text, 240)
+  ]);
+  const source = JSON.stringify([
+    normalize(context.url, 2048),
+    normalize(context.title, 500),
+    normalize(context.text, 24e3),
+    context.hasPassword,
+    elements
+  ]);
+  let first = 2166136261;
+  let second = 2654435769;
+  for (let i = 0; i < source.length; i++) {
+    const code = source.charCodeAt(i);
+    first = Math.imul(first ^ code, 16777619);
+    second = Math.imul(second ^ code, 2246822507);
+  }
+  return `v1-${(first >>> 0).toString(16).padStart(8, "0")}${(second >>> 0).toString(16).padStart(8, "0")}`;
+}
+function normalize(value, limit) {
+  return value.replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
 // extension/locales/en.json
 var en_default = {
   actionExplain: "Explain this code",
@@ -13652,7 +13681,8 @@ var en_default = {
   allowSite: "Allow on this site",
   allowAllSites: "Allow on all sites",
   siteAccessHint: "Allow page summaries and selection tools on new tabs.",
-  siteAccessGranted: "Page access allowed."
+  siteAccessGranted: "Page access allowed.",
+  sessionInitialization: "This conversation stopped before it could start. Choose New session to try again."
 };
 
 // extension/locales/zh-TW.json
@@ -13812,7 +13842,8 @@ var zh_TW_default = {
   allowSite: "\u5141\u8A31\u5728\u6B64\u7DB2\u7AD9\u4F7F\u7528",
   allowAllSites: "\u5141\u8A31\u5728\u6240\u6709\u7DB2\u7AD9\u4F7F\u7528",
   siteAccessHint: "\u5141\u8A31\u5728\u65B0\u5206\u9801\u4F7F\u7528\u7DB2\u9801\u6458\u8981\u8207\u6587\u5B57\u9078\u53D6\u5DE5\u5177\u3002",
-  siteAccessGranted: "\u5DF2\u5141\u8A31\u5B58\u53D6\u7DB2\u9801\u3002"
+  siteAccessGranted: "\u5DF2\u5141\u8A31\u5B58\u53D6\u7DB2\u9801\u3002",
+  sessionInitialization: "\u9019\u6BB5\u5C0D\u8A71\u5728\u958B\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8ACB\u9078\u64C7\u300C\u65B0\u589E\u5DE5\u4F5C\u968E\u6BB5\u300D\u518D\u8A66\u4E00\u6B21\u3002"
 };
 
 // extension/locales/zh-CN.json
@@ -13972,7 +14003,8 @@ var zh_CN_default = {
   allowSite: "\u5141\u8BB8\u5728\u6B64\u7F51\u7AD9\u4F7F\u7528",
   allowAllSites: "\u5141\u8BB8\u5728\u6240\u6709\u7F51\u7AD9\u4F7F\u7528",
   siteAccessHint: "\u5141\u8BB8\u5728\u65B0\u6807\u7B7E\u9875\u4F7F\u7528\u7F51\u9875\u6458\u8981\u4E0E\u6587\u5B57\u9009\u62E9\u5DE5\u5177\u3002",
-  siteAccessGranted: "\u5DF2\u5141\u8BB8\u8BBF\u95EE\u7F51\u9875\u3002"
+  siteAccessGranted: "\u5DF2\u5141\u8BB8\u8BBF\u95EE\u7F51\u9875\u3002",
+  sessionInitialization: "\u8FD9\u6BB5\u5BF9\u8BDD\u5728\u5F00\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8BF7\u9009\u62E9\u201C\u65B0\u5EFA\u4F1A\u8BDD\u201D\u518D\u8BD5\u4E00\u6B21\u3002"
 };
 
 // extension/locales/ja.json
@@ -14132,7 +14164,8 @@ var ja_default = {
   allowSite: "\u3053\u306E\u30B5\u30A4\u30C8\u3067\u8A31\u53EF",
   allowAllSites: "\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3067\u8A31\u53EF",
   siteAccessHint: "\u65B0\u3057\u3044\u30BF\u30D6\u3067\u30DA\u30FC\u30B8\u306E\u8981\u7D04\u3068\u30C6\u30AD\u30B9\u30C8\u9078\u629E\u30C4\u30FC\u30EB\u3092\u4F7F\u3048\u308B\u3088\u3046\u306B\u3057\u307E\u3059\u3002",
-  siteAccessGranted: "\u30DA\u30FC\u30B8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3057\u307E\u3057\u305F\u3002"
+  siteAccessGranted: "\u30DA\u30FC\u30B8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3057\u307E\u3057\u305F\u3002",
+  sessionInitialization: "\u3053\u306E\u4F1A\u8A71\u306F\u958B\u59CB\u524D\u306B\u505C\u6B62\u3057\u307E\u3057\u305F\u3002\u300C\u65B0\u3057\u3044\u30BB\u30C3\u30B7\u30E7\u30F3\u300D\u3092\u9078\u3093\u3067\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002"
 };
 
 // extension/locales/ko.json
@@ -14292,7 +14325,8 @@ var ko_default = {
   allowSite: "\uC774 \uC0AC\uC774\uD2B8\uC5D0\uC11C \uD5C8\uC6A9",
   allowAllSites: "\uBAA8\uB4E0 \uC0AC\uC774\uD2B8\uC5D0\uC11C \uD5C8\uC6A9",
   siteAccessHint: "\uC0C8 \uD0ED\uC5D0\uC11C \uD398\uC774\uC9C0 \uC694\uC57D\uACFC \uD14D\uC2A4\uD2B8 \uC120\uD0DD \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uC218 \uC788\uAC8C \uD569\uB2C8\uB2E4.",
-  siteAccessGranted: "\uD398\uC774\uC9C0 \uC811\uADFC\uC744 \uD5C8\uC6A9\uD588\uC2B5\uB2C8\uB2E4."
+  siteAccessGranted: "\uD398\uC774\uC9C0 \uC811\uADFC\uC744 \uD5C8\uC6A9\uD588\uC2B5\uB2C8\uB2E4.",
+  sessionInitialization: "\uC774 \uB300\uD654\uB294 \uC2DC\uC791\uB418\uAE30 \uC804\uC5D0 \uC911\uB2E8\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0C8 \uC138\uC158\uB97C \uC120\uD0DD\uD558\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694."
 };
 
 // extension/locales/es.json
@@ -14452,7 +14486,8 @@ var es_default = {
   allowSite: "Permitir en este sitio",
   allowAllSites: "Permitir en todos los sitios",
   siteAccessHint: "Permite res\xFAmenes y herramientas de selecci\xF3n en pesta\xF1as nuevas.",
-  siteAccessGranted: "Acceso a la p\xE1gina permitido."
+  siteAccessGranted: "Acceso a la p\xE1gina permitido.",
+  sessionInitialization: "Esta conversaci\xF3n se detuvo antes de comenzar. Elige \xABNueva sesi\xF3n\xBB para volver a intentarlo."
 };
 
 // extension/locales/fr.json
@@ -14612,7 +14647,8 @@ var fr_default = {
   allowSite: "Autoriser sur ce site",
   allowAllSites: "Autoriser sur tous les sites",
   siteAccessHint: "Autorise les r\xE9sum\xE9s et les outils de s\xE9lection dans les nouveaux onglets.",
-  siteAccessGranted: "Acc\xE8s \xE0 la page autoris\xE9."
+  siteAccessGranted: "Acc\xE8s \xE0 la page autoris\xE9.",
+  sessionInitialization: "Cette conversation a \xE9t\xE9 interrompue avant de commencer. Choisissez \xAB Nouvelle session \xBB pour r\xE9essayer."
 };
 
 // extension/locales/de.json
@@ -14772,7 +14808,8 @@ var de_default = {
   allowSite: "Auf dieser Website erlauben",
   allowAllSites: "Auf allen Websites erlauben",
   siteAccessHint: "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
-  siteAccessGranted: "Seitenzugriff erlaubt."
+  siteAccessGranted: "Seitenzugriff erlaubt.",
+  sessionInitialization: "Dieses Gespr\xE4ch wurde vor dem Start abgebrochen. W\xE4hlen Sie \u201ENeue Sitzung\u201C und versuchen Sie es erneut."
 };
 
 // extension/locales/pt-BR.json
@@ -14932,7 +14969,8 @@ var pt_BR_default = {
   allowSite: "Permitir neste site",
   allowAllSites: "Permitir em todos os sites",
   siteAccessHint: "Permite resumos e ferramentas de sele\xE7\xE3o em novas abas.",
-  siteAccessGranted: "Acesso \xE0 p\xE1gina permitido."
+  siteAccessGranted: "Acesso \xE0 p\xE1gina permitido.",
+  sessionInitialization: "Esta conversa foi interrompida antes de come\xE7ar. Escolha \xABNova sess\xE3o\xBB para tentar novamente."
 };
 
 // extension/main.tsx
@@ -14976,12 +15014,13 @@ function canvasToPng(video) {
   return canvas.toDataURL("image/png");
 }
 function errorLabel(error, t) {
-  const code = error instanceof Error ? error.message : "";
+  const code = error instanceof Error ? error.code || error.message : "";
   const keys = {
     bridge_disconnected: "bridgeLost",
     bridge_unavailable: "bridgeLost",
     pair_timeout: "bridgeLost",
     api_key_missing: "keyMissing",
+    session_initialization: "sessionInitialization",
     api_auth: "apiAuth",
     anthropic_protocol: "replyInterrupted",
     anthropic_incomplete: "replyInterrupted",
@@ -15060,6 +15099,7 @@ function App() {
   const loadPageRef = (0, import_react.useRef)(loadPageAndSuggestions);
   const pageRefreshTimer = (0, import_react.useRef)(void 0);
   const pageRequestKey = (0, import_react.useRef)("");
+  const pageRevisionRef = (0, import_react.useRef)("");
   const pageVersion = (0, import_react.useRef)(0);
   const pendingPageRefresh = (0, import_react.useRef)(false);
   loadPageRef.current = loadPageAndSuggestions;
@@ -15340,8 +15380,11 @@ function App() {
           schedulePageRefresh();
         }
       }
-      if (value.type === "glimpselet:page-changed" && sender.tab?.id === activeTabId.current) {
-        schedulePageRefresh();
+      const senderTabId = sender.tab?.id;
+      if (value.type === "glimpselet:page-changed" && senderTabId === activeTabId.current) {
+        if (typeof value.revision === "string" && senderTabId !== void 0)
+          scheduleRevisionRefresh(senderTabId, value.revision);
+        else schedulePageRefresh();
       }
       if (value.type === "glimpselet:selection") {
         const selected = String(value.text || "").slice(0, 1200);
@@ -15378,11 +15421,12 @@ function App() {
         }).catch((error) => setStatus(errorLabel(error, t)));
       }
       if (value.type === "glimpselet:reader-context" && value.context) {
-        setPage(value.context);
+        const context = value.context;
+        setPage(context);
         if (sender.tab?.id) {
           activeTabId.current = sender.tab.id;
           setCurrentActiveTab(sender.tab.id);
-          schedulePageRefresh();
+          scheduleRevisionRefresh(sender.tab.id, pageRevision(context));
         }
       }
       if (value.type === "glimpselet:reader-action") {
@@ -15600,6 +15644,12 @@ Selected text (untrusted): ${selected}` : ""}`;
       void loadPageRef.current();
     }, 500);
   }
+  function scheduleRevisionRefresh(tabId, revision) {
+    const key = `${tabId}:${revision}`;
+    if (pageRevisionRef.current === key) return;
+    pageRevisionRef.current = key;
+    schedulePageRefresh(true);
+  }
   async function loadPageAndSuggestions() {
     if (!consented || requestIdRef.current || translationController.current)
       return;
@@ -15646,7 +15696,7 @@ Selected text (untrusted): ${selected}` : ""}`;
         setSuggestions([]);
         return;
       }
-      const key = `${sourceTabId}:${next.url}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
+      const key = `${sourceTabId}:${pageRevision(next)}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
       if (requestIdRef.current || translationController.current) {
         pendingPageRefresh.current = true;
         return;
