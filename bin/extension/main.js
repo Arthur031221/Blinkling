@@ -12904,6 +12904,45 @@ ${input.page?.text.slice(0, 24e3) || ""}`
   }
 }
 
+// extension/privacy.ts
+function hasSensitiveContent(doc = document) {
+  const roots = [doc];
+  const seen = /* @__PURE__ */ new Set();
+  let remaining = 5e4;
+  while (roots.length) {
+    const root = roots.pop();
+    if (seen.has(root)) continue;
+    seen.add(root);
+    const owner = root.nodeType === 9 ? root : root.ownerDocument;
+    if (!owner) return true;
+    const walker = owner.createTreeWalker(root, 1);
+    let node;
+    while (node = walker.nextNode()) {
+      if (--remaining < 0) return true;
+      const element = node;
+      if (element.matches(
+        'input[type="password" i],input[autocomplete~="current-password" i],input[autocomplete~="new-password" i]'
+      ))
+        return true;
+      if (element.shadowRoot) roots.push(element.shadowRoot);
+      if (["iframe", "frame", "object", "embed"].includes(element.localName)) {
+        try {
+          const frame = element;
+          const nested = frame.contentDocument ?? frame.getSVGDocument?.();
+          if (!nested || nested.readyState !== "complete") return true;
+          const source = frame.getAttribute("src")?.trim().toLowerCase();
+          if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank"))
+            return true;
+          roots.push(nested);
+        } catch {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 // extension/capture.ts
 var currentTabId = Number(new URLSearchParams(location.search).get("sourceTab")) || void 0;
 var ownOrigin = new URL(chrome.runtime.getURL("panel.html")).origin;
@@ -12990,13 +13029,9 @@ async function isSensitivePage() {
     await requireSiteAccess(tab);
     const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () => Boolean(
-        document.querySelector(
-          'input[type="password"],input[autocomplete="current-password"],input[autocomplete="new-password"]'
-        )
-      )
+      func: hasSensitiveContent
     });
-    return Boolean(result[0]?.result);
+    return result[0]?.result !== false;
   } catch (error) {
     if (error instanceof Error && error.message === "allow_site_access")
       throw error;
@@ -13009,6 +13044,7 @@ async function getPageContext() {
   if (await isSensitivePage()) throw new Error("password_page");
   const context = await sendToPage(tab, { type: "glimpselet:context" });
   await assertStillActive(tab);
+  if (await isSensitivePage()) throw new Error("password_page");
   return context;
 }
 async function captureWeb(kind, selectedRect, labels) {
@@ -13040,6 +13076,7 @@ async function captureWeb(kind, selectedRect, labels) {
   }
   if (kind !== "full") {
     await assertStillActive(tab);
+    if (await isSensitivePage()) throw new Error("password_page");
     const data = await chrome.tabs.captureVisibleTab(tab.windowId, {
       format: "png"
     }).catch(() => {
@@ -13050,9 +13087,12 @@ async function captureWeb(kind, selectedRect, labels) {
       target: { tabId: tab.id },
       func: () => innerWidth
     });
+    const image2 = await crop(data, rect, dimensions[0]?.result || 1280);
+    if (await isSensitivePage()) throw new Error("password_page");
+    await assertStillActive(tab);
     return {
       capture: {
-        image: await crop(data, rect, dimensions[0]?.result || 1280),
+        image: image2,
         label: kind === "visible" ? "Visible tab" : kind === "region" ? "Selected region" : "Selected element"
       },
       page
@@ -13095,13 +13135,16 @@ async function captureWeb(kind, selectedRect, labels) {
           args: [x, y]
         });
         await new Promise((resolve) => setTimeout(resolve, 80));
-        const image = await chrome.tabs.captureVisibleTab(tab.windowId, {
+        await assertStillActive(tab);
+        if (await isSensitivePage()) throw new Error("password_page");
+        const image2 = await chrome.tabs.captureVisibleTab(tab.windowId, {
           format: "png"
         }).catch(() => {
           throw new Error("capture_permission");
         });
         await assertStillActive(tab);
-        frames.push({ image, x, y });
+        if (await isSensitivePage()) throw new Error("password_page");
+        frames.push({ image: image2, x, y });
       }
   } finally {
     await chrome.scripting.executeScript({
@@ -13111,17 +13154,20 @@ async function captureWeb(kind, selectedRect, labels) {
     }).catch(() => {
     });
   }
+  const image = await stitch(
+    frames,
+    metrics.width,
+    metrics.height,
+    metrics.viewportWidth,
+    metrics.viewportHeight,
+    metrics.frameWidth,
+    metrics.frameHeight
+  );
+  if (await isSensitivePage()) throw new Error("password_page");
+  await assertStillActive(tab);
   return {
     capture: {
-      image: await stitch(
-        frames,
-        metrics.width,
-        metrics.height,
-        metrics.viewportWidth,
-        metrics.viewportHeight,
-        metrics.frameWidth,
-        metrics.frameHeight
-      ),
+      image,
       label: "Full page"
     },
     page
@@ -13686,12 +13732,11 @@ var en_default = {
   paired: "Connected",
   partialFailureRestore: "Translation stopped after partial changes. Restored the original text.",
   passive: "Passive mode",
-  passiveForbidden: "This page is not available for passive reading.",
   passiveOn: "Passive on",
   passivePaused: "Passive paused",
   passivePrompt: "Briefly describe the meaningful change in this screen.",
   passiveResumed: "Passive on",
-  passwordPage: "A password field is on this page, so passive reading is paused.",
+  passwordPage: "A password field was found, or some page content cannot be checked. Reading and capture are paused.",
   pause: "Pause",
   paused: "Passive paused",
   pin: "Pin",
@@ -13850,12 +13895,11 @@ var zh_TW_default = {
   paired: "\u5DF2\u9023\u7DDA",
   partialFailureRestore: "\u7FFB\u8B6F\u4E2D\u6B62\u3002\u5DF2\u9084\u539F\u90E8\u5206\u8B8A\u66F4\u7684\u539F\u6587\u3002",
   passive: "\u88AB\u52D5\u6A21\u5F0F",
-  passiveForbidden: "\u6B64\u9801\u9762\u7121\u6CD5\u4F9B\u88AB\u52D5\u95B1\u8B80\u3002",
   passiveOn: "\u88AB\u52D5\u6A21\u5F0F\u958B\u555F",
   passivePaused: "\u88AB\u52D5\u6A21\u5F0F\u66AB\u505C",
   passivePrompt: "\u7C21\u77ED\u63CF\u8FF0\u756B\u9762\u4E2D\u6709\u610F\u7FA9\u7684\u8B8A\u5316\u3002",
   passiveResumed: "\u88AB\u52D5\u6A21\u5F0F\u958B\u555F",
-  passwordPage: "\u6B64\u9801\u9762\u542B\u6709\u5BC6\u78BC\u6B04\u4F4D\uFF0C\u56E0\u6B64\u5DF2\u66AB\u505C\u88AB\u52D5\u95B1\u8B80\u3002",
+  passwordPage: "\u5075\u6E2C\u5230\u5BC6\u78BC\u6B04\u4F4D\uFF0C\u6216\u6709\u7121\u6CD5\u6AA2\u67E5\u7684\u9801\u9762\u5167\u5BB9\u3002\u5DF2\u66AB\u505C\u8B80\u53D6\u8207\u64F7\u53D6\u3002",
   pause: "\u66AB\u505C",
   paused: "\u88AB\u52D5\u6A21\u5F0F\u66AB\u505C",
   pin: "\u91D8\u9078",
@@ -14014,12 +14058,11 @@ var zh_CN_default = {
   paired: "\u5DF2\u8FDE\u63A5",
   partialFailureRestore: "\u7FFB\u8BD1\u5DF2\u505C\u6B62\u3002\u5DF2\u8FD8\u539F\u90E8\u5206\u66F4\u6539\u7684\u539F\u6587\u3002",
   passive: "\u88AB\u52A8\u6A21\u5F0F",
-  passiveForbidden: "\u6B64\u9875\u9762\u65E0\u6CD5\u8FDB\u884C\u88AB\u52A8\u9605\u8BFB\u3002",
   passiveOn: "\u88AB\u52A8\u6A21\u5F0F\u5F00\u542F",
   passivePaused: "\u88AB\u52A8\u6A21\u5F0F\u5DF2\u6682\u505C",
   passivePrompt: "\u7B80\u8981\u63CF\u8FF0\u5C4F\u5E55\u4E0A\u6709\u610F\u4E49\u7684\u53D8\u5316\u3002",
   passiveResumed: "\u88AB\u52A8\u6A21\u5F0F\u5F00\u542F",
-  passwordPage: "\u6B64\u9875\u9762\u542B\u6709\u5BC6\u7801\u5B57\u6BB5\uFF0C\u56E0\u6B64\u5DF2\u6682\u505C\u88AB\u52A8\u9605\u8BFB\u3002",
+  passwordPage: "\u68C0\u6D4B\u5230\u5BC6\u7801\u5B57\u6BB5\uFF0C\u6216\u6709\u65E0\u6CD5\u68C0\u67E5\u7684\u9875\u9762\u5185\u5BB9\u3002\u5DF2\u6682\u505C\u8BFB\u53D6\u4E0E\u622A\u53D6\u3002",
   pause: "\u6682\u505C",
   paused: "\u88AB\u52A8\u6A21\u5F0F\u5DF2\u6682\u505C",
   pin: "\u56FA\u5B9A",
@@ -14178,12 +14221,11 @@ var ja_default = {
   paired: "\u63A5\u7D9A\u3057\u307E\u3057\u305F",
   partialFailureRestore: "\u7FFB\u8A33\u3092\u505C\u6B62\u3057\u3001\u9014\u4E2D\u307E\u3067\u306E\u5909\u66F4\u3092\u5143\u306E\u6587\u7AE0\u306B\u623B\u3057\u307E\u3057\u305F\u3002",
   passive: "\u30D1\u30C3\u30B7\u30D6\u30E2\u30FC\u30C9",
-  passiveForbidden: "\u3053\u306E\u30DA\u30FC\u30B8\u306F\u81EA\u52D5\u8AAD\u307F\u53D6\u308A\u3067\u304D\u307E\u305B\u3093\u3002",
   passiveOn: "\u30D1\u30C3\u30B7\u30D6\u6709\u52B9",
   passivePaused: "\u30D1\u30C3\u30B7\u30D6\u4E00\u6642\u505C\u6B62",
   passivePrompt: "\u753B\u9762\u4E0A\u306E\u91CD\u8981\u306A\u5909\u5316\u3092\u7C21\u6F54\u306B\u8AAC\u660E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   passiveResumed: "\u30D1\u30C3\u30B7\u30D6\u6709\u52B9",
-  passwordPage: "\u30D1\u30B9\u30EF\u30FC\u30C9\u6B04\u304C\u3042\u308B\u305F\u3081\u81EA\u52D5\u8AAD\u307F\u53D6\u308A\u3092\u4E00\u6642\u505C\u6B62\u3057\u307E\u3057\u305F\u3002",
+  passwordPage: "\u30D1\u30B9\u30EF\u30FC\u30C9\u6B04\u304C\u898B\u3064\u304B\u3063\u305F\u304B\u3001\u78BA\u8A8D\u3067\u304D\u306A\u3044\u30DA\u30FC\u30B8\u5185\u5BB9\u304C\u3042\u308A\u307E\u3059\u3002\u8AAD\u307F\u53D6\u308A\u3068\u30AD\u30E3\u30D7\u30C1\u30E3\u3092\u505C\u6B62\u3057\u3066\u3044\u307E\u3059\u3002",
   pause: "\u4E00\u6642\u505C\u6B62",
   paused: "\u30D1\u30C3\u30B7\u30D6\u4E00\u6642\u505C\u6B62",
   pin: "\u30D4\u30F3\u7559\u3081",
@@ -14342,12 +14384,11 @@ var ko_default = {
   paired: "\uC5F0\uACB0\uB428",
   partialFailureRestore: "\uBC88\uC5ED\uC744 \uC911\uC9C0\uD558\uACE0 \uBD80\uBD84 \uBCC0\uACBD \uB0B4\uC6A9\uC744 \uC6D0\uBB38\uC73C\uB85C \uBCF5\uC6D0\uD588\uC2B5\uB2C8\uB2E4.",
   passive: "\uC790\uB3D9 \uBA54\uBAA8",
-  passiveForbidden: "\uC774 \uD398\uC774\uC9C0\uB294 \uC218\uB3D9\uC73C\uB85C \uC77D\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
   passiveOn: "\uC790\uB3D9 \uBA54\uBAA8 \uCF1C\uC9D0",
   passivePaused: "\uC790\uB3D9 \uBA54\uBAA8 \uC77C\uC2DC \uC911\uC9C0",
   passivePrompt: "\uD654\uBA74\uC758 \uC758\uBBF8 \uC788\uB294 \uBCC0\uD654\uB97C \uAC04\uB2E8\uD788 \uC124\uBA85\uD574 \uC8FC\uC138\uC694.",
   passiveResumed: "\uC790\uB3D9 \uBA54\uBAA8 \uCF1C\uC9D0",
-  passwordPage: "\uBE44\uBC00\uBC88\uD638 \uC785\uB825\uB780\uC774 \uC788\uC5B4 \uC218\uB3D9 \uC77D\uAE30\uB97C \uC911\uC9C0\uD588\uC2B5\uB2C8\uB2E4.",
+  passwordPage: "\uBE44\uBC00\uBC88\uD638 \uC785\uB825\uB780\uC774 \uAC10\uC9C0\uB418\uC5C8\uAC70\uB098 \uD655\uC778\uD560 \uC218 \uC5C6\uB294 \uD398\uC774\uC9C0 \uB0B4\uC6A9\uC774 \uC788\uC2B5\uB2C8\uB2E4. \uC77D\uAE30\uC640 \uCEA1\uCC98\uB97C \uC77C\uC2DC \uC911\uC9C0\uD588\uC2B5\uB2C8\uB2E4.",
   pause: "\uC77C\uC2DC \uC911\uC9C0",
   paused: "\uC790\uB3D9 \uBA54\uBAA8 \uC77C\uC2DC \uC911\uC9C0",
   pin: "\uACE0\uC815",
@@ -14506,12 +14547,11 @@ var es_default = {
   paired: "Conectado",
   partialFailureRestore: "Traducci\xF3n detenida. Se restaur\xF3 el texto original tras los cambios parciales.",
   passive: "Modo pasivo",
-  passiveForbidden: "Esta p\xE1gina no est\xE1 disponible para lectura pasiva.",
   passiveOn: "Modo pasivo activo",
   passivePaused: "Modo pasivo pausado",
   passivePrompt: "Describe brevemente el cambio relevante en esta pantalla.",
   passiveResumed: "Modo pasivo activo",
-  passwordPage: "Hay un campo de contrase\xF1a. Se paus\xF3 la lectura pasiva.",
+  passwordPage: "Se encontr\xF3 un campo de contrase\xF1a o hay contenido que no se puede comprobar. La lectura y la captura est\xE1n en pausa.",
   pause: "Pausar",
   paused: "Modo pasivo pausado",
   pin: "Fijar",
@@ -14670,12 +14710,11 @@ var fr_default = {
   paired: "Connect\xE9",
   partialFailureRestore: "Traduction arr\xEAt\xE9e. Le texte d'origine a \xE9t\xE9 restaur\xE9 apr\xE8s les modifications partielles.",
   passive: "Mode passif",
-  passiveForbidden: "Cette page ne peut pas \xEAtre lue automatiquement.",
   passiveOn: "Mode passif actif",
   passivePaused: "Mode passif en pause",
   passivePrompt: "D\xE9crivez bri\xE8vement le changement important \xE0 l'\xE9cran.",
   passiveResumed: "Mode passif actif",
-  passwordPage: "Champ de mot de passe d\xE9tect\xE9. Lecture passive suspendue.",
+  passwordPage: "Un champ de mot de passe a \xE9t\xE9 trouv\xE9 ou une partie de la page ne peut pas \xEAtre v\xE9rifi\xE9e. La lecture et la capture sont en pause.",
   pause: "Mettre en pause",
   paused: "Mode passif en pause",
   pin: "\xC9pingler",
@@ -14834,12 +14873,11 @@ var de_default = {
   paired: "Verbunden",
   partialFailureRestore: "\xDCbersetzung gestoppt. Der Originaltext wurde nach den Teil\xE4nderungen wiederhergestellt.",
   passive: "Passivmodus",
-  passiveForbidden: "Diese Seite kann nicht passiv gelesen werden.",
   passiveOn: "Passivmodus aktiv",
   passivePaused: "Passivmodus pausiert",
   passivePrompt: "Beschreibe kurz die relevante \xC4nderung auf diesem Bildschirm.",
   passiveResumed: "Passivmodus aktiv",
-  passwordPage: "Passwortfeld erkannt. Passives Lesen pausiert.",
+  passwordPage: "Ein Passwortfeld wurde gefunden oder ein Teil der Seite kann nicht gepr\xFCft werden. Lesen und Aufnehmen sind pausiert.",
   pause: "Pausieren",
   paused: "Passivmodus pausiert",
   pin: "Anheften",
@@ -14998,12 +15036,11 @@ var pt_BR_default = {
   paired: "Conectado",
   partialFailureRestore: "Tradu\xE7\xE3o interrompida. O texto original foi restaurado ap\xF3s as altera\xE7\xF5es parciais.",
   passive: "Modo passivo",
-  passiveForbidden: "Esta p\xE1gina n\xE3o est\xE1 dispon\xEDvel para leitura passiva.",
   passiveOn: "Modo passivo ativo",
   passivePaused: "Modo passivo pausado",
   passivePrompt: "Descreva brevemente a mudan\xE7a relevante nesta tela.",
   passiveResumed: "Modo passivo ativo",
-  passwordPage: "Campo de senha encontrado. Leitura passiva pausada.",
+  passwordPage: "Um campo de senha foi encontrado ou parte da p\xE1gina n\xE3o pode ser verificada. A leitura e a captura est\xE3o pausadas.",
   pause: "Pausar",
   paused: "Modo passivo pausado",
   pin: "Fixar",
@@ -15175,7 +15212,12 @@ function App() {
   const [backend, setBackend] = (0, import_react.useState)("bridge");
   const [model, setModel] = (0, import_react.useState)("sonnet");
   const [effort, setEffort] = (0, import_react.useState)("medium");
-  const [question, setQuestion] = (0, import_react.useState)("");
+  const [question, updateQuestion] = (0, import_react.useState)("");
+  const questionRef = (0, import_react.useRef)("");
+  const setQuestion = (0, import_react.useCallback)((value) => {
+    questionRef.current = value;
+    updateQuestion(value);
+  }, []);
   const [entries, setEntries] = (0, import_react.useState)([]);
   const [answer, setAnswer] = (0, import_react.useState)("");
   const [activeId, setActiveId] = (0, import_react.useState)("");
@@ -15347,6 +15389,9 @@ function App() {
   (0, import_react.useEffect)(() => {
     if (consented) schedulePageRefresh(true);
   }, [consented, passive, paused, backend, connected, locale]);
+  (0, import_react.useEffect)(() => {
+    if (!question.trim() && pendingPageRefresh.current) schedulePageRefresh();
+  }, [question]);
   (0, import_react.useEffect)(() => {
     const activated = (info) => {
       void chrome.tabs.get(info.tabId).then((tab) => {
@@ -15803,7 +15848,7 @@ Selected text (untrusted): ${selected}` : ""}`;
       if (passive && !paused) {
         if (await isSensitivePage().catch(() => true)) {
           setSuggestions([]);
-          setStatus(t.passiveForbidden);
+          setStatus(t.passwordPage);
           return;
         }
       }
@@ -15816,7 +15861,7 @@ Selected text (untrusted): ${selected}` : ""}`;
         return;
       }
       const key = `${sourceTabId}:${pageRevision(next)}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
-      if (requestIdRef.current || translationController.current) {
+      if (requestIdRef.current || translationController.current || questionRef.current.trim()) {
         pendingPageRefresh.current = true;
         return;
       }
@@ -16055,6 +16100,10 @@ Selected text (untrusted): ${selected}` : ""}`;
     if (!q || requestIdRef.current || translationController.current) return;
     const id = crypto.randomUUID();
     const kind = options.kind || "ask";
+    if ((kind === "suggest" || kind === "passive") && questionRef.current.trim()) {
+      pendingPageRefresh.current = true;
+      return;
+    }
     const currentPage = options.page || (options.image && kind === "passive" ? void 0 : page);
     const sourceTabId = activeTabId.current;
     const sourceVersion = pageVersion.current;
@@ -16090,6 +16139,23 @@ Selected text (untrusted): ${selected}` : ""}`;
     try {
       let final = "";
       let finalUsage;
+      if ((kind === "suggest" || kind === "passive") && currentPage) {
+        const sensitive = await isSensitivePage().catch(() => true);
+        if (requestIdRef.current !== id || cancelledRequests.current.has(id))
+          return;
+        if (sourceTabId !== activeTabId.current || sourceVersion !== pageVersion.current)
+          return;
+        if (sensitive || questionRef.current.trim()) {
+          pageRequestKey.current = "";
+          pendingPageRefresh.current = true;
+          if (sensitive) {
+            setSuggestions([]);
+            setPage(void 0);
+            setStatus(t.passwordPage);
+          } else setStatus(t.ready);
+          return;
+        }
+      }
       if (backend === "api") {
         const controller = new AbortController();
         requestRef.current = controller;

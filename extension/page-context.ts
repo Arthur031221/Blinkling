@@ -1,3 +1,5 @@
+import { hasSensitiveContent } from "./privacy";
+
 export type PageElement = {
   id: string;
   role: string;
@@ -134,7 +136,7 @@ function visible(element: Element): boolean {
 }
 
 export function buildPageContext(doc: Document = document): PageContext {
-  const hasPassword = !!doc.querySelector('input[type="password"]');
+  const hasPassword = hasSensitiveContent(doc);
   const scope =
     doc.querySelector("[data-glimpselet-reader-page]") ||
     doc.body ||

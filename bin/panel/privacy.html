@@ -45,7 +45,10 @@
         kept only in bubble memory and updated as the shared screen changes.
         Passive summaries skip pages where Glimpselet detects password fields
         and hosts on your blocklist, and are limited to six requests per rolling
-        minute. Detection is not complete for every sensitive page.
+        minute. The check includes open shadow roots and accessible embedded
+        pages. Loading or inaccessible embedded pages pause web reading and
+        capture. Closed shadow roots and password fields in other apps cannot be
+        inspected. Detection is not complete for every sensitive page.
       </p>
       <p>
         In bridge mode, the extension sends your question, relevant page context

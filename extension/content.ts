@@ -9,6 +9,7 @@ import {
 } from "./page-context";
 import { pageRevision } from "./page-revision";
 import { validateGuideSteps } from "./page-tools";
+import { hasSensitiveContent } from "./privacy";
 
 const contentScope = globalThis as typeof globalThis & {
   glimpseletContentReady?: boolean;
@@ -41,6 +42,7 @@ if (!contentScope.glimpseletContentReady) {
     | undefined;
   let lastUrl = location.href;
   let lastRevision = "";
+  let lastSensitive = false;
   let pageTimer = 0;
   let selecting = false;
   let cropLabels: CropLabels = {
@@ -377,7 +379,9 @@ if (!contentScope.glimpseletContentReady) {
   function reportPageChange(checkContent = false): void {
     const url = location.href;
     if (url === lastUrl && !checkContent) return;
-    const revision = pageRevision(buildPageContext());
+    const context = buildPageContext();
+    lastSensitive = context.hasPassword;
+    const revision = pageRevision(context);
     if (url !== lastUrl || (checkContent && revision !== lastRevision)) {
       lastUrl = url;
       lastRevision = revision;
@@ -421,7 +425,9 @@ if (!contentScope.glimpseletContentReady) {
 
   function initObserver(): void {
     observer?.disconnect();
-    lastRevision = pageRevision(buildPageContext());
+    const context = buildPageContext();
+    lastSensitive = context.hasPassword;
+    lastRevision = pageRevision(context);
     observer = new MutationObserver((records) => {
       if (!records.some(relevantMutation)) return;
       window.clearTimeout(pageTimer);
@@ -444,9 +450,13 @@ if (!contentScope.glimpseletContentReady) {
         "style",
         "title",
         "type",
+        "autocomplete",
       ],
     });
-    window.setInterval(reportPageChange, 650);
+    window.setInterval(() => {
+      // MutationObserver cannot see changes inside shadow roots or frame documents.
+      reportPageChange(hasSensitiveContent() !== lastSensitive);
+    }, 650);
     window.addEventListener("popstate", () => reportPageChange());
     window.addEventListener("hashchange", () => reportPageChange());
     window.addEventListener("scroll", updateGuidePosition, { passive: true });
@@ -454,10 +464,7 @@ if (!contentScope.glimpseletContentReady) {
     document.addEventListener("selectionchange", onSelectionChange);
     listenForShiftCrop(
       window,
-      () =>
-        shiftCropEnabled &&
-        !selecting &&
-        !document.querySelector('input[type="password"]'),
+      () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
       () => {
         void select("region", cropLabels.cropCancel).then((result) => {
           const value = result as { rect?: number[] };
@@ -620,7 +627,7 @@ if (!contentScope.glimpseletContentReady) {
       }
       if (message.type === "glimpselet:sensitive") {
         respond({
-          hasPassword: !!document.querySelector('input[type="password"]'),
+          hasPassword: hasSensitiveContent(),
         });
         return;
       }

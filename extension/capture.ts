@@ -1,3 +1,5 @@
+import { hasSensitiveContent } from "./privacy";
+
 export type CaptureKind = "visible" | "full" | "region" | "element" | "screen";
 export type CaptureResult = { image: string; label: string };
 type Tab = chrome.tabs.Tab;
@@ -109,14 +111,9 @@ export async function isSensitivePage(): Promise<boolean> {
     await requireSiteAccess(tab);
     const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () =>
-        Boolean(
-          document.querySelector(
-            'input[type="password"],input[autocomplete="current-password"],input[autocomplete="new-password"]',
-          ),
-        ),
+      func: hasSensitiveContent,
     });
-    return Boolean(result[0]?.result);
+    return result[0]?.result !== false;
   } catch (error) {
     if (error instanceof Error && error.message === "allow_site_access")
       throw error;
@@ -131,6 +128,7 @@ export async function getPageContext(): Promise<PageContext | undefined> {
   if (await isSensitivePage()) throw new Error("password_page");
   const context = await sendToPage(tab, { type: "glimpselet:context" });
   await assertStillActive(tab);
+  if (await isSensitivePage()) throw new Error("password_page");
   return context as PageContext | undefined;
 }
 
@@ -182,6 +180,7 @@ export async function captureWeb(
   }
   if (kind !== "full") {
     await assertStillActive(tab);
+    if (await isSensitivePage()) throw new Error("password_page");
     const data = await chrome.tabs
       .captureVisibleTab(tab.windowId, {
         format: "png",
@@ -194,9 +193,12 @@ export async function captureWeb(
       target: { tabId: tab.id },
       func: () => innerWidth,
     });
+    const image = await crop(data, rect, dimensions[0]?.result || 1280);
+    if (await isSensitivePage()) throw new Error("password_page");
+    await assertStillActive(tab);
     return {
       capture: {
-        image: await crop(data, rect, dimensions[0]?.result || 1280),
+        image,
         label:
           kind === "visible"
             ? "Visible tab"
@@ -245,6 +247,8 @@ export async function captureWeb(
           args: [x, y],
         });
         await new Promise((resolve) => setTimeout(resolve, 80));
+        await assertStillActive(tab);
+        if (await isSensitivePage()) throw new Error("password_page");
         const image = await chrome.tabs
           .captureVisibleTab(tab.windowId, {
             format: "png",
@@ -253,6 +257,7 @@ export async function captureWeb(
             throw new Error("capture_permission");
           });
         await assertStillActive(tab);
+        if (await isSensitivePage()) throw new Error("password_page");
         frames.push({ image, x, y });
       }
   } finally {
@@ -264,17 +269,20 @@ export async function captureWeb(
       })
       .catch(() => {});
   }
+  const image = await stitch(
+    frames,
+    metrics.width,
+    metrics.height,
+    metrics.viewportWidth,
+    metrics.viewportHeight,
+    metrics.frameWidth,
+    metrics.frameHeight,
+  );
+  if (await isSensitivePage()) throw new Error("password_page");
+  await assertStillActive(tab);
   return {
     capture: {
-      image: await stitch(
-        frames,
-        metrics.width,
-        metrics.height,
-        metrics.viewportWidth,
-        metrics.viewportHeight,
-        metrics.frameWidth,
-        metrics.frameHeight,
-      ),
+      image,
       label: "Full page",
     },
     page,

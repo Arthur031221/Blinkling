@@ -277,6 +277,45 @@
     };
   }
 
+  // extension/privacy.ts
+  function hasSensitiveContent(doc = document) {
+    const roots = [doc];
+    const seen = /* @__PURE__ */ new Set();
+    let remaining = 5e4;
+    while (roots.length) {
+      const root = roots.pop();
+      if (seen.has(root)) continue;
+      seen.add(root);
+      const owner = root.nodeType === 9 ? root : root.ownerDocument;
+      if (!owner) return true;
+      const walker = owner.createTreeWalker(root, 1);
+      let node;
+      while (node = walker.nextNode()) {
+        if (--remaining < 0) return true;
+        const element = node;
+        if (element.matches(
+          'input[type="password" i],input[autocomplete~="current-password" i],input[autocomplete~="new-password" i]'
+        ))
+          return true;
+        if (element.shadowRoot) roots.push(element.shadowRoot);
+        if (["iframe", "frame", "object", "embed"].includes(element.localName)) {
+          try {
+            const frame = element;
+            const nested = frame.contentDocument ?? frame.getSVGDocument?.();
+            if (!nested || nested.readyState !== "complete") return true;
+            const source = frame.getAttribute("src")?.trim().toLowerCase();
+            if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank"))
+              return true;
+            roots.push(nested);
+          } catch {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   // extension/page-context.ts
   var privateSelector = [
     "input[type=password]",
@@ -349,7 +388,7 @@
     return true;
   }
   function buildPageContext(doc = document) {
-    const hasPassword = !!doc.querySelector('input[type="password"]');
+    const hasPassword = hasSensitiveContent(doc);
     const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body || doc.documentElement;
     const elements = [];
     const selector = "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],[role=option],h1,h2,h3,h4,h5,h6";
@@ -724,7 +763,9 @@
     }, reportPageChange = function(checkContent = false) {
       const url = location.href;
       if (url === lastUrl && !checkContent) return;
-      const revision = pageRevision(buildPageContext());
+      const context = buildPageContext();
+      lastSensitive = context.hasPassword;
+      const revision = pageRevision(context);
       if (url !== lastUrl || checkContent && revision !== lastRevision) {
         lastUrl = url;
         lastRevision = revision;
@@ -753,7 +794,9 @@
       return true;
     }, initObserver = function() {
       observer?.disconnect();
-      lastRevision = pageRevision(buildPageContext());
+      const context = buildPageContext();
+      lastSensitive = context.hasPassword;
+      lastRevision = pageRevision(context);
       observer = new MutationObserver((records) => {
         if (!records.some(relevantMutation)) return;
         window.clearTimeout(pageTimer);
@@ -775,10 +818,13 @@
           "role",
           "style",
           "title",
-          "type"
+          "type",
+          "autocomplete"
         ]
       });
-      window.setInterval(reportPageChange, 650);
+      window.setInterval(() => {
+        reportPageChange(hasSensitiveContent() !== lastSensitive);
+      }, 650);
       window.addEventListener("popstate", () => reportPageChange());
       window.addEventListener("hashchange", () => reportPageChange());
       window.addEventListener("scroll", updateGuidePosition, { passive: true });
@@ -786,7 +832,7 @@
       document.addEventListener("selectionchange", onSelectionChange);
       listenForShiftCrop(
         window,
-        () => shiftCropEnabled && !selecting && !document.querySelector('input[type="password"]'),
+        () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
         () => {
           void select("region", cropLabels.cropCancel).then((result) => {
             const value = result;
@@ -910,6 +956,7 @@
     let currentGuide;
     let lastUrl = location.href;
     let lastRevision = "";
+    let lastSensitive = false;
     let pageTimer = 0;
     let selecting = false;
     let cropLabels = {
@@ -994,7 +1041,7 @@
         }
         if (message.type === "glimpselet:sensitive") {
           respond({
-            hasPassword: !!document.querySelector('input[type="password"]')
+            hasPassword: hasSensitiveContent()
           });
           return;
         }

@@ -44,6 +44,35 @@ let extensionId: string;
 let providerRequests: ProviderRequest[];
 let providerResponder: AnswerProvider;
 
+type PrivacyGateControl = { waiting: boolean; release: () => void };
+async function holdAutomaticPrivacyCheck(page: Page, reject = false) {
+  await page.evaluate((reject) => {
+    const original = chrome.scripting.executeScript.bind(chrome.scripting);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const control = { waiting: false, release };
+    (window as Window & { privacyGate?: PrivacyGateControl }).privacyGate =
+      control;
+    let checks = 0;
+    chrome.scripting.executeScript = (async (
+      injection: Parameters<typeof chrome.scripting.executeScript>[0],
+    ) => {
+      const result = await original(injection);
+      if (
+        injection.func?.toString().includes("current-password") &&
+        ++checks === 3
+      ) {
+        control.waiting = true;
+        await held;
+        if (reject) return result.map((item) => ({ ...item, result: true }));
+      }
+      return result;
+    }) as typeof chrome.scripting.executeScript;
+  }, reject);
+}
+
 function twoPagePdf(): Buffer {
   const streams = [
     "BT /F1 20 Tf 54 720 Td (PDF_PAGE_ALPHA) Tj ET",
@@ -133,6 +162,17 @@ test.beforeEach(async () => {
       return;
     }
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    if (requestUrl.pathname === "/nested-password") {
+      const kind = requestUrl.searchParams.get("kind");
+      const nested =
+        kind === "shadow"
+          ? '<div id="nested"></div><script>document.querySelector("#nested").attachShadow({mode:"open"}).innerHTML=\'<input autocomplete="section-login current-password">\';</script>'
+          : kind === "object"
+            ? '<object data="/password" type="text/html"></object>'
+            : `<iframe src="${kind === "opaque" ? origin.replace("127.0.0.1", "localhost") : origin}/password"></iframe>`;
+      res.end(`${fixture.toString()}<p>PRIVATE_ACCOUNT_PAGE_TEXT</p>${nested}`);
+      return;
+    }
     res.end(
       req.url === "/password"
         ? '<title>Sign in</title><input type="password"><p>Private account</p>'
@@ -575,15 +615,27 @@ for (const startup of [false, true]) {
         .locator(".composer textarea")
         .fill("Only the new project should receive this capture.");
       await panel.locator(".composer button.send").click();
-      await expect
-        .poll(() =>
-          secondRequests.some(
-            (request) =>
-              request.question ===
-              "Only the new project should receive this capture.",
-          ),
-        )
-        .toBe(true);
+      try {
+        await expect
+          .poll(() =>
+            secondRequests.some(
+              (request) =>
+                request.question ===
+                "Only the new project should receive this capture.",
+            ),
+          )
+          .toBe(true);
+      } catch (error) {
+        console.log("Pairing request diagnostics", {
+          status: await panel.locator(".status").innerText(),
+          connection: await panel.locator(".connection").innerText(),
+          draft: await panel.locator(".composer textarea").inputValue(),
+          thread: (await panel.locator(".thread").innerText()).slice(-1000),
+          newQuestions: secondRequests.map((request) => request.question),
+          oldQuestions: providerRequests.map((request) => request.question),
+        });
+        throw error;
+      }
       const request = secondRequests.find(
         (entry) =>
           entry.question ===
@@ -778,6 +830,321 @@ test("same-URL semantic DOM changes refresh once and ignore identical re-renders
   });
   await site.waitForTimeout(1300);
   expect(automaticRequests()).toHaveLength(refreshedCount);
+});
+
+for (const kind of ["shadow", "frame", "opaque", "object"] as const) {
+  for (const mode of ["suggest", "passive"] as const) {
+    test(`${kind} password gate prevents ${mode} requests and visible capture`, async () => {
+      if (mode === "passive") {
+        await panel
+          .getByRole("button", { name: en.passive, exact: true })
+          .click();
+        await expect
+          .poll(() =>
+            providerRequests.some(
+              (request) => request.question === en.passivePrompt,
+            ),
+          )
+          .toBe(true);
+        await expect(panel.locator(".composer button.send")).toBeVisible();
+        await site.waitForTimeout(300);
+      }
+      providerRequests = [];
+      await site.goto(`${origin}/nested-password?kind=${kind}`);
+      await expect(panel.locator(".suggestions button")).toHaveCount(0);
+      await site.waitForTimeout(1600);
+      expect(providerRequests).toHaveLength(0);
+      await panel
+        .getByRole("button", { name: en.visible, exact: true })
+        .click();
+      await expect(panel.locator(".status")).toContainText(en.passwordPage);
+      await expect(panel.locator(".capture-chip")).toHaveCount(0);
+      expect(providerRequests).toHaveLength(0);
+    });
+  }
+}
+
+for (const kind of ["shadow", "frame"] as const) {
+  test(`same-URL ${kind} password changes pause and restore questions`, async () => {
+    await site.evaluate(async (kind) => {
+      const host = document.createElement(kind === "frame" ? "iframe" : "div");
+      host.id = "nested-privacy";
+      document.body.append(host);
+      if (host instanceof HTMLIFrameElement) {
+        await new Promise<void>((resolve) => {
+          if (host.contentDocument?.readyState === "complete") resolve();
+          else host.addEventListener("load", () => resolve(), { once: true });
+        });
+        host.contentDocument!.body.innerHTML = '<input type="text">';
+      } else
+        host.attachShadow({ mode: "open" }).innerHTML = '<input type="text">';
+    }, kind);
+    await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    await site.waitForTimeout(1000);
+    const initialCount = providerRequests.length;
+    await site.evaluate((kind) => {
+      const host = document.querySelector("#nested-privacy")!;
+      const root =
+        kind === "frame"
+          ? (host as HTMLIFrameElement).contentDocument!
+          : host.shadowRoot!;
+      root.querySelector("input")!.autocomplete = "new-password";
+    }, kind);
+    await expect(panel.locator(".suggestions button")).toHaveCount(0);
+    await site.waitForTimeout(900);
+    expect(providerRequests).toHaveLength(initialCount);
+    await site.evaluate((kind) => {
+      const host = document.querySelector("#nested-privacy")!;
+      const root =
+        kind === "frame"
+          ? (host as HTMLIFrameElement).contentDocument!
+          : host.shadowRoot!;
+      root.querySelector("input")!.removeAttribute("autocomplete");
+    }, kind);
+    await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    expect(providerRequests.length).toBeGreaterThan(initialCount);
+  });
+}
+
+test("a password appearing during region selection rejects the resulting capture", async () => {
+  await panel.getByRole("button", { name: en.region, exact: true }).click();
+  await expect(site.locator("[data-glimpselet-crop] .surface")).toBeVisible();
+  await site.evaluate(() => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    host.attachShadow({ mode: "open" }).innerHTML = '<input type="password">';
+  });
+  await site.mouse.move(60, 80);
+  await site.mouse.down();
+  await site.mouse.move(340, 260);
+  await site.mouse.up();
+  await site.keyboard.press("Enter");
+  await expect(panel.locator(".status")).toContainText(en.passwordPage);
+  await expect(panel.locator(".capture-chip")).toHaveCount(0);
+});
+
+test("a password appearing between full page frames discards the capture and restores scroll", async () => {
+  await site.evaluate(() => scrollTo(0, 400));
+  const originalScroll = await site.evaluate(() => scrollY);
+  await panel.evaluate(() => {
+    const original = chrome.tabs.captureVisibleTab.bind(chrome.tabs);
+    let count = 0;
+    chrome.tabs.captureVisibleTab = (async (
+      windowId: number,
+      options: chrome.tabs.ImageDetails,
+    ) => {
+      const image = await original(windowId, options);
+      if (++count === 1) {
+        const [tab] = await chrome.tabs.query({ active: true, windowId });
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id! },
+          func: () => {
+            const host = document.createElement("div");
+            document.body.append(host);
+            host.attachShadow({ mode: "open" }).innerHTML =
+              '<input type="password">';
+          },
+        });
+      }
+      return image;
+    }) as typeof chrome.tabs.captureVisibleTab;
+  });
+  await panel.getByRole("button", { name: en.fullPage, exact: true }).click();
+  await expect(panel.locator(".status")).toContainText(en.passwordPage);
+  await expect(panel.locator(".capture-chip")).toHaveCount(0);
+  await expect.poll(() => site.evaluate(() => scrollY)).toBe(originalScroll);
+});
+
+test("a password appearing after context collection prevents automatic transmission", async () => {
+  await panel.evaluate(() => {
+    const original = chrome.tabs.sendMessage.bind(chrome.tabs);
+    let inserted = false;
+    let contexts = 0;
+    chrome.tabs.sendMessage = (async (
+      tabId: number,
+      message: { type?: string },
+    ) => {
+      const result = await original(tabId, message);
+      if (
+        !inserted &&
+        message.type === "glimpselet:context" &&
+        ++contexts === 2
+      ) {
+        inserted = true;
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => {
+            const host = document.createElement("div");
+            document.body.append(host);
+            host.attachShadow({ mode: "open" }).innerHTML =
+              '<input autocomplete="current-password">';
+          },
+        });
+      }
+      return result;
+    }) as typeof chrome.tabs.sendMessage;
+  });
+  const initialCount = providerRequests.length;
+  await site.evaluate(() => {
+    document.querySelector("#foreign")!.textContent = "Account page changed.";
+  });
+  await expect(panel.locator(".suggestions button")).toHaveCount(0);
+  await site.waitForTimeout(1700);
+  expect(providerRequests).toHaveLength(initialCount);
+});
+
+for (const action of ["clear", "send"] as const) {
+  test(`automatic refresh waits for a draft and resumes after ${action}`, async () => {
+    await panel
+      .locator(".composer textarea")
+      .fill("Keep my draft ready to send.");
+    const initialCount = providerRequests.length;
+    await site.evaluate(() => {
+      document.querySelector("#foreign")!.textContent = "Draft page changed.";
+    });
+    await expect(panel.locator(".suggestions button")).toHaveCount(0);
+    await site.waitForTimeout(1200);
+    expect(providerRequests).toHaveLength(initialCount);
+    await expect(panel.locator(".composer button.send")).toBeEnabled();
+    if (action === "clear") await panel.locator(".composer textarea").fill("");
+    else {
+      await panel.locator(".composer button.send").click();
+      await expect
+        .poll(() =>
+          providerRequests.some(
+            (request) => request.question === "Keep my draft ready to send.",
+          ),
+        )
+        .toBe(true);
+    }
+    await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    expect(providerRequests.length).toBeGreaterThan(initialCount);
+    expect(providerRequests.at(-1)!.page?.text).toContain(
+      "Draft page changed.",
+    );
+  });
+}
+
+for (const backend of ["bridge", "api"] as const) {
+  for (const action of ["stop", "draft"] as const) {
+    test(`${backend} ${action} during the final privacy check prevents automatic dispatch`, async () => {
+      const apiRequests: string[] = [];
+      if (backend === "api") {
+        await context.route(
+          "https://api.anthropic.com/v1/messages",
+          async (route) => {
+            const headers = {
+              "access-control-allow-origin": "*",
+              "access-control-allow-headers": "*",
+              "access-control-allow-methods": "POST, OPTIONS",
+            };
+            if (route.request().method() === "OPTIONS") {
+              await route.fulfill({ status: 204, headers });
+              return;
+            }
+            apiRequests.push(route.request().postData()!);
+            await route.fulfill({
+              contentType: "text/event-stream",
+              headers,
+              body: [
+                {
+                  type: "content_block_delta",
+                  delta: {
+                    type: "text_delta",
+                    text: JSON.stringify({
+                      questions: [
+                        "API question one?",
+                        "API question two?",
+                        "API question three?",
+                      ],
+                    }),
+                  },
+                },
+                { type: "message_stop" },
+              ]
+                .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+                .join(""),
+            });
+          },
+        );
+        await worker.evaluate(async () => {
+          await chrome.storage.local.set({ backend: "api" });
+          await chrome.storage.session.set({ apiKey: "fixture-key" });
+        });
+        await panel.reload();
+        await expect(panel.locator(".suggestions button")).toHaveCount(3);
+      }
+      const requestCount = () =>
+        backend === "api" ? apiRequests.length : providerRequests.length;
+      const initialCount = requestCount();
+      await holdAutomaticPrivacyCheck(panel);
+      await site.evaluate(() => {
+        document.querySelector("#foreign")!.textContent =
+          "Final privacy gate page.";
+      });
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            () =>
+              (window as Window & { privacyGate?: PrivacyGateControl })
+                .privacyGate?.waiting,
+          ),
+        )
+        .toBe(true);
+      if (action === "stop") {
+        await panel.getByRole("button", { name: /Stop/ }).click();
+        await expect(panel.locator(".composer button.send")).toBeVisible();
+      } else
+        await panel
+          .locator(".composer textarea")
+          .fill("Draft typed while checking.");
+      await panel.evaluate(() =>
+        (
+          window as Window & { privacyGate?: PrivacyGateControl }
+        ).privacyGate!.release(),
+      );
+      await expect(panel.locator(".composer button.send")).toBeVisible();
+      await site.waitForTimeout(1100);
+      expect(requestCount()).toBe(initialCount);
+      if (action === "stop")
+        await expect(panel.locator(".status")).toContainText(en.stopped);
+      else {
+        await expect(panel.locator(".composer textarea")).toHaveValue(
+          "Draft typed while checking.",
+        );
+        await panel.locator(".composer textarea").fill("");
+        await expect(panel.locator(".suggestions button")).toHaveCount(3);
+        expect(requestCount()).toBeGreaterThan(initialCount);
+      }
+    });
+  }
+}
+
+test("transient privacy rejection retries the same public page", async () => {
+  const initialCount = providerRequests.length;
+  await holdAutomaticPrivacyCheck(panel, true);
+  await site.evaluate(() => {
+    document.querySelector("#foreign")!.textContent = "Transient privacy page.";
+  });
+  await expect
+    .poll(() =>
+      panel.evaluate(
+        () =>
+          (window as Window & { privacyGate?: PrivacyGateControl }).privacyGate
+            ?.waiting,
+      ),
+    )
+    .toBe(true);
+  await panel.evaluate(() =>
+    (
+      window as Window & { privacyGate?: PrivacyGateControl }
+    ).privacyGate!.release(),
+  );
+  await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  expect(providerRequests).toHaveLength(initialCount + 1);
+  expect(providerRequests.at(-1)!.page?.text).toContain(
+    "Transient privacy page.",
+  );
 });
 
 test("same-URL password field changes pause and restore automatic questions", async () => {
@@ -1223,13 +1590,20 @@ test("Stop keeps a page refresh queued until provider cleanup finishes", async (
       ),
     ).toBe(false);
     finishProvider!();
+    await expect(panel.locator(".composer button.send")).toBeEnabled();
+    expect(
+      providerRequests.some((request) =>
+        request.page?.url.endsWith("/after-stop"),
+      ),
+    ).toBe(false);
+    await panel.locator(".composer textarea").fill("");
     await expect(panel.locator(".suggestions")).toContainText(
       "After stop question one?",
     );
     await expect(panel.locator(".thread article").last()).toContainText(
       "Partial reply kept.",
     );
-    await expect(panel.locator(".composer button.send")).toBeEnabled();
+    await expect(panel.locator(".composer button.send")).toBeDisabled();
   } finally {
     finishProvider?.();
   }
@@ -1389,13 +1763,20 @@ test("direct API Stop waits for stream cleanup before refreshing the page", asyn
         window as Window & { apiStopControl?: StopControl }
       ).apiStopControl?.release(),
     );
+    await expect(panel.locator(".composer button.send")).toBeEnabled();
+    expect(
+      apiQuestions.some((question) =>
+        question.includes(origin + "/after-api-stop"),
+      ),
+    ).toBe(false);
+    await panel.locator(".composer textarea").fill("");
     await expect(panel.locator(".suggestions")).toContainText(
       "API question one?",
     );
     await expect(panel.locator(".thread article").last()).toContainText(
       "Partial API reply kept.",
     );
-    await expect(panel.locator(".composer button.send")).toBeEnabled();
+    await expect(panel.locator(".composer button.send")).toBeDisabled();
     expect(await control("released")).toBe(true);
   } finally {
     await panel.evaluate(() =>

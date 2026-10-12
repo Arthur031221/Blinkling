@@ -155,7 +155,12 @@ function App() {
   const [backend, setBackend] = useState<"bridge" | "api">("bridge");
   const [model, setModel] = useState<Model>("sonnet");
   const [effort, setEffort] = useState<Effort>("medium");
-  const [question, setQuestion] = useState("");
+  const [question, updateQuestion] = useState("");
+  const questionRef = useRef("");
+  const setQuestion = useCallback((value: string) => {
+    questionRef.current = value;
+    updateQuestion(value);
+  }, []);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [answer, setAnswer] = useState("");
   const [activeId, setActiveId] = useState("");
@@ -366,6 +371,9 @@ function App() {
   useEffect(() => {
     if (consented) schedulePageRefresh(true);
   }, [consented, passive, paused, backend, connected, locale]);
+  useEffect(() => {
+    if (!question.trim() && pendingPageRefresh.current) schedulePageRefresh();
+  }, [question]);
   useEffect(() => {
     const activated = (info: { tabId: number }) => {
       void chrome.tabs.get(info.tabId).then((tab: BrowserTab) => {
@@ -921,7 +929,7 @@ function App() {
       if (passive && !paused) {
         if (await isSensitivePage().catch(() => true)) {
           setSuggestions([]);
-          setStatus(t.passiveForbidden);
+          setStatus(t.passwordPage);
           return;
         }
       }
@@ -937,7 +945,11 @@ function App() {
         return;
       }
       const key = `${sourceTabId}:${pageRevision(next)}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
-      if (requestIdRef.current || translationController.current) {
+      if (
+        requestIdRef.current ||
+        translationController.current ||
+        questionRef.current.trim()
+      ) {
         pendingPageRefresh.current = true;
         return;
       }
@@ -1197,6 +1209,13 @@ function App() {
     if (!q || requestIdRef.current || translationController.current) return;
     const id = crypto.randomUUID();
     const kind = options.kind || "ask";
+    if (
+      (kind === "suggest" || kind === "passive") &&
+      questionRef.current.trim()
+    ) {
+      pendingPageRefresh.current = true;
+      return;
+    }
     const currentPage =
       options.page || (options.image && kind === "passive" ? undefined : page);
     const sourceTabId = activeTabId.current;
@@ -1242,6 +1261,26 @@ function App() {
     try {
       let final = "";
       let finalUsage: Usage | undefined;
+      if ((kind === "suggest" || kind === "passive") && currentPage) {
+        const sensitive = await isSensitivePage().catch(() => true);
+        if (requestIdRef.current !== id || cancelledRequests.current.has(id))
+          return;
+        if (
+          sourceTabId !== activeTabId.current ||
+          sourceVersion !== pageVersion.current
+        )
+          return;
+        if (sensitive || questionRef.current.trim()) {
+          pageRequestKey.current = "";
+          pendingPageRefresh.current = true;
+          if (sensitive) {
+            setSuggestions([]);
+            setPage(undefined);
+            setStatus(t.passwordPage);
+          } else setStatus(t.ready);
+          return;
+        }
+      }
       if (backend === "api") {
         const controller = new AbortController();
         requestRef.current = controller;
