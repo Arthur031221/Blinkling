@@ -36,6 +36,11 @@ type Entry = {
   kind: Mode;
   usage?: { inputTokens: number; outputTokens: number; costUsd: number };
 };
+type AnswerOutcome = {
+  requestId: number;
+  status: "streaming" | "complete" | "cancelled" | "incomplete";
+  detail?: string;
+} | null;
 type PipHost = Window & {
   documentPictureInPicture?: {
     requestWindow(options: { width: number; height: number }): Promise<Window>;
@@ -97,6 +102,7 @@ function App() {
   const [sentPreview, setSentPreview] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [answerOutcome, setAnswerOutcomeState] = useState<AnswerOutcome>(null);
   const [pinnedAnswer, setPinnedAnswer] = useState("");
   const [history, setHistory] = useState<Entry[]>([]);
   const [status, setStatus] = useState("");
@@ -129,6 +135,7 @@ function App() {
   const imageRef = useRef<HTMLImageElement>(null);
   const demoFrame = useRef("");
   const generation = useRef(0);
+  const answerOutcomeRef = useRef<AnswerOutcome>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const frozenRef = useRef(frozen);
   frozenRef.current = frozen;
@@ -155,6 +162,30 @@ function App() {
   shareRef.current = share;
   frameRef.current = liveFrame;
   const t = messages[settings.locale];
+  function setAnswerOutcome(value: AnswerOutcome) {
+    answerOutcomeRef.current = value;
+    setAnswerOutcomeState(value);
+  }
+  function markAnswerCancelled() {
+    const current = answerOutcomeRef.current;
+    if (
+      current?.status === "streaming" &&
+      current.requestId === generation.current
+    )
+      setAnswerOutcome({
+        requestId: current.requestId,
+        status: "cancelled",
+        detail: t.answerCancelExplanation,
+      });
+  }
+  function invalidateRequest() {
+    markAnswerCancelled();
+    generation.current++;
+    activeRequest.current?.abort();
+    activeRequest.current = null;
+    abort.current = null;
+    setBusy(false);
+  }
   const actionLabels = [
     t.actionWhat,
     t.actionTranslate,
@@ -266,6 +297,7 @@ function App() {
     if (demo || !session || !sessionExpiresAt) return;
     const timeout = window.setTimeout(
       () => {
+        invalidateRequest();
         setStatus(errorText(new Error("session_expired")));
       },
       Math.max(0, sessionExpiresAt - Date.now()),
@@ -375,9 +407,7 @@ function App() {
       setLiveFrame("");
       setPreview("");
       setSentPreview(false);
-      generation.current++;
-      activeRequest.current?.abort();
-      setBusy(false);
+      invalidateRequest();
       setStatus(t.statusScreenEnded);
     };
     track?.addEventListener("ended", ended, { once: true });
@@ -685,14 +715,12 @@ function App() {
     }
   }
   function stopShare() {
-    generation.current++;
-    activeRequest.current?.abort();
+    invalidateRequest();
     shareRef.current?.getTracks().forEach((track) => track.stop());
     shareRef.current = null;
     setShare(null);
     setPassive(false);
     setPassivePaused(false);
-    setBusy(false);
     passiveAbort.current?.abort();
     abort.current?.abort();
   }
@@ -700,9 +728,8 @@ function App() {
     setPassive(false);
     setPassivePaused(true);
     setStatus(frozenRef.current ? t.frozen : t.statusLiveReady);
-    const pausedGeneration = ++generation.current;
-    activeRequest.current?.abort();
-    setBusy(false);
+    invalidateRequest();
+    const pausedGeneration = generation.current;
     passiveAbort.current?.abort();
     const pending =
       !demo && session
@@ -719,8 +746,7 @@ function App() {
   function cancelForProviderChange() {
     if (passive) void pausePassive();
     else {
-      generation.current++;
-      activeRequest.current?.abort();
+      invalidateRequest();
       setStatus(shareRef.current ? t.statusLiveReady : t.notSharing);
     }
   }
@@ -782,6 +808,7 @@ function App() {
       followAnswer.current = true;
       setCopyState("");
       setAnswer("");
+      setAnswerOutcome({ requestId: id, status: "streaming" });
     }
     setStatus(mode === "passive" ? t.statusNoticing : t.statusThinking);
     abort.current = controller;
@@ -829,7 +856,14 @@ function App() {
           }
         },
       );
-      if (controller.signal.aborted || id !== generation.current) return false;
+      if (
+        controller.signal.aborted ||
+        id !== generation.current ||
+        (mode !== "passive" && answerOutcomeRef.current?.requestId !== id)
+      )
+        return false;
+      if (mode !== "passive")
+        setAnswerOutcome({ requestId: id, status: "complete" });
       setHistory((h) =>
         [...h.filter((x) => Date.now() - x.at < 600_000), entry].slice(-100),
       );
@@ -838,8 +872,17 @@ function App() {
       );
       return true;
     } catch (e) {
-      if (id === generation.current && !controller.signal.aborted)
-        setStatus(errorText(e));
+      if (id === generation.current && !controller.signal.aborted) {
+        const detail = errorText(e);
+        if (
+          mode !== "passive" &&
+          id === generation.current &&
+          answerOutcomeRef.current?.requestId === id
+        ) {
+          setAnswerOutcome({ requestId: id, status: "incomplete", detail });
+        }
+        setStatus(detail);
+      }
       return false;
     } finally {
       if (activeRequest.current === controller) {
@@ -879,6 +922,7 @@ function App() {
       followAnswer.current = true;
       setCopyState("");
       setAnswer(sample);
+      setAnswerOutcome({ requestId: ++generation.current, status: "complete" });
       setHistory((h) => [
         ...h,
         {
@@ -1124,9 +1168,7 @@ function App() {
       void pausePassive();
       return;
     }
-    generation.current++;
-    activeRequest.current?.abort();
-    setBusy(false);
+    invalidateRequest();
     setStatus(t.statusAnswerCancelled);
   }
   function exportNotes() {
@@ -1157,6 +1199,7 @@ function App() {
     setDrag(null);
     setQuestion("");
     setAnswer("");
+    setAnswerOutcome(null);
     setPinnedAnswer("");
     setHistory([]);
     setKey("");
@@ -1507,39 +1550,60 @@ function App() {
             {passive ? t.pausePassive : t.cancel}
           </button>
         )}
-        {pinnedAnswer && pinnedAnswer !== answer && (
-          <article className="answer pinned">
-            <div className="answer-top">
-              <BlinkAvatar mood="idle" label={t.blinkAlt} />
-              <span>{t.pinned}</span>
-              <button onClick={() => void copy(pinnedAnswer)}>{t.copy}</button>
-              <button onClick={() => setPinnedAnswer("")}>{t.unpin}</button>
-            </div>
-            <div
-              className="markdown"
-              role="region"
-              aria-label={t.pinned}
-              tabIndex={0}
-              dangerouslySetInnerHTML={{
-                __html: safeMarkdown(pinnedAnswer),
-              }}
-            />
-          </article>
-        )}
-        {(answer || (busy && !passive)) && (
+        {pinnedAnswer &&
+          !(
+            answerOutcome?.status === "complete" && pinnedAnswer === answer
+          ) && (
+            <article className="answer pinned">
+              <div className="answer-top">
+                <BlinkAvatar mood="idle" label={t.blinkAlt} />
+                <span>{t.pinned}</span>
+                <button onClick={() => void copy(pinnedAnswer)}>
+                  {t.copy}
+                </button>
+                <button onClick={() => setPinnedAnswer("")}>{t.unpin}</button>
+              </div>
+              <div
+                className="markdown"
+                role="region"
+                aria-label={t.pinned}
+                tabIndex={0}
+                dangerouslySetInnerHTML={{
+                  __html: safeMarkdown(pinnedAnswer),
+                }}
+              />
+            </article>
+          )}
+        {(answer || answerOutcome) && (
           <article
-            className={`answer ${answer && pinnedAnswer === answer ? "pinned" : ""}`}
-            aria-busy={busy && !passive}
+            className={`answer ${answerOutcome?.status === "complete" && answer && pinnedAnswer === answer ? "pinned" : ""}`}
+            aria-busy={answerOutcome?.status === "streaming"}
           >
             <div className="answer-top">
               <BlinkAvatar
                 label={t.blinkAlt}
-                mood={busy ? "think" : celebrating ? "done" : "idle"}
+                mood={
+                  answerOutcome?.status === "streaming"
+                    ? "think"
+                    : answerOutcome?.status === "complete" && celebrating
+                      ? "done"
+                      : "idle"
+                }
               />
               <span>
-                {answer && pinnedAnswer === answer ? t.pinned : t.answer}
+                {answerOutcome?.status === "streaming"
+                  ? t.answerStateStreaming
+                  : answerOutcome?.status === "complete"
+                    ? pinnedAnswer === answer && answer
+                      ? t.pinned
+                      : t.answerStateComplete
+                    : answerOutcome?.status === "cancelled"
+                      ? t.answerStateCancelled
+                      : answerOutcome?.status === "incomplete"
+                        ? t.answerStateIncomplete
+                        : t.answer}
               </span>
-              {busy && !passive && (
+              {answerOutcome?.status === "streaming" && (
                 <span className="thinking-dots" aria-hidden="true">
                   <i />
                   <i />
@@ -1550,13 +1614,23 @@ function App() {
                 {t.copy}
               </button>
               <button
-                disabled={busy}
-                aria-pressed={Boolean(answer && pinnedAnswer === answer)}
+                disabled={
+                  answerOutcome?.status !== "complete" || !answer.trim()
+                }
+                aria-pressed={Boolean(
+                  answerOutcome?.status === "complete" &&
+                    answer &&
+                    pinnedAnswer === answer,
+                )}
                 onClick={() => {
                   setPinnedAnswer((value) => (value === answer ? "" : answer));
                 }}
               >
-                {answer && pinnedAnswer === answer ? t.unpin : t.pin}
+                {answerOutcome?.status === "complete" &&
+                answer &&
+                pinnedAnswer === answer
+                  ? t.unpin
+                  : t.pin}
               </button>
             </div>
             {answer ? (
@@ -1567,8 +1641,14 @@ function App() {
                 tabIndex={0}
                 dangerouslySetInnerHTML={{ __html: safeMarkdown(answer) }}
               />
-            ) : (
+            ) : answerOutcome?.status === "streaming" ? (
               <p className="answer-empty">{t.answerWaiting}</p>
+            ) : null}
+            {answerOutcome?.status === "cancelled" && (
+              <p className="answer-state-detail">{answerOutcome.detail}</p>
+            )}
+            {answerOutcome?.status === "incomplete" && (
+              <p className="answer-state-detail">{answerOutcome.detail}</p>
             )}
             <div ref={answerEnd} className="answer-end" />
           </article>

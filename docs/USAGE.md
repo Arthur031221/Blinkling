@@ -2,7 +2,7 @@
 
 Run `/glimpselet:glimpse` from your coding session. Choose **Float panel**, then use the browser picker to share a display, app window or tab. Sharing begins only after you choose a surface. Freeze a frame to inspect it, crop to a region, draw opaque masks over details you do not want sent.
 
-Type a question or choose a quick action. Press Ctrl+Enter or Command+Enter to send it. The panel sends the prepared image and question to the configured backend and streams the answer. The still image sent with a question is labeled **Last sent frame**. **Show live preview** returns to the shared screen without sending another question and preserves the crop and masks. Choose the `sonnet`, `opus` or `haiku` alias in Settings. Follow-up questions can include recent, bounded session context. Answers can be copied or pinned.
+Type a question or choose a quick action. Press Ctrl+Enter or Command+Enter to send it. The panel sends the prepared image and question to the configured backend and streams the answer. If a stream does not deliver a valid completion event, the panel keeps any partial text, labels it incomplete and leaves it out of history. The still image sent with a question is labeled **Last sent frame**. **Show live preview** returns to the shared screen without sending another question and preserves the crop and masks. Choose the `sonnet`, `opus` or `haiku` alias in Settings. Follow-up questions can include recent, bounded session context. Answers can be copied or pinned.
 
 With the screen preview focused, S selects an area, E asks for an explanation, T translates it, and P toggles passive notes. The corresponding buttons remain keyboard accessible.
 

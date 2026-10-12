@@ -41,6 +41,11 @@ describe("panel translations", () => {
       "reopenAction",
       "passivePrompt",
       "summaryPrompt",
+      "answerStateStreaming",
+      "answerStateComplete",
+      "answerStateCancelled",
+      "answerStateIncomplete",
+      "answerCancelExplanation",
     ];
     for (const locale of locales.filter((value) => value !== "en")) {
       for (const key of keys)

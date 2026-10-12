@@ -439,6 +439,13 @@ footer .resize-handle {
   line-height: 1.6;
   margin-bottom: 0;
 }
+.answer-state-detail {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
 .answer-end {
   height: 1px;
   scroll-margin-bottom: 18px;
