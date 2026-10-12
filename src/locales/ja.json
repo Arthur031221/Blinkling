@@ -26,9 +26,10 @@
   "actionProblems": "問題を探す",
   "actionExplain": "コードを説明",
   "freeze": "フレームを固定",
+  "resumeLive": "ライブ表示を再開",
   "reset": "範囲とマスクをリセット",
   "select": "範囲を選択",
-  "dragHint": "ドラッグして範囲を選択",
+  "dragHint": "ドラッグで選択。矢印キーで移動、Shift + 矢印でサイズ変更、Enterで適用、Escapeでキャンセル。",
   "thinking": "考えています...",
   "cancel": "回答をキャンセル",
   "answer": "回答",
@@ -101,5 +102,15 @@
   "errorSessionLimit": "開いているパネルが多すぎます。古いパネルを閉じて、もう一度お試しください。",
   "passiveOff": "パッシブモード オフ",
   "popupFallbackAction": "ポップアップを開く",
-  "popupFallbackHelp": "フローティングウィンドウを開けませんでした。代わりにポップアップを開いてください。"
+  "popupFallbackHelp": "フローティングウィンドウを開けませんでした。代わりにポップアップを開いてください。",
+  "unpin": "ピン留めを解除",
+  "scopeFull": "フレーム全体",
+  "scopeArea": "選択した範囲",
+  "scopeFrozen": "固定",
+  "scopeLive": "ライブ",
+  "maskCount": "マスク: {count}",
+  "answerWaiting": "回答はここに表示されます。",
+  "statusAnswerCancelled": "回答をキャンセルしました。質問はここに残っています。",
+  "resizePanel": "パネルのサイズを変更",
+  "resizeHelp": "ドラッグしてサイズを変更するか、矢印キーを使ってください。ウィンドウの端をドラッグすることもできます。"
 }

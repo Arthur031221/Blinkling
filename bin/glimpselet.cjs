@@ -41932,7 +41932,7 @@ async function createGlimpselet(options = {}) {
   const panel = await new PanelServer(history, {
     onClear: () => onClear()
   }).start();
-  const server = new McpServer({ name: "glimpselet", version: "1.0.0" });
+  const server = new McpServer({ name: "glimpselet", version: "1.1.0" });
   let watchTimer;
   let watching = false, inCapture = false;
   const watchLimiter = new SlidingWindowLimiter(WATCH_LIMIT_PER_MINUTE, 6e4);

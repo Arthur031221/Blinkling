@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { PNG } from "pngjs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const dir = await mkdtemp(join(tmpdir(), "glimpselet-mcp-e2e-"));
@@ -12,7 +12,7 @@ await writeFile(fixture, PNG.sync.write(png));
 const client = new Client({ name: "glimpselet-e2e-client", version: "1.0.0" });
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: ["bridge/dist/cli.js"],
+  args: ["bin/glimpselet.cjs"],
   stderr: "pipe",
   env: {
     ...process.env,
@@ -22,6 +22,13 @@ const transport = new StdioClientTransport({
 });
 try {
   await client.connect(transport);
+  const { version } = JSON.parse(
+    await readFile(new URL("../bridge/package.json", import.meta.url), "utf8"),
+  );
+  if (client.getServerVersion()?.version !== version)
+    throw new Error(
+      `Expected MCP version ${version}, got ${client.getServerVersion()?.version}`,
+    );
   const tools = await client.listTools();
   if (
     !tools.tools.some((tool) => tool.name === "screen_latest") ||

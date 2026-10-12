@@ -26,9 +26,10 @@
   "actionProblems": "문제 찾기",
   "actionExplain": "코드 설명",
   "freeze": "프레임 고정",
+  "resumeLive": "실시간 화면 재개",
   "reset": "자르기와 마스크 초기화",
   "select": "영역 선택",
-  "dragHint": "드래그하여 영역 선택",
+  "dragHint": "드래그하여 선택하세요. 방향키로 이동, Shift + 방향키로 크기 조절, Enter로 적용, Escape로 취소합니다.",
   "thinking": "생각 중...",
   "cancel": "답변 취소",
   "answer": "답변",
@@ -101,5 +102,15 @@
   "errorSessionLimit": "패널이 너무 많이 열려 있습니다. 오래된 패널을 닫고 다시 시도하세요.",
   "passiveOff": "자동 관찰 꺼짐",
   "popupFallbackAction": "팝업 열기",
-  "popupFallbackHelp": "플로팅 창을 열 수 없습니다. 대신 팝업을 여세요."
+  "popupFallbackHelp": "플로팅 창을 열 수 없습니다. 대신 팝업을 여세요.",
+  "unpin": "고정 해제",
+  "scopeFull": "전체 프레임",
+  "scopeArea": "선택한 영역",
+  "scopeFrozen": "고정됨",
+  "scopeLive": "실시간",
+  "maskCount": "마스크: {count}",
+  "answerWaiting": "답변이 여기에 표시됩니다.",
+  "statusAnswerCancelled": "답변이 취소되었습니다. 질문은 여기에 남아 있습니다.",
+  "resizePanel": "패널 크기 조절",
+  "resizeHelp": "드래그하거나 화살표 키를 사용해 크기를 조절하세요. 창 가장자리를 드래그해도 됩니다."
 }

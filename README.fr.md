@@ -2,13 +2,23 @@
 
 <p align="center"><a href="README.md">English</a>  |  <a href="README.zh-TW.md">繁體中文</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.ko.md">한국어</a>  |  <a href="README.es.md">Español</a>  |  <a href="README.de.md">Deutsch</a>  |  <a href="README.pt-BR.md">Português (Brasil)</a></p>
 
-> Posez des questions à votre assistant de programmation sur l'écran partagé, dans une petite fenêtre flottante.
+> Posez une question à votre assistant de programmation sur l'écran choisi, dans un panneau flottant compact. Figez une image, recadrez-la, masquez les détails privés et posez votre question.
 
-Résultat sur les fixtures : 20/20 tâches synthétiques de lecture d'écran réussies. Chaque réponse a été vérifiée par l'auteur. Exécution réelle du plugin intégré avec le CLI Haiku. Médiane : 2,609 s, p95 : 3,263 s. [Résultats et méthode](assets/benchmark.json).
+<p align="center"><img src="assets/demo.gif" width="800" alt="Image de test et réponse enregistrée dans le panneau Glimpselet"></p>
 
-| Avant                     | Après                                                               |
-| ------------------------- | ------------------------------------------------------------------- |
-| Un écran plein de détails | Figez une image, recadrez-la ou masquez-la, puis posez une question |
+<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Ouvrir la démo statique</a>. Elle montre une image de test et une réponse enregistrée. Aucun appel à un fournisseur.</p>
+
+<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="Thème clair à 420 px"><img src="assets/screenshots/dark-420.png" width="49%" alt="Thème sombre à 420 px"></p>
+
+<details>
+<summary>Les six tailles et thèmes</summary>
+
+<p><img src="assets/screenshots/light-360.png" width="140" alt="Panneau clair 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="Panneau clair 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="Panneau clair 520 px"></p>
+<p><img src="assets/screenshots/dark-360.png" width="140" alt="Panneau sombre 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="Panneau sombre 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="Panneau sombre 520 px"></p>
+
+</details>
+
+Le mode flottant nécessite un navigateur Chromium sur ordinateur. Avant l'installation, prévoyez Node.js 22 ou une version ultérieure et un assistant de programmation installé.
 
 Installez le plugin avec deux commandes slash :
 
@@ -18,10 +28,6 @@ Installez le plugin avec deux commandes slash :
 ```
 
 Lancez ensuite `/glimpselet:glimpse`. Node.js 22 ou une version ultérieure est nécessaire. Aucune extension de navigateur n'est requise.
-
-<p align="center"><img src="assets/demo.gif" width="800" alt="Démo avec une image de test annotée et une réponse préenregistrée , aucun modèle n'est appelé"></p>
-
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Ouvrir la démo statique</a>  |  exemple préenregistré, aucune requête au fournisseur</p>
 
 ## Au quotidien
 
@@ -35,9 +41,18 @@ Copiez ou épinglez la réponse, puis effacez la session locale en terminant.
 
 L'image reste sur votre machine tant que vous ne posez pas de question ou n'activez pas les notes passives. Les masques opaques modifient l'image envoyée. Les notes passives échantillonnent l'écran toutes les deux secondes et demandent une courte description des images modifiées. La limite par défaut est de six requêtes par minute glissante, soit jusqu'à 360 par heure. C'est une limite de requêtes, pas une estimation du coût. Vous pouvez choisir une limite plus basse.
 
+Les outils MCP de capture renvoient des images à la session de programmation sur demande. Après recadrage et masquage, les captures du panneau sont limitées à 1536 pixels sur le côté le plus long et à 1,8 million de pixels. Les petites zones sélectionnées conservent leur résolution d'origine.
+
 **C'est vous qui démarrez le partage , l'écran n'est jamais observé automatiquement.**
 
 ## Détails
+
+<details>
+<summary>Commandes et état</summary>
+
+Redimensionnez le panneau avec son bouton ou les flèches. Faites glisser les bords de la fenêtre si le navigateur le permet. En mode recadrage ou masquage, les flèches déplacent la sélection, Maj et les flèches la redimensionnent, Entrée l'applique et Échap annule. Échap dans le champ de question met les notes passives en pause et annule la question actuelle sans effacer son texte. Les paramètres s'ouvrent dans une fenêtre modale. Vous pouvez désépingler une ancienne réponse. **Resume live view** conserve le recadrage et les masques. Le suivi d'une réponse diffusée s'arrête quand vous remontez dans la page. Le panneau affiche l'état du partage, du modèle et des notes passives.
+
+</details>
 
 <details>
 <summary>Installation et ouverture</summary>
@@ -49,14 +64,14 @@ Les deux commandes ci-dessus ajoutent et installent le plugin intégré. `/glimp
 <details>
 <summary>Questions, suivi et relecture</summary>
 
-Choisissez l'alias de modèle `sonnet`, `opus` ou `haiku`. Les questions passent par le CLI installé et restreint, ou par une requête API facultative envoyée depuis le pont local. Le CLI restreint retire les outils de commande habituels, mais les hooks gérés par l'entreprise peuvent encore s'exécuter : ce n'est donc pas un bac à sable au niveau du système d'exploitation. Il faut faire confiance au CLI installé et aux hooks de stratégie configurés par l'organisation. Les questions de suivi peuvent inclure un contexte récent et limité. Le panneau permet le recadrage, le gel d'image, les masques opaques, la copie, l'épinglage, une chronologie de dix minutes, un résumé et un export Markdown. Le résumé utilise les notes passives existantes et n'envoie aucune nouvelle image. **Clear** annule les tâches et supprime les images locales, notes, historique et clé API en mémoire.
+Les questions passent par l'assistant de programmation installé ou, en option, par une requête API envoyée depuis le pont local. Le CLI restreint retire les outils de commande habituels, mais les hooks gérés par l'entreprise peuvent encore s'exécuter : ce n'est donc pas un bac à sable au niveau du système d'exploitation. Il faut faire confiance au CLI installé et aux hooks de stratégie configurés par l'organisation. Les questions de suivi peuvent inclure un contexte récent et limité. Le panneau permet le recadrage, le gel d'image, les masques opaques, la copie, l'épinglage, une chronologie de dix minutes, un résumé et un export Markdown. Le résumé utilise les notes passives existantes et n'envoie aucune nouvelle image. **Clear** annule les tâches et supprime les images locales, notes, historique et clé API en mémoire.
 
 </details>
 
 <details>
 <summary>Fenêtre flottante et navigateurs</summary>
 
-Une action de l'utilisateur est nécessaire pour ouvrir le panneau flottant. Chrome et Edge 116 ou ultérieurs peuvent utiliser Document Picture-in-Picture quand cette fonction est disponible. Si la demande est refusée, faites un second geste et cliquez sur **Open popup** pour ouvrir une fenêtre popup classique, qui peut ne pas rester au-dessus des autres fenêtres. Le navigateur contrôle son emplacement et peut reprendre la position précédente. Cet onglet mémorise le choix entre la taille compacte et la taille développée. Les permissions et options de capture varient selon le navigateur et le système d'exploitation.
+Document Picture-in-Picture est disponible dans les navigateurs Chromium compatibles sur ordinateur. Le navigateur contrôle le placement de cette fenêtre. La position du popup est mémorisée quand le navigateur le permet. Les dimensions compacte et développée sont mémorisées séparément.
 
 </details>
 

@@ -124,6 +124,315 @@ async function mockPanel(
   );
 }
 
+test("settings dialog keeps keyboard focus contained while tabbing", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.goto("/?demo=1");
+  const settingsButton = page.getByRole("button", { name: "Settings" });
+  await settingsButton.click();
+  const dialog = page.locator("dialog.settings");
+  await expect(dialog).toBeVisible();
+
+  const language = dialog.getByLabel("Language");
+  await language.focus();
+  for (let tab = 0; tab < 6; tab++) {
+    await page.keyboard.press("Tab");
+    expect(
+      await dialog.evaluate((element) =>
+        element.contains(document.activeElement),
+      ),
+    ).toBe(true);
+  }
+  await page.keyboard.press("Tab");
+  expect(
+    await dialog.evaluate((element) =>
+      element.contains(document.activeElement),
+    ),
+  ).toBe(true);
+});
+
+test("Escape closes settings and returns focus to its opener", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.goto("/?demo=1");
+  const settingsButton = page.getByRole("button", { name: "Settings" });
+  await settingsButton.click();
+  const dialog = page.locator("dialog.settings");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(settingsButton).toBeFocused();
+});
+
+test("changing the settings language updates the document language", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.goto("/?demo=1");
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("Language").selectOption("ja");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await page.keyboard.press("Escape");
+});
+
+test("Escape cancels an ask from the focused composer and ignores its late response", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  let releaseResponse!: () => void;
+  let requestStarted!: () => void;
+  let requestFinished!: () => void;
+  const responseGate = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    requestStarted = resolve;
+  });
+  const finished = new Promise<void>((resolve) => {
+    requestFinished = resolve;
+  });
+  await page.route("**/api/ask", async (route) => {
+    requestStarted();
+    await responseGate;
+    const body = route.request().postDataJSON();
+    const answer = "Late answer that must be ignored.";
+    const entry = {
+      id: "late-answer",
+      at: Date.now(),
+      question: body.question,
+      answer,
+      kind: body.mode,
+    };
+    try {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: `event: delta\ndata: {"text":${JSON.stringify(answer)}}\n\nevent: done\ndata: {"entry":${JSON.stringify(entry)}}\n\n`,
+      });
+    } catch {
+      // Aborting the browser request can close the routed response first.
+    } finally {
+      requestFinished();
+    }
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Share a screen" }).click();
+  await expect(page.getByText(/Sharing/)).toBeVisible();
+  await expect(page.getByRole("textbox")).toBeVisible();
+  const composer = page.getByRole("textbox");
+  await composer.fill("Keep this question after cancelling");
+  await composer.press("Control+Enter");
+  await started;
+  await expect(composer).toBeFocused();
+  try {
+    await composer.press("Escape");
+    await expect(
+      page.getByRole("button", { name: "Cancel answer" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("Answer cancelled. Your question is still here."),
+    ).toBeVisible();
+    await expect(composer).toHaveValue("Keep this question after cancelling");
+  } finally {
+    releaseResponse();
+    await finished;
+  }
+  await expect(page.getByText("Late answer that must be ignored.")).toHaveCount(
+    0,
+  );
+  await expect(composer).toHaveValue("Keep this question after cancelling");
+});
+
+test("Escape prevents transmission while a screen capture is decoding", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Share a screen" }).click();
+  await expect(page.locator(".stage .frame")).toBeVisible();
+  await page.evaluate(() => {
+    const state = { started: 0, completed: 0, calls: 0, release: () => {} };
+    const gate = new Promise<void>((resolve) => {
+      state.release = resolve;
+    });
+    const decode = HTMLImageElement.prototype.decode;
+    HTMLImageElement.prototype.decode = async function () {
+      await decode.call(this);
+      state.started++;
+      await gate;
+      state.completed++;
+    };
+    const fetch = window.fetch;
+    window.fetch = (...args) => {
+      if (String(args[0]).includes("/api/ask")) state.calls++;
+      return fetch(...args);
+    };
+    Object.assign(window, { captureDecodeTest: state });
+  });
+  const state = () =>
+    page.evaluate(() => {
+      const { started, completed, calls } = (
+        window as Window & {
+          captureDecodeTest: {
+            started: number;
+            completed: number;
+            calls: number;
+          };
+        }
+      ).captureDecodeTest;
+      return { started, completed, calls };
+    });
+  const composer = page.getByRole("textbox");
+  await composer.fill("Cancel this before sharing the capture");
+  await composer.press("Control+Enter");
+  await expect.poll(async () => (await state()).started).toBe(1);
+  await composer.press("Escape");
+  await page.evaluate(() => {
+    (
+      window as Window & { captureDecodeTest: { release(): void } }
+    ).captureDecodeTest.release();
+  });
+  await expect.poll(async () => (await state()).completed).toBe(1);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  expect((await state()).calls).toBe(0);
+  await expect(composer).toHaveValue("Cancel this before sharing the capture");
+  await composer.press("Control+Enter");
+  await expect.poll(async () => (await state()).calls).toBe(1);
+  await expect(page.getByText("Answer ready.")).toBeVisible();
+});
+
+test("unpinning an older answer keeps the current answer visible", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Share a screen" }).click();
+  await expect(page.getByText(/Sharing/)).toBeVisible();
+  const composer = page.getByRole("textbox");
+  await composer.fill("What changed first?");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".answer .markdown").last()).toContainText(
+    "Mock answer: What changed first?",
+  );
+  await page.getByRole("button", { name: "Pin", exact: true }).click();
+
+  await composer.fill("What changed next?");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".answer .markdown").last()).toContainText(
+    "Mock answer: What changed next?",
+  );
+  const olderPinnedAnswer = page.locator("article.answer.pinned");
+  await expect(olderPinnedAnswer).toContainText("What changed first?");
+  await olderPinnedAnswer.getByRole("button", { name: "Unpin" }).click();
+  await expect(olderPinnedAnswer).toHaveCount(0);
+  await expect(page.locator(".answer .markdown").last()).toContainText(
+    "Mock answer: What changed next?",
+  );
+});
+
+test("clearing demo history keeps the fixture available for another question", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.goto("/?demo=1");
+  const fixture = page.getByRole("img", {
+    name: "Labeled static demo fixture",
+  });
+  await expect(fixture).toBeVisible();
+  await page.getByRole("textbox").fill("Which control saves the settings?");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".answer .markdown").last()).toContainText(
+    "This prerecorded answer makes no provider call",
+  );
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Clear history" }).click();
+  await expect(
+    page.getByText("History, pins, and in-memory key cleared."),
+  ).toBeVisible();
+  await expect(fixture).toBeVisible();
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("textbox").fill("What color is the button?");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".answer .markdown").last()).toContainText(
+    "The fixture shows a Save control at the lower right.",
+  );
+});
+
+test("crop and redaction overlays stay aligned to the image after viewport resize", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.setViewportSize({ width: 520, height: 820 });
+  await page.goto("/?demo=1");
+  const frame = page.locator(".stage .frame");
+  await expect(frame).toBeVisible();
+  const frameBox = await frame.boundingBox();
+  if (!frameBox) throw new Error("demo image is missing");
+
+  await page.getByRole("button", { name: "Select area" }).click();
+  await page.mouse.move(
+    frameBox.x + frameBox.width * 0.14,
+    frameBox.y + frameBox.height * 0.18,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    frameBox.x + frameBox.width * 0.58,
+    frameBox.y + frameBox.height * 0.64,
+  );
+  await page.mouse.up();
+  await expect(page.locator(".selection")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add opaque redaction" }).click();
+  await page.mouse.move(
+    frameBox.x + frameBox.width * 0.66,
+    frameBox.y + frameBox.height * 0.22,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    frameBox.x + frameBox.width * 0.88,
+    frameBox.y + frameBox.height * 0.48,
+  );
+  await page.mouse.up();
+  await expect(page.locator(".mask")).toBeVisible();
+
+  const relativeOverlayBounds = async () =>
+    page.evaluate(() => {
+      const image = document
+        .querySelector(".stage .frame")!
+        .getBoundingClientRect();
+      const relative = (selector: string) => {
+        const box = document.querySelector(selector)!.getBoundingClientRect();
+        return [
+          (box.left - image.left) / image.width,
+          (box.top - image.top) / image.height,
+          box.width / image.width,
+          box.height / image.height,
+        ];
+      };
+      return { crop: relative(".selection"), mask: relative(".mask") };
+    });
+  const beforeResize = await relativeOverlayBounds();
+  await page.setViewportSize({ width: 360, height: 820 });
+  await expect
+    .poll(async () => {
+      const afterResize = await relativeOverlayBounds();
+      return [...beforeResize.crop, ...beforeResize.mask].every(
+        (value, index) =>
+          Math.abs(value - [...afterResize.crop, ...afterResize.mask][index]!) <
+          0.03,
+      );
+    })
+    .toBe(true);
+});
+
 test("fixture uses prerecorded answer, rectangle drag, preferences and narrow dark styles", async ({
   page,
 }) => {
@@ -727,7 +1036,7 @@ test("a changed passive frame is retried after the request limit or provider fai
       };
       await route.fulfill({
         contentType: "text/event-stream",
-        body: `event: done\ndata: ${JSON.stringify({ entry })}\n\n`,
+        body: `event: delta\ndata: {"text":"The pending answer is preserved."}\n\nevent: done\ndata: ${JSON.stringify({ entry })}\n\n`,
       });
     }
   });
@@ -781,3 +1090,318 @@ test("a rejected document floating window offers a styled popup on a fresh click
   ).toBe("rgb(250, 247, 239)");
   await popup.close();
 });
+
+async function waitForShareFrame(page: import("@playwright/test").Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.querySelector("video")?.videoWidth ?? 0),
+    )
+    .toBeGreaterThan(0);
+}
+
+async function holdNextDecode(page: import("@playwright/test").Page) {
+  await waitForShareFrame(page);
+  await page.evaluate(() => {
+    const state = { started: false, completed: false, release: () => {} };
+    const gate = new Promise<void>((resolve) => {
+      state.release = resolve;
+    });
+    const decode = HTMLImageElement.prototype.decode;
+    let held = false;
+    HTMLImageElement.prototype.decode = async function () {
+      await decode.call(this);
+      if (!held) {
+        held = true;
+        state.started = true;
+        await gate;
+        state.completed = true;
+      }
+    };
+    Object.assign(window, { heldCapture: state });
+  });
+  return {
+    wait: () =>
+      expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              (window as Window & { heldCapture: { started: boolean } })
+                .heldCapture.started,
+          ),
+        )
+        .toBe(true),
+    release: () =>
+      page.evaluate(() =>
+        (
+          window as Window & { heldCapture: { release(): void } }
+        ).heldCapture.release(),
+      ),
+  };
+}
+
+test("a passive note during decoding does not discard a manual question", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.addInitScript(() => {
+    const interval = window.setInterval.bind(window);
+    window.setInterval = (callback, delay, ...args) => {
+      if (delay === 2000 && typeof callback === "function") {
+        Object.assign(window, { passiveTick: () => callback(...args) });
+        return interval(() => {}, 2_000_000_000);
+      }
+      return interval(callback, delay, ...args);
+    };
+  });
+  const modes: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/ask"))
+      modes.push(request.postDataJSON().mode);
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Share a screen" }).click();
+  await page.getByRole("button", { name: /^Passive mode/ }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          typeof (window as Window & { passiveTick?: () => Promise<void> })
+            .passiveTick,
+      ),
+    )
+    .toBe("function");
+  const tick = () =>
+    page.evaluate(() =>
+      (window as Window & { passiveTick(): Promise<void> }).passiveTick(),
+    );
+  await waitForShareFrame(page);
+  await tick();
+  const decode = await holdNextDecode(page);
+  const composer = page.getByRole("textbox");
+  await composer.fill("Keep my manual question ahead of passive notes");
+  await composer.press("Control+Enter");
+  await decode.wait();
+  try {
+    await page.evaluate(() => {
+      (window as Window & { __changeFrame(): void }).__changeFrame();
+      (
+        window as Window & { __shareTrack: CanvasCaptureMediaStreamTrack }
+      ).__shareTrack.requestFrame();
+    });
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const video = document.querySelector("video")!;
+          const canvas = document.createElement("canvas");
+          canvas.width = 320;
+          canvas.height = 200;
+          const context = canvas.getContext("2d")!;
+          context.drawImage(video, 0, 0, 320, 200);
+          return Array.from(context.getImageData(220, 30, 1, 1).data).slice(
+            0,
+            3,
+          );
+        }),
+      )
+      .toEqual([24, 169, 108]);
+    await tick();
+    expect(modes).toEqual(["passive"]);
+  } finally {
+    await decode.release();
+  }
+  await expect.poll(() => modes).toEqual(["passive", "ask"]);
+  await expect(
+    page
+      .locator(".answer")
+      .getByText("Mock answer: Keep my manual question ahead of passive notes"),
+  ).toBeVisible();
+});
+
+test("Escape pauses passive mode and prevents a manual capture still decoding", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/ask"))
+      requests.push(request.postDataJSON().mode);
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Share a screen" }).click();
+  await page.getByRole("button", { name: /^Passive mode/ }).click();
+  const decode = await holdNextDecode(page);
+  const composer = page.getByRole("textbox");
+  await composer.fill("Keep this private while decoding");
+  await composer.press("Control+Enter");
+  await decode.wait();
+  await composer.press("Escape");
+  await decode.release();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { heldCapture: { completed: boolean } })
+            .heldCapture.completed,
+      ),
+    )
+    .toBe(true);
+  await expect(page.locator(".status-details")).toContainText("Passive paused");
+  expect(requests).toEqual([]);
+  await expect(composer).toHaveValue("Keep this private while decoding");
+  await composer.press("Control+Enter");
+  await expect(
+    page
+      .locator(".answer")
+      .getByText("Mock answer: Keep this private while decoding"),
+  ).toBeVisible();
+  expect(requests).toEqual(["ask"]);
+});
+
+for (const selection of ["Select area", "Add opaque redaction"] as const) {
+  for (const passive of [false, true]) {
+    test(`composer Escape with ${selection} and passive ${passive ? "on" : "off"} prevents transmission during decoding`, async ({
+      page,
+    }) => {
+      await mockPanel(page);
+      const requests: string[] = [];
+      page.on("request", (request) => {
+        if (request.url().endsWith("/api/ask"))
+          requests.push(request.postDataJSON().mode);
+      });
+      await page.goto("/");
+      await page.getByRole("button", { name: "Share a screen" }).click();
+      await waitForShareFrame(page);
+      if (passive)
+        await page.getByRole("button", { name: /^Passive mode/ }).click();
+      await page
+        .getByRole("button", { name: new RegExp(`^${selection}`) })
+        .click();
+      const decode = await holdNextDecode(page);
+      const composer = page.getByRole("textbox");
+      await composer.fill("Cancel this private capture from the composer");
+      await composer.press("Control+Enter");
+      await decode.wait();
+      try {
+        await composer.press("Escape");
+      } finally {
+        await decode.release();
+      }
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              (window as Window & { heldCapture: { completed: boolean } })
+                .heldCapture.completed,
+          ),
+        )
+        .toBe(true);
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      expect(requests).toEqual([]);
+      await expect(page.locator("#selection-instructions")).toHaveCount(0);
+      await expect(composer).toHaveValue(
+        "Cancel this private capture from the composer",
+      );
+      if (passive)
+        await expect(page.locator(".status-details")).toContainText(
+          "Passive paused",
+        );
+      await composer.press("Control+Enter");
+      await expect(
+        page
+          .locator(".answer")
+          .getByText(
+            "Mock answer: Cancel this private capture from the composer",
+          ),
+      ).toBeVisible();
+      expect(requests).toEqual(["ask"]);
+    });
+  }
+}
+
+for (const cancel of ["Escape", "Stop sharing"] as const) {
+  test(`MCP capture cancelled by ${cancel} replies without an image`, async ({
+    page,
+  }) => {
+    await mockPanel(page);
+    let socket!: import("@playwright/test").WebSocketRoute;
+    const messages: Array<{
+      type: string;
+      id?: string;
+      image?: string;
+      error?: string;
+    }> = [];
+    await page.routeWebSocket("**/api/stream", (route) => {
+      socket = route;
+      route.onMessage((message) => messages.push(JSON.parse(String(message))));
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Share a screen" }).click();
+    await expect.poll(() => Boolean(socket)).toBe(true);
+    const decode = await holdNextDecode(page);
+    socket.send(
+      JSON.stringify({ type: "capture-request", id: "cancelled-capture" }),
+    );
+    await decode.wait();
+    if (cancel === "Escape") await page.getByRole("textbox").press("Escape");
+    else await page.getByRole("button", { name: cancel, exact: true }).click();
+    await decode.release();
+    await expect
+      .poll(() =>
+        messages.find((message) => message.id === "cancelled-capture"),
+      )
+      .toEqual({
+        type: "capture",
+        id: "cancelled-capture",
+        error: "unavailable",
+      });
+  });
+}
+
+for (const selection of ["Select area", "Add opaque redaction"] as const) {
+  test(`Escape leaves ${selection} without cancelling a pending answer`, async ({
+    page,
+  }) => {
+    await mockPanel(page);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/api/ask", async (route) => {
+      await gate;
+      const question = route.request().postDataJSON().question;
+      await route.fulfill({
+        contentType: "text/event-stream",
+        body: `event: delta\ndata: {"text":"The pending answer is preserved."}\n\nevent: done\ndata: ${JSON.stringify({ entry: { id: "keep-answer", at: Date.now(), kind: "ask", question, answer: "The pending answer is preserved." } })}\n\n`,
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Share a screen" }).click();
+    await waitForShareFrame(page);
+    const composer = page.getByRole("textbox");
+    await composer.fill("Continue this answer");
+    await composer.press("Control+Enter");
+    await expect(
+      page.getByRole("button", { name: "Cancel answer" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: new RegExp(`^${selection}`) })
+      .click();
+    await page.locator(".stage").press("Escape");
+    try {
+      await expect(page.locator("#selection-instructions")).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "Cancel answer" }),
+      ).toBeVisible();
+    } finally {
+      release();
+    }
+    await expect(
+      page.locator(".answer").getByText("The pending answer is preserved."),
+    ).toBeVisible();
+  });
+}

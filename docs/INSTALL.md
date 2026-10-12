@@ -1,19 +1,19 @@
 # Install
 
-Glimpselet is a bundled plugin for the coding assistant. The [README](../README.md) has a terminal installer for each host. From an interactive coding session, these commands install the same plugin:
+Glimpselet is a bundled plugin for the coding assistant. Before installing, have Node.js 22 or newer and the coding assistant version 2.1.296 or newer installed. Use a desktop Chromium browser for floating mode. The [README](../README.md) has a terminal installer for each host. From an interactive coding session, these commands install the same plugin:
 
 ```text
 /plugin marketplace add Arthur031221/Glimpselet
 /plugin install glimpselet@glimpselet
 ```
 
-The CLI must be version 2.1.248 or newer for restricted execution. Node.js 22 or newer must be available to run the bundled local bridge. The installed plugin does not need a checkout or a separate package install. Run `/glimpselet:glimpse` to open the panel. It starts a bridge bound to loopback on a random port and opens the browser. If automatic browser opening fails, use the one-time link returned by the command. It expires after 60 seconds and can be exchanged once.
+The installed plugin does not need a checkout or a separate package install. Run `/glimpselet:glimpse` to open the panel. It starts a bridge bound to loopback on a random port and opens the browser. If automatic browser opening fails, use the one-time link returned by the command. It expires after 60 seconds and can be exchanged once.
 
 The plugin contains its bridge and static panel. There is no browser extension. The bridge session lasts 30 minutes. To use the optional API backend, add a key in panel Settings. The key stays in bridge process memory and is not written to browser storage or a file.
 
 ## Browser support
 
-Screen sharing uses the browser's display media picker and requires a user choice and browser/OS permission. Document Picture-in-Picture requires a user gesture and is used where available, including Chrome and Edge 116 or newer. Otherwise the panel opens in a regular popup. Popup behavior and floating-window placement depend on the browser and operating system.
+Screen sharing uses the browser's display media picker and requires a user choice and browser or operating system permission. Document Picture-in-Picture requires a user gesture and is available in desktop Chromium browsers, including Chrome and Edge 116 or newer. Otherwise the panel opens in a regular popup. The browser controls Document Picture-in-Picture placement. Popup placement is remembered where the browser allows it.
 
 ## Build from a checkout
 

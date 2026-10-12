@@ -26,9 +26,10 @@
   "actionProblems": "查找问题",
   "actionExplain": "解释代码",
   "freeze": "冻结画面",
+  "resumeLive": "恢复实时画面",
   "reset": "重置裁剪和遮挡",
   "select": "选择区域",
-  "dragHint": "拖动选择区域",
+  "dragHint": "拖动选择区域。方向键移动，Shift + 方向键调整大小，Enter 应用，Escape 取消。",
   "thinking": "思考中...",
   "cancel": "取消回答",
   "answer": "回答",
@@ -101,5 +102,15 @@
   "errorSessionLimit": "打开的面板过多。请关闭较早打开的面板后重试。",
   "passiveOff": "被动模式关闭",
   "popupFallbackAction": "打开弹出窗口",
-  "popupFallbackHelp": "无法打开浮动窗口。请改为打开弹出窗口。"
+  "popupFallbackHelp": "无法打开浮动窗口。请改为打开弹出窗口。",
+  "unpin": "取消固定",
+  "scopeFull": "完整画面",
+  "scopeArea": "所选区域",
+  "scopeFrozen": "已冻结",
+  "scopeLive": "实时",
+  "maskCount": "遮罩：{count}",
+  "answerWaiting": "回答会显示在这里。",
+  "statusAnswerCancelled": "回答已取消。你的问题仍在这里。",
+  "resizePanel": "调整面板大小",
+  "resizeHelp": "拖动以调整大小，或使用方向键。也可以拖动窗口边缘。"
 }

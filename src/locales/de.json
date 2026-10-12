@@ -26,9 +26,10 @@
   "actionProblems": "Probleme suchen",
   "actionExplain": "Code erklären",
   "freeze": "Bild einfrieren",
+  "resumeLive": "Liveansicht fortsetzen",
   "reset": "Ausschnitt und Masken zurücksetzen",
   "select": "Bereich auswählen",
-  "dragHint": "Zum Auswählen ziehen",
+  "dragHint": "Ziehen zum Auswählen. Pfeiltasten bewegen. Umschalt + Pfeile ändern die Größe. Eingabe übernimmt. Escape bricht ab.",
   "thinking": "Denke nach...",
   "cancel": "Antwort abbrechen",
   "answer": "Antwort",
@@ -101,5 +102,15 @@
   "errorSessionLimit": "Zu viele Panels sind geöffnet. Schließe ein älteres Panel und versuche es erneut.",
   "passiveOff": "Passivmodus aus",
   "popupFallbackAction": "Popup öffnen",
-  "popupFallbackHelp": "Das schwebende Fenster ließ sich nicht öffnen. Öffne stattdessen ein Popup."
+  "popupFallbackHelp": "Das schwebende Fenster ließ sich nicht öffnen. Öffne stattdessen ein Popup.",
+  "unpin": "Loslösen",
+  "scopeFull": "Gesamter Frame",
+  "scopeArea": "Ausgewählter Bereich",
+  "scopeFrozen": "Eingefroren",
+  "scopeLive": "Live",
+  "maskCount": "Masken: {count}",
+  "answerWaiting": "Die Antwort erscheint hier.",
+  "statusAnswerCancelled": "Antwort abgebrochen. Deine Frage bleibt hier.",
+  "resizePanel": "Panelgröße ändern",
+  "resizeHelp": "Zum Ändern ziehen oder die Pfeiltasten verwenden. Du kannst auch die Fensterränder ziehen."
 }
