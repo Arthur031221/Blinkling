@@ -234,6 +234,49 @@ describe("extension bridge payloads", () => {
 });
 
 describe("direct Anthropic event stream", () => {
+  it("waits for the first native stream cancellation before releasing the reader", async () => {
+    const controller = new AbortController();
+    let releaseCleanup!: () => void;
+    const cleanup = new Promise<void>((resolveCleanup) => {
+      releaseCleanup = resolveCleanup;
+    });
+    let cancelStarted = false;
+    let settled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelStarted = true;
+        return cleanup;
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(stream)),
+    );
+    const request = runAnthropic(controller.signal);
+    const outcome = request.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    try {
+      await vi.waitFor(() => expect(stream.locked).toBe(true));
+      controller.abort();
+      await vi.waitFor(() => expect(cancelStarted).toBe(true));
+      await new Promise((resolveTick) => setTimeout(resolveTick, 0));
+      expect(settled).toBe(false);
+      expect(stream.locked).toBe(true);
+      releaseCleanup();
+      await expect(request).rejects.toThrow("cancelled");
+      expect(stream.locked).toBe(false);
+    } finally {
+      releaseCleanup();
+      await outcome;
+    }
+  });
+
   it("sends every effort level for each model alias in the captured request", async () => {
     const modelIds = {
       sonnet: "claude-sonnet-5-5",

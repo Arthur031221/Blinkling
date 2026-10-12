@@ -617,9 +617,9 @@ function App() {
               requestIdRef.current = reservation;
               backgroundRequestRef.current = null;
               cancelledRequests.current.add(pendingId);
+              const apiRequest = apiRequestRef.current;
               requestRef.current?.abort();
-              if (backend === "api")
-                await apiRequestRef.current?.catch(() => {});
+              if (apiRequest) await apiRequest.catch(() => {});
               else await bridge.cancelAndWait(pendingId);
               if (requestIdRef.current === reservation) {
                 requestIdRef.current = null;
@@ -1402,7 +1402,7 @@ function App() {
     setAnswer("");
     setStatus(liveSession ? t.liveStopped : t.stopped);
     try {
-      if (backend === "api") await apiRequest;
+      if (apiRequest) await apiRequest;
       else if (bridgeId) await bridge.cancelAndWait(bridgeId);
     } catch {
       /* The active request owns its cancellation error. */
@@ -2095,6 +2095,7 @@ function App() {
               {t.backend}
               <select
                 value={backend}
+                disabled={busy}
                 onChange={(e) => {
                   const v = e.target.value as "api" | "bridge";
                   if (v === "api")

@@ -28,7 +28,7 @@
   "consent2": "Les images sont envoyées lorsque vous posez une question ou utilisez un outil de la page. Le mode passif envoie automatiquement des captures et des résumés lorsqu'il est activé.",
   "consent3": "Les images restent en mémoire. Les clés API et les jetons d'association restent dans le stockage de session du navigateur.",
   "consentAccept": "Ouvrir le chat flottant.",
-  "consentFoot": "Dans les paramètres, choisissez votre fournisseur, gérez l'accès aux sites ou mettez en pause la lecture automatique.",
+  "consentFoot": "Dans les paramètres, choisissez votre fournisseur, gérez l'accès aux sites ou mettez les résumés passifs en pause.",
   "consentText": "Ouvrez une fenêtre de chat flottante pour la page ou l'écran de votre choix. Vous pouvez lancer le partage d'écran depuis ses commandes.",
   "consentTitle": "Posez une question sur ce que vous voyez.",
   "continueSession": "Choisir une session",

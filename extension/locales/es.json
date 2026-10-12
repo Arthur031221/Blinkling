@@ -28,7 +28,7 @@
   "consent2": "Las imágenes se envían cuando haces una pregunta o usas una herramienta de la página. El modo pasivo envía capturas y resúmenes automáticamente cuando está activado.",
   "consent3": "Los fotogramas permanecen en la memoria. Las claves API y los tokens de emparejamiento permanecen en el almacenamiento de sesión del navegador.",
   "consentAccept": "Abrir chat flotante.",
-  "consentFoot": "En Ajustes puedes elegir el proveedor, gestionar el acceso a sitios o pausar la lectura automática.",
+  "consentFoot": "Usa Configuración para elegir el proveedor, gestionar el acceso a los sitios o pausar los resúmenes pasivos.",
   "consentText": "Abre un chat flotante para la página o pantalla que elijas. Puedes iniciar el uso compartido de pantalla desde sus controles.",
   "consentTitle": "Pregunta sobre lo que ves.",
   "continueSession": "Elegir una sesión",

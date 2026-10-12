@@ -537,6 +537,9 @@ test("Stop keeps a page refresh queued until provider cleanup finishes", async (
     await panel.locator(".composer textarea").fill("Keep this reply pending.");
     await panel.locator(".composer button.send").click();
     await expect.poll(() => Boolean(finishProvider)).toBe(true);
+    await panel.getByRole("button", { name: en.settings }).click();
+    await expect(panel.locator(".dialog select").first()).toBeDisabled();
+    await panel.getByRole("button", { name: en.close, exact: true }).click();
     const next = await context.newPage();
     await next.goto(origin + "/after-stop");
     await next.bringToFront();
@@ -663,6 +666,8 @@ test("direct API Stop waits for stream cleanup before refreshing the page", asyn
             );
           },
           cancel: async () => {
+            // Native streams close on the first cancel; later cancels resolve immediately.
+            if (state.aborted) return;
             state.aborted = true;
             finishRead?.({ done: true, value: undefined });
             await cleanup;
@@ -689,6 +694,9 @@ test("direct API Stop waits for stream cleanup before refreshing the page", asyn
     await panel.locator(".composer textarea").fill("Keep API reply pending.");
     await panel.locator(".composer button.send").click();
     await expect.poll(() => control("waiting")).toBe(true);
+    await panel.getByRole("button", { name: en.settings }).click();
+    await expect(panel.locator(".dialog select").first()).toBeDisabled();
+    await panel.getByRole("button", { name: en.close, exact: true }).click();
     const next = await context.newPage();
     await next.goto(origin + "/after-api-stop");
     await next.bringToFront();

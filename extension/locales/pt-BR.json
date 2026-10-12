@@ -28,7 +28,7 @@
   "consent2": "As imagens são enviadas quando você faz uma pergunta ou usa uma ferramenta da página. O modo passivo envia capturas e resumos automaticamente quando está ativado.",
   "consent3": "Os quadros ficam na memória. As chaves de API e os tokens de pareamento ficam no armazenamento de sessão do navegador.",
   "consentAccept": "Abrir chat flutuante.",
-  "consentFoot": "Em Configurações, escolha o provedor, gerencie o acesso a sites ou pause a leitura automática.",
+  "consentFoot": "Use as configurações para escolher seu provedor, gerenciar o acesso aos sites ou pausar os resumos passivos.",
   "consentText": "Abra um chat flutuante para a página ou tela que você escolher. Você pode iniciar o compartilhamento de tela pelos controles do chat.",
   "consentTitle": "Pergunte sobre o que você vê.",
   "continueSession": "Escolher uma sessão",

@@ -597,8 +597,11 @@ export async function askAnthropic(
     }
     if (event.type === "message_stop") completed = true;
   };
+  let cancellation: Promise<void> | undefined;
+  // A repeated native cancel resolves before the first underlying cleanup finishes.
+  const cancelReader = () => (cancellation ??= reader.cancel().catch(() => {}));
   const onAbort = () => {
-    void reader.cancel().catch(() => {});
+    void cancelReader();
   };
   signal.addEventListener("abort", onAbort, { once: true });
   try {
@@ -629,7 +632,7 @@ export async function askAnthropic(
     throw error;
   } finally {
     signal.removeEventListener("abort", onAbort);
-    await reader.cancel().catch(() => {});
+    await cancelReader();
     reader.releaseLock();
   }
 }

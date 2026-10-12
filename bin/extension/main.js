@@ -12773,9 +12773,11 @@ ${input.page?.text.slice(0, 24e3) || ""}`
     }
     if (event.type === "message_stop") completed = true;
   };
+  let cancellation;
+  const cancelReader = () => cancellation ??= reader.cancel().catch(() => {
+  });
   const onAbort = () => {
-    void reader.cancel().catch(() => {
-    });
+    void cancelReader();
   };
   signal.addEventListener("abort", onAbort, { once: true });
   try {
@@ -12806,8 +12808,7 @@ ${input.page?.text.slice(0, 24e3) || ""}`
     throw error;
   } finally {
     signal.removeEventListener("abort", onAbort);
-    await reader.cancel().catch(() => {
-    });
+    await cancelReader();
     reader.releaseLock();
   }
 }
@@ -13525,7 +13526,7 @@ var en_default = {
   consent2: "Images are sent when you ask or use a page tool. Passive mode sends captures and summaries automatically when enabled.",
   consent3: "Frames stay in memory. API keys and pairing tokens stay in browser session storage.",
   consentAccept: "Open floating chat.",
-  consentFoot: "Use Settings to choose your provider, manage site access or pause automatic reading.",
+  consentFoot: "Use Settings to choose your provider, manage site access or pause passive summaries.",
   consentText: "Open a floating chat for the page or screen you choose. You can start screen sharing from its controls.",
   consentTitle: "Ask about what you see.",
   continueSession: "Choose a session",
@@ -13685,7 +13686,7 @@ var zh_TW_default = {
   consent2: "\u63D0\u554F\u6216\u4F7F\u7528\u7DB2\u9801\u5DE5\u5177\u6642\u6703\u50B3\u9001\u5716\u7247\u3002\u555F\u7528\u88AB\u52D5\u6A21\u5F0F\u5F8C\uFF0C\u64F7\u53D6\u756B\u9762\u548C\u6458\u8981\u6703\u81EA\u52D5\u50B3\u9001\u3002",
   consent3: "\u756B\u9762\u5F71\u683C\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D\u3002API \u91D1\u9470\u548C\u914D\u5C0D\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
   consentAccept: "\u958B\u555F\u6D6E\u52D5\u804A\u5929",
-  consentFoot: "\u5728\u8A2D\u5B9A\u4E2D\u9078\u64C7\u4F9B\u61C9\u5546\u3001\u7BA1\u7406\u7DB2\u7AD9\u5B58\u53D6\u6B0A\u6216\u66AB\u505C\u81EA\u52D5\u8B80\u53D6\u3002",
+  consentFoot: "\u5728\u8A2D\u5B9A\u4E2D\u9078\u64C7\u670D\u52D9\u63D0\u4F9B\u8005\u3001\u7BA1\u7406\u7DB2\u7AD9\u5B58\u53D6\u6B0A\u9650\u6216\u66AB\u505C\u88AB\u52D5\u6458\u8981\u3002",
   consentText: "\u70BA\u4F60\u9078\u64C7\u7684\u7DB2\u9801\u6216\u87A2\u5E55\u958B\u555F\u6D6E\u52D5\u804A\u5929\u8996\u7A97\u3002\u4F60\u53EF\u4EE5\u900F\u904E\u8996\u7A97\u63A7\u5236\u9805\u958B\u59CB\u5206\u4EAB\u87A2\u5E55\u3002",
   consentTitle: "\u8A62\u554F\u4F60\u773C\u524D\u6240\u898B\u3002",
   continueSession: "\u9078\u64C7\u5DE5\u4F5C\u968E\u6BB5",
@@ -13845,7 +13846,7 @@ var zh_CN_default = {
   consent2: "\u63D0\u95EE\u6216\u4F7F\u7528\u7F51\u9875\u5DE5\u5177\u65F6\u4F1A\u53D1\u9001\u56FE\u50CF\u3002\u542F\u7528\u88AB\u52A8\u6A21\u5F0F\u540E\uFF0C\u622A\u53D6\u7684\u753B\u9762\u548C\u6458\u8981\u4F1A\u81EA\u52A8\u53D1\u9001\u3002",
   consent3: "\u753B\u9762\u5E27\u4FDD\u7559\u5728\u5185\u5B58\u4E2D\u3002API \u5BC6\u94A5\u548C\u914D\u5BF9\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
   consentAccept: "\u6253\u5F00\u6D6E\u52A8\u804A\u5929",
-  consentFoot: "\u5728\u8BBE\u7F6E\u4E2D\u9009\u62E9\u670D\u52A1\u5546\u3001\u7BA1\u7406\u7F51\u7AD9\u8BBF\u95EE\u6743\u9650\u6216\u6682\u505C\u81EA\u52A8\u8BFB\u53D6\u3002",
+  consentFoot: "\u5728\u8BBE\u7F6E\u4E2D\u9009\u62E9\u670D\u52A1\u63D0\u4F9B\u8005\u3001\u7BA1\u7406\u7F51\u7AD9\u8BBF\u95EE\u6743\u9650\u6216\u6682\u505C\u88AB\u52A8\u6458\u8981\u3002",
   consentText: "\u4E3A\u4F60\u9009\u62E9\u7684\u7F51\u9875\u6216\u5C4F\u5E55\u6253\u5F00\u6D6E\u52A8\u804A\u5929\u7A97\u53E3\u3002\u4F60\u53EF\u4EE5\u901A\u8FC7\u7A97\u53E3\u63A7\u4EF6\u5F00\u59CB\u5171\u4EAB\u5C4F\u5E55\u3002",
   consentTitle: "\u8BE2\u95EE\u4F60\u770B\u5230\u7684\u5185\u5BB9\u3002",
   continueSession: "\u9009\u62E9\u4F1A\u8BDD",
@@ -14005,7 +14006,7 @@ var ja_default = {
   consent2: "\u8CEA\u554F\u3057\u305F\u3068\u304D\u3001\u307E\u305F\u306F\u30DA\u30FC\u30B8\u30C4\u30FC\u30EB\u3092\u4F7F\u3063\u305F\u3068\u304D\u306B\u753B\u50CF\u304C\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002\u30D1\u30C3\u30B7\u30D6\u30E2\u30FC\u30C9\u3092\u6709\u52B9\u306B\u3059\u308B\u3068\u3001\u30AD\u30E3\u30D7\u30C1\u30E3\u3068\u8981\u7D04\u304C\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
   consent3: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30DA\u30A2\u30EA\u30F3\u30B0\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
   consentAccept: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304F",
-  consentFoot: "\u8A2D\u5B9A\u3067\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306E\u9078\u629E\u3001\u30B5\u30A4\u30C8\u30A2\u30AF\u30BB\u30B9\u306E\u7BA1\u7406\u3001\u81EA\u52D5\u8AAD\u307F\u53D6\u308A\u306E\u4E00\u6642\u505C\u6B62\u304C\u3067\u304D\u307E\u3059\u3002",
+  consentFoot: "\u8A2D\u5B9A\u3067\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306E\u9078\u629E\u3001\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u7BA1\u7406\u3001\u30D1\u30C3\u30B7\u30D6\u8981\u7D04\u306E\u4E00\u6642\u505C\u6B62\u304C\u3067\u304D\u307E\u3059\u3002",
   consentText: "\u9078\u629E\u3057\u305F\u30DA\u30FC\u30B8\u307E\u305F\u306F\u753B\u9762\u306B\u3064\u3044\u3066\u8CEA\u554F\u3067\u304D\u308B\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304D\u307E\u3059\u3002\u753B\u9762\u5171\u6709\u306F\u30C1\u30E3\u30C3\u30C8\u306E\u64CD\u4F5C\u304B\u3089\u958B\u59CB\u3067\u304D\u307E\u3059\u3002",
   consentTitle: "\u898B\u3048\u3066\u3044\u308B\u3082\u306E\u3092\u8CEA\u554F\u3002",
   continueSession: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u9078\u629E",
@@ -14165,7 +14166,7 @@ var ko_default = {
   consent2: "\uC9C8\uBB38\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uB54C \uC774\uBBF8\uC9C0\uAC00 \uC804\uC1A1\uB429\uB2C8\uB2E4. \uD328\uC2DC\uBE0C \uBAA8\uB4DC\uB97C \uCF1C\uBA74 \uCEA1\uCC98\uC640 \uC694\uC57D\uC774 \uC790\uB3D9\uC73C\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4.",
   consent3: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uD398\uC5B4\uB9C1 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
   consentAccept: "\uD50C\uB85C\uD305 \uCC44\uD305 \uC5F4\uAE30",
-  consentFoot: "\uC124\uC815\uC5D0\uC11C \uC81C\uACF5\uC5C5\uCCB4\uB97C \uC120\uD0DD\uD558\uACE0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uAD00\uB9AC\uD558\uAC70\uB098 \uC790\uB3D9 \uC77D\uAE30\uB97C \uC77C\uC2DC \uC911\uC9C0\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+  consentFoot: "\uC124\uC815\uC5D0\uC11C \uC81C\uACF5\uC5C5\uCCB4\uB97C \uC120\uD0DD\uD558\uACE0 \uC0AC\uC774\uD2B8 \uC811\uADFC \uAD8C\uD55C\uC744 \uAD00\uB9AC\uD558\uAC70\uB098 \uC790\uB3D9 \uC694\uC57D\uC744 \uC77C\uC2DC \uC911\uC9C0\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   consentText: "\uC120\uD0DD\uD55C \uD398\uC774\uC9C0\uB098 \uD654\uBA74\uC5D0 \uB300\uD55C \uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC5FD\uB2C8\uB2E4. \uD654\uBA74 \uACF5\uC720\uB294 \uCC44\uD305 \uCEE8\uD2B8\uB864\uC5D0\uC11C \uC2DC\uC791\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   consentTitle: "\uBCF4\uC774\uB294 \uB0B4\uC6A9\uC744 \uC9C8\uBB38\uD558\uC138\uC694.",
   continueSession: "\uC138\uC158 \uC120\uD0DD",
@@ -14325,7 +14326,7 @@ var es_default = {
   consent2: "Las im\xE1genes se env\xEDan cuando haces una pregunta o usas una herramienta de la p\xE1gina. El modo pasivo env\xEDa capturas y res\xFAmenes autom\xE1ticamente cuando est\xE1 activado.",
   consent3: "Los fotogramas permanecen en la memoria. Las claves API y los tokens de emparejamiento permanecen en el almacenamiento de sesi\xF3n del navegador.",
   consentAccept: "Abrir chat flotante.",
-  consentFoot: "En Ajustes puedes elegir el proveedor, gestionar el acceso a sitios o pausar la lectura autom\xE1tica.",
+  consentFoot: "Usa Configuraci\xF3n para elegir el proveedor, gestionar el acceso a los sitios o pausar los res\xFAmenes pasivos.",
   consentText: "Abre un chat flotante para la p\xE1gina o pantalla que elijas. Puedes iniciar el uso compartido de pantalla desde sus controles.",
   consentTitle: "Pregunta sobre lo que ves.",
   continueSession: "Elegir una sesi\xF3n",
@@ -14485,7 +14486,7 @@ var fr_default = {
   consent2: "Les images sont envoy\xE9es lorsque vous posez une question ou utilisez un outil de la page. Le mode passif envoie automatiquement des captures et des r\xE9sum\xE9s lorsqu'il est activ\xE9.",
   consent3: "Les images restent en m\xE9moire. Les cl\xE9s API et les jetons d'association restent dans le stockage de session du navigateur.",
   consentAccept: "Ouvrir le chat flottant.",
-  consentFoot: "Dans les param\xE8tres, choisissez votre fournisseur, g\xE9rez l'acc\xE8s aux sites ou mettez en pause la lecture automatique.",
+  consentFoot: "Dans les param\xE8tres, choisissez votre fournisseur, g\xE9rez l\u2019acc\xE8s aux sites ou mettez les r\xE9sum\xE9s passifs en pause.",
   consentText: "Ouvrez une fen\xEAtre de chat flottante pour la page ou l'\xE9cran de votre choix. Vous pouvez lancer le partage d'\xE9cran depuis ses commandes.",
   consentTitle: "Posez une question sur ce que vous voyez.",
   continueSession: "Choisir une session",
@@ -14645,7 +14646,7 @@ var de_default = {
   consent2: "Bilder werden gesendet, wenn du eine Frage stellst oder ein Seitentool verwendest. Im passiven Modus werden Aufnahmen und Zusammenfassungen automatisch gesendet, wenn er aktiviert ist.",
   consent3: "Einzelbilder bleiben im Arbeitsspeicher. API-Schl\xFCssel und Kopplungstokens bleiben im Browser-Sitzungsspeicher.",
   consentAccept: "Schwebenden Chat \xF6ffnen.",
-  consentFoot: "W\xE4hle in den Einstellungen deinen Anbieter, verwalte den Websitezugriff oder pausiere das automatische Lesen.",
+  consentFoot: "In den Einstellungen kannst du den Anbieter w\xE4hlen, den Websitezugriff verwalten oder passive Zusammenfassungen pausieren.",
   consentText: "\xD6ffne einen schwebenden Chat f\xFCr die ausgew\xE4hlte Seite oder den ausgew\xE4hlten Bildschirm. Die Bildschirmfreigabe kannst du \xFCber die Bedienelemente starten.",
   consentTitle: "Frage, was du siehst.",
   continueSession: "Sitzung ausw\xE4hlen",
@@ -14805,7 +14806,7 @@ var pt_BR_default = {
   consent2: "As imagens s\xE3o enviadas quando voc\xEA faz uma pergunta ou usa uma ferramenta da p\xE1gina. O modo passivo envia capturas e resumos automaticamente quando est\xE1 ativado.",
   consent3: "Os quadros ficam na mem\xF3ria. As chaves de API e os tokens de pareamento ficam no armazenamento de sess\xE3o do navegador.",
   consentAccept: "Abrir chat flutuante.",
-  consentFoot: "Em Configura\xE7\xF5es, escolha o provedor, gerencie o acesso a sites ou pause a leitura autom\xE1tica.",
+  consentFoot: "Use as configura\xE7\xF5es para escolher seu provedor, gerenciar o acesso aos sites ou pausar os resumos passivos.",
   consentText: "Abra um chat flutuante para a p\xE1gina ou tela que voc\xEA escolher. Voc\xEA pode iniciar o compartilhamento de tela pelos controles do chat.",
   consentTitle: "Pergunte sobre o que voc\xEA v\xEA.",
   continueSession: "Escolher uma sess\xE3o",
@@ -15399,10 +15400,10 @@ function App() {
               requestIdRef.current = reservation;
               backgroundRequestRef.current = null;
               cancelledRequests.current.add(pendingId);
+              const apiRequest = apiRequestRef.current;
               requestRef.current?.abort();
-              if (backend === "api")
-                await apiRequestRef.current?.catch(() => {
-                });
+              if (apiRequest) await apiRequest.catch(() => {
+              });
               else await bridge.cancelAndWait(pendingId);
               if (requestIdRef.current === reservation) {
                 requestIdRef.current = null;
@@ -16081,7 +16082,7 @@ Selected text (untrusted): ${selected}` : ""}`;
     setAnswer("");
     setStatus(liveSession ? t.liveStopped : t.stopped);
     try {
-      if (backend === "api") await apiRequest;
+      if (apiRequest) await apiRequest;
       else if (bridgeId) await bridge.cancelAndWait(bridgeId);
     } catch {
     } finally {
@@ -16720,6 +16721,7 @@ ${JSON.stringify(nodes)}`;
                       "select",
                       {
                         value: backend,
+                        disabled: busy,
                         onChange: (e) => {
                           const v = e.target.value;
                           if (v === "api")

@@ -28,7 +28,7 @@
   "consent2": "Bilder werden gesendet, wenn du eine Frage stellst oder ein Seitentool verwendest. Im passiven Modus werden Aufnahmen und Zusammenfassungen automatisch gesendet, wenn er aktiviert ist.",
   "consent3": "Einzelbilder bleiben im Arbeitsspeicher. API-Schlüssel und Kopplungstokens bleiben im Browser-Sitzungsspeicher.",
   "consentAccept": "Schwebenden Chat öffnen.",
-  "consentFoot": "Wähle in den Einstellungen deinen Anbieter, verwalte den Websitezugriff oder pausiere das automatische Lesen.",
+  "consentFoot": "In den Einstellungen kannst du den Anbieter wählen, den Websitezugriff verwalten oder passive Zusammenfassungen pausieren.",
   "consentText": "Öffne einen schwebenden Chat für die ausgewählte Seite oder den ausgewählten Bildschirm. Die Bildschirmfreigabe kannst du über die Bedienelemente starten.",
   "consentTitle": "Frage, was du siehst.",
   "continueSession": "Sitzung auswählen",

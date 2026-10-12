@@ -28,7 +28,7 @@
   "consent2": "Images are sent when you ask or use a page tool. Passive mode sends captures and summaries automatically when enabled.",
   "consent3": "Frames stay in memory. API keys and pairing tokens stay in browser session storage.",
   "consentAccept": "Open floating chat.",
-  "consentFoot": "Use Settings to choose your provider, manage site access or pause automatic reading.",
+  "consentFoot": "Use Settings to choose your provider, manage site access or pause passive summaries.",
   "consentText": "Open a floating chat for the page or screen you choose. You can start screen sharing from its controls.",
   "consentTitle": "Ask about what you see.",
   "continueSession": "Choose a session",
