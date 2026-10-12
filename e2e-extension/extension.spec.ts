@@ -250,6 +250,121 @@ test("automatic questions exclude nested form choices while preserving safe labe
   );
 });
 
+test("re-pairing moves questions, page text and captures to the new project", async () => {
+  const secondServer = createServer();
+  let secondOrigin = "";
+  const secondRequests: ProviderRequest[] = [];
+  const secondDirectory = await mkdtemp(join(directory, "new-project-"));
+  const secondBridge = new ExtensionBridge(secondServer, () => secondOrigin, {
+    provider: (request) => {
+      secondRequests.push(request);
+      return providerResponder(request);
+    },
+    sessions: new ExtensionSessions(secondDirectory, async () => []),
+  });
+  try {
+    secondServer.listen(0, "127.0.0.1");
+    await once(secondServer, "listening");
+    const address = secondServer.address();
+    if (!address || typeof address === "string")
+      throw new Error("No second port");
+    secondOrigin = `http://127.0.0.1:${address.port}`;
+    const previousSession = await panel
+      .locator(".foot span")
+      .first()
+      .innerText();
+    await panel.getByRole("button", { name: en.settings, exact: true }).click();
+    await panel
+      .locator(".dialog input")
+      .nth(0)
+      .fill(secondOrigin.replace("http:", "ws:") + "/extension");
+    await panel.locator(".dialog input").nth(1).fill(secondBridge.issueCode());
+    await panel.getByRole("button", { name: en.pair, exact: true }).click();
+    await expect(panel.locator(".connection")).toContainText(
+      secondDirectory.split("/").at(-1)!,
+    );
+    await expect(panel.locator(".foot span").first()).not.toHaveText(
+      previousSession,
+    );
+    await panel.getByRole("button", { name: en.close, exact: true }).click();
+    await panel.getByRole("button", { name: en.visible, exact: true }).click();
+    await expect(panel.locator(".capture-chip img")).toBeVisible();
+    await panel
+      .locator(".composer textarea")
+      .fill("Only the new project should receive this capture.");
+    await panel.locator(".composer button.send").click();
+    await expect
+      .poll(() =>
+        secondRequests.some(
+          (request) =>
+            request.question ===
+            "Only the new project should receive this capture.",
+        ),
+      )
+      .toBe(true);
+    const request = secondRequests.find(
+      (entry) =>
+        entry.question === "Only the new project should receive this capture.",
+    )!;
+    expect(request.cliSession?.project).toBe(secondDirectory);
+    expect(request.page?.title).toBe("Notebook exports");
+    expect(request.page?.text).toContain(
+      "このページは研究ノートの使い方を説明します。",
+    );
+    await expect(panel.locator(".foot span").first()).toContainText(
+      request.cliSession!.id.slice(0, 8),
+    );
+    expect(Buffer.isBuffer(request.image)).toBe(true);
+    expect(request.image!.length).toBeGreaterThan(100);
+    expect(
+      providerRequests.some((entry) => entry.question === request.question),
+    ).toBe(false);
+    await expect(panel.locator(".composer button.send")).toBeVisible();
+    const expectedToken = await worker.evaluate(
+      async () => (await chrome.storage.session.get("bridgeToken")).bridgeToken,
+    );
+    const expectedSession = await panel
+      .locator(".foot span")
+      .first()
+      .innerText();
+    await panel.reload();
+    await expect(panel.locator(".connection")).toContainText(
+      secondDirectory.split("/").at(-1)!,
+    );
+    await expect(panel.locator(".foot span").first()).toHaveText(
+      expectedSession,
+    );
+    expect(
+      await worker.evaluate(
+        async () =>
+          (await chrome.storage.session.get("bridgeToken")).bridgeToken,
+      ),
+    ).toBe(expectedToken);
+    await panel
+      .locator(".composer textarea")
+      .fill("Stay in the new project after reloading.");
+    await panel.locator(".composer button.send").click();
+    await expect
+      .poll(() =>
+        secondRequests.some(
+          (entry) =>
+            entry.question === "Stay in the new project after reloading.",
+        ),
+      )
+      .toBe(true);
+    expect(
+      providerRequests.some(
+        (entry) =>
+          entry.question === "Stay in the new project after reloading.",
+      ),
+    ).toBe(false);
+  } finally {
+    await secondBridge.close();
+    if (secondServer.listening)
+      await new Promise<void>((resolve) => secondServer.close(() => resolve()));
+  }
+});
+
 test("interrupted session initialization offers a working new session", async () => {
   providerResponder = async (request) => {
     if (request.question === "Start failed conversation")

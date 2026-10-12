@@ -224,6 +224,8 @@ export class BridgeClient extends EventTarget {
   private reconnectTimer = 0;
   private retry = 500;
   private closed = false;
+  private cancelPair: (() => void) | null = null;
+  private storageWrite: Promise<void> = Promise.resolve();
   private pending = new Map<
     string,
     {
@@ -258,28 +260,48 @@ export class BridgeClient extends EventTarget {
   pair(code: string, url = "ws://127.0.0.1:37115/extension"): Promise<void> {
     if (!/^ws:\/\/127\.0\.0\.1:\d+\/extension$/.test(url))
       return Promise.reject(new Error("localhost_only"));
-    this.url = url;
+    if (this.closed) return Promise.reject(new Error("bridge_disconnected"));
+    this.cancelPair?.();
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(url);
-      const timeout = window.setTimeout(() => {
-        ws.close();
-        reject(new Error("pair_timeout"));
-      }, 8000);
-      ws.onopen = () => ws.send(JSON.stringify({ type: "pair", code }));
-      ws.onerror = () => {
+      let settled = false;
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
-        reject(new Error("bridge_unavailable"));
+        if (this.cancelPair === cancel) this.cancelPair = null;
+        ws.close();
+        reject(error);
       };
-      ws.onmessage = async (event) => {
+      const cancel = () => fail(new Error("bridge_disconnected"));
+      this.cancelPair = cancel;
+      const timeout = window.setTimeout(
+        () => fail(new Error("pair_timeout")),
+        8000,
+      );
+      ws.onopen = () => {
+        if (!settled) ws.send(JSON.stringify({ type: "pair", code }));
+      };
+      ws.onerror = () => fail(new Error("bridge_unavailable"));
+      ws.onclose = () => fail(new Error("bridge_disconnected"));
+      ws.onmessage = (event) => {
+        if (settled || this.closed) return;
         let m: BridgeMessage;
         try {
           m = JSON.parse(String(event.data));
         } catch {
           return;
         }
+        if (m.type === "error") {
+          fail(new Error(String(m.code || "bridge_unavailable")));
+          return;
+        }
         if (m.type !== "paired" || typeof m.token !== "string") return;
+        settled = true;
         clearTimeout(timeout);
-        ws.close();
+        this.cancelPair = null;
+        this.retireSocket();
+        this.url = url;
         this.token = m.token;
         this.mode = m.mode === "tunnel" ? "tunnel" : "direct";
         this.project = typeof m.project === "string" ? m.project : "";
@@ -289,13 +311,22 @@ export class BridgeClient extends EventTarget {
         this.sessionId = typeof m.sessionId === "string" ? m.sessionId : "";
         this.liveAvailable = Boolean(m.liveAvailable);
         this.live = Boolean(m.live);
-        await chrome.storage.session.set({
+        this.attachSocket(ws);
+        this.retry = 500;
+        const stored = {
           bridgeToken: this.token,
           bridgeMode: this.mode,
           bridgeUrl: this.url,
-        });
-        this.connect();
-        resolve();
+        };
+        this.storageWrite = this.storageWrite
+          .catch(() => {})
+          .then(() => chrome.storage.session.set(stored));
+        this.storageWrite.then(() => {
+          if (this.closed) reject(new Error("bridge_disconnected"));
+          else resolve();
+        }, reject);
+        this.dispatchEvent(new Event("connected"));
+        this.dispatchEvent(new Event("paired"));
       };
     });
   }
@@ -303,12 +334,28 @@ export class BridgeClient extends EventTarget {
   private connect(): void {
     if (this.closed || !this.token || this.socket) return;
     const ws = new WebSocket(this.url);
+    this.attachSocket(ws);
+  }
+
+  private retireSocket(): void {
+    clearTimeout(this.reconnectTimer);
+    const old = this.socket;
+    this.socket = null;
+    for (const pending of this.pending.values())
+      pending.reject(new Error("bridge_disconnected"));
+    this.pending.clear();
+    old?.close();
+  }
+
+  private attachSocket(ws: WebSocket): void {
     this.socket = ws;
     ws.onopen = () => {
+      if (this.socket !== ws || this.closed) return;
       this.retry = 500;
       ws.send(JSON.stringify({ type: "pair", token: this.token }));
     };
     ws.onmessage = (event) => {
+      if (this.socket !== ws || this.closed) return;
       let m: BridgeMessage;
       try {
         m = JSON.parse(String(event.data));
@@ -360,7 +407,8 @@ export class BridgeClient extends EventTarget {
       } else this.dispatchEvent(new CustomEvent("message", { detail: m }));
     };
     ws.onclose = () => {
-      if (this.socket === ws) this.socket = null;
+      if (this.socket !== ws) return;
+      this.socket = null;
       for (const pending of this.pending.values())
         pending.reject(new Error("bridge_disconnected"));
       this.pending.clear();
@@ -368,13 +416,14 @@ export class BridgeClient extends EventTarget {
       this.dispatchEvent(new Event("disconnected"));
       if (!this.closed && this.token) {
         this.reconnectTimer = window.setTimeout(() => {
-          this.socket = null;
           this.connect();
         }, this.retry);
         this.retry = Math.min(10_000, this.retry * 2);
       }
     };
-    ws.onerror = () => ws.close();
+    ws.onerror = () => {
+      if (this.socket === ws) ws.close();
+    };
   }
 
   async send(message: BridgeMessage): Promise<void> {
@@ -467,11 +516,8 @@ export class BridgeClient extends EventTarget {
   }
   close(): void {
     this.closed = true;
-    clearTimeout(this.reconnectTimer);
-    this.socket?.close();
-    this.socket = null;
-    this.pending.forEach((p) => p.reject(new Error("disconnected")));
-    this.pending.clear();
+    this.cancelPair?.();
+    this.retireSocket();
   }
 }
 
