@@ -607,7 +607,7 @@ test("a fresh bridge session restores popup geometry and saves manual resizing",
   await child.close();
 });
 
-test("floating waits for session bootstrap and preserves existing saved geometry", async ({
+test("floating is available during session bootstrap and preserves saved geometry", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -645,9 +645,17 @@ test("floating waits for session bootstrap and preserves existing saved geometry
     name: "Float panel",
     exact: true,
   });
-  await expect(floating).toBeDisabled();
-  releaseSession();
   await expect(floating).toBeEnabled();
+  releaseSession();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __glimpseletSession?: string })
+            .__glimpseletSession,
+      ),
+    )
+    .toBe("late-session");
   const opened = page.waitForEvent("popup");
   await floating.click();
   const child = await opened;

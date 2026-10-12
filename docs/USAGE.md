@@ -1,40 +1,19 @@
 # Usage
 
-Run `/glimpselet:glimpse` from your coding session. Choose **Float panel**, then use the browser picker to share a display, app window or tab. Sharing begins only after you choose a surface. Freeze a frame to inspect it, crop to a region, draw opaque masks over details you do not want sent.
+Run `/glimpselet:glimpse` after installing the plugin. The welcome page guides installation and pairing, then opens a practice page. It detects connection automatically. On a remote host, run its SSH command on the computer with your browser. On the same computer, **Try without installing** opens a dedicated Chromium profile with the extension loaded.
 
-Type a question or choose a quick action. Press Ctrl+Enter or Command+Enter to send it. The panel sends the prepared image and question to the configured backend and streams the answer. If a stream does not deliver a valid completion event, the panel keeps any partial text, labels it incomplete and leaves it out of history. The still image sent with a question is labeled **Last sent frame**. **Show live preview** returns to the shared screen without sending another question and preserves the crop and masks. Choose the `sonnet`, `opus` or `haiku` alias in Settings. Follow-up questions can include recent, bounded session context. Answers can be copied or pinned.
+Open Glimpselet from the toolbar or Alt+Shift+G. **Float** is the first action. Keep its opener open. Start **Share a screen** inside the bubble, then choose a tab, window or screen. Return to the source tab from the top bar. The browser controls placement. Compact mode keeps the input and status visible while preserving the share.
 
-With the screen preview focused, S selects an area, E asks for an explanation, T translates it, and P toggles passive notes. The corresponding buttons remain keyboard accessible.
+Capture a visible area, full page or element. **Crop**, or holding Shift, draws a rectangle over the whole shared screen. On web pages it draws directly over the page. Adjust its handles, press Enter to confirm or Esc to cancel. Arrows also create and adjust a selection. Captures appear in the bubble with Explain, Translate and Ask actions. Settings can disable the Shift hold shortcut.
 
-## Passive notes
+Ctrl+Shift+S crops while the browser is focused. The global shortcut defaults to Ctrl+Shift+5 because Chrome restricts global defaults to digits. Remap it at `chrome://extensions/shortcuts`. On macOS the browser shortcut uses Command+Shift+S. A page alone cannot hear Shift in another app. Native window click through is unavailable. Move the bubble away from the area you need.
 
-Panel passive mode samples the selected browser surface every two seconds. It compares frames locally and requests a short note only when the image changes. The bridge enforces a rolling maximum of six passive requests per minute by default. A lower cap can be selected. Six per minute is a rate limit, not a statement about monetary cost. Frames and generated notes remain in a local timeline for up to ten minutes. Ask for a timeline summary or export the notes as Markdown. Pause passive mode to stop sampling and its requests. **Pause passive notes** cancels the current streaming note and stops future notes until you resume.
+Ask follow up questions, copy replies or pin them. Model and effort settings apply to dedicated threads, parallel continuations and API mode. **Guide this page** draws a tour around real elements. Next and Back follow its steps. Esc closes it. Questions such as "Where is the export button?" also request a guide. Translation progressively replaces eligible text. **Restore original** reverses it. Selecting text offers Explain, Translate and Ask. PDFs open in the bundled reader for selection and page questions.
 
-The separate `screen_watch_start` MCP tool is different: it captures serially at an interval from 5 to 60 seconds, retains changed images, and does not call a model. It can use an explicitly shared browser surface or the native adapter when no browser share is active. It does not run the panel's two-second narration loop.
+Suggested questions update when accessible page context changes. Turn on passive mode for automatic summaries and three key points. It checks stable changes in shared video too. Use Alt+P to pause. Password pages and your blocklist are excluded. Native app password fields cannot be detected. The cost display estimates the preceding hour. It is not a spending cap.
 
-## Backend and settings
+For your current terminal conversation, enable the channel described in [Design](DESIGN.md). A confirmed live channel is selected by default. Its session model and permissions apply. Replies stream through the plugin's reply tools. Stop ends the bubble's wait. Press Esc in the terminal separately to stop its work.
 
-The installed restricted CLI is the default answer route. An optional API backend sends the question through the local bridge. Its key is kept in bridge memory for the 30-minute session and is cleared by **Clear** or process exit. Language and theme preferences are stored in the panel tab's session storage, the one-use launch token is not stored there.
+Without a live channel, select a recent project conversation for an explicitly labelled parallel continuation with `--resume ID -p`, or start a dedicated thread. The continuation uses the exact selected session and does not inject into an open terminal. Avoid concurrent work against that transcript. Direct API mode needs your Anthropic key, held for the browser session.
 
-The panel opens in a browser-controlled floating surface. With a user gesture, Chrome and Edge 116 or newer may offer Document Picture-in-Picture. Other cases use a regular popup, which may be blocked or may not stay above other windows. Compact and expanded panel sizes are remembered. The browser controls window placement.
-
-## Clear and stop
-
-Pause passive mode before leaving the panel. **Clear** removes local jobs, captures, notes, answer history and the in-memory API key, and aborts active jobs. Closing the panel ends its browser share. The bridge session expires after 30 minutes.
-
-## Limits
-
-The browser picker and OS permissions determine what can be shared. When an MCP capture is requested during an active browser share, Glimpselet uses that share. If it fails or disconnects, the capture fails closed. It will not substitute a native image that could bypass masks. Native fallback is used only without an active browser share. The native targets depend on platform and installed capture tools:
-
-| Platform      | Native targets                                            |
-| ------------- | --------------------------------------------------------- |
-| macOS         | Screen, window, region                                    |
-| Windows       | Screen                                                    |
-| Linux Wayland | Screen, region when `slurp` is installed alongside `grim` |
-| Linux X11     | Screen and region when `maim` or `scrot` is installed     |
-
-Native capture availability also depends on OS permissions. Glimpselet cannot reliably read external cursor coordinates, window titles or password fields from pixels. Opaque masks are applied to the outgoing image. Always review the outgoing frame.
-
-The [static demo](https://arthur031221.github.io/Glimpselet/) shows a fixture image and prerecorded answer. It does not request any provider response.
-
-Changing the provider, model or API key pauses passive notes. Resume them after reviewing the new settings. Summaries send only saved passive note text and work after you stop sharing. If the browser refuses the floating window, choose **Open popup** to try a popup with a fresh click.
+Replay the welcome tour from Settings. Chromium desktop browsers are required. Protected pages, the store and managed policies can block access. Native app guides and Chrome's built in PDF viewer are unavailable. Use screen questions or the Glimpselet reader instead.

@@ -10,8 +10,20 @@ export type ProviderRequest = {
   context: AnswerEntry[];
   signal: AbortSignal;
   onText: (text: string) => void;
+  page?: { url: string; title: string; text: string; elements: unknown[] };
+  effort?: "low" | "medium" | "high";
+  cliSession?: {
+    id: string;
+    project: string;
+    resume?: boolean;
+    fork?: boolean;
+  };
 };
-export type ProviderResult = { answer: string; usage?: Usage };
+export type ProviderResult = {
+  answer: string;
+  usage?: Usage;
+  sessionId?: string;
+};
 export type AnswerProvider = (
   request: ProviderRequest,
 ) => Promise<ProviderResult>;
@@ -39,5 +51,5 @@ export function contextPrompt(request: ProviderRequest): string {
       : request.kind === "summary"
         ? "Summarize only the supplied passive notes from the last ten minutes. Do not infer a continuous recording."
         : request.question;
-  return `Owner question: ${JSON.stringify(request.question)}\nTask: ${instruction}\nQuoted prior context: ${JSON.stringify(context)}`;
+  return `Owner question: ${JSON.stringify(request.question)}\nTask: ${instruction}\nQuoted prior context: ${JSON.stringify(context)}${request.page ? `\nUntrusted page data: ${JSON.stringify(request.page)}` : ""}`;
 }

@@ -1,96 +1,62 @@
-<p align="center"><img src="assets/logo.svg" width="72" alt="Blink, compañero de Glimpselet"><br><strong>Glimpselet</strong><br><em>Blink espera. Tú señalas. Te responde.</em></p>
+# Glimpselet
 
-<p align="center"><a href="README.md">English</a>  |  <a href="README.zh-TW.md">繁體中文</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.ko.md">한국어</a>  |  <a href="README.fr.md">Français</a>  |  <a href="README.de.md">Deutsch</a>  |  <a href="README.pt-BR.md">Português (Brasil)</a></p>
+Glimpselet es un chat pequeño que permanece sobre otras ventanas y se conecta a una sesión existente de Claude Code. Puede leer y traducir páginas web accesibles, dibujar guías sobre la página real y capturar zonas de páginas o fotogramas de pantalla compartida para hacer preguntas.
 
-> Pregunta a tu asistente de programación sobre una pantalla que elijas, desde un panel flotante compacto. Congela una imagen, recórtala, tapa los datos privados y pregunta.
+![Chat flotante de Glimpselet](assets/demo.gif)
 
-<p align="center"><img src="assets/demo.gif" width="800" alt="Imagen de prueba y respuesta grabada en el panel Glimpselet"></p>
+![Círculos guía dibujados sobre la página real](assets/screenshots/guide.png)
 
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Abrir la demo estática</a>. Muestra una imagen de prueba y una respuesta grabada. No hace llamadas a proveedores.</p>
+[Abrir la demostración estática](https://arthur031221.github.io/Glimpselet/). Usa una imagen de ejemplo y una respuesta grabada. No envía solicitudes a proveedores.
 
-<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="Tema claro a 420 px"><img src="assets/screenshots/dark-420.png" width="49%" alt="Tema oscuro a 420 px"></p>
+## Instalación
 
-<details>
-<summary>Los seis tamaños y temas</summary>
-
-<p><img src="assets/screenshots/light-360.png" width="140" alt="Panel claro 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="Panel claro 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="Panel claro 520 px"></p>
-<p><img src="assets/screenshots/dark-360.png" width="140" alt="Panel oscuro 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="Panel oscuro 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="Panel oscuro 520 px"></p>
-
-</details>
-
-El modo flotante requiere un navegador Chromium de escritorio. Antes de instalar, ten Node.js 22 o posterior y un asistente de programación instalado.
-
-Instala el complemento con dos comandos de barra:
+Instala el plugin de Glimpselet en Claude Code:
 
 ```text
 /plugin marketplace add Arthur031221/Glimpselet
 /plugin install glimpselet@glimpselet
 ```
 
-Después ejecuta `/glimpselet:glimpse`. Necesitas Node.js 22 o posterior. No hace falta una extensión del navegador.
+Ejecuta `/glimpse` y sigue la guía de configuración. Esa guía es la fuente de referencia para la instalación y el emparejamiento.
 
-## Uso habitual
+### Avanzado: cargar desde el código fuente
 
-```text
-/glimpselet:glimpse
-Elige una pantalla, ventana o pestaña en el selector del navegador.
-Congela un fotograma, recorta una zona y tapa lo privado con máscaras opacas.
-Haz una pregunta, lee la respuesta en streaming y continúa con otra.
-Copia o fija la respuesta y borra la sesión local al terminar.
+1. Abre `chrome://extensions` en Chrome o Edge y activa el **modo de desarrollador**.
+2. Pulsa **Cargar descomprimida**.
+3. Selecciona la carpeta de la extensión indicada por la guía de configuración.
+   > **Modo de desarrollador:** Glimpselet se distribuye actualmente en modo de desarrollador. Hasta que haya una ficha en una tienda, las actualizaciones deben instalarse manualmente.
+
+## Capturas y atajos
+
+Mantén pulsada la tecla Shift en la burbuja flotante o en una página accesible para iniciar un recorte. Shift no puede detectar pulsaciones en otras aplicaciones. En una página web, selecciona la zona directamente sobre la página actual. Al compartir pantalla, se congela la imagen y se abre a pantalla completa para recortarla. Pulsa Enter para confirmar o Esc para cancelar.
+
+El atajo del navegador es Ctrl+Shift+S, o Cmd+Shift+S en Mac. Inicia el recorte desde el navegador. El atajo global independiente es Ctrl+Shift+5 de forma predeterminada, porque Chrome exige una tecla numérica para los atajos globales. Puedes cambiarlo, incluso a S, en `chrome://extensions/shortcuts`.
+
+## Sesiones de Claude Code
+
+La compatibilidad documentada con MCP channels permite enviar mensajes a una sesión de Claude Code que ya esté en ejecución. Glimpselet muestra las respuestas a partir de los fragmentos de la herramienta de respuesta del canal. El modelo y los permisos los controla la sesión de la terminal. Para añadir el channel personalizado de Glimpselet, reinicia la sesión con el channel de desarrollo habilitado y ejecuta `/glimpse`:
+
+```sh
+claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
 ```
 
-La imagen permanece en tu equipo hasta que haces una pregunta o activas las notas pasivas. Las máscaras opacas modifican la imagen enviada. Las notas pasivas muestrean cada dos segundos y solicitan una descripción breve de los fotogramas que cambian. El límite predeterminado es de seis solicitudes por minuto móvil, hasta 360 por hora. Es un límite de solicitudes, no un cálculo de coste, puedes reducirlo.
-
-Las herramientas MCP de pantalla devuelven imágenes a la sesión de programación cuando se solicitan. Las capturas del panel se limitan a 1536 píxeles en el lado más largo y a 1,8 millones de píxeles después del recorte y las máscaras. Las áreas seleccionadas más pequeñas conservan su resolución original.
-
-**Tú decides cuándo compartir la pantalla, nunca empieza a observar por su cuenta.**
-
-## Detalles
-
-<details>
-<summary>Controles y estado</summary>
-
-Cambia el tamaño con el control del panel o las flechas. También puedes arrastrar los bordes de la ventana cuando el navegador lo permita. En el modo de recorte o máscara, las flechas mueven la selección, Mayús más flechas la redimensionan, Enter la aplica y Escape cancela. Escape en el campo de pregunta pausa las notas pasivas y cancela la pregunta actual sin borrar su texto. Ajustes se abre en un cuadro modal. Puedes quitar la fijación de una respuesta anterior. **Último fotograma enviado** identifica la imagen fija enviada con una pregunta. **Mostrar vista en directo** vuelve a la pantalla compartida sin enviar otra pregunta y conserva el recorte y las máscaras. **Pausar notas pasivas** cancela el trabajo pasivo que se está transmitiendo y detiene las notas futuras hasta que las reanudes. Los atajos S/E/T/P solo funcionan cuando la vista previa de pantalla tiene el foco. Los botones siguen siendo accesibles con el teclado. Al desplazarte hacia arriba, se detiene el seguimiento de la respuesta transmitida. El panel muestra el estado de compartir, del modelo y de las notas pasivas.
-
-Las respuestas de comparación conservan los encabezados y las columnas de las tablas. Las tablas anchas se desplazan dentro de la respuesta. Enfoca la respuesta y usa las flechas para leer las demás columnas.
-
-</details>
-
-<details>
-<summary>Instalar y abrir</summary>
-
-Los dos comandos anteriores añaden e instalan el complemento integrado. `/glimpselet:glimpse` abre un panel local en un puerto aleatorio. El enlace de un solo uso caduca a los 60 segundos, la sesión en memoria dura 30 minutos. El selector del navegador te permite elegir una pantalla, una ventana de aplicación o una pestaña.
-
-</details>
-
-<details>
-<summary>Preguntar, continuar y revisar</summary>
-
-Las preguntas se procesan en el asistente de programación instalado o, de forma opcional, mediante una solicitud API desde el puente local. El CLI restringido elimina las herramientas de comandos habituales, pero los hooks gestionados por la empresa aún pueden ejecutarse. Por tanto, no es un aislamiento del sistema operativo. Debes confiar en el CLI instalado y en las políticas configuradas por tu organización. Las preguntas de seguimiento pueden incluir contexto reciente y acotado. El panel ofrece recorte, congelación, máscaras opacas, copiar, fijar, una línea temporal de diez minutos, resumen y exportación Markdown. El resumen usa las notas pasivas existentes y no envía una imagen nueva. **Clear** cancela los trabajos y elimina fotogramas, notas, historial y la clave API guardada en memoria.
-
-</details>
-
-<details>
-<summary>Ventana flotante y navegadores</summary>
-
-Document Picture-in-Picture está disponible en los navegadores Chromium de escritorio compatibles. El navegador controla la posición de esta ventana. Las dimensiones compacta y expandida, la posición del popup y el marco de la ventana se conservan entre reinicios del puente en un archivo local que solo guarda geometría y en la caché del navegador, si el almacenamiento está disponible. Consulta las [rutas](docs/CONFIGURATION.md) en la configuración.
-
-</details>
-
-<details>
-<summary>Desarrollar desde el código fuente</summary>
-
-Con Node.js 22 o posterior, ejecuta `npm ci`, `npm run build` y `npm run build:plugin`. Consulta las [instrucciones para contribuir](CONTRIBUTING.md) para ver todas las comprobaciones. La demo estática usa una imagen de prueba y texto grabado, no solicita una respuesta a ningún modelo.
-
-</details>
+Sin el channel, Glimpselet puede continuar la misma sesión en un proceso separado en modo print con `claude --resume SESSION_ID -p`. Es una continuación paralela. No lo ejecutes a la vez que el proceso de terminal que usa esa sesión. El acceso simultáneo puede causar conflictos.
 
 ## Límites
 
-Mientras haya una pantalla compartida en el navegador, las capturas MCP usan esa fuente. Si se desconecta o no responde, la captura falla y no se sustituye por una captura nativa sin las máscaras. La intención de compartir sigue activa tras la desconexión hasta que detengas explícitamente la compartición, borres los datos locales con **Clear** o venza la sesión. Hasta entonces no se usa la captura nativa. Cuando termina esa intención, la captura nativa depende de las herramientas de cada plataforma y de los permisos del sistema. macOS admite pantalla, ventana y región. Windows admite pantalla. En Linux depende de las herramientas de Wayland o X11. No se garantiza que una ventana emergente quede siempre encima. No se pueden detectar con fiabilidad contraseñas, posiciones del cursor ni títulos de ventana. Revisa cada imagen antes de enviarla.
+- Solo Chrome, Edge y otros navegadores Chromium.
+- Las páginas internas del navegador, como `chrome://`, la tienda de extensiones y algunas páginas administradas bloquean el acceso.
+- Glimpselet no puede dibujar sobre aplicaciones nativas. Puedes compartir su pantalla para preguntar sobre la imagen, pero no tendrás superposiciones de página ni acciones sobre texto.
+- Abre los PDF con el lector incluido de Glimpselet. El visor PDF integrado de Chrome no es una página accesible para la extensión.
+- La API Document Picture-in-Picture del navegador no admite el paso de clics, así que la ventana flotante no puede transferirlos a otra aplicación. El navegador puede no garantizar la ventana flotante ni su apertura automática. Mantén abierta la página de la extensión mientras uses la ventana flotante.
 
-La herramienta MCP independiente `screen_watch_start` toma muestras en serie cada 5 a 60 segundos, conserva solo fotogramas modificados y no llama a ningún modelo. Es distinta de las notas pasivas del panel, que muestrean cada dos segundos y generan descripciones.
+## Privacidad
 
-[Uso](docs/USAGE.md) | [Instalación](docs/INSTALL.md) | [Configuración](docs/CONFIGURATION.md) | [Arquitectura](docs/ARCHITECTURE.md) | [Seguridad](docs/SECURITY.md) | [Estructura del complemento](docs/PLUGIN.md) | [Contribuir](CONTRIBUTING.md) | [Licencia MIT](LICENSE)
+No se recopila telemetría. Con tu consentimiento, el texto de la página puede enviarse para crear preguntas sugeridas. Las preguntas y los resúmenes pasivos opcionales también pueden enviar texto e imágenes pertinentes. Los fotogramas permanecen en memoria y solo se envían al puente al capturar o hacer una pregunta. En modo puente, la CLI se ejecuta en el host y guarda allí las transcripciones. El modo API directa envía solicitudes desde la extensión. Las claves API y los tokens del puente permanecen en el almacenamiento de sesión del navegador. Las preferencias se guardan en el almacenamiento local. Consulta [seguridad y privacidad](docs/SECURITY.md) para ver los flujos de datos.
+
+## Más información
+
+[Instalación](docs/INSTALL.md) | [Uso](docs/USAGE.md) | [Diseño e integración](docs/DESIGN.md) | [Preparación para tiendas](docs/STORE.md) | [Notas de versión](docs/releases/v2.0.0.md)
 
 ## Disclosure
 

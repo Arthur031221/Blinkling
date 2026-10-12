@@ -1,17 +1,36 @@
 # Security and privacy
 
-Glimpselet listens on loopback at an operating-system assigned port. Its launch fragment is a one-use token that expires after 60 seconds. The bridge keeps the resulting session in memory for 30 minutes. HTTP and WebSocket routes check the expected Host, exact local Origin and session. Requests and captures have size limits. Capture endpoints enforce a rolling rate limit. The bridge does not log session tokens, API keys or image bytes.
+Glimpselet collects no telemetry. The bridge does not log page content, capture bytes, pairing tokens or API keys. The public demo uses a fixture image and recorded answers, without provider requests.
 
-The panel sends prepared images when you ask a question or enable passive notes. MCP screen tools return captures to the coding session when explicitly called. Asking sends the prepared image and question to the configured backend. Passive notes send changed frames for descriptions through the selected backend. **Pause passive notes** cancels the streaming passive job and stops future notes until you resume. The six-per-minute rolling default is a request cap, not a dollar-cost estimate. The separate MCP watch captures changed frames at a 5 to 60 second interval and does not call a model.
+## Data flow
 
-Floating-window preferences persist only dimensions, popup position and window chrome in a geometry-only local file and browser cache. They do not include questions, images, keys, session tokens or answer history. Storage is best effort when disk or browser storage is unavailable.
+After consent, bounded page text may be sent to generate suggested questions. Context excludes hidden, editable, private and password fields and does not collect form values. Questions and optional passive summaries can send relevant page text and images. Pixel captures can contain information the text filter cannot identify. Review the source before asking.
 
-Opaque masks are applied to the outgoing PNG before it reaches the bridge. Crop and mask the frame, then review it before sending. Pixel inspection cannot guarantee detection of passwords or other sensitive text, and cursor coordinates or window titles are not reliably available.
+Bridge mode uses an origin bound, paired loopback WebSocket. Dedicated threads and parallel continuations run the user's CLI. An image is placed in a private temporary directory and removed after completion, timeout or cancellation. Recent sessions are listed through the official SDK. A parallel continuation resumes the exact selected UUID and writes to that conversation. Avoid running it concurrently with terminal work on the same transcript.
 
-The local CLI route writes a normalized PNG to a private temporary directory and grants the child read access only to that image. It starts without a shell, configured MCP servers, other tools or saved conversation. The bridge removes the temporary directory after completion, timeout or cancellation. The optional API route sends the image and question from the local bridge to the configured API service. Its key stays in bridge memory for the session. **Clear** or process exit removes it. It is not stored in panel local storage or a file.
+With an enabled live channel, requests are pushed into the running terminal conversation. Its model, permissions and tools apply. The plugin returns images and scoped reply chunks through MCP tools. Only bubble request replies are mirrored. Stop ends the bubble's wait. It does not stop terminal execution. Press Esc there when necessary.
 
-**Clear** aborts active jobs and removes local frames, notes, answer history and the in-memory API key. Closing the browser panel ends its browser share. The bridge session also expires after 30 minutes.
+Direct API mode sends requests and optional images to Anthropic using the user's key. The key is not sent to the local bridge. Provider retention and account policies apply to all provider requests.
 
-An active browser share is authoritative for MCP capture. If the shared browser surface disconnects or cannot provide a frame, capture fails closed and never substitutes a native capture. A disconnected browser share stays authoritative until you explicitly stop it, clear local data, or the session expires. The native adapter is available only after that sharing intent ends. It still depends on OS permissions and installed platform tools. Review outgoing images before asking, do not treat automatic visual inspection as a security boundary.
+Passive mode starts off. Once enabled, changed pages or stable changes in shared video can trigger summaries. Password pages and blocklisted hosts are excluded, page updates are debounced, and summaries are capped at six per rolling minute. Sensitive text is not always detectable, especially in native apps. Pause before sharing sensitive material.
 
-Restricted execution still loads managed policy. Organization configured hooks are trusted and can run outside this request. The installed CLI is not an OS sandbox. The [provider implementation](../bridge/src/provider-cli.ts) records the flags used for each request.
+## Storage
+
+| Location                 | Data                                                                                                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser local storage    | Consent, language, backend, model, effort, target language, passive and Shift preferences, host blocklist and observed PiP dimensions.                         |
+| Browser session storage  | Bridge token, URL, mode and direct API key. Cleared when the browser session ends.                                                                             |
+| Bubble memory            | Captures, latest shared video frame, chat replies and translation originals. Frames are not written to browser storage. Closing the opener clears this memory. |
+| Bridge memory            | Pairing state, active requests, short follow up context and temporary session metadata. Tokens expire after twelve hours. Restart clears memory.               |
+| Host CLI storage         | Persistent conversation transcripts owned by the CLI. Dedicated and selected sessions follow its normal persistence behavior.                                  |
+| Temporary host directory | Request image for print mode, removed when the request ends.                                                                                                   |
+
+The bridge uses an operating system assigned loopback port. Pairing checks the local host, extension origin and one use code or token. Codes expire after ten minutes. Payloads and requests have limits. Disconnecting aborts the active print request. It ends waiting for a live channel reply without cancelling the terminal's work.
+
+## Cost and controls
+
+The preceding hour's cost uses reported CLI usage when available. Direct API mode estimates input and output token cost at the bundled model rates. Live channel replies have no authoritative usage report. The total is an estimate, not a spending cap. Check provider billing for actual charges.
+
+Sharing begins only after the user chooses a browser source. Closing the floating window stops its stream. Passive mode can be paused or disabled. Ending the browser session clears the API key. Browser permissions govern page access and restricted pages. The bubble cannot make its native frame transparent or click through, and native apps cannot receive DOM guides.
+
+Page content is untrusted input. Guide element IDs and translation node IDs are checked before changes are applied. No remote code is loaded. A model response is not a security boundary. Review it before acting.

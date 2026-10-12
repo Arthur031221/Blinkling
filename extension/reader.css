@@ -1,0 +1,278 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #30291f;
+  background: #f7f3eb;
+  color-scheme: light dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+}
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: #fffaf1;
+  border-bottom: 1px solid #ded4c5;
+  box-shadow: 0 2px 10px #30291f12;
+}
+header strong {
+  font-family: Georgia, serif;
+  font-size: 18px;
+}
+header form {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  max-width: 580px;
+  margin-left: auto;
+}
+input,
+button,
+.open {
+  font: inherit;
+  border: 1px solid #cfc2af;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fffdf8;
+  color: inherit;
+}
+header input[type="url"] {
+  min-width: 80px;
+  flex: 1;
+}
+.open {
+  position: relative;
+  cursor: pointer;
+  font-size: 14px;
+}
+.open input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+button {
+  cursor: pointer;
+  font-size: 13px;
+}
+button:hover,
+.open:hover {
+  background: #efe4d2;
+}
+main {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 22px;
+  max-width: 1500px;
+  margin: 20px auto;
+  padding: 0 18px;
+}
+aside {
+  position: sticky;
+  top: 75px;
+  height: max-content;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: #fffaf1;
+  border: 1px solid #e2d7c8;
+  border-radius: 12px;
+}
+aside #page-label {
+  align-self: center;
+  font-size: 13px;
+  color: #756957;
+}
+.spacer {
+  flex-basis: 100%;
+  height: 1px;
+}
+aside button[data-action] {
+  width: 100%;
+  text-align: left;
+}
+#status {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #766d60;
+  margin: 5px 0;
+}
+article {
+  min-height: 80vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: auto;
+}
+.pdf-page {
+  position: relative;
+  background: white;
+  box-shadow: 0 3px 20px #392c1e24;
+  margin: 0 auto 30px;
+}
+.pdf-page canvas {
+  display: block;
+}
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  opacity: 1;
+  user-select: text;
+}
+.pdf-text-layer span {
+  position: absolute;
+  white-space: pre;
+  transform-origin: 0 0;
+  color: transparent;
+  cursor: text;
+}
+.pdf-text-layer ::selection {
+  background: #c5dcff;
+}
+.dark {
+  color-scheme: dark;
+  background: #211f1b;
+  color: #eee7dc;
+}
+.dark header,
+.dark aside {
+  background: #2b2823;
+  border-color: #50483c;
+}
+.dark input,
+.dark button,
+.dark .open {
+  background: #363128;
+  border-color: #655a49;
+  color: #eee7dc;
+}
+@media (max-width: 700px) {
+  header {
+    flex-wrap: wrap;
+  }
+  header form {
+    order: 2;
+    max-width: none;
+    flex-basis: 100%;
+  }
+  main {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  aside {
+    position: static;
+  }
+  aside button[data-action] {
+    width: auto;
+    flex: 1;
+  }
+  article {
+    min-height: 65vh;
+  }
+}
+
+.pdf-text-layer {
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.pdf-text-layer > span {
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1))
+    scale(var(--min-font-size-inv));
+}
+.pdf-text-layer [data-glimpselet-translated] {
+  color: #30291f;
+  background: #fff;
+}
+.pdf-text-layer .markedContent {
+  display: contents;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #211f1b;
+    color: #eee7dc;
+  }
+  header,
+  aside {
+    background: #2b2823;
+    border-color: #50483c;
+  }
+  input,
+  button,
+  .open {
+    background: #363128;
+    border-color: #655a49;
+    color: #eee7dc;
+  }
+}
+
+:focus-visible {
+  outline: 3px solid #b66b35;
+  outline-offset: 2px;
+}
+html.locale-loading body {
+  visibility: hidden;
+}
+header {
+  flex-wrap: wrap;
+}
+header > button {
+  white-space: nowrap;
+}
+header strong {
+  white-space: nowrap;
+}
+aside button {
+  min-height: 38px;
+}
+#status {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+}
+.pdf-page {
+  flex: none;
+}
+.pdf-text-layer span[data-glimpselet-translated] {
+  color: #30291f;
+  background: #fff2cf;
+  border-radius: 2px;
+}
+#page:empty::before {
+  content: "";
+  display: block;
+  min-height: 70vh;
+}
+@media (max-width: 700px) {
+  header > button {
+    order: 3;
+  }
+  header .open {
+    order: 1;
+  }
+  header strong {
+    order: 0;
+  }
+  aside {
+    gap: 6px;
+  }
+  aside button[data-action] {
+    min-width: calc(50% - 6px);
+  }
+  aside button[data-action="guide"] {
+    flex-basis: 100%;
+  }
+}

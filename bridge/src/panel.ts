@@ -1,5 +1,6 @@
+import type { LiveChannel } from "./live-channel.js";
 import { randomBytes } from "node:crypto";
-import { execFile } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import {
@@ -28,6 +29,18 @@ import {
 import { CaptureHistory, type Capture } from "./history.js";
 import { hasFrameChanged, readPanelImage, sampleFrame } from "./panel-image.js";
 import { runProvider, type AnswerProvider } from "./provider.js";
+import { ExtensionBridge } from "./extension-bridge.js";
+import {
+  extensionFolder,
+  installExtension,
+  installGuide,
+  installStepSvg,
+  loadDistributionConfig,
+  selectedStoreUrl,
+  INSTALL_GUIDE_SCRIPT,
+  openInstallSurface,
+  tunnelCommand,
+} from "./extension-install.js";
 import {
   SessionStore,
   type AnswerEntry,
@@ -44,6 +57,7 @@ const mime: Record<string, string> = {
   ".ttf": "font/ttf",
   ".png": "image/png",
   ".gif": "image/gif",
+  ".pdf": "application/pdf",
 };
 export type PanelOptions = {
   provider?: AnswerProvider;
@@ -59,7 +73,19 @@ type RequestBody = Record<string, unknown>;
 export class PanelServer {
   private server?: Server;
   private captures?: BrowserCaptures;
+  private extension?: ExtensionBridge;
+  attachChannel(channel: LiveChannel): void {
+    this.extension?.attachChannel(channel);
+  }
   private expiryTimer?: NodeJS.Timeout;
+  private trialBrowser?: ChildProcess;
+  private trialError = false;
+  private readonly distributionFile =
+    process.env.GLIMPSELET_DISTRIBUTION_CONFIG ||
+    resolve(
+      dirname(resolve(process.argv[1] || ".")),
+      "config/distribution.json",
+    );
   private port = 0;
   private readonly tokens: OneTimeTokens;
   private readonly sessions: SessionStore;
@@ -126,6 +152,11 @@ export class PanelServer {
       (id) => this.sessions.get(id),
       this.now,
     );
+    this.extension = new ExtensionBridge(server, () => this.origin, {
+      provider: this.provider,
+      now: this.now,
+      answerTimeoutMs: this.options.answerTimeoutMs,
+    });
     await new Promise<void>((resolveStarted, reject) => {
       server.once("error", reject);
       server.listen(0, "127.0.0.1", () => {
@@ -153,17 +184,47 @@ export class PanelServer {
     timeoutMs = 2500,
     signal?: AbortSignal,
   ): Promise<Capture | undefined> {
+    if (this.extension?.isSharing)
+      return this.extension.requestCapture(timeoutMs, signal);
     return (
       this.captures?.request(timeoutMs, signal) ?? Promise.resolve(undefined)
     );
   }
 
   get isSharing(): boolean {
-    return this.captures?.isSharing ?? false;
+    return !!this.extension?.isSharing || !!this.captures?.isSharing;
   }
 
   cancelCaptures(): void {
     this.captures?.cancelPending();
+    this.extension?.cancelCaptures();
+  }
+
+  async openExtensionGuide(): Promise<string> {
+    const source =
+      process.env.GLIMPSELET_EXTENSION_DIR ||
+      `${dirname(resolve(process.argv[1] ?? process.cwd()))}/extension`;
+    let folder: string;
+    try {
+      folder = await installExtension(source);
+    } catch {
+      throw new PanelError(
+        "extension_missing",
+        "The extension files are missing. Update the plugin, then run /glimpselet:glimpse again.",
+        503,
+      );
+    }
+    const code = this.extension!.issueCode();
+    const url = `${this.origin}/install#code=${code}`;
+    const storeUrl = selectedStoreUrl(
+      loadDistributionConfig(this.distributionFile),
+      process.env.GLIMPSELET_BROWSER === "msedge" ? "edge" : "chrome",
+    );
+    openInstallSurface(url, storeUrl ? undefined : folder);
+    const tunnel = tunnelCommand(this.port);
+    return tunnel
+      ? `On the computer with your browser, run this tunnel, then open ${url} to install and pair.\n\n\`\`\`sh\n${tunnel}\n\`\`\`\n\nPair with port ${this.port} and code ${code}.`
+      : `Open ${url} to install and pair the floating extension. Pair with port ${this.port} and code ${code}.`;
   }
 
   async openUrl(): Promise<string> {
@@ -246,6 +307,104 @@ export class PanelServer {
       path = decodeURIComponent(new URL(req.url ?? "/", this.origin).pathname);
     } catch {
       throw new PanelError("invalid_request", "Invalid request path.");
+    }
+    if (path === "/install/status" || path === "/install/try") {
+      const params = new URL(req.url!, this.origin).searchParams;
+      const code = params.get("code") || "";
+      const connected = this.extension?.installStatus(code);
+      if (connected === undefined)
+        throw new PanelError(
+          "pairing_expired",
+          "Run /glimpse again for a new setup link.",
+          401,
+        );
+      if (path === "/install/status" && req.method === "GET") {
+        this.reply(res, 200, {
+          connected,
+          mode: this.extension!.mode,
+          tunnelCommand: tunnelCommand(this.port),
+          trialError: this.trialError,
+        });
+        return;
+      }
+      if (
+        path !== "/install/try" ||
+        req.method !== "POST" ||
+        req.headers.origin !== this.origin
+      )
+        throw new PanelError(
+          "invalid_origin",
+          "Open the setup page to try Glimpselet.",
+          403,
+        );
+      if (process.env.SSH_CONNECTION)
+        throw new PanelError(
+          "remote_browser",
+          "The browser must run on the computer with your screen. Use the SSH tunnel and extension installation.",
+          409,
+        );
+      if (
+        !this.trialBrowser ||
+        this.trialBrowser.exitCode !== null ||
+        this.trialBrowser.signalCode !== null
+      ) {
+        const launcher = resolve(
+          dirname(resolve(process.argv[1] || ".")),
+          "launch-browser.mjs",
+        );
+        await stat(launcher);
+        const child = spawn(process.execPath, [launcher], {
+          env: {
+            ...process.env,
+            GLIMPSELET_EXTENSION_DIR: extensionFolder(),
+            GLIMPSELET_TRIAL_URL: `${this.origin}/install#code=${code}`,
+          },
+          stdio: ["ignore", "ignore", "pipe"],
+        });
+        this.trialBrowser = child;
+        this.trialError = false;
+        child.stderr?.on("data", (chunk) => process.stderr.write(chunk));
+        child.on("error", () => {
+          this.trialError = true;
+        });
+        child.on("exit", (code) => {
+          if (code !== null && code !== 0) this.trialError = true;
+        });
+      }
+      this.reply(res, 202, { started: true });
+      return;
+    }
+    if (
+      req.method === "GET" &&
+      (path === "/install" ||
+        path === "/install-guide.js" ||
+        /^\/install-step-[123]\.svg$/.test(path))
+    ) {
+      const script = path === "/install-guide.js";
+      const svg = path.endsWith(".svg");
+      res.writeHead(200, {
+        "Content-Type": script
+          ? "text/javascript; charset=utf-8"
+          : svg
+            ? "image/svg+xml"
+            : "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy":
+          "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+      });
+      res.end(
+        script
+          ? INSTALL_GUIDE_SCRIPT
+          : svg
+            ? installStepSvg(Number(path[14]))
+            : installGuide(
+                extensionFolder(),
+                loadDistributionConfig(this.distributionFile),
+              ),
+      );
+      return;
     }
     if (path.startsWith("/api/")) {
       if (req.method !== "POST")
@@ -563,13 +722,30 @@ export class PanelServer {
   async clearAll(): Promise<void> {
     await this.options.onClear?.();
     this.captures?.clear();
+    await this.extension?.clear();
     await this.sessions.clear();
     this.history.clear();
   }
 
   async close(): Promise<void> {
+    if (
+      this.trialBrowser &&
+      this.trialBrowser.exitCode === null &&
+      this.trialBrowser.signalCode === null
+    ) {
+      const child = this.trialBrowser;
+      await new Promise<void>((resolveDone) => {
+        const timer = setTimeout(() => child.kill("SIGKILL"), 3000);
+        child.once("exit", () => {
+          clearTimeout(timer);
+          resolveDone();
+        });
+        child.kill("SIGTERM");
+      });
+    }
     if (this.expiryTimer) clearInterval(this.expiryTimer);
     this.captures?.close();
+    await this.extension?.close();
     await this.sessions.close();
     this.tokens.clear();
     if (this.server?.listening) {

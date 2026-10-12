@@ -1,96 +1,63 @@
-<p align="center"><img src="assets/logo.svg" width="72" alt="Glimpselet의 동료 Blink"><br><strong>Glimpselet</strong><br><em>Blink는 기다립니다. 화면을 고르면 답합니다.</em></p>
+# Glimpselet
 
-<p align="center"><a href="README.md">English</a>  |  <a href="README.zh-TW.md">繁體中文</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.es.md">Español</a>  |  <a href="README.fr.md">Français</a>  |  <a href="README.de.md">Deutsch</a>  |  <a href="README.pt-BR.md">Português (Brasil)</a></p>
+Glimpselet은 다른 창 위에 계속 표시되며 기존 Claude Code 세션에 연결되는 작은 채팅 창입니다. 접근 가능한 웹페이지를 읽고 번역하며, 실제 페이지 위에 안내 표시를 그리고, 질문을 위해 페이지 영역이나 공유 화면 프레임을 캡처할 수 있습니다.
 
-> 작은 플로팅 패널에서 선택한 화면에 관해 코딩 도우미에게 질문하세요. 프레임을 고정하고 자르거나 가린 뒤 질문할 수 있습니다.
+![Glimpselet 플로팅 채팅](assets/demo.gif)
 
-<p align="center"><img src="assets/demo.gif" width="800" alt="테스트 화면과 녹화된 답변을 보여주는 Glimpselet 패널"></p>
+![실제 페이지 위에 그려진 안내 원](assets/screenshots/guide.png)
 
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">정적 데모 열기</a>. 테스트 이미지와 녹화된 답변을 사용하며 답변 서비스에 요청하지 않습니다.</p>
+[정적 데모 열기](https://arthur031221.github.io/Glimpselet/). 예시 이미지와 녹화된 답변을 사용하며 서비스에 요청을 보내지 않습니다.
 
-<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="420 px 밝은 테마"><img src="assets/screenshots/dark-420.png" width="49%" alt="420 px 어두운 테마"></p>
+## 설치
 
-<details>
-<summary>여섯 가지 크기와 테마</summary>
-
-<p><img src="assets/screenshots/light-360.png" width="140" alt="밝은 테마 패널 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="밝은 테마 패널 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="밝은 테마 패널 520 px"></p>
-<p><img src="assets/screenshots/dark-360.png" width="140" alt="어두운 테마 패널 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="어두운 테마 패널 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="어두운 테마 패널 520 px"></p>
-
-</details>
-
-플로팅 모드에는 데스크톱 Chromium 브라우저가 필요합니다. 설치 전에 Node.js 22 이상과 설치된 코딩 도우미를 준비하세요.
-
-슬래시 명령 두 개로 플러그인을 설치합니다.
+Claude Code에 Glimpselet 플러그인을 설치합니다.
 
 ```text
 /plugin marketplace add Arthur031221/Glimpselet
 /plugin install glimpselet@glimpselet
 ```
 
-그다음 `/glimpselet:glimpse`를 실행하세요. Node.js 22 이상이 필요하며 브라우저 확장 기능은 없습니다.
+`/glimpse`를 실행하고 설정 안내를 따르세요. 설치와 페어링 방법은 이 안내를 기준으로 합니다.
 
-## 평소 사용 방법
+### 고급: 소스에서 불러오기
 
-```text
-/glimpselet:glimpse
-브라우저 선택기에서 화면, 창 또는 탭을 고릅니다.
-프레임을 고정하고 영역을 자른 뒤 불투명 마스크로 민감한 내용을 가립니다.
-질문을 입력하고 스트리밍 답변을 읽은 뒤 후속 질문을 합니다.
-답변을 복사하거나 고정하고 끝나면 로컬 세션을 지웁니다.
+1. Chrome 또는 Edge에서 `chrome://extensions`를 열고 **개발자 모드**를 켭니다.
+2. **압축해제된 확장 프로그램을 로드**를 선택합니다.
+3. 설정 안내에 표시된 확장 프로그램 폴더를 선택합니다.
+
+> **개발자 모드:** Glimpselet은 현재 개발자 모드로 배포됩니다. 스토어 등록 전까지 업데이트를 수동으로 설치해야 합니다.
+
+## 캡처와 단축키
+
+플로팅 버블이나 접근 가능한 웹페이지에서 Shift를 누르면 영역 선택을 시작합니다. Shift는 다른 앱에서 키 입력을 감지할 수 없습니다. 웹페이지에서는 현재 페이지 위에 영역을 그립니다. 화면 공유 중에는 프레임을 고정하고 전체 화면으로 열어 자릅니다. Enter로 확정하고 Esc로 취소하세요.
+
+브라우저 자르기 단축키는 Ctrl+Shift+S(Mac은 Cmd+Shift+S)입니다. 전역 단축키 기본값은 Ctrl+Shift+5입니다. Chrome 전역 단축키에는 숫자 키가 필요합니다. `chrome://extensions/shortcuts`에서 변경할 수 있으며 S로 지정할 수도 있습니다.
+
+## Claude Code 세션
+
+문서화된 MCP channel 기능으로 실행 중인 Claude Code 세션에 메시지를 보낼 수 있습니다. Glimpselet은 reply 도구의 응답 청크를 채팅에 표시합니다. 모델과 권한은 터미널의 세션이 관리합니다. Glimpselet 사용자 지정 channel을 추가하려면 개발 channel을 활성화해 세션을 다시 시작한 뒤 `/glimpse`를 실행하세요.
+
+```sh
+claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
 ```
 
-질문을 보내거나 자동 메모를 켜기 전까지 이미지는 기기에 남습니다. 불투명 마스크는 전송 이미지에 적용됩니다. 자동 메모는 2초마다 샘플링하고 달라진 프레임에 대해 짧은 설명을 요청합니다. 기본 제한은 분당 6회, 시간당 최대 360회입니다. 이는 요청 횟수 제한이지 비용 안내가 아닙니다. 더 낮은 제한을 설정할 수도 있습니다.
-
-MCP 화면 도구는 호출될 때 코딩 세션에 이미지를 반환합니다. 패널 이미지는 자르기와 마스크 처리 후 긴 변 1536픽셀, 총 180만 픽셀로 제한됩니다. 작은 선택 영역은 원래 해상도를 유지합니다.
-
-**화면 공유는 사용자가 시작하며 자동으로 화면을 보지 않습니다.**
-
-## 자세히 보기
-
-<details>
-<summary>조작과 상태</summary>
-
-패널 크기 조절 버튼이나 화살표 키로 크기를 바꾸세요. 브라우저가 허용하면 창 가장자리를 끌어 크기를 조정할 수 있습니다. 자르기 또는 마스크 모드에서 화살표는 선택 영역을 이동하고 Shift와 화살표는 크기를 바꿉니다. Enter는 적용하고 Escape는 취소합니다. 질문 입력란에서 Escape를 누르면 자동 메모를 일시 중지하고 입력한 문장을 유지한 채 현재 질문을 취소합니다. 설정은 모달 창으로 열립니다. 이전 답변의 고정을 해제할 수 있습니다. **마지막으로 보낸 화면**은 질문과 함께 전송한 정지 화면을 뜻합니다. **실시간 미리보기 표시**는 새 질문을 보내지 않고 공유 화면의 실시간 보기로 돌아가며 자르기와 마스크를 유지합니다. **자동 메모 일시 중지**는 진행 중인 메모를 취소하고 다시 시작할 때까지 이후 메모 요청도 중지합니다. S/E/T/P 단축키는 화면 미리보기에 초점이 있을 때만 작동합니다. 버튼은 키보드로도 사용할 수 있습니다. 위로 스크롤하면 스트리밍 답변 따라가기가 멈춥니다. 패널은 공유, 모델, 자동 메모 상태를 표시합니다.
-
-비교 답변은 표의 제목과 열을 유지합니다. 넓은 표는 답변 안에서 가로로 스크롤할 수 있습니다. 답변에 초점을 맞추고 방향키로 다른 열을 읽을 수 있습니다.
-
-</details>
-
-<details>
-<summary>설치 및 열기</summary>
-
-위 명령 두 개로 플러그인을 추가하고 설치합니다. `/glimpselet:glimpse`는 임의 포트에서 로컬 패널을 엽니다. 일회용 링크는 60초 후 만료되며 한 번만 교환할 수 있습니다. 메모리에 있는 패널 세션은 30분 동안 유지됩니다. 브라우저 선택기에서 디스플레이, 앱 창 또는 탭을 선택하세요.
-
-</details>
-
-<details>
-<summary>질문, 후속 질문, 검토</summary>
-
-질문은 설치된 코딩 도우미에서 처리하거나 로컬 브리지에서 선택형 API 요청으로 보낼 수 있습니다. 제한된 CLI는 일반 명령 도구를 제거하지만 기업에서 관리하는 hooks는 계속 실행될 수 있으므로 운영 체제 수준의 샌드박스가 아닙니다. 설치된 CLI와 조직에서 설정한 정책 hooks를 신뢰해야 합니다. 후속 질문에는 범위가 제한된 최근 대화 문맥이 포함될 수 있습니다. 자르기, 프레임 고정, 불투명 마스크, 복사, 고정, 최근 10분 타임라인, 요약과 Markdown 내보내기를 지원합니다. 요약은 기존의 수동 메모를 사용하며 새 이미지를 보내지 않습니다. **Clear**는 작업을 중단하고 로컬 프레임, 메모, 기록과 메모리의 API 키를 지웁니다.
-
-</details>
-
-<details>
-<summary>플로팅 창과 브라우저 지원</summary>
-
-지원되는 데스크톱 Chromium 브라우저에서 Document Picture-in-Picture를 사용할 수 있습니다. 이 창의 위치는 브라우저가 제어합니다. 브라우저가 허용하면 팝업 위치를 기억합니다. 컴팩트와 확장 크기는 따로 기억합니다. 창 크기와 팝업 위치, 창 테두리 크기는 로컬 설정 파일과 브라우저 캐시에 저장되어 브리지가 새 포트에서 다시 시작되어도 유지됩니다. 저장소를 사용할 수 없으면 저장을 건너뜁니다. 질문, 이미지, 키, 세션 토큰, 답변 기록은 이 파일에 저장하지 않습니다. 파일 위치는 [설정 문서](docs/CONFIGURATION.md)에서 확인할 수 있습니다.
-
-</details>
-
-<details>
-<summary>소스에서 개발</summary>
-
-Node.js 22 이상에서 `npm ci`, `npm run build`, `npm run build:plugin`을 실행하세요. 전체 검사 목록은 [기여 안내](CONTRIBUTING.md)를 확인하세요. 정적 데모는 테스트 이미지와 녹화된 문장을 사용하며 모델 답변을 요청하지 않습니다.
-
-</details>
+channel이 없으면 별도의 print 모드 프로세스에서 `claude --resume SESSION_ID -p`로 같은 세션을 이어갈 수 있습니다. 이는 병렬 이어쓰기입니다. 같은 세션을 사용하는 터미널 프로세스와 동시에 실행하면 충돌할 수 있습니다.
 
 ## 제한 사항
 
-브라우저 공유가 활성화된 동안 MCP 캡처는 그 공유 화면을 사용합니다. 연결이 끊기거나 응답하지 않으면 실패로 처리하며 마스크가 적용되지 않은 네이티브 캡처로 대체하지 않습니다. 공유가 끊겨도 공유 의도는 유지되며, **Stop sharing**을 명시적으로 누르거나 **Clear**로 로컬 데이터를 지우거나 세션이 만료될 때까지 네이티브 캡처로 전환되지 않습니다. 공유 의도가 끝난 뒤에만 네이티브 캡처를 사용할 수 있으며 플랫폼 도구와 OS 권한에 따라 달라집니다. macOS는 화면, 창, 영역을 지원하고 Windows는 화면을 지원합니다. Linux는 Wayland 또는 X11 도구가 필요합니다. 일반 팝업이 항상 위에 유지된다는 보장은 없습니다. 암호, 커서 위치, 창 제목을 안정적으로 알아낼 수 없습니다. 전송하기 전 이미지를 확인하세요.
+- Chrome, Edge 및 기타 Chromium 브라우저만 지원합니다.
+- `chrome://` 같은 브라우저 내부 페이지, 확장 프로그램 스토어 및 일부 관리 페이지는 접근을 막습니다.
+- 네이티브 앱 위에 그릴 수 없습니다. 화면을 공유해 이미지를 질문할 수 있지만 페이지 오버레이와 텍스트 기능은 사용할 수 없습니다.
+- PDF는 Glimpselet에 포함된 리더를 사용하세요. Chrome 내장 PDF 뷰어는 접근 가능한 웹페이지가 아닙니다.
+- 브라우저 Document Picture-in-Picture API는 클릭 통과를 지원하지 않아 플로팅 창에서 다른 앱으로 클릭을 전달할 수 없습니다. 플로팅 창이나 자동 팝아웃도 보장되지 않습니다. 사용하는 동안 확장 프로그램 페이지를 열어 두세요.
 
-별도의 `screen_watch_start` MCP 도구는 5~60초 간격으로 순차 캡처하고 달라진 프레임만 보관하며 모델을 호출하지 않습니다. 2초 간격으로 설명을 만드는 패널 자동 메모와는 다른 기능입니다.
+## 개인정보 보호
 
-[사용법](docs/USAGE.md) | [설치](docs/INSTALL.md) | [설정](docs/CONFIGURATION.md) | [구조](docs/ARCHITECTURE.md) | [보안 및 개인정보](docs/SECURITY.md) | [플러그인 구성](docs/PLUGIN.md) | [기여](CONTRIBUTING.md) | [MIT 라이선스](LICENSE)
+텔레메트리는 수집하지 않습니다. 동의하면 추천 질문 생성을 위해 페이지 텍스트가 전송될 수 있습니다. 질문과 선택형 수동 요약도 관련 텍스트와 이미지를 보낼 수 있습니다. 프레임은 메모리에 유지되며 캡처 또는 질문 요청 때만 브리지로 전송됩니다. 브리지 모드는 호스트에서 CLI를 실행하고 세션 기록도 호스트에 저장합니다. 직접 API 모드는 확장 프로그램에서 요청을 보냅니다. API 키와 브리지 토큰은 브라우저 세션 저장소에 유지됩니다. 설정은 브라우저 로컬 저장소에 저장됩니다. 자세한 내용은 [보안 및 개인정보](docs/SECURITY.md)를 참고하세요.
+
+## 더 보기
+
+[설치](docs/INSTALL.md) | [사용법](docs/USAGE.md) | [설계 및 통합](docs/DESIGN.md) | [스토어 준비](docs/STORE.md) | [릴리스 노트](docs/releases/v2.0.0.md)
 
 ## Disclosure
 

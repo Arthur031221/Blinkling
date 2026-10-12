@@ -1,5 +1,9 @@
 node_modules
 dist
+dist-extension
+release
+test-results
+playwright-report
 bin
 assets/downloads
 coverage

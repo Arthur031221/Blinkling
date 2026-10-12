@@ -1,96 +1,62 @@
-<p align="center"><img src="assets/logo.svg" width="72" alt="Blink, Glimpselets Begleiter"><br><strong>Glimpselet</strong><br><em>Blink wartet. Du wählst den Ausschnitt. Es antwortet.</em></p>
+# Glimpselet
 
-<p align="center"><a href="README.md">English</a>  |  <a href="README.zh-TW.md">繁體中文</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.ko.md">한국어</a>  |  <a href="README.es.md">Español</a>  |  <a href="README.fr.md">Français</a>  |  <a href="README.pt-BR.md">Português (Brasil)</a></p>
+Glimpselet ist ein kleiner Chat, der über anderen Fenstern bleibt und eine Verbindung zu einer bestehenden Claude-Code-Sitzung herstellt. Er kann zugängliche Webseiten lesen und übersetzen, Hinweise direkt auf der Seite einzeichnen und Seitenbereiche oder Bildschirmaufnahmen für Fragen erfassen.
 
-> Frag deinen Coding-Assistenten in einem kompakten schwebenden Fenster zu einem Bildschirm, den du auswählst. Friere ein Bild ein, schneide es zu, decke private Details ab und stelle deine Frage.
+![Schwebender Glimpselet-Chat](assets/demo.gif)
 
-<p align="center"><img src="assets/demo.gif" width="800" alt="Testbild und aufgezeichnete Antwort im Glimpselet-Fenster"></p>
+![Hinweiskreise direkt auf der echten Webseite](assets/screenshots/guide.png)
 
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Statische Demo öffnen</a>. Sie zeigt ein Testbild und eine aufgezeichnete Antwort. Es gibt keine Anbieteranfragen.</p>
+[Statische Demo öffnen](https://arthur031221.github.io/Glimpselet/). Sie verwendet ein Beispielbild und eine aufgezeichnete Antwort und sendet keine Anfrage an einen Anbieter.
 
-<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="Helles Design bei 420 px"><img src="assets/screenshots/dark-420.png" width="49%" alt="Dunkles Design bei 420 px"></p>
+## Installation
 
-<details>
-<summary>Alle sechs Größen und Designs</summary>
-
-<p><img src="assets/screenshots/light-360.png" width="140" alt="Helles Bedienfeld 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="Helles Bedienfeld 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="Helles Bedienfeld 520 px"></p>
-<p><img src="assets/screenshots/dark-360.png" width="140" alt="Dunkles Bedienfeld 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="Dunkles Bedienfeld 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="Dunkles Bedienfeld 520 px"></p>
-
-</details>
-
-Für den schwebenden Modus brauchst du einen Desktop-Browser auf Chromium-Basis. Halte Node.js 22 oder neuer und einen installierten Coding-Assistenten bereit.
-
-Installiere das Plugin mit zwei Slash-Befehlen:
+Installiere das Glimpselet-Plugin in Claude Code:
 
 ```text
 /plugin marketplace add Arthur031221/Glimpselet
 /plugin install glimpselet@glimpselet
 ```
 
-Starte danach `/glimpselet:glimpse`. Node.js 22 oder neuer ist erforderlich. Eine Browser-Erweiterung gibt es nicht.
+Führe `/glimpse` aus und folge der Einrichtungsanleitung. Sie ist die maßgebliche Quelle für Installation und Kopplung.
 
-## Im Alltag
+### Erweitert: aus dem Quellcode laden
 
-```text
-/glimpselet:glimpse
-Wähle im Browserdialog einen Bildschirm, ein Fenster oder einen Tab.
-Friere ein Bild ein, schneide einen Bereich aus und decke Privates mit undurchsichtigen Masken ab.
-Stelle eine Frage, lies die gestreamte Antwort und frage weiter.
-Kopiere oder hefte die Antwort an und lösche danach die lokale Sitzung.
+1. Öffne `chrome://extensions` in Chrome oder Edge und aktiviere den **Entwicklermodus**.
+2. Wähle **Entpackte Erweiterung laden**.
+3. Wähle den von der Einrichtungsanleitung erstellten Erweiterungsordner aus.
+   > **Entwicklermodus:** Glimpselet wird derzeit im Entwicklermodus verteilt. Bis es einen Store-Eintrag gibt, müssen Updates manuell installiert werden.
+
+## Erfassen und Tastenkürzel
+
+Halte Umschalt in der schwebenden Blase oder auf einer zugänglichen Webseite gedrückt, um einen Bereich auszuwählen. Umschalt funktioniert nicht in anderen Apps. Auf Webseiten erfolgt die Auswahl direkt über der Seite. Bei der Bildschirmfreigabe wird das Bild eingefroren und zum Zuschneiden im Vollbild geöffnet. Enter bestätigt, Esc bricht ab.
+
+Das Browser-Kürzel ist Ctrl+Shift+S (auf dem Mac Cmd+Shift+S). Es startet den Zuschnitt im Browser. Das separate globale Kürzel ist standardmäßig Strg+Umschalt+5, da Chrome für globale Kürzel eine Zahl verlangt. Du kannst es unter `chrome://extensions/shortcuts` ändern, auch auf S.
+
+## Claude-Code-Sitzungen
+
+Die dokumentierte MCP-Channel-Unterstützung kann Nachrichten an eine bereits laufende Claude-Code-Sitzung senden. Glimpselet zeigt Antworten aus den Chunks des Antwort-Tools im Channel an. Modell und Berechtigungen legt weiterhin die Sitzung im Terminal fest. Für den benutzerdefinierten Glimpselet-Channel musst du die Sitzung mit aktiviertem Entwicklungs-Channel neu starten und anschließend `/glimpse` ausführen:
+
+```sh
+claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
 ```
 
-Das Bild bleibt auf deinem Rechner, bis du eine Frage stellst oder passive Notizen aktivierst. Undurchsichtige Masken verändern das gesendete Bild. Passive Notizen erfassen alle zwei Sekunden ein Bild und senden bei Änderungen eine Anfrage für eine kurze Beschreibung. Standardmäßig sind es höchstens sechs Anfragen pro rollender Minute, also maximal 360 pro Stunde. Das ist eine Anfragengrenze und keine Kostenangabe. Eine niedrigere Grenze ist möglich.
+Ohne Channel kann Glimpselet dieselbe Sitzung mit `claude --resume SESSION_ID -p` in einem separaten Print-Modus-Prozess fortsetzen. Das ist eine parallele Fortsetzung. Führe sie nicht gleichzeitig mit dem Terminalprozess für dieselbe Sitzung aus. Gleichzeitiger Zugriff kann zu Konflikten führen.
 
-MCP Bildschirmwerkzeuge geben Bilder auf Anfrage an die Programmiersitzung zurück. Aufnahmen aus dem Panel sind nach Zuschnitt und Abdeckung auf 1536 Pixel an der längsten Seite und 1,8 Millionen Pixel begrenzt. Kleinere ausgewählte Bereiche behalten ihre ursprüngliche Auflösung.
+## Einschränkungen
 
-**Du entscheidest, wann du teilst, die Beobachtung startet nie von allein.**
+- Nur Chrome, Edge und andere Chromium-Browser.
+- Interne Browserseiten wie `chrome://`, der Erweiterungsstore und manche verwalteten Seiten blockieren den Zugriff.
+- Glimpselet kann nicht über nativen Apps zeichnen. Du kannst deren Bildschirm freigeben und zum Bild fragen, aber Seiten-Overlays und Textaktionen gibt es dort nicht.
+- PDFs öffnest du im mitgelieferten Glimpselet-Reader. Der integrierte PDF-Viewer von Chrome ist keine zugängliche Seite.
+- Die Document-Picture-in-Picture-API des Browsers unterstützt keine Klick-Durchlässigkeit. Daher kann das schwebende Fenster Klicks nicht an andere Apps weitergeben. Der Browser garantiert weder ein schwebendes Fenster noch das automatische Ausklappen. Lass die Erweiterungsseite geöffnet, solange du das Fenster nutzt.
 
-## Einzelheiten
+## Datenschutz
 
-<details>
-<summary>Bedienung und Status</summary>
+Es wird keine Telemetrie erfasst. Mit deiner Zustimmung kann Seitentext zum Erstellen von Fragen gesendet werden. Fragen und optionale passive Zusammenfassungen können ebenfalls relevante Texte und Bilder senden. Frames bleiben im Arbeitsspeicher und werden nur bei Aufnahme- oder Frageanfragen an die Bridge gesendet. Im Bridge-Modus läuft die CLI auf dem Host und speichert dort Sitzungsprotokolle. Im direkten API-Modus sendet die Erweiterung Anfragen. API-Schlüssel und Bridge-Tokens bleiben im Sitzungsspeicher des Browsers. Einstellungen liegen im lokalen Browserspeicher. Details stehen unter [Sicherheit und Datenschutz](docs/SECURITY.md).
 
-Ziehe zum Ändern der Größe an den Fensterkanten oder nutze die Größensteuerung und Pfeiltasten. Im Zuschneide- oder Abdeckmodus verschieben die Pfeile die Auswahl, Umschalt plus Pfeiltasten ändern ihre Größe, Enter übernimmt sie und Escape bricht ab. Escape im Fragefeld pausiert passive Notizen und bricht die aktuelle Frage ab, ohne ihren Text zu löschen. Einstellungen öffnen sich in einem Dialog. Ältere Antworten lassen sich lösen. **Zuletzt gesendetes Bild** kennzeichnet das mit einer Frage gesendete Standbild. **Livevorschau anzeigen** kehrt ohne eine weitere Frage zur geteilten Bildschirmansicht zurück und behält Zuschnitt und Masken bei. **Passive Notizen pausieren** bricht den laufenden passiven Streaming-Auftrag ab und verhindert weitere Notizen, bis du sie fortsetzt. Die Tasten S/E/T/P funktionieren nur, wenn die Bildschirmvorschau fokussiert ist. Die Schaltflächen bleiben per Tastatur erreichbar. Beim Scrollen nach oben endet das Folgen einer gestreamten Antwort. Das Panel zeigt den Freigabe-, Modell- und Passivnotiz-Status.
+## Weitere Informationen
 
-Vergleichsantworten behalten Tabellenüberschriften und Spalten bei. Breite Tabellen lassen sich innerhalb der Antwort horizontal scrollen. Fokussiere die Antwort und nutze die Pfeiltasten, um weitere Spalten zu lesen.
-
-</details>
-
-<details>
-<summary>Installation und Start</summary>
-
-Die beiden Befehle oben fügen das gebündelte Plugin hinzu und installieren es. `/glimpselet:glimpse` öffnet ein lokales Panel auf einem zufälligen Port. Der einmal nutzbare Link läuft nach 60 Sekunden ab, die Sitzung im Arbeitsspeicher dauert 30 Minuten. Wähle im Browserdialog einen Bildschirm, ein App-Fenster oder einen Tab.
-
-</details>
-
-<details>
-<summary>Fragen, Nachfragen und Prüfen</summary>
-
-Fragen laufen über den installierten Coding-Assistenten oder optional über eine API-Anfrage der lokalen Bridge. Das eingeschränkte CLI entfernt gewöhnliche Kommandozeilenwerkzeuge, aber von Unternehmen verwaltete Hooks können weiterhin ausgeführt werden. Es ist daher keine Sandbox auf Betriebssystemebene. Du musst dem installierten CLI und den von deiner Organisation konfigurierten Richtlinien-Hooks vertrauen. Nachfragen können begrenzten jüngsten Kontext enthalten. Das Panel bietet Zuschneiden, Einfrieren, undurchsichtige Masken, Kopieren, Anheften, eine Zeitleiste der letzten zehn Minuten, Zusammenfassung und Markdown-Export. Die Zusammenfassung nutzt vorhandene passive Notizen und sendet kein neues Bild. **Clear** bricht laufende Jobs ab und entfernt lokale Bilder, Notizen, Verlauf und den API-Schlüssel im Arbeitsspeicher.
-
-</details>
-
-<details>
-<summary>Schwebendes Fenster und Browser</summary>
-
-Document Picture-in-Picture ist in unterstützten Desktop Chromium Browsern verfügbar. Der Browser bestimmt die Position dieses Fensters. Kompakte und erweiterte Maße, Popup-Position und Fensterrahmen werden über Bridge-Neustarts hinweg in einer lokalen Geometriedatei und im Browser-Cache gespeichert, sofern der Speicher verfügbar ist. Die Speicherorte stehen unter [Konfiguration](docs/CONFIGURATION.md).
-
-</details>
-
-<details>
-<summary>Aus dem Quelltext entwickeln</summary>
-
-Installiere Node.js 22 oder neuer und führe `npm ci`, `npm run build` und `npm run build:plugin` aus. Alle Prüfungen stehen im [Beitragsleitfaden](CONTRIBUTING.md). Die statische Demo nutzt ein Testbild und aufgezeichneten Text, sie fragt kein Modell an.
-
-</details>
-
-## Grenzen
-
-Bei aktiver Browserfreigabe verwenden MCP-Aufnahmen diese Quelle. Wenn sie getrennt wird oder nicht antwortet, schlägt die Aufnahme fehl, ein natives Bild ohne Masken wird nicht ersatzweise verwendet. Nach einer Trennung bleibt die Freigabeabsicht bestehen, bis du die Freigabe ausdrücklich beendest, lokale Daten mit **Clear** löschst oder die Sitzung abläuft. Bis dahin wird keine native Aufnahme verwendet. Danach hängen native Aufnahmen von Plattformwerkzeugen und Systemberechtigungen ab: macOS unterstützt Bildschirm, Fenster und Bereich, Windows den Bildschirm, unter Linux hängt es von Wayland- oder X11-Werkzeugen ab. Ein Popup bleibt nicht garantiert immer im Vordergrund. Passwörter, Cursorpositionen und Fenstertitel lassen sich nicht zuverlässig erkennen. Prüfe jedes Bild vor dem Senden.
-
-Das separate MCP-Werkzeug `screen_watch_start` nimmt seriell alle 5 bis 60 Sekunden Bilder auf, behält nur veränderte Bilder und ruft kein Modell auf. Es unterscheidet sich von den passiven Panel-Notizen, die alle zwei Sekunden erfassen und Beschreibungen anfordern.
-
-[Nutzung](docs/USAGE.md) | [Installation](docs/INSTALL.md) | [Konfiguration](docs/CONFIGURATION.md) | [Architektur](docs/ARCHITECTURE.md) | [Sicherheit](docs/SECURITY.md) | [Plugin-Aufbau](docs/PLUGIN.md) | [Mitwirken](CONTRIBUTING.md) | [MIT-Lizenz](LICENSE)
+[Installation](docs/INSTALL.md) | [Nutzung](docs/USAGE.md) | [Design und Integration](docs/DESIGN.md) | [Store-Vorbereitung](docs/STORE.md) | [Versionshinweise](docs/releases/v2.0.0.md)
 
 ## Disclosure
 

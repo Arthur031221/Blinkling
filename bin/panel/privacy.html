@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Glimpselet privacy policy: what the extension reads, sends and stores."
+    />
+    <title>Glimpselet Privacy Policy</title>
+  </head>
+  <body>
+    <main>
+      <h1>Glimpselet Privacy Policy</h1>
+      <p>Last updated: 12 October 2026</p>
+      <p>
+        Glimpselet has no telemetry. It does not send analytics or diagnostic
+        events to its publisher. This policy explains what the extension reads,
+        where user data goes, and how it is stored.
+      </p>
+
+      <h2>Information the extension can access</h2>
+      <p>
+        When you invoke Glimpselet on a page, it can read bounded visible page
+        text and descriptions of selected interactive elements. It skips hidden,
+        editable, private and password fields and does not read form values. You
+        can choose to capture a visible tab, full page, region, element, or
+        screen in the browser's share picker. Images may contain information
+        that cannot be recognized by text filters. Review a capture before
+        asking a question.
+      </p>
+      <p>
+        Page tools ask the browser for access to the site when you use them. You
+        can manage site access in the browser's extension settings. The sample
+        article and PDF in the welcome guide are bundled practice files. Opening
+        them does not send their contents anywhere by itself.
+      </p>
+
+      <h2>When information is sent</h2>
+      <p>
+        After you consent, page text may be sent to create suggested questions.
+        When you ask a question or use a page action, relevant text and images
+        may be sent to the selected backend. Passive summaries are optional and
+        off until enabled. While screen sharing is active, the latest frame is
+        kept only in bubble memory and updated as the shared screen changes.
+        Passive summaries skip pages where Glimpselet detects password fields
+        and hosts on your blocklist, and are limited to six requests per rolling
+        minute. Detection is not complete for every sensitive page.
+      </p>
+      <p>
+        In bridge mode, the extension sends your question, relevant page context
+        and optional image to the loopback bridge on the computer running the
+        plugin. The bridge runs the installed command-line assistant. Images
+        used by that process are placed in a private temporary directory and
+        removed after the request. The command-line assistant stores persistent
+        conversation transcripts on the host using its UUID session system. If
+        you choose a recent session, Glimpselet resumes that exact conversation
+        in a parallel process. With a live channel enabled, questions enter the
+        running terminal conversation and replies return through MCP tools.
+      </p>
+      <p>
+        In direct API mode, the extension sends the question, relevant page
+        context and optional image directly to the API service using the API key
+        you entered. The key is not sent to the local bridge. The service's data
+        practices and retention terms apply to these requests.
+      </p>
+
+      <h2>Storage</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th>What is stored</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Browser local storage</td>
+            <td>
+              Consent, language, backend and model choices, target language,
+              passive-mode preference, host blocklist and last observed
+              floating-window size.
+            </td>
+          </tr>
+          <tr>
+            <td>Browser session storage</td>
+            <td>
+              Bridge token, bridge connection settings and direct API key.
+              Captures and shared frames remain only in bubble memory. Browser
+              session storage is cleared when the browser session ends.
+            </td>
+          </tr>
+          <tr>
+            <td>Host process memory</td>
+            <td>
+              Temporary pairing state, active requests, short follow-up context
+              and connection metadata. It is cleared when the bridge stops.
+            </td>
+          </tr>
+          <tr>
+            <td>Host command-line assistant</td>
+            <td>
+              Persistent UUID conversation transcripts stored according to that
+              program's session behavior. Glimpselet does not keep these
+              transcripts in browser storage.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Cost and sharing controls</h2>
+      <p>
+        The bridge can report usage cost, which Glimpselet adds over the
+        preceding hour as an estimate. Direct API mode estimates token costs
+        using the bundled model rates. Live channel replies have no
+        authoritative usage report. Passive requests are rate-limited, but the
+        limit is not a spending cap. Cost depends on the selected model,
+        context, images, output and current provider pricing. Check your
+        provider account for actual charges.
+      </p>
+      <p>
+        Screen sharing starts only after you choose a source in the browser
+        picker. Closing the floating window stops the share. You can pause or
+        turn off passive mode at any time. Ending the browser session clears
+        session storage, including the API key. You can remove the extension and
+        its browser data through the browser's extension settings.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        For privacy questions, open an issue at
+        <a href="https://github.com/Arthur031221/Glimpselet/issues"
+          >the Glimpselet issue tracker</a
+        >.
+      </p>
+    </main>
+  </body>
+</html>

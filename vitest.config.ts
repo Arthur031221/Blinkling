@@ -6,6 +6,8 @@ export default defineConfig({
       "src/**/*.test.ts",
       "bridge/src/**/*.test.ts",
       "bridge/test/**/*.test.ts",
+      "extension/**/*.test.ts",
+      "scripts/**/*.test.mjs",
     ],
   },
 });

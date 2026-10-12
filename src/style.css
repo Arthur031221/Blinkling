@@ -133,6 +133,11 @@ select:focus-visible {
   display: flex;
   gap: 6px;
 }
+.float-primary {
+  margin: 12px 18px 0;
+  flex-shrink: 0;
+  align-self: stretch;
+}
 .header-actions button {
   display: inline-flex;
   align-items: center;

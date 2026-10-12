@@ -1289,6 +1289,17 @@ function App() {
           </button>
         </div>
       </header>
+      <button
+        ref={floatingButton}
+        className="float-primary primary"
+        onClick={() =>
+          floatDoc
+            ? (floatDoc.defaultView?.focus(), setStatus(t.returnPanel))
+            : void openFloat()
+        }
+      >
+        {floatDoc ? t.returnOpener : t.floating}
+      </button>
       <div className="status">
         <span className="status-source">
           <span
@@ -1887,17 +1898,6 @@ function App() {
             {t.popupFallbackAction}
           </button>
         )}
-        <button
-          ref={floatingButton}
-          disabled={!demo && !session}
-          onClick={() =>
-            floatDoc
-              ? (floatDoc.defaultView?.focus(), setStatus(t.returnPanel))
-              : void openFloat()
-          }
-        >
-          {floatDoc ? t.returnOpener : t.floating}
-        </button>
       </footer>
     </main>
   );

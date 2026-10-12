@@ -1,47 +1,46 @@
-# Install
+# Install Glimpselet
 
-Glimpselet is a bundled plugin for the coding assistant. Before installing, have Node.js 22 or newer and the coding assistant version 2.1.296 or newer installed. Use a desktop Chromium browser for floating mode. The [README](../README.md) has a terminal installer for each host. From an interactive coding session, these commands install the same plugin:
+Install the Glimpselet plugin with these two commands in Claude Code:
 
 ```text
 /plugin marketplace add Arthur031221/Glimpselet
 /plugin install glimpselet@glimpselet
 ```
 
-The installed plugin does not need a checkout or a separate package install. Run `/glimpselet:glimpse` to open the panel. It starts a bridge bound to loopback on a random port and opens the browser. If automatic browser opening fails, use the one-time link returned by the command. It expires after 60 seconds and can be exchanged once.
+Run `/glimpselet:glimpse` to pair and start. The extension is copied to the stable `~/.glimpselet/extension` directory. If a desktop browser is available on the same computer, the installer opens the browser's extension page and reveals the folder.
 
-The plugin contains its bridge and static panel. There is no browser extension. The bridge session lasts 30 minutes. To use the optional API backend, add a key in panel Settings. The key stays in bridge process memory and is not written to browser storage or a file.
+## Load the unpacked extension
 
-## Browser support
+Choose `~/.glimpselet/extension` in desktop Chrome or Edge:
 
-Screen sharing uses the browser's display media picker and requires a user choice and browser or operating system permission. Document Picture-in-Picture requires a user gesture and is available in desktop Chromium browsers, including Chrome and Edge 116 or newer. Otherwise the panel opens in a regular popup. The browser controls Document Picture-in-Picture placement. Popup placement is remembered where the browser allows it.
+1. Open `chrome://extensions` or `edge://extensions` and turn on **Developer mode**.
+2. Choose **Load unpacked**.
+3. Select `~/.glimpselet/extension`.
 
-## Build from a checkout
+Browsers require a user to confirm an unpacked extension this way. Silent installation is available only through managed enterprise policy. The Developer mode banner remains visible, and updates require running the install command again and reloading the extension until a store listing is available.
 
-Install Node.js 22 or newer, run `npm ci`, then `npm run build` and `npm run build:plugin`. To validate the generated bundle locally, run `npm run validate:plugin`. See [contributing](../CONTRIBUTING.md) for development checks.
+`config/distribution.json` selects the install flow. Leave both URLs empty to show the three-step unpacked instructions. After store approval, fill `chromeWebStoreUrl` and/or `edgeAddonsUrl` with the approved listing URL. The guide then shows the matching one-click store link and moves source loading under Advanced. `GLIMPSELET_DISTRIBUTION_CONFIG` can point to the JSON file when Glimpselet runs outside the repository checkout. The installer accepts only HTTPS listing URL patterns for the named stores.
 
-## Native capture prerequisites
+## Zero-install desktop mode
 
-Browser sharing does not need native screenshot tools. The native MCP capture path is separate and is used only without an active browser share.
+Run `npm run build:extension`, then `node scripts/launch-browser.mjs`. The launcher works from the shipped `bin` directory without `node_modules`: when it cannot import Playwright, it installs pinned Playwright 1.64.0 under `~/.glimpselet/runtime`, then installs Chromium there on first use. It loads the extension into a separate persistent profile at `~/.glimpselet/chromium-profile`. Set `GLIMPSELET_TRIAL_URL` to open a page after launch. Close the Chromium window, or send the launcher SIGTERM, to stop it. This mode requires a graphical desktop on the same computer as Claude Code. A remote SSH host cannot open the browser window. Use the remote tunnel flow below.
 
-<details>
-<summary>macOS</summary>
+## Connect the browser and host
 
-Use the plugin commands above. Allow screen recording for the terminal or application that runs the bridge in System Settings. Native capture uses the system screenshot utility.
+On one computer, the extension connects to the loopback bridge directly. `/glimpselet:glimpse` prints a one-use pairing code. Open the extension, enter the bridge port and code, and pair. Confirm the connection in the extension panel.
 
-</details>
+When Claude Code runs on a remote host, run the SSH local-forward command printed by `/glimpselet:glimpse` on the computer with the browser. The welcome page also shows and can copy the command when `/install/status?code=...` returns a `tunnelCommand` string. It has this form:
 
-<details>
-<summary>Windows</summary>
+```sh
+ssh -N -L 37115:127.0.0.1:37115 user@remote-host
+```
 
-Use the plugin commands above with Node.js 22 or newer on PATH. Native screen capture uses Windows PowerShell and the system drawing APIs. Browser sharing is the route for selecting one app window or tab.
+The tunnel forwards the browser's local loopback connection to the host's loopback bridge. Do not expose the bridge port publicly. The dedicated zero-install browser mode is unavailable on a remote host because it has no local desktop.
 
-</details>
+When the browser computer has no local CLI, choose direct API mode in extension settings and enter an API key. The key is held in `chrome.storage.session` and is not sent to the bridge.
 
-<details>
-<summary>Linux</summary>
+## Browser and page limits
 
-Use the plugin commands above with Node.js 22 or newer on PATH. For native capture on Wayland, install `grim`, with `slurp` for interactive regions. On X11, install `maim` or `scrot`. If those tools are absent, the floating panel and browser sharing still work.
+Use desktop Chrome, Edge, or another Chromium browser. Firefox and Safari are unsupported. Browser extensions cannot run on browser settings, the extension store, some built-in pages, or pages blocked by browser or organization policy. The built-in PDF viewer cannot be inspected as an ordinary page. Use **Open in Glimpselet reader** for PDF interaction. Non-browser apps can be screen-shared through the browser picker, but page overlays and page controls are only available on accessible web pages.
 
-</details>
-
-The release was checked with Chromium on Linux. The macOS and Windows native paths were not exercised on this host.
+The welcome page has an English / 繁體中文 switch and an eight-step practice tour. Progress is saved in that browser and **Replay tour** clears it. Pairing status is checked at `GET /install/status?code=...`. The page moves to the tour when the bridge reports `connected: true` and shows the reported mode. The zero-install button sends `POST /install/try?code=...`. It is hidden when the reported mode is remote. Each **Try** button opens the bundled article or PDF and sends a same-origin `glimpselet:tutorial-action` message with version, action, step, and optional pairing code. The article accepts messages only from its same-origin opener, checks the action against the eight supported steps, then dispatches a `glimpselet:tutorial-action` DOM `CustomEvent` on `window`. The extension content script should listen for this event and relay its `detail` to the extension runtime. The payload shape is `{ type: "glimpselet:tutorial-action", version: 1, action, step, code }`. The article displays the prompt but does not grant permissions or send page contents to the bridge. Pop-up blocking is reported beside the Try button.

@@ -1,96 +1,63 @@
-<p align="center"><img src="assets/logo.svg" width="72" alt="Glimpselet 的夥伴 Blink"><br><strong>Glimpselet</strong><br><em>Blink 等著。你指出畫面。它來回答。</em></p>
+# Glimpselet
 
-<p align="center"><a href="README.md">English</a>  |  <a href="README.zh-CN.md">简体中文</a>  |  <a href="README.ja.md">日本語</a>  |  <a href="README.ko.md">한국어</a>  |  <a href="README.es.md">Español</a>  |  <a href="README.fr.md">Français</a>  |  <a href="README.de.md">Deutsch</a>  |  <a href="README.pt-BR.md">Português (Brasil)</a></p>
+Glimpselet 是一個會保持在其他視窗上方的小型聊天視窗，可連線至現有的 Claude Code 工作階段。它可以讀取及翻譯可存取的網頁、在實際頁面上繪製指引，並擷取網頁區域或分享螢幕畫面來回答問題。
 
-> 在精簡的浮動面板中，向程式設計助理詢問你選取的螢幕。凍結畫面、裁切或遮住私人資訊，再提出問題。
+![Glimpselet 浮動聊天示範](assets/demo.gif)
 
-<p align="center"><img src="assets/demo.gif" width="800" alt="Glimpselet 面板中的測試畫面與預錄回答"></p>
+![繪製在實際頁面上的指引圓圈](assets/screenshots/guide.png)
 
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">開啟靜態示範</a>。示範使用測試圖片與預錄回答，不會呼叫任何服務。</p>
+[開啟靜態示範](https://arthur031221.github.io/Glimpselet/)。示範使用範例圖片與預錄回答，不會呼叫供應商服務。
 
-<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="420 px 淺色主題"><img src="assets/screenshots/dark-420.png" width="49%" alt="420 px 深色主題"></p>
+## 安裝
 
-<details>
-<summary>全部六種尺寸與主題</summary>
-
-<p><img src="assets/screenshots/light-360.png" width="140" alt="淺色面板 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="淺色面板 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="淺色面板 520 px"></p>
-<p><img src="assets/screenshots/dark-360.png" width="140" alt="深色面板 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="深色面板 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="深色面板 520 px"></p>
-
-</details>
-
-浮動模式需要桌面版 Chromium 瀏覽器。安裝前請備妥 Node.js 22 以上版本，以及已安裝的程式設計助理。
-
-透過兩個斜線指令安裝整合套件：
+在 Claude Code 中安裝 Glimpselet 外掛：
 
 ```text
 /plugin marketplace add Arthur031221/Glimpselet
 /plugin install glimpselet@glimpselet
 ```
 
-接著執行 `/glimpselet:glimpse`。需要 Node.js 22 以上版本，不需要瀏覽器擴充功能。
+執行 `/glimpse` 並依照設定指南操作。安裝與配對步驟以該指南為準。
 
-## 平常怎麼用
+### 進階：從原始碼載入
 
-```text
-/glimpselet:glimpse
-在瀏覽器選擇器中選取螢幕、視窗或分頁。
-凍結畫面、裁切區域，並以不透明遮罩蓋住私人資訊。
-提出問題，閱讀串流回答，再繼續追問。
-複製或釘選回答，結束後清除本機工作階段。
+1. 在 Chrome 或 Edge 開啟 `chrome://extensions`，啟用**開發人員模式**。
+2. 選擇**載入未封裝項目**。
+3. 選取設定指南提供的擴充功能資料夾。
+
+> **開發人員模式：** Glimpselet 目前以開發人員模式發佈。在應用程式商店上架前，更新都必須手動安裝。
+
+## 擷取與快捷鍵
+
+在浮動泡泡或可存取的網頁上按住 Shift，即可開始裁切。Shift 無法監聽其他應用程式中的按鍵。網頁區域會直接在目前頁面上框選。分享螢幕時，畫面會凍結並以全螢幕顯示供你裁切。按 Enter 確認，按 Esc 取消。
+
+瀏覽器裁切快捷鍵是 Ctrl+Shift+S，Mac 為 Cmd+Shift+S，可在瀏覽器中啟動裁切。全域快捷鍵預設為 Ctrl+Shift+5，因為 Chrome 的全域快捷鍵必須包含數字鍵。你可以在 `chrome://extensions/shortcuts` 修改，也可改成 S。
+
+## Claude Code 工作階段
+
+有文件說明的 MCP channel 支援可將訊息送進正在執行的 Claude Code 工作階段。Glimpselet 會從 channel 回覆工具的分段內容鏡像顯示回覆。終端機中的工作階段控制模型與權限。若要加入 Glimpselet 自訂 channel，請以開發 channel 重新啟動工作階段，再執行 `/glimpse`：
+
+```sh
+claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
 ```
 
-提出問題或啟用被動筆記前，畫面只留在本機。不透明遮罩會修改送出的影像。被動筆記每兩秒取樣一次，為變動畫面送出簡短描述請求，預設每個滾動分鐘最多六次（每小時最多 360 次）。這是請求數上限，不代表費用，也可調低。
-
-呼叫 MCP 螢幕工具時，影像會回傳給程式工作階段。面板截圖在裁切和遮罩處理後，最長邊限制為 1536 像素，總像素數限制為 180 萬。較小的選取區域會保留原始解析度。
-
-**畫面由你決定何時分享，程式不會自行開始觀看。**
-
-## 詳細說明
-
-<details>
-<summary>操作與狀態</summary>
-
-使用面板的尺寸控制或方向鍵調整大小。瀏覽器允許時，也可拖曳視窗邊緣調整。在裁切或遮罩模式中，方向鍵移動選取區域，Shift 加方向鍵調整大小，Enter 套用，Escape 取消。在問題輸入框中按 Escape 會暫停被動筆記，並保留輸入內容後取消目前的問題。設定會以模態視窗開啟。可以解除較早回答的釘選。**上次傳送的畫面**標示隨問題送出的靜態影像。**顯示即時預覽**會返回共享螢幕的即時畫面，不會再次送出問題，並保留裁切與遮罩。**暫停被動筆記**會取消正在串流的被動工作，並停止後續筆記，直到你恢復。S/E/T/P 快速鍵僅在螢幕預覽取得焦點時生效。按鈕仍可透過鍵盤操作。向上捲動會停止跟隨串流回答。面板會顯示分享、模型與被動筆記狀態。
-
-比較回答會保留表格的欄位與標題。較寬的表格可在回答內水平捲動。將焦點移到回答後，可用方向鍵查看其他欄位。
-
-</details>
-
-<details>
-<summary>安裝與開啟</summary>
-
-上方兩個指令會加入並安裝整合套件。執行 `/glimpselet:glimpse`，即可在隨機連接埠開啟本機面板。一次性連結 60 秒後失效且只能兌換一次，記憶體中的面板工作階段維持 30 分鐘。瀏覽器選擇器會讓你選擇顯示器、應用程式視窗或分頁。
-
-</details>
-
-<details>
-<summary>提問、追問與檢視</summary>
-
-問題會透過已安裝的程式設計助理處理，也可由本機橋接程式發出選用 API 請求。受限 CLI 會移除一般命令工具，但企業管理的 hooks 仍可能執行，因此它不是作業系統層級的沙箱，仍須信任已安裝的 CLI 及組織設定的政策 hooks。追問可帶入範圍有限的近期脈絡。面板支援裁切、凍結、不透明遮罩、複製、釘選、最近十分鐘時間軸、摘要和 Markdown 匯出。摘要使用現有的被動筆記，不會另外傳送新的影像。清除會中止工作並移除本機影格、筆記、歷史與記憶體中的 API 金鑰。
-
-</details>
-
-<details>
-<summary>浮動視窗與瀏覽器支援</summary>
-
-支援的桌面 Chromium 瀏覽器可使用 Document Picture-in-Picture。此視窗的位置由瀏覽器控制。精簡與展開尺寸、彈出視窗位置及視窗框線會儲存在僅含幾何資訊的本機檔案和瀏覽器快取中，因此橋接程式以隨機連接埠重新啟動後仍可還原。儲存空間無法使用時會盡力保存。檔案位置請見[設定說明](docs/CONFIGURATION.md)。
-
-</details>
-
-<details>
-<summary>從原始碼開發</summary>
-
-需要 Node.js 22 以上版本，接著執行 `npm ci`、`npm run build` 和 `npm run build:plugin`。完整檢查請見[貢獻指南](CONTRIBUTING.md)。靜態示範使用測試圖片與預錄文字，不會呼叫模型。
-
-</details>
+沒有 channel 時，Glimpselet 可用另一個 print 模式程序透過 `claude --resume SESSION_ID -p` 延續同一工作階段。這是平行延續。請勿與終端機中使用同一工作階段的程序同時執行，以免存取衝突。
 
 ## 限制
 
-瀏覽器分享啟用時，MCP 擷取會使用該分享來源。若來源中斷或無法回應，就會直接失敗，不會改用未套用遮罩的原生擷取。分享中斷後，分享意圖仍會保留，直到明確停止分享、清除本機資料或工作階段到期。在此之前不會改用原生擷取。分享意圖結束後，原生擷取才可使用，且會受平台工具與作業系統權限限制：macOS 支援螢幕、視窗與區域，Windows 支援螢幕，Linux 依 Wayland 或 X11 工具而定。一般彈出視窗不保證置頂。程式無法可靠辨識密碼、游標或視窗標題。送出前請檢查每張影格。
+- 僅支援 Chrome、Edge 及其他 Chromium 瀏覽器。
+- `chrome://` 等瀏覽器內部頁面、擴充功能商店及部分受管理頁面會限制擴充功能存取。
+- Glimpselet 無法在原生應用程式上繪圖。可分享螢幕並詢問畫面，但無法使用網頁覆蓋層與文字操作。
+- PDF 請使用 Glimpselet 隨附的閱讀器。Chrome 內建 PDF 檢視器不是可存取的網頁。
+- 瀏覽器的 Document Picture-in-Picture API 不支援點擊穿透，因此浮動視窗無法將點擊傳遞至其他應用程式。瀏覽器也無法保證浮動視窗或自動彈出。使用浮動視窗時，請保持擴充功能頁面開啟。
 
-另一個 `screen_watch_start` MCP 工具可依指定的 5 至 60 秒間隔連續取樣，只保留有變化的影格，且不呼叫模型。它與面板每兩秒取樣並產生敘述的被動筆記不同。
+## 隱私
 
-更多內容：[使用方式](docs/USAGE.md)、[安裝](docs/INSTALL.md)、[設定](docs/CONFIGURATION.md)、[架構](docs/ARCHITECTURE.md)、[安全與隱私](docs/SECURITY.md)、[套件結構](docs/PLUGIN.md)、[貢獻](CONTRIBUTING.md)、[MIT 授權](LICENSE)。
+不收集遙測資料。取得同意後，頁面文字可能會傳送以產生建議問題。提問與自願啟用的被動摘要也會傳送相關文字和圖片。畫面保留在記憶體中，僅在擷取或提問請求時傳送至橋接服務。橋接模式會在主機執行 CLI，工作階段逐字稿也保存在主機。直接 API 模式會從擴充功能送出請求。API 金鑰與橋接權杖保存在瀏覽器工作階段儲存空間。偏好設定保存在瀏覽器本機儲存空間。詳見[安全與隱私](docs/SECURITY.md)。
+
+## 更多資訊
+
+[安裝](docs/INSTALL.md) | [使用方式](docs/USAGE.md) | [設計與整合](docs/DESIGN.md) | [商店準備](docs/STORE.md) | [發行說明](docs/releases/v2.0.0.md)
 
 ## Disclosure
 

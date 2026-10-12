@@ -1,0 +1,73 @@
+{
+  "manifest_version": 3,
+  "name": "Glimpselet",
+  "version": "2.0.0",
+  "description": "A small floating assistant for the page or screen you choose to share.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "optional_host_permissions": [
+    "https://api.anthropic.com/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/install*",
+        "http://localhost/install*",
+        "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+        "http://localhost/assets/glimpselet-welcome-sample.html"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Open Glimpselet"
+  },
+  "commands": {
+    "open-glimpselet": {
+      "suggested_key": {
+        "default": "Alt+Shift+G"
+      },
+      "description": "Open Glimpselet"
+    },
+    "pause-passive": {
+      "suggested_key": {
+        "default": "Alt+P"
+      },
+      "description": "Pause passive reading"
+    },
+    "crop-screen": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Crop the shared screen or current page"
+    },
+    "crop-global": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+5",
+        "mac": "Command+Shift+5"
+      },
+      "description": "Crop from any app. Remap in browser shortcut settings.",
+      "global": true
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

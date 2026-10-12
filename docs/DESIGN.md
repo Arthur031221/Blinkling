@@ -1,0 +1,51 @@
+# Design and integration
+
+## Floating window
+
+Google Meet keeps meeting controls in a movable, resizable picture in picture window while another tab or app is in use. Its controls return to the meeting or end the call. Closing that window returns to the meeting. Eligible conferencing pages can request automatic opening after a tab switch. See [Meet window controls](https://support.google.com/meet/answer/13665919?hl=en) and [presenting in Meet](https://support.google.com/meet/answer/9308856?hl=en).
+
+Glimpselet uses [Document Picture in Picture](https://developer.chrome.com/docs/web-platform/document-picture-in-picture). The toolbar or Open shortcut opens the companion page. **Float** is its first action. A fresh click is required to open the floating window. Chrome limits [automatic opening](https://developer.chrome.com/blog/automatic-picture-in-picture) to eligible conferencing pages, so Glimpselet offers one prominent click. The browser owns position and may reuse it. Glimpselet remembers observed dimensions and offers compact and expanded states. The opener must stay open. Closing the bubble stops sharing.
+
+Screen sharing starts inside the bubble. The browser picker chooses a tab, window or screen, including native apps. Guides and translation use the DOM of an accessible web page. Native apps have pixels only.
+
+## Full screen and Shift crop
+
+Crop freezes shared video at its native resolution. The bubble contents fade out, a fresh video frame is awaited, and the frozen image fills the opener window. The selector uses `requestFullscreen()` when gesture activation is available. An extension command can instead focus the opener and temporarily set its browser window to fullscreen. The previous window state is restored on completion or cancellation.
+
+The selector dims the outside, shows pixel dimensions and has eight resize handles. Enter confirms. Esc cancels. Arrow keys create or move a rectangle, Shift moves ten pixels, and Ctrl or Command with arrows resizes it. Pointer coordinates map back to native frame pixels, including display scaling. The crop appears in the bubble. On a web page the same selector overlays the live page.
+
+Holding Shift for 200 ms enters crop mode unless focus is in an editable control. Releasing early or pressing another key cancels the hold, preserving Shift+Tab and ordinary typing. This shortcut can be disabled. Bubble contents become 25 percent opaque during selection. Document PiP exposes no native window opacity or click through API, so its browser frame cannot become transparent or pass pointer events to another app. Move the bubble away on systems whose screen capture includes that frame.
+
+The dedicated trial browser enables Chromium's experimental `ExcludePipFromScreenCapture` feature. Chromium currently disables it by default. Support depends on the browser build and capture source. This can omit the native PiP window from capture, but does not make it transparent on screen. A regular installed browser keeps its own settings. See the [Chromium feature declaration](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/media/capture/capture_switches.cc) and [capture exclusion implementation](https://chromium.googlesource.com/chromium/src/+/d6870cd14078040dc0cba81d9c9780577ff00a58).
+
+Chrome [commands](https://developer.chrome.com/docs/extensions/reference/api/commands) restrict default global shortcuts to Ctrl+Shift plus a digit. The browser crop command uses Ctrl+Shift+S, or Command+Shift+S on macOS. The global command defaults to Ctrl+Shift+5 and can be remapped at `chrome://extensions/shortcuts`. A page alone cannot hear Shift in another app.
+
+## The running Claude Code conversation
+
+The chosen integration is a documented [Claude Code channel](https://code.claude.com/docs/en/channels), which pushes messages into a running interactive session. The MCP server declares `experimental: {"claude/channel": {}}` and sends `notifications/claude/channel`. A nonce delivered through the channel must be returned by the session before live mode is offered. Ordinary MCP connectivity cannot be mistaken for live delivery. The [channel reference](https://code.claude.com/docs/en/channels-reference) documents notifications and reply tools.
+
+Custom channels are a research preview. After installing the plugin, restart the desired conversation with its actual UUID:
+
+```sh
+claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
+```
+
+Accept the channel warning yourself. Authentication and organization policy must allow channels. The bubble selects live mode when its readiness check succeeds. Questions enter that interactive conversation. Images are fetched through `glimpse_channel_context`. The session returns scoped chunks through `glimpse_channel_reply`, with `done=true` on its final chunk. Those chunks stream into the bubble. The terminal's existing model, permissions and tools apply. Bubble model and effort controls are disabled for live requests.
+
+Only replies to bubble requests are mirrored. Ordinary terminal turns are not copied. Stopping the bubble stops waiting and rejects late chunks. It cannot send Esc to the terminal. Its status says to stop the terminal separately if it is still working.
+
+## Parallel continuation and alternatives
+
+When a live channel is unavailable, recent conversations for the current project are listed through the [Agent SDK](https://platform.claude.com/docs/en/agent-sdk/sessions). The bridge passes the exact selected UUID to `claude --resume ID -p`, without forking. The bubble labels this a **parallel continuation**. It writes to that conversation but does not inject into its open terminal. Avoid simultaneous requests against the same transcript. A dedicated thread starts with a new `--session-id` and resumes it for follow ups. See the [CLI reference](https://code.claude.com/docs/en/cli-reference) and [print mode](https://code.claude.com/docs/en/headless).
+
+[Remote Control](https://code.claude.com/docs/en/remote-control) provides first party web and mobile access. Its documentation does not expose a third party embedding API. We use channels rather than reverse engineering that service.
+
+We checked [hooks](https://code.claude.com/docs/en/hooks): SessionStart, Stop and message events report lifecycle or output information, and hook inputs include `session_id` and `transcript_path`. Hooks do not provide an independent arbitrary input channel. Claude Code owns its JSONL session files. Glimpselet lists sessions through the SDK and never edits transcripts or watches every terminal message. Scoped MCP replies avoid copying unrelated terminal content.
+
+## Pairing, page access and privacy
+
+The bridge binds to loopback. Pairing uses a ten minute, one use code and an origin bound token lasting twelve hours. An SSH local forward supports a remote Claude Code host. Direct API mode uses the user's Anthropic key instead. The bubble names its connection mode.
+
+Web access starts with `activeTab`. Persistent site access is optional and requested when needed. Chrome's capture API also requires an activeTab grant or all sites permission. Protected pages cannot be injected. Page context omits private and editable fields, treats page text as untrusted input, and validates returned element and translation IDs. PDF.js and its worker, fonts and character maps are bundled. PDFs use this reader because Chrome's built in viewer cannot be scripted.
+
+Passive mode is opt in, debounced and capped at six requests per minute. Stable perceptual changes in shared video can trigger summaries. Detected password pages and blocklisted hosts are excluded. Native app password fields cannot be inspected. The preceding hour's reported or estimated cost is shown. Captures and bubble chat stay in memory. Preferences and credentials have separate documented scopes. See [security and storage](SECURITY.md).

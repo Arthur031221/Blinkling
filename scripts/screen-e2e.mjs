@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { chromium } from "@playwright/test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -12,16 +15,18 @@ const fixture = createServer((_, response) => {
     <h1>Glimpselet capture test</h1><code>GL472: 設定を保存できませんでした</code>
     <p>The Japanese message says the settings could not be saved.</p>`);
 });
-await new Promise((resolve) => fixture.listen(0, "127.0.0.1", resolve));
+await new Promise((resolveListen) =>
+  fixture.listen(0, "127.0.0.1", resolveListen),
+);
 const fixtureUrl = `http://127.0.0.1:${fixture.address().port}`;
-const client = new Client({ name: "glimpselet-screen-test", version: "1.0.0" });
+const client = new Client({ name: "glimpselet-screen-test", version: "2.0.0" });
 const transport = new StdioClientTransport({
   command: process.execPath,
   args: ["bin/glimpselet.cjs"],
   stderr: "pipe",
   env: { ...process.env, GLIMPSELET_DISABLE_BROWSER_OPEN: "1" },
 });
-let browser;
+let browser, context, profile;
 async function clickFloatingShare(targetId) {
   const cdp = await browser.newBrowserCDPSession();
   const { sessionId } = await cdp.send("Target.attachToTarget", {
@@ -29,9 +34,9 @@ async function clickFloatingShare(targetId) {
     flatten: false,
   });
   try {
-    const response = new Promise((resolve, reject) => {
+    const response = new Promise((resolveResponse, reject) => {
       const timer = setTimeout(
-        () => reject(new Error("Floating capture activation timed out")),
+        () => reject(new Error("PiP share activation timed out")),
         10_000,
       );
       cdp.on("Target.receivedMessageFromTarget", (event) => {
@@ -45,7 +50,7 @@ async function clickFloatingShare(targetId) {
               JSON.stringify(message.error || message.result.exceptionDetails),
             ),
           );
-        else resolve();
+        else resolveResponse();
       });
     });
     await cdp.send("Target.sendMessageToTarget", {
@@ -68,232 +73,145 @@ async function clickFloatingShare(targetId) {
 try {
   await client.connect(transport);
   const opened = await client.callTool({ name: "panel_open", arguments: {} });
-  const url = opened.content
+  const guideUrl = opened.content
     .find((item) => item.type === "text")
-    ?.text.match(/http:\/\/\S+$/)?.[0];
-  assert.ok(url, "panel_open must return the authenticated panel URL");
-  browser = await chromium.launch({
+    ?.text.match(/http:\/\/\S+/)?.[0];
+  assert.ok(guideUrl, "panel_open must return the v2 /install guide URL");
+  const pairingCode = new URL(guideUrl).hash.match(/code=([A-F0-9]{16})/)?.[1];
+  assert.ok(pairingCode, "the /install guide URL must carry its pairing code");
+
+  profile = await mkdtemp(join(tmpdir(), "glimpselet-screen-e2e-"));
+  const extension = resolve("dist-extension");
+  context = await chromium.launchPersistentContext(join(profile, "profile"), {
+    channel: "chromium",
     headless: false,
+    viewport: null,
     args: [
+      `--disable-extensions-except=${extension}`,
+      `--load-extension=${extension}`,
       "--auto-select-tab-capture-source-by-title=Glimpselet Screen Fixture",
       "--enable-usermedia-screen-capturing",
       "--allow-http-screen-capture",
+      "--enable-unsafe-extension-debugging",
+      "--enable-features=DocumentPictureInPictureAPI",
+      "--window-size=1100,780",
     ],
   });
-  const context = await browser.newContext({
-    viewport: { width: 960, height: 680 },
-  });
+  browser = context.browser();
+  const worker =
+    context.serviceWorkers()[0] ??
+    (await context.waitForEvent("serviceworker", { timeout: 15000 }));
+  const extensionId = new URL(worker.url()).host;
+  await worker.evaluate(() =>
+    chrome.storage.local.set({ consented: true, locale: "en" }),
+  );
   const source = await context.newPage();
   await source.goto(fixtureUrl);
-  const panel = await context.newPage();
-  panel.setDefaultTimeout(15_000);
-  await panel.addInitScript(() => {
-    const original = navigator.mediaDevices.getDisplayMedia.bind(
-      navigator.mediaDevices,
-    );
-    window.__testCaptureTracks = [];
-    navigator.mediaDevices.getDisplayMedia = async (options) => {
+  const install = await context.newPage();
+  await install.goto(guideUrl);
+  const panelOpened = context.waitForEvent("page", { timeout: 15000 });
+  await install
+    .getByRole("button", { name: "Pair extension", exact: true })
+    .click();
+  const panel = await panelOpened;
+  await panel.waitForURL((url) =>
+    url.href.startsWith(`chrome-extension://${extensionId}/panel.html`),
+  );
+  await panel.waitForLoadState("domcontentloaded");
+  assert.ok(
+    panel.url().startsWith(`chrome-extension://${extensionId}/panel.html`),
+    "the local /install route must pair and open the actual unpacked extension",
+  );
+  panel.setDefaultTimeout(15000);
+  await install.waitForFunction(
+    async (code) => {
+      const response = await fetch(`/install/status?code=${code}`, {
+        cache: "no-store",
+      });
+      return response.ok && (await response.json()).connected === true;
+    },
+    pairingCode,
+    { timeout: 15000 },
+  );
+  await panel.locator(".connection.online").waitFor();
+
+  await panel.locator(".float-start button").click();
+  await panel.waitForFunction(() =>
+    window.documentPictureInPicture?.window?.document.querySelector(".app"),
+  );
+  await panel.evaluate(() => {
+    const child = window.documentPictureInPicture.window;
+    const media = child.navigator.mediaDevices;
+    const original = media.getDisplayMedia.bind(media);
+    child.__testCaptureTracks = [];
+    media.getDisplayMedia = async (options) => {
       const stream = await original(options);
-      window.__testCaptureTracks.push(...stream.getTracks());
+      child.__testCaptureTracks.push(...stream.getTracks());
       return stream;
     };
   });
-  await panel.goto(url);
-  await panel
-    .getByRole("button", { name: "Share a screen", exact: true })
-    .click();
-  await panel.getByRole("img", { name: "Shared screen preview" }).waitFor();
-  await panel.waitForFunction(
-    () => document.querySelector("video")?.videoWidth > 0,
+  const cdp = await browser.newBrowserCDPSession();
+  const { targetInfos } = await cdp.send("Target.getTargets");
+  const panelCdp = await context.newCDPSession(panel);
+  const { targetInfo: openerTarget } = await panelCdp.send(
+    "Target.getTargetInfo",
   );
+  const pipTargets = targetInfos.filter(
+    (target) => target.type === "page" && target.url === "about:blank",
+  );
+  const pipTarget =
+    pipTargets.find((target) => target.openerId === openerTarget.targetId) ??
+    (pipTargets.length === 1 ? pipTargets[0] : undefined);
+  assert.ok(
+    pipTarget,
+    `the extension bubble must be a real Picture-in-Picture target; candidates=${JSON.stringify(pipTargets.map(({ targetId, openerId, url }) => ({ targetId, openerId, url })))}`,
+  );
+  await panelCdp.detach();
+  await cdp.detach();
+  await clickFloatingShare(pipTarget.targetId);
+  await panel.waitForFunction(
+    () =>
+      window.documentPictureInPicture.window.document.querySelector("video")
+        ?.videoWidth > 0,
+  );
+
   const captured = await client.callTool({
     name: "screen_capture",
     arguments: { target: "screen" },
   });
   assert.ok(!captured.isError, JSON.stringify(captured.content));
   const image = captured.content.find((item) => item.type === "image");
-  assert.ok(image, "the real browser share must return a PNG through MCP");
+  assert.ok(image, "real shared browser pixels must return through MCP as PNG");
   const png = PNG.sync.read(Buffer.from(image.data, "base64"));
   assert.ok(
     png.width >= 640 && png.height >= 400,
     `unexpected capture ${png.width}x${png.height}`,
   );
-  const palette = new Set();
+  const colors = new Set();
   for (let i = 0; i < png.data.length; i += 4096)
-    palette.add(png.data.subarray(i, i + 3).toString("hex"));
+    colors.add(png.data.subarray(i, i + 3).toString("hex"));
   assert.ok(
-    palette.size > 3,
-    "the real captured tab must contain its rendered content",
+    colors.size > 3,
+    "the captured tab must contain rendered fixture content",
   );
 
-  if (process.argv.includes("--live")) {
-    const requests = [];
-    panel.on("request", (request) => {
-      if (request.url().endsWith("/api/ask"))
-        requests.push(request.postDataJSON());
-    });
-    await panel.getByRole("button", { name: "Settings", exact: true }).click();
-    await panel.getByLabel("Model", { exact: true }).selectOption("haiku");
-    await panel.getByRole("button", { name: "Done", exact: true }).click();
-    await panel
-      .getByRole("textbox")
-      .fill("Translate the Japanese error and include its exact error code.");
-    await panel.getByRole("button", { name: "Ask", exact: true }).click();
-    await panel.waitForFunction(
-      () =>
-        document
-          .querySelector(".answer .markdown")
-          ?.textContent?.includes("GL472"),
-      null,
-      { timeout: 120_000 },
-    );
-    const answer = await panel.locator(".answer .markdown").last().innerText();
-    assert.match(answer, /GL472/);
-    assert.match(answer, /sav|save|保存/i);
-    await panel.getByRole("button", { name: "Ask", exact: true }).waitFor();
-    console.log(
-      "Live provider answered the real browser-captured Japanese fixture with its exact GL472 code.",
-    );
-    await panel.locator(".timeline > summary").click();
-    await panel.getByRole("button", { name: /^Passive mode/ }).click();
-    await panel.waitForTimeout(2300);
-    await source.evaluate(() => {
-      document.body.style.background = "#b8dccb";
-      document.querySelector("h1").textContent = "Build complete";
-      document.querySelector("code").textContent = "GL473: Settings saved";
-    });
-    await panel.waitForFunction(
-      () =>
-        [...document.querySelectorAll(".timeline article strong")].filter(
-          (element) => element.textContent.startsWith("Briefly describe"),
-        ).length >= 1,
-      null,
-      { timeout: 120_000 },
-    );
-    await source.evaluate(() => {
-      document.body.style.background = "#c9d7f4";
-      document.querySelector("h1").textContent = "Deployment complete";
-      document.querySelector("code").textContent = "GL474: Settings published";
-    });
-    await panel.waitForFunction(
-      () =>
-        [...document.querySelectorAll(".timeline article strong")].filter(
-          (element) => element.textContent.startsWith("Briefly describe"),
-        ).length >= 2,
-      null,
-      { timeout: 120_000 },
-    );
-    await panel.getByRole("button", { name: /^Pause/ }).click();
-    await panel
-      .getByRole("button", { name: "Stop sharing", exact: true })
-      .click();
-    await panel
-      .getByRole("button", { name: "Summarize last ten minutes", exact: true })
-      .click();
-    await panel.waitForFunction(
-      () =>
-        document.querySelector(".answer .markdown")?.textContent &&
-        ![...document.querySelectorAll("button")].some(
-          (button) => button.textContent === "Cancel",
-        ),
-      null,
-      { timeout: 120_000 },
-    );
-    const summary = await panel.locator(".answer .markdown").last().innerText();
-    assert.match(summary, /GL47|build|sav|settings/i);
-    assert.ok(
-      requests.filter((request) => request.mode === "passive").length >= 2,
-    );
-    const summaryRequest = requests.find(
-      (request) => request.mode === "summary",
-    );
-    assert.ok(summaryRequest, "the timeline must submit a summary request");
-    assert.equal(
-      summaryRequest.image,
-      undefined,
-      "summaries send no fresh image",
-    );
-    console.log(
-      "Live passive notes recorded a real tab change and produced a text-only summary after screen sharing stopped.",
-    );
-  }
-
-  await panel.getByRole("button", { name: "Float panel", exact: true }).click();
-  await panel.waitForFunction(() =>
-    window.documentPictureInPicture?.window?.document.querySelector(".app"),
-  );
-  assert.equal(
-    await panel.locator(".app").count(),
-    0,
-    "the opener must give the floating window sole ownership of the panel",
-  );
-  await panel.waitForFunction(() => {
-    const child = window.documentPictureInPicture.window;
-    return (
-      getComputedStyle(child.document.querySelector(".app")).backgroundColor ===
-      "rgb(250, 247, 239)"
-    );
+  await client.callTool({ name: "screen_clear", arguments: {} });
+  await panel.evaluate(() => {
+    window.__testCaptureTracks =
+      window.documentPictureInPicture.window.__testCaptureTracks;
+    window.documentPictureInPicture.window.close();
   });
-  await panel.evaluate(() => window.documentPictureInPicture.window.close());
   await panel.locator(".app").waitFor();
   await panel.waitForFunction(() =>
     window.__testCaptureTracks.every((track) => track.readyState === "ended"),
   );
-  assert.equal(
-    await panel
-      .getByRole("button", { name: "Stop sharing", exact: true })
-      .count(),
-    0,
-  );
-  await panel.getByRole("button", { name: "Float panel", exact: true }).click();
-  await panel.waitForFunction(() =>
-    window.documentPictureInPicture?.window?.document.querySelector(".app"),
-  );
-  const targets = await browser.newBrowserCDPSession();
-  const { targetInfos: openedTargets } =
-    await targets.send("Target.getTargets");
-  const panelCdp = await context.newCDPSession(panel);
-  const { targetInfo: openerTarget } = await panelCdp.send(
-    "Target.getTargetInfo",
-  );
-  const childTarget = openedTargets.find(
-    (target) =>
-      target.type === "page" &&
-      target.url === "about:blank" &&
-      target.targetId !== openerTarget.targetId,
-  );
-  assert.ok(childTarget, "the floating window must expose its browser target");
-  await targets.detach();
-  await panelCdp.detach();
-  await clickFloatingShare(childTarget.targetId);
-  await panel.waitForFunction(
-    () =>
-      window.documentPictureInPicture.window.document.querySelector("video")
-        ?.videoWidth > 0,
-  );
-  await panel.waitForTimeout(300);
-  const fromFloating = await client.callTool({
-    name: "screen_capture",
-    arguments: { target: "screen" },
-  });
-  assert.ok(
-    !fromFloating.isError &&
-      fromFloating.content.some((item) => item.type === "image"),
-    "sharing started from the real floating window must reach MCP",
-  );
-  await client.callTool({ name: "screen_clear", arguments: {} });
-  await panel.waitForFunction(
-    () =>
-      !window.documentPictureInPicture.window.document.querySelector(
-        ".stage .frame",
-      ),
-  );
-  await panel.evaluate(() => window.documentPictureInPicture.window.close());
   console.log(
-    `Screen E2E passed: native tab sharing (${png.width}x${png.height}), MCP PNG delivery, actual Picture-in-Picture, and track cleanup on close. No capture API was mocked.`,
+    `Screen E2E passed: actual /install pairing, native tab sharing (${png.width}x${png.height}), MCP PNG delivery, real PiP and track cleanup. Capture APIs were not mocked.`,
   );
 } finally {
+  await context?.close();
   await browser?.close();
   await client.close();
-  await new Promise((resolve) => fixture.close(resolve));
+  await new Promise((resolveClose) => fixture.close(resolveClose));
+  await rm(profile, { recursive: true, force: true });
 }

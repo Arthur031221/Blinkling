@@ -34,6 +34,7 @@ export class BrowserCaptures {
     private readonly now = () => Date.now(),
   ) {
     server.on("upgrade", (req, socket, head) => {
+      if (req.url === "/extension") return;
       const protocols = (req.headers["sec-websocket-protocol"] ?? "")
         .split(",")
         .map((part) => part.trim());

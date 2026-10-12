@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>A tiny field guide to tea — Glimpselet sample</title>
+  <style>
+    body {
+      max-width: 720px;
+      margin: 5vh auto;
+      padding: 24px;
+      background: #faf7f0;
+      color: #29251e;
+      font:
+        18px/1.75 Georgia,
+        serif;
+    }
+    aside,
+    button {
+      font: 15px/1.5 system-ui;
+    }
+    aside {
+      padding: 12px 16px;
+      border-left: 3px solid #a56b50;
+      background: #f0e9dc;
+    }
+    h1 {
+      font-size: clamp(38px, 8vw, 64px);
+      line-height: 1.05;
+    }
+    h2 {
+      margin-top: 2em;
+    }
+    button {
+      border: 1px solid #a56b50;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: transparent;
+      color: #763f2b;
+    }
+    a {
+      color: #763f2b;
+    }
+    #tour-request {
+      position: sticky;
+      top: 10px;
+      z-index: 3;
+      display: none;
+      margin: 10px 0;
+      padding: 12px 16px;
+      border: 1px solid #bd6849;
+      border-radius: 12px;
+      background: #fffaf0;
+      box-shadow: 0 5px 20px #392b1920;
+      font:
+        15px/1.5 system-ui,
+        sans-serif;
+    }
+    #tour-request.visible {
+      display: block;
+    }
+    #tour-request strong {
+      color: #91472f;
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #24221f;
+        color: #f4eee5;
+      }
+      aside {
+        background: #39332c;
+      }
+      #tour-request {
+        background: #302d29;
+        color: #f4eee5;
+      }
+    }
+  </style>
+  <body>
+    <div id="tour-request" role="status" aria-live="polite"></div>
+    <aside>Glimpselet practice page · 練習頁面</aside>
+    <h1>A tiny field guide to tea</h1>
+    <p>
+      Tea leaves change as they meet water. The same leaf can taste bright and
+      grassy at a short steep, then round and honeyed a little later.
+      Temperature, time, and the size of the leaf all matter.
+    </p>
+    <h2>Three useful starting points</h2>
+    <ul>
+      <li>
+        <strong>Green tea:</strong> start with cooler water and a short steep to
+        keep the taste fresh.
+      </li>
+      <li>
+        <strong>Oolong:</strong> try several small infusions; the aroma often
+        changes from one cup to the next.
+      </li>
+      <li>
+        <strong>Black tea:</strong> hotter water and a longer steep make a
+        fuller cup. Shorten the time if it tastes too strong.
+      </li>
+    </ul>
+    <p lang="ja">
+      お茶の味は、お湯の温度と蒸らす時間で変わります。短く蒸らすと、すっきりした香りを楽しめます。
+    </p>
+    <button type="button">Save these brewing notes</button>
+    <button type="button">Compare steeping times</button>
+    <h2>Try asking</h2>
+    <p>
+      Which tea should I brew with cooler water? Why might the second oolong
+      infusion taste different?
+    </p>
+    <script>
+      (() => {
+        const allowed = new Set([
+          "float",
+          "capture",
+          "suggest",
+          "passive",
+          "guide",
+          "translate",
+          "selection",
+          "pdf",
+        ]);
+        const labels = {
+          float: "Float the bubble, then switch windows.",
+          capture: "Capture this page and ask what changes the taste.",
+          suggest: "Choose one of the suggested questions in the bubble.",
+          passive: "Turn on passive mode, then change pages.",
+          guide: "Start Guide and follow its pointers to the tea buttons.",
+          translate: "Translate this page in place, then restore the original.",
+          selection: "Select a sentence and choose Explain, Translate, or Ask.",
+          pdf: "Open the sample PDF in the Glimpselet reader.",
+        };
+        window.addEventListener("message", (event) => {
+          if (
+            event.source !== window.opener ||
+            event.origin !== location.origin
+          )
+            return;
+          const request = event.data;
+          if (
+            request?.type !== "glimpselet:tutorial-action" ||
+            request.version !== 1 ||
+            !allowed.has(request.action) ||
+            !Number.isInteger(request.step) ||
+            request.step < 1 ||
+            request.step > 8
+          )
+            return;
+          const banner = document.querySelector("#tour-request");
+          banner.innerHTML =
+            "<strong>Tour step " + request.step + ":</strong> ";
+          banner.append(document.createTextNode(labels[request.action]));
+          banner.classList.add("visible");
+          window.dispatchEvent(
+            new CustomEvent("glimpselet:tutorial-action", {
+              detail: {
+                type: "glimpselet:tutorial-action",
+                version: 1,
+                action: request.action,
+                step: request.step,
+                code: typeof request.code === "string" ? request.code : null,
+              },
+            }),
+          );
+          if (window.opener) {
+            window.opener.postMessage(
+              {
+                type: "glimpselet:tutorial:ready",
+                version: 1,
+                action: request.action,
+                step: request.step,
+              },
+              location.origin,
+            );
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

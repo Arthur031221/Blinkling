@@ -1,7 +1,7 @@
 {
   "name": "glimpselet",
-  "version": "1.1.1",
-  "description": "A local floating screen companion for Claude Code",
+  "version": "2.0.0",
+  "description": "A floating page and screen companion",
   "author": {
     "name": "Arthur031221"
   }

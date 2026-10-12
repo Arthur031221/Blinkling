@@ -50,7 +50,16 @@ export async function runCliProvider(
       "stream-json",
       "--verbose",
       "--include-partial-messages",
-      "--no-session-persistence",
+      ...(request.cliSession
+        ? request.cliSession.resume
+          ? [
+              "--resume",
+              request.cliSession.id,
+              ...(request.cliSession.fork ? ["--fork-session"] : []),
+            ]
+          : ["--session-id", request.cliSession.id]
+        : ["--no-session-persistence"]),
+      ...(request.effort ? ["--effort", request.effort] : []),
       "--restricted",
       "--safe-mode",
       "--system-prompt",
@@ -65,7 +74,7 @@ export async function runCliProvider(
     ];
     return await new Promise<ProviderResult>((resolve, reject) => {
       const child = spawn(options.command ?? "claude", args, {
-        cwd: directory,
+        cwd: request.cliSession?.project ?? directory,
         env,
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
@@ -244,6 +253,10 @@ export async function runCliProvider(
             : undefined;
         resolve({
           answer,
+          sessionId:
+            typeof result.session_id === "string"
+              ? result.session_id
+              : undefined,
           usage: {
             inputTokens: finite(usage?.input_tokens),
             outputTokens: finite(usage?.output_tokens),

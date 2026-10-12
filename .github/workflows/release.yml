@@ -1,0 +1,83 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version to release
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Require passing CI and matching version
+        uses: actions/github-script@v9
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const version = process.env.RELEASE_VERSION;
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            if (!/^\d+\.\d+\.\d+$/.test(version) || pkg.version !== version) {
+              throw new Error('Release version must match package.json');
+            }
+            const {data} = await github.rest.actions.listWorkflowRuns({
+              ...context.repo, workflow_id: 'ci.yml', head_sha: context.sha,
+              branch: 'main', status: 'completed'
+            });
+            if (!data.workflow_runs.some(run => run.conclusion === 'success' && run.event === 'push')) {
+              throw new Error('Main must pass CI before publishing');
+            }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package:stores
+      - name: Upload assets and publish
+        uses: actions/github-script@v9
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const version = process.env.RELEASE_VERSION;
+            const tag = `v${version}`;
+            let release;
+            try {
+              const ref = await github.rest.git.getRef({...context.repo, ref: `tags/${tag}`});
+              if (ref.data.object.sha !== context.sha) throw new Error('Release tag belongs to another commit');
+            } catch (error) { if (error.status !== 404) throw error; }
+            try {
+              release = (await github.rest.repos.getReleaseByTag({...context.repo, tag})).data;
+              if (!release.draft) throw new Error('This release is already published');
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              release = (await github.rest.repos.createRelease({
+                ...context.repo, tag_name: tag, target_commitish: context.sha,
+                name: `Glimpselet ${tag}`, draft: true,
+                body: fs.readFileSync(`docs/releases/${tag}.md`, 'utf8')
+              })).data;
+            }
+            const names = ['glimpselet-extension.zip', 'glimpselet-chrome-store.zip', 'glimpselet-edge-store.zip', 'SHA256SUMS'];
+            for (const name of names) {
+              const existing = release.assets.find(asset => asset.name === name);
+              if (existing) await github.rest.repos.deleteReleaseAsset({...context.repo, asset_id: existing.id});
+              const data = fs.readFileSync(`release/${name}`);
+              await github.rest.repos.uploadReleaseAsset({
+                ...context.repo, release_id: release.id, name, data,
+                headers: {'content-type': name.endsWith('.zip') ? 'application/zip' : 'text/plain'}
+              });
+            }
+            await github.rest.repos.updateRelease({...context.repo, release_id: release.id, draft: false});

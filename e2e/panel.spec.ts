@@ -1,5 +1,22 @@
 import { test, expect } from "@playwright/test";
 
+test("floating is a prominent action before a session starts", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 680 });
+  await page.goto("/");
+  const action = page.getByRole("button", { name: "Float panel", exact: true });
+  await expect(action).toBeVisible();
+  await expect(action).toBeEnabled();
+  const box = await action.boundingBox();
+  expect(box!.y + box!.height).toBeLessThan(220);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("panel status and capture controls fit narrow and wide windows", async ({
   page,
 }) => {

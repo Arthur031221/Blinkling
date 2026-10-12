@@ -17,7 +17,7 @@ jobs:
       - name: Install recording tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg xvfb
+          sudo apt-get install -y ffmpeg xvfb xfwm4
       - run: npm install --global @anthropic-ai/claude-code@2.1.296
       - run: npm run lint
       - run: npm run format:check
@@ -30,6 +30,8 @@ jobs:
       - run: npm run validate:plugin:claude
       - run: npm run test:plugin
       - run: npm run test:e2e
+      - run: npm run test:extension
       - run: npm run test:screen
+      - run: npm run test:launcher
       - run: npm run demo
       - run: npm run record-demo

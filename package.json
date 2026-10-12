@@ -1,6 +1,6 @@
 {
   "name": "glimpselet",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -13,15 +13,21 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "check": "npm run lint && npm run format:check && npm test && npm run build && npm run build:plugin && npm run test:plugin && npm run validate:plugin",
-    "build:plugin": "npm run build && node scripts/build-plugin.mjs",
+    "check": "npm run lint && npm run format:check && npm test && npm run build && npm run build:plugin && npm run test:plugin && npm run validate:plugin && npm run test:extension",
+    "build:plugin": "npm run build && npm run build:extension && node scripts/build-plugin.mjs",
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "validate:plugin:claude": "claude plugin validate . --strict",
     "test:plugin": "node --test bridge/test/*.test.mjs",
     "demo": "node scripts/demo.mjs",
     "test:e2e": "npm run build && npm run build:plugin && node scripts/mcp-e2e.mjs && xvfb-run -a playwright test",
     "record-demo": "node scripts/record-demo.mjs",
-    "test:screen": "xvfb-run -a node scripts/screen-e2e.mjs"
+    "test:screen": "xvfb-run -a node scripts/screen-e2e.mjs",
+    "test:launcher": "xvfb-run -a node scripts/launcher-test.mjs",
+    "build:extension": "tsc -p tsconfig.extension.json && node scripts/build-extension.mjs",
+    "package:extension": "npm run build:extension && python3 scripts/package-extension.py",
+    "package:stores": "npm run package:extension && python3 scripts/package-stores.py",
+    "test:extension": "npm run build:plugin && xvfb-run -a playwright test --config playwright.extension.config.ts",
+    "smoke:sites": "npm run build:extension && xvfb-run -a node scripts/smoke-sites.mjs"
   },
   "workspaces": [
     "bridge"
@@ -29,12 +35,14 @@
   "dependencies": {
     "dompurify": "3.4.16",
     "marked": "16.3.0",
+    "pdfjs-dist": "5.4.624",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
   "devDependencies": {
     "@eslint/js": "9.35.0",
     "@playwright/test": "1.64.0",
+    "@types/chrome": "0.3.5",
     "@types/dompurify": "3.0.5",
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",

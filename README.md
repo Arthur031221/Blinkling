@@ -1,129 +1,67 @@
-<p align="center"><img src="assets/logo.svg" width="72" alt="Blink, the Glimpselet companion"><br><strong>Glimpselet</strong><br><em>Blink waits. You point. It answers.</em></p>
+# Glimpselet
 
-<p align="center"><a href="README.zh-TW.md">Traditional Chinese</a>  |  <a href="README.zh-CN.md">Simplified Chinese</a>  |  <a href="README.ja.md">Japanese</a>  |  <a href="README.ko.md">Korean</a>  |  <a href="README.es.md">Spanish</a>  |  <a href="README.fr.md">French</a>  |  <a href="README.de.md">German</a>  |  <a href="README.pt-BR.md">Brazilian Portuguese</a></p>
+Glimpselet is a small chat that stays above other windows and connects to an existing Claude Code session. It can read and translate accessible web pages, draw guides on the real page, and capture page areas or shared-screen frames for questions.
 
-> Pick a screen and ask your coding assistant about it from a compact floating panel. Freeze a frame, crop it, cover private details, then ask.
+![Glimpselet's floating chat](assets/demo.gif)
 
-<p align="center"><img src="assets/demo.gif" width="800" alt="Fixture screen and prerecorded answer in the Glimpselet panel"></p>
+![Guide circles drawn on the real page](assets/screenshots/guide.png)
 
-<p align="center"><a href="https://arthur031221.github.io/Glimpselet/">Open the static demo</a>. It uses a fixture image and prerecorded answer, with no provider calls.</p>
+[Open the static demo](https://arthur031221.github.io/Glimpselet/). It uses a sample image and a recorded answer. It does not contact a provider.
 
-<p align="center"><img src="assets/screenshots/light-420.png" width="49%" alt="Light theme at 420 px"><img src="assets/screenshots/dark-420.png" width="49%" alt="Dark theme at 420 px"></p>
+## Install
 
-<details>
-<summary>All six panel sizes and themes</summary>
-
-<p><img src="assets/screenshots/light-360.png" width="140" alt="Light panel at 360 px"><img src="assets/screenshots/light-420.png" width="140" alt="Light panel at 420 px"><img src="assets/screenshots/light-520.png" width="140" alt="Light panel at 520 px"></p>
-<p><img src="assets/screenshots/dark-360.png" width="140" alt="Dark panel at 360 px"><img src="assets/screenshots/dark-420.png" width="140" alt="Dark panel at 420 px"><img src="assets/screenshots/dark-520.png" width="140" alt="Dark panel at 520 px"></p>
-
-</details>
-
-Floating mode needs a desktop Chromium browser. Install Node.js 22 or newer and a coding assistant first.
-
-On macOS or Linux, install from a terminal:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/Arthur031221/Glimpselet/main/install.sh | sh
-```
-
-Then open `/glimpselet:glimpse`. You'll need Node.js 22 or newer and the installed coding assistant.
-
-## A normal look
-
-```text
-/glimpselet:glimpse
-Choose a screen, window, or tab in the browser picker.
-Freeze a frame, crop it, and add opaque masks over private details.
-Ask what you want to know, read the streamed answer and follow up.
-Copy or pin the answer, then clear the session when finished. If a stream doesn't deliver a valid completion event, the panel keeps partial text, labels it incomplete and excludes it from history.
-```
-
-The panel sends a frame to the provider when you ask or enable passive notes. MCP screen tools return images to the coding session when called. Opaque masks change the outgoing image. Passive notes sample every two seconds and send changed frames for short descriptions. They're capped at six requests per rolling minute (up to 360 per hour). You can lower the cap. It limits requests without estimating dollar cost.
-
-Panel captures are capped at 1536 pixels on the longest edge and 1.8 million pixels after cropping and redaction. Smaller selected areas keep their original resolution.
-
-**The screen is yours to share. Nothing starts watching on its own.**
-
-## Details
-
-<details>
-<summary>Install from an interactive coding session</summary>
-
-Install the same bundled plugin from your coding assistant with these slash commands:
+Install the Glimpselet plugin in Claude Code:
 
 ```text
 /plugin marketplace add Arthur031221/Glimpselet
 /plugin install glimpselet@glimpselet
 ```
 
-Both commands work on macOS, Windows and Linux with the installed coding assistant and Node.js 22 or newer. Browser sharing uses the browser picker. Native capture also needs OS permission and, on Linux, the tools listed in [installation](docs/INSTALL.md). Run `/glimpselet:glimpse` to open a local panel on a random port. The link works once, within 60 seconds. The panel session stays in memory for 30 minutes. Choose a display, app window, or tab in the browser picker.
+Run `/glimpse` and follow its setup guide. The guide is the source of truth for installation and pairing.
 
-</details>
+If Claude Code runs on another computer, the guide provides an SSH forwarding command to run on the computer with your browser. If the browser computer has no Claude Code CLI, choose direct API mode and provide your own API key.
 
-<details>
-<summary>macOS</summary>
+### Advanced: load from source
 
-Use the terminal command above, then run `/glimpselet:glimpse` in your coding session. Browser sharing uses its permission picker. Native capture also needs screen recording permission in System Settings.
+To load the unpacked extension from a source checkout:
 
-</details>
+1. Open `chrome://extensions` in Chrome or Edge and turn on **Developer mode**.
+2. Choose **Load unpacked**.
+3. Select the extension folder produced by the setup guide.
 
-<details>
-<summary>Windows</summary>
+> **Developer mode:** Glimpselet is still distributed in developer mode. Until a store listing is available, updates must be installed manually.
 
-With Node.js 22 or newer and the coding assistant on PATH, run this in PowerShell:
+## Capture and shortcuts
 
-```powershell
-irm https://raw.githubusercontent.com/Arthur031221/Glimpselet/main/install.ps1 | iex
+Hold Shift in the floating bubble or on an accessible web page to start a crop. Shift works only in the bubble and accessible web pages. It cannot listen for a key press in other apps. A web-page selection draws over the live page. For a shared screen, the frame freezes before cropping. Press Enter to confirm or Esc to cancel.
+
+The browser crop shortcut is Ctrl+Shift+S, or Cmd+Shift+S on Mac. It starts crop mode in the browser. The separate global shortcut defaults to Ctrl+Shift+5 because Chrome requires a numeric key in global shortcuts. You can remap it at `chrome://extensions/shortcuts`, including to S.
+
+## Claude Code sessions
+
+Documented MCP channel support can deliver messages to an existing running Claude Code session. Glimpselet mirrors replies from the channel's reply-tool chunks. The session in the terminal controls its model and permissions. To add Glimpselet's custom channel, restart the session with the development channel enabled, then run `/glimpse`:
+
+```sh
+claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
 ```
 
-Then run `/glimpselet:glimpse` in your coding session.
-
-</details>
-
-<details>
-<summary>Linux</summary>
-
-Use the terminal command above. Browser sharing works without native screenshot utilities. For optional native capture, use `grim` and `slurp` on Wayland, or `maim` or `scrot` on X11. See [installation](docs/INSTALL.md).
-
-</details>
-
-<details>
-<summary>Ask, follow up, and review</summary>
-
-Questions go through the installed coding assistant or an optional API request from the local bridge. Follow-ups can use limited recent context. You'll need to trust the installed CLI and any policy hooks your organization has configured. The panel has crop, freeze, opaque masks, copy, pin, a ten-minute notes timeline, summary and Markdown export. Clear aborts active jobs and removes local frames, notes, history and the in-memory API key.
-
-</details>
-
-<details>
-<summary>Floating window and browser support</summary>
-
-Floating mode needs a desktop Chromium browser and a user gesture. The browser decides where Document Picture-in-Picture opens. When storage is available, a local geometry-only file and browser cache preserve compact and expanded dimensions, popup position and window chrome across bridge restarts. See [configuration](docs/CONFIGURATION.md) for file locations. A popup may not stay above other windows. Capture permissions and available pickers depend on the browser and operating system.
-
-</details>
-
-<details>
-<summary>Panel controls and status</summary>
-
-Resize the panel with its resize control or arrow keys. Drag a floating window's edges where the browser allows it. In crop or redaction mode, arrows move the selection and Shift plus arrows resize it. Enter applies it. Escape cancels it. Escape in the question field pauses passive notes and cancels the current question, keeping its text. Settings opens in a modal. Unpin an older answer from its answer controls. **Last sent frame** labels the still image sent with a question. **Show live preview** returns to the shared screen without sending another question, keeping the crop and masks. **Pause passive notes** cancels the streaming passive job and stops future notes until resumed. S/E/T/P shortcuts work only while the screen preview is focused. The buttons also work with the keyboard. Scroll up to stop following a streamed answer. The panel shows sharing, model, and passive note status.
-
-Comparison answers keep their table headers and columns. Wide tables scroll inside the answer. Focus the answer and use the arrow keys to read across it.
-
-</details>
-
-<details>
-<summary>Develop from source</summary>
-
-Use Node.js 22 or newer, then run `npm ci`, `npm run build`, and `npm run build:plugin`. See [contributing](CONTRIBUTING.md) for all checks. The static demo uses a fixture image and prerecorded text. It never requests a provider answer.
-
-</details>
+Without the channel, Glimpselet can continue the same session in a separate print-mode process with `claude --resume SESSION_ID -p`. This is a parallel continuation. Do not run it while the terminal is using that session. Concurrent access can conflict.
 
 ## Limits
 
-During an active browser share, MCP capture uses the shared surface and fails closed if it disconnects or can't answer. It never substitutes an unmasked native capture. Disconnected sharing intent lasts until you stop sharing, clear local data or the session expires. Native fallback is available only after that intent ends and depends on platform tools and OS permissions. macOS supports screen, window and region. Windows supports screen. Linux support depends on Wayland or X11 tools. A popup may not stay on top. The app can't reliably identify passwords, cursor positions or window titles. Review every frame before sending it.
+- Chrome, Edge, and other Chromium browsers only.
+- Browser-internal pages such as `chrome://`, the extension store, and some managed pages block extension access.
+- Glimpselet cannot draw on native apps. Share a screen to ask about an app image. Page overlays and text actions are unavailable there.
+- Use the bundled Glimpselet reader for PDFs. Chrome's built-in PDF viewer is not an accessible page.
+- The browser's Document Picture-in-Picture API does not support click-through, so the floating window cannot pass clicks through to another app. The browser may not guarantee a floating window or automatic pop-out. Keep the extension page open while using the floating window.
 
-The separate `screen_watch_start` MCP tool samples native or explicitly shared capture at a chosen 5 to 60 second interval. It keeps only changed frames and makes no model calls. Panel passive notes run separately, sampling every two seconds and requesting short descriptions from the selected backend.
+## Privacy
 
-More detail: [usage](docs/USAGE.md), [installation](docs/INSTALL.md), [configuration](docs/CONFIGURATION.md), [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [plugin layout](docs/PLUGIN.md), [contributing](CONTRIBUTING.md), [MIT license](LICENSE).
+There's no telemetry. With consent, page text may be sent to create suggested questions. Questions and opt-in passive summaries can send relevant text and images. Shared-screen frames stay in memory and are sent to the bridge only for capture or question requests. In bridge mode, the CLI runs on the host and stores its session transcripts there. Direct API mode sends requests from the extension. API keys and bridge tokens stay in browser session storage. Preferences use browser local storage. See [security and privacy](docs/SECURITY.md) for data flows and passive cost notes.
+
+## More
+
+[Install](docs/INSTALL.md) | [Usage](docs/USAGE.md) | [Design and integration](docs/DESIGN.md) | [Store preparation](docs/STORE.md) | [Release notes](docs/releases/v2.0.0.md)
 
 ## Disclosure
 

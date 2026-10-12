@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Glimpselet PDF Reader</title>
+    <link rel="stylesheet" href="reader.css" />
+  </head>
+  <body>
+    <header>
+      <strong data-reader-label="title">Glimpselet PDF Reader</strong>
+      <label class="open"
+        ><span data-reader-label="openFile">Open PDF</span
+        ><input
+          id="file"
+          type="file"
+          accept="application/pdf,.pdf"
+          data-reader-aria="openFile"
+          aria-label="Open PDF"
+      /></label>
+      <form id="url-form">
+        <input
+          id="pdf-url"
+          type="url"
+          data-reader-placeholder="urlPlaceholder"
+          data-reader-aria="urlLabel"
+          placeholder="Paste a PDF URL"
+          aria-label="PDF URL"
+        />
+        <button type="submit" data-reader-label="openUrl">Open URL</button>
+      </form>
+      <button id="open-panel" type="button" data-reader-label="openPanel">
+        Open floating panel
+      </button>
+    </header>
+    <main>
+      <aside>
+        <button id="prev" type="button" data-reader-label="previous">
+          Previous page
+        </button>
+        <span id="page-label" aria-live="polite">No document</span>
+        <button id="next" type="button" data-reader-label="next">
+          Next page
+        </button>
+        <span class="spacer"></span>
+        <button data-action="ask" type="button" data-reader-label="ask">
+          Ask about page
+        </button>
+        <button
+          data-action="translate"
+          type="button"
+          data-reader-label="translate"
+        >
+          Translate selection
+        </button>
+        <button data-action="summary" type="button" data-reader-label="summary">
+          Summarize page
+        </button>
+        <button data-action="guide" type="button" data-reader-label="guide">
+          Guide me through this section
+        </button>
+        <p id="status" role="status" aria-live="polite">
+          Choose a PDF file or open a URL.
+        </p>
+      </aside>
+      <article
+        id="page"
+        data-reader-aria="pdfPage"
+        aria-label="PDF page"
+      ></article>
+    </main>
+    <script type="module" src="reader.js"></script>
+  </body>
+</html>

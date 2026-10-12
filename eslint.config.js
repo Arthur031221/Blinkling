@@ -5,6 +5,7 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
+      "dist-extension/**",
       "bin/**",
       "node_modules/**",
       "assets/**",
@@ -19,5 +20,13 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { chrome: "readonly" } },
+  },
+  {
+    files: ["**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
   },
 );
