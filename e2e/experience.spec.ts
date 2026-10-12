@@ -607,7 +607,7 @@ test("a fresh bridge session restores popup geometry and saves manual resizing",
   await child.close();
 });
 
-test("a panel floated before session bootstrap saves resizing after the session arrives", async ({
+test("floating waits for session bootstrap and preserves existing saved geometry", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -627,7 +627,10 @@ test("a panel floated before session bootstrap saves resizing after the session 
       json: {
         session: "late-session",
         expiresAt: Date.now() + 1800000,
-        floatingGeometry: { version: 1, dimensions: {} },
+        floatingGeometry: {
+          version: 1,
+          dimensions: { expanded: { popup: { width: 490, height: 615 } } },
+        },
       },
     });
   });
@@ -638,11 +641,17 @@ test("a panel floated before session bootstrap saves resizing after the session 
     route.fulfill({ json: { ok: true, stored: true } }),
   );
   await page.goto("/#one-use-launch-token");
+  const floating = page.getByRole("button", {
+    name: "Float panel",
+    exact: true,
+  });
+  await expect(floating).toBeDisabled();
+  releaseSession();
+  await expect(floating).toBeEnabled();
   const opened = page.waitForEvent("popup");
-  await page.getByRole("button", { name: "Float panel", exact: true }).click();
+  await floating.click();
   const child = await opened;
   await expect(child.locator("main.app")).toBeVisible();
-  releaseSession();
   await expect
     .poll(() =>
       page.evaluate(
@@ -652,18 +661,20 @@ test("a panel floated before session bootstrap saves resizing after the session 
       ),
     )
     .toBe("late-session");
+  expect(
+    await child.evaluate(() => ({ width: innerWidth, height: innerHeight })),
+  ).toEqual({ width: 490, height: 615 });
   const saved = page.waitForRequest(
     (request) => request.url().endsWith("/api/floating-geometry"),
     { timeout: 5000 },
   );
-  await child.setViewportSize({ width: 505, height: 620 });
+  await child.close();
   const request = await saved;
   expect(request.headers().authorization).toBe("Bearer late-session");
   expect(request.postDataJSON().geometry.dimensions.expanded.popup).toEqual({
-    width: 505,
-    height: 620,
+    width: 490,
+    height: 615,
   });
-  await child.close();
 });
 
 test("popup reopening restores resized geometry and focuses the composer", async ({

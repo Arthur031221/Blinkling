@@ -1809,6 +1809,7 @@ function App() {
         )}
         <button
           ref={floatingButton}
+          disabled={!demo && !session}
           onClick={() =>
             floatDoc
               ? (floatDoc.defaultView?.focus(), setStatus(t.returnPanel))
