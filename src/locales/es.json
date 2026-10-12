@@ -112,5 +112,8 @@
   "answerWaiting": "La respuesta aparecerá aquí.",
   "statusAnswerCancelled": "Respuesta cancelada. Tu pregunta sigue aquí.",
   "resizePanel": "Cambiar el tamaño del panel",
-  "resizeHelp": "Arrastra para cambiar el tamaño o usa las teclas de flecha. También puedes arrastrar los bordes de la ventana."
+  "resizeHelp": "Arrastra para cambiar el tamaño o usa las teclas de flecha. También puedes arrastrar los bordes de la ventana.",
+  "scopeSent": "Último fotograma enviado",
+  "resumePreview": "Mostrar vista en directo",
+  "pausePassive": "Pausar notas pasivas"
 }

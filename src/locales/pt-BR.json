@@ -112,5 +112,8 @@
   "answerWaiting": "A resposta aparecerá aqui.",
   "statusAnswerCancelled": "Resposta cancelada. Sua pergunta continua aqui.",
   "resizePanel": "Redimensionar painel",
-  "resizeHelp": "Arraste para redimensionar ou use as teclas de seta. Você também pode arrastar as bordas da janela."
+  "resizeHelp": "Arraste para redimensionar ou use as teclas de seta. Você também pode arrastar as bordas da janela.",
+  "scopeSent": "Último quadro enviado",
+  "resumePreview": "Mostrar prévia ao vivo",
+  "pausePassive": "Pausar notas passivas"
 }

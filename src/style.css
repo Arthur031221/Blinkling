@@ -65,7 +65,7 @@ select:focus-visible {
   color-scheme: light;
   background: var(--paper);
   height: 100%;
-  min-height: 500px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: auto;
@@ -92,6 +92,7 @@ select:focus-visible {
   color: #0a0a0b;
 }
 .dark .primary:hover {
+  background: #3ddc97;
   filter: brightness(0.92);
 }
 .app header {
@@ -218,6 +219,7 @@ select:focus-visible {
   padding: 10px 16px;
 }
 .primary:hover {
+  background: var(--clay);
   filter: brightness(0.9);
 }
 .primary:disabled {
@@ -448,6 +450,30 @@ footer .resize-handle {
   font-size: 13px;
   line-height: 1.6;
   overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+.markdown:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+.markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.markdown th,
+.markdown td {
+  min-width: 120px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.markdown th {
+  font-weight: 600;
+  background: var(--paper);
 }
 .markdown p {
   margin: 10px 0;
@@ -478,6 +504,10 @@ footer .resize-handle {
   color: var(--muted);
   min-height: 16px;
   margin: 10px 0 0;
+}
+.copy-feedback:empty {
+  min-height: 0;
+  margin: 0;
 }
 .settings {
   margin: auto;

@@ -1,5 +1,21 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
+
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.nodeName !== "A") {
+    node.removeAttribute("target");
+    node.removeAttribute("rel");
+    return;
+  }
+  if (/^(?:https?:)?\/\//i.test(node.getAttribute("href") || "")) {
+    node.setAttribute("target", "_blank");
+    node.setAttribute("rel", "noopener noreferrer");
+  } else {
+    node.removeAttribute("target");
+    node.removeAttribute("rel");
+  }
+});
+
 export function safeMarkdown(source: string): string {
   return DOMPurify.sanitize(marked.parse(source) as string, {
     ALLOWED_TAGS: [
@@ -17,9 +33,14 @@ export function safeMarkdown(source: string): string {
       "h2",
       "h3",
       "br",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
     ],
-    ALLOWED_ATTR: ["href", "title"],
-    ALLOWED_URI_REGEXP:
-      /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+    ALLOWED_ATTR: ["href", "title", "target", "rel"],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\/\/)/i,
   });
 }

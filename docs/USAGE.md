@@ -2,11 +2,13 @@
 
 Run `/glimpselet:glimpse` from your coding session. Choose **Float panel**, then use the browser picker to share a display, app window or tab. Sharing begins only after you choose a surface. Freeze a frame to inspect it, crop to a region, draw opaque masks over details you do not want sent.
 
-Type a question or choose a quick action. Press Ctrl+Enter or Command+Enter to send it. The panel sends the prepared image and question to the configured backend and streams the answer. Choose the `sonnet`, `opus` or `haiku` alias in Settings. Follow-up questions can include recent, bounded session context. Answers can be copied or pinned.
+Type a question or choose a quick action. Press Ctrl+Enter or Command+Enter to send it. The panel sends the prepared image and question to the configured backend and streams the answer. The still image sent with a question is labeled **Last sent frame**. **Show live preview** returns to the shared screen without sending another question and preserves the crop and masks. Choose the `sonnet`, `opus` or `haiku` alias in Settings. Follow-up questions can include recent, bounded session context. Answers can be copied or pinned.
+
+With the screen preview focused, S selects an area, E asks for an explanation, T translates it, and P toggles passive notes. The corresponding buttons remain keyboard accessible.
 
 ## Passive notes
 
-Panel passive mode samples the selected browser surface every two seconds. It compares frames locally and requests a short note only when the image changes. The bridge enforces a rolling maximum of six passive requests per minute by default. A lower cap can be selected. Six per minute is a rate limit, not a statement about monetary cost. Frames and generated notes remain in a local timeline for up to ten minutes. Ask for a timeline summary or export the notes as Markdown. Pause passive mode to stop sampling and its requests.
+Panel passive mode samples the selected browser surface every two seconds. It compares frames locally and requests a short note only when the image changes. The bridge enforces a rolling maximum of six passive requests per minute by default. A lower cap can be selected. Six per minute is a rate limit, not a statement about monetary cost. Frames and generated notes remain in a local timeline for up to ten minutes. Ask for a timeline summary or export the notes as Markdown. Pause passive mode to stop sampling and its requests. **Pause passive notes** cancels the current streaming note and stops future notes until you resume.
 
 The separate `screen_watch_start` MCP tool is different: it captures serially at an interval from 5 to 60 seconds, retains changed images, and does not call a model. It can use an explicitly shared browser surface or the native adapter when no browser share is active. It does not run the panel's two-second narration loop.
 

@@ -8,4 +8,16 @@ The optional API backend sends requests from the local bridge. Enter its API key
 
 The panel offers nine interface locales: English, Traditional Chinese, Simplified Chinese, Japanese, Korean, Spanish, French, German and Brazilian Portuguese. Language, theme, model, size and translation target preferences are stored in the panel tab's session storage. Launch and session tokens are held in memory and are not written there.
 
+Compact and expanded dimensions are saved separately. A local file and browser cache also retain popup position and window frame dimensions when the bridge restarts on a new port. The browser controls Picture in Picture placement. Saving is best effort when either storage location is unavailable.
+
+Only geometry is saved. The file contains no questions, images, keys, session tokens or answer history.
+
+Popup positions are clamped to the screen available to the opener. A popup last used on another monitor may reopen on the opener's screen.
+
+| Platform | Preference file                                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Linux    | `$XDG_CONFIG_HOME/glimpselet/floating-geometry-v1.json`, or `~/.config/glimpselet/floating-geometry-v1.json` when unset  |
+| macOS    | `~/Library/Application Support/glimpselet/floating-geometry-v1.json`                                                     |
+| Windows  | `%APPDATA%/glimpselet/floating-geometry-v1.json`, or `~/AppData/Roaming/glimpselet/floating-geometry-v1.json` when unset |
+
 Passive-note requests are capped at six per rolling minute by default. Settings allow a lower cap. This is a request-rate limit. It does not predict API or account cost. The separate MCP screen watch samples at a selected interval from 5 to 60 seconds, retains changed images only, and makes no model calls.

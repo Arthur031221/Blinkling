@@ -50,7 +50,9 @@ Les outils MCP de capture renvoient des images à la session de programmation su
 <details>
 <summary>Commandes et état</summary>
 
-Redimensionnez le panneau avec son bouton ou les flèches. Faites glisser les bords de la fenêtre si le navigateur le permet. En mode recadrage ou masquage, les flèches déplacent la sélection, Maj et les flèches la redimensionnent, Entrée l'applique et Échap annule. Échap dans le champ de question met les notes passives en pause et annule la question actuelle sans effacer son texte. Les paramètres s'ouvrent dans une fenêtre modale. Vous pouvez désépingler une ancienne réponse. **Resume live view** conserve le recadrage et les masques. Le suivi d'une réponse diffusée s'arrête quand vous remontez dans la page. Le panneau affiche l'état du partage, du modèle et des notes passives.
+Redimensionnez le panneau avec son bouton ou les flèches. Faites glisser les bords de la fenêtre si le navigateur le permet. En mode recadrage ou masquage, les flèches déplacent la sélection, Maj et les flèches la redimensionnent, Entrée l'applique et Échap annule. Échap dans le champ de question met les notes passives en pause et annule la question actuelle sans effacer son texte. Les paramètres s'ouvrent dans une fenêtre modale. Vous pouvez désépingler une ancienne réponse. **Dernière image envoyée** désigne l'image fixe envoyée avec une question. **Afficher la vue en direct** revient à l'écran partagé sans envoyer une nouvelle question et conserve le recadrage et les masques. **Suspendre les notes passives** annule la tâche passive en cours de diffusion et arrête les prochaines notes jusqu'à leur reprise. Les raccourcis S/E/T/P fonctionnent uniquement lorsque l'aperçu de l'écran est sélectionné. Les boutons restent accessibles au clavier. Le suivi d'une réponse diffusée s'arrête quand vous remontez dans la page. Le panneau affiche l'état du partage, du modèle et des notes passives.
+
+Les réponses comparatives conservent les en-têtes et les colonnes des tableaux. Les tableaux larges défilent dans la réponse. Placez le focus sur la réponse et utilisez les touches fléchées pour lire les autres colonnes.
 
 </details>
 
@@ -71,7 +73,7 @@ Les questions passent par l'assistant de programmation installé ou, en option, 
 <details>
 <summary>Fenêtre flottante et navigateurs</summary>
 
-Document Picture-in-Picture est disponible dans les navigateurs Chromium compatibles sur ordinateur. Le navigateur contrôle le placement de cette fenêtre. La position du popup est mémorisée quand le navigateur le permet. Les dimensions compacte et développée sont mémorisées séparément.
+Document Picture-in-Picture est disponible dans les navigateurs Chromium compatibles sur ordinateur. Le navigateur contrôle le placement de cette fenêtre. Les dimensions compacte et développée, la position du popup et le cadre de la fenêtre sont conservés entre les redémarrages du pont dans un fichier local limité à la géométrie et dans le cache du navigateur, si le stockage est disponible. Consultez les [emplacements](docs/CONFIGURATION.md) dans la configuration.
 
 </details>
 

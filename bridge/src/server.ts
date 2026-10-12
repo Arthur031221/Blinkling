@@ -36,7 +36,7 @@ export async function createGlimpselet(options: ServerOptions = {}) {
   const panel = await new PanelServer(history, {
     onClear: () => onClear(),
   }).start();
-  const server = new McpServer({ name: "glimpselet", version: "1.1.0" });
+  const server = new McpServer({ name: "glimpselet", version: "1.2.0" });
   let watchTimer: NodeJS.Timeout | undefined;
   let watching = false,
     inCapture = false;

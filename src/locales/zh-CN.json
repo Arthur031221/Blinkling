@@ -112,5 +112,8 @@
   "answerWaiting": "回答会显示在这里。",
   "statusAnswerCancelled": "回答已取消。你的问题仍在这里。",
   "resizePanel": "调整面板大小",
-  "resizeHelp": "拖动以调整大小，或使用方向键。也可以拖动窗口边缘。"
+  "resizeHelp": "拖动以调整大小，或使用方向键。也可以拖动窗口边缘。",
+  "scopeSent": "上次发送的画面",
+  "resumePreview": "显示实时预览",
+  "pausePassive": "暂停被动笔记"
 }

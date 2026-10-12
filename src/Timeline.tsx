@@ -38,7 +38,13 @@ export function Timeline({
         <article key={entry.id}>
           <time>{new Date(entry.at).toLocaleTimeString(locale)}</time>
           <strong>{entry.question}</strong>
-          <p dangerouslySetInnerHTML={{ __html: safeMarkdown(entry.answer) }} />
+          <div
+            className="markdown"
+            role="region"
+            aria-label={entry.question}
+            tabIndex={0}
+            dangerouslySetInnerHTML={{ __html: safeMarkdown(entry.answer) }}
+          />
         </article>
       ))}
       <div className="timeline-actions">

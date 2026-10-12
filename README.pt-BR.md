@@ -50,7 +50,9 @@ As ferramentas MCP de tela retornam imagens à sessão de programação quando s
 <details>
 <summary>Controles e status</summary>
 
-Redimensione pelo controle do painel ou pelas setas. Você também pode arrastar as bordas da janela quando o navegador permitir. No modo de recorte ou máscara, as setas movem a seleção, Shift mais as setas redimensionam, Enter aplica e Escape cancela. Escape no campo de pergunta pausa as notas passivas e cancela a pergunta atual sem apagar o texto. Configurações abre em uma janela modal. É possível desafixar uma resposta antiga. **Resume live view** mantém o recorte e as máscaras. Ao rolar para cima, o acompanhamento da resposta em streaming para. O painel mostra o estado do compartilhamento, do modelo e das notas passivas.
+Redimensione pelo controle do painel ou pelas setas. Você também pode arrastar as bordas da janela quando o navegador permitir. No modo de recorte ou máscara, as setas movem a seleção, Shift mais as setas redimensionam, Enter aplica e Escape cancela. Escape no campo de pergunta pausa as notas passivas e cancela a pergunta atual sem apagar o texto. Configurações abre em uma janela modal. É possível desafixar uma resposta antiga. **Último quadro enviado** identifica a imagem estática enviada com uma pergunta. **Mostrar prévia ao vivo** volta à tela compartilhada sem enviar outra pergunta e mantém o recorte e as máscaras. **Pausar notas passivas** cancela o trabalho passivo em transmissão e interrompe novas notas até você retomar. Os atalhos S/E/T/P funcionam somente quando a prévia da tela está em foco. Os botões continuam acessíveis pelo teclado. Ao rolar para cima, o acompanhamento da resposta em streaming para. O painel mostra o estado do compartilhamento, do modelo e das notas passivas.
+
+As respostas de comparação preservam os cabeçalhos e as colunas das tabelas. As tabelas largas rolam dentro da resposta. Coloque o foco na resposta e use as setas para ler as outras colunas.
 
 </details>
 
@@ -71,7 +73,7 @@ As perguntas passam pelo assistente de programação instalado ou, opcionalmente
 <details>
 <summary>Janela flutuante e navegadores</summary>
 
-Document Picture-in-Picture está disponível em navegadores Chromium compatíveis para desktop. O navegador controla a posição dessa janela. A posição do pop-up é lembrada quando o navegador permite. As dimensões compacta e expandida são lembradas separadamente.
+Document Picture-in-Picture está disponível em navegadores Chromium compatíveis para desktop. O navegador controla a posição dessa janela. As dimensões compacta e expandida, a posição do pop-up e a moldura da janela são mantidas entre reinícios da ponte em um arquivo local que guarda somente geometria e no cache do navegador, quando o armazenamento está disponível. Consulte os [locais dos arquivos](docs/CONFIGURATION.md) na configuração.
 
 </details>
 

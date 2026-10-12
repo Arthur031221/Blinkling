@@ -50,7 +50,9 @@ MCP Bildschirmwerkzeuge geben Bilder auf Anfrage an die Programmiersitzung zurü
 <details>
 <summary>Bedienung und Status</summary>
 
-Ziehe zum Ändern der Größe an den Fensterkanten oder nutze die Größensteuerung und Pfeiltasten. Im Zuschneide- oder Abdeckmodus verschieben die Pfeile die Auswahl, Umschalt plus Pfeiltasten ändern ihre Größe, Enter übernimmt sie und Escape bricht ab. Escape im Fragefeld pausiert passive Notizen und bricht die aktuelle Frage ab, ohne ihren Text zu löschen. Einstellungen öffnen sich in einem Dialog. Ältere Antworten lassen sich lösen. **Resume live view** behält Zuschnitt und Masken bei. Beim Scrollen nach oben endet das Folgen einer gestreamten Antwort. Das Panel zeigt den Freigabe-, Modell- und Passivnotiz-Status.
+Ziehe zum Ändern der Größe an den Fensterkanten oder nutze die Größensteuerung und Pfeiltasten. Im Zuschneide- oder Abdeckmodus verschieben die Pfeile die Auswahl, Umschalt plus Pfeiltasten ändern ihre Größe, Enter übernimmt sie und Escape bricht ab. Escape im Fragefeld pausiert passive Notizen und bricht die aktuelle Frage ab, ohne ihren Text zu löschen. Einstellungen öffnen sich in einem Dialog. Ältere Antworten lassen sich lösen. **Zuletzt gesendetes Bild** kennzeichnet das mit einer Frage gesendete Standbild. **Livevorschau anzeigen** kehrt ohne eine weitere Frage zur geteilten Bildschirmansicht zurück und behält Zuschnitt und Masken bei. **Passive Notizen pausieren** bricht den laufenden passiven Streaming-Auftrag ab und verhindert weitere Notizen, bis du sie fortsetzt. Die Tasten S/E/T/P funktionieren nur, wenn die Bildschirmvorschau fokussiert ist. Die Schaltflächen bleiben per Tastatur erreichbar. Beim Scrollen nach oben endet das Folgen einer gestreamten Antwort. Das Panel zeigt den Freigabe-, Modell- und Passivnotiz-Status.
+
+Vergleichsantworten behalten Tabellenüberschriften und Spalten bei. Breite Tabellen lassen sich innerhalb der Antwort horizontal scrollen. Fokussiere die Antwort und nutze die Pfeiltasten, um weitere Spalten zu lesen.
 
 </details>
 
@@ -71,7 +73,7 @@ Fragen laufen über den installierten Coding-Assistenten oder optional über ein
 <details>
 <summary>Schwebendes Fenster und Browser</summary>
 
-Document Picture-in-Picture ist in unterstützten Desktop Chromium Browsern verfügbar. Der Browser bestimmt die Position dieses Fensters. Popup Positionen werden gespeichert, sofern der Browser das zulässt. Kompakte und erweiterte Maße werden getrennt gespeichert.
+Document Picture-in-Picture ist in unterstützten Desktop Chromium Browsern verfügbar. Der Browser bestimmt die Position dieses Fensters. Kompakte und erweiterte Maße, Popup-Position und Fensterrahmen werden über Bridge-Neustarts hinweg in einer lokalen Geometriedatei und im Browser-Cache gespeichert, sofern der Speicher verfügbar ist. Die Speicherorte stehen unter [Konfiguration](docs/CONFIGURATION.md).
 
 </details>
 

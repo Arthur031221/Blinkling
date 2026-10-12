@@ -112,5 +112,8 @@
   "answerWaiting": "The answer will appear here.",
   "statusAnswerCancelled": "Answer cancelled. Your question is still here.",
   "resizePanel": "Resize panel",
-  "resizeHelp": "Drag to resize, or use the arrow keys. You can also drag the window edges."
+  "resizeHelp": "Drag to resize, or use the arrow keys. You can also drag the window edges.",
+  "scopeSent": "Last sent frame",
+  "resumePreview": "Show live preview",
+  "pausePassive": "Pause passive notes"
 }

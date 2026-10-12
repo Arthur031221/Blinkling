@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  exportFloatingGeometry,
   readFloatingGeometry,
   rememberFloatingGeometry,
+  restoreFloatingGeometry,
   type GeometryStorage,
   type ScreenBounds,
 } from "./floatingWindow";
@@ -21,6 +23,87 @@ function memoryStorage(initial?: string): GeometryStorage & { value?: string } {
 }
 
 describe("floating window geometry", () => {
+  it("drops cached values beyond the bridge limits while retaining valid geometry", () => {
+    const storage = memoryStorage(
+      JSON.stringify({
+        version: 1,
+        dimensions: {
+          compact: {
+            popup: { width: 32_769, height: 520 },
+            pip: { width: 420, height: 520 },
+          },
+        },
+        popupPosition: { left: 1_000_001, top: 0 },
+        popupChrome: { width: 0, height: 32_769 },
+      }),
+    );
+    expect(exportFloatingGeometry(storage)).toEqual({
+      version: 1,
+      dimensions: { compact: { pip: { width: 420, height: 520 } } },
+    });
+    const limits = {
+      version: 1,
+      dimensions: { expanded: { popup: { width: 32_768, height: 32_768 } } },
+      popupPosition: { left: -1_000_000, top: 1_000_000 },
+      popupChrome: { width: 32_768, height: 0 },
+    };
+    restoreFloatingGeometry(limits, storage);
+    expect(exportFloatingGeometry(storage)).toEqual(limits);
+  });
+  it("restores bridge preferences when browser storage is blocked", () => {
+    vi.stubGlobal("localStorage", {
+      getItem() {
+        throw new Error("blocked");
+      },
+      setItem() {
+        throw new Error("blocked");
+      },
+    });
+    try {
+      restoreFloatingGeometry({
+        version: 1,
+        dimensions: { compact: { pip: { width: 470, height: 570 } } },
+      });
+      expect(readFloatingGeometry("compact", "pip", screen)).toEqual({
+        width: 470,
+        height: 570,
+      });
+      expect(exportFloatingGeometry().dimensions.compact?.pip?.width).toBe(470);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+  it("restores bridge preferences into a fresh browser origin without retaining other data", () => {
+    const storage = memoryStorage();
+    restoreFloatingGeometry(
+      {
+        version: 1,
+        dimensions: { compact: { popup: { width: 480, height: 610 } } },
+        popupPosition: { left: 100, top: 120 },
+        popupChrome: { width: 20, height: 40 },
+        session: "must-not-persist",
+        answer: "must-not-persist",
+      },
+      storage,
+    );
+    expect(readFloatingGeometry("compact", "popup", screen, storage)).toEqual({
+      width: 480,
+      height: 610,
+      left: 100,
+      top: 120,
+    });
+    expect(exportFloatingGeometry(storage)).toEqual({
+      version: 1,
+      dimensions: { compact: { popup: { width: 480, height: 610 } } },
+      popupPosition: { left: 100, top: 120 },
+      popupChrome: { width: 20, height: 40 },
+    });
+    restoreFloatingGeometry({ version: 1, dimensions: {} }, storage);
+    restoreFloatingGeometry({ version: 9, dimensions: {} }, storage);
+    expect(
+      readFloatingGeometry("compact", "popup", screen, storage).width,
+    ).toBe(480);
+  });
   it("uses defaults and remembers manual inner size per size and kind", () => {
     const storage = memoryStorage();
     expect(readFloatingGeometry("compact", "pip", screen, storage)).toEqual({

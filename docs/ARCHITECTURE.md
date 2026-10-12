@@ -12,6 +12,8 @@ Answer context is bounded. Follow-up questions can include recent question and a
 
 The separate `screen_watch_start` MCP tool uses a serial interval of 5 to 60 seconds, keeps changed images only and makes no model calls. It is not the panel's passive narration feature.
 
+Window geometry is saved separately from the bridge session. A local configuration file and browser cache retain compact and expanded dimensions, popup position and window frame dimensions when the bridge restarts on another port. The browser controls Picture in Picture placement. Storage failures leave the panel usable. The geometry file contains no questions, images, keys, session tokens or answer history.
+
 Markdown is sanitized before answers are displayed.
 
 Restricted execution still loads managed policy. Organization configured hooks are trusted and can run outside this request. The installed CLI is not an OS sandbox. The [provider implementation](../bridge/src/provider-cli.ts) records the flags used for each request.

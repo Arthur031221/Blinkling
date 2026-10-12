@@ -407,11 +407,11 @@ var require_codegen = __commonJS({
         const rhs = this.rhs === void 0 ? "" : ` = ${this.rhs}`;
         return `${varKind} ${this.name}${rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (!names[this.name.str])
           return;
         if (this.rhs)
-          this.rhs = optimizeExpr(this.rhs, names, constants);
+          this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -428,10 +428,10 @@ var require_codegen = __commonJS({
       render({ _n }) {
         return `${this.lhs} = ${this.rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (this.lhs instanceof code_1.Name && !names[this.lhs.str] && !this.sideEffects)
           return;
-        this.rhs = optimizeExpr(this.rhs, names, constants);
+        this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -492,8 +492,8 @@ var require_codegen = __commonJS({
       optimizeNodes() {
         return `${this.code}` ? this : void 0;
       }
-      optimizeNames(names, constants) {
-        this.code = optimizeExpr(this.code, names, constants);
+      optimizeNames(names, constants2) {
+        this.code = optimizeExpr(this.code, names, constants2);
         return this;
       }
       get names() {
@@ -522,12 +522,12 @@ var require_codegen = __commonJS({
         }
         return nodes.length > 0 ? this : void 0;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         const { nodes } = this;
         let i = nodes.length;
         while (i--) {
           const n = nodes[i];
-          if (n.optimizeNames(names, constants))
+          if (n.optimizeNames(names, constants2))
             continue;
           subtractNames(names, n.names);
           nodes.splice(i, 1);
@@ -580,12 +580,12 @@ var require_codegen = __commonJS({
           return void 0;
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a;
-        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        if (!(super.optimizeNames(names, constants) || this.else))
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        if (!(super.optimizeNames(names, constants2) || this.else))
           return;
-        this.condition = optimizeExpr(this.condition, names, constants);
+        this.condition = optimizeExpr(this.condition, names, constants2);
         return this;
       }
       get names() {
@@ -608,10 +608,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.iteration})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iteration = optimizeExpr(this.iteration, names, constants);
+        this.iteration = optimizeExpr(this.iteration, names, constants2);
         return this;
       }
       get names() {
@@ -647,10 +647,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.varKind} ${this.name} ${this.loop} ${this.iterable})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iterable = optimizeExpr(this.iterable, names, constants);
+        this.iterable = optimizeExpr(this.iterable, names, constants2);
         return this;
       }
       get names() {
@@ -692,11 +692,11 @@ var require_codegen = __commonJS({
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a, _b;
-        super.optimizeNames(names, constants);
-        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants);
+        super.optimizeNames(names, constants2);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants2);
         return this;
       }
       get names() {
@@ -997,7 +997,7 @@ var require_codegen = __commonJS({
     function addExprNames(names, from) {
       return from instanceof code_1._CodeOrName ? addNames(names, from.names) : names;
     }
-    function optimizeExpr(expr, names, constants) {
+    function optimizeExpr(expr, names, constants2) {
       if (expr instanceof code_1.Name)
         return replaceName(expr);
       if (!canOptimize(expr))
@@ -1012,14 +1012,14 @@ var require_codegen = __commonJS({
         return items;
       }, []));
       function replaceName(n) {
-        const c = constants[n.str];
+        const c = constants2[n.str];
         if (c === void 0 || names[n.str] !== 1)
           return n;
         delete names[n.str];
         return c;
       }
       function canOptimize(e) {
-        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants2[c.str] !== void 0);
       }
     }
     function subtractNames(names, from) {
@@ -7459,11 +7459,11 @@ var require_codegen2 = __commonJS({
         const rhs = this.rhs === void 0 ? "" : ` = ${this.rhs}`;
         return `${varKind} ${this.name}${rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (!names[this.name.str])
           return;
         if (this.rhs)
-          this.rhs = optimizeExpr(this.rhs, names, constants);
+          this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -7480,10 +7480,10 @@ var require_codegen2 = __commonJS({
       render({ _n }) {
         return `${this.lhs} = ${this.rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (this.lhs instanceof code_1.Name && !names[this.lhs.str] && !this.sideEffects)
           return;
-        this.rhs = optimizeExpr(this.rhs, names, constants);
+        this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -7544,8 +7544,8 @@ var require_codegen2 = __commonJS({
       optimizeNodes() {
         return `${this.code}` ? this : void 0;
       }
-      optimizeNames(names, constants) {
-        this.code = optimizeExpr(this.code, names, constants);
+      optimizeNames(names, constants2) {
+        this.code = optimizeExpr(this.code, names, constants2);
         return this;
       }
       get names() {
@@ -7574,12 +7574,12 @@ var require_codegen2 = __commonJS({
         }
         return nodes.length > 0 ? this : void 0;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         const { nodes } = this;
         let i = nodes.length;
         while (i--) {
           const n = nodes[i];
-          if (n.optimizeNames(names, constants))
+          if (n.optimizeNames(names, constants2))
             continue;
           subtractNames(names, n.names);
           nodes.splice(i, 1);
@@ -7632,12 +7632,12 @@ var require_codegen2 = __commonJS({
           return void 0;
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a;
-        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        if (!(super.optimizeNames(names, constants) || this.else))
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        if (!(super.optimizeNames(names, constants2) || this.else))
           return;
-        this.condition = optimizeExpr(this.condition, names, constants);
+        this.condition = optimizeExpr(this.condition, names, constants2);
         return this;
       }
       get names() {
@@ -7660,10 +7660,10 @@ var require_codegen2 = __commonJS({
       render(opts) {
         return `for(${this.iteration})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iteration = optimizeExpr(this.iteration, names, constants);
+        this.iteration = optimizeExpr(this.iteration, names, constants2);
         return this;
       }
       get names() {
@@ -7699,10 +7699,10 @@ var require_codegen2 = __commonJS({
       render(opts) {
         return `for(${this.varKind} ${this.name} ${this.loop} ${this.iterable})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iterable = optimizeExpr(this.iterable, names, constants);
+        this.iterable = optimizeExpr(this.iterable, names, constants2);
         return this;
       }
       get names() {
@@ -7744,11 +7744,11 @@ var require_codegen2 = __commonJS({
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a, _b;
-        super.optimizeNames(names, constants);
-        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants);
+        super.optimizeNames(names, constants2);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants2);
         return this;
       }
       get names() {
@@ -8049,7 +8049,7 @@ var require_codegen2 = __commonJS({
     function addExprNames(names, from) {
       return from instanceof code_1._CodeOrName ? addNames(names, from.names) : names;
     }
-    function optimizeExpr(expr, names, constants) {
+    function optimizeExpr(expr, names, constants2) {
       if (expr instanceof code_1.Name)
         return replaceName(expr);
       if (!canOptimize(expr))
@@ -8064,14 +8064,14 @@ var require_codegen2 = __commonJS({
         return items;
       }, []));
       function replaceName(n) {
-        const c = constants[n.str];
+        const c = constants2[n.str];
         if (c === void 0 || names[n.str] !== 1)
           return n;
         delete names[n.str];
         return c;
       }
       function canOptimize(e) {
-        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants2[c.str] !== void 0);
       }
     }
     function subtractNames(names, from) {
@@ -13378,7 +13378,7 @@ var require_crc = __commonJS({
 var require_parser = __commonJS({
   "node_modules/pngjs/lib/parser.js"(exports2, module2) {
     "use strict";
-    var constants = require_constants();
+    var constants2 = require_constants();
     var CrcCalculator = require_crc();
     var Parser = module2.exports = function(options, dependencies) {
       this._options = options;
@@ -13389,12 +13389,12 @@ var require_parser = __commonJS({
       this._palette = [];
       this._colorType = 0;
       this._chunks = {};
-      this._chunks[constants.TYPE_IHDR] = this._handleIHDR.bind(this);
-      this._chunks[constants.TYPE_IEND] = this._handleIEND.bind(this);
-      this._chunks[constants.TYPE_IDAT] = this._handleIDAT.bind(this);
-      this._chunks[constants.TYPE_PLTE] = this._handlePLTE.bind(this);
-      this._chunks[constants.TYPE_tRNS] = this._handleTRNS.bind(this);
-      this._chunks[constants.TYPE_gAMA] = this._handleGAMA.bind(this);
+      this._chunks[constants2.TYPE_IHDR] = this._handleIHDR.bind(this);
+      this._chunks[constants2.TYPE_IEND] = this._handleIEND.bind(this);
+      this._chunks[constants2.TYPE_IDAT] = this._handleIDAT.bind(this);
+      this._chunks[constants2.TYPE_PLTE] = this._handlePLTE.bind(this);
+      this._chunks[constants2.TYPE_tRNS] = this._handleTRNS.bind(this);
+      this._chunks[constants2.TYPE_gAMA] = this._handleGAMA.bind(this);
       this.read = dependencies.read;
       this.error = dependencies.error;
       this.metadata = dependencies.metadata;
@@ -13409,10 +13409,10 @@ var require_parser = __commonJS({
       };
     };
     Parser.prototype.start = function() {
-      this.read(constants.PNG_SIGNATURE.length, this._parseSignature.bind(this));
+      this.read(constants2.PNG_SIGNATURE.length, this._parseSignature.bind(this));
     };
     Parser.prototype._parseSignature = function(data) {
-      let signature = constants.PNG_SIGNATURE;
+      let signature = constants2.PNG_SIGNATURE;
       for (let i = 0; i < signature.length; i++) {
         if (data[i] !== signature[i]) {
           this.error(new Error("Invalid file signature"));
@@ -13429,7 +13429,7 @@ var require_parser = __commonJS({
         name += String.fromCharCode(data[i]);
       }
       let ancillary = Boolean(data[4] & 32);
-      if (!this._hasIHDR && type !== constants.TYPE_IHDR) {
+      if (!this._hasIHDR && type !== constants2.TYPE_IHDR) {
         this.error(new Error("Expected IHDR on beggining"));
         return;
       }
@@ -13477,7 +13477,7 @@ var require_parser = __commonJS({
         this.error(new Error("Unsupported bit depth " + depth));
         return;
       }
-      if (!(colorType in constants.COLORTYPE_TO_BPP_MAP)) {
+      if (!(colorType in constants2.COLORTYPE_TO_BPP_MAP)) {
         this.error(new Error("Unsupported color type"));
         return;
       }
@@ -13494,16 +13494,16 @@ var require_parser = __commonJS({
         return;
       }
       this._colorType = colorType;
-      let bpp = constants.COLORTYPE_TO_BPP_MAP[this._colorType];
+      let bpp = constants2.COLORTYPE_TO_BPP_MAP[this._colorType];
       this._hasIHDR = true;
       this.metadata({
         width,
         height,
         depth,
         interlace: Boolean(interlace),
-        palette: Boolean(colorType & constants.COLORTYPE_PALETTE),
-        color: Boolean(colorType & constants.COLORTYPE_COLOR),
-        alpha: Boolean(colorType & constants.COLORTYPE_ALPHA),
+        palette: Boolean(colorType & constants2.COLORTYPE_PALETTE),
+        color: Boolean(colorType & constants2.COLORTYPE_COLOR),
+        alpha: Boolean(colorType & constants2.COLORTYPE_ALPHA),
         bpp,
         colorType
       });
@@ -13527,7 +13527,7 @@ var require_parser = __commonJS({
     };
     Parser.prototype._parseTRNS = function(data) {
       this._crc.write(data);
-      if (this._colorType === constants.COLORTYPE_PALETTE_COLOR) {
+      if (this._colorType === constants2.COLORTYPE_PALETTE_COLOR) {
         if (this._palette.length === 0) {
           this.error(new Error("Transparency chunk must be after palette"));
           return;
@@ -13541,10 +13541,10 @@ var require_parser = __commonJS({
         }
         this.palette(this._palette);
       }
-      if (this._colorType === constants.COLORTYPE_GRAYSCALE) {
+      if (this._colorType === constants2.COLORTYPE_GRAYSCALE) {
         this.transColor([data.readUInt16BE(0)]);
       }
-      if (this._colorType === constants.COLORTYPE_COLOR) {
+      if (this._colorType === constants2.COLORTYPE_COLOR) {
         this.transColor([
           data.readUInt16BE(0),
           data.readUInt16BE(2),
@@ -13558,7 +13558,7 @@ var require_parser = __commonJS({
     };
     Parser.prototype._parseGAMA = function(data) {
       this._crc.write(data);
-      this.gamma(data.readUInt32BE(0) / constants.GAMMA_DIVISION);
+      this.gamma(data.readUInt32BE(0) / constants2.GAMMA_DIVISION);
       this._handleChunkEnd();
     };
     Parser.prototype._handleIDAT = function(length) {
@@ -13570,7 +13570,7 @@ var require_parser = __commonJS({
     };
     Parser.prototype._parseIDAT = function(length, data) {
       this._crc.write(data);
-      if (this._colorType === constants.COLORTYPE_PALETTE_COLOR && this._palette.length === 0) {
+      if (this._colorType === constants2.COLORTYPE_PALETTE_COLOR && this._palette.length === 0) {
         throw new Error("Expected palette not found");
       }
       this.inflateData(data);
@@ -14058,9 +14058,9 @@ var require_parser_async = __commonJS({
 var require_bitpacker = __commonJS({
   "node_modules/pngjs/lib/bitpacker.js"(exports2, module2) {
     "use strict";
-    var constants = require_constants();
+    var constants2 = require_constants();
     module2.exports = function(dataIn, width, height, options) {
-      let outHasAlpha = [constants.COLORTYPE_COLOR_ALPHA, constants.COLORTYPE_ALPHA].indexOf(
+      let outHasAlpha = [constants2.COLORTYPE_COLOR_ALPHA, constants2.COLORTYPE_ALPHA].indexOf(
         options.colorType
       ) !== -1;
       if (options.colorType === options.inputColorType) {
@@ -14080,11 +14080,11 @@ var require_bitpacker = __commonJS({
       }
       let data = options.bitDepth !== 16 ? dataIn : new Uint16Array(dataIn.buffer);
       let maxValue = 255;
-      let inBpp = constants.COLORTYPE_TO_BPP_MAP[options.inputColorType];
+      let inBpp = constants2.COLORTYPE_TO_BPP_MAP[options.inputColorType];
       if (inBpp === 4 && !options.inputHasAlpha) {
         inBpp = 3;
       }
-      let outBpp = constants.COLORTYPE_TO_BPP_MAP[options.colorType];
+      let outBpp = constants2.COLORTYPE_TO_BPP_MAP[options.colorType];
       if (options.bitDepth === 16) {
         maxValue = 65535;
         outBpp *= 2;
@@ -14108,24 +14108,24 @@ var require_bitpacker = __commonJS({
         let blue;
         let alpha = maxValue;
         switch (options.inputColorType) {
-          case constants.COLORTYPE_COLOR_ALPHA:
+          case constants2.COLORTYPE_COLOR_ALPHA:
             alpha = data[inIndex + 3];
             red = data[inIndex];
             green = data[inIndex + 1];
             blue = data[inIndex + 2];
             break;
-          case constants.COLORTYPE_COLOR:
+          case constants2.COLORTYPE_COLOR:
             red = data[inIndex];
             green = data[inIndex + 1];
             blue = data[inIndex + 2];
             break;
-          case constants.COLORTYPE_ALPHA:
+          case constants2.COLORTYPE_ALPHA:
             alpha = data[inIndex + 1];
             red = data[inIndex];
             green = red;
             blue = red;
             break;
-          case constants.COLORTYPE_GRAYSCALE:
+          case constants2.COLORTYPE_GRAYSCALE:
             red = data[inIndex];
             green = red;
             blue = red;
@@ -14158,8 +14158,8 @@ var require_bitpacker = __commonJS({
         for (let x = 0; x < width; x++) {
           let rgba = getRGBA(data, inIndex);
           switch (options.colorType) {
-            case constants.COLORTYPE_COLOR_ALPHA:
-            case constants.COLORTYPE_COLOR:
+            case constants2.COLORTYPE_COLOR_ALPHA:
+            case constants2.COLORTYPE_COLOR:
               if (options.bitDepth === 8) {
                 outData[outIndex] = rgba.red;
                 outData[outIndex + 1] = rgba.green;
@@ -14176,8 +14176,8 @@ var require_bitpacker = __commonJS({
                 }
               }
               break;
-            case constants.COLORTYPE_ALPHA:
-            case constants.COLORTYPE_GRAYSCALE: {
+            case constants2.COLORTYPE_ALPHA:
+            case constants2.COLORTYPE_GRAYSCALE: {
               let grayscale = (rgba.red + rgba.green + rgba.blue) / 3;
               if (options.bitDepth === 8) {
                 outData[outIndex] = grayscale;
@@ -14350,7 +14350,7 @@ var require_filter_pack = __commonJS({
 var require_packer = __commonJS({
   "node_modules/pngjs/lib/packer.js"(exports2, module2) {
     "use strict";
-    var constants = require_constants();
+    var constants2 = require_constants();
     var CrcStream = require_crc();
     var bitPacker = require_bitpacker();
     var filter = require_filter_pack();
@@ -14363,23 +14363,23 @@ var require_packer = __commonJS({
       options.inputHasAlpha = options.inputHasAlpha != null ? options.inputHasAlpha : true;
       options.deflateFactory = options.deflateFactory || zlib.createDeflate;
       options.bitDepth = options.bitDepth || 8;
-      options.colorType = typeof options.colorType === "number" ? options.colorType : constants.COLORTYPE_COLOR_ALPHA;
-      options.inputColorType = typeof options.inputColorType === "number" ? options.inputColorType : constants.COLORTYPE_COLOR_ALPHA;
+      options.colorType = typeof options.colorType === "number" ? options.colorType : constants2.COLORTYPE_COLOR_ALPHA;
+      options.inputColorType = typeof options.inputColorType === "number" ? options.inputColorType : constants2.COLORTYPE_COLOR_ALPHA;
       if ([
-        constants.COLORTYPE_GRAYSCALE,
-        constants.COLORTYPE_COLOR,
-        constants.COLORTYPE_COLOR_ALPHA,
-        constants.COLORTYPE_ALPHA
+        constants2.COLORTYPE_GRAYSCALE,
+        constants2.COLORTYPE_COLOR,
+        constants2.COLORTYPE_COLOR_ALPHA,
+        constants2.COLORTYPE_ALPHA
       ].indexOf(options.colorType) === -1) {
         throw new Error(
           "option color type:" + options.colorType + " is not supported at present"
         );
       }
       if ([
-        constants.COLORTYPE_GRAYSCALE,
-        constants.COLORTYPE_COLOR,
-        constants.COLORTYPE_COLOR_ALPHA,
-        constants.COLORTYPE_ALPHA
+        constants2.COLORTYPE_GRAYSCALE,
+        constants2.COLORTYPE_COLOR,
+        constants2.COLORTYPE_COLOR_ALPHA,
+        constants2.COLORTYPE_ALPHA
       ].indexOf(options.inputColorType) === -1) {
         throw new Error(
           "option input color type:" + options.inputColorType + " is not supported at present"
@@ -14403,7 +14403,7 @@ var require_packer = __commonJS({
     };
     Packer.prototype.filterData = function(data, width, height) {
       let packedData = bitPacker(data, width, height, this._options);
-      let bpp = constants.COLORTYPE_TO_BPP_MAP[this._options.colorType];
+      let bpp = constants2.COLORTYPE_TO_BPP_MAP[this._options.colorType];
       let filteredData = filter(packedData, width, height, this._options, bpp);
       return filteredData;
     };
@@ -14423,8 +14423,8 @@ var require_packer = __commonJS({
     };
     Packer.prototype.packGAMA = function(gamma) {
       let buf = Buffer.alloc(4);
-      buf.writeUInt32BE(Math.floor(gamma * constants.GAMMA_DIVISION), 0);
-      return this._packChunk(constants.TYPE_gAMA, buf);
+      buf.writeUInt32BE(Math.floor(gamma * constants2.GAMMA_DIVISION), 0);
+      return this._packChunk(constants2.TYPE_gAMA, buf);
     };
     Packer.prototype.packIHDR = function(width, height) {
       let buf = Buffer.alloc(13);
@@ -14435,13 +14435,13 @@ var require_packer = __commonJS({
       buf[10] = 0;
       buf[11] = 0;
       buf[12] = 0;
-      return this._packChunk(constants.TYPE_IHDR, buf);
+      return this._packChunk(constants2.TYPE_IHDR, buf);
     };
     Packer.prototype.packIDAT = function(data) {
-      return this._packChunk(constants.TYPE_IDAT, data);
+      return this._packChunk(constants2.TYPE_IDAT, data);
     };
     Packer.prototype.packIEND = function() {
-      return this._packChunk(constants.TYPE_IEND, null);
+      return this._packChunk(constants2.TYPE_IEND, null);
     };
   }
 });
@@ -14452,7 +14452,7 @@ var require_packer_async = __commonJS({
     "use strict";
     var util2 = require("util");
     var Stream = require("stream");
-    var constants = require_constants();
+    var constants2 = require_constants();
     var Packer = require_packer();
     var PackerAsync = module2.exports = function(opt) {
       Stream.call(this);
@@ -14463,7 +14463,7 @@ var require_packer_async = __commonJS({
     };
     util2.inherits(PackerAsync, Stream);
     PackerAsync.prototype.pack = function(data, width, height, gamma) {
-      this.emit("data", Buffer.from(constants.PNG_SIGNATURE));
+      this.emit("data", Buffer.from(constants2.PNG_SIGNATURE));
       this.emit("data", this._packer.packIHDR(width, height));
       if (gamma) {
         this.emit("data", this._packer.packGAMA(gamma));
@@ -14791,7 +14791,7 @@ var require_packer_sync = __commonJS({
     if (!zlib.deflateSync) {
       hasSyncZlib = false;
     }
-    var constants = require_constants();
+    var constants2 = require_constants();
     var Packer = require_packer();
     module2.exports = function(metaData, opt) {
       if (!hasSyncZlib) {
@@ -14802,7 +14802,7 @@ var require_packer_sync = __commonJS({
       let options = opt || {};
       let packer = new Packer(options);
       let chunks = [];
-      chunks.push(Buffer.from(constants.PNG_SIGNATURE));
+      chunks.push(Buffer.from(constants2.PNG_SIGNATURE));
       chunks.push(packer.packIHDR(metaData.width, metaData.height));
       if (metaData.gamma) {
         chunks.push(packer.packGAMA(metaData.gamma));
@@ -18180,7 +18180,7 @@ var require_stream = __commonJS({
       };
       duplex._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open() {
+          ws.once("open", function open2() {
             duplex._final(callback);
           });
           return;
@@ -18201,7 +18201,7 @@ var require_stream = __commonJS({
       };
       duplex._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open() {
+          ws.once("open", function open2() {
             duplex._write(chunk, encoding, callback);
           });
           return;
@@ -18663,7 +18663,7 @@ var require_websocket_server = __commonJS({
 });
 
 // bridge/src/server.ts
-var import_promises4 = require("node:fs/promises");
+var import_promises5 = require("node:fs/promises");
 
 // node_modules/zod/v3/helpers/util.js
 var util;
@@ -40641,10 +40641,10 @@ function normalizePng(input, requestedLongEdge = DEFAULT_LONG_EDGE) {
 // bridge/src/panel.ts
 var import_node_crypto5 = require("node:crypto");
 var import_node_child_process3 = require("node:child_process");
-var import_node_fs = require("node:fs");
-var import_promises3 = require("node:fs/promises");
+var import_node_fs2 = require("node:fs");
+var import_promises4 = require("node:fs/promises");
 var import_node_http = require("node:http");
-var import_node_path3 = require("node:path");
+var import_node_path4 = require("node:path");
 
 // bridge/src/auth.ts
 var import_node_crypto2 = require("node:crypto");
@@ -40981,11 +40981,156 @@ var BrowserCaptures = class {
   }
 };
 
-// bridge/src/provider-cli.ts
-var import_node_child_process2 = require("node:child_process");
+// bridge/src/floatingPreferences.ts
+var import_node_fs = require("node:fs");
 var import_promises2 = require("node:fs/promises");
 var import_node_os2 = require("node:os");
 var import_node_path2 = require("node:path");
+var MAX_DIMENSION = 32768;
+var MAX_POSITION = 1e6;
+var sizes = ["compact", "expanded"];
+var kinds = ["pip", "popup"];
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function boundedNumber(value, minimum, maximum) {
+  return typeof value === "number" && Number.isFinite(value) && value >= minimum && value <= maximum;
+}
+function normalizeFloatingGeometry(value) {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.dimensions))
+    return void 0;
+  const dimensions = {};
+  for (const size of sizes) {
+    const rawByKind = value.dimensions[size];
+    if (rawByKind === void 0) continue;
+    if (!isRecord(rawByKind)) return void 0;
+    const byKind = {};
+    for (const kind of kinds) {
+      const rawDimension = rawByKind[kind];
+      if (rawDimension === void 0) continue;
+      if (!isRecord(rawDimension) || !boundedNumber(rawDimension.width, Number.MIN_VALUE, MAX_DIMENSION) || !boundedNumber(rawDimension.height, Number.MIN_VALUE, MAX_DIMENSION))
+        return void 0;
+      byKind[kind] = {
+        width: rawDimension.width,
+        height: rawDimension.height
+      };
+    }
+    if (Object.keys(byKind).length) dimensions[size] = byKind;
+  }
+  let popupPosition;
+  if (value.popupPosition !== void 0) {
+    if (!isRecord(value.popupPosition) || !boundedNumber(value.popupPosition.left, -MAX_POSITION, MAX_POSITION) || !boundedNumber(value.popupPosition.top, -MAX_POSITION, MAX_POSITION))
+      return void 0;
+    popupPosition = {
+      left: value.popupPosition.left,
+      top: value.popupPosition.top
+    };
+  }
+  let popupChrome;
+  if (value.popupChrome !== void 0) {
+    if (!isRecord(value.popupChrome) || !boundedNumber(value.popupChrome.width, 0, MAX_DIMENSION) || !boundedNumber(value.popupChrome.height, 0, MAX_DIMENSION))
+      return void 0;
+    popupChrome = {
+      width: value.popupChrome.width,
+      height: value.popupChrome.height
+    };
+  }
+  return {
+    version: 1,
+    dimensions,
+    ...popupPosition ? { popupPosition } : {},
+    ...popupChrome ? { popupChrome } : {}
+  };
+}
+function defaultFloatingPreferencesPath() {
+  const base = process.platform === "win32" ? process.env.APPDATA || (0, import_node_path2.join)((0, import_node_os2.homedir)(), "AppData", "Roaming") : process.platform === "darwin" ? (0, import_node_path2.join)((0, import_node_os2.homedir)(), "Library", "Application Support") : process.env.XDG_CONFIG_HOME || (0, import_node_path2.join)((0, import_node_os2.homedir)(), ".config");
+  return (0, import_node_path2.join)(base, "glimpselet", "floating-geometry-v1.json");
+}
+var FloatingPreferences = class {
+  constructor(path) {
+    this.path = path;
+  }
+  writeQueue = Promise.resolve();
+  async read() {
+    if (!this.path) return { version: 1, dimensions: {} };
+    try {
+      const beforeOpen = await (0, import_promises2.lstat)(this.path);
+      if (beforeOpen.isSymbolicLink() || !beforeOpen.isFile())
+        return { version: 1, dimensions: {} };
+      const file2 = await (0, import_promises2.open)(
+        this.path,
+        import_node_fs.constants.O_RDONLY | (import_node_fs.constants.O_NOFOLLOW ?? 0)
+      );
+      try {
+        const info = await file2.stat();
+        if (!info.isFile() || info.dev !== beforeOpen.dev || info.ino !== beforeOpen.ino)
+          return { version: 1, dimensions: {} };
+        const raw = await file2.readFile({ encoding: "utf8" });
+        return normalizeFloatingGeometry(JSON.parse(raw)) ?? {
+          version: 1,
+          dimensions: {}
+        };
+      } finally {
+        await file2.close();
+      }
+    } catch {
+      return { version: 1, dimensions: {} };
+    }
+  }
+  write(value) {
+    if (!this.path) return Promise.resolve(false);
+    const operation = this.writeQueue.then(() => this.writeFile(value));
+    this.writeQueue = operation.then(
+      () => void 0,
+      () => void 0
+    );
+    return operation;
+  }
+  async writeFile(value) {
+    const target = this.path;
+    const directory = (0, import_node_path2.dirname)(target);
+    let temporary;
+    try {
+      await (0, import_promises2.mkdir)(directory, { recursive: true, mode: 448 });
+      try {
+        const targetInfo = await (0, import_promises2.lstat)(target);
+        if (targetInfo.isSymbolicLink() || !targetInfo.isFile()) return false;
+      } catch (error43) {
+        if (error43.code !== "ENOENT") return false;
+      }
+      temporary = (0, import_node_path2.join)(
+        directory,
+        `.floating-geometry-${process.pid}-${Math.random().toString(16).slice(2)}.tmp`
+      );
+      const file2 = await (0, import_promises2.open)(temporary, "wx", 384);
+      try {
+        await file2.writeFile(JSON.stringify(value), "utf8");
+        await file2.sync();
+      } finally {
+        await file2.close();
+      }
+      try {
+        const targetInfo = await (0, import_promises2.lstat)(target);
+        if (targetInfo.isSymbolicLink() || !targetInfo.isFile()) return false;
+      } catch (error43) {
+        if (error43.code !== "ENOENT") return false;
+      }
+      await (0, import_promises2.rename)(temporary, target);
+      temporary = void 0;
+      return true;
+    } catch {
+      return false;
+    } finally {
+      if (temporary) await (0, import_promises2.unlink)(temporary).catch(() => void 0);
+    }
+  }
+};
+
+// bridge/src/provider-cli.ts
+var import_node_child_process2 = require("node:child_process");
+var import_promises3 = require("node:fs/promises");
+var import_node_os3 = require("node:os");
+var import_node_path3 = require("node:path");
 var import_node_string_decoder = require("node:string_decoder");
 
 // bridge/src/provider-request.ts
@@ -41006,13 +41151,13 @@ Quoted prior context: ${JSON.stringify(context)}`;
 // bridge/src/provider-cli.ts
 async function runCliProvider(request, options = {}) {
   if (request.signal.aborted) throw cancelled();
-  const directory = await (0, import_promises2.mkdtemp)(
-    (0, import_node_path2.join)(options.tempRoot ?? (0, import_node_os2.tmpdir)(), "glimpselet-")
+  const directory = await (0, import_promises3.mkdtemp)(
+    (0, import_node_path3.join)(options.tempRoot ?? (0, import_node_os3.tmpdir)(), "glimpselet-")
   );
   try {
-    const imagePath = (0, import_node_path2.join)(directory, "capture.png");
+    const imagePath = (0, import_node_path3.join)(directory, "capture.png");
     if (request.image)
-      await (0, import_promises2.writeFile)(imagePath, request.image, { mode: 384 });
+      await (0, import_promises3.writeFile)(imagePath, request.image, { mode: 384 });
     if (request.signal.aborted) throw cancelled();
     const env = {
       ...process.env,
@@ -41230,7 +41375,7 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
       });
     });
   } finally {
-    await (0, import_promises2.rm)(directory, { recursive: true, force: true });
+    await (0, import_promises3.rm)(directory, { recursive: true, force: true });
   }
 }
 
@@ -41496,8 +41641,10 @@ var PanelServer = class {
       (session) => this.captures?.expire(session.id)
     );
     this.provider = options.provider ?? runProvider;
-    this.panelDir = (0, import_node_path3.resolve)(
-      options.panelDir ?? process.env.GLIMPSELET_PANEL_DIR ?? `${(0, import_node_path3.dirname)((0, import_node_path3.resolve)(process.argv[1] ?? process.cwd()))}/panel`
+    const floatingGeometryPath = options.floatingGeometryPath !== void 0 ? options.floatingGeometryPath : process.env.GLIMPSELET_TEST_MODE === "1" ? null : defaultFloatingPreferencesPath();
+    this.floatingPreferences = new FloatingPreferences(floatingGeometryPath);
+    this.panelDir = (0, import_node_path4.resolve)(
+      options.panelDir ?? process.env.GLIMPSELET_PANEL_DIR ?? `${(0, import_node_path4.dirname)((0, import_node_path4.resolve)(process.argv[1] ?? process.cwd()))}/panel`
     );
   }
   server;
@@ -41509,6 +41656,7 @@ var PanelServer = class {
   provider;
   now;
   panelDir;
+  floatingPreferences;
   async start() {
     const server = (0, import_node_http.createServer)((req, res) => {
       void this.handle(req, res).catch((error43) => {
@@ -41658,7 +41806,8 @@ var PanelServer = class {
         const session2 = this.sessions.create();
         this.reply(res, 200, {
           session: session2.id,
-          expiresAt: session2.expiresAt
+          expiresAt: session2.expiresAt,
+          floatingGeometry: await this.floatingPreferences.read()
         });
         return;
       }
@@ -41684,6 +41833,15 @@ var PanelServer = class {
           entries: session.entries,
           expiresAfterMs: HISTORY_TTL_MS
         });
+      } else if (path === "/api/floating-geometry") {
+        const geometry = normalizeFloatingGeometry(data.geometry);
+        if (!geometry)
+          throw new PanelError(
+            "invalid_request",
+            "Supply valid version 1 floating geometry."
+          );
+        const stored = await this.floatingPreferences.write(geometry);
+        this.reply(res, 200, { ok: true, stored });
       } else if (path === "/api/clear") {
         await this.clearAll();
         this.reply(res, 200, { ok: true });
@@ -41719,15 +41877,15 @@ var PanelServer = class {
     }
     if (req.method !== "GET")
       throw new PanelError("not_found", "Not found.", 404);
-    const file2 = (0, import_node_path3.resolve)(
+    const file2 = (0, import_node_path4.resolve)(
       this.panelDir,
       `.${path === "/" ? "/index.html" : path}`
     );
-    const pathWithinPanel = (0, import_node_path3.relative)(this.panelDir, file2);
-    if (!pathWithinPanel || pathWithinPanel === ".." || pathWithinPanel.startsWith(`..${import_node_path3.sep}`) || (0, import_node_path3.isAbsolute)(pathWithinPanel))
+    const pathWithinPanel = (0, import_node_path4.relative)(this.panelDir, file2);
+    if (!pathWithinPanel || pathWithinPanel === ".." || pathWithinPanel.startsWith(`..${import_node_path4.sep}`) || (0, import_node_path4.isAbsolute)(pathWithinPanel))
       throw new PanelError("not_found", "Not found.", 404);
     try {
-      if (!(await (0, import_promises3.stat)(file2)).isFile()) throw new Error("Not a file");
+      if (!(await (0, import_promises4.stat)(file2)).isFile()) throw new Error("Not a file");
     } catch {
       throw new PanelError(
         "not_found",
@@ -41736,13 +41894,13 @@ var PanelServer = class {
       );
     }
     res.writeHead(200, {
-      "Content-Type": mime[(0, import_node_path3.extname)(file2)] ?? "application/octet-stream",
+      "Content-Type": mime[(0, import_node_path4.extname)(file2)] ?? "application/octet-stream",
       "Cache-Control": "no-cache",
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "no-referrer",
       "Content-Security-Policy": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     });
-    (0, import_node_fs.createReadStream)(file2).on("error", () => res.destroy()).pipe(res);
+    (0, import_node_fs2.createReadStream)(file2).on("error", () => res.destroy()).pipe(res);
   }
   async ask(req, res, session, data) {
     if (session.job)
@@ -41932,7 +42090,7 @@ async function createGlimpselet(options = {}) {
   const panel = await new PanelServer(history, {
     onClear: () => onClear()
   }).start();
-  const server = new McpServer({ name: "glimpselet", version: "1.1.0" });
+  const server = new McpServer({ name: "glimpselet", version: "1.2.0" });
   let watchTimer;
   let watching = false, inCapture = false;
   const watchLimiter = new SlidingWindowLimiter(WATCH_LIMIT_PER_MINUTE, 6e4);
@@ -41977,7 +42135,7 @@ async function createGlimpselet(options = {}) {
       if (process.env.GLIMPSELET_TEST_MODE !== "1")
         throw new Error("Fixtures require GLIMPSELET_TEST_MODE=1.");
       const normalized2 = normalizePng(
-        await (0, import_promises4.readFile)(options.fixturePath),
+        await (0, import_promises5.readFile)(options.fixturePath),
         longEdge
       );
       check2();

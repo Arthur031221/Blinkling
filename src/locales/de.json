@@ -112,5 +112,8 @@
   "answerWaiting": "Die Antwort erscheint hier.",
   "statusAnswerCancelled": "Antwort abgebrochen. Deine Frage bleibt hier.",
   "resizePanel": "Panelgröße ändern",
-  "resizeHelp": "Zum Ändern ziehen oder die Pfeiltasten verwenden. Du kannst auch die Fensterränder ziehen."
+  "resizeHelp": "Zum Ändern ziehen oder die Pfeiltasten verwenden. Du kannst auch die Fensterränder ziehen.",
+  "scopeSent": "Zuletzt gesendetes Bild",
+  "resumePreview": "Livevorschau anzeigen",
+  "pausePassive": "Passive Notizen pausieren"
 }

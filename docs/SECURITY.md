@@ -2,7 +2,9 @@
 
 Glimpselet listens on loopback at an operating-system assigned port. Its launch fragment is a one-use token that expires after 60 seconds. The bridge keeps the resulting session in memory for 30 minutes. HTTP and WebSocket routes check the expected Host, exact local Origin and session. Requests and captures have size limits. Capture endpoints enforce a rolling rate limit. The bridge does not log session tokens, API keys or image bytes.
 
-The panel sends prepared images when you ask a question or enable passive notes. MCP screen tools return captures to the coding session when explicitly called. Asking sends the prepared image and question to the configured backend. Passive notes send changed frames for descriptions through the selected backend. The six-per-minute rolling default is a request cap, not a dollar-cost estimate. The separate MCP watch captures changed frames at a 5 to 60 second interval and does not call a model.
+The panel sends prepared images when you ask a question or enable passive notes. MCP screen tools return captures to the coding session when explicitly called. Asking sends the prepared image and question to the configured backend. Passive notes send changed frames for descriptions through the selected backend. **Pause passive notes** cancels the streaming passive job and stops future notes until you resume. The six-per-minute rolling default is a request cap, not a dollar-cost estimate. The separate MCP watch captures changed frames at a 5 to 60 second interval and does not call a model.
+
+Floating-window preferences persist only dimensions, popup position and window chrome in a geometry-only local file and browser cache. They do not include questions, images, keys, session tokens or answer history. Storage is best effort when disk or browser storage is unavailable.
 
 Opaque masks are applied to the outgoing PNG before it reaches the bridge. Crop and mask the frame, then review it before sending. Pixel inspection cannot guarantee detection of passwords or other sensitive text, and cursor coordinates or window titles are not reliably available.
 

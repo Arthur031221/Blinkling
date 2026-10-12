@@ -33,8 +33,10 @@ const DEFAULTS: Record<FloatingSize, { width: number; height: number }> = {
 };
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 360;
+const MAX_DIMENSION = 32_768;
+const MAX_POSITION = 1_000_000;
 
-type StoredGeometry = {
+export type StoredGeometry = {
   version: 1;
   dimensions: Partial<
     Record<
@@ -46,11 +48,59 @@ type StoredGeometry = {
   popupChrome?: { width: number; height: number };
 };
 
-function defaultStorage(): GeometryStorage | undefined {
+let memoryValue: string | null = null;
+const fallbackStorage: GeometryStorage = {
+  getItem(key) {
+    try {
+      return memoryValue ?? localStorage.getItem(key);
+    } catch {
+      return memoryValue;
+    }
+  },
+  setItem(key, value) {
+    memoryValue = value;
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // Window preferences still work for this session if storage is blocked.
+    }
+  },
+};
+
+function defaultStorage(): GeometryStorage {
+  return fallbackStorage;
+}
+
+export function exportFloatingGeometry(
+  storage?: GeometryStorage,
+): StoredGeometry {
+  return readStored(storage ?? defaultStorage());
+}
+
+export function restoreFloatingGeometry(
+  value: unknown,
+  storage?: GeometryStorage,
+): void {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.dimensions))
+    return;
+  const normalized = readStored({
+    getItem: () => JSON.stringify(value),
+    setItem: () => {},
+  });
+  // A missing config file must not replace preferences already in the browser.
+  if (
+    !Object.keys(normalized.dimensions).length &&
+    !normalized.popupPosition &&
+    !normalized.popupChrome
+  )
+    return;
   try {
-    return typeof localStorage === "undefined" ? undefined : localStorage;
+    (storage ?? defaultStorage()).setItem(
+      STORAGE_KEY,
+      JSON.stringify(normalized),
+    );
   } catch {
-    return undefined;
+    // Persistence is best effort.
   }
 }
 
@@ -88,7 +138,9 @@ function readStored(storage: GeometryStorage | undefined): StoredGeometry {
           finite(dimension.width) &&
           finite(dimension.height) &&
           dimension.width > 0 &&
-          dimension.height > 0
+          dimension.height > 0 &&
+          dimension.width <= MAX_DIMENSION &&
+          dimension.height <= MAX_DIMENSION
         ) {
           validKinds[kind] = {
             width: dimension.width,
@@ -103,14 +155,20 @@ function readStored(storage: GeometryStorage | undefined): StoredGeometry {
     return {
       version: 1,
       dimensions,
-      ...(isRecord(position) && finite(position.left) && finite(position.top)
+      ...(isRecord(position) &&
+      finite(position.left) &&
+      finite(position.top) &&
+      Math.abs(position.left) <= MAX_POSITION &&
+      Math.abs(position.top) <= MAX_POSITION
         ? { popupPosition: { left: position.left, top: position.top } }
         : {}),
       ...(isRecord(chrome) &&
       finite(chrome.width) &&
       finite(chrome.height) &&
       chrome.width >= 0 &&
-      chrome.height >= 0
+      chrome.height >= 0 &&
+      chrome.width <= MAX_DIMENSION &&
+      chrome.height <= MAX_DIMENSION
         ? { popupChrome: { width: chrome.width, height: chrome.height } }
         : {}),
     };

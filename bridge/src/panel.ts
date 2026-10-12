@@ -20,6 +20,11 @@ import { OneTimeTokens } from "./auth.js";
 import { BrowserCaptures } from "./browser-captures.js";
 import { HISTORY_TTL_MS, MAX_UPLOAD_MESSAGE_BYTES } from "./config.js";
 import { PanelError, cancelled } from "./errors.js";
+import {
+  defaultFloatingPreferencesPath,
+  FloatingPreferences,
+  normalizeFloatingGeometry,
+} from "./floatingPreferences.js";
 import { CaptureHistory, type Capture } from "./history.js";
 import { hasFrameChanged, readPanelImage, sampleFrame } from "./panel-image.js";
 import { runProvider, type AnswerProvider } from "./provider.js";
@@ -40,13 +45,14 @@ const mime: Record<string, string> = {
   ".png": "image/png",
   ".gif": "image/gif",
 };
-type PanelOptions = {
+export type PanelOptions = {
   provider?: AnswerProvider;
   now?: () => number;
   sessionTtlMs?: number;
   answerTimeoutMs?: number;
   panelDir?: string;
   onClear?: () => Promise<void>;
+  floatingGeometryPath?: string | null;
 };
 type RequestBody = Record<string, unknown>;
 
@@ -60,6 +66,7 @@ export class PanelServer {
   private readonly provider: AnswerProvider;
   private readonly now: () => number;
   private readonly panelDir: string;
+  private readonly floatingPreferences: FloatingPreferences;
 
   constructor(
     private readonly history: CaptureHistory,
@@ -74,6 +81,13 @@ export class PanelServer {
       (session) => this.captures?.expire(session.id),
     );
     this.provider = options.provider ?? runProvider;
+    const floatingGeometryPath =
+      options.floatingGeometryPath !== undefined
+        ? options.floatingGeometryPath
+        : process.env.GLIMPSELET_TEST_MODE === "1"
+          ? null
+          : defaultFloatingPreferencesPath();
+    this.floatingPreferences = new FloatingPreferences(floatingGeometryPath);
     this.panelDir = resolve(
       options.panelDir ??
         process.env.GLIMPSELET_PANEL_DIR ??
@@ -254,6 +268,7 @@ export class PanelServer {
         this.reply(res, 200, {
           session: session.id,
           expiresAt: session.expiresAt,
+          floatingGeometry: await this.floatingPreferences.read(),
         });
         return;
       }
@@ -280,6 +295,15 @@ export class PanelServer {
           entries: session.entries,
           expiresAfterMs: HISTORY_TTL_MS,
         });
+      } else if (path === "/api/floating-geometry") {
+        const geometry = normalizeFloatingGeometry(data.geometry);
+        if (!geometry)
+          throw new PanelError(
+            "invalid_request",
+            "Supply valid version 1 floating geometry.",
+          );
+        const stored = await this.floatingPreferences.write(geometry);
+        this.reply(res, 200, { ok: true, stored });
       } else if (path === "/api/clear") {
         await this.clearAll();
         this.reply(res, 200, { ok: true });

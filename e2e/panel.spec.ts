@@ -234,6 +234,9 @@ test("Escape cancels an ask from the focused composer and ignores its late respo
     await expect(
       page.getByText("Answer cancelled. Your question is still here."),
     ).toBeVisible();
+    await expect(page.locator(".status-source")).toContainText(
+      "Last sent frame",
+    );
     await expect(composer).toHaveValue("Keep this question after cancelling");
   } finally {
     releaseResponse();
@@ -761,7 +764,7 @@ test("timeline summary posts summary mode and exports the recent notes as Markdo
   );
 });
 
-test("passive pause cancels a changed-frame note and exposes summary/export controls", async ({
+test("pausing the streaming passive note stops retries and exposes summary/export controls", async ({
   page,
 }) => {
   await mockPanel(page);
@@ -779,9 +782,23 @@ test("passive pause cancels a changed-frame note and exposes summary/export cont
       request.postDataJSON().mode === "passive",
     { timeout: 10000 },
   );
-  await page.getByRole("button", { name: "Pause" }).click();
+  const cancel = page.locator('button.text-button[aria-keyshortcuts="Escape"]');
+  const cancelLabel = await cancel.textContent();
+  await cancel.click();
   await expect(page.getByText(/Passive paused/)).toBeVisible();
+  expect(cancelLabel).toBe("Pause passive notes");
+  await expect(
+    page.getByRole("button", { name: /^Passive mode/ }),
+  ).toHaveAttribute("aria-pressed", "false");
+  let retries = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/ask")) retries++;
+  });
+  await page.evaluate(() =>
+    (window as Window & { __changeFrame?: () => void }).__changeFrame?.(),
+  );
   await page.waitForTimeout(3200);
+  expect(retries).toBe(0);
   await page.getByText(/Capture notes/).click();
   await expect(page.locator(".timeline article")).toHaveCount(0);
   await expect(
@@ -977,7 +994,7 @@ test("changing provider pauses passive mode and the next note uses the visible s
     model: "haiku",
     key: "fixture-key",
   });
-  await page.getByRole("button", { name: "Pause" }).click();
+  await page.getByRole("button", { name: "Pause P", exact: true }).click();
 });
 
 test("erasing the API key sends an explicit empty credential on the next ask", async ({
@@ -1058,7 +1075,7 @@ test("a changed passive frame is retried after the request limit or provider fai
   );
   await expect.poll(() => frames.length, { timeout: 6000 }).toBe(2);
   expect(frames[1]).toBe(frames[0]);
-  await page.getByRole("button", { name: "Pause" }).click();
+  await page.getByRole("button", { name: "Pause P", exact: true }).click();
 });
 
 test("a rejected document floating window offers a styled popup on a fresh click", async ({

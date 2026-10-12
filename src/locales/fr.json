@@ -112,5 +112,8 @@
   "answerWaiting": "La réponse apparaîtra ici.",
   "statusAnswerCancelled": "Réponse annulée. Votre question est toujours là.",
   "resizePanel": "Redimensionner le panneau",
-  "resizeHelp": "Faites glisser pour le redimensionner ou utilisez les touches fléchées. Vous pouvez aussi faire glisser les bords de la fenêtre."
+  "resizeHelp": "Faites glisser pour le redimensionner ou utilisez les touches fléchées. Vous pouvez aussi faire glisser les bords de la fenêtre.",
+  "scopeSent": "Dernière image envoyée",
+  "resumePreview": "Afficher la vue en direct",
+  "pausePassive": "Suspendre les notes passives"
 }

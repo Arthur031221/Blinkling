@@ -50,7 +50,9 @@ Las herramientas MCP de pantalla devuelven imágenes a la sesión de programaci�
 <details>
 <summary>Controles y estado</summary>
 
-Cambia el tamaño con el control del panel o las flechas. También puedes arrastrar los bordes de la ventana cuando el navegador lo permita. En el modo de recorte o máscara, las flechas mueven la selección, Mayús más flechas la redimensionan, Enter la aplica y Escape cancela. Escape en el campo de pregunta pausa las notas pasivas y cancela la pregunta actual sin borrar su texto. Ajustes se abre en un cuadro modal. Puedes quitar la fijación de una respuesta anterior. **Resume live view** conserva el recorte y las máscaras. Al desplazarte hacia arriba, se detiene el seguimiento de la respuesta transmitida. El panel muestra el estado de compartir, del modelo y de las notas pasivas.
+Cambia el tamaño con el control del panel o las flechas. También puedes arrastrar los bordes de la ventana cuando el navegador lo permita. En el modo de recorte o máscara, las flechas mueven la selección, Mayús más flechas la redimensionan, Enter la aplica y Escape cancela. Escape en el campo de pregunta pausa las notas pasivas y cancela la pregunta actual sin borrar su texto. Ajustes se abre en un cuadro modal. Puedes quitar la fijación de una respuesta anterior. **Último fotograma enviado** identifica la imagen fija enviada con una pregunta. **Mostrar vista en directo** vuelve a la pantalla compartida sin enviar otra pregunta y conserva el recorte y las máscaras. **Pausar notas pasivas** cancela el trabajo pasivo que se está transmitiendo y detiene las notas futuras hasta que las reanudes. Los atajos S/E/T/P solo funcionan cuando la vista previa de pantalla tiene el foco. Los botones siguen siendo accesibles con el teclado. Al desplazarte hacia arriba, se detiene el seguimiento de la respuesta transmitida. El panel muestra el estado de compartir, del modelo y de las notas pasivas.
+
+Las respuestas de comparación conservan los encabezados y las columnas de las tablas. Las tablas anchas se desplazan dentro de la respuesta. Enfoca la respuesta y usa las flechas para leer las demás columnas.
 
 </details>
 
@@ -71,7 +73,7 @@ Las preguntas se procesan en el asistente de programación instalado o, de forma
 <details>
 <summary>Ventana flotante y navegadores</summary>
 
-Document Picture-in-Picture está disponible en los navegadores Chromium de escritorio compatibles. El navegador controla la posición de esta ventana. La posición del popup se recuerda cuando el navegador lo permite. Las dimensiones compacta y expandida se recuerdan por separado.
+Document Picture-in-Picture está disponible en los navegadores Chromium de escritorio compatibles. El navegador controla la posición de esta ventana. Las dimensiones compacta y expandida, la posición del popup y el marco de la ventana se conservan entre reinicios del puente en un archivo local que solo guarda geometría y en la caché del navegador, si el almacenamiento está disponible. Consulta las [rutas](docs/CONFIGURATION.md) en la configuración.
 
 </details>
 

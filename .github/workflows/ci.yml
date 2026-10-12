@@ -24,6 +24,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run build:plugin
+      - name: Check committed plugin bundle
+        run: test -z "$(git status --porcelain --untracked-files=all -- bin)"
       - run: npm run validate:plugin
       - run: npm run validate:plugin:claude
       - run: npm run test:plugin

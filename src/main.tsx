@@ -3,8 +3,10 @@ import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 import { BlinkAvatar } from "./BlinkAvatar";
 import {
+  exportFloatingGeometry,
   readFloatingGeometry,
   rememberFloatingGeometry,
+  restoreFloatingGeometry,
   type FloatingKind,
 } from "./floatingWindow";
 import { Timeline } from "./Timeline";
@@ -250,6 +252,7 @@ function App() {
           throw new Error(
             value.code || value.message || value.error || "session_expired",
           );
+        restoreFloatingGeometry(value.floatingGeometry);
         setSession(value.session);
         setSessionExpiresAt(value.expiresAt || Date.now() + 1_800_000);
         (
@@ -371,6 +374,7 @@ function App() {
       setFrozen(false);
       setLiveFrame("");
       setPreview("");
+      setSentPreview(false);
       generation.current++;
       activeRequest.current?.abort();
       setBusy(false);
@@ -459,7 +463,8 @@ function App() {
           e.ctrlKey ||
           e.metaKey ||
           e.shiftKey ||
-          safeKeyTarget(e.target, win)
+          safeKeyTarget(e.target, win) ||
+          e.target !== stage.current
         )
           return;
         if (e.key.toLowerCase() === "s") startSelection("crop");
@@ -673,6 +678,7 @@ function App() {
       setLiveFrame(image);
       setPreview(image);
       setFrozen(false);
+      setSentPreview(false);
       setStatus(t.statusLiveReady);
     } catch (e) {
       if (requestGeneration === generation.current) setStatus(errorText(e));
@@ -762,6 +768,10 @@ function App() {
     const id = mode === "passive" ? generation.current : ++generation.current;
     const controller = new AbortController();
     activeRequest.current = controller;
+    if (mode === "ask" && image) {
+      setPreview(image);
+      setSentPreview(true);
+    }
     if (signal?.aborted) controller.abort();
     else
       signal?.addEventListener("abort", () => controller.abort(), {
@@ -862,9 +872,9 @@ function App() {
       await pauseInFlight.current;
       if (requestGeneration !== generation.current) return;
     }
-    setPreview(image);
-    setSentPreview(true);
     if (demo) {
+      setPreview(image);
+      setSentPreview(true);
       const sample = t.demoAnswer;
       followAnswer.current = true;
       setCopyState("");
@@ -1057,6 +1067,10 @@ function App() {
       left: child.screenX,
       top: child.screenY,
     });
+    if (!demo && session)
+      void api("/api/floating-geometry", {
+        geometry: exportFloatingGeometry(),
+      }).catch(() => {});
   }
   function resizeWindow(width: number, height: number) {
     const child = floatDoc?.defaultView;
@@ -1106,6 +1120,10 @@ function App() {
     }
   }
   function cancelAnswer() {
+    if (passive) {
+      void pausePassive();
+      return;
+    }
     generation.current++;
     activeRequest.current?.abort();
     setBusy(false);
@@ -1243,7 +1261,7 @@ function App() {
             <>
               {" "}
               · {rect ? t.scopeArea : t.scopeFull} ·{" "}
-              {frozen ? t.scopeFrozen : t.scopeLive}
+              {frozen ? t.scopeFrozen : sentPreview ? t.scopeSent : t.scopeLive}
               {masks.length > 0 &&
                 ` · ${t.maskCount.replace("{count}", String(masks.length))}`}
             </>
@@ -1277,6 +1295,16 @@ function App() {
         ) : (
           <>
             <div className="tools">
+              {!demo && share && !frozen && sentPreview && (
+                <button
+                  onClick={() => {
+                    setSentPreview(false);
+                    if (!busy) setStatus(t.statusLiveReady);
+                  }}
+                >
+                  {t.resumePreview}
+                </button>
+              )}
               {!demo && share && (
                 <button
                   onClick={() => {
@@ -1329,6 +1357,7 @@ function App() {
               <button
                 disabled={!share}
                 className={passive ? "active" : ""}
+                aria-pressed={passive}
                 onClick={() => {
                   if (passive) void pausePassive();
                   else void resumePassive();
@@ -1340,6 +1369,7 @@ function App() {
             </div>
             <div
               ref={stage}
+              aria-keyshortcuts="S E T P"
               className={`stage ${selectionMode ? "drawing" : ""}`}
               tabIndex={0}
               role="group"
@@ -1474,7 +1504,7 @@ function App() {
             aria-keyshortcuts="Escape"
             onClick={cancelAnswer}
           >
-            {t.cancel}
+            {passive ? t.pausePassive : t.cancel}
           </button>
         )}
         {pinnedAnswer && pinnedAnswer !== answer && (
@@ -1487,6 +1517,9 @@ function App() {
             </div>
             <div
               className="markdown"
+              role="region"
+              aria-label={t.pinned}
+              tabIndex={0}
               dangerouslySetInnerHTML={{
                 __html: safeMarkdown(pinnedAnswer),
               }}
@@ -1529,6 +1562,9 @@ function App() {
             {answer ? (
               <div
                 className="markdown"
+                role="region"
+                aria-label={t.answer}
+                tabIndex={0}
                 dangerouslySetInnerHTML={{ __html: safeMarkdown(answer) }}
               />
             ) : (
@@ -1551,11 +1587,9 @@ function App() {
         <p className="notice" role="status">
           {status}
         </p>
-        {copyState && (
-          <p className="copy-feedback" role="status">
-            {copyState}
-          </p>
-        )}
+        <p className="copy-feedback" role="status">
+          {copyState}
+        </p>
         {showSettings && (
           <dialog
             ref={settingsDialog}

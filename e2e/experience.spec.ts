@@ -1,5 +1,56 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test("primary actions retain readable contrast while hovered or focused", async ({
+  page,
+}) => {
+  await page.goto("/?demo=1");
+  await expect(page.locator(".stage .frame")).toBeVisible();
+  for (const theme of ["light", "dark"]) {
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    for (const width of [360, 420, 520]) {
+      await page.setViewportSize({ width, height: 680 });
+      const action = page.getByRole("button", { name: "Ask", exact: true });
+      for (const state of ["hover", "focus"] as const) {
+        await page.mouse.move(0, 0);
+        if (state === "hover") await action.hover();
+        else await action.focus();
+        // Check the settled color after the 180 ms hover transition.
+        await page.waitForTimeout(250);
+        await expect
+          .poll(() =>
+            action.evaluate((button) => {
+              const style = getComputedStyle(button);
+              const luminance = (color: string) => {
+                const channels = color
+                  .match(/[\d.]+/g)!
+                  .slice(0, 3)
+                  .map(Number);
+                const values = channels.map((channel) => {
+                  const value = channel / 255;
+                  return value <= 0.04045
+                    ? value / 12.92
+                    : ((value + 0.055) / 1.055) ** 2.4;
+                });
+                return (
+                  values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722
+                );
+              };
+              const text = luminance(style.color);
+              const background = luminance(style.backgroundColor);
+              return (
+                (Math.max(text, background) + 0.05) /
+                (Math.min(text, background) + 0.05)
+              );
+            }),
+          )
+          .toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  }
+});
+
 async function sharedPanel(page: Page, streaming = false) {
   await page.addInitScript(
     ({ streaming }) => {
@@ -14,11 +65,22 @@ async function sharedPanel(page: Page, streaming = false) {
             const context = canvas.getContext("2d")!;
             context.fillStyle = "#c86448";
             context.fillRect(0, 0, 640, 400);
-            return canvas.captureStream(2);
+            const stream = canvas.captureStream(2);
+            Object.assign(window, {
+              __changeSharedFrame: () => {
+                context.fillStyle = "#3ddc97";
+                context.fillRect(0, 0, 640, 400);
+                (
+                  stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack
+                ).requestFrame();
+              },
+            });
+            return stream;
           },
         },
       });
       if (streaming) {
+        Object.assign(window, { __askCount: 0 });
         const nativeFetch = window.fetch.bind(window);
         window.fetch = async (input, init) => {
           if (input !== "/api/ask") return nativeFetch(input, init);
@@ -41,6 +103,8 @@ async function sharedPanel(page: Page, streaming = false) {
               if (done) controller.close();
             },
           });
+          const state = window as Window & { __askCount: number };
+          state.__askCount++;
           return new Response(stream, {
             headers: { "Content-Type": "text/event-stream" },
           });
@@ -61,6 +125,168 @@ async function sharedPanel(page: Page, streaming = false) {
     .click();
   await expect(page.locator(".stage .frame")).toBeVisible();
 }
+
+test("the sent frame has an honest label and can return to live preview without asking again", async ({
+  page,
+}) => {
+  await sharedPanel(page, true);
+  await page.getByRole("textbox").fill("Explain this screen");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".status-source")).toContainText("Last sent frame");
+  await page.evaluate(() =>
+    (
+      window as Window & { __sendAnswer: (text: string, done: boolean) => void }
+    ).__sendAnswer("A clear answer."),
+  );
+  await page.evaluate(() =>
+    (
+      window as Window & { __sendAnswer: (text: string, done: boolean) => void }
+    ).__sendAnswer("A clear answer.", true),
+  );
+  await expect(page.locator(".answer .markdown")).toHaveText("A clear answer.");
+  await page
+    .getByRole("button", { name: "Show live preview", exact: true })
+    .click();
+  await expect(page.locator(".status-source")).toContainText("Live");
+  expect(
+    await page.evaluate(
+      () => (window as Window & { __askCount: number }).__askCount,
+    ),
+  ).toBe(1);
+});
+
+test("single letter shortcuts do not send a frame or change modes from answer controls", async ({
+  page,
+}) => {
+  await sharedPanel(page, true);
+  await page.getByRole("textbox").fill("Explain this screen");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".answer[aria-busy]")).toBeVisible();
+  await page.evaluate(() =>
+    (
+      window as Window & { __sendAnswer: (text: string, done: boolean) => void }
+    ).__sendAnswer("A clear answer."),
+  );
+  await page.evaluate(() =>
+    (
+      window as Window & { __sendAnswer: (text: string, done: boolean) => void }
+    ).__sendAnswer("A clear answer.", true),
+  );
+  await page
+    .locator(".answer")
+    .getByRole("button", { name: "Copy", exact: true })
+    .focus();
+  for (const key of ["e", "t", "p", "s"]) await page.keyboard.press(key);
+  await page.waitForTimeout(550);
+  expect(
+    await page.evaluate(
+      () => (window as Window & { __askCount: number }).__askCount,
+    ),
+  ).toBe(1);
+  await expect(page.locator(".hint")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /^Passive mode/ }),
+  ).toHaveAttribute("aria-pressed", "false");
+});
+
+test("a shortcut while streaming preserves the image actually sent", async ({
+  page,
+}) => {
+  await sharedPanel(page, true);
+  await page.getByRole("textbox").fill("Explain this screen");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".status-source")).toContainText("Last sent frame");
+  const frame = page.locator(".stage .frame");
+  const sent = await frame.getAttribute("src");
+  await page.evaluate(() =>
+    (
+      window as Window & { __changeSharedFrame: () => void }
+    ).__changeSharedFrame(),
+  );
+  await expect
+    .poll(() =>
+      page.locator(".stage video").evaluate((element) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d")!;
+        context.drawImage(element as HTMLVideoElement, 0, 0, 1, 1);
+        const [red, green] = context.getImageData(0, 0, 1, 1).data;
+        return green > red * 2;
+      }),
+    )
+    .toBe(true);
+  await page.locator(".stage").focus();
+  await page.keyboard.press("e");
+  await expect(page.locator(".status-source")).toContainText("Last sent frame");
+  await expect(page.locator(".notice")).toContainText("already running");
+  await expect(frame).toHaveAttribute("src", sent!);
+  expect(
+    await page.evaluate(
+      () => (window as Window & { __askCount: number }).__askCount,
+    ),
+  ).toBe(1);
+  await page
+    .getByRole("button", { name: "Show live preview", exact: true })
+    .click();
+  await expect(frame).not.toHaveAttribute("src", sent!);
+});
+
+test("restarting sharing labels the new capture live rather than sent", async ({
+  page,
+}) => {
+  await sharedPanel(page, true);
+  await page.getByRole("textbox").fill("Explain this screen");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".status-source")).toContainText("Last sent frame");
+  await page.evaluate(() =>
+    (
+      window as Window & { __sendAnswer: (text: string, done: boolean) => void }
+    ).__sendAnswer("A clear answer.", true),
+  );
+  await expect(
+    page.getByRole("button", { name: "Ask", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Stop sharing", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Share a screen", exact: true })
+    .click();
+  await expect(page.locator(".stage .frame")).toBeVisible();
+  await expect(page.locator(".status-source")).toContainText("Live");
+  await expect(
+    page.getByRole("button", { name: "Show live preview", exact: true }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => (window as Window & { __askCount: number }).__askCount,
+    ),
+  ).toBe(1);
+});
+
+test("controls remain reachable at the minimum floating window height", async ({
+  page,
+}) => {
+  await page.goto("/?demo=1");
+  await expect(page.locator(".stage .frame")).toBeVisible();
+  for (const theme of ["light", "dark"]) {
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    for (const width of [320, 360, 420, 520]) {
+      await page.setViewportSize({ width, height: 360 });
+      expect(
+        (await page.locator("main.app").boundingBox())!.height,
+      ).toBeLessThanOrEqual(360);
+      const ask = page.getByRole("button", { name: "Ask", exact: true });
+      await page.getByRole("textbox").fill("Explain the receipt");
+      await ask.scrollIntoViewIfNeeded();
+      await ask.click();
+      await expect(page.locator(".answer .markdown")).toBeVisible();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+    }
+  }
+});
 
 test("compact composer fits a 520 pixel tall panel at every supported width", async ({
   page,
@@ -87,6 +313,7 @@ test("keyboard selects and masks a frame and live resumption preserves privacy c
   page,
 }) => {
   await sharedPanel(page);
+  await page.locator(".stage").focus();
   await page.keyboard.press("s");
   await expect(page.locator(".stage")).toBeFocused();
   await page.keyboard.press("ArrowRight");
@@ -305,6 +532,79 @@ test("blocked browser storage still allows preferences and modal closing", async
     page.getByRole("button", { name: "Settings", exact: true }),
   ).toBeFocused();
   expect(errors).toEqual([]);
+});
+
+test("a fresh bridge session restores popup geometry and saves manual resizing", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+    Object.defineProperty(window, "documentPictureInPicture", {
+      configurable: true,
+      value: undefined,
+    });
+    const open = window.open.bind(window);
+    window.open = (url, target, features) => {
+      Object.assign(window, { __floatingFeatures: features });
+      return open(url, target, features);
+    };
+  });
+  await page.route("**/api/session", (route) =>
+    route.fulfill({
+      json: {
+        session: "restored-session",
+        expiresAt: Date.now() + 1800000,
+        floatingGeometry: {
+          version: 1,
+          dimensions: { expanded: { popup: { width: 490, height: 615 } } },
+          popupPosition: { left: 90, top: 110 },
+          popupChrome: { width: 10, height: 40 },
+        },
+      },
+    }),
+  );
+  await page.route("**/api/history", (route) =>
+    route.fulfill({ json: { entries: [], expiresAfterMs: 600000 } }),
+  );
+  await page.route("**/api/floating-geometry", (route) =>
+    route.fulfill({ json: { ok: true, stored: true } }),
+  );
+  await page.goto("/#one-use-launch-token");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        localStorage.getItem("glimpselet-floating-geometry-v1"),
+      ),
+    )
+    .not.toBeNull();
+  const opened = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Float panel", exact: true }).click();
+  const child = await opened;
+  await expect(child.locator("main.app")).toBeVisible();
+  const features = await page.evaluate(
+    () =>
+      (window as Window & { __floatingFeatures: string }).__floatingFeatures,
+  );
+  expect(features).toContain("width=490,height=615");
+  expect(features).toContain("left=90");
+  const maxTop = await page.evaluate(() =>
+    Math.max(0, screen.availHeight - 615 - 40),
+  );
+  expect(features).toContain(`top=${Math.min(110, maxTop)}`);
+  const saved = page.waitForRequest(
+    (request) =>
+      request.url().endsWith("/api/floating-geometry") &&
+      request.postDataJSON().geometry.dimensions.expanded.popup.width === 505,
+  );
+  await child.setViewportSize({ width: 505, height: 620 });
+  const request = await saved;
+  expect(request.headers().authorization).toBe("Bearer restored-session");
+  expect(Object.keys(request.postDataJSON())).toEqual(["geometry"]);
+  expect(request.postDataJSON().geometry.dimensions.expanded.popup).toEqual({
+    width: 505,
+    height: 620,
+  });
+  await child.close();
 });
 
 test("popup reopening restores resized geometry and focuses the composer", async ({
