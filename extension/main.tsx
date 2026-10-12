@@ -180,6 +180,7 @@ function App() {
   );
   const [blocklist, setBlocklist] = useState("");
   const requestRef = useRef<AbortController | null>(null);
+  const apiRequestRef = useRef<ReturnType<typeof askAnthropic> | null>(null);
   const translationController = useRef<AbortController | null>(null);
   const translationBridgeId = useRef<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -617,10 +618,13 @@ function App() {
               backgroundRequestRef.current = null;
               cancelledRequests.current.add(pendingId);
               requestRef.current?.abort();
-              if (backend === "bridge") await bridge.cancelAndWait(pendingId);
+              if (backend === "api")
+                await apiRequestRef.current?.catch(() => {});
+              else await bridge.cancelAndWait(pendingId);
               if (requestIdRef.current === reservation) {
                 requestIdRef.current = null;
                 requestRef.current = null;
+                apiRequestRef.current = null;
               }
             }
             if (requestIdRef.current || translationController.current) {
@@ -1225,7 +1229,7 @@ function App() {
           kind === "guide" && currentPage
             ? buildGuidePrompt(q, currentPage)
             : q;
-        const result = await askAnthropic(
+        const apiRequest = askAnthropic(
           {
             id,
             question: prompt,
@@ -1240,6 +1244,8 @@ function App() {
           controller.signal,
           followups,
         );
+        apiRequestRef.current = apiRequest;
+        const result = await apiRequest;
         final = result.answer;
         finalUsage = result.usage;
       } else {
@@ -1348,6 +1354,7 @@ function App() {
       cancelledRequests.current.delete(id);
       if (requestIdRef.current === id) {
         requestRef.current = null;
+        apiRequestRef.current = null;
         requestIdRef.current = null;
         backgroundRequestRef.current = null;
         setBusy(false);
@@ -1370,6 +1377,7 @@ function App() {
   async function stop() {
     const translating = translationController.current;
     if (!activeId && !translating) return;
+    const apiRequest = apiRequestRef.current;
     const bridgeId = translating
       ? translationBridgeId.current
       : requestRef.current
@@ -1394,13 +1402,15 @@ function App() {
     setAnswer("");
     setStatus(liveSession ? t.liveStopped : t.stopped);
     try {
-      if (bridgeId) await bridge.cancelAndWait(bridgeId);
+      if (backend === "api") await apiRequest;
+      else if (bridgeId) await bridge.cancelAndWait(bridgeId);
     } catch {
-      /* Disconnect already rejects the active request. */
+      /* The active request owns its cancellation error. */
     } finally {
       if (requestIdRef.current === reservation) {
         requestIdRef.current = null;
         requestRef.current = null;
+        apiRequestRef.current = null;
         backgroundRequestRef.current = null;
         setBusy(false);
         if (pendingPageRefresh.current) schedulePageRefresh();
@@ -1519,12 +1529,14 @@ function App() {
         let answerText = "";
         let requestUsage: Usage | undefined;
         if (backend === "api") {
-          const result = await askAnthropic(
+          const apiRequest = askAnthropic(
             { id, question: questionText, kind: "translate", model, effort },
             apiKey,
             () => {},
             controller.signal,
           );
+          apiRequestRef.current = apiRequest;
+          const result = await apiRequest;
           answerText = result.answer;
           requestUsage = result.usage;
         } else {
@@ -1605,6 +1617,7 @@ function App() {
       translationController.current = null;
       if (requestIdRef.current === operationId) {
         requestIdRef.current = null;
+        apiRequestRef.current = null;
         setBusy(false);
         setActiveId("");
       }
@@ -1667,7 +1680,7 @@ function App() {
         <div className="brand">
           <Blink />{" "}
           <div>
-            <span className="overline">GLIMPSELET · PRIVATE BY DESIGN</span>
+            <span className="overline">GLIMPSELET</span>
             <h1>{t.consentTitle}</h1>
           </div>
         </div>

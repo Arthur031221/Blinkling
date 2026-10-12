@@ -13521,12 +13521,12 @@ var en_default = {
   close: "Close panel",
   compact: "Make panel compact",
   connected: "Sharing",
-  consent1: "Frames stay in memory and are sent to the bridge only for capture or question requests. API keys and bridge tokens stay in browser session storage.",
-  consent2: "Frames stay in memory",
-  consent3: "Sent only for capture or questions",
-  consentAccept: "Done",
-  consentFoot: "Frames stay in memory and are sent to the bridge only for capture or question requests. API keys and bridge tokens stay in browser session storage.",
-  consentText: "Choose a screen, app window, or browser tab. Your image is sent to the selected provider when you ask.",
+  consent1: "Page text and element labels are sent to your selected provider automatically to suggest questions.",
+  consent2: "Images are sent when you ask or use a page tool. Passive mode sends captures and summaries automatically when enabled.",
+  consent3: "Frames stay in memory. API keys and pairing tokens stay in browser session storage.",
+  consentAccept: "Open floating chat.",
+  consentFoot: "Use Settings to choose your provider, manage site access or pause automatic reading.",
+  consentText: "Open a floating chat for the page or screen you choose. You can start screen sharing from its controls.",
   consentTitle: "Ask about what you see.",
   continueSession: "Choose a session",
   copied: "Copied",
@@ -13555,9 +13555,9 @@ var en_default = {
   noActiveTab: "No active page is available.",
   noticing: "Noticing a change...",
   openPdf: "Open PDF reader",
-  pageContextHint: "Choose a screen, app window, or browser tab. Your image is sent to the selected provider when you ask.",
+  pageContextHint: "Page text and element labels help suggest questions and give precise answers.",
   pageNote: "Passive mode",
-  pageSummary: "Summarize last ten minutes",
+  pageSummary: "Summarize this page.",
   pair: "Connect",
   pairCode: "Pairing code",
   pairHint: "Connect a coding session in Settings.",
@@ -13576,7 +13576,7 @@ var en_default = {
   pin: "Pin",
   pipFallback: "The popup fallback may not stay above other apps. Document Picture-in-Picture is supported in some browsers.",
   pipUnavailable: "The popup fallback may not stay above other apps. Document Picture-in-Picture is supported in some browsers.",
-  privacy: "Frames stay in memory and are sent to the bridge only for capture or question requests. API keys and bridge tokens stay in browser session storage.",
+  privacy: "Page text is sent for automatic suggested questions. Images are sent for questions and page tools, or automatically while passive mode is enabled. API keys and pairing tokens stay in browser session storage.",
   privacyMini: "Frames in memory",
   question: "What would you like to know?",
   questionLimit: "Enter a shorter question.",
@@ -13681,12 +13681,12 @@ var zh_TW_default = {
   close: "\u95DC\u9589\u9762\u677F",
   compact: "\u7E2E\u5C0F\u9762\u677F",
   connected: "\u5206\u4EAB\u4E2D",
-  consent1: "\u756B\u9762\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D\uFF0C\u50C5\u5728\u64F7\u53D6\u6216\u63D0\u554F\u8ACB\u6C42\u6642\u50B3\u9001\u81F3\u6A4B\u63A5\u670D\u52D9\u3002API \u91D1\u9470\u8207\u6A4B\u63A5\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
-  consent2: "\u756B\u9762\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D",
-  consent3: "\u50C5\u5728\u64F7\u53D6\u6216\u63D0\u554F\u6642\u50B3\u9001",
-  consentAccept: "\u5B8C\u6210",
-  consentFoot: "\u756B\u9762\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D\uFF0C\u50C5\u5728\u64F7\u53D6\u6216\u63D0\u554F\u8ACB\u6C42\u6642\u50B3\u9001\u81F3\u6A4B\u63A5\u670D\u52D9\u3002API \u91D1\u9470\u8207\u6A4B\u63A5\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
-  consentText: "\u9078\u64C7\u87A2\u5E55\u3001\u61C9\u7528\u7A0B\u5F0F\u8996\u7A97\u6216\u700F\u89BD\u5668\u5206\u9801\u3002\u63D0\u554F\u6642\uFF0C\u756B\u9762\u6703\u50B3\u9001\u81F3\u6240\u9078\u4F9B\u61C9\u5546\u3002",
+  consent1: "\u7DB2\u9801\u6587\u5B57\u548C\u5143\u7D20\u6A19\u7C64\u6703\u81EA\u52D5\u50B3\u9001\u81F3\u4F60\u9078\u64C7\u7684\u4F9B\u61C9\u5546\uFF0C\u7528\u4F86\u63A8\u85A6\u554F\u984C\u3002",
+  consent2: "\u63D0\u554F\u6216\u4F7F\u7528\u7DB2\u9801\u5DE5\u5177\u6642\u6703\u50B3\u9001\u5716\u7247\u3002\u555F\u7528\u88AB\u52D5\u6A21\u5F0F\u5F8C\uFF0C\u64F7\u53D6\u756B\u9762\u548C\u6458\u8981\u6703\u81EA\u52D5\u50B3\u9001\u3002",
+  consent3: "\u756B\u9762\u5F71\u683C\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D\u3002API \u91D1\u9470\u548C\u914D\u5C0D\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
+  consentAccept: "\u958B\u555F\u6D6E\u52D5\u804A\u5929",
+  consentFoot: "\u5728\u8A2D\u5B9A\u4E2D\u9078\u64C7\u4F9B\u61C9\u5546\u3001\u7BA1\u7406\u7DB2\u7AD9\u5B58\u53D6\u6B0A\u6216\u66AB\u505C\u81EA\u52D5\u8B80\u53D6\u3002",
+  consentText: "\u70BA\u4F60\u9078\u64C7\u7684\u7DB2\u9801\u6216\u87A2\u5E55\u958B\u555F\u6D6E\u52D5\u804A\u5929\u8996\u7A97\u3002\u4F60\u53EF\u4EE5\u900F\u904E\u8996\u7A97\u63A7\u5236\u9805\u958B\u59CB\u5206\u4EAB\u87A2\u5E55\u3002",
   consentTitle: "\u8A62\u554F\u4F60\u773C\u524D\u6240\u898B\u3002",
   continueSession: "\u9078\u64C7\u5DE5\u4F5C\u968E\u6BB5",
   copied: "\u5DF2\u8907\u88FD",
@@ -13715,9 +13715,9 @@ var zh_TW_default = {
   noActiveTab: "\u76EE\u524D\u6C92\u6709\u53EF\u7528\u7684\u9801\u9762\u3002",
   noticing: "\u6B63\u5728\u7559\u610F\u756B\u9762\u8B8A\u5316...",
   openPdf: "\u958B\u555F PDF \u95B1\u8B80\u5668",
-  pageContextHint: "\u9078\u64C7\u87A2\u5E55\u3001\u61C9\u7528\u7A0B\u5F0F\u8996\u7A97\u6216\u700F\u89BD\u5668\u5206\u9801\u3002\u63D0\u554F\u6642\uFF0C\u756B\u9762\u6703\u50B3\u9001\u81F3\u6240\u9078\u4F9B\u61C9\u5546\u3002",
+  pageContextHint: "\u7DB2\u9801\u6587\u5B57\u548C\u5143\u7D20\u6A19\u7C64\u6709\u52A9\u65BC\u63A8\u85A6\u554F\u984C\u4E26\u63D0\u4F9B\u7CBE\u78BA\u56DE\u7B54\u3002",
   pageNote: "\u88AB\u52D5\u6A21\u5F0F",
-  pageSummary: "\u6458\u8981\u6700\u8FD1\u5341\u5206\u9418",
+  pageSummary: "\u6458\u8981\u6B64\u7DB2\u9801\u3002",
   pair: "\u9023\u7DDA",
   pairCode: "\u914D\u5C0D\u78BC",
   pairHint: "\u8ACB\u5728\u8A2D\u5B9A\u4E2D\u9023\u7DDA\u81F3\u7A0B\u5F0F\u5DE5\u4F5C\u968E\u6BB5\u3002",
@@ -13736,7 +13736,7 @@ var zh_TW_default = {
   pin: "\u91D8\u9078",
   pipFallback: "\u5F48\u51FA\u8996\u7A97\u53EF\u80FD\u7121\u6CD5\u4FDD\u6301\u5728\u5176\u4ED6\u61C9\u7528\u7A0B\u5F0F\u4E0A\u65B9\u3002\u90E8\u5206\u700F\u89BD\u5668\u652F\u63F4\u6587\u4EF6\u756B\u4E2D\u756B\u3002",
   pipUnavailable: "\u5F48\u51FA\u8996\u7A97\u53EF\u80FD\u7121\u6CD5\u4FDD\u6301\u5728\u5176\u4ED6\u61C9\u7528\u7A0B\u5F0F\u4E0A\u65B9\u3002\u90E8\u5206\u700F\u89BD\u5668\u652F\u63F4\u6587\u4EF6\u756B\u4E2D\u756B\u3002",
-  privacy: "\u756B\u9762\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D\uFF0C\u50C5\u5728\u64F7\u53D6\u6216\u63D0\u554F\u8ACB\u6C42\u6642\u50B3\u9001\u81F3\u6A4B\u63A5\u670D\u52D9\u3002API \u91D1\u9470\u8207\u6A4B\u63A5\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
+  privacy: "\u7DB2\u9801\u6587\u5B57\u6703\u50B3\u9001\u7528\u4F86\u81EA\u52D5\u63A8\u85A6\u554F\u984C\u3002\u63D0\u554F\u6216\u4F7F\u7528\u7DB2\u9801\u5DE5\u5177\u6642\u6703\u50B3\u9001\u5716\u7247\uFF0C\u555F\u7528\u88AB\u52D5\u6A21\u5F0F\u6642\uFF0C\u5716\u7247\u4E5F\u6703\u81EA\u52D5\u50B3\u9001\u3002API \u91D1\u9470\u548C\u914D\u5C0D\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
   privacyMini: "\u756B\u9762\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D",
   question: "\u60F3\u4E86\u89E3\u4EC0\u9EBC\uFF1F",
   questionLimit: "\u8ACB\u8F38\u5165\u8F03\u77ED\u7684\u554F\u984C\u3002",
@@ -13841,12 +13841,12 @@ var zh_CN_default = {
   close: "\u5173\u95ED\u9762\u677F",
   compact: "\u6536\u8D77\u9762\u677F",
   connected: "\u5171\u4EAB\u4E2D",
-  consent1: "\u753B\u9762\u4FDD\u7559\u5728\u5185\u5B58\u4E2D\uFF0C\u4EC5\u5728\u622A\u53D6\u6216\u63D0\u95EE\u8BF7\u6C42\u65F6\u53D1\u9001\u5230\u6865\u63A5\u670D\u52A1\u3002API \u5BC6\u94A5\u548C\u6865\u63A5\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
-  consent2: "\u753B\u9762\u4FDD\u7559\u5728\u5185\u5B58\u4E2D",
-  consent3: "\u4EC5\u5728\u622A\u53D6\u6216\u63D0\u95EE\u65F6\u53D1\u9001",
-  consentAccept: "\u5B8C\u6210",
-  consentFoot: "\u753B\u9762\u4FDD\u7559\u5728\u5185\u5B58\u4E2D\uFF0C\u4EC5\u5728\u622A\u53D6\u6216\u63D0\u95EE\u8BF7\u6C42\u65F6\u53D1\u9001\u5230\u6865\u63A5\u670D\u52A1\u3002API \u5BC6\u94A5\u548C\u6865\u63A5\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
-  consentText: "\u9009\u62E9\u5C4F\u5E55\u3001\u5E94\u7528\u7A97\u53E3\u6216\u6D4F\u89C8\u5668\u6807\u7B7E\u9875\u3002\u63D0\u95EE\u65F6\uFF0C\u753B\u9762\u4F1A\u53D1\u9001\u7ED9\u6240\u9009\u670D\u52A1\u5546\u3002",
+  consent1: "\u7F51\u9875\u6587\u672C\u548C\u5143\u7D20\u6807\u7B7E\u4F1A\u81EA\u52A8\u53D1\u9001\u7ED9\u4F60\u9009\u62E9\u7684\u670D\u52A1\u5546\uFF0C\u7528\u4E8E\u63A8\u8350\u95EE\u9898\u3002",
+  consent2: "\u63D0\u95EE\u6216\u4F7F\u7528\u7F51\u9875\u5DE5\u5177\u65F6\u4F1A\u53D1\u9001\u56FE\u50CF\u3002\u542F\u7528\u88AB\u52A8\u6A21\u5F0F\u540E\uFF0C\u622A\u53D6\u7684\u753B\u9762\u548C\u6458\u8981\u4F1A\u81EA\u52A8\u53D1\u9001\u3002",
+  consent3: "\u753B\u9762\u5E27\u4FDD\u7559\u5728\u5185\u5B58\u4E2D\u3002API \u5BC6\u94A5\u548C\u914D\u5BF9\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
+  consentAccept: "\u6253\u5F00\u6D6E\u52A8\u804A\u5929",
+  consentFoot: "\u5728\u8BBE\u7F6E\u4E2D\u9009\u62E9\u670D\u52A1\u5546\u3001\u7BA1\u7406\u7F51\u7AD9\u8BBF\u95EE\u6743\u9650\u6216\u6682\u505C\u81EA\u52A8\u8BFB\u53D6\u3002",
+  consentText: "\u4E3A\u4F60\u9009\u62E9\u7684\u7F51\u9875\u6216\u5C4F\u5E55\u6253\u5F00\u6D6E\u52A8\u804A\u5929\u7A97\u53E3\u3002\u4F60\u53EF\u4EE5\u901A\u8FC7\u7A97\u53E3\u63A7\u4EF6\u5F00\u59CB\u5171\u4EAB\u5C4F\u5E55\u3002",
   consentTitle: "\u8BE2\u95EE\u4F60\u770B\u5230\u7684\u5185\u5BB9\u3002",
   continueSession: "\u9009\u62E9\u4F1A\u8BDD",
   copied: "\u5DF2\u590D\u5236",
@@ -13875,9 +13875,9 @@ var zh_CN_default = {
   noActiveTab: "\u76EE\u524D\u6CA1\u6709\u53EF\u7528\u9875\u9762\u3002",
   noticing: "\u6B63\u5728\u7559\u610F\u753B\u9762\u53D8\u5316...",
   openPdf: "\u6253\u5F00 PDF \u9605\u8BFB\u5668",
-  pageContextHint: "\u9009\u62E9\u5C4F\u5E55\u3001\u5E94\u7528\u7A97\u53E3\u6216\u6D4F\u89C8\u5668\u6807\u7B7E\u9875\u3002\u63D0\u95EE\u65F6\uFF0C\u753B\u9762\u4F1A\u53D1\u9001\u7ED9\u6240\u9009\u670D\u52A1\u5546\u3002",
+  pageContextHint: "\u7F51\u9875\u6587\u672C\u548C\u5143\u7D20\u6807\u7B7E\u6709\u52A9\u4E8E\u63A8\u8350\u95EE\u9898\u5E76\u63D0\u4F9B\u51C6\u786E\u56DE\u7B54\u3002",
   pageNote: "\u88AB\u52A8\u6A21\u5F0F",
-  pageSummary: "\u603B\u7ED3\u6700\u8FD1\u5341\u5206\u949F",
+  pageSummary: "\u603B\u7ED3\u6B64\u9875\u9762\u3002",
   pair: "\u8FDE\u63A5",
   pairCode: "\u914D\u5BF9\u7801",
   pairHint: "\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u8FDE\u63A5\u7F16\u7A0B\u4F1A\u8BDD\u3002",
@@ -13896,7 +13896,7 @@ var zh_CN_default = {
   pin: "\u56FA\u5B9A",
   pipFallback: "\u5F39\u51FA\u7A97\u53E3\u53EF\u80FD\u65E0\u6CD5\u59CB\u7EC8\u663E\u793A\u5728\u5176\u4ED6\u5E94\u7528\u4E0A\u65B9\u3002\u90E8\u5206\u6D4F\u89C8\u5668\u652F\u6301\u6587\u6863\u753B\u4E2D\u753B\u3002",
   pipUnavailable: "\u5F39\u51FA\u7A97\u53E3\u53EF\u80FD\u65E0\u6CD5\u59CB\u7EC8\u663E\u793A\u5728\u5176\u4ED6\u5E94\u7528\u4E0A\u65B9\u3002\u90E8\u5206\u6D4F\u89C8\u5668\u652F\u6301\u6587\u6863\u753B\u4E2D\u753B\u3002",
-  privacy: "\u753B\u9762\u4FDD\u7559\u5728\u5185\u5B58\u4E2D\uFF0C\u4EC5\u5728\u622A\u53D6\u6216\u63D0\u95EE\u8BF7\u6C42\u65F6\u53D1\u9001\u5230\u6865\u63A5\u670D\u52A1\u3002API \u5BC6\u94A5\u548C\u6865\u63A5\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
+  privacy: "\u7F51\u9875\u6587\u672C\u4F1A\u53D1\u9001\u7528\u4E8E\u81EA\u52A8\u63A8\u8350\u95EE\u9898\u3002\u63D0\u95EE\u6216\u4F7F\u7528\u7F51\u9875\u5DE5\u5177\u65F6\u4F1A\u53D1\u9001\u56FE\u50CF\uFF0C\u542F\u7528\u88AB\u52A8\u6A21\u5F0F\u65F6\uFF0C\u56FE\u50CF\u4E5F\u4F1A\u81EA\u52A8\u53D1\u9001\u3002API \u5BC6\u94A5\u548C\u914D\u5BF9\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
   privacyMini: "\u753B\u9762\u4FDD\u7559\u5728\u5185\u5B58\u4E2D",
   question: "\u4F60\u60F3\u4E86\u89E3\u4EC0\u4E48\uFF1F",
   questionLimit: "\u8BF7\u8F93\u5165\u8F83\u77ED\u7684\u95EE\u9898\u3002",
@@ -14001,12 +14001,12 @@ var ja_default = {
   close: "\u30D1\u30CD\u30EB\u3092\u9589\u3058\u308B",
   compact: "\u30D1\u30CD\u30EB\u3092\u30B3\u30F3\u30D1\u30AF\u30C8\u306B\u3059\u308B",
   connected: "\u5171\u6709\u4E2D",
-  consent1: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301\u3055\u308C\u3001\u30AD\u30E3\u30D7\u30C1\u30E3\u307E\u305F\u306F\u8CEA\u554F\u306E\u30EA\u30AF\u30A8\u30B9\u30C8\u6642\u306B\u306E\u307F\u30D6\u30EA\u30C3\u30B8\u3078\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30D6\u30EA\u30C3\u30B8\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
-  consent2: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301",
-  consent3: "\u64AE\u5F71\u30FB\u8CEA\u554F\u6642\u306E\u307F\u9001\u4FE1",
-  consentAccept: "\u5B8C\u4E86",
-  consentFoot: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301\u3055\u308C\u3001\u30AD\u30E3\u30D7\u30C1\u30E3\u307E\u305F\u306F\u8CEA\u554F\u306E\u30EA\u30AF\u30A8\u30B9\u30C8\u6642\u306B\u306E\u307F\u30D6\u30EA\u30C3\u30B8\u3078\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30D6\u30EA\u30C3\u30B8\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
-  consentText: "\u753B\u9762\u3001\u30A2\u30D7\u30EA\u306E\u30A6\u30A3\u30F3\u30C9\u30A6\u3001\u307E\u305F\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u30BF\u30D6\u3092\u9078\u3073\u307E\u3059\u3002\u8CEA\u554F\u3059\u308B\u3068\u753B\u50CF\u304C\u9078\u629E\u3057\u305F\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306B\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
+  consent1: "\u8CEA\u554F\u5019\u88DC\u3092\u63D0\u6848\u3059\u308B\u305F\u3081\u3001\u30DA\u30FC\u30B8\u306E\u30C6\u30AD\u30B9\u30C8\u3068\u8981\u7D20\u306E\u30E9\u30D9\u30EB\u304C\u9078\u629E\u3057\u305F\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306B\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
+  consent2: "\u8CEA\u554F\u3057\u305F\u3068\u304D\u3001\u307E\u305F\u306F\u30DA\u30FC\u30B8\u30C4\u30FC\u30EB\u3092\u4F7F\u3063\u305F\u3068\u304D\u306B\u753B\u50CF\u304C\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002\u30D1\u30C3\u30B7\u30D6\u30E2\u30FC\u30C9\u3092\u6709\u52B9\u306B\u3059\u308B\u3068\u3001\u30AD\u30E3\u30D7\u30C1\u30E3\u3068\u8981\u7D04\u304C\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
+  consent3: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30DA\u30A2\u30EA\u30F3\u30B0\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
+  consentAccept: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304F",
+  consentFoot: "\u8A2D\u5B9A\u3067\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306E\u9078\u629E\u3001\u30B5\u30A4\u30C8\u30A2\u30AF\u30BB\u30B9\u306E\u7BA1\u7406\u3001\u81EA\u52D5\u8AAD\u307F\u53D6\u308A\u306E\u4E00\u6642\u505C\u6B62\u304C\u3067\u304D\u307E\u3059\u3002",
+  consentText: "\u9078\u629E\u3057\u305F\u30DA\u30FC\u30B8\u307E\u305F\u306F\u753B\u9762\u306B\u3064\u3044\u3066\u8CEA\u554F\u3067\u304D\u308B\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304D\u307E\u3059\u3002\u753B\u9762\u5171\u6709\u306F\u30C1\u30E3\u30C3\u30C8\u306E\u64CD\u4F5C\u304B\u3089\u958B\u59CB\u3067\u304D\u307E\u3059\u3002",
   consentTitle: "\u898B\u3048\u3066\u3044\u308B\u3082\u306E\u3092\u8CEA\u554F\u3002",
   continueSession: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u9078\u629E",
   copied: "\u30B3\u30D4\u30FC\u3057\u307E\u3057\u305F",
@@ -14035,9 +14035,9 @@ var ja_default = {
   noActiveTab: "\u6709\u52B9\u306A\u30DA\u30FC\u30B8\u304C\u3042\u308A\u307E\u305B\u3093\u3002",
   noticing: "\u753B\u9762\u306E\u5909\u5316\u3092\u78BA\u8A8D\u4E2D...",
   openPdf: "PDF \u30EA\u30FC\u30C0\u30FC\u3092\u958B\u304F",
-  pageContextHint: "\u753B\u9762\u3001\u30A2\u30D7\u30EA\u306E\u30A6\u30A3\u30F3\u30C9\u30A6\u3001\u307E\u305F\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u30BF\u30D6\u3092\u9078\u3073\u307E\u3059\u3002\u8CEA\u554F\u3059\u308B\u3068\u753B\u50CF\u304C\u9078\u629E\u3057\u305F\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306B\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
+  pageContextHint: "\u30DA\u30FC\u30B8\u306E\u30C6\u30AD\u30B9\u30C8\u3068\u8981\u7D20\u306E\u30E9\u30D9\u30EB\u306F\u3001\u8CEA\u554F\u5019\u88DC\u306E\u63D0\u6848\u3084\u6B63\u78BA\u306A\u56DE\u7B54\u306B\u5F79\u7ACB\u3061\u307E\u3059\u3002",
   pageNote: "\u30D1\u30C3\u30B7\u30D6\u30E2\u30FC\u30C9",
-  pageSummary: "\u76F4\u8FD110\u5206\u3092\u8981\u7D04",
+  pageSummary: "\u3053\u306E\u30DA\u30FC\u30B8\u3092\u8981\u7D04",
   pair: "\u63A5\u7D9A",
   pairCode: "\u30DA\u30A2\u30EA\u30F3\u30B0\u30B3\u30FC\u30C9",
   pairHint: "\u8A2D\u5B9A\u304B\u3089\u30B3\u30FC\u30C7\u30A3\u30F3\u30B0\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u63A5\u7D9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
@@ -14056,7 +14056,7 @@ var ja_default = {
   pin: "\u30D4\u30F3\u7559\u3081",
   pipFallback: "\u30DD\u30C3\u30D7\u30A2\u30C3\u30D7\u306F\u4ED6\u306E\u30A2\u30D7\u30EA\u3088\u308A\u524D\u9762\u306B\u56FA\u5B9A\u3055\u308C\u306A\u3044\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002\u4E00\u90E8\u306E\u30D6\u30E9\u30A6\u30B6\u30FC\u306F Document Picture-in-Picture \u306B\u5BFE\u5FDC\u3057\u3066\u3044\u307E\u3059\u3002",
   pipUnavailable: "\u30DD\u30C3\u30D7\u30A2\u30C3\u30D7\u306F\u4ED6\u306E\u30A2\u30D7\u30EA\u3088\u308A\u524D\u9762\u306B\u56FA\u5B9A\u3055\u308C\u306A\u3044\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002\u4E00\u90E8\u306E\u30D6\u30E9\u30A6\u30B6\u30FC\u306F Document Picture-in-Picture \u306B\u5BFE\u5FDC\u3057\u3066\u3044\u307E\u3059\u3002",
-  privacy: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301\u3055\u308C\u3001\u30AD\u30E3\u30D7\u30C1\u30E3\u307E\u305F\u306F\u8CEA\u554F\u306E\u30EA\u30AF\u30A8\u30B9\u30C8\u6642\u306B\u306E\u307F\u30D6\u30EA\u30C3\u30B8\u3078\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30D6\u30EA\u30C3\u30B8\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
+  privacy: "\u8CEA\u554F\u5019\u88DC\u306E\u81EA\u52D5\u63D0\u6848\u306E\u305F\u3081\u3001\u30DA\u30FC\u30B8\u306E\u30C6\u30AD\u30B9\u30C8\u304C\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002\u8CEA\u554F\u3084\u30DA\u30FC\u30B8\u30C4\u30FC\u30EB\u306E\u4F7F\u7528\u6642\u306B\u753B\u50CF\u304C\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002\u30D1\u30C3\u30B7\u30D6\u30E2\u30FC\u30C9\u304C\u6709\u52B9\u306A\u9593\u306F\u3001\u753B\u50CF\u304C\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30DA\u30A2\u30EA\u30F3\u30B0\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
   privacyMini: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A",
   question: "\u4F55\u3092\u77E5\u308A\u305F\u3044\u3067\u3059\u304B\uFF1F",
   questionLimit: "\u77ED\u3044\u8CEA\u554F\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
@@ -14161,12 +14161,12 @@ var ko_default = {
   close: "\uD328\uB110 \uB2EB\uAE30",
   compact: "\uD328\uB110\uC744 \uAC04\uACB0\uD558\uAC8C",
   connected: "\uACF5\uC720 \uC911",
-  consent1: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0\uB418\uBA70 \uCEA1\uCC98 \uB610\uB294 \uC9C8\uBB38 \uC694\uCCAD \uB54C\uB9CC \uBE0C\uB9AC\uC9C0\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uBE0C\uB9AC\uC9C0 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
-  consent2: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0",
-  consent3: "\uCEA1\uCC98 \uB610\uB294 \uC9C8\uBB38 \uC2DC\uC5D0\uB9CC \uC804\uC1A1",
-  consentAccept: "\uC644\uB8CC",
-  consentFoot: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0\uB418\uBA70 \uCEA1\uCC98 \uB610\uB294 \uC9C8\uBB38 \uC694\uCCAD \uB54C\uB9CC \uBE0C\uB9AC\uC9C0\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uBE0C\uB9AC\uC9C0 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
-  consentText: "\uD654\uBA74, \uC571 \uCC3D \uB610\uB294 \uBE0C\uB77C\uC6B0\uC800 \uD0ED\uC744 \uC120\uD0DD\uD558\uC138\uC694. \uC9C8\uBB38\uD558\uBA74 \uC774\uBBF8\uC9C0\uAC00 \uC120\uD0DD\uD55C \uC81C\uACF5\uC5C5\uCCB4\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4.",
+  consent1: "\uC9C8\uBB38\uC744 \uC81C\uC548\uD558\uAE30 \uC704\uD574 \uD398\uC774\uC9C0 \uD14D\uC2A4\uD2B8\uC640 \uC694\uC18C \uB77C\uBCA8\uC774 \uC120\uD0DD\uD55C \uC81C\uACF5\uC5C5\uCCB4\uB85C \uC790\uB3D9 \uC804\uC1A1\uB429\uB2C8\uB2E4.",
+  consent2: "\uC9C8\uBB38\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uB54C \uC774\uBBF8\uC9C0\uAC00 \uC804\uC1A1\uB429\uB2C8\uB2E4. \uD328\uC2DC\uBE0C \uBAA8\uB4DC\uB97C \uCF1C\uBA74 \uCEA1\uCC98\uC640 \uC694\uC57D\uC774 \uC790\uB3D9\uC73C\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4.",
+  consent3: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uD398\uC5B4\uB9C1 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
+  consentAccept: "\uD50C\uB85C\uD305 \uCC44\uD305 \uC5F4\uAE30",
+  consentFoot: "\uC124\uC815\uC5D0\uC11C \uC81C\uACF5\uC5C5\uCCB4\uB97C \uC120\uD0DD\uD558\uACE0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uAD00\uB9AC\uD558\uAC70\uB098 \uC790\uB3D9 \uC77D\uAE30\uB97C \uC77C\uC2DC \uC911\uC9C0\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+  consentText: "\uC120\uD0DD\uD55C \uD398\uC774\uC9C0\uB098 \uD654\uBA74\uC5D0 \uB300\uD55C \uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC5FD\uB2C8\uB2E4. \uD654\uBA74 \uACF5\uC720\uB294 \uCC44\uD305 \uCEE8\uD2B8\uB864\uC5D0\uC11C \uC2DC\uC791\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   consentTitle: "\uBCF4\uC774\uB294 \uB0B4\uC6A9\uC744 \uC9C8\uBB38\uD558\uC138\uC694.",
   continueSession: "\uC138\uC158 \uC120\uD0DD",
   copied: "\uBCF5\uC0AC\uB428",
@@ -14195,9 +14195,9 @@ var ko_default = {
   noActiveTab: "\uD65C\uC131 \uD398\uC774\uC9C0\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
   noticing: "\uD654\uBA74 \uBCC0\uD654\uB97C \uC0B4\uD3B4\uBCF4\uB294 \uC911...",
   openPdf: "PDF \uB9AC\uB354 \uC5F4\uAE30",
-  pageContextHint: "\uD654\uBA74, \uC571 \uCC3D \uB610\uB294 \uBE0C\uB77C\uC6B0\uC800 \uD0ED\uC744 \uC120\uD0DD\uD558\uC138\uC694. \uC9C8\uBB38\uD558\uBA74 \uC774\uBBF8\uC9C0\uAC00 \uC120\uD0DD\uD55C \uC81C\uACF5\uC5C5\uCCB4\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4.",
+  pageContextHint: "\uD398\uC774\uC9C0 \uD14D\uC2A4\uD2B8\uC640 \uC694\uC18C \uB77C\uBCA8\uC740 \uC9C8\uBB38\uC744 \uC81C\uC548\uD558\uACE0 \uC815\uD655\uD55C \uB2F5\uBCC0\uC744 \uC81C\uACF5\uD558\uB294 \uB370 \uB3C4\uC6C0\uC774 \uB429\uB2C8\uB2E4.",
   pageNote: "\uC790\uB3D9 \uBA54\uBAA8",
-  pageSummary: "\uCD5C\uADFC 10\uBD84 \uC694\uC57D",
+  pageSummary: "\uC774 \uD398\uC774\uC9C0 \uC694\uC57D",
   pair: "\uC5F0\uACB0",
   pairCode: "\uD398\uC5B4\uB9C1 \uCF54\uB4DC",
   pairHint: "\uC124\uC815\uC5D0\uC11C \uCF54\uB529 \uC138\uC158\uC5D0 \uC5F0\uACB0\uD558\uC138\uC694.",
@@ -14216,7 +14216,7 @@ var ko_default = {
   pin: "\uACE0\uC815",
   pipFallback: "\uD31D\uC5C5 \uCC3D\uC740 \uB2E4\uB978 \uC571\uBCF4\uB2E4 \uD56D\uC0C1 \uC704\uC5D0 \uD45C\uC2DC\uB418\uC9C0 \uC54A\uC744 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uC77C\uBD80 \uBE0C\uB77C\uC6B0\uC800\uB294 \uBB38\uC11C \uD654\uBA74 \uC18D \uD654\uBA74\uC744 \uC9C0\uC6D0\uD569\uB2C8\uB2E4.",
   pipUnavailable: "\uD31D\uC5C5 \uCC3D\uC740 \uB2E4\uB978 \uC571\uBCF4\uB2E4 \uD56D\uC0C1 \uC704\uC5D0 \uD45C\uC2DC\uB418\uC9C0 \uC54A\uC744 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uC77C\uBD80 \uBE0C\uB77C\uC6B0\uC800\uB294 \uBB38\uC11C \uD654\uBA74 \uC18D \uD654\uBA74\uC744 \uC9C0\uC6D0\uD569\uB2C8\uB2E4.",
-  privacy: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0\uB418\uBA70 \uCEA1\uCC98 \uB610\uB294 \uC9C8\uBB38 \uC694\uCCAD \uB54C\uB9CC \uBE0C\uB9AC\uC9C0\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uBE0C\uB9AC\uC9C0 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
+  privacy: "\uC790\uB3D9\uC73C\uB85C \uC9C8\uBB38\uC744 \uC81C\uC548\uD558\uAE30 \uC704\uD574 \uD398\uC774\uC9C0 \uD14D\uC2A4\uD2B8\uAC00 \uC804\uC1A1\uB429\uB2C8\uB2E4. \uC9C8\uBB38\uACFC \uD398\uC774\uC9C0 \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uB54C \uC774\uBBF8\uC9C0\uAC00 \uC804\uC1A1\uB418\uBA70, \uD328\uC2DC\uBE0C \uBAA8\uB4DC\uAC00 \uCF1C\uC838 \uC788\uC73C\uBA74 \uC774\uBBF8\uC9C0\uAC00 \uC790\uB3D9 \uC804\uC1A1\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uD398\uC5B4\uB9C1 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
   privacyMini: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uBCF4\uAD00",
   question: "\uBB34\uC5C7\uC744 \uC54C\uACE0 \uC2F6\uB098\uC694?",
   questionLimit: "\uC9E7\uC740 \uC9C8\uBB38\uC744 \uC785\uB825\uD558\uC138\uC694.",
@@ -14321,12 +14321,12 @@ var es_default = {
   close: "Cerrar panel",
   compact: "Compactar panel",
   connected: "Compartiendo",
-  consent1: "Los fotogramas permanecen en memoria y solo se env\xEDan al puente al capturar o hacer una pregunta. Las claves API y los tokens del puente permanecen en el almacenamiento de sesi\xF3n del navegador.",
-  consent2: "Los fotogramas quedan en memoria",
-  consent3: "Solo se env\xEDan al capturar o preguntar",
-  consentAccept: "Listo",
-  consentFoot: "Los fotogramas permanecen en memoria y solo se env\xEDan al puente al capturar o hacer una pregunta. Las claves API y los tokens del puente permanecen en el almacenamiento de sesi\xF3n del navegador.",
-  consentText: "Elige una pantalla, ventana o pesta\xF1a. Al preguntar, la imagen se env\xEDa al proveedor seleccionado.",
+  consent1: "El texto de la p\xE1gina y las etiquetas de los elementos se env\xEDan autom\xE1ticamente al proveedor seleccionado para sugerir preguntas.",
+  consent2: "Las im\xE1genes se env\xEDan cuando haces una pregunta o usas una herramienta de la p\xE1gina. El modo pasivo env\xEDa capturas y res\xFAmenes autom\xE1ticamente cuando est\xE1 activado.",
+  consent3: "Los fotogramas permanecen en la memoria. Las claves API y los tokens de emparejamiento permanecen en el almacenamiento de sesi\xF3n del navegador.",
+  consentAccept: "Abrir chat flotante.",
+  consentFoot: "En Ajustes puedes elegir el proveedor, gestionar el acceso a sitios o pausar la lectura autom\xE1tica.",
+  consentText: "Abre un chat flotante para la p\xE1gina o pantalla que elijas. Puedes iniciar el uso compartido de pantalla desde sus controles.",
   consentTitle: "Pregunta sobre lo que ves.",
   continueSession: "Elegir una sesi\xF3n",
   copied: "Copiado",
@@ -14355,9 +14355,9 @@ var es_default = {
   noActiveTab: "No hay una p\xE1gina activa.",
   noticing: "Detectando un cambio...",
   openPdf: "Abrir lector de PDF",
-  pageContextHint: "Elige una pantalla, ventana o pesta\xF1a. Al preguntar, la imagen se env\xEDa al proveedor seleccionado.",
+  pageContextHint: "El texto de la p\xE1gina y las etiquetas de los elementos ayudan a sugerir preguntas y dar respuestas precisas.",
   pageNote: "Modo pasivo",
-  pageSummary: "Resumir los \xFAltimos diez minutos",
+  pageSummary: "Resumir esta p\xE1gina.",
   pair: "Conectar",
   pairCode: "C\xF3digo de vinculaci\xF3n",
   pairHint: "Conecta una sesi\xF3n de programaci\xF3n en Configuraci\xF3n.",
@@ -14376,7 +14376,7 @@ var es_default = {
   pin: "Fijar",
   pipFallback: "La ventana emergente puede no permanecer sobre otras aplicaciones. Algunos navegadores admiten Picture-in-Picture de documentos.",
   pipUnavailable: "La ventana emergente puede no permanecer sobre otras aplicaciones. Algunos navegadores admiten Picture-in-Picture de documentos.",
-  privacy: "Los fotogramas permanecen en memoria y solo se env\xEDan al puente al capturar o hacer una pregunta. Las claves API y los tokens del puente permanecen en el almacenamiento de sesi\xF3n del navegador.",
+  privacy: "El texto de la p\xE1gina se env\xEDa para sugerir preguntas autom\xE1ticamente. Las im\xE1genes se env\xEDan para preguntas y herramientas de la p\xE1gina, o autom\xE1ticamente mientras el modo pasivo est\xE1 activado. Las claves API y los tokens de emparejamiento permanecen en el almacenamiento de sesi\xF3n del navegador.",
   privacyMini: "Fotogramas en memoria",
   question: "\xBFQu\xE9 quieres saber?",
   questionLimit: "Escribe una pregunta m\xE1s corta.",
@@ -14481,12 +14481,12 @@ var fr_default = {
   close: "Fermer le panneau",
   compact: "R\xE9duire le panneau",
   connected: "Partage actif",
-  consent1: "Les images restent en m\xE9moire et ne sont envoy\xE9es au bridge que lors d'une capture ou d'une question. Les cl\xE9s API et les jetons du bridge restent dans le stockage de session du navigateur.",
-  consent2: "Images conserv\xE9es en m\xE9moire",
-  consent3: "Envoi lors des captures ou questions",
-  consentAccept: "Termin\xE9",
-  consentFoot: "Les images restent en m\xE9moire et ne sont envoy\xE9es au bridge que lors d'une capture ou d'une question. Les cl\xE9s API et les jetons du bridge restent dans le stockage de session du navigateur.",
-  consentText: "Choisissez un \xE9cran, une fen\xEAtre ou un onglet. En posant une question, l'image est envoy\xE9e au fournisseur choisi.",
+  consent1: "Le texte de la page et les libell\xE9s des \xE9l\xE9ments sont envoy\xE9s automatiquement au fournisseur choisi pour sugg\xE9rer des questions.",
+  consent2: "Les images sont envoy\xE9es lorsque vous posez une question ou utilisez un outil de la page. Le mode passif envoie automatiquement des captures et des r\xE9sum\xE9s lorsqu'il est activ\xE9.",
+  consent3: "Les images restent en m\xE9moire. Les cl\xE9s API et les jetons d'association restent dans le stockage de session du navigateur.",
+  consentAccept: "Ouvrir le chat flottant.",
+  consentFoot: "Dans les param\xE8tres, choisissez votre fournisseur, g\xE9rez l'acc\xE8s aux sites ou mettez en pause la lecture automatique.",
+  consentText: "Ouvrez une fen\xEAtre de chat flottante pour la page ou l'\xE9cran de votre choix. Vous pouvez lancer le partage d'\xE9cran depuis ses commandes.",
   consentTitle: "Posez une question sur ce que vous voyez.",
   continueSession: "Choisir une session",
   copied: "Copi\xE9",
@@ -14515,9 +14515,9 @@ var fr_default = {
   noActiveTab: "Aucune page active.",
   noticing: "D\xE9tection d'un changement...",
   openPdf: "Ouvrir le lecteur PDF",
-  pageContextHint: "Choisissez un \xE9cran, une fen\xEAtre ou un onglet. En posant une question, l'image est envoy\xE9e au fournisseur choisi.",
+  pageContextHint: "Le texte de la page et les libell\xE9s des \xE9l\xE9ments aident \xE0 sugg\xE9rer des questions et \xE0 fournir des r\xE9ponses pr\xE9cises.",
   pageNote: "Mode passif",
-  pageSummary: "R\xE9sumer les dix derni\xE8res minutes",
+  pageSummary: "R\xE9sumer cette page.",
   pair: "Connecter",
   pairCode: "Code d'association",
   pairHint: "Connectez une session de programmation dans les param\xE8tres.",
@@ -14536,7 +14536,7 @@ var fr_default = {
   pin: "\xC9pingler",
   pipFallback: "La fen\xEAtre contextuelle peut ne pas rester au-dessus des autres applications. Certains navigateurs prennent en charge Picture-in-Picture pour les documents.",
   pipUnavailable: "La fen\xEAtre contextuelle peut ne pas rester au-dessus des autres applications. Certains navigateurs prennent en charge Picture-in-Picture pour les documents.",
-  privacy: "Les images restent en m\xE9moire et ne sont envoy\xE9es au bridge que lors d'une capture ou d'une question. Les cl\xE9s API et les jetons du bridge restent dans le stockage de session du navigateur.",
+  privacy: "Le texte de la page est envoy\xE9 pour sugg\xE9rer automatiquement des questions. Les images sont envoy\xE9es pour les questions et les outils de la page, ou automatiquement lorsque le mode passif est activ\xE9. Les cl\xE9s API et les jetons d'association restent dans le stockage de session du navigateur.",
   privacyMini: "Images en m\xE9moire",
   question: "Que voulez-vous savoir ?",
   questionLimit: "Saisissez une question plus courte.",
@@ -14641,12 +14641,12 @@ var de_default = {
   close: "Panel schlie\xDFen",
   compact: "Panel verkleinern",
   connected: "Freigabe aktiv",
-  consent1: "Frames bleiben im Arbeitsspeicher und werden nur bei Aufnahme- oder Frageanfragen an die Bridge gesendet. API-Schl\xFCssel und Bridge-Tokens bleiben im Browser-Sitzungsspeicher.",
-  consent2: "Frames bleiben im Arbeitsspeicher",
-  consent3: "Nur bei Aufnahmen oder Fragen gesendet",
-  consentAccept: "Fertig",
-  consentFoot: "Frames bleiben im Arbeitsspeicher und werden nur bei Aufnahme- oder Frageanfragen an die Bridge gesendet. API-Schl\xFCssel und Bridge-Tokens bleiben im Browser-Sitzungsspeicher.",
-  consentText: "W\xE4hle einen Bildschirm, ein Fenster oder einen Tab. Beim Fragen wird das Bild an den gew\xE4hlten Anbieter gesendet.",
+  consent1: "Seitentext und Elementbeschriftungen werden automatisch an den ausgew\xE4hlten Anbieter gesendet, damit passende Fragen vorgeschlagen werden k\xF6nnen.",
+  consent2: "Bilder werden gesendet, wenn du eine Frage stellst oder ein Seitentool verwendest. Im passiven Modus werden Aufnahmen und Zusammenfassungen automatisch gesendet, wenn er aktiviert ist.",
+  consent3: "Einzelbilder bleiben im Arbeitsspeicher. API-Schl\xFCssel und Kopplungstokens bleiben im Browser-Sitzungsspeicher.",
+  consentAccept: "Schwebenden Chat \xF6ffnen.",
+  consentFoot: "W\xE4hle in den Einstellungen deinen Anbieter, verwalte den Websitezugriff oder pausiere das automatische Lesen.",
+  consentText: "\xD6ffne einen schwebenden Chat f\xFCr die ausgew\xE4hlte Seite oder den ausgew\xE4hlten Bildschirm. Die Bildschirmfreigabe kannst du \xFCber die Bedienelemente starten.",
   consentTitle: "Frage, was du siehst.",
   continueSession: "Sitzung ausw\xE4hlen",
   copied: "Kopiert",
@@ -14675,9 +14675,9 @@ var de_default = {
   noActiveTab: "Keine aktive Seite verf\xFCgbar.",
   noticing: "\xC4nderung wird erkannt...",
   openPdf: "PDF-Reader \xF6ffnen",
-  pageContextHint: "W\xE4hle einen Bildschirm, ein Fenster oder einen Tab. Beim Fragen wird das Bild an den gew\xE4hlten Anbieter gesendet.",
+  pageContextHint: "Seitentext und Elementbeschriftungen helfen dabei, Fragen vorzuschlagen und pr\xE4zise Antworten zu geben.",
   pageNote: "Passivmodus",
-  pageSummary: "Letzte zehn Minuten zusammenfassen",
+  pageSummary: "Diese Seite zusammenfassen.",
   pair: "Verbinden",
   pairCode: "Kopplungscode",
   pairHint: "Verbinde in den Einstellungen eine Coding-Sitzung.",
@@ -14696,7 +14696,7 @@ var de_default = {
   pin: "Anheften",
   pipFallback: "Das Popup bleibt m\xF6glicherweise nicht \xFCber anderen Apps. Einige Browser unterst\xFCtzen Document Picture-in-Picture.",
   pipUnavailable: "Das Popup bleibt m\xF6glicherweise nicht \xFCber anderen Apps. Einige Browser unterst\xFCtzen Document Picture-in-Picture.",
-  privacy: "Frames bleiben im Arbeitsspeicher und werden nur bei Aufnahme- oder Frageanfragen an die Bridge gesendet. API-Schl\xFCssel und Bridge-Tokens bleiben im Browser-Sitzungsspeicher.",
+  privacy: "Seitentext wird verwendet, um automatisch passende Fragen vorzuschlagen. Bilder werden f\xFCr Fragen und Seitentools gesendet oder automatisch, solange der passive Modus aktiviert ist. API-Schl\xFCssel und Kopplungstokens bleiben im Browser-Sitzungsspeicher.",
   privacyMini: "Frames im Arbeitsspeicher",
   question: "Was m\xF6chtest du wissen?",
   questionLimit: "K\xFCrzere Frage eingeben.",
@@ -14801,12 +14801,12 @@ var pt_BR_default = {
   close: "Fechar painel",
   compact: "Compactar painel",
   connected: "Compartilhando",
-  consent1: "Os quadros ficam na mem\xF3ria e s\xF3 s\xE3o enviados \xE0 ponte em solicita\xE7\xF5es de captura ou pergunta. Chaves de API e tokens da ponte ficam no armazenamento de sess\xE3o do navegador.",
-  consent2: "Quadros ficam na mem\xF3ria",
-  consent3: "Enviados ao capturar ou perguntar",
-  consentAccept: "Conclu\xEDdo",
-  consentFoot: "Os quadros ficam na mem\xF3ria e s\xF3 s\xE3o enviados \xE0 ponte em solicita\xE7\xF5es de captura ou pergunta. Chaves de API e tokens da ponte ficam no armazenamento de sess\xE3o do navegador.",
-  consentText: "Escolha uma tela, janela ou aba. Ao perguntar, a imagem \xE9 enviada ao provedor selecionado.",
+  consent1: "O texto da p\xE1gina e os r\xF3tulos dos elementos s\xE3o enviados automaticamente ao provedor selecionado para sugerir perguntas.",
+  consent2: "As imagens s\xE3o enviadas quando voc\xEA faz uma pergunta ou usa uma ferramenta da p\xE1gina. O modo passivo envia capturas e resumos automaticamente quando est\xE1 ativado.",
+  consent3: "Os quadros ficam na mem\xF3ria. As chaves de API e os tokens de pareamento ficam no armazenamento de sess\xE3o do navegador.",
+  consentAccept: "Abrir chat flutuante.",
+  consentFoot: "Em Configura\xE7\xF5es, escolha o provedor, gerencie o acesso a sites ou pause a leitura autom\xE1tica.",
+  consentText: "Abra um chat flutuante para a p\xE1gina ou tela que voc\xEA escolher. Voc\xEA pode iniciar o compartilhamento de tela pelos controles do chat.",
   consentTitle: "Pergunte sobre o que voc\xEA v\xEA.",
   continueSession: "Escolher uma sess\xE3o",
   copied: "Copiado",
@@ -14835,9 +14835,9 @@ var pt_BR_default = {
   noActiveTab: "N\xE3o h\xE1 p\xE1gina ativa.",
   noticing: "Observando uma mudan\xE7a...",
   openPdf: "Abrir leitor de PDF",
-  pageContextHint: "Escolha uma tela, janela ou aba. Ao perguntar, a imagem \xE9 enviada ao provedor selecionado.",
+  pageContextHint: "O texto da p\xE1gina e os r\xF3tulos dos elementos ajudam a sugerir perguntas e fornecer respostas precisas.",
   pageNote: "Modo passivo",
-  pageSummary: "Resumir os \xFAltimos dez minutos",
+  pageSummary: "Resumir esta p\xE1gina.",
   pair: "Conectar",
   pairCode: "C\xF3digo de pareamento",
   pairHint: "Conecte uma sess\xE3o de programa\xE7\xE3o nas Configura\xE7\xF5es.",
@@ -14856,7 +14856,7 @@ var pt_BR_default = {
   pin: "Fixar",
   pipFallback: "A janela pop-up pode n\xE3o ficar sempre acima dos outros aplicativos. Alguns navegadores oferecem Picture-in-Picture para documentos.",
   pipUnavailable: "A janela pop-up pode n\xE3o ficar sempre acima dos outros aplicativos. Alguns navegadores oferecem Picture-in-Picture para documentos.",
-  privacy: "Os quadros ficam na mem\xF3ria e s\xF3 s\xE3o enviados \xE0 ponte em solicita\xE7\xF5es de captura ou pergunta. Chaves de API e tokens da ponte ficam no armazenamento de sess\xE3o do navegador.",
+  privacy: "O texto da p\xE1gina \xE9 enviado para sugerir perguntas automaticamente. As imagens s\xE3o enviadas para perguntas e ferramentas da p\xE1gina, ou automaticamente enquanto o modo passivo est\xE1 ativado. As chaves de API e os tokens de pareamento ficam no armazenamento de sess\xE3o do navegador.",
   privacyMini: "Quadros na mem\xF3ria",
   question: "O que voc\xEA quer saber?",
   questionLimit: "Digite uma pergunta mais curta.",
@@ -15048,6 +15048,7 @@ function App() {
   );
   const [blocklist, setBlocklist] = (0, import_react.useState)("");
   const requestRef = (0, import_react.useRef)(null);
+  const apiRequestRef = (0, import_react.useRef)(null);
   const translationController = (0, import_react.useRef)(null);
   const translationBridgeId = (0, import_react.useRef)(null);
   const requestIdRef = (0, import_react.useRef)(null);
@@ -15399,10 +15400,14 @@ function App() {
               backgroundRequestRef.current = null;
               cancelledRequests.current.add(pendingId);
               requestRef.current?.abort();
-              if (backend === "bridge") await bridge.cancelAndWait(pendingId);
+              if (backend === "api")
+                await apiRequestRef.current?.catch(() => {
+                });
+              else await bridge.cancelAndWait(pendingId);
               if (requestIdRef.current === reservation) {
                 requestIdRef.current = null;
                 requestRef.current = null;
+                apiRequestRef.current = null;
               }
             }
             if (requestIdRef.current || translationController.current) {
@@ -15925,7 +15930,7 @@ Selected text (untrusted): ${selected}` : ""}`;
           { role: "assistant", content: item.answer }
         ]);
         const prompt = kind === "guide" && currentPage ? buildGuidePrompt(q, currentPage) : q;
-        const result = await askAnthropic(
+        const apiRequest = askAnthropic(
           {
             id,
             question: prompt,
@@ -15940,6 +15945,8 @@ Selected text (untrusted): ${selected}` : ""}`;
           controller.signal,
           followups
         );
+        apiRequestRef.current = apiRequest;
+        const result = await apiRequest;
         final = result.answer;
         finalUsage = result.usage;
       } else {
@@ -16034,6 +16041,7 @@ Selected text (untrusted): ${selected}` : ""}`;
       cancelledRequests.current.delete(id);
       if (requestIdRef.current === id) {
         requestRef.current = null;
+        apiRequestRef.current = null;
         requestIdRef.current = null;
         backgroundRequestRef.current = null;
         setBusy(false);
@@ -16054,6 +16062,7 @@ Selected text (untrusted): ${selected}` : ""}`;
   async function stop() {
     const translating = translationController.current;
     if (!activeId && !translating) return;
+    const apiRequest = apiRequestRef.current;
     const bridgeId = translating ? translationBridgeId.current : requestRef.current ? null : activeId;
     const reservation = crypto.randomUUID();
     requestIdRef.current = reservation;
@@ -16072,12 +16081,14 @@ Selected text (untrusted): ${selected}` : ""}`;
     setAnswer("");
     setStatus(liveSession ? t.liveStopped : t.stopped);
     try {
-      if (bridgeId) await bridge.cancelAndWait(bridgeId);
+      if (backend === "api") await apiRequest;
+      else if (bridgeId) await bridge.cancelAndWait(bridgeId);
     } catch {
     } finally {
       if (requestIdRef.current === reservation) {
         requestIdRef.current = null;
         requestRef.current = null;
+        apiRequestRef.current = null;
         backgroundRequestRef.current = null;
         setBusy(false);
         if (pendingPageRefresh.current) schedulePageRefresh();
@@ -16182,13 +16193,15 @@ ${JSON.stringify(nodes)}`;
         let answerText = "";
         let requestUsage;
         if (backend === "api") {
-          const result2 = await askAnthropic(
+          const apiRequest = askAnthropic(
             { id, question: questionText, kind: "translate", model, effort },
             apiKey,
             () => {
             },
             controller.signal
           );
+          apiRequestRef.current = apiRequest;
+          const result2 = await apiRequest;
           answerText = result2.answer;
           requestUsage = result2.usage;
         } else {
@@ -16261,6 +16274,7 @@ ${JSON.stringify(nodes)}`;
       translationController.current = null;
       if (requestIdRef.current === operationId) {
         requestIdRef.current = null;
+        apiRequestRef.current = null;
         setBusy(false);
         setActiveId("");
       }
@@ -16317,7 +16331,7 @@ ${JSON.stringify(nodes)}`;
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, {}),
         " ",
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "overline", children: "GLIMPSELET \xB7 PRIVATE BY DESIGN" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "overline", children: "GLIMPSELET" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: t.consentTitle })
         ] })
       ] }),

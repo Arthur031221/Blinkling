@@ -66,6 +66,26 @@ describe("extension locale bundles", () => {
     expect(en.blocklist).toMatch(/Sites to ignore/);
   });
 
+  it("uses a named floating chat action and a current page summary label", () => {
+    const oldHistoryLabels = {
+      en: "Summarize last ten minutes",
+      "zh-TW": "摘要最近十分鐘",
+      "zh-CN": "总结最近十分钟",
+      ja: "直近10分を要約",
+      ko: "최근 10분 요약",
+      es: "Resumir los últimos diez minutos",
+      fr: "Résumer les dix dernières minutes",
+      de: "Letzte zehn Minuten zusammenfassen",
+      "pt-BR": "Resumir os últimos dez minutos",
+    };
+    for (const [locale, bundle] of Object.entries(locales)) {
+      expect(bundle.consentAccept, locale).not.toBe(bundle.gotIt);
+      expect(bundle.pageSummary, locale).not.toBe(
+        oldHistoryLabels[locale as keyof typeof oldHistoryLabels],
+      );
+    }
+  });
+
   it("translates every reader label and formats status placeholders", () => {
     const expected = Object.keys(readerLocales.en).sort();
     for (const [locale, bundle] of Object.entries(readerLocales)) {

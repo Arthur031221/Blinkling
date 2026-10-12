@@ -564,6 +564,167 @@ test("Stop keeps a page refresh queued until provider cleanup finishes", async (
   }
 });
 
+test("direct API Stop waits for stream cleanup before refreshing the page", async () => {
+  const apiQuestions: string[] = [];
+  await context.route(
+    "https://api.anthropic.com/v1/messages",
+    async (route) => {
+      if (route.request().method() === "OPTIONS") {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            "access-control-allow-origin": "*",
+            "access-control-allow-headers": "*",
+            "access-control-allow-methods": "POST, OPTIONS",
+          },
+        });
+        return;
+      }
+      const input = route.request().postDataJSON();
+      const question = input.messages
+        .at(-1)
+        .content.find((block: { type: string }) => block.type === "text").text;
+      apiQuestions.push(question);
+      const pending = question.startsWith("Keep API reply pending.");
+      const events: unknown[] = [
+        {
+          type: "content_block_delta",
+          delta: {
+            type: "text_delta",
+            text: pending
+              ? "Partial API reply kept."
+              : JSON.stringify({
+                  questions: [
+                    "API question one?",
+                    "API question two?",
+                    "API question three?",
+                  ],
+                }),
+          },
+        },
+      ];
+      if (!pending) events.push({ type: "message_stop" });
+      await route.fulfill({
+        contentType: "text/event-stream",
+        headers: { "access-control-allow-origin": "*" },
+        body: events
+          .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+          .join(""),
+      });
+    },
+  );
+  await worker.evaluate(async () => {
+    await chrome.storage.local.set({ backend: "api" });
+    await chrome.storage.session.set({ apiKey: "fixture-key" });
+  });
+  await panel.reload();
+  await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  type StopControl = {
+    release: () => void;
+    waiting: boolean;
+    aborted: boolean;
+    released: boolean;
+  };
+  await panel.evaluate(() => {
+    const nativeFetch = window.fetch.bind(window);
+    let releaseCleanup!: () => void;
+    const cleanup = new Promise<void>((resolveCleanup) => {
+      releaseCleanup = resolveCleanup;
+    });
+    const state = {
+      release: releaseCleanup,
+      waiting: false,
+      aborted: false,
+      released: false,
+    };
+    (window as Window & { apiStopControl?: StopControl }).apiStopControl =
+      state;
+    window.fetch = async (...args) => {
+      const response = await nativeFetch(...args);
+      if (!String(args[1]?.body).includes("Keep API reply pending."))
+        return response;
+      const reader = response.body!.getReader();
+      let first = true;
+      let finishRead:
+        | ((result: ReadableStreamReadResult<Uint8Array>) => void)
+        | undefined;
+      Object.defineProperty(response.body, "getReader", {
+        value: () => ({
+          read: () => {
+            if (first) {
+              first = false;
+              return reader.read();
+            }
+            state.waiting = true;
+            return new Promise<ReadableStreamReadResult<Uint8Array>>(
+              (resolveRead) => {
+                finishRead = resolveRead;
+              },
+            );
+          },
+          cancel: async () => {
+            state.aborted = true;
+            finishRead?.({ done: true, value: undefined });
+            await cleanup;
+            await reader.cancel();
+          },
+          releaseLock: () => {
+            reader.releaseLock();
+            state.released = true;
+          },
+        }),
+      });
+      return response;
+    };
+  });
+  const control = async (key: "waiting" | "aborted" | "released") =>
+    panel.evaluate(
+      (property) =>
+        (window as Window & { apiStopControl?: StopControl }).apiStopControl?.[
+          property
+        ],
+      key,
+    );
+  try {
+    await panel.locator(".composer textarea").fill("Keep API reply pending.");
+    await panel.locator(".composer button.send").click();
+    await expect.poll(() => control("waiting")).toBe(true);
+    const next = await context.newPage();
+    await next.goto(origin + "/after-api-stop");
+    await next.bringToFront();
+    await expect(panel.locator(".suggestions button")).toHaveCount(0);
+    await panel.getByRole("button", { name: /Stop/ }).click();
+    await expect.poll(() => control("aborted")).toBe(true);
+    await panel.locator(".composer textarea").fill("Next question");
+    await expect(panel.locator(".composer button.stop")).toBeVisible();
+    await expect(panel.locator(".composer button.send")).toHaveCount(0);
+    expect(
+      apiQuestions.some((question) =>
+        question.includes(origin + "/after-api-stop"),
+      ),
+    ).toBe(false);
+    await panel.evaluate(() =>
+      (
+        window as Window & { apiStopControl?: StopControl }
+      ).apiStopControl?.release(),
+    );
+    await expect(panel.locator(".suggestions")).toContainText(
+      "API question one?",
+    );
+    await expect(panel.locator(".thread article").last()).toContainText(
+      "Partial API reply kept.",
+    );
+    await expect(panel.locator(".composer button.send")).toBeEnabled();
+    expect(await control("released")).toBe(true);
+  } finally {
+    await panel.evaluate(() =>
+      (
+        window as Window & { apiStopControl?: StopControl }
+      ).apiStopControl?.release(),
+    );
+  }
+});
+
 test.afterEach(async () => {
   await context?.close();
   await bridge?.close();
