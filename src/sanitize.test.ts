@@ -66,4 +66,48 @@ describe("safe markdown", () => {
     expect(html).not.toMatch(/onclick|onmouseover|javascript:/i);
     expect(html).not.toMatch(/target=|rel=/i);
   });
+  it("removes malformed links that become relative after URL parsing", () => {
+    for (const href of [
+      "h t t p s://example.com/plans",
+      "h&#32;ttps://example.com/plans",
+      "https&#12;://example.com/plans",
+      "https&#11;://example.com/plans",
+      "//",
+      "https://",
+      "https://[invalid",
+      "https://example.com:invalid",
+      "https://example .com/plans",
+      "java&#9;script:alert(1)",
+      "data:text/html,payload",
+    ]) {
+      const container = document.createElement("div");
+      container.innerHTML = safeMarkdown(
+        `<a href="${href}" target="panel" rel="opener">Link</a>`,
+      );
+      const link = container.querySelector("a")!;
+      expect(link.getAttribute("href"), href).toBeNull();
+      expect(link.getAttribute("target"), href).toBeNull();
+      expect(link.getAttribute("rel"), href).toBeNull();
+    }
+  });
+  it("normalizes browser-ignored whitespace before opening external links", () => {
+    for (const [href, expected] of [
+      ["&#9;https://example.com/plans", "https://example.com/plans"],
+      ["h&#10;ttps://example.com/plans", "https://example.com/plans"],
+      ["ht&#13;tps://example.com/plans", "https://example.com/plans"],
+      ["https:&#9;//example.com/plans", "https://example.com/plans"],
+      [" https://example.com/plans ", "https://example.com/plans"],
+      ["&#160;https://example.com/plans", "https://example.com/plans"],
+      ["&#13;//example.com/plans", "//example.com/plans"],
+      ["//example.com/plans&#10;", "//example.com/plans"],
+      ["HTTPS://example.com/plans", "HTTPS://example.com/plans"],
+    ]) {
+      const container = document.createElement("div");
+      container.innerHTML = safeMarkdown(`<a href="${href}">Link</a>`);
+      const link = container.querySelector("a")!;
+      expect(link.getAttribute("href"), href).toBe(expected);
+      expect(link.getAttribute("target"), href).toBe("_blank");
+      expect(link.getAttribute("rel"), href).toBe("noopener noreferrer");
+    }
+  });
 });

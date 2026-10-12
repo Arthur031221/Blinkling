@@ -201,16 +201,48 @@ test("relative answer links cannot navigate away from the panel", async ({
   page,
 }) => {
   await sharedStreamingPanel(page);
-  await sendAnswer(page, `${tableAnswer()}\n\n[Panel settings](/settings)`);
-  const link = page
-    .locator(".answer .markdown a")
-    .filter({ hasText: "Panel settings" });
-  await expect(link).toHaveText("Panel settings");
-  await expect(link).not.toHaveAttribute("href");
+  await sendAnswer(
+    page,
+    `${tableAnswer()}\n\n[Panel settings](/settings)\n\n<a href="h t t p s://example.com/plans">Spaced protocol</a>`,
+  );
   const url = page.url();
-  await link.click();
-  expect(page.url()).toBe(url);
+  for (const name of ["Panel settings", "Spaced protocol"]) {
+    const link = page.locator(".answer .markdown a").filter({ hasText: name });
+    await expect(link).toHaveText(name);
+    await expect(link).not.toHaveAttribute("href");
+    await link.click();
+    expect(page.url()).toBe(url);
+  }
   await expect(
     page.getByRole("button", { name: "Ask", exact: true }),
   ).toBeEnabled();
+});
+
+test("answer links with browser-ignored whitespace open separately", async ({
+  page,
+}) => {
+  await sharedStreamingPanel(page);
+  await sendAnswer(
+    page,
+    `${tableAnswer()}\n\n<a href="&#9;https://example.com/plans">Leading tab</a>\n\n<a href="h&#10;ttps://example.com/plans">Split scheme</a>\n\n<a href="//example.com/plans&#13;">Trailing return</a>`,
+  );
+  await page
+    .context()
+    .route(/^https?:\/\/example\.com\//, (route) =>
+      route.fulfill({ body: "<title>Plan details</title>" }),
+    );
+  const url = page.url();
+  for (const name of ["Leading tab", "Split scheme", "Trailing return"]) {
+    const link = page.locator(".answer .markdown").getByRole("link", { name });
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    const opened = page.waitForEvent("popup");
+    await link.click();
+    const popup = await opened;
+    await expect(popup).toHaveTitle("Plan details");
+    expect(await popup.evaluate(() => window.opener)).toBeNull();
+    expect(page.url()).toBe(url);
+    await popup.close();
+  }
+  await expect(page.locator(".status-source")).toContainText("Last sent frame");
 });

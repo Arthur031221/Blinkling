@@ -1,13 +1,28 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 
+const allowedURI = /^(?:https?:\/\/|mailto:|\/\/)/i;
+
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.nodeName !== "A") {
     node.removeAttribute("target");
     node.removeAttribute("rel");
     return;
   }
-  if (/^(?:https?:)?\/\//i.test(node.getAttribute("href") || "")) {
+  const href = (node.getAttribute("href") || "")
+    .replace(/[\t\n\r]/g, "")
+    .trim();
+  let url: URL | undefined;
+  if (allowedURI.test(href)) {
+    try {
+      url = new URL(href, "https://glimpselet.invalid/");
+    } catch {
+      // Invalid destinations remain plain text.
+    }
+  }
+  if (url) node.setAttribute("href", href);
+  else node.removeAttribute("href");
+  if (url?.protocol === "http:" || url?.protocol === "https:") {
     node.setAttribute("target", "_blank");
     node.setAttribute("rel", "noopener noreferrer");
   } else {
@@ -41,6 +56,6 @@ export function safeMarkdown(source: string): string {
       "td",
     ],
     ALLOWED_ATTR: ["href", "title", "target", "rel"],
-    ALLOWED_URI_REGEXP: /^(?:https?:\/\/|mailto:|\/\/)/i,
+    ALLOWED_URI_REGEXP: allowedURI,
   });
 }
