@@ -108,12 +108,11 @@
   "stopSharing": "停止分享",
   "stopped": "已停止。",
   "tabChanged": "擷取期間來源分頁已變更，請重試。",
-  "targetLanguage": "語言",
+  "targetLanguage": "翻譯目標語言",
   "thinking": "思考中...",
   "thread": "擷取筆記",
   "timeout": "等待時間過長，請重試。",
   "translate": "翻譯畫面",
-  "translateCapture": "翻譯畫面",
   "translatePage": "翻譯畫面",
   "translatePrompt": "將畫面中的文字翻譯成{language}。",
   "translated": "已翻譯",
@@ -148,5 +147,12 @@
   "liveStopped": "泡泡已停止等待。終端可能仍在執行。按 Esc 可在終端中停止它。",
   "replayTourHint": "重新開啟設定指南與練習頁面",
   "guideAction": "導覽這個頁面",
-  "guidePrompt": "帶我看看這個頁面的主要操作"
+  "guidePrompt": "帶我看看這個頁面的主要操作",
+  "replyInterrupted": "回覆中斷了，請再試一次。",
+  "replyLimit": "回覆達到長度上限，請縮短問題。",
+  "replyServiceError": "回覆服務無法完成，請再試一次。",
+  "allowSite": "允許在此網站使用",
+  "allowAllSites": "允許在所有網站使用",
+  "siteAccessHint": "允許在新分頁使用網頁摘要與文字選取工具。",
+  "siteAccessGranted": "已允許存取網頁。"
 }

@@ -108,12 +108,11 @@
   "stopSharing": "Freigabe beenden",
   "stopped": "Gestoppt.",
   "tabChanged": "Tab während der Aufnahme gewechselt. Erneut versuchen.",
-  "targetLanguage": "Sprache",
+  "targetLanguage": "Übersetzen in",
   "thinking": "Denke nach...",
   "thread": "Aufnahmenotizen",
   "timeout": "Zeitüberschreitung. Versuche es erneut.",
   "translate": "Übersetzen",
-  "translateCapture": "Übersetzen",
   "translatePage": "Übersetzen",
   "translatePrompt": "Übersetze den sichtbaren Text ins {language}.",
   "translated": "Übersetzt",
@@ -148,5 +147,12 @@
   "liveStopped": "Die Blase wartet nicht mehr. Das Terminal arbeitet möglicherweise noch. Drücke dort Esc, um es zu beenden.",
   "replayTourHint": "Öffne die Einrichtungsanleitung und die Übungsseite erneut",
   "guideAction": "Diese Seite erklären",
-  "guidePrompt": "Zeige mir die wichtigsten Aktionen auf dieser Seite"
+  "guidePrompt": "Zeige mir die wichtigsten Aktionen auf dieser Seite",
+  "replyInterrupted": "Die Antwort wurde unterbrochen. Versuche es erneut.",
+  "replyLimit": "Die Antwort hat die Längengrenze erreicht. Stelle eine kürzere Frage.",
+  "replyServiceError": "Der Dienst konnte die Antwort nicht abschließen. Versuche es erneut.",
+  "allowSite": "Auf dieser Website erlauben",
+  "allowAllSites": "Auf allen Websites erlauben",
+  "siteAccessHint": "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
+  "siteAccessGranted": "Seitenzugriff erlaubt."
 }

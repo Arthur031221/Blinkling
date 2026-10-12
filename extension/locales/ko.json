@@ -108,12 +108,11 @@
   "stopSharing": "공유 중지",
   "stopped": "중지됨.",
   "tabChanged": "캡처 중 탭이 변경되었습니다. 다시 시도하세요.",
-  "targetLanguage": "언어",
+  "targetLanguage": "번역할 언어",
   "thinking": "생각 중...",
   "thread": "캡처 메모",
   "timeout": "시간이 너무 오래 걸렸습니다. 다시 시도하세요.",
   "translate": "번역하기",
-  "translateCapture": "번역하기",
   "translatePage": "번역하기",
   "translatePrompt": "화면의 텍스트를 {language}(으)로 번역해 주세요.",
   "translated": "번역됨",
@@ -148,5 +147,12 @@
   "liveStopped": "버블이 더 이상 기다리지 않습니다. 터미널 작업은 계속 중일 수 있습니다. 중지하려면 터미널에서 Esc를 누르세요.",
   "replayTourHint": "설정 안내와 연습 페이지 다시 열기",
   "guideAction": "이 페이지 안내",
-  "guidePrompt": "이 페이지의 주요 작업을 안내해 주세요"
+  "guidePrompt": "이 페이지의 주요 작업을 안내해 주세요",
+  "replyInterrupted": "답변이 중단되었습니다. 다시 시도해 주세요.",
+  "replyLimit": "답변이 길이 제한에 도달했습니다. 질문을 짧게 해 주세요.",
+  "replyServiceError": "답변 서비스가 완료하지 못했습니다. 다시 시도해 주세요.",
+  "allowSite": "이 사이트에서 허용",
+  "allowAllSites": "모든 사이트에서 허용",
+  "siteAccessHint": "새 탭에서 페이지 요약과 텍스트 선택 도구를 사용할 수 있게 합니다.",
+  "siteAccessGranted": "페이지 접근을 허용했습니다."
 }

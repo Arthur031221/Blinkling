@@ -108,12 +108,11 @@
   "stopSharing": "共有を停止",
   "stopped": "停止しました。",
   "tabChanged": "キャプチャ中にタブが切り替わりました。再試行してください。",
-  "targetLanguage": "言語",
+  "targetLanguage": "翻訳先の言語",
   "thinking": "考えています...",
   "thread": "撮影メモ",
   "timeout": "時間がかかりすぎました。もう一度お試しください。",
   "translate": "翻訳する",
-  "translateCapture": "翻訳する",
   "translatePage": "翻訳する",
   "translatePrompt": "画面内のテキストを{language}に翻訳してください。",
   "translated": "翻訳済み",
@@ -148,5 +147,12 @@
   "liveStopped": "バブルは待機を終了しました。ターミナルでは処理が続いている場合があります。停止するにはターミナルで Esc を押してください。",
   "replayTourHint": "セットアップガイドと練習ページをもう一度開く",
   "guideAction": "このページを案内",
-  "guidePrompt": "このページの主な操作を案内してください"
+  "guidePrompt": "このページの主な操作を案内してください",
+  "replyInterrupted": "回答が中断されました。もう一度お試しください。",
+  "replyLimit": "回答が長さの上限に達しました。質問を短くしてください。",
+  "replyServiceError": "回答サービスが完了できませんでした。もう一度お試しください。",
+  "allowSite": "このサイトで許可",
+  "allowAllSites": "すべてのサイトで許可",
+  "siteAccessHint": "新しいタブでページの要約とテキスト選択ツールを使えるようにします。",
+  "siteAccessGranted": "ページへのアクセスを許可しました。"
 }

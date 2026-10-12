@@ -2,13 +2,14 @@
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runApiProvider } from "../src/provider-api.js";
 import { runCliProvider } from "../src/provider-cli.js";
 import type { ProviderRequest } from "../src/provider-request.js";
 
 const temporary: string[] = [];
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(
     temporary
       .splice(0)
@@ -110,6 +111,13 @@ describe("CLI provider protocol", () => {
       setTimeout(() => { process.stdout.write(joined.subarray(split)); }, 5);
     `,
     );
+    for (const key of [
+      "CLAUDECODE",
+      "CLAUDE_CODE_CHILD_SESSION",
+      "CLAUDE_CODE_SESSION_ID",
+      "CLAUDE_CODE_BRIDGE_SESSION_ID",
+    ])
+      vi.stubEnv(key, "parent-session-fixture");
     const record = join(root, "record.json");
     const chunks: string[] = [];
     const result = await runCliProvider(
@@ -138,6 +146,7 @@ describe("CLI provider protocol", () => {
     expect(saved.args).toContain("Read");
     expect(saved.args.join(" ")).toContain("--allowedTools Read(");
     expect(JSON.stringify(saved)).not.toContain("must-not-forward-this-key");
+    expect(JSON.stringify(saved.env)).not.toContain("parent-session-fixture");
     expect(
       (await readdir(root)).filter((name) => name.startsWith("glimpselet-")),
     ).toHaveLength(0);

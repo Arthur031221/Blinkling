@@ -108,12 +108,11 @@
   "stopSharing": "Arrêter le partage",
   "stopped": "Arrêté.",
   "tabChanged": "L'onglet a changé pendant la capture. Réessayez.",
-  "targetLanguage": "Langue",
+  "targetLanguage": "Traduire en",
   "thinking": "Réflexion...",
   "thread": "Notes de capture",
   "timeout": "Délai dépassé. Réessayez.",
   "translate": "Traduire",
-  "translateCapture": "Traduire",
   "translatePage": "Traduire",
   "translatePrompt": "Traduisez le texte visible en {language}.",
   "translated": "Traduit",
@@ -148,5 +147,12 @@
   "liveStopped": "La bulle a cessé d'attendre. Le terminal travaille peut-être encore. Appuyez sur Échap dans le terminal pour l'arrêter.",
   "replayTourHint": "Rouvrez le guide de configuration et la page d'entraînement",
   "guideAction": "Guider cette page",
-  "guidePrompt": "Montrez les actions principales de cette page"
+  "guidePrompt": "Montrez les actions principales de cette page",
+  "replyInterrupted": "La réponse a été interrompue. Réessayez.",
+  "replyLimit": "La réponse a atteint sa limite de longueur. Posez une question plus courte.",
+  "replyServiceError": "Le service ne peut pas terminer la réponse. Réessayez.",
+  "allowSite": "Autoriser sur ce site",
+  "allowAllSites": "Autoriser sur tous les sites",
+  "siteAccessHint": "Autorise les résumés et les outils de sélection dans les nouveaux onglets.",
+  "siteAccessGranted": "Accès à la page autorisé."
 }

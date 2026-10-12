@@ -108,12 +108,11 @@
   "stopSharing": "停止共享",
   "stopped": "已停止。",
   "tabChanged": "截取期间来源标签页已更改，请重试。",
-  "targetLanguage": "语言",
+  "targetLanguage": "翻译目标语言",
   "thinking": "思考中...",
   "thread": "截取笔记",
   "timeout": "等待时间过长，请重试。",
   "translate": "翻译画面",
-  "translateCapture": "翻译画面",
   "translatePage": "翻译画面",
   "translatePrompt": "将画面中的文字翻译成{language}。",
   "translated": "已翻译",
@@ -148,5 +147,12 @@
   "liveStopped": "气泡已停止等待。终端可能仍在运行。按 Esc 可在终端中停止它。",
   "replayTourHint": "重新打开设置指南和练习页面",
   "guideAction": "导览这个页面",
-  "guidePrompt": "带我看看这个页面的主要操作"
+  "guidePrompt": "带我看看这个页面的主要操作",
+  "replyInterrupted": "回复中断了，请再试一次。",
+  "replyLimit": "回复达到长度上限，请缩短问题。",
+  "replyServiceError": "回复服务无法完成，请再试一次。",
+  "allowSite": "允许在此网站使用",
+  "allowAllSites": "允许在所有网站使用",
+  "siteAccessHint": "允许在新标签页使用网页摘要与文字选择工具。",
+  "siteAccessGranted": "已允许访问网页。"
 }

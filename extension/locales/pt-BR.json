@@ -108,12 +108,11 @@
   "stopSharing": "Parar compartilhamento",
   "stopped": "Parado.",
   "tabChanged": "A aba mudou durante a captura. Tente novamente.",
-  "targetLanguage": "Idioma",
+  "targetLanguage": "Traduzir para",
   "thinking": "Pensando...",
   "thread": "Notas de captura",
   "timeout": "Demorou demais. Tente novamente.",
   "translate": "Traduzir",
-  "translateCapture": "Traduzir",
   "translatePage": "Traduzir",
   "translatePrompt": "Traduza o texto visível para {language}.",
   "translated": "Traduzido",
@@ -148,5 +147,12 @@
   "liveStopped": "O balão parou de aguardar. O terminal ainda pode estar trabalhando. Pressione Esc nele para parar.",
   "replayTourHint": "Abra novamente o guia de configuração e a página de prática",
   "guideAction": "Guiar esta página",
-  "guidePrompt": "Mostre as principais ações desta página"
+  "guidePrompt": "Mostre as principais ações desta página",
+  "replyInterrupted": "A resposta foi interrompida. Tente novamente.",
+  "replyLimit": "A resposta atingiu o limite de tamanho. Faça uma pergunta mais curta.",
+  "replyServiceError": "O serviço não conseguiu concluir a resposta. Tente novamente.",
+  "allowSite": "Permitir neste site",
+  "allowAllSites": "Permitir em todos os sites",
+  "siteAccessHint": "Permite resumos e ferramentas de seleção em novas abas.",
+  "siteAccessGranted": "Acesso à página permitido."
 }

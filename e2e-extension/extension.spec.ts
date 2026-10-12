@@ -15,6 +15,7 @@ import { resolve, join } from "node:path";
 import { ExtensionBridge } from "../bridge/src/extension-bridge";
 import { ExtensionSessions } from "../bridge/src/extension-sessions";
 import { runCliProvider } from "../bridge/src/provider-cli";
+import type { AnswerProvider, ProviderRequest } from "../bridge/src/provider";
 import {
   INSTALL_GUIDE_SCRIPT,
   installGuide,
@@ -39,7 +40,15 @@ let server: Server,
   site: Page,
   directory: string;
 let extensionId: string;
+let providerRequests: ProviderRequest[];
+let providerResponder: AnswerProvider;
 test.beforeEach(async () => {
+  providerRequests = [];
+  providerResponder = (request) =>
+    runCliProvider(request, {
+      command: process.execPath,
+      argsPrefix: [resolve("e2e-extension/mock-claude.cjs")],
+    });
   directory = await mkdtemp(join(tmpdir(), "glimpselet-extension-e2e-"));
   const fixture = await readFile(resolve("e2e-extension/fixture.html"));
   server = createServer((req, res) => {
@@ -101,11 +110,10 @@ test.beforeEach(async () => {
     );
   });
   bridge = new ExtensionBridge(server, () => origin, {
-    provider: (request) =>
-      runCliProvider(request, {
-        command: process.execPath,
-        argsPrefix: [resolve("e2e-extension/mock-claude.cjs")],
-      }),
+    provider: (request) => {
+      providerRequests.push(request);
+      return providerResponder(request);
+    },
     sessions: new ExtensionSessions(directory, async () => []),
   });
   server.listen(0, "127.0.0.1");
@@ -181,6 +189,277 @@ test.beforeEach(async () => {
   await expect(panel.locator(".connection")).toHaveClass(/online/);
   await expect(panel.locator(".suggestions button")).toHaveCount(3);
 });
+
+for (const backend of ["bridge", "api"] as const) {
+  test(`screenshot translation sends its captured pixels in ${backend} mode`, async () => {
+    const apiCalls: Array<{
+      messages: Array<{
+        content: Array<{
+          type: string;
+          source?: { data: string };
+          text?: string;
+        }>;
+      }>;
+    }> = [];
+    if (backend === "api") {
+      await context.route(
+        "https://api.anthropic.com/v1/messages",
+        async (route) => {
+          if (route.request().method() === "OPTIONS") {
+            await route.fulfill({
+              status: 204,
+              headers: {
+                "access-control-allow-origin": "*",
+                "access-control-allow-headers": "*",
+                "access-control-allow-methods": "POST, OPTIONS",
+              },
+            });
+            return;
+          }
+          const input = route.request().postDataJSON();
+          apiCalls.push(input);
+          const question = input.messages
+            .at(-1)
+            .content.find(
+              (block: { type: string }) => block.type === "text",
+            ).text;
+          const answer = question.includes("Give 3 to 5")
+            ? JSON.stringify({
+                questions: [
+                  "What is this page?",
+                  "Where is export?",
+                  "Explain the Japanese text.",
+                ],
+              })
+            : "Translated screenshot.";
+          const events = [
+            { type: "message_start", message: { usage: { input_tokens: 70 } } },
+            {
+              type: "content_block_delta",
+              delta: { type: "text_delta", text: answer },
+            },
+            {
+              type: "message_delta",
+              delta: { stop_reason: "end_turn" },
+              usage: { output_tokens: 20 },
+            },
+            { type: "message_stop" },
+          ];
+          await route.fulfill({
+            contentType: "text/event-stream",
+            headers: { "access-control-allow-origin": "*" },
+            body: events
+              .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+              .join(""),
+          });
+        },
+      );
+      await worker.evaluate(async () => {
+        await chrome.storage.local.set({ backend: "api" });
+        await chrome.storage.session.set({ apiKey: "fixture-key" });
+      });
+      await panel.reload();
+      await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    }
+    if (backend === "bridge") {
+      await panel
+        .getByRole("button", { name: "Settings", exact: true })
+        .click();
+      await panel.getByLabel(en.targetLanguage).selectOption("ja");
+      await panel.getByRole("button", { name: en.close, exact: true }).click();
+    }
+    await panel.getByRole("button", { name: en.visible, exact: true }).click();
+    await expect(panel.locator(".capture-chip img")).toBeVisible();
+    await panel
+      .locator(".capture-chip .quick-actions")
+      .getByRole("button", { name: en.translate, exact: true })
+      .click();
+    await expect(panel.locator(".thread article").last()).toContainText(
+      backend === "api" ? "Translated screenshot." : "Japanese",
+    );
+    if (backend === "bridge") {
+      const request = providerRequests.find((item) =>
+        item.question.startsWith("Translate the visible text"),
+      );
+      expect(request?.image?.subarray(0, 8).toString("hex")).toBe(
+        "89504e470d0a1a0a",
+      );
+      expect(request?.question).toContain("日本語");
+    } else {
+      const blocks = apiCalls.at(-1)!.messages.at(-1)!.content;
+      const image = blocks.find((block) => block.type === "image");
+      expect(
+        Buffer.from(image?.source?.data || "", "base64")
+          .subarray(0, 8)
+          .toString("hex"),
+      ).toBe("89504e470d0a1a0a");
+      expect(blocks.find((block) => block.type === "text")?.text).toContain(
+        "English",
+      );
+    }
+  });
+}
+
+test("switching tabs hides stale suggestions and refreshes after an automatic reply", async () => {
+  let releaseOld: (() => void) | undefined;
+  const oldQuestions = {
+    answer: JSON.stringify({
+      questions: [
+        "Old page question one?",
+        "Old page question two?",
+        "Old page question three?",
+      ],
+    }),
+  };
+  const currentQuestions = {
+    answer: JSON.stringify({
+      questions: [
+        "Current page question one?",
+        "Current page question two?",
+        "Current page question three?",
+      ],
+    }),
+  };
+  providerResponder = (request) => {
+    if (
+      request.question.startsWith("Give 3 to 5") &&
+      request.page?.url.endsWith("/slow-suggestions")
+    ) {
+      return new Promise((resolveAnswer) => {
+        releaseOld = () => resolveAnswer(oldQuestions);
+        request.signal.addEventListener("abort", releaseOld, { once: true });
+      });
+    }
+    return Promise.resolve(currentQuestions);
+  };
+  try {
+    await site.goto(origin + "/slow-suggestions");
+    await site.bringToFront();
+    await expect.poll(() => Boolean(releaseOld)).toBe(true);
+    const next = await context.newPage();
+    await next.goto(origin + "/current-page");
+    await next.bringToFront();
+    await expect(panel.locator(".suggestions button")).toHaveCount(0);
+    releaseOld!();
+    await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    await expect(panel.locator(".suggestions")).toContainText(
+      "Current page question one?",
+    );
+    await expect(panel.locator(".suggestions")).not.toContainText("Old page");
+    expect(
+      providerRequests.some(
+        (request) =>
+          request.question.startsWith("Give 3 to 5") &&
+          request.page?.url.endsWith("/current-page"),
+      ),
+    ).toBe(true);
+  } finally {
+    releaseOld?.();
+  }
+});
+
+test("switching tabs preserves a foreground answer and refreshes the new page afterward", async () => {
+  let releaseForeground: (() => void) | undefined;
+  providerResponder = (request) => {
+    if (request.question === "Hold this foreground answer.") {
+      request.onText("Foreground answer started.");
+      return new Promise((resolveAnswer) => {
+        releaseForeground = () =>
+          resolveAnswer({ answer: "Foreground answer kept." });
+        request.signal.addEventListener("abort", releaseForeground, {
+          once: true,
+        });
+      });
+    }
+    return Promise.resolve({
+      answer: JSON.stringify({
+        questions: [
+          "New page question one?",
+          "New page question two?",
+          "New page question three?",
+        ],
+      }),
+    });
+  };
+  try {
+    await panel
+      .locator(".composer textarea")
+      .fill("Hold this foreground answer.");
+    await panel.locator(".composer button.send").click();
+    await expect.poll(() => Boolean(releaseForeground)).toBe(true);
+    const next = await context.newPage();
+    await next.goto(origin + "/new-page");
+    await next.bringToFront();
+    await expect(panel.locator(".suggestions button")).toHaveCount(0);
+    releaseForeground!();
+    await expect(panel.locator(".thread article").last()).toContainText(
+      "Foreground answer kept.",
+    );
+    await expect(panel.locator(".suggestions")).toContainText(
+      "New page question one?",
+    );
+  } finally {
+    releaseForeground?.();
+  }
+});
+test("Stop keeps a page refresh queued until provider cleanup finishes", async () => {
+  let finishProvider: (() => void) | undefined;
+  let aborted = false;
+  providerResponder = (request) => {
+    if (request.question === "Keep this reply pending.") {
+      request.onText("Partial reply kept.");
+      return new Promise((resolveAnswer) => {
+        finishProvider = () => resolveAnswer({ answer: "Provider stopped." });
+        request.signal.addEventListener(
+          "abort",
+          () => {
+            aborted = true;
+          },
+          { once: true },
+        );
+      });
+    }
+    return Promise.resolve({
+      answer: JSON.stringify({
+        questions: [
+          "After stop question one?",
+          "After stop question two?",
+          "After stop question three?",
+        ],
+      }),
+    });
+  };
+  try {
+    await panel.locator(".composer textarea").fill("Keep this reply pending.");
+    await panel.locator(".composer button.send").click();
+    await expect.poll(() => Boolean(finishProvider)).toBe(true);
+    const next = await context.newPage();
+    await next.goto(origin + "/after-stop");
+    await next.bringToFront();
+    await expect(panel.locator(".suggestions button")).toHaveCount(0);
+    await panel.getByRole("button", { name: /Stop/ }).click();
+    await expect.poll(() => aborted).toBe(true);
+    await panel.locator(".composer textarea").fill("Next question");
+    await expect(panel.locator(".composer button.stop")).toBeVisible();
+    await expect(panel.locator(".composer button.send")).toHaveCount(0);
+    expect(
+      providerRequests.some((request) =>
+        request.page?.url.endsWith("/after-stop"),
+      ),
+    ).toBe(false);
+    finishProvider!();
+    await expect(panel.locator(".suggestions")).toContainText(
+      "After stop question one?",
+    );
+    await expect(panel.locator(".thread article").last()).toContainText(
+      "Partial reply kept.",
+    );
+    await expect(panel.locator(".composer button.send")).toBeEnabled();
+  } finally {
+    finishProvider?.();
+  }
+});
+
 test.afterEach(async () => {
   await context?.close();
   await bridge?.close();

@@ -513,73 +513,109 @@ export async function askAnthropic(
     }),
   });
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
     throw new Error(
-      response.status === 401
-        ? "api_auth"
-        : `anthropic_${response.status}:${detail.slice(0, 180)}`,
+      response.status === 401 ? "api_auth" : "anthropic_provider_error",
     );
   }
   if (!response.body) throw new Error("empty_response");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buf = "";
+  let buffer = "";
   let answer = "";
+  let bytes = 0;
+  let completed = false;
   const usage: Usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
-  while (true) {
-    const { value, done } = await reader.read();
-    buf += decoder.decode(value, { stream: !done });
-    const lines = buf.split("\n");
-    buf = lines.pop() || "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      if (line === "data: [DONE]") continue;
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(line.slice(6));
-      } catch {
-        continue;
-      }
-      if (!parsed || typeof parsed !== "object") continue;
-      const event = parsed as Record<string, unknown>;
-      const delta =
-        event.delta && typeof event.delta === "object"
-          ? (event.delta as Record<string, unknown>)
-          : undefined;
-      if (
-        event.type === "content_block_delta" &&
-        delta?.type === "text_delta" &&
-        typeof delta.text === "string"
-      ) {
-        answer += delta.text;
-        if (answer.length > MAX_ANSWER) throw new Error("answer_limit");
-        onDelta(answer);
-      }
-      if (event.type === "message_start") {
-        const message =
-          event.message && typeof event.message === "object"
-            ? (event.message as Record<string, unknown>)
-            : {};
-        const messageUsage =
-          message.usage && typeof message.usage === "object"
-            ? (message.usage as Record<string, unknown>)
-            : {};
-        usage.inputTokens = Number(messageUsage.input_tokens || 0);
-      }
-      if (event.type === "message_delta") {
-        const messageUsage =
-          event.usage && typeof event.usage === "object"
-            ? (event.usage as Record<string, unknown>)
-            : {};
-        usage.outputTokens = Number(messageUsage.output_tokens || 0);
-      }
+  const consume = (record: string) => {
+    let eventName = "";
+    const data: string[] = [];
+    for (const line of record.split(/\r\n|\r|\n/)) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trimStart();
+      else if (line.startsWith("data:"))
+        data.push(line.slice(5).replace(/^ /, ""));
     }
-    if (done) break;
+    if (eventName === "error") throw new Error("anthropic_stream_error");
+    if (!data.length) return;
+    const payload = data.join("\n");
+    if (payload === "[DONE]") return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      throw new Error("anthropic_protocol");
+    }
+    if (!parsed || typeof parsed !== "object")
+      throw new Error("anthropic_protocol");
+    const event = parsed as Record<string, unknown>;
+    if (event.type === "error") throw new Error("anthropic_stream_error");
+    const delta =
+      event.delta && typeof event.delta === "object"
+        ? (event.delta as Record<string, unknown>)
+        : undefined;
+    if (
+      event.type === "content_block_delta" &&
+      delta?.type === "text_delta" &&
+      typeof delta.text === "string"
+    ) {
+      answer += delta.text;
+      if (answer.length > MAX_ANSWER) throw new Error("answer_limit");
+      onDelta(answer);
+    }
+    if (event.type === "message_start") {
+      const message =
+        event.message && typeof event.message === "object"
+          ? (event.message as Record<string, unknown>)
+          : {};
+      const messageUsage =
+        message.usage && typeof message.usage === "object"
+          ? (message.usage as Record<string, unknown>)
+          : {};
+      usage.inputTokens = Number(messageUsage.input_tokens || 0);
+    }
+    if (event.type === "message_delta") {
+      const messageUsage =
+        event.usage && typeof event.usage === "object"
+          ? (event.usage as Record<string, unknown>)
+          : {};
+      usage.outputTokens = Number(messageUsage.output_tokens || 0);
+      const stopReason =
+        delta && typeof delta.stop_reason === "string" ? delta.stop_reason : "";
+      if (stopReason === "max_tokens") throw new Error("answer_limit");
+    }
+    if (event.type === "message_stop") completed = true;
+  };
+  const onAbort = () => {
+    void reader.cancel().catch(() => {});
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      bytes += value?.byteLength ?? 0;
+      if (bytes > 2 * 1024 * 1024) throw new Error("anthropic_protocol");
+      buffer += decoder.decode(value, { stream: !done });
+      let boundary: RegExpExecArray | null;
+      const delimiter = /\r\n\r\n|\r\r|\n\n/;
+      while ((boundary = delimiter.exec(buffer))) {
+        consume(buffer.slice(0, boundary.index));
+        buffer = buffer.slice(boundary.index + boundary[0].length);
+      }
+      if (done) break;
+    }
+    if (signal.aborted) throw new Error("cancelled");
+    if (buffer.trim()) consume(buffer);
+    if (!completed || !answer.trim()) throw new Error("anthropic_incomplete");
+    usage.costUsd = estimateCost(
+      input.model,
+      usage.inputTokens,
+      usage.outputTokens,
+    );
+    return { answer, usage };
+  } catch (error) {
+    if (signal.aborted) throw new Error("cancelled");
+    throw error;
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
-  usage.costUsd = estimateCost(
-    input.model,
-    usage.inputTokens,
-    usage.outputTokens,
-  );
-  return { answer, usage };
 }

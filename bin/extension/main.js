@@ -12709,57 +12709,96 @@ ${input.page?.text.slice(0, 24e3) || ""}`
     })
   });
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
     throw new Error(
-      response.status === 401 ? "api_auth" : `anthropic_${response.status}:${detail.slice(0, 180)}`
+      response.status === 401 ? "api_auth" : "anthropic_provider_error"
     );
   }
   if (!response.body) throw new Error("empty_response");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buf = "";
+  let buffer = "";
   let answer = "";
+  let bytes = 0;
+  let completed = false;
   const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
-  while (true) {
-    const { value, done } = await reader.read();
-    buf += decoder.decode(value, { stream: !done });
-    const lines = buf.split("\n");
-    buf = lines.pop() || "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      if (line === "data: [DONE]") continue;
-      let parsed;
-      try {
-        parsed = JSON.parse(line.slice(6));
-      } catch {
-        continue;
-      }
-      if (!parsed || typeof parsed !== "object") continue;
-      const event = parsed;
-      const delta = event.delta && typeof event.delta === "object" ? event.delta : void 0;
-      if (event.type === "content_block_delta" && delta?.type === "text_delta" && typeof delta.text === "string") {
-        answer += delta.text;
-        if (answer.length > MAX_ANSWER) throw new Error("answer_limit");
-        onDelta(answer);
-      }
-      if (event.type === "message_start") {
-        const message = event.message && typeof event.message === "object" ? event.message : {};
-        const messageUsage = message.usage && typeof message.usage === "object" ? message.usage : {};
-        usage.inputTokens = Number(messageUsage.input_tokens || 0);
-      }
-      if (event.type === "message_delta") {
-        const messageUsage = event.usage && typeof event.usage === "object" ? event.usage : {};
-        usage.outputTokens = Number(messageUsage.output_tokens || 0);
-      }
+  const consume = (record) => {
+    let eventName = "";
+    const data = [];
+    for (const line of record.split(/\r\n|\r|\n/)) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trimStart();
+      else if (line.startsWith("data:"))
+        data.push(line.slice(5).replace(/^ /, ""));
     }
-    if (done) break;
+    if (eventName === "error") throw new Error("anthropic_stream_error");
+    if (!data.length) return;
+    const payload = data.join("\n");
+    if (payload === "[DONE]") return;
+    let parsed;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      throw new Error("anthropic_protocol");
+    }
+    if (!parsed || typeof parsed !== "object")
+      throw new Error("anthropic_protocol");
+    const event = parsed;
+    if (event.type === "error") throw new Error("anthropic_stream_error");
+    const delta = event.delta && typeof event.delta === "object" ? event.delta : void 0;
+    if (event.type === "content_block_delta" && delta?.type === "text_delta" && typeof delta.text === "string") {
+      answer += delta.text;
+      if (answer.length > MAX_ANSWER) throw new Error("answer_limit");
+      onDelta(answer);
+    }
+    if (event.type === "message_start") {
+      const message = event.message && typeof event.message === "object" ? event.message : {};
+      const messageUsage = message.usage && typeof message.usage === "object" ? message.usage : {};
+      usage.inputTokens = Number(messageUsage.input_tokens || 0);
+    }
+    if (event.type === "message_delta") {
+      const messageUsage = event.usage && typeof event.usage === "object" ? event.usage : {};
+      usage.outputTokens = Number(messageUsage.output_tokens || 0);
+      const stopReason = delta && typeof delta.stop_reason === "string" ? delta.stop_reason : "";
+      if (stopReason === "max_tokens") throw new Error("answer_limit");
+    }
+    if (event.type === "message_stop") completed = true;
+  };
+  const onAbort = () => {
+    void reader.cancel().catch(() => {
+    });
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      bytes += value?.byteLength ?? 0;
+      if (bytes > 2 * 1024 * 1024) throw new Error("anthropic_protocol");
+      buffer += decoder.decode(value, { stream: !done });
+      let boundary;
+      const delimiter = /\r\n\r\n|\r\r|\n\n/;
+      while (boundary = delimiter.exec(buffer)) {
+        consume(buffer.slice(0, boundary.index));
+        buffer = buffer.slice(boundary.index + boundary[0].length);
+      }
+      if (done) break;
+    }
+    if (signal.aborted) throw new Error("cancelled");
+    if (buffer.trim()) consume(buffer);
+    if (!completed || !answer.trim()) throw new Error("anthropic_incomplete");
+    usage.costUsd = estimateCost(
+      input.model,
+      usage.inputTokens,
+      usage.outputTokens
+    );
+    return { answer, usage };
+  } catch (error) {
+    if (signal.aborted) throw new Error("cancelled");
+    throw error;
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+    await reader.cancel().catch(() => {
+    });
+    reader.releaseLock();
   }
-  usage.costUsd = estimateCost(
-    input.model,
-    usage.inputTokens,
-    usage.outputTokens
-  );
-  return { answer, usage };
 }
 
 // extension/capture.ts
@@ -13555,12 +13594,11 @@ var en_default = {
   stopSharing: "Stop sharing",
   stopped: "Stopped.",
   tabChanged: "The source tab changed during capture. Try again.",
-  targetLanguage: "Language",
+  targetLanguage: "Translate into",
   thinking: "Thinking...",
   thread: "Capture notes",
   timeout: "That took too long. Try again.",
   translate: "Translate this",
-  translateCapture: "Translate this",
   translatePage: "Translate this",
   translatePrompt: "Translate the visible text into {language}.",
   translated: "Translated",
@@ -13595,7 +13633,14 @@ var en_default = {
   liveStopped: "The bubble stopped waiting. The terminal may still be working. Press Esc there to stop it.",
   replayTourHint: "Open the setup guide and practice page again",
   guideAction: "Guide this page",
-  guidePrompt: "Show me the main actions on this page"
+  guidePrompt: "Show me the main actions on this page",
+  replyInterrupted: "The reply was interrupted. Try again.",
+  replyLimit: "The reply reached its length limit. Ask a shorter question.",
+  replyServiceError: "The answer service could not finish. Try again.",
+  allowSite: "Allow on this site",
+  allowAllSites: "Allow on all sites",
+  siteAccessHint: "Allow page summaries and selection tools on new tabs.",
+  siteAccessGranted: "Page access allowed."
 };
 
 // extension/locales/zh-TW.json
@@ -13709,12 +13754,11 @@ var zh_TW_default = {
   stopSharing: "\u505C\u6B62\u5206\u4EAB",
   stopped: "\u5DF2\u505C\u6B62\u3002",
   tabChanged: "\u64F7\u53D6\u671F\u9593\u4F86\u6E90\u5206\u9801\u5DF2\u8B8A\u66F4\uFF0C\u8ACB\u91CD\u8A66\u3002",
-  targetLanguage: "\u8A9E\u8A00",
+  targetLanguage: "\u7FFB\u8B6F\u76EE\u6A19\u8A9E\u8A00",
   thinking: "\u601D\u8003\u4E2D...",
   thread: "\u64F7\u53D6\u7B46\u8A18",
   timeout: "\u7B49\u5F85\u6642\u9593\u904E\u9577\uFF0C\u8ACB\u91CD\u8A66\u3002",
   translate: "\u7FFB\u8B6F\u756B\u9762",
-  translateCapture: "\u7FFB\u8B6F\u756B\u9762",
   translatePage: "\u7FFB\u8B6F\u756B\u9762",
   translatePrompt: "\u5C07\u756B\u9762\u4E2D\u7684\u6587\u5B57\u7FFB\u8B6F\u6210{language}\u3002",
   translated: "\u5DF2\u7FFB\u8B6F",
@@ -13749,7 +13793,14 @@ var zh_TW_default = {
   liveStopped: "\u6CE1\u6CE1\u5DF2\u505C\u6B62\u7B49\u5F85\u3002\u7D42\u7AEF\u53EF\u80FD\u4ECD\u5728\u57F7\u884C\u3002\u6309 Esc \u53EF\u5728\u7D42\u7AEF\u4E2D\u505C\u6B62\u5B83\u3002",
   replayTourHint: "\u91CD\u65B0\u958B\u555F\u8A2D\u5B9A\u6307\u5357\u8207\u7DF4\u7FD2\u9801\u9762",
   guideAction: "\u5C0E\u89BD\u9019\u500B\u9801\u9762",
-  guidePrompt: "\u5E36\u6211\u770B\u770B\u9019\u500B\u9801\u9762\u7684\u4E3B\u8981\u64CD\u4F5C"
+  guidePrompt: "\u5E36\u6211\u770B\u770B\u9019\u500B\u9801\u9762\u7684\u4E3B\u8981\u64CD\u4F5C",
+  replyInterrupted: "\u56DE\u8986\u4E2D\u65B7\u4E86\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
+  replyLimit: "\u56DE\u8986\u9054\u5230\u9577\u5EA6\u4E0A\u9650\uFF0C\u8ACB\u7E2E\u77ED\u554F\u984C\u3002",
+  replyServiceError: "\u56DE\u8986\u670D\u52D9\u7121\u6CD5\u5B8C\u6210\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
+  allowSite: "\u5141\u8A31\u5728\u6B64\u7DB2\u7AD9\u4F7F\u7528",
+  allowAllSites: "\u5141\u8A31\u5728\u6240\u6709\u7DB2\u7AD9\u4F7F\u7528",
+  siteAccessHint: "\u5141\u8A31\u5728\u65B0\u5206\u9801\u4F7F\u7528\u7DB2\u9801\u6458\u8981\u8207\u6587\u5B57\u9078\u53D6\u5DE5\u5177\u3002",
+  siteAccessGranted: "\u5DF2\u5141\u8A31\u5B58\u53D6\u7DB2\u9801\u3002"
 };
 
 // extension/locales/zh-CN.json
@@ -13863,12 +13914,11 @@ var zh_CN_default = {
   stopSharing: "\u505C\u6B62\u5171\u4EAB",
   stopped: "\u5DF2\u505C\u6B62\u3002",
   tabChanged: "\u622A\u53D6\u671F\u95F4\u6765\u6E90\u6807\u7B7E\u9875\u5DF2\u66F4\u6539\uFF0C\u8BF7\u91CD\u8BD5\u3002",
-  targetLanguage: "\u8BED\u8A00",
+  targetLanguage: "\u7FFB\u8BD1\u76EE\u6807\u8BED\u8A00",
   thinking: "\u601D\u8003\u4E2D...",
   thread: "\u622A\u53D6\u7B14\u8BB0",
   timeout: "\u7B49\u5F85\u65F6\u95F4\u8FC7\u957F\uFF0C\u8BF7\u91CD\u8BD5\u3002",
   translate: "\u7FFB\u8BD1\u753B\u9762",
-  translateCapture: "\u7FFB\u8BD1\u753B\u9762",
   translatePage: "\u7FFB\u8BD1\u753B\u9762",
   translatePrompt: "\u5C06\u753B\u9762\u4E2D\u7684\u6587\u5B57\u7FFB\u8BD1\u6210{language}\u3002",
   translated: "\u5DF2\u7FFB\u8BD1",
@@ -13903,7 +13953,14 @@ var zh_CN_default = {
   liveStopped: "\u6C14\u6CE1\u5DF2\u505C\u6B62\u7B49\u5F85\u3002\u7EC8\u7AEF\u53EF\u80FD\u4ECD\u5728\u8FD0\u884C\u3002\u6309 Esc \u53EF\u5728\u7EC8\u7AEF\u4E2D\u505C\u6B62\u5B83\u3002",
   replayTourHint: "\u91CD\u65B0\u6253\u5F00\u8BBE\u7F6E\u6307\u5357\u548C\u7EC3\u4E60\u9875\u9762",
   guideAction: "\u5BFC\u89C8\u8FD9\u4E2A\u9875\u9762",
-  guidePrompt: "\u5E26\u6211\u770B\u770B\u8FD9\u4E2A\u9875\u9762\u7684\u4E3B\u8981\u64CD\u4F5C"
+  guidePrompt: "\u5E26\u6211\u770B\u770B\u8FD9\u4E2A\u9875\u9762\u7684\u4E3B\u8981\u64CD\u4F5C",
+  replyInterrupted: "\u56DE\u590D\u4E2D\u65AD\u4E86\uFF0C\u8BF7\u518D\u8BD5\u4E00\u6B21\u3002",
+  replyLimit: "\u56DE\u590D\u8FBE\u5230\u957F\u5EA6\u4E0A\u9650\uFF0C\u8BF7\u7F29\u77ED\u95EE\u9898\u3002",
+  replyServiceError: "\u56DE\u590D\u670D\u52A1\u65E0\u6CD5\u5B8C\u6210\uFF0C\u8BF7\u518D\u8BD5\u4E00\u6B21\u3002",
+  allowSite: "\u5141\u8BB8\u5728\u6B64\u7F51\u7AD9\u4F7F\u7528",
+  allowAllSites: "\u5141\u8BB8\u5728\u6240\u6709\u7F51\u7AD9\u4F7F\u7528",
+  siteAccessHint: "\u5141\u8BB8\u5728\u65B0\u6807\u7B7E\u9875\u4F7F\u7528\u7F51\u9875\u6458\u8981\u4E0E\u6587\u5B57\u9009\u62E9\u5DE5\u5177\u3002",
+  siteAccessGranted: "\u5DF2\u5141\u8BB8\u8BBF\u95EE\u7F51\u9875\u3002"
 };
 
 // extension/locales/ja.json
@@ -14017,12 +14074,11 @@ var ja_default = {
   stopSharing: "\u5171\u6709\u3092\u505C\u6B62",
   stopped: "\u505C\u6B62\u3057\u307E\u3057\u305F\u3002",
   tabChanged: "\u30AD\u30E3\u30D7\u30C1\u30E3\u4E2D\u306B\u30BF\u30D6\u304C\u5207\u308A\u66FF\u308F\u308A\u307E\u3057\u305F\u3002\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-  targetLanguage: "\u8A00\u8A9E",
+  targetLanguage: "\u7FFB\u8A33\u5148\u306E\u8A00\u8A9E",
   thinking: "\u8003\u3048\u3066\u3044\u307E\u3059...",
   thread: "\u64AE\u5F71\u30E1\u30E2",
   timeout: "\u6642\u9593\u304C\u304B\u304B\u308A\u3059\u304E\u307E\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
   translate: "\u7FFB\u8A33\u3059\u308B",
-  translateCapture: "\u7FFB\u8A33\u3059\u308B",
   translatePage: "\u7FFB\u8A33\u3059\u308B",
   translatePrompt: "\u753B\u9762\u5185\u306E\u30C6\u30AD\u30B9\u30C8\u3092{language}\u306B\u7FFB\u8A33\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   translated: "\u7FFB\u8A33\u6E08\u307F",
@@ -14057,7 +14113,14 @@ var ja_default = {
   liveStopped: "\u30D0\u30D6\u30EB\u306F\u5F85\u6A5F\u3092\u7D42\u4E86\u3057\u307E\u3057\u305F\u3002\u30BF\u30FC\u30DF\u30CA\u30EB\u3067\u306F\u51E6\u7406\u304C\u7D9A\u3044\u3066\u3044\u308B\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002\u505C\u6B62\u3059\u308B\u306B\u306F\u30BF\u30FC\u30DF\u30CA\u30EB\u3067 Esc \u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   replayTourHint: "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u30AC\u30A4\u30C9\u3068\u7DF4\u7FD2\u30DA\u30FC\u30B8\u3092\u3082\u3046\u4E00\u5EA6\u958B\u304F",
   guideAction: "\u3053\u306E\u30DA\u30FC\u30B8\u3092\u6848\u5185",
-  guidePrompt: "\u3053\u306E\u30DA\u30FC\u30B8\u306E\u4E3B\u306A\u64CD\u4F5C\u3092\u6848\u5185\u3057\u3066\u304F\u3060\u3055\u3044"
+  guidePrompt: "\u3053\u306E\u30DA\u30FC\u30B8\u306E\u4E3B\u306A\u64CD\u4F5C\u3092\u6848\u5185\u3057\u3066\u304F\u3060\u3055\u3044",
+  replyInterrupted: "\u56DE\u7B54\u304C\u4E2D\u65AD\u3055\u308C\u307E\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
+  replyLimit: "\u56DE\u7B54\u304C\u9577\u3055\u306E\u4E0A\u9650\u306B\u9054\u3057\u307E\u3057\u305F\u3002\u8CEA\u554F\u3092\u77ED\u304F\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  replyServiceError: "\u56DE\u7B54\u30B5\u30FC\u30D3\u30B9\u304C\u5B8C\u4E86\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
+  allowSite: "\u3053\u306E\u30B5\u30A4\u30C8\u3067\u8A31\u53EF",
+  allowAllSites: "\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3067\u8A31\u53EF",
+  siteAccessHint: "\u65B0\u3057\u3044\u30BF\u30D6\u3067\u30DA\u30FC\u30B8\u306E\u8981\u7D04\u3068\u30C6\u30AD\u30B9\u30C8\u9078\u629E\u30C4\u30FC\u30EB\u3092\u4F7F\u3048\u308B\u3088\u3046\u306B\u3057\u307E\u3059\u3002",
+  siteAccessGranted: "\u30DA\u30FC\u30B8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3057\u307E\u3057\u305F\u3002"
 };
 
 // extension/locales/ko.json
@@ -14171,12 +14234,11 @@ var ko_default = {
   stopSharing: "\uACF5\uC720 \uC911\uC9C0",
   stopped: "\uC911\uC9C0\uB428.",
   tabChanged: "\uCEA1\uCC98 \uC911 \uD0ED\uC774 \uBCC0\uACBD\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
-  targetLanguage: "\uC5B8\uC5B4",
+  targetLanguage: "\uBC88\uC5ED\uD560 \uC5B8\uC5B4",
   thinking: "\uC0DD\uAC01 \uC911...",
   thread: "\uCEA1\uCC98 \uBA54\uBAA8",
   timeout: "\uC2DC\uAC04\uC774 \uB108\uBB34 \uC624\uB798 \uAC78\uB838\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
   translate: "\uBC88\uC5ED\uD558\uAE30",
-  translateCapture: "\uBC88\uC5ED\uD558\uAE30",
   translatePage: "\uBC88\uC5ED\uD558\uAE30",
   translatePrompt: "\uD654\uBA74\uC758 \uD14D\uC2A4\uD2B8\uB97C {language}(\uC73C)\uB85C \uBC88\uC5ED\uD574 \uC8FC\uC138\uC694.",
   translated: "\uBC88\uC5ED\uB428",
@@ -14211,7 +14273,14 @@ var ko_default = {
   liveStopped: "\uBC84\uBE14\uC774 \uB354 \uC774\uC0C1 \uAE30\uB2E4\uB9AC\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uD130\uBBF8\uB110 \uC791\uC5C5\uC740 \uACC4\uC18D \uC911\uC77C \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uC911\uC9C0\uD558\uB824\uBA74 \uD130\uBBF8\uB110\uC5D0\uC11C Esc\uB97C \uB204\uB974\uC138\uC694.",
   replayTourHint: "\uC124\uC815 \uC548\uB0B4\uC640 \uC5F0\uC2B5 \uD398\uC774\uC9C0 \uB2E4\uC2DC \uC5F4\uAE30",
   guideAction: "\uC774 \uD398\uC774\uC9C0 \uC548\uB0B4",
-  guidePrompt: "\uC774 \uD398\uC774\uC9C0\uC758 \uC8FC\uC694 \uC791\uC5C5\uC744 \uC548\uB0B4\uD574 \uC8FC\uC138\uC694"
+  guidePrompt: "\uC774 \uD398\uC774\uC9C0\uC758 \uC8FC\uC694 \uC791\uC5C5\uC744 \uC548\uB0B4\uD574 \uC8FC\uC138\uC694",
+  replyInterrupted: "\uB2F5\uBCC0\uC774 \uC911\uB2E8\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.",
+  replyLimit: "\uB2F5\uBCC0\uC774 \uAE38\uC774 \uC81C\uD55C\uC5D0 \uB3C4\uB2EC\uD588\uC2B5\uB2C8\uB2E4. \uC9C8\uBB38\uC744 \uC9E7\uAC8C \uD574 \uC8FC\uC138\uC694.",
+  replyServiceError: "\uB2F5\uBCC0 \uC11C\uBE44\uC2A4\uAC00 \uC644\uB8CC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.",
+  allowSite: "\uC774 \uC0AC\uC774\uD2B8\uC5D0\uC11C \uD5C8\uC6A9",
+  allowAllSites: "\uBAA8\uB4E0 \uC0AC\uC774\uD2B8\uC5D0\uC11C \uD5C8\uC6A9",
+  siteAccessHint: "\uC0C8 \uD0ED\uC5D0\uC11C \uD398\uC774\uC9C0 \uC694\uC57D\uACFC \uD14D\uC2A4\uD2B8 \uC120\uD0DD \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uC218 \uC788\uAC8C \uD569\uB2C8\uB2E4.",
+  siteAccessGranted: "\uD398\uC774\uC9C0 \uC811\uADFC\uC744 \uD5C8\uC6A9\uD588\uC2B5\uB2C8\uB2E4."
 };
 
 // extension/locales/es.json
@@ -14325,12 +14394,11 @@ var es_default = {
   stopSharing: "Dejar de compartir",
   stopped: "Detenido.",
   tabChanged: "La pesta\xF1a cambi\xF3 durante la captura. Int\xE9ntalo de nuevo.",
-  targetLanguage: "Idioma",
+  targetLanguage: "Traducir a",
   thinking: "Pensando...",
   thread: "Notas de captura",
   timeout: "Se agot\xF3 el tiempo. Int\xE9ntalo de nuevo.",
   translate: "Traducir",
-  translateCapture: "Traducir",
   translatePage: "Traducir",
   translatePrompt: "Traduce el texto visible al {language}.",
   translated: "Traducido",
@@ -14365,7 +14433,14 @@ var es_default = {
   liveStopped: "La burbuja dej\xF3 de esperar. Es posible que el terminal siga trabajando. Pulsa Esc all\xED para detenerlo.",
   replayTourHint: "Vuelve a abrir la gu\xEDa de configuraci\xF3n y la p\xE1gina de pr\xE1ctica",
   guideAction: "Guiar esta p\xE1gina",
-  guidePrompt: "Mu\xE9strame las acciones principales de esta p\xE1gina"
+  guidePrompt: "Mu\xE9strame las acciones principales de esta p\xE1gina",
+  replyInterrupted: "La respuesta se interrumpi\xF3. Int\xE9ntalo de nuevo.",
+  replyLimit: "La respuesta alcanz\xF3 el l\xEDmite de longitud. Haz una pregunta m\xE1s corta.",
+  replyServiceError: "El servicio no pudo terminar la respuesta. Int\xE9ntalo de nuevo.",
+  allowSite: "Permitir en este sitio",
+  allowAllSites: "Permitir en todos los sitios",
+  siteAccessHint: "Permite res\xFAmenes y herramientas de selecci\xF3n en pesta\xF1as nuevas.",
+  siteAccessGranted: "Acceso a la p\xE1gina permitido."
 };
 
 // extension/locales/fr.json
@@ -14479,12 +14554,11 @@ var fr_default = {
   stopSharing: "Arr\xEAter le partage",
   stopped: "Arr\xEAt\xE9.",
   tabChanged: "L'onglet a chang\xE9 pendant la capture. R\xE9essayez.",
-  targetLanguage: "Langue",
+  targetLanguage: "Traduire en",
   thinking: "R\xE9flexion...",
   thread: "Notes de capture",
   timeout: "D\xE9lai d\xE9pass\xE9. R\xE9essayez.",
   translate: "Traduire",
-  translateCapture: "Traduire",
   translatePage: "Traduire",
   translatePrompt: "Traduisez le texte visible en {language}.",
   translated: "Traduit",
@@ -14519,7 +14593,14 @@ var fr_default = {
   liveStopped: "La bulle a cess\xE9 d'attendre. Le terminal travaille peut-\xEAtre encore. Appuyez sur \xC9chap dans le terminal pour l'arr\xEAter.",
   replayTourHint: "Rouvrez le guide de configuration et la page d'entra\xEEnement",
   guideAction: "Guider cette page",
-  guidePrompt: "Montrez les actions principales de cette page"
+  guidePrompt: "Montrez les actions principales de cette page",
+  replyInterrupted: "La r\xE9ponse a \xE9t\xE9 interrompue. R\xE9essayez.",
+  replyLimit: "La r\xE9ponse a atteint sa limite de longueur. Posez une question plus courte.",
+  replyServiceError: "Le service ne peut pas terminer la r\xE9ponse. R\xE9essayez.",
+  allowSite: "Autoriser sur ce site",
+  allowAllSites: "Autoriser sur tous les sites",
+  siteAccessHint: "Autorise les r\xE9sum\xE9s et les outils de s\xE9lection dans les nouveaux onglets.",
+  siteAccessGranted: "Acc\xE8s \xE0 la page autoris\xE9."
 };
 
 // extension/locales/de.json
@@ -14633,12 +14714,11 @@ var de_default = {
   stopSharing: "Freigabe beenden",
   stopped: "Gestoppt.",
   tabChanged: "Tab w\xE4hrend der Aufnahme gewechselt. Erneut versuchen.",
-  targetLanguage: "Sprache",
+  targetLanguage: "\xDCbersetzen in",
   thinking: "Denke nach...",
   thread: "Aufnahmenotizen",
   timeout: "Zeit\xFCberschreitung. Versuche es erneut.",
   translate: "\xDCbersetzen",
-  translateCapture: "\xDCbersetzen",
   translatePage: "\xDCbersetzen",
   translatePrompt: "\xDCbersetze den sichtbaren Text ins {language}.",
   translated: "\xDCbersetzt",
@@ -14673,7 +14753,14 @@ var de_default = {
   liveStopped: "Die Blase wartet nicht mehr. Das Terminal arbeitet m\xF6glicherweise noch. Dr\xFCcke dort Esc, um es zu beenden.",
   replayTourHint: "\xD6ffne die Einrichtungsanleitung und die \xDCbungsseite erneut",
   guideAction: "Diese Seite erkl\xE4ren",
-  guidePrompt: "Zeige mir die wichtigsten Aktionen auf dieser Seite"
+  guidePrompt: "Zeige mir die wichtigsten Aktionen auf dieser Seite",
+  replyInterrupted: "Die Antwort wurde unterbrochen. Versuche es erneut.",
+  replyLimit: "Die Antwort hat die L\xE4ngengrenze erreicht. Stelle eine k\xFCrzere Frage.",
+  replyServiceError: "Der Dienst konnte die Antwort nicht abschlie\xDFen. Versuche es erneut.",
+  allowSite: "Auf dieser Website erlauben",
+  allowAllSites: "Auf allen Websites erlauben",
+  siteAccessHint: "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
+  siteAccessGranted: "Seitenzugriff erlaubt."
 };
 
 // extension/locales/pt-BR.json
@@ -14787,12 +14874,11 @@ var pt_BR_default = {
   stopSharing: "Parar compartilhamento",
   stopped: "Parado.",
   tabChanged: "A aba mudou durante a captura. Tente novamente.",
-  targetLanguage: "Idioma",
+  targetLanguage: "Traduzir para",
   thinking: "Pensando...",
   thread: "Notas de captura",
   timeout: "Demorou demais. Tente novamente.",
   translate: "Traduzir",
-  translateCapture: "Traduzir",
   translatePage: "Traduzir",
   translatePrompt: "Traduza o texto vis\xEDvel para {language}.",
   translated: "Traduzido",
@@ -14827,7 +14913,14 @@ var pt_BR_default = {
   liveStopped: "O bal\xE3o parou de aguardar. O terminal ainda pode estar trabalhando. Pressione Esc nele para parar.",
   replayTourHint: "Abra novamente o guia de configura\xE7\xE3o e a p\xE1gina de pr\xE1tica",
   guideAction: "Guiar esta p\xE1gina",
-  guidePrompt: "Mostre as principais a\xE7\xF5es desta p\xE1gina"
+  guidePrompt: "Mostre as principais a\xE7\xF5es desta p\xE1gina",
+  replyInterrupted: "A resposta foi interrompida. Tente novamente.",
+  replyLimit: "A resposta atingiu o limite de tamanho. Fa\xE7a uma pergunta mais curta.",
+  replyServiceError: "O servi\xE7o n\xE3o conseguiu concluir a resposta. Tente novamente.",
+  allowSite: "Permitir neste site",
+  allowAllSites: "Permitir em todos os sites",
+  siteAccessHint: "Permite resumos e ferramentas de sele\xE7\xE3o em novas abas.",
+  siteAccessGranted: "Acesso \xE0 p\xE1gina permitido."
 };
 
 // extension/main.tsx
@@ -14878,6 +14971,12 @@ function errorLabel(error, t) {
     pair_timeout: "bridgeLost",
     api_key_missing: "keyMissing",
     api_auth: "apiAuth",
+    anthropic_protocol: "replyInterrupted",
+    anthropic_incomplete: "replyInterrupted",
+    anthropic_stream_error: "replyServiceError",
+    anthropic_provider_error: "replyServiceError",
+    answer_limit: "replyLimit",
+    empty_response: "replyInterrupted",
     password_page: "passwordPage",
     allow_site_access: "siteAccess",
     unsupported_page: "unsupportedPage",
@@ -14948,6 +15047,8 @@ function App() {
   const loadPageRef = (0, import_react.useRef)(loadPageAndSuggestions);
   const pageRefreshTimer = (0, import_react.useRef)(void 0);
   const pageRequestKey = (0, import_react.useRef)("");
+  const pageVersion = (0, import_react.useRef)(0);
+  const pendingPageRefresh = (0, import_react.useRef)(false);
   loadPageRef.current = loadPageAndSuggestions;
   const dialogRef = (0, import_react.useRef)(null);
   const videoRef = (0, import_react.useRef)(null);
@@ -15068,7 +15169,7 @@ function App() {
     };
   }, []);
   (0, import_react.useEffect)(() => {
-    if (consented) schedulePageRefresh();
+    if (consented) schedulePageRefresh(true);
   }, [consented, passive, paused, backend, connected, locale]);
   (0, import_react.useEffect)(() => {
     const activated = (info) => {
@@ -15076,7 +15177,7 @@ function App() {
         if (!isOwnExtensionUrl(tab.url)) {
           activeTabId.current = info.tabId;
           setCurrentActiveTab(info.tabId);
-          schedulePageRefresh();
+          schedulePageRefresh(true);
         }
       });
     };
@@ -15084,15 +15185,16 @@ function App() {
       if (windowId < 0) return;
       void chrome.tabs.query({ active: true, windowId }).then(([tab]) => {
         if (tab?.id && !isOwnExtensionUrl(tab.url)) {
+          const changedTab = activeTabId.current !== tab.id;
           activeTabId.current = tab.id;
           setCurrentActiveTab(tab.id);
-          schedulePageRefresh();
+          schedulePageRefresh(changedTab);
         }
       });
     };
     const changed = (tabId, change, tab) => {
-      if (tabId === activeTabId.current && change.url && !isOwnExtensionUrl(tab.url))
-        schedulePageRefresh();
+      if (tabId === activeTabId.current && (change.url || change.status === "complete") && !isOwnExtensionUrl(tab.url))
+        schedulePageRefresh(true);
     };
     const source = Number(
       new URLSearchParams(location.search).get("sourceTab")
@@ -15125,7 +15227,7 @@ function App() {
   }, [shareStream, pipDoc]);
   (0, import_react.useEffect)(() => {
     endRef.current?.scrollIntoView({ block: "nearest" });
-  }, [entries, answer]);
+  }, [entries, answer, suggestions]);
   (0, import_react.useEffect)(() => {
     if (!pipDoc) return;
     const link = pipDoc.createElement("link");
@@ -15468,14 +15570,24 @@ Selected text (untrusted): ${selected}` : ""}`;
       setStatus(t.activationNeeded);
     }
   }
-  function schedulePageRefresh() {
+  function schedulePageRefresh(invalidate = false) {
+    if (invalidate) {
+      pageVersion.current += 1;
+      pageRequestKey.current = "";
+      setSuggestions([]);
+      setPage(void 0);
+    }
+    pendingPageRefresh.current = true;
     window.clearTimeout(pageRefreshTimer.current);
     pageRefreshTimer.current = window.setTimeout(() => {
       void loadPageRef.current();
     }, 500);
   }
   async function loadPageAndSuggestions() {
-    if (!consented) return;
+    if (!consented || requestIdRef.current || translationController.current)
+      return;
+    pendingPageRefresh.current = false;
+    const version = pageVersion.current;
     try {
       const sourceTabId = activeTabId.current;
       if (!sourceTabId) return;
@@ -15510,15 +15622,19 @@ Selected text (untrusted): ${selected}` : ""}`;
         }
       }
       const next = await getPageContext();
-      if (sourceTabId !== activeTabId.current) return;
+      if (sourceTabId !== activeTabId.current || version !== pageVersion.current)
+        return;
       setPage(next);
       if (!next || next.hasPassword || isBlocked(next.url)) {
         setSuggestions([]);
         return;
       }
       const key = `${sourceTabId}:${next.url}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
-      if (pageRequestKey.current === key || requestIdRef.current || translationController.current)
+      if (requestIdRef.current || translationController.current) {
+        pendingPageRefresh.current = true;
         return;
+      }
+      if (pageRequestKey.current === key) return;
       pageRequestKey.current = key;
       if (passive && !paused && !shareRef.current)
         void askWith({
@@ -15556,6 +15672,22 @@ Selected text (untrusted): ${selected}` : ""}`;
     const allowed = await chrome.permissions.contains({ origins: [`${origin}/*`] }) || await chrome.permissions.request({ origins: [`${origin}/*`] });
     if (!allowed) throw new Error("allow_site_access");
     return tabId;
+  }
+  async function allowPageAccess(allSites) {
+    try {
+      const tabId = activeTabId.current;
+      if (!tabId) throw new Error("no_active_tab");
+      const tab = await chrome.tabs.get(tabId);
+      if (!tab.url || !/^https?:/.test(tab.url))
+        throw new Error("unsupported_page");
+      const origins = allSites ? ["http://*/*", "https://*/*"] : [`${new URL(tab.url).origin}/*`];
+      if (!await chrome.permissions.request({ origins }))
+        throw new Error("allow_site_access");
+      setStatus(t.siteAccessGranted);
+      schedulePageRefresh(true);
+    } catch (error) {
+      setStatus(errorLabel(error, t));
+    }
   }
   function isBlocked(url) {
     const host = (() => {
@@ -15729,7 +15861,7 @@ Selected text (untrusted): ${selected}` : ""}`;
   }
   async function askWith(options) {
     if (!consented) return;
-    if (options.kind === "translate" && !capture) {
+    if (options.kind === "translate" && !capture && !options.image) {
       await translatePage();
       return;
     }
@@ -15739,6 +15871,7 @@ Selected text (untrusted): ${selected}` : ""}`;
     const kind = options.kind || "ask";
     const currentPage = options.page || (options.image && kind === "passive" ? void 0 : page);
     const sourceTabId = activeTabId.current;
+    const sourceVersion = pageVersion.current;
     if ((kind === "passive" || kind === "suggest") && currentPage && (currentPage.hasPassword || isBlocked(currentPage.url)))
       return;
     if (kind === "passive") {
@@ -15761,7 +15894,7 @@ Selected text (untrusted): ${selected}` : ""}`;
       answer: "",
       kind,
       at: Date.now(),
-      image: options.image || (kind === "ask" || kind === "guide" ? capture?.image : void 0)
+      image: options.image || (kind === "ask" || kind === "guide" || kind === "translate" ? capture?.image : void 0)
     };
     if (!options.silent) setEntries((old) => [...old, entry]);
     const update = (text) => {
@@ -15820,7 +15953,6 @@ Selected text (untrusted): ${selected}` : ""}`;
           setSessionId(result.sessionId);
       }
       if (cancelledRequests.current.has(id)) return;
-      setAnswer(final);
       if (finalUsage) {
         if (backend === "api")
           finalUsage = {
@@ -15840,6 +15972,9 @@ Selected text (untrusted): ${selected}` : ""}`;
           hourlyCosts.current.reduce((sum, item) => sum + item.amount, 0)
         );
       }
+      if (options.silent && (kind === "suggest" || kind === "passive") && (sourceVersion !== pageVersion.current || sourceTabId !== activeTabId.current))
+        return;
+      setAnswer(final);
       if (kind === "suggest") setSuggestions(parseSuggestions(final));
       else if (kind === "passive") {
         const parsed = parsePassiveAnswer(final);
@@ -15882,7 +16017,7 @@ Selected text (untrusted): ${selected}` : ""}`;
             (e) => e.id === id ? { ...e, answer: errorLabel(error, t) } : e
           )
         );
-      if (requestIdRef.current === id && !cancelledRequests.current.has(id))
+      if (requestIdRef.current === id && !cancelledRequests.current.has(id) && (!options.silent || sourceVersion === pageVersion.current))
         setStatus(errorLabel(error, t));
     } finally {
       cancelledRequests.current.delete(id);
@@ -15892,6 +16027,7 @@ Selected text (untrusted): ${selected}` : ""}`;
         backgroundRequestRef.current = null;
         setBusy(false);
         setActiveId("");
+        if (pendingPageRefresh.current) schedulePageRefresh();
       }
     }
   }
@@ -15904,28 +16040,38 @@ Selected text (untrusted): ${selected}` : ""}`;
       kind: /\b(where is|where's|show me where|find the)\b/i.test(q) ? "guide" : "ask"
     });
   }
-  function stop() {
-    if (translationController.current) {
-      translationController.current.abort();
-      if (translationBridgeId.current)
-        bridge.cancel(translationBridgeId.current);
-      setStatus(t.stopped);
-      return;
+  async function stop() {
+    const translating = translationController.current;
+    if (!activeId && !translating) return;
+    const bridgeId = translating ? translationBridgeId.current : requestRef.current ? null : activeId;
+    const reservation = crypto.randomUUID();
+    requestIdRef.current = reservation;
+    if (translating) translating.abort();
+    else {
+      cancelledRequests.current.add(activeId);
+      requestRef.current?.abort();
+      setEntries(
+        (old) => old.map(
+          (entry) => entry.id === activeId ? { ...entry, answer: answer || t.stopped } : entry
+        )
+      );
     }
-    if (!activeId) return;
-    cancelledRequests.current.add(activeId);
-    requestRef.current?.abort();
-    bridge.cancel(activeId);
-    requestIdRef.current = null;
-    setBusy(false);
+    setBusy(true);
     setActiveId("");
-    setEntries(
-      (old) => old.map(
-        (entry) => entry.id === activeId ? { ...entry, answer: answer || t.stopped } : entry
-      )
-    );
     setAnswer("");
     setStatus(liveSession ? t.liveStopped : t.stopped);
+    try {
+      if (bridgeId) await bridge.cancelAndWait(bridgeId);
+    } catch {
+    } finally {
+      if (requestIdRef.current === reservation) {
+        requestIdRef.current = null;
+        requestRef.current = null;
+        backgroundRequestRef.current = null;
+        setBusy(false);
+        if (pendingPageRefresh.current) schedulePageRefresh();
+      }
+    }
   }
   async function togglePause() {
     const value = !paused;
@@ -16109,6 +16255,8 @@ ${JSON.stringify(nodes)}`;
       }
       if (!completed && applied === 0 && controller.signal.aborted)
         setStatus(t.stopped);
+      if (!requestIdRef.current && pendingPageRefresh.current)
+        schedulePageRefresh();
     }
   }
   async function restoreText() {
@@ -16360,8 +16508,12 @@ ${JSON.stringify(nodes)}`;
                   "button",
                   {
                     onClick: () => void askWith({
-                      question: t.translateCapture,
-                      kind: "translate"
+                      question: t.translatePrompt.replace(
+                        "{language}",
+                        names[targetLocale]
+                      ),
+                      kind: "translate",
+                      image: capture.image
                     }),
                     children: t.translate
                   }
@@ -16381,11 +16533,6 @@ ${JSON.stringify(nodes)}`;
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "welcome-orbit", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, { mood: busy ? "think" : "idle" }) }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: t.welcome }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: page?.title || t.welcomeSub }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "suggestions", children: suggestions.map((s, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => void askNow(s), children: [
-                s,
-                " ",
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u2197" })
-              ] }, i)) }),
               page?.url?.toLowerCase().includes(".pdf") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "outline", onClick: () => void openReader(), children: t.openPdf })
             ] }),
             entries.map((entry) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", { className: `message ${entry.kind}`, children: [
@@ -16425,6 +16572,19 @@ ${JSON.stringify(nodes)}`;
               " \xB7 ",
               t.thinking
             ] }) }),
+            suggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "suggestions", children: suggestions.map((s, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "button",
+              {
+                disabled: busy,
+                onClick: () => void askNow(s),
+                children: [
+                  s,
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u2197" })
+                ]
+              },
+              i
+            )) }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { ref: endRef })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "composer", children: [
@@ -16653,6 +16813,11 @@ ${JSON.stringify(nodes)}`;
                     ] })
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.globalCropShortcut }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.siteAccessHint }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "quick-actions", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => void allowPageAccess(false), children: t.allowSite }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => void allowPageAccess(true), children: t.allowAllSites })
+                  ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
                     t.targetLanguage,
                     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(

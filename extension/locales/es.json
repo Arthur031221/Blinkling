@@ -108,12 +108,11 @@
   "stopSharing": "Dejar de compartir",
   "stopped": "Detenido.",
   "tabChanged": "La pestaña cambió durante la captura. Inténtalo de nuevo.",
-  "targetLanguage": "Idioma",
+  "targetLanguage": "Traducir a",
   "thinking": "Pensando...",
   "thread": "Notas de captura",
   "timeout": "Se agotó el tiempo. Inténtalo de nuevo.",
   "translate": "Traducir",
-  "translateCapture": "Traducir",
   "translatePage": "Traducir",
   "translatePrompt": "Traduce el texto visible al {language}.",
   "translated": "Traducido",
@@ -148,5 +147,12 @@
   "liveStopped": "La burbuja dejó de esperar. Es posible que el terminal siga trabajando. Pulsa Esc allí para detenerlo.",
   "replayTourHint": "Vuelve a abrir la guía de configuración y la página de práctica",
   "guideAction": "Guiar esta página",
-  "guidePrompt": "Muéstrame las acciones principales de esta página"
+  "guidePrompt": "Muéstrame las acciones principales de esta página",
+  "replyInterrupted": "La respuesta se interrumpió. Inténtalo de nuevo.",
+  "replyLimit": "La respuesta alcanzó el límite de longitud. Haz una pregunta más corta.",
+  "replyServiceError": "El servicio no pudo terminar la respuesta. Inténtalo de nuevo.",
+  "allowSite": "Permitir en este sitio",
+  "allowAllSites": "Permitir en todos los sitios",
+  "siteAccessHint": "Permite resúmenes y herramientas de selección en pestañas nuevas.",
+  "siteAccessGranted": "Acceso a la página permitido."
 }

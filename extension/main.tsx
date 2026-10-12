@@ -105,6 +105,12 @@ function errorLabel(error: unknown, t: Record<string, string>): string {
     pair_timeout: "bridgeLost",
     api_key_missing: "keyMissing",
     api_auth: "apiAuth",
+    anthropic_protocol: "replyInterrupted",
+    anthropic_incomplete: "replyInterrupted",
+    anthropic_stream_error: "replyServiceError",
+    anthropic_provider_error: "replyServiceError",
+    answer_limit: "replyLimit",
+    empty_response: "replyInterrupted",
     password_page: "passwordPage",
     allow_site_access: "siteAccess",
     unsupported_page: "unsupportedPage",
@@ -184,6 +190,8 @@ function App() {
   const loadPageRef = useRef<() => Promise<void>>(loadPageAndSuggestions);
   const pageRefreshTimer = useRef<number | undefined>(undefined);
   const pageRequestKey = useRef("");
+  const pageVersion = useRef(0);
+  const pendingPageRefresh = useRef(false);
   loadPageRef.current = loadPageAndSuggestions;
   const dialogRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -334,7 +342,7 @@ function App() {
     };
   }, []);
   useEffect(() => {
-    if (consented) schedulePageRefresh();
+    if (consented) schedulePageRefresh(true);
   }, [consented, passive, paused, backend, connected, locale]);
   useEffect(() => {
     const activated = (info: { tabId: number }) => {
@@ -342,7 +350,7 @@ function App() {
         if (!isOwnExtensionUrl(tab.url)) {
           activeTabId.current = info.tabId;
           setCurrentActiveTab(info.tabId);
-          schedulePageRefresh();
+          schedulePageRefresh(true);
         }
       });
     };
@@ -352,23 +360,24 @@ function App() {
         .query({ active: true, windowId })
         .then(([tab]: BrowserTab[]) => {
           if (tab?.id && !isOwnExtensionUrl(tab.url)) {
+            const changedTab = activeTabId.current !== tab.id;
             activeTabId.current = tab.id;
             setCurrentActiveTab(tab.id);
-            schedulePageRefresh();
+            schedulePageRefresh(changedTab);
           }
         });
     };
     const changed = (
       tabId: number,
-      change: { url?: string },
+      change: { url?: string; status?: string },
       tab: BrowserTab,
     ) => {
       if (
         tabId === activeTabId.current &&
-        change.url &&
+        (change.url || change.status === "complete") &&
         !isOwnExtensionUrl(tab.url)
       )
-        schedulePageRefresh();
+        schedulePageRefresh(true);
     };
     const source = Number(
       new URLSearchParams(location.search).get("sourceTab"),
@@ -403,7 +412,7 @@ function App() {
   }, [shareStream, pipDoc]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "nearest" });
-  }, [entries, answer]);
+  }, [entries, answer, suggestions]);
   useEffect(() => {
     if (!pipDoc) return;
     const link = pipDoc.createElement("link");
@@ -828,14 +837,24 @@ function App() {
       setStatus(t.activationNeeded);
     }
   }
-  function schedulePageRefresh() {
+  function schedulePageRefresh(invalidate = false) {
+    if (invalidate) {
+      pageVersion.current += 1;
+      pageRequestKey.current = "";
+      setSuggestions([]);
+      setPage(undefined);
+    }
+    pendingPageRefresh.current = true;
     window.clearTimeout(pageRefreshTimer.current);
     pageRefreshTimer.current = window.setTimeout(() => {
       void loadPageRef.current();
     }, 500);
   }
   async function loadPageAndSuggestions() {
-    if (!consented) return;
+    if (!consented || requestIdRef.current || translationController.current)
+      return;
+    pendingPageRefresh.current = false;
+    const version = pageVersion.current;
     try {
       const sourceTabId = activeTabId.current;
       if (!sourceTabId) return;
@@ -871,19 +890,22 @@ function App() {
         }
       }
       const next = await getPageContext();
-      if (sourceTabId !== activeTabId.current) return;
+      if (
+        sourceTabId !== activeTabId.current ||
+        version !== pageVersion.current
+      )
+        return;
       setPage(next);
       if (!next || next.hasPassword || isBlocked(next.url)) {
         setSuggestions([]);
         return;
       }
       const key = `${sourceTabId}:${next.url}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
-      if (
-        pageRequestKey.current === key ||
-        requestIdRef.current ||
-        translationController.current
-      )
+      if (requestIdRef.current || translationController.current) {
+        pendingPageRefresh.current = true;
         return;
+      }
+      if (pageRequestKey.current === key) return;
       pageRequestKey.current = key;
       if (passive && !paused && !shareRef.current)
         void askWith({
@@ -928,6 +950,24 @@ function App() {
       (await chrome.permissions.request({ origins: [`${origin}/*`] }));
     if (!allowed) throw new Error("allow_site_access");
     return tabId;
+  }
+  async function allowPageAccess(allSites: boolean) {
+    try {
+      const tabId = activeTabId.current;
+      if (!tabId) throw new Error("no_active_tab");
+      const tab = await chrome.tabs.get(tabId);
+      if (!tab.url || !/^https?:/.test(tab.url))
+        throw new Error("unsupported_page");
+      const origins = allSites
+        ? ["http://*/*", "https://*/*"]
+        : [`${new URL(tab.url).origin}/*`];
+      if (!(await chrome.permissions.request({ origins })))
+        throw new Error("allow_site_access");
+      setStatus(t.siteAccessGranted);
+      schedulePageRefresh(true);
+    } catch (error) {
+      setStatus(errorLabel(error, t));
+    }
   }
   function isBlocked(url: string): boolean {
     const host = (() => {
@@ -1113,7 +1153,7 @@ function App() {
     silent?: boolean;
   }) {
     if (!consented) return;
-    if (options.kind === "translate" && !capture) {
+    if (options.kind === "translate" && !capture && !options.image) {
       await translatePage();
       return;
     }
@@ -1124,6 +1164,7 @@ function App() {
     const currentPage =
       options.page || (options.image && kind === "passive" ? undefined : page);
     const sourceTabId = activeTabId.current;
+    const sourceVersion = pageVersion.current;
     if (
       (kind === "passive" || kind === "suggest") &&
       currentPage &&
@@ -1153,7 +1194,9 @@ function App() {
       at: Date.now(),
       image:
         options.image ||
-        (kind === "ask" || kind === "guide" ? capture?.image : undefined),
+        (kind === "ask" || kind === "guide" || kind === "translate"
+          ? capture?.image
+          : undefined),
     };
     if (!options.silent) setEntries((old) => [...old, entry]);
     const update = (text: string) => {
@@ -1224,7 +1267,6 @@ function App() {
           setSessionId(result.sessionId);
       }
       if (cancelledRequests.current.has(id)) return;
-      setAnswer(final);
       if (finalUsage) {
         if (backend === "api")
           finalUsage = {
@@ -1244,6 +1286,14 @@ function App() {
           hourlyCosts.current.reduce((sum, item) => sum + item.amount, 0),
         );
       }
+      if (
+        options.silent &&
+        (kind === "suggest" || kind === "passive") &&
+        (sourceVersion !== pageVersion.current ||
+          sourceTabId !== activeTabId.current)
+      )
+        return;
+      setAnswer(final);
       if (kind === "suggest") setSuggestions(parseSuggestions(final));
       else if (kind === "passive") {
         const parsed = parsePassiveAnswer(final);
@@ -1288,7 +1338,11 @@ function App() {
             e.id === id ? { ...e, answer: errorLabel(error, t) } : e,
           ),
         );
-      if (requestIdRef.current === id && !cancelledRequests.current.has(id))
+      if (
+        requestIdRef.current === id &&
+        !cancelledRequests.current.has(id) &&
+        (!options.silent || sourceVersion === pageVersion.current)
+      )
         setStatus(errorLabel(error, t));
     } finally {
       cancelledRequests.current.delete(id);
@@ -1298,6 +1352,7 @@ function App() {
         backgroundRequestRef.current = null;
         setBusy(false);
         setActiveId("");
+        if (pendingPageRefresh.current) schedulePageRefresh();
       }
     }
   }
@@ -1312,30 +1367,45 @@ function App() {
         : "ask",
     });
   }
-  function stop() {
-    if (translationController.current) {
-      translationController.current.abort();
-      if (translationBridgeId.current)
-        bridge.cancel(translationBridgeId.current);
-      setStatus(t.stopped);
-      return;
+  async function stop() {
+    const translating = translationController.current;
+    if (!activeId && !translating) return;
+    const bridgeId = translating
+      ? translationBridgeId.current
+      : requestRef.current
+        ? null
+        : activeId;
+    const reservation = crypto.randomUUID();
+    requestIdRef.current = reservation;
+    if (translating) translating.abort();
+    else {
+      cancelledRequests.current.add(activeId);
+      requestRef.current?.abort();
+      setEntries((old) =>
+        old.map((entry) =>
+          entry.id === activeId
+            ? { ...entry, answer: answer || t.stopped }
+            : entry,
+        ),
+      );
     }
-    if (!activeId) return;
-    cancelledRequests.current.add(activeId);
-    requestRef.current?.abort();
-    bridge.cancel(activeId);
-    requestIdRef.current = null;
-    setBusy(false);
+    setBusy(true);
     setActiveId("");
-    setEntries((old) =>
-      old.map((entry) =>
-        entry.id === activeId
-          ? { ...entry, answer: answer || t.stopped }
-          : entry,
-      ),
-    );
     setAnswer("");
     setStatus(liveSession ? t.liveStopped : t.stopped);
+    try {
+      if (bridgeId) await bridge.cancelAndWait(bridgeId);
+    } catch {
+      /* Disconnect already rejects the active request. */
+    } finally {
+      if (requestIdRef.current === reservation) {
+        requestIdRef.current = null;
+        requestRef.current = null;
+        backgroundRequestRef.current = null;
+        setBusy(false);
+        if (pendingPageRefresh.current) schedulePageRefresh();
+      }
+    }
   }
   async function togglePause() {
     const value = !paused;
@@ -1540,6 +1610,8 @@ function App() {
       }
       if (!completed && applied === 0 && controller.signal.aborted)
         setStatus(t.stopped);
+      if (!requestIdRef.current && pendingPageRefresh.current)
+        schedulePageRefresh();
     }
   }
   async function restoreText() {
@@ -1812,8 +1884,12 @@ function App() {
                   <button
                     onClick={() =>
                       void askWith({
-                        question: t.translateCapture,
+                        question: t.translatePrompt.replace(
+                          "{language}",
+                          names[targetLocale],
+                        ),
                         kind: "translate",
+                        image: capture.image,
                       })
                     }
                   >
@@ -1836,13 +1912,6 @@ function App() {
                 </div>
                 <h2>{t.welcome}</h2>
                 <p>{page?.title || t.welcomeSub}</p>
-                <div className="suggestions">
-                  {suggestions.map((s, i) => (
-                    <button key={i} onClick={() => void askNow(s)}>
-                      {s} <span>↗</span>
-                    </button>
-                  ))}
-                </div>
                 {page?.url?.toLowerCase().includes(".pdf") && (
                   <button className="outline" onClick={() => void openReader()}>
                     {t.openPdf}
@@ -1897,6 +1966,19 @@ function App() {
                 <span>
                   {t.blinkAnswer} · {t.thinking}
                 </span>
+              </div>
+            )}
+            {suggestions.length > 0 && (
+              <div className="suggestions">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    disabled={busy}
+                    onClick={() => void askNow(s)}
+                  >
+                    {s} <span>↗</span>
+                  </button>
+                ))}
               </div>
             )}
             <div ref={endRef} />
@@ -2124,6 +2206,15 @@ function App() {
               </label>
             </div>
             <p className="help">{t.globalCropShortcut}</p>
+            <p className="help">{t.siteAccessHint}</p>
+            <div className="quick-actions">
+              <button onClick={() => void allowPageAccess(false)}>
+                {t.allowSite}
+              </button>
+              <button onClick={() => void allowPageAccess(true)}>
+                {t.allowAllSites}
+              </button>
+            </div>
             <label className="field">
               {t.targetLanguage}
               <select

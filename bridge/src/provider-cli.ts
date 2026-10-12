@@ -37,7 +37,14 @@ export async function runCliProvider(
       DISABLE_ERROR_REPORTING: "1",
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
     };
-    delete (env as Record<string, string | undefined>).CLAUDECODE;
+    // A paired thread owns its transcript; inherited parent markers suppress saving.
+    for (const key of [
+      "CLAUDECODE",
+      "CLAUDE_CODE_CHILD_SESSION",
+      "CLAUDE_CODE_SESSION_ID",
+      "CLAUDE_CODE_BRIDGE_SESSION_ID",
+    ])
+      delete (env as Record<string, string | undefined>)[key];
     const args = [
       ...(options.argsPrefix ?? []),
       "-p",

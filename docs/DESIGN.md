@@ -42,6 +42,10 @@ When a live channel is unavailable, recent conversations for the current project
 
 We checked [hooks](https://code.claude.com/docs/en/hooks): SessionStart, Stop and message events report lifecycle or output information, and hook inputs include `session_id` and `transcript_path`. Hooks do not provide an independent arbitrary input channel. Claude Code owns its JSONL session files. Glimpselet lists sessions through the SDK and never edits transcripts or watches every terminal message. Scoped MCP replies avoid copying unrelated terminal content.
 
+For local development with `--plugin-dir`, the plugin identity is `glimpselet@inline`. Claude Code 2.1.296 may display an installed plugin warning for this session only identity. Its MCP tools and channel still load. The equivalent development server selector is `server:plugin:glimpselet:glimpselet`. We confirm actual delivery through the nonce handshake rather than trusting this startup message. The `/glimpse` command authorizes connection probes and scoped bubble replies while preserving ordinary tool permissions.
+
+Child continuations remove inherited parent session identity flags. These flags can disable transcript saving in a worker process, which would break follow ups. An explicitly selected or dedicated Glimpselet conversation keeps its own UUID.
+
 ## Pairing, page access and privacy
 
 The bridge binds to loopback. Pairing uses a ten minute, one use code and an origin bound token lasting twelve hours. An SSH local forward supports a remote Claude Code host. Direct API mode uses the user's Anthropic key instead. The bubble names its connection mode.
