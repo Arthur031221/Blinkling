@@ -13716,7 +13716,7 @@ var en_default = {
   parallelSession: "Continue session in parallel",
   channelSetup: "To enable live messages, restart Claude Code with: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet, then run /glimpse.",
   replayTour: "Replay the tour",
-  globalCropShortcut: "Global crop shortcut: Ctrl+Shift+5. Change it at chrome://extensions/shortcuts.",
+  globalCropShortcut: "Global crop shortcut: Ctrl+Shift+7 (Cmd+Shift+7 on Mac). Change it at chrome://extensions/shortcuts.",
   screenChangeSummary: "The shared screen changed. Here is a short summary.",
   capturePermission: "Click the Glimpselet toolbar icon on this page, then try capture again.",
   shiftCrop: "Hold Shift to crop",
@@ -13877,7 +13877,7 @@ var zh_TW_default = {
   parallelSession: "\u5E73\u884C\u5EF6\u7E8C\u5DE5\u4F5C\u968E\u6BB5",
   channelSetup: "\u82E5\u8981\u555F\u7528\u5373\u6642\u8A0A\u606F\uFF0C\u8ACB\u4EE5\u6B64\u6307\u4EE4\u91CD\u65B0\u555F\u52D5 Claude Code\uFF1Aclaude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet\uFF0C\u7136\u5F8C\u57F7\u884C /glimpse\u3002",
   replayTour: "\u91CD\u64AD\u5C0E\u89BD",
-  globalCropShortcut: "\u5168\u57DF\u88C1\u5207\u5FEB\u6377\u9375\uFF1ACtrl+Shift+5\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4FEE\u6539\u3002",
+  globalCropShortcut: "\u5168\u57DF\u88C1\u5207\u5FEB\u6377\u9375\uFF1ACtrl+Shift+7\uFF0CMac \u70BA Cmd+Shift+7\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4FEE\u6539\u3002",
   screenChangeSummary: "\u5206\u4EAB\u7684\u87A2\u5E55\u6709\u6240\u8B8A\u5316\uFF0C\u4EE5\u4E0B\u662F\u7C21\u77ED\u6458\u8981\u3002",
   capturePermission: "\u8ACB\u5728\u9019\u500B\u9801\u9762\u6309 Glimpselet \u5DE5\u5177\u5217\u5716\u793A\uFF0C\u518D\u8A66\u4E00\u6B21\u64F7\u53D6\u3002",
   shiftCrop: "\u6309\u4F4F Shift \u88C1\u5207",
@@ -14038,7 +14038,7 @@ var zh_CN_default = {
   parallelSession: "\u5E76\u884C\u7EE7\u7EED\u4F1A\u8BDD",
   channelSetup: "\u5982\u9700\u542F\u7528\u5B9E\u65F6\u6D88\u606F\uFF0C\u8BF7\u7528\u6B64\u547D\u4EE4\u91CD\u542F Claude Code\uFF1Aclaude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet\uFF0C\u7136\u540E\u8FD0\u884C /glimpse\u3002",
   replayTour: "\u91CD\u653E\u5F15\u5BFC",
-  globalCropShortcut: "\u5168\u5C40\u88C1\u526A\u5FEB\u6377\u952E\uFF1ACtrl+Shift+5\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4E2D\u4FEE\u6539\u3002",
+  globalCropShortcut: "\u5168\u5C40\u88C1\u526A\u5FEB\u6377\u952E\uFF1ACtrl+Shift+7\uFF0CMac \u4E3A Cmd+Shift+7\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4E2D\u4FEE\u6539\u3002",
   screenChangeSummary: "\u5171\u4EAB\u5C4F\u5E55\u53D1\u751F\u4E86\u53D8\u5316\uFF0C\u4EE5\u4E0B\u662F\u7B80\u77ED\u6458\u8981\u3002",
   capturePermission: "\u8BF7\u5728\u8FD9\u4E2A\u9875\u9762\u70B9\u51FB Glimpselet \u5DE5\u5177\u680F\u56FE\u6807\uFF0C\u518D\u8BD5\u4E00\u6B21\u622A\u56FE\u3002",
   shiftCrop: "\u6309\u4F4F Shift \u88C1\u526A",
@@ -14053,7 +14053,7 @@ var zh_CN_default = {
   allowAllSites: "\u5141\u8BB8\u5728\u6240\u6709\u7F51\u7AD9\u4F7F\u7528",
   siteAccessHint: "\u5141\u8BB8\u5728\u65B0\u6807\u7B7E\u9875\u4F7F\u7528\u7F51\u9875\u6458\u8981\u4E0E\u6587\u5B57\u9009\u62E9\u5DE5\u5177\u3002",
   siteAccessGranted: "\u5DF2\u5141\u8BB8\u8BBF\u95EE\u7F51\u9875\u3002",
-  sessionInitialization: "\u8FD9\u6BB5\u5BF9\u8BDD\u5728\u5F00\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8BF7\u9009\u62E9\u201C\u65B0\u5EFA\u4F1A\u8BDD\u201D\u518D\u8BD5\u4E00\u6B21\u3002"
+  sessionInitialization: '\u8FD9\u6BB5\u5BF9\u8BDD\u5728\u5F00\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8BF7\u9009\u62E9"\u65B0\u5EFA\u4F1A\u8BDD"\u518D\u8BD5\u4E00\u6B21\u3002'
 };
 
 // extension/locales/ja.json
@@ -14199,7 +14199,7 @@ var ja_default = {
   parallelSession: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u4E26\u884C\u3057\u3066\u7D9A\u884C",
   channelSetup: "\u30E9\u30A4\u30D6\u30E1\u30C3\u30BB\u30FC\u30B8\u3092\u6709\u52B9\u306B\u3059\u308B\u306B\u306F\u3001\u6B21\u306E\u30B3\u30DE\u30F3\u30C9\u3067 Claude Code \u3092\u518D\u8D77\u52D5\u3057\u3066\u304B\u3089 /glimpse \u3092\u5B9F\u884C\u3057\u307E\u3059\uFF1Aclaude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet",
   replayTour: "\u30C4\u30A2\u30FC\u3092\u3082\u3046\u4E00\u5EA6\u898B\u308B",
-  globalCropShortcut: "\u5168\u4F53\u306E\u5207\u308A\u629C\u304D\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\uFF1ACtrl+Shift+5\u3002chrome://extensions/shortcuts \u3067\u5909\u66F4\u3067\u304D\u307E\u3059\u3002",
+  globalCropShortcut: "\u5168\u4F53\u306E\u5207\u308A\u629C\u304D\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\uFF1ACtrl+Shift+7\uFF08Mac \u306F Cmd+Shift+7\uFF09\u3002chrome://extensions/shortcuts \u3067\u5909\u66F4\u3067\u304D\u307E\u3059\u3002",
   screenChangeSummary: "\u5171\u6709\u753B\u9762\u304C\u5909\u308F\u308A\u307E\u3057\u305F\u3002\u7C21\u5358\u306A\u6982\u8981\u3092\u8868\u793A\u3057\u307E\u3059\u3002",
   capturePermission: "\u3053\u306E\u30DA\u30FC\u30B8\u3067 Glimpselet \u306E\u30C4\u30FC\u30EB\u30D0\u30FC\u30A2\u30A4\u30B3\u30F3\u3092\u62BC\u3057\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6\u64AE\u5F71\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   shiftCrop: "Shift \u30AD\u30FC\u3092\u62BC\u3057\u305F\u307E\u307E\u5207\u308A\u629C\u304F",
@@ -14360,7 +14360,7 @@ var ko_default = {
   parallelSession: "\uC138\uC158\uC744 \uBCD1\uB82C\uB85C \uC774\uC5B4\uAC00\uAE30",
   channelSetup: "\uC2E4\uC2DC\uAC04 \uBA54\uC2DC\uC9C0\uB97C \uC0AC\uC6A9\uD558\uB824\uBA74 \uB2E4\uC74C \uBA85\uB839\uC73C\uB85C Claude Code\uB97C \uB2E4\uC2DC \uC2DC\uC791\uD55C \uB4A4 /glimpse\uB97C \uC2E4\uD589\uD558\uC138\uC694: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet",
   replayTour: "\uB458\uB7EC\uBCF4\uAE30 \uB2E4\uC2DC \uBCF4\uAE30",
-  globalCropShortcut: "\uC804\uC5ED \uC790\uB974\uAE30 \uB2E8\uCD95\uD0A4: Ctrl+Shift+5. chrome://extensions/shortcuts\uC5D0\uC11C \uBCC0\uACBD\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+  globalCropShortcut: "\uC804\uC5ED \uC790\uB974\uAE30 \uB2E8\uCD95\uD0A4: Ctrl+Shift+7(Mac\uC740 Cmd+Shift+7). chrome://extensions/shortcuts\uC5D0\uC11C \uBCC0\uACBD\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   screenChangeSummary: "\uACF5\uC720 \uD654\uBA74\uC774 \uBC14\uB00C\uC5C8\uC2B5\uB2C8\uB2E4. \uAC04\uB2E8\uD788 \uC694\uC57D\uD569\uB2C8\uB2E4.",
   capturePermission: "\uC774 \uD398\uC774\uC9C0\uC5D0\uC11C Glimpselet \uB3C4\uAD6C \uBAA8\uC74C \uC544\uC774\uCF58\uC744 \uB204\uB978 \uB4A4 \uB2E4\uC2DC \uCEA1\uCC98\uD558\uC138\uC694.",
   shiftCrop: "Shift\uB97C \uB204\uB978 \uCC44 \uC790\uB974\uAE30",
@@ -14521,7 +14521,7 @@ var es_default = {
   parallelSession: "Continuar la sesi\xF3n en paralelo",
   channelSetup: "Para habilitar mensajes en vivo, reinicia Claude Code con: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet y luego ejecuta /glimpse.",
   replayTour: "Repetir el recorrido",
-  globalCropShortcut: "Atajo global para recortar: Ctrl+Shift+5. Puedes cambiarlo en chrome://extensions/shortcuts.",
+  globalCropShortcut: "Atajo global para recortar: Ctrl+Shift+7 (Cmd+Shift+7 en Mac). Puedes cambiarlo en chrome://extensions/shortcuts.",
   screenChangeSummary: "La pantalla compartida cambi\xF3. Aqu\xED tienes un breve resumen.",
   capturePermission: "Pulsa el icono de Glimpselet en la barra de herramientas en esta p\xE1gina y vuelve a capturar.",
   shiftCrop: "Mant\xE9n Shift para recortar",
@@ -14682,7 +14682,7 @@ var fr_default = {
   parallelSession: "Continuer la session en parall\xE8le",
   channelSetup: "Pour activer les messages en direct, red\xE9marrez Claude Code avec : claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet, puis lancez /glimpse.",
   replayTour: "Revoir la visite guid\xE9e",
-  globalCropShortcut: "Raccourci global de recadrage : Ctrl+Maj+5. Modifiez-le dans chrome://extensions/shortcuts.",
+  globalCropShortcut: "Raccourci global de recadrage : Ctrl+Maj+7 (Cmd+Maj+7 sur Mac). Modifiez-le dans chrome://extensions/shortcuts.",
   screenChangeSummary: "L'\xE9cran partag\xE9 a chang\xE9. Voici un bref r\xE9sum\xE9.",
   capturePermission: "Cliquez sur l'ic\xF4ne Glimpselet dans la barre d'outils sur cette page, puis r\xE9essayez la capture.",
   shiftCrop: "Maintenez Maj pour recadrer",
@@ -14843,7 +14843,7 @@ var de_default = {
   parallelSession: "Sitzung parallel fortsetzen",
   channelSetup: "F\xFCr Live-Nachrichten starte Claude Code mit diesem Befehl neu und f\xFChre danach /glimpse aus: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet",
   replayTour: "Einf\xFChrung erneut ansehen",
-  globalCropShortcut: "Globaler Zuschnitt: Strg+Umschalt+5. \xC4ndere ihn unter chrome://extensions/shortcuts.",
+  globalCropShortcut: "Globaler Zuschnitt: Strg+Umschalt+7 (Cmd+Umschalt+7 auf dem Mac). \xC4ndere ihn unter chrome://extensions/shortcuts.",
   screenChangeSummary: "Der freigegebene Bildschirm hat sich ge\xE4ndert. Hier ist eine kurze Zusammenfassung.",
   capturePermission: "Klicke auf dieser Seite auf das Glimpselet Symbol in der Symbolleiste und versuche die Aufnahme erneut.",
   shiftCrop: "Halte Umschalt gedr\xFCckt, um zuzuschneiden",
@@ -14858,7 +14858,7 @@ var de_default = {
   allowAllSites: "Auf allen Websites erlauben",
   siteAccessHint: "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
   siteAccessGranted: "Seitenzugriff erlaubt.",
-  sessionInitialization: "Dieses Gespr\xE4ch wurde vor dem Start abgebrochen. W\xE4hlen Sie \u201ENeue Sitzung\u201C und versuchen Sie es erneut."
+  sessionInitialization: 'Dieses Gespr\xE4ch wurde vor dem Start abgebrochen. W\xE4hlen Sie "Neue Sitzung" und versuchen Sie es erneut.'
 };
 
 // extension/locales/pt-BR.json
@@ -15004,7 +15004,7 @@ var pt_BR_default = {
   parallelSession: "Continuar a sess\xE3o em paralelo",
   channelSetup: "Para ativar mensagens em tempo real, reinicie o Claude Code com: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet e depois execute /glimpse.",
   replayTour: "Rever o passo a passo",
-  globalCropShortcut: "Atalho global de recorte: Ctrl+Shift+5. Altere em chrome://extensions/shortcuts.",
+  globalCropShortcut: "Atalho global de recorte: Ctrl+Shift+7 (Cmd+Shift+7 no Mac). Altere em chrome://extensions/shortcuts.",
   screenChangeSummary: "A tela compartilhada mudou. Veja um breve resumo.",
   capturePermission: "Clique no \xEDcone do Glimpselet na barra de ferramentas nesta p\xE1gina e tente capturar novamente.",
   shiftCrop: "Mantenha Shift pressionado para recortar",

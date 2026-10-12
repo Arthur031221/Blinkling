@@ -140,7 +140,7 @@
   "parallelSession": "Sitzung parallel fortsetzen",
   "channelSetup": "Für Live-Nachrichten starte Claude Code mit diesem Befehl neu und führe danach /glimpse aus: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet",
   "replayTour": "Einführung erneut ansehen",
-  "globalCropShortcut": "Globaler Zuschnitt: Strg+Umschalt+5. Ändere ihn unter chrome://extensions/shortcuts.",
+  "globalCropShortcut": "Globaler Zuschnitt: Strg+Umschalt+7 (Cmd+Umschalt+7 auf dem Mac). Ändere ihn unter chrome://extensions/shortcuts.",
   "screenChangeSummary": "Der freigegebene Bildschirm hat sich geändert. Hier ist eine kurze Zusammenfassung.",
   "capturePermission": "Klicke auf dieser Seite auf das Glimpselet Symbol in der Symbolleiste und versuche die Aufnahme erneut.",
   "shiftCrop": "Halte Umschalt gedrückt, um zuzuschneiden",
@@ -155,5 +155,5 @@
   "allowAllSites": "Auf allen Websites erlauben",
   "siteAccessHint": "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
   "siteAccessGranted": "Seitenzugriff erlaubt.",
-  "sessionInitialization": "Dieses Gespräch wurde vor dem Start abgebrochen. Wählen Sie „Neue Sitzung“ und versuchen Sie es erneut."
+  "sessionInitialization": "Dieses Gespräch wurde vor dem Start abgebrochen. Wählen Sie \"Neue Sitzung\" und versuchen Sie es erneut."
 }

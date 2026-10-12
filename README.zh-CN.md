@@ -30,7 +30,7 @@ Glimpselet 是一个始终显示在其他窗口上方的小型聊天窗口，可
 
 在浮动气泡或可访问的网页上按住 Shift，即可开始裁剪。Shift 无法监听其他应用中的按键。网页区域直接在当前页面上框选。分享屏幕时，画面会冻结并以全屏显示供你裁剪。按 Enter 确认，按 Esc 取消。
 
-浏览器裁剪快捷键是 Ctrl+Shift+S，Mac 为 Cmd+Shift+S，可在浏览器中启动裁剪。全局快捷键默认为 Ctrl+Shift+5，因为 Chrome 的全局快捷键必须包含数字键。你可以在 `chrome://extensions/shortcuts` 修改，也可以改为 S。
+浏览器裁剪快捷键是 Ctrl+Shift+S，Mac 为 Cmd+Shift+S，可在浏览器中启动裁剪。全局快捷键默认为 Ctrl+Shift+7，因为 Chrome 的全局快捷键必须包含数字键。你可以在 `chrome://extensions/shortcuts` 修改，也可以改为 S。
 
 ## Claude Code 会话
 

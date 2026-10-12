@@ -140,7 +140,7 @@
   "parallelSession": "Continuer la session en parallèle",
   "channelSetup": "Pour activer les messages en direct, redémarrez Claude Code avec : claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet, puis lancez /glimpse.",
   "replayTour": "Revoir la visite guidée",
-  "globalCropShortcut": "Raccourci global de recadrage : Ctrl+Maj+5. Modifiez-le dans chrome://extensions/shortcuts.",
+  "globalCropShortcut": "Raccourci global de recadrage : Ctrl+Maj+7 (Cmd+Maj+7 sur Mac). Modifiez-le dans chrome://extensions/shortcuts.",
   "screenChangeSummary": "L'écran partagé a changé. Voici un bref résumé.",
   "capturePermission": "Cliquez sur l'icône Glimpselet dans la barre d'outils sur cette page, puis réessayez la capture.",
   "shiftCrop": "Maintenez Maj pour recadrer",

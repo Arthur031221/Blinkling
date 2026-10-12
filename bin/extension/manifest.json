@@ -60,8 +60,8 @@
     },
     "crop-global": {
       "suggested_key": {
-        "default": "Ctrl+Shift+5",
-        "mac": "Command+Shift+5"
+        "default": "Ctrl+Shift+7",
+        "mac": "Command+Shift+7"
       },
       "description": "Crop from any app. Remap in browser shortcut settings.",
       "global": true

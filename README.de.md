@@ -30,7 +30,7 @@ Führe `/glimpse` aus und folge der Einrichtungsanleitung. Sie ist die maßgebli
 
 Halte Umschalt in der schwebenden Blase oder auf einer zugänglichen Webseite gedrückt, um einen Bereich auszuwählen. Umschalt funktioniert nicht in anderen Apps. Auf Webseiten erfolgt die Auswahl direkt über der Seite. Bei der Bildschirmfreigabe wird das Bild eingefroren und zum Zuschneiden im Vollbild geöffnet. Enter bestätigt, Esc bricht ab.
 
-Das Browser-Kürzel ist Ctrl+Shift+S (auf dem Mac Cmd+Shift+S). Es startet den Zuschnitt im Browser. Das separate globale Kürzel ist standardmäßig Strg+Umschalt+5, da Chrome für globale Kürzel eine Zahl verlangt. Du kannst es unter `chrome://extensions/shortcuts` ändern, auch auf S.
+Das Browser-Kürzel ist Ctrl+Shift+S (auf dem Mac Cmd+Shift+S). Es startet den Zuschnitt im Browser. Das separate globale Kürzel ist standardmäßig Strg+Umschalt+7, da Chrome für globale Kürzel eine Zahl verlangt. Du kannst es unter `chrome://extensions/shortcuts` ändern, auch auf S.
 
 ## Claude-Code-Sitzungen
 

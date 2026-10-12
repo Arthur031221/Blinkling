@@ -140,7 +140,7 @@
   "parallelSession": "セッションを並行して続行",
   "channelSetup": "ライブメッセージを有効にするには、次のコマンドで Claude Code を再起動してから /glimpse を実行します：claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet",
   "replayTour": "ツアーをもう一度見る",
-  "globalCropShortcut": "全体の切り抜きショートカット：Ctrl+Shift+5。chrome://extensions/shortcuts で変更できます。",
+  "globalCropShortcut": "全体の切り抜きショートカット：Ctrl+Shift+7（Mac は Cmd+Shift+7）。chrome://extensions/shortcuts で変更できます。",
   "screenChangeSummary": "共有画面が変わりました。簡単な概要を表示します。",
   "capturePermission": "このページで Glimpselet のツールバーアイコンを押してから、もう一度撮影してください。",
   "shiftCrop": "Shift キーを押したまま切り抜く",

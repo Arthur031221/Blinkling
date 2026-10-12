@@ -30,7 +30,7 @@ Execute `/glimpse` e siga o guia de configuração. Ele é a referência para in
 
 Mantenha Shift pressionado na bolha flutuante ou em uma página acessível para iniciar um recorte. O Shift não detecta teclas em outros aplicativos. Em páginas web, a seleção é feita diretamente sobre a página atual. Durante o compartilhamento de tela, o quadro é congelado e aberto em tela cheia para o recorte. Pressione Enter para confirmar ou Esc para cancelar.
 
-O atalho do navegador é Ctrl+Shift+S (Cmd+Shift+S no Mac). Ele inicia o recorte no navegador. O atalho global padrão é Ctrl+Shift+5, pois o Chrome exige uma tecla numérica nos atalhos globais. Você pode alterá-lo, inclusive para S, em `chrome://extensions/shortcuts`.
+O atalho do navegador é Ctrl+Shift+S (Cmd+Shift+S no Mac). Ele inicia o recorte no navegador. O atalho global padrão é Ctrl+Shift+7, pois o Chrome exige uma tecla numérica nos atalhos globais. Você pode alterá-lo, inclusive para S, em `chrome://extensions/shortcuts`.
 
 ## Sessões do Claude Code
 

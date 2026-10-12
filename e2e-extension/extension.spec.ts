@@ -220,6 +220,19 @@ test.beforeEach(async () => {
   await expect(panel.locator(".suggestions button")).toHaveCount(3);
 });
 
+test("Chrome registers the global crop shortcut and Settings explains the Mac binding", async () => {
+  const commands = await worker.evaluate(() => chrome.commands.getAll());
+  expect(
+    commands.find((command) => command.name === "crop-global")?.shortcut,
+  ).toBe("Ctrl+Shift+7");
+  expect(
+    commands.find((command) => command.name === "crop-screen")?.shortcut,
+  ).toBe("Ctrl+Shift+S");
+  await panel.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(panel.locator(".dialog")).toContainText(en.globalCropShortcut);
+  await panel.getByRole("button", { name: en.close, exact: true }).click();
+});
+
 test("automatic questions exclude nested form choices while preserving safe labels", async () => {
   await context.route(origin + "/choice-privacy", async (route) => {
     await route.fulfill({

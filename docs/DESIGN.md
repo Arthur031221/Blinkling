@@ -18,7 +18,7 @@ Holding Shift for 200 ms enters crop mode unless focus is in an editable control
 
 The dedicated trial browser enables Chromium's experimental `ExcludePipFromScreenCapture` feature. Chromium currently disables it by default. Support depends on the browser build and capture source. This can omit the native PiP window from capture, but does not make it transparent on screen. A regular installed browser keeps its own settings. See the [Chromium feature declaration](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/media/capture/capture_switches.cc) and [capture exclusion implementation](https://chromium.googlesource.com/chromium/src/+/d6870cd14078040dc0cba81d9c9780577ff00a58).
 
-Chrome [commands](https://developer.chrome.com/docs/extensions/reference/api/commands) restrict default global shortcuts to Ctrl+Shift plus a digit. The browser crop command uses Ctrl+Shift+S, or Command+Shift+S on macOS. The global command defaults to Ctrl+Shift+5 and can be remapped at `chrome://extensions/shortcuts`. A page alone cannot hear Shift in another app.
+Chrome [commands](https://developer.chrome.com/docs/extensions/reference/api/commands) restrict default global shortcuts to Ctrl+Shift plus a digit. The browser crop command uses Ctrl+Shift+S, or Command+Shift+S on macOS. The global command defaults to Ctrl+Shift+7, or Command+Shift+7 on macOS, and can be remapped at `chrome://extensions/shortcuts`. The digit 7 avoids the [macOS Screenshot shortcuts](https://support.apple.com/en-au/102646), including Command+Shift+5. A page alone cannot hear Shift in another app.
 
 ## The running Claude Code conversation
 

@@ -31,7 +31,7 @@ Lancez `/glimpse` et suivez le guide de configuration. Ce guide fait référence
 
 Maintenez Maj dans la bulle flottante ou sur une page accessible pour démarrer un recadrage. Maj ne détecte pas les touches dans les autres applications. Sur une page web, la sélection se fait directement dessus. Pendant un partage d'écran, l'image est figée puis affichée en plein écran pour le recadrage. Appuyez sur Entrée pour confirmer ou Échap pour annuler.
 
-Le raccourci du navigateur est Ctrl+Shift+S (Cmd+Shift+S sur Mac). Il démarre le recadrage dans le navigateur. Le raccourci global est Ctrl+Maj+5 par défaut, car Chrome exige une touche numérique pour les raccourcis globaux. Vous pouvez le modifier, notamment pour utiliser S, dans `chrome://extensions/shortcuts`.
+Le raccourci du navigateur est Ctrl+Shift+S (Cmd+Shift+S sur Mac). Il démarre le recadrage dans le navigateur. Le raccourci global est Ctrl+Maj+7 par défaut, car Chrome exige une touche numérique pour les raccourcis globaux. Vous pouvez le modifier, notamment pour utiliser S, dans `chrome://extensions/shortcuts`.
 
 ## Sessions Claude Code
 

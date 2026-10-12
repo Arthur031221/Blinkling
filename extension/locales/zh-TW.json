@@ -140,7 +140,7 @@
   "parallelSession": "平行延續工作階段",
   "channelSetup": "若要啟用即時訊息，請以此指令重新啟動 Claude Code：claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet，然後執行 /glimpse。",
   "replayTour": "重播導覽",
-  "globalCropShortcut": "全域裁切快捷鍵：Ctrl+Shift+5。可在 chrome://extensions/shortcuts 修改。",
+  "globalCropShortcut": "全域裁切快捷鍵：Ctrl+Shift+7，Mac 為 Cmd+Shift+7。可在 chrome://extensions/shortcuts 修改。",
   "screenChangeSummary": "分享的螢幕有所變化，以下是簡短摘要。",
   "capturePermission": "請在這個頁面按 Glimpselet 工具列圖示，再試一次擷取。",
   "shiftCrop": "按住 Shift 裁切",

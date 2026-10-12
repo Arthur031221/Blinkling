@@ -35,7 +35,7 @@ To load the unpacked extension from a source checkout:
 
 Hold Shift in the floating bubble or on an accessible web page to start a crop. Shift works only in the bubble and accessible web pages. It cannot listen for a key press in other apps. A web-page selection draws over the live page. For a shared screen, the frame freezes before cropping. Press Enter to confirm or Esc to cancel.
 
-The browser crop shortcut is Ctrl+Shift+S, or Cmd+Shift+S on Mac. It starts crop mode in the browser. The separate global shortcut defaults to Ctrl+Shift+5 because Chrome requires a numeric key in global shortcuts. You can remap it at `chrome://extensions/shortcuts`, including to S.
+The browser crop shortcut is Ctrl+Shift+S, or Cmd+Shift+S on Mac. It starts crop mode in the browser. The separate global shortcut defaults to Ctrl+Shift+7 because Chrome requires a numeric key in global shortcuts. You can remap it at `chrome://extensions/shortcuts`, including to S.
 
 ## Claude Code sessions
 

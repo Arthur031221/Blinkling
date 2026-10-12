@@ -140,7 +140,7 @@
   "parallelSession": "Continue session in parallel",
   "channelSetup": "To enable live messages, restart Claude Code with: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet, then run /glimpse.",
   "replayTour": "Replay the tour",
-  "globalCropShortcut": "Global crop shortcut: Ctrl+Shift+5. Change it at chrome://extensions/shortcuts.",
+  "globalCropShortcut": "Global crop shortcut: Ctrl+Shift+7 (Cmd+Shift+7 on Mac). Change it at chrome://extensions/shortcuts.",
   "screenChangeSummary": "The shared screen changed. Here is a short summary.",
   "capturePermission": "Click the Glimpselet toolbar icon on this page, then try capture again.",
   "shiftCrop": "Hold Shift to crop",

@@ -31,7 +31,7 @@ Claude Code에 Glimpselet 플러그인을 설치합니다.
 
 플로팅 버블이나 접근 가능한 웹페이지에서 Shift를 누르면 영역 선택을 시작합니다. Shift는 다른 앱에서 키 입력을 감지할 수 없습니다. 웹페이지에서는 현재 페이지 위에 영역을 그립니다. 화면 공유 중에는 프레임을 고정하고 전체 화면으로 열어 자릅니다. Enter로 확정하고 Esc로 취소하세요.
 
-브라우저 자르기 단축키는 Ctrl+Shift+S(Mac은 Cmd+Shift+S)입니다. 전역 단축키 기본값은 Ctrl+Shift+5입니다. Chrome 전역 단축키에는 숫자 키가 필요합니다. `chrome://extensions/shortcuts`에서 변경할 수 있으며 S로 지정할 수도 있습니다.
+브라우저 자르기 단축키는 Ctrl+Shift+S(Mac은 Cmd+Shift+S)입니다. 전역 단축키 기본값은 Ctrl+Shift+7입니다. Chrome 전역 단축키에는 숫자 키가 필요합니다. `chrome://extensions/shortcuts`에서 변경할 수 있으며 S로 지정할 수도 있습니다.
 
 ## Claude Code 세션
 

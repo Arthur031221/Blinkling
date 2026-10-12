@@ -31,7 +31,7 @@ Claude Code に Glimpselet プラグインをインストールします。
 
 フローティングバブルまたはアクセス可能なウェブページ上で Shift を押し続けると、範囲選択が始まります。Shift キーは他のアプリでは検知できません。ウェブページでは表示中のページ上で選択します。画面共有中はフレームを静止させ、全画面で切り抜きます。Enter で確定、Esc でキャンセルします。
 
-ブラウザー内で切り抜きを始めるショートカットは Ctrl+Shift+S（Mac は Cmd+Shift+S）です。別のグローバルショートカットは Ctrl+Shift+5 が初期値です。Chrome のグローバルショートカットには数字キーが必要です。`chrome://extensions/shortcuts` で変更でき、S に割り当てることもできます。
+ブラウザー内で切り抜きを始めるショートカットは Ctrl+Shift+S（Mac は Cmd+Shift+S）です。別のグローバルショートカットは Ctrl+Shift+7 が初期値です。Chrome のグローバルショートカットには数字キーが必要です。`chrome://extensions/shortcuts` で変更でき、S に割り当てることもできます。
 
 ## Claude Code セッション
 

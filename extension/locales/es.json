@@ -140,7 +140,7 @@
   "parallelSession": "Continuar la sesión en paralelo",
   "channelSetup": "Para habilitar mensajes en vivo, reinicia Claude Code con: claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet y luego ejecuta /glimpse.",
   "replayTour": "Repetir el recorrido",
-  "globalCropShortcut": "Atajo global para recortar: Ctrl+Shift+5. Puedes cambiarlo en chrome://extensions/shortcuts.",
+  "globalCropShortcut": "Atajo global para recortar: Ctrl+Shift+7 (Cmd+Shift+7 en Mac). Puedes cambiarlo en chrome://extensions/shortcuts.",
   "screenChangeSummary": "La pantalla compartida cambió. Aquí tienes un breve resumen.",
   "capturePermission": "Pulsa el icono de Glimpselet en la barra de herramientas en esta página y vuelve a capturar.",
   "shiftCrop": "Mantén Shift para recortar",

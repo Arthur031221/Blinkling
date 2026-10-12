@@ -30,7 +30,7 @@ Ejecuta `/glimpse` y sigue la guía de configuración. Esa guía es la fuente de
 
 Mantén pulsada la tecla Shift en la burbuja flotante o en una página accesible para iniciar un recorte. Shift no puede detectar pulsaciones en otras aplicaciones. En una página web, selecciona la zona directamente sobre la página actual. Al compartir pantalla, se congela la imagen y se abre a pantalla completa para recortarla. Pulsa Enter para confirmar o Esc para cancelar.
 
-El atajo del navegador es Ctrl+Shift+S, o Cmd+Shift+S en Mac. Inicia el recorte desde el navegador. El atajo global independiente es Ctrl+Shift+5 de forma predeterminada, porque Chrome exige una tecla numérica para los atajos globales. Puedes cambiarlo, incluso a S, en `chrome://extensions/shortcuts`.
+El atajo del navegador es Ctrl+Shift+S, o Cmd+Shift+S en Mac. Inicia el recorte desde el navegador. El atajo global independiente es Ctrl+Shift+7 de forma predeterminada, porque Chrome exige una tecla numérica para los atajos globales. Puedes cambiarlo, incluso a S, en `chrome://extensions/shortcuts`.
 
 ## Sesiones de Claude Code
 
