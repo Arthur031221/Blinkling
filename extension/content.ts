@@ -2,6 +2,7 @@ import { selectCrop, type CropLabels } from "./crop-selection";
 import { listenForShiftCrop } from "./shift-crop";
 import {
   buildPageContext,
+  contextRangeText,
   contextTextNode,
   restorableTextNode,
   stableElementId,
@@ -315,16 +316,12 @@ if (!contentScope.glimpseletContentReady) {
   }
 
   function showSelectionPopover(): void {
-    const selection = getSelection();
-    const text = selection?.toString().trim();
-    if (!text || text.length > 5000 || !selection?.rangeCount) return;
-    if (
-      (selection.anchorNode && !contextTextNode(selection.anchorNode)) ||
-      (selection.focusNode && !contextTextNode(selection.focusNode))
-    )
-      return;
     closeSelectionPopover();
-    const range = selection.getRangeAt(0);
+    const selection = getSelection();
+    if (selection?.rangeCount !== 1) return;
+    const range = selection.getRangeAt(0).cloneRange();
+    const text = contextRangeText(range);
+    if (!text) return;
     const rect = range.getBoundingClientRect();
     const pop = document.createElement("div");
     pop.className = "popover";
@@ -336,14 +333,26 @@ if (!contentScope.glimpseletContentReady) {
     ] as const) {
       const button = document.createElement("button");
       button.textContent = label;
+      button.onmousedown = (event) => event.preventDefault();
       button.onclick = () => {
+        closeSelectionPopover();
+        const current = getSelection();
+        if (current?.rangeCount !== 1) return;
+        const currentRange = current.getRangeAt(0);
+        if (
+          currentRange.startContainer !== range.startContainer ||
+          currentRange.startOffset !== range.startOffset ||
+          currentRange.endContainer !== range.endContainer ||
+          currentRange.endOffset !== range.endOffset
+        )
+          return;
+        if (contextRangeText(range) !== text) return;
         send({
           type: "glimpselet:selection",
           text,
           url: location.href,
           action,
         });
-        closeSelectionPopover();
       };
       pop.append(button);
     }
@@ -353,6 +362,7 @@ if (!contentScope.glimpseletContentReady) {
   }
 
   function onSelectionChange(): void {
+    closeSelectionPopover();
     window.setTimeout(showSelectionPopover, 40);
   }
 

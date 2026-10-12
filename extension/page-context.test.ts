@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   buildPageContext,
   contextTextNode,
+  contextRangeText,
   stableElementId,
   textForElement,
 } from "./page-context";
@@ -9,6 +10,96 @@ import {
 describe("bounded page context", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
+  });
+
+  it.each([
+    "data-private",
+    "data-sensitive",
+    "contenteditable",
+    'contenteditable="plaintext-only"',
+    "hidden",
+    'aria-hidden="true"',
+    'style="display:none"',
+    'role="option"',
+    'role="combobox"',
+  ])(
+    "rejects selected text crossing %s between public endpoints",
+    (attribute) => {
+      document.body.innerHTML = `<p>Public start.</p><div ${attribute}>PRIVATE_VALUE</div><p>Public end.</p>`;
+      const paragraphs = document.querySelectorAll("p");
+      const range = document.createRange();
+      range.setStart(paragraphs[0].firstChild!, 0);
+      range.setEnd(paragraphs[1].firstChild!, 11);
+      expect(contextRangeText(range)).toBe("");
+    },
+  );
+
+  it("accepts element boundaries, public whitespace and partial text without including an adjacent private node", () => {
+    document.body.innerHTML =
+      "<p>Public <b>start.</b> </p> <p>Public end.</p><div data-private>PRIVATE_VALUE</div>";
+    const range = document.createRange();
+    range.setStart(document.body, 0);
+    range.setEnd(document.body, 3);
+    expect(contextRangeText(range)).toBe("Public start.  Public end.");
+    range.setStart(document.querySelector("p")!.firstChild!, 0);
+    range.setEnd(document.querySelector("b")!.firstChild!, 5);
+    expect(contextRangeText(range)).toBe("Public start");
+  });
+
+  it("rechecks privacy, disconnection and the selection length after a popover opens", () => {
+    document.body.innerHTML = "<p>Public start.</p>";
+    const paragraph = document.querySelector("p")!;
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    expect(contextRangeText(range)).toBe("Public start.");
+    paragraph.setAttribute("data-private", "");
+    expect(contextRangeText(range)).toBe("");
+    paragraph.removeAttribute("data-private");
+    paragraph.firstChild!.nodeValue = "a".repeat(5001);
+    range.selectNodeContents(paragraph);
+    expect(contextRangeText(range)).toBe("");
+    paragraph.remove();
+    expect(contextRangeText(range)).toBe("");
+  });
+
+  it.each(["data-private", "contenteditable", "hidden"])(
+    "rejects a shadow selection whose host is %s",
+    (attribute) => {
+      document.body.innerHTML = `<div ${attribute}></div>`;
+      const shadow = document
+        .querySelector("div")!
+        .attachShadow({ mode: "open" });
+      shadow.innerHTML = "<p>PRIVATE_SHADOW_TEXT</p>";
+      const range = document.createRange();
+      range.selectNodeContents(shadow.querySelector("p")!);
+      expect(contextRangeText(range)).toBe("");
+    },
+  );
+
+  it("rejects public text assigned to a private slot", () => {
+    document.body.innerHTML = "<div><p>PRIVATE_SLOTTED_TEXT</p></div>";
+    const shadow = document
+      .querySelector("div")!
+      .attachShadow({ mode: "open" });
+    shadow.innerHTML = "<section data-private><slot></slot></section>";
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector("p")!);
+    expect(contextRangeText(range)).toBe("");
+  });
+
+  it("rejects descendants of ignored SVG ancestors", () => {
+    document.body.innerHTML =
+      "<p>Public start.</p><svg><text><tspan>SVG_TEXT</tspan></text></svg><p>Public end.</p>";
+    const range = document.createRange();
+    range.selectNodeContents(document.body);
+    expect(contextRangeText(range)).toBe("");
+  });
+
+  it("accepts a public range rooted at the document", () => {
+    document.body.innerHTML = "<p>Public text.</p>";
+    const range = document.createRange();
+    range.selectNodeContents(document);
+    expect(contextRangeText(range)).toBe("Public text.");
   });
 
   it("maps headings and controls with stable document-relative ids and rectangles", () => {

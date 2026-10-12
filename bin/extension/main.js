@@ -12333,6 +12333,45 @@ function listenForShiftCrop(view, allowed, start) {
   };
 }
 
+// extension/attachment.ts
+var supportedTypes = /* @__PURE__ */ new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif"
+]);
+async function attachmentToPng(file) {
+  if (!supportedTypes.has(file.type)) throw new Error("image_format");
+  if (file.size > 2e7) throw new Error("image_limit");
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error("image_decode");
+  }
+  try {
+    if (!bitmap.width || !bitmap.height || bitmap.width * bitmap.height > 9e7)
+      throw new Error("image_limit");
+    const canvas = document.createElement("canvas");
+    let scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+    while (true) {
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("image_decode");
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const image = canvas.toDataURL("image/png");
+      if (image.startsWith("data:image/png;base64,") && image.length <= 5e6)
+        return image;
+      if (canvas.width === 1 && canvas.height === 1)
+        throw new Error("image_limit");
+      scale /= 2;
+    }
+  } finally {
+    bitmap.close();
+  }
+}
+
 // extension/main.tsx
 var import_react = __toESM(require_react(), 1);
 var import_client = __toESM(require_client(), 1);
@@ -13586,6 +13625,9 @@ var en_default = {
   askCapture: "What would you like to know?",
   askShort: "What would you like to know?",
   attach: "Attach image",
+  imageFormat: "Choose a PNG, JPEG, WebP or GIF image.",
+  imageLimit: "This image is too large. Choose a smaller image.",
+  imageDecode: "Could not read this image. Try another file.",
   back: "Previous step",
   backend: "AI provider",
   blinkAnswer: "Answer",
@@ -13747,6 +13789,9 @@ var zh_TW_default = {
   askCapture: "\u60F3\u4E86\u89E3\u4EC0\u9EBC\uFF1F",
   askShort: "\u60F3\u4E86\u89E3\u4EC0\u9EBC\uFF1F",
   attach: "\u9644\u52A0\u5716\u7247",
+  imageFormat: "\u8ACB\u9078\u64C7 PNG\u3001JPEG\u3001WebP \u6216 GIF \u5716\u7247\u3002",
+  imageLimit: "\u9019\u5F35\u5716\u7247\u592A\u5927\uFF0C\u8ACB\u9078\u64C7\u8F03\u5C0F\u7684\u5716\u7247\u3002",
+  imageDecode: "\u7121\u6CD5\u8B80\u53D6\u9019\u5F35\u5716\u7247\uFF0C\u8ACB\u8A66\u8A66\u5176\u4ED6\u6A94\u6848\u3002",
   back: "\u4E0A\u4E00\u6B65",
   backend: "AI \u670D\u52D9\u4F86\u6E90",
   blinkAnswer: "\u56DE\u7B54",
@@ -13908,6 +13953,9 @@ var zh_CN_default = {
   askCapture: "\u4F60\u60F3\u4E86\u89E3\u4EC0\u4E48\uFF1F",
   askShort: "\u4F60\u60F3\u4E86\u89E3\u4EC0\u4E48\uFF1F",
   attach: "\u9644\u52A0\u56FE\u7247",
+  imageFormat: "\u8BF7\u9009\u62E9 PNG\u3001JPEG\u3001WebP \u6216 GIF \u56FE\u7247\u3002",
+  imageLimit: "\u8FD9\u5F20\u56FE\u7247\u592A\u5927\uFF0C\u8BF7\u9009\u62E9\u8F83\u5C0F\u7684\u56FE\u7247\u3002",
+  imageDecode: "\u65E0\u6CD5\u8BFB\u53D6\u8FD9\u5F20\u56FE\u7247\uFF0C\u8BF7\u8BD5\u8BD5\u5176\u4ED6\u6587\u4EF6\u3002",
   back: "\u4E0A\u4E00\u6B65",
   backend: "AI \u670D\u52A1\u6765\u6E90",
   blinkAnswer: "\u56DE\u7B54",
@@ -14069,6 +14117,9 @@ var ja_default = {
   askCapture: "\u4F55\u3092\u77E5\u308A\u305F\u3044\u3067\u3059\u304B\uFF1F",
   askShort: "\u4F55\u3092\u77E5\u308A\u305F\u3044\u3067\u3059\u304B\uFF1F",
   attach: "\u753B\u50CF\u3092\u6DFB\u4ED8",
+  imageFormat: "PNG\u3001JPEG\u3001WebP\u3001GIF \u306E\u753B\u50CF\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
+  imageLimit: "\u753B\u50CF\u304C\u5927\u304D\u3059\u304E\u307E\u3059\u3002\u5C0F\u3055\u3044\u753B\u50CF\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
+  imageDecode: "\u753B\u50CF\u3092\u8AAD\u307F\u8FBC\u3081\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u5225\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u8A66\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   back: "\u524D\u306E\u624B\u9806",
   backend: "AI \u63A5\u7D9A\u5148",
   blinkAnswer: "\u56DE\u7B54",
@@ -14230,6 +14281,9 @@ var ko_default = {
   askCapture: "\uBB34\uC5C7\uC744 \uC54C\uACE0 \uC2F6\uB098\uC694?",
   askShort: "\uBB34\uC5C7\uC744 \uC54C\uACE0 \uC2F6\uB098\uC694?",
   attach: "\uC774\uBBF8\uC9C0 \uCCA8\uBD80",
+  imageFormat: "PNG, JPEG, WebP \uB610\uB294 GIF \uC774\uBBF8\uC9C0\uB97C \uC120\uD0DD\uD558\uC138\uC694.",
+  imageLimit: "\uC774\uBBF8\uC9C0\uAC00 \uB108\uBB34 \uD07D\uB2C8\uB2E4. \uB354 \uC791\uC740 \uC774\uBBF8\uC9C0\uB97C \uC120\uD0DD\uD558\uC138\uC694.",
+  imageDecode: "\uC774\uBBF8\uC9C0\uB97C \uC77D\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uB2E4\uB978 \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
   back: "\uC774\uC804 \uB2E8\uACC4",
   backend: "AI \uC5F0\uACB0 \uBC29\uC2DD",
   blinkAnswer: "\uB2F5\uBCC0",
@@ -14391,6 +14445,9 @@ var es_default = {
   askCapture: "\xBFQu\xE9 quieres saber?",
   askShort: "\xBFQu\xE9 quieres saber?",
   attach: "Adjuntar imagen",
+  imageFormat: "Elige una imagen PNG, JPEG, WebP o GIF.",
+  imageLimit: "Esta imagen es demasiado grande. Elige una m\xE1s peque\xF1a.",
+  imageDecode: "No se pudo leer la imagen. Prueba con otro archivo.",
   back: "Paso anterior",
   backend: "Servicio de IA",
   blinkAnswer: "Respuesta",
@@ -14552,6 +14609,9 @@ var fr_default = {
   askCapture: "Que voulez-vous savoir ?",
   askShort: "Que voulez-vous savoir ?",
   attach: "Joindre une image",
+  imageFormat: "Choisissez une image PNG, JPEG, WebP ou GIF.",
+  imageLimit: "Cette image est trop grande. Choisissez une image plus petite.",
+  imageDecode: "Impossible de lire cette image. Essayez un autre fichier.",
   back: "\xC9tape pr\xE9c\xE9dente",
   backend: "Service d'IA",
   blinkAnswer: "R\xE9ponse",
@@ -14713,6 +14773,9 @@ var de_default = {
   askCapture: "Was m\xF6chtest du wissen?",
   askShort: "Was m\xF6chtest du wissen?",
   attach: "Bild anh\xE4ngen",
+  imageFormat: "W\xE4hle ein Bild im Format PNG, JPEG, WebP oder GIF.",
+  imageLimit: "Dieses Bild ist zu gro\xDF. W\xE4hle ein kleineres Bild.",
+  imageDecode: "Dieses Bild konnte nicht gelesen werden. Versuche eine andere Datei.",
   back: "Vorheriger Schritt",
   backend: "KI-Dienst",
   blinkAnswer: "Antwort",
@@ -14874,6 +14937,9 @@ var pt_BR_default = {
   askCapture: "O que voc\xEA quer saber?",
   askShort: "O que voc\xEA quer saber?",
   attach: "Anexar imagem",
+  imageFormat: "Escolha uma imagem PNG, JPEG, WebP ou GIF.",
+  imageLimit: "Esta imagem \xE9 muito grande. Escolha uma imagem menor.",
+  imageDecode: "N\xE3o foi poss\xEDvel ler esta imagem. Tente outro arquivo.",
   back: "Etapa anterior",
   backend: "Servi\xE7o de IA",
   blinkAnswer: "Resposta",
@@ -15088,7 +15154,10 @@ function errorLabel(error, t) {
     no_active_tab: "noActiveTab",
     question_limit: "questionLimit",
     answer_timeout: "timeout",
-    cancelled: "stopped"
+    cancelled: "stopped",
+    image_format: "imageFormat",
+    image_limit: "imageLimit",
+    image_decode: "imageDecode"
   };
   return t[keys[code] || "genericError"] || t.genericError;
 }
@@ -15112,7 +15181,12 @@ function App() {
   const [activeId, setActiveId] = (0, import_react.useState)("");
   const [busy, setBusy] = (0, import_react.useState)(false);
   const [status, setStatus] = (0, import_react.useState)("");
-  const [capture, setCapture] = (0, import_react.useState)(null);
+  const attachmentGeneration = (0, import_react.useRef)(0);
+  const [capture, updateCapture] = (0, import_react.useState)(null);
+  const setCapture = (0, import_react.useCallback)((value) => {
+    attachmentGeneration.current++;
+    updateCapture(value);
+  }, []);
   const [page, setPage] = (0, import_react.useState)();
   const [suggestions, setSuggestions] = (0, import_react.useState)([]);
   const [passive, setPassive] = (0, import_react.useState)(false);
@@ -16415,10 +16489,16 @@ ${JSON.stringify(nodes)}`;
     }
   }
   async function attachImage(file) {
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => setCapture({ image: String(reader.result), label: file.name });
-    reader.readAsDataURL(file);
+    if (!file) return;
+    const generation = ++attachmentGeneration.current;
+    try {
+      const image = await attachmentToPng(file);
+      if (generation === attachmentGeneration.current)
+        setCapture({ image, label: file.name });
+    } catch (error) {
+      if (generation === attachmentGeneration.current)
+        setStatus(errorLabel(error, t));
+    }
   }
   if (!consentChecked)
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("main", { className: "loading", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "mark", children: "g" }) });
@@ -16607,12 +16687,19 @@ ${JSON.stringify(nodes)}`;
                 {
                   ref: fileInput,
                   type: "file",
-                  accept: "image/*",
+                  accept: "image/png,image/jpeg,image/webp,image/gif",
                   hidden: true,
                   onChange: (e) => void attachImage(e.target.files?.[0])
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => fileInput.current?.click(), children: t.attach })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  onClick: () => fileInput.current?.click(),
+                  title: t.imageFormat,
+                  children: t.attach
+                }
+              )
             ] }),
             capture && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "capture-chip", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: capture.image, alt: t.capturePreview }),

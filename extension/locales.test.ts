@@ -49,6 +49,9 @@ describe("extension locale bundles", () => {
       "crop_fullscreen_denied",
       "share_ended",
       "sessionInitialization",
+      "imageFormat",
+      "imageLimit",
+      "imageDecode",
     ])
       keys.add(key);
     const expected = [...keys].sort();

@@ -79,21 +79,21 @@ export function textForElement(element: Element, limit = 240): string {
 }
 
 function isExcluded(element: Element, includeHidden = false): boolean {
-  if (
-    element.closest(
-      "[data-glimpselet-overlay], [data-private], [data-sensitive]",
-    )
-  )
-    return true;
   for (
     let current: Element | null = element;
     current;
-    current = current.parentElement
+    current = composedParent(current)
   ) {
+    if (
+      current.matches(
+        "[data-glimpselet-overlay], [data-private], [data-sensitive]",
+      ) ||
+      ignoredTags.has(current.tagName.toUpperCase())
+    )
+      return true;
     const editable = current.getAttribute("contenteditable");
     if (editable !== null && editable.toLowerCase() !== "false") return true;
   }
-  if (ignoredTags.has(element.tagName)) return true;
   if (
     element.tagName === "OPTION" ||
     element.tagName === "OPTGROUP" ||
@@ -117,7 +117,7 @@ function visible(element: Element): boolean {
   for (
     let current: Element | null = element;
     current;
-    current = current.parentElement
+    current = composedParent(current)
   ) {
     const style = current.ownerDocument.defaultView?.getComputedStyle(current);
     if (
@@ -198,7 +198,7 @@ export function buildPageContext(doc: Document = document): PageContext {
 }
 
 export function contextTextNode(node: Node): boolean {
-  const parent = node.parentElement;
+  const parent = (node as Text).assignedSlot || node.parentElement;
   return !!(
     parent &&
     node.nodeValue?.trim() &&
@@ -207,8 +207,31 @@ export function contextTextNode(node: Node): boolean {
   );
 }
 
+export function contextRangeText(range: Range): string {
+  const root = range.commonAncestorContainer;
+  if (!root.isConnected) return "";
+  const text = range.toString().trim();
+  if (!text || text.length > 5000) return "";
+  const safe = (node: Node): boolean => {
+    if (!range.intersectsNode(node)) return true;
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end =
+      node === range.endContainer ? range.endOffset : node.nodeValue!.length;
+    return !node.nodeValue!.slice(start, end).trim() || contextTextNode(node);
+  };
+  if (root.nodeType === Node.TEXT_NODE) return safe(root) ? text : "";
+  const doc =
+    root.nodeType === Node.DOCUMENT_NODE
+      ? (root as Document)
+      : root.ownerDocument!;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  while ((node = walker.nextNode())) if (!safe(node)) return "";
+  return text;
+}
+
 export function restorableTextNode(node: Node): boolean {
-  const parent = node.parentElement;
+  const parent = (node as Text).assignedSlot || node.parentElement;
   return !!(
     parent &&
     !hasSensitiveAncestor(parent) &&
@@ -228,9 +251,20 @@ function isFormControl(element: Element): boolean {
 }
 
 function isChoiceContent(element: Element): boolean {
-  return !!element.closest(
-    'select *, textarea *, option, optgroup, [role="option"], [role="combobox"] *',
-  );
+  for (
+    let current: Element | null = element;
+    current;
+    current = composedParent(current)
+  ) {
+    if (
+      current.matches('option, optgroup, [role="option"]') ||
+      (current !== element && current.matches("select, textarea")) ||
+      (current !== element &&
+        current.getAttribute("role")?.toLowerCase() === "combobox")
+    )
+      return true;
+  }
+  return false;
 }
 
 function fieldLabel(element: Element, limit: number): string {
@@ -265,15 +299,24 @@ function textForLabel(label: HTMLLabelElement): string {
 }
 
 function hasSensitiveAncestor(element: Element): boolean {
-  if (element.closest(privateSelector)) return true;
   for (
     let current: Element | null = element;
     current;
-    current = current.parentElement
+    current = composedParent(current)
   ) {
+    if (current.matches(privateSelector)) return true;
     const label = current.getAttribute("aria-label")?.toLowerCase() || "";
     if (label.includes("password") || label.includes("credit card"))
       return true;
   }
   return false;
+}
+
+function composedParent(element: Element): Element | null {
+  return (
+    element.assignedSlot ||
+    element.parentElement ||
+    (element.getRootNode() as ShadowRoot).host ||
+    null
+  );
 }

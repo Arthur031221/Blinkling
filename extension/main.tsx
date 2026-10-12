@@ -1,5 +1,12 @@
 import { listenForShiftCrop } from "./shift-crop";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { attachmentToPng } from "./attachment";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 import {
@@ -128,6 +135,9 @@ function errorLabel(error: unknown, t: Record<string, string>): string {
     question_limit: "questionLimit",
     answer_timeout: "timeout",
     cancelled: "stopped",
+    image_format: "imageFormat",
+    image_limit: "imageLimit",
+    image_decode: "imageDecode",
   };
   return t[keys[code] || "genericError"] || t.genericError;
 }
@@ -151,10 +161,15 @@ function App() {
   const [activeId, setActiveId] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
-  const [capture, setCapture] = useState<{
+  const attachmentGeneration = useRef(0);
+  const [capture, updateCapture] = useState<{
     image: string;
     label: string;
   } | null>(null);
+  const setCapture = useCallback((value: typeof capture) => {
+    attachmentGeneration.current++;
+    updateCapture(value);
+  }, []);
   const [page, setPage] = useState<PageContext | undefined>();
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [passive, setPassive] = useState(false);
@@ -1686,11 +1701,16 @@ function App() {
     }
   }
   async function attachImage(file?: File) {
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () =>
-      setCapture({ image: String(reader.result), label: file.name });
-    reader.readAsDataURL(file);
+    if (!file) return;
+    const generation = ++attachmentGeneration.current;
+    try {
+      const image = await attachmentToPng(file);
+      if (generation === attachmentGeneration.current)
+        setCapture({ image, label: file.name });
+    } catch (error) {
+      if (generation === attachmentGeneration.current)
+        setStatus(errorLabel(error, t));
+    }
   }
 
   if (!consentChecked)
@@ -1898,11 +1918,14 @@ function App() {
               <input
                 ref={fileInput}
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp,image/gif"
                 hidden
                 onChange={(e) => void attachImage(e.target.files?.[0])}
               />
-              <button onClick={() => fileInput.current?.click()}>
+              <button
+                onClick={() => fileInput.current?.click()}
+                title={t.imageFormat}
+              >
                 {t.attach}
               </button>
             </div>

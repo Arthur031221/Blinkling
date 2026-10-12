@@ -220,6 +220,200 @@ test.beforeEach(async () => {
   await expect(panel.locator(".suggestions button")).toHaveCount(3);
 });
 
+test("selection excludes private content between public endpoints and closes stale actions", async () => {
+  await site.evaluate(() => {
+    document.body.innerHTML =
+      '<p id="start">Public introduction.</p><div data-private>PRIVATE_ACCOUNT_NUMBER_4831</div><div contenteditable>PRIVATE_UNSAVED_DRAFT</div><p id="end">Public conclusion.</p>';
+    const range = document.createRange();
+    range.setStart(document.querySelector("#start")!.firstChild!, 0);
+    range.setEnd(document.querySelector("#end")!.firstChild!, 18);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  await site.waitForTimeout(150);
+  await expect(site.locator("[data-glimpselet-overlay] .popover")).toHaveCount(
+    0,
+  );
+  expect(
+    providerRequests.some((request) =>
+      request.question.includes("PRIVATE_ACCOUNT_NUMBER_4831"),
+    ),
+  ).toBe(false);
+
+  await site.evaluate(() => {
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector("#start")!);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  const popover = site.locator("[data-glimpselet-overlay] .popover");
+  await expect(popover).toBeVisible();
+  await site.evaluate(() =>
+    document.querySelector("#start")!.setAttribute("data-private", ""),
+  );
+  await popover.getByRole("button", { name: en.explain, exact: true }).click();
+  await expect(popover).toHaveCount(0);
+  await site.waitForTimeout(150);
+  expect(
+    providerRequests.some((request) =>
+      request.question.startsWith("Explain this selected text:"),
+    ),
+  ).toBe(false);
+
+  for (const dispatch of [false, true]) {
+    await site.evaluate(() => {
+      document.querySelector("#start")!.removeAttribute("data-private");
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector("#start")!);
+      getSelection()!.removeAllRanges();
+      getSelection()!.addRange(range);
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    await expect(popover).toBeVisible();
+    await site.evaluate((dispatch) => {
+      const oldButton = document
+        .querySelector("[data-glimpselet-overlay]")!
+        .shadowRoot!.querySelector<HTMLButtonElement>(".popover button")!;
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector("div[data-private]")!);
+      getSelection()!.removeAllRanges();
+      getSelection()!.addRange(range);
+      if (dispatch) document.dispatchEvent(new Event("selectionchange"));
+      oldButton.click();
+    }, dispatch);
+    await expect(popover).toHaveCount(0);
+    expect(
+      providerRequests.some((request) =>
+        request.question.startsWith("Explain this selected text:"),
+      ),
+    ).toBe(false);
+  }
+
+  await site.evaluate(() => {
+    document.querySelector("#start")!.removeAttribute("data-private");
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector("#start")!);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  await expect(popover).toBeVisible();
+  await popover.getByRole("button", { name: en.explain, exact: true }).click();
+  await expect
+    .poll(() =>
+      providerRequests.some((request) =>
+        request.question.includes(
+          "Explain this selected text: Public introduction.",
+        ),
+      ),
+    )
+    .toBe(true);
+});
+
+test("JPEG, WebP and GIF attachments reach the provider as PNG", async () => {
+  for (const mimeType of ["image/jpeg", "image/webp", "image/gif"]) {
+    const base64 =
+      mimeType === "image/gif"
+        ? "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+        : await site.evaluate((type) => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 2;
+            canvas.height = 2;
+            canvas.getContext("2d")!.fillRect(0, 0, 2, 2);
+            return canvas.toDataURL(type).split(",")[1];
+          }, mimeType);
+    const previous = providerRequests.filter(
+      (request) => request.question === en.explainCapture,
+    ).length;
+    await panel.locator('input[type="file"]').setInputFiles({
+      name: `attachment.${mimeType.split("/")[1]}`,
+      mimeType,
+      buffer: Buffer.from(base64, "base64"),
+    });
+    await expect(panel.locator(".capture-chip img")).toBeVisible();
+    await panel
+      .locator(".capture-chip")
+      .getByRole("button", { name: en.explain, exact: true })
+      .click();
+    await expect
+      .poll(
+        () =>
+          providerRequests.filter(
+            (request) => request.question === en.explainCapture,
+          ).length,
+      )
+      .toBe(previous + 1);
+    const request = providerRequests
+      .filter((request) => request.question === en.explainCapture)
+      .at(-1)!;
+    expect(request.image?.subarray(0, 8).toString("hex")).toBe(
+      "89504e470d0a1a0a",
+    );
+    await expect(panel.locator(".composer button.send")).toBeVisible();
+    await panel
+      .locator(".capture-chip")
+      .getByRole("button", { name: en.remove, exact: true })
+      .click();
+  }
+});
+
+test("a slow attachment cannot replace a newer image or restore a removed preview", async () => {
+  const image = await site.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 2;
+    canvas.height = 2;
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await panel.evaluate(() => {
+    const decode = window.createImageBitmap.bind(window);
+    const scope = window as Window & { releaseAttachment?: () => void };
+    window.createImageBitmap = (async (file: File) => {
+      if (file.name.startsWith("slow"))
+        await new Promise<void>(
+          (resolve) => (scope.releaseAttachment = resolve),
+        );
+      return decode(file);
+    }) as typeof createImageBitmap;
+  });
+  const input = panel.locator('input[type="file"]');
+  const file = (name: string) => ({
+    name,
+    mimeType: "image/png",
+    buffer: Buffer.from(image, "base64"),
+  });
+  for (const remove of [false, true]) {
+    await input.setInputFiles(file("slow.png"));
+    await expect
+      .poll(() =>
+        panel.evaluate(() =>
+          Boolean(
+            (window as Window & { releaseAttachment?: () => void })
+              .releaseAttachment,
+          ),
+        ),
+      )
+      .toBe(true);
+    await input.setInputFiles(file("newer.png"));
+    await expect(panel.locator(".capture-chip")).toContainText("newer.png");
+    if (remove)
+      await panel
+        .locator(".capture-chip")
+        .getByRole("button", { name: en.remove, exact: true })
+        .click();
+    await panel.evaluate(() => {
+      const scope = window as Window & { releaseAttachment?: () => void };
+      scope.releaseAttachment!();
+      delete scope.releaseAttachment;
+    });
+    await panel.waitForTimeout(150);
+    if (remove) await expect(panel.locator(".capture-chip")).toHaveCount(0);
+    else
+      await expect(panel.locator(".capture-chip")).toContainText("newer.png");
+  }
+});
+
 test("Chrome registers the global crop shortcut and Settings explains the Mac binding", async () => {
   const commands = await worker.evaluate(() => chrome.commands.getAll());
   expect(

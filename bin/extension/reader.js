@@ -26128,15 +26128,14 @@ function textForElement(element, limit = 240) {
   return text.slice(0, limit);
 }
 function isExcluded(element, includeHidden = false) {
-  if (element.closest(
-    "[data-glimpselet-overlay], [data-private], [data-sensitive]"
-  ))
-    return true;
-  for (let current = element; current; current = current.parentElement) {
+  for (let current = element; current; current = composedParent(current)) {
+    if (current.matches(
+      "[data-glimpselet-overlay], [data-private], [data-sensitive]"
+    ) || ignoredTags.has(current.tagName.toUpperCase()))
+      return true;
     const editable = current.getAttribute("contenteditable");
     if (editable !== null && editable.toLowerCase() !== "false") return true;
   }
-  if (ignoredTags.has(element.tagName)) return true;
   if (element.tagName === "OPTION" || element.tagName === "OPTGROUP" || element.getAttribute("role")?.toLowerCase() === "option")
     return true;
   if (element instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(element.type))
@@ -26144,7 +26143,7 @@ function isExcluded(element, includeHidden = false) {
   return !includeHidden && (element.getAttribute("aria-hidden") === "true" || element.hasAttribute("hidden")) || element.getAttribute("type") === "password";
 }
 function visible(element) {
-  for (let current = element; current; current = current.parentElement) {
+  for (let current = element; current; current = composedParent(current)) {
     const style = current.ownerDocument.defaultView?.getComputedStyle(current);
     if (!style || style.display === "none" || style.visibility === "hidden" || style.opacity === "0" || current.hasAttribute("hidden") || current.getAttribute("aria-hidden") === "true")
       return false;
@@ -26200,20 +26199,40 @@ function buildPageContext(doc = document) {
   };
 }
 function contextTextNode(node) {
-  const parent = node.parentElement;
+  const parent = node.assignedSlot || node.parentElement;
   return !!(parent && node.nodeValue?.trim() && restorableTextNode(node) && visible(parent));
 }
+function contextRangeText(range) {
+  const root = range.commonAncestorContainer;
+  if (!root.isConnected) return "";
+  const text = range.toString().trim();
+  if (!text || text.length > 5e3) return "";
+  const safe = (node2) => {
+    if (!range.intersectsNode(node2)) return true;
+    const start = node2 === range.startContainer ? range.startOffset : 0;
+    const end = node2 === range.endContainer ? range.endOffset : node2.nodeValue.length;
+    return !node2.nodeValue.slice(start, end).trim() || contextTextNode(node2);
+  };
+  if (root.nodeType === Node.TEXT_NODE) return safe(root) ? text : "";
+  const doc = root.nodeType === Node.DOCUMENT_NODE ? root : root.ownerDocument;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node;
+  while (node = walker.nextNode()) if (!safe(node)) return "";
+  return text;
+}
 function restorableTextNode(node) {
-  const parent = node.parentElement;
+  const parent = node.assignedSlot || node.parentElement;
   return !!(parent && !hasSensitiveAncestor(parent) && !isExcluded(parent, true) && !isChoiceContent(parent) && !isFormControl(parent) && parent.getAttribute("role")?.toLowerCase() !== "combobox");
 }
 function isFormControl(element) {
   return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
 }
 function isChoiceContent(element) {
-  return !!element.closest(
-    'select *, textarea *, option, optgroup, [role="option"], [role="combobox"] *'
-  );
+  for (let current = element; current; current = composedParent(current)) {
+    if (current.matches('option, optgroup, [role="option"]') || current !== element && current.matches("select, textarea") || current !== element && current.getAttribute("role")?.toLowerCase() === "combobox")
+      return true;
+  }
+  return false;
 }
 function fieldLabel(element, limit) {
   const explicit = element.getAttribute("aria-label") || element.getAttribute("title");
@@ -26237,13 +26256,16 @@ function textForLabel(label) {
   return pieces.join(" ").replace(/\s+/g, " ").trim();
 }
 function hasSensitiveAncestor(element) {
-  if (element.closest(privateSelector)) return true;
-  for (let current = element; current; current = current.parentElement) {
+  for (let current = element; current; current = composedParent(current)) {
+    if (current.matches(privateSelector)) return true;
     const label = current.getAttribute("aria-label")?.toLowerCase() || "";
     if (label.includes("password") || label.includes("credit card"))
       return true;
   }
   return false;
+}
+function composedParent(element) {
+  return element.assignedSlot || element.parentElement || element.getRootNode().host || null;
 }
 
 // extension/page-revision.ts
@@ -26451,13 +26473,12 @@ if (!contentScope.glimpseletContentReady) {
     selectionPopover?.remove();
     selectionPopover = void 0;
   }, showSelectionPopover = function() {
-    const selection = getSelection();
-    const text = selection?.toString().trim();
-    if (!text || text.length > 5e3 || !selection?.rangeCount) return;
-    if (selection.anchorNode && !contextTextNode(selection.anchorNode) || selection.focusNode && !contextTextNode(selection.focusNode))
-      return;
     closeSelectionPopover();
-    const range = selection.getRangeAt(0);
+    const selection = getSelection();
+    if (selection?.rangeCount !== 1) return;
+    const range = selection.getRangeAt(0).cloneRange();
+    const text = contextRangeText(range);
+    if (!text) return;
     const rect = range.getBoundingClientRect();
     const pop = document.createElement("div");
     pop.className = "popover";
@@ -26469,14 +26490,21 @@ if (!contentScope.glimpseletContentReady) {
     ]) {
       const button = document.createElement("button");
       button.textContent = label;
+      button.onmousedown = (event) => event.preventDefault();
       button.onclick = () => {
+        closeSelectionPopover();
+        const current = getSelection();
+        if (current?.rangeCount !== 1) return;
+        const currentRange = current.getRangeAt(0);
+        if (currentRange.startContainer !== range.startContainer || currentRange.startOffset !== range.startOffset || currentRange.endContainer !== range.endContainer || currentRange.endOffset !== range.endOffset)
+          return;
+        if (contextRangeText(range) !== text) return;
         send({
           type: "glimpselet:selection",
           text,
           url: location.href,
           action
         });
-        closeSelectionPopover();
       };
       pop.append(button);
     }
@@ -26484,6 +26512,7 @@ if (!contentScope.glimpseletContentReady) {
     pop.style.top = `${Math.max(8, rect.top - 45)}px`;
     ensureOverlay().append(pop);
   }, onSelectionChange = function() {
+    closeSelectionPopover();
     window.setTimeout(showSelectionPopover, 40);
   }, updateGuidePosition = function() {
     if (!guideFrame && currentGuide)
