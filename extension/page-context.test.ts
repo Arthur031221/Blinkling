@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildPageContext, stableElementId } from "./page-context";
+import {
+  buildPageContext,
+  contextTextNode,
+  stableElementId,
+  textForElement,
+} from "./page-context";
 
 describe("bounded page context", () => {
   beforeEach(() => {
@@ -30,11 +35,56 @@ describe("bounded page context", () => {
     expect(context.hasPassword).toBe(true);
   });
 
+  it("omits native and ARIA choice text while preserving field labels and article text", () => {
+    document.body.innerHTML =
+      '<p>Public article text</p><label for="region">Region</label><select id="region"><option>PRIVATE_NATIVE_OPTION_7X9</option></select><div role="combobox" aria-label="Delivery method"><div role="option">PRIVATE_ARIA_OPTION_4K2</div></div><button>Open menu</button>';
+    const context = buildPageContext(document);
+
+    expect(context.text).not.toMatch(
+      /PRIVATE_NATIVE_OPTION_7X9|PRIVATE_ARIA_OPTION_4K2/,
+    );
+    expect(
+      context.elements.map((element) => element.text).join(" "),
+    ).not.toMatch(/PRIVATE_NATIVE_OPTION_7X9|PRIVATE_ARIA_OPTION_4K2/);
+    expect(context.text).toContain("Public article text");
+    expect(context.elements.map((element) => element.text)).toContain("Region");
+    expect(context.elements.map((element) => element.text)).toContain(
+      "Delivery method",
+    );
+    expect(context.elements.map((element) => element.text)).toContain(
+      "Open menu",
+    );
+    expect(contextTextNode(document.querySelector("option")!.firstChild!)).toBe(
+      false,
+    );
+    expect(
+      contextTextNode(document.querySelector('[role="option"]')!.firstChild!),
+    ).toBe(false);
+  });
+
   it("caps element and text capture", () => {
     document.body.innerHTML = `${"<button>Item</button>".repeat(140)}<p>${"x".repeat(25_000)}</p>`;
     const context = buildPageContext(document);
     expect(context.elements).toHaveLength(120);
     expect(context.text.length).toBeLessThanOrEqual(24_000);
+  });
+
+  it("excludes nested choices, displayed selections and their accessibility labels", () => {
+    document.body.innerHTML =
+      '<p>Public article</p><label for="choice">Safe field label</label><select id="choice"><optgroup label="PRIVATE_GROUP"><option></option></optgroup></select><div role="option"><span>PRIVATE_NESTED</span><h2 aria-label="PRIVATE_HEADING_LABEL">PRIVATE_HEADING_TEXT</h2></div><div role="combobox" aria-label="Safe dropdown label">PRIVATE_SELECTION<span>PRIVATE_COMBO_CHILD</span></div><button>Safe action</button>';
+    const nested = document.createElement("span");
+    nested.textContent = "PRIVATE_NATIVE_NESTED";
+    document.querySelector("option")!.append(nested);
+    const context = buildPageContext(document);
+    expect(JSON.stringify(context)).not.toContain("PRIVATE_");
+    expect(context.text).toContain("Public article");
+    expect(context.elements.map((item) => item.text)).toEqual([
+      "Safe field label",
+      "Safe dropdown label",
+      "Safe action",
+    ]);
+    expect(textForElement(document.querySelector("h2")!)).toBe("");
+    expect(contextTextNode(nested.firstChild!)).toBe(false);
   });
 
   it("ignores hidden nodes and the extension overlay", () => {

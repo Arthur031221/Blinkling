@@ -139,7 +139,7 @@ describe("extension distribution and first-run guide", () => {
         'href="https://microsoftedge.microsoft.com/addons/detail/glimpselet/id"',
       );
       expect(guide).toContain("Advanced: load from source");
-      expect(guide).toContain("/stable/path");
+      expect(guide).toContain("dist-extension");
       expect(guide).toContain("Add to browser");
     } finally {
       if (previous === undefined) delete process.env.GLIMPSELET_BROWSER;

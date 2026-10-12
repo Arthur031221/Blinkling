@@ -14486,7 +14486,7 @@ var fr_default = {
   consent2: "Les images sont envoy\xE9es lorsque vous posez une question ou utilisez un outil de la page. Le mode passif envoie automatiquement des captures et des r\xE9sum\xE9s lorsqu'il est activ\xE9.",
   consent3: "Les images restent en m\xE9moire. Les cl\xE9s API et les jetons d'association restent dans le stockage de session du navigateur.",
   consentAccept: "Ouvrir le chat flottant.",
-  consentFoot: "Dans les param\xE8tres, choisissez votre fournisseur, g\xE9rez l\u2019acc\xE8s aux sites ou mettez les r\xE9sum\xE9s passifs en pause.",
+  consentFoot: "Dans les param\xE8tres, choisissez votre fournisseur, g\xE9rez l'acc\xE8s aux sites ou mettez les r\xE9sum\xE9s passifs en pause.",
   consentText: "Ouvrez une fen\xEAtre de chat flottante pour la page ou l'\xE9cran de votre choix. Vous pouvez lancer le partage d'\xE9cran depuis ses commandes.",
   consentTitle: "Posez une question sur ce que vous voyez.",
   continueSession: "Choisir une session",
@@ -16053,7 +16053,8 @@ Selected text (untrusted): ${selected}` : ""}`;
   }
   async function askNow(questionValue = question) {
     const q = questionValue.trim();
-    if (!q) return;
+    if (!q || !consented || busy || requestIdRef.current || translationController.current || readerAdmissionRef.current)
+      return;
     setQuestion("");
     await askWith({
       question: q,
@@ -16649,7 +16650,7 @@ ${JSON.stringify(nodes)}`;
                       value: question,
                       onChange: (e) => setQuestion(e.target.value),
                       onKeyDown: (e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           void askNow();
                         }

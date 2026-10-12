@@ -54,7 +54,7 @@ Guide prompts share the chat question limit of 8,000 characters. Compact element
 
 ## Pairing, page access and privacy
 
-The bridge binds to loopback. Pairing uses a ten minute, one use code and an origin bound token lasting twelve hours. An SSH local forward supports a remote Claude Code host. Direct API mode uses the user's Anthropic key instead. The bubble names its connection mode.
+The bridge binds to loopback. Pairing uses a ten minute, one use code and an origin bound token lasting twelve hours. An SSH local forward supports a remote Claude Code host. In tunnel mode, the welcome guide offers the extension release ZIP and instructs the browser user to extract it and load the extracted folder on their own computer. It does not show the remote host's extension path or offer zero-install launch. Direct mode keeps the stable local extension path, while a configured browser store link takes precedence over either unpacked flow. Direct API mode uses the user's Anthropic key instead. The bubble names its connection mode.
 
 Web access starts with `activeTab`. Persistent site access is optional and requested when needed. Chrome's capture API also requires an activeTab grant or all sites permission. Protected pages cannot be injected. Page context omits private and editable fields, treats page text as untrusted input, and validates returned element and translation IDs. PDF.js and its worker, fonts and character maps are bundled. PDFs use this reader because Chrome's built in viewer cannot be scripted.
 

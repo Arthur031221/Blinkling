@@ -34,7 +34,9 @@ The welcome tour opens the bundled article or PDF fixture in a separate local ta
 
 Build a clean release package with `npm run package:extension`. It creates `release/glimpselet-extension.zip` with extension files at the archive root. Inspect the unpacked build and test both Chromium browsers before uploading the same code package to each store. The submitted package must not include source maps, development credentials, or unrelated files.
 
-The listing assets in `assets/store/` include 1280×800 screenshots of the floating chat, guide, translation and crop, plus a 440×280 promotional tile. They show the real extension on the bundled practice page using a mock provider. Edge Add-ons can reuse them. `npm run package:stores` creates separate submission packages for both stores, including the listing, privacy policy and permission justifications. The account holder submits them.
+When the bridge reports tunnel mode, the welcome guide links to the versioned extension ZIP release and tells the browser user to extract it on the computer running Chrome, then load that extracted folder. It does not show the SSH host's local extension path. A configured store URL replaces both unpacked installation flows.
+
+The listing assets in `assets/store/` include 1280 by 800 screenshots of the floating chat, guide, translation and crop, plus a 440 by 280 promotional tile. They show the real extension on the bundled practice page using a mock provider. Edge Add-ons can reuse them. `npm run package:stores` creates separate submission packages for both stores, including the listing, privacy policy and permission justifications. The account holder submits them.
 
 ## Store rollout
 

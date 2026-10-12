@@ -1365,7 +1365,15 @@ function App() {
   }
   async function askNow(questionValue = question) {
     const q = questionValue.trim();
-    if (!q) return;
+    if (
+      !q ||
+      !consented ||
+      busy ||
+      requestIdRef.current ||
+      translationController.current ||
+      readerAdmissionRef.current
+    )
+      return;
     setQuestion("");
     await askWith({
       question: q,
@@ -2029,7 +2037,11 @@ function App() {
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (
+                    e.key === "Enter" &&
+                    !e.shiftKey &&
+                    !e.nativeEvent.isComposing
+                  ) {
                     e.preventDefault();
                     void askNow();
                   }

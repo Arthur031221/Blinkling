@@ -308,7 +308,10 @@
     return id;
   }
   function textForElement(element, limit = 240) {
-    if (isExcluded(element) || hasSensitiveAncestor(element)) return "";
+    if (isExcluded(element) || isChoiceContent(element) || hasSensitiveAncestor(element))
+      return "";
+    if (isFormControl(element) || element.getAttribute("role")?.toLowerCase() === "combobox")
+      return fieldLabel(element, limit);
     const walker = element.ownerDocument.createTreeWalker(
       element,
       NodeFilter.SHOW_TEXT
@@ -332,9 +335,9 @@
       if (editable !== null && editable.toLowerCase() !== "false") return true;
     }
     if (ignoredTags.has(element.tagName)) return true;
-    if (element instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(element.type))
+    if (element.tagName === "OPTION" || element.tagName === "OPTGROUP" || element.getAttribute("role")?.toLowerCase() === "option")
       return true;
-    if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)
+    if (element instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(element.type))
       return true;
     return element.getAttribute("aria-hidden") === "true" || element.hasAttribute("hidden") || element.getAttribute("type") === "password";
   }
@@ -357,7 +360,7 @@
       )
     )) {
       if (elements.length >= 120) break;
-      if (isExcluded(element) || hasSensitiveAncestor(element) || !visible(element))
+      if (isExcluded(element) || isChoiceContent(element) || hasSensitiveAncestor(element) || !visible(element))
         continue;
       const text = textForElement(element);
       if (!text && !/^input$/i.test(element.tagName)) continue;
@@ -379,9 +382,7 @@
     const walker = doc.createTreeWalker(scope2, NodeFilter.SHOW_TEXT);
     let node;
     while ((node = walker.nextNode()) && length < 24e3) {
-      const parent = node.parentElement;
-      if (!parent || isExcluded(parent) || !visible(parent) || hasSensitiveAncestor(parent))
-        continue;
+      if (!contextTextNode(node)) continue;
       const value = (node.nodeValue || "").replace(/\s+/g, " ").trim();
       if (!value) continue;
       const piece = value.slice(0, 24e3 - length);
@@ -400,8 +401,38 @@
     const parent = node.parentElement;
     if (!parent || !node.nodeValue?.trim() || hasSensitiveAncestor(parent) || parent.closest("[data-glimpselet-overlay]"))
       return false;
-    if (isExcluded(parent) || !visible(parent)) return false;
+    if (isExcluded(parent) || isChoiceContent(parent) || isFormControl(parent) || parent.getAttribute("role")?.toLowerCase() === "combobox" || !visible(parent))
+      return false;
     return true;
+  }
+  function isFormControl(element) {
+    return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
+  }
+  function isChoiceContent(element) {
+    return !!element.closest(
+      'select *, textarea *, option, optgroup, [role="option"], [role="combobox"] *'
+    );
+  }
+  function fieldLabel(element, limit) {
+    const explicit = element.getAttribute("aria-label") || element.getAttribute("title");
+    if (explicit) return explicit.replace(/\s+/g, " ").trim().slice(0, limit);
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+      const labels = Array.from(element.labels || []).map((label) => textForLabel(label)).filter(Boolean);
+      if (labels.length) return labels.join(" ").slice(0, limit);
+    }
+    return "";
+  }
+  function textForLabel(label) {
+    const walker = label.ownerDocument.createTreeWalker(
+      label,
+      NodeFilter.SHOW_TEXT
+    );
+    const pieces = [];
+    let node;
+    while (node = walker.nextNode()) {
+      if (contextTextNode(node)) pieces.push(node.nodeValue || "");
+    }
+    return pieces.join(" ").replace(/\s+/g, " ").trim();
   }
   function hasSensitiveAncestor(element) {
     if (element.closest(privateSelector)) return true;

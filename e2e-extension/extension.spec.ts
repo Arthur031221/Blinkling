@@ -190,6 +190,36 @@ test.beforeEach(async () => {
   await expect(panel.locator(".suggestions button")).toHaveCount(3);
 });
 
+test("automatic questions exclude nested form choices while preserving safe labels", async () => {
+  await context.route(origin + "/choice-privacy", async (route) => {
+    await route.fulfill({
+      contentType: "text/html; charset=utf-8",
+      body: '<title>Article</title><p>Public article text</p><label for="choice">Safe field label</label><select id="choice"><option>PRIVATE_NATIVE_CHOICE</option></select><div role="option"><span>PRIVATE_NESTED_CHOICE</span><h2 aria-label="PRIVATE_HEADING_LABEL">PRIVATE_HEADING_TEXT</h2></div><div role="combobox" aria-label="Safe dropdown label">PRIVATE_SELECTION</div><button>Safe action</button>',
+    });
+  });
+  await site.goto(origin + "/choice-privacy");
+  await expect
+    .poll(() =>
+      providerRequests.find(
+        (request) =>
+          request.question.startsWith("Give 3 to 5") &&
+          request.page?.url.endsWith("/choice-privacy"),
+      ),
+    )
+    .toBeTruthy();
+  const page = providerRequests.find((request) =>
+    request.page?.url.endsWith("/choice-privacy"),
+  )!.page!;
+  expect(JSON.stringify(page)).not.toContain("PRIVATE_");
+  expect(page.text).toContain("Public article text");
+  expect(page.elements.map((element) => element.text)).toContain(
+    "Safe field label",
+  );
+  expect(page.elements.map((element) => element.text)).toContain(
+    "Safe dropdown label",
+  );
+});
+
 for (const backend of ["bridge", "api"] as const) {
   test(`screenshot translation sends its captured pixels in ${backend} mode`, async () => {
     const apiCalls: Array<{
@@ -540,6 +570,11 @@ test("Stop keeps a page refresh queued until provider cleanup finishes", async (
     await panel.getByRole("button", { name: en.settings }).click();
     await expect(panel.locator(".dialog select").first()).toBeDisabled();
     await panel.getByRole("button", { name: en.close, exact: true }).click();
+    await panel.locator(".composer textarea").fill("Keep this unsent draft.");
+    await panel.locator(".composer textarea").press("Enter");
+    await expect(panel.locator(".composer textarea")).toHaveValue(
+      "Keep this unsent draft.",
+    );
     const next = await context.newPage();
     await next.goto(origin + "/after-stop");
     await next.bringToFront();
@@ -697,6 +732,11 @@ test("direct API Stop waits for stream cleanup before refreshing the page", asyn
     await panel.getByRole("button", { name: en.settings }).click();
     await expect(panel.locator(".dialog select").first()).toBeDisabled();
     await panel.getByRole("button", { name: en.close, exact: true }).click();
+    await panel.locator(".composer textarea").fill("Keep this unsent draft.");
+    await panel.locator(".composer textarea").press("Enter");
+    await expect(panel.locator(".composer textarea")).toHaveValue(
+      "Keep this unsent draft.",
+    );
     const next = await context.newPage();
     await next.goto(origin + "/after-api-stop");
     await next.bringToFront();
@@ -731,6 +771,18 @@ test("direct API Stop waits for stream cleanup before refreshing the page", asyn
       ).apiStopControl?.release(),
     );
   }
+});
+
+test("composing Enter keeps a draft without sending it", async () => {
+  const requestCount = providerRequests.length;
+  const composer = panel.locator(".composer textarea");
+  await composer.fill("這是尚未輸入完的問題");
+  await composer.dispatchEvent("keydown", {
+    key: "Enter",
+    isComposing: true,
+  });
+  await expect(composer).toHaveValue("這是尚未輸入完的問題");
+  expect(providerRequests).toHaveLength(requestCount);
 });
 
 test.afterEach(async () => {
@@ -798,6 +850,47 @@ test("welcome page auto-pairs an existing install tab and completes its real gui
   await expect(welcome.locator(".progress")).toHaveAttribute(
     "aria-valuenow",
     "1",
+  );
+});
+
+test("remote welcome installs on the browser computer in both languages", async () => {
+  const tunnel = "ssh -N -L 37115:127.0.0.1:37115 levi@linux-host";
+  await context.route(origin + "/install/status?*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        connected: false,
+        mode: "tunnel",
+        tunnelCommand: tunnel,
+      }),
+    });
+  });
+  const welcome = await context.newPage();
+  await welcome.goto(`${origin}/install#code=${bridge.issueCode()}`);
+  await expect(welcome.locator("#install-remote")).toBeVisible();
+  await expect(welcome.locator("#install-local")).toBeHidden();
+  await expect(welcome.locator("#try-zero")).toBeHidden();
+  await expect(welcome.locator("#mode")).toContainText("another computer");
+  await expect(welcome.locator("#tunnel-command")).toHaveValue(tunnel);
+  await expect(
+    welcome.getByRole("link", { name: "Download extension ZIP" }),
+  ).toHaveAttribute(
+    "href",
+    "https://github.com/Arthur031221/Glimpselet/releases/download/v2.0.0/glimpselet-extension.zip",
+  );
+  await expect(welcome.locator("#install-remote")).toContainText(
+    "Extract it on this computer",
+  );
+  expect(await welcome.locator("body").innerText()).not.toContain(
+    "/tmp/glimpselet-extension-e2e",
+  );
+  await welcome.getByRole("button", { name: "切換為繁體中文" }).click();
+  await expect(welcome.locator("#mode")).toContainText("另一台電腦");
+  await expect(
+    welcome.getByRole("link", { name: "下載擴充功能 ZIP" }),
+  ).toBeVisible();
+  expect(await welcome.locator("body").innerText()).not.toContain(
+    "/tmp/glimpselet-extension-e2e",
   );
 });
 

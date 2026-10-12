@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { once } from "node:events";
@@ -11,7 +19,6 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import WebSocket from "ws";
 
-const bundle = resolve("bin/glimpselet.cjs");
 const extensionOrigin = `chrome-extension://${"a".repeat(32)}`;
 const image = () => {
   const png = new PNG({ width: 3, height: 2 });
@@ -53,6 +60,17 @@ test(
   { timeout: 20_000 },
   async (t) => {
     const cwd = await mkdtemp(join(tmpdir(), "glimpselet-outside-"));
+    const host = join(cwd, "host");
+    const plugin = join(host, "plugin");
+    await cp(resolve("bin"), join(plugin, "bin"), { recursive: true });
+    await cp(resolve("package.json"), join(plugin, "package.json"));
+    await writeFile(
+      join(host, "package.json"),
+      JSON.stringify({ name: "unrelated-host", version: "99.99.99" }),
+    );
+    const version = JSON.parse(
+      await readFile(resolve("package.json"), "utf8"),
+    ).version;
     const fixturePath = join(cwd, "fixture.png");
     const png = Buffer.from(image(), "base64");
     await writeFile(fixturePath, png);
@@ -86,7 +104,7 @@ test(
     });
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: [bundle],
+      args: [join(plugin, "bin", "glimpselet.cjs")],
       cwd,
       env: {
         ...process.env,
@@ -134,7 +152,14 @@ test(
     const origin = new URL(panel).origin;
     const guide = await fetch(`${panel}/install`);
     assert.equal(guide.status, 200);
-    assert.match(await guide.text(), /Connect your browser/);
+    const guideText = await guide.text();
+    assert.match(guideText, /Connect your browser/);
+    assert.ok(
+      guideText.includes(
+        `/releases/download/v${version}/glimpselet-extension.zip`,
+      ),
+      "Install guide must use its own package version",
+    );
 
     const invalidExchange = await fetch(`${panel}/api/session`, {
       method: "POST",
