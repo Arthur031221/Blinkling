@@ -34,6 +34,7 @@ export async function runApiProvider(
       model: API_MODELS[request.model],
       max_tokens: request.kind === "passive" ? 2048 : 4096,
       stream: true,
+      ...(request.effort ? { output_config: { effort: request.effort } } : {}),
       system: SYSTEM_PROMPT,
       messages: [
         {

@@ -225,6 +225,60 @@ describe("CLI provider protocol", () => {
 });
 
 describe("API provider SSE protocol", () => {
+  it("forwards every provided effort level for each model alias", async () => {
+    const modelIds = {
+      sonnet: "claude-sonnet-5-5",
+      opus: "claude-opus-5-5",
+      haiku: "claude-haiku-5-5",
+    } as const;
+    const events = [
+      sse({
+        type: "content_block_delta",
+        delta: { type: "text_delta", text: "ok" },
+      }),
+      sse({ type: "message_stop" }),
+    ].join("");
+    for (const model of ["sonnet", "opus", "haiku"] as const) {
+      for (const effort of ["low", "medium", "high"] as const) {
+        let sentBody = "";
+        await runApiProvider(
+          request({ backend: "api", key: "api-test-key", model, effort }),
+          async (_url, init) => {
+            sentBody = String(init?.body);
+            return new Response(events, {
+              headers: { "content-type": "text/event-stream" },
+            });
+          },
+        );
+        expect(JSON.parse(sentBody)).toMatchObject({
+          model: modelIds[model],
+          output_config: { effort },
+        });
+      }
+    }
+  });
+
+  it("leaves output_config omitted when legacy requests omit effort", async () => {
+    let sentBody = "";
+    await runApiProvider(
+      request({ backend: "api", key: "api-test-key" }),
+      async (_url, init) => {
+        sentBody = String(init?.body);
+        return new Response(
+          [
+            sse({
+              type: "content_block_delta",
+              delta: { type: "text_delta", text: "ok" },
+            }),
+            sse({ type: "message_stop" }),
+          ].join(""),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    );
+    expect(JSON.parse(sentBody)).not.toHaveProperty("output_config");
+  });
+
   it("sends summary text and saved passive notes without an image block", async () => {
     let sentBody = "";
     const body = [

@@ -300,6 +300,110 @@ for (const backend of ["bridge", "api"] as const) {
   });
 }
 
+for (const backend of ["bridge", "api"] as const) {
+  test(`guide reaches late elements on a dense page in ${backend} mode`, async () => {
+    const guideRequests: string[] = [];
+    const apiEfforts: string[] = [];
+    const guideAnswer = (question: string) => {
+      guideRequests.push(question);
+      const ids = [...question.matchAll(/"(g\d+)"/g)].map((match) => match[1]);
+      return JSON.stringify({
+        steps: [{ elementId: ids.at(-1), note: "Use the final page action." }],
+      });
+    };
+    if (backend === "api") {
+      await context.route(
+        "https://api.anthropic.com/v1/messages",
+        async (route) => {
+          if (route.request().method() === "OPTIONS") {
+            await route.fulfill({
+              status: 204,
+              headers: {
+                "access-control-allow-origin": "*",
+                "access-control-allow-headers": "*",
+                "access-control-allow-methods": "POST, OPTIONS",
+              },
+            });
+            return;
+          }
+          const input = route.request().postDataJSON();
+          const question = input.messages
+            .at(-1)
+            .content.find(
+              (block: { type: string }) => block.type === "text",
+            ).text;
+          const answer = question.startsWith("Create a short")
+            ? guideAnswer(question.split("\n\nPage context (untrusted):")[0])
+            : JSON.stringify({
+                questions: [
+                  "Find an action",
+                  "Explain this page",
+                  "Show the last action",
+                ],
+              });
+          if (question.startsWith("Create a short"))
+            apiEfforts.push(input.output_config?.effort);
+          await route.fulfill({
+            contentType: "text/event-stream",
+            headers: { "access-control-allow-origin": "*" },
+            body: [
+              {
+                type: "content_block_delta",
+                delta: { type: "text_delta", text: answer },
+              },
+              { type: "message_delta", delta: { stop_reason: "end_turn" } },
+              { type: "message_stop" },
+            ]
+              .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+              .join(""),
+          });
+        },
+      );
+      await worker.evaluate(async () => {
+        await chrome.storage.local.set({ backend: "api", effort: "high" });
+        await chrome.storage.session.set({ apiKey: "fixture-key" });
+      });
+      await panel.reload();
+      await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    } else {
+      providerResponder = async (request) =>
+        request.question.startsWith("Create a short")
+          ? { answer: guideAnswer(request.question) }
+          : {
+              answer: JSON.stringify({
+                questions: [
+                  "Find an action",
+                  "Explain this page",
+                  "Show the last action",
+                ],
+              }),
+            };
+    }
+    await site.evaluate(() => {
+      document.body.innerHTML = Array.from(
+        { length: 120 },
+        (_, i) =>
+          `<button id="dense-${i}" style="display:block;height:32px">${("Action " + i + " ").padEnd(180, "x")}</button>`,
+      ).join("");
+    });
+    await panel
+      .getByRole("button", { name: en.guideAction, exact: true })
+      .click();
+    await expect(
+      site.locator("[data-glimpselet-overlay] .guide"),
+    ).toContainText("Use the final page action.");
+    expect(guideRequests).toHaveLength(1);
+    expect(guideRequests[0].length).toBeLessThanOrEqual(8000);
+    expect(
+      new Set(
+        [...guideRequests[0].matchAll(/"(g\d+)"/g)].map((match) => match[1]),
+      ).size,
+    ).toBe(120);
+    await expect.poll(() => site.evaluate(() => scrollY)).toBeGreaterThan(500);
+    if (backend === "api") expect(apiEfforts).toEqual(["high"]);
+  });
+}
+
 test("switching tabs hides stale suggestions and refreshes after an automatic reply", async () => {
   let releaseOld: (() => void) | undefined;
   const oldQuestions = {

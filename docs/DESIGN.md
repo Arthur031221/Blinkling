@@ -46,6 +46,12 @@ For local development with `--plugin-dir`, the plugin identity is `glimpselet@in
 
 Child continuations remove inherited parent session identity flags. These flags can disable transcript saving in a worker process, which would break follow ups. An explicitly selected or dedicated Glimpselet conversation keeps its own UUID.
 
+## API effort and guide budgets
+
+Both API paths send the selected effort through `output_config.effort`, as described in the [Messages API effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort). Requests that omit effort keep their existing provider default.
+
+Guide prompts share the chat question limit of 8,000 characters. Compact element tuples preserve all 120 stable IDs on normal pages. The builder measures serialized JSON, including escaped labels, and reduces label length to fit. If IDs and roles alone exceed the budget, it removes complete trailing entries. It never cuts a JSON record in half.
+
 ## Pairing, page access and privacy
 
 The bridge binds to loopback. Pairing uses a ten minute, one use code and an origin bound token lasting twelve hours. An SSH local forward supports a remote Claude Code host. Direct API mode uses the user's Anthropic key instead. The bubble names its connection mode.
