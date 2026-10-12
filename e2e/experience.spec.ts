@@ -607,6 +607,65 @@ test("a fresh bridge session restores popup geometry and saves manual resizing",
   await child.close();
 });
 
+test("a panel floated before session bootstrap saves resizing after the session arrives", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+    Object.defineProperty(window, "documentPictureInPicture", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  let releaseSession!: () => void;
+  const sessionGate = new Promise<void>((resolve) => {
+    releaseSession = resolve;
+  });
+  await page.route("**/api/session", async (route) => {
+    await sessionGate;
+    await route.fulfill({
+      json: {
+        session: "late-session",
+        expiresAt: Date.now() + 1800000,
+        floatingGeometry: { version: 1, dimensions: {} },
+      },
+    });
+  });
+  await page.route("**/api/history", (route) =>
+    route.fulfill({ json: { entries: [], expiresAfterMs: 600000 } }),
+  );
+  await page.route("**/api/floating-geometry", (route) =>
+    route.fulfill({ json: { ok: true, stored: true } }),
+  );
+  await page.goto("/#one-use-launch-token");
+  const opened = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Float panel", exact: true }).click();
+  const child = await opened;
+  await expect(child.locator("main.app")).toBeVisible();
+  releaseSession();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __glimpseletSession?: string })
+            .__glimpseletSession,
+      ),
+    )
+    .toBe("late-session");
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith("/api/floating-geometry"),
+    { timeout: 5000 },
+  );
+  await child.setViewportSize({ width: 505, height: 620 });
+  const request = await saved;
+  expect(request.headers().authorization).toBe("Bearer late-session");
+  expect(request.postDataJSON().geometry.dimensions.expanded.popup).toEqual({
+    width: 505,
+    height: 620,
+  });
+  await child.close();
+});
+
 test("popup reopening restores resized geometry and focuses the composer", async ({
   page,
 }) => {

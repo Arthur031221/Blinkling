@@ -41,6 +41,6 @@ export function safeMarkdown(source: string): string {
       "td",
     ],
     ALLOWED_ATTR: ["href", "title", "target", "rel"],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\/\/)/i,
+    ALLOWED_URI_REGEXP: /^(?:https?:\/\/|mailto:|\/\/)/i,
   });
 }

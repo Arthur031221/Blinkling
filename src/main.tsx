@@ -438,7 +438,7 @@ function App() {
       child.removeEventListener("resize", resize);
       child.removeEventListener("pagehide", close);
     };
-  }, [floatDoc]);
+  }, [floatDoc, session]);
   useEffect(() => {
     const windows = new Set([window, hostWindow]);
     const handlers = new Map<Window, (event: KeyboardEvent) => void>();

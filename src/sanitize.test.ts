@@ -43,6 +43,9 @@ describe("safe markdown", () => {
       "../settings",
       "#settings",
       "?backend=api",
+      "https:relative",
+      "http:/settings",
+      "http:relative",
     ]) {
       const container = document.createElement("div");
       container.innerHTML = safeMarkdown(`<a href="${href}">Settings</a>`);
