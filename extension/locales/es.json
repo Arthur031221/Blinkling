@@ -157,5 +157,6 @@
   "allowAllSites": "Permitir en todos los sitios",
   "siteAccessHint": "Permite resúmenes y herramientas de selección en pestañas nuevas.",
   "siteAccessGranted": "Acceso a la página permitido.",
-  "sessionInitialization": "Esta conversación se detuvo antes de comenzar. Elige «Nueva sesión» para volver a intentarlo."
+  "sessionInitialization": "Esta conversación se detuvo antes de comenzar. Elige «Nueva sesión» para volver a intentarlo.",
+  "translationIncomplete": "La traducción no se completó. Inténtalo de nuevo o selecciona un pasaje más corto."
 }

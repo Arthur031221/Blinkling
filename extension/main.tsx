@@ -139,6 +139,8 @@ function errorLabel(error: unknown, t: Record<string, string>): string {
     image_format: "imageFormat",
     image_limit: "imageLimit",
     image_decode: "imageDecode",
+    translation_incomplete: "translationIncomplete",
+    translation_empty: "translationIncomplete",
   };
   return t[keys[code] || "genericError"] || t.genericError;
 }
@@ -1580,8 +1582,20 @@ function App() {
         const result = (await chrome.tabs.sendMessage(translationTabId, {
           type: "glimpselet:text-nodes",
           cursor,
-        })) as { nodes?: unknown; nextCursor?: unknown };
+        })) as { nodes?: unknown; nextCursor?: unknown; error?: unknown };
+        if (result?.error === "translation_incomplete")
+          throw new Error("translation_incomplete");
         if (!Array.isArray(result?.nodes) || !result.nodes.length) break;
+        if (
+          result.nodes.some(
+            (node) =>
+              node &&
+              typeof node === "object" &&
+              typeof node.text === "string" &&
+              node.text.length > 3500,
+          )
+        )
+          throw new Error("translation_incomplete");
         collected.push(
           ...result.nodes.flatMap((raw) => {
             if (!raw || typeof raw !== "object") return [];
@@ -1639,17 +1653,19 @@ function App() {
                 )
               : requestUsage.costUsd;
         }
-        const parsed = parseTranslationNodes(answerText);
-        const allowed = new Set(nodes.map((node) => node.id));
-        const safe = parsed
-          .filter((node) => allowed.has(node.id))
-          .slice(0, nodes.length);
+        const safe = parseTranslationNodes(
+          answerText,
+          new Map(nodes.map((node) => [node.id, node.text])),
+        );
+        if (safe.length !== nodes.length)
+          throw new Error("translation_incomplete");
         const result = (await chrome.tabs.sendMessage(translationTabId, {
           type: "glimpselet:translate",
           nodes: safe,
         })) as { applied?: unknown };
-        applied +=
-          typeof result?.applied === "number" ? result.applied : safe.length;
+        const count = typeof result?.applied === "number" ? result.applied : 0;
+        applied += count;
+        if (count !== safe.length) throw new Error("translation_incomplete");
       };
       for (const node of collected) {
         const length = node.text.length + node.id.length + 32;

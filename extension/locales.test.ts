@@ -52,6 +52,7 @@ describe("extension locale bundles", () => {
       "imageFormat",
       "imageLimit",
       "imageDecode",
+      "translationIncomplete",
     ])
       keys.add(key);
     const expected = [...keys].sort();

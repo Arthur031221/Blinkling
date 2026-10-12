@@ -157,5 +157,6 @@
   "allowAllSites": "Auf allen Websites erlauben",
   "siteAccessHint": "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
   "siteAccessGranted": "Seitenzugriff erlaubt.",
-  "sessionInitialization": "Dieses Gespräch wurde vor dem Start abgebrochen. Wählen Sie \"Neue Sitzung\" und versuchen Sie es erneut."
+  "sessionInitialization": "Dieses Gespräch wurde vor dem Start abgebrochen. Wählen Sie \"Neue Sitzung\" und versuchen Sie es erneut.",
+  "translationIncomplete": "Die Übersetzung ist unvollständig. Versuche es erneut oder wähle einen kürzeren Abschnitt."
 }

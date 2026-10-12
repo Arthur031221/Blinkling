@@ -229,9 +229,64 @@ describe("extension bridge payloads", () => {
     expect(
       parseTranslationNodes(
         '{"nodes":[{"id":"n1","text":"Hola"},{"id":"n2","text":1}]}',
+        new Map([
+          ["n1", "Hello"],
+          ["n2", "Hi"],
+        ]),
       ),
     ).toEqual([{ id: "n1", text: "Hola" }]);
-    expect(parseTranslationNodes("bad json")).toEqual([]);
+    expect(parseTranslationNodes("bad json", new Map())).toEqual([]);
+  });
+
+  it("preserves completed translations beyond the source collection limit", () => {
+    const text = "Translated passage. ".repeat(220);
+    expect(text.length).toBeGreaterThan(3500);
+    expect(
+      parseTranslationNodes(
+        JSON.stringify({ nodes: [{ id: "n1", text }] }),
+        new Map([["n1", "Source text. ".repeat(180)]]),
+      ),
+    ).toEqual([{ id: "n1", text }]);
+  });
+
+  it("preserves the exact translated text boundary", () => {
+    const text = "x".repeat(12000);
+    expect(
+      parseTranslationNodes(
+        JSON.stringify({ nodes: [{ id: "n1", text }] }),
+        new Map([["n1", "s".repeat(1500)]]),
+      ),
+    ).toEqual([{ id: "n1", text }]);
+  });
+
+  it("rejects excessive translations instead of silently shortening them", () => {
+    expect(
+      parseTranslationNodes(
+        JSON.stringify({ nodes: [{ id: "n1", text: "x".repeat(12001) }] }),
+        new Map([["n1", "s".repeat(3500)]]),
+      ),
+    ).toEqual([]);
+    expect(
+      parseTranslationNodes(
+        JSON.stringify({ nodes: [{ id: "n1", text: "x".repeat(1001) }] }),
+        new Map([["n1", "short"]]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("uses the production validator for supplied ids and duplicate replies", () => {
+    expect(
+      parseTranslationNodes(
+        JSON.stringify({
+          nodes: [
+            { id: "other", text: "ignored" },
+            { id: "n1", text: "Complete" },
+            { id: "n1", text: "Duplicate" },
+          ],
+        }),
+        new Map([["n1", "Original"]]),
+      ),
+    ).toEqual([{ id: "n1", text: "Complete" }]);
   });
   it("estimates price from token usage and clamps invalid negative counts", () => {
     expect(estimateCost("sonnet", 1000, 1000)).toBeCloseTo(0.012);

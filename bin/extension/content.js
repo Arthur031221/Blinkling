@@ -1130,8 +1130,8 @@
             }
             const sourceText = original?.text ?? node.nodeValue;
             if (sourceText.length > 12e3) {
-              index++;
-              continue;
+              respond({ error: "translation_incomplete" });
+              return;
             }
             if (nodes.length >= 160 || size + sourceText.length > 24e3) {
               hasMore = true;

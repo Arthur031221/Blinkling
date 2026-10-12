@@ -734,8 +734,8 @@ if (!contentScope.glimpseletContentReady) {
           }
           const sourceText = original?.text ?? node.nodeValue!;
           if (sourceText.length > 12_000) {
-            index++;
-            continue;
+            respond({ error: "translation_incomplete" });
+            return;
           }
           if (nodes.length >= 160 || size + sourceText.length > 24_000) {
             hasMore = true;

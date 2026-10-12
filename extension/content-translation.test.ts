@@ -126,6 +126,16 @@ describe("content script translation freshness", () => {
     expect(text.nodeValue).toBe("$19.99");
   });
 
+  it("reports an oversized source instead of silently skipping it", async () => {
+    await setup();
+    const original = "Source passage. ".repeat(800);
+    text.nodeValue = original;
+    expect(send("glimpselet:text-nodes")).toEqual({
+      error: "translation_incomplete",
+    });
+    expect(text.nodeValue).toBe(original);
+  });
+
   it("recollects changed source content and retranslates from the refreshed original", async () => {
     const first = await setup();
     translate(first.id, "Precio original");

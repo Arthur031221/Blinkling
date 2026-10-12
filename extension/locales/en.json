@@ -157,5 +157,6 @@
   "allowAllSites": "Allow on all sites",
   "siteAccessHint": "Allow page summaries and selection tools on new tabs.",
   "siteAccessGranted": "Page access allowed.",
-  "sessionInitialization": "This conversation stopped before it could start. Choose New session to try again."
+  "sessionInitialization": "This conversation stopped before it could start. Choose New session to try again.",
+  "translationIncomplete": "The translation was incomplete. Try again or select a shorter passage."
 }

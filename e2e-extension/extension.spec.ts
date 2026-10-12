@@ -1969,6 +1969,154 @@ test("guide follows offscreen elements, translation restores and element selecti
   expect(width).toBeLessThan(350);
 });
 
+for (const backend of ["bridge", "api"] as const) {
+  for (const scenario of [
+    "expanded",
+    "oversized",
+    "partial",
+    "long source",
+    "very long source",
+  ] as const) {
+    test(`${backend} translation ${scenario} preserves complete text or restores originals`, async () => {
+      const source =
+        scenario === "very long source"
+          ? "Source passage. ".repeat(800)
+          : scenario === "long source"
+            ? "Source passage. ".repeat(260)
+            : "Translation source alpha. ".repeat(110);
+      const secondSource = "Translation source beta. ".repeat(110);
+      const expanded = "Complete translated passage. ".repeat(145);
+      expect(expanded.length).toBeGreaterThan(3500);
+      let translationRequests = 0;
+      const respondToTranslation = (question: string) => {
+        translationRequests++;
+        const prompt = question.split("\n\nPage context (untrusted):")[0];
+        const nodes = JSON.parse(prompt.split("\n").at(-1)!) as Array<{
+          id: string;
+          text: string;
+        }>;
+        return JSON.stringify({
+          nodes: nodes.flatMap((node) => {
+            if (
+              scenario === "partial" &&
+              node.text.startsWith("Translation source beta.")
+            )
+              return [];
+            const target = node.text.startsWith("Translation source alpha.");
+            return [
+              {
+                id: node.id,
+                text: target
+                  ? scenario === "oversized"
+                    ? "x".repeat(12001)
+                    : expanded
+                  : "Translated: " + node.text,
+              },
+            ];
+          }),
+        });
+      };
+      if (backend === "api") {
+        await context.route(
+          "https://api.anthropic.com/v1/messages",
+          async (route) => {
+            const headers = {
+              "access-control-allow-origin": "*",
+              "access-control-allow-headers": "*",
+              "access-control-allow-methods": "POST, OPTIONS",
+            };
+            if (route.request().method() === "OPTIONS") {
+              await route.fulfill({ status: 204, headers });
+              return;
+            }
+            const request = route.request().postDataJSON();
+            const question = request.messages
+              .at(-1)
+              .content.find(
+                (block: { type: string }) => block.type === "text",
+              ).text;
+            const answer = question.includes('Return JSON only: {"nodes"')
+              ? respondToTranslation(question)
+              : JSON.stringify({ questions: ["First?", "Second?", "Third?"] });
+            await route.fulfill({
+              contentType: "text/event-stream",
+              headers,
+              body: [
+                {
+                  type: "content_block_delta",
+                  delta: { type: "text_delta", text: answer },
+                },
+                { type: "message_stop" },
+              ]
+                .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+                .join(""),
+            });
+          },
+        );
+        await worker.evaluate(async () => {
+          await chrome.storage.local.set({ backend: "api" });
+          await chrome.storage.session.set({ apiKey: "fixture-key" });
+        });
+        await panel.reload();
+      } else {
+        const original = providerResponder;
+        providerResponder = async (request) =>
+          request.question.includes('Return JSON only: {"nodes"')
+            ? { answer: respondToTranslation(request.question) }
+            : original(request);
+      }
+      await site.locator("#foreign").evaluate(
+        (element, values) => {
+          element.textContent = values.source;
+          if (values.scenario === "partial") {
+            const second = document.createElement("p");
+            second.id = "translation-second";
+            second.textContent = values.secondSource;
+            element.after(second);
+          }
+        },
+        { source, secondSource, scenario },
+      );
+      await site.bringToFront();
+      await expect(panel.locator(".suggestions button")).toHaveCount(3);
+      const translate = panel.getByRole("button", {
+        name: en.translate,
+        exact: true,
+      });
+      await expect(translate).toBeEnabled();
+      await translate.click();
+      if (scenario === "expanded") {
+        await expect(site.locator("#foreign")).toHaveText(expanded);
+        await expect(panel.locator(".status")).toHaveText(
+          en.translationApplied,
+        );
+        await panel
+          .getByRole("button", { name: en.restore, exact: true })
+          .click();
+        await expect(site.locator("#foreign")).toHaveText(source);
+      } else {
+        await expect(panel.locator(".status")).toContainText(
+          scenario === "partial"
+            ? en.partialFailureRestore
+            : en.translationIncomplete,
+        );
+        await expect(site.locator("#foreign")).toHaveText(source);
+        if (scenario === "partial") {
+          expect(translationRequests).toBeGreaterThanOrEqual(2);
+          await expect(site.locator("#translation-second")).toHaveText(
+            secondSource,
+          );
+        }
+        if (scenario === "long source" || scenario === "very long source")
+          expect(translationRequests).toBe(0);
+        await expect(
+          panel.getByRole("button", { name: en.restore, exact: true }),
+        ).not.toBeVisible();
+      }
+    });
+  }
+}
+
 test("translation preserves dynamic site updates and invalidates delayed node responses", async () => {
   const send = async (message: Record<string, unknown>) =>
     worker.evaluate(

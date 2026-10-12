@@ -1,4 +1,5 @@
 import { MAX_PNG_LENGTH } from "./png";
+import { validateTranslationNodes } from "./page-tools";
 
 export type Model = "sonnet" | "opus" | "haiku";
 export type Effort = "low" | "medium" | "high";
@@ -124,19 +125,10 @@ export function parsePassiveAnswer(text: string): {
 
 export function parseTranslationNodes(
   text: string,
+  supplied: ReadonlyMap<string, string>,
 ): Array<{ id: string; text: string }> {
   try {
-    const value = parseJsonAnswer(text) as { nodes?: unknown };
-    if (!Array.isArray(value.nodes)) return [];
-    return value.nodes
-      .flatMap((raw) => {
-        if (!raw || typeof raw !== "object") return [];
-        const node = raw as Record<string, unknown>;
-        return typeof node.id === "string" && typeof node.text === "string"
-          ? [{ id: node.id, text: node.text.slice(0, 3500) }]
-          : [];
-      })
-      .slice(0, 160);
+    return validateTranslationNodes(parseJsonAnswer(text), supplied);
   } catch {
     return [];
   }

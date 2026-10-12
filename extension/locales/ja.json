@@ -157,5 +157,6 @@
   "allowAllSites": "すべてのサイトで許可",
   "siteAccessHint": "新しいタブでページの要約とテキスト選択ツールを使えるようにします。",
   "siteAccessGranted": "ページへのアクセスを許可しました。",
-  "sessionInitialization": "この会話は開始前に停止しました。「新しいセッション」を選んでもう一度お試しください。"
+  "sessionInitialization": "この会話は開始前に停止しました。「新しいセッション」を選んでもう一度お試しください。",
+  "translationIncomplete": "翻訳が完了しませんでした。再試行するか、短い文章を選択してください。"
 }

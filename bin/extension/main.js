@@ -12398,6 +12398,25 @@ var import_react = __toESM(require_react(), 1);
 var import_client = __toESM(require_client(), 1);
 var import_react_dom = __toESM(require_react_dom(), 1);
 
+// extension/page-tools.ts
+function validateTranslationNodes(value, supplied) {
+  if (!value || typeof value !== "object" || !Array.isArray(value.nodes))
+    return [];
+  const seen = /* @__PURE__ */ new Set();
+  const translated = [];
+  for (const item of value.nodes.slice(0, 160)) {
+    if (!item || typeof item !== "object") continue;
+    const node = item;
+    if (typeof node.id !== "string" || !supplied.has(node.id) || seen.has(node.id) || typeof node.text !== "string")
+      continue;
+    if (node.text.length > 12e3 || node.text.length > Math.max(1e3, supplied.get(node.id).length * 8))
+      continue;
+    seen.add(node.id);
+    translated.push({ id: node.id, text: node.text });
+  }
+  return translated;
+}
+
 // extension/api.ts
 var MAX_QUESTION = 8e3;
 var MAX_ANSWER = 4e4;
@@ -12455,15 +12474,9 @@ function parsePassiveAnswer(text) {
     return { what: "", points: [], questions: [] };
   }
 }
-function parseTranslationNodes(text) {
+function parseTranslationNodes(text, supplied) {
   try {
-    const value = parseJsonAnswer(text);
-    if (!Array.isArray(value.nodes)) return [];
-    return value.nodes.flatMap((raw) => {
-      if (!raw || typeof raw !== "object") return [];
-      const node = raw;
-      return typeof node.id === "string" && typeof node.text === "string" ? [{ id: node.id, text: node.text.slice(0, 3500) }] : [];
-    }).slice(0, 160);
+    return validateTranslationNodes(parseJsonAnswer(text), supplied);
   } catch {
     return [];
   }
@@ -13848,7 +13861,8 @@ var en_default = {
   allowAllSites: "Allow on all sites",
   siteAccessHint: "Allow page summaries and selection tools on new tabs.",
   siteAccessGranted: "Page access allowed.",
-  sessionInitialization: "This conversation stopped before it could start. Choose New session to try again."
+  sessionInitialization: "This conversation stopped before it could start. Choose New session to try again.",
+  translationIncomplete: "The translation was incomplete. Try again or select a shorter passage."
 };
 
 // extension/locales/zh-TW.json
@@ -14011,7 +14025,8 @@ var zh_TW_default = {
   allowAllSites: "\u5141\u8A31\u5728\u6240\u6709\u7DB2\u7AD9\u4F7F\u7528",
   siteAccessHint: "\u5141\u8A31\u5728\u65B0\u5206\u9801\u4F7F\u7528\u7DB2\u9801\u6458\u8981\u8207\u6587\u5B57\u9078\u53D6\u5DE5\u5177\u3002",
   siteAccessGranted: "\u5DF2\u5141\u8A31\u5B58\u53D6\u7DB2\u9801\u3002",
-  sessionInitialization: "\u9019\u6BB5\u5C0D\u8A71\u5728\u958B\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8ACB\u9078\u64C7\u300C\u65B0\u589E\u5DE5\u4F5C\u968E\u6BB5\u300D\u518D\u8A66\u4E00\u6B21\u3002"
+  sessionInitialization: "\u9019\u6BB5\u5C0D\u8A71\u5728\u958B\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8ACB\u9078\u64C7\u300C\u65B0\u589E\u5DE5\u4F5C\u968E\u6BB5\u300D\u518D\u8A66\u4E00\u6B21\u3002",
+  translationIncomplete: "\u7FFB\u8B6F\u672A\u5B8C\u6210\u3002\u8ACB\u91CD\u8A66\u6216\u9078\u53D6\u8F03\u77ED\u7684\u6BB5\u843D\u3002"
 };
 
 // extension/locales/zh-CN.json
@@ -14174,7 +14189,8 @@ var zh_CN_default = {
   allowAllSites: "\u5141\u8BB8\u5728\u6240\u6709\u7F51\u7AD9\u4F7F\u7528",
   siteAccessHint: "\u5141\u8BB8\u5728\u65B0\u6807\u7B7E\u9875\u4F7F\u7528\u7F51\u9875\u6458\u8981\u4E0E\u6587\u5B57\u9009\u62E9\u5DE5\u5177\u3002",
   siteAccessGranted: "\u5DF2\u5141\u8BB8\u8BBF\u95EE\u7F51\u9875\u3002",
-  sessionInitialization: '\u8FD9\u6BB5\u5BF9\u8BDD\u5728\u5F00\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8BF7\u9009\u62E9"\u65B0\u5EFA\u4F1A\u8BDD"\u518D\u8BD5\u4E00\u6B21\u3002'
+  sessionInitialization: '\u8FD9\u6BB5\u5BF9\u8BDD\u5728\u5F00\u59CB\u524D\u5C31\u505C\u6B62\u4E86\u3002\u8BF7\u9009\u62E9"\u65B0\u5EFA\u4F1A\u8BDD"\u518D\u8BD5\u4E00\u6B21\u3002',
+  translationIncomplete: "\u7FFB\u8BD1\u672A\u5B8C\u6210\u3002\u8BF7\u91CD\u8BD5\u6216\u9009\u62E9\u8F83\u77ED\u7684\u6BB5\u843D\u3002"
 };
 
 // extension/locales/ja.json
@@ -14337,7 +14353,8 @@ var ja_default = {
   allowAllSites: "\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3067\u8A31\u53EF",
   siteAccessHint: "\u65B0\u3057\u3044\u30BF\u30D6\u3067\u30DA\u30FC\u30B8\u306E\u8981\u7D04\u3068\u30C6\u30AD\u30B9\u30C8\u9078\u629E\u30C4\u30FC\u30EB\u3092\u4F7F\u3048\u308B\u3088\u3046\u306B\u3057\u307E\u3059\u3002",
   siteAccessGranted: "\u30DA\u30FC\u30B8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3057\u307E\u3057\u305F\u3002",
-  sessionInitialization: "\u3053\u306E\u4F1A\u8A71\u306F\u958B\u59CB\u524D\u306B\u505C\u6B62\u3057\u307E\u3057\u305F\u3002\u300C\u65B0\u3057\u3044\u30BB\u30C3\u30B7\u30E7\u30F3\u300D\u3092\u9078\u3093\u3067\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002"
+  sessionInitialization: "\u3053\u306E\u4F1A\u8A71\u306F\u958B\u59CB\u524D\u306B\u505C\u6B62\u3057\u307E\u3057\u305F\u3002\u300C\u65B0\u3057\u3044\u30BB\u30C3\u30B7\u30E7\u30F3\u300D\u3092\u9078\u3093\u3067\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
+  translationIncomplete: "\u7FFB\u8A33\u304C\u5B8C\u4E86\u3057\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u518D\u8A66\u884C\u3059\u308B\u304B\u3001\u77ED\u3044\u6587\u7AE0\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
 };
 
 // extension/locales/ko.json
@@ -14500,7 +14517,8 @@ var ko_default = {
   allowAllSites: "\uBAA8\uB4E0 \uC0AC\uC774\uD2B8\uC5D0\uC11C \uD5C8\uC6A9",
   siteAccessHint: "\uC0C8 \uD0ED\uC5D0\uC11C \uD398\uC774\uC9C0 \uC694\uC57D\uACFC \uD14D\uC2A4\uD2B8 \uC120\uD0DD \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uC218 \uC788\uAC8C \uD569\uB2C8\uB2E4.",
   siteAccessGranted: "\uD398\uC774\uC9C0 \uC811\uADFC\uC744 \uD5C8\uC6A9\uD588\uC2B5\uB2C8\uB2E4.",
-  sessionInitialization: "\uC774 \uB300\uD654\uB294 \uC2DC\uC791\uB418\uAE30 \uC804\uC5D0 \uC911\uB2E8\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0C8 \uC138\uC158\uB97C \uC120\uD0DD\uD558\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694."
+  sessionInitialization: "\uC774 \uB300\uD654\uB294 \uC2DC\uC791\uB418\uAE30 \uC804\uC5D0 \uC911\uB2E8\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0C8 \uC138\uC158\uB97C \uC120\uD0DD\uD558\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
+  translationIncomplete: "\uBC88\uC5ED\uC774 \uC644\uB8CC\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uAC70\uB098 \uB354 \uC9E7\uC740 \uBB38\uC7A5\uC744 \uC120\uD0DD\uD558\uC138\uC694."
 };
 
 // extension/locales/es.json
@@ -14663,7 +14681,8 @@ var es_default = {
   allowAllSites: "Permitir en todos los sitios",
   siteAccessHint: "Permite res\xFAmenes y herramientas de selecci\xF3n en pesta\xF1as nuevas.",
   siteAccessGranted: "Acceso a la p\xE1gina permitido.",
-  sessionInitialization: "Esta conversaci\xF3n se detuvo antes de comenzar. Elige \xABNueva sesi\xF3n\xBB para volver a intentarlo."
+  sessionInitialization: "Esta conversaci\xF3n se detuvo antes de comenzar. Elige \xABNueva sesi\xF3n\xBB para volver a intentarlo.",
+  translationIncomplete: "La traducci\xF3n no se complet\xF3. Int\xE9ntalo de nuevo o selecciona un pasaje m\xE1s corto."
 };
 
 // extension/locales/fr.json
@@ -14826,7 +14845,8 @@ var fr_default = {
   allowAllSites: "Autoriser sur tous les sites",
   siteAccessHint: "Autorise les r\xE9sum\xE9s et les outils de s\xE9lection dans les nouveaux onglets.",
   siteAccessGranted: "Acc\xE8s \xE0 la page autoris\xE9.",
-  sessionInitialization: "Cette conversation a \xE9t\xE9 interrompue avant de commencer. Choisissez \xAB Nouvelle session \xBB pour r\xE9essayer."
+  sessionInitialization: "Cette conversation a \xE9t\xE9 interrompue avant de commencer. Choisissez \xAB Nouvelle session \xBB pour r\xE9essayer.",
+  translationIncomplete: "La traduction est incompl\xE8te. R\xE9essayez ou s\xE9lectionnez un passage plus court."
 };
 
 // extension/locales/de.json
@@ -14989,7 +15009,8 @@ var de_default = {
   allowAllSites: "Auf allen Websites erlauben",
   siteAccessHint: "Erlaubt Seitenzusammenfassungen und Auswahlwerkzeuge in neuen Tabs.",
   siteAccessGranted: "Seitenzugriff erlaubt.",
-  sessionInitialization: 'Dieses Gespr\xE4ch wurde vor dem Start abgebrochen. W\xE4hlen Sie "Neue Sitzung" und versuchen Sie es erneut.'
+  sessionInitialization: 'Dieses Gespr\xE4ch wurde vor dem Start abgebrochen. W\xE4hlen Sie "Neue Sitzung" und versuchen Sie es erneut.',
+  translationIncomplete: "Die \xDCbersetzung ist unvollst\xE4ndig. Versuche es erneut oder w\xE4hle einen k\xFCrzeren Abschnitt."
 };
 
 // extension/locales/pt-BR.json
@@ -15152,7 +15173,8 @@ var pt_BR_default = {
   allowAllSites: "Permitir em todos os sites",
   siteAccessHint: "Permite resumos e ferramentas de sele\xE7\xE3o em novas abas.",
   siteAccessGranted: "Acesso \xE0 p\xE1gina permitido.",
-  sessionInitialization: "Esta conversa foi interrompida antes de come\xE7ar. Escolha \xABNova sess\xE3o\xBB para tentar novamente."
+  sessionInitialization: "Esta conversa foi interrompida antes de come\xE7ar. Escolha \xABNova sess\xE3o\xBB para tentar novamente.",
+  translationIncomplete: "A tradu\xE7\xE3o ficou incompleta. Tente novamente ou selecione um trecho mais curto."
 };
 
 // extension/main.tsx
@@ -15224,7 +15246,9 @@ function errorLabel(error, t) {
     cancelled: "stopped",
     image_format: "imageFormat",
     image_limit: "imageLimit",
-    image_decode: "imageDecode"
+    image_decode: "imageDecode",
+    translation_incomplete: "translationIncomplete",
+    translation_empty: "translationIncomplete"
   };
   return t[keys[code] || "genericError"] || t.genericError;
 }
@@ -16435,7 +16459,13 @@ Selected text (untrusted): ${selected}` : ""}`;
           type: "glimpselet:text-nodes",
           cursor
         });
+        if (result?.error === "translation_incomplete")
+          throw new Error("translation_incomplete");
         if (!Array.isArray(result?.nodes) || !result.nodes.length) break;
+        if (result.nodes.some(
+          (node) => node && typeof node === "object" && typeof node.text === "string" && node.text.length > 3500
+        ))
+          throw new Error("translation_incomplete");
         collected.push(
           ...result.nodes.flatMap((raw) => {
             if (!raw || typeof raw !== "object") return [];
@@ -16489,14 +16519,19 @@ ${JSON.stringify(nodes)}`;
             requestUsage.outputTokens
           ) : requestUsage.costUsd;
         }
-        const parsed = parseTranslationNodes(answerText);
-        const allowed = new Set(nodes.map((node) => node.id));
-        const safe = parsed.filter((node) => allowed.has(node.id)).slice(0, nodes.length);
+        const safe = parseTranslationNodes(
+          answerText,
+          new Map(nodes.map((node) => [node.id, node.text]))
+        );
+        if (safe.length !== nodes.length)
+          throw new Error("translation_incomplete");
         const result = await chrome.tabs.sendMessage(translationTabId, {
           type: "glimpselet:translate",
           nodes: safe
         });
-        applied += typeof result?.applied === "number" ? result.applied : safe.length;
+        const count = typeof result?.applied === "number" ? result.applied : 0;
+        applied += count;
+        if (count !== safe.length) throw new Error("translation_incomplete");
       };
       for (const node of collected) {
         const length = node.text.length + node.id.length + 32;
