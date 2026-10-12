@@ -198,7 +198,7 @@ export function buildPageContext(doc: Document = document): PageContext {
 }
 
 export function contextTextNode(node: Node): boolean {
-  const parent = (node as Text).assignedSlot || node.parentElement;
+  const parent = composedTextParent(node);
   return !!(
     parent &&
     node.nodeValue?.trim() &&
@@ -231,7 +231,7 @@ export function contextRangeText(range: Range): string {
 }
 
 export function restorableTextNode(node: Node): boolean {
-  const parent = (node as Text).assignedSlot || node.parentElement;
+  const parent = composedTextParent(node);
   return !!(
     parent &&
     !hasSensitiveAncestor(parent) &&
@@ -317,6 +317,15 @@ function composedParent(element: Element): Element | null {
     element.assignedSlot ||
     element.parentElement ||
     (element.getRootNode() as ShadowRoot).host ||
+    null
+  );
+}
+
+function composedTextParent(node: Node): Element | null {
+  return (
+    (node as Text).assignedSlot ||
+    node.parentElement ||
+    (node.getRootNode() as ShadowRoot).host ||
     null
   );
 }

@@ -397,7 +397,7 @@
     };
   }
   function contextTextNode(node) {
-    const parent = node.assignedSlot || node.parentElement;
+    const parent = composedTextParent(node);
     return !!(parent && node.nodeValue?.trim() && restorableTextNode(node) && visible(parent));
   }
   function contextRangeText(range) {
@@ -419,7 +419,7 @@
     return text;
   }
   function restorableTextNode(node) {
-    const parent = node.assignedSlot || node.parentElement;
+    const parent = composedTextParent(node);
     return !!(parent && !hasSensitiveAncestor(parent) && !isExcluded(parent, true) && !isChoiceContent(parent) && !isFormControl(parent) && parent.getAttribute("role")?.toLowerCase() !== "combobox");
   }
   function isFormControl(element) {
@@ -464,6 +464,9 @@
   }
   function composedParent(element) {
     return element.assignedSlot || element.parentElement || element.getRootNode().host || null;
+  }
+  function composedTextParent(node) {
+    return node.assignedSlot || node.parentElement || node.getRootNode().host || null;
   }
 
   // extension/page-revision.ts

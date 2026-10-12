@@ -87,6 +87,22 @@ describe("bounded page context", () => {
     expect(contextRangeText(range)).toBe("");
   });
 
+  it.each([false, true])(
+    "handles direct shadow text with a private host set to %s",
+    (privateHost) => {
+      document.body.innerHTML = "<div></div>";
+      const host = document.querySelector("div")!;
+      if (privateHost) host.setAttribute("data-private", "");
+      const shadow = host.attachShadow({ mode: "open" });
+      shadow.textContent = "Direct shadow text.";
+      const range = document.createRange();
+      range.selectNodeContents(shadow);
+      expect(contextRangeText(range)).toBe(
+        privateHost ? "" : "Direct shadow text.",
+      );
+    },
+  );
+
   it("rejects descendants of ignored SVG ancestors", () => {
     document.body.innerHTML =
       "<p>Public start.</p><svg><text><tspan>SVG_TEXT</tspan></text></svg><p>Public end.</p>";
