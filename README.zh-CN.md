@@ -41,11 +41,11 @@ claude --plugin-dir "$PWD" plugin list
 claude --plugin-dir "$PWD"
 ```
 
-两条版本检查命令都应显示 `2.0.0`。插件列表应显示 `glimpselet@inline` 的版本为 `2.0.0`，并已在此会话中启用。最后一条命令会打开 Claude Code；在这个会话中运行 `/glimpselet:glimpse`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项；重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
+两条版本检查命令都应显示 `2.0.0`。插件列表应显示 `glimpselet@inline` 的版本为 `2.0.0`，并已在此会话中启用。最后一条命令会打开 Claude Code。在这个会话中运行 `/glimpselet:glimpse`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项。重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
 
 在自己的桌面浏览器中，扩展保存在固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
 
-更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击“重新加载”。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。
+更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。
 
 ## 已经安装 Glimpselet？
 
@@ -57,7 +57,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.0.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.0.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2；旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
+在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.0.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.0.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2。旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 使用未打包扩展时，指南会把新文件复制到 `~/.glimpselet/extension`。请在 `chrome://extensions` 或 `edge://extensions` 重新加载 Glimpselet，确认版本为 **2.0.0**。通过 SSH 使用时，请在浏览器所在电脑从指南下载新版 ZIP，解压到原先加载的文件夹，再重新加载。远程主机无法在你的电脑打开免安装浏览器。
 

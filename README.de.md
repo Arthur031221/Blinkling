@@ -41,7 +41,7 @@ claude --plugin-dir "$PWD" plugin list
 claude --plugin-dir "$PWD"
 ```
 
-Beide Versionsprüfungen sollten `2.0.0` ausgeben. Die Plugin-Liste sollte `glimpselet@inline` mit Version `2.0.0` als für diese Sitzung aktiviert anzeigen. Der letzte Befehl öffnet Claude Code; führe dort `/glimpselet:glimpse` aus, um die Willkommensanleitung zu öffnen. `--plugin-dir` lädt diesen Checkout nur für diese Sitzung. Verwende die Option bei jedem Start und starte Claude Code nach einem erneuten `npm run build:plugin` neu. Die erstellte Erweiterung liegt in `dist-extension`; die Willkommensanleitung kopiert sie in den festen Ordner unten.
+Beide Versionsprüfungen sollten `2.0.0` ausgeben. Die Plugin-Liste sollte `glimpselet@inline` mit Version `2.0.0` als für diese Sitzung aktiviert anzeigen. Der letzte Befehl öffnet Claude Code. Führe dort `/glimpselet:glimpse` aus, um die Willkommensanleitung zu öffnen. `--plugin-dir` lädt diesen Checkout nur für diese Sitzung. Verwende die Option bei jedem Start und starte Claude Code nach einem erneuten `npm run build:plugin` neu. Die erstellte Erweiterung liegt in `dist-extension`. Die Willkommensanleitung kopiert sie in den festen Ordner unten.
 
 Für deinen eigenen Desktop-Browser liegt die Erweiterung dauerhaft im Ordner `~/.glimpselet/extension`. Öffne in Chrome oder Edge `chrome://extensions` oder `edge://extensions`, aktiviere den **Entwicklermodus**, wähle **Entpackte Erweiterung laden** und dann diesen Ordner. Der Entwicklermodus-Hinweis bleibt sichtbar. Neue Versionen musst du manuell aktualisieren.
 
@@ -57,7 +57,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Führe in deiner offenen Claude-Code-Sitzung `/reload-plugins` aus (oder starte Claude Code neu), danach `/glimpselet:glimpse`. Die Liste muss `glimpselet@glimpselet` mit **2.0.0** zeigen und der Befehl die Begrüßungs- und Kopplungsanleitung öffnen. Prüfe auch **2.0.0** unter `chrome://extensions` oder `edge://extensions` auf dem Browser-Computer. Bleibt das Plugin bei 1.1.1, ist v2 möglicherweise noch nicht im öffentlichen Marketplace verfügbar; die alte Bildschirm-Auswahlseite ist keine v2-Begrüßung. [Update prüfen](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+Führe in deiner offenen Claude-Code-Sitzung `/reload-plugins` aus (oder starte Claude Code neu), danach `/glimpselet:glimpse`. Die Liste muss `glimpselet@glimpselet` mit **2.0.0** zeigen und der Befehl die Begrüßungs- und Kopplungsanleitung öffnen. Prüfe auch **2.0.0** unter `chrome://extensions` oder `edge://extensions` auf dem Browser-Computer. Bleibt das Plugin bei 1.1.1, ist v2 möglicherweise noch nicht im öffentlichen Marketplace verfügbar. Die alte Bildschirm-Auswahlseite ist keine v2-Begrüßung. [Update prüfen](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 Bei einer entpackten Erweiterung kopiert die Anleitung die neuen Dateien nach `~/.glimpselet/extension`. Lade Glimpselet unter `chrome://extensions` oder `edge://extensions` neu und prüfe die Version **2.0.0**. Lade bei SSH die neue ZIP-Datei über die Anleitung auf den Computer mit deinem Browser herunter, entpacke sie in den zuvor geladenen Ordner und lade die Erweiterung neu. Der entfernte Host kann den Browser ohne Installation nicht auf deinem Computer öffnen.
 

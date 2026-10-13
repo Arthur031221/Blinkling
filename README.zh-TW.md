@@ -41,7 +41,7 @@ claude --plugin-dir "$PWD" plugin list
 claude --plugin-dir "$PWD"
 ```
 
-兩個版本檢查指令都應顯示 `2.0.0`。外掛清單應顯示 `glimpselet@inline` 的版本為 `2.0.0`，且已在此工作階段啟用。最後一個指令會開啟 Claude Code；在這個工作階段執行 `/glimpselet:glimpse`，即可開啟歡迎指南。`--plugin-dir` 只在目前工作階段載入這份原始碼中的外掛。每次啟動都要加上這個選項；重新執行 `npm run build:plugin` 建置後，請重新啟動 Claude Code。建置好的擴充功能位於 `dist-extension`，歡迎指南會將它複製到下方的固定資料夾。
+兩個版本檢查指令都應顯示 `2.0.0`。外掛清單應顯示 `glimpselet@inline` 的版本為 `2.0.0`，且已在此工作階段啟用。最後一個指令會開啟 Claude Code。在這個工作階段執行 `/glimpselet:glimpse`，即可開啟歡迎指南。`--plugin-dir` 只在目前工作階段載入這份原始碼中的外掛。每次啟動都要加上這個選項。重新執行 `npm run build:plugin` 建置後，請重新啟動 Claude Code。建置好的擴充功能位於 `dist-extension`，歡迎指南會將它複製到下方的固定資料夾。
 
 在自己的桌面瀏覽器中，擴充功能會放在固定資料夾 `~/.glimpselet/extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
 
@@ -57,7 +57,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-在已開啟的 Claude Code 工作階段執行 `/reload-plugins`（或重新啟動 Claude Code），再執行 `/glimpselet:glimpse`。清單中的 `glimpselet@glimpselet` 應顯示 **2.0.0**，且指令應開啟歡迎與配對指南。也請在瀏覽器所在電腦的 `chrome://extensions` 或 `edge://extensions` 確認 Glimpselet 為 **2.0.0**。若外掛仍是 1.1.1，公開市集可能尚未提供 v2；舊的畫面選取頁不是 v2 歡迎指南。[更新驗證](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
+在已開啟的 Claude Code 工作階段執行 `/reload-plugins`（或重新啟動 Claude Code），再執行 `/glimpselet:glimpse`。清單中的 `glimpselet@glimpselet` 應顯示 **2.0.0**，且指令應開啟歡迎與配對指南。也請在瀏覽器所在電腦的 `chrome://extensions` 或 `edge://extensions` 確認 Glimpselet 為 **2.0.0**。若外掛仍是 1.1.1，公開市集可能尚未提供 v2。舊的畫面選取頁不是 v2 歡迎指南。[更新驗證](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 使用未封裝擴充功能時，指南會把新檔案複製到 `~/.glimpselet/extension`。請在 `chrome://extensions` 或 `edge://extensions` 重新載入 Glimpselet，確認版本為 **2.0.0**。透過 SSH 使用時，請在瀏覽器所在電腦從指南下載新版 ZIP，解壓縮到原先載入的資料夾，再重新載入。遠端主機無法在你的電腦開啟免安裝瀏覽器。
 
