@@ -301,9 +301,15 @@ describe("content script guide focus", () => {
       "[data-glimpselet-overlay]",
     )!.shadowRoot!;
     expect(root.querySelector(".guide")).not.toBeNull();
+    expect(
+      root.querySelector('svg[class~="draw"] ellipse.ink')?.isConnected,
+    ).toBe(true);
+    expect(
+      root.querySelector('svg[class~="draw"] path.arrow')?.isConnected,
+    ).toBe(true);
     expect(send("glimpselet:guide", { steps: [] })).toEqual({ ok: false });
     expect(root.querySelector(".guide")).toBeNull();
-    expect(root.querySelector("svg.draw")).toBeNull();
+    expect(root.querySelector('svg[class~="draw"]')).toBeNull();
   });
 
   it("omits a literal no-op action and rejects replaced targets without leaving stale ink", async () => {
@@ -331,7 +337,7 @@ describe("content script guide focus", () => {
       }),
     ).toEqual({ ok: false });
     expect(root.querySelector(".guide")).toBeNull();
-    expect(root.querySelector("svg.draw")).toBeNull();
+    expect(root.querySelector('svg[class~="draw"]')).toBeNull();
   });
 
   it.each(["private", "hidden", "replaced", "password"])(
@@ -358,7 +364,7 @@ describe("content script guide focus", () => {
       await vi.advanceTimersByTimeAsync(16);
 
       expect(root.querySelector(".guide")).toBeNull();
-      expect(root.querySelector("svg.draw")).toBeNull();
+      expect(root.querySelector('svg[class~="draw"]')).toBeNull();
     },
   );
 
@@ -377,7 +383,7 @@ describe("content script guide focus", () => {
       .click();
 
     expect(root.querySelector(".guide")).toBeNull();
-    expect(root.querySelector("svg.draw")).toBeNull();
+    expect(root.querySelector('svg[class~="draw"]')).toBeNull();
   });
 
   it("keeps the focused nav control through scroll and resize repositioning", async () => {
@@ -388,6 +394,11 @@ describe("content script guide focus", () => {
       "[data-glimpselet-overlay]",
     )!;
     const root = host.shadowRoot!;
+    const initialInk = root.querySelector('svg[class~="draw"] ellipse.ink')!;
+    expect(initialInk?.isConnected).toBe(true);
+    expect(root.querySelectorAll('svg[class~="draw"] path.arrow')).toHaveLength(
+      1,
+    );
     const next = () =>
       root.querySelector<HTMLButtonElement>('[data-guide-control="next"]')!;
     const initialNext = next();
@@ -397,6 +408,13 @@ describe("content script guide focus", () => {
     vi.advanceTimersByTime(16);
     expect(next()).not.toBe(initialNext);
     expect(root.activeElement).toBe(next());
+    expect(initialInk.isConnected).toBe(false);
+    expect(
+      root.querySelectorAll('svg[class~="draw"] ellipse.ink'),
+    ).toHaveLength(1);
+    expect(root.querySelectorAll('svg[class~="draw"] path.arrow')).toHaveLength(
+      1,
+    );
 
     next().click();
     const back = () =>
@@ -407,6 +425,12 @@ describe("content script guide focus", () => {
     vi.advanceTimersByTime(16);
     expect(back()).not.toBe(initialBack);
     expect(root.activeElement).toBe(back());
+    expect(
+      root.querySelectorAll('svg[class~="draw"] ellipse.ink'),
+    ).toHaveLength(1);
+    expect(root.querySelectorAll('svg[class~="draw"] path.arrow')).toHaveLength(
+      1,
+    );
 
     back().click();
     expect(back().disabled).toBe(true);
@@ -471,7 +495,7 @@ describe("content script guide focus", () => {
             }),
           );
           expect(root.querySelector(".guide")).toBeNull();
-          expect(root.querySelector("svg.draw")).toBeNull();
+          expect(root.querySelector('svg[class~="draw"]')).toBeNull();
           expect(document.activeElement).toBe(returnFocus);
           openGuide([firstId, secondId, context.elements[0].id]);
           for (let i = 0; i < index; i++)

@@ -1300,6 +1300,8 @@ for (const mode of ["unpacked", "dedicated"]) {
           )
           .toBe(true);
         await panel.evaluate(() => {
+          (window as Window & { firstSharePiP?: Window }).firstSharePiP =
+            window.documentPictureInPicture.window!;
           const field =
             window.documentPictureInPicture.window!.document.querySelector(
               "textarea",
@@ -1315,11 +1317,6 @@ for (const mode of ["unpacked", "dedicated"]) {
           '.capture-buttons button[title="Share a screen"]',
           true,
         );
-        await expect(panel.locator(".capture-reopen button")).toBeVisible();
-        expect(
-          await panel.evaluate(() => window.documentPictureInPicture.window),
-        ).toBeNull();
-        await nativeClick(".capture-reopen button");
         await expect
           .poll(() =>
             panel.evaluate(
@@ -1330,6 +1327,27 @@ for (const mode of ["unpacked", "dedicated"]) {
             ),
           )
           .toContain("Sharing");
+        expect(
+          await panel.evaluate(() => {
+            const floating = window.documentPictureInPicture.window;
+            return {
+              samePiP:
+                floating ===
+                (window as Window & { firstSharePiP?: Window }).firstSharePiP,
+              acceptedCapture: Boolean(
+                floating?.document.querySelector(".capture-chip"),
+              ),
+              captureRecovery: Boolean(
+                document.querySelector(".capture-reopen") ||
+                  floating?.document.querySelector(".capture-reopen"),
+              ),
+            };
+          }),
+        ).toEqual({
+          samePiP: true,
+          acceptedCapture: false,
+          captureRecovery: false,
+        });
         await panel.evaluate(() => {
           const video = document.querySelector("video")!;
           (

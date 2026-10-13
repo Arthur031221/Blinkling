@@ -138,7 +138,7 @@
   "replayTour": "Revoir la visite guidée",
   "globalCropShortcut": "Raccourci global de recadrage : Ctrl+Maj+7 (Cmd+Maj+7 sur Mac). Modifiez-le dans chrome://extensions/shortcuts.",
   "screenChangeSummary": "L'écran partagé a changé. Voici un bref résumé.",
-  "capturePermission": "Cliquez sur l'icône Glimpselet dans la barre d'outils sur cette page, puis réessayez la capture.",
+  "capturePermission": "Sur cette page, ouvrez le menu des extensions de Chrome et choisissez Glimpselet. Reprenez ensuite la capture ici.",
   "shiftCrop": "Maintenez Maj pour recadrer",
   "liveStopped": "La bulle a cessé d'attendre. Le terminal travaille peut-être encore. Appuyez sur Échap dans le terminal pour l'arrêter.",
   "replayTourHint": "Exercice {step}/8. Terminez dans cette fenêtre.",
@@ -185,5 +185,7 @@
   "floatPracticeReady": "Le chat flotte déjà. Passez à une autre fenêtre pour vérifier qu’il reste au premier plan.",
   "selectedSummaryPrompt": "Résume uniquement ce texte sélectionné du PDF.",
   "readerSummaryPrompt": "Résume cette page du PDF.",
-  "selectionAskPrompt": "Explique ce texte sélectionné."
+  "selectionAskPrompt": "Explique ce texte sélectionné.",
+  "captureRetryAction": "Reprendre la capture",
+  "captureScreenClearance": "Lors de la capture de cet écran, la bulle se ferme brièvement. Rouvrez-la pour continuer."
 }

@@ -29,8 +29,10 @@ import {
   type Usage,
 } from "./api";
 import {
-  captureScreen,
+  startScreenShare,
   captureWeb,
+  CaptureAuthorizationError,
+  retryPendingWebCapture,
   getPageContext,
   getExplicitPageContext,
   getGuideContext,
@@ -38,11 +40,17 @@ import {
   isSensitivePage,
   setCurrentActiveTab,
   type CaptureKind,
+  type PendingWebCapture,
+  type WebCaptureGeometry,
 } from "./capture";
 import "./style.css";
 import { isReaderPdfCandidate } from "./reader-url";
 import { cropSharedScreen } from "./screen-crop";
-import { freezeSharedFrame, type SharedFrameOptions } from "./screen-frame";
+import {
+  freezeSharedFrame,
+  needsSharedFrameClearance,
+  type SharedFrameOptions,
+} from "./screen-frame";
 import { boundedHistory } from "./history";
 import { isGuideQuestion, buildPassivePrompt } from "./chat-intent";
 import { buildTranslationPrompt } from "./page-tools";
@@ -99,7 +107,36 @@ type BrowserTab = {
   pendingUrl?: string;
   openerTabId?: number;
 };
-type TabSender = { tab?: BrowserTab };
+type TabSender = {
+  tab?: BrowserTab;
+  frameId?: number;
+  documentId?: string;
+  url?: string;
+};
+type CaptureRetry = {
+  kind: Exclude<CaptureKind, "screen">;
+  tabId: number;
+  url: string;
+  pending?: PendingWebCapture;
+};
+function cropGeometry(value: unknown): value is WebCaptureGeometry {
+  if (!value || typeof value !== "object") return false;
+  const geometry = value as WebCaptureGeometry;
+  return (
+    [
+      geometry.width,
+      geometry.height,
+      geometry.scrollX,
+      geometry.scrollY,
+      geometry.devicePixelRatio,
+    ].every(
+      (number) => typeof number === "number" && Number.isFinite(number),
+    ) &&
+    geometry.width > 0 &&
+    geometry.height > 0 &&
+    geometry.devicePixelRatio > 0
+  );
+}
 type TutorialPractice = {
   action: string;
   step: number;
@@ -263,16 +300,32 @@ function App() {
     }
   }
   const attachmentGeneration = useRef(0);
+  const [captureRetry, updateCaptureRetry] = useState<CaptureRetry | null>(
+    null,
+  );
+  const captureRetryRef = useRef<CaptureRetry | null>(null);
+  const captureRetryEpoch = useRef(0);
+  const clearCaptureRetry = useCallback(() => {
+    captureRetryEpoch.current++;
+    captureRetryRef.current = null;
+    updateCaptureRetry(null);
+  }, []);
+  const [liveScreenSelected, setLiveScreenSelected] = useState(false);
   const [capture, updateCapture] = useState<{
     image: string;
     label: string;
     page?: PageContext;
     liveScreen?: boolean;
   } | null>(null);
-  const setCapture = useCallback((value: typeof capture) => {
-    attachmentGeneration.current++;
-    updateCapture(value);
-  }, []);
+  const setCapture = useCallback(
+    (value: typeof capture) => {
+      attachmentGeneration.current++;
+      setLiveScreenSelected(Boolean(value?.liveScreen));
+      clearCaptureRetry();
+      updateCapture(value);
+    },
+    [clearCaptureRetry],
+  );
   const [page, setPage] = useState<PageContext | undefined>();
   const [documentIdentity, setDocumentIdentity] = useState<
     Pick<PageContext, "documentKey" | "url"> | undefined
@@ -554,11 +607,17 @@ function App() {
         if (tab?.id && !ownSource) {
           adoptedEpoch = epoch;
           const changedSource = activeTabId.current !== tab.id;
+          if (
+            changedSource ||
+            (captureRetryRef.current && captureRetryRef.current.url !== tab.url)
+          )
+            clearCaptureRetry();
           activeTabId.current = tab.id;
           rememberSourceTab(tab.id);
           schedulePageRefresh(changedSource);
         } else if (failed) {
           adoptedEpoch = epoch;
+          clearCaptureRetry();
           activeTabId.current = undefined;
           rememberSourceTab(undefined);
           schedulePageRefresh(true);
@@ -599,6 +658,11 @@ function App() {
       change: { url?: string; status?: string },
       tab: BrowserTab,
     ) => {
+      if (
+        tabId === activeTabId.current &&
+        (change.url || change.status === "loading")
+      )
+        clearCaptureRetry();
       const practice = tutorialRef.current;
       if (
         practice?.tabId === tabId &&
@@ -780,6 +844,7 @@ function App() {
       }
       if (value.type === "glimpselet:focus") {
         if (typeof value.sourceTab === "number") {
+          if (activeTabId.current !== value.sourceTab) clearCaptureRetry();
           activeTabId.current = value.sourceTab;
           rememberSourceTab(value.sourceTab);
           schedulePageRefresh();
@@ -813,6 +878,7 @@ function App() {
           Number(value.step) >= 1 &&
           Number(value.step) <= 8
         ) {
+          if (activeTabId.current !== sender.tab.id) clearCaptureRetry();
           activeTabId.current = sender.tab.id;
           rememberSourceTab(sender.tab.id);
           const practice = {
@@ -864,6 +930,7 @@ function App() {
         const draftRevision = questionRevision.current;
         if (action === "ask") {
           if (senderTabId) {
+            if (activeTabId.current !== senderTabId) clearCaptureRetry();
             activeTabId.current = senderTabId;
             rememberSourceTab(senderTabId);
           }
@@ -895,6 +962,7 @@ function App() {
               }
             }
             if (sender.tab?.id) {
+              if (activeTabId.current !== sender.tab.id) clearCaptureRetry();
               activeTabId.current = sender.tab.id;
               rememberSourceTab(sender.tab.id);
             }
@@ -932,12 +1000,37 @@ function App() {
         pipDoc.body.style.opacity = value.active ? ".25" : "";
       if (
         value.type === "glimpselet:crop-selected" &&
-        sender.tab?.id === activeTabId.current
+        sender.tab?.id === activeTabId.current &&
+        sender.tab?.id !== undefined &&
+        sender.frameId === 0 &&
+        typeof sender.documentId === "string" &&
+        sender.documentId.length > 0 &&
+        typeof sender.url === "string" &&
+        sender.url === sender.tab.url &&
+        sender.url === value.url &&
+        Array.isArray(value.rect) &&
+        value.rect.length === 4 &&
+        value.rect.every(
+          (number) => typeof number === "number" && Number.isFinite(number),
+        ) &&
+        value.rect[2] > 0 &&
+        value.rect[3] > 0 &&
+        cropGeometry(value.geometry)
       ) {
+        clearCaptureRetry();
+        const epoch = captureRetryEpoch.current;
+        const source = { tabId: sender.tab.id, url: sender.url };
         void captureWeb(
           "region",
           value.rect as [number, number, number, number],
           t,
+          {
+            selectedSource: {
+              ...source,
+              documentId: sender.documentId,
+              geometry: { ...value.geometry },
+            },
+          },
         )
           .then((result) => {
             setCapture({
@@ -948,7 +1041,7 @@ function App() {
             setPage(result.page);
             setStatus(t.captureReady);
           })
-          .catch((error) => reportError(error));
+          .catch((error) => captureFailure(error, "region", source, epoch));
       }
       if (
         value.type === "glimpselet:reader-context" &&
@@ -1002,6 +1095,7 @@ function App() {
               return;
             }
             if (sender.tab?.id) {
+              if (activeTabId.current !== sender.tab.id) clearCaptureRetry();
               activeTabId.current = sender.tab.id;
               rememberSourceTab(sender.tab.id);
             }
@@ -1257,18 +1351,7 @@ function App() {
   ]);
   function frameOptions(video: HTMLVideoElement): SharedFrameOptions {
     const floating = pipDoc?.defaultView;
-    const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0];
-    const surface = track?.getSettings().displaySurface;
-    const canvasSource =
-      track && "canvas" in track && track.canvas instanceof HTMLCanvasElement;
-    if (
-      !floating ||
-      floating.closed ||
-      canvasSource ||
-      surface === "browser" ||
-      surface === "window"
-    )
-      return {};
+    if (!floating || !needsSharedFrameClearance(video, pipDoc)) return {};
     return {
       clearBubble: {
         hide: async () => {
@@ -1715,8 +1798,67 @@ function App() {
   async function saveSetting(key: string, value: unknown) {
     await chrome.storage.local.set({ [key]: value });
   }
+  async function captureFailure(
+    error: unknown,
+    kind: Exclude<CaptureKind, "screen">,
+    source: Pick<CaptureRetry, "tabId" | "url"> | undefined,
+    epoch: number,
+  ) {
+    if (epoch !== captureRetryEpoch.current) return;
+    if (error instanceof CaptureAuthorizationError && source) {
+      const current = await chrome.tabs
+        .get(source.tabId)
+        .catch(() => undefined);
+      // A delayed denial must not restore a selection after navigation, even
+      // when the source later returns to the same tab or URL.
+      if (
+        epoch !== captureRetryEpoch.current ||
+        activeTabId.current !== source.tabId ||
+        current?.url !== source.url ||
+        (error.pending &&
+          (error.pending.tabId !== source.tabId ||
+            error.pending.url !== source.url))
+      )
+        return;
+      const retry = { ...source, kind, pending: error.pending };
+      captureRetryRef.current = retry;
+      updateCaptureRetry(retry);
+    } else if (captureRetryRef.current) clearCaptureRetry();
+    reportError(error);
+  }
+  async function resumeCapture() {
+    const retry = captureRetryRef.current;
+    if (!retry || busy || pageCaptureController.current) return;
+    const epoch = captureRetryEpoch.current;
+    try {
+      const tab = await chrome.tabs.get(retry.tabId);
+      if (
+        epoch !== captureRetryEpoch.current ||
+        retry.tabId !== activeTabId.current ||
+        tab.url !== retry.url
+      )
+        throw new Error("tab_changed");
+      if (!retry.pending) {
+        await captureAction(retry.kind);
+        return;
+      }
+      const result = await retryPendingWebCapture(retry.pending, t);
+      setCapture({
+        ...result.capture,
+        label: t[retry.kind === "full" ? "fullPage" : retry.kind],
+        page: result.page,
+      });
+      setPage(result.page);
+      setStatus(t.captureReady);
+    } catch (error) {
+      await captureFailure(error, retry.kind, retry, epoch);
+    }
+  }
   async function captureAction(kind: CaptureKind) {
     if (pageCaptureController.current || busy) return false;
+    clearCaptureRetry();
+    const epoch = captureRetryEpoch.current;
+    let source: Pick<CaptureRetry, "tabId" | "url"> | undefined;
     const controller = kind === "full" ? new AbortController() : undefined;
     if (controller) {
       pageCaptureController.current = controller;
@@ -1732,20 +1874,24 @@ function App() {
           setStatus(t.shareNeedsFloat);
           return;
         }
-        const result = await captureScreen(
-          activeTabId.current,
-          pipDoc,
-          frameOptions,
-        );
+        // Keep the picker on the button's gesture. Starting a share accepts no
+        // pixels and leaves both PiP and the last confirmed capture intact.
+        const result = await startScreenShare(activeTabId.current);
         sharedBinding.current = result.binding;
+        shareRef.current = result.stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = result.stream;
+          void videoRef.current.play().catch(() => {});
+        }
         setShareStream(result.stream);
-        setCapture({ image: result.image, label: t.screen, liveScreen: true });
+        setLiveScreenSelected(true);
         const track = result.stream.getVideoTracks()[0];
         track.addEventListener(
           "ended",
           () => {
             shareRef.current = null;
             setShareStream(null);
+            setLiveScreenSelected(false);
             if (backend === "bridge")
               void bridge
                 .send({ type: "share", active: false })
@@ -1758,6 +1904,16 @@ function App() {
           await bridge.send({ type: "share", active: true });
         setStatus(t.sharing);
       } else {
+        const tabId = activeTabId.current;
+        if (!tabId) throw new Error("no_active_tab");
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab.url) throw new Error("unsupported_page");
+        source = { tabId, url: tab.url };
+        if (
+          epoch !== captureRetryEpoch.current ||
+          activeTabId.current !== tabId
+        )
+          throw new Error("tab_changed");
         await requestSiteAccess();
         const result = await captureWeb(kind, undefined, t, {
           signal: controller?.signal,
@@ -1773,7 +1929,8 @@ function App() {
       }
       return true;
     } catch (error) {
-      reportError(error);
+      if (kind === "screen") reportError(error);
+      else await captureFailure(error, kind, source, epoch);
       return false;
     } finally {
       if (controller && pageCaptureController.current === controller) {
@@ -1794,6 +1951,7 @@ function App() {
     }
   }
   function stopSharing() {
+    setLiveScreenSelected(false);
     shareRef.current?.getTracks().forEach((track) => track.stop());
     shareRef.current = null;
     setShareStream(null);
@@ -1827,6 +1985,7 @@ function App() {
     const practice = tutorialRef.current;
     if (!practice) return;
     const { action, tabId } = practice;
+    if (activeTabId.current !== tabId) clearCaptureRetry();
     activeTabId.current = tabId;
     rememberSourceTab(tabId);
     try {
@@ -1934,7 +2093,12 @@ function App() {
     tutorialCompletion?: TutorialPractice;
   }) {
     if (!consented) return;
-    if (options.kind === "translate" && !capture && !options.image) {
+    if (
+      options.kind === "translate" &&
+      !capture &&
+      !liveScreenSelected &&
+      !options.image
+    ) {
       await translatePage();
       return;
     }
@@ -1959,6 +2123,14 @@ function App() {
       : q;
     const id = crypto.randomUUID();
     const kind = options.kind || "ask";
+    const freshSharedImage = Boolean(
+      !options.image &&
+        options.includeCapture !== false &&
+        liveScreenSelected &&
+        shareRef.current &&
+        videoRef.current &&
+        (kind === "ask" || kind === "translate"),
+    );
     if (
       (kind === "suggest" || kind === "passive") &&
       questionRef.current.trim()
@@ -1970,7 +2142,11 @@ function App() {
       options.page === null
         ? undefined
         : options.page ||
-          (options.image ? undefined : capture ? capture.page : page);
+          (options.image || freshSharedImage
+            ? undefined
+            : capture
+              ? capture.page
+              : page);
     const sourceTabId = activeTabId.current;
     const sourceVersion = pageVersion.current;
     const sourceGeneration = sourceEpoch.current;
@@ -2006,7 +2182,8 @@ function App() {
       modelQuestion,
       image:
         options.image ||
-        (options.includeCapture !== false &&
+        (!freshSharedImage &&
+        options.includeCapture !== false &&
         (kind === "ask" || kind === "translate")
           ? capture?.image
           : undefined),
@@ -2031,9 +2208,7 @@ function App() {
         entry.image = undefined;
       }
       if (
-        !options.image &&
-        options.includeCapture !== false &&
-        capture?.liveScreen &&
+        freshSharedImage &&
         shareRef.current &&
         videoRef.current &&
         (kind === "ask" || kind === "translate")
@@ -2338,7 +2513,7 @@ function App() {
     let freshPage: PageContext | null | undefined = withoutPage
       ? null
       : undefined;
-    if ((!capture || selection) && !withoutPage) {
+    if (((!capture && !liveScreenSelected) || selection) && !withoutPage) {
       const reservation = crypto.randomUUID();
       requestIdRef.current = reservation;
       setBusy(true);
@@ -2904,7 +3079,7 @@ function App() {
           >
             ⚙
           </button>
-          {!pipDoc && (
+          {!pipDoc && !reopenCapture && (
             <button
               className="icon"
               title={t.float}
@@ -2956,7 +3131,7 @@ function App() {
         </section>
       ) : (
         <>
-          {!pipDoc && (
+          {!pipDoc && !reopenCapture && (
             <section className="float-start">
               <button className="primary wide" onClick={() => void openFloat()}>
                 {t.float}
@@ -3006,6 +3181,22 @@ function App() {
             </section>
           )}
           <section className="capturebar">
+            {captureRetry && (
+              <div className="capture-retry" role="status">
+                <p>{t.capturePermission}</p>
+                <button
+                  onClick={() => void resumeCapture()}
+                  disabled={busy || Boolean(captureProgress)}
+                >
+                  {t.captureRetryAction}
+                </button>
+              </div>
+            )}
+            {shareStream &&
+              videoRef.current &&
+              needsSharedFrameClearance(videoRef.current, pipDoc) && (
+                <p className="hint">{t.captureScreenClearance}</p>
+              )}
             {captureProgress && (
               <div
                 className="capture-progress"

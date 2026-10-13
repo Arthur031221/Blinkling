@@ -138,7 +138,7 @@
   "replayTour": "ツアーをもう一度見る",
   "globalCropShortcut": "全体の切り抜きショートカット：Ctrl+Shift+7（Mac は Cmd+Shift+7）。chrome://extensions/shortcuts で変更できます。",
   "screenChangeSummary": "共有画面が変わりました。簡単な概要を表示します。",
-  "capturePermission": "このページで Glimpselet のツールバーアイコンを押してから、もう一度撮影してください。",
+  "capturePermission": "このページで Chrome の拡張機能メニューを開き、Glimpselet を選んでから、ここで撮影を再開してください。",
   "shiftCrop": "Shift キーを押したまま切り抜く",
   "liveStopped": "バブルは待機を終了しました。ターミナルでは処理が続いている場合があります。停止するにはターミナルで Esc を押してください。",
   "replayTourHint": "練習 {step}/8。このウィンドウで完了してください。",
@@ -185,5 +185,7 @@
   "floatPracticeReady": "チャットがフローティング表示になりました。他のウィンドウに切り替えて、最前面に表示されることを確認してください。",
   "selectedSummaryPrompt": "選択したこの PDF の文章だけを要約してください。",
   "readerSummaryPrompt": "この PDF のページを要約してください。",
-  "selectionAskPrompt": "選択したこの文章を説明してください。"
+  "selectionAskPrompt": "選択したこの文章を説明してください。",
+  "captureRetryAction": "撮影を再開",
+  "captureScreenClearance": "この画面を撮影すると、フローティング画面が一時的に閉じます。開き直して続けてください。"
 }

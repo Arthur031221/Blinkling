@@ -3466,6 +3466,10 @@ for (const ending of ["stop", "browser"] as const) {
       });
     });
     await panel.locator(".float-start button").click();
+    await panel.evaluate(() => {
+      (window as Window & { shareStartBubble?: Window }).shareStartBubble =
+        window.documentPictureInPicture.window!;
+    });
     await clickInBubble(en.share);
     await expect
       .poll(() =>
@@ -3477,10 +3481,21 @@ for (const ending of ["stop", "browser"] as const) {
               document.querySelector("video")?.srcObject as MediaStream | null
             )?.getVideoTracks()[0]?.readyState,
             thumbnail: !!doc.querySelector(".capture-chip img"),
+            sameBubble:
+              window.documentPictureInPicture.window ===
+              (window as Window & { shareStartBubble?: Window })
+                .shareStartBubble,
+            recovery: !!document.querySelector(".capture-reopen"),
           };
         }),
       )
-      .toMatchObject({ status: en.sharing, live: "live", thumbnail: true });
+      .toMatchObject({
+        status: en.sharing,
+        live: "live",
+        thumbnail: false,
+        sameBubble: true,
+        recovery: false,
+      });
     if (ending === "stop") await clickBubble(en.stopSharing);
     else
       await panel.evaluate(() => {
@@ -4660,12 +4675,17 @@ test("ordinary shared-screen questions refresh the frame and omit unrelated page
       panel.evaluate(() => document.querySelector("video")!.videoWidth),
     )
     .toBeGreaterThan(600);
-  const initial = await panel.evaluate(
-    () =>
-      window.documentPictureInPicture.window!.document.querySelector<HTMLImageElement>(
-        ".capture-chip img",
-      )!.src,
-  );
+  const initial = await panel.evaluate(() => {
+    const doc = window.documentPictureInPicture.window!.document;
+    if (doc.querySelector(".capture-chip img"))
+      throw new Error("Starting a share must not accept a screenshot");
+    const video = document.querySelector("video")!;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")!.drawImage(video, 0, 0);
+    return canvas.toDataURL("image/png");
+  });
   await site.evaluate(() => {
     document.body.style.background = "rgb(10, 45, 190)";
     document.querySelector("h1")!.textContent = "A new shared frame";
@@ -4828,18 +4848,29 @@ async function pairedWelcome() {
 }
 
 async function requestWelcomePractice(welcome: Page, step: number) {
+  const welcomeLanguage = await welcome.locator("html").getAttribute("lang");
+  expect(["en", "zh-Hant"]).toContain(welcomeLanguage);
+  const locale = welcomeLanguage === "zh-Hant" ? "zh-TW" : "en";
   await welcome
     .locator(".step")
     .nth(step - 1)
     .locator(".try")
     .click();
-  const sampleUrl = `${origin}/assets/glimpselet-welcome-sample.html`;
+  const sampleLocation = new URL(
+    "/assets/glimpselet-welcome-sample.html",
+    origin,
+  );
+  if (locale === "zh-TW") sampleLocation.searchParams.set("locale", locale);
+  const sampleUrl = sampleLocation.href;
   await expect
     .poll(() => context.pages().some((page) => page.url() === sampleUrl))
     .toBe(true);
   const sample = context.pages().find((page) => page.url() === sampleUrl)!;
   sample.setDefaultTimeout(10000);
-  await expect(sample.locator("#tour-request")).toContainText(`step ${step}`);
+  await expect(sample.locator("html")).toHaveAttribute("lang", locale);
+  await expect(sample.locator("#tour-request strong")).toHaveText(
+    locale === "zh-TW" ? `導覽步驟 ${step}：` : `Tour step ${step}:`,
+  );
   return sample;
 }
 

@@ -138,7 +138,7 @@
   "replayTour": "둘러보기 다시 보기",
   "globalCropShortcut": "전역 자르기 단축키: Ctrl+Shift+7(Mac은 Cmd+Shift+7). chrome://extensions/shortcuts에서 변경할 수 있습니다.",
   "screenChangeSummary": "공유 화면이 바뀌었습니다. 간단히 요약합니다.",
-  "capturePermission": "이 페이지에서 Glimpselet 도구 모음 아이콘을 누른 뒤 다시 캡처하세요.",
+  "capturePermission": "이 페이지에서 Chrome 확장 프로그램 메뉴를 열고 Glimpselet을 선택한 다음, 여기서 캡처를 계속하세요.",
   "shiftCrop": "Shift를 누른 채 자르기",
   "liveStopped": "버블이 더 이상 기다리지 않습니다. 터미널 작업은 계속 중일 수 있습니다. 중지하려면 터미널에서 Esc를 누르세요.",
   "replayTourHint": "연습 {step}/8. 이 창에서 완료하세요.",
@@ -185,5 +185,7 @@
   "floatPracticeReady": "채팅이 떠 있습니다. 다른 창으로 전환해 채팅이 맨 위에 유지되는지 확인하세요.",
   "selectedSummaryPrompt": "선택한 이 PDF 글만 요약해 주세요.",
   "readerSummaryPrompt": "이 PDF 페이지를 요약해 주세요.",
-  "selectionAskPrompt": "선택한 이 글을 설명해 주세요."
+  "selectionAskPrompt": "선택한 이 글을 설명해 주세요.",
+  "captureRetryAction": "캡처 계속",
+  "captureScreenClearance": "이 화면을 캡처할 때 버블이 잠시 닫힙니다. 다시 열어 계속하세요."
 }

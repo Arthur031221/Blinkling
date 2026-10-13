@@ -138,7 +138,7 @@
   "replayTour": "Replay the tour",
   "globalCropShortcut": "Global crop shortcut: Ctrl+Shift+7 (Cmd+Shift+7 on Mac). Change it at chrome://extensions/shortcuts.",
   "screenChangeSummary": "The shared screen changed. Here is a short summary.",
-  "capturePermission": "Click the Glimpselet toolbar icon on this page, then try capture again.",
+  "capturePermission": "On this page, open Chrome’s Extensions menu and choose Glimpselet. Then resume the capture here.",
   "shiftCrop": "Hold Shift to crop",
   "liveStopped": "The bubble stopped waiting. The terminal may still be working. Press Esc there to stop it.",
   "replayTourHint": "Practice step {step}/8. Complete it in this bubble.",
@@ -185,5 +185,7 @@
   "floatPracticeReady": "Your chat is floating. Switch to another window to see it stay on top.",
   "selectedSummaryPrompt": "Summarize only this selected PDF passage.",
   "readerSummaryPrompt": "Summarize this PDF page.",
-  "selectionAskPrompt": "Explain this selected passage."
+  "selectionAskPrompt": "Explain this selected passage.",
+  "captureRetryAction": "Resume capture",
+  "captureScreenClearance": "When you capture this screen, the bubble briefly closes. Reopen it to continue."
 }

@@ -2,6 +2,7 @@ import { act } from "react";
 import type { Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { validateAsk, type AskInput, type PageContext } from "./api";
+import type { PendingWebCapture } from "./capture";
 import en from "./locales/en.json";
 import zhTW from "./locales/zh-TW.json";
 
@@ -12,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   guide: vi.fn(),
   sensitive: vi.fn(),
   capture: vi.fn(),
+  startShare: vi.fn(),
+  retry: vi.fn(),
+  freeze: vi.fn(),
+  crop: vi.fn(),
   pair: vi.fn(),
   request: vi.fn(),
   bridge: undefined as
@@ -69,9 +74,21 @@ vi.mock("./capture", () => ({
   getGuideContext: mocks.guide,
   isSensitivePage: mocks.sensitive,
   captureWeb: mocks.capture,
+  startScreenShare: mocks.startShare,
+  retryPendingWebCapture: mocks.retry,
+  CaptureAuthorizationError: class extends Error {
+    constructor(readonly pending?: PendingWebCapture) {
+      super("capture_permission");
+    }
+  },
   getDocumentIdentity: vi.fn().mockResolvedValue(undefined),
   setCurrentActiveTab: vi.fn(),
 }));
+vi.mock("./screen-frame", async (original) => ({
+  ...(await original<typeof import("./screen-frame")>()),
+  freezeSharedFrame: mocks.freeze,
+}));
+vi.mock("./screen-crop", () => ({ cropSharedScreen: mocks.crop }));
 
 type Listener = (...args: unknown[]) => unknown;
 function event() {
@@ -119,15 +136,15 @@ async function start() {
   await refresh();
   mocks.ask.mockClear();
 }
-function button(name: string) {
-  const result = [
-    ...document.querySelectorAll<HTMLButtonElement>("button"),
-  ].find((element) => element.textContent?.trim() === name);
+function button(name: string, scope: ParentNode = document) {
+  const result = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(
+    (element) => element.textContent?.trim() === name,
+  );
   if (!result) throw new Error(`Missing button: ${name}`);
   return result;
 }
-async function click(name: string) {
-  await act(async () => button(name).click());
+async function click(name: string, scope: ParentNode = document) {
+  await act(async () => button(name, scope).click());
   await flush();
 }
 async function clickSuggestion(question: string) {
@@ -138,8 +155,8 @@ async function clickSuggestion(question: string) {
   await act(async () => suggestion.click());
   await flush();
 }
-async function draft(value: string) {
-  const input = document.querySelector<HTMLTextAreaElement>("textarea")!;
+async function draft(value: string, scope: ParentNode = document) {
+  const input = scope.querySelector<HTMLTextAreaElement>("textarea")!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(
       HTMLTextAreaElement.prototype,
@@ -162,10 +179,10 @@ async function clickAccessible(name: string) {
   await act(async () => target.click());
   await flush();
 }
-async function submitDraft(value: string) {
-  await draft(value);
+async function submitDraft(value: string, scope: ParentNode = document) {
+  await draft(value, scope);
   await act(async () => {
-    document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+    scope.querySelector<HTMLButtonElement>(".composer .send")!.click();
   });
   await flush();
 }
@@ -241,6 +258,101 @@ function status() {
   return document.querySelector(".toolbar .status")?.textContent;
 }
 
+function floatingWindow() {
+  const frame = document.createElement("iframe");
+  document.body.append(frame);
+  const floating = frame.contentWindow!;
+  Object.defineProperty(
+    (floating as unknown as typeof window).HTMLElement.prototype,
+    "scrollIntoView",
+    { configurable: true, value: vi.fn() },
+  );
+  let closed = false;
+  Object.defineProperty(floating, "closed", { get: () => closed });
+  vi.spyOn(floating, "focus").mockImplementation(() => {});
+  const close = vi.spyOn(floating, "close").mockImplementation(() => {
+    closed = true;
+    floating.dispatchEvent(new Event("pagehide"));
+  });
+  return { floating, close };
+}
+
+async function startSharing(surface = "monitor") {
+  const { floating, close } = floatingWindow();
+  const requestWindow = vi.fn().mockResolvedValue(floating);
+  vi.stubGlobal("documentPictureInPicture", { requestWindow });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, text: async () => "" }),
+  );
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  const track = Object.assign(new EventTarget(), {
+    readyState: "live",
+    stop: vi.fn(),
+    getSettings: () => ({ displaySurface: surface }),
+  });
+  const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+  mocks.startShare.mockResolvedValue({ stream });
+  await click(en.float);
+  await click(en.share, floating.document);
+  return { floating, close, requestWindow, stream, track };
+}
+
+const cropSource = {
+  tabId: 1,
+  url: page.url,
+  documentId: "browser-document-1",
+  geometry: {
+    width: 1024,
+    height: 768,
+    scrollX: 12,
+    scrollY: 25,
+    devicePixelRatio: 2,
+  },
+};
+function pendingCrop(): PendingWebCapture {
+  return Object.freeze({
+    ...cropSource,
+    geometry: Object.freeze({ ...cropSource.geometry }),
+    kind: "region",
+    rect: Object.freeze([20, 30, 80, 60]) as unknown as [
+      number,
+      number,
+      number,
+      number,
+    ],
+  });
+}
+async function captureDenied(pending?: PendingWebCapture) {
+  const { CaptureAuthorizationError } = await import("./capture");
+  return new CaptureAuthorizationError(pending);
+}
+async function sendCrop(
+  senderFields: Record<string, unknown> = {},
+  messageFields: Record<string, unknown> = {},
+) {
+  await act(async () => {
+    runtime.emit(
+      {
+        type: "glimpselet:crop-selected",
+        url: page.url,
+        rect: [20, 30, 80, 60],
+        geometry: cropSource.geometry,
+        ...messageFields,
+      },
+      {
+        tab: { id: 1, url: page.url },
+        frameId: 0,
+        url: page.url,
+        documentId: cropSource.documentId,
+        ...senderFields,
+      },
+      vi.fn(),
+    );
+  });
+  await flush();
+}
+
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers();
@@ -281,12 +393,16 @@ beforeEach(() => {
         url: tabUrls.get(id) || page.url,
       })),
       getCurrent: vi.fn().mockResolvedValue({ id: 2 }),
+      update: vi.fn().mockResolvedValue(undefined),
       query: vi.fn().mockResolvedValue([{ id: 1, windowId: 1, url: page.url }]),
       sendMessage: sendToTab,
       onActivated: activated,
       onUpdated: updated,
     },
-    windows: { onFocusChanged: focused },
+    windows: {
+      onFocusChanged: focused,
+      update: vi.fn().mockResolvedValue(undefined),
+    },
     extension: { getViews: views },
     scripting: { executeScript: vi.fn().mockResolvedValue([{ result: true }]) },
     permissions: {
@@ -309,6 +425,19 @@ beforeEach(() => {
     page,
     capture: { image: "data:image/png;base64,AAA=", label: "Visible" },
   });
+  mocks.startShare.mockReset();
+  mocks.retry.mockReset().mockResolvedValue({
+    page,
+    capture: { image: "data:image/png;base64,BBB=", label: "Region" },
+  });
+  mocks.freeze.mockReset().mockImplementation(async () => {
+    const frame = document.createElement("canvas");
+    frame.width = 80;
+    frame.height = 60;
+    frame.toDataURL = vi.fn().mockReturnValue("data:image/png;base64,CCC=");
+    return frame;
+  });
+  mocks.crop.mockReset();
   mocks.cancel.mockReset().mockResolvedValue(undefined);
   mocks.ask
     .mockReset()
@@ -2868,4 +2997,294 @@ describe("bubble answer rendering and feedback", () => {
       )?.[1].steps,
     ).toEqual([]);
   });
+});
+
+describe("screen sharing and capture authorization in the bubble", () => {
+  it("starts sharing without closing PiP or freezing or replacing an accepted capture", async () => {
+    await start();
+    await submitDraft("Keep this conversation");
+    await click(en.visible);
+    const accepted =
+      document.querySelector<HTMLImageElement>(".capture-chip img")!.src;
+    await draft("Keep this draft");
+    const { floating, close, requestWindow, stream, track } =
+      await startSharing();
+
+    expect(mocks.startShare).toHaveBeenCalledOnce();
+    expect(mocks.startShare).toHaveBeenCalledWith(1);
+    expect(mocks.freeze).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(requestWindow).toHaveBeenCalledOnce();
+    expect(
+      floating.document.querySelector<HTMLImageElement>(".capture-chip img")!
+        .src,
+    ).toBe(accepted);
+    expect(
+      floating.document.querySelector<HTMLTextAreaElement>("textarea")!.value,
+    ).toBe("Keep this draft");
+    expect(
+      floating.document.querySelector(".message .answer")!.textContent,
+    ).toContain("Answer text");
+    expect(floating.document.querySelector(".capture-reopen")).toBeNull();
+    expect(
+      floating.document.querySelector(".toolbar .status")!.textContent,
+    ).toBe(en.sharing);
+    expect(floating.document.querySelector(".hint")!.textContent).toBe(
+      en.captureScreenClearance,
+    );
+    expect(document.querySelector<HTMLVideoElement>("video")!.srcObject).toBe(
+      stream,
+    );
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
+  it("takes a fresh shared frame for the first manual ask after Share without accepting a startup image", async () => {
+    await start();
+    const { floating, stream } = await startSharing("window");
+    expect(floating.document.querySelector(".capture-chip")).toBeNull();
+    expect(floating.document.querySelector(".hint")).toBeNull();
+    mocks.explicitContext.mockClear();
+    await submitDraft("What is on this screen?", floating.document);
+    expect(mocks.freeze).toHaveBeenCalledOnce();
+    expect(mocks.freeze.mock.calls[0][0].srcObject).toBe(stream);
+    expect(mocks.freeze.mock.calls[0][2]).toEqual({});
+    expect(mocks.explicitContext).not.toHaveBeenCalled();
+    expect(mocks.ask).toHaveBeenCalledOnce();
+    expect(mocks.ask.mock.calls[0][0]).toMatchObject({
+      question: "What is on this screen?",
+      image: "data:image/png;base64,CCC=",
+    });
+    expect(mocks.ask.mock.calls[0][0].page).toBeUndefined();
+    expect(
+      floating.document.querySelector<HTMLImageElement>(".capture-chip img")!
+        .src,
+    ).toBe("data:image/png;base64,CCC=");
+  });
+
+  it("uses a confirmed region while sharing and keeps it after a cancelled later crop", async () => {
+    await start();
+    const { floating } = await startSharing("window");
+    mocks.crop.mockResolvedValueOnce("data:image/png;base64,DDD=");
+    await click(en.region, floating.document);
+    await submitDraft("Explain this crop", floating.document);
+    expect(mocks.ask.mock.calls[0][0].image).toBe("data:image/png;base64,DDD=");
+    expect(mocks.freeze).not.toHaveBeenCalled();
+    mocks.crop.mockResolvedValueOnce(undefined);
+    await click(en.region, floating.document);
+    await submitDraft("Follow up on that crop", floating.document);
+    expect(mocks.ask.mock.calls[1][0].image).toBe("data:image/png;base64,DDD=");
+    expect(mocks.freeze).not.toHaveBeenCalled();
+  });
+
+  it("does not add a shared frame to an explicit selected-text ask", async () => {
+    await start();
+    const { floating } = await startSharing("window");
+    await send({
+      type: "glimpselet:selection",
+      text: "Exact selected passage",
+      action: "ask",
+    });
+    await act(async () =>
+      floating.document
+        .querySelector<HTMLButtonElement>(".composer .send")!
+        .click(),
+    );
+    await flush();
+    expect(mocks.ask).toHaveBeenCalledOnce();
+    expect(mocks.ask.mock.calls[0][0].question).toContain(
+      JSON.stringify("Exact selected passage"),
+    );
+    expect(mocks.ask.mock.calls[0][0].image).toBeUndefined();
+    expect(mocks.freeze).not.toHaveBeenCalled();
+  });
+
+  it("offers one recovery action while a manual monitor frame awaits restored PiP", async () => {
+    await start();
+    const { floating, close, requestWindow, track } = await startSharing();
+    const restored = floatingWindow();
+    requestWindow.mockResolvedValueOnce(restored.floating);
+    const acquireFrame = mocks.freeze.getMockImplementation()!;
+    mocks.freeze.mockImplementationOnce(async (...args) => {
+      const options = args[2];
+      await options.clearBubble.hide();
+      await options.clearBubble.restore();
+      return acquireFrame(...args);
+    });
+    await submitDraft("Capture this monitor", floating.document);
+    expect(close).toHaveBeenCalledOnce();
+    expect(document.querySelectorAll(".capture-reopen button")).toHaveLength(1);
+    expect(
+      document.querySelector(`button[aria-label="${en.float}"]`),
+    ).toBeNull();
+    expect(
+      [...document.querySelectorAll("button")].filter(
+        (element) => element.textContent === en.float,
+      ),
+    ).toHaveLength(0);
+    expect(track.stop).not.toHaveBeenCalled();
+    expect(mocks.ask).not.toHaveBeenCalled();
+    await click(en.captureReopenAction);
+    expect(mocks.ask).toHaveBeenCalledOnce();
+    expect(mocks.ask.mock.calls[0][0].image).toBe("data:image/png;base64,CCC=");
+    expect(
+      restored.floating.document.querySelector(".message .answer")!.textContent,
+    ).toContain("Answer text");
+    expect(
+      restored.floating.document.querySelector(".capture-reopen"),
+    ).toBeNull();
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
+  it("resumes an immutable selected rectangle after same-source toolbar activation and page revision", async () => {
+    await start();
+    await click(en.visible);
+    const accepted =
+      document.querySelector<HTMLImageElement>(".capture-chip img")!.src;
+    const pending = pendingCrop();
+    mocks.capture.mockRejectedValueOnce(await captureDenied(pending));
+    await sendCrop();
+    expect(
+      document.querySelector<HTMLImageElement>(".capture-chip img")!.src,
+    ).toBe(accepted);
+    expect(document.querySelector(".capture-retry")!.textContent).toContain(
+      en.capturePermission,
+    );
+    await send({ type: "glimpselet:focus", sourceTab: 1 });
+    await send({
+      type: "glimpselet:page-changed",
+      revision: "new-text-same-document",
+    });
+    await act(async () => activated.emit({ tabId: 1 }));
+    await flush();
+    await click(en.captureRetryAction);
+    expect(mocks.retry).toHaveBeenCalledOnce();
+    expect(mocks.retry.mock.calls[0][0]).toBe(pending);
+    expect(mocks.retry.mock.calls[0][0].geometry).toEqual(cropSource.geometry);
+    expect(mocks.retry.mock.calls[0][0].rect).toEqual([20, 30, 80, 60]);
+    expect(mocks.capture).toHaveBeenCalledTimes(2);
+    expect(
+      document.querySelector<HTMLImageElement>(".capture-chip img")!.src,
+    ).toBe("data:image/png;base64,BBB=");
+    expect(document.querySelector(".capture-retry")).toBeNull();
+  });
+
+  it.each(["region", "element"] as const)(
+    "resumes a denied %s preflight with its original requested kind",
+    async (kind) => {
+      await start();
+      mocks.capture.mockRejectedValueOnce(await captureDenied());
+      await click(en[kind]);
+      expect(document.querySelector(".capture-retry")).not.toBeNull();
+      await send({ type: "glimpselet:focus", sourceTab: 1 });
+      await click(en.captureRetryAction);
+      expect(mocks.capture).toHaveBeenCalledTimes(2);
+      expect(mocks.capture.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+        [kind, undefined],
+        [kind, undefined],
+      ]);
+      expect(mocks.retry).not.toHaveBeenCalled();
+      expect(document.querySelector(".capture-retry")).toBeNull();
+    },
+  );
+
+  it.each(["reload", "navigation", "source"])(
+    "discards a saved rectangle on %s",
+    async (change) => {
+      await start();
+      mocks.capture.mockRejectedValueOnce(await captureDenied(pendingCrop()));
+      await sendCrop();
+      expect(document.querySelector(".capture-retry")).not.toBeNull();
+      await act(async () => {
+        if (change === "source") activated.emit({ tabId: 3 });
+        else if (change === "navigation")
+          updated.emit(
+            1,
+            { url: `${page.url}/changed` },
+            { id: 1, url: `${page.url}/changed` },
+          );
+        else updated.emit(1, { status: "loading" }, { id: 1, url: page.url });
+      });
+      await flush();
+      expect(document.querySelector(".capture-retry")).toBeNull();
+      expect(mocks.retry).not.toHaveBeenCalled();
+    },
+  );
+
+  it("cannot resurrect a saved rectangle after navigation during the authorization attempt", async () => {
+    await start();
+    let reject!: (error: unknown) => void;
+    mocks.capture.mockImplementationOnce(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    await sendCrop();
+    await act(async () =>
+      updated.emit(1, { status: "loading" }, { id: 1, url: page.url }),
+    );
+    await flush();
+    const denied = await captureDenied(pendingCrop());
+    await act(async () => reject(denied));
+    await flush();
+    expect(document.querySelector(".capture-retry")).toBeNull();
+    expect(mocks.retry).not.toHaveBeenCalled();
+  });
+
+  it("drops a retry rejected by the document and geometry verifier without replacing the accepted capture", async () => {
+    await start();
+    await click(en.visible);
+    const accepted =
+      document.querySelector<HTMLImageElement>(".capture-chip img")!.src;
+    const pending = pendingCrop();
+    mocks.capture.mockRejectedValueOnce(await captureDenied(pending));
+    await sendCrop();
+    mocks.retry.mockRejectedValueOnce(new Error("tab_changed"));
+    await click(en.captureRetryAction);
+    expect(mocks.retry.mock.calls[0][0]).toBe(pending);
+    expect(document.querySelector(".capture-retry")).toBeNull();
+    expect(
+      document.querySelector<HTMLImageElement>(".capture-chip img")!.src,
+    ).toBe(accepted);
+  });
+
+  it("pins an admitted Shift rectangle to browser sender metadata and selection-completion geometry", async () => {
+    await start();
+    await sendCrop();
+    expect(mocks.capture).toHaveBeenCalledOnce();
+    expect(mocks.capture).toHaveBeenCalledWith("region", [20, 30, 80, 60], en, {
+      selectedSource: cropSource,
+    });
+  });
+
+  it.each([
+    ["subframe", { frameId: 2 }, {}],
+    ["missing frame", { frameId: undefined }, {}],
+    ["missing browser document", { documentId: undefined }, {}],
+    ["different source tab", { tab: { id: 3, url: page.url } }, {}],
+    ["different tab URL", { tab: { id: 1, url: `${page.url}/other` } }, {}],
+    ["different sender URL", { url: `${page.url}/other` }, {}],
+    ["different claimed URL", {}, { url: `${page.url}/other` }],
+    ["missing geometry", {}, { geometry: undefined }],
+    [
+      "nonfinite geometry",
+      {},
+      { geometry: { ...cropSource.geometry, scrollX: Infinity } },
+    ],
+    [
+      "invalid DPR",
+      {},
+      { geometry: { ...cropSource.geometry, devicePixelRatio: 0 } },
+    ],
+    ["invalid rectangle", {}, { rect: [20, 30, NaN, 60] }],
+  ])(
+    "rejects a Shift crop with %s before capture admission",
+    async (_, sender, message) => {
+      await start();
+      await sendCrop(sender, message);
+      expect(mocks.capture).not.toHaveBeenCalled();
+      expect(document.querySelector(".capture-chip")).toBeNull();
+      expect(document.querySelector(".capture-retry")).toBeNull();
+    },
+  );
 });

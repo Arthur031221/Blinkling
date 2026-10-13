@@ -138,7 +138,7 @@
   "replayTour": "Repetir el recorrido",
   "globalCropShortcut": "Atajo global para recortar: Ctrl+Shift+7 (Cmd+Shift+7 en Mac). Puedes cambiarlo en chrome://extensions/shortcuts.",
   "screenChangeSummary": "La pantalla compartida cambió. Aquí tienes un breve resumen.",
-  "capturePermission": "Pulsa el icono de Glimpselet en la barra de herramientas en esta página y vuelve a capturar.",
+  "capturePermission": "En esta página, abre el menú de extensiones de Chrome y elige Glimpselet. Luego reanuda la captura aquí.",
   "shiftCrop": "Mantén Shift para recortar",
   "liveStopped": "La burbuja dejó de esperar. Es posible que el terminal siga trabajando. Pulsa Esc allí para detenerlo.",
   "replayTourHint": "Ejercicio {step}/8. Complétalo en esta ventana.",
@@ -185,5 +185,7 @@
   "floatPracticeReady": "El chat ya está flotando. Cambia a otra ventana para ver que permanece encima.",
   "selectedSummaryPrompt": "Resume solo este texto seleccionado del PDF.",
   "readerSummaryPrompt": "Resume esta página del PDF.",
-  "selectionAskPrompt": "Explica este texto seleccionado."
+  "selectionAskPrompt": "Explica este texto seleccionado.",
+  "captureRetryAction": "Reanudar captura",
+  "captureScreenClearance": "Al capturar esta pantalla, la burbuja se cierra brevemente. Vuelve a abrirla para continuar."
 }

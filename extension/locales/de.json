@@ -138,7 +138,7 @@
   "replayTour": "Einführung erneut ansehen",
   "globalCropShortcut": "Globaler Zuschnitt: Strg+Umschalt+7 (Cmd+Umschalt+7 auf dem Mac). Ändere ihn unter chrome://extensions/shortcuts.",
   "screenChangeSummary": "Der freigegebene Bildschirm hat sich geändert. Hier ist eine kurze Zusammenfassung.",
-  "capturePermission": "Klicke auf dieser Seite auf das Glimpselet Symbol in der Symbolleiste und versuche die Aufnahme erneut.",
+  "capturePermission": "Öffne auf dieser Seite das Erweiterungsmenü von Chrome und wähle Glimpselet. Setze die Aufnahme dann hier fort.",
   "shiftCrop": "Halte Umschalt gedrückt, um zuzuschneiden",
   "liveStopped": "Die Blase wartet nicht mehr. Das Terminal arbeitet möglicherweise noch. Drücke dort Esc, um es zu beenden.",
   "replayTourHint": "Übung {step}/8. Schließe sie in diesem Fenster ab.",
@@ -185,5 +185,7 @@
   "floatPracticeReady": "Der Chat schwebt bereits. Wechsle zu einem anderen Fenster und prüfe, ob er im Vordergrund bleibt.",
   "selectedSummaryPrompt": "Fasse nur diesen ausgewählten PDF-Text zusammen.",
   "readerSummaryPrompt": "Fasse diese PDF-Seite zusammen.",
-  "selectionAskPrompt": "Erkläre diesen ausgewählten Text."
+  "selectionAskPrompt": "Erkläre diesen ausgewählten Text.",
+  "captureRetryAction": "Aufnahme fortsetzen",
+  "captureScreenClearance": "Bei der Aufnahme dieses Bildschirms schließt sich die Blase kurz. Öffne sie erneut, um fortzufahren."
 }

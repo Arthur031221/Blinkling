@@ -138,7 +138,7 @@
   "replayTour": "重播導覽",
   "globalCropShortcut": "全域裁切快捷鍵：Ctrl+Shift+7，Mac 為 Cmd+Shift+7。可在 chrome://extensions/shortcuts 修改。",
   "screenChangeSummary": "分享的螢幕有所變化，以下是簡短摘要。",
-  "capturePermission": "請在這個頁面按 Glimpselet 工具列圖示，再試一次擷取。",
+  "capturePermission": "請在這個頁面開啟 Chrome 的擴充功能選單，選擇 Glimpselet，再回到這裡繼續擷取。",
   "shiftCrop": "按住 Shift 裁切",
   "liveStopped": "泡泡已停止等待。終端可能仍在執行。按 Esc 可在終端中停止它。",
   "replayTourHint": "練習步驟 {step}/8。請在這個浮動視窗完成。",
@@ -185,5 +185,7 @@
   "floatPracticeReady": "聊天視窗已浮動。切換到其他視窗，看看它是否保持在最上方。",
   "selectedSummaryPrompt": "只摘要這段選取的 PDF 文字。",
   "readerSummaryPrompt": "摘要這一頁 PDF。",
-  "selectionAskPrompt": "解釋這段選取的文字。"
+  "selectionAskPrompt": "解釋這段選取的文字。",
+  "captureRetryAction": "繼續擷取",
+  "captureScreenClearance": "擷取這個螢幕時，浮動視窗會暫時關閉。重新開啟後即可繼續。"
 }

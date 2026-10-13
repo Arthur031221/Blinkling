@@ -471,7 +471,12 @@
       if (pieces.join(" ").length >= limit) break;
     }
     const text = (element.getAttribute("aria-label") || element.getAttribute("title") || pieces.join(" ")).replace(/\s+/g, " ").trim();
-    return text.slice(0, limit);
+    if (text) return text.slice(0, limit);
+    if (element.matches("button,[role=button]") && /^(?:menu|true)$/i.test(element.getAttribute("aria-haspopup") || "")) {
+      const expanded = element.getAttribute("aria-expanded");
+      return ("Menu" + (expanded === "true" ? " (expanded)" : expanded === "false" ? " (collapsed)" : "")).slice(0, limit);
+    }
+    return "";
   }
   function isExcluded(element, includeHidden = false) {
     for (let current = element; current; current = composedParent(current)) {
@@ -561,9 +566,9 @@
       } : {}
     };
   }
-  function contextTextNode(node) {
+  function contextTextNode(node, allowEmpty = false) {
     const parent = composedTextParent(node);
-    return !!(parent && node.nodeValue?.trim() && restorableTextNode(node) && visible(parent));
+    return !!(parent && (node.nodeValue?.trim() || allowEmpty && node.nodeValue === "") && restorableTextNode(node) && visible(parent));
   }
   function contextRangeText(range) {
     const root = range.commonAncestorContainer;
@@ -698,10 +703,11 @@
         continue;
       if (typeof step.note !== "string" || !step.note.trim()) continue;
       seen.add(step.elementId);
+      const action = typeof step.action === "string" ? step.action.trim().slice(0, 120) : "";
       steps.push({
         elementId: step.elementId,
         note: step.note.trim().slice(0, 360),
-        ...typeof step.action === "string" ? { action: step.action.trim().slice(0, 120) } : {}
+        ...action && !/^(?:none|null|n\/?a|no[ -]?op)$/i.test(action) ? { action } : {}
       });
     }
     return steps;
@@ -736,13 +742,21 @@
       return { x: r.left, y: r.top, width: r.width, height: r.height, element };
     }, renderGuide = function() {
       if (!currentGuide) return;
+      const step = currentGuide.steps[currentGuide.index];
+      const context = buildGuideContext();
+      if (context.hasPassword || !context.elements.some((element) => element.id === step.elementId)) {
+        closeGuide();
+        return;
+      }
       const root = ensureOverlay();
       const activeControl = root.querySelector(".guide nav")?.contains(root.activeElement) ? root.activeElement.dataset.guideControl : void 0;
       root.querySelector(".guide")?.remove();
-      root.querySelector("svg.draw")?.remove();
-      const step = currentGuide.steps[currentGuide.index];
+      root.querySelector('svg[class~="draw"]')?.remove();
       let point = guidePoint(step.elementId);
-      if (!point) return;
+      if (!point) {
+        closeGuide();
+        return;
+      }
       const changed = renderedStep !== step.elementId;
       if (changed && (point.y < 0 || point.y + point.height > innerHeight || point.x < 0 || point.x > innerWidth)) {
         point.element.scrollIntoView({
@@ -963,7 +977,7 @@
       guideReturnFocus = void 0;
       renderedStep = "";
       overlayRoot?.querySelector(".guide")?.remove();
-      overlayRoot?.querySelector("svg.draw")?.remove();
+      overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     }, closeSelectionPopover = function() {
       window.clearTimeout(selectionTimer);
@@ -1104,7 +1118,14 @@
                 void send({
                   type: "glimpselet:crop-selected",
                   rect: value.rect,
-                  url: location.href
+                  url: location.href,
+                  geometry: {
+                    width: innerWidth,
+                    height: innerHeight,
+                    scrollX,
+                    scrollY,
+                    devicePixelRatio
+                  }
                 });
             }
           );
@@ -1199,7 +1220,7 @@
       shade?.cleanup?.();
       shade?.remove();
       overlayRoot?.querySelector(".cancel")?.remove();
-      overlayRoot?.querySelector("svg.draw")?.remove();
+      overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
       selecting = false;
       selectionMode = void 0;
       const resolve = selectionResolve;
@@ -1423,7 +1444,10 @@
             renderedStep = "";
             renderGuide();
             respond({ ok: true });
-          } else respond({ ok: false });
+          } else {
+            closeGuide();
+            respond({ ok: false });
+          }
           return;
         }
         if (message.type === "glimpselet:text-nodes") {
@@ -1442,15 +1466,16 @@
           let index = 0;
           let hasMore = false;
           while (node = walker.nextNode()) {
-            if (!(node instanceof Text) || !contextTextNode(node)) continue;
-            const text = node.nodeValue.trim();
-            if (!text) continue;
+            if (!(node instanceof Text)) continue;
+            const retainedId = nodeIds.get(node);
+            let original = retainedId ? originals.get(retainedId) : void 0;
+            const retainedEmpty = original?.node === node && original.lastWritten === "" && node.nodeValue === "";
+            if (!contextTextNode(node, retainedEmpty)) continue;
             if (index < cursor) {
               index++;
               continue;
             }
-            let id = textNodeId(node);
-            let original = originals.get(id);
+            let id = retainedId ?? textNodeId(node);
             if (original && node.nodeValue !== (original.lastWritten ?? original.text)) {
               originals.delete(id);
               nodeIds.delete(node);
@@ -1497,7 +1522,10 @@
               skipped.disconnected++;
               continue;
             }
-            if (!contextTextNode(original.node)) {
+            if (!contextTextNode(
+              original.node,
+              original.lastWritten === "" && original.node.nodeValue === ""
+            )) {
               skipped.ineligible++;
               continue;
             }

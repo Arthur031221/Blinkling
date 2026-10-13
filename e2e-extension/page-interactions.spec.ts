@@ -181,6 +181,81 @@ async function openGuide() {
   });
 }
 
+async function readGuideLayout(targetId: string) {
+  // A scroll/resize redraw replaces the guide nodes. Read one connected layout
+  // in a single browser task instead of mixing bounds from different renders.
+  return site.evaluate((targetId) => {
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )?.shadowRoot;
+    const card = root?.querySelector<HTMLElement>(".guide");
+    const note = card?.querySelector<HTMLParagraphElement>("p");
+    const target = document.querySelector(targetId);
+    if (!card?.isConnected || !note?.isConnected || !target?.isConnected)
+      return null;
+    const buttons = Array.from(card.querySelectorAll("nav button"));
+    if (buttons.some((button) => !button.isConnected)) return null;
+    const bounds = (element: Element) => {
+      const { x, y, width, height } = element.getBoundingClientRect();
+      return { x, y, width, height };
+    };
+    return {
+      card: bounds(card),
+      passage: bounds(note),
+      lineHeight: parseFloat(getComputedStyle(note).lineHeight),
+      buttons: buttons.map(bounds),
+      target: bounds(target),
+      viewport: { width: innerWidth, height: innerHeight },
+    };
+  }, targetId);
+}
+
+async function expectGuidePlacement(targetId: string) {
+  const sample: { current: Awaited<ReturnType<typeof readGuideLayout>> } = {
+    current: null,
+  };
+  await expect
+    .poll(async () => {
+      const layout = await readGuideLayout(targetId);
+      sample.current = layout;
+      if (!layout) return false;
+      const { card, passage, target, viewport, lineHeight, buttons } = layout;
+      const inViewport =
+        card.x >= 0 &&
+        card.y >= 0 &&
+        card.x + card.width <= viewport.width &&
+        card.y + card.height <= viewport.height;
+      const clearOfTarget =
+        card.x + card.width <= target.x ||
+        card.x >= target.x + target.width ||
+        card.y + card.height <= target.y ||
+        card.y >= target.y + target.height;
+      const contains = (bounds: typeof passage) =>
+        bounds.x >= card.x &&
+        bounds.y >= card.y &&
+        bounds.x + bounds.width <= card.x + card.width &&
+        bounds.y + bounds.height <= card.y + card.height;
+      const positive = (bounds: typeof passage) =>
+        bounds.width > 0 && bounds.height > 0;
+      return (
+        positive(card) &&
+        positive(passage) &&
+        positive(target) &&
+        inViewport &&
+        clearOfTarget &&
+        Number.isFinite(lineHeight) &&
+        lineHeight > 0 &&
+        passage.height >= lineHeight &&
+        contains(passage) &&
+        buttons.length === 3 &&
+        buttons.every(positive) &&
+        buttons.every(contains)
+      );
+    })
+    .toBe(true);
+  return sample.current!;
+}
+
 for (const hiddenBy of ["display", "offscreen"] as const) {
   test(`explicit public reading and Shift crop exclude a ${hiddenBy} opaque tracker while automatic reads stay blocked`, async () => {
     await site.evaluate(
@@ -549,31 +624,10 @@ for (const language of ["en", "zh-TW"] as const)
       ).toEqual({ ok: true });
       const guide = site.locator("[data-glimpselet-overlay] .guide");
       const checkPlacement = async (targetId: string) => {
-        await expect
-          .poll(async () => {
-            const card = await guide.boundingBox();
-            const target = await site.locator(targetId).boundingBox();
-            const viewport = site.viewportSize()!;
-            if (!card || !target) return false;
-            const inViewport =
-              card.x >= 0 &&
-              card.y >= 0 &&
-              card.x + card.width <= viewport.width &&
-              card.y + card.height <= viewport.height;
-            const clearOfTarget =
-              card.x + card.width <= target.x ||
-              card.x >= target.x + target.width ||
-              card.y + card.height <= target.y ||
-              card.y >= target.y + target.height;
-            return inViewport && clearOfTarget;
-          })
-          .toBe(true);
-        const card = (await guide.boundingBox())!;
+        const { card, passage, lineHeight, buttons } =
+          await expectGuidePlacement(targetId);
         const passageNote = guide.locator("p");
-        const passage = (await passageNote.boundingBox())!;
-        const lineHeight = await passageNote.evaluate((note) =>
-          parseFloat(getComputedStyle(note).lineHeight),
-        );
+        expect(Number.isFinite(lineHeight)).toBe(true);
         expect(passage.height).toBeGreaterThanOrEqual(lineHeight);
         expect(passage.x).toBeGreaterThanOrEqual(card.x);
         expect(passage.y).toBeGreaterThanOrEqual(card.y);
@@ -583,8 +637,7 @@ for (const language of ["en", "zh-TW"] as const)
         expect(passage.y + passage.height).toBeLessThanOrEqual(
           card.y + card.height,
         );
-        for (const button of await guide.locator("nav button").all()) {
-          const bounds = (await button.boundingBox())!;
+        for (const bounds of buttons) {
           expect(bounds.x).toBeGreaterThanOrEqual(card.x);
           expect(bounds.y).toBeGreaterThanOrEqual(card.y);
           expect(bounds.x + bounds.width).toBeLessThanOrEqual(
@@ -689,40 +742,14 @@ for (const [language, labels] of [
       }),
     ).toEqual({ ok: true });
     const guide = site.locator("[data-glimpselet-overlay] .guide");
-    await expect
-      .poll(async () => {
-        const card = await guide.boundingBox();
-        const bounds = await target.boundingBox();
-        if (!card || !bounds) return false;
-        const inViewport =
-          card.x >= 0 &&
-          card.y >= 0 &&
-          card.x + card.width <= 320 &&
-          card.y + card.height <= 240;
-        const clearOfTarget =
-          card.x + card.width <= bounds.x ||
-          card.x >= bounds.x + bounds.width ||
-          card.y + card.height <= bounds.y ||
-          card.y >= bounds.y + bounds.height;
-        return inViewport && clearOfTarget;
-      })
-      .toBe(true);
-    const card = (await guide.boundingBox())!;
+    const { card, passage, lineHeight, buttons, viewport } =
+      await expectGuidePlacement("#export");
+    expect(viewport).toEqual({ width: 320, height: 240 });
     const passageNote = guide.locator("p");
     await expect(passageNote).toHaveText(note);
-    const passage = (await passageNote.boundingBox())!;
-    const lineHeight = await passageNote.evaluate((note) =>
-      parseFloat(getComputedStyle(note).lineHeight),
-    );
+    expect(Number.isFinite(lineHeight)).toBe(true);
     expect(passage.height).toBeGreaterThanOrEqual(lineHeight);
-    for (const bounds of [
-      passage,
-      ...(await Promise.all(
-        (await guide.locator("nav button").all()).map((button) =>
-          button.boundingBox(),
-        ),
-      )),
-    ]) {
+    for (const bounds of [passage, ...buttons]) {
       expect(bounds).not.toBeNull();
       expect(bounds!.x).toBeGreaterThanOrEqual(card.x);
       expect(bounds!.y).toBeGreaterThanOrEqual(card.y);

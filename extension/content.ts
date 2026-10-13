@@ -216,7 +216,7 @@ if (!contentScope.glimpseletContentReady) {
       ? (root.activeElement as HTMLElement).dataset.guideControl
       : undefined;
     root.querySelector(".guide")?.remove();
-    root.querySelector("svg.draw")?.remove();
+    root.querySelector('svg[class~="draw"]')?.remove();
     let point = guidePoint(step.elementId);
     if (!point) {
       closeGuide();
@@ -467,6 +467,7 @@ if (!contentScope.glimpseletContentReady) {
       `M${startX} ${startY} Q${(startX + endX) / 2 + 22} ${(startY + endY) / 2} ${endX} ${endY} m-7 -4 l7 4 l-7 4`,
     );
     svg.append(arrow);
+    root.append(svg, callout);
     if (!changed)
       for (const ink of svg.querySelectorAll<SVGElement>(".ink,.arrow")) {
         ink.style.animation = "none";
@@ -485,7 +486,7 @@ if (!contentScope.glimpseletContentReady) {
     guideReturnFocus = undefined;
     renderedStep = "";
     overlayRoot?.querySelector(".guide")?.remove();
-    overlayRoot?.querySelector("svg.draw")?.remove();
+    overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
     if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
   }
 
@@ -661,6 +662,13 @@ if (!contentScope.glimpseletContentReady) {
                 type: "glimpselet:crop-selected",
                 rect: value.rect,
                 url: location.href,
+                geometry: {
+                  width: innerWidth,
+                  height: innerHeight,
+                  scrollX,
+                  scrollY,
+                  devicePixelRatio,
+                },
               });
           },
         );
@@ -771,7 +779,7 @@ if (!contentScope.glimpseletContentReady) {
     shade?.cleanup?.();
     shade?.remove();
     overlayRoot?.querySelector(".cancel")?.remove();
-    overlayRoot?.querySelector("svg.draw")?.remove();
+    overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
     selecting = false;
     selectionMode = undefined;
     const resolve = selectionResolve;
