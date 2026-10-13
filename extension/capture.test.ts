@@ -113,6 +113,225 @@ describe("full-page capture progress and cancellation", () => {
   });
 });
 
+describe("web screenshot authorization", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    drawImage.mockClear();
+  });
+
+  const geometry = {
+    width: 100,
+    height: 100,
+    scrollX: 4,
+    scrollY: 8,
+    devicePixelRatio: 1,
+  };
+  const rect: [number, number, number, number] = [10, 20, 30, 40];
+
+  function setupAuthorization(
+    captureVisibleTab = vi.fn(async () => "tile-png"),
+  ) {
+    const mocks = setupChrome(captureVisibleTab);
+    let documentId = "document-seven";
+    let currentGeometry = { ...geometry };
+    mocks.executeScript.mockImplementation(async (details) => {
+      if (details.func.toString().includes("devicePixelRatio"))
+        return [{ result: currentGeometry, documentId, frameId: 0 }];
+      if (details.args?.[0] === null)
+        return [{ result: false, documentId, frameId: 0 }];
+      return [{ result: 100, documentId, frameId: 0 }];
+    });
+    vi.mocked(chrome.tabs.sendMessage).mockImplementation(
+      async (_tabId, message) =>
+        message.type === "glimpselet:select" ? { rect } : { url: tab.url },
+    );
+    return {
+      ...mocks,
+      setDocument: (next: string) => {
+        documentId = next;
+      },
+      setGeometry: (next: typeof geometry) => {
+        currentGeometry = next;
+      },
+    };
+  }
+
+  it.each(["region", "element"] as const)(
+    "requires screenshot activation before opening the %s selector",
+    async (kind) => {
+      const captureVisibleTab = vi.fn(async () => {
+        throw new Error("activeTab permission required");
+      });
+      setupAuthorization(captureVisibleTab);
+      const { captureWeb } = await import("./capture");
+
+      await expect(captureWeb(kind)).rejects.toThrow("capture_permission");
+
+      expect(captureVisibleTab).toHaveBeenCalledTimes(1);
+      expect(chrome.tabs.sendMessage).not.toHaveBeenCalledWith(
+        tab.id,
+        expect.objectContaining({ type: "glimpselet:select" }),
+      );
+      expect(chrome.permissions.contains).toHaveBeenCalledWith({
+        origins: ["https://public.test/*"],
+      });
+    },
+  );
+
+  it("spaces authorization and capture calls to respect Chrome's screenshot quota", async () => {
+    vi.useFakeTimers();
+    const capturedAt: number[] = [];
+    const captureVisibleTab = vi.fn(async () => {
+      capturedAt.push(Date.now());
+      return "tile-png";
+    });
+    setupAuthorization(captureVisibleTab);
+    const { captureWeb } = await import("./capture");
+
+    const capture = captureWeb("region");
+    await vi.runAllTimersAsync();
+    await capture;
+
+    expect(capturedAt).toHaveLength(2);
+    expect(capturedAt[1] - capturedAt[0]).toBeGreaterThanOrEqual(550);
+  });
+
+  async function deniedSelectedCapture(
+    kind: "region" | "element" | "visible" = "region",
+  ) {
+    const captureVisibleTab = vi.fn(async () => {
+      throw new Error("activeTab permission required");
+    });
+    const mocks = setupAuthorization(captureVisibleTab);
+    const capture = await import("./capture");
+    const error = await capture
+      .captureWeb(kind, kind === "visible" ? undefined : rect)
+      .catch((reason) => reason);
+    expect(error.message).toBe("capture_permission");
+    expect(error.pending).toEqual(
+      expect.objectContaining({
+        kind,
+        tabId: tab.id,
+        url: tab.url,
+        documentId: "document-seven",
+        rect: kind === "visible" ? undefined : rect,
+      }),
+    );
+    captureVisibleTab.mockResolvedValue("tile-png");
+    return { ...mocks, ...capture, pending: error.pending };
+  }
+
+  it.each(["region", "element", "visible"] as const)(
+    "retries the same %s capture after toolbar activation without another selection",
+    async (kind) => {
+      const { retryPendingWebCapture, pending, captureVisibleTab } =
+        await deniedSelectedCapture(kind);
+
+      const result = await retryPendingWebCapture(pending);
+
+      expect(result.capture.image).toBe("stitched-png");
+      expect(captureVisibleTab).toHaveBeenCalledTimes(2);
+      expect(chrome.tabs.sendMessage).not.toHaveBeenCalledWith(
+        tab.id,
+        expect.objectContaining({ type: "glimpselet:select" }),
+      );
+      if (kind !== "visible")
+        expect(drawImage).toHaveBeenLastCalledWith(
+          expect.anything(),
+          10,
+          20,
+          30,
+          40,
+          0,
+          0,
+          30,
+          40,
+        );
+    },
+  );
+
+  it.each(["source", "navigation", "same-url-reload", "scroll", "viewport"])(
+    "invalidates saved coordinates after a %s change before reading pixels",
+    async (change) => {
+      const {
+        retryPendingWebCapture,
+        pending,
+        captureVisibleTab,
+        setCurrentActiveTab,
+        setDocument,
+        setGeometry,
+      } = await deniedSelectedCapture();
+      if (change === "source") {
+        setCurrentActiveTab(8);
+        vi.mocked(chrome.tabs.get).mockResolvedValue({ ...tab, id: 8 });
+        vi.mocked(chrome.tabs.query).mockResolvedValue([{ ...tab, id: 8 }]);
+      }
+      if (change === "navigation")
+        vi.mocked(chrome.tabs.get).mockResolvedValue({
+          ...tab,
+          url: "https://public.test/another",
+        });
+      if (change === "same-url-reload") setDocument("replacement-document");
+      if (change === "scroll") setGeometry({ ...geometry, scrollY: 9 });
+      if (change === "viewport") setGeometry({ ...geometry, width: 101 });
+
+      await expect(retryPendingWebCapture(pending)).rejects.toThrow(
+        "tab_changed",
+      );
+
+      expect(captureVisibleTab).toHaveBeenCalledTimes(1);
+      expect(drawImage).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rechecks password privacy before retrying a saved selection", async () => {
+    const {
+      retryPendingWebCapture,
+      pending,
+      captureVisibleTab,
+      executeScript,
+    } = await deniedSelectedCapture();
+    executeScript.mockImplementation(async (details) => [
+      {
+        result: details.func.toString().includes("devicePixelRatio")
+          ? geometry
+          : true,
+        documentId: "document-seven",
+        frameId: 0,
+      },
+    ]);
+
+    await expect(retryPendingWebCapture(pending)).rejects.toThrow(
+      "password_page",
+    );
+
+    expect(captureVisibleTab).toHaveBeenCalledTimes(1);
+    expect(drawImage).not.toHaveBeenCalled();
+  });
+
+  it("does not retry into the extension opener while the source page is inactive", async () => {
+    const { retryPendingWebCapture, pending, captureVisibleTab } =
+      await deniedSelectedCapture();
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      {
+        ...tab,
+        id: 99,
+        url: chrome.runtime.getURL("panel.html"),
+      },
+    ]);
+
+    await expect(retryPendingWebCapture(pending)).rejects.toThrow(
+      "tab_changed",
+    );
+
+    expect(captureVisibleTab).toHaveBeenCalledTimes(1);
+    expect(drawImage).not.toHaveBeenCalled();
+  });
+});
+
 describe("explicit guide context", () => {
   beforeEach(() => {
     vi.resetModules();
