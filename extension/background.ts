@@ -104,18 +104,22 @@ chrome.runtime.onMessage.addListener(
     }
     if (
       message?.type === "glimpselet:reader-permission-handoff" &&
-      sender.tab?.url?.startsWith(readerUrl())
+      sender.tab?.url?.split(/[?#]/, 1)[0] === readerUrl()
     ) {
+      let interrupted = false;
       void (async () => {
         const panels = await chrome.tabs.query({ url: `${panelUrl()}*` });
-        if (!panels.length) return;
+        if (!panels.length) return false;
         // The panel owns any document PiP window. Require its acknowledgement
         // before reporting readiness, so the reader cannot open a prompt while
         // an unclosed PiP window may still cover Chromium's permission UI.
         const response = (await chrome.runtime
           .sendMessage({ type: "glimpselet:reader-permission-handoff" })
-          .catch(() => undefined)) as { ok?: boolean } | undefined;
+          .catch(() => undefined)) as
+          | { ok?: boolean; interrupted?: boolean }
+          | undefined;
         if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
+        interrupted = response.interrupted === true;
         const panel = panels.find(
           (tab: BrowserTab) => tab.windowId !== undefined,
         );
@@ -123,12 +127,19 @@ chrome.runtime.onMessage.addListener(
           const owner = await chrome.windows
             .get(panel.windowId)
             .catch(() => undefined);
-          if (owner?.type === "popup" && owner.state !== "minimized")
+          if (owner?.type === "popup" && owner.state !== "minimized") {
             await chrome.windows.update(panel.windowId, { state: "minimized" });
+            interrupted = true;
+          }
         }
+        return interrupted;
       })()
-        .then(() => sendResponse({ ok: true }))
-        .catch(() => sendResponse({ ok: false }));
+        .then((interrupted) => sendResponse({ ok: true, interrupted }))
+        .catch(() =>
+          sendResponse(
+            interrupted ? { ok: false, interrupted } : { ok: false },
+          ),
+        );
       return true;
     }
     if (message?.type === "glimpselet:pair" && sender.tab?.url) {

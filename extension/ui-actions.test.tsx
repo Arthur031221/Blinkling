@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   guide: vi.fn(),
   sensitive: vi.fn(),
   capture: vi.fn(),
+  cancel: vi.fn(),
   root: undefined as Root | undefined,
 }));
 vi.mock("react-dom/client", async (original) => {
@@ -33,7 +34,8 @@ vi.mock("./api", async (original) => ({
     ask = mocks.ask;
     load = vi.fn().mockResolvedValue(undefined);
     close = vi.fn();
-    cancelAndWait = vi.fn().mockResolvedValue(undefined);
+    send = vi.fn().mockResolvedValue(undefined);
+    cancelAndWait = mocks.cancel;
   },
 }));
 vi.mock("./capture", () => ({
@@ -68,6 +70,7 @@ let runtime: ReturnType<typeof event>;
 let updated: ReturnType<typeof event>;
 let sendToTab: ReturnType<typeof vi.fn>;
 let stored: Record<string, unknown>;
+let views: ReturnType<typeof vi.fn>;
 
 async function flush() {
   await act(async () => {
@@ -132,6 +135,7 @@ beforeEach(() => {
   updated = event();
   sendToTab = vi.fn().mockResolvedValue({ ok: true });
   stored = { consented: true, locale: "en", targetLocale: "zh-TW" };
+  views = vi.fn().mockReturnValue([]);
   vi.stubGlobal("chrome", {
     runtime: {
       getURL: (path: string) => `chrome-extension://test/${path}`,
@@ -157,6 +161,7 @@ beforeEach(() => {
       onUpdated: updated,
     },
     windows: { onFocusChanged: event() },
+    extension: { getViews: views },
     scripting: { executeScript: vi.fn().mockResolvedValue([{ result: true }]) },
     permissions: {
       contains: vi.fn().mockResolvedValue(true),
@@ -172,6 +177,7 @@ beforeEach(() => {
     page,
     capture: { image: "data:image/png;base64,AAA=", label: "Visible" },
   });
+  mocks.cancel.mockReset().mockResolvedValue(undefined);
   mocks.ask
     .mockReset()
     .mockImplementation(
@@ -198,6 +204,182 @@ afterEach(async () => {
 });
 
 describe("bubble answer rendering and feedback", () => {
+  it.each(["translate", "summary-selection"])(
+    "rejects invalid reader %s selections before disturbing a background request or draft",
+    async (action) => {
+      mocks.ask.mockImplementation(() => new Promise(() => {}));
+      await start();
+      await draft("Keep my next question");
+      const originalStatus = status();
+      for (const text of ["", " \n\t ", "x".repeat(5001)]) {
+        const response = await send({
+          type: "glimpselet:reader-action",
+          action,
+          text,
+          context: { ...page, text: "Unrelated PDF context" },
+        });
+        expect(response).toHaveBeenCalledWith({
+          ok: false,
+          error: "selection_limit",
+        });
+        expect(mocks.ask).not.toHaveBeenCalled();
+        expect(mocks.cancel).not.toHaveBeenCalled();
+        expect(status()).toBe(originalStatus);
+        expect(document.querySelector("textarea")?.value).toBe(
+          "Keep my next question",
+        );
+      }
+    },
+  );
+  it("admits a complete reader translation at the selection limit exactly once", async () => {
+    await start();
+    const text = "x".repeat(5000);
+    const response = await send({
+      type: "glimpselet:reader-action",
+      action: "translate",
+      text,
+      context: page,
+    });
+    expect(response).toHaveBeenCalledWith({ ok: true });
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(mocks.ask.mock.calls[0][0].question).toBe(
+      `Translate this selected text into 繁體中文: ${text}`,
+    );
+  });
+  it("hands off and resumes the existing chat in a reader-owned PiP without losing its thread, draft or attachment", async () => {
+    await start();
+    await send({
+      type: "glimpselet:reader-action",
+      action: "summary",
+      context: page,
+    });
+    await click(en.visible);
+    await draft("Keep this draft while allowing the PDF site");
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const floating = frame.contentWindow!;
+    const close = vi.fn(() => floating.dispatchEvent(new Event("pagehide")));
+    Object.defineProperty(floating, "close", {
+      configurable: true,
+      value: close,
+    });
+    const requestWindow = vi.fn().mockResolvedValue(floating);
+    vi.stubGlobal("documentPictureInPicture", { requestWindow });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => ".app { color: black; }",
+      }),
+    );
+    await click(en.float);
+    expect(floating.document.querySelector("textarea")?.value).toContain(
+      "Keep this draft",
+    );
+    const originalMessages =
+      floating.document.querySelectorAll(".message").length;
+    const handoffResponse = vi.fn();
+    await act(async () =>
+      runtime.emit(
+        { type: "glimpselet:reader-permission-handoff" },
+        {},
+        handoffResponse,
+      ),
+    );
+    await flush();
+    expect(handoffResponse).toHaveBeenCalledWith({
+      ok: true,
+      interrupted: true,
+    });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("textarea")?.value).toContain(
+      "Keep this draft",
+    );
+    expect(
+      document.querySelector(".capture-chip img")?.getAttribute("src"),
+    ).toBe("data:image/png;base64,AAA=");
+    const resumedFrame = document.createElement("iframe");
+    document.body.append(resumedFrame);
+    const resumed = resumedFrame.contentWindow!;
+    const readerUrl =
+      "chrome-extension://test/reader.html?url=https%3A%2F%2Fexample.com%2Fpaper.pdf";
+    views.mockReturnValue([
+      {
+        location: { href: readerUrl },
+        documentPictureInPicture: { window: resumed },
+      },
+    ]);
+    const response = await send(
+      { type: "glimpselet:reader-resume-floating" },
+      readerUrl,
+    );
+    expect(response).toHaveBeenCalledWith({ ok: true });
+    expect(views).toHaveBeenCalledWith({ type: "tab", tabId: 1 });
+    expect(requestWindow).toHaveBeenCalledTimes(1);
+    expect(resumed.document.querySelector(".app.in-pip")).not.toBeNull();
+    expect(resumed.document.querySelector("textarea")?.value).toContain(
+      "Keep this draft",
+    );
+    expect(resumed.document.querySelectorAll(".message")).toHaveLength(
+      originalMessages,
+    );
+    expect(
+      resumed.document.querySelector(".capture-chip img")?.getAttribute("src"),
+    ).toBe("data:image/png;base64,AAA=");
+    expect(resumed.document.head.querySelector("style")?.textContent).toContain(
+      ".app",
+    );
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    await act(async () => resumed.dispatchEvent(new Event("pagehide")));
+    await flush();
+    expect(document.querySelector("textarea")?.value).toContain(
+      "Keep this draft",
+    );
+    expect(document.querySelectorAll(".message")).toHaveLength(
+      originalMessages,
+    );
+  });
+  it("leaves reader permission coordination to the background before acknowledging", async () => {
+    await start();
+    const response = await send(
+      { type: "glimpselet:reader-permission-handoff" },
+      "chrome-extension://test/reader.html",
+    );
+    expect(response).not.toHaveBeenCalled();
+    const forwardedResponse = vi.fn();
+    await act(async () =>
+      runtime.emit(
+        { type: "glimpselet:reader-permission-handoff" },
+        {},
+        forwardedResponse,
+      ),
+    );
+    expect(forwardedResponse).toHaveBeenCalledWith({
+      ok: true,
+      interrupted: false,
+    });
+  });
+  it.each([page.url, "chrome-extension://test/reader.html?url=another"])(
+    "rejects reader PiP adoption from an unrelated sender %s",
+    async (url) => {
+      await start();
+      const frame = document.createElement("iframe");
+      document.body.append(frame);
+      views.mockReturnValue([
+        {
+          location: { href: "chrome-extension://test/reader.html" },
+          documentPictureInPicture: { window: frame.contentWindow },
+        },
+      ]);
+      const response = await send(
+        { type: "glimpselet:reader-resume-floating" },
+        url,
+      );
+      expect(response).toHaveBeenCalledWith({ ok: false });
+      expect(document.querySelector(".app.in-pip")).toBeNull();
+      expect(frame.contentDocument?.querySelector(".app")).toBeNull();
+    },
+  );
   it.each(["summary", "translate"])(
     "submits a reader %s once without leaving its instruction in the draft",
     async (action) => {
@@ -358,25 +540,35 @@ describe("bubble answer rendering and feedback", () => {
     );
     expect(status()).toBe(en.bridgeLost);
   });
-  it("explicitly scopes a section summary to its selected text without an unrelated image or section", async () => {
-    await start();
-    await click(en.visible);
-    expect(document.querySelector(".capture-chip img")).not.toBeNull();
-    await send({
-      type: "glimpselet:reader-action",
-      action: "summary-selection",
-      text: "Transformer introduction",
-      context: { ...page, text: "Transformer introduction. UNRELATED_SECTION" },
-      image: "data:image/png;base64,AAA=",
-    });
-    expect(mocks.ask).toHaveBeenCalledTimes(1);
-    const input = mocks.ask.mock.calls[0][0];
-    expect(input.question).toMatch(/Summarize only this selected PDF passage/);
-    expect(input.question).toContain("Transformer introduction");
-    expect(input.page.text).toBe("Transformer introduction");
-    expect(input.image).toBeUndefined();
-    expect(document.querySelector("textarea")?.value).toBe("");
-  });
+  it.each(["summary-selection", "translate"])(
+    "explicitly scopes reader %s to its selected text without an unrelated image or section",
+    async (action) => {
+      await start();
+      await click(en.visible);
+      expect(document.querySelector(".capture-chip img")).not.toBeNull();
+      await send({
+        type: "glimpselet:reader-action",
+        action,
+        text: "Transformer introduction",
+        context: {
+          ...page,
+          text: "Transformer introduction. UNRELATED_SECTION",
+        },
+        image: "data:image/png;base64,AAA=",
+      });
+      expect(mocks.ask).toHaveBeenCalledTimes(1);
+      const input = mocks.ask.mock.calls[0][0];
+      expect(input.question).toMatch(
+        action === "summary-selection"
+          ? /Summarize only this selected PDF passage/
+          : /Translate this selected text/,
+      );
+      expect(input.question).toContain("Transformer introduction");
+      expect(input.page.text).toBe("Transformer introduction");
+      expect(input.image).toBeUndefined();
+      expect(document.querySelector("textarea")?.value).toBe("");
+    },
+  );
   it("clears a page warning after readable SPA context and suggestions arrive", async () => {
     mocks.sensitive.mockResolvedValue(true);
     await start();

@@ -33,6 +33,17 @@
         Open chat
       </button>
     </header>
+    <div id="permission-recovery" role="status" aria-live="polite" hidden>
+      <p id="permission-note" data-reader-label="permissionNotice"></p>
+      <button
+        id="resume-panel"
+        type="button"
+        data-reader-label="resumePanel"
+        hidden
+      >
+        Resume floating chat
+      </button>
+    </div>
     <main>
       <aside>
         <button id="prev" type="button" data-reader-label="previous">
@@ -50,6 +61,7 @@
           data-action="translate"
           type="button"
           data-reader-label="translate"
+          disabled
         >
           Translate selection
         </button>
@@ -64,6 +76,9 @@
         >
           Summarize selection
         </button>
+        <p id="selection-help" data-reader-label="selectionHelp" hidden>
+          Select a passage to translate or summarize it.
+        </p>
         <button data-action="guide" type="button" data-reader-label="guide">
           Guide me through this section
         </button>

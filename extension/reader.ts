@@ -23,6 +23,11 @@ const urlForm = document.querySelector<HTMLFormElement>("#url-form")!;
 const pageElement = document.querySelector<HTMLElement>("#page")!;
 const pageLabel = document.querySelector<HTMLElement>("#page-label")!;
 const status = document.querySelector<HTMLElement>("#status")!;
+const permissionRecovery = document.querySelector<HTMLElement>(
+  "#permission-recovery",
+)!;
+const permissionNote = document.querySelector<HTMLElement>("#permission-note")!;
+const resumePanel = document.querySelector<HTMLButtonElement>("#resume-panel")!;
 document.documentElement.classList.add("locale-loading");
 let locale: ReaderLocale = "en";
 let t: ReaderStrings = readerLocales.en;
@@ -43,6 +48,22 @@ let currentStatusKey: keyof ReaderStrings = "choose";
 let currentStatusValues: Record<string, string | number> = {};
 const preparedPermissionOrigins = new Set<string>();
 const permissionPreparations = new Map<string, Promise<boolean>>();
+let permissionInterrupted = false;
+let floatingSize = { width: 420, height: 650 };
+
+function permissionNotice(key: "permissionNotice" | "permissionPaused"): void {
+  permissionNote.dataset.readerLabel = key;
+  permissionNote.textContent = message(key);
+  permissionRecovery.hidden = false;
+  // The URL form stays visible while a paper is scrolled. Keep its permission
+  // explanation and recovery action within reach too.
+  permissionRecovery.scrollIntoView({ block: "nearest" });
+}
+function finishPermissionPrompt(): void {
+  if (!permissionInterrupted) return;
+  permissionNotice("permissionPaused");
+  resumePanel.hidden = false;
+}
 
 function preparePermissionOrigin(parsed: URL): Promise<boolean> {
   const origin = readerUrlOriginPattern(parsed);
@@ -51,16 +72,29 @@ function preparePermissionOrigin(parsed: URL): Promise<boolean> {
   const preparation: Promise<boolean> = prepareReaderPermissionHandoff(
     [origin],
     (details) => chrome.permissions.contains(details),
-    () =>
-      chrome.runtime.sendMessage({
+    async () => {
+      permissionNotice("permissionNotice");
+      resumePanel.hidden = true;
+      // Paint the explanation before the handoff closes the floating window.
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+      const response = (await chrome.runtime.sendMessage({
         type: "glimpselet:reader-permission-handoff",
-      }),
+      })) as { ok?: boolean; interrupted?: boolean } | undefined;
+      if (response?.interrupted) permissionInterrupted = true;
+      else if (!permissionInterrupted) permissionRecovery.hidden = true;
+      return response;
+    },
   )
     .then((result) => {
       preparedPermissionOrigins.add(origin);
+      if (result === "prepared" && permissionInterrupted)
+        resumePanel.hidden = false;
       return result === "granted";
     })
     .catch(() => {
+      finishPermissionPrompt();
       if (permissionPreparations.get(origin) === preparation)
         permissionPreparations.delete(origin);
       return false;
@@ -121,10 +155,21 @@ function applyLocale(): void {
 }
 async function initializeLocale(): Promise<void> {
   try {
-    const stored = await chrome.storage.local.get("locale");
+    const stored = await chrome.storage.local.get(["locale", "pipSize"]);
     const candidate = stored.locale;
     if (typeof candidate === "string" && candidate in readerLocales)
       locale = candidate as ReaderLocale;
+    const size = stored.pipSize as
+      | { width?: number; height?: number }
+      | undefined;
+    if (
+      size &&
+      Number.isFinite(size.width) &&
+      Number.isFinite(size.height) &&
+      size.width! > 0 &&
+      size.height! > 0
+    )
+      floatingSize = { width: size.width!, height: size.height! };
   } catch {
     /* The reader remains localized in English when extension storage is unavailable. */
   }
@@ -153,10 +198,18 @@ function stopRendering(): void {
   activeTextLayer = undefined;
 }
 function updateSelectionButton(): void {
-  const button = document.querySelector<HTMLButtonElement>(
-    '[data-action="summary-selection"]',
-  )!;
-  button.disabled = !pageReady || !passageSelection;
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '[data-action="translate"], [data-action="summary-selection"]',
+    )
+    .forEach((button) => {
+      button.disabled = !pageReady || !passageSelection;
+    });
+  const help = document.querySelector<HTMLElement>("#selection-help")!;
+  const helpKey = pageText.trim() ? "selectionHelp" : "selectionUnavailable";
+  help.dataset.readerLabel = helpKey;
+  help.textContent = message(helpKey);
+  help.hidden = !pageReady || !!passageSelection;
 }
 function clearSelection(): void {
   passageSelection = "";
@@ -181,6 +234,10 @@ function rememberSelection(): void {
   updateSelectionButton();
 }
 document.addEventListener("selectionchange", rememberSelection);
+pageElement.addEventListener("pointerdown", () => {
+  passageSelection = "";
+  updateSelectionButton();
+});
 async function loadDocument(
   source: string | Uint8Array,
   title: string,
@@ -301,12 +358,12 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
       return;
     pageElement.replaceChildren(wrapper);
     pageReady = true;
-    updateSelectionButton();
     pageText = text.items
       .map((item) => ("str" in item ? item.str : ""))
       .join(" ")
       .replace(/\s+/g, " ")
       .slice(0, 24_000);
+    updateSelectionButton();
     document.title = `${pageTitle} · ${message("pageLabel", { page: number, total: doc.numPages })}`;
     pageLabel.textContent = message("pageLabel", {
       page: number,
@@ -362,22 +419,23 @@ async function ask(action: ReaderAction): Promise<void> {
     return;
   }
   const selected = selectedText();
-  if (action === "summary-selection" && !selected) {
-    setStatus("selectFirst");
+  const selectionOnly =
+    action === "translate" || action === "summary-selection";
+  if (selectionOnly && !selected) {
+    setStatus(pageText.trim() ? "selectFirst" : "selectionUnavailable");
     return;
   }
   if (action !== "summary" && selected.length > 5000) {
     setStatus("selectionTooLong");
     return;
   }
-  const text = action === "summary" ? "" : selected || pageText;
+  const text =
+    action === "summary" ? "" : selectionOnly ? selected : selected || pageText;
   const questions = {
     ask: selected
       ? "Help me understand this selected passage."
       : "Explain what this PDF page says and its key points.",
-    translate: selected
-      ? "Translate this selected passage into my target language."
-      : "Translate this PDF page into my target language.",
+    translate: "Translate this selected passage into my target language.",
     summary: "Summarize this PDF page.",
     "summary-selection": "Summarize only this selected PDF passage.",
     guide: selected
@@ -387,7 +445,7 @@ async function ask(action: ReaderAction): Promise<void> {
   try {
     const canvas = pageElement.querySelector("canvas");
     let image: string | undefined;
-    if (canvas && action !== "summary-selection") {
+    if (canvas && !selectionOnly) {
       const thumbnail = document.createElement("canvas");
       const scale = Math.min(1, 1600 / Math.max(canvas.width, canvas.height));
       thumbnail.width = Math.round(canvas.width * scale);
@@ -450,16 +508,19 @@ urlForm.addEventListener("submit", (event) => {
   }
   // Keep this call in the submit gesture so Chrome can show its permission prompt.
   let permissionRequest: Promise<boolean>;
+  resumePanel.hidden = true;
   try {
     permissionRequest = chrome.permissions.request({
       origins: [readerUrlOriginPattern(parsed)],
     });
   } catch {
+    finishPermissionPrompt();
     setStatus("permissionDenied");
     return;
   }
   void permissionRequest
     .then((granted: boolean) => {
+      finishPermissionPrompt();
       if (intent !== sourceIntent) return;
       if (!granted) {
         setStatus("permissionDenied");
@@ -476,6 +537,7 @@ urlForm.addEventListener("submit", (event) => {
       void loadDocument(parsed.href, title, intent);
     })
     .catch(() => {
+      finishPermissionPrompt();
       if (intent === sourceIntent) setStatus("permissionDenied");
     });
 });
@@ -533,6 +595,42 @@ document
       })
       .catch(() => setStatus("panelError"));
   });
+resumePanel.addEventListener("click", () => {
+  if (resumePanel.disabled) return;
+  const pip = (
+    window as Window & {
+      documentPictureInPicture?: {
+        requestWindow(size: { width: number; height: number }): Promise<Window>;
+      };
+    }
+  ).documentPictureInPicture;
+  if (!pip) {
+    setStatus("resumeError");
+    return;
+  }
+  resumePanel.disabled = true;
+  let opened: Window | undefined;
+  // The reader owns this gesture. Messaging another window cannot transfer it.
+  void (async () => {
+    try {
+      opened = await pip.requestWindow(floatingSize);
+      const response = (await chrome.runtime.sendMessage({
+        type: "glimpselet:reader-resume-floating",
+      })) as { ok?: boolean } | undefined;
+      if (!response?.ok) throw new Error("reader_resume_unconfirmed");
+      permissionInterrupted = false;
+      permissionRecovery.hidden = true;
+      preparedPermissionOrigins.clear();
+      permissionPreparations.clear();
+      setStatus("floatingResumed");
+    } catch {
+      opened?.close();
+      setStatus("resumeError");
+    } finally {
+      resumePanel.disabled = false;
+    }
+  })();
+});
 window.addEventListener("resize", () => {
   if (!pdf) return;
   cancelAnimationFrame(resizeFrame);

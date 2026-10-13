@@ -8,7 +8,8 @@ import {
 } from "@playwright/test";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { ExtensionBridge } from "../bridge/src/extension-bridge";
@@ -28,11 +29,22 @@ let panel: Page,
   extensionId: string;
 let requests: ProviderRequest[], responder: AnswerProvider;
 
-function sectionPdf(): Buffer {
-  const streams = [
-    "BT /F1 18 Tf 54 720 Td (First page) Tj ET",
-    "BT /F1 18 Tf 54 720 Td (Introduction) Tj 0 -32 Td (In this work we propose the Transformer.) Tj 0 -32 Td (Training takes twelve hours on eight P100 GPUs.) Tj 0 -64 Td (Background) Tj 0 -32 Td (UNRELATED_SECTION discusses recurrent networks.) Tj ET",
-  ];
+function chatRequests() {
+  // The bridge uses kind="ask" for background suggestions too. Only chat
+  // actions carry a conversation session; count them separately.
+  return requests.filter((request) => request.cliSession !== undefined);
+}
+
+function sectionPdf(selectable = true): Buffer {
+  const streams = selectable
+    ? [
+        "BT /F1 18 Tf 54 720 Td (First page) Tj ET",
+        "BT /F1 18 Tf 54 720 Td (Introduction) Tj 0 -32 Td (In this work we propose the Transformer.) Tj 0 -32 Td (Training takes twelve hours on eight P100 GPUs.) Tj 0 -64 Td (Background) Tj 0 -32 Td (UNRELATED_SECTION discusses recurrent networks.) Tj ET",
+      ]
+    : [
+        "q 0.8 0.8 0.8 rg 54 620 480 100 re f Q",
+        "q 0.4 0.4 0.4 rg 54 620 480 100 re f Q",
+      ];
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>",
@@ -170,18 +182,51 @@ test.afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
-async function openReader() {
+async function openReader(selectable = true) {
   const reader = await context.newPage();
   await reader.goto(`chrome-extension://${extensionId}/reader.html`);
   await reader.locator("#file").setInputFiles({
     name: "sections.pdf",
     mimeType: "application/pdf",
-    buffer: sectionPdf(),
+    buffer: sectionPdf(selectable),
   });
+  if (!selectable) {
+    await expect(reader.locator(".pdf-page canvas")).toBeVisible();
+    await expect(reader.locator("#page-label")).toHaveText("Page 1 of 2");
+    return reader;
+  }
   await expect(reader.locator(".pdf-text-layer")).toContainText("First page");
   await reader.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(reader.locator(".pdf-text-layer")).toContainText("In this work");
   return reader;
+}
+async function selectIntroductionWithMouse(reader: Page): Promise<string> {
+  const first = reader
+    .locator(".pdf-text-layer span")
+    .filter({ hasText: /^In this work/ })
+    .first();
+  const last = reader
+    .locator(".pdf-text-layer span")
+    .filter({ hasText: /^Training takes/ })
+    .first();
+  await reader.bringToFront();
+  await first.scrollIntoViewIfNeeded();
+  await last.scrollIntoViewIfNeeded();
+  const start = (await first.boundingBox())!;
+  const end = (await last.boundingBox())!;
+  await reader.mouse.move(start.x + 1, start.y + start.height / 2);
+  await reader.mouse.down();
+  await reader.mouse.move(end.x + end.width - 1, end.y + end.height / 2, {
+    steps: 12,
+  });
+  await reader.mouse.up();
+  const selected = await reader.evaluate(() =>
+    getSelection()!.toString().trim(),
+  );
+  expect(selected).toContain("In this work we propose the Transformer.");
+  expect(selected).toContain("Training takes twelve hours on eight P100 GPUs.");
+  expect(selected).not.toContain("UNRELATED_SECTION");
+  return selected;
 }
 async function selectIntroduction(reader: Page) {
   await reader.evaluate(() => {
@@ -214,6 +259,100 @@ async function activate(page: Page) {
     targetId: target.targetId,
   });
   await cdp.detach();
+}
+
+type NativeControl = {
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pixels: number;
+};
+
+// Chrome's browser-owned dialog is outside the page tree. Identify the native
+// light-theme Allow and focused Deny controls in an actual desktop capture.
+// Connected components avoid assuming a dialog location or screen dimensions.
+const nativeControlsScript = `import json,sys,subprocess
+ppm=subprocess.check_output(['ffmpeg','-loglevel','error','-i',sys.argv[1],'-frames:v','1','-f','image2pipe','-vcodec','ppm','-'])
+magic,size,maximum,data=ppm.split(b'\\n',3)
+width,height=map(int,size.split())
+assert magic==b'P6' and maximum==b'255' and len(data)==width*height*3
+rows=[]
+for name,colors in [('Allow',[bytes([211,227,253]),bytes([200,215,240])]),('Deny',[bytes([13,80,187]),bytes([11,87,208])])]:
+ points={(i%width,i//width) for i in range(width*height) if data[3*i:3*i+3] in colors}
+ largest=[]
+ while points:
+  seed=points.pop();queue=[seed];component=[seed]
+  while queue:
+   x,y=queue.pop()
+   for p in [(x-1,y),(x+1,y),(x,y-1),(x,y+1)]:
+    if p in points: points.remove(p);queue.append(p);component.append(p)
+  if len(component)>500:
+   xs,ys=zip(*component);w=max(xs)-min(xs)+1;h=max(ys)-min(ys)+1
+   if 40<=w<=150 and 20<=h<=80 and len(component)>len(largest): largest=component
+ if len(largest)>500:
+  xs,ys=zip(*largest);x=min(xs);y=min(ys);w=max(xs)-x+1;h=max(ys)-y+1
+  if 40<=w<=150 and 20<=h<=80:
+   rows.append(dict(name=name,x=x,y=y,width=w,height=h,pixels=len(largest)))
+print(json.dumps(rows))`;
+
+function nativeControls(path: string): NativeControl[] {
+  return JSON.parse(
+    execFileSync("python3", ["-c", nativeControlsScript, path], {
+      timeout: 15_000,
+    }).toString(),
+  );
+}
+
+const nativeInputScript = `import ctypes,sys
+x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6')
+x.XOpenDisplay.restype=ctypes.c_void_p
+p=x.XOpenDisplay(None)
+if not p: raise RuntimeError('No X11 display')
+x.XSync.argtypes=[ctypes.c_void_p,ctypes.c_int]
+x.XCloseDisplay.argtypes=[ctypes.c_void_p]
+x.XStringToKeysym.argtypes=[ctypes.c_char_p];x.XStringToKeysym.restype=ctypes.c_ulong
+x.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong];x.XKeysymToKeycode.restype=ctypes.c_uint
+t.XTestFakeMotionEvent.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_ulong]
+t.XTestFakeButtonEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+t.XTestFakeKeyEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+if sys.argv[1] in ['click','move']:
+ t.XTestFakeMotionEvent(p,-1,int(sys.argv[2]),int(sys.argv[3]),0)
+ if sys.argv[1]=='click':
+  t.XTestFakeButtonEvent(p,1,1,0);t.XTestFakeButtonEvent(p,1,0,0)
+else:
+ k=x.XKeysymToKeycode(p,x.XStringToKeysym(sys.argv[2].encode()))
+ t.XTestFakeKeyEvent(p,k,1,0);t.XTestFakeKeyEvent(p,k,0,0)
+x.XSync(p,0);x.XCloseDisplay(p)`;
+
+function nativeInput(...args: string[]) {
+  execFileSync("python3", ["-c", nativeInputScript, ...args]);
+}
+
+function captureDesktop(path: string) {
+  execFileSync(
+    "ffmpeg",
+    [
+      "-y",
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-i",
+      process.env.DISPLAY!,
+      "-frames:v",
+      "1",
+      path,
+    ],
+    { timeout: 15_000 },
+  );
+}
+
+async function attachDesktop(name: string) {
+  const path = test.info().outputPath(`${name}.png`);
+  captureDesktop(path);
+  await test.info().attach(name, { path, contentType: "image/png" });
 }
 
 test("clears an obsolete password warning after clicking an SPA sidebar link", async () => {
@@ -417,7 +556,7 @@ test("summarizes the selected PDF section while retaining a whole-page summary",
   await expect(panel.locator(".message .answer").last()).toContainText(
     "Introduction: The Transformer trains",
   );
-  const selected = requests.filter((request) => request.kind === "ask").at(-1)!;
+  const selected = chatRequests().at(-1)!;
   expect(selected.question).toContain(
     "Summarize only this selected PDF passage",
   );
@@ -436,11 +575,58 @@ test("summarizes the selected PDF section while retaining a whole-page summary",
   await expect(panel.locator(".message .answer").last()).toContainText(
     "Whole page: Introduction and Background",
   );
-  const wholePage = requests
-    .filter((request) => request.kind === "ask")
-    .at(-1)!;
+  const wholePage = chatRequests().at(-1)!;
   expect(wholePage.page?.text).toContain("UNRELATED_SECTION");
   expect(wholePage.image).toBeInstanceOf(Buffer);
+});
+
+test("PDF translation stays disabled until text is selected and clears on a page click", async () => {
+  const reader = await openReader();
+  const translate = reader.getByRole("button", {
+    name: "Translate selection",
+    exact: true,
+  });
+  await expect(translate).toBeDisabled();
+  await selectIntroductionWithMouse(reader);
+  await expect(translate).toBeEnabled();
+  await reader.locator(".pdf-text-layer").click({ position: { x: 20, y: 20 } });
+  await expect
+    .poll(() => reader.evaluate(() => getSelection()!.toString()))
+    .toBe("");
+  await expect(translate).toBeDisabled();
+  await expect(
+    reader.getByRole("button", { name: "Summarize selection", exact: true }),
+  ).toBeDisabled();
+  expect(chatRequests()).toHaveLength(0);
+});
+
+test("a forced empty PDF translation rejects the action before sending any answer request", async () => {
+  const reader = await openReader();
+  await reader.locator('[data-action="translate"]').dispatchEvent("click");
+  await expect(reader.locator("#status")).toHaveText("Select a passage first.");
+  expect(chatRequests()).toHaveLength(0);
+  await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
+    "",
+  );
+});
+
+test("a PDF without selectable text explains why translation is unavailable and never sends an empty passage", async () => {
+  const reader = await openReader(false);
+  await expect(reader.locator(".pdf-text-layer span")).toHaveCount(0);
+  await expect(
+    reader.getByRole("button", { name: "Translate selection", exact: true }),
+  ).toBeDisabled();
+  await expect(reader.locator("#selection-help")).toContainText(
+    /no selectable text|selection is unavailable/i,
+  );
+  await reader.locator('[data-action="translate"]').dispatchEvent("click");
+  await expect(reader.locator("#status")).toContainText(
+    /no selectable text|selection is unavailable/i,
+  );
+  expect(chatRequests()).toHaveLength(0);
+  await expect(
+    reader.getByRole("button", { name: "Summarize page", exact: true }),
+  ).toBeEnabled();
 });
 
 test("reader translation submits once in the target language and PDF popover Ask remains editable and text-only", async () => {
@@ -452,7 +638,10 @@ test("reader translation submits once in the target language and PDF popover Ask
     request.onText(answer);
     return { answer, sessionId: request.cliSession?.id };
   };
-  await selectIntroduction(reader);
+  const passage = await selectIntroductionWithMouse(reader);
+  await expect(
+    reader.getByRole("button", { name: "Translate selection", exact: true }),
+  ).toBeEnabled();
   await reader
     .getByRole("button", { name: "Translate selection", exact: true })
     .click();
@@ -467,6 +656,11 @@ test("reader translation submits once in the target language and PDF popover Ask
   expect(translations[0].question).toContain(
     "In this work we propose the Transformer",
   );
+  expect(translations[0].question).toContain(passage);
+  expect(translations[0].page?.text).toBe(passage);
+  expect(translations[0].question).not.toContain("UNRELATED_SECTION");
+  expect(translations[0].image).toBeUndefined();
+  expect(chatRequests()).toHaveLength(1);
   await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
     "",
   );
@@ -479,10 +673,252 @@ test("reader translation submits once in the target language and PDF popover Ask
   );
   await panel.locator(".send").click();
   await expect(panel.locator(".toolbar .status")).toHaveText("Answer ready.");
-  expect(
-    requests.filter((request) => request.kind === "ask").at(-1)?.image,
-  ).toBeUndefined();
+  expect(chatRequests().at(-1)?.image).toBeUndefined();
 });
+
+async function prepareFloatingReaderPermission() {
+  await panel
+    .getByRole("textbox", { name: en.question })
+    .fill("Keep this PDF conversation");
+  await panel.locator(".send").click();
+  await expect(panel.locator(".toolbar .status")).toHaveText("Answer ready.");
+  const session = chatRequests().at(-1)!.cliSession!.id;
+  const attachment = await site.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 2;
+    canvas.getContext("2d")!.fillRect(0, 0, 2, 2);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await panel.locator('input[type="file"]').setInputFiles({
+    name: "kept.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(attachment, "base64"),
+  });
+  await expect(panel.locator(".capture-chip img")).toBeVisible();
+  const attachmentSource = await panel
+    .locator(".capture-chip img")
+    .getAttribute("src");
+  await panel
+    .getByRole("textbox", { name: en.question })
+    .fill("My unfinished PDF question");
+  await panel
+    .locator(".top-actions")
+    .getByRole("button", { name: en.float, exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),
+    )
+    .toBe(true);
+  const reader = await context.newPage();
+  const freshUrl = `${origin.replace("127.0.0.1", "127.0.0.2")}/paper.pdf`;
+  const permissionOrigin = `${new URL(freshUrl).origin}/*`;
+  await reader.route(freshUrl, (route) =>
+    route.fulfill({ contentType: "application/pdf", body: sectionPdf() }),
+  );
+  expect(
+    await worker.evaluate(
+      (origins) => chrome.permissions.contains({ origins }),
+      [permissionOrigin],
+    ),
+  ).toBe(false);
+  await reader.goto(
+    `chrome-extension://${extensionId}/reader.html?url=${encodeURIComponent(freshUrl)}`,
+  );
+  await expect
+    .poll(() =>
+      panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),
+    )
+    .toBe(false);
+  await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
+    "My unfinished PDF question",
+  );
+  await expect(panel.locator(".capture-chip img")).toHaveAttribute(
+    "src",
+    attachmentSource!,
+  );
+  await expect(panel.locator(".connection")).toHaveClass(/online/);
+  return { reader, session, attachmentSource, permissionOrigin };
+}
+
+test("reader explains a floating chat interruption before requesting new PDF site access", async () => {
+  const { reader } = await prepareFloatingReaderPermission();
+  await expect(reader.locator("#permission-note")).toContainText(
+    /briefly close floating chat|floating chat.*temporar|temporar.*floating chat/i,
+  );
+  await expect(reader.locator("#permission-note")).toContainText(/permission/i);
+  await expect(
+    reader.getByRole("button", { name: "Resume floating chat", exact: true }),
+  ).toBeEnabled();
+  await expect(reader.locator(".pdf-page")).toHaveCount(0);
+});
+
+test("reader permission recovery stays visible after scrolling a loaded paper", async () => {
+  const reader = await openReader();
+  await reader.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  expect(await reader.evaluate(() => scrollY)).toBeGreaterThan(100);
+  await reader
+    .locator("#pdf-url")
+    .fill(`${origin.replace("127.0.0.1", "127.0.0.2")}/paper.pdf`);
+  await expect(reader.locator("#permission-recovery")).toBeVisible();
+  await expect(reader.locator("#permission-note")).toBeInViewport();
+  await expect(reader.locator("#resume-panel")).toBeInViewport();
+});
+
+for (const outcome of ["grant", "deny", "cancel"] as const) {
+  test(`native PDF site permission ${outcome} preserves the paired chat and resumes it in one click`, async () => {
+    const { reader, session, attachmentSource, permissionOrigin } =
+      await prepareFloatingReaderPermission();
+    await expect(reader.locator("#permission-note")).toContainText(
+      /briefly close floating chat|floating chat.*temporar|temporar.*floating chat/i,
+    );
+    await reader.getByRole("button", { name: "Open URL", exact: true }).click();
+    nativeInput("move", "0", "0");
+    await expect(reader.locator("#resume-panel")).toBeHidden();
+    await expect(reader.locator(".pdf-page")).toHaveCount(0);
+    expect(
+      await worker.evaluate(
+        (origins) => chrome.permissions.contains({ origins }),
+        [permissionOrigin],
+      ),
+    ).toBe(false);
+    let controls: NativeControl[] = [];
+    const promptPath = test
+      .info()
+      .outputPath(`native-permission-${outcome}.png`);
+    try {
+      await expect
+        .poll(
+          () => {
+            captureDesktop(promptPath);
+            controls = nativeControls(promptPath);
+            return controls.length === 2;
+          },
+          {
+            message:
+              "Chrome must display its real optional site permission prompt",
+            timeout: 15_000,
+          },
+        )
+        .toBe(true);
+    } finally {
+      const treePath = test
+        .info()
+        .outputPath("native-permission-controls.json");
+      await writeFile(treePath, JSON.stringify(controls, null, 2));
+      await test.info().attach("native-permission-controls", {
+        path: treePath,
+        contentType: "application/json",
+      });
+      await test.info().attach(`native-permission-${outcome}`, {
+        path: promptPath,
+        contentType: "image/png",
+      });
+    }
+    if (outcome === "cancel") nativeInput("key", "Escape");
+    else {
+      const label = outcome === "grant" ? "Allow" : "Deny";
+      const button = controls.find((control) => control.name === label)!;
+      expect(button).toBeDefined();
+      expect(button.width).toBeGreaterThan(0);
+      nativeInput(
+        "click",
+        String(Math.round(button.x + button.width / 2)),
+        String(Math.round(button.y + button.height / 2)),
+      );
+    }
+    if (outcome === "grant") {
+      await expect(reader.locator(".pdf-text-layer")).toContainText(
+        "First page",
+      );
+      expect(
+        await worker.evaluate(
+          (origins) => chrome.permissions.contains({ origins }),
+          [permissionOrigin],
+        ),
+      ).toBe(true);
+    } else {
+      await expect(reader.locator("#status")).toContainText(
+        /Permission was not granted/,
+      );
+      await expect(reader.locator(".pdf-page")).toHaveCount(0);
+      expect(
+        await worker.evaluate(
+          (origins) => chrome.permissions.contains({ origins }),
+          [permissionOrigin],
+        ),
+      ).toBe(false);
+    }
+    const resume = reader.getByRole("button", {
+      name: "Resume floating chat",
+      exact: true,
+    });
+    await expect(resume).toBeEnabled();
+    await expect(reader.locator("#permission-recovery")).toContainText(
+      /Resume floating chat/,
+    );
+    await resume.click();
+    await expect
+      .poll(() =>
+        reader.evaluate(() => {
+          const doc = window.documentPictureInPicture.window?.document;
+          return doc
+            ? {
+                online: Boolean(doc.querySelector(".connection.online")),
+                draft:
+                  doc.querySelector<HTMLTextAreaElement>("textarea")?.value,
+                attachment: doc
+                  .querySelector<HTMLImageElement>(".capture-chip img")
+                  ?.getAttribute("src"),
+                messages: doc.querySelectorAll(".message").length,
+              }
+            : null;
+        }),
+      )
+      .toEqual({
+        online: true,
+        draft: "My unfinished PDF question",
+        attachment: attachmentSource,
+        messages: 1,
+      });
+    await expect(reader.locator("#resume-panel")).toBeHidden();
+    await attachDesktop(`floating-chat-resumed-${outcome}`);
+    // Sending the retained draft proves the same conversation and attachment
+    // survive the native prompt, including after denied or dismissed requests.
+    await reader.evaluate(() =>
+      window.documentPictureInPicture
+        .window!.document.querySelector<HTMLButtonElement>(".send")!
+        .click(),
+    );
+    await expect
+      .poll(
+        () =>
+          requests.filter(
+            (request) => request.question === "My unfinished PDF question",
+          ).length,
+      )
+      .toBe(1);
+    await test.info().attach("provider-requests", {
+      body: JSON.stringify(
+        requests.map(({ kind, question, cliSession, image }) => ({
+          kind,
+          question,
+          cliSession,
+          image: Boolean(image),
+        })),
+        null,
+        2,
+      ),
+      contentType: "application/json",
+    });
+    await expect.poll(() => chatRequests().length).toBe(2);
+    const resumed = chatRequests().at(-1)!;
+    expect(resumed.question).toBe("My unfinished PDF question");
+    expect(resumed.cliSession?.id).toBe(session);
+    expect(resumed.cliSession?.resume).toBe(true);
+    expect(resumed.image).toBeInstanceOf(Buffer);
+  });
+}
 
 // An opt-in smoke uses the original paper without introducing a network
 // dependency into the deterministic extension suite.
@@ -506,6 +942,17 @@ if (process.env.GLIMPSELET_REAL_PDF) {
       .locator(".pdf-text-layer span")
       .filter({ hasText: /^In this work we propose/ })
       .first();
+    const spans = await reader
+      .locator(".pdf-text-layer span")
+      .allTextContents();
+    const firstLine = spans.findIndex((text) =>
+      text.startsWith("In this work we propose"),
+    );
+    const lastLine = spans.findIndex((text) => /P100 GPUs\./.test(text));
+    expect(firstLine).toBeGreaterThanOrEqual(0);
+    expect(lastLine).toBeGreaterThan(firstLine);
+    const expectedPassage = spans.slice(firstLine, lastLine + 1).join("\n");
+    const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
     const last = reader
       .locator(".pdf-text-layer span")
       .filter({ hasText: /P100 GPUs\./ })
@@ -515,18 +962,22 @@ if (process.env.GLIMPSELET_REAL_PDF) {
     await last.scrollIntoViewIfNeeded();
     const start = (await first.boundingBox())!;
     const end = (await last.boundingBox())!;
-    // Select the first line, then extend it to the end of the paragraph using
-    // the browser's native selection rather than constructing a DOM Range.
-    await reader.mouse.click(start.x + 1, start.y + start.height / 2, {
-      clickCount: 3,
+    // Use the browser's native drag selection; Shift starts the crop action.
+    await reader.mouse.move(start.x + 0.1, start.y + start.height / 2);
+    await reader.mouse.down();
+    await reader.mouse.move(end.x + end.width - 1, end.y + end.height / 2, {
+      steps: 24,
     });
-    await reader.keyboard.down("Shift");
-    await reader.mouse.click(end.x + end.width - 1, end.y + end.height / 2);
-    await reader.keyboard.up("Shift");
+    await reader.mouse.up();
+    const selection = await reader.evaluate(() => getSelection()!.toString());
     await reader.screenshot({
       path: test.info().outputPath("arxiv-selected-introduction.png"),
     });
-    const selection = await reader.evaluate(() => getSelection()!.toString());
+    await writeFile(
+      test.info().outputPath("arxiv-selected-introduction.txt"),
+      selection,
+    );
+    expect(normalize(selection)).toBe(normalize(expectedPassage));
     expect(selection).toContain("In this work we propose the Transformer");
     expect(selection).toContain("twelve hours on eight P100 GPUs");
     expect(selection).not.toContain("Background");
@@ -544,9 +995,7 @@ if (process.env.GLIMPSELET_REAL_PDF) {
     await expect(panel.locator(".message .answer").last()).toContainText(
       "Selected introduction",
     );
-    const selected = requests
-      .filter((request) => request.kind === "ask")
-      .at(-1)!;
+    const selected = chatRequests().at(-1)!;
     expect(selected.page?.text).toBe(selection.trim());
     expect(selected.question).toContain(selection.trim());
     expect(selected.question).not.toContain("Background");

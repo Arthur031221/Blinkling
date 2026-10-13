@@ -27236,9 +27236,16 @@ async function prepareReaderPermissionHandoff(origins, contains, handoff) {
 // extension/reader-locales.ts
 var readerLocales = {
   en: {
+    permissionNotice: "Chrome's site permission prompt may briefly close floating chat. Your conversation will be kept.",
+    permissionPaused: "Floating chat paused for site access. Your session, draft and attachment are kept. Resume it with one click.",
+    resumePanel: "Resume floating chat",
+    floatingResumed: "Floating chat resumed.",
+    resumeError: "Could not resume floating chat. Select Resume floating chat to try again.",
     questionReady: "Question ready in chat. Review it and select Ask to send.",
     summarySelection: "Summarize selection",
-    selectFirst: "Select a passage to summarize first.",
+    selectFirst: "Select a passage first.",
+    selectionHelp: "Select a passage to translate or summarize it.",
+    selectionUnavailable: "This page has no selectable text. Use Ask about page or Summarize page to ask about the page image.",
     selectionTooLong: "Select at most 5,000 characters, or use Summarize page for the whole page.",
     title: "Glimpselet PDF Reader",
     openFile: "Open PDF",
@@ -27276,9 +27283,16 @@ var readerLocales = {
     resizeHelp: "PDF page. Select text to ask, translate, summarize, or request guidance."
   },
   "zh-TW": {
+    permissionNotice: "Chrome \u986F\u793A\u7DB2\u7AD9\u6B0A\u9650\u63D0\u793A\u6642\uFF0C\u53EF\u80FD\u6703\u66AB\u6642\u95DC\u9589\u6D6E\u52D5\u804A\u5929\u3002\u5C0D\u8A71\u6703\u4FDD\u7559\u3002",
+    permissionPaused: "\u6D6E\u52D5\u804A\u5929\u56E0\u7DB2\u7AD9\u5B58\u53D6\u6B0A\u9650\u66AB\u505C\u3002\u5DE5\u4F5C\u968E\u6BB5\u3001\u8349\u7A3F\u8207\u9644\u4EF6\u90FD\u5DF2\u4FDD\u7559\u3002\u6309\u4E00\u4E0B\u5373\u53EF\u6062\u5FA9\u3002",
+    resumePanel: "\u6062\u5FA9\u6D6E\u52D5\u804A\u5929",
+    floatingResumed: "\u6D6E\u52D5\u804A\u5929\u5DF2\u6062\u5FA9\u3002",
+    resumeError: "\u7121\u6CD5\u6062\u5FA9\u6D6E\u52D5\u804A\u5929\u3002\u8ACB\u9078\u64C7\u300C\u6062\u5FA9\u6D6E\u52D5\u804A\u5929\u300D\u91CD\u8A66\u3002",
     questionReady: "\u554F\u984C\u5DF2\u6E96\u5099\u5728\u804A\u5929\u4E2D\u3002\u8ACB\u6AA2\u67E5\u5F8C\u9078\u53D6\u300C\u8A62\u554F\u300D\u50B3\u9001\u3002",
     summarySelection: "\u6458\u8981\u9078\u53D6\u6587\u5B57",
-    selectFirst: "\u8ACB\u5148\u9078\u53D6\u8981\u6458\u8981\u7684\u6BB5\u843D\u3002",
+    selectFirst: "\u8ACB\u5148\u9078\u53D6\u4E00\u6BB5\u6587\u5B57\u3002",
+    selectionHelp: "\u9078\u53D6\u4E00\u6BB5\u6587\u5B57\u5F8C\u5373\u53EF\u7FFB\u8B6F\u6216\u6458\u8981\u3002",
+    selectionUnavailable: "\u6B64\u9801\u6C92\u6709\u53EF\u9078\u53D6\u7684\u6587\u5B57\u3002\u53EF\u9078\u64C7\u300C\u8A62\u554F\u6B64\u9801\u300D\u6216\u300C\u6458\u8981\u6B64\u9801\u300D\u4F86\u8A62\u554F\u9801\u9762\u5716\u7247\u3002",
     selectionTooLong: "\u8ACB\u9078\u53D6\u4E0D\u8D85\u904E 5,000 \u500B\u5B57\u5143\uFF0C\u6216\u4F7F\u7528\u300C\u6458\u8981\u6B64\u9801\u300D\u6458\u8981\u6574\u9801\u3002",
     title: "Glimpselet PDF \u95B1\u8B80\u5668",
     openFile: "\u958B\u555F PDF",
@@ -27316,9 +27330,16 @@ var readerLocales = {
     resizeHelp: "PDF \u9801\u9762\u3002\u9078\u53D6\u6587\u5B57\u5F8C\u53EF\u63D0\u554F\u3001\u7FFB\u8B6F\u3001\u6458\u8981\u6216\u8981\u6C42\u5F15\u5C0E\u3002"
   },
   "zh-CN": {
+    permissionNotice: "Chrome \u663E\u793A\u7F51\u7AD9\u6743\u9650\u63D0\u793A\u65F6\uFF0C\u53EF\u80FD\u4F1A\u6682\u65F6\u5173\u95ED\u6D6E\u52A8\u804A\u5929\u3002\u5BF9\u8BDD\u4F1A\u4FDD\u7559\u3002",
+    permissionPaused: "\u6D6E\u52A8\u804A\u5929\u56E0\u7F51\u7AD9\u8BBF\u95EE\u6743\u9650\u6682\u505C\u3002\u4F1A\u8BDD\u3001\u8349\u7A3F\u4E0E\u9644\u4EF6\u90FD\u5DF2\u4FDD\u7559\u3002\u70B9\u51FB\u5373\u53EF\u6062\u590D\u3002",
+    resumePanel: "\u6062\u590D\u6D6E\u52A8\u804A\u5929",
+    floatingResumed: "\u6D6E\u52A8\u804A\u5929\u5DF2\u6062\u590D\u3002",
+    resumeError: "\u65E0\u6CD5\u6062\u590D\u6D6E\u52A8\u804A\u5929\u3002\u8BF7\u9009\u62E9\u201C\u6062\u590D\u6D6E\u52A8\u804A\u5929\u201D\u91CD\u8BD5\u3002",
     questionReady: "\u95EE\u9898\u5DF2\u51C6\u5907\u5728\u804A\u5929\u4E2D\u3002\u8BF7\u68C0\u67E5\u540E\u9009\u62E9\u300C\u8BE2\u95EE\u300D\u53D1\u9001\u3002",
     summarySelection: "\u603B\u7ED3\u9009\u53D6\u6587\u5B57",
-    selectFirst: "\u8BF7\u5148\u9009\u53D6\u8981\u603B\u7ED3\u7684\u6BB5\u843D\u3002",
+    selectFirst: "\u8BF7\u5148\u9009\u62E9\u4E00\u6BB5\u6587\u5B57\u3002",
+    selectionHelp: "\u9009\u62E9\u4E00\u6BB5\u6587\u5B57\u540E\u5373\u53EF\u7FFB\u8BD1\u6216\u603B\u7ED3\u3002",
+    selectionUnavailable: "\u6B64\u9875\u6CA1\u6709\u53EF\u9009\u62E9\u7684\u6587\u5B57\u3002\u53EF\u9009\u62E9\u201C\u8BE2\u95EE\u6B64\u9875\u201D\u6216\u201C\u603B\u7ED3\u6B64\u9875\u201D\u6765\u8BE2\u95EE\u9875\u9762\u56FE\u7247\u3002",
     selectionTooLong: "\u8BF7\u9009\u53D6\u4E0D\u8D85\u8FC7 5,000 \u4E2A\u5B57\u7B26\uFF0C\u6216\u4F7F\u7528\u201C\u603B\u7ED3\u6B64\u9875\u201D\u603B\u7ED3\u6574\u9875\u3002",
     title: "Glimpselet PDF \u9605\u8BFB\u5668",
     openFile: "\u6253\u5F00 PDF",
@@ -27356,9 +27377,16 @@ var readerLocales = {
     resizeHelp: "PDF \u9875\u9762\u3002\u9009\u62E9\u6587\u672C\u540E\u53EF\u63D0\u95EE\u3001\u7FFB\u8BD1\u3001\u603B\u7ED3\u6216\u8BF7\u6C42\u5F15\u5BFC\u3002"
   },
   ja: {
+    permissionNotice: "Chrome \u306E\u30B5\u30A4\u30C8\u6A29\u9650\u306E\u78BA\u8A8D\u4E2D\u306F\u3001\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u304C\u4E00\u6642\u7684\u306B\u9589\u3058\u308B\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002\u4F1A\u8A71\u306F\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002",
+    permissionPaused: "\u30B5\u30A4\u30C8\u6A29\u9650\u306E\u78BA\u8A8D\u306E\u305F\u3081\u30C1\u30E3\u30C3\u30C8\u3092\u4E00\u6642\u505C\u6B62\u3057\u307E\u3057\u305F\u3002\u30BB\u30C3\u30B7\u30E7\u30F3\u3001\u4E0B\u66F8\u304D\u3001\u6DFB\u4ED8\u306F\u4FDD\u6301\u3055\u308C\u3066\u3044\u307E\u3059\u3002\u30EF\u30F3\u30AF\u30EA\u30C3\u30AF\u3067\u518D\u958B\u3067\u304D\u307E\u3059\u3002",
+    resumePanel: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B",
+    floatingResumed: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B\u3057\u307E\u3057\u305F\u3002",
+    resumeError: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u300C\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B\u300D\u3067\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     questionReady: "\u30C1\u30E3\u30C3\u30C8\u306B\u8CEA\u554F\u3092\u6E96\u5099\u3057\u307E\u3057\u305F\u3002\u78BA\u8A8D\u3057\u3066\u300C\u8CEA\u554F\u300D\u3067\u9001\u4FE1\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     summarySelection: "\u9078\u629E\u3057\u305F\u6587\u7AE0\u3092\u8981\u7D04",
-    selectFirst: "\u8981\u7D04\u3059\u308B\u6587\u7AE0\u3092\u5148\u306B\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    selectFirst: "\u5148\u306B\u6587\u7AE0\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    selectionHelp: "\u6587\u7AE0\u3092\u9078\u629E\u3059\u308B\u3068\u7FFB\u8A33\u3084\u8981\u7D04\u304C\u3067\u304D\u307E\u3059\u3002",
+    selectionUnavailable: "\u3053\u306E\u30DA\u30FC\u30B8\u306B\u306F\u9078\u629E\u3067\u304D\u308B\u30C6\u30AD\u30B9\u30C8\u304C\u3042\u308A\u307E\u305B\u3093\u3002\u300C\u3053\u306E\u30DA\u30FC\u30B8\u306B\u3064\u3044\u3066\u8CEA\u554F\u300D\u307E\u305F\u306F\u300C\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u300D\u3067\u30DA\u30FC\u30B8\u306E\u753B\u50CF\u306B\u3064\u3044\u3066\u8CEA\u554F\u3067\u304D\u307E\u3059\u3002",
     selectionTooLong: "5,000\u6587\u5B57\u4EE5\u5185\u3092\u9078\u629E\u3059\u308B\u304B\u3001\u300C\u3053\u306E\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u300D\u3067\u30DA\u30FC\u30B8\u5168\u4F53\u3092\u8981\u7D04\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     title: "Glimpselet PDF \u30EA\u30FC\u30C0\u30FC",
     openFile: "PDF \u3092\u958B\u304F",
@@ -27396,9 +27424,16 @@ var readerLocales = {
     resizeHelp: "PDF \u30DA\u30FC\u30B8\u3067\u3059\u3002\u30C6\u30AD\u30B9\u30C8\u3092\u9078\u629E\u3057\u3066\u8CEA\u554F\u3001\u7FFB\u8A33\u3001\u8981\u7D04\u3001\u6848\u5185\u306E\u4F9D\u983C\u304C\u3067\u304D\u307E\u3059\u3002"
   },
   ko: {
+    permissionNotice: "Chrome \uC0AC\uC774\uD2B8 \uAD8C\uD55C \uCC3D\uC774 \uD45C\uC2DC\uB418\uB294 \uB3D9\uC548 \uD50C\uB85C\uD305 \uCC44\uD305\uC774 \uC7A0\uC2DC \uB2EB\uD790 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uB300\uD654\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
+    permissionPaused: "\uC0AC\uC774\uD2B8 \uAD8C\uD55C \uD655\uC778\uC744 \uC704\uD574 \uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC77C\uC2DC \uC911\uC9C0\uD588\uC2B5\uB2C8\uB2E4. \uC138\uC158, \uCD08\uC548, \uCCA8\uBD80 \uD30C\uC77C\uC740 \uC720\uC9C0\uB429\uB2C8\uB2E4. \uD55C \uBC88 \uD074\uB9AD\uD574 \uC7AC\uAC1C\uD558\uC138\uC694.",
+    resumePanel: "\uD50C\uB85C\uD305 \uCC44\uD305 \uC7AC\uAC1C",
+    floatingResumed: "\uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC7AC\uAC1C\uD588\uC2B5\uB2C8\uB2E4.",
+    resumeError: "\uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC7AC\uAC1C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uCC44\uD305 \uC7AC\uAC1C\uB97C \uC120\uD0DD\uD574 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
     questionReady: "\uCC44\uD305\uC5D0 \uC9C8\uBB38\uC774 \uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uAC80\uD1A0\uD55C \uB4A4 \uC9C8\uBB38 \uBC84\uD2BC\uC744 \uB20C\uB7EC \uBCF4\uB0B4\uC138\uC694.",
     summarySelection: "\uC120\uD0DD\uD55C \uB0B4\uC6A9 \uC694\uC57D",
-    selectFirst: "\uC694\uC57D\uD560 \uBB38\uB2E8\uC744 \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694.",
+    selectFirst: "\uBA3C\uC800 \uBB38\uB2E8\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
+    selectionHelp: "\uBC88\uC5ED\uD558\uAC70\uB098 \uC694\uC57D\uD560 \uBB38\uB2E8\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
+    selectionUnavailable: "\uC774 \uD398\uC774\uC9C0\uC5D0\uB294 \uC120\uD0DD\uD560 \uC218 \uC788\uB294 \uD14D\uC2A4\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uD398\uC774\uC9C0 \uC9C8\uBB38\uD558\uAE30 \uB610\uB294 \uD398\uC774\uC9C0 \uC694\uC57D\uC73C\uB85C \uD398\uC774\uC9C0 \uC774\uBBF8\uC9C0\uC5D0 \uB300\uD574 \uC9C8\uBB38\uD558\uC138\uC694.",
     selectionTooLong: "5,000\uC790 \uC774\uD558\uB97C \uC120\uD0DD\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uC694\uC57D\uC73C\uB85C \uC804\uCCB4 \uD398\uC774\uC9C0\uB97C \uC694\uC57D\uD558\uC138\uC694.",
     title: "Glimpselet PDF \uB9AC\uB354",
     openFile: "PDF \uC5F4\uAE30",
@@ -27436,9 +27471,16 @@ var readerLocales = {
     resizeHelp: "PDF \uD398\uC774\uC9C0\uC785\uB2C8\uB2E4. \uD14D\uC2A4\uD2B8\uB97C \uC120\uD0DD\uD574 \uC9C8\uBB38, \uBC88\uC5ED, \uC694\uC57D \uB610\uB294 \uC548\uB0B4\uB97C \uC694\uCCAD\uD558\uC138\uC694."
   },
   es: {
+    permissionNotice: "El aviso de permiso de Chrome puede cerrar brevemente el chat flotante. Tu conversaci\xF3n se conservar\xE1.",
+    permissionPaused: "El chat flotante se paus\xF3 para el permiso del sitio. Se conservan tu sesi\xF3n, borrador y adjunto. Rean\xFAdalo con un clic.",
+    resumePanel: "Reanudar chat flotante",
+    floatingResumed: "Chat flotante reanudado.",
+    resumeError: "No se pudo reanudar el chat flotante. Selecciona Reanudar chat flotante para volver a intentarlo.",
     questionReady: "Pregunta preparada en el chat. Rev\xEDsala y pulsa Preguntar para enviarla.",
     summarySelection: "Resumir selecci\xF3n",
-    selectFirst: "Selecciona primero un pasaje para resumir.",
+    selectFirst: "Selecciona primero un pasaje.",
+    selectionHelp: "Selecciona un pasaje para traducirlo o resumirlo.",
+    selectionUnavailable: "Esta p\xE1gina no tiene texto seleccionable. Usa Preguntar sobre la p\xE1gina o Resumir p\xE1gina para preguntar sobre la imagen de la p\xE1gina.",
     selectionTooLong: "Selecciona como m\xE1ximo 5.000 caracteres o usa Resumir p\xE1gina para toda la p\xE1gina.",
     title: "Lector de PDF de Glimpselet",
     openFile: "Abrir PDF",
@@ -27476,9 +27518,16 @@ var readerLocales = {
     resizeHelp: "P\xE1gina PDF. Selecciona texto para preguntar, traducir, resumir o pedir orientaci\xF3n."
   },
   fr: {
+    permissionNotice: "La demande d\u2019autorisation de Chrome peut fermer bri\xE8vement le chat flottant. Votre conversation sera conserv\xE9e.",
+    permissionPaused: "Le chat flottant est en pause pour l\u2019acc\xE8s au site. Votre session, brouillon et pi\xE8ce jointe sont conserv\xE9s. Reprenez en un clic.",
+    resumePanel: "Reprendre le chat flottant",
+    floatingResumed: "Chat flottant repris.",
+    resumeError: "Impossible de reprendre le chat flottant. S\xE9lectionnez Reprendre le chat flottant pour r\xE9essayer.",
     questionReady: "Question pr\xEAte dans le chat. Relisez-la et choisissez Demander pour l\u2019envoyer.",
     summarySelection: "R\xE9sumer la s\xE9lection",
-    selectFirst: "S\xE9lectionnez d\u2019abord un passage \xE0 r\xE9sumer.",
+    selectFirst: "S\xE9lectionnez d'abord un passage.",
+    selectionHelp: "S\xE9lectionnez un passage \xE0 traduire ou \xE0 r\xE9sumer.",
+    selectionUnavailable: "Cette page n'a pas de texte s\xE9lectionnable. Utilisez Poser une question sur la page ou R\xE9sumer la page pour interroger l'image de la page.",
     selectionTooLong: "S\xE9lectionnez au maximum 5\u202F000 caract\xE8res ou utilisez R\xE9sumer la page pour la page enti\xE8re.",
     title: "Lecteur PDF Glimpselet",
     openFile: "Ouvrir un PDF",
@@ -27516,9 +27565,16 @@ var readerLocales = {
     resizeHelp: "Page PDF. S\xE9lectionnez du texte pour poser une question, traduire, r\xE9sumer ou demander un guide."
   },
   de: {
+    permissionNotice: "Die Website-Berechtigungsabfrage von Chrome kann den schwebenden Chat kurz schlie\xDFen. Dein Gespr\xE4ch bleibt erhalten.",
+    permissionPaused: "Der schwebende Chat pausiert f\xFCr den Website-Zugriff. Sitzung, Entwurf und Anhang bleiben erhalten. Mit einem Klick fortsetzen.",
+    resumePanel: "Schwebenden Chat fortsetzen",
+    floatingResumed: "Schwebender Chat fortgesetzt.",
+    resumeError: "Der schwebende Chat konnte nicht fortgesetzt werden. W\xE4hle Schwebenden Chat fortsetzen, um es erneut zu versuchen.",
     questionReady: "Die Frage ist im Chat bereit. Pr\xFCfe sie und w\xE4hle Fragen zum Senden.",
     summarySelection: "Auswahl zusammenfassen",
-    selectFirst: "W\xE4hle zuerst einen Abschnitt zum Zusammenfassen aus.",
+    selectFirst: "W\xE4hle zuerst einen Abschnitt aus.",
+    selectionHelp: "W\xE4hle einen Abschnitt zum \xDCbersetzen oder Zusammenfassen aus.",
+    selectionUnavailable: "Diese Seite hat keinen ausw\xE4hlbaren Text. Nutze Frage zur Seite oder Seite zusammenfassen, um zum Seitenbild zu fragen.",
     selectionTooLong: "W\xE4hle h\xF6chstens 5.000 Zeichen oder nutze Seite zusammenfassen f\xFCr die gesamte Seite.",
     title: "Glimpselet PDF-Reader",
     openFile: "PDF \xF6ffnen",
@@ -27556,9 +27612,16 @@ var readerLocales = {
     resizeHelp: "PDF-Seite. W\xE4hle Text aus, um zu fragen, zu \xFCbersetzen, zusammenzufassen oder eine Anleitung anzufordern."
   },
   "pt-BR": {
+    permissionNotice: "O pedido de permiss\xE3o do Chrome pode fechar brevemente a conversa flutuante. Sua conversa ser\xE1 mantida.",
+    permissionPaused: "A conversa flutuante foi pausada para o acesso ao site. Sua sess\xE3o, rascunho e anexo foram mantidos. Retome com um clique.",
+    resumePanel: "Retomar conversa flutuante",
+    floatingResumed: "Conversa flutuante retomada.",
+    resumeError: "N\xE3o foi poss\xEDvel retomar a conversa flutuante. Selecione Retomar conversa flutuante para tentar novamente.",
     questionReady: "Pergunta pronta no chat. Revise e selecione Perguntar para enviar.",
     summarySelection: "Resumir sele\xE7\xE3o",
-    selectFirst: "Selecione primeiro um trecho para resumir.",
+    selectFirst: "Selecione primeiro um trecho.",
+    selectionHelp: "Selecione um trecho para traduzir ou resumir.",
+    selectionUnavailable: "Esta p\xE1gina n\xE3o tem texto selecion\xE1vel. Use Perguntar sobre a p\xE1gina ou Resumir p\xE1gina para perguntar sobre a imagem da p\xE1gina.",
     selectionTooLong: "Selecione no m\xE1ximo 5.000 caracteres ou use Resumir p\xE1gina para a p\xE1gina inteira.",
     title: "Leitor de PDF do Glimpselet",
     openFile: "Abrir PDF",
@@ -27611,6 +27674,11 @@ var urlForm = document.querySelector("#url-form");
 var pageElement = document.querySelector("#page");
 var pageLabel = document.querySelector("#page-label");
 var status = document.querySelector("#status");
+var permissionRecovery = document.querySelector(
+  "#permission-recovery"
+);
+var permissionNote = document.querySelector("#permission-note");
+var resumePanel = document.querySelector("#resume-panel");
 document.documentElement.classList.add("locale-loading");
 var locale = "en";
 var t = readerLocales.en;
@@ -27631,6 +27699,19 @@ var currentStatusKey = "choose";
 var currentStatusValues = {};
 var preparedPermissionOrigins = /* @__PURE__ */ new Set();
 var permissionPreparations = /* @__PURE__ */ new Map();
+var permissionInterrupted = false;
+var floatingSize = { width: 420, height: 650 };
+function permissionNotice(key) {
+  permissionNote.dataset.readerLabel = key;
+  permissionNote.textContent = message(key);
+  permissionRecovery.hidden = false;
+  permissionRecovery.scrollIntoView({ block: "nearest" });
+}
+function finishPermissionPrompt() {
+  if (!permissionInterrupted) return;
+  permissionNotice("permissionPaused");
+  resumePanel.hidden = false;
+}
 function preparePermissionOrigin(parsed) {
   const origin = readerUrlOriginPattern(parsed);
   const current = permissionPreparations.get(origin);
@@ -27638,13 +27719,26 @@ function preparePermissionOrigin(parsed) {
   const preparation = prepareReaderPermissionHandoff(
     [origin],
     (details) => chrome.permissions.contains(details),
-    () => chrome.runtime.sendMessage({
-      type: "glimpselet:reader-permission-handoff"
-    })
+    async () => {
+      permissionNotice("permissionNotice");
+      resumePanel.hidden = true;
+      await new Promise(
+        (resolve) => requestAnimationFrame(() => resolve())
+      );
+      const response = await chrome.runtime.sendMessage({
+        type: "glimpselet:reader-permission-handoff"
+      });
+      if (response?.interrupted) permissionInterrupted = true;
+      else if (!permissionInterrupted) permissionRecovery.hidden = true;
+      return response;
+    }
   ).then((result) => {
     preparedPermissionOrigins.add(origin);
+    if (result === "prepared" && permissionInterrupted)
+      resumePanel.hidden = false;
     return result === "granted";
   }).catch(() => {
+    finishPermissionPrompt();
     if (permissionPreparations.get(origin) === preparation)
       permissionPreparations.delete(origin);
     return false;
@@ -27692,10 +27786,13 @@ function applyLocale() {
 }
 async function initializeLocale() {
   try {
-    const stored = await chrome.storage.local.get("locale");
+    const stored = await chrome.storage.local.get(["locale", "pipSize"]);
     const candidate = stored.locale;
     if (typeof candidate === "string" && candidate in readerLocales)
       locale = candidate;
+    const size = stored.pipSize;
+    if (size && Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0)
+      floatingSize = { width: size.width, height: size.height };
   } catch {
   }
   t = readerLocales[locale];
@@ -27719,10 +27816,16 @@ function stopRendering() {
   activeTextLayer = void 0;
 }
 function updateSelectionButton() {
-  const button = document.querySelector(
-    '[data-action="summary-selection"]'
-  );
-  button.disabled = !pageReady || !passageSelection;
+  document.querySelectorAll(
+    '[data-action="translate"], [data-action="summary-selection"]'
+  ).forEach((button) => {
+    button.disabled = !pageReady || !passageSelection;
+  });
+  const help = document.querySelector("#selection-help");
+  const helpKey = pageText.trim() ? "selectionHelp" : "selectionUnavailable";
+  help.dataset.readerLabel = helpKey;
+  help.textContent = message(helpKey);
+  help.hidden = !pageReady || !!passageSelection;
 }
 function clearSelection() {
   passageSelection = "";
@@ -27742,6 +27845,10 @@ function rememberSelection() {
   updateSelectionButton();
 }
 document.addEventListener("selectionchange", rememberSelection);
+pageElement.addEventListener("pointerdown", () => {
+  passageSelection = "";
+  updateSelectionButton();
+});
 async function loadDocument(source, title, intent) {
   if (intent !== sourceIntent) return;
   const generation = ++documentGeneration;
@@ -27843,8 +27950,8 @@ async function renderPage(documentId = documentGeneration) {
       return;
     pageElement.replaceChildren(wrapper);
     pageReady = true;
-    updateSelectionButton();
     pageText = text.items.map((item) => "str" in item ? item.str : "").join(" ").replace(/\s+/g, " ").slice(0, 24e3);
+    updateSelectionButton();
     document.title = `${pageTitle} \xB7 ${message("pageLabel", { page: number, total: doc.numPages })}`;
     pageLabel.textContent = message("pageLabel", {
       page: number,
@@ -27886,18 +27993,19 @@ async function ask(action) {
     return;
   }
   const selected = selectedText();
-  if (action === "summary-selection" && !selected) {
-    setStatus("selectFirst");
+  const selectionOnly = action === "translate" || action === "summary-selection";
+  if (selectionOnly && !selected) {
+    setStatus(pageText.trim() ? "selectFirst" : "selectionUnavailable");
     return;
   }
   if (action !== "summary" && selected.length > 5e3) {
     setStatus("selectionTooLong");
     return;
   }
-  const text = action === "summary" ? "" : selected || pageText;
+  const text = action === "summary" ? "" : selectionOnly ? selected : selected || pageText;
   const questions = {
     ask: selected ? "Help me understand this selected passage." : "Explain what this PDF page says and its key points.",
-    translate: selected ? "Translate this selected passage into my target language." : "Translate this PDF page into my target language.",
+    translate: "Translate this selected passage into my target language.",
     summary: "Summarize this PDF page.",
     "summary-selection": "Summarize only this selected PDF passage.",
     guide: selected ? "Guide me through this selected passage, explaining its steps in order." : "Guide me through this PDF page, explaining its key steps in order."
@@ -27905,7 +28013,7 @@ async function ask(action) {
   try {
     const canvas = pageElement.querySelector("canvas");
     let image;
-    if (canvas && action !== "summary-selection") {
+    if (canvas && !selectionOnly) {
       const thumbnail = document.createElement("canvas");
       const scale = Math.min(1, 1600 / Math.max(canvas.width, canvas.height));
       thumbnail.width = Math.round(canvas.width * scale);
@@ -27954,15 +28062,18 @@ urlForm.addEventListener("submit", (event) => {
     return;
   }
   let permissionRequest;
+  resumePanel.hidden = true;
   try {
     permissionRequest = chrome.permissions.request({
       origins: [readerUrlOriginPattern(parsed)]
     });
   } catch {
+    finishPermissionPrompt();
     setStatus("permissionDenied");
     return;
   }
   void permissionRequest.then((granted) => {
+    finishPermissionPrompt();
     if (intent !== sourceIntent) return;
     if (!granted) {
       setStatus("permissionDenied");
@@ -27976,6 +28087,7 @@ urlForm.addEventListener("submit", (event) => {
     }
     void loadDocument(parsed.href, title, intent);
   }).catch(() => {
+    finishPermissionPrompt();
     if (intent === sourceIntent) setStatus("permissionDenied");
   });
 });
@@ -28018,6 +28130,35 @@ document.querySelector("#open-panel").addEventListener("click", () => {
     if (response?.ok) setStatus("panelOpened");
     else setStatus("panelError");
   }).catch(() => setStatus("panelError"));
+});
+resumePanel.addEventListener("click", () => {
+  if (resumePanel.disabled) return;
+  const pip = window.documentPictureInPicture;
+  if (!pip) {
+    setStatus("resumeError");
+    return;
+  }
+  resumePanel.disabled = true;
+  let opened;
+  void (async () => {
+    try {
+      opened = await pip.requestWindow(floatingSize);
+      const response = await chrome.runtime.sendMessage({
+        type: "glimpselet:reader-resume-floating"
+      });
+      if (!response?.ok) throw new Error("reader_resume_unconfirmed");
+      permissionInterrupted = false;
+      permissionRecovery.hidden = true;
+      preparedPermissionOrigins.clear();
+      permissionPreparations.clear();
+      setStatus("floatingResumed");
+    } catch {
+      opened?.close();
+      setStatus("resumeError");
+    } finally {
+      resumePanel.disabled = false;
+    }
+  })();
 });
 window.addEventListener("resize", () => {
   if (!pdf) return;

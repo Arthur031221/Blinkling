@@ -80,21 +80,30 @@ chrome.runtime.onMessage.addListener(
       void chrome.tabs.create({ url: target.toString() }).then(() => sendResponse({ ok: true }));
       return true;
     }
-    if (message?.type === "glimpselet:reader-permission-handoff" && sender.tab?.url?.startsWith(readerUrl())) {
+    if (message?.type === "glimpselet:reader-permission-handoff" && sender.tab?.url?.split(/[?#]/, 1)[0] === readerUrl()) {
+      let interrupted = false;
       void (async () => {
         const panels = await chrome.tabs.query({ url: `${panelUrl()}*` });
-        if (!panels.length) return;
+        if (!panels.length) return false;
         const response = await chrome.runtime.sendMessage({ type: "glimpselet:reader-permission-handoff" }).catch(() => void 0);
         if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
+        interrupted = response.interrupted === true;
         const panel = panels.find(
           (tab) => tab.windowId !== void 0
         );
         if (panel?.windowId !== void 0) {
           const owner = await chrome.windows.get(panel.windowId).catch(() => void 0);
-          if (owner?.type === "popup" && owner.state !== "minimized")
+          if (owner?.type === "popup" && owner.state !== "minimized") {
             await chrome.windows.update(panel.windowId, { state: "minimized" });
+            interrupted = true;
+          }
         }
-      })().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+        return interrupted;
+      })().then((interrupted2) => sendResponse({ ok: true, interrupted: interrupted2 })).catch(
+        () => sendResponse(
+          interrupted ? { ok: false, interrupted } : { ok: false }
+        )
+      );
       return true;
     }
     if (message?.type === "glimpselet:pair" && sender.tab?.url) {

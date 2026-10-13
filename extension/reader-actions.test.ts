@@ -136,6 +136,111 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 describe("PDF reader action scope", () => {
+  it("disables selection-only translation until a passage is selected", async () => {
+    expect(action("translate").disabled).toBe(true);
+    await openReader();
+    expect(action("translate").disabled).toBe(true);
+    select(0, 13);
+    expect(action("translate").disabled).toBe(false);
+  });
+  it("rejects a forced empty translation without sending a reader action", async () => {
+    await openReader();
+    action("translate").dispatchEvent(new MouseEvent("click"));
+    await settle();
+    expect(actionRequests()).toHaveLength(0);
+    expect(document.querySelector("#status")?.textContent).toBe(
+      "Select a passage first.",
+    );
+  });
+  it("translates the preserved passage exactly once when the button takes focus", async () => {
+    await openReader();
+    select(0, 13);
+    const button = action("translate");
+    button.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    button.focus();
+    getSelection()!.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+    expect(button.disabled).toBe(false);
+    button.click();
+    await settle();
+    expect(actionRequests()).toHaveLength(1);
+    expect(actionRequests()[0]).toMatchObject({
+      action: "translate",
+      text: "Introduction.",
+      question: "Translate this selected passage into my target language.",
+      page: 2,
+    });
+    expect(actionRequests()[0].image).toBeUndefined();
+  });
+  it("clears a remembered passage when the page is clicked with an action still focused", async () => {
+    await openReader();
+    select(0, 13);
+    action("translate").focus();
+    getSelection()!.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+    document
+      .querySelector("#page canvas")!
+      .dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    document.dispatchEvent(new Event("selectionchange"));
+    expect(action("translate").disabled).toBe(true);
+    expect(action("summary-selection").disabled).toBe(true);
+    action("translate").dispatchEvent(new MouseEvent("click"));
+    await settle();
+    expect(actionRequests()).toHaveLength(0);
+  });
+  it("explains a page without selectable text and keeps page summary separately available", async () => {
+    state.texts[1] = "";
+    await openReader();
+    expect(document.querySelector(".pdf-text-layer")).not.toBeNull();
+    expect(action("translate").disabled).toBe(true);
+    expect(action("summary-selection").disabled).toBe(true);
+    const help = document.querySelector<HTMLElement>("#selection-help");
+    expect(help).not.toBeNull();
+    expect(help?.hidden).toBe(false);
+    expect(help?.textContent).toBe(
+      "This page has no selectable text. Use Ask about page or Summarize page to ask about the page image.",
+    );
+    action("translate").dispatchEvent(new MouseEvent("click"));
+    await settle();
+    expect(actionRequests()).toHaveLength(0);
+    expect(document.querySelector("#status")?.textContent).toBe(
+      help?.textContent,
+    );
+    action("summary").click();
+    await settle();
+    expect(actionRequests()).toHaveLength(1);
+    expect(actionRequests()[0]).toMatchObject({
+      action: "summary",
+      text: "",
+      page: 2,
+      image: "data:image/png;base64,AAA=",
+    });
+  });
+  it("shows selection guidance until a passage is selected", async () => {
+    await openReader();
+    const help = document.querySelector<HTMLElement>("#selection-help");
+    expect(help).not.toBeNull();
+    expect(help?.hidden).toBe(false);
+    expect(help?.textContent).toBe(
+      "Select a passage to translate or summarize it.",
+    );
+    select(0, 13);
+    expect(help?.hidden).toBe(true);
+  });
+  it("rejects whitespace-only translation and over-limit passages", async () => {
+    state.texts[1] = "   " + "x".repeat(5001);
+    await openReader();
+    select(0, 3);
+    expect(action("translate").disabled).toBe(true);
+    action("translate").dispatchEvent(new MouseEvent("click"));
+    await settle();
+    expect(actionRequests()).toHaveLength(0);
+    select(3);
+    action("translate").click();
+    await settle();
+    expect(actionRequests()).toHaveLength(0);
+    expect(document.querySelector("#status")?.textContent).toMatch(/5,000/);
+  });
   it("explains that the reader Ask action leaves a question ready to review in chat", async () => {
     await openReader();
     select(0, 13);
