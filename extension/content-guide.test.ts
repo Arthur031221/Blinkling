@@ -108,6 +108,109 @@ describe("content script guide focus", () => {
     document.body.innerHTML = "";
   });
 
+  it.each([
+    {
+      name: "the real export menu item with a multiline note",
+      viewport: [1280, 850],
+      target: [24, 134, 207, 32],
+      card: [271, 154],
+      expected: [24, 184],
+    },
+    {
+      name: "a target at the lower right viewport edge",
+      viewport: [1100, 780],
+      target: [1040, 720, 32, 32],
+      card: [271, 154],
+      expected: [821, 548],
+    },
+    {
+      name: "a tall note with space to the right",
+      viewport: [1280, 850],
+      target: [24, 330, 207, 32],
+      card: [271, 650],
+      expected: [249, 192],
+    },
+    {
+      name: "a tall note with space to the left",
+      viewport: [1100, 780],
+      target: [1040, 330, 32, 32],
+      card: [271, 650],
+      expected: [751, 122],
+    },
+    {
+      name: "a narrow viewport requiring a bounded scrollable note",
+      viewport: [320, 320],
+      target: [0, 170, 320, 32],
+      card: [271, 250],
+      expected: [8, 8],
+    },
+  ])(
+    "keeps the guide clear of $name",
+    async ({ viewport, target, card, expected }) => {
+      vi.stubGlobal("innerWidth", viewport[0]);
+      vi.stubGlobal("innerHeight", viewport[1]);
+      const { firstId } = await setup();
+      const originalBounds = HTMLElement.prototype.getBoundingClientRect;
+      // Model the note's scrollable area too: an outer card clipped to a side
+      // does not mean its full passage or navigation fits in that space.
+      const noteHeight = Math.max(20, card[1] - 80);
+      vi.spyOn(Element.prototype, "scrollHeight", "get").mockImplementation(
+        function (this: Element) {
+          return this.matches(".guide p") ? noteHeight : 0;
+        },
+      );
+      vi.spyOn(Element.prototype, "clientHeight", "get").mockImplementation(
+        function (this: Element) {
+          if (!this.matches(".guide p")) return 0;
+          const limit = Number.parseFloat(this.parentElement!.style.maxHeight);
+          return Math.max(0, Math.min(noteHeight, (limit || card[1]) - 80));
+        },
+      );
+      const measure = vi
+        .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: HTMLElement) {
+          if (this.textContent === "First target")
+            return new DOMRect(...(target as [number, number, number, number]));
+          if (this.classList.contains("guide"))
+            return new DOMRect(
+              Number.parseFloat(this.style.left) || 0,
+              Number.parseFloat(this.style.top) || 0,
+              Math.min(
+                card[0],
+                Number.parseFloat(this.style.maxWidth) || Infinity,
+              ),
+              Math.min(
+                card[1],
+                Number.parseFloat(this.style.maxHeight) || Infinity,
+              ),
+            );
+          return originalBounds.call(this);
+        });
+      try {
+        expect(openGuide([firstId])).toEqual({ ok: true });
+        const callout = document
+          .querySelector("[data-glimpselet-overlay]")!
+          .shadowRoot!.querySelector<HTMLElement>(".guide")!;
+        const bounds = callout.getBoundingClientRect();
+        const [x, y, width, height] = target;
+        expect(
+          bounds.right <= x ||
+            bounds.left >= x + width ||
+            bounds.bottom <= y ||
+            bounds.top >= y + height,
+        ).toBe(true);
+        expect([bounds.left, bounds.top]).toEqual(expected);
+        expect(bounds.left).toBeGreaterThanOrEqual(8);
+        expect(bounds.top).toBeGreaterThanOrEqual(8);
+        expect(bounds.right).toBeLessThanOrEqual(viewport[0] - 8);
+        expect(bounds.bottom).toBeLessThanOrEqual(viewport[1] - 8);
+        expect(measure.mock.instances).toContain(callout);
+      } finally {
+        measure.mockRestore();
+      }
+    },
+  );
+
   it("serves an explicit text-only guide context but refuses known password reads and draws", async () => {
     const { firstId } = await setup();
     const frame = document.createElement("iframe");
@@ -190,6 +293,92 @@ describe("content script guide focus", () => {
       ).toEqual({ error: "tab_changed" });
     },
   );
+
+  it("clears a previous tour when a text-only unavailable result has no steps", async () => {
+    const { firstId } = await setup();
+    expect(openGuide([firstId])).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    expect(root.querySelector(".guide")).not.toBeNull();
+    expect(send("glimpselet:guide", { steps: [] })).toEqual({ ok: false });
+    expect(root.querySelector(".guide")).toBeNull();
+    expect(root.querySelector("svg.draw")).toBeNull();
+  });
+
+  it("omits a literal no-op action and rejects replaced targets without leaving stale ink", async () => {
+    const { firstId } = await setup();
+    expect(
+      send("glimpselet:guide", {
+        steps: [
+          { elementId: firstId, note: "Use this control", action: " none " },
+        ],
+      }),
+    ).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    expect(root.querySelector(".guide p")!.textContent).toBe(
+      "Use this control",
+    );
+    const target = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "First target",
+    )!;
+    target.replaceWith(target.cloneNode(true));
+    expect(
+      send("glimpselet:guide", {
+        steps: [{ elementId: firstId, note: "Use this old control" }],
+      }),
+    ).toEqual({ ok: false });
+    expect(root.querySelector(".guide")).toBeNull();
+    expect(root.querySelector("svg.draw")).toBeNull();
+  });
+
+  it.each(["private", "hidden", "replaced", "password"])(
+    "clears an active tour when its target becomes %s before redraw",
+    async (state) => {
+      const { firstId } = await setup();
+      expect(openGuide([firstId])).toEqual({ ok: true });
+      const root = document.querySelector(
+        "[data-glimpselet-overlay]",
+      )!.shadowRoot!;
+      const target = [...document.querySelectorAll("button")].find(
+        (button) => button.textContent === "First target",
+      )!;
+      if (state === "private") target.setAttribute("data-private", "true");
+      if (state === "hidden") target.hidden = true;
+      if (state === "replaced") target.replaceWith(target.cloneNode(true));
+      if (state === "password")
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          '<input type="password">',
+        );
+
+      window.dispatchEvent(new Event("resize"));
+      await vi.advanceTimersByTimeAsync(16);
+
+      expect(root.querySelector(".guide")).toBeNull();
+      expect(root.querySelector("svg.draw")).toBeNull();
+    },
+  );
+
+  it("closes a tour before navigating to a target that became private", async () => {
+    const { firstId, secondId } = await setup();
+    expect(openGuide([firstId, secondId])).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    const target = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "Second target",
+    )!;
+    target.setAttribute("data-private", "true");
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="next"]')!
+      .click();
+
+    expect(root.querySelector(".guide")).toBeNull();
+    expect(root.querySelector("svg.draw")).toBeNull();
+  });
 
   it("keeps the focused nav control through scroll and resize repositioning", async () => {
     const { firstId, secondId } = await setup();

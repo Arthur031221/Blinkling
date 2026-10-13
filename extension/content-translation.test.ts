@@ -81,6 +81,158 @@ describe("content script translation freshness", () => {
     Reflect.deleteProperty(globalThis, "glimpseletContentReady");
   });
 
+  it("applies an explicit grammatical omission without replacing inline nodes and restores exact whitespace", async () => {
+    document.body.innerHTML =
+      '<p> \n<span>この記事は</span><a href="#verifiable">検証可能</a><span>な</span><a href="#sources">参考文献や出典</a><span>が全く示されていないか、不十分です。</span>\t </p>';
+    const paragraph = document.querySelector("p")!;
+    const children = [...paragraph.childNodes];
+    const fragments = [...paragraph.children];
+    const originals = fragments.map((element) => element.firstChild!);
+    const originalText = paragraph.textContent;
+    await startContentScript();
+    const source = send<{ nodes: Array<{ id: string; text: string }> }>(
+      "glimpselet:text-nodes",
+    ).nodes;
+    expect(source.map((node) => node.text)).toEqual([
+      "この記事は",
+      "検証可能",
+      "な",
+      "参考文献や出典",
+      "が全く示されていないか、不十分です。",
+    ]);
+    const translated = [
+      "This article ",
+      "does not cite ",
+      "",
+      "any sources",
+      " or has insufficient citations.",
+    ];
+    expect(
+      send("glimpselet:translate", {
+        nodes: source.map(({ id }, index) => ({
+          id,
+          text: translated[index],
+          ...(index === 2 ? { omit: true } : {}),
+        })),
+      }),
+    ).toMatchObject({ applied: 5, changed: 5, rejected: 0 });
+    expect(paragraph.textContent).toBe(
+      " \nThis article does not cite any sources or has insufficient citations.\t ",
+    );
+    expect(paragraph.childNodes.length).toBe(children.length);
+    for (const [index, child] of children.entries())
+      expect(paragraph.childNodes[index]).toBe(child);
+    for (const [index, fragment] of fragments.entries())
+      expect(fragment.firstChild).toBe(originals[index]);
+    expect(originals[2].nodeValue).toBe("");
+    expect(send("glimpselet:restore")).toEqual({ restored: 5 });
+    expect(paragraph.textContent).toBe(originalText);
+    for (const [index, fragment] of fragments.entries())
+      expect(fragment.firstChild).toBe(originals[index]);
+    expect(document.querySelector("[data-glimpselet-translated]")).toBeNull();
+  });
+
+  it("recollects every original source ID after an explicit omission without collecting arbitrary empty nodes", async () => {
+    document.body.innerHTML =
+      "<p> \n<span>検証可能</span><span>な</span><span>出典</span>\t </p>";
+    document.querySelector("p")!.appendChild(document.createTextNode(""));
+    await startContentScript();
+    const source = send<{ nodes: Array<{ id: string; text: string }> }>(
+      "glimpselet:text-nodes",
+    ).nodes;
+    expect(source.map(({ text }) => text)).toEqual(["検証可能", "な", "出典"]);
+    send("glimpselet:translate", {
+      nodes: [
+        { id: source[0].id, text: "verifiable " },
+        { id: source[1].id, text: "", omit: true },
+        { id: source[2].id, text: "sources" },
+      ],
+    });
+    expect(
+      send<{ nodes: Array<{ id: string; text: string }> }>(
+        "glimpselet:text-nodes",
+      ).nodes,
+    ).toEqual(source);
+  });
+
+  it("translates a previously omitted fragment into nonempty text on a language change and restores exact originals", async () => {
+    document.body.innerHTML =
+      "<p> \n<span>検証可能</span><span>な</span><span>出典</span>\t </p>";
+    const paragraph = document.querySelector("p")!;
+    const children = [...paragraph.childNodes];
+    const fragments = [...paragraph.children].map(
+      (element) => element.firstChild!,
+    );
+    const originalText = fragments.map((node) => node.nodeValue);
+    const originalParagraph = paragraph.textContent;
+    await startContentScript();
+    const source = send<{ nodes: Array<{ id: string; text: string }> }>(
+      "glimpselet:text-nodes",
+    ).nodes;
+    send("glimpselet:translate", {
+      nodes: [
+        { id: source[0].id, text: "verifiable " },
+        { id: source[1].id, text: "", omit: true },
+        { id: source[2].id, text: "sources" },
+      ],
+    });
+    expect(fragments[1].nodeValue).toBe("");
+    expect(
+      send("glimpselet:translate", {
+        nodes: source.map(({ id }, index) => ({
+          id,
+          text: ["可验证", "的", "来源"][index],
+        })),
+      }),
+    ).toEqual({
+      applied: 3,
+      changed: 3,
+      rejected: 0,
+      skipped: { disconnected: 0, sourceChanged: 0, ineligible: 0 },
+    });
+    expect(paragraph.textContent).toBe(" \n可验证的来源\t ");
+    expect(send("glimpselet:restore")).toEqual({ restored: 3 });
+    expect(paragraph.textContent).toBe(originalParagraph);
+    expect([...paragraph.childNodes]).toEqual(children);
+    expect(fragments.map((node) => node.nodeValue)).toEqual(originalText);
+    for (const [index, element] of [...paragraph.children].entries())
+      expect(element.firstChild).toBe(fragments[index]);
+  });
+
+  it.each(["hidden", "private"])(
+    "does not recollect or translate a retained omitted node that becomes %s",
+    async (state) => {
+      const node = await setup();
+      send("glimpselet:translate", {
+        nodes: [{ id: node.id, text: "", omit: true }],
+      });
+      const paragraph = document.querySelector("p")!;
+      if (state === "hidden") paragraph.hidden = true;
+      else paragraph.setAttribute("data-private", "");
+      expect(send("glimpselet:text-nodes")).toEqual({ nodes: [] });
+      expect(translate(node.id, "Private overwrite")).toMatchObject({
+        applied: 0,
+        changed: 0,
+        skipped: { ineligible: 1 },
+      });
+      expect(text.nodeValue).toBe("");
+    },
+  );
+
+  it.each(["Updated product price", "   "])(
+    "does not overwrite or restore a site update after an omission: %j",
+    async (updated) => {
+      const node = await setup();
+      send("glimpselet:translate", {
+        nodes: [{ id: node.id, text: "", omit: true }],
+      });
+      text.nodeValue = updated;
+      expect(translate(node.id, "Stale translation").applied).toBe(0);
+      expect(send("glimpselet:restore")).toEqual({ restored: 0 });
+      expect(text.nodeValue).toBe(updated);
+    },
+  );
+
   it("leaves unchanged provider text available without a restore marker", async () => {
     const node = await setup();
     expect(translate(node.id, node.text).applied).toBe(1);

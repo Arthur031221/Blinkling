@@ -226,6 +226,43 @@ describe("bounded page context", () => {
     expect(contextRangeText(range)).toBe("Public text.");
   });
 
+  // Verbatim public control captured in developer-2/export-control-evidence.json.
+  const capturedHamburger =
+    '<button type="button" id="radix-:r2:" aria-haspopup="menu" aria-expanded="false" data-state="closed" class="dropdown-menu-button main-menu-trigger zen-mode-transition" data-testid="main-menu-trigger"><svg aria-hidden="true" focusable="false" role="img" viewBox="0 0 24 24" class="" fill="none" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.5"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line></g></svg></button>';
+
+  it("maps the captured SVG-only hamburger using its declared menu state without inventing export semantics", () => {
+    document.body.innerHTML = capturedHamburger + "<button>Undo</button>";
+    const menu = document.querySelector("button")!;
+    const page = buildGuideContext();
+    expect(page.elements).toContainEqual({
+      id: stableElementId(menu),
+      role: "button",
+      text: "Menu (collapsed)",
+      rect: [0, 0, 0, 0],
+    });
+    expect(page.elements.some((element) => /export/i.test(element.text))).toBe(
+      false,
+    );
+    menu.setAttribute("aria-expanded", "true");
+    expect(buildGuideContext().elements[0]).toMatchObject({
+      id: stableElementId(menu),
+      text: "Menu (expanded)",
+    });
+  });
+
+  it("uses real labels before menu state and keeps unknown or private icons out of the map", () => {
+    document.body.innerHTML =
+      '<button aria-haspopup="menu" aria-expanded="false" aria-label="File menu"><svg></svg></button>' +
+      capturedHamburger +
+      '<button data-testid="export-image"><svg><title>Export drawing</title></svg></button>';
+    const menu = document.querySelectorAll("button")[1];
+    menu.setAttribute("data-private", "");
+    expect(buildGuideContext().elements.map((element) => element.text)).toEqual(
+      ["File menu"],
+    );
+    expect(textForElement(menu)).toBe("");
+  });
+
   it("maps headings and controls with stable document-relative ids and rectangles", () => {
     document.body.innerHTML =
       '<h1>Welcome</h1><button aria-label="Save">✓</button><a href="#">Read more</a>';

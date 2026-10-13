@@ -1,7 +1,7 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AskInput, PageContext } from "./api";
+import { validateAsk, type AskInput, type PageContext } from "./api";
 import en from "./locales/en.json";
 import zhTW from "./locales/zh-TW.json";
 
@@ -2608,4 +2608,264 @@ describe("bubble answer rendering and feedback", () => {
       expect(document.querySelector("textarea")?.value).toBe("");
     },
   );
+  const inlineSources = [
+    { id: "t20", text: "検証可能" },
+    { id: "t21", text: "な" },
+    { id: "t22", text: "参考文献や出典" },
+  ];
+  const inlineTranslations = [
+    { id: "t20", text: "verifiable " },
+    { id: "t21", omit: true },
+    { id: "t22", text: "references or sources" },
+  ];
+  function translationSource(nodes = inlineSources) {
+    sendToTab.mockImplementation(async (_tab, message) => {
+      if (message.type === "glimpselet:text-nodes") return { nodes };
+      if (message.type === "glimpselet:translate")
+        return {
+          applied: message.nodes.length,
+          changed: message.nodes.length,
+          rejected: 0,
+          skipped: { disconnected: 0, sourceChanged: 0, ineligible: 0 },
+        };
+      return { ok: true };
+    });
+  }
+  function boundedTranslationProvider() {
+    mocks.ask.mockImplementation(async (input: AskInput) => {
+      validateAsk(input);
+      const nodes = JSON.parse(
+        input.question.slice(input.question.lastIndexOf("\n") + 1),
+      ) as Array<{ id: string; text: string }>;
+      return {
+        answer: JSON.stringify({
+          nodes: nodes.map(({ id }) => ({ id, text: `Translated ${id}` })),
+        }),
+      };
+    });
+  }
+  function requestedTranslationSources() {
+    return mocks.ask.mock.calls.flatMap(([input]) =>
+      JSON.parse(input.question.slice(input.question.lastIndexOf("\n") + 1)),
+    );
+  }
+  it("shows an unavailable guide reason and clears previous highlights without completing practice", async () => {
+    await start();
+    await send(
+      { type: "glimpselet:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+    );
+    const reason =
+      "I cannot reliably identify the export menu from these controls.";
+    mocks.ask.mockResolvedValue({
+      answer: JSON.stringify({
+        status: "unavailable",
+        reason,
+        steps: [{ elementId: "g1", note: "Unrelated control", action: "none" }],
+      }),
+    });
+    await click(en.guideAction);
+    expect(document.querySelector(".message .answer")?.textContent).toContain(
+      reason,
+    );
+    expect(status()).toBe(en.answerReady);
+    expect(
+      sendToTab.mock.calls
+        .filter(([, message]) => message.type === "glimpselet:guide")
+        .map(([, message]) => message),
+    ).toEqual([
+      {
+        type: "glimpselet:guide",
+        steps: [],
+        documentKey: page.documentKey,
+        url: page.url,
+      },
+    ]);
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:tutorial-done",
+      ),
+    ).toBe(false);
+  });
+  it("requests explicit inline omission and applies a complete translation batch", async () => {
+    await start();
+    translationSource();
+    mocks.ask.mockResolvedValue({
+      answer: JSON.stringify({ nodes: inlineTranslations }),
+    });
+    await click(en.translatePage);
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(mocks.ask.mock.calls[0][0].question).toContain('"omit":true');
+    expect(
+      sendToTab.mock.calls.find(
+        ([, message]) => message.type === "glimpselet:translate",
+      )?.[1].nodes,
+    ).toEqual([
+      inlineTranslations[0],
+      { id: "t21", text: "", omit: true },
+      inlineTranslations[2],
+    ]);
+    expect(status()).toBe(en.translationApplied);
+  });
+  it("translates a maximum batch containing 1500 escaped quotes within the provider budget", async () => {
+    stored.targetLocale = "en";
+    await start();
+    const nodes = [
+      { id: "t1", text: '"'.repeat(1_500) + "x".repeat(2_000) },
+      { id: "t2", text: "x".repeat(1_432) },
+    ];
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(mocks.ask).toHaveBeenCalled();
+    for (const [input] of mocks.ask.mock.calls)
+      expect(input.question.length).toBeLessThanOrEqual(8_000);
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+  it("fits a single 3500-character quoted source by omitting only the optional example", async () => {
+    stored.targetLocale = "en";
+    await start();
+    const nodes = [{ id: "t1", text: '"'.repeat(3_500) }];
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    const input = mocks.ask.mock.calls[0][0];
+    expect(input.question.length).toBeLessThanOrEqual(8_000);
+    expect(input.question).not.toContain("Worked example");
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+  it("flushes escaped batches using the exact serialized request length", async () => {
+    stored.targetLocale = "en";
+    await start();
+    const nodes = [
+      { id: "t1", text: '"'.repeat(3_500) },
+      { id: "t2", text: '"'.repeat(1_432) },
+    ];
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(mocks.ask).toHaveBeenCalledTimes(2);
+    for (const [input] of mocks.ask.mock.calls)
+      expect(input.question.length).toBeLessThanOrEqual(8_000);
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+  it("rejects a source whose escaped request cannot fit before any provider call or page write", async () => {
+    stored.targetLocale = "en";
+    await start();
+    translationSource([
+      { id: "t1", text: "Readable source" },
+      { id: "t2", text: "\u0000".repeat(3_500) },
+    ]);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationIncomplete);
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:translate",
+      ),
+    ).toBe(false);
+  });
+  it.each([
+    {
+      limit: "24 nodes",
+      nodes: Array.from({ length: 25 }, (_, index) => ({
+        id: `t${index + 1}`,
+        text: "Source",
+      })),
+      sizes: [24, 1],
+    },
+    {
+      limit: "5000 source characters with mapping overhead",
+      nodes: [
+        { id: "t1", text: "x".repeat(2_500) },
+        { id: "t2", text: "x".repeat(2_500) },
+      ],
+      sizes: [1, 1],
+    },
+  ])("keeps the existing $limit batch limit", async ({ nodes, sizes }) => {
+    stored.targetLocale = "en";
+    await start();
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(
+      mocks.ask.mock.calls.map(
+        ([input]) =>
+          JSON.parse(input.question.slice(input.question.lastIndexOf("\n") + 1))
+            .length,
+      ),
+    ).toEqual(sizes);
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+  it("keeps an oversized source ID intact and rejects it before provider calls", async () => {
+    await start();
+    translationSource([{ id: "t1", text: "x".repeat(3_501) }]);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationIncomplete);
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:translate",
+      ),
+    ).toBe(false);
+  });
+  it.each(["duplicate", "unknown"])(
+    "rejects an extra %s mapping before applying translations",
+    async (kind) => {
+      await start();
+      translationSource();
+      const regular = inlineSources.map(({ id }) => ({
+        id,
+        text: "Translated",
+      }));
+      mocks.ask.mockResolvedValue({
+        answer: JSON.stringify({
+          nodes: [
+            ...regular,
+            { id: kind === "duplicate" ? "t20" : "unknown", text: "Extra" },
+          ],
+        }),
+      });
+      await click(en.translatePage);
+      expect(
+        sendToTab.mock.calls.some(
+          ([, message]) => message.type === "glimpselet:translate",
+        ),
+      ).toBe(false);
+      expect(status()).toBe(en.translationIncomplete);
+    },
+  );
+  it("handles an unavailable reader guide without restoring its instruction in the draft", async () => {
+    await start();
+    const reason = "This PDF has no reliably identified diagram target.";
+    mocks.ask.mockResolvedValue({
+      answer: JSON.stringify({ status: "unavailable", reason, steps: [] }),
+    });
+    const response = await send({
+      type: "glimpselet:reader-action",
+      action: "guide",
+      context: page,
+      question: "Guide me through this PDF",
+    });
+
+    expect(response).toHaveBeenCalledWith({ ok: true });
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(status()).toBe(en.answerReady);
+    expect(document.querySelector(".message .answer")?.textContent).toContain(
+      reason,
+    );
+    expect(document.querySelector("textarea")?.value).toBe("");
+    expect(
+      sendToTab.mock.calls.find(
+        ([, message]) => message.type === "glimpselet:guide",
+      )?.[1].steps,
+    ).toEqual([]);
+  });
 });

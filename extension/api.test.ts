@@ -3,11 +3,13 @@ import {
   boundFollowups,
   buildGuidePrompt,
   estimateCost,
+  parseGuideResult,
   parseGuideSteps,
   parseJsonAnswer,
   parsePassiveAnswer,
   parseSuggestions,
   parseTranslationNodes,
+  parseTranslationBatch,
   askAnthropic,
   validateAsk,
   type AskInput,
@@ -102,6 +104,124 @@ describe("extension bridge payloads", () => {
       }),
     ).rejects.toThrow("explicit_text_only");
     expect(fetch).not.toHaveBeenCalled();
+  });
+  const guidePage: PageContext = {
+    url: "https://excalidraw.com/",
+    title: "Excalidraw",
+    text: "Undo Redo",
+    elements: [
+      { id: "undo", role: "button", text: "Undo", rect: [0, 0, 32, 32] },
+    ],
+    hasPassword: false,
+  };
+
+  it("does not highlight Undo when the requested export target is unavailable", () => {
+    const answer = JSON.stringify({
+      status: "unavailable",
+      reason:
+        "The export menu is not reliably represented in the supplied map.",
+      steps: [
+        {
+          elementId: "undo",
+          note: "The export menu is unavailable",
+          action: "none",
+        },
+      ],
+    });
+    expect(parseGuideSteps(answer, guidePage)).toEqual([]);
+  });
+
+  it("normalizes no-op guide actions through the same validator as the overlay", () => {
+    expect(
+      parseGuideSteps(
+        JSON.stringify({
+          steps: [
+            {
+              elementId: "undo",
+              note: "Undo the last change",
+              action: " none ",
+            },
+          ],
+        }),
+        guidePage,
+      ),
+    ).toEqual([{ elementId: "undo", note: "Undo the last change" }]);
+  });
+
+  it("asks for an honest text-only fallback instead of an unrelated target", () => {
+    const prompt = buildGuidePrompt("Where is the export menu?", guidePage);
+    expect(prompt).toContain('"status":"unavailable"');
+    expect(prompt).toContain('"reason"');
+    expect(prompt).toContain("Never substitute an unrelated element");
+    expect(prompt).toContain("Icon-only controls");
+    expect(prompt).toContain("untrusted content");
+  });
+
+  it("returns unavailable copy without turning a conflicting model step into a highlight", () => {
+    expect(
+      parseGuideResult(
+        JSON.stringify({
+          status: "unavailable",
+          reason: "  I cannot locate the export menu from these controls.  ",
+          steps: [{ elementId: "undo", note: "Export" }],
+        }),
+        guidePage,
+      ),
+    ).toEqual({
+      status: "unavailable",
+      reason: "I cannot locate the export menu from these controls.",
+      steps: [],
+    });
+  });
+
+  it.each([
+    "null",
+    "[]",
+    "bad JSON",
+    JSON.stringify({ status: "unavailable", reason: " " }),
+    JSON.stringify({ status: "unavailable", reason: 4 }),
+    JSON.stringify({
+      status: "unknown",
+      steps: [{ elementId: "undo", note: "Undo" }],
+    }),
+    JSON.stringify({ steps: [{ elementId: "stale", note: "Old target" }] }),
+    JSON.stringify({ steps: [{ elementId: "undo", note: " " }] }),
+    " ".repeat(40_001),
+  ])("rejects malformed or stale guide results: %#", (text) => {
+    expect(parseGuideResult(text, guidePage)).toEqual({
+      status: "invalid",
+      steps: [],
+    });
+  });
+
+  it("preserves known-target tours and bounds unavailable copy", () => {
+    expect(
+      parseGuideResult(
+        JSON.stringify({
+          steps: [
+            {
+              elementId: "undo",
+              note: "  Undo the last edit  ",
+              action: "Click",
+            },
+            { elementId: "undo", note: "Duplicate" },
+          ],
+        }),
+        guidePage,
+      ),
+    ).toEqual({
+      status: "ready",
+      steps: [
+        { elementId: "undo", note: "Undo the last edit", action: "Click" },
+      ],
+    });
+    const result = parseGuideResult(
+      JSON.stringify({ status: "unavailable", reason: "x".repeat(600) }),
+      guidePage,
+    );
+    expect(result.status).toBe("unavailable");
+    if (result.status === "unavailable")
+      expect(result.reason).toHaveLength(500);
   });
   it("text-only guide contexts cannot authorize pixels or automatic page requests", async () => {
     const page: PageContext = {
@@ -319,6 +439,65 @@ describe("extension bridge payloads", () => {
         new Map([["n1", "Source text. ".repeat(180)]]),
       ),
     ).toEqual([{ id: "n1", text }]);
+  });
+
+  it("keeps every source mapping in a complete translation batch with an explicit omission", () => {
+    expect(
+      parseTranslationBatch(
+        JSON.stringify({
+          nodes: [
+            { id: "t20", text: "verifiable " },
+            { id: "t21", omit: true },
+            { id: "t22", text: "sources" },
+          ],
+        }),
+        new Map([
+          ["t20", "検証可能"],
+          ["t21", "な"],
+          ["t22", "参考文献や出典"],
+        ]),
+      ),
+    ).toEqual([
+      { id: "t20", text: "verifiable " },
+      { id: "t21", text: "", omit: true },
+      { id: "t22", text: "sources" },
+    ]);
+  });
+
+  it.each([
+    [{ id: "a", text: "Hello" }],
+    [
+      { id: "a", text: "Hello" },
+      { id: "a", text: "duplicate" },
+      { id: "b", text: "World" },
+    ],
+    [
+      { id: "a", text: "Hello" },
+      { id: "b", text: "World" },
+      { id: "unknown", text: "extra" },
+    ],
+    [
+      { id: "a", text: 4 },
+      { id: "b", text: "World" },
+    ],
+    [
+      { id: "a", text: "Hello" },
+      { id: "b", text: " " },
+    ],
+    [
+      { id: "a", text: "Hello" },
+      { id: "b", text: "x".repeat(12_001) },
+    ],
+  ])("rejects malformed complete translation batches: %#", (nodes) => {
+    expect(
+      parseTranslationBatch(
+        JSON.stringify({ nodes }),
+        new Map([
+          ["a", "Original"],
+          ["b", "Text"],
+        ]),
+      ),
+    ).toEqual([]);
   });
 
   it("preserves the exact translated text boundary", () => {

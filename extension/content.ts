@@ -200,6 +200,15 @@ if (!contentScope.glimpseletContentReady) {
 
   function renderGuide(): void {
     if (!currentGuide) return;
+    const step = currentGuide.steps[currentGuide.index];
+    const context = buildGuideContext();
+    if (
+      context.hasPassword ||
+      !context.elements.some((element) => element.id === step.elementId)
+    ) {
+      closeGuide();
+      return;
+    }
     const root = ensureOverlay();
     const activeControl = root
       .querySelector(".guide nav")
@@ -208,9 +217,11 @@ if (!contentScope.glimpseletContentReady) {
       : undefined;
     root.querySelector(".guide")?.remove();
     root.querySelector("svg.draw")?.remove();
-    const step = currentGuide.steps[currentGuide.index];
     let point = guidePoint(step.elementId);
-    if (!point) return;
+    if (!point) {
+      closeGuide();
+      return;
+    }
     const changed = renderedStep !== step.elementId;
     if (
       changed &&
@@ -456,7 +467,6 @@ if (!contentScope.glimpseletContentReady) {
       `M${startX} ${startY} Q${(startX + endX) / 2 + 22} ${(startY + endY) / 2} ${endX} ${endY} m-7 -4 l7 4 l-7 4`,
     );
     svg.append(arrow);
-    root.append(svg, callout);
     if (!changed)
       for (const ink of svg.querySelectorAll<SVGElement>(".ink,.arrow")) {
         ink.style.animation = "none";
@@ -950,7 +960,10 @@ if (!contentScope.glimpseletContentReady) {
           renderedStep = "";
           renderGuide();
           respond({ ok: true });
-        } else respond({ ok: false });
+        } else {
+          closeGuide();
+          respond({ ok: false });
+        }
         return;
       }
       if (message.type === "glimpselet:text-nodes") {
@@ -969,15 +982,19 @@ if (!contentScope.glimpseletContentReady) {
         let index = 0;
         let hasMore = false;
         while ((node = walker.nextNode())) {
-          if (!(node instanceof Text) || !contextTextNode(node)) continue;
-          const text = node.nodeValue!.trim();
-          if (!text) continue;
+          if (!(node instanceof Text)) continue;
+          const retainedId = nodeIds.get(node);
+          let original = retainedId ? originals.get(retainedId) : undefined;
+          const retainedEmpty =
+            original?.node === node &&
+            original.lastWritten === "" &&
+            node.nodeValue === "";
+          if (!contextTextNode(node, retainedEmpty)) continue;
           if (index < cursor) {
             index++;
             continue;
           }
-          let id = textNodeId(node);
-          let original = originals.get(id);
+          let id = retainedId ?? textNodeId(node);
           if (
             original &&
             node.nodeValue !== (original.lastWritten ?? original.text)
@@ -1036,7 +1053,12 @@ if (!contentScope.glimpseletContentReady) {
             skipped.disconnected++;
             continue;
           }
-          if (!contextTextNode(original.node)) {
+          if (
+            !contextTextNode(
+              original.node,
+              original.lastWritten === "" && original.node.nodeValue === "",
+            )
+          ) {
             skipped.ineligible++;
             continue;
           }
