@@ -3,6 +3,7 @@ import {
   validateGuideSteps,
   validateTranslationNodes,
   type GuideStep,
+  type TranslationNode,
 } from "./page-tools";
 
 export type Model = "sonnet" | "opus" | "haiku";
@@ -133,9 +134,31 @@ export function parsePassiveAnswer(text: string): {
 export function parseTranslationNodes(
   text: string,
   supplied: ReadonlyMap<string, string>,
-): Array<{ id: string; text: string }> {
+): TranslationNode[] {
   try {
     return validateTranslationNodes(parseJsonAnswer(text), supplied);
+  } catch {
+    return [];
+  }
+}
+
+/** Apply a batch only when every supplied id occurs exactly once and is valid. */
+export function parseTranslationBatch(
+  text: string,
+  supplied: ReadonlyMap<string, string>,
+): TranslationNode[] {
+  try {
+    if (text.length > MAX_ANSWER || !supplied.size || supplied.size > 160)
+      return [];
+    const value = parseJsonAnswer(text) as { nodes?: unknown } | null;
+    if (
+      !value ||
+      !Array.isArray(value.nodes) ||
+      value.nodes.length !== supplied.size
+    )
+      return [];
+    const nodes = validateTranslationNodes(value, supplied);
+    return nodes.length === supplied.size ? nodes : [];
   } catch {
     return [];
   }

@@ -9,6 +9,7 @@ import {
   parsePassiveAnswer,
   parseSuggestions,
   parseTranslationNodes,
+  parseTranslationBatch,
   askAnthropic,
   validateAsk,
   type AskInput,
@@ -408,6 +409,65 @@ describe("extension bridge payloads", () => {
         new Map([["n1", "Source text. ".repeat(180)]]),
       ),
     ).toEqual([{ id: "n1", text }]);
+  });
+
+  it("keeps every source mapping in a complete translation batch with an explicit omission", () => {
+    expect(
+      parseTranslationBatch(
+        JSON.stringify({
+          nodes: [
+            { id: "t20", text: "verifiable " },
+            { id: "t21", omit: true },
+            { id: "t22", text: "sources" },
+          ],
+        }),
+        new Map([
+          ["t20", "検証可能"],
+          ["t21", "な"],
+          ["t22", "参考文献や出典"],
+        ]),
+      ),
+    ).toEqual([
+      { id: "t20", text: "verifiable " },
+      { id: "t21", text: "", omit: true },
+      { id: "t22", text: "sources" },
+    ]);
+  });
+
+  it.each([
+    [{ id: "a", text: "Hello" }],
+    [
+      { id: "a", text: "Hello" },
+      { id: "a", text: "duplicate" },
+      { id: "b", text: "World" },
+    ],
+    [
+      { id: "a", text: "Hello" },
+      { id: "b", text: "World" },
+      { id: "unknown", text: "extra" },
+    ],
+    [
+      { id: "a", text: 4 },
+      { id: "b", text: "World" },
+    ],
+    [
+      { id: "a", text: "Hello" },
+      { id: "b", text: " " },
+    ],
+    [
+      { id: "a", text: "Hello" },
+      { id: "b", text: "x".repeat(12_001) },
+    ],
+  ])("rejects malformed complete translation batches: %#", (nodes) => {
+    expect(
+      parseTranslationBatch(
+        JSON.stringify({ nodes }),
+        new Map([
+          ["a", "Original"],
+          ["b", "Text"],
+        ]),
+      ),
+    ).toEqual([]);
   });
 
   it("preserves the exact translated text boundary", () => {
