@@ -336,10 +336,10 @@ if (!contentScope.glimpseletContentReady) {
     const viewportWidth = innerWidth - margin * 2;
     const viewportHeight = innerHeight - margin * 2;
     const naturalWidth = callout.getBoundingClientRect().width || 269;
-    // clientHeight is integral; round up the rendered line height so a
-    // candidate cannot leave a partially clipped first line of the note.
-    const minimumNoteHeight = Math.ceil(
-      Number.parseFloat(getComputedStyle(note).lineHeight),
+    // Compare fractional rendered heights so rounding cannot admit a clipped
+    // first line of the note.
+    const minimumNoteHeight = Number.parseFloat(
+      getComputedStyle(note).lineHeight,
     );
     const clamp = (value: number, min: number, max: number) =>
       Math.max(min, Math.min(value, max));
@@ -394,7 +394,7 @@ if (!contentScope.glimpseletContentReady) {
         head.style.marginBottom = "3px";
         blink.style.flexShrink = "0";
         for (const button of [back, next, close])
-          button.style.padding = "6px 8px";
+          button.style.padding = "6px 4px";
       }
       for (const [index, space] of spaces(compact ? 8 : 18).entries()) {
         if (space.width <= 0 || space.height <= 0) continue;
@@ -410,7 +410,8 @@ if (!contentScope.glimpseletContentReady) {
         if (
           bounds.height > space.height ||
           bounds.width > space.width ||
-          (note.scrollHeight > 0 && note.clientHeight < minimumNoteHeight) ||
+          (note.scrollHeight > 0 &&
+            note.getBoundingClientRect().height < minimumNoteHeight) ||
           [back, next, close].some((button) => {
             const control = button.getBoundingClientRect();
             return (

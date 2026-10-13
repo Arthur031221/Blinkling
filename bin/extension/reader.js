@@ -26661,8 +26661,8 @@ if (!contentScope.glimpseletContentReady) {
     const viewportWidth = innerWidth - margin * 2;
     const viewportHeight = innerHeight - margin * 2;
     const naturalWidth = callout.getBoundingClientRect().width || 269;
-    const minimumNoteHeight = Math.ceil(
-      Number.parseFloat(getComputedStyle(note).lineHeight)
+    const minimumNoteHeight = Number.parseFloat(
+      getComputedStyle(note).lineHeight
     );
     const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
     const spaces = (gap) => [
@@ -26711,7 +26711,7 @@ if (!contentScope.glimpseletContentReady) {
         head.style.marginBottom = "3px";
         blink.style.flexShrink = "0";
         for (const button of [back, next, close])
-          button.style.padding = "6px 8px";
+          button.style.padding = "6px 4px";
       }
       for (const [index, space] of spaces(compact ? 8 : 18).entries()) {
         if (space.width <= 0 || space.height <= 0) continue;
@@ -26722,7 +26722,7 @@ if (!contentScope.glimpseletContentReady) {
         callout.style.width = `${width}px`;
         callout.style.maxHeight = `${space.height}px`;
         const bounds = callout.getBoundingClientRect();
-        if (bounds.height > space.height || bounds.width > space.width || note.scrollHeight > 0 && note.clientHeight < minimumNoteHeight || [back, next, close].some((button) => {
+        if (bounds.height > space.height || bounds.width > space.width || note.scrollHeight > 0 && note.getBoundingClientRect().height < minimumNoteHeight || [back, next, close].some((button) => {
           const control = button.getBoundingClientRect();
           return control.left < bounds.left || control.right > bounds.right || control.top < bounds.top || control.bottom > bounds.bottom;
         }))

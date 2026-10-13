@@ -678,11 +678,12 @@ for (const language of ["en", "zh-TW"] as const)
     });
   }
 
-for (const [language, labels] of [
-  ["en", en],
-  ["zh-TW", zhTW],
+for (const [language, labels, wideControls] of [
+  ["en", en, false],
+  ["zh-TW", zhTW, false],
+  ["en", en, true],
 ] as const) {
-  test(`the observed Excalidraw menu target stays clickable with long ${language} notes at 320x240`, async () => {
+  test(`the observed Excalidraw menu target stays clickable with long ${language} notes${wideControls ? " and wide control lettering" : ""} at 320x240`, async () => {
     await site.setViewportSize({ width: 320, height: 240 });
     await site.evaluate(() => {
       // This is the actual menuitem rectangle observed in the live smoke test.
@@ -741,6 +742,17 @@ for (const [language, labels] of [
         },
       }),
     ).toEqual({ ok: true });
+    if (wideControls) {
+      await site.evaluate(() => {
+        const root = document.querySelector(
+          "[data-glimpselet-overlay]",
+        )!.shadowRoot!;
+        const style = document.createElement("style");
+        style.textContent = ".guide button{font-family:monospace}";
+        root.append(style);
+        window.dispatchEvent(new Event("resize"));
+      });
+    }
     const guide = site.locator("[data-glimpselet-overlay] .guide");
     const { card, passage, lineHeight, buttons, viewport } =
       await expectGuidePlacement("#export");
