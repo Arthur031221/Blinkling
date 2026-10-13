@@ -2999,6 +2999,130 @@ describe("bubble answer rendering and feedback", () => {
   });
 });
 
+describe("floating window size persistence", () => {
+  async function openSizedFloat(width = 420, height = 600) {
+    stored.pipSize = { width, height };
+    await start();
+    const { floating } = floatingWindow();
+    const setViewport = (width: number, height: number) => {
+      Object.defineProperties(floating, {
+        innerWidth: { configurable: true, value: width },
+        innerHeight: { configurable: true, value: height },
+        outerWidth: { configurable: true, value: width + 8 },
+        outerHeight: { configurable: true, value: height + 38 },
+      });
+    };
+    setViewport(width, height);
+    // Native window and renderer resize events settle asynchronously.
+    const resize = vi.spyOn(floating, "resizeTo").mockImplementation(() => {});
+    const requestWindow = vi.fn().mockResolvedValue(floating);
+    vi.stubGlobal("documentPictureInPicture", { requestWindow });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, text: async () => "" }),
+    );
+    await click(en.float);
+    vi.mocked(chrome.storage.local.set).mockClear();
+    const nativeResize = async (width: number, height: number) => {
+      setViewport(width, height);
+      await act(async () => floating.dispatchEvent(new Event("resize")));
+      await flush();
+    };
+    const expand = async () => {
+      await act(async () =>
+        floating.document
+          .querySelector<HTMLButtonElement>(
+            `button[aria-label="${en.expand}"]`,
+          )!
+          .click(),
+      );
+      await flush();
+    };
+    return { floating, resize, requestWindow, nativeResize, expand };
+  }
+
+  it("restores both inner dimensions and ignores a delayed compact resize before saving later user resizes", async () => {
+    const { floating, resize, nativeResize, expand } = await openSizedFloat();
+    await click(en.compact, floating.document);
+    expect(resize).toHaveBeenLastCalledWith(428, 218);
+    await nativeResize(420, 180);
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    await expand();
+    expect(floating.document.querySelector(".app.expanded")).not.toBeNull();
+    expect(resize).toHaveBeenLastCalledWith(428, 638);
+    await nativeResize(420, 180);
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    await nativeResize(420, 600);
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      pipSize: { width: 420, height: 600 },
+    });
+    await nativeResize(450, 720);
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      pipSize: { width: 450, height: 720 },
+    });
+    await click(en.compact, floating.document);
+    await nativeResize(450, 180);
+    await expand();
+    expect(resize).toHaveBeenLastCalledWith(458, 758);
+  });
+
+  it("accepts a browser-clamped expansion and keeps later manual resizes enabled", async () => {
+    const { floating, resize, nativeResize, expand } = await openSizedFloat(
+      520,
+      900,
+    );
+    await click(en.compact, floating.document);
+    await nativeResize(520, 180);
+    await expand();
+    expect(resize).toHaveBeenLastCalledWith(528, 938);
+    await nativeResize(520, 180);
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    await nativeResize(400, 660);
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      pipSize: { width: 400, height: 660 },
+    });
+    await nativeResize(520, 180);
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      pipSize: { width: 520, height: 180 },
+    });
+  });
+
+  it("ignores the compact resize when expansion is clicked before collapse settles", async () => {
+    const { floating, nativeResize, expand } = await openSizedFloat();
+    await click(en.compact, floating.document);
+    await expand();
+    await nativeResize(420, 180);
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    await nativeResize(420, 600);
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      pipSize: { width: 420, height: 600 },
+    });
+  });
+
+  it("expands an existing compact Float tutorial and resumes size persistence", async () => {
+    const { floating, resize, requestWindow, nativeResize } =
+      await openSizedFloat();
+    await click(en.compact, floating.document);
+    await nativeResize(420, 180);
+    await send(
+      { type: "glimpselet:tutorial", action: "float", step: 1 },
+      sampleUrl,
+    );
+    expect(floating.document.querySelector(".app.expanded")).not.toBeNull();
+    expect(resize).toHaveBeenLastCalledWith(428, 638);
+    expect(requestWindow).toHaveBeenCalledOnce();
+    expect(completions()).toEqual([{ tab: 1, step: 1 }]);
+    await nativeResize(420, 600);
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      pipSize: { width: 420, height: 600 },
+    });
+    await nativeResize(460, 640);
+    expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
+      pipSize: { width: 460, height: 640 },
+    });
+  });
+});
+
 describe("screen sharing and capture authorization in the bubble", () => {
   it("starts sharing without closing PiP or freezing or replacing an accepted capture", async () => {
     await start();

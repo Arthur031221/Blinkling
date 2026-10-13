@@ -19473,6 +19473,9 @@ function App() {
   const [fallback, setFallback] = (0, import_react.useState)(false);
   const [expanded, setExpanded] = (0, import_react.useState)(true);
   const expandedRef = (0, import_react.useRef)(true);
+  const compactViewport = (0, import_react.useRef)(
+    null
+  );
   const [contextFailure, setContextFailure] = (0, import_react.useState)("");
   const [connected, setConnected] = (0, import_react.useState)(false);
   const [mode, setMode] = (0, import_react.useState)("direct");
@@ -19859,8 +19862,15 @@ function App() {
     if (!pipDoc) return;
     const child = pipDoc.defaultView;
     const remember = () => {
-      if (!expandedRef.current) return;
       const nextSize = { width: child.innerWidth, height: child.innerHeight };
+      if (!expandedRef.current) {
+        compactViewport.current = nextSize;
+        return;
+      }
+      const compact = compactViewport.current;
+      if (compact?.width === nextSize.width && compact.height === nextSize.height)
+        return;
+      compactViewport.current = null;
       setSize(nextSize);
       void chrome.storage.local.set({
         pipSize: nextSize
@@ -19989,7 +19999,7 @@ function App() {
             url: sender.tab.url
           };
           setTutorial(practice);
-          setExpanded(true);
+          if (!expandedRef.current) setCompact(false);
           schedulePageRefresh();
           if (practice.action === "float" && pipDoc?.defaultView && !pipDoc.defaultView.closed) {
             setStatus(t.floatPracticeReady);
@@ -20429,6 +20439,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     style.textContent = await response.text();
     if (docWindow.closed) throw new Error("pip_closed");
     docWindow.document.head.append(style);
+    compactViewport.current = null;
     (0, import_react_dom.flushSync)(() => {
       setPipDoc(docWindow.document);
       setReopenCapture(false);
@@ -20851,13 +20862,17 @@ ${t.selectedPassage}: ${selected}` : ""}`;
         const floating = pipDoc.defaultView;
         if (compact) {
           setSize({ width: floating.innerWidth, height: floating.innerHeight });
+          compactViewport.current = {
+            width: floating.innerWidth,
+            height: 180
+          };
           floating.resizeTo(
             floating.outerWidth,
             180 + floating.outerHeight - floating.innerHeight
           );
         } else
           floating.resizeTo(
-            size.width,
+            size.width + floating.outerWidth - floating.innerWidth,
             size.height + floating.outerHeight - floating.innerHeight
           );
       }

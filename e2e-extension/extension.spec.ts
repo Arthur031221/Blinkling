@@ -233,7 +233,6 @@ test.beforeEach(async () => {
       "--enable-unsafe-extension-debugging",
       "--enable-features=DocumentPictureInPictureAPI",
       "--window-position=0,0",
-      "--window-size=1100,780",
       "--auto-select-tab-capture-source-by-title=Notebook exports",
     ],
   });
@@ -268,6 +267,29 @@ test.beforeEach(async () => {
     throw new Error(
       "Fixture tab target not found: " + JSON.stringify(targetInfos),
     );
+  // A global --window-size also overrides Document PiP's requested dimensions.
+  // Size the ordinary browser window without changing future floating windows.
+  const { windowId, bounds } = await browserCdp.send(
+    "Browser.getWindowForTarget",
+    {
+      targetId: targetInfo.targetId,
+    },
+  );
+  if (bounds.windowState !== "normal")
+    await browserCdp.send("Browser.setWindowBounds", {
+      windowId,
+      bounds: { windowState: "normal" },
+    });
+  await browserCdp.send("Browser.setWindowBounds", {
+    windowId,
+    bounds: { left: 0, top: 0, width: 1100, height: 780 },
+  });
+  await expect
+    .poll(
+      async () =>
+        (await browserCdp.send("Browser.getWindowBounds", { windowId })).bounds,
+    )
+    .toMatchObject({ width: 1100, height: 780, windowState: "normal" });
   await browserCdp.send("Extensions.triggerAction", {
     id: extensionId,
     targetId: targetInfo.targetId,
@@ -5420,47 +5442,81 @@ test("chat requires an explicit choice when fresh page context is private", asyn
 });
 
 test("compact height never overwrites the saved expanded size", async () => {
+  const expandedSize = { width: 420, height: 600 };
+  const floatingSize = () =>
+    panel.evaluate(() => {
+      const pip = window.documentPictureInPicture?.window;
+      return { width: pip?.innerWidth || 0, height: pip?.innerHeight || 0 };
+    });
+  const expectMode = async (mode: "expanded" | "compact") => {
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          (mode) =>
+            Boolean(
+              window.documentPictureInPicture?.window?.document.querySelector(
+                `.app.in-pip.${mode}`,
+              ),
+            ),
+          mode,
+        ),
+      )
+      .toBe(true);
+  };
+  const expectSavedSize = async () => {
+    expect(
+      await worker.evaluate(
+        async () => (await chrome.storage.local.get("pipSize")).pipSize,
+      ),
+    ).toEqual(expandedSize);
+  };
+  const compact = async () => {
+    await clickBubble(en.compact);
+    await expectMode("compact");
+    await expect
+      .poll(floatingSize)
+      .toMatchObject({ width: expandedSize.width });
+    await expect
+      .poll(async () => (await floatingSize()).height)
+      .toBeGreaterThan(0);
+    await expect
+      .poll(async () => (await floatingSize()).height)
+      .toBeLessThan(expandedSize.height);
+    await panel.evaluate(() => {
+      const pip = window.documentPictureInPicture.window!;
+      pip.dispatchEvent(new Event("resize"));
+    });
+    await expectSavedSize();
+  };
   await panel.locator(".float-start button").click();
-  await expect
-    .poll(() =>
-      panel.evaluate(() => Boolean(window.documentPictureInPicture?.window)),
-    )
-    .toBe(true);
-  await panel.evaluate(() => {
+  await expectMode("expanded");
+  await panel.evaluate((expandedSize) => {
     const pip = window.documentPictureInPicture.window!;
-    pip.resizeTo(pip.outerWidth, 650 + pip.outerHeight - pip.innerHeight);
-    pip.dispatchEvent(new Event("resize"));
-  });
+    pip.resizeTo(
+      expandedSize.width + pip.outerWidth - pip.innerWidth,
+      expandedSize.height + pip.outerHeight - pip.innerHeight,
+    );
+  }, expandedSize);
+  await expect.poll(floatingSize).toEqual(expandedSize);
   await expect
     .poll(() =>
       worker.evaluate(
-        async () => (await chrome.storage.local.get("pipSize")).pipSize.height,
+        async () => (await chrome.storage.local.get("pipSize")).pipSize,
       ),
     )
-    .toBeGreaterThan(500);
-  const height = await worker.evaluate(
-    async () => (await chrome.storage.local.get("pipSize")).pipSize.height,
-  );
-  await clickBubble(en.compact);
-  await panel.evaluate(() => {
-    const pip = window.documentPictureInPicture.window!;
-    pip.dispatchEvent(new Event("resize"));
-  });
-  expect(
-    await worker.evaluate(
-      async () => (await chrome.storage.local.get("pipSize")).pipSize.height,
-    ),
-  ).toBe(height);
+    .toEqual(expandedSize);
+  await compact();
+  await clickBubble(en.expand);
+  await expectMode("expanded");
+  await expect.poll(floatingSize).toEqual(expandedSize);
+  await expectSavedSize();
+  await compact();
   await panel.evaluate(() => window.documentPictureInPicture.window!.close());
   await panel.reload();
   await panel.locator(".float-start button").click();
-  await expect
-    .poll(() =>
-      panel.evaluate(
-        () => window.documentPictureInPicture?.window?.innerHeight || 0,
-      ),
-    )
-    .toBeGreaterThan(500);
+  await expectMode("expanded");
+  await expect.poll(floatingSize).toEqual(expandedSize);
+  await expectSavedSize();
 });
 
 test("page guide requests work in Chinese", async () => {
