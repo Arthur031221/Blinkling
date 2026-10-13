@@ -125,6 +125,7 @@ async function main() {
   context = await chromium.launchPersistentContext(profile, {
     executablePath,
     headless: false,
+    viewport: null,
     ignoreDefaultArgs: ["--disable-extensions"],
     args: [
       "--enable-features=ExcludePipFromScreenCapture",
