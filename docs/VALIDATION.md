@@ -46,4 +46,4 @@ npm run package:stores
 
 Native Mac window behavior requires a Mac. Chromium on Linux exercised the floating window, but that cannot establish behavior across Mac applications. The browser still owns the sharing picker, native permission dialogs and window placement.
 
-The extension has not been approved by either store. The store packages are prepared for the account holder to submit. Main CI, the public demo and the GitHub release must be checked after publication. The engine's repository eligibility policy currently prevents submitting this candidate to the personal repository.
+The extension has not been approved by either store. The store packages are prepared for the account holder to submit. Main CI, the public demo and the GitHub release must be checked after publication.
