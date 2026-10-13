@@ -26,11 +26,31 @@ Chrome [commands](https://developer.chrome.com/docs/extensions/reference/api/com
 
 The chosen integration is a documented [Claude Code channel](https://code.claude.com/docs/en/channels), which pushes messages into a running interactive session. The MCP server declares `experimental: {"claude/channel": {}}` and sends `notifications/claude/channel`. A nonce delivered through the channel must be returned by the session before live mode is offered. Ordinary MCP connectivity cannot be mistaken for live delivery. The [channel reference](https://code.claude.com/docs/en/channels-reference) documents notifications and reply tools.
 
-Custom channels are a research preview. After installing the plugin, restart the desired conversation with its actual UUID:
+Custom channels are a research preview. First identify the conversation you want to keep, on the computer where Claude Code runs:
+
+1. In that existing terminal conversation, run `/status`. Copy the **Session ID** row: it is the conversation's UUID. Press Esc to close the status panel.
+2. Optionally give it an easy-to-find name with `/rename glimpselet-reading`. If you already closed it, run `claude --resume` from the same project directory, find the conversation in the picker and press Space to preview its messages before selecting it. Then use `/status` to copy its ID.
+3. Wait for any answer to finish, then run `/exit` in the original interactive terminal before restarting it. For an attached background conversation, use `/stop` instead: `/exit` only detaches from it. Do not keep two interactive terminals writing to the same conversation.
+
+These discovery and resume steps follow the [session guide](https://code.claude.com/docs/en/sessions) and [built-in commands](https://code.claude.com/docs/en/commands). After installing the plugin, run this in your shell from the same project directory, replacing `SESSION_ID` with the copied UUID:
 
 ```sh
 claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
 ```
+
+If you named the conversation above, this equivalent command avoids copying the UUID. Use a unique name; if the picker appears, preview and select the intended conversation:
+
+```sh
+claude --resume glimpselet-reading --dangerously-load-development-channels plugin:glimpselet@glimpselet
+```
+
+For an Advanced source checkout loaded with `--plugin-dir`, include that option again and use its development server selector. Replace `/absolute/path/to/Glimpselet` with the checkout you built:
+
+```sh
+claude --plugin-dir /absolute/path/to/Glimpselet --resume SESSION_ID --dangerously-load-development-channels server:plugin:glimpselet:glimpselet
+```
+
+After reopening, check `/status` still shows the copied Session ID and that an earlier message is present before running `/glimpselet:glimpse`.
 
 Accept the channel warning yourself. Authentication and organization policy must allow channels. The bubble selects live mode when its readiness check succeeds. Questions enter that interactive conversation. Images are fetched through `glimpse_channel_context`. The session returns scoped chunks through `glimpse_channel_reply`, with `done=true` on its final chunk. Those chunks stream into the bubble. The terminal's existing model, permissions and tools apply. Bubble model and effort controls are disabled for live requests.
 

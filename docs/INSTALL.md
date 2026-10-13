@@ -37,7 +37,25 @@ ssh -N -L 37115:127.0.0.1:37115 user@remote-host
 
 The tunnel forwards the browser's local loopback connection to the host's loopback bridge. On the welcome page, **Download extension ZIP** downloads the extension files packaged with that installed plugin directly from its loopback bridge. The download requires the page's short-lived setup code and includes only regular files from the packaged extension directory. Extract it on the browser computer, then use **Load unpacked** in Chrome or Edge. Do not expose the bridge port publicly. The dedicated zero-install browser mode is unavailable on a remote host because it has no local desktop.
 
-When the browser computer has no local CLI, choose direct API mode in extension settings and enter an API key. The key is held in `chrome.storage.session` and is not sent to the bridge.
+After pairing through SSH, the extension uses your remote Claude Code login for answers. You need no local Claude Code installation on the browser computer and no API key. Keep the SSH tunnel running on the browser computer and the bridge running on the remote host while using the extension.
+
+Use direct API mode only if there is no usable Claude Code host, or if you choose it explicitly. Select it in extension settings and enter your own Anthropic API key. The key is held in `chrome.storage.session` and is not sent to the bridge.
+
+## Advanced: run from a source checkout
+
+To try this checkout instead of the published marketplace plugin, use Node.js 22 or later and run these commands from the checkout's root on the computer that runs Claude Code:
+
+```sh
+npm ci
+npm run build:plugin
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
+claude --plugin-dir "$PWD"
+```
+
+Before starting the final command, check that the plugin details report **glimpselet 2.0.0**, include the `glimpse` and `install` skills and the `glimpselet` MCP server, and that the extension version prints **2.0.0**. In the interactive Claude Code session opened by the final command, run `/glimpselet:glimpse`. The `--plugin-dir` option loads this checkout for that session; keep the checkout and repeat the option when you start Claude Code again.
+
+The built extension is at `bin/extension`. On the same computer, `/glimpselet:glimpse` copies it to `~/.glimpselet/extension`; select that stable folder in **Load unpacked**. If Claude Code runs remotely, keep the checkout on the remote host and follow the SSH tunnel and **Download extension ZIP** steps above to load the same build on the browser computer.
 
 ## Browser and page limits
 
