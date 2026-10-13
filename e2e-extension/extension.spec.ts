@@ -821,6 +821,7 @@ for (const startup of [false, true]) {
       },
       sessions: new ExtensionSessions(secondDirectory, async () => []),
     });
+    let welcome: Page | undefined;
     try {
       secondServer.listen(0, "127.0.0.1");
       await once(secondServer, "listening");
@@ -900,7 +901,7 @@ for (const startup of [false, true]) {
         await expect(panel.locator(".connection")).toHaveClass(/online/);
         await expect(panel.locator(".connection")).toHaveText(en.connected);
       } else {
-        const welcome = await context.newPage();
+        welcome = await context.newPage();
         await welcome
           .goto(`${secondOrigin}/install#code=${secondBridge.issueCode()}`)
           .catch((error: unknown) => {
@@ -1033,11 +1034,19 @@ for (const startup of [false, true]) {
         ),
       ).toBe(false);
     } finally {
-      await secondBridge.close();
-      if (secondServer.listening)
-        await new Promise<void>((resolve) =>
-          secondServer.close(() => resolve()),
-        );
+      await test.step("Close second-project browser clients", async () => {
+        await welcome?.close();
+        await panel.close();
+      });
+      await test.step("Close second-project bridge", () =>
+        secondBridge.close());
+      await test.step("Close second-project HTTP server", async () => {
+        if (secondServer.listening)
+          await new Promise<void>((resolve) => {
+            secondServer.close(() => resolve());
+            secondServer.closeAllConnections();
+          });
+      });
     }
   });
 }
