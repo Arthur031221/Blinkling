@@ -7,6 +7,7 @@ import { chromium } from "@playwright/test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { PNG } from "pngjs";
+import en from "../extension/locales/en.json" with { type: "json" };
 
 const fixture = createServer((_, response) => {
   response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -166,7 +167,7 @@ try {
   await panelCdp.detach();
   await cdp.detach();
   await floatingCommand(pipTarget.targetId, "Runtime.evaluate", {
-    expression: `[...document.querySelectorAll('button')].find(b => b.textContent === 'Share a screen').click()`,
+    expression: `document.querySelector('[role="switch"]').click()`,
     userGesture: true,
   });
   await panel.waitForFunction(
@@ -210,7 +211,7 @@ try {
       )?.src,
   );
   await floatingCommand(pipTarget.targetId, "Runtime.evaluate", {
-    expression: `[...document.querySelectorAll('button')].find(b => b.textContent === 'Selected area').click()`,
+    expression: `[...document.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(en.region)}).click()`,
     userGesture: true,
   });
   const frozen = panel.locator("[data-glimpselet-frozen-crop]");

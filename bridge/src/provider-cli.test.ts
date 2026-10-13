@@ -82,6 +82,10 @@ describe("CLI screenshot working directory and permissions", () => {
     );
     const saved = JSON.parse(await readFile(record, "utf8"));
     const value = (flag: string) => saved.args[saved.args.indexOf(flag) + 1];
+    expect(value("--system-prompt")).toContain("one short answer sentence");
+    expect(value("--system-prompt")).toContain(
+      "Preserve requested JSON schemas",
+    );
     expect(saved.cwd).toBe(project);
     expect(dirname(saved.image)).not.toBe(project);
     expect(value("--add-dir")).toBe(dirname(saved.image));

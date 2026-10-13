@@ -29,6 +29,7 @@ describe("extension locale bundles", () => {
       [...source.matchAll(/\bt\.([A-Za-z_$][\w$]*)/g)].map((match) => match[1]),
     );
     for (const key of [
+      "element",
       "bridgeLost",
       "keyMissing",
       "apiAuth",

@@ -204,7 +204,9 @@ test("locale action labels preserve their intended meanings", async () => {
     const labels = JSON.parse(
       await readFile(resolve(`extension/locales/${locale}.json`), "utf8"),
     );
-    expect(labels.resume, `${locale} resume`).not.toBe(labels.pause);
+    expect(labels.autoExplain, `${locale} autoExplain`).toBeTruthy();
+    expect(labels.wholeScreen, `${locale} wholeScreen`).toBeTruthy();
+    expect(labels.autoExplain).not.toBe(labels.wholeScreen);
     expect(labels.newThread, `${locale} newThread`).not.toBe(
       labels.dedicatedThread,
     );
@@ -218,7 +220,7 @@ test("locale action labels preserve their intended meanings", async () => {
   expect(english.newThread).toBe("New session");
   expect(english.guideAction).toBe("Guide this page");
   expect(english.dedicatedThread).toBe("Dedicated conversation");
-  expect(english.pageNote).toBe("Passive mode");
+  expect(english.pageNote).toBe("Auto explain");
 });
 
 // Document PiP owns a separate target: opener media emulation does not reach it.
@@ -300,10 +302,10 @@ for (const width of [320, 520]) {
         "Claude Code",
       );
       await expect(dialog.getByLabel(zhTW.effort)).not.toContainText("MEDIUM");
+      await expect(dialog.locator(".usage-hint")).toContainText("Glimpselet");
       await panel.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
-      await expect(panel.locator(".usage-hint")).toBeVisible();
-      await expect(panel.locator(".usage-hint")).toContainText("Glimpselet");
+      await expect(panel.locator(".usage-hint")).toHaveCount(0);
       const bounds = await panel
         .locator(".composer-modes")
         .evaluate((container) => {
@@ -397,7 +399,7 @@ for (const width of [320, 520]) {
         expect(floating.labels).toContain(zhTW.settings);
         expect(floating.labels).toContain(zhTW.returnToTab);
         expect(floating.labels).not.toContain(zhTW.float);
-        expect(floating.usage).toBe(zhTW.cliUsageHint);
+        expect(floating.usage).toBeUndefined();
         await panel.evaluate(() => {
           const floating = window.documentPictureInPicture.window!;
           floating.focus();

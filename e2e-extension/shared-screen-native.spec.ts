@@ -1313,10 +1313,7 @@ for (const mode of ["unpacked", "dedicated"]) {
           field.dispatchEvent(new Event("input", { bubbles: true }));
         });
         await site.bringToFront();
-        await nativeClick(
-          '.capture-buttons button[title="Share a screen"]',
-          true,
-        );
+        await nativeClick('[role="switch"]', true);
         await expect
           .poll(() =>
             panel.evaluate(

@@ -451,6 +451,9 @@ try {
 
   if (!publicMode) {
     await appPage
+      .getByRole("button", { name: en.moreTools, exact: true })
+      .click();
+    await appPage
       .getByRole("button", { name: en.translatePage, exact: true })
       .click();
     try {
