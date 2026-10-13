@@ -29,9 +29,11 @@ Glimpselet 默认创建专用对话。你也可以选择最近的 Claude Code �
 
 在自己的桌面浏览器中，扩展保存在固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
 
-## 从 v1 升级
+更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击“重新加载”。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。
 
-如果已安装 Glimpselet，请在终端刷新市场并更新插件：
+## 已经安装 Glimpselet？
+
+请在运行 Claude Code 的电脑上，在终端中执行以下命令。只刷新市场列表，不代表已安装的插件也已更新。
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -39,7 +41,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-重启 Claude Code，或在当前会话运行 `/reload-plugins`。确认 `claude plugin list` 显示 Glimpselet **2.0.0**，再运行 `/glimpselet:glimpse`，应会打开欢迎与配对指南。如果仍显示 1.x，市场来源可能尚未发布 v2；重复安装不会更新缓存中的插件。
+在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.0.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.0.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2；旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 使用未打包扩展时，指南会把新文件复制到 `~/.glimpselet/extension`。请在 `chrome://extensions` 或 `edge://extensions` 重新加载 Glimpselet，确认版本为 **2.0.0**。通过 SSH 使用时，请在浏览器所在电脑从指南下载新版 ZIP，解压到原先加载的文件夹，再重新加载。远程主机无法在你的电脑打开免安装浏览器。
 

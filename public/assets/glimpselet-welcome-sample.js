@@ -28,7 +28,8 @@
     if (
       request?.version !== 1 ||
       typeof request.requestId !== "string" ||
-      !request.requestId
+      !request.requestId ||
+      request.requestId.length > 128
     )
       return;
     if (request.type === "glimpselet:tutorial:probe") {
@@ -73,7 +74,7 @@
     if (window.opener) {
       window.opener.postMessage(
         {
-          type: "glimpselet:tutorial:ready",
+          type: "glimpselet:tutorial:ack",
           version: 1,
           requestId: request.requestId,
           action: request.action,

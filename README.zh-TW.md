@@ -29,9 +29,11 @@ Glimpselet 預設建立專用對話。你也可以選擇最近的 Claude Code �
 
 在自己的桌面瀏覽器中，擴充功能會放在固定資料夾 `~/.glimpselet/extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
 
-## 從 v1 升級
+更新未封裝擴充功能時，先關閉舊浮動視窗，再執行 `/glimpselet:glimpse` 更新固定資料夾，然後在擴充功能頁面的卡片按「重新載入」。若 Claude Code 在遠端，請透過歡迎指南下載新版 ZIP，在瀏覽器所在電腦替換解壓縮後的檔案，再重新載入擴充功能。
 
-若已安裝 Glimpselet，請在終端機重新整理市集並更新外掛：
+## 已經安裝 Glimpselet？
+
+請在執行 Claude Code 的電腦上，於終端機執行以下指令。只更新市集清單，不代表已安裝的外掛也已更新。
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -39,7 +41,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-重新啟動 Claude Code，或在目前工作階段執行 `/reload-plugins`。確認 `claude plugin list` 顯示 Glimpselet **2.0.0**，再執行 `/glimpselet:glimpse`，應會開啟歡迎與配對指南。若仍顯示 1.x，市集來源可能尚未發布 v2；重複安裝不會更新快取中的外掛。
+在已開啟的 Claude Code 工作階段執行 `/reload-plugins`（或重新啟動 Claude Code），再執行 `/glimpselet:glimpse`。清單中的 `glimpselet@glimpselet` 應顯示 **2.0.0**，且指令應開啟歡迎與配對指南。也請在瀏覽器所在電腦的 `chrome://extensions` 或 `edge://extensions` 確認 Glimpselet 為 **2.0.0**。若外掛仍是 1.1.1，公開市集可能尚未提供 v2；舊的畫面選取頁不是 v2 歡迎指南。[更新驗證](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 使用未封裝擴充功能時，指南會把新檔案複製到 `~/.glimpselet/extension`。請在 `chrome://extensions` 或 `edge://extensions` 重新載入 Glimpselet，確認版本為 **2.0.0**。透過 SSH 使用時，請在瀏覽器所在電腦從指南下載新版 ZIP，解壓縮到原先載入的資料夾，再重新載入。遠端主機無法在你的電腦開啟免安裝瀏覽器。
 

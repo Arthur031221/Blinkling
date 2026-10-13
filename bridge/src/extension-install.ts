@@ -285,6 +285,7 @@ const applyLanguage=()=>{document.documentElement.lang=lang==='zh'?'zh-Hant':'en
 function render(){const t=strings[lang], host=document.querySelector('#steps');host.replaceChildren();steps.forEach(([action],i)=>{const card=document.createElement('article');card.className='step'+(state[i]?' done':'');card.innerHTML='<div class="step-head"><span class="number">'+(state[i]?'✓':i+1)+'</span><h3></h3></div><p></p><div class="illustration" aria-hidden="true"><span class="browserbar"></span><span class="mockline"></span><span class="mockline two"></span><span class="mockline three"></span><span class="mockfocus"></span></div><div class="actions"><button class="button primary try"></button><button class="button done"></button><button class="button skip"></button></div>';card.querySelector('h3').textContent=t.titles[i];card.querySelector('p').textContent=t.descs[i];card.querySelector('.mockfocus').textContent=t.focus[i];card.querySelector('.try').textContent=t.tries[i];card.querySelector('.done').textContent=state[i]?t.done:(lang==='en'?'Done':'完成');card.querySelector('.skip').textContent=state[i]?'':(lang==='en'?'Skip':'略過');card.querySelector('.skip').hidden=!!state[i];card.querySelector('.try').onclick=()=>tryStep(i,action);card.querySelector('.done').onclick=()=>mark(i);card.querySelector('.skip').onclick=()=>mark(i);host.append(card)});const count=Object.values(state).filter(Boolean).length;document.querySelector('#progress').style.width=(count/8*100)+'%';document.querySelector('.progress').setAttribute('aria-valuenow',String(count));document.querySelector('#progress-label').textContent=t.step+' '+count+' '+t.of+' 8';}
 function mark(i){state[i]=true;localStorage.setItem(stateKey,JSON.stringify(state));render()}
 let practiceRequest, practicePoll, practiceTimeout, deliveredStep=0;
+const deliveredSteps=new Set();
 function stopPracticeWait(){clearInterval(practicePoll);clearTimeout(practiceTimeout)}
 function tryStep(i,action){
   const canReuseSample=deliveredStep>0;
@@ -296,9 +297,9 @@ function tryStep(i,action){
   // Restore a same-origin tab; create a fresh practice tab when its document is inaccessible.
   try{
     if(sample&&!sample.closed){
-      if(sample.location.href!==sampleUrl||!canReuseSample){replacedDocument=sample.document;sample.location.replace(sampleUrl)}
-    }else sample=window.open(sampleUrl,'_blank');
-  }catch{sample=window.open(sampleUrl,'_blank')}
+      if(sample.location.href!==sampleUrl||!canReuseSample){deliveredSteps.clear();replacedDocument=sample.document;sample.location.replace(sampleUrl)}
+    }else{deliveredSteps.clear();sample=window.open(sampleUrl,'_blank')}
+  }catch{deliveredSteps.clear();sample=window.open(sampleUrl,'_blank')}
   if(!sample){practiceRequest=undefined;document.querySelector('#try-note').textContent=strings[lang].popupBlocked;return}
   document.querySelector('#try-note').textContent=strings[lang].practiceWaiting;
   const fail=()=>{stopPracticeWait();practiceRequest=undefined;document.querySelector('#try-note').textContent=strings[lang].practiceFailed};
@@ -312,7 +313,7 @@ function tryStep(i,action){
   practicePoll=setInterval(probe,150);practiceTimeout=setTimeout(fail,8000);probe();sample.focus();
 }
 const pair=document.querySelector('#pair'), copy=document.querySelector('#copy'), connect=document.querySelector('#connect');function renderPair(){if(/^[A-F0-9]{16}$/.test(code||'')){pair.textContent=(lang==='en'?'Pairing code: ':'配對碼：')+code+' · '+(lang==='en'?'Port: ':'連接埠：')+port;copy.hidden=false;connect.hidden=false}else pair.textContent=lang==='en'?'Open Glimpselet from Claude Code to receive a pairing code.':'請從 Claude Code 開啟 Glimpselet 取得配對碼。'}renderPair();if(/^[A-F0-9]{16}$/.test(code||'')){copy.onclick=async()=>{try{await navigator.clipboard.writeText(port+' '+code);document.querySelector('#try-note').textContent=strings[lang].copy}catch{document.querySelector('#try-note').textContent=strings[lang].copyFail}};connect.onclick=()=>{document.querySelector('#connection').textContent=strings[lang].pairing;window.postMessage({type:'glimpselet:pair',port,code},location.origin)}}
-document.querySelector('#language').onclick=()=>{lang=lang==='en'?'zh':'en';applyLanguage()};document.querySelector('#replay').onclick=()=>{state={};localStorage.removeItem(stateKey);render();document.querySelector('#tour').scrollIntoView({behavior:'smooth'})};
+document.querySelector('#language').onclick=()=>{lang=lang==='en'?'zh':'en';applyLanguage()};document.querySelector('#replay').onclick=()=>{stopPracticeWait();practiceRequest=undefined;deliveredStep=0;deliveredSteps.clear();state={};localStorage.removeItem(stateKey);render();document.querySelector('#tour').scrollIntoView({behavior:'smooth'})};
 document.querySelector('#copy-tunnel').onclick=async()=>{const input=document.querySelector('#tunnel-command');try{await navigator.clipboard.writeText(input.value);document.querySelector('#try-note').textContent=strings[lang].copy}catch{input.focus();input.select();document.querySelector('#try-note').textContent=strings[lang].copyTunnelFail}};
 document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero'),note=document.querySelector('#try-note');button.disabled=true;note.textContent=strings[lang].try;try{const response=await fetch('/install/try?code='+encodeURIComponent(code||''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(response.status===409||data.mode==='tunnel'){remoteMode=true;button.hidden=true;note.textContent=strings[lang].remote;return}if(!response.ok)throw new Error('launch');note.textContent=strings[lang].tryStarted}catch{note.textContent=strings[lang].tryFail}finally{button.disabled=false}};
 function setInstallMode(){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(!local||!remote)return;const isRemote=modeKind==='tunnel';local.hidden=isRemote;remote.hidden=!isRemote}
@@ -323,9 +324,9 @@ window.addEventListener('message',event=>{
   const data=event.data, pending=practiceRequest;
   if(event.source===sample&&data?.version===1&&pending&&data.requestId===pending.request.requestId){
     if(data.type==='glimpselet:tutorial:loaded'&&!pending.sent){pending.sent=true;clearInterval(practicePoll);sample.postMessage(pending.request,location.origin)}
-    if(data.type==='glimpselet:tutorial:ready'&&pending.sent&&data.action===pending.request.action&&data.step===pending.request.step){stopPracticeWait();deliveredStep=data.step;practiceRequest=undefined;document.querySelector('#try-note').textContent=strings[lang].request}
+    if(data.type==='glimpselet:tutorial:ready'&&pending.sent&&data.action===pending.request.action&&data.step===pending.request.step){stopPracticeWait();deliveredStep=data.step;deliveredSteps.add(data.step);practiceRequest=undefined;document.querySelector('#try-note').textContent=strings[lang].request}
   }
-  if(data?.type==='glimpselet:tutorial:done'&&data.version===1&&event.source===sample&&data.step===deliveredStep&&deliveredStep>=1&&deliveredStep<=8)mark(data.step-1);
+  if(data?.type==='glimpselet:tutorial:done'&&data.version===1&&event.source===sample&&Number.isInteger(data.step)&&deliveredSteps.has(data.step))mark(data.step-1);
   if(data?.type==='glimpselet:paired'&&event.source===window)setConnected();
   if(data?.type==='glimpselet:extension-ready'&&event.source===window&&!isConnected&&/^[A-F0-9]{16}$/.test(code||''))document.querySelector('#try-note').textContent=strings[lang].extensionReady;
 });

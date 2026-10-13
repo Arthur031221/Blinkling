@@ -29,9 +29,11 @@ Glimpselet は専用の会話を開始します。最近の Claude Code セッ�
 
 自分のデスクトップブラウザーでは、拡張機能は固定フォルダー `~/.glimpselet/extension` にあります。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
 
-## v1 からのアップグレード
+展開済み拡張機能の更新では、古いバブルを閉じて `/glimpselet:glimpse` を再実行し、固定フォルダーを更新してから拡張機能のカードで再読み込みします。Claude Code がリモートの場合は、ガイドから新しい ZIP をダウンロードし、ブラウザー側の展開済みファイルを置き換えて再読み込みしてください。
 
-Glimpselet をすでにインストールしている場合は、ターミナルでマーケットプレイスを更新し、プラグインをアップデートします：
+## すでに Glimpselet を使っている場合
+
+Claude Code が動いているコンピューターのターミナルで次のコマンドを実行します。マーケットプレイスの更新だけでは、インストール済みプラグインの更新は保証されません。
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -39,7 +41,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Claude Code を再起動するか、現在のセッションで `/reload-plugins` を実行してください。`claude plugin list` で Glimpselet が **2.0.0** になっていることを確認し、`/glimpselet:glimpse` を再実行すると、ウェルカム・ペアリングガイドが開きます。1.x のままなら、マーケットプレイスの配信元に v2 がまだ公開されていない可能性があります。インストールを繰り返しても、キャッシュ済みのプラグインは更新されません。
+開いている Claude Code で `/reload-plugins` を実行するか再起動し、`/glimpselet:glimpse` を実行します。一覧の `glimpselet@glimpselet` が **2.0.0** で、ウェルカム・ペアリングガイドが開くことを確認してください。ブラウザー側の `chrome://extensions` または `edge://extensions` でも Glimpselet が **2.0.0** か確認します。まだ 1.1.1 なら、公開マーケットプレイスに v2 が未公開の可能性があります。古い画面選択ページは v2 のガイドではありません。[更新の確認](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 パッケージ化されていない拡張機能では、ガイドが新しいファイルを `~/.glimpselet/extension` にコピーします。`chrome://extensions` または `edge://extensions` で Glimpselet を再読み込みし、バージョンが **2.0.0** であることを確認してください。SSH の場合は、ブラウザーのある端末でガイドから新しい ZIP をダウンロードし、以前読み込んだフォルダーに展開して再読み込みします。リモートホストから手元の端末にインストール不要のブラウザーを開くことはできません。
 

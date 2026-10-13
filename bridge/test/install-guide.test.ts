@@ -51,6 +51,36 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("documented plugin upgrades", () => {
+  const readmes = [
+    "README.md",
+    "README.zh-TW.md",
+    "README.zh-CN.md",
+    "README.ja.md",
+    "README.ko.md",
+    "README.es.md",
+    "README.fr.md",
+    "README.de.md",
+    "README.pt-BR.md",
+  ];
+
+  it.each(readmes)(
+    "%s lets an existing user refresh, update, reload and verify v2",
+    async (file) => {
+      const readme = await readFile(file, "utf8");
+      expect(readme).toContain("claude plugin marketplace update glimpselet");
+      expect(readme).toContain("claude plugin update glimpselet@glimpselet");
+      expect(readme).toContain("/reload-plugins");
+      expect(readme).toContain("claude plugin list");
+      expect(readme).toContain("2.0.0");
+      expect(readme).toContain("chrome://extensions");
+      expect(readme.trim().split("\n").at(-1)).toBe(
+        "Assisted by Claude/Codex.",
+      );
+    },
+  );
+});
+
 describe("welcome install guide remote onboarding", () => {
   it.each([
     "README.md",
@@ -74,6 +104,74 @@ describe("welcome install guide remote onboarding", () => {
       expect(readme.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(true);
     },
   );
+  it("accepts only a matching delivery acknowledgement and completion from the practice tab", async () => {
+    const { dom } = await openGuide("direct");
+    const { window } = dom;
+    const sample = {
+      closed: false,
+      location: {
+        href: window.location.origin + "/assets/glimpselet-welcome-sample.html",
+      },
+      focus: vi.fn(),
+      postMessage: vi.fn(),
+    };
+    vi.spyOn(window, "open").mockReturnValue(sample as unknown as Window);
+    window.document.querySelectorAll<HTMLButtonElement>(".try")[4].click();
+    const note = window.document.querySelector("#try-note");
+    expect(note?.textContent).not.toContain("Requested in the sample page");
+    const ping = sample.postMessage.mock.calls[0][0];
+    const message = (
+      data: unknown,
+      source: Window = sample as unknown as Window,
+      origin = window.location.origin,
+    ) =>
+      window.dispatchEvent(
+        new window.MessageEvent("message", { origin, source, data }),
+      );
+    const ready = {
+      type: "glimpselet:tutorial:loaded",
+      version: 1,
+      requestId: ping.requestId,
+    };
+    message(ready, window);
+    message(ready, sample as unknown as Window, "https://example.com");
+    expect(sample.postMessage).toHaveBeenCalledTimes(1);
+    message(ready);
+    const request = sample.postMessage.mock.calls[1][0];
+    expect(request).toMatchObject({
+      type: "glimpselet:tutorial-action",
+      action: "guide",
+      step: 5,
+    });
+    message(ready);
+    expect(sample.postMessage).toHaveBeenCalledTimes(2);
+    const ack = { ...request, type: "glimpselet:tutorial:ready" };
+    message({ ...ack, requestId: "wrong" });
+    message({ ...ack, action: "capture" });
+    message({ type: "glimpselet:tutorial:done", version: 1, step: 5 });
+    expect(note?.textContent).not.toContain("Requested in the sample page");
+    expect(
+      window.document.querySelectorAll(".step")[4].classList.contains("done"),
+    ).toBe(false);
+    message(ack);
+    expect(note?.textContent).toContain("Requested in the sample page");
+    message({ type: "glimpselet:tutorial:done", version: 1, step: 4 });
+    expect(
+      window.document.querySelectorAll(".step")[3].classList.contains("done"),
+    ).toBe(false);
+    message({ type: "glimpselet:tutorial:done", version: 1, step: 5 });
+    expect(
+      window.document.querySelectorAll(".step")[4].classList.contains("done"),
+    ).toBe(true);
+    window.document.querySelector<HTMLElement>("#tour")!.scrollIntoView =
+      vi.fn();
+    window.document.querySelector<HTMLButtonElement>("#replay")!.click();
+    message({ type: "glimpselet:tutorial:done", version: 1, step: 5 });
+    expect(
+      window.document.querySelectorAll(".step")[4].classList.contains("done"),
+    ).toBe(false);
+    dom.window.close();
+  });
 
   it("keeps the stable local folder flow and zero-install for direct mode", async () => {
     const { dom } = await openGuide("direct");

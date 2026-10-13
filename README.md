@@ -29,9 +29,11 @@ Glimpselet starts a dedicated conversation. You can select a recent Claude Code 
 
 For your own desktop browser, the extension is kept in the stable folder `~/.glimpselet/extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
 
-## Upgrading from v1
+After upgrading an unpacked extension, close the old bubble and rerun `/glimpselet:glimpse` to refresh the stable folder. Click Reload on its card in the extensions page. If Claude Code is remote, download the new ZIP through the welcome guide, replace the extracted files on the browser computer, then reload its extension card.
 
-If Glimpselet is already installed, refresh the marketplace and update the plugin from your terminal:
+## Already installed Glimpselet?
+
+Run these commands in a terminal on the computer where Claude Code runs. Refreshing the marketplace alone does not guarantee the installed plugin has updated.
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -39,7 +41,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Restart Claude Code, or run `/reload-plugins` in the open session. Check that `claude plugin list` shows Glimpselet **2.0.0**, then run `/glimpselet:glimpse` again. It should open the welcome and pairing guide. If the installed version is still 1.x, v2 may not be published at the marketplace source yet; repeating Install does not upgrade a cached plugin.
+In your open Claude Code session, run `/reload-plugins` (or restart Claude Code), then `/glimpselet:glimpse`. The list must show `glimpselet@glimpselet` at **2.0.0**, and the command must open the welcome and pairing guide. Check that Glimpselet also shows **2.0.0** on `chrome://extensions` or `edge://extensions` on the computer with your browser. If the plugin still shows 1.1.1, v2 may not yet be available from the public marketplace; an old screen-picker page is not the v2 welcome guide. [Upgrade verification](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 For an unpacked extension, the guide copies the new files to `~/.glimpselet/extension`. Reload Glimpselet in `chrome://extensions` or `edge://extensions` and check its version is **2.0.0**. With SSH, download the new ZIP through the guide on the browser computer, extract it into the folder you previously loaded, then reload. The remote host cannot open the zero-install browser on your computer.
 

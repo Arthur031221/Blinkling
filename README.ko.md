@@ -29,9 +29,11 @@ Glimpselet은 전용 대화를 시작합니다. 최근 Claude Code 세션을 선
 
 본인 데스크톱 브라우저에서 확장 프로그램은 고정 폴더 `~/.glimpselet/extension`에 저장됩니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
 
-## v1에서 업그레이드
+압축 해제한 확장 프로그램을 업데이트할 때는 기존 버블을 닫고 `/glimpselet:glimpse`를 다시 실행해 고정 폴더를 갱신한 뒤 확장 프로그램 카드에서 새로고침을 누르세요. Claude Code가 원격 호스트에 있으면 안내에서 새 ZIP을 받아 브라우저 컴퓨터의 압축 해제한 파일을 교체하고 확장 프로그램을 새로고침하세요.
 
-Glimpselet이 이미 설치되어 있다면 터미널에서 마켓플레이스를 새로 고치고 플러그인을 업데이트하세요:
+## 이미 Glimpselet을 설치했나요?
+
+Claude Code가 실행되는 컴퓨터의 터미널에서 다음 명령을 실행하세요. 마켓플레이스 목록을 새로 고치는 것만으로 설치된 플러그인의 업데이트가 보장되지는 않습니다.
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -39,7 +41,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Claude Code를 다시 시작하거나 현재 세션에서 `/reload-plugins`를 실행하세요. `claude plugin list`에 Glimpselet **2.0.0**이 표시되는지 확인한 후 `/glimpselet:glimpse`를 다시 실행하면 시작 및 페어링 안내가 열립니다. 여전히 1.x라면 마켓플레이스 원본에 v2가 아직 공개되지 않았을 수 있습니다. 설치를 반복해도 캐시된 플러그인은 업데이트되지 않습니다.
+열린 Claude Code 세션에서 `/reload-plugins`를 실행하거나 Claude Code를 다시 시작한 다음 `/glimpselet:glimpse`를 실행하세요. 목록의 `glimpselet@glimpselet`이 **2.0.0**이고 시작 및 페어링 안내가 열리는지 확인하세요. 브라우저 컴퓨터의 `chrome://extensions` 또는 `edge://extensions`에서도 Glimpselet이 **2.0.0**인지 확인하세요. 여전히 1.1.1이라면 공개 마켓플레이스에 v2가 아직 배포되지 않았을 수 있습니다. 예전 화면 선택 페이지는 v2 시작 안내가 아닙니다. [업데이트 확인](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 압축 해제한 확장 프로그램을 사용하면 안내가 새 파일을 `~/.glimpselet/extension`에 복사합니다. `chrome://extensions` 또는 `edge://extensions`에서 Glimpselet을 새로 고치고 버전이 **2.0.0**인지 확인하세요. SSH로 사용한다면 브라우저가 있는 컴퓨터에서 안내의 새 ZIP을 다운로드하고 이전에 불러온 폴더에 압축을 푼 후 새로 고치세요. 원격 호스트에서는 사용자 컴퓨터의 무설치 브라우저를 열 수 없습니다.
 

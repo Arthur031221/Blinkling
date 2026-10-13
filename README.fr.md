@@ -29,9 +29,11 @@ Glimpselet démarre une conversation dédiée. Vous pouvez aussi poursuivre une 
 
 Dans votre navigateur de bureau, l'extension se trouve dans le dossier stable `~/.glimpselet/extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
 
-## Mettre à jour depuis v1
+Pour mettre à jour une extension décompressée, fermez l’ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l’extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l’extension.
 
-Si Glimpselet est déjà installé, actualisez le catalogue et mettez à jour le plugin depuis votre terminal :
+## Glimpselet est déjà installé ?
+
+Exécutez ces commandes dans un terminal sur la machine où fonctionne Claude Code. Actualiser le catalogue seul ne garantit pas la mise à jour du plugin installé.
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -39,7 +41,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Redémarrez Claude Code ou exécutez `/reload-plugins` dans la session ouverte. Vérifiez que `claude plugin list` affiche Glimpselet **2.0.0**, puis relancez `/glimpselet:glimpse`. Le guide de bienvenue et de connexion doit s’ouvrir. Si la version reste en 1.x, v2 n’est peut-être pas encore publié à la source du catalogue ; répéter l’installation ne met pas à jour un plugin en cache.
+Dans votre session Claude Code, exécutez `/reload-plugins` (ou redémarrez Claude Code), puis `/glimpselet:glimpse`. La liste doit afficher `glimpselet@glimpselet` en **2.0.0** et la commande doit ouvrir le guide de bienvenue et de connexion. Vérifiez aussi **2.0.0** sur `chrome://extensions` ou `edge://extensions` sur la machine avec votre navigateur. Si le plugin affiche toujours 1.1.1, v2 peut ne pas encore être publiée dans le catalogue public ; l’ancienne page de sélection d’écran n’est pas le guide v2. [Vérification de la mise à jour](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 Pour l’extension non empaquetée, le guide copie les nouveaux fichiers dans `~/.glimpselet/extension`. Rechargez Glimpselet dans `chrome://extensions` ou `edge://extensions` et vérifiez la version **2.0.0**. Avec SSH, téléchargez le nouveau ZIP depuis le guide sur l’ordinateur de votre navigateur, extrayez-le dans le dossier déjà chargé, puis rechargez l’extension. L’hôte distant ne peut pas ouvrir le navigateur sans installation sur votre ordinateur.
 
