@@ -10,6 +10,14 @@ const mocks = vi.hoisted(() => ({
   guide: vi.fn(),
   sensitive: vi.fn(),
   capture: vi.fn(),
+  pair: vi.fn(),
+  bridge: undefined as
+    | (EventTarget & {
+        sessionId: string;
+        live: boolean;
+        liveAvailable: boolean;
+      })
+    | undefined,
   root: undefined as Root | undefined,
 }));
 vi.mock("react-dom/client", async (original) => {
@@ -30,7 +38,14 @@ vi.mock("./api", async (original) => ({
     mode = "direct";
     project = "/tmp/project";
     models = [];
+    live = false;
+    liveAvailable = false;
+    constructor() {
+      super();
+      mocks.bridge = this;
+    }
     ask = mocks.ask;
+    pair = mocks.pair;
     load = vi.fn().mockResolvedValue(undefined);
     close = vi.fn();
     cancelAndWait = vi.fn().mockResolvedValue(undefined);
@@ -108,6 +123,36 @@ async function draft(value: string) {
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
+async function bridgeEvent(name: string) {
+  await act(async () => {
+    mocks.bridge!.dispatchEvent(new Event(name));
+  });
+  await flush();
+}
+async function clickAccessible(name: string) {
+  const target = document.querySelector<HTMLButtonElement>(
+    `button[aria-label="${name}"]`,
+  );
+  if (!target) throw new Error(`Missing accessible button: ${name}`);
+  await act(async () => target.click());
+  await flush();
+}
+async function submitDraft(value: string) {
+  await draft(value);
+  await act(async () => {
+    document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+  });
+  await flush();
+}
+async function inputValue(input: HTMLInputElement, value: string) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
 async function send(message: Record<string, unknown>, url = page.url) {
   const response = vi.fn();
   await act(async () => {
@@ -164,6 +209,8 @@ beforeEach(() => {
     },
   });
   mocks.context.mockReset().mockResolvedValue(page);
+  mocks.bridge = undefined;
+  mocks.pair.mockReset().mockResolvedValue(undefined);
   mocks.guide
     .mockReset()
     .mockResolvedValue({ ...page, guideScope: "top-document-text" });
@@ -198,6 +245,110 @@ afterEach(async () => {
 });
 
 describe("bubble answer rendering and feedback", () => {
+  it("clears a disconnect only after token authentication and preserves the draft, history and session", async () => {
+    await start();
+    await submitDraft("Keep this successful conversation");
+    mocks.ask.mockRejectedValue(new Error("bridge_disconnected"));
+    await submitDraft("Interrupted question");
+    expect(status()).toBe(en.bridgeLost);
+    await bridgeEvent("disconnected");
+    await draft("A follow-up I am still writing");
+    const history = [...document.querySelectorAll(".message")].map(
+      (entry) => entry.textContent,
+    );
+    await bridgeEvent("connected");
+    expect(status()).toBe(en.bridgeLost);
+    await bridgeEvent("paired");
+    expect(status()).toBe(en.ready);
+    expect(document.querySelector("textarea")?.value).toBe(
+      "A follow-up I am still writing",
+    );
+    expect(
+      [...document.querySelectorAll(".message")].map(
+        (entry) => entry.textContent,
+      ),
+    ).toEqual(history);
+    mocks.ask.mockResolvedValue({ answer: "Follow-up answer" });
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+    });
+    await flush();
+    expect(mocks.ask.mock.lastCall?.[0]).toMatchObject({
+      question: "A follow-up I am still writing",
+      sessionId: "test-session",
+    });
+  });
+  it("keeps the disconnect error when token reconnect does not authenticate", async () => {
+    await start();
+    mocks.ask.mockRejectedValue(new Error("bridge_disconnected"));
+    await submitDraft("Interrupted question");
+    await bridgeEvent("disconnected");
+    await bridgeEvent("connected");
+    await bridgeEvent("disconnected");
+    await refresh();
+    expect(status()).toBe(en.bridgeLost);
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      en.disconnected,
+    );
+  });
+  it("preserves an unrelated permission error after authenticated reconnect", async () => {
+    await start();
+    mocks.ask.mockRejectedValue(new Error("bridge_disconnected"));
+    await submitDraft("Interrupted question");
+    await bridgeEvent("disconnected");
+    mocks.capture.mockRejectedValue(new Error("allow_site_access"));
+    await click(en.visible);
+    expect(status()).toBe(en.siteAccess);
+    await draft("Keep this permission-recovery draft");
+    await bridgeEvent("paired");
+    await refresh();
+    expect(status()).toBe(en.siteAccess);
+    expect(document.querySelector("textarea")?.value).toBe(
+      "Keep this permission-recovery draft",
+    );
+  });
+  it("reports explicit manual pairing separately from token reconnect", async () => {
+    await start();
+    await bridgeEvent("disconnected");
+    await draft("Keep this manual-pair draft");
+    await clickAccessible(en.settings);
+    await inputValue(
+      document.querySelector<HTMLInputElement>(
+        `input[placeholder="${en.pairPlaceholder}"]`,
+      )!,
+      "ABCDEF0123456789",
+    );
+    await click(en.pair);
+    expect(mocks.pair).toHaveBeenCalledWith(
+      "ABCDEF0123456789",
+      "ws://127.0.0.1:37115/extension",
+    );
+    expect(status()).toBe(en.paired);
+    expect(document.querySelector("textarea")?.value).toBe(
+      "Keep this manual-pair draft",
+    );
+  });
+  it("keeps a failed manual pairing recoverable without discarding the draft", async () => {
+    await start();
+    await bridgeEvent("disconnected");
+    await draft("Keep this failed-pair draft");
+    await clickAccessible(en.settings);
+    await inputValue(
+      document.querySelector<HTMLInputElement>(
+        `input[placeholder="${en.pairPlaceholder}"]`,
+      )!,
+      "ABCDEF0123456789",
+    );
+    mocks.pair.mockRejectedValue(new Error("bridge_disconnected"));
+    await click(en.pair);
+    expect(status()).toBe(en.bridgeLost);
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      en.disconnected,
+    );
+    expect(document.querySelector("textarea")?.value).toBe(
+      "Keep this failed-pair draft",
+    );
+  });
   it.each(["summary", "translate"])(
     "submits a reader %s once without leaving its instruction in the draft",
     async (action) => {

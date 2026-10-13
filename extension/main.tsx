@@ -208,9 +208,11 @@ function App() {
   const [status, updateStatus] = useState("");
   const statusRevision = useRef(0);
   const pageWarningRevision = useRef<number | undefined>(undefined);
+  const connectionErrorRevision = useRef<number | undefined>(undefined);
   const setStatus = useCallback((value: string) => {
     statusRevision.current++;
     pageWarningRevision.current = undefined;
+    connectionErrorRevision.current = undefined;
     updateStatus(value);
   }, []);
   function setPageStatus(value: string) {
@@ -221,7 +223,15 @@ function App() {
     const label = errorLabel(error, t);
     if (["password_page", "blocked_page"].includes(errorCode(error)))
       setPageStatus(label);
-    else setStatus(label);
+    else {
+      setStatus(label);
+      if (
+        ["bridge_disconnected", "bridge_unavailable", "pair_timeout"].includes(
+          errorCode(error),
+        )
+      )
+        connectionErrorRevision.current = statusRevision.current;
+    }
   }
   const attachmentGeneration = useRef(0);
   const [capture, updateCapture] = useState<{
@@ -299,6 +309,8 @@ function App() {
   const passiveCalls = useRef<number[]>([]);
   const hourlyCosts = useRef<Array<{ at: number; amount: number }>>([]);
   const t = useMemo(() => messages[locale], [locale]);
+  const labelsRef = useRef(t);
+  labelsRef.current = t;
   shareRef.current = shareStream;
 
   useEffect(() => {
@@ -427,6 +439,8 @@ function App() {
       setSessionId(bridge.sessionId);
       setLiveSession(bridge.live);
       setLiveAvailable(bridge.liveAvailable);
+      if (connectionErrorRevision.current === statusRevision.current)
+        setStatus(labelsRef.current.ready);
       schedulePageRefresh();
     };
     bridge.addEventListener("connected", connectedHandler);
