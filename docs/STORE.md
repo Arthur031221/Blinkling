@@ -36,7 +36,7 @@ Build a clean release package with `npm run package:extension`. It creates `rele
 
 When the bridge reports tunnel mode, the welcome guide links to the versioned extension ZIP release and tells the browser user to extract it on the computer running Chrome, then load that extracted folder. It does not show the SSH host's local extension path. A configured store URL replaces both unpacked installation flows.
 
-The listing assets in `assets/store/` include 1280 by 800 screenshots of the floating chat, guide, translation and crop, plus a 440 by 280 promotional tile. They show the real extension on the bundled practice page using a mock provider. Edge Add-ons can reuse them. `npm run package:stores` creates separate submission packages for both stores, including the listing, privacy policy and permission justifications. The account holder submits them.
+The listing assets in `assets/store/` include 1280 by 800 screenshots of the floating chat, guide, translation and crop, plus a 440 by 280 promotional tile. The floating, guide and crop screenshots show the real extension over the public TypeScript GitHub page. The translation screenshot uses the bundled practice page. The recorded example replies use a local provider fixture. Run `GLIMPSELET_RECORD_PUBLIC=1 npm run record-demo` to refresh the public site images, demo GIF and short guide and crop GIFs. Edge Add-ons can reuse them. `npm run package:stores` creates separate submission packages for both stores, including the listing, privacy policy and permission justifications. The account holder submits them.
 
 ## Store rollout
 

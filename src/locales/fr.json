@@ -120,5 +120,8 @@
   "resizeHelp": "Faites glisser pour le redimensionner ou utilisez les touches fléchées. Vous pouvez aussi faire glisser les bords de la fenêtre.",
   "scopeSent": "Dernière image envoyée",
   "resumePreview": "Afficher la vue en direct",
-  "pausePassive": "Suspendre les notes passives"
+  "pausePassive": "Suspendre les notes passives",
+  "install": "Installer",
+  "demoRequirementsTitle": "Navigateur de bureau requis",
+  "demoRequirements": "La fenêtre flottante nécessite Chrome ou Edge pour ordinateur."
 }

@@ -1,63 +1,69 @@
 # Glimpselet
 
-Glimpselet 是一个始终显示在其他窗口上方的小型聊天窗口，可连接到现有的 Claude Code 会话。它可以读取和翻译可访问的网页，在真实页面上绘制指引，并截取网页区域或共享屏幕画面来回答问题。
+[English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
-![Glimpselet 浮动聊天演示](assets/demo.gif)
+一个悬浮聊天窗口，让你向 Claude Code 询问当前页面或屏幕上的内容。阅读和翻译网页、获取页面控件指引，也可以截取区域后提问。
 
-![绘制在真实页面上的指引圆圈](assets/screenshots/guide.png)
+|           Glimpselet 悬浮聊天           |                 页面指引示例                  |
+| :-------------------------------------: | :-------------------------------------------: |
+| ![Glimpselet 悬浮聊天](assets/demo.gif) | ![页面指引示例](assets/screenshots/guide.png) |
 
-[打开静态演示](https://arthur031221.github.io/Glimpselet/)。演示使用示例图片和预录回答，不会调用服务商。
+准备条件：较新的 Claude Code、使用你自己的订阅账号登录，以及桌面版 Chromium 浏览器，例如 Chrome 或 Edge。
+
+Glimpselet 默认创建专用对话。你也可以选择最近的 Claude Code 会话，在另一个进程中继续。要将请求发送到终端中已打开的交互会话，请启用 channel 预览功能。[Channel 设置](docs/DESIGN.md#the-running-claude-code-conversation)。
 
 ## 安装
 
-在 Claude Code 中安装 Glimpselet 插件：
+1. 在 Claude Code 中添加市场并安装插件：
 
-```text
-/plugin marketplace add Arthur031221/Glimpselet
-/plugin install glimpselet@glimpselet
-```
+   ```text
+   /plugin marketplace add Arthur031221/Glimpselet
+   /plugin install glimpselet@glimpselet
+   ```
 
-运行 `/glimpse` 并按照设置指南操作。安装和配对步骤以该指南为准。
+2. 运行 `/glimpselet:glimpse`。
+
+3. 按照欢迎指南连接浏览器。在本地桌面上，可选择 **Try without installing**，也可以在自己的浏览器中加载并配对扩展。如果 Claude Code 运行在远程主机，请在有浏览器的电脑上运行指南提供的 SSH 命令，在该电脑下载 ZIP 并在浏览器中加载扩展。远程主机不支持免安装浏览器。配对成功后，Glimpselet 面板会显示连接模式和项目。
 
 ### 高级：从源代码加载
 
-1. 在 Chrome 或 Edge 中打开 `chrome://extensions`，启用**开发者模式**。
-2. 选择**加载已解压的扩展程序**。
-3. 选择设置指南提供的扩展程序文件夹。
-   > **开发者模式：** Glimpselet 目前以开发者模式分发。在应用商店上架前，更新需要手动安装。
+在自己的桌面浏览器中，扩展保存在固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
 
-## 截取与快捷键
+## 可以做什么
 
-在浮动气泡或可访问的网页上按住 Shift，即可开始裁剪。Shift 无法监听其他应用中的按键。网页区域直接在当前页面上框选。分享屏幕时，画面会冻结并以全屏显示供你裁剪。按 Enter 确认，按 Esc 取消。
+- 使用 Opus、Sonnet 或 Haiku 获取流式回复并继续追问。
+- 在全屏视图中捕获共享屏幕，或使用页面浮层裁剪区域。按住 Shift 拖动，然后按 Enter 捕获或按 Esc 取消。
+- 查看随页面变化而刷新的建议问题。
+- 可选开启 Passive 摘要，用 Alt+P 暂停，并查看每小时费用。
+- 在页面实际控件上显示操作指引。可就地翻译文字，并用 Restore 恢复原文。
+- 选择文字后可解释、翻译或提问。也可以在内置阅读器中打开 PDF 并提问。
 
-浏览器裁剪快捷键是 Ctrl+Shift+S，Mac 为 Cmd+Shift+S，可在浏览器中启动裁剪。全局快捷键默认为 Ctrl+Shift+7，因为 Chrome 的全局快捷键必须包含数字键。你可以在 `chrome://extensions/shortcuts` 修改，也可以改为 S。
+![导览这个页面](assets/guide.gif)
+
+![所选区域](assets/crop.gif)
+
+| 快捷键                                 | 操作                                                          |
+| -------------------------------------- | ------------------------------------------------------------- |
+| Alt+Shift+G                            | 打开 Glimpselet，选择 **Float** 打开悬浮聊天。                |
+| Ctrl+Shift+S（macOS 上为 Cmd+Shift+S） | 裁剪当前页面或共享屏幕。                                      |
+| Ctrl+Shift+7（macOS 上为 Cmd+Shift+7） | 从任意应用裁剪。可在 `chrome://extensions/shortcuts` 中修改。 |
+| 按住 Shift                             | 在 Glimpselet 悬浮窗或页面中开始裁剪。                        |
+| Alt+P                                  | 暂停 Passive 摘要。                                           |
+
+在 macOS 上，Cmd+Shift+5 会打开系统截图工具。网页中的 Shift 仅在 Glimpselet 页面有效，无法监听其他应用。
+
+第一个操作是 **Float**。使用需要页面访问权限的功能时，扩展会请求权限。使用你自己已登录的 Claude Code 会话时，不需要提供服务商 API 密钥。直接 API 模式是可选的，需要你自己的 API 密钥。
 
 ## Claude Code 会话
 
-有文档说明的 MCP channel 支持可将消息发送到正在运行的 Claude Code 会话。Glimpselet 会从 channel 回复工具的分块内容镜像回复。终端中的会话控制模型和权限。若要添加 Glimpselet 自定义 channel，请使用开发 channel 重启会话，然后运行 `/glimpse`：
+Channel 预览的命令和配置请参阅 [Claude Code 会话](docs/DESIGN.md#the-running-claude-code-conversation)。没有启用 channel 时，Glimpselet 可以在单独进程中继续所选会话。这是并行继续。请勿同时在终端中使用该会话，否则并发访问可能冲突。
 
-```sh
-claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
-```
+## 限制与隐私
 
-没有 channel 时，Glimpselet 可通过另一个 print 模式进程使用 `claude --resume SESSION_ID -p` 继续同一会话。这是并行继续。请勿与终端中使用同一会话的进程同时运行，以免发生并发冲突。
+Glimpselet 支持桌面版 Chrome、Edge 和其他 Chromium 浏览器。商店发布前会显示开发者提示，更新需要手动完成。浏览器设置、扩展商店和受限页面等部分页面会阻止访问。Chrome 内置 PDF 查看器无法读取，请使用 Glimpselet 阅读器。原生应用只能提供像素画面，无法读取页面文字或显示叠加层。Shift 仅在 Glimpselet 自己的浏览器界面中有效，无法用于其他应用。悬浮窗口不支持点击穿透。
 
-## 限制
+只有在你同意后，自动建议问题才会使用页面内容。被动摘要是可选功能，需要共享可检查的浏览器标签页。如果共享来源是窗口、屏幕、原生应用、未知来源或无法访问的来源，自动摘要会暂停。手动提问和截图仍可使用。
 
-- 仅支持 Chrome、Edge 和其他 Chromium 浏览器。
-- `chrome://` 等浏览器内部页面、扩展程序商店以及部分受管理页面会限制扩展程序访问。
-- Glimpselet 无法在原生应用上绘图。可以分享屏幕并询问画面，但网页覆盖层和文本操作不可用。
-- PDF 请使用 Glimpselet 随附的阅读器。Chrome 内置 PDF 查看器不是可访问的网页。
-- 浏览器的 Document Picture-in-Picture API 不支持点击穿透，因此浮动窗口无法将点击传递到其他应用。浏览器也无法保证浮动窗口或自动弹出。使用浮动窗口时，请保持扩展程序页面打开。
-
-## 隐私
-
-不收集遥测数据。取得同意后，页面文字可能会发送以生成建议问题。提问和自愿启用的被动摘要也会发送相关文字和图像。画面保留在内存中，仅在截取或提问请求时发送到桥接服务。桥接模式会在主机运行 CLI，会话记录也保存在主机。直接 API 模式从扩展程序发送请求。API 密钥和桥接令牌保存在浏览器会话存储中。偏好设置保存在浏览器本地存储中。详见[安全与隐私](docs/SECURITY.md)。
-
-## 更多信息
-
-[安装](docs/INSTALL.md) | [使用](docs/USAGE.md) | [设计与集成](docs/DESIGN.md) | [商店准备](docs/STORE.md) | [发行说明](docs/releases/v2.0.0.md)
-
-## Disclosure
+[安装指南](docs/INSTALL.md) | [使用方法](docs/USAGE.md) | [设计](docs/DESIGN.md) | [隐私详情](docs/SECURITY.md)
 
 Assisted by Claude/Codex.

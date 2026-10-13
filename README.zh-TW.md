@@ -1,64 +1,69 @@
 # Glimpselet
 
-Glimpselet 是一個會保持在其他視窗上方的小型聊天視窗，可連線至現有的 Claude Code 工作階段。它可以讀取及翻譯可存取的網頁、在實際頁面上繪製指引，並擷取網頁區域或分享螢幕畫面來回答問題。
+[English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
-![Glimpselet 浮動聊天示範](assets/demo.gif)
+一個懸浮聊天視窗，讓你向 Claude Code 詢問目前頁面或螢幕上的內容。閱讀與翻譯網頁、取得頁面控制項指引，也可以擷取區域後提問。
 
-![繪製在實際頁面上的指引圓圈](assets/screenshots/guide.png)
+|           Glimpselet 懸浮聊天           |                 頁面指引範例                  |
+| :-------------------------------------: | :-------------------------------------------: |
+| ![Glimpselet 懸浮聊天](assets/demo.gif) | ![頁面指引範例](assets/screenshots/guide.png) |
 
-[開啟靜態示範](https://arthur031221.github.io/Glimpselet/)。示範使用範例圖片與預錄回答，不會呼叫供應商服務。
+需求：較新的 Claude Code、使用你自己的訂閱帳號登入，以及桌面版 Chromium 瀏覽器，例如 Chrome 或 Edge。
+
+Glimpselet 預設建立專用對話。你也可以選擇最近的 Claude Code 工作階段，在另一個程序中接續。若要將請求傳送到終端機中已開啟的互動工作階段，請啟用 channel 預覽功能。[Channel 設定](docs/DESIGN.md#the-running-claude-code-conversation)。
 
 ## 安裝
 
-在 Claude Code 中安裝 Glimpselet 外掛：
+1. 在 Claude Code 中新增市集並安裝外掛：
 
-```text
-/plugin marketplace add Arthur031221/Glimpselet
-/plugin install glimpselet@glimpselet
-```
+   ```text
+   /plugin marketplace add Arthur031221/Glimpselet
+   /plugin install glimpselet@glimpselet
+   ```
 
-執行 `/glimpse` 並依照設定指南操作。安裝與配對步驟以該指南為準。
+2. 執行 `/glimpselet:glimpse`。
+
+3. 依照歡迎指南連接瀏覽器。在本機桌面上，可選擇 **Try without installing**，也可以在自己的瀏覽器載入並配對擴充功能。如果 Claude Code 在遠端主機執行，請在有瀏覽器的電腦執行指南提供的 SSH 指令，並在該電腦下載 ZIP、於瀏覽器載入擴充功能。遠端主機無法使用免安裝瀏覽器。配對成功後，Glimpselet 面板會顯示連線模式與專案。
 
 ### 進階：從原始碼載入
 
-1. 在 Chrome 或 Edge 開啟 `chrome://extensions`，啟用**開發人員模式**。
-2. 選擇**載入未封裝項目**。
-3. 選取設定指南提供的擴充功能資料夾。
+在自己的桌面瀏覽器中，擴充功能會放在固定資料夾 `~/.glimpselet/extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
 
-> **開發人員模式：** Glimpselet 目前以開發人員模式發佈。在應用程式商店上架前，更新都必須手動安裝。
+## 可以做什麼
 
-## 擷取與快捷鍵
+- 使用 Opus、Sonnet 或 Haiku 取得串流回覆並繼續追問。
+- 在全螢幕檢視中擷取分享的螢幕，或用頁面浮層裁切區域。按住 Shift 拖曳，再按 Enter 擷取或按 Esc 取消。
+- 查看會隨頁面變化更新的建議問題。
+- 可選擇開啟 Passive 摘要，用 Alt+P 暫停，並查看每小時費用。
+- 在頁面實際控制項上顯示操作指引。可就地翻譯文字，並用 Restore 還原。
+- 選取文字後可解釋、翻譯或提問。也能在內建閱讀器開啟 PDF 並提問。
 
-在浮動泡泡或可存取的網頁上按住 Shift，即可開始裁切。Shift 無法監聽其他應用程式中的按鍵。網頁區域會直接在目前頁面上框選。分享螢幕時，畫面會凍結並以全螢幕顯示供你裁切。按 Enter 確認，按 Esc 取消。
+![導覽這個頁面](assets/guide.gif)
 
-瀏覽器裁切快捷鍵是 Ctrl+Shift+S，Mac 為 Cmd+Shift+S，可在瀏覽器中啟動裁切。全域快捷鍵預設為 Ctrl+Shift+7，因為 Chrome 的全域快捷鍵必須包含數字鍵。你可以在 `chrome://extensions/shortcuts` 修改，也可改成 S。
+![選取區域](assets/crop.gif)
+
+| 快速鍵                                 | 操作                                                              |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| Alt+Shift+G                            | 開啟 Glimpselet，選擇 **Float** 開啟懸浮聊天。                    |
+| Ctrl+Shift+S（macOS 上為 Cmd+Shift+S） | 裁切目前頁面或分享的螢幕。                                        |
+| Ctrl+Shift+7（macOS 上為 Cmd+Shift+7） | 從任何應用程式裁切。可在 `chrome://extensions/shortcuts` 中修改。 |
+| 按住 Shift                             | 在 Glimpselet 懸浮視窗或頁面中開始裁切。                          |
+| Alt+P                                  | 暫停 Passive 摘要。                                               |
+
+在 macOS 上，Cmd+Shift+5 會開啟系統截圖工具。網頁中的 Shift 只在 Glimpselet 頁面有效，無法監聽其他應用程式。
+
+第一個操作是 **Float**。使用需要頁面存取權的功能時，擴充功能會要求權限。使用你自己已登入的 Claude Code 工作階段時，不需要提供服務供應商 API 金鑰。直接 API 模式是選用功能，需要你自己的 API 金鑰。
 
 ## Claude Code 工作階段
 
-有文件說明的 MCP channel 支援可將訊息送進正在執行的 Claude Code 工作階段。Glimpselet 會從 channel 回覆工具的分段內容鏡像顯示回覆。終端機中的工作階段控制模型與權限。若要加入 Glimpselet 自訂 channel，請以開發 channel 重新啟動工作階段，再執行 `/glimpse`：
+Channel 預覽的指令與設定請參閱 [Claude Code 工作階段](docs/DESIGN.md#the-running-claude-code-conversation)。未啟用 channel 時，Glimpselet 可以在另一個程序中繼續所選工作階段。這是平行延續。請勿同時在終端機使用該工作階段，否則並行存取可能造成衝突。
 
-```sh
-claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
-```
+## 限制與隱私
 
-沒有 channel 時，Glimpselet 可用另一個 print 模式程序透過 `claude --resume SESSION_ID -p` 延續同一工作階段。這是平行延續。請勿與終端機中使用同一工作階段的程序同時執行，以免存取衝突。
+Glimpselet 支援桌面版 Chrome、Edge 和其他 Chromium 瀏覽器。商店發行前會顯示開發者提示，更新需要手動進行。瀏覽器設定、擴充功能商店和受限頁面等部分頁面會阻擋存取。Chrome 內建 PDF 檢視器無法讀取，請使用 Glimpselet 閱讀器。原生應用程式只提供像素畫面，無法讀取頁面文字或顯示疊加層。Shift 只在 Glimpselet 自己的瀏覽器介面中有效，無法用於其他應用程式。懸浮視窗不支援點擊穿透。
 
-## 限制
+只有在你同意後，自動建議問題才會使用頁面內容。被動摘要是選用功能，且需要分享可檢查的瀏覽器分頁。如果分享來源是視窗、螢幕、原生應用程式、未知來源或無法存取的來源，自動摘要會暫停。手動提問和擷取仍可使用。
 
-- 僅支援 Chrome、Edge 及其他 Chromium 瀏覽器。
-- `chrome://` 等瀏覽器內部頁面、擴充功能商店及部分受管理頁面會限制擴充功能存取。
-- Glimpselet 無法在原生應用程式上繪圖。可分享螢幕並詢問畫面，但無法使用網頁覆蓋層與文字操作。
-- PDF 請使用 Glimpselet 隨附的閱讀器。Chrome 內建 PDF 檢視器不是可存取的網頁。
-- 瀏覽器的 Document Picture-in-Picture API 不支援點擊穿透，因此浮動視窗無法將點擊傳遞至其他應用程式。瀏覽器也無法保證浮動視窗或自動彈出。使用浮動視窗時，請保持擴充功能頁面開啟。
-
-## 隱私
-
-不收集遙測資料。取得同意後，頁面文字可能會傳送以產生建議問題。提問與自願啟用的被動摘要也會傳送相關文字和圖片。畫面保留在記憶體中，僅在擷取或提問請求時傳送至橋接服務。橋接模式會在主機執行 CLI，工作階段逐字稿也保存在主機。直接 API 模式會從擴充功能送出請求。API 金鑰與橋接權杖保存在瀏覽器工作階段儲存空間。偏好設定保存在瀏覽器本機儲存空間。詳見[安全與隱私](docs/SECURITY.md)。
-
-## 更多資訊
-
-[安裝](docs/INSTALL.md) | [使用方式](docs/USAGE.md) | [設計與整合](docs/DESIGN.md) | [商店準備](docs/STORE.md) | [發行說明](docs/releases/v2.0.0.md)
-
-## Disclosure
+[安裝指南](docs/INSTALL.md) | [使用方式](docs/USAGE.md) | [設計](docs/DESIGN.md) | [隱私詳情](docs/SECURITY.md)
 
 Assisted by Claude/Codex.

@@ -18,6 +18,8 @@ try {
     GLIMPSELET_PROFILE_DIR: join(directory, "profile"),
     GLIMPSELET_EXTENSION_DIR: resolve("dist-extension"),
     GLIMPSELET_CHROMIUM_PATH: chromium.executablePath(),
+    GLIMPSELET_TRIAL_URL:
+      "data:text/html,<title>Glimpselet%20pairing%20guide</title>",
   };
   delete env.SSH_CONNECTION;
   child = spawn(process.execPath, [launcher], {
@@ -58,12 +60,41 @@ try {
     clearTimeout(timer);
   }
   assert.match(output, /Installing Playwright/);
+  assert.match(output, /Opened the setup guide at data:text\/html/);
+  assert.match(output, /Glimpselet extension loaded\./);
   child.kill("SIGTERM");
   const [code, signal] = await exited;
   assert.equal(signal, null);
   assert.equal(code, 143);
+  child = spawn(process.execPath, [launcher], {
+    env: { ...env, GLIMPSELET_TRIAL_URL: "http://127.0.0.1:1" },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const failed = once(child, "exit");
+  let failureOutput = "";
+  for (const stream of [child.stdout, child.stderr])
+    stream.on("data", (data) => {
+      failureOutput = (failureOutput + data).slice(-4000);
+    });
+  let failureTimer;
+  try {
+    const [failureCode, failureSignal] = await Promise.race([
+      failed,
+      new Promise((_, reject) => {
+        failureTimer = setTimeout(
+          () => reject(new Error("Failed startup left the browser running")),
+          30_000,
+        );
+      }),
+    ]);
+    assert.equal(failureCode, 1);
+    assert.equal(failureSignal, null);
+    assert.match(failureOutput, /Could not open GLIMPSELET_TRIAL_URL/);
+  } finally {
+    clearTimeout(failureTimer);
+  }
   console.log(
-    "PASS: packaged launcher bootstrapped, opened Chromium with the extension, and closed on SIGTERM",
+    "PASS: packaged launcher loaded the extension and closed after SIGTERM and failed startup",
   );
 } finally {
   if (child && child.exitCode === null && child.signalCode === null) {

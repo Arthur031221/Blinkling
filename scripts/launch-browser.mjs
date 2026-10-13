@@ -125,12 +125,20 @@ async function main() {
   context = await chromium.launchPersistentContext(profile, {
     executablePath,
     headless: false,
+    ignoreDefaultArgs: ["--disable-extensions"],
     args: [
       "--enable-features=ExcludePipFromScreenCapture",
       `--disable-extensions-except=${extension}`,
       `--load-extension=${extension}`,
     ],
   });
+  const worker =
+    context.serviceWorkers()[0] ||
+    (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
+  const manifest = await worker.evaluate(() => chrome.runtime.getManifest());
+  if (manifest.name !== "Glimpselet")
+    throw new Error("Glimpselet did not load in the dedicated browser.");
+  console.log("Glimpselet extension loaded.");
   let closing = false;
   const closeContext = async () => {
     if (closing) return;
@@ -148,10 +156,12 @@ async function main() {
   const trialUrl = process.env.GLIMPSELET_TRIAL_URL;
   if (trialUrl) {
     try {
-      await context.pages()[0]?.goto(trialUrl);
-    } catch {
-      console.error(
-        `Could not open GLIMPSELET_TRIAL_URL: ${trialUrl}. 無法開啟指定的試用頁面。`,
+      const page = context.pages()[0] ?? (await context.newPage());
+      await page.goto(trialUrl);
+      console.log(`Opened the setup guide at ${trialUrl}.`);
+    } catch (error) {
+      throw new Error(
+        `Could not open GLIMPSELET_TRIAL_URL: ${trialUrl}. 無法開啟指定的試用頁面. ${error.message}`,
       );
     }
   }
@@ -161,7 +171,8 @@ async function main() {
   await closed;
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
+  await context?.close().catch(() => {});
   if (interrupted) return;
   console.error(`Glimpselet could not start: ${error.message}`);
   console.error("Please review the error above. 請檢查上方錯誤訊息。");

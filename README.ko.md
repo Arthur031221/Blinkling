@@ -1,64 +1,69 @@
 # Glimpselet
 
-Glimpselet은 다른 창 위에 계속 표시되며 기존 Claude Code 세션에 연결되는 작은 채팅 창입니다. 접근 가능한 웹페이지를 읽고 번역하며, 실제 페이지 위에 안내 표시를 그리고, 질문을 위해 페이지 영역이나 공유 화면 프레임을 캡처할 수 있습니다.
+[English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
-![Glimpselet 플로팅 채팅](assets/demo.gif)
+현재 보고 있는 페이지나 화면에 관해 Claude Code에 질문할 수 있는 작은 플로팅 채팅입니다. 웹 페이지를 읽고 번역하거나, 페이지의 실제 버튼을 안내받고, 화면 일부를 캡처해 질문할 수 있습니다.
 
-![실제 페이지 위에 그려진 안내 원](assets/screenshots/guide.png)
+|           Glimpselet 플로팅 채팅           |                 페이지 안내 예시                  |
+| :----------------------------------------: | :-----------------------------------------------: |
+| ![Glimpselet 플로팅 채팅](assets/demo.gif) | ![페이지 안내 예시](assets/screenshots/guide.png) |
 
-[정적 데모 열기](https://arthur031221.github.io/Glimpselet/). 예시 이미지와 녹화된 답변을 사용하며 서비스에 요청을 보내지 않습니다.
+필요 사항: 최신 Claude Code, 본인 구독 계정 로그인, Chrome 또는 Edge 같은 데스크톱 Chromium 브라우저.
+
+Glimpselet은 전용 대화를 시작합니다. 최근 Claude Code 세션을 선택하면 별도 프로세스에서 이어갈 수 있습니다. 터미널에 열려 있는 대화형 세션으로 요청을 보내려면 channel 미리보기를 활성화하세요. [Channel 설정](docs/DESIGN.md#the-running-claude-code-conversation).
 
 ## 설치
 
-Claude Code에 Glimpselet 플러그인을 설치합니다.
+1. Claude Code에 마켓플레이스를 추가하고 플러그인을 설치합니다.
 
-```text
-/plugin marketplace add Arthur031221/Glimpselet
-/plugin install glimpselet@glimpselet
-```
+   ```text
+   /plugin marketplace add Arthur031221/Glimpselet
+   /plugin install glimpselet@glimpselet
+   ```
 
-`/glimpse`를 실행하고 설정 안내를 따르세요. 설치와 페어링 방법은 이 안내를 기준으로 합니다.
+2. `/glimpselet:glimpse`를 실행합니다.
+
+3. 시작 안내에 따라 브라우저를 연결합니다. 로컬 데스크톱에서는 **Try without installing**을 선택하거나 본인 브라우저에 확장 프로그램을 불러와 페어링하세요. Claude Code가 원격 호스트에서 실행 중이면 안내의 SSH 명령을 브라우저가 있는 컴퓨터에서 실행하고, 그 컴퓨터에서 ZIP을 다운로드해 확장 프로그램을 불러옵니다. 원격 호스트에서는 설치 없는 브라우저를 사용할 수 없습니다. 페어링이 완료되면 Glimpselet 패널에 연결 모드와 프로젝트가 표시됩니다.
 
 ### 고급: 소스에서 불러오기
 
-1. Chrome 또는 Edge에서 `chrome://extensions`를 열고 **개발자 모드**를 켭니다.
-2. **압축해제된 확장 프로그램을 로드**를 선택합니다.
-3. 설정 안내에 표시된 확장 프로그램 폴더를 선택합니다.
+본인 데스크톱 브라우저에서 확장 프로그램은 고정 폴더 `~/.glimpselet/extension`에 저장됩니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
 
-> **개발자 모드:** Glimpselet은 현재 개발자 모드로 배포됩니다. 스토어 등록 전까지 업데이트를 수동으로 설치해야 합니다.
+## 할 수 있는 일
 
-## 캡처와 단축키
+- Opus, Sonnet, Haiku의 스트리밍 답변을 받고 후속 질문을 할 수 있습니다.
+- 공유 화면을 전체 화면 보기에서 캡처하거나 페이지 오버레이로 영역을 자를 수 있습니다. Shift를 누른 채 드래그한 다음 Enter로 캡처하고 Esc로 취소합니다.
+- 페이지가 바뀌면 함께 갱신되는 추천 질문을 볼 수 있습니다.
+- 선택 사항인 Passive 요약을 켜고 Alt+P로 일시 중지하며 시간당 비용을 확인할 수 있습니다.
+- 페이지의 실제 컨트롤 위에 안내를 표시합니다. 페이지에서 바로 번역하고 Restore로 원문을 되돌릴 수 있습니다.
+- 텍스트를 선택해 설명, 번역 또는 질문을 할 수 있습니다. 내장 리더에서 PDF를 열고 질문할 수도 있습니다.
 
-플로팅 버블이나 접근 가능한 웹페이지에서 Shift를 누르면 영역 선택을 시작합니다. Shift는 다른 앱에서 키 입력을 감지할 수 없습니다. 웹페이지에서는 현재 페이지 위에 영역을 그립니다. 화면 공유 중에는 프레임을 고정하고 전체 화면으로 열어 자릅니다. Enter로 확정하고 Esc로 취소하세요.
+![이 페이지 안내](assets/guide.gif)
 
-브라우저 자르기 단축키는 Ctrl+Shift+S(Mac은 Cmd+Shift+S)입니다. 전역 단축키 기본값은 Ctrl+Shift+7입니다. Chrome 전역 단축키에는 숫자 키가 필요합니다. `chrome://extensions/shortcuts`에서 변경할 수 있으며 S로 지정할 수도 있습니다.
+![선택한 영역](assets/crop.gif)
+
+| 단축키                                | 동작                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------ |
+| Alt+Shift+G                           | Glimpselet을 열고 **Float**를 선택해 플로팅 채팅을 엽니다.                           |
+| Ctrl+Shift+S(macOS에서는 Cmd+Shift+S) | 현재 페이지 또는 공유 화면을 자릅니다.                                               |
+| Ctrl+Shift+7(macOS에서는 Cmd+Shift+7) | 모든 앱에서 화면을 자릅니다. `chrome://extensions/shortcuts`에서 변경할 수 있습니다. |
+| Shift 누르기                          | Glimpselet 버블 또는 페이지에서 자르기를 시작합니다.                                 |
+| Alt+P                                 | Passive 요약을 일시 중지합니다.                                                      |
+
+macOS에서 Cmd+Shift+5는 시스템 스크린샷 도구를 엽니다. 웹페이지의 Shift는 Glimpselet 페이지에서만 작동하며 다른 앱에서는 입력을 받을 수 없습니다.
+
+첫 동작은 **Float**입니다. 페이지 접근이 필요한 기능을 사용할 때 확장 프로그램이 권한을 요청합니다. 본인 Claude Code 로그인 세션을 사용하면 제공자 API 키가 필요하지 않습니다. 직접 API 모드는 선택 사항이며 본인 API 키가 필요합니다.
 
 ## Claude Code 세션
 
-문서화된 MCP channel 기능으로 실행 중인 Claude Code 세션에 메시지를 보낼 수 있습니다. Glimpselet은 reply 도구의 응답 청크를 채팅에 표시합니다. 모델과 권한은 터미널의 세션이 관리합니다. Glimpselet 사용자 지정 channel을 추가하려면 개발 channel을 활성화해 세션을 다시 시작한 뒤 `/glimpse`를 실행하세요.
+Channel 미리 보기 명령과 설정은 [Claude Code 세션](docs/DESIGN.md#the-running-claude-code-conversation)을 참조하세요. channel이 없으면 선택한 세션을 별도 프로세스에서 이어갈 수 있습니다. 이는 병렬 이어쓰기입니다. 동시에 터미널에서 같은 세션을 사용하지 마세요. 동시 접근은 충돌을 일으킬 수 있습니다.
 
-```sh
-claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
-```
+## 제한 및 개인정보
 
-channel이 없으면 별도의 print 모드 프로세스에서 `claude --resume SESSION_ID -p`로 같은 세션을 이어갈 수 있습니다. 이는 병렬 이어쓰기입니다. 같은 세션을 사용하는 터미널 프로세스와 동시에 실행하면 충돌할 수 있습니다.
+Glimpselet은 데스크톱 Chrome, Edge 및 기타 Chromium 브라우저에서 작동합니다. 스토어 배포 전까지 개발자 배너가 표시되고 업데이트는 수동입니다. 브라우저 설정, 확장 프로그램 스토어, 제한된 페이지 등 일부 페이지는 접근을 차단합니다. Chrome 내장 PDF 뷰어는 읽을 수 없으므로 Glimpselet 리더를 사용하세요. 네이티브 앱에서는 픽셀만 제공되며 페이지 텍스트나 오버레이는 사용할 수 없습니다. Shift는 Glimpselet 자체 브라우저 화면에서만 작동하며 다른 앱에서는 작동하지 않습니다. 플로팅 창은 클릭을 통과시키지 않습니다.
 
-## 제한 사항
+자동 질문 제안은 동의한 경우에만 페이지 정보를 사용합니다. 수동 요약 기능은 선택 사항이며 검사 가능한 브라우저 탭을 공유해야 합니다. 공유 소스가 창, 화면, 네이티브 앱, 알 수 없는 소스 또는 접근 불가 페이지라면 자동 요약이 일시 중지됩니다. 수동 질문과 캡처는 계속 사용할 수 있습니다.
 
-- Chrome, Edge 및 기타 Chromium 브라우저만 지원합니다.
-- `chrome://` 같은 브라우저 내부 페이지, 확장 프로그램 스토어 및 일부 관리 페이지는 접근을 막습니다.
-- 네이티브 앱 위에 그릴 수 없습니다. 화면을 공유해 이미지를 질문할 수 있지만 페이지 오버레이와 텍스트 기능은 사용할 수 없습니다.
-- PDF는 Glimpselet에 포함된 리더를 사용하세요. Chrome 내장 PDF 뷰어는 접근 가능한 웹페이지가 아닙니다.
-- 브라우저 Document Picture-in-Picture API는 클릭 통과를 지원하지 않아 플로팅 창에서 다른 앱으로 클릭을 전달할 수 없습니다. 플로팅 창이나 자동 팝아웃도 보장되지 않습니다. 사용하는 동안 확장 프로그램 페이지를 열어 두세요.
-
-## 개인정보 보호
-
-텔레메트리는 수집하지 않습니다. 동의하면 추천 질문 생성을 위해 페이지 텍스트가 전송될 수 있습니다. 질문과 선택형 수동 요약도 관련 텍스트와 이미지를 보낼 수 있습니다. 프레임은 메모리에 유지되며 캡처 또는 질문 요청 때만 브리지로 전송됩니다. 브리지 모드는 호스트에서 CLI를 실행하고 세션 기록도 호스트에 저장합니다. 직접 API 모드는 확장 프로그램에서 요청을 보냅니다. API 키와 브리지 토큰은 브라우저 세션 저장소에 유지됩니다. 설정은 브라우저 로컬 저장소에 저장됩니다. 자세한 내용은 [보안 및 개인정보](docs/SECURITY.md)를 참고하세요.
-
-## 더 보기
-
-[설치](docs/INSTALL.md) | [사용법](docs/USAGE.md) | [설계 및 통합](docs/DESIGN.md) | [스토어 준비](docs/STORE.md) | [릴리스 노트](docs/releases/v2.0.0.md)
-
-## Disclosure
+[설치 안내](docs/INSTALL.md) | [사용법](docs/USAGE.md) | [설계](docs/DESIGN.md) | [개인정보 상세](docs/SECURITY.md)
 
 Assisted by Claude/Codex.

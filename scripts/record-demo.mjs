@@ -10,6 +10,9 @@ import { ExtensionSessions } from "../bridge/dist/extension-sessions.js";
 import en from "../extension/locales/en.json" with { type: "json" };
 
 const here = resolve(".");
+const publicMode = process.env.GLIMPSELET_RECORD_PUBLIC === "1";
+const publicUrl = "https://github.com/microsoft/TypeScript";
+const browserChannel = process.env.GLIMPSELET_RECORD_BROWSER || "chromium";
 if (!process.env.GLIMPSELET_RECORD_IN_XVFB) {
   const childEnv = { ...process.env };
   delete childEnv.DISPLAY;
@@ -46,6 +49,8 @@ let server;
 let bridge;
 let browserContext;
 let ffmpeg;
+let recordingStartedAt = 0;
+const featureSegments = [];
 let windowManager;
 let appPage;
 let sitePage;
@@ -53,6 +58,24 @@ let pipPage;
 let port;
 
 function mockCliProvider(request) {
+  if (publicMode && request.question.includes('"questions"')) {
+    const answer = JSON.stringify({
+      questions: [
+        "What does TypeScript add to JavaScript?",
+        "How does the compiler check types?",
+        "Where can I find the project documentation?",
+      ],
+    });
+    return (async () => {
+      for (let offset = 0; offset < answer.length; offset += 32) {
+        if (request.signal.aborted)
+          throw new Error("Mock suggestion request cancelled.");
+        await new Promise((done) => setTimeout(done, 120));
+        request.onText(answer.slice(offset, offset + 32));
+      }
+      return { answer };
+    })();
+  }
   return new Promise((resolve, reject) => {
     const fixtureEnv = { ...process.env };
     delete fixtureEnv.SSH_CONNECTION;
@@ -242,16 +265,21 @@ try {
       // The checked-in CLI fixture emits the same streaming JSON protocol used by the provider.
       return mockCliProvider(request);
     },
-    sessions: new ExtensionSessions("Research notebook demo", async () => []),
+    sessions: new ExtensionSessions(
+      publicMode ? "TypeScript repository" : "Research notebook demo",
+      async () => [],
+    ),
   });
 
   browserContext = await chromium.launchPersistentContext(profile, {
-    channel: "chromium",
+    channel: browserChannel,
     headless: false,
+    ignoreDefaultArgs: ["--disable-extensions"],
     viewport: null,
     args: [
       `--disable-extensions-except=${extension}`,
       `--load-extension=${extension}`,
+      "--enable-unsafe-extension-debugging",
       "--no-sandbox",
       "--enable-features=DocumentPictureInPictureAPI",
       "--window-size=1280,800",
@@ -259,9 +287,27 @@ try {
       "--force-device-scale-factor=1",
     ],
   });
-  const worker =
-    browserContext.serviceWorkers()[0] ||
-    (await browserContext.waitForEvent("serviceworker"));
+  let worker = browserContext.serviceWorkers()[0];
+  if (!worker) {
+    try {
+      worker = await browserContext.waitForEvent("serviceworker", {
+        timeout: 15000,
+      });
+    } catch (error) {
+      await browserContext.close().catch(() => {});
+      browserContext = undefined;
+      await stop(windowManager);
+      windowManager = undefined;
+      await bridge?.close().catch(() => {});
+      bridge = undefined;
+      if (server?.listening)
+        await new Promise((resolveClose) => server.close(() => resolveClose()));
+      await rm(temp, { recursive: true, force: true });
+      throw new Error(
+        `The extension service worker did not start in Chromium: ${error.message}`,
+      );
+    }
+  }
   const extensionId = new URL(worker.url()).host;
   await worker.evaluate(() =>
     chrome.storage.local.set({
@@ -271,7 +317,14 @@ try {
     }),
   );
   sitePage = await browserContext.newPage();
-  await sitePage.goto(origin, { waitUntil: "domcontentloaded" });
+  await sitePage.goto(publicMode ? publicUrl : origin, {
+    waitUntil: "domcontentloaded",
+    timeout: publicMode ? 45000 : 30000,
+  });
+  if (publicMode) {
+    await sitePage.locator("body").waitFor({ timeout: 20000 });
+    await sitePage.waitForTimeout(1200);
+  }
   await sitePage.bringToFront();
 
   const opened = browserContext.waitForEvent("page", { timeout: 8000 });
@@ -300,30 +353,31 @@ try {
     new URL(appPage.url()).searchParams.get("sourceTab"),
   );
 
-  ffmpeg = await startFfmpeg([
-    "-y",
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-f",
-    "x11grab",
-    "-video_size",
-    "1280x800",
-    "-framerate",
-    "12",
-    "-i",
-    `${screen}.0+0,0`,
-    "-an",
-    "-c:v",
-    "libx264",
-    "-preset",
-    "ultrafast",
-    "-crf",
-    "18",
-    "-pix_fmt",
-    "yuv420p",
-    videoFile,
-  ]);
+  if (!publicMode)
+    ffmpeg = await startFfmpeg([
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-video_size",
+      "1280x800",
+      "-framerate",
+      "12",
+      "-i",
+      `${screen}.0+0,0`,
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      "18",
+      "-pix_fmt",
+      "yuv420p",
+      videoFile,
+    ]);
 
   const guide = sitePage.locator("[data-glimpselet-overlay] .guide");
   await appPage.locator(".composer button.send").waitFor();
@@ -331,22 +385,34 @@ try {
     (tabId) => chrome.tabs.sendMessage(tabId, { type: "glimpselet:context" }),
     sourceTabId,
   );
-  const exportTarget = pageContext.elements.find(
-    (item) => item.role === "button" && item.text === "Export notebook",
-  );
+  const exportTarget =
+    pageContext.elements.find(
+      (item) =>
+        item.role === "button" &&
+        item.text === (publicMode ? "Code" : "Export notebook"),
+    ) ||
+    (publicMode
+      ? pageContext.elements.find(
+          (item) => item.role === "button" && item.text?.trim(),
+        )
+      : undefined);
   if (!exportTarget)
     throw new Error(
-      "The real page context did not include the Export notebook button.",
+      publicMode
+        ? "The public GitHub page context did not include a guideable button."
+        : "The real page context did not include the Export notebook button.",
     );
   await worker.evaluate(
-    ({ tabId, target }) =>
+    ({ tabId, target, publicMode }) =>
       chrome.tabs.sendMessage(tabId, {
         type: "glimpselet:guide",
         steps: [
           {
             elementId: target.id,
-            note: "Choose Export notebook to save this page.",
-            action: "Click when ready",
+            note: publicMode
+              ? `Explore ${target.text} on this public repository.`
+              : "Choose Export notebook to save this page.",
+            action: publicMode ? "Open repository files" : "Click when ready",
           },
         ],
         labels: {
@@ -356,10 +422,10 @@ try {
           title: "Page guide",
         },
       }),
-    { tabId: sourceTabId, target: exportTarget },
+    { tabId: sourceTabId, target: exportTarget, publicMode },
   );
   try {
-    await expect(guide).toContainText("Export notebook", { timeout: 15000 });
+    await expect(guide).toContainText(exportTarget.text, { timeout: 15000 });
   } catch {
     const status = await appPage
       .locator(".status")
@@ -376,38 +442,44 @@ try {
   }
   await sitePage.bringToFront();
   await keepScene(2400);
-  await desktopShot(join(store, "guide.png"));
-  await desktopShot(resolve("assets/screenshots/guide.png"));
+  if (!publicMode) {
+    await desktopShot(join(store, "guide.png"));
+    await desktopShot(resolve("assets/screenshots/guide.png"));
+  }
   await sitePage.keyboard.press("Escape");
   await expect(guide).toHaveCount(0);
 
-  await appPage
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
-  try {
-    await expect(sitePage.locator("#foreign")).toContainText("Translated:", {
-      timeout: 15000,
-    });
-  } catch {
-    const status = await appPage
-      .locator(".status")
-      .innerText()
-      .catch(() => "unavailable");
-    const answer = await appPage
-      .locator(".live-answer, .answer")
-      .allInnerTexts()
-      .catch(() => []);
-    throw new Error(
-      `Page translation did not apply. Status: ${status}. Chat: ${answer.join(" | ")}`,
+  if (!publicMode) {
+    await appPage
+      .getByRole("button", { name: en.translatePage, exact: true })
+      .click();
+    try {
+      await expect(sitePage.locator("#foreign")).toContainText("Translated:", {
+        timeout: 15000,
+      });
+    } catch {
+      const status = await appPage
+        .locator(".status")
+        .innerText()
+        .catch(() => "unavailable");
+      const answer = await appPage
+        .locator(".live-answer, .answer")
+        .allInnerTexts()
+        .catch(() => []);
+      throw new Error(
+        `Page translation did not apply. Status: ${status}. Chat: ${answer.join(" | ")}`,
+      );
+    }
+    await sitePage.bringToFront();
+    await keepScene(2200);
+    await desktopShot(join(store, "translation.png"));
+    await appPage
+      .getByRole("button", { name: en.restore, exact: true })
+      .click();
+    await expect(sitePage.locator("#foreign")).toHaveText(
+      "このページは研究ノートの使い方を説明します。",
     );
   }
-  await sitePage.bringToFront();
-  await keepScene(2200);
-  await desktopShot(join(store, "translation.png"));
-  await appPage.getByRole("button", { name: en.restore, exact: true }).click();
-  await expect(sitePage.locator("#foreign")).toHaveText(
-    "このページは研究ノートの使い方を説明します。",
-  );
 
   const pipOpened = browserContext
     .waitForEvent("page", { timeout: 5000 })
@@ -475,41 +547,116 @@ try {
   await keepScene(800);
   await desktopShot(join(store, "floating.png"));
   await desktopShot(resolve("assets/screenshots/floating.png"));
+  if (publicMode) {
+    // Keep the public recording short: real floating PiP first, then its page guide.
+    ffmpeg = await startFfmpeg([
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-video_size",
+      "1280x800",
+      "-framerate",
+      "12",
+      "-i",
+      `${screen}.0+0,0`,
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      "18",
+      "-pix_fmt",
+      "yuv420p",
+      videoFile,
+    ]);
+    recordingStartedAt = performance.now();
+    await keepScene(1400);
+    const guideStart = (performance.now() - recordingStartedAt) / 1000;
+    await worker.evaluate(
+      ({ tabId, target }) =>
+        chrome.tabs.sendMessage(tabId, {
+          type: "glimpselet:guide",
+          steps: [
+            {
+              elementId: target.id,
+              note: `Explore ${target.text} on this public repository.`,
+              action: "Open repository files",
+            },
+          ],
+          labels: {
+            next: "Next",
+            back: "Back",
+            close: "Close",
+            title: "Page guide",
+          },
+        }),
+      { tabId: sourceTabId, target: exportTarget },
+    );
+    await expect(guide).toContainText(exportTarget.text, { timeout: 15000 });
+    await sitePage.bringToFront();
+    await keepScene(1600);
+    featureSegments.push({
+      name: "guide",
+      start: guideStart,
+      duration: (performance.now() - recordingStartedAt) / 1000 - guideStart,
+    });
+    await desktopShot(join(store, "guide.png"));
+    await desktopShot(resolve("assets/screenshots/guide.png"));
+    await sitePage.keyboard.press("Escape");
+    await expect(guide).toHaveCount(0);
+  }
   console.log(
     `Opened extension ${extensionId}; Document PiP page: ${Boolean(pipPage)}.`,
   );
   const ui = pipPage || appPage;
 
-  await askFromFloat("What is this notebook for?");
-  await keepScene(1200);
+  if (!publicMode) {
+    await askFromFloat("What is this notebook for?");
+    await keepScene(1200);
+  }
   await sitePage.bringToFront();
   await keepScene(1800);
   await desktopShot(join(store, "floating.png"));
   await desktopShot(resolve("assets/screenshots/floating.png"));
 
   // Use the supported page Shift gesture, actual crop surface and handles, then confirm with Enter.
-  await sitePage.bringToFront();
-  await sitePage.keyboard.down("Shift");
-  await sitePage.waitForTimeout(230);
-  await sitePage.keyboard.up("Shift");
-  const cropSurface = sitePage.locator("[data-glimpselet-crop] .surface");
-  await expect(cropSurface).toBeVisible({ timeout: 8000 });
-  const cropBox = await cropSurface.boundingBox();
-  if (!cropBox) throw new Error("Page crop surface has no visible geometry.");
-  await sitePage.mouse.move(cropBox.x + 60, cropBox.y + 80);
-  await sitePage.mouse.down();
-  await sitePage.mouse.move(cropBox.x + 340, cropBox.y + 260, { steps: 8 });
-  await sitePage.mouse.up();
-  await expect(
-    sitePage.locator("[data-glimpselet-crop] [data-handle]"),
-  ).toHaveCount(8);
-  await keepScene(700);
-  await sitePage.keyboard.press("Enter");
-  await expect(cropSurface).toHaveCount(0);
-  await expect(ui.locator(".capture-chip img")).toBeVisible({ timeout: 8000 });
-  await sitePage.bringToFront();
-  await keepScene(900);
-  await desktopShot(join(store, "crop.png"));
+  {
+    const cropStart = (performance.now() - recordingStartedAt) / 1000;
+    await sitePage.bringToFront();
+    await sitePage.keyboard.down("Shift");
+    await sitePage.waitForTimeout(230);
+    await sitePage.keyboard.up("Shift");
+    const cropSurface = sitePage.locator("[data-glimpselet-crop] .surface");
+    await expect(cropSurface).toBeVisible({ timeout: 8000 });
+    const cropBox = await cropSurface.boundingBox();
+    if (!cropBox) throw new Error("Page crop surface has no visible geometry.");
+    await sitePage.mouse.move(cropBox.x + 60, cropBox.y + 80);
+    await sitePage.mouse.down();
+    await sitePage.mouse.move(cropBox.x + 340, cropBox.y + 260, { steps: 8 });
+    await sitePage.mouse.up();
+    await expect(
+      sitePage.locator("[data-glimpselet-crop] [data-handle]"),
+    ).toHaveCount(8);
+    await keepScene(700);
+    await sitePage.keyboard.press("Enter");
+    await expect(cropSurface).toHaveCount(0);
+    await expect(ui.locator(".capture-chip img")).toBeVisible({
+      timeout: 8000,
+    });
+    await sitePage.bringToFront();
+    await keepScene(900);
+    if (publicMode)
+      featureSegments.push({
+        name: "crop",
+        start: cropStart,
+        duration: (performance.now() - recordingStartedAt) / 1000 - cropStart,
+      });
+    await desktopShot(join(store, "crop.png"));
+  }
 
   await sitePage.bringToFront();
   await keepScene(900);
@@ -533,6 +680,31 @@ try {
     { stdio: "inherit" },
   );
   if (gif.status !== 0) throw new Error(`GIF encoding exited ${gif.status}`);
+  for (const segment of featureSegments) {
+    const encoded = spawnSync(
+      "ffmpeg",
+      [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-ss",
+        String(segment.start),
+        "-t",
+        String(segment.duration),
+        "-i",
+        videoFile,
+        "-vf",
+        "fps=10,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=192[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3",
+        "-loop",
+        "0",
+        resolve(`assets/${segment.name}.gif`),
+      ],
+      { stdio: "inherit" },
+    );
+    if (encoded.status !== 0)
+      throw new Error(`${segment.name} GIF encoding failed`);
+  }
 
   await browserContext.newPage().then(async (page) => {
     await page.setViewportSize({ width: 1200, height: 675 });
@@ -556,7 +728,9 @@ try {
   });
 
   console.log(
-    `Recorded real extension desktop demo with ${pipWidth}px Document PiP and successful Shift crop.`,
+    publicMode
+      ? `Recorded a public-site demo with ${pipWidth}px Document PiP and a page guide.`
+      : `Recorded real extension desktop demo with ${pipWidth}px Document PiP and successful Shift crop.`,
   );
 } finally {
   await stop(ffmpeg);

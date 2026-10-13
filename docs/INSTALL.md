@@ -35,7 +35,7 @@ When Claude Code runs on a remote host, run the SSH local-forward command printe
 ssh -N -L 37115:127.0.0.1:37115 user@remote-host
 ```
 
-The tunnel forwards the browser's local loopback connection to the host's loopback bridge. Do not expose the bridge port publicly. The dedicated zero-install browser mode is unavailable on a remote host because it has no local desktop.
+The tunnel forwards the browser's local loopback connection to the host's loopback bridge. On the welcome page, **Download extension ZIP** downloads the extension files packaged with that installed plugin directly from its loopback bridge. The download requires the page's short-lived setup code and includes only regular files from the packaged extension directory. Extract it on the browser computer, then use **Load unpacked** in Chrome or Edge. Do not expose the bridge port publicly. The dedicated zero-install browser mode is unavailable on a remote host because it has no local desktop.
 
 When the browser computer has no local CLI, choose direct API mode in extension settings and enter an API key. The key is held in `chrome.storage.session` and is not sent to the bridge.
 

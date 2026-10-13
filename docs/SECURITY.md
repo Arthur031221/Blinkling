@@ -8,11 +8,13 @@ After consent, bounded page text may be sent to generate suggested questions. Co
 
 Bridge mode uses an origin bound, paired loopback WebSocket. Dedicated threads and parallel continuations run the user's CLI. An image is placed in a private temporary directory and removed after completion, timeout or cancellation. Recent sessions are listed through the official SDK. A parallel continuation resumes the exact selected UUID and writes to that conversation. Avoid running it concurrently with terminal work on the same transcript.
 
+Print mode keeps restricted mode and safe mode enabled, disabling user and project customizations, including hooks, and configures no MCP servers. Managed CLI policies still apply. Image requests expose only the Read tool, add only that request's private temporary directory with `--add-dir`, and preapprove the exact screenshot path using an absolute Read rule. Text-only requests enable no tools or additional directories. This preapproval is not a deny rule: Read can still access files in the session's working directories under the CLI's normal read permissions.
+
 With an enabled live channel, requests are pushed into the running terminal conversation. Its model, permissions and tools apply. The plugin returns images and scoped reply chunks through MCP tools. Only bubble request replies are mirrored. Stop ends the bubble's wait. It does not stop terminal execution. Press Esc there when necessary.
 
 Direct API mode sends requests and optional images to Anthropic using the user's key. The key is not sent to the local bridge. Provider retention and account policies apply to all provider requests.
 
-Passive mode starts off. Once enabled, changed pages or stable changes in shared video can trigger summaries. Password pages and blocklisted hosts are excluded, page updates are debounced, and summaries are capped at six per rolling minute. Sensitive text is not always detectable, especially in native apps. Pause before sharing sensitive material.
+Passive mode starts off. Once enabled, changed pages can trigger summaries. Shared video requires a browser tab whose Capture Handle matches the inspected HTTP or HTTPS page before and after its privacy check. A monitor, native app, unknown capture source or unsupported page cannot trigger automatic screen requests. These sources still support manual capture and questions. Password pages and blocklisted hosts are excluded, page updates are debounced, and summaries are capped at six per rolling minute. Sensitive text is not always detectable, especially in native apps. Pause before sharing sensitive material.
 
 ## Storage
 

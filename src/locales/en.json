@@ -120,5 +120,8 @@
   "resizeHelp": "Drag to resize, or use the arrow keys. You can also drag the window edges.",
   "scopeSent": "Last sent frame",
   "resumePreview": "Show live preview",
-  "pausePassive": "Pause passive notes"
+  "pausePassive": "Pause passive notes",
+  "install": "Install",
+  "demoRequirementsTitle": "Desktop browser required",
+  "demoRequirements": "Chrome or Edge for desktop is required to use the floating window."
 }

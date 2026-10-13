@@ -120,5 +120,8 @@
   "resizeHelp": "ドラッグしてサイズを変更するか、矢印キーを使ってください。ウィンドウの端をドラッグすることもできます。",
   "scopeSent": "最後に送信した画面",
   "resumePreview": "ライブプレビューを表示",
-  "pausePassive": "パッシブメモを一時停止"
+  "pausePassive": "パッシブメモを一時停止",
+  "install": "インストール",
+  "demoRequirementsTitle": "デスクトップブラウザーが必要です",
+  "demoRequirements": "フローティングウィンドウを使うには、デスクトップ版 Chrome または Edge が必要です。"
 }

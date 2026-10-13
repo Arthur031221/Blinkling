@@ -1,13 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JSDOM } from "jsdom";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
   INSTALL_GUIDE_SCRIPT,
   installGuide,
 } from "../src/extension-install.js";
 
-const openGuide = async (mode: "direct" | "tunnel", store = false) => {
+const openGuide = async (
+  mode: "direct" | "tunnel",
+  store = false,
+  connected = false,
+) => {
   const html = installGuide("/home/linux/.glimpselet/extension", {
     chromeWebStoreUrl: store
       ? "https://chromewebstore.google.com/detail/glimpselet/id"
@@ -26,9 +28,16 @@ const openGuide = async (mode: "direct" | "tunnel", store = false) => {
         json: async () => ({
           mode,
           tunnelCommand: "ssh -N -L 4312:127.0.0.1:4312 levi@host",
+          connected,
         }),
       } as Response;
     }
+    if (String(input).startsWith("/install/try"))
+      return {
+        ok: true,
+        status: 202,
+        json: async () => ({ started: true }),
+      } as Response;
     throw new Error(`Unexpected request: ${String(input)}`);
   });
   Object.assign(window, { fetch, setTimeout: () => 0 });
@@ -58,9 +67,6 @@ describe("welcome install guide remote onboarding", () => {
   it("shows remote ZIP instructions and SSH tunnel in English and Chinese", async () => {
     const { dom } = await openGuide("tunnel");
     const { document } = dom.window;
-    const { version } = JSON.parse(
-      await readFile(join(process.cwd(), "package.json"), "utf8"),
-    ) as { version: string };
 
     expect(document.querySelector("#install-local")?.hidden).toBe(true);
     expect(document.querySelector("#install-remote")?.hidden).toBe(false);
@@ -68,9 +74,7 @@ describe("welcome install guide remote onboarding", () => {
     expect(document.querySelector("#install-remote .path")).toBeNull();
     expect(
       document.querySelector<HTMLAnchorElement>("#install-remote a")?.href,
-    ).toBe(
-      `https://github.com/Arthur031221/Glimpselet/releases/download/v${version}/glimpselet-extension.zip`,
-    );
+    ).toBe("http://127.0.0.1:4312/install/extension.zip?code=0123456789ABCDEF");
     expect(document.querySelector("#tunnel")?.hidden).toBe(false);
     expect(
       document.querySelector<HTMLInputElement>("#tunnel-command")?.value,
@@ -90,6 +94,26 @@ describe("welcome install guide remote onboarding", () => {
     dom.window.close();
   });
 
+  it("does not open a practice tab automatically after pairing", async () => {
+    const { dom } = await openGuide("direct");
+    const open = vi.spyOn(dom.window, "open").mockReturnValue(null);
+    dom.window.dispatchEvent(
+      new dom.window.MessageEvent("message", {
+        origin: dom.window.location.origin,
+        source: dom.window,
+        data: { type: "glimpselet:paired" },
+      }),
+    );
+    expect(
+      dom.window.document
+        .querySelector("#connection")
+        ?.classList.contains("connected"),
+    ).toBe(true);
+    expect(open).not.toHaveBeenCalled();
+    expect(INSTALL_GUIDE_SCRIPT).not.toContain("tryStep(0,'float')");
+    dom.window.close();
+  });
+
   it("uses a configured store listing without exposing the unpacked flow", async () => {
     const { dom } = await openGuide("tunnel", true);
     const { document } = dom.window;
@@ -100,6 +124,73 @@ describe("welcome install guide remote onboarding", () => {
     expect(
       document.querySelector("#install-store a")?.getAttribute("href"),
     ).toBe("https://chromewebstore.google.com/detail/glimpselet/id");
+    dom.window.close();
+  });
+
+  it("waits for a user initiated pairing and only reports success after connection", async () => {
+    const { dom, fetch } = await openGuide("direct");
+    const { window } = dom;
+    const { document } = window;
+
+    expect(document.querySelector("h1")?.textContent).toContain("Glimpselet");
+    expect(document.querySelector("#connection")?.textContent).toContain(
+      "Click Pair extension",
+    );
+
+    document.querySelector<HTMLButtonElement>("#try-zero")?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetch).toHaveBeenCalledWith(
+      "/install/try?code=0123456789ABCDEF",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(document.querySelector("#try-note")?.textContent).toContain(
+      "Chromium launch requested. If its Glimpselet window opens, click Pair extension",
+    );
+    expect(document.querySelector("#connection")?.textContent).toContain(
+      "Waiting for Glimpselet",
+    );
+
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        origin: window.location.origin,
+        source: window,
+        data: { type: "glimpselet:extension-ready" },
+      }),
+    );
+    expect(document.querySelector("#try-note")?.textContent).toContain(
+      "Click Pair extension to approve",
+    );
+    expect(
+      document.querySelector("#connection")?.classList.contains("connected"),
+    ).toBe(false);
+
+    document.querySelector<HTMLButtonElement>("#connect")?.click();
+    expect(document.querySelector("#connection")?.textContent).toContain(
+      "Pairing request sent",
+    );
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        origin: window.location.origin,
+        source: window,
+        data: { type: "glimpselet:paired" },
+      }),
+    );
+    expect(
+      document.querySelector("#connection")?.classList.contains("connected"),
+    ).toBe(true);
+    expect(document.querySelector("#pair-controls")?.hidden).toBe(true);
+    expect(document.querySelector("#pair")?.hidden).toBe(true);
+    dom.window.close();
+  });
+
+  it("reflects a server-confirmed connection and hides redundant pairing controls", async () => {
+    const { dom } = await openGuide("direct", false, true);
+    const { document } = dom.window;
+    expect(document.querySelector("#connection")?.textContent).toContain(
+      "Connected. Choose a practice step below.",
+    );
+    expect(document.querySelector("#pair-controls")?.hidden).toBe(true);
+    expect(document.querySelector("#pair")?.hidden).toBe(true);
     dom.window.close();
   });
 });

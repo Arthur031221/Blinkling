@@ -120,5 +120,8 @@
   "resizeHelp": "拖动以调整大小，或使用方向键。也可以拖动窗口边缘。",
   "scopeSent": "上次发送的画面",
   "resumePreview": "显示实时预览",
-  "pausePassive": "暂停被动笔记"
+  "pausePassive": "暂停被动笔记",
+  "install": "安装",
+  "demoRequirementsTitle": "需要桌面浏览器",
+  "demoRequirements": "使用浮动窗口需要桌面版 Chrome 或 Edge。"
 }

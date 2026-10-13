@@ -120,5 +120,8 @@
   "resizeHelp": "Arraste para redimensionar ou use as teclas de seta. Você também pode arrastar as bordas da janela.",
   "scopeSent": "Último quadro enviado",
   "resumePreview": "Mostrar prévia ao vivo",
-  "pausePassive": "Pausar notas passivas"
+  "pausePassive": "Pausar notas passivas",
+  "install": "Instalar",
+  "demoRequirementsTitle": "Navegador para computador necessário",
+  "demoRequirements": "A janela flutuante requer o Chrome ou o Edge para computador."
 }

@@ -32,9 +32,10 @@ import { runProvider, type AnswerProvider } from "./provider.js";
 import { ExtensionBridge } from "./extension-bridge.js";
 import {
   extensionFolder,
+  extensionSourceFolder,
   installExtension,
+  createExtensionZip,
   installGuide,
-  installStepSvg,
   loadDistributionConfig,
   selectedStoreUrl,
   INSTALL_GUIDE_SCRIPT,
@@ -80,6 +81,7 @@ export class PanelServer {
   private expiryTimer?: NodeJS.Timeout;
   private trialBrowser?: ChildProcess;
   private trialError = false;
+  private extensionArchive?: Promise<Buffer>;
   private readonly distributionFile =
     process.env.GLIMPSELET_DISTRIBUTION_CONFIG ||
     resolve(
@@ -201,9 +203,7 @@ export class PanelServer {
   }
 
   async openExtensionGuide(): Promise<string> {
-    const source =
-      process.env.GLIMPSELET_EXTENSION_DIR ||
-      `${dirname(resolve(process.argv[1] ?? process.cwd()))}/extension`;
+    const source = extensionSourceFolder();
     let folder: string;
     try {
       folder = await installExtension(source);
@@ -308,6 +308,38 @@ export class PanelServer {
     } catch {
       throw new PanelError("invalid_request", "Invalid request path.");
     }
+    if (path === "/install/extension.zip") {
+      if (
+        req.method !== "GET" ||
+        (req.headers.origin !== undefined && req.headers.origin !== this.origin)
+      )
+        throw new PanelError(
+          "invalid_origin",
+          "Open the setup page to download the extension.",
+          403,
+        );
+      const code =
+        new URL(req.url!, this.origin).searchParams.get("code") || "";
+      if (this.extension?.installStatus(code) === undefined)
+        throw new PanelError(
+          "pairing_expired",
+          "Run /glimpse again for a new setup link.",
+          401,
+        );
+      this.extensionArchive ??= createExtensionZip(extensionSourceFolder());
+      const archive = await this.extensionArchive;
+      res.writeHead(200, {
+        "Content-Type": "application/zip",
+        "Content-Length": archive.length,
+        "Content-Disposition":
+          'attachment; filename="glimpselet-extension.zip"',
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+      });
+      res.end(archive);
+      return;
+    }
     if (path === "/install/status" || path === "/install/try") {
       const params = new URL(req.url!, this.origin).searchParams;
       const code = params.get("code") || "";
@@ -376,18 +408,13 @@ export class PanelServer {
     }
     if (
       req.method === "GET" &&
-      (path === "/install" ||
-        path === "/install-guide.js" ||
-        /^\/install-step-[123]\.svg$/.test(path))
+      (path === "/install" || path === "/install-guide.js")
     ) {
       const script = path === "/install-guide.js";
-      const svg = path.endsWith(".svg");
       res.writeHead(200, {
         "Content-Type": script
           ? "text/javascript; charset=utf-8"
-          : svg
-            ? "image/svg+xml"
-            : "text/html; charset=utf-8",
+          : "text/html; charset=utf-8",
         "Cache-Control": "no-store",
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
@@ -397,12 +424,10 @@ export class PanelServer {
       res.end(
         script
           ? INSTALL_GUIDE_SCRIPT
-          : svg
-            ? installStepSvg(Number(path[14]))
-            : installGuide(
-                extensionFolder(),
-                loadDistributionConfig(this.distributionFile),
-              ),
+          : installGuide(
+              extensionFolder(),
+              loadDistributionConfig(this.distributionFile),
+            ),
       );
       return;
     }

@@ -1,6 +1,6 @@
 # Usage
 
-Run `/glimpselet:glimpse` after installing the plugin. The welcome page guides installation and pairing, then opens a practice page. It detects connection automatically. On a remote host, run its SSH command on the computer with your browser. On the same computer, **Try without installing** opens a dedicated Chromium profile with the extension loaded.
+Run `/glimpselet:glimpse` after installing the plugin. The welcome page guides installation and pairing, then offers a practice page through each Try button. It detects connection automatically. On a remote host, run its SSH command on the computer with your browser. On the same computer, **Try without installing** opens a dedicated Chromium profile with the extension loaded.
 
 Open Glimpselet from the toolbar or Alt+Shift+G. **Float** is the first action. Keep its opener open. Start **Share a screen** inside the bubble, then choose a tab, window or screen. Return to the source tab from the top bar. The browser controls placement. Compact mode keeps the input and status visible while preserving the share.
 
@@ -17,3 +17,7 @@ For your current terminal conversation, enable the channel described in [Design]
 Without a live channel, select a recent project conversation for an explicitly labelled parallel continuation with `--resume ID -p`, or start a dedicated thread. The continuation uses the exact selected session and does not inject into an open terminal. Avoid concurrent work against that transcript. Direct API mode needs your Anthropic key, held for the browser session.
 
 Replay the welcome tour from Settings. Chromium desktop browsers are required. Protected pages, the store and managed policies can block access. Native app guides and Chrome's built in PDF viewer are unavailable. Use screen questions or the Glimpselet reader instead.
+
+Pages with password fields, including hidden login fields on public shopping sites, pause page context, captures and in-place translation. You can select a passage and choose **Ask without page content** to send only that passage.
+
+If a page changes during translation, Glimpselet keeps the translated stable text and reports how many changing items it skipped. Translate again to include them. Restore keeps newer changes made by the site.

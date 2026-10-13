@@ -34,6 +34,7 @@ await writeFile("bin/glimpselet.cjs", bundle, { mode: 0o755 });
 await chmod("bin/glimpselet.cjs", 0o755);
 await rm("bin/panel", { recursive: true, force: true });
 await cp("dist", "bin/panel", { recursive: true });
+await cp("assets/install", "bin/panel/assets/install", { recursive: true });
 await rm("bin/extension", { recursive: true, force: true });
 await cp("dist-extension", "bin/extension", { recursive: true });
 await mkdir("bin/config", { recursive: true });

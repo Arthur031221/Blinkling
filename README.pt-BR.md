@@ -1,63 +1,69 @@
 # Glimpselet
 
-O Glimpselet é um chat pequeno que fica acima das outras janelas e se conecta a uma sessão existente do Claude Code. Ele pode ler e traduzir páginas acessíveis, desenhar guias na página real e capturar áreas da página ou quadros da tela compartilhada para perguntas.
+[English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
-![Chat flutuante do Glimpselet](assets/demo.gif)
+Um chat flutuante para perguntar ao Claude Code sobre a página ou a tela que você está vendo. Leia e traduza páginas da web, receba orientação sobre os controles da página e capture uma área para fazer perguntas.
 
-![Círculos de orientação desenhados na página real](assets/screenshots/guide.png)
+|           Chat flutuante do Glimpselet           |                 Exemplo de orientação na página                  |
+| :----------------------------------------------: | :--------------------------------------------------------------: |
+| ![Chat flutuante do Glimpselet](assets/demo.gif) | ![Exemplo de orientação na página](assets/screenshots/guide.png) |
 
-[Abrir a demonstração estática](https://arthur031221.github.io/Glimpselet/). Ela usa uma imagem de exemplo e uma resposta gravada, sem enviar solicitações a provedores.
+Requisitos: uma versão recente do Claude Code, login com sua própria assinatura e um navegador Chromium para desktop, como Chrome ou Edge.
+
+Glimpselet inicia uma conversa dedicada. Você também pode continuar uma sessão recente do Claude Code em um processo separado. Para enviar solicitações à sessão interativa já aberta no terminal, ative a prévia de canais. [Configuração do canal](docs/DESIGN.md#the-running-claude-code-conversation).
 
 ## Instalação
 
-Instale o plugin Glimpselet no Claude Code:
+1. Adicione o marketplace e instale o plugin no Claude Code:
 
-```text
-/plugin marketplace add Arthur031221/Glimpselet
-/plugin install glimpselet@glimpselet
-```
+   ```text
+   /plugin marketplace add Arthur031221/Glimpselet
+   /plugin install glimpselet@glimpselet
+   ```
 
-Execute `/glimpse` e siga o guia de configuração. Ele é a referência para instalação e pareamento.
+2. Execute `/glimpselet:glimpse`.
+
+3. Siga o guia de boas-vindas para conectar o navegador. Em um desktop local, escolha **Try without installing** ou carregue e pareie a extensão no seu navegador. Se o Claude Code estiver em um host remoto, execute o comando SSH exibido pelo guia no computador com o navegador. Baixe o ZIP nesse computador e carregue a extensão no navegador. A opção sem instalação não está disponível no host remoto. Após o pareamento, o painel do Glimpselet mostra o modo de conexão e o projeto.
 
 ### Avançado: carregar do código-fonte
 
-1. Abra `chrome://extensions` no Chrome ou Edge e ative o **modo do desenvolvedor**.
-2. Escolha **Carregar sem compactação**.
-3. Selecione a pasta da extensão indicada pelo guia de configuração.
-   > **Modo de desenvolvedor:** O Glimpselet ainda é distribuído em modo de desenvolvedor. Até haver uma listagem em uma loja, as atualizações precisam ser instaladas manualmente.
+No seu navegador de desktop, a extensão fica na pasta estável `~/.glimpselet/extension`. No Chrome ou Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continuará visível. As atualizações precisam ser feitas manualmente.
 
-## Capturas e atalhos
+## O que você pode fazer
 
-Mantenha Shift pressionado na bolha flutuante ou em uma página acessível para iniciar um recorte. O Shift não detecta teclas em outros aplicativos. Em páginas web, a seleção é feita diretamente sobre a página atual. Durante o compartilhamento de tela, o quadro é congelado e aberto em tela cheia para o recorte. Pressione Enter para confirmar ou Esc para cancelar.
+- Receber respostas em streaming e fazer perguntas de acompanhamento com Opus, Sonnet ou Haiku.
+- Capturar uma tela compartilhada na visualização em tela cheia ou recortar uma área com a sobreposição da página. Segure Shift e arraste. Pressione Enter para capturar ou Esc para cancelar.
+- Ver perguntas sugeridas que são atualizadas junto com a página.
+- Ativar os resumos Passive opcionais, pausá-los com Alt+P e consultar o custo por hora.
+- Ver um guia sobre os controles reais da página. Traduza o texto no próprio lugar e use Restore para recuperá-lo.
+- Selecionar um texto para explicar, traduzir ou perguntar sobre ele. Também é possível abrir PDFs no leitor incluído e fazer perguntas.
 
-O atalho do navegador é Ctrl+Shift+S (Cmd+Shift+S no Mac). Ele inicia o recorte no navegador. O atalho global padrão é Ctrl+Shift+7, pois o Chrome exige uma tecla numérica nos atalhos globais. Você pode alterá-lo, inclusive para S, em `chrome://extensions/shortcuts`.
+![Guiar esta página](assets/guide.gif)
+
+![Área selecionada](assets/crop.gif)
+
+| Atalho                              | Ação                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| Alt+Shift+G                         | Abre o Glimpselet. Escolha **Float** para abrir o chat flutuante.                   |
+| Ctrl+Shift+S (Cmd+Shift+S no macOS) | Recorta a página atual ou a tela compartilhada.                                     |
+| Ctrl+Shift+7 (Cmd+Shift+7 no macOS) | Recorta a partir de qualquer aplicativo. Altere em `chrome://extensions/shortcuts`. |
+| Segurar Shift                       | Inicia um recorte em uma bolha ou página do Glimpselet.                             |
+| Alt+P                               | Pausa os resumos Passive.                                                           |
+
+No macOS, Cmd+Shift+5 abre a ferramenta de captura de tela do sistema. Shift em uma página só funciona nas páginas do Glimpselet. Não pode receber teclas em outros aplicativos.
+
+**Float** é a primeira ação. A extensão pede acesso à página quando você usa um recurso que precisa dele. Não é necessária uma chave de API do provedor quando você usa sua própria sessão conectada do Claude Code. O modo de API direta é opcional e exige sua própria chave de API.
 
 ## Sessões do Claude Code
 
-O suporte documentado a MCP channels permite enviar mensagens para uma sessão do Claude Code já em execução. O Glimpselet mostra as respostas a partir dos blocos da ferramenta de resposta do channel. O modelo e as permissões continuam sob controle da sessão no terminal. Para adicionar o channel personalizado do Glimpselet, reinicie a sessão com o channel de desenvolvimento ativado e execute `/glimpse`:
+Veja [Sessões do Claude Code](docs/DESIGN.md#the-running-claude-code-conversation) para o comando e a configuração da prévia de channels. Sem o channel, o Glimpselet pode continuar uma sessão selecionada em outro processo. Isso é uma continuação paralela. Não use essa sessão no terminal ao mesmo tempo, pois o acesso simultâneo pode causar conflitos.
 
-```sh
-claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
-```
+## Limites e privacidade
 
-Sem o channel, o Glimpselet pode continuar a mesma sessão em outro processo no modo print com `claude --resume SESSION_ID -p`. Essa é uma continuação em paralelo. Não execute enquanto o processo do terminal estiver usando a mesma sessão. o acesso simultâneo pode gerar conflitos.
+O Glimpselet funciona no Chrome, Edge e outros navegadores Chromium para desktop. O aviso de desenvolvedor permanece até a distribuição em uma loja, e as atualizações são manuais. Algumas páginas, como configurações do navegador, lojas de extensões e páginas restritas, bloqueiam o acesso. O leitor de PDF integrado do Chrome não é acessível. Use o leitor do Glimpselet. Aplicativos nativos fornecem apenas pixels, sem texto de página ou sobreposições. Shift funciona somente nas superfícies de navegador do próprio Glimpselet, não em outro aplicativo. A janela flutuante não permite que cliques passem por ela.
 
-## Limites
+As perguntas sugeridas automaticamente usam o contexto da página somente com seu consentimento. Resumos passivos são opcionais e exigem o compartilhamento de uma guia inspecionada. Se a origem compartilhada for uma janela, tela, aplicativo nativo, origem desconhecida ou inacessível, os resumos automáticos pausam. Perguntas e capturas manuais continuam disponíveis.
 
-- Somente Chrome, Edge e outros navegadores Chromium.
-- Páginas internas do navegador, como `chrome://`, a loja de extensões e algumas páginas gerenciadas bloqueiam o acesso.
-- O Glimpselet não desenha sobre aplicativos nativos. Você pode compartilhar a tela e perguntar sobre a imagem, mas não há sobreposições de página nem ações em texto.
-- Abra PDFs no leitor Glimpselet incluído. O visualizador de PDF integrado ao Chrome não é uma página acessível.
-- A API Document Picture-in-Picture do navegador não oferece passagem de cliques, então a janela flutuante não pode encaminhar cliques para outro aplicativo. O navegador pode não garantir a janela flutuante nem a abertura automática. Mantenha a página da extensão aberta enquanto usar a janela flutuante.
-
-## Privacidade
-
-Não há telemetria. Com consentimento, o texto da página pode ser enviado para gerar perguntas sugeridas. Perguntas e resumos passivos opcionais também podem enviar texto e imagens relevantes. Os quadros ficam na memória e só são enviados à ponte em solicitações de captura ou pergunta. No modo ponte, a CLI é executada no host e os registros da sessão ficam lá. O modo de API direta envia solicitações pela extensão. Chaves de API e tokens da ponte ficam no armazenamento de sessão do navegador. As preferências ficam no armazenamento local. Consulte [segurança e privacidade](docs/SECURITY.md) para os fluxos de dados.
-
-## Mais informações
-
-[Instalação](docs/INSTALL.md) | [Uso](docs/USAGE.md) | [Design e integração](docs/DESIGN.md) | [Preparação para lojas](docs/STORE.md) | [Notas da versão](docs/releases/v2.0.0.md)
-
-## Disclosure
+[Guia de instalação](docs/INSTALL.md) | [Uso](docs/USAGE.md) | [Design](docs/DESIGN.md) | [Detalhes de privacidade](docs/SECURITY.md)
 
 Assisted by Claude/Codex.

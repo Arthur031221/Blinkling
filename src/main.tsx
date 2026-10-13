@@ -1300,6 +1300,22 @@ function App() {
       >
         {floatDoc ? t.returnOpener : t.floating}
       </button>
+      {demo && (
+        <aside className="demo-notice">
+          <div>
+            <strong>{t.demoRequirementsTitle}</strong>
+            <p>{t.demoRequirements}</p>
+          </div>
+          <a
+            className="primary demo-install"
+            href="https://github.com/Arthur031221/Glimpselet#install"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t.install}
+          </a>
+        </aside>
+      )}
       <div className="status">
         <span className="status-source">
           <span

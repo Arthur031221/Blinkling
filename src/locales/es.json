@@ -120,5 +120,8 @@
   "resizeHelp": "Arrastra para cambiar el tamaño o usa las teclas de flecha. También puedes arrastrar los bordes de la ventana.",
   "scopeSent": "Último fotograma enviado",
   "resumePreview": "Mostrar vista en directo",
-  "pausePassive": "Pausar notas pasivas"
+  "pausePassive": "Pausar notas pasivas",
+  "install": "Instalar",
+  "demoRequirementsTitle": "Se necesita un navegador de escritorio",
+  "demoRequirements": "La ventana flotante requiere Chrome o Edge para escritorio."
 }

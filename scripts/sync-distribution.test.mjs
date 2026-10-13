@@ -40,18 +40,6 @@ const localizedLabels = [
   ["從 Chrome 線上應用程式商店安裝", "從 Microsoft Edge Add-ons 安裝"],
 ];
 
-const unpackedInstructions = [
-  "Load unpacked",
-  "Entpackte Erweiterung laden",
-  "Cargar descomprimida",
-  "Charger l'extension non empaquetée",
-  "パッケージ化されていない拡張機能を読み込む",
-  "압축해제된 확장 프로그램을 로드",
-  "Carregar sem compactação",
-  "加载已解压的扩展程序",
-  "載入未封裝項目",
-];
-
 let temporaryRoot;
 
 async function makeCopy(config) {
@@ -108,8 +96,19 @@ describe("distribution README sync", () => {
       expect(content).not.toMatch(
         new RegExp(`^[ \\t]*>.*${WARNING_MARKER.source}`, "im"),
       );
-      expect(content.indexOf(unpackedInstructions[index])).toBeGreaterThan(
-        content.indexOf("###"),
+      const advancedStart = content.indexOf("###");
+      const advancedEnd = content.indexOf("\n## ", advancedStart);
+      const advanced = content.slice(advancedStart, advancedEnd);
+      expect(advanced).toContain("~/.glimpselet/extension");
+      expect(advanced).toContain("chrome://extensions");
+      expect(content.slice(0, advancedStart)).not.toContain("Load unpacked");
+      expect(content.slice(0, advancedStart)).not.toContain("37115");
+      expect(content.slice(0, advancedStart)).toContain("3.");
+      expect(content.slice(advancedEnd)).not.toMatch(
+        /developer banner|Entwicklermodus-Hinweis|개발자 배너|开发者提示|開發者提示/,
+      );
+      expect(content.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(
+        true,
       );
     }
 

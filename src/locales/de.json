@@ -120,5 +120,8 @@
   "resizeHelp": "Zum Ändern ziehen oder die Pfeiltasten verwenden. Du kannst auch die Fensterränder ziehen.",
   "scopeSent": "Zuletzt gesendetes Bild",
   "resumePreview": "Livevorschau anzeigen",
-  "pausePassive": "Passive Notizen pausieren"
+  "pausePassive": "Passive Notizen pausieren",
+  "install": "Installieren",
+  "demoRequirementsTitle": "Desktop-Browser erforderlich",
+  "demoRequirements": "Das schwebende Fenster erfordert Chrome oder Edge auf dem Desktop."
 }

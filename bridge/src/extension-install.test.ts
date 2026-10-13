@@ -9,6 +9,7 @@ import {
   installGuide,
   loadDistributionConfig,
   selectedStoreUrl,
+  tunnelCommand,
 } from "./extension-install.js";
 
 describe("extension distribution and first-run guide", () => {
@@ -59,6 +60,9 @@ describe("extension distribution and first-run guide", () => {
     expect(guide).toContain('id="progress"');
     expect(guide).toContain('id="tunnel-command"');
     expect(guide).toContain("Copy SSH command");
+    expect(guide).toContain("Glimpselet is ready when you are.");
+    expect(guide).not.toContain("Blink is ready when you are.");
+    expect(guide).toContain("Click Pair extension in the browser window");
     expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet-install-tour-v1");
     expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet-welcome-sample.html");
     expect(INSTALL_GUIDE_SCRIPT).toContain("titles:[");
@@ -71,12 +75,54 @@ describe("extension distribution and first-run guide", () => {
     expect(INSTALL_GUIDE_SCRIPT).toContain("result.tunnelCommand");
     expect(INSTALL_GUIDE_SCRIPT).toContain("copy-tunnel");
     expect(INSTALL_GUIDE_SCRIPT).toContain("copyTunnelFail");
+    expect(INSTALL_GUIDE_SCRIPT).toContain("tryStarted");
+    expect(INSTALL_GUIDE_SCRIPT).toContain("extensionReady");
+    expect(INSTALL_GUIDE_SCRIPT).not.toContain("autoPairing");
+    expect(INSTALL_GUIDE_SCRIPT).toContain("pair-controls').hidden=true");
     expect(() => new Function(INSTALL_GUIDE_SCRIPT)).not.toThrow();
+  });
+
+  it("uses the validated SSH server port while preserving default and IPv6 commands", () => {
+    expect(
+      tunnelCommand(37115, {
+        SSH_CONNECTION: "192.0.2.4 41000 10.0.0.3 22",
+        GLIMPSELET_SSH_USER: "reader",
+      }),
+    ).toBe("ssh -N -L 37115:127.0.0.1:37115 reader@10.0.0.3");
+    expect(
+      tunnelCommand(37115, {
+        SSH_CONNECTION: "192.0.2.4 41000 10.0.0.3 46797",
+        GLIMPSELET_SSH_USER: "reader",
+      }),
+    ).toBe("ssh -N -p 46797 -L 37115:127.0.0.1:37115 reader@10.0.0.3");
+    expect(
+      tunnelCommand(37115, {
+        SSH_CONNECTION: "192.0.2.4 41000 2001:db8::3 46797",
+        GLIMPSELET_SSH_USER: "reader",
+        GLIMPSELET_SSH_PORT: "5522",
+      }),
+    ).toBe("ssh -N -p 5522 -L 37115:127.0.0.1:37115 reader@[2001:db8::3]");
+    for (const invalid of ["0", "65536", "22;touch", "abc"]) {
+      expect(
+        tunnelCommand(37115, {
+          SSH_CONNECTION: "1 2 host.example 46797",
+          GLIMPSELET_SSH_PORT: invalid,
+        }),
+      ).toBeUndefined();
+    }
   });
 
   it("uses the fixture message actions for all eight hands-on steps", async () => {
     const fixture = await readFile(
       join(process.cwd(), "public/assets/glimpselet-welcome-sample.html"),
+      "utf8",
+    );
+    expect(fixture).toContain(
+      '<script src="/assets/glimpselet-welcome-sample.js"></script>',
+    );
+    expect(fixture).not.toContain("<script>");
+    const fixtureScript = await readFile(
+      join(process.cwd(), "public/assets/glimpselet-welcome-sample.js"),
       "utf8",
     );
     for (const action of [
@@ -90,14 +136,16 @@ describe("extension distribution and first-run guide", () => {
       "pdf",
     ]) {
       expect(INSTALL_GUIDE_SCRIPT).toContain(`'${action}'`);
-      expect(fixture).toContain(`"${action}"`);
+      expect(fixtureScript).toContain(`"${action}"`);
     }
-    expect(fixture).toContain("glimpselet:tutorial-action");
-    expect(fixture).toContain("glimpselet:tutorial:ready");
-    expect(fixture).toContain("event.source !== window.opener");
-    expect(fixture).toContain('new CustomEvent("glimpselet:tutorial-action"');
-    expect(fixture).toContain('type: "glimpselet:tutorial-action"');
-    expect(fixture).toContain("version: 1");
+    expect(fixtureScript).toContain("glimpselet:tutorial-action");
+    expect(fixtureScript).toContain("glimpselet:tutorial:ready");
+    expect(fixtureScript).toContain("event.source !== window.opener");
+    expect(fixtureScript).toContain(
+      'new CustomEvent("glimpselet:tutorial-action"',
+    );
+    expect(fixtureScript).toContain('type: "glimpselet:tutorial-action"');
+    expect(fixtureScript).toContain("version: 1");
   });
 
   it("loads only store URL fields from the one distribution file", async () => {

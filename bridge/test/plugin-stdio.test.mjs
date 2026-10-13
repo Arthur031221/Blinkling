@@ -18,6 +18,7 @@ import { PNG } from "pngjs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import WebSocket from "ws";
+import { inflateRawSync } from "node:zlib";
 
 const extensionOrigin = `chrome-extension://${"a".repeat(32)}`;
 const image = () => {
@@ -154,11 +155,50 @@ test(
     assert.equal(guide.status, 200);
     const guideText = await guide.text();
     assert.match(guideText, /Connect your browser/);
-    assert.ok(
-      guideText.includes(
-        `/releases/download/v${version}/glimpselet-extension.zip`,
-      ),
-      "Install guide must use its own package version",
+    assert.match(guideText, /\/install\/extension\.zip/);
+    const download = await fetch(`${panel}/install/extension.zip?code=${code}`);
+    assert.equal(download.status, 200);
+    assert.equal(download.headers.get("content-type"), "application/zip");
+    const archive = Buffer.from(await download.arrayBuffer());
+    const end = archive.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+    let offset = archive.readUInt32LE(end + 16);
+    let manifest;
+    for (let index = 0; index < archive.readUInt16LE(end + 10); index++) {
+      assert.equal(archive.readUInt32LE(offset), 0x02014b50);
+      const nameLength = archive.readUInt16LE(offset + 28);
+      const name = archive.toString(
+        "utf8",
+        offset + 46,
+        offset + 46 + nameLength,
+      );
+      if (name === "manifest.json") {
+        const local = archive.readUInt32LE(offset + 42);
+        const start =
+          local +
+          30 +
+          archive.readUInt16LE(local + 26) +
+          archive.readUInt16LE(local + 28);
+        const bytes = archive.subarray(
+          start,
+          start + archive.readUInt32LE(offset + 20),
+        );
+        manifest = JSON.parse(
+          (archive.readUInt16LE(offset + 10) === 8
+            ? inflateRawSync(bytes)
+            : bytes
+          ).toString(),
+        );
+      }
+      offset +=
+        46 +
+        nameLength +
+        archive.readUInt16LE(offset + 30) +
+        archive.readUInt16LE(offset + 32);
+    }
+    assert.equal(
+      manifest?.version,
+      version,
+      "Downloaded extension must use its own package version",
     );
 
     const invalidExchange = await fetch(`${panel}/api/session`, {

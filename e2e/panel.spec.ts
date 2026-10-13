@@ -17,6 +17,24 @@ test("floating is a prominent action before a session starts", async ({
   ).toBe(true);
 });
 
+test("the public demo offers installation and desktop browser requirements", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 680 });
+  await page.goto("/?demo=1");
+  await expect(page.locator(".demo-notice")).toContainText("Chrome");
+  await expect(page.locator(".demo-notice")).toContainText("Edge");
+  const install = page.locator(".demo-install");
+  await expect(install).toBeVisible();
+  await expect(install).toHaveAttribute(
+    "href",
+    "https://github.com/Arthur031221/Glimpselet#install",
+  );
+  await expect(
+    page.getByRole("button", { name: "Float panel", exact: true }),
+  ).toBeEnabled();
+});
+
 test("panel status and capture controls fit narrow and wide windows", async ({
   page,
 }) => {
