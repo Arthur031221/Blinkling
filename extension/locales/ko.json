@@ -2,7 +2,7 @@
   "actionExplain": "내용 설명",
   "actionTranslate": "번역하기",
   "activationNeeded": "플로팅 창을 열 수 없습니다. 대신 팝업을 여세요.",
-  "answerReady": "답변이 준비되었습니다. 질문할 때 이미지가 제공업체로 전송됩니다.",
+  "answerReady": "답변이 준비되었습니다.",
   "apiAuth": "API 키가 거부되었습니다. 확인 후 다시 시도하세요.",
   "apiKey": "Anthropic API 키",
   "apiMode": "Anthropic API",

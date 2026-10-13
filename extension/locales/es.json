@@ -2,7 +2,7 @@
   "actionExplain": "Explicar esto",
   "actionTranslate": "Traducir",
   "activationNeeded": "No se pudo abrir la ventana flotante. Abre una ventana emergente en su lugar.",
-  "answerReady": "Respuesta lista. La imagen se envía al proveedor cuando preguntas.",
+  "answerReady": "Respuesta lista.",
   "apiAuth": "Clave API rechazada. Revísala e inténtalo de nuevo.",
   "apiKey": "Clave de API de Anthropic",
   "apiMode": "API de Anthropic",

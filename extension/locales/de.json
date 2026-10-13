@@ -2,7 +2,7 @@
   "actionExplain": "Inhalt erklären",
   "actionTranslate": "Übersetzen",
   "activationNeeded": "Das schwebende Fenster ließ sich nicht öffnen. Öffne stattdessen ein Popup.",
-  "answerReady": "Antwort bereit. Beim Fragen wird das Bild an den Anbieter gesendet.",
+  "answerReady": "Antwort bereit.",
   "apiAuth": "API-Schlüssel abgelehnt. Prüfen und erneut versuchen.",
   "apiKey": "Anthropic-API-Schlüssel",
   "apiMode": "Anthropic-API",

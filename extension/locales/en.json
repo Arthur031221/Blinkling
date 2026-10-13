@@ -2,7 +2,7 @@
   "actionExplain": "Explain this",
   "actionTranslate": "Translate this",
   "activationNeeded": "The floating window could not open. Open a popup instead.",
-  "answerReady": "Answer ready. The provider receives the image when you ask.",
+  "answerReady": "Answer ready.",
   "apiAuth": "API key rejected. Check it and try again.",
   "apiKey": "Anthropic API key",
   "apiMode": "Anthropic API",

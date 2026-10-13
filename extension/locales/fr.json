@@ -2,7 +2,7 @@
   "actionExplain": "Expliquer ceci",
   "actionTranslate": "Traduire",
   "activationNeeded": "La fenêtre flottante n'a pas pu s'ouvrir. Ouvrez plutôt une fenêtre contextuelle.",
-  "answerReady": "Réponse prête. L'image est envoyée au fournisseur lorsque vous posez une question.",
+  "answerReady": "Réponse prête.",
   "apiAuth": "Clé API refusée. Vérifiez-la puis réessayez.",
   "apiKey": "Clé API Anthropic",
   "apiMode": "API Anthropic",

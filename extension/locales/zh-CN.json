@@ -2,7 +2,7 @@
   "actionExplain": "解释内容",
   "actionTranslate": "翻译画面",
   "activationNeeded": "无法打开浮动窗口。请改为打开弹出窗口。",
-  "answerReady": "回答已就绪。提问时才会将图片发送给服务商。",
+  "answerReady": "回答已就绪。",
   "apiAuth": "API 密钥被拒绝，请检查后重试。",
   "apiKey": "Anthropic API 密钥",
   "apiMode": "Anthropic API",

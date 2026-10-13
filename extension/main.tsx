@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
+import { safeMarkdown } from "../src/sanitize";
 import {
   BridgeClient,
   askAnthropic,
@@ -2515,10 +2516,15 @@ function App() {
                   <span>
                     {entry.kind === "passive" ? t.pageNote : t.blinkAnswer}
                   </span>
-                  <p>
-                    {entry.answer ||
-                      (busy && activeId === entry.id ? answer : "")}
-                  </p>
+                  <div
+                    className="markdown"
+                    dangerouslySetInnerHTML={{
+                      __html: safeMarkdown(
+                        entry.answer ||
+                          (busy && activeId === entry.id ? answer : ""),
+                      ),
+                    }}
+                  />
                   <div className="message-actions">
                     <button onClick={() => void copy(entry.answer || answer)}>
                       {t.copy}

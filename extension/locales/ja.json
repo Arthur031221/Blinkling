@@ -2,7 +2,7 @@
   "actionExplain": "内容を説明",
   "actionTranslate": "翻訳する",
   "activationNeeded": "フローティングウィンドウを開けませんでした。代わりにポップアップを開いてください。",
-  "answerReady": "回答を表示しました。質問時に画像がプロバイダーへ送信されます。",
+  "answerReady": "回答が届きました。",
   "apiAuth": "APIキーが拒否されました。確認して再試行してください。",
   "apiKey": "Anthropic API キー",
   "apiMode": "Anthropic API",

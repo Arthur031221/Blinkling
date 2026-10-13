@@ -2,7 +2,7 @@
   "actionExplain": "解釋內容",
   "actionTranslate": "翻譯畫面",
   "activationNeeded": "無法開啟浮動視窗。請改為開啟彈出視窗。",
-  "answerReady": "回答已就緒。提問時才會將圖片傳送給供應商。",
+  "answerReady": "回答已就緒。",
   "apiAuth": "API 金鑰遭拒，請檢查後重試。",
   "apiKey": "Anthropic API 金鑰",
   "apiMode": "Anthropic API",

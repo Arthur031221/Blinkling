@@ -2,7 +2,7 @@
   "actionExplain": "Explicar isto",
   "actionTranslate": "Traduzir",
   "activationNeeded": "Não foi possível abrir a janela flutuante. Abra uma janela pop-up no lugar.",
-  "answerReady": "Resposta pronta. A imagem é enviada ao provedor quando você pergunta.",
+  "answerReady": "Resposta pronta.",
   "apiAuth": "Chave de API rejeitada. Confira e tente novamente.",
   "apiKey": "Chave de API da Anthropic",
   "apiMode": "API da Anthropic",
