@@ -1047,13 +1047,26 @@ for (const permission of ["onboarding", "capture gesture"] as const) {
       )
       .toBe(true);
     await site.bringToFront();
-    await nativeClick(".capture-buttons button:nth-child(2)", true);
+    await nativeClick(`button[aria-label="${en.moreTools}"]`, true);
+    const captureButton = await panel.evaluate((label) => {
+      const buttons = [
+        ...window.documentPictureInPicture.window!.document.querySelectorAll(
+          ".tools-menu button",
+        ),
+      ];
+      const index = buttons.findIndex(
+        (button) => button.textContent?.trim() === label,
+      );
+      if (index < 0) throw new Error(`Capture button not found: ${label}`);
+      return `.tools-menu button:nth-child(${index + 1})`;
+    }, en.visible);
+    await nativeClick(captureButton, true);
     if (permission === "capture gesture")
       await answerPermission("Allow", testInfo);
     const preview = () =>
       panel.evaluate(
         () =>
-          window.documentPictureInPicture.window!.document.querySelector<HTMLImageElement>(
+          window.documentPictureInPicture.window?.document.querySelector<HTMLImageElement>(
             ".capture-chip img",
           )?.src,
       );
