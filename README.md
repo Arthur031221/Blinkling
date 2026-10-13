@@ -45,7 +45,7 @@ claude --plugin-dir "$PWD"
 
 Both version checks must print **2.0.0**, and the plugin list must show `glimpselet@inline` at **2.0.0**, enabled for this session. In the Claude Code session opened by the last command, run `/glimpselet:glimpse`. The `--plugin-dir` flag loads your checkout for that session. Use it each time you launch Claude Code from source, and restart that session after rebuilding. The built extension is in `dist-extension` inside the checkout.
 
-The plugin details must also list the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is in `bin/extension`; its version must also be **2.0.0**. If Claude Code is remote, use the guide's SSH command, download its extension ZIP on the browser computer, and load the extracted folder there.
+The plugin details must also list the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is in `bin/extension`. Its version must also be **2.0.0**. If Claude Code is remote, use the guide's SSH command, download its extension ZIP on the browser computer, and load the extracted folder there.
 
 If your browser and Claude Code run on the same computer, the welcome guide copies the built extension to the stable folder `~/.glimpselet/extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
 
