@@ -463,7 +463,8 @@ function App() {
       shareRef.current?.getTracks().forEach((track) => track.stop());
       shareRef.current = null;
       setShareStream(null);
-      void bridge.send({ type: "share", active: false }).catch(() => {});
+      if (backend === "bridge")
+        void bridge.send({ type: "share", active: false }).catch(() => {});
     };
     child.addEventListener("resize", remember);
     child.addEventListener("pagehide", close, { once: true });
@@ -471,7 +472,7 @@ function App() {
       child.removeEventListener("resize", remember);
       child.removeEventListener("pagehide", close);
     };
-  }, [pipDoc]);
+  }, [pipDoc, backend]);
   useEffect(() => {
     if (!showSettings && !showSessions) return;
     const dialogDocument = pipDoc || document;
@@ -576,7 +577,7 @@ function App() {
         else schedulePageRefresh();
       }
       if (value.type === "glimpselet:selection") {
-        const selected = String(value.text || "").slice(0, 1200);
+        const selected = String(value.text || "");
         const action = String(value.action || "ask");
         const prompt =
           action === "translate"
@@ -1074,13 +1075,18 @@ function App() {
         track.addEventListener(
           "ended",
           () => {
+            shareRef.current = null;
             setShareStream(null);
-            void bridge.send({ type: "share", active: false });
+            if (backend === "bridge")
+              void bridge
+                .send({ type: "share", active: false })
+                .catch(() => {});
             setStatus(t.shareEnded);
           },
           { once: true },
         );
-        await bridge.send({ type: "share", active: true });
+        if (backend === "bridge")
+          await bridge.send({ type: "share", active: true });
         setStatus(t.sharing);
       } else {
         await requestSiteAccess();
@@ -1108,7 +1114,8 @@ function App() {
     shareRef.current?.getTracks().forEach((track) => track.stop());
     shareRef.current = null;
     setShareStream(null);
-    void bridge.send({ type: "share", active: false }).catch(() => {});
+    if (backend === "bridge")
+      void bridge.send({ type: "share", active: false }).catch(() => {});
     setStatus(t.shareEnded);
   }
   function setCompact(compact: boolean) {

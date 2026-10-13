@@ -2,6 +2,7 @@ import * as pdfjs from "pdfjs-dist";
 import "./content";
 import { buildPageContext } from "./page-context";
 import { encodeCanvasPng } from "./png";
+import { parseReaderPdfUrl, readerUrlOriginPattern } from "./reader-url";
 import {
   formatReaderText,
   readerLocales,
@@ -344,34 +345,26 @@ async function ask(
     setStatus("actionError");
   }
 }
-function isHttpPdfUrl(value: string): URL | undefined {
-  try {
-    const parsed = new URL(value);
-    if (
-      !/^https?:$/.test(parsed.protocol) ||
-      !parsed.hostname ||
-      parsed.username ||
-      parsed.password
-    )
-      return undefined;
-    return parsed;
-  } catch {
-    return undefined;
-  }
-}
 urlForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const intent = ++sourceIntent;
   const value = urlInput.value.trim();
-  const parsed = isHttpPdfUrl(value);
+  const parsed = parseReaderPdfUrl(value);
   if (!parsed) {
     setStatus("badUrl");
     return;
   }
-  const origin = `${parsed.protocol}//${parsed.host}/*`;
-  // Request directly in this submit gesture so Chrome can show its site permission prompt.
-  void chrome.permissions
-    .request({ origins: [origin] })
+  // Keep this call in the submit gesture so Chrome can show its permission prompt.
+  let permissionRequest: Promise<boolean>;
+  try {
+    permissionRequest = chrome.permissions.request({
+      origins: [readerUrlOriginPattern(parsed)],
+    });
+  } catch {
+    setStatus("permissionDenied");
+    return;
+  }
+  void permissionRequest
     .then((granted: boolean) => {
       if (intent !== sourceIntent) return;
       if (!granted) {
@@ -455,6 +448,36 @@ void initializeLocale().then(() => {
   const initialUrl = new URL(location.href).searchParams.get("url");
   if (initialUrl) {
     urlInput.value = initialUrl;
-    urlForm.requestSubmit();
+    const intent = sourceIntent;
+    const parsed = parseReaderPdfUrl(initialUrl.trim());
+    if (!parsed) {
+      setStatus("badUrl");
+      return;
+    }
+    void chrome.permissions
+      .contains({ origins: [readerUrlOriginPattern(parsed)] })
+      .then((granted: boolean) => {
+        if (
+          intent !== sourceIntent ||
+          urlInput.value.trim() !== initialUrl.trim()
+        )
+          return;
+        if (!granted) {
+          setStatus("permissionRequired");
+          return;
+        }
+        const leaf =
+          parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
+        let title = leaf;
+        try {
+          title = decodeURIComponent(leaf);
+        } catch {
+          /* Keep the URL-encoded name. */
+        }
+        void loadDocument(parsed.href, title, intent);
+      })
+      .catch(() => {
+        if (intent === sourceIntent) setStatus("permissionRequired");
+      });
   }
 });

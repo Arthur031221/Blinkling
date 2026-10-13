@@ -27021,6 +27021,21 @@ function encodeCanvasPng(source) {
   }
 }
 
+// extension/reader-url.ts
+function parseReaderPdfUrl(value) {
+  try {
+    const parsed = new URL(value);
+    if (!/^https?:$/.test(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password)
+      return void 0;
+    return parsed;
+  } catch {
+    return void 0;
+  }
+}
+function readerUrlOriginPattern(parsed) {
+  return `${parsed.protocol}//${parsed.host}/*`;
+}
+
 // extension/reader-locales.ts
 var readerLocales = {
   en: {
@@ -27044,6 +27059,7 @@ var readerLocales = {
     ready: "{count} pages ready. Select text or choose an action.",
     openError: "Could not open this PDF. Check the URL permission or choose a file from your device.",
     badUrl: "Enter a PDF link beginning with https:// or http://.",
+    permissionRequired: "Allow access to this PDF site by selecting Open URL.",
     permissionDenied: "Permission was not granted for this PDF site.",
     tooLarge: "This PDF is larger than 100 MB. Choose a smaller file.",
     openFirst: "Open a PDF first.",
@@ -27079,6 +27095,7 @@ var readerLocales = {
     ready: "\u5171 {count} \u9801\uFF0C\u5DF2\u5C31\u7DD2\u3002\u9078\u53D6\u6587\u5B57\u6216\u9078\u64C7\u64CD\u4F5C\u3002",
     openError: "\u7121\u6CD5\u958B\u555F\u6B64 PDF\u3002\u8ACB\u6AA2\u67E5\u7DB2\u5740\u6B0A\u9650\u6216\u5F9E\u88DD\u7F6E\u9078\u64C7\u6A94\u6848\u3002",
     badUrl: "\u8ACB\u8F38\u5165\u4EE5 https:// \u6216 http:// \u958B\u982D\u7684 PDF \u9023\u7D50\u3002",
+    permissionRequired: "\u8ACB\u9078\u53D6\u300C\u958B\u555F\u7DB2\u5740\u300D\u4EE5\u5141\u8A31\u5B58\u53D6\u6B64 PDF \u7DB2\u7AD9\u3002",
     permissionDenied: "\u672A\u6388\u4E88\u6B64 PDF \u7DB2\u7AD9\u7684\u6B0A\u9650\u3002",
     tooLarge: "\u6B64 PDF \u8D85\u904E 100 MB\uFF0C\u8ACB\u9078\u64C7\u8F03\u5C0F\u7684\u6A94\u6848\u3002",
     openFirst: "\u8ACB\u5148\u958B\u555F PDF\u3002",
@@ -27114,6 +27131,7 @@ var readerLocales = {
     ready: "\u5171 {count} \u9875\uFF0C\u5DF2\u5C31\u7EEA\u3002\u9009\u62E9\u6587\u672C\u6216\u6267\u884C\u64CD\u4F5C\u3002",
     openError: "\u65E0\u6CD5\u6253\u5F00\u6B64 PDF\u3002\u8BF7\u68C0\u67E5\u7F51\u5740\u6743\u9650\uFF0C\u6216\u4ECE\u8BBE\u5907\u9009\u62E9\u6587\u4EF6\u3002",
     badUrl: "\u8BF7\u8F93\u5165\u4EE5 https:// \u6216 http:// \u5F00\u5934\u7684 PDF \u94FE\u63A5\u3002",
+    permissionRequired: "\u8BF7\u9009\u62E9\u6253\u5F00\u7F51\u5740\u4EE5\u5141\u8BB8\u8BBF\u95EE\u6B64 PDF \u7F51\u7AD9\u3002",
     permissionDenied: "\u672A\u83B7\u5F97\u6B64 PDF \u7F51\u7AD9\u7684\u8BBF\u95EE\u6743\u9650\u3002",
     tooLarge: "\u6B64 PDF \u8D85\u8FC7 100 MB\uFF0C\u8BF7\u9009\u62E9\u8F83\u5C0F\u7684\u6587\u4EF6\u3002",
     openFirst: "\u8BF7\u5148\u6253\u5F00 PDF\u3002",
@@ -27149,6 +27167,7 @@ var readerLocales = {
     ready: "\u5168 {count} \u30DA\u30FC\u30B8\u3092\u8AAD\u307F\u8FBC\u307F\u307E\u3057\u305F\u3002\u30C6\u30AD\u30B9\u30C8\u3092\u9078\u629E\u3059\u308B\u304B\u64CD\u4F5C\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
     openError: "PDF \u3092\u958B\u3051\u307E\u305B\u3093\u3002URL \u306E\u6A29\u9650\u3092\u78BA\u8A8D\u3059\u308B\u304B\u3001\u7AEF\u672B\u304B\u3089\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
     badUrl: "https:// \u307E\u305F\u306F http:// \u3067\u59CB\u307E\u308B PDF \u30EA\u30F3\u30AF\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    permissionRequired: "\u3053\u306E PDF \u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3059\u308B\u306B\u306F\u300CURL \u3092\u958B\u304F\u300D\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     permissionDenied: "\u3053\u306E PDF \u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u306F\u8A31\u53EF\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002",
     tooLarge: "PDF \u304C 100 MB \u3092\u8D85\u3048\u3066\u3044\u307E\u3059\u3002\u3088\u308A\u5C0F\u3055\u3044\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
     openFirst: "\u5148\u306B PDF \u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
@@ -27184,6 +27203,7 @@ var readerLocales = {
     ready: "\uCD1D {count}\uD398\uC774\uC9C0\uB97C \uBD88\uB7EC\uC654\uC2B5\uB2C8\uB2E4. \uD14D\uC2A4\uD2B8\uB97C \uC120\uD0DD\uD558\uAC70\uB098 \uC791\uC5C5\uC744 \uACE0\uB974\uC138\uC694.",
     openError: "PDF\uB97C \uC5F4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. URL \uAD8C\uD55C\uC744 \uD655\uC778\uD558\uAC70\uB098 \uAE30\uAE30\uC5D0\uC11C \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
     badUrl: "https:// \uB610\uB294 http://\uB85C \uC2DC\uC791\uD558\uB294 PDF \uB9C1\uD06C\uB97C \uC785\uB825\uD558\uC138\uC694.",
+    permissionRequired: "\uC774 PDF \uC0AC\uC774\uD2B8\uC5D0 \uC811\uADFC\uD558\uB824\uBA74 URL \uC5F4\uAE30\uB97C \uC120\uD0DD\uD558\uC138\uC694.",
     permissionDenied: "\uC774 PDF \uC0AC\uC774\uD2B8\uC5D0 \uB300\uD55C \uAD8C\uD55C\uC774 \uD5C8\uC6A9\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.",
     tooLarge: "PDF\uAC00 100MB\uBCF4\uB2E4 \uD07D\uB2C8\uB2E4. \uB354 \uC791\uC740 \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
     openFirst: "\uBA3C\uC800 PDF\uB97C \uC5EC\uC138\uC694.",
@@ -27219,6 +27239,7 @@ var readerLocales = {
     ready: "PDF listo: {count} p\xE1ginas. Selecciona texto o elige una acci\xF3n.",
     openError: "No se pudo abrir el PDF. Comprueba el permiso de la URL o elige un archivo del dispositivo.",
     badUrl: "Introduce un enlace PDF que empiece por https:// o http://.",
+    permissionRequired: "Selecciona Abrir URL para permitir el acceso a este sitio PDF.",
     permissionDenied: "No se concedi\xF3 permiso para este sitio PDF.",
     tooLarge: "Este PDF supera los 100 MB. Elige un archivo m\xE1s peque\xF1o.",
     openFirst: "Abre un PDF primero.",
@@ -27254,6 +27275,7 @@ var readerLocales = {
     ready: "PDF pr\xEAt : {count} pages. S\xE9lectionnez du texte ou choisissez une action.",
     openError: "Impossible d'ouvrir ce PDF. V\xE9rifiez l'autorisation de l'URL ou choisissez un fichier sur votre appareil.",
     badUrl: "Saisissez un lien PDF commen\xE7ant par https:// ou http://.",
+    permissionRequired: "S\xE9lectionnez Ouvrir l'URL pour autoriser l'acc\xE8s \xE0 ce site PDF.",
     permissionDenied: "L'acc\xE8s \xE0 ce site PDF n'a pas \xE9t\xE9 autoris\xE9.",
     tooLarge: "Ce PDF d\xE9passe 100 Mo. Choisissez un fichier plus petit.",
     openFirst: "Ouvrez d'abord un PDF.",
@@ -27289,6 +27311,7 @@ var readerLocales = {
     ready: "PDF bereit: {count} Seiten. W\xE4hle Text oder eine Aktion.",
     openError: "PDF konnte nicht ge\xF6ffnet werden. Pr\xFCfe die URL-Berechtigung oder w\xE4hle eine Datei vom Ger\xE4t.",
     badUrl: "Gib einen PDF-Link ein, der mit https:// oder http:// beginnt.",
+    permissionRequired: "W\xE4hle URL \xF6ffnen, um den Zugriff auf diese PDF-Website zu erlauben.",
     permissionDenied: "Der Zugriff auf diese PDF-Website wurde nicht erlaubt.",
     tooLarge: "Diese PDF ist gr\xF6\xDFer als 100 MB. W\xE4hle eine kleinere Datei.",
     openFirst: "\xD6ffne zuerst eine PDF.",
@@ -27324,6 +27347,7 @@ var readerLocales = {
     ready: "PDF pronto: {count} p\xE1ginas. Selecione texto ou escolha uma a\xE7\xE3o.",
     openError: "N\xE3o foi poss\xEDvel abrir o PDF. Confira a permiss\xE3o da URL ou escolha um arquivo do dispositivo.",
     badUrl: "Digite um link PDF iniciado por https:// ou http://.",
+    permissionRequired: "Selecione Abrir URL para permitir o acesso a este site de PDF.",
     permissionDenied: "A permiss\xE3o para este site de PDF n\xE3o foi concedida.",
     tooLarge: "Este PDF tem mais de 100 MB. Escolha um arquivo menor.",
     openFirst: "Abra um PDF primeiro.",
@@ -27609,27 +27633,25 @@ async function ask(action) {
     setStatus("actionError");
   }
 }
-function isHttpPdfUrl(value) {
-  try {
-    const parsed = new URL(value);
-    if (!/^https?:$/.test(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password)
-      return void 0;
-    return parsed;
-  } catch {
-    return void 0;
-  }
-}
 urlForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const intent = ++sourceIntent;
   const value = urlInput.value.trim();
-  const parsed = isHttpPdfUrl(value);
+  const parsed = parseReaderPdfUrl(value);
   if (!parsed) {
     setStatus("badUrl");
     return;
   }
-  const origin = `${parsed.protocol}//${parsed.host}/*`;
-  void chrome.permissions.request({ origins: [origin] }).then((granted) => {
+  let permissionRequest;
+  try {
+    permissionRequest = chrome.permissions.request({
+      origins: [readerUrlOriginPattern(parsed)]
+    });
+  } catch {
+    setStatus("permissionDenied");
+    return;
+  }
+  void permissionRequest.then((granted) => {
     if (intent !== sourceIntent) return;
     if (!granted) {
       setStatus("permissionDenied");
@@ -27693,6 +27715,28 @@ void initializeLocale().then(() => {
   const initialUrl = new URL(location.href).searchParams.get("url");
   if (initialUrl) {
     urlInput.value = initialUrl;
-    urlForm.requestSubmit();
+    const intent = sourceIntent;
+    const parsed = parseReaderPdfUrl(initialUrl.trim());
+    if (!parsed) {
+      setStatus("badUrl");
+      return;
+    }
+    void chrome.permissions.contains({ origins: [readerUrlOriginPattern(parsed)] }).then((granted) => {
+      if (intent !== sourceIntent || urlInput.value.trim() !== initialUrl.trim())
+        return;
+      if (!granted) {
+        setStatus("permissionRequired");
+        return;
+      }
+      const leaf = parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
+      let title = leaf;
+      try {
+        title = decodeURIComponent(leaf);
+      } catch {
+      }
+      void loadDocument(parsed.href, title, intent);
+    }).catch(() => {
+      if (intent === sourceIntent) setStatus("permissionRequired");
+    });
   }
 });

@@ -21,6 +21,7 @@ export const readerLocales = {
     openError:
       "Could not open this PDF. Check the URL permission or choose a file from your device.",
     badUrl: "Enter a PDF link beginning with https:// or http://.",
+    permissionRequired: "Allow access to this PDF site by selecting Open URL.",
     permissionDenied: "Permission was not granted for this PDF site.",
     tooLarge: "This PDF is larger than 100 MB. Choose a smaller file.",
     openFirst: "Open a PDF first.",
@@ -60,6 +61,7 @@ export const readerLocales = {
     ready: "共 {count} 頁，已就緒。選取文字或選擇操作。",
     openError: "無法開啟此 PDF。請檢查網址權限或從裝置選擇檔案。",
     badUrl: "請輸入以 https:// 或 http:// 開頭的 PDF 連結。",
+    permissionRequired: "請選取「開啟網址」以允許存取此 PDF 網站。",
     permissionDenied: "未授予此 PDF 網站的權限。",
     tooLarge: "此 PDF 超過 100 MB，請選擇較小的檔案。",
     openFirst: "請先開啟 PDF。",
@@ -95,6 +97,7 @@ export const readerLocales = {
     ready: "共 {count} 页，已就绪。选择文本或执行操作。",
     openError: "无法打开此 PDF。请检查网址权限，或从设备选择文件。",
     badUrl: "请输入以 https:// 或 http:// 开头的 PDF 链接。",
+    permissionRequired: "请选择打开网址以允许访问此 PDF 网站。",
     permissionDenied: "未获得此 PDF 网站的访问权限。",
     tooLarge: "此 PDF 超过 100 MB，请选择较小的文件。",
     openFirst: "请先打开 PDF。",
@@ -132,6 +135,8 @@ export const readerLocales = {
     openError:
       "PDF を開けません。URL の権限を確認するか、端末からファイルを選んでください。",
     badUrl: "https:// または http:// で始まる PDF リンクを入力してください。",
+    permissionRequired:
+      "この PDF サイトへのアクセスを許可するには「URL を開く」を選択してください。",
     permissionDenied: "この PDF サイトへのアクセスは許可されませんでした。",
     tooLarge:
       "PDF が 100 MB を超えています。より小さいファイルを選んでください。",
@@ -174,6 +179,7 @@ export const readerLocales = {
     openError:
       "PDF를 열 수 없습니다. URL 권한을 확인하거나 기기에서 파일을 선택하세요.",
     badUrl: "https:// 또는 http://로 시작하는 PDF 링크를 입력하세요.",
+    permissionRequired: "이 PDF 사이트에 접근하려면 URL 열기를 선택하세요.",
     permissionDenied: "이 PDF 사이트에 대한 권한이 허용되지 않았습니다.",
     tooLarge: "PDF가 100MB보다 큽니다. 더 작은 파일을 선택하세요.",
     openFirst: "먼저 PDF를 여세요.",
@@ -214,6 +220,8 @@ export const readerLocales = {
     openError:
       "No se pudo abrir el PDF. Comprueba el permiso de la URL o elige un archivo del dispositivo.",
     badUrl: "Introduce un enlace PDF que empiece por https:// o http://.",
+    permissionRequired:
+      "Selecciona Abrir URL para permitir el acceso a este sitio PDF.",
     permissionDenied: "No se concedió permiso para este sitio PDF.",
     tooLarge: "Este PDF supera los 100 MB. Elige un archivo más pequeño.",
     openFirst: "Abre un PDF primero.",
@@ -256,6 +264,8 @@ export const readerLocales = {
     openError:
       "Impossible d'ouvrir ce PDF. Vérifiez l'autorisation de l'URL ou choisissez un fichier sur votre appareil.",
     badUrl: "Saisissez un lien PDF commençant par https:// ou http://.",
+    permissionRequired:
+      "Sélectionnez Ouvrir l'URL pour autoriser l'accès à ce site PDF.",
     permissionDenied: "L'accès à ce site PDF n'a pas été autorisé.",
     tooLarge: "Ce PDF dépasse 100 Mo. Choisissez un fichier plus petit.",
     openFirst: "Ouvrez d'abord un PDF.",
@@ -296,6 +306,8 @@ export const readerLocales = {
     openError:
       "PDF konnte nicht geöffnet werden. Prüfe die URL-Berechtigung oder wähle eine Datei vom Gerät.",
     badUrl: "Gib einen PDF-Link ein, der mit https:// oder http:// beginnt.",
+    permissionRequired:
+      "Wähle URL öffnen, um den Zugriff auf diese PDF-Website zu erlauben.",
     permissionDenied: "Der Zugriff auf diese PDF-Website wurde nicht erlaubt.",
     tooLarge: "Diese PDF ist größer als 100 MB. Wähle eine kleinere Datei.",
     openFirst: "Öffne zuerst eine PDF.",
@@ -337,6 +349,8 @@ export const readerLocales = {
     openError:
       "Não foi possível abrir o PDF. Confira a permissão da URL ou escolha um arquivo do dispositivo.",
     badUrl: "Digite um link PDF iniciado por https:// ou http://.",
+    permissionRequired:
+      "Selecione Abrir URL para permitir o acesso a este site de PDF.",
     permissionDenied: "A permissão para este site de PDF não foi concedida.",
     tooLarge: "Este PDF tem mais de 100 MB. Escolha um arquivo menor.",
     openFirst: "Abra um PDF primeiro.",

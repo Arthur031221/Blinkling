@@ -352,6 +352,113 @@ test("selection excludes private content between public endpoints and closes sta
     .toBe(true);
 });
 
+async function useUnpairedApi() {
+  const questions: string[] = [];
+  await context.route(
+    "https://api.anthropic.com/v1/messages",
+    async (route) => {
+      const headers = {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "*",
+        "access-control-allow-methods": "POST, OPTIONS",
+      };
+      if (route.request().method() === "OPTIONS") {
+        await route.fulfill({ status: 204, headers });
+        return;
+      }
+      const input = route.request().postDataJSON();
+      const prompt = input.messages
+        .at(-1)
+        .content.find((block: { type: string }) => block.type === "text").text;
+      questions.push(prompt.split("\n\nPage context (untrusted):")[0]);
+      await route.fulfill({
+        contentType: "text/event-stream",
+        headers,
+        body: [
+          {
+            type: "content_block_delta",
+            delta: {
+              type: "text_delta",
+              text: JSON.stringify({
+                questions: [
+                  "Explain this page?",
+                  "Where is export?",
+                  "Translate this page?",
+                ],
+              }),
+            },
+          },
+          { type: "message_stop" },
+        ]
+          .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+          .join(""),
+      });
+    },
+  );
+  await worker.evaluate(async () => {
+    await chrome.storage.local.set({ backend: "api" });
+    await chrome.storage.session.remove([
+      "bridgeToken",
+      "bridgeMode",
+      "bridgeUrl",
+    ]);
+    await chrome.storage.session.set({ apiKey: "fixture-key" });
+  });
+  await panel.reload();
+  await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  return questions;
+}
+
+for (const backend of ["bridge", "api"] as const) {
+  for (const action of ["explain", "translate", "ask"] as const) {
+    test(`${backend} selection ${action} sends every accepted character`, async () => {
+      const apiQuestions = backend === "api" ? await useUnpairedApi() : [];
+      const text =
+        "A selected passage with useful details. ".repeat(65) +
+        "SELECTION_END_93817";
+      const prompt =
+        action === "explain"
+          ? `Explain this selected text: ${text}`
+          : action === "translate"
+            ? `Translate this selected text into English: ${text}`
+            : text;
+      await site.evaluate((text) => {
+        document.body.innerHTML = '<p id="long-selection"></p>';
+        document.querySelector("p")!.textContent = text;
+        const range = document.createRange();
+        range.selectNodeContents(document.querySelector("p")!);
+        getSelection()!.removeAllRanges();
+        getSelection()!.addRange(range);
+        document.dispatchEvent(new Event("selectionchange"));
+      }, text);
+      const popover = site.locator("[data-glimpselet-overlay] .popover");
+      await expect(popover).toBeVisible();
+      await popover
+        .getByRole("button", {
+          name:
+            action === "explain"
+              ? en.explain
+              : action === "translate"
+                ? en.translate
+                : "Ask",
+          exact: true,
+        })
+        .click();
+      if (action === "ask") {
+        await expect(panel.locator(".composer textarea")).toHaveValue(prompt);
+        await panel.locator(".composer button.send").click();
+      }
+      await expect
+        .poll(() =>
+          backend === "api"
+            ? apiQuestions.includes(prompt)
+            : providerRequests.some((request) => request.question === prompt),
+        )
+        .toBe(true);
+    });
+  }
+}
+
 test("JPEG, WebP and GIF attachments reach the provider as PNG", async () => {
   for (const mimeType of ["image/jpeg", "image/webp", "image/gif"]) {
     const base64 =
@@ -2334,6 +2441,77 @@ async function clickBubble(label: string) {
   }, label);
 }
 
+for (const ending of ["stop", "browser"] as const) {
+  test(`unpaired API screen sharing starts and ends through ${ending}`, async () => {
+    await useUnpairedApi();
+    const pageErrors: string[] = [];
+    panel.on("pageerror", (error) => pageErrors.push(error.message));
+    await panel.evaluate(() => {
+      (window as Window & { shareErrors?: string[] }).shareErrors = [];
+      addEventListener("unhandledrejection", (event) => {
+        (window as Window & { shareErrors: string[] }).shareErrors.push(
+          String(event.reason),
+        );
+      });
+    });
+    await panel.locator(".float-start button").click();
+    await clickInBubble(en.share);
+    await expect
+      .poll(() =>
+        panel.evaluate(() => {
+          const doc = window.documentPictureInPicture.window!.document;
+          return {
+            status: doc.querySelector(".status")?.textContent?.trim(),
+            live: (
+              doc.querySelector("video")?.srcObject as MediaStream | null
+            )?.getVideoTracks()[0]?.readyState,
+            thumbnail: !!doc.querySelector(".capture-chip img"),
+          };
+        }),
+      )
+      .toMatchObject({ status: en.sharing, live: "live", thumbnail: true });
+    if (ending === "stop") await clickBubble(en.stopSharing);
+    else
+      await panel.evaluate(() => {
+        const video =
+          window.documentPictureInPicture.window!.document.querySelector(
+            "video",
+          )!;
+        const track = (video.srcObject as MediaStream).getVideoTracks()[0];
+        track.stop();
+        track.dispatchEvent(new Event("ended"));
+      });
+    await expect
+      .poll(() =>
+        panel.evaluate(() =>
+          window.documentPictureInPicture
+            .window!.document.querySelector(".status")
+            ?.textContent?.trim(),
+        ),
+      )
+      .toBe(en.shareEnded);
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          (shareLabel) =>
+            [
+              ...window.documentPictureInPicture.window!.document.querySelectorAll(
+                "button",
+              ),
+            ].some((button) => button.textContent?.trim() === shareLabel),
+          en.share,
+        ),
+      )
+      .toBe(true);
+    expect(
+      await panel.evaluate(
+        () => (window as Window & { shareErrors?: string[] }).shareErrors,
+      ),
+    ).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  });
+}
+
 test("shared screen crops in the full screen opener, preserves pixels and cancels cleanly", async () => {
   await panel.locator(".float-start button").click();
   await expect
@@ -3069,4 +3247,112 @@ test("bundled PDF.js reader renders the sample, exposes page context and selecte
     0,
   );
   await reader.close();
+});
+
+test("PDF startup waits for a fresh-site click and requests permission with activation", async () => {
+  const reader = await context.newPage();
+  const freshUrl = `${origin.replace("127.0.0.1", "127.0.0.2")}/fresh.pdf`;
+  await reader.route(freshUrl, (route) =>
+    route.fulfill({
+      contentType: "application/pdf",
+      body: twoPagePdf(),
+    }),
+  );
+  await reader.addInitScript(() => {
+    const api = chrome.permissions;
+    const request = api.request.bind(api);
+    (
+      window as Window & { readerPermissionRequests?: boolean[] }
+    ).readerPermissionRequests = [];
+    Object.defineProperty(api, "request", {
+      configurable: true,
+      value: (...args: Parameters<typeof api.request>) => {
+        (
+          window as Window & { readerPermissionRequests: boolean[] }
+        ).readerPermissionRequests.push(navigator.userActivation.isActive);
+        return request(...args);
+      },
+    });
+  });
+  await reader.goto(
+    `chrome-extension://${extensionId}/reader.html?url=${encodeURIComponent(freshUrl)}`,
+  );
+  await expect(reader.locator("#pdf-url")).toHaveValue(freshUrl);
+  await expect(reader.locator("#status")).toHaveText(
+    "Allow access to this PDF site by selecting Open URL.",
+  );
+  await expect(reader.locator(".pdf-page")).toHaveCount(0);
+  expect(
+    await reader.evaluate(
+      () =>
+        (window as Window & { readerPermissionRequests?: boolean[] })
+          .readerPermissionRequests,
+    ),
+  ).toEqual([]);
+  await reader.getByRole("button", { name: "Open URL", exact: true }).click();
+  await expect
+    .poll(() =>
+      reader.evaluate(
+        () =>
+          (window as Window & { readerPermissionRequests?: boolean[] })
+            .readerPermissionRequests,
+      ),
+    )
+    .toEqual([true]);
+  await expect(reader.locator(".pdf-page")).toHaveCount(0);
+  expect(
+    await reader.evaluate(
+      () =>
+        (window as Window & { readerPermissionRequests?: boolean[] })
+          .readerPermissionRequests,
+    ),
+  ).toEqual([true]);
+  await reader.close();
+});
+
+test("PDF startup auto-loads a URL whose origin permission is already granted", async () => {
+  const reader = await context.newPage();
+  const grantedUrl = `${origin}/granted.pdf`;
+  await reader.route(grantedUrl, (route) =>
+    route.fulfill({
+      contentType: "application/pdf",
+      body: twoPagePdf(),
+    }),
+  );
+  await reader.goto(
+    `chrome-extension://${extensionId}/reader.html?url=${encodeURIComponent(grantedUrl)}`,
+  );
+  await expect(reader.locator(".pdf-page")).toBeVisible();
+  await expect(reader.locator("#page-label")).toHaveText("Page 1 of 2");
+  await reader.close();
+});
+
+test("PDF URL permission denial and invalid startup URLs keep the reader actionable", async () => {
+  const denied = await context.newPage();
+  const freshUrl = `${origin.replace("127.0.0.1", "127.0.0.2")}/denied.pdf`;
+  await denied.addInitScript(() => {
+    Object.defineProperty(chrome.permissions, "request", {
+      configurable: true,
+      value: () => Promise.resolve(false),
+    });
+  });
+  await denied.goto(`chrome-extension://${extensionId}/reader.html`);
+  await denied.locator("#pdf-url").fill(freshUrl);
+  await denied.getByRole("button", { name: "Open URL", exact: true }).click();
+  await expect(denied.locator("#status")).toHaveText(
+    "Permission was not granted for this PDF site.",
+  );
+  await denied.close();
+
+  const invalid = await context.newPage();
+  await invalid.goto(
+    `chrome-extension://${extensionId}/reader.html?url=${encodeURIComponent("file:///tmp/private.pdf")}`,
+  );
+  await expect(invalid.locator("#pdf-url")).toHaveValue(
+    "file:///tmp/private.pdf",
+  );
+  await expect(invalid.locator("#status")).toHaveText(
+    "Enter a PDF link beginning with https:// or http://.",
+  );
+  await invalid.close();
 });
