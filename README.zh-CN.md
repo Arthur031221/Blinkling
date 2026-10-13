@@ -27,9 +27,21 @@ Glimpselet 默认创建专用对话。你也可以选择最近的 Claude Code �
 
 ### 高级：从源代码加载
 
-在自己的桌面浏览器中，扩展保存在固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
+在运行 Claude Code 的电脑上，从检出目录的根目录执行以下命令，构建并加载本地插件。需要 Node.js 22 或更新版本。
 
-更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击“重新加载”。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。
+```sh
+npm ci
+npm run build:plugin
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
+claude --plugin-dir "$PWD"
+```
+
+两项版本检查都应显示 **2.0.0**，插件详情应包含 `glimpse` 和 `glimpselet` MCP 服务器。在最后一条命令启动的 Claude Code 会话中，运行 `/glimpselet:glimpse` 打开欢迎指南。此方式只在当前会话加载检出目录。以后也请使用同一条 `--plugin-dir` 命令启动。[本地插件加载说明](https://code.claude.com/docs/en/plugins/create#load-a-plugin-for-one-session)。如果 Claude Code 在远程主机，请使用指南中的 SSH 命令，在浏览器所在电脑下载扩展 ZIP，并加载解压后的目录。
+
+如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
+
+更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。
 
 ## 已经安装 Glimpselet？
 
@@ -41,9 +53,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.0.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.0.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2；旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
-
-使用未打包扩展时，指南会把新文件复制到 `~/.glimpselet/extension`。请在 `chrome://extensions` 或 `edge://extensions` 重新加载 Glimpselet，确认版本为 **2.0.0**。通过 SSH 使用时，请在浏览器所在电脑从指南下载新版 ZIP，解压到原先加载的文件夹，再重新加载。远程主机无法在你的电脑打开免安装浏览器。
+在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.0.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.0.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2。旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 ## 可以做什么
 
@@ -78,7 +88,9 @@ Channel 预览的命令和配置请参阅 [Claude Code 会话](docs/DESIGN.md#th
 
 Glimpselet 支持桌面版 Chrome、Edge 和其他 Chromium 浏览器。商店发布前会显示开发者提示，更新需要手动完成。浏览器设置、扩展商店和受限页面等部分页面会阻止访问。Chrome 内置 PDF 查看器无法读取，请使用 Glimpselet 阅读器。原生应用只能提供像素画面，无法读取页面文字或显示叠加层。Shift 可在悬浮窗及已授予访问权限的网页上使用。在其他应用中，请使用全局裁剪快捷键。悬浮窗口不支持点击穿透。
 
-只有在你同意后，自动建议问题才会使用页面内容。被动摘要是可选功能，需要共享可检查的浏览器标签页。如果共享来源是窗口、屏幕、原生应用、未知来源或无法访问的来源，自动摘要会暂停。手动提问和截图仍可使用。
+只有在你同意后，自动建议问题才会使用页面内容。要在无需共享屏幕的情况下获取页面摘要，请打开页面、开启 **Passive**，并在提示时允许 Glimpselet 访问该网站。Glimpselet 会检查页面文本，并可在内容或 URL 改变时生成摘要。密码字段和屏蔽列表中的网站会暂停自动摘要。
+
+共享屏幕期间，屏幕变化触发的自动摘要要求共享浏览器标签页，并绑定到同一个已检查的标签页，同时具备页面访问权限并通过相同的隐私检查。如果共享来源是窗口、整个屏幕、原生应用、未知或无法访问的来源，自动摘要会暂停。手动提问和截图仍可使用。
 
 [安装指南](docs/INSTALL.md) | [使用方法](docs/USAGE.md) | [设计](docs/DESIGN.md) | [隐私详情](docs/SECURITY.md)
 

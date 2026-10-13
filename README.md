@@ -27,7 +27,19 @@ Glimpselet starts a dedicated conversation. You can select a recent Claude Code 
 
 ### Advanced: load from source
 
-For your own desktop browser, the extension is kept in the stable folder `~/.glimpselet/extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
+From the checkout root on the computer running Claude Code, with Node.js 22 or newer, build and load the local plugin:
+
+```sh
+npm ci
+npm run build:plugin
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
+claude --plugin-dir "$PWD"
+```
+
+Both version checks must show **2.0.0**, and the plugin details must list `glimpse` and the `glimpselet` MCP server. In the Claude Code session started by the last command, run `/glimpselet:glimpse` to open the welcome guide. This loads the checkout for that session only. Start later sessions with the same `--plugin-dir` command. [Local plugin loading](https://code.claude.com/docs/en/plugins/create#load-a-plugin-for-one-session). If Claude Code is remote, use the guide's SSH command, download its extension ZIP on the browser computer, and load the extracted folder there.
+
+If your browser and Claude Code run on the same computer, the welcome guide copies the built extension to the stable folder `~/.glimpselet/extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
 
 After upgrading an unpacked extension, close the old bubble and rerun `/glimpselet:glimpse` to refresh the stable folder. Click Reload on its card in the extensions page. If Claude Code is remote, download the new ZIP through the welcome guide, replace the extracted files on the browser computer, then reload its extension card.
 
@@ -41,9 +53,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-In your open Claude Code session, run `/reload-plugins` (or restart Claude Code), then `/glimpselet:glimpse`. The list must show `glimpselet@glimpselet` at **2.0.0**, and the command must open the welcome and pairing guide. Check that Glimpselet also shows **2.0.0** on `chrome://extensions` or `edge://extensions` on the computer with your browser. If the plugin still shows 1.1.1, v2 may not yet be available from the public marketplace; an old screen-picker page is not the v2 welcome guide. [Upgrade verification](docs/DESIGN.md#plugin-upgrades-and-release-verification).
-
-For an unpacked extension, the guide copies the new files to `~/.glimpselet/extension`. Reload Glimpselet in `chrome://extensions` or `edge://extensions` and check its version is **2.0.0**. With SSH, download the new ZIP through the guide on the browser computer, extract it into the folder you previously loaded, then reload. The remote host cannot open the zero-install browser on your computer.
+In your open Claude Code session, run `/reload-plugins` (or restart Claude Code), then `/glimpselet:glimpse`. The list must show `glimpselet@glimpselet` at **2.0.0**, and the command must open the welcome and pairing guide. Check that Glimpselet also shows **2.0.0** on `chrome://extensions` or `edge://extensions` on the computer with your browser. If the plugin still shows 1.1.1, v2 may not yet be available from the public marketplace. An old screen-picker page is not the v2 welcome guide. [Upgrade verification](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 ## What you can do
 
@@ -78,7 +88,9 @@ For the channel preview command and setup details, see [Claude Code sessions](do
 
 Glimpselet works in desktop Chrome, Edge, and other Chromium browsers. The developer banner remains until store distribution is available, and updates are manual. Some browser pages block access, including settings, extension stores, and restricted pages. Chrome's built-in PDF viewer is not accessible, so use the Glimpselet reader. Native apps provide pixels only, with no page text or overlays. Shift works in the bubble and on pages with site access. In another app, use the global crop shortcut. The floating window cannot pass clicks through.
 
-Automatic suggested questions use page context only with your consent. Passive summaries are opt-in and require a shared, inspected browser tab. If the shared source is a window, screen, native app, unknown, or otherwise inaccessible, automatic summaries pause. Manual questions and captures remain available.
+Automatic suggested questions use page context only with your consent. To get page summaries without screen sharing, open a page, turn on **Passive**, and allow Glimpselet access to that site when prompted. Glimpselet inspects the page text and can summarize changes to its content or URL. Password fields and blocklisted sites pause automatic summaries.
+
+While screen sharing, automatic screen-change summaries require a shared browser tab bound to the same inspected tab, with page access and the same privacy checks. If the shared source is a window, whole screen, native app, unknown, or inaccessible, automatic summaries pause. Manual questions and captures remain available.
 
 [Install guide](docs/INSTALL.md) | [Usage](docs/USAGE.md) | [Design](docs/DESIGN.md) | [Privacy details](docs/SECURITY.md)
 

@@ -27,9 +27,21 @@ Glimpselet démarre une conversation dédiée. Vous pouvez aussi poursuivre une 
 
 ### Avancé : charger depuis les sources
 
-Dans votre navigateur de bureau, l'extension se trouve dans le dossier stable `~/.glimpselet/extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
+Depuis la racine du dépôt cloné sur l'ordinateur qui exécute Claude Code, avec Node.js 22 ou une version ultérieure, compilez et chargez le plugin local :
 
-Pour mettre à jour une extension décompressée, fermez l’ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l’extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l’extension.
+```sh
+npm ci
+npm run build:plugin
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
+claude --plugin-dir "$PWD"
+```
+
+Les deux vérifications de version doivent afficher **2.0.0**, et les détails du plugin doivent inclure `glimpse` et le serveur MCP `glimpselet`. Dans la session Claude Code lancée par la dernière commande, exécutez `/glimpselet:glimpse` pour ouvrir le guide de bienvenue. Le dépôt est chargé pour cette session seulement. Démarrez les suivantes avec la même commande `--plugin-dir`. [Charger un plugin local](https://code.claude.com/docs/en/plugins/create#load-a-plugin-for-one-session). Si Claude Code fonctionne sur un hôte distant, utilisez la commande SSH du guide, téléchargez son ZIP de l'extension sur l'ordinateur avec le navigateur et chargez-y le dossier extrait.
+
+Si le navigateur et Claude Code fonctionnent sur le même ordinateur, le guide de bienvenue copie l'extension compilée dans le dossier stable `~/.glimpselet/extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
+
+Pour mettre à jour une extension décompressée, fermez l'ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l'extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l'extension.
 
 ## Glimpselet est déjà installé ?
 
@@ -41,9 +53,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Dans votre session Claude Code, exécutez `/reload-plugins` (ou redémarrez Claude Code), puis `/glimpselet:glimpse`. La liste doit afficher `glimpselet@glimpselet` en **2.0.0** et la commande doit ouvrir le guide de bienvenue et de connexion. Vérifiez aussi **2.0.0** sur `chrome://extensions` ou `edge://extensions` sur la machine avec votre navigateur. Si le plugin affiche toujours 1.1.1, v2 peut ne pas encore être publiée dans le catalogue public ; l’ancienne page de sélection d’écran n’est pas le guide v2. [Vérification de la mise à jour](docs/DESIGN.md#plugin-upgrades-and-release-verification).
-
-Pour l’extension non empaquetée, le guide copie les nouveaux fichiers dans `~/.glimpselet/extension`. Rechargez Glimpselet dans `chrome://extensions` ou `edge://extensions` et vérifiez la version **2.0.0**. Avec SSH, téléchargez le nouveau ZIP depuis le guide sur l’ordinateur de votre navigateur, extrayez-le dans le dossier déjà chargé, puis rechargez l’extension. L’hôte distant ne peut pas ouvrir le navigateur sans installation sur votre ordinateur.
+Dans votre session Claude Code, exécutez `/reload-plugins` (ou redémarrez Claude Code), puis `/glimpselet:glimpse`. La liste doit afficher `glimpselet@glimpselet` en **2.0.0** et la commande doit ouvrir le guide de bienvenue et de connexion. Vérifiez aussi **2.0.0** sur `chrome://extensions` ou `edge://extensions` sur la machine avec votre navigateur. Si le plugin affiche toujours 1.1.1, v2 peut ne pas encore être publiée dans le catalogue public. L'ancienne page de sélection d'écran n'est pas le guide v2. [Vérification de la mise à jour](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 ## Ce que vous pouvez faire
 
@@ -78,7 +88,9 @@ Consultez [Sessions Claude Code](docs/DESIGN.md#the-running-claude-code-conversa
 
 Glimpselet fonctionne sur ordinateur avec Chrome, Edge et les autres navigateurs Chromium. La bannière de développement reste visible jusqu'à la distribution dans une boutique, et les mises à jour sont manuelles. Certaines pages, comme les paramètres du navigateur, les boutiques d'extensions et les pages restreintes, bloquent l'accès. Le lecteur PDF intégré à Chrome n'est pas accessible. Utilisez le lecteur Glimpselet. Les applications natives ne fournissent que des pixels, sans texte ni superposition. Shift fonctionne dans la bulle et sur les pages dont l'accès est autorisé. Dans une autre application, utilisez le raccourci global de capture. La fenêtre flottante ne permet pas de transmettre les clics.
 
-Les questions suggérées automatiquement utilisent le contexte de la page uniquement avec votre consentement. Les résumés passifs sont facultatifs et nécessitent le partage d'un onglet de navigateur inspecté. Si la source partagée est une fenêtre, un écran, une application native, une source inconnue ou inaccessible, les résumés automatiques se mettent en pause. Les questions et captures manuelles restent disponibles.
+Les questions suggérées automatiquement utilisent le contexte de la page uniquement avec votre consentement. Pour obtenir des résumés de pages sans partage d'écran, ouvrez une page, activez **Passive** et autorisez Glimpselet à accéder à ce site lorsque cela vous est demandé. Glimpselet inspecte le texte de la page et peut résumer les changements de contenu ou d'URL. Les champs de mot de passe et les sites de la liste de blocage suspendent les résumés automatiques.
+
+Pendant un partage d'écran, les résumés automatiques des changements visuels exigent un onglet partagé associé au même onglet inspecté, avec l'accès à la page et les mêmes vérifications de confidentialité. Si la source est une fenêtre, l'écran entier, une application native, inconnue ou inaccessible, les résumés automatiques sont suspendus. Les questions et captures manuelles restent disponibles.
 
 [Guide d'installation](docs/INSTALL.md) | [Utilisation](docs/USAGE.md) | [Conception](docs/DESIGN.md) | [Détails sur la confidentialité](docs/SECURITY.md)
 

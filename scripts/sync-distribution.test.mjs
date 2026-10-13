@@ -56,12 +56,133 @@ async function readReadmes(root) {
   );
 }
 
+function advancedSection(content) {
+  const start = content.indexOf("\n### ");
+  expect(start).toBeGreaterThan(-1);
+  const end = content.indexOf("\n## ", start + 1);
+  return content.slice(start, end === -1 ? undefined : end);
+}
+
+// Run from a checkout, without relying on a marketplace or an installed plugin.
+const sourceBootstrap = `npm ci
+npm run build:plugin
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
+claude --plugin-dir "$PWD"`;
+
+const passiveLanguageChecks = [
+  [
+    "README.md",
+    /without screen sharing/i,
+    /password/i,
+    /blocklist/i,
+    /shared browser tab bound to the same inspected tab/i,
+  ],
+  [
+    "README.de.md",
+    /ohne Bildschirmfreigabe/i,
+    /Passwort/i,
+    /Sperrliste/i,
+    /geteilten Browser-Tab.*demselben geprüften Tab/i,
+  ],
+  [
+    "README.es.md",
+    /sin compartir (?:la )?pantalla/i,
+    /contraseña/i,
+    /lista de bloqueo/i,
+    /pestaña del navegador vinculada a la misma pestaña inspeccionada/i,
+  ],
+  [
+    "README.fr.md",
+    /sans partage d['’]écran/i,
+    /mot de passe/i,
+    /liste de blocage/i,
+    /onglet partagé associé au même onglet inspecté/i,
+  ],
+  [
+    "README.ja.md",
+    /画面共有なし/,
+    /パスワード/,
+    /ブロックリスト/,
+    /検査した同じタブに結び付いたブラウザータブの共有/,
+  ],
+  [
+    "README.ko.md",
+    /화면 공유 없이/,
+    /비밀번호/,
+    /차단 목록/,
+    /검사한 동일한 탭에 연결된 브라우저 탭 공유/,
+  ],
+  [
+    "README.pt-BR.md",
+    /sem compartilhar (?:a )?tela/i,
+    /senha/i,
+    /lista de bloqueio/i,
+    /guia compartilhada vinculada à mesma guia inspecionada/i,
+  ],
+  [
+    "README.zh-CN.md",
+    /无需共享屏幕/,
+    /密码/,
+    /屏蔽列表/,
+    /共享浏览器标签页，并绑定到同一个已检查的标签页/,
+  ],
+  [
+    "README.zh-TW.md",
+    /不需分享螢幕/,
+    /密碼/,
+    /封鎖清單/,
+    /分享瀏覽器分頁，並綁定到同一個已檢查的分頁/,
+  ],
+];
+
 afterEach(async () => {
   if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
   temporaryRoot = undefined;
 });
 
 describe("distribution README sync", () => {
+  it.each(readmeFiles)(
+    "provides a complete checkout plugin bootstrap in %s",
+    async (file) => {
+      const content = await readFile(join(process.cwd(), file), "utf8");
+      const advanced = advancedSection(content);
+      expect(advanced).toContain(sourceBootstrap);
+      expect(advanced).toContain("/glimpselet:glimpse");
+      expect(advanced).toContain("2.0.0");
+      expect(advanced).toContain("~/.glimpselet/extension");
+      expect(advanced).toContain("chrome://extensions");
+      expect(content.slice(0, content.indexOf("\n### "))).toContain(
+        "/plugin marketplace add Arthur031221/Glimpselet",
+      );
+      expect(content.trimEnd().split("\n").at(-1)).toBe(
+        "Assisted by Claude/Codex.",
+      );
+    },
+  );
+
+  it("provides the same checkout bootstrap in the detailed install guide", async () => {
+    const content = await readFile(
+      join(process.cwd(), "docs/INSTALL.md"),
+      "utf8",
+    );
+    expect(content).toContain(sourceBootstrap);
+    expect(content).toContain("2.0.0");
+  });
+
+  it.each(passiveLanguageChecks)(
+    "explains no-share page summaries and privacy restrictions in %s",
+    async (file, noShare, password, blocklist, sharedTabBinding) => {
+      const content = await readFile(join(process.cwd(), file), "utf8");
+      const privacy = content.slice(content.lastIndexOf("\n## "));
+      expect(privacy).toMatch(noShare);
+      expect(privacy).toMatch(password);
+      expect(privacy).toMatch(blocklist);
+      expect(privacy).toMatch(sharedTabBinding);
+      expect(privacy).toContain("Passive");
+    },
+  );
+
   it("leaves all README bytes untouched when both store URLs are empty", async () => {
     const root = await makeCopy({ chromeWebStoreUrl: "", edgeAddonsUrl: "" });
     const before = await readReadmes(root);
@@ -99,11 +220,17 @@ describe("distribution README sync", () => {
       const advancedStart = content.indexOf("###");
       const advancedEnd = content.indexOf("\n## ", advancedStart);
       const advanced = content.slice(advancedStart, advancedEnd);
+      expect(advanced).toContain(sourceBootstrap);
       expect(advanced).toContain("~/.glimpselet/extension");
       expect(advanced).toContain("chrome://extensions");
       expect(content.slice(0, advancedStart)).not.toContain("Load unpacked");
       expect(content.slice(0, advancedStart)).not.toContain("37115");
       expect(content.slice(0, advancedStart)).toContain("3.");
+      // Store users update through their browser; source loading and manual
+      // replacement belong only in Advanced after distribution is configured.
+      expect(
+        content.slice(0, advancedStart) + content.slice(advancedEnd),
+      ).not.toContain("~/.glimpselet/extension");
       expect(content.slice(advancedEnd)).not.toMatch(
         /developer banner|Entwicklermodus-Hinweis|개발자 배너|开发者提示|開發者提示/,
       );

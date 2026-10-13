@@ -27,7 +27,19 @@ Glimpselet 預設建立專用對話。你也可以選擇最近的 Claude Code �
 
 ### 進階：從原始碼載入
 
-在自己的桌面瀏覽器中，擴充功能會放在固定資料夾 `~/.glimpselet/extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
+在執行 Claude Code 的電腦上，從簽出目錄的根目錄執行以下指令，建置並載入本機外掛。需要 Node.js 22 或更新版本。
+
+```sh
+npm ci
+npm run build:plugin
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
+claude --plugin-dir "$PWD"
+```
+
+兩項版本檢查都應顯示 **2.0.0**，外掛詳情應包含 `glimpse` 和 `glimpselet` MCP 伺服器。在最後一行指令啟動的 Claude Code 工作階段中，執行 `/glimpselet:glimpse` 開啟歡迎指南。這種方式只在目前工作階段載入簽出目錄。之後也請使用同一行 `--plugin-dir` 指令啟動。[本機外掛載入說明](https://code.claude.com/docs/en/plugins/create#load-a-plugin-for-one-session)。若 Claude Code 在遠端主機，請使用指南中的 SSH 指令，在瀏覽器所在電腦下載擴充功能 ZIP，並載入解壓縮後的資料夾。
+
+如果瀏覽器和 Claude Code 在同一台電腦上執行，歡迎指南會把建置好的擴充功能複製到固定資料夾 `~/.glimpselet/extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
 
 更新未封裝擴充功能時，先關閉舊浮動視窗，再執行 `/glimpselet:glimpse` 更新固定資料夾，然後在擴充功能頁面的卡片按「重新載入」。若 Claude Code 在遠端，請透過歡迎指南下載新版 ZIP，在瀏覽器所在電腦替換解壓縮後的檔案，再重新載入擴充功能。
 
@@ -41,9 +53,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-在已開啟的 Claude Code 工作階段執行 `/reload-plugins`（或重新啟動 Claude Code），再執行 `/glimpselet:glimpse`。清單中的 `glimpselet@glimpselet` 應顯示 **2.0.0**，且指令應開啟歡迎與配對指南。也請在瀏覽器所在電腦的 `chrome://extensions` 或 `edge://extensions` 確認 Glimpselet 為 **2.0.0**。若外掛仍是 1.1.1，公開市集可能尚未提供 v2；舊的畫面選取頁不是 v2 歡迎指南。[更新驗證](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
-
-使用未封裝擴充功能時，指南會把新檔案複製到 `~/.glimpselet/extension`。請在 `chrome://extensions` 或 `edge://extensions` 重新載入 Glimpselet，確認版本為 **2.0.0**。透過 SSH 使用時，請在瀏覽器所在電腦從指南下載新版 ZIP，解壓縮到原先載入的資料夾，再重新載入。遠端主機無法在你的電腦開啟免安裝瀏覽器。
+在已開啟的 Claude Code 工作階段執行 `/reload-plugins`（或重新啟動 Claude Code），再執行 `/glimpselet:glimpse`。清單中的 `glimpselet@glimpselet` 應顯示 **2.0.0**，且指令應開啟歡迎與配對指南。也請在瀏覽器所在電腦的 `chrome://extensions` 或 `edge://extensions` 確認 Glimpselet 為 **2.0.0**。若外掛仍是 1.1.1，公開市集可能尚未提供 v2。舊的畫面選取頁不是 v2 歡迎指南。[更新驗證](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 ## 可以做什麼
 
@@ -78,7 +88,9 @@ Channel 預覽的指令與設定請參閱 [Claude Code 工作階段](docs/DESIGN
 
 Glimpselet 支援桌面版 Chrome、Edge 和其他 Chromium 瀏覽器。商店發行前會顯示開發者提示，更新需要手動進行。瀏覽器設定、擴充功能商店和受限頁面等部分頁面會阻擋存取。Chrome 內建 PDF 檢視器無法讀取，請使用 Glimpselet 閱讀器。原生應用程式只提供像素畫面，無法讀取頁面文字或顯示疊加層。Shift 可在懸浮視窗及已授予存取權的網頁上使用。在其他應用程式中，請使用全域裁切快捷鍵。懸浮視窗不支援點擊穿透。
 
-只有在你同意後，自動建議問題才會使用頁面內容。被動摘要是選用功能，且需要分享可檢查的瀏覽器分頁。如果分享來源是視窗、螢幕、原生應用程式、未知來源或無法存取的來源，自動摘要會暫停。手動提問和擷取仍可使用。
+只有在你同意後，自動建議問題才會使用頁面內容。要在不需分享螢幕的情況下取得頁面摘要，請開啟頁面、開啟 **Passive**，並在提示時允許 Glimpselet 存取該網站。Glimpselet 會檢查頁面文字，並可在內容或 URL 變更時產生摘要。密碼欄位和封鎖清單中的網站會暫停自動摘要。
+
+分享螢幕期間，螢幕變化觸發的自動摘要要求分享瀏覽器分頁，並綁定到同一個已檢查的分頁，同時具備頁面存取權並通過相同的隱私檢查。如果分享來源是視窗、整個螢幕、原生應用程式、未知或無法存取的來源，自動摘要會暫停。手動提問和擷取仍可使用。
 
 [安裝指南](docs/INSTALL.md) | [使用方式](docs/USAGE.md) | [設計](docs/DESIGN.md) | [隱私詳情](docs/SECURITY.md)
 
