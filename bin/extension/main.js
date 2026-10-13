@@ -15315,6 +15315,8 @@ function App() {
   const readerAdmissionRef = (0, import_react.useRef)(false);
   const cancelledRequests = (0, import_react.useRef)(/* @__PURE__ */ new Set());
   const activeTabId = (0, import_react.useRef)(void 0);
+  const sourceEpoch = (0, import_react.useRef)(0);
+  const sourceResolving = (0, import_react.useRef)(false);
   const loadPageRef = (0, import_react.useRef)(loadPageAndSuggestions);
   const pageRefreshTimer = (0, import_react.useRef)(void 0);
   const pageRequestKey = (0, import_react.useRef)("");
@@ -15447,25 +15449,38 @@ function App() {
     if (!question.trim() && pendingPageRefresh.current) schedulePageRefresh();
   }, [question]);
   (0, import_react.useEffect)(() => {
+    const pendingSources = /* @__PURE__ */ new Set();
+    let adoptedEpoch = -1;
+    const adoptSource = (epoch, tab, failed = false) => {
+      pendingSources.delete(epoch);
+      sourceResolving.current = pendingSources.size > 0;
+      if (!sourceResolving.current && pendingPageRefresh.current)
+        schedulePageRefresh();
+      if (epoch < adoptedEpoch) return;
+      if (tab?.id && !isOwnExtensionUrl(tab.url)) {
+        adoptedEpoch = epoch;
+        activeTabId.current = tab.id;
+        setCurrentActiveTab(tab.id);
+        schedulePageRefresh(true);
+      } else if (failed) {
+        adoptedEpoch = epoch;
+        activeTabId.current = void 0;
+        setCurrentActiveTab(void 0);
+        schedulePageRefresh(true);
+      }
+    };
     const activated = (info) => {
-      void chrome.tabs.get(info.tabId).then((tab) => {
-        if (!isOwnExtensionUrl(tab.url)) {
-          activeTabId.current = info.tabId;
-          setCurrentActiveTab(info.tabId);
-          schedulePageRefresh(true);
-        }
-      });
+      const epoch = ++sourceEpoch.current;
+      pendingSources.add(epoch);
+      sourceResolving.current = true;
+      void chrome.tabs.get(info.tabId).then((tab) => adoptSource(epoch, tab)).catch(() => adoptSource(epoch, void 0, true));
     };
     const focused = (windowId) => {
+      const epoch = ++sourceEpoch.current;
       if (windowId < 0) return;
-      void chrome.tabs.query({ active: true, windowId }).then(([tab]) => {
-        if (tab?.id && !isOwnExtensionUrl(tab.url)) {
-          const changedTab = activeTabId.current !== tab.id;
-          activeTabId.current = tab.id;
-          setCurrentActiveTab(tab.id);
-          schedulePageRefresh(changedTab);
-        }
-      });
+      pendingSources.add(epoch);
+      sourceResolving.current = true;
+      void chrome.tabs.query({ active: true, windowId }).then(([tab]) => adoptSource(epoch, tab)).catch(() => adoptSource(epoch, void 0, true));
     };
     const changed = (tabId, change, tab) => {
       if (tabId === activeTabId.current && (change.url || change.status === "complete") && !isOwnExtensionUrl(tab.url))
@@ -15478,7 +15493,9 @@ function App() {
     chrome.tabs.onActivated.addListener(activated);
     chrome.windows.onFocusChanged.addListener(focused);
     chrome.tabs.onUpdated.addListener(changed);
+    const initialEpoch = sourceEpoch.current;
     void chrome.tabs.query({ active: true, lastFocusedWindow: true }).then(([tab]) => {
+      if (initialEpoch !== sourceEpoch.current) return;
       if (tab?.id && !isOwnExtensionUrl(tab.url)) {
         activeTabId.current = tab.id;
         setCurrentActiveTab(tab.id);
@@ -15759,26 +15776,14 @@ Selected text (untrusted): ${selected}` : ""}`;
     let running = false, disposed = false;
     const sample = async () => {
       const video = videoRef.current;
-      if (running || disposed || !video?.videoWidth || cropBusy.current || requestIdRef.current || translationController.current)
+      if (running || disposed || !video?.videoWidth || cropBusy.current || sourceResolving.current || requestIdRef.current || translationController.current)
         return;
       running = true;
       try {
-        const tab = activeTabId.current ? await chrome.tabs.get(activeTabId.current).catch(() => void 0) : void 0;
-        if (tab?.url && isBlocked(tab.url)) return;
-        if (tab?.url && /^https?:/.test(tab.url) && await isSensitivePage().catch(() => true))
-          return;
-        if (disposed) return;
-        const small = document.createElement("canvas");
-        small.width = 9;
-        small.height = 8;
-        const ctx = small.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0, 9, 8);
-        if (!detector.observe(
-          differenceHash(ctx.getImageData(0, 0, 9, 8).data),
-          Date.now()
-        ))
-          return;
+        const sourceTabId = activeTabId.current;
+        const sourceVersion = pageVersion.current;
+        const sourceGeneration = sourceEpoch.current;
+        if (!sourceTabId) return;
         const frame = document.createElement("canvas");
         const scale = Math.min(
           1,
@@ -15787,6 +15792,24 @@ Selected text (untrusted): ${selected}` : ""}`;
         frame.width = Math.round(video.videoWidth * scale);
         frame.height = Math.round(video.videoHeight * scale);
         frame.getContext("2d")?.drawImage(video, 0, 0, frame.width, frame.height);
+        const small = document.createElement("canvas");
+        small.width = 9;
+        small.height = 8;
+        const ctx = small.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(frame, 0, 0, 9, 8);
+        const hash = differenceHash(ctx.getImageData(0, 0, 9, 8).data);
+        const tab = await chrome.tabs.get(sourceTabId).catch(() => void 0);
+        if (!tab?.url || isOwnExtensionUrl(tab.url) || isBlocked(tab.url))
+          return;
+        const [visibleTab] = await chrome.tabs.query({ active: true, windowId: tab.windowId }).catch(() => []);
+        if (!visibleTab || visibleTab.id !== sourceTabId && !isOwnExtensionUrl(visibleTab.url))
+          return;
+        if (/^https?:/.test(tab.url) && await isSensitivePage().catch(() => true))
+          return;
+        if (disposed || sourceResolving.current || shareRef.current !== shareStream || videoRef.current !== video || sourceGeneration !== sourceEpoch.current || sourceTabId !== activeTabId.current || sourceVersion !== pageVersion.current)
+          return;
+        if (!detector.observe(hash, Date.now())) return;
         setStatus(t.screenChangeSummary);
         await askWith({
           question: t.passivePrompt,
@@ -15870,7 +15893,7 @@ Selected text (untrusted): ${selected}` : ""}`;
     schedulePageRefresh(true);
   }
   async function loadPageAndSuggestions() {
-    if (!consented || requestIdRef.current || translationController.current)
+    if (!consented || sourceResolving.current || requestIdRef.current || translationController.current)
       return;
     pendingPageRefresh.current = false;
     const version = pageVersion.current;
@@ -16167,6 +16190,9 @@ Selected text (untrusted): ${selected}` : ""}`;
     const currentPage = options.page || (options.image && kind === "passive" ? void 0 : page);
     const sourceTabId = activeTabId.current;
     const sourceVersion = pageVersion.current;
+    const sourceGeneration = sourceEpoch.current;
+    if ((kind === "passive" || kind === "suggest") && sourceResolving.current)
+      return;
     if ((kind === "passive" || kind === "suggest") && currentPage && (currentPage.hasPassword || isBlocked(currentPage.url)))
       return;
     if (kind === "passive") {
@@ -16203,7 +16229,7 @@ Selected text (untrusted): ${selected}` : ""}`;
         const sensitive = await isSensitivePage().catch(() => true);
         if (requestIdRef.current !== id || cancelledRequests.current.has(id))
           return;
-        if (sourceTabId !== activeTabId.current || sourceVersion !== pageVersion.current)
+        if (sourceResolving.current || sourceGeneration !== sourceEpoch.current || sourceTabId !== activeTabId.current || sourceVersion !== pageVersion.current)
           return;
         if (sensitive || questionRef.current.trim()) {
           pageRequestKey.current = "";

@@ -352,7 +352,11 @@ test("selection excludes private content between public endpoints and closes sta
     .toBe(true);
 });
 
-async function useUnpairedApi() {
+async function useUnpairedApi(
+  onRequest?: (input: {
+    messages: { content: { type: string; source?: { data: string } }[] }[];
+  }) => void,
+) {
   const questions: string[] = [];
   await context.route(
     "https://api.anthropic.com/v1/messages",
@@ -367,6 +371,7 @@ async function useUnpairedApi() {
         return;
       }
       const input = route.request().postDataJSON();
+      onRequest?.(input);
       const prompt = input.messages
         .at(-1)
         .content.find((block: { type: string }) => block.type === "text").text;
@@ -2439,6 +2444,298 @@ async function clickBubble(label: string) {
       );
     button.click();
   }, label);
+}
+
+type ScreenGate = {
+  sample?: () => void;
+  hold: boolean;
+  waiting: boolean;
+  checks: number;
+  hashes: number;
+  canvas: HTMLCanvasElement;
+  release: () => void;
+  releaseLookup: () => void;
+};
+
+for (const backend of ["bridge", "api"] as const) {
+  for (const change of [
+    "password",
+    "blocked",
+    "lookup",
+    "pixels",
+    "stop",
+    "stable",
+  ] as const) {
+    test(`${backend} passive screen ${change} protects the checked source and pixels`, async () => {
+      await worker.evaluate(() => chrome.storage.local.set({ passive: true }));
+      if (change === "pixels")
+        await panel.addInitScript(() => {
+          const add = chrome.runtime.onMessage.addListener.bind(
+            chrome.runtime.onMessage,
+          );
+          chrome.runtime.onMessage.addListener = (listener) =>
+            add((message, sender, respond) => {
+              if (message?.type === "glimpselet:page-changed") return;
+              return listener(message, sender, respond);
+            });
+        });
+      if (change === "blocked")
+        await worker.evaluate(() =>
+          chrome.storage.local.set({ blocklist: "127.0.0.2" }),
+        );
+      const apiImages: string[] = [];
+      if (backend === "api")
+        await useUnpairedApi((input) => {
+          for (const block of input.messages.at(-1)!.content)
+            if (block.type === "image" && block.source?.data)
+              apiImages.push("data:image/png;base64," + block.source.data);
+        });
+      if (backend === "bridge") {
+        await panel.reload();
+        await expect(panel.locator(".connection")).toHaveClass(/online/);
+      }
+      const sourceId = await worker.evaluate(
+        async (url) =>
+          (await chrome.tabs.query({})).find((tab) => tab.url === url)!.id!,
+        origin + "/",
+      );
+      await panel.evaluate((sourceId) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 360;
+        const drawing = canvas.getContext("2d")!;
+        drawing.fillStyle = "#ff0000";
+        drawing.fillRect(0, 0, 640, 360);
+        const stream = canvas.captureStream(2);
+        navigator.mediaDevices.getDisplayMedia = async () => stream;
+        let release!: () => void, releaseLookup!: () => void;
+        const held = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const lookup = new Promise<void>((resolve) => {
+          releaseLookup = resolve;
+        });
+        const control: ScreenGate = {
+          hold: false,
+          waiting: false,
+          checks: 0,
+          hashes: 0,
+          canvas,
+          release,
+          releaseLookup,
+        };
+        (window as Window & { screenGate: ScreenGate }).screenGate = control;
+        const interval = window.setInterval.bind(window);
+        window.setInterval = ((
+          handler: TimerHandler,
+          timeout?: number,
+          ...args: unknown[]
+        ) => {
+          if (timeout === 2000 && typeof handler === "function") {
+            control.sample = handler as () => void;
+            return interval(() => {}, 999999);
+          }
+          return interval(handler, timeout, ...args);
+        }) as typeof window.setInterval;
+        const pixels = CanvasRenderingContext2D.prototype.getImageData;
+        CanvasRenderingContext2D.prototype.getImageData = function (...args) {
+          const result = pixels.apply(this, args);
+          if (args[2] === 9 && args[3] === 8) control.hashes++;
+          return result;
+        };
+        const execute = chrome.scripting.executeScript.bind(chrome.scripting);
+        chrome.scripting.executeScript = (async (
+          injection: Parameters<typeof chrome.scripting.executeScript>[0],
+        ) => {
+          const result = await execute(injection);
+          if (injection.func?.toString().includes("current-password")) {
+            control.checks++;
+            if (control.hold && !control.waiting) {
+              control.waiting = true;
+              await held;
+            }
+          }
+          return result;
+        }) as typeof chrome.scripting.executeScript;
+        (
+          window as Window & { holdScreenLookups?: () => void }
+        ).holdScreenLookups = () => {
+          const get = chrome.tabs.get.bind(chrome.tabs);
+          const query = chrome.tabs.query.bind(chrome.tabs);
+          chrome.tabs.get = (async (id: number) => {
+            const tab = await get(id);
+            if (id !== sourceId && !tab.url?.startsWith("chrome-extension:"))
+              await lookup;
+            return tab;
+          }) as typeof chrome.tabs.get;
+          chrome.tabs.query = (async (info: chrome.tabs.QueryInfo) => {
+            const tabs = await query(info);
+            if (
+              info.active &&
+              tabs[0]?.id !== sourceId &&
+              !tabs[0]?.url?.startsWith("chrome-extension:")
+            )
+              await lookup;
+            return tabs;
+          }) as typeof chrome.tabs.query;
+        };
+      }, sourceId);
+      await panel.locator(".float-start button").click();
+      await clickInBubble(en.share);
+      await expect
+        .poll(() =>
+          panel.evaluate(() =>
+            window.documentPictureInPicture
+              .window!.document.querySelector(".status")
+              ?.textContent?.trim(),
+          ),
+        )
+        .toBe(en.sharing);
+      await site.bringToFront();
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            () =>
+              typeof (window as Window & { screenGate: ScreenGate }).screenGate
+                .sample === "function",
+          ),
+        )
+        .toBe(true);
+      await panel.waitForTimeout(900);
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            () =>
+              !!window.documentPictureInPicture.window!.document.querySelector(
+                ".composer button.send",
+              ),
+          ),
+        )
+        .toBe(true);
+      const checks = await panel.evaluate(
+        () => (window as Window & { screenGate: ScreenGate }).screenGate.checks,
+      );
+      await panel.evaluate(() =>
+        (window as Window & { screenGate: ScreenGate }).screenGate.sample!(),
+      );
+      await expect
+        .poll(() =>
+          panel.evaluate((checks) => {
+            const gate = (window as Window & { screenGate: ScreenGate })
+              .screenGate;
+            return gate.hashes >= 1 && gate.checks > checks;
+          }, checks),
+        )
+        .toBe(true);
+      await panel.waitForTimeout(100);
+      const images = () =>
+        backend === "api"
+          ? apiImages
+          : providerRequests
+              .filter(
+                (request) =>
+                  request.question === en.passivePrompt && request.image,
+              )
+              .map(
+                (request) =>
+                  "data:image/png;base64," + request.image!.toString("base64"),
+              );
+      expect(images()).toEqual([]);
+      await panel.evaluate(() => {
+        const gate = (window as Window & { screenGate: ScreenGate }).screenGate;
+        gate.hold = true;
+        gate.sample!();
+      });
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            () =>
+              (window as Window & { screenGate: ScreenGate }).screenGate
+                .waiting,
+          ),
+        )
+        .toBe(true);
+      let other: Page | undefined;
+      if (["password", "blocked", "lookup"].includes(change)) {
+        if (change === "lookup")
+          await panel.evaluate(() =>
+            (
+              window as Window & { holdScreenLookups: () => void }
+            ).holdScreenLookups(),
+          );
+        other = await context.newPage();
+        const url = `${change === "blocked" ? origin.replace("127.0.0.1", "127.0.0.2") : origin}/private-screen`;
+        await other.route(url, (route) =>
+          route.fulfill({
+            contentType: "text/html",
+            body: '<h1>Private screen</h1><input type="password">',
+          }),
+        );
+        await other.goto(url);
+      } else if (change === "pixels")
+        await site.evaluate(() => {
+          const password = document.createElement("input");
+          password.type = "password";
+          document.body.append(password);
+        });
+      if (["password", "blocked", "lookup", "pixels"].includes(change)) {
+        await panel.evaluate(() => {
+          const drawing = (
+            window as Window & { screenGate: ScreenGate }
+          ).screenGate.canvas.getContext("2d")!;
+          drawing.fillStyle = "#0000ff";
+          drawing.fillRect(0, 0, 640, 360);
+        });
+        await expect
+          .poll(() =>
+            panel.evaluate(() => {
+              const video =
+                window.documentPictureInPicture.window!.document.querySelector(
+                  "video",
+                )!;
+              const canvas = document.createElement("canvas");
+              canvas.width = 1;
+              canvas.height = 1;
+              const context = canvas.getContext("2d")!;
+              context.drawImage(video, 0, 0, 1, 1);
+              return context.getImageData(0, 0, 1, 1).data[2];
+            }),
+          )
+          .toBeGreaterThan(200);
+      }
+      if (change === "stop") await clickBubble(en.stopSharing);
+      await panel.evaluate(() =>
+        (window as Window & { screenGate: ScreenGate }).screenGate.release(),
+      );
+      if (change === "stable" || change === "pixels") {
+        await expect.poll(() => images().length).toBe(1);
+        const pixel = await panel.evaluate(async (image) => {
+          const bitmap = await createImageBitmap(
+            await (await fetch(image)).blob(),
+          );
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const context = canvas.getContext("2d")!;
+          context.drawImage(bitmap, 0, 0, 1, 1);
+          bitmap.close();
+          return [...context.getImageData(0, 0, 1, 1).data];
+        }, images()[0]);
+        expect(pixel[0]).toBeGreaterThan(200);
+        expect(pixel[2]).toBeLessThan(30);
+      } else {
+        await panel.waitForTimeout(700);
+        expect(images()).toEqual([]);
+      }
+      await panel.evaluate(() =>
+        (
+          window as Window & { screenGate: ScreenGate }
+        ).screenGate.releaseLookup(),
+      );
+      if (change !== "stop") await clickBubble(en.stopSharing);
+      await other?.close();
+    });
+  }
 }
 
 for (const ending of ["stop", "browser"] as const) {

@@ -216,6 +216,8 @@ function App() {
   const readerAdmissionRef = useRef(false);
   const cancelledRequests = useRef(new Set<string>());
   const activeTabId = useRef<number | undefined>(undefined);
+  const sourceEpoch = useRef(0);
+  const sourceResolving = useRef(false);
   const loadPageRef = useRef<() => Promise<void>>(loadPageAndSuggestions);
   const pageRefreshTimer = useRef<number | undefined>(undefined);
   const pageRequestKey = useRef("");
@@ -378,27 +380,44 @@ function App() {
     if (!question.trim() && pendingPageRefresh.current) schedulePageRefresh();
   }, [question]);
   useEffect(() => {
+    const pendingSources = new Set<number>();
+    let adoptedEpoch = -1;
+    const adoptSource = (epoch: number, tab?: BrowserTab, failed = false) => {
+      pendingSources.delete(epoch);
+      sourceResolving.current = pendingSources.size > 0;
+      if (!sourceResolving.current && pendingPageRefresh.current)
+        schedulePageRefresh();
+      if (epoch < adoptedEpoch) return;
+      if (tab?.id && !isOwnExtensionUrl(tab.url)) {
+        adoptedEpoch = epoch;
+        activeTabId.current = tab.id;
+        setCurrentActiveTab(tab.id);
+        schedulePageRefresh(true);
+      } else if (failed) {
+        adoptedEpoch = epoch;
+        activeTabId.current = undefined;
+        setCurrentActiveTab(undefined);
+        schedulePageRefresh(true);
+      }
+    };
     const activated = (info: { tabId: number }) => {
-      void chrome.tabs.get(info.tabId).then((tab: BrowserTab) => {
-        if (!isOwnExtensionUrl(tab.url)) {
-          activeTabId.current = info.tabId;
-          setCurrentActiveTab(info.tabId);
-          schedulePageRefresh(true);
-        }
-      });
+      const epoch = ++sourceEpoch.current;
+      pendingSources.add(epoch);
+      sourceResolving.current = true;
+      void chrome.tabs
+        .get(info.tabId)
+        .then((tab: BrowserTab) => adoptSource(epoch, tab))
+        .catch(() => adoptSource(epoch, undefined, true));
     };
     const focused = (windowId: number) => {
+      const epoch = ++sourceEpoch.current;
       if (windowId < 0) return;
+      pendingSources.add(epoch);
+      sourceResolving.current = true;
       void chrome.tabs
         .query({ active: true, windowId })
-        .then(([tab]: BrowserTab[]) => {
-          if (tab?.id && !isOwnExtensionUrl(tab.url)) {
-            const changedTab = activeTabId.current !== tab.id;
-            activeTabId.current = tab.id;
-            setCurrentActiveTab(tab.id);
-            schedulePageRefresh(changedTab);
-          }
-        });
+        .then(([tab]: BrowserTab[]) => adoptSource(epoch, tab))
+        .catch(() => adoptSource(epoch, undefined, true));
     };
     const changed = (
       tabId: number,
@@ -419,9 +438,11 @@ function App() {
     chrome.tabs.onActivated.addListener(activated);
     chrome.windows.onFocusChanged.addListener(focused);
     chrome.tabs.onUpdated.addListener(changed);
+    const initialEpoch = sourceEpoch.current;
     void chrome.tabs
       .query({ active: true, lastFocusedWindow: true })
       .then(([tab]: BrowserTab[]) => {
+        if (initialEpoch !== sourceEpoch.current) return;
         if (tab?.id && !isOwnExtensionUrl(tab.url)) {
           activeTabId.current = tab.id;
           setCurrentActiveTab(tab.id);
@@ -775,37 +796,17 @@ function App() {
         disposed ||
         !video?.videoWidth ||
         cropBusy.current ||
+        sourceResolving.current ||
         requestIdRef.current ||
         translationController.current
       )
         return;
       running = true;
       try {
-        // Browser password pages fail closed. Native application fields cannot be inspected.
-        const tab = activeTabId.current
-          ? await chrome.tabs.get(activeTabId.current).catch(() => undefined)
-          : undefined;
-        if (tab?.url && isBlocked(tab.url)) return;
-        if (
-          tab?.url &&
-          /^https?:/.test(tab.url) &&
-          (await isSensitivePage().catch(() => true))
-        )
-          return;
-        if (disposed) return;
-        const small = document.createElement("canvas");
-        small.width = 9;
-        small.height = 8;
-        const ctx = small.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0, 9, 8);
-        if (
-          !detector.observe(
-            differenceHash(ctx.getImageData(0, 0, 9, 8).data),
-            Date.now(),
-          )
-        )
-          return;
+        const sourceTabId = activeTabId.current;
+        const sourceVersion = pageVersion.current;
+        const sourceGeneration = sourceEpoch.current;
+        if (!sourceTabId) return;
         const frame = document.createElement("canvas");
         const scale = Math.min(
           1,
@@ -816,6 +817,41 @@ function App() {
         frame
           .getContext("2d")
           ?.drawImage(video, 0, 0, frame.width, frame.height);
+        const small = document.createElement("canvas");
+        small.width = 9;
+        small.height = 8;
+        const ctx = small.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(frame, 0, 0, 9, 8);
+        const hash = differenceHash(ctx.getImageData(0, 0, 9, 8).data);
+        // Check the source after freezing, then send only these checked pixels.
+        const tab = await chrome.tabs.get(sourceTabId).catch(() => undefined);
+        if (!tab?.url || isOwnExtensionUrl(tab.url) || isBlocked(tab.url))
+          return;
+        const [visibleTab] = await chrome.tabs
+          .query({ active: true, windowId: tab.windowId })
+          .catch(() => []);
+        if (
+          !visibleTab ||
+          (visibleTab.id !== sourceTabId && !isOwnExtensionUrl(visibleTab.url))
+        )
+          return;
+        if (
+          /^https?:/.test(tab.url) &&
+          (await isSensitivePage().catch(() => true))
+        )
+          return;
+        if (
+          disposed ||
+          sourceResolving.current ||
+          shareRef.current !== shareStream ||
+          videoRef.current !== video ||
+          sourceGeneration !== sourceEpoch.current ||
+          sourceTabId !== activeTabId.current ||
+          sourceVersion !== pageVersion.current
+        )
+          return;
+        if (!detector.observe(hash, Date.now())) return;
         setStatus(t.screenChangeSummary);
         await askWith({
           question: t.passivePrompt,
@@ -899,7 +935,12 @@ function App() {
     schedulePageRefresh(true);
   }
   async function loadPageAndSuggestions() {
-    if (!consented || requestIdRef.current || translationController.current)
+    if (
+      !consented ||
+      sourceResolving.current ||
+      requestIdRef.current ||
+      translationController.current
+    )
       return;
     pendingPageRefresh.current = false;
     const version = pageVersion.current;
@@ -1230,6 +1271,9 @@ function App() {
       options.page || (options.image && kind === "passive" ? undefined : page);
     const sourceTabId = activeTabId.current;
     const sourceVersion = pageVersion.current;
+    const sourceGeneration = sourceEpoch.current;
+    if ((kind === "passive" || kind === "suggest") && sourceResolving.current)
+      return;
     if (
       (kind === "passive" || kind === "suggest") &&
       currentPage &&
@@ -1276,6 +1320,8 @@ function App() {
         if (requestIdRef.current !== id || cancelledRequests.current.has(id))
           return;
         if (
+          sourceResolving.current ||
+          sourceGeneration !== sourceEpoch.current ||
           sourceTabId !== activeTabId.current ||
           sourceVersion !== pageVersion.current
         )
