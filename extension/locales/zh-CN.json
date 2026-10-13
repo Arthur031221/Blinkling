@@ -159,5 +159,7 @@
   "askWithoutPage": "不附页面内容，直接提问",
   "blockedPage": "此网站在屏蔽列表中，已暂停读取页面。",
   "captureProgress": "正在截取第 {completed} / {total} 个区块",
-  "translationPageChanged": "已应用翻译。有 {count} 段正在变化的文字已跳过，可再次翻译以包含这些文字。"
+  "translationPageChanged": "已应用翻译。有 {count} 段正在变化的文字已跳过，可再次翻译以包含这些文字。",
+  "guideCapturePermission": "请在此页点击 Glimpselet 工具栏图标，再重试导览。练习步骤会保留。",
+  "skipPractice": "跳过练习步骤"
 }

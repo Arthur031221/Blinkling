@@ -174,13 +174,11 @@ test.afterEach(async () => {
 async function openReader() {
   const reader = await context.newPage();
   await reader.goto(`chrome-extension://${extensionId}/reader.html`);
-  await reader
-    .locator("#file")
-    .setInputFiles({
-      name: "sections.pdf",
-      mimeType: "application/pdf",
-      buffer: sectionPdf(),
-    });
+  await reader.locator("#file").setInputFiles({
+    name: "sections.pdf",
+    mimeType: "application/pdf",
+    buffer: sectionPdf(),
+  });
   await expect(reader.locator(".pdf-text-layer")).toContainText("First page");
   await reader.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(reader.locator(".pdf-text-layer")).toContainText("In this work");
@@ -203,6 +201,86 @@ async function selectIntroduction(reader: Page) {
     document.dispatchEvent(new Event("selectionchange"));
   });
 }
+
+async function activate(page: Page) {
+  await page.bringToFront();
+  const cdp = await context.browser()!.newBrowserCDPSession();
+  const { targetInfos } = await cdp.send("Target.getTargets", {
+    filter: [{ type: "tab", exclude: false }],
+  });
+  const target = targetInfos.find((target) => target.url === page.url());
+  if (!target) throw new Error("Activation target missing");
+  await cdp.send("Extensions.triggerAction", {
+    id: extensionId,
+    targetId: target.targetId,
+  });
+  await cdp.detach();
+}
+
+test("clears an obsolete password warning after clicking an SPA sidebar link", async () => {
+  await site.evaluate(() => {
+    const password = document.createElement("input");
+    password.type = "password";
+    document.body.append(password);
+  });
+  await panel.getByRole("button", { name: en.visible, exact: true }).click();
+  await expect(panel.locator(".toolbar .status")).toHaveText(en.passwordPage);
+  await site.getByRole("link", { name: "Dashboards", exact: true }).click();
+  await expect(site).toHaveURL(origin + "/dashboards");
+  await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  await expect(panel.locator(".toolbar .status")).not.toHaveText(
+    en.passwordPage,
+  );
+});
+
+test("Guide practice has one keyboard-accessible action and keeps its step through permission recovery", async () => {
+  await site.goto(origin + "/assets/glimpselet-welcome-sample.html");
+  await activate(site);
+  await site.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("glimpselet:tutorial-action", {
+        detail: { version: 1, action: "guide", step: 5 },
+      }),
+    ),
+  );
+  await expect(panel.locator(".float-start").last()).toContainText("5/8");
+  const guides = panel.getByRole("button", {
+    name: en.guideAction,
+    exact: true,
+  });
+  await expect(guides).toHaveCount(1);
+  await panel.evaluate(() => {
+    const original = chrome.tabs.captureVisibleTab.bind(chrome.tabs);
+    let denied = true;
+    chrome.tabs.captureVisibleTab = ((...args: Parameters<typeof original>) => {
+      if (denied) {
+        denied = false;
+        return Promise.reject(
+          new Error(
+            "Either the '<all_urls>' or 'activeTab' permission is required.",
+          ),
+        );
+      }
+      return original(...args);
+    }) as typeof chrome.tabs.captureVisibleTab;
+  });
+  await guides.focus();
+  await panel.keyboard.press("Enter");
+  await expect(panel.locator(".toolbar .status")).toContainText(
+    "try Guide again",
+  );
+  await expect(panel.locator(".float-start").last()).toContainText("5/8");
+  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
+  await activate(site);
+  await guides.click();
+  await expect(site.locator("[data-glimpselet-overlay] .guide")).toBeVisible();
+  await expect(panel.locator(".float-start").last()).not.toContainText("5/8");
+  await expect(
+    panel
+      .locator(".capture-buttons")
+      .getByRole("button", { name: en.guideAction, exact: true }),
+  ).toBeVisible();
+});
 
 test("streams safe Markdown in readable narrow and wide light/dark bubbles", async () => {
   const markdown =

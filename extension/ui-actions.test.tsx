@@ -163,12 +163,10 @@ beforeEach(() => {
   });
   mocks.context.mockReset().mockResolvedValue(page);
   mocks.sensitive.mockReset().mockResolvedValue(false);
-  mocks.capture
-    .mockReset()
-    .mockResolvedValue({
-      page,
-      capture: { image: "data:image/png;base64,AAA=", label: "Visible" },
-    });
+  mocks.capture.mockReset().mockResolvedValue({
+    page,
+    capture: { image: "data:image/png;base64,AAA=", label: "Visible" },
+  });
   mocks.ask
     .mockReset()
     .mockImplementation(
@@ -195,6 +193,107 @@ afterEach(async () => {
 });
 
 describe("bubble answer rendering and feedback", () => {
+  it("clears a page warning after readable SPA context and suggestions arrive", async () => {
+    mocks.sensitive.mockResolvedValue(true);
+    await start();
+    expect(status()).toBe(en.passwordPage);
+    mocks.sensitive.mockResolvedValue(false);
+    mocks.context.mockResolvedValue({
+      ...page,
+      documentKey: "doc-2",
+      title: "New dashboards",
+    });
+    await act(async () => {
+      updated.emit(1, { url: page.url }, { url: page.url });
+    });
+    await refresh();
+    expect(document.querySelectorAll(".suggestions button")).toHaveLength(3);
+    expect(status()).not.toBe(en.passwordPage);
+  });
+  it("retains a warning when the current page remains blocked", async () => {
+    mocks.sensitive.mockResolvedValue(true);
+    await start();
+    await act(async () => {
+      updated.emit(1, { url: page.url }, { url: page.url });
+    });
+    await refresh();
+    expect(status()).toBe(en.passwordPage);
+    expect(document.querySelectorAll(".suggestions button")).toHaveLength(0);
+  });
+  it("does not let a delayed page refresh erase a newer permission error", async () => {
+    mocks.sensitive.mockResolvedValue(true);
+    await start();
+    let release!: (value: PageContext) => void;
+    mocks.context.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    mocks.sensitive.mockResolvedValue(false);
+    await act(async () => {
+      updated.emit(1, { url: page.url }, { url: page.url });
+    });
+    await refresh();
+    mocks.capture.mockRejectedValue(new Error("allow_site_access"));
+    await click(en.visible);
+    expect(status()).toBe(en.siteAccess);
+    await act(async () => release(page));
+    await flush();
+    expect(status()).toBe(en.siteAccess);
+  });
+  it("explains how to retry Guide and preserves its practice step after a capture permission error", async () => {
+    await start();
+    await send(
+      { type: "glimpselet:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+    );
+    mocks.capture.mockRejectedValue(new Error("capture_permission"));
+    const guideControls = [
+      ...document.querySelectorAll<HTMLButtonElement>("button"),
+    ].filter((element) => element.textContent?.trim() === en.guideAction);
+    expect(guideControls).toHaveLength(1);
+    await click(en.guideAction);
+    expect(status()).toMatch(/toolbar.*try Guide again/);
+    expect(document.querySelector(".float-start p")?.textContent).toBeDefined();
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:tutorial-done",
+      ),
+    ).toBe(false);
+    mocks.capture.mockResolvedValue({
+      page,
+      capture: { image: "data:image/png;base64,AAA=", label: "Visible" },
+    });
+    await click(en.guideAction);
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) =>
+          message.type === "glimpselet:tutorial-done" && message.step === 5,
+      ),
+    ).toBe(true);
+    expect(document.querySelector(".capture-buttons button")?.textContent).toBe(
+      en.guideAction,
+    );
+  });
+  it("gives Guide-specific toolbar recovery outside the tutorial too", async () => {
+    await start();
+    mocks.capture.mockRejectedValue(new Error("capture_permission"));
+    await click(en.guideAction);
+    expect(status()).toMatch(/toolbar.*try Guide again/);
+    expect(mocks.ask).not.toHaveBeenCalled();
+  });
+  it("offers the ordinary Guide control when practice is dismissed", async () => {
+    await start();
+    await send(
+      { type: "glimpselet:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+    );
+    await click("Skip practice step");
+    expect(document.querySelector(".capture-buttons button")?.textContent).toBe(
+      en.guideAction,
+    );
+  });
   it("renders streaming and completed Markdown safely and preserves copy/pin text", async () => {
     await start();
     const answer =

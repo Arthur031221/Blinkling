@@ -159,5 +159,7 @@
   "askWithoutPage": "Perguntar sem o conteúdo da página",
   "blockedPage": "Este site está na sua lista de bloqueio. A leitura da página está pausada.",
   "captureProgress": "Capturando {completed} de {total} seções",
-  "translationPageChanged": "Tradução aplicada. {count} textos que estavam mudando foram ignorados. Traduza novamente para incluí-los."
+  "translationPageChanged": "Tradução aplicada. {count} textos que estavam mudando foram ignorados. Traduza novamente para incluí-los.",
+  "guideCapturePermission": "Clique no ícone do Glimpselet na barra de ferramentas desta página e tente o guia novamente. A etapa de prática continua aberta.",
+  "skipPractice": "Pular etapa de prática"
 }

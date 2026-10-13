@@ -159,5 +159,7 @@
   "askWithoutPage": "Poser la question sans le contenu de la page",
   "blockedPage": "Ce site figure dans votre liste de blocage. La lecture est suspendue.",
   "captureProgress": "Capture de {completed} sections sur {total}",
-  "translationPageChanged": "Traduction appliquée. {count} textes en cours de modification ont été ignorés. Traduisez à nouveau pour les inclure."
+  "translationPageChanged": "Traduction appliquée. {count} textes en cours de modification ont été ignorés. Traduisez à nouveau pour les inclure.",
+  "guideCapturePermission": "Cliquez sur l’icône Glimpselet de la barre d’outils sur cette page, puis relancez le guide. L’étape reste ouverte.",
+  "skipPractice": "Passer cette étape"
 }

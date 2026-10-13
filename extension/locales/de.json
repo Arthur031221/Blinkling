@@ -159,5 +159,7 @@
   "askWithoutPage": "Ohne Seiteninhalt fragen",
   "blockedPage": "Diese Website steht auf deiner Sperrliste. Das Lesen der Seite ist pausiert.",
   "captureProgress": "{completed} von {total} Abschnitten werden aufgenommen",
-  "translationPageChanged": "Übersetzung angewendet. {count} Textstellen wurden während einer Änderung übersprungen. Übersetzen Sie erneut, um sie einzubeziehen."
+  "translationPageChanged": "Übersetzung angewendet. {count} Textstellen wurden während einer Änderung übersprungen. Übersetzen Sie erneut, um sie einzubeziehen.",
+  "guideCapturePermission": "Klicke auf dieser Seite auf das Glimpselet-Symbol in der Symbolleiste und starte die Anleitung erneut. Der Übungsschritt bleibt geöffnet.",
+  "skipPractice": "Übungsschritt überspringen"
 }

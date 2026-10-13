@@ -159,5 +159,7 @@
   "askWithoutPage": "不附頁面內容，直接提問",
   "blockedPage": "此網站在封鎖清單中，已暫停讀取頁面。",
   "captureProgress": "正在擷取第 {completed} / {total} 個區塊",
-  "translationPageChanged": "已套用翻譯。有 {count} 段變動中的文字已略過，可再次翻譯以包含這些文字。"
+  "translationPageChanged": "已套用翻譯。有 {count} 段變動中的文字已略過，可再次翻譯以包含這些文字。",
+  "guideCapturePermission": "請在此頁點擊 Glimpselet 工具列圖示，再重試導覽。練習步驟會保留。",
+  "skipPractice": "略過練習步驟"
 }

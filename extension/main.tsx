@@ -122,11 +122,13 @@ function canvasToPng(video: HTMLVideoElement): string {
   canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
   return encodeCanvasPng(canvas);
 }
+function errorCode(error: unknown): string {
+  return error instanceof Error
+    ? (error as Error & { code?: string }).code || error.message
+    : "";
+}
 function errorLabel(error: unknown, t: Record<string, string>): string {
-  const code =
-    error instanceof Error
-      ? (error as Error & { code?: string }).code || error.message
-      : "";
+  const code = errorCode(error);
   const keys: Record<string, string> = {
     bridge_disconnected: "bridgeLost",
     bridge_unavailable: "bridgeLost",
@@ -204,7 +206,24 @@ function App() {
     total: number;
   } | null>(null);
   const pageCaptureController = useRef<AbortController | null>(null);
-  const [status, setStatus] = useState("");
+  const [status, updateStatus] = useState("");
+  const statusRevision = useRef(0);
+  const pageWarningRevision = useRef<number | undefined>(undefined);
+  const setStatus = useCallback((value: string) => {
+    statusRevision.current++;
+    pageWarningRevision.current = undefined;
+    updateStatus(value);
+  }, []);
+  function setPageStatus(value: string) {
+    setStatus(value);
+    pageWarningRevision.current = statusRevision.current;
+  }
+  function reportError(error: unknown) {
+    const label = errorLabel(error, t);
+    if (["password_page", "blocked_page"].includes(errorCode(error)))
+      setPageStatus(label);
+    else setStatus(label);
+  }
   const attachmentGeneration = useRef(0);
   const [capture, updateCapture] = useState<{
     image: string;
@@ -759,7 +778,7 @@ function App() {
             setPage(result.page);
             setStatus(t.captureReady);
           })
-          .catch((error) => setStatus(errorLabel(error, t)));
+          .catch((error) => reportError(error));
       }
       if (
         value.type === "glimpselet:reader-context" &&
@@ -1022,7 +1041,7 @@ function App() {
         }
       } else await captureAction("region");
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     } finally {
       cropBusy.current = false;
     }
@@ -1096,6 +1115,7 @@ function App() {
       return;
     pendingPageRefresh.current = false;
     const version = pageVersion.current;
+    const feedbackRevision = statusRevision.current;
     try {
       const sourceTabId = activeTabId.current;
       if (!sourceTabId) return;
@@ -1108,6 +1128,7 @@ function App() {
         setSuggestions([]);
         setPage(undefined);
         setDocumentIdentity(undefined);
+        setPageStatus(t.blockedPage);
         return;
       }
       if (
@@ -1151,7 +1172,7 @@ function App() {
       if (passive && !paused) {
         if (await isSensitivePage().catch(() => true)) {
           setSuggestions([]);
-          setStatus(t.passwordPage);
+          setPageStatus(t.passwordPage);
           return;
         }
       }
@@ -1164,8 +1185,15 @@ function App() {
       setPage(next);
       if (!next || next.hasPassword || isBlocked(next.url)) {
         setSuggestions([]);
+        if (next?.hasPassword) setPageStatus(t.passwordPage);
+        else if (next && isBlocked(next.url)) setPageStatus(t.blockedPage);
         return;
       }
+      if (
+        pageWarningRevision.current === feedbackRevision &&
+        statusRevision.current === feedbackRevision
+      )
+        setStatus("");
       const key = `${sourceTabId}:${pageRevision(next)}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
       if (
         requestIdRef.current ||
@@ -1194,8 +1222,13 @@ function App() {
           page: next,
           silent: true,
         });
-    } catch {
-      /* page support is optional on restricted sites */
+    } catch (error) {
+      if (
+        version === pageVersion.current &&
+        statusRevision.current === feedbackRevision &&
+        ["password_page", "blocked_page"].includes(errorCode(error))
+      )
+        reportError(error);
     }
   }
   async function requestSiteAccess(): Promise<number> {
@@ -1236,7 +1269,7 @@ function App() {
       setStatus(t.siteAccessGranted);
       schedulePageRefresh(true);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   function isBlocked(url: string): boolean {
@@ -1265,7 +1298,7 @@ function App() {
       setPairCode("");
       schedulePageRefresh();
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function persistApiKey(value: string) {
@@ -1325,7 +1358,7 @@ function App() {
       }
       return true;
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
       return false;
     } finally {
       if (controller && pageCaptureController.current === controller) {
@@ -1342,7 +1375,7 @@ function App() {
       await chrome.windows.update(tab.windowId!, { focused: true });
       await chrome.tabs.update(tabId, { active: true });
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   function stopSharing() {
@@ -1410,7 +1443,7 @@ function App() {
         });
       setTutorial(null);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function replayTour() {
@@ -1436,7 +1469,9 @@ function App() {
         image: result.capture.image,
       });
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      if (errorCode(error) === "capture_permission")
+        setStatus(t.guideCapturePermission);
+      else reportError(error);
     }
   }
   async function askWith(options: {
@@ -1567,7 +1602,7 @@ function App() {
           if (sensitive) {
             setSuggestions([]);
             setPage(undefined);
-            setStatus(t.passwordPage);
+            setPageStatus(t.passwordPage);
           } else setStatus(t.ready);
           return;
         }
@@ -1743,7 +1778,7 @@ function App() {
         !cancelledRequests.current.has(id) &&
         (!options.silent || sourceVersion === pageVersion.current)
       )
-        setStatus(errorLabel(error, t));
+        reportError(error);
       return false;
     } finally {
       cancelledRequests.current.delete(id);
@@ -1785,7 +1820,7 @@ function App() {
         if (!freshPage) throw new Error("unsupported_page");
       } catch (error) {
         freshPage = null;
-        setStatus(errorLabel(error, t));
+        reportError(error);
         setContextFailure(q);
       } finally {
         if (requestIdRef.current === reservation) {
@@ -1858,7 +1893,7 @@ function App() {
       try {
         await requestSiteAccess();
       } catch (error) {
-        setStatus(errorLabel(error, t));
+        reportError(error);
         return;
       }
     }
@@ -1882,7 +1917,7 @@ function App() {
             : t.newThread,
       );
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function openSessions() {
@@ -1896,7 +1931,7 @@ function App() {
       );
       setShowSessions(true);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function translatePage() {
@@ -2096,7 +2131,7 @@ function App() {
         } catch {
           setStatus(t.partialFailureRestore);
         }
-      } else setStatus(errorLabel(error, t));
+      } else reportError(error);
     } finally {
       if (usageTotal > 0) {
         const now = Date.now();
@@ -2139,7 +2174,7 @@ function App() {
       forgetTranslation(currentPage.documentKey);
       setStatus(`${t.restored} ${result?.restored || 0}`);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   function forgetTranslation(key: string | undefined) {
@@ -2181,7 +2216,7 @@ function App() {
         url: tab.url,
       });
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function copy(text: string) {
@@ -2200,8 +2235,7 @@ function App() {
       if (generation === attachmentGeneration.current)
         setCapture({ image, label: file.name });
     } catch (error) {
-      if (generation === attachmentGeneration.current)
-        setStatus(errorLabel(error, t));
+      if (generation === attachmentGeneration.current) reportError(error);
     }
   }
 
@@ -2370,6 +2404,7 @@ function App() {
               <button
                 className="primary wide"
                 onClick={() => void runTutorial()}
+                disabled={busy}
               >
                 {tutorial.action === "float"
                   ? t.float
@@ -2386,6 +2421,9 @@ function App() {
                             : t.replayTour}
               </button>
               <p>{t.replayTourHint.replace("{step}", String(tutorial.step))}</p>
+              <button className="plain" onClick={() => setTutorial(null)}>
+                {t.skipPractice}
+              </button>
             </section>
           )}
           <section className="capturebar">
@@ -2406,9 +2444,14 @@ function App() {
               </div>
             )}
             <div className="capture-buttons">
-              <button onClick={() => void guidePage()} disabled={busy}>
-                {t.guideAction}
-              </button>
+              {!(
+                tutorial?.action === "guide" &&
+                tutorial.tabId === activeTabId.current
+              ) && (
+                <button onClick={() => void guidePage()} disabled={busy}>
+                  {t.guideAction}
+                </button>
+              )}
               <button onClick={() => void captureAction("visible")}>
                 {t.visible}
               </button>
