@@ -1115,7 +1115,8 @@
       void send({
         type: "glimpselet:pair",
         port: Number(value.port),
-        code: value.code
+        code: value.code,
+        locale: value.locale === "en" || value.locale === "zh-TW" ? value.locale : void 0
       });
     });
     window.addEventListener("glimpselet:tutorial-action", (event) => {
@@ -1136,9 +1137,16 @@
       void send({
         type: "glimpselet:tutorial",
         action: value.action,
-        step: value.step
+        step: value.step,
+        locale: value.locale === "en" || value.locale === "zh-TW" ? value.locale : void 0
       });
     });
+    if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/assets/glimpselet-welcome-sample.html") {
+      window.postMessage(
+        { type: "glimpselet:tutorial:content-ready", version: 1 },
+        location.origin
+      );
+    }
     if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/install") {
       window.postMessage({ type: "glimpselet:extension-ready" }, location.origin);
     }

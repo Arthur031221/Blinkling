@@ -388,9 +388,8 @@ setInterval(() => {}, 1000);
       await rm(directory, { recursive: true, force: true });
     });
     const { panel } = await setup({ now });
-    const extension = (
-      panel as unknown as { extension: ExtensionBridge }
-    ).extension;
+    const extension = (panel as unknown as { extension: ExtensionBridge })
+      .extension;
     const recorded = async () =>
       (await readFile(launches, "utf8").catch(() => ""))
         .trim()
@@ -429,9 +428,13 @@ setInterval(() => {}, 1000);
       const sourceCode = extension.issueCode();
       if (ordinaryPaired) {
         const ordinary = await extensionClient(panel);
-        expect(await ordinary.pair(sourceCode)).toMatchObject({ type: "paired" });
+        expect(await ordinary.pair(sourceCode)).toMatchObject({
+          type: "paired",
+        });
       }
-      expect((await status(panel, sourceCode)).body.connected).toBe(ordinaryPaired);
+      expect((await status(panel, sourceCode)).body.connected).toBe(
+        ordinaryPaired,
+      );
 
       const forbidden = await post(
         panel,
@@ -447,11 +450,15 @@ setInterval(() => {}, 1000);
       ).toBe(202);
       await expect.poll(async () => (await recorded()).length).toBe(1);
       const firstTrialUrl = new URL((await recorded())[0]!);
-      const trialCode = new URLSearchParams(firstTrialUrl.hash.slice(1)).get("code")!;
+      const trialCode = new URLSearchParams(firstTrialUrl.hash.slice(1)).get(
+        "code",
+      )!;
       expect(trialCode).toMatch(/^[A-F0-9]{16}$/);
       expect(trialCode).not.toBe(sourceCode);
       expect((await status(panel, trialCode)).body.connected).toBe(false);
-      expect((await status(panel, sourceCode)).body.connected).toBe(ordinaryPaired);
+      expect((await status(panel, sourceCode)).body.connected).toBe(
+        ordinaryPaired,
+      );
 
       // Clicking again while this browser runs must not launch another profile.
       expect(
@@ -462,7 +469,9 @@ setInterval(() => {}, 1000);
       const paired = await trial.pair(trialCode);
       expect(paired).toMatchObject({ type: "paired" });
       expect((await status(panel, trialCode)).body.connected).toBe(true);
-      expect((await status(panel, sourceCode)).body.connected).toBe(ordinaryPaired);
+      expect((await status(panel, sourceCode)).body.connected).toBe(
+        ordinaryPaired,
+      );
       const duplicate = await extensionClient(panel);
       expect(await duplicate.pair(trialCode)).toMatchObject({
         type: "error",
@@ -470,7 +479,8 @@ setInterval(() => {}, 1000);
       });
       expect((await status(panel, trialCode)).body.connected).toBe(true);
 
-      const child = (panel as unknown as { trialBrowser: ChildProcess }).trialBrowser;
+      const child = (panel as unknown as { trialBrowser: ChildProcess })
+        .trialBrowser;
       const exited = once(child, "exit");
       child.kill("SIGTERM");
       await exited;
@@ -479,7 +489,9 @@ setInterval(() => {}, 1000);
       ).toBe(202);
       await expect.poll(async () => (await recorded()).length).toBe(2);
       const nextTrialUrl = new URL((await recorded())[1]!);
-      const nextCode = new URLSearchParams(nextTrialUrl.hash.slice(1)).get("code")!;
+      const nextCode = new URLSearchParams(nextTrialUrl.hash.slice(1)).get(
+        "code",
+      )!;
       expect(nextCode).not.toBe(sourceCode);
       expect(nextCode).not.toBe(trialCode);
       expect((await status(panel, nextCode)).body.connected).toBe(false);
@@ -492,7 +504,8 @@ setInterval(() => {}, 1000);
     const { panel, extension, recorded } = await fixture(() => now);
     const sourceCode = extension.issueCode();
     expect(
-      (await post(panel, `/install/try?code=${sourceCode}&locale=zh-TW`, {})).status,
+      (await post(panel, `/install/try?code=${sourceCode}&locale=zh-TW`, {}))
+        .status,
     ).toBe(202);
     await expect.poll(async () => (await recorded()).length).toBe(1);
     const url = new URL((await recorded())[0]!);
@@ -506,9 +519,26 @@ setInterval(() => {}, 1000);
       code: "pairing_expired",
     });
     expect(
-      (await post(panel, `/install/try?code=${sourceCode}&locale=zh-TW`, {})).status,
+      (await post(panel, `/install/try?code=${sourceCode}&locale=zh-TW`, {}))
+        .status,
     ).toBe(401);
     expect(await recorded()).toHaveLength(1);
+  });
+
+  it.each([
+    ["en", "en"],
+    ["unsupported", null],
+  ])("handles the trial locale %s deliberately", async (locale, expected) => {
+    const { panel, extension, recorded } = await fixture();
+    const code = extension.issueCode();
+    expect(
+      (await post(panel, `/install/try?code=${code}&locale=${locale}`, {}))
+        .status,
+    ).toBe(202);
+    await expect.poll(async () => (await recorded()).length).toBe(1);
+    expect(new URL((await recorded())[0]!).searchParams.get("locale")).toBe(
+      expected,
+    );
   });
 });
 

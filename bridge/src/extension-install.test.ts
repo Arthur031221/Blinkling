@@ -68,7 +68,10 @@ describe("extension distribution and first-run guide", () => {
     expect(INSTALL_GUIDE_SCRIPT).toContain("titles:[");
     expect(INSTALL_GUIDE_SCRIPT).toContain("descs:[");
     expect(INSTALL_GUIDE_SCRIPT).toContain("/install/status?code=");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("/install/try?code=");
+    expect(INSTALL_GUIDE_SCRIPT).toContain("/install/try?");
+    expect(INSTALL_GUIDE_SCRIPT).toContain(
+      "new URLSearchParams({code:code||'',locale:locale()})",
+    );
     expect(INSTALL_GUIDE_SCRIPT).toContain("method:'POST'");
     expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet:tutorial-action");
     expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet:tutorial:done");

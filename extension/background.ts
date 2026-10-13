@@ -163,6 +163,9 @@ chrome.runtime.onMessage.addListener(
       const target = new URL(panelUrl());
       target.searchParams.set("pairPort", String(port));
       target.searchParams.set("pairCode", code);
+      const locale = (message as { locale?: unknown }).locale;
+      if (locale === "en" || locale === "zh-TW")
+        target.searchParams.set("welcomeLocale", locale);
       void chrome.tabs
         .query({ url: `${panelUrl()}*` })
         .then(async ([existing]) => {

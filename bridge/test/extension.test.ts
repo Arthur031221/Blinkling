@@ -97,7 +97,10 @@ const ask = {
 describe("extension pairing and answers", () => {
   it("keeps installation status isolated between browser profiles without reusing or extending codes", async () => {
     let now = 1000;
-    const app = await setup(async () => ({ answer: "unused" }), () => now);
+    const app = await setup(
+      async () => ({ answer: "unused" }),
+      () => now,
+    );
     const ordinaryCode = app.bridge.issueCode();
     const ordinary = await app.client();
     ordinary.send({ type: "pair", code: ordinaryCode });
