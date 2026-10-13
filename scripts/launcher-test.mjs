@@ -90,11 +90,13 @@ try {
     assert.equal(failureCode, 1);
     assert.equal(failureSignal, null);
     assert.match(failureOutput, /Could not open GLIMPSELET_TRIAL_URL/);
+    assert.match(failureOutput, /Glimpselet extension loaded\./);
+    assert.doesNotMatch(failureOutput, /Installing Playwright/);
   } finally {
     clearTimeout(failureTimer);
   }
   console.log(
-    "PASS: packaged launcher loaded the extension and closed after SIGTERM and failed startup",
+    "PASS: packaged launcher bootstrapped, loaded the extension, reused its runtime and closed after SIGTERM and failed startup",
   );
 } finally {
   if (child && child.exitCode === null && child.signalCode === null) {
