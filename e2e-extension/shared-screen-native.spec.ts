@@ -1,0 +1,803 @@
+import {
+  test,
+  expect,
+  chromium,
+  type BrowserContext,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
+import { spawn, execFileSync, type ChildProcess } from "node:child_process";
+import { once } from "node:events";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { build } from "esbuild";
+
+// XTest sends genuine desktop input, including to the native PiP window. CDP
+// input and document.fullscreenElement alone cannot establish these regressions.
+const xInput = `import ctypes,sys
+x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6')
+x.XOpenDisplay.restype=ctypes.c_void_p
+p=x.XOpenDisplay(None)
+if not p: raise RuntimeError('No X11 display')
+x.XSync.argtypes=[ctypes.c_void_p,ctypes.c_int]
+x.XCloseDisplay.argtypes=[ctypes.c_void_p]
+x.XStringToKeysym.argtypes=[ctypes.c_char_p];x.XStringToKeysym.restype=ctypes.c_ulong
+x.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong];x.XKeysymToKeycode.restype=ctypes.c_uint
+t.XTestFakeMotionEvent.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_ulong]
+t.XTestFakeButtonEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+t.XTestFakeKeyEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+if sys.argv[1]=='pointer':
+ t.XTestFakeMotionEvent(p,-1,int(sys.argv[2]),int(sys.argv[3]),0)
+ if sys.argv[4]!='move': t.XTestFakeButtonEvent(p,1,int(sys.argv[4]=='down'),0)
+elif sys.argv[1]=='click':
+ t.XTestFakeMotionEvent(p,-1,int(sys.argv[2]),int(sys.argv[3]),0)
+ t.XTestFakeButtonEvent(p,1,1,0);t.XTestFakeButtonEvent(p,1,0,0)
+elif sys.argv[1]=='chord':
+ keys=[x.XKeysymToKeycode(p,x.XStringToKeysym(name.encode())) for name in sys.argv[2:]]
+ for k in keys: t.XTestFakeKeyEvent(p,k,1,0)
+ for k in reversed(keys): t.XTestFakeKeyEvent(p,k,0,0)
+elif sys.argv[1] in ['key-down','key-up']:
+ k=x.XKeysymToKeycode(p,x.XStringToKeysym(sys.argv[2].encode()))
+ t.XTestFakeKeyEvent(p,k,int(sys.argv[1]=='key-down'),0)
+else:
+ for name in sys.argv[2:]:
+  k=x.XKeysymToKeycode(p,x.XStringToKeysym(name.encode()))
+  t.XTestFakeKeyEvent(p,k,1,0);t.XTestFakeKeyEvent(p,k,0,0)
+x.XSync(p,0)
+x.XCloseDisplay(p)
+`;
+
+let desktop: ChildProcess;
+let manager: ChildProcess;
+let context: BrowserContext;
+let panel: Page;
+let site: Page;
+let directory: string;
+let display: string;
+let previousTabId: number;
+let desktopLog: string;
+let managerLog: string;
+
+async function stopProcess(child: ChildProcess, group = false) {
+  if (!child?.pid || child.exitCode !== null || child.signalCode !== null)
+    return;
+  const exited = once(child, "exit");
+  if (group) process.kill(-child.pid, "SIGTERM");
+  else child.kill();
+  await exited;
+}
+
+type NativeFixture = Window & {
+  result?: string | null;
+  failure?: string;
+  useClearBubble?: boolean;
+  restoreCount: number;
+  stopShare: () => void;
+};
+
+async function attachJson(testInfo: TestInfo, name: string, value: unknown) {
+  const path = testInfo.outputPath(`${name}.json`);
+  await writeFile(path, JSON.stringify(value, null, 2));
+  await testInfo.attach(name, { path, contentType: "application/json" });
+}
+
+function nativeInput(...args: string[]) {
+  execFileSync("python3", ["-c", xInput, ...args], {
+    env: { ...process.env, DISPLAY: display },
+  });
+}
+
+async function nativeClick(selector: string, bubble = false) {
+  await panel.evaluate((bubble) => {
+    (bubble ? window.documentPictureInPicture.window! : window).focus();
+  }, bubble);
+  let previous: string | undefined;
+  let point = { x: 0, y: 0 };
+  // Newly created native windows can still be decorated/repositioned. Require
+  // stable geometry before translating the DOM rectangle into desktop input.
+  await expect
+    .poll(async () => {
+      point = await panel.evaluate(
+        ({ selector, bubble }) => {
+          const view = bubble
+            ? window.documentPictureInPicture.window!
+            : window;
+          const rect = view.document
+            .querySelector(selector)!
+            .getBoundingClientRect();
+          return {
+            x:
+              (view.screenX +
+                (view.outerWidth - view.innerWidth) / 2 +
+                rect.x +
+                rect.width / 2) *
+              view.devicePixelRatio,
+            y:
+              (view.screenY +
+                view.outerHeight -
+                view.innerHeight +
+                rect.y +
+                rect.height / 2) *
+              view.devicePixelRatio,
+          };
+        },
+        { selector, bubble },
+      );
+      const current = JSON.stringify(point);
+      const stable = previous === current;
+      previous = current;
+      return stable;
+    })
+    .toBe(true);
+  nativeInput(
+    "click",
+    String(Math.round(point.x)),
+    String(Math.round(point.y)),
+  );
+}
+
+test.beforeEach(async ({ browserName }, testInfo) => {
+  expect(browserName).toBe("chromium");
+  directory = await mkdtemp(join(tmpdir(), "glimpselet-native-screen-"));
+  desktop = spawn(
+    "Xvfb",
+    ["-displayfd", "3", "-screen", "0", "1440x1000x24", "-ac"],
+    { stdio: ["ignore", "ignore", "pipe", "pipe"] },
+  );
+  desktopLog = "";
+  desktop.stderr!.on("data", (data) => (desktopLog += String(data)));
+  const [number] = await once(desktop.stdio[3]!, "data");
+  display = `:${String(number).trim()}`;
+  // A private X server also needs a private session bus. Sharing the host's bus
+  // lets separate xfwm4 instances contend for the same session registration.
+  manager = spawn(
+    "dbus-run-session",
+    ["--", "xfwm4", "--replace", "--compositor=off"],
+    {
+      env: { ...process.env, DISPLAY: display },
+      stdio: ["ignore", "ignore", "pipe"],
+      detached: true,
+    },
+  );
+  managerLog = "";
+  manager.stderr!.on("data", (data) => (managerLog += String(data)));
+  // Wait for EWMH ownership before Chrome starts. Otherwise the manager can
+  // decorate/reposition its windows between measuring and sending native input.
+  await expect
+    .poll(() => {
+      if (manager.exitCode !== null || manager.signalCode !== null)
+        throw new Error(`Window manager exited before startup: ${managerLog}`);
+      return execFileSync("xprop", ["-root", "_NET_SUPPORTING_WM_CHECK"], {
+        env: { ...process.env, DISPLAY: display },
+      }).toString();
+    })
+    .toMatch(/window id # 0x[1-9a-f]/);
+  execFileSync("xsetroot", ["-solid", "#125a9c"], {
+    env: { ...process.env, DISPLAY: display },
+  });
+  const extension = join(directory, "extension");
+  await cp(resolve("dist-extension"), extension, { recursive: true });
+  await writeFile(
+    join(extension, "native-fixture.html"),
+    `<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#8b284d}button{padding:20px;margin:20px}video{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none}</style><button id="float">Float</button><button id="reopen" hidden>Reopen bubble</button><script src="native-fixture.js"></script>`,
+  );
+  await build({
+    stdin: {
+      resolveDir: resolve("extension"),
+      contents: `
+import { cropSharedScreen } from './screen-crop';
+import { freezeSharedFrame } from './screen-frame';
+import { listenForShiftCrop } from './shift-crop';
+
+const labels = {
+  cropTitle: 'Crop', cropHint: 'Drag. Enter to confirm. Esc to cancel.',
+  cropConfirm: 'Confirm', cropCancel: 'Cancel',
+};
+let pip, video, controls;
+async function open() {
+  pip = await window.documentPictureInPicture.requestWindow({ width: 380, height: 320 });
+  if (!controls) {
+    controls = document.createElement('div');
+    controls.innerHTML = '<style>body{margin:0;background:#fff8eb}button{padding:14px;margin:8px}textarea{margin:8px}</style><textarea id="draft">Keep this conversation</textarea><button id="resize">Compact</button><button id="share">Share a screen</button><button id="crop">Selected area</button><button id="frame">Capture frame</button>';
+    controls.querySelector('#resize').onclick = () => pip.resizeTo(380, 320);
+    controls.querySelector('#share').onclick = async () => {
+      // Match captureScreen: the share belongs to the opener, not the PiP
+      // document that this fallback will close. Keep its video there as well.
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 2, displaySurface: 'monitor' }, audio: false,
+      });
+      video = document.createElement('video');
+      video.srcObject = stream;
+      document.body.append(video);
+      await video.play();
+      window.ready = true;
+    };
+    controls.querySelector('#crop').onclick = startCrop;
+    controls.querySelector('#frame').onclick = startFrame;
+  }
+  pip.document.body.append(controls);
+  listenForShiftCrop(pip, () => Boolean(video), startCrop);
+  return pip;
+}
+document.querySelector('#float').onclick = open;
+window.restoreCount = 0;
+const clearBubble = {
+  hide: async () => {
+    document.body.append(controls);
+    controls.hidden = true;
+    pip.close();
+  },
+  restore: async () => {
+    const tab = await chrome.tabs.getCurrent();
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+    return new Promise((resolve, reject) => {
+      const button = document.querySelector('#reopen');
+      button.hidden = false;
+      button.onclick = async () => {
+        try {
+          // requestWindow runs directly in the native click's user activation.
+          await open();
+          controls.hidden = false;
+          button.hidden = true;
+          window.restoreCount++;
+          resolve();
+        } catch (error) { reject(error); }
+      };
+    });
+  },
+};
+const options = () => window.useClearBubble ? { clearBubble } : undefined;
+function startCrop() {
+  window.result = undefined;
+  window.failure = undefined;
+  cropSharedScreen(video, window.useClearBubble ? pip.document : null, labels, options())
+    .then(value => window.result = value, error => window.failure = error.message);
+}
+function startFrame() {
+  window.result = undefined;
+  window.failure = undefined;
+  freezeSharedFrame(video, pip.document, options()).then(frame => {
+    window.result = frame.toDataURL();
+    frame.width = 0;
+    frame.height = 0;
+  }, error => window.failure = error.message);
+}
+window.startCrop = startCrop;
+window.startFrame = startFrame;
+window.stopShare = () => video.srcObject.getTracks().forEach(track => {
+  track.stop(); track.dispatchEvent(new Event('ended'));
+});
+chrome.runtime.onMessage.addListener(message => {
+  if (message.type === 'glimpselet:command' && message.command === 'crop-screen') startCrop();
+});`,
+      loader: "js",
+    },
+    bundle: true,
+    outfile: join(extension, "native-fixture.js"),
+    format: "iife",
+    target: "chrome116",
+  });
+  const dpi = testInfo.title.includes("HiDPI") ? 2 : 1;
+  context = await chromium.launchPersistentContext(join(directory, "profile"), {
+    channel: "chromium",
+    headless: false,
+    viewport: null,
+    env: { ...process.env, DISPLAY: display },
+    args: [
+      `--disable-extensions-except=${extension}`,
+      `--load-extension=${extension}`,
+      "--no-sandbox",
+      "--window-position=0,0",
+      "--window-size=1200,900",
+      `--force-device-scale-factor=${dpi}`,
+      "--auto-select-desktop-capture-source=Entire screen",
+      ...(testInfo.title.includes("dedicated")
+        ? ["--enable-features=ExcludePipFromScreenCapture"]
+        : ["--disable-features=ExcludePipFromScreenCapture"]),
+    ],
+  });
+  const worker =
+    context.serviceWorkers()[0] ||
+    (await context.waitForEvent("serviceworker"));
+  await worker.evaluate(() =>
+    chrome.storage.local.set({ consented: true, locale: "en" }),
+  );
+  panel = await context.newPage();
+  await panel.goto(
+    `chrome-extension://${new URL(worker.url()).host}/native-fixture.html`,
+  );
+  await nativeClick("#float");
+  await expect
+    .poll(() =>
+      panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),
+    )
+    .toBe(true);
+  await nativeClick("#resize", true);
+  await expect
+    .poll(() =>
+      panel.evaluate(() => window.documentPictureInPicture.window!.outerWidth),
+    )
+    .toBe(380);
+  await nativeClick("#share", true);
+  await expect
+    .poll(() =>
+      panel.evaluate(() => (window as unknown as { ready: boolean }).ready),
+    )
+    .toBe(true);
+  expect(
+    await panel.evaluate(() => {
+      const video = document.querySelector("video")!;
+      return [
+        video.videoWidth,
+        video.videoHeight,
+        (video.srcObject as MediaStream).getVideoTracks()[0].getSettings()
+          .displaySurface,
+      ];
+    }),
+  ).toEqual([1440, 1000, "monitor"]);
+  const previousOpened = context.waitForEvent("page");
+  const previousTab = await panel.evaluate(async () => {
+    const opener = await chrome.tabs.getCurrent();
+    return chrome.tabs.create({
+      windowId: opener!.windowId,
+      url: "data:text/html,<title>Previous tab</title>Keep this tab active",
+      active: true,
+    });
+  });
+  const previousPage = await previousOpened;
+  await previousPage.waitForLoadState();
+  previousTabId = previousTab.id!;
+  const sourceOpened = context.waitForEvent("page");
+  const sourceWindow = await panel.evaluate(() =>
+    chrome.windows.create({
+      url: 'data:text/html,<title>Other app</title><style>body{background:%23125a9c}</style><h1>Work in another app</h1><div style="position:fixed;left:40px;top:120px;width:120px;height:100px;background:white"></div><div style="position:fixed;right:2vw;bottom:2vh;width:2vw;height:2vh;background:white"></div>',
+      state: "fullscreen",
+      focused: true,
+    }),
+  );
+  site = await sourceOpened;
+  await site.waitForLoadState();
+  expect(await site.title()).toBe("Other app");
+  await panel.evaluate(
+    (id) => chrome.windows.update(id, { state: "fullscreen", focused: true }),
+    sourceWindow!.id!,
+  );
+  await site.bringToFront();
+  const before = testInfo.outputPath("desktop-before.png");
+  execFileSync(
+    "ffmpeg",
+    [
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-video_size",
+      "1440x1000",
+      "-i",
+      display,
+      "-frames:v",
+      "1",
+      before,
+    ],
+    { timeout: 10000 },
+  );
+  await testInfo.attach("native-before", {
+    path: before,
+    contentType: "image/png",
+  });
+  await attachJson(
+    testInfo,
+    "windows-before",
+    await panel.evaluate(() => chrome.windows.getAll({ populate: true })),
+  );
+  await expect
+    .poll(() =>
+      panel.evaluate(() => {
+        const video = document.querySelector("video");
+        const canvas = document.createElement("canvas");
+        canvas.width = 1440;
+        canvas.height = 1000;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0);
+        return [...ctx.getImageData(1360, 920, 1, 1).data];
+      }),
+    )
+    .toEqual([17, 90, 154, 255]);
+});
+
+test.afterEach(async ({ browserName }, testInfo) => {
+  try {
+    await context?.close();
+  } finally {
+    // Wait for the owned desktop to exit before the next test starts, including
+    // the session bus and manager children in their dedicated process group.
+    try {
+      await stopProcess(manager, true);
+    } finally {
+      await stopProcess(desktop);
+      await testInfo.attach("desktop-startup", {
+        body: `${browserName}\n${desktopLog}\n${managerLog}`,
+        contentType: "text/plain",
+      });
+      if (directory) await rm(directory, { recursive: true, force: true });
+    }
+  }
+});
+
+async function recordFullscreen(testInfo: TestInfo) {
+  const cdp = await context.newCDPSession(panel);
+  const bounds = await cdp.send("Browser.getWindowForTarget");
+  await cdp.detach();
+  const metrics = await panel.evaluate(() => ({
+    inner: [innerWidth, innerHeight],
+    screen: [screen.width, screen.height],
+    ratio: devicePixelRatio,
+    image: (() => {
+      const r = document
+        .querySelector("[data-glimpselet-frozen-crop] img")!
+        .getBoundingClientRect();
+      return [r.width, r.height];
+    })(),
+    fullscreen: Boolean(document.fullscreenElement),
+  }));
+  await attachJson(testInfo, "native-bounds", { ...bounds, metrics });
+  const screenshot = testInfo.outputPath("desktop-crop.png");
+  execFileSync(
+    "ffmpeg",
+    [
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-video_size",
+      "1440x1000",
+      "-i",
+      display,
+      "-frames:v",
+      "1",
+      screenshot,
+    ],
+    { timeout: 10000 },
+  );
+  await testInfo.attach("native-desktop", {
+    path: screenshot,
+    contentType: "image/png",
+  });
+  expect(bounds.bounds.windowState).toBe("fullscreen");
+  expect([
+    bounds.bounds.width! * metrics.ratio,
+    bounds.bounds.height! * metrics.ratio,
+  ]).toEqual([1440, 1000]);
+  expect(metrics.inner).toEqual(metrics.screen);
+  expect(metrics.image).toEqual([1440 / metrics.ratio, 1000 / metrics.ratio]);
+}
+
+for (const dpi of ["standard DPI", "HiDPI"]) {
+  for (const request of ["resolved", "rejected"]) {
+    test(`ordinary ${dpi}: ${request} DOM fullscreen still presents a foreground native crop`, async ({
+      browserName,
+    }, testInfo) => {
+      expect(browserName).toBe("chromium");
+      const previousState = await panel.evaluate(async () => {
+        const tab = await chrome.tabs.getCurrent();
+        return (await chrome.windows.get(tab!.windowId)).state;
+      });
+      expect(
+        await panel.evaluate(
+          async () => (await chrome.tabs.getCurrent())!.active,
+        ),
+      ).toBe(false);
+      await panel.evaluate((request) => {
+        document.documentElement.requestFullscreen =
+          request === "resolved"
+            ? async () => {}
+            : async () => {
+                throw new DOMException("No activation", "NotAllowedError");
+              };
+      }, request);
+      await nativeClick("#crop", true);
+      const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+      await expect(frozen.locator(".surface")).toBeVisible();
+      await expect
+        .poll(() =>
+          panel.evaluate(async () => (await chrome.tabs.getCurrent())?.active),
+        )
+        .toBe(true);
+      await recordFullscreen(testInfo);
+      nativeInput("pointer", "1340", "900", "down");
+      nativeInput("pointer", "1440", "1000", "move");
+      nativeInput("pointer", "1440", "1000", "up");
+      await expect(frozen.locator("[data-handle]")).toHaveCount(8);
+      nativeInput("keys", "Return");
+      await expect(frozen).toHaveCount(0);
+      await expect
+        .poll(() =>
+          panel.evaluate(() => typeof (window as NativeFixture).result),
+        )
+        .toBe("string");
+      const result = await panel.evaluate(async () => {
+        const src = (window as unknown as { result: string }).result;
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        return {
+          size: [img.width, img.height],
+          pixel: [...ctx.getImageData(20, 20, 1, 1).data],
+          marker: [...ctx.getImageData(55, 70, 1, 1).data],
+        };
+      });
+      // The X11 pointer is clamped at the last display pixel, so the reverse
+      // edge lands at physical 1439/999 (the exact crop remains unscaled).
+      await attachJson(testInfo, "crop-pixels", result);
+      expect(result.size).toEqual([99, 99]);
+      expect(result.pixel).toEqual([17, 90, 154, 255]);
+      expect(result.marker).toEqual([255, 255, 255, 255]);
+      await expect
+        .poll(() => site.evaluate(() => document.visibilityState))
+        .toBe("visible");
+      expect(
+        await panel.evaluate(
+          async () => (await chrome.windows.getCurrent()).state,
+        ),
+      ).toBe(previousState);
+      expect(
+        await panel.evaluate(
+          async (id) => (await chrome.tabs.get(id)).active,
+          previousTabId,
+        ),
+      ).toBe(true);
+    });
+  }
+}
+
+for (const mode of ["ordinary", "dedicated", "ordinary HiDPI"]) {
+  test(`${mode} monitor frame exposes the recognizable desktop target under PiP`, async ({
+    browserName,
+  }, testInfo) => {
+    expect(browserName).toBe("chromium");
+    const pip = await panel.evaluate(
+      async () => (await chrome.windows.getAll()).find((w) => w.alwaysOnTop)!,
+    );
+    const ratio = await panel.evaluate(() => devicePixelRatio);
+    const x = (pip.left! + 30) * ratio,
+      y = (pip.top! + 120) * ratio;
+    await panel.evaluate(() => {
+      (window as unknown as { useClearBubble: boolean }).useClearBubble = true;
+    });
+    await nativeClick("#frame", true);
+    await reopenBubble();
+    await expect
+      .poll(() =>
+        panel.evaluate(() => {
+          const fixture = window as unknown as {
+            result?: string;
+            failure?: string;
+          };
+          return fixture.result?.startsWith("data:image/png")
+            ? "captured"
+            : fixture.failure;
+        }),
+      )
+      .toBe("captured");
+    const actual = await panel.evaluate(
+      async ({ x, y, ratio }) => {
+        const img = new Image();
+        img.src = (window as unknown as { result: string }).result;
+        await img.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        return {
+          pixel: [...ctx.getImageData(x, y, 1, 1).data],
+          marker: [...ctx.getImageData(100 * ratio, 170 * ratio, 1, 1).data],
+          frame: canvas.toDataURL(),
+        };
+      },
+      { x, y, ratio },
+    );
+    const path = testInfo.outputPath("frozen-monitor.png");
+    await writeFile(path, Buffer.from(actual.frame.split(",")[1], "base64"));
+    await testInfo.attach("frozen-monitor", { path, contentType: "image/png" });
+    await attachJson(testInfo, "frame-pixels", {
+      pixel: actual.pixel,
+      marker: actual.marker,
+      coordinates: { x, y, marker: [100 * ratio, 170 * ratio] },
+    });
+    expect(actual.pixel).toEqual([17, 90, 154, 255]);
+    expect(actual.marker).toEqual([255, 255, 255, 255]);
+  });
+}
+
+async function reopenBubble(live = true) {
+  await expect(panel.locator("#reopen")).toBeVisible();
+  expect(
+    await panel.evaluate(() => window.documentPictureInPicture.window),
+  ).toBeNull();
+  await nativeClick("#reopen");
+  await expect
+    .poll(() => panel.evaluate(() => (window as NativeFixture).restoreCount))
+    .toBe(1);
+  const state = await panel.evaluate(() => {
+    const doc = window.documentPictureInPicture.window!.document;
+    const video = document.querySelector("video")!;
+    return {
+      draft: doc.querySelector<HTMLTextAreaElement>("#draft")!.value,
+      visible: !doc.querySelector<HTMLElement>("div")!.hidden,
+      track: (video.srcObject as MediaStream).getVideoTracks()[0].readyState,
+      playing: !video.paused,
+    };
+  });
+  expect(state).toEqual({
+    draft: "Keep this conversation",
+    visible: true,
+    track: live ? "live" : "ended",
+    playing: true,
+  });
+  await nativeClick("#draft", true);
+  expect(
+    await panel.evaluate(
+      () => window.documentPictureInPicture.window!.document.activeElement?.id,
+    ),
+  ).toBe("draft");
+}
+
+for (const mode of ["ordinary", "dedicated"]) {
+  test(`${mode} cleared monitor crop preserves the target pixels beneath PiP`, async ({
+    browserName,
+  }, testInfo) => {
+    expect(browserName).toBe("chromium");
+    await panel.evaluate(() => {
+      (window as NativeFixture).useClearBubble = true;
+    });
+    await nativeClick("#crop", true);
+    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    await expect(frozen.locator(".surface")).toBeVisible();
+    await recordFullscreen(testInfo);
+    nativeInput("pointer", "60", "140", "down");
+    nativeInput("pointer", "140", "200", "move");
+    nativeInput("pointer", "140", "200", "up");
+    await expect(frozen.locator("[data-handle]")).toHaveCount(8);
+    nativeInput("keys", "Return");
+    await expect(frozen).toHaveCount(0);
+    await reopenBubble();
+    await expect
+      .poll(() => panel.evaluate(() => typeof (window as NativeFixture).result))
+      .toBe("string");
+    const result = await panel.evaluate(async () => {
+      const image = new Image();
+      image.src = (window as NativeFixture).result!;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(image, 0, 0);
+      return {
+        size: [image.width, image.height],
+        pixel: [...ctx.getImageData(40, 30, 1, 1).data],
+        png: canvas.toDataURL(),
+      };
+    });
+    await attachJson(testInfo, "crop-pixels", {
+      size: result.size,
+      pixel: result.pixel,
+    });
+    expect(result.size).toEqual([80, 60]);
+    expect(result.pixel).toEqual([255, 255, 255, 255]);
+    const path = testInfo.outputPath("frozen-crop.png");
+    await writeFile(path, Buffer.from(result.png.split(",")[1], "base64"));
+    await testInfo.attach("frozen-crop", { path, contentType: "image/png" });
+  });
+}
+
+for (const ending of ["Escape", "share ending", "fullscreen failure"]) {
+  test(`ordinary monitor crop restores the bubble and draft after ${ending}`, async () => {
+    const prior = await panel.evaluate(
+      async () => (await chrome.windows.getCurrent()).state,
+    );
+    await panel.evaluate((ending) => {
+      (window as NativeFixture).useClearBubble = true;
+      if (ending === "fullscreen failure") {
+        const update = chrome.windows.update.bind(chrome.windows);
+        chrome.windows.update = ((
+          id: number,
+          change: chrome.windows.UpdateInfo,
+        ) =>
+          change.state === "fullscreen"
+            ? Promise.reject(new Error("Native refusal"))
+            : update(id, change)) as typeof chrome.windows.update;
+      }
+    }, ending);
+    await nativeClick("#crop", true);
+    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    if (ending !== "fullscreen failure") {
+      await expect(frozen.locator(".surface")).toBeVisible();
+      if (ending === "Escape") nativeInput("keys", "Escape");
+      else await panel.evaluate(() => (window as NativeFixture).stopShare());
+    }
+    await expect(frozen).toHaveCount(0);
+    await reopenBubble(ending !== "share ending");
+    if (ending === "Escape")
+      await expect
+        .poll(() => panel.evaluate(() => (window as NativeFixture).result))
+        .toBeNull();
+    else
+      await expect
+        .poll(() => panel.evaluate(() => (window as NativeFixture).failure))
+        .toBe(
+          ending === "share ending" ? "share_ended" : "crop_fullscreen_denied",
+        );
+    expect(
+      await panel.evaluate(
+        async () => (await chrome.windows.getCurrent()).state,
+      ),
+    ).toBe(prior);
+  });
+}
+
+test("ordinary crop preserves an originally fullscreen opener", async () => {
+  await panel.evaluate(async () => {
+    const tab = await chrome.tabs.getCurrent();
+    await chrome.windows.update(tab!.windowId, { state: "fullscreen" });
+  });
+  await site.bringToFront();
+  await nativeClick("#crop", true);
+  const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+  await expect(frozen.locator(".surface")).toBeVisible();
+  nativeInput("keys", "Escape");
+  await expect(frozen).toHaveCount(0);
+  await expect
+    .poll(() => panel.evaluate(() => (window as NativeFixture).result))
+    .toBeNull();
+  expect(
+    await panel.evaluate(async () => (await chrome.windows.getCurrent()).state),
+  ).toBe("fullscreen");
+  expect(
+    await panel.evaluate(
+      async (id) => (await chrome.tabs.get(id)).active,
+      previousTabId,
+    ),
+  ).toBe(true);
+});
+
+for (const trigger of ["Shift in PiP", "global shortcut"]) {
+  test(`ordinary background opener is activated by ${trigger}`, async () => {
+    await panel.evaluate(() => {
+      document.documentElement.requestFullscreen = async () => {
+        throw new DOMException("No activation", "NotAllowedError");
+      };
+    });
+    if (trigger === "Shift in PiP") {
+      await nativeClick("#resize", true);
+      nativeInput("key-down", "Shift_L");
+    } else nativeInput("chord", "Control_L", "Shift_L", "7");
+    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    await expect(frozen.locator(".surface")).toBeVisible();
+    if (trigger === "Shift in PiP") nativeInput("key-up", "Shift_L");
+    expect(
+      await panel.evaluate(
+        async () => (await chrome.tabs.getCurrent())!.active,
+      ),
+    ).toBe(true);
+    nativeInput("keys", "Escape");
+    await expect(frozen).toHaveCount(0);
+    await expect
+      .poll(() => panel.evaluate(() => (window as NativeFixture).result))
+      .toBeNull();
+    expect(
+      await panel.evaluate(
+        async (id) => (await chrome.tabs.get(id)).active,
+        previousTabId,
+      ),
+    ).toBe(true);
+  });
+}
