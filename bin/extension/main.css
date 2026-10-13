@@ -448,11 +448,10 @@ select:focus-visible {
 }
 .composer-modes {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
   margin: 0 0 6px;
-  overflow: auto;
-  scrollbar-width: none;
 }
 .composer-modes button {
   border: 0;
@@ -466,11 +465,20 @@ select:focus-visible {
   color: var(--warm);
   font-weight: 600;
 }
-.composer-modes span {
-  margin-left: auto;
+.composer-modes .usage-estimate {
+  flex: 1 0 100%;
+  order: 1;
+  min-width: 0;
   color: var(--muted);
-  font-size: 9px;
-  white-space: nowrap;
+  font-size: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.composer .usage-hint {
+  font-size: 10px;
+  line-height: 1.4;
+  padding-top: 0;
+  margin-bottom: 6px;
 }
 .composer form {
   display: flex;
