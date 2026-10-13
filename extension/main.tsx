@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
+import { safeMarkdown } from "../src/sanitize";
 import {
   BridgeClient,
   askAnthropic,
@@ -121,11 +122,13 @@ function canvasToPng(video: HTMLVideoElement): string {
   canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
   return encodeCanvasPng(canvas);
 }
+function errorCode(error: unknown): string {
+  return error instanceof Error
+    ? (error as Error & { code?: string }).code || error.message
+    : "";
+}
 function errorLabel(error: unknown, t: Record<string, string>): string {
-  const code =
-    error instanceof Error
-      ? (error as Error & { code?: string }).code || error.message
-      : "";
+  const code = errorCode(error);
   const keys: Record<string, string> = {
     bridge_disconnected: "bridgeLost",
     bridge_unavailable: "bridgeLost",
@@ -189,7 +192,9 @@ function App() {
   const [effort, setEffort] = useState<Effort>("medium");
   const [question, updateQuestion] = useState("");
   const questionRef = useRef("");
+  const questionRevision = useRef(0);
   const setQuestion = useCallback((value: string) => {
+    questionRevision.current++;
     questionRef.current = value;
     updateQuestion(value);
   }, []);
@@ -203,7 +208,24 @@ function App() {
     total: number;
   } | null>(null);
   const pageCaptureController = useRef<AbortController | null>(null);
-  const [status, setStatus] = useState("");
+  const [status, updateStatus] = useState("");
+  const statusRevision = useRef(0);
+  const pageWarningRevision = useRef<number | undefined>(undefined);
+  const setStatus = useCallback((value: string) => {
+    statusRevision.current++;
+    pageWarningRevision.current = undefined;
+    updateStatus(value);
+  }, []);
+  function setPageStatus(value: string) {
+    setStatus(value);
+    pageWarningRevision.current = statusRevision.current;
+  }
+  function reportError(error: unknown) {
+    const label = errorLabel(error, t);
+    if (["password_page", "blocked_page"].includes(errorCode(error)))
+      setPageStatus(label);
+    else setStatus(label);
+  }
   const attachmentGeneration = useRef(0);
   const [capture, updateCapture] = useState<{
     image: string;
@@ -699,7 +721,8 @@ function App() {
             : action === "explain"
               ? `Explain this selected text in ${names[locale]}: ${selected}`
               : selected;
-        setQuestion(prompt);
+        const draftRevision = questionRevision.current;
+        if (action === "ask") setQuestion(prompt);
         setStatus(t.selectionReady);
         if (action !== "ask")
           void (async () => {
@@ -725,7 +748,10 @@ function App() {
             }
             const current = await getPageContext().catch(() => undefined);
             if (current) setPage(current);
-            await askWith({ question: prompt, page: current || page });
+            await submitAutomatic(
+              { question: prompt, page: current || page },
+              draftRevision,
+            );
           })();
       }
       if (
@@ -758,7 +784,7 @@ function App() {
             setPage(result.page);
             setStatus(t.captureReady);
           })
-          .catch((error) => setStatus(errorLabel(error, t)));
+          .catch((error) => reportError(error));
       }
       if (
         value.type === "glimpselet:reader-context" &&
@@ -776,6 +802,7 @@ function App() {
           return;
         }
         readerAdmissionRef.current = true;
+        const draftRevision = questionRevision.current;
         void (async () => {
           let reservation: string | undefined;
           try {
@@ -799,31 +826,57 @@ function App() {
               respond({ ok: false, error: "busy" });
               return;
             }
-            respond({ ok: true });
             if (sender.tab?.id) {
               activeTabId.current = sender.tab.id;
               rememberSourceTab(sender.tab.id);
             }
             const context = value.context as PageContext | undefined;
             if (context) setPage(context);
-            const selected = String(value.text || "")
-              .trim()
-              .slice(0, 5000);
+            const rawSelected = String(value.text || "").trim();
             const action = value.action;
+            if (
+              action === "summary-selection" &&
+              (!rawSelected || rawSelected.length > 5000)
+            ) {
+              respond({ ok: false, error: "selection_limit" });
+              return;
+            }
+            const selected = rawSelected.slice(0, 5000);
             const prompt =
               action === "translate"
                 ? `Translate this selected text into ${names[targetLocale]}: ${selected}`
-                : action === "summary"
-                  ? `Summarize this PDF page${selected ? `, focusing on this selected passage: ${selected}` : ""}`
-                  : `${String(value.question || "Explain this selected passage").slice(0, 1000)}${selected ? `\n\nSelected text (untrusted): ${selected}` : ""}`;
-            setQuestion(prompt);
+                : action === "summary-selection"
+                  ? `Summarize only this selected PDF passage. Do not summarize other sections or the whole page.\n\nSelected text (untrusted): ${selected}`
+                  : action === "summary"
+                    ? "Summarize this PDF page."
+                    : `${String(value.question || "Explain this selected passage").slice(0, 1000)}${selected ? `\n\nSelected text (untrusted): ${selected}` : ""}`;
             setStatus(t.readerReady);
-            void askWith({
-              question: prompt,
-              page: context || page,
-              kind: action === "guide" ? "guide" : "ask",
-              image: typeof value.image === "string" ? value.image : undefined,
-            });
+            if (action === "ask") {
+              setQuestion(prompt);
+              respond({ ok: true });
+              return;
+            }
+            const request = submitAutomatic(
+              {
+                question: prompt,
+                page:
+                  action === "summary-selection"
+                    ? context
+                      ? { ...context, text: selected, elements: [] }
+                      : null
+                    : context || page,
+                kind: action === "guide" ? "guide" : "ask",
+                image:
+                  action !== "summary-selection" &&
+                  typeof value.image === "string"
+                    ? value.image
+                    : undefined,
+                includeCapture: action !== "summary-selection",
+              },
+              draftRevision,
+            );
+            respond(requestIdRef.current ? { ok: true } : { ok: false });
+            void request;
           } catch {
             respond({ ok: false });
             if (requestIdRef.current === reservation) {
@@ -1021,7 +1074,7 @@ function App() {
         }
       } else await captureAction("region");
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     } finally {
       cropBusy.current = false;
     }
@@ -1095,6 +1148,7 @@ function App() {
       return;
     pendingPageRefresh.current = false;
     const version = pageVersion.current;
+    const feedbackRevision = statusRevision.current;
     try {
       const sourceTabId = activeTabId.current;
       if (!sourceTabId) return;
@@ -1107,6 +1161,7 @@ function App() {
         setSuggestions([]);
         setPage(undefined);
         setDocumentIdentity(undefined);
+        setPageStatus(t.blockedPage);
         return;
       }
       if (
@@ -1150,7 +1205,7 @@ function App() {
       if (passive && !paused) {
         if (await isSensitivePage().catch(() => true)) {
           setSuggestions([]);
-          setStatus(t.passwordPage);
+          setPageStatus(t.passwordPage);
           return;
         }
       }
@@ -1163,8 +1218,15 @@ function App() {
       setPage(next);
       if (!next || next.hasPassword || isBlocked(next.url)) {
         setSuggestions([]);
+        if (next?.hasPassword) setPageStatus(t.passwordPage);
+        else if (next && isBlocked(next.url)) setPageStatus(t.blockedPage);
         return;
       }
+      if (
+        pageWarningRevision.current === feedbackRevision &&
+        statusRevision.current === feedbackRevision
+      )
+        setStatus("");
       const key = `${sourceTabId}:${pageRevision(next)}:${passive && !paused}:${backend}:${Boolean(bridge.token || apiKey)}`;
       if (
         requestIdRef.current ||
@@ -1193,8 +1255,13 @@ function App() {
           page: next,
           silent: true,
         });
-    } catch {
-      /* page support is optional on restricted sites */
+    } catch (error) {
+      if (
+        version === pageVersion.current &&
+        statusRevision.current === feedbackRevision &&
+        ["password_page", "blocked_page"].includes(errorCode(error))
+      )
+        reportError(error);
     }
   }
   async function requestSiteAccess(): Promise<number> {
@@ -1235,7 +1302,7 @@ function App() {
       setStatus(t.siteAccessGranted);
       schedulePageRefresh(true);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   function isBlocked(url: string): boolean {
@@ -1264,7 +1331,7 @@ function App() {
       setPairCode("");
       schedulePageRefresh();
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function persistApiKey(value: string) {
@@ -1324,7 +1391,7 @@ function App() {
       }
       return true;
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
       return false;
     } finally {
       if (controller && pageCaptureController.current === controller) {
@@ -1341,7 +1408,7 @@ function App() {
       await chrome.windows.update(tab.windowId!, { focused: true });
       await chrome.tabs.update(tabId, { active: true });
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   function stopSharing() {
@@ -1409,7 +1476,7 @@ function App() {
         });
       setTutorial(null);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function replayTour() {
@@ -1435,8 +1502,23 @@ function App() {
         image: result.capture.image,
       });
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      if (errorCode(error) === "capture_permission")
+        setStatus(t.guideCapturePermission);
+      else reportError(error);
     }
+  }
+  async function submitAutomatic(
+    options: Parameters<typeof askWith>[0],
+    draftRevision = questionRevision.current,
+  ) {
+    const submitted = await askWith(options);
+    if (
+      !submitted &&
+      questionRevision.current === draftRevision &&
+      !questionRef.current.trim()
+    )
+      setQuestion(options.question);
+    return submitted;
   }
   async function askWith(options: {
     question: string;
@@ -1444,6 +1526,7 @@ function App() {
     page?: PageContext | null;
     image?: string;
     silent?: boolean;
+    includeCapture?: boolean;
   }) {
     if (!consented) return;
     if (options.kind === "translate" && !capture && !options.image) {
@@ -1500,7 +1583,8 @@ function App() {
       at: Date.now(),
       image:
         options.image ||
-        (kind === "ask" || kind === "guide" || kind === "translate"
+        (options.includeCapture !== false &&
+        (kind === "ask" || kind === "guide" || kind === "translate")
           ? capture?.image
           : undefined),
     };
@@ -1521,6 +1605,7 @@ function App() {
       let finalUsage: Usage | undefined;
       if (
         !options.image &&
+        options.includeCapture !== false &&
         capture?.liveScreen &&
         shareRef.current &&
         videoRef.current &&
@@ -1566,7 +1651,7 @@ function App() {
           if (sensitive) {
             setSuggestions([]);
             setPage(undefined);
-            setStatus(t.passwordPage);
+            setPageStatus(t.passwordPage);
           } else setStatus(t.ready);
           return;
         }
@@ -1702,22 +1787,19 @@ function App() {
                 `${index + 1}. ${step.note}${step.action ? `\n${step.action}` : ""}`,
             )
             .join("\n\n");
-        if (
-          steps.length &&
-          sourceTabId &&
-          currentPage.documentKey &&
-          sourceTabId === activeTabId.current
-        )
-          await sendToDocument(sourceTabId, currentPage, {
-            type: "glimpselet:guide",
-            steps,
-            labels: {
-              next: t.next,
-              back: t.back,
-              close: t.close,
-              title: t.guideAction,
-            },
-          });
+        if (!sourceTabId || !currentPage.documentKey)
+          throw new Error("guide_invalid");
+        const result = (await sendToDocument(sourceTabId, currentPage, {
+          type: "glimpselet:guide",
+          steps,
+          labels: {
+            next: t.next,
+            back: t.back,
+            close: t.close,
+            title: t.guideAction,
+          },
+        })) as { ok?: boolean } | undefined;
+        if (!result?.ok) throw new Error("guide_invalid");
       }
       setAnswer(visibleAnswer);
       if (!options.silent)
@@ -1742,7 +1824,7 @@ function App() {
         !cancelledRequests.current.has(id) &&
         (!options.silent || sourceVersion === pageVersion.current)
       )
-        setStatus(errorLabel(error, t));
+        reportError(error);
       return false;
     } finally {
       cancelledRequests.current.delete(id);
@@ -1784,7 +1866,7 @@ function App() {
         if (!freshPage) throw new Error("unsupported_page");
       } catch (error) {
         freshPage = null;
-        setStatus(errorLabel(error, t));
+        reportError(error);
         setContextFailure(q);
       } finally {
         if (requestIdRef.current === reservation) {
@@ -1857,7 +1939,7 @@ function App() {
       try {
         await requestSiteAccess();
       } catch (error) {
-        setStatus(errorLabel(error, t));
+        reportError(error);
         return;
       }
     }
@@ -1881,7 +1963,7 @@ function App() {
             : t.newThread,
       );
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function openSessions() {
@@ -1895,7 +1977,7 @@ function App() {
       );
       setShowSessions(true);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function translatePage() {
@@ -2095,7 +2177,7 @@ function App() {
         } catch {
           setStatus(t.partialFailureRestore);
         }
-      } else setStatus(errorLabel(error, t));
+      } else reportError(error);
     } finally {
       if (usageTotal > 0) {
         const now = Date.now();
@@ -2138,7 +2220,7 @@ function App() {
       forgetTranslation(currentPage.documentKey);
       setStatus(`${t.restored} ${result?.restored || 0}`);
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   function forgetTranslation(key: string | undefined) {
@@ -2180,7 +2262,7 @@ function App() {
         url: tab.url,
       });
     } catch (error) {
-      setStatus(errorLabel(error, t));
+      reportError(error);
     }
   }
   async function copy(text: string) {
@@ -2199,8 +2281,7 @@ function App() {
       if (generation === attachmentGeneration.current)
         setCapture({ image, label: file.name });
     } catch (error) {
-      if (generation === attachmentGeneration.current)
-        setStatus(errorLabel(error, t));
+      if (generation === attachmentGeneration.current) reportError(error);
     }
   }
 
@@ -2366,9 +2447,15 @@ function App() {
           </section>
           {tutorial && tutorial.tabId === activeTabId.current && (
             <section className="float-start">
+              {tutorial.action === "guide" && (
+                <button className="plain" onClick={() => setTutorial(null)}>
+                  {t.skipPractice}
+                </button>
+              )}
               <button
                 className="primary wide"
                 onClick={() => void runTutorial()}
+                disabled={busy}
               >
                 {tutorial.action === "float"
                   ? t.float
@@ -2385,6 +2472,7 @@ function App() {
                             : t.replayTour}
               </button>
               <p>{t.replayTourHint.replace("{step}", String(tutorial.step))}</p>
+              {tutorial.action === "guide" && <p>{t.guideCapturePermission}</p>}
             </section>
           )}
           <section className="capturebar">
@@ -2405,19 +2493,33 @@ function App() {
               </div>
             )}
             <div className="capture-buttons">
-              <button onClick={() => void guidePage()} disabled={busy}>
-                {t.guideAction}
-              </button>
-              <button onClick={() => void captureAction("visible")}>
+              {!(
+                tutorial?.action === "guide" &&
+                tutorial.tabId === activeTabId.current
+              ) && (
+                <button onClick={() => void guidePage()} disabled={busy}>
+                  {t.guideAction}
+                </button>
+              )}
+              <button
+                onClick={() => void captureAction("visible")}
+                disabled={busy || Boolean(captureProgress)}
+              >
                 {t.visible}
               </button>
-              <button onClick={() => void captureAction("full")}>
+              <button
+                onClick={() => void captureAction("full")}
+                disabled={busy || Boolean(captureProgress)}
+              >
                 {t.fullPage}
               </button>
               <button onClick={() => void startCrop()} title={t.cropShortcut}>
                 {t.region}
               </button>
-              <button onClick={() => void captureAction("element")}>
+              <button
+                onClick={() => void captureAction("element")}
+                disabled={busy || Boolean(captureProgress)}
+              >
                 {t.element}
               </button>
               <button
@@ -2515,10 +2617,15 @@ function App() {
                   <span>
                     {entry.kind === "passive" ? t.pageNote : t.blinkAnswer}
                   </span>
-                  <p>
-                    {entry.answer ||
-                      (busy && activeId === entry.id ? answer : "")}
-                  </p>
+                  <div
+                    className="markdown"
+                    dangerouslySetInnerHTML={{
+                      __html: safeMarkdown(
+                        entry.answer ||
+                          (busy && activeId === entry.id ? answer : ""),
+                      ),
+                    }}
+                  />
                   <div className="message-actions">
                     <button onClick={() => void copy(entry.answer || answer)}>
                       {t.copy}

@@ -2,7 +2,7 @@
   "actionExplain": "Explicar esto",
   "actionTranslate": "Traducir",
   "activationNeeded": "No se pudo abrir la ventana flotante. Abre una ventana emergente en su lugar.",
-  "answerReady": "Respuesta lista. La imagen se envía al proveedor cuando preguntas.",
+  "answerReady": "Respuesta lista.",
   "apiAuth": "Clave API rechazada. Revísala e inténtalo de nuevo.",
   "apiKey": "Clave de API de Anthropic",
   "apiMode": "API de Anthropic",
@@ -159,5 +159,7 @@
   "askWithoutPage": "Preguntar sin el contenido de la página",
   "blockedPage": "Este sitio está en tu lista de bloqueo. La lectura está pausada.",
   "captureProgress": "Capturando {completed} de {total} secciones",
-  "translationPageChanged": "Traducción aplicada. Se omitieron {count} textos que estaban cambiando. Vuelve a traducir para incluirlos."
+  "translationPageChanged": "Traducción aplicada. Se omitieron {count} textos que estaban cambiando. Vuelve a traducir para incluirlos.",
+  "guideCapturePermission": "Haz clic en el icono de Glimpselet de la barra de herramientas en esta página y vuelve a intentar la guía. El paso de práctica sigue abierto.",
+  "skipPractice": "Omitir paso de práctica"
 }

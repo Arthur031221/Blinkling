@@ -2,7 +2,7 @@
   "actionExplain": "解釋內容",
   "actionTranslate": "翻譯畫面",
   "activationNeeded": "無法開啟浮動視窗。請改為開啟彈出視窗。",
-  "answerReady": "回答已就緒。提問時才會將圖片傳送給供應商。",
+  "answerReady": "回答已就緒。",
   "apiAuth": "API 金鑰遭拒，請檢查後重試。",
   "apiKey": "Anthropic API 金鑰",
   "apiMode": "Anthropic API",
@@ -159,5 +159,7 @@
   "askWithoutPage": "不附頁面內容，直接提問",
   "blockedPage": "此網站在封鎖清單中，已暫停讀取頁面。",
   "captureProgress": "正在擷取第 {completed} / {total} 個區塊",
-  "translationPageChanged": "已套用翻譯。有 {count} 段變動中的文字已略過，可再次翻譯以包含這些文字。"
+  "translationPageChanged": "已套用翻譯。有 {count} 段變動中的文字已略過，可再次翻譯以包含這些文字。",
+  "guideCapturePermission": "請在此頁點擊 Glimpselet 工具列圖示，再重試導覽。練習步驟會保留。",
+  "skipPractice": "略過練習步驟"
 }

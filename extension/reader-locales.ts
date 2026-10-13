@@ -1,5 +1,10 @@
 export const readerLocales = {
   en: {
+    questionReady: "Question ready in chat. Review it and select Ask to send.",
+    summarySelection: "Summarize selection",
+    selectFirst: "Select a passage to summarize first.",
+    selectionTooLong:
+      "Select at most 5,000 characters, or use Summarize page for the whole page.",
     title: "Glimpselet PDF Reader",
     openFile: "Open PDF",
     urlPlaceholder: "Paste a PDF URL",
@@ -42,6 +47,10 @@ export const readerLocales = {
       "PDF page. Select text to ask, translate, summarize, or request guidance.",
   },
   "zh-TW": {
+    questionReady: "問題已準備在聊天中。請檢查後選取「詢問」傳送。",
+    summarySelection: "摘要選取文字",
+    selectFirst: "請先選取要摘要的段落。",
+    selectionTooLong: "請選取不超過 5,000 個字元，或使用「摘要此頁」摘要整頁。",
     title: "Glimpselet PDF 閱讀器",
     openFile: "開啟 PDF",
     urlPlaceholder: "貼上 PDF 網址",
@@ -79,6 +88,10 @@ export const readerLocales = {
     resizeHelp: "PDF 頁面。選取文字後可提問、翻譯、摘要或要求引導。",
   },
   "zh-CN": {
+    questionReady: "问题已准备在聊天中。请检查后选择「询问」发送。",
+    summarySelection: "总结选取文字",
+    selectFirst: "请先选取要总结的段落。",
+    selectionTooLong: "请选取不超过 5,000 个字符，或使用“总结此页”总结整页。",
     title: "Glimpselet PDF 阅读器",
     openFile: "打开 PDF",
     urlPlaceholder: "粘贴 PDF 网址",
@@ -116,6 +129,12 @@ export const readerLocales = {
     resizeHelp: "PDF 页面。选择文本后可提问、翻译、总结或请求引导。",
   },
   ja: {
+    questionReady:
+      "チャットに質問を準備しました。確認して「質問」で送信してください。",
+    summarySelection: "選択した文章を要約",
+    selectFirst: "要約する文章を先に選択してください。",
+    selectionTooLong:
+      "5,000文字以内を選択するか、「このページを要約」でページ全体を要約してください。",
     title: "Glimpselet PDF リーダー",
     openFile: "PDF を開く",
     urlPlaceholder: "PDF の URL を貼り付け",
@@ -161,6 +180,12 @@ export const readerLocales = {
       "PDF ページです。テキストを選択して質問、翻訳、要約、案内の依頼ができます。",
   },
   ko: {
+    questionReady:
+      "채팅에 질문이 준비되었습니다. 검토한 뒤 질문 버튼을 눌러 보내세요.",
+    summarySelection: "선택한 내용 요약",
+    selectFirst: "요약할 문단을 먼저 선택하세요.",
+    selectionTooLong:
+      "5,000자 이하를 선택하거나 페이지 요약으로 전체 페이지를 요약하세요.",
     title: "Glimpselet PDF 리더",
     openFile: "PDF 열기",
     urlPlaceholder: "PDF URL 붙여넣기",
@@ -204,6 +229,12 @@ export const readerLocales = {
       "PDF 페이지입니다. 텍스트를 선택해 질문, 번역, 요약 또는 안내를 요청하세요.",
   },
   es: {
+    questionReady:
+      "Pregunta preparada en el chat. Revísala y pulsa Preguntar para enviarla.",
+    summarySelection: "Resumir selección",
+    selectFirst: "Selecciona primero un pasaje para resumir.",
+    selectionTooLong:
+      "Selecciona como máximo 5.000 caracteres o usa Resumir página para toda la página.",
     title: "Lector de PDF de Glimpselet",
     openFile: "Abrir PDF",
     urlPlaceholder: "Pega una URL de PDF",
@@ -248,6 +279,12 @@ export const readerLocales = {
       "Página PDF. Selecciona texto para preguntar, traducir, resumir o pedir orientación.",
   },
   fr: {
+    questionReady:
+      "Question prête dans le chat. Relisez-la et choisissez Demander pour l’envoyer.",
+    summarySelection: "Résumer la sélection",
+    selectFirst: "Sélectionnez d’abord un passage à résumer.",
+    selectionTooLong:
+      "Sélectionnez au maximum 5 000 caractères ou utilisez Résumer la page pour la page entière.",
     title: "Lecteur PDF Glimpselet",
     openFile: "Ouvrir un PDF",
     urlPlaceholder: "Coller l'URL d'un PDF",
@@ -292,6 +329,12 @@ export const readerLocales = {
       "Page PDF. Sélectionnez du texte pour poser une question, traduire, résumer ou demander un guide.",
   },
   de: {
+    questionReady:
+      "Die Frage ist im Chat bereit. Prüfe sie und wähle Fragen zum Senden.",
+    summarySelection: "Auswahl zusammenfassen",
+    selectFirst: "Wähle zuerst einen Abschnitt zum Zusammenfassen aus.",
+    selectionTooLong:
+      "Wähle höchstens 5.000 Zeichen oder nutze Seite zusammenfassen für die gesamte Seite.",
     title: "Glimpselet PDF-Reader",
     openFile: "PDF öffnen",
     urlPlaceholder: "PDF-URL einfügen",
@@ -336,6 +379,12 @@ export const readerLocales = {
       "PDF-Seite. Wähle Text aus, um zu fragen, zu übersetzen, zusammenzufassen oder eine Anleitung anzufordern.",
   },
   "pt-BR": {
+    questionReady:
+      "Pergunta pronta no chat. Revise e selecione Perguntar para enviar.",
+    summarySelection: "Resumir seleção",
+    selectFirst: "Selecione primeiro um trecho para resumir.",
+    selectionTooLong:
+      "Selecione no máximo 5.000 caracteres ou use Resumir página para a página inteira.",
     title: "Leitor de PDF do Glimpselet",
     openFile: "Abrir PDF",
     urlPlaceholder: "Cole uma URL de PDF",

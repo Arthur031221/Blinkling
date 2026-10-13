@@ -30,6 +30,8 @@ let pdf: PDFDocumentProxy | undefined;
 let loadingTask: PDFDocumentLoadingTask | undefined;
 let pageNumber = 1;
 let pageText = "";
+let passageSelection = "";
+let pageReady = false;
 let pageTitle = "PDF document";
 let documentGeneration = 0;
 let renderGeneration = 0;
@@ -150,6 +152,35 @@ function stopRendering(): void {
   activeTextLayer?.cancel();
   activeTextLayer = undefined;
 }
+function updateSelectionButton(): void {
+  const button = document.querySelector<HTMLButtonElement>(
+    '[data-action="summary-selection"]',
+  )!;
+  button.disabled = !pageReady || !passageSelection;
+}
+function clearSelection(): void {
+  passageSelection = "";
+  pageReady = false;
+  const selection = getSelection();
+  if (selection?.anchorNode && pageElement.contains(selection.anchorNode))
+    selection.removeAllRanges();
+  updateSelectionButton();
+}
+function rememberSelection(): void {
+  const selection = getSelection();
+  const layer = pageElement.querySelector(".pdf-text-layer");
+  if (
+    selection &&
+    !selection.isCollapsed &&
+    layer?.contains(selection.anchorNode) &&
+    layer.contains(selection.focusNode)
+  )
+    passageSelection = selection.toString().trim();
+  else if (!document.activeElement?.closest("[data-action]"))
+    passageSelection = "";
+  updateSelectionButton();
+}
+document.addEventListener("selectionchange", rememberSelection);
 async function loadDocument(
   source: string | Uint8Array,
   title: string,
@@ -161,6 +192,7 @@ async function loadDocument(
   const oldTask = loadingTask;
   loadingTask = undefined;
   pdf = undefined;
+  clearSelection();
   pageText = "";
   pageElement.replaceChildren();
   if (oldTask) void oldTask.destroy().catch(() => {});
@@ -203,6 +235,7 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
   const doc = pdf;
   if (!doc || documentId !== documentGeneration) return;
   const number = pageNumber;
+  clearSelection();
   const renderId = ++renderGeneration;
   activeRender?.cancel();
   activeRender = undefined;
@@ -267,6 +300,8 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
     )
       return;
     pageElement.replaceChildren(wrapper);
+    pageReady = true;
+    updateSelectionButton();
     pageText = text.items
       .map((item) => ("str" in item ? item.str : ""))
       .join(" ")
@@ -308,17 +343,33 @@ async function publishContext(
   }
 }
 function selectedText(): string {
-  const selection = getSelection()?.toString().trim() || "";
-  return selection.slice(0, 5000);
+  rememberSelection();
+  return passageSelection;
 }
-async function ask(
-  action: "ask" | "translate" | "summary" | "guide",
-): Promise<void> {
+type ReaderAction =
+  | "ask"
+  | "translate"
+  | "summary"
+  | "summary-selection"
+  | "guide";
+async function ask(action: ReaderAction): Promise<void> {
   if (!pdf) {
     setStatus("openFirst");
     return;
   }
+  if (!pageReady) {
+    setStatus("loading");
+    return;
+  }
   const selected = selectedText();
+  if (action === "summary-selection" && !selected) {
+    setStatus("selectFirst");
+    return;
+  }
+  if (action !== "summary" && selected.length > 5000) {
+    setStatus("selectionTooLong");
+    return;
+  }
   const text = action === "summary" ? "" : selected || pageText;
   const questions = {
     ask: selected
@@ -328,6 +379,7 @@ async function ask(
       ? "Translate this selected passage into my target language."
       : "Translate this PDF page into my target language.",
     summary: "Summarize this PDF page.",
+    "summary-selection": "Summarize only this selected PDF passage.",
     guide: selected
       ? "Guide me through this selected passage, explaining its steps in order."
       : "Guide me through this PDF page, explaining its key steps in order.",
@@ -335,7 +387,7 @@ async function ask(
   try {
     const canvas = pageElement.querySelector("canvas");
     let image: string | undefined;
-    if (canvas) {
+    if (canvas && action !== "summary-selection") {
       const thumbnail = document.createElement("canvas");
       const scale = Math.min(1, 1600 / Math.max(canvas.width, canvas.height));
       thumbnail.width = Math.round(canvas.width * scale);
@@ -355,11 +407,21 @@ async function ask(
       image,
     })) as { ok?: boolean; error?: string } | undefined;
     if (!response?.ok) {
-      setStatus(response?.error === "busy" ? "actionBusy" : "actionError");
+      setStatus(
+        response?.error === "busy"
+          ? "actionBusy"
+          : response?.error === "selection_limit"
+            ? "selectionTooLong"
+            : "actionError",
+      );
+      return;
+    }
+    if (action === "ask") {
+      setStatus("questionReady");
       return;
     }
     const statusKey =
-      action === "summary"
+      action === "summary" || action === "summary-selection"
         ? "summarySent"
         : action === "translate"
           ? "translationSent"
@@ -457,10 +519,7 @@ document
   .forEach((button) => {
     button.addEventListener(
       "click",
-      () =>
-        void ask(
-          button.dataset.action as "ask" | "translate" | "summary" | "guide",
-        ),
+      () => void ask(button.dataset.action as ReaderAction),
     );
   });
 document
