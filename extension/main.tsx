@@ -851,6 +851,11 @@ function App() {
                     ? "Summarize this PDF page."
                     : `${String(value.question || "Explain this selected passage").slice(0, 1000)}${selected ? `\n\nSelected text (untrusted): ${selected}` : ""}`;
             setStatus(t.readerReady);
+            if (action === "ask") {
+              setQuestion(prompt);
+              respond({ ok: true });
+              return;
+            }
             const request = submitAutomatic(
               {
                 question: prompt,
@@ -2442,6 +2447,11 @@ function App() {
           </section>
           {tutorial && tutorial.tabId === activeTabId.current && (
             <section className="float-start">
+              {tutorial.action === "guide" && (
+                <button className="plain" onClick={() => setTutorial(null)}>
+                  {t.skipPractice}
+                </button>
+              )}
               <button
                 className="primary wide"
                 onClick={() => void runTutorial()}
@@ -2463,9 +2473,6 @@ function App() {
               </button>
               <p>{t.replayTourHint.replace("{step}", String(tutorial.step))}</p>
               {tutorial.action === "guide" && <p>{t.guideCapturePermission}</p>}
-              <button className="plain" onClick={() => setTutorial(null)}>
-                {t.skipPractice}
-              </button>
             </section>
           )}
           <section className="capturebar">
@@ -2494,16 +2501,25 @@ function App() {
                   {t.guideAction}
                 </button>
               )}
-              <button onClick={() => void captureAction("visible")}>
+              <button
+                onClick={() => void captureAction("visible")}
+                disabled={busy || Boolean(captureProgress)}
+              >
                 {t.visible}
               </button>
-              <button onClick={() => void captureAction("full")}>
+              <button
+                onClick={() => void captureAction("full")}
+                disabled={busy || Boolean(captureProgress)}
+              >
                 {t.fullPage}
               </button>
               <button onClick={() => void startCrop()} title={t.cropShortcut}>
                 {t.region}
               </button>
-              <button onClick={() => void captureAction("element")}>
+              <button
+                onClick={() => void captureAction("element")}
+                disabled={busy || Boolean(captureProgress)}
+              >
                 {t.element}
               </button>
               <button

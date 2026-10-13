@@ -235,6 +235,56 @@ describe("bubble answer rendering and feedback", () => {
       "Editable selection",
     );
     expect(mocks.ask).not.toHaveBeenCalled();
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+    });
+    await flush();
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("textarea")?.value).toBe("");
+  });
+  it("keeps the reader Ask action editable until the user sends it", async () => {
+    await start();
+    const response = await send({
+      type: "glimpselet:reader-action",
+      action: "ask",
+      question: "Help me understand this selected passage.",
+      text: "Selected PDF passage",
+      context: page,
+    });
+    expect(response).toHaveBeenCalledWith({ ok: true });
+    expect(document.querySelector("textarea")?.value).toContain(
+      "Selected PDF passage",
+    );
+    expect(mocks.ask).not.toHaveBeenCalled();
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+    });
+    await flush();
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("textarea")?.value).toBe("");
+  });
+  it("disables web capture controls during streaming and enables capture after completion", async () => {
+    await start();
+    let complete!: (result: { answer: string }) => void;
+    mocks.ask.mockImplementation((_input, delta) => {
+      delta("**Still streaming**");
+      return new Promise((resolve) => {
+        complete = resolve;
+      });
+    });
+    await send({
+      type: "glimpselet:reader-action",
+      action: "summary",
+      context: page,
+    });
+    for (const name of [en.visible, en.fullPage, en.element])
+      expect(button(name).disabled).toBe(true);
+    await act(async () => complete({ answer: "Finished answer" }));
+    await flush();
+    for (const name of [en.visible, en.fullPage, en.element])
+      expect(button(name).disabled).toBe(false);
+    await click(en.visible);
+    expect(document.querySelector(".capture-chip img")).not.toBeNull();
   });
   it.each([false, true])(
     "preserves a newer typed draft after late automatic success/rejection=%s",
@@ -383,6 +433,9 @@ describe("bubble answer rendering and feedback", () => {
     ].filter((element) => element.textContent?.trim() === en.guideAction);
     expect(guideControls).toHaveLength(1);
     expect(
+      [...document.querySelectorAll(".float-start button")].at(-1)?.textContent,
+    ).toBe(en.guideAction);
+    expect(
       [...document.querySelectorAll(".float-start")].at(-1)?.textContent,
     ).toContain(en.guideCapturePermission);
     await click(en.guideAction);
@@ -497,7 +550,7 @@ describe("bubble answer rendering and feedback", () => {
       await start();
       await send({
         type: "glimpselet:reader-action",
-        action: "ask",
+        action: "summary",
         text: "PDF passage",
         question: "Explain this",
         context: page,

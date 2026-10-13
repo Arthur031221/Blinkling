@@ -136,6 +136,20 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 describe("PDF reader action scope", () => {
+  it("explains that the reader Ask action leaves a question ready to review in chat", async () => {
+    await openReader();
+    select(0, 13);
+    action("ask").click();
+    await settle();
+    expect(actionRequests()).toHaveLength(1);
+    expect(actionRequests()[0]).toMatchObject({
+      action: "ask",
+      text: "Introduction.",
+    });
+    expect(document.querySelector("#status")?.textContent).toBe(
+      "Question ready in chat. Review it and select Ask to send.",
+    );
+  });
   it("sends only a selected passage for a clearly named section summary", async () => {
     await openReader();
     select(0, "Introduction. Transformer training.".length);

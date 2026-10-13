@@ -416,6 +416,10 @@ async function ask(action: ReaderAction): Promise<void> {
       );
       return;
     }
+    if (action === "ask") {
+      setStatus("questionReady");
+      return;
+    }
     const statusKey =
       action === "summary" || action === "summary-selection"
         ? "summarySent"
