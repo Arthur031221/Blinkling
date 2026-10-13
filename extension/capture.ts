@@ -1,3 +1,4 @@
+import { freezeSharedFrame, type SharedFrameOptions } from "./screen-frame";
 import { hasSensitiveContent } from "./privacy";
 import { encodeCanvasPng } from "./png";
 import { prepareCaptureBinding, type CaptureBinding } from "./capture-binding";
@@ -520,7 +521,11 @@ function crop(
   });
 }
 
-export async function captureScreen(sourceTabId?: number): Promise<{
+export async function captureScreen(
+  sourceTabId?: number,
+  bubble: Document | null = null,
+  options: (video: HTMLVideoElement) => SharedFrameOptions = () => ({}),
+): Promise<{
   stream: MediaStream;
   image: string;
   binding?: CaptureBinding;
@@ -542,17 +547,14 @@ export async function captureScreen(sourceTabId?: number): Promise<{
     video.srcObject = stream;
     await video.play();
     await new Promise((resolve) => setTimeout(resolve, 250));
-    const scale = Math.min(
-      1,
-      1600 / Math.max(video.videoWidth, video.videoHeight),
-    );
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-    canvas
-      .getContext("2d")
-      ?.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const image = encodeCanvasPng(canvas);
+    const frame = await freezeSharedFrame(video, bubble, options(video));
+    let image: string;
+    try {
+      image = encodeCanvasPng(frame);
+    } finally {
+      frame.width = 0;
+      frame.height = 0;
+    }
     return { stream, image, binding };
   } catch (error) {
     for (const track of stream.getTracks()) track.stop();

@@ -161,5 +161,10 @@
   "captureProgress": "Capturando {completed} de {total} seções",
   "translationPageChanged": "Tradução aplicada. {count} textos que estavam mudando foram ignorados. Traduza novamente para incluí-los.",
   "guideCapturePermission": "Clique no ícone do Glimpselet na barra de ferramentas desta página e tente o guia novamente. A etapa de prática continua aberta.",
-  "skipPractice": "Pular etapa de prática"
+  "skipPractice": "Pular etapa de prática",
+  "guideClose": "Fechar guia",
+  "guideDone": "Concluído",
+  "captureReopen": "A tela está pronta. Reabra a bolha para continuar.",
+  "captureReopenAction": "Reabrir bolha",
+  "captureFailed": "Não foi possível capturar a tela compartilhada. Tente novamente."
 }

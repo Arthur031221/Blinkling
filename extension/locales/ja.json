@@ -161,5 +161,10 @@
   "captureProgress": "{total} 区画中 {completed} 区画をキャプチャ中",
   "translationPageChanged": "翻訳を適用しました。変更中のテキスト {count} 件をスキップしました。もう一度翻訳すると対象に含められます。",
   "guideCapturePermission": "このページで Glimpselet のツールバーアイコンをクリックし、ガイドを再試行してください。練習ステップは保持されます。",
-  "skipPractice": "練習ステップをスキップ"
+  "skipPractice": "練習ステップをスキップ",
+  "guideClose": "ガイドを閉じる",
+  "guideDone": "完了",
+  "captureReopen": "画面の準備ができました。フローティング画面を開き直して続けてください。",
+  "captureReopenAction": "フローティング画面を開き直す",
+  "captureFailed": "共有画面をキャプチャできませんでした。もう一度お試しください。"
 }

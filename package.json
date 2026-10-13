@@ -26,7 +26,7 @@
     "build:extension": "tsc -p tsconfig.extension.json && node scripts/build-extension.mjs",
     "package:extension": "npm run build:extension && python3 scripts/package-extension.py",
     "package:stores": "npm run package:extension && python3 scripts/package-stores.py",
-    "test:extension": "npm run build:plugin && xvfb-run -a playwright test --config playwright.extension.config.ts",
+    "test:extension": "npm run build:plugin && bash scripts/extension-e2e.sh",
     "smoke:sites": "npm run build:extension && xvfb-run -a node scripts/smoke-sites.mjs"
   },
   "workspaces": [

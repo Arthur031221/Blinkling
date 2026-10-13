@@ -1,8 +1,8 @@
+import { launchExtensionContext } from "./browser";
 import en from "../extension/locales/en.json" with { type: "json" };
 import {
   test,
   expect,
-  chromium,
   type BrowserContext,
   type Page,
   type Worker,
@@ -204,8 +204,7 @@ test.beforeEach(async () => {
   const extension = resolve(
     process.env.GLIMPSELET_E2E_EXTENSION || "dist-extension",
   );
-  context = await chromium.launchPersistentContext(join(directory, "profile"), {
-    channel: "chromium",
+  context = await launchExtensionContext(join(directory, "profile"), {
     headless: false,
     viewport: null,
     args: [
@@ -310,7 +309,7 @@ test("selection excludes private content between public endpoints and closes sta
   await site.waitForTimeout(150);
   expect(
     providerRequests.some((request) =>
-      request.question.startsWith("Explain this selected text:"),
+      request.question.startsWith("Explain this selected text in English:"),
     ),
   ).toBe(false);
 
@@ -338,7 +337,7 @@ test("selection excludes private content between public endpoints and closes sta
     await expect(popover).toHaveCount(0);
     expect(
       providerRequests.some((request) =>
-        request.question.startsWith("Explain this selected text:"),
+        request.question.startsWith("Explain this selected text in English:"),
       ),
     ).toBe(false);
   }
@@ -357,7 +356,7 @@ test("selection excludes private content between public endpoints and closes sta
     .poll(() =>
       providerRequests.some((request) =>
         request.question.includes(
-          "Explain this selected text: Public introduction.",
+          "Explain this selected text in English: Public introduction.",
         ),
       ),
     )
@@ -1586,6 +1585,7 @@ for (const backend of ["bridge", "api"] as const) {
   test(`guide reaches late elements on a dense page in ${backend} mode`, async () => {
     const guideRequests: string[] = [];
     const apiEfforts: string[] = [];
+    const guideImages: unknown[] = [];
     const guideAnswer = (question: string) => {
       guideRequests.push(question);
       const ids = [...question.matchAll(/"(g\d+)"/g)].map((match) => match[1]);
@@ -1623,8 +1623,17 @@ for (const backend of ["bridge", "api"] as const) {
                   "Show the last action",
                 ],
               });
-          if (question.startsWith("Create a short"))
+          if (question.startsWith("Create a short")) {
             apiEfforts.push(input.output_config?.effort);
+            guideImages.push(
+              ...input.messages.flatMap(
+                (message: { content: { type: string }[] }) =>
+                  message.content.filter((block) => block.type === "image"),
+              ),
+            );
+            expect(question).toContain("Action 119");
+            expect(question).not.toContain("PRIVATE_FRAME_TEXT");
+          }
           await route.fulfill({
             contentType: "text/event-stream",
             headers: { "access-control-allow-origin": "*" },
@@ -1662,11 +1671,13 @@ for (const backend of ["bridge", "api"] as const) {
             };
     }
     await site.evaluate(() => {
-      document.body.innerHTML = Array.from(
-        { length: 120 },
-        (_, i) =>
-          `<button id="dense-${i}" style="display:block;height:32px">${("Action " + i + " ").padEnd(180, "x")}</button>`,
-      ).join("");
+      document.body.innerHTML =
+        '<iframe sandbox srcdoc="<input type=password><p>PRIVATE_FRAME_TEXT</p>"></iframe>' +
+        Array.from(
+          { length: 120 },
+          (_, i) =>
+            `<button id="dense-${i}" style="display:block;height:32px">${("Action " + i + " ").padEnd(180, "x")}</button>`,
+        ).join("");
     });
     await panel
       .getByRole("button", { name: en.guideAction, exact: true })
@@ -1675,6 +1686,21 @@ for (const backend of ["bridge", "api"] as const) {
       site.locator("[data-glimpselet-overlay] .guide"),
     ).toContainText("Use the final page action.");
     expect(guideRequests).toHaveLength(1);
+    expect(guideImages).toEqual([]);
+    if (backend === "bridge") {
+      const guide = providerRequests.find((request) =>
+        request.question.startsWith("Create a short"),
+      )!;
+      expect(guide.image).toBeUndefined();
+      expect(guide.page?.text).toContain("Action 119");
+      expect(JSON.stringify(guide.page)).not.toContain("PRIVATE_FRAME_TEXT");
+    }
+    await expect(site.locator('[data-guide-control="close"]')).toHaveText(
+      en.guideClose,
+    );
+    await expect(site.locator('[data-guide-control="next"]')).toHaveText(
+      en.guideDone,
+    );
     expect(guideRequests[0].length).toBeLessThanOrEqual(8000);
     expect(
       new Set(
@@ -2485,12 +2511,22 @@ test("translation preserves dynamic site updates and invalidates delayed node re
   const first = await collect();
   expect(first.text).toBe("Price $10");
   await update("Price $12");
-  expect(await translate(first.id, "Stale price")).toEqual({ applied: 0 });
+  expect(await translate(first.id, "Stale price")).toEqual({
+    applied: 0,
+    changed: 0,
+    rejected: 0,
+    skipped: { disconnected: 0, ineligible: 0, sourceChanged: 1 },
+  });
   await expect(site.locator("#foreign")).toHaveText("Price $12");
   const second = await collect();
   expect(second.id).not.toBe(first.id);
   expect(second.text).toBe("Price $12");
-  expect(await translate(second.id, "Prix 12")).toEqual({ applied: 1 });
+  expect(await translate(second.id, "Prix 12")).toEqual({
+    applied: 1,
+    changed: 1,
+    rejected: 0,
+    skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
+  });
   await update("Price $15");
   expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 0 });
   await expect(site.locator("#foreign")).toHaveText("Price $15");
@@ -2498,12 +2534,25 @@ test("translation preserves dynamic site updates and invalidates delayed node re
   expect(third.id).not.toBe(second.id);
   expect(await translate(second.id, "Stale restored price")).toEqual({
     applied: 0,
+    changed: 0,
+    rejected: 1,
+    skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
   });
-  expect(await translate(third.id, "Prix 15")).toEqual({ applied: 1 });
+  expect(await translate(third.id, "Prix 15")).toEqual({
+    applied: 1,
+    changed: 1,
+    rejected: 0,
+    skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
+  });
   expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
   await expect(site.locator("#foreign")).toHaveText("Price $15");
   const fourth = await collect();
-  expect(await translate(fourth.id, "Prix 15")).toEqual({ applied: 1 });
+  expect(await translate(fourth.id, "Prix 15")).toEqual({
+    applied: 1,
+    changed: 1,
+    rejected: 0,
+    skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
+  });
   await site.locator("#foreign").evaluate((element) => {
     element.hidden = true;
   });
@@ -2513,7 +2562,12 @@ test("translation preserves dynamic site updates and invalidates delayed node re
   });
   await expect(site.locator("#foreign")).toHaveText("Price $15");
   const fifth = await collect();
-  expect(await translate(fifth.id, "")).toEqual({ applied: 1 });
+  expect(await translate(fifth.id, "")).toEqual({
+    applied: 1,
+    changed: 1,
+    rejected: 0,
+    skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
+  });
   expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
   await expect(site.locator("#foreign")).toHaveText("Price $15");
 });
@@ -2962,10 +3016,7 @@ for (const backend of ["bridge", "api"] as const) {
         await expect
           .poll(() =>
             panel.evaluate(() => {
-              const video =
-                window.documentPictureInPicture.window!.document.querySelector(
-                  "video",
-                )!;
+              const video = document.querySelector("video")!;
               const canvas = document.createElement("canvas");
               canvas.width = 1;
               canvas.height = 1;
@@ -3041,7 +3092,7 @@ for (const ending of ["stop", "browser"] as const) {
           return {
             status: doc.querySelector(".status")?.textContent?.trim(),
             live: (
-              doc.querySelector("video")?.srcObject as MediaStream | null
+              document.querySelector("video")?.srcObject as MediaStream | null
             )?.getVideoTracks()[0]?.readyState,
             thumbnail: !!doc.querySelector(".capture-chip img"),
           };
@@ -3051,10 +3102,7 @@ for (const ending of ["stop", "browser"] as const) {
     if (ending === "stop") await clickBubble(en.stopSharing);
     else
       await panel.evaluate(() => {
-        const video =
-          window.documentPictureInPicture.window!.document.querySelector(
-            "video",
-          )!;
+        const video = document.querySelector("video")!;
         const track = (video.srcObject as MediaStream).getVideoTracks()[0];
         track.stop();
         track.dispatchEvent(new Event("ended"));
@@ -3105,17 +3153,11 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
   await clickInBubble(en.share);
   await expect
     .poll(() =>
-      panel.evaluate(
-        () =>
-          window.documentPictureInPicture.window!.document.querySelector(
-            "video",
-          )?.videoWidth || 0,
-      ),
+      panel.evaluate(() => document.querySelector("video")?.videoWidth || 0),
     )
     .toBeGreaterThan(600);
   const nativeBinding = await panel.evaluate(async () => {
-    const video =
-      window.documentPictureInPicture.window!.document.querySelector("video")!;
+    const video = document.querySelector("video")!;
     const track = (
       video.srcObject as MediaStream
     ).getVideoTracks()[0] as MediaStreamTrack & {
@@ -3298,12 +3340,7 @@ for (const backend of ["bridge", "api"] as const) {
     await clickInBubble(en.share);
     await expect
       .poll(() =>
-        panel.evaluate(
-          () =>
-            window.documentPictureInPicture.window!.document.querySelector(
-              "video",
-            )?.videoWidth,
-        ),
+        panel.evaluate(() => document.querySelector("video")?.videoWidth),
       )
       .toBe(4096);
     await clickInBubble(en.region);
@@ -3459,12 +3496,7 @@ test("compacting and expanding keeps the shared video and crop available", async
   await clickInBubble(en.share);
   await expect
     .poll(() =>
-      panel.evaluate(
-        () =>
-          window.documentPictureInPicture.window!.document.querySelector(
-            "video",
-          )?.videoWidth || 0,
-      ),
+      panel.evaluate(() => document.querySelector("video")?.videoWidth || 0),
     )
     .toBeGreaterThan(600);
   await clickBubble(en.compact);
@@ -3489,9 +3521,7 @@ test("compacting and expanding keeps the shared video and crop available", async
     .toBe(true);
   expect(
     await panel.evaluate(
-      () =>
-        window.documentPictureInPicture.window!.document.querySelector("video")
-          ?.videoWidth || 0,
+      () => document.querySelector("video")?.videoWidth || 0,
     ),
   ).toBeGreaterThan(600);
   await clickInBubble(en.region);
@@ -3502,12 +3532,7 @@ test("compacting and expanding keeps the shared video and crop available", async
   await expect(frozen).toHaveCount(0);
   await expect
     .poll(() =>
-      panel.evaluate(
-        () =>
-          window.documentPictureInPicture.window!.document.querySelector(
-            "video",
-          )?.videoWidth || 0,
-      ),
+      panel.evaluate(() => document.querySelector("video")?.videoWidth || 0),
     )
     .toBeGreaterThan(600);
 });
@@ -4250,12 +4275,7 @@ test("ordinary shared-screen questions refresh the frame and omit unrelated page
   await clickInBubble(en.share);
   await expect
     .poll(() =>
-      panel.evaluate(
-        () =>
-          window.documentPictureInPicture.window!.document.querySelector(
-            "video",
-          )!.videoWidth,
-      ),
+      panel.evaluate(() => document.querySelector("video")!.videoWidth),
     )
     .toBeGreaterThan(600);
   const initial = await panel.evaluate(

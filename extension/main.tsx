@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { createRoot } from "react-dom/client";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { safeMarkdown } from "../src/sanitize";
 import {
   BridgeClient,
@@ -31,6 +31,7 @@ import {
   captureScreen,
   captureWeb,
   getPageContext,
+  getGuideContext,
   getDocumentIdentity,
   isSensitivePage,
   setCurrentActiveTab,
@@ -39,7 +40,7 @@ import {
 import "./style.css";
 import { isReaderPdfCandidate } from "./reader-url";
 import { cropSharedScreen } from "./screen-crop";
-import { freezeSharedFrame } from "./screen-frame";
+import { freezeSharedFrame, type SharedFrameOptions } from "./screen-frame";
 import { boundedHistory } from "./history";
 import { isGuideQuestion, buildPassivePrompt } from "./chat-intent";
 import { differenceHash, ScreenChanges } from "./screen-change";
@@ -113,15 +114,6 @@ function isOwnExtensionUrl(url?: string): boolean {
       !url.startsWith(chrome.runtime.getURL("reader.html")),
   );
 }
-function canvasToPng(video: HTMLVideoElement): string {
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.min(1600, video.videoWidth);
-  canvas.height = Math.round(
-    (canvas.width * video.videoHeight) / video.videoWidth,
-  );
-  canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return encodeCanvasPng(canvas);
-}
 function errorCode(error: unknown): string {
   return error instanceof Error
     ? (error as Error & { code?: string }).code || error.message
@@ -150,6 +142,8 @@ function errorLabel(error: unknown, t: Record<string, string>): string {
     tab_changed: "tabChanged",
     capture_cancelled: "captureCancelled",
     capture_permission: "capturePermission",
+    capture_bubble_obstructed: "captureReopen",
+    capture_failed: "captureFailed",
     crop_fullscreen_denied: "crop_fullscreen_denied",
     share_ended: "share_ended",
     no_active_tab: "noActiveTab",
@@ -178,6 +172,9 @@ function App() {
   const [consented, setConsented] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [pipDoc, setPipDoc] = useState<Document | null>(null);
+  const [reopenCapture, setReopenCapture] = useState(false);
+  const controlledPipClose = useRef(false);
+  const finishCaptureRestore = useRef<(() => void) | null>(null);
   const [fallback, setFallback] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const expandedRef = useRef(true);
@@ -567,17 +564,13 @@ function App() {
       videoRef.current.srcObject = shareStream;
       void videoRef.current.play().catch(() => {});
     }
-  }, [shareStream, pipDoc]);
+  }, [shareStream]);
   useEffect(() => {
     if (followThread.current)
       endRef.current?.scrollIntoView({ block: "nearest" });
   }, [entries, answer, suggestions]);
   useEffect(() => {
     if (!pipDoc) return;
-    const link = pipDoc.createElement("link");
-    link.rel = "stylesheet";
-    link.href = chrome.runtime.getURL("style.css");
-    pipDoc.head.append(link);
     const child = pipDoc.defaultView!;
     const remember = () => {
       if (!expandedRef.current) return;
@@ -588,6 +581,7 @@ function App() {
       });
     };
     const close = () => {
+      if (controlledPipClose.current) return;
       pageCaptureController.current?.abort();
       setPipDoc(null);
       shareRef.current?.getTracks().forEach((track) => track.stop());
@@ -907,26 +901,44 @@ function App() {
       }
       if (message?.type !== "capture" || !message.id) return;
       const video = videoRef.current;
-      let image = "";
-      if (shareStream && video?.videoWidth && video.videoHeight) {
-        try {
-          image = canvasToPng(video);
-        } catch {
-          image = "";
+      void (async () => {
+        let image = "";
+        if (
+          shareStream &&
+          video?.videoWidth &&
+          video.videoHeight &&
+          !cropBusy.current &&
+          !finishCaptureRestore.current
+        ) {
+          try {
+            const frame = await freezeSharedFrame(
+              video,
+              pipDoc,
+              frameOptions(video),
+            );
+            try {
+              image = encodeCanvasPng(frame);
+            } finally {
+              frame.width = 0;
+              frame.height = 0;
+            }
+          } catch {
+            image = "";
+          }
         }
-      }
-      void bridge
-        .send({
-          type: "capture-result",
-          id: message.id,
-          image: image || undefined,
-          error: image ? undefined : "unavailable",
-        })
-        .catch(() => {});
+        await bridge
+          .send({
+            type: "capture-result",
+            id: message.id!,
+            image: image || undefined,
+            error: image ? undefined : "unavailable",
+          })
+          .catch(() => {});
+      })();
     };
     bridge.addEventListener("message", listener);
     return () => bridge.removeEventListener("message", listener);
-  }, [shareStream]);
+  });
   shiftCropActions.current = {
     allowed: consented && shiftCropEnabled && !showSettings && !showSessions,
     start: () => void startCrop(),
@@ -1061,12 +1073,66 @@ function App() {
     locale,
     blocklist,
   ]);
+  function frameOptions(video: HTMLVideoElement): SharedFrameOptions {
+    const floating = pipDoc?.defaultView;
+    const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0];
+    const surface = track?.getSettings().displaySurface;
+    const canvasSource =
+      track && "canvas" in track && track.canvas instanceof HTMLCanvasElement;
+    if (
+      !floating ||
+      floating.closed ||
+      canvasSource ||
+      surface === "browser" ||
+      surface === "window"
+    )
+      return {};
+    return {
+      clearBubble: {
+        hide: async () => {
+          controlledPipClose.current = true;
+          // The decoder stays in the opener while the portal moves back there.
+          flushSync(() => setPipDoc(null));
+          try {
+            floating.close();
+          } finally {
+            controlledPipClose.current = false;
+          }
+        },
+        restore: async () => {
+          // Chrome requires a fresh gesture to recreate Document PiP. Keep the
+          // share and request alive until the user clicks this reachable action.
+          const restored = new Promise<void>((resolve) => {
+            finishCaptureRestore.current = resolve;
+          });
+          flushSync(() => setReopenCapture(true));
+          setStatus(t.captureReopen);
+          const opener = await chrome.tabs.getCurrent();
+          if (opener?.id)
+            await chrome.tabs
+              .update(opener.id, { active: true })
+              .catch(() => undefined);
+          if (opener?.windowId !== undefined)
+            await chrome.windows
+              .update(opener.windowId, { focused: true })
+              .catch(() => undefined);
+          window.focus();
+          await restored;
+        },
+      },
+    };
+  }
   async function startCrop() {
     if (cropBusy.current) return;
     cropBusy.current = true;
     try {
       if (shareRef.current && videoRef.current) {
-        const image = await cropSharedScreen(videoRef.current, pipDoc, t);
+        const image = await cropSharedScreen(
+          videoRef.current,
+          pipDoc,
+          t,
+          frameOptions(videoRef.current),
+        );
         if (image) {
           setCapture({ image, label: t.region });
           setPage(undefined);
@@ -1096,7 +1162,23 @@ function App() {
     try {
       // requestWindow must run before any await so Chrome still sees the click activation.
       const docWindow = await pip.requestWindow(size);
-      setPipDoc(docWindow.document);
+      // Mount the portal only after its stylesheet is ready. Unstyled capture
+      // thumbnails can resize and scroll the native window before controls load.
+      const response = await fetch(chrome.runtime.getURL("style.css"));
+      if (!response.ok) {
+        docWindow.close();
+        throw new Error("pip_styles_unavailable");
+      }
+      const style = docWindow.document.createElement("style");
+      style.textContent = await response.text();
+      docWindow.document.head.append(style);
+      flushSync(() => {
+        setPipDoc(docWindow.document);
+        setReopenCapture(false);
+      });
+      const restored = finishCaptureRestore.current;
+      finishCaptureRestore.current = null;
+      restored?.();
       setFallback(false);
       setStatus(t.floatingReady);
       await completeFloatTutorial();
@@ -1358,7 +1440,11 @@ function App() {
           setStatus(t.shareNeedsFloat);
           return;
         }
-        const result = await captureScreen(activeTabId.current);
+        const result = await captureScreen(
+          activeTabId.current,
+          pipDoc,
+          frameOptions,
+        );
         sharedBinding.current = result.binding;
         setShareStream(result.stream);
         setCapture({ image: result.image, label: t.screen, liveScreen: true });
@@ -1421,21 +1507,25 @@ function App() {
   }
   function setCompact(compact: boolean) {
     expandedRef.current = !compact;
-    if (pipDoc?.defaultView) {
-      const floating = pipDoc.defaultView;
-      if (compact) {
-        setSize({ width: floating.innerWidth, height: floating.innerHeight });
-        floating.resizeTo(
-          floating.outerWidth,
-          180 + floating.outerHeight - floating.innerHeight,
-        );
-      } else
-        floating.resizeTo(
-          size.width,
-          size.height + floating.outerHeight - floating.innerHeight,
-        );
-    }
     setExpanded(!compact);
+    try {
+      if (pipDoc?.defaultView) {
+        const floating = pipDoc.defaultView;
+        if (compact) {
+          setSize({ width: floating.innerWidth, height: floating.innerHeight });
+          floating.resizeTo(
+            floating.outerWidth,
+            180 + floating.outerHeight - floating.innerHeight,
+          );
+        } else
+          floating.resizeTo(
+            size.width,
+            size.height + floating.outerHeight - floating.innerHeight,
+          );
+      }
+    } catch {
+      /* Keep the controls usable if the browser refuses a resize. */
+    }
   }
   async function runTutorial() {
     if (!tutorial) return;
@@ -1493,16 +1583,17 @@ function App() {
   async function guidePage() {
     try {
       await requestSiteAccess();
-      const result = await captureWeb("visible", undefined, t);
-      setPage(result.page);
+      const context = await getGuideContext();
       return await askWith({
         question: t.guidePrompt,
         kind: "guide",
-        page: result.page,
-        image: result.capture.image,
+        page: context,
+        includeCapture: false,
       });
     } catch (error) {
-      if (errorCode(error) === "capture_permission")
+      if (
+        ["capture_permission", "allow_site_access"].includes(errorCode(error))
+      )
         setStatus(t.guideCapturePermission);
       else reportError(error);
     }
@@ -1544,7 +1635,7 @@ function App() {
       pendingPageRefresh.current = true;
       return;
     }
-    const currentPage =
+    let currentPage =
       options.page === null
         ? undefined
         : options.page ||
@@ -1584,7 +1675,7 @@ function App() {
       image:
         options.image ||
         (options.includeCapture !== false &&
-        (kind === "ask" || kind === "guide" || kind === "translate")
+        (kind === "ask" || kind === "translate")
           ? capture?.image
           : undefined),
     };
@@ -1603,16 +1694,24 @@ function App() {
     try {
       let final = "";
       let finalUsage: Usage | undefined;
+      if (kind === "guide") {
+        currentPage = await getGuideContext(currentPage);
+        entry.image = undefined;
+      }
       if (
         !options.image &&
         options.includeCapture !== false &&
         capture?.liveScreen &&
         shareRef.current &&
         videoRef.current &&
-        (kind === "ask" || kind === "translate" || kind === "guide")
+        (kind === "ask" || kind === "translate")
       ) {
         const stream = shareRef.current;
-        const frame = await freezeSharedFrame(videoRef.current, pipDoc);
+        const frame = await freezeSharedFrame(
+          videoRef.current,
+          pipDoc,
+          frameOptions(videoRef.current),
+        );
         try {
           if (
             shareRef.current !== stream ||
@@ -1656,6 +1755,10 @@ function App() {
           return;
         }
       }
+      if (requestIdRef.current !== id || cancelledRequests.current.has(id))
+        return;
+      if (kind === "guide" && currentPage)
+        currentPage = await getGuideContext(currentPage);
       if (requestIdRef.current !== id || cancelledRequests.current.has(id))
         return;
       if (backend === "api") {
@@ -1795,7 +1898,8 @@ function App() {
           labels: {
             next: t.next,
             back: t.back,
-            close: t.close,
+            close: t.guideClose,
+            done: t.guideDone,
             title: t.guideAction,
           },
         })) as { ok?: boolean } | undefined;
@@ -2396,6 +2500,14 @@ function App() {
           </button>
         </div>
       </header>
+      {reopenCapture && (
+        <section className="float-start capture-reopen">
+          <button className="primary wide" onClick={() => void openFloat()}>
+            {t.captureReopenAction}
+          </button>
+          <p>{t.captureReopen}</p>
+        </section>
+      )}
       {!expanded ? (
         <section className="pill">
           <span className={`dot ${busy ? "busy" : ""}`} />
@@ -3037,10 +3149,19 @@ function App() {
           </section>
         </div>
       )}
-      <video ref={videoRef} className="hidden-video" muted playsInline />
+      {expanded && backend === "bridge" && sessionId && (
+        <footer className="foot">
+          <span title={t.sessions}>{sessionId}</span>
+        </footer>
+      )}
     </main>
   );
-  return pipDoc ? createPortal(view, pipDoc.body) : view;
+  return (
+    <>
+      {pipDoc ? createPortal(view, pipDoc.body) : view}
+      <video ref={videoRef} className="hidden-video" muted playsInline />
+    </>
+  );
 }
 
 function Blink({ mood = "idle" }: { mood?: "idle" | "think" }) {

@@ -25813,7 +25813,7 @@ function selectionRect(start, end, width, height) {
     height: Math.abs(y2 - y1)
   };
 }
-function selectCrop(host, bounds, labels, pixelScale = 1) {
+function selectCrop(host, bounds, labels, pixelScale = 1, initialPointer) {
   const doc = host.ownerDocument, view = doc.defaultView;
   const root = host.attachShadow({ mode: "open" });
   const style = doc.createElement("style");
@@ -25889,6 +25889,13 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
       view.removeEventListener("resize", resize);
       view.removeEventListener("scroll", render, true);
       view.removeEventListener("pagehide", cancelCrop);
+      view.removeEventListener("pointerdown", down, true);
+      view.removeEventListener("pointermove", move, true);
+      view.removeEventListener("pointerup", up, true);
+      view.removeEventListener("pointercancel", pointerCancel, true);
+      if (drag && surface.hasPointerCapture?.(drag.pointerId))
+        surface.releasePointerCapture(drag.pointerId);
+      drag = null;
       doc.removeEventListener("fullscreenchange", fullscreenChanged);
       host.remove();
       previousFocus?.focus();
@@ -25986,23 +25993,31 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
         render();
       }
     };
-    surface.onpointerdown = (event) => {
-      if (event.target.closest(".tools")) return;
+    const beginDrag = (event, seeded = false) => {
+      if (event.button !== 0 || drag) return;
+      const target = event.composedPath()[0] || event.target;
+      if (!seeded && target.closest(".tools")) return;
       event.preventDefault();
-      surface.setPointerCapture(event.pointerId);
-      const target = event.target;
+      event.stopImmediatePropagation();
+      surface.setPointerCapture?.(event.pointerId);
       drag = {
+        pointerId: event.pointerId,
         start: point(event),
         origin: rect ? { ...rect } : null,
-        handle: target.dataset.handle || (target === box || target === readout ? "move" : "new")
+        handle: !seeded && target.dataset.handle || (target === box || target === readout ? "move" : "new")
       };
       if (drag.handle === "new") {
         rect = { ...drag.start, width: 0, height: 0 };
         render();
       }
     };
-    surface.onpointermove = (event) => {
-      if (!drag) return;
+    const down = (event) => {
+      if (event.composedPath().includes(surface)) beginDrag(event);
+    };
+    const move = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
       const p = point(event), r = bounds(), o = drag.origin;
       if (drag.handle === "move" && o)
         rect = {
@@ -26029,12 +26044,20 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
       }
       render();
     };
-    surface.onpointerup = () => {
+    const up = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      move(event);
+      if (surface.hasPointerCapture?.(drag.pointerId))
+        surface.releasePointerCapture(drag.pointerId);
       drag = null;
       if (rect && !confirm.disabled) confirm.focus({ preventScroll: true });
     };
-    surface.onpointercancel = () => {
+    const pointerCancel = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
       drag = null;
+      finish(null);
     };
     confirm.onclick = () => {
       if (rect && !confirm.disabled) finish(rect);
@@ -26044,7 +26067,12 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
     view.addEventListener("resize", resize);
     view.addEventListener("scroll", render, true);
     view.addEventListener("pagehide", cancelCrop, { once: true });
+    view.addEventListener("pointerdown", down, true);
+    view.addEventListener("pointermove", move, true);
+    view.addEventListener("pointerup", up, true);
+    view.addEventListener("pointercancel", pointerCancel, true);
     cancel.focus({ preventScroll: true });
+    if (initialPointer) beginDrag(initialPointer, true);
   });
 }
 
@@ -26055,15 +26083,17 @@ function listenForShiftCrop(view, allowed, start) {
     view.clearTimeout(timer);
     timer = void 0;
   };
+  const editable = (event) => event.composedPath().some(
+    (target) => target?.closest?.(
+      "input,textarea,select,[contenteditable]:not([contenteditable='false']),[role='textbox']"
+    )
+  );
   const down = (event) => {
     if (event.key !== "Shift") {
       clear();
       return;
     }
-    const target = event.target;
-    if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || target?.closest?.(
-      "input,textarea,select,[contenteditable]:not([contenteditable='false']),[role='textbox']"
-    ) || !allowed())
+    if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || editable(event) || !allowed())
       return;
     clear();
     timer = view.setTimeout(() => {
@@ -26074,16 +26104,25 @@ function listenForShiftCrop(view, allowed, start) {
   const up = (event) => {
     if (event.key === "Shift") clear();
   };
-  view.addEventListener("keydown", down);
-  view.addEventListener("keyup", up);
+  const pointerDown = (event) => {
+    const pending = timer !== void 0;
+    clear();
+    if (!pending || !event.shiftKey || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || editable(event) || !allowed())
+      return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    start(event);
+  };
+  view.addEventListener("keydown", down, true);
+  view.addEventListener("keyup", up, true);
   view.addEventListener("blur", clear);
-  view.addEventListener("pointerdown", clear);
+  view.addEventListener("pointerdown", pointerDown, true);
   return () => {
     clear();
-    view.removeEventListener("keydown", down);
-    view.removeEventListener("keyup", up);
+    view.removeEventListener("keydown", down, true);
+    view.removeEventListener("keyup", up, true);
     view.removeEventListener("blur", clear);
-    view.removeEventListener("pointerdown", clear);
+    view.removeEventListener("pointerdown", pointerDown, true);
   };
 }
 
@@ -26148,7 +26187,11 @@ var ignoredTags = /* @__PURE__ */ new Set([
   "NOSCRIPT",
   "TEMPLATE",
   "SVG",
-  "CANVAS"
+  "CANVAS",
+  "IFRAME",
+  "FRAME",
+  "OBJECT",
+  "EMBED"
 ]);
 var scope = globalThis;
 var documentKeys = scope.glimpseletDocumentKeys ??= /* @__PURE__ */ new WeakMap();
@@ -26214,7 +26257,13 @@ function visible(element) {
   return true;
 }
 function buildPageContext(doc = document) {
-  const hasPassword = hasSensitiveContent(doc);
+  return readPageContext(doc, false);
+}
+function buildGuideContext(doc = document) {
+  return readPageContext(doc, true);
+}
+function readPageContext(doc, explicitGuide) {
+  const hasPassword = hasSensitiveContent(doc, explicitGuide);
   const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body || doc.documentElement;
   const elements = [];
   const selector = "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],[role=option],h1,h2,h3,h4,h5,h6";
@@ -26223,6 +26272,7 @@ function buildPageContext(doc = document) {
       selector + (scope2.hasAttribute("data-glimpselet-reader-page") ? ",.pdf-text-layer>span" : "")
     )
   )) {
+    if (explicitGuide && hasPassword) break;
     if (elements.length >= 120) break;
     if (isExcluded(element) || isChoiceContent(element) || hasSensitiveAncestor(element) || !visible(element))
       continue;
@@ -26245,7 +26295,7 @@ function buildPageContext(doc = document) {
   let length = 0;
   const walker = doc.createTreeWalker(scope2, NodeFilter.SHOW_TEXT);
   let node;
-  while ((node = walker.nextNode()) && length < 24e3) {
+  while (!(explicitGuide && hasPassword) && (node = walker.nextNode()) && length < 24e3) {
     if (!contextTextNode(node)) continue;
     const value = (node.nodeValue || "").replace(/\s+/g, " ").trim();
     if (!value) continue;
@@ -26259,7 +26309,11 @@ function buildPageContext(doc = document) {
     title: doc.title.slice(0, 500),
     text: chunks.join(" ").slice(0, 24e3),
     elements,
-    hasPassword
+    hasPassword,
+    ...explicitGuide ? {
+      guideScope: "top-document-text",
+      excludedEmbeds: doc.querySelectorAll("iframe,frame,object,embed").length
+    } : {}
   };
 }
 function contextTextNode(node) {
@@ -26271,18 +26325,43 @@ function contextRangeText(range) {
   if (!root.isConnected) return "";
   const text = range.toString().trim();
   if (!text || text.length > 5e3) return "";
-  const safe = (node2) => {
-    if (!range.intersectsNode(node2)) return true;
-    const start = node2 === range.startContainer ? range.startOffset : 0;
-    const end = node2 === range.endContainer ? range.endOffset : node2.nodeValue.length;
-    return !node2.nodeValue.slice(start, end).trim() || contextTextNode(node2);
+  const safe = (node) => {
+    if (!range.intersectsNode(node)) return true;
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+    return !node.nodeValue.slice(start, end).trim() || contextTextNode(node);
   };
-  if (root.nodeType === Node.TEXT_NODE) return safe(root) ? text : "";
   const doc = root.nodeType === Node.DOCUMENT_NODE ? root : root.ownerDocument;
-  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let node;
-  while (node = walker.nextNode()) if (!safe(node)) return "";
-  return text;
+  if (root.nodeType === Node.TEXT_NODE) {
+    if (!safe(root)) return "";
+  } else {
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while (node = walker.nextNode()) if (!safe(node)) return "";
+  }
+  const selection = doc.defaultView?.getSelection();
+  const selected = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
+  let rendered;
+  if (selected && selected.startContainer === range.startContainer && selected.startOffset === range.startOffset && selected.endContainer === range.endContainer && selected.endOffset === range.endOffset)
+    rendered = selection.toString().trim();
+  else {
+    const walker = doc.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT
+    );
+    const pieces = [];
+    let node;
+    while (node = walker.nextNode()) {
+      if (!range.intersectsNode(node)) continue;
+      if (node.nodeType === Node.TEXT_NODE) {
+        const start = node === range.startContainer ? range.startOffset : 0;
+        const end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+        pieces.push(node.nodeValue.slice(start, end));
+      } else if (node.localName === "br") pieces.push("\n");
+    }
+    rendered = root.nodeType === Node.TEXT_NODE ? text : pieces.join("").trim();
+  }
+  return rendered.length <= 5e3 ? rendered : "";
 }
 function restorableTextNode(node) {
   const parent = composedTextParent(node);
@@ -26500,7 +26579,7 @@ if (!contentScope.glimpseletContentReady) {
     counter.style.cssText = "align-self:center;font-size:12px;color:#766957";
     const next = document.createElement("button");
     next.dataset.guideControl = "next";
-    next.textContent = currentGuide.index === currentGuide.steps.length - 1 ? currentGuide.labels.close : currentGuide.labels.next;
+    next.textContent = currentGuide.index === currentGuide.steps.length - 1 ? currentGuide.labels.done : currentGuide.labels.next;
     next.onclick = () => {
       if (!currentGuide) return;
       if (currentGuide.index + 1 >= currentGuide.steps.length) closeGuide();
@@ -26509,7 +26588,11 @@ if (!contentScope.glimpseletContentReady) {
         renderGuide();
       }
     };
-    nav.append(back, counter, next);
+    const close = document.createElement("button");
+    close.dataset.guideControl = "close";
+    close.textContent = currentGuide.labels.close;
+    close.onclick = closeGuide;
+    nav.append(back, counter, next, close);
     callout.append(nav);
     const top = point.y > 115 ? point.y - 110 : Math.min(innerHeight - 90, point.y + point.height + 18);
     const cardX = Math.max(8, Math.min(Math.max(8, point.x), innerWidth - 269));
@@ -26537,6 +26620,7 @@ if (!contentScope.glimpseletContentReady) {
       next.focus({ preventScroll: true });
     else if (activeControl === "back") back.focus({ preventScroll: true });
     else if (activeControl === "next") next.focus({ preventScroll: true });
+    else if (activeControl === "close") close.focus({ preventScroll: true });
   }, closeGuide = function() {
     const returnFocus = currentGuide ? guideReturnFocus : void 0;
     currentGuide = void 0;
@@ -26669,25 +26753,31 @@ if (!contentScope.glimpseletContentReady) {
     listenForShiftCrop(
       window,
       () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
-      () => {
-        void select("region", cropLabels.cropCancel).then((result) => {
-          const value = result;
-          if (value.rect)
-            void send({
-              type: "glimpselet:crop-selected",
-              rect: value.rect,
-              url: location.href
-            });
-        });
+      (initialPointer) => {
+        void select("region", cropLabels.cropCancel, initialPointer).then(
+          (result) => {
+            const value = result;
+            if (value.rect)
+              void send({
+                type: "glimpselet:crop-selected",
+                rect: value.rect,
+                url: location.href
+              });
+          }
+        );
       }
     );
-    window.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        closeGuide();
-        closeSelectionPopover();
-      }
-    });
-  }, select = function(mode, cancelLabel) {
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") {
+          closeGuide();
+          closeSelectionPopover();
+        }
+      },
+      true
+    );
+  }, select = function(mode, cancelLabel, initialPointer) {
     if (selecting) return Promise.resolve({ cancelled: true });
     selecting = true;
     selectionMode = mode;
@@ -26700,7 +26790,8 @@ if (!contentScope.glimpseletContentReady) {
         host,
         () => new DOMRect(0, 0, innerWidth, innerHeight),
         cropLabels,
-        devicePixelRatio
+        devicePixelRatio,
+        initialPointer
       ).then(
         (rect) => rect ? { rect: [rect.x, rect.y, rect.width, rect.height] } : { cancelled: true }
       ).finally(() => {
@@ -26895,6 +26986,14 @@ if (!contentScope.glimpseletContentReady) {
         respond(buildPageContext());
         return;
       }
+      if (message2.type === "glimpselet:guide-context") {
+        if (hasSensitiveContent(document, true)) {
+          respond({ error: "password_page" });
+          return;
+        }
+        respond(buildGuideContext());
+        return;
+      }
       if (message2.type === "glimpselet:identity") {
         respond({
           documentKey: pageDocumentKey(),
@@ -26933,7 +27032,12 @@ if (!contentScope.glimpseletContentReady) {
         return true;
       }
       if (message2.type === "glimpselet:guide" && Array.isArray(message2.steps)) {
-        const pageMap = buildPageContext();
+        if (hasSensitiveContent(document, true)) {
+          closeGuide();
+          respond({ error: "password_page" });
+          return;
+        }
+        const pageMap = buildGuideContext();
         const incoming = validateGuideSteps(
           { steps: message2.steps },
           new Set(pageMap.elements.map((item) => item.id))
@@ -26951,7 +27055,8 @@ if (!contentScope.glimpseletContentReady) {
             labels: {
               next: guideLabels.next || "Next",
               back: guideLabels.back || "Back",
-              close: guideLabels.close || "Close",
+              close: guideLabels.close || "Close guide",
+              done: guideLabels.done || "Done",
               title: guideLabels.title || "Glimpselet"
             }
           };
@@ -27131,6 +27236,10 @@ async function prepareReaderPermissionHandoff(origins, contains, handoff) {
 // extension/reader-locales.ts
 var readerLocales = {
   en: {
+    questionReady: "Question ready in chat. Review it and select Ask to send.",
+    summarySelection: "Summarize selection",
+    selectFirst: "Select a passage to summarize first.",
+    selectionTooLong: "Select at most 5,000 characters, or use Summarize page for the whole page.",
     title: "Glimpselet PDF Reader",
     openFile: "Open PDF",
     urlPlaceholder: "Paste a PDF URL",
@@ -27167,6 +27276,10 @@ var readerLocales = {
     resizeHelp: "PDF page. Select text to ask, translate, summarize, or request guidance."
   },
   "zh-TW": {
+    questionReady: "\u554F\u984C\u5DF2\u6E96\u5099\u5728\u804A\u5929\u4E2D\u3002\u8ACB\u6AA2\u67E5\u5F8C\u9078\u53D6\u300C\u8A62\u554F\u300D\u50B3\u9001\u3002",
+    summarySelection: "\u6458\u8981\u9078\u53D6\u6587\u5B57",
+    selectFirst: "\u8ACB\u5148\u9078\u53D6\u8981\u6458\u8981\u7684\u6BB5\u843D\u3002",
+    selectionTooLong: "\u8ACB\u9078\u53D6\u4E0D\u8D85\u904E 5,000 \u500B\u5B57\u5143\uFF0C\u6216\u4F7F\u7528\u300C\u6458\u8981\u6B64\u9801\u300D\u6458\u8981\u6574\u9801\u3002",
     title: "Glimpselet PDF \u95B1\u8B80\u5668",
     openFile: "\u958B\u555F PDF",
     urlPlaceholder: "\u8CBC\u4E0A PDF \u7DB2\u5740",
@@ -27203,6 +27316,10 @@ var readerLocales = {
     resizeHelp: "PDF \u9801\u9762\u3002\u9078\u53D6\u6587\u5B57\u5F8C\u53EF\u63D0\u554F\u3001\u7FFB\u8B6F\u3001\u6458\u8981\u6216\u8981\u6C42\u5F15\u5C0E\u3002"
   },
   "zh-CN": {
+    questionReady: "\u95EE\u9898\u5DF2\u51C6\u5907\u5728\u804A\u5929\u4E2D\u3002\u8BF7\u68C0\u67E5\u540E\u9009\u62E9\u300C\u8BE2\u95EE\u300D\u53D1\u9001\u3002",
+    summarySelection: "\u603B\u7ED3\u9009\u53D6\u6587\u5B57",
+    selectFirst: "\u8BF7\u5148\u9009\u53D6\u8981\u603B\u7ED3\u7684\u6BB5\u843D\u3002",
+    selectionTooLong: "\u8BF7\u9009\u53D6\u4E0D\u8D85\u8FC7 5,000 \u4E2A\u5B57\u7B26\uFF0C\u6216\u4F7F\u7528\u201C\u603B\u7ED3\u6B64\u9875\u201D\u603B\u7ED3\u6574\u9875\u3002",
     title: "Glimpselet PDF \u9605\u8BFB\u5668",
     openFile: "\u6253\u5F00 PDF",
     urlPlaceholder: "\u7C98\u8D34 PDF \u7F51\u5740",
@@ -27239,6 +27356,10 @@ var readerLocales = {
     resizeHelp: "PDF \u9875\u9762\u3002\u9009\u62E9\u6587\u672C\u540E\u53EF\u63D0\u95EE\u3001\u7FFB\u8BD1\u3001\u603B\u7ED3\u6216\u8BF7\u6C42\u5F15\u5BFC\u3002"
   },
   ja: {
+    questionReady: "\u30C1\u30E3\u30C3\u30C8\u306B\u8CEA\u554F\u3092\u6E96\u5099\u3057\u307E\u3057\u305F\u3002\u78BA\u8A8D\u3057\u3066\u300C\u8CEA\u554F\u300D\u3067\u9001\u4FE1\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    summarySelection: "\u9078\u629E\u3057\u305F\u6587\u7AE0\u3092\u8981\u7D04",
+    selectFirst: "\u8981\u7D04\u3059\u308B\u6587\u7AE0\u3092\u5148\u306B\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    selectionTooLong: "5,000\u6587\u5B57\u4EE5\u5185\u3092\u9078\u629E\u3059\u308B\u304B\u3001\u300C\u3053\u306E\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u300D\u3067\u30DA\u30FC\u30B8\u5168\u4F53\u3092\u8981\u7D04\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     title: "Glimpselet PDF \u30EA\u30FC\u30C0\u30FC",
     openFile: "PDF \u3092\u958B\u304F",
     urlPlaceholder: "PDF \u306E URL \u3092\u8CBC\u308A\u4ED8\u3051",
@@ -27275,6 +27396,10 @@ var readerLocales = {
     resizeHelp: "PDF \u30DA\u30FC\u30B8\u3067\u3059\u3002\u30C6\u30AD\u30B9\u30C8\u3092\u9078\u629E\u3057\u3066\u8CEA\u554F\u3001\u7FFB\u8A33\u3001\u8981\u7D04\u3001\u6848\u5185\u306E\u4F9D\u983C\u304C\u3067\u304D\u307E\u3059\u3002"
   },
   ko: {
+    questionReady: "\uCC44\uD305\uC5D0 \uC9C8\uBB38\uC774 \uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uAC80\uD1A0\uD55C \uB4A4 \uC9C8\uBB38 \uBC84\uD2BC\uC744 \uB20C\uB7EC \uBCF4\uB0B4\uC138\uC694.",
+    summarySelection: "\uC120\uD0DD\uD55C \uB0B4\uC6A9 \uC694\uC57D",
+    selectFirst: "\uC694\uC57D\uD560 \uBB38\uB2E8\uC744 \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694.",
+    selectionTooLong: "5,000\uC790 \uC774\uD558\uB97C \uC120\uD0DD\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uC694\uC57D\uC73C\uB85C \uC804\uCCB4 \uD398\uC774\uC9C0\uB97C \uC694\uC57D\uD558\uC138\uC694.",
     title: "Glimpselet PDF \uB9AC\uB354",
     openFile: "PDF \uC5F4\uAE30",
     urlPlaceholder: "PDF URL \uBD99\uC5EC\uB123\uAE30",
@@ -27311,6 +27436,10 @@ var readerLocales = {
     resizeHelp: "PDF \uD398\uC774\uC9C0\uC785\uB2C8\uB2E4. \uD14D\uC2A4\uD2B8\uB97C \uC120\uD0DD\uD574 \uC9C8\uBB38, \uBC88\uC5ED, \uC694\uC57D \uB610\uB294 \uC548\uB0B4\uB97C \uC694\uCCAD\uD558\uC138\uC694."
   },
   es: {
+    questionReady: "Pregunta preparada en el chat. Rev\xEDsala y pulsa Preguntar para enviarla.",
+    summarySelection: "Resumir selecci\xF3n",
+    selectFirst: "Selecciona primero un pasaje para resumir.",
+    selectionTooLong: "Selecciona como m\xE1ximo 5.000 caracteres o usa Resumir p\xE1gina para toda la p\xE1gina.",
     title: "Lector de PDF de Glimpselet",
     openFile: "Abrir PDF",
     urlPlaceholder: "Pega una URL de PDF",
@@ -27347,6 +27476,10 @@ var readerLocales = {
     resizeHelp: "P\xE1gina PDF. Selecciona texto para preguntar, traducir, resumir o pedir orientaci\xF3n."
   },
   fr: {
+    questionReady: "Question pr\xEAte dans le chat. Relisez-la et choisissez Demander pour l\u2019envoyer.",
+    summarySelection: "R\xE9sumer la s\xE9lection",
+    selectFirst: "S\xE9lectionnez d\u2019abord un passage \xE0 r\xE9sumer.",
+    selectionTooLong: "S\xE9lectionnez au maximum 5\u202F000 caract\xE8res ou utilisez R\xE9sumer la page pour la page enti\xE8re.",
     title: "Lecteur PDF Glimpselet",
     openFile: "Ouvrir un PDF",
     urlPlaceholder: "Coller l'URL d'un PDF",
@@ -27383,6 +27516,10 @@ var readerLocales = {
     resizeHelp: "Page PDF. S\xE9lectionnez du texte pour poser une question, traduire, r\xE9sumer ou demander un guide."
   },
   de: {
+    questionReady: "Die Frage ist im Chat bereit. Pr\xFCfe sie und w\xE4hle Fragen zum Senden.",
+    summarySelection: "Auswahl zusammenfassen",
+    selectFirst: "W\xE4hle zuerst einen Abschnitt zum Zusammenfassen aus.",
+    selectionTooLong: "W\xE4hle h\xF6chstens 5.000 Zeichen oder nutze Seite zusammenfassen f\xFCr die gesamte Seite.",
     title: "Glimpselet PDF-Reader",
     openFile: "PDF \xF6ffnen",
     urlPlaceholder: "PDF-URL einf\xFCgen",
@@ -27419,6 +27556,10 @@ var readerLocales = {
     resizeHelp: "PDF-Seite. W\xE4hle Text aus, um zu fragen, zu \xFCbersetzen, zusammenzufassen oder eine Anleitung anzufordern."
   },
   "pt-BR": {
+    questionReady: "Pergunta pronta no chat. Revise e selecione Perguntar para enviar.",
+    summarySelection: "Resumir sele\xE7\xE3o",
+    selectFirst: "Selecione primeiro um trecho para resumir.",
+    selectionTooLong: "Selecione no m\xE1ximo 5.000 caracteres ou use Resumir p\xE1gina para a p\xE1gina inteira.",
     title: "Leitor de PDF do Glimpselet",
     openFile: "Abrir PDF",
     urlPlaceholder: "Cole uma URL de PDF",
@@ -27477,6 +27618,8 @@ var pdf;
 var loadingTask;
 var pageNumber = 1;
 var pageText = "";
+var passageSelection = "";
+var pageReady = false;
 var pageTitle = "PDF document";
 var documentGeneration = 0;
 var renderGeneration = 0;
@@ -27575,6 +27718,30 @@ function stopRendering() {
   activeTextLayer?.cancel();
   activeTextLayer = void 0;
 }
+function updateSelectionButton() {
+  const button = document.querySelector(
+    '[data-action="summary-selection"]'
+  );
+  button.disabled = !pageReady || !passageSelection;
+}
+function clearSelection() {
+  passageSelection = "";
+  pageReady = false;
+  const selection = getSelection();
+  if (selection?.anchorNode && pageElement.contains(selection.anchorNode))
+    selection.removeAllRanges();
+  updateSelectionButton();
+}
+function rememberSelection() {
+  const selection = getSelection();
+  const layer = pageElement.querySelector(".pdf-text-layer");
+  if (selection && !selection.isCollapsed && layer?.contains(selection.anchorNode) && layer.contains(selection.focusNode))
+    passageSelection = selection.toString().trim();
+  else if (!document.activeElement?.closest("[data-action]"))
+    passageSelection = "";
+  updateSelectionButton();
+}
+document.addEventListener("selectionchange", rememberSelection);
 async function loadDocument(source, title, intent) {
   if (intent !== sourceIntent) return;
   const generation = ++documentGeneration;
@@ -27582,6 +27749,7 @@ async function loadDocument(source, title, intent) {
   const oldTask = loadingTask;
   loadingTask = void 0;
   pdf = void 0;
+  clearSelection();
   pageText = "";
   pageElement.replaceChildren();
   if (oldTask) void oldTask.destroy().catch(() => {
@@ -27624,6 +27792,7 @@ async function renderPage(documentId = documentGeneration) {
   const doc = pdf;
   if (!doc || documentId !== documentGeneration) return;
   const number = pageNumber;
+  clearSelection();
   const renderId = ++renderGeneration;
   activeRender?.cancel();
   activeRender = void 0;
@@ -27673,6 +27842,8 @@ async function renderPage(documentId = documentGeneration) {
     if (renderId !== renderGeneration || documentId !== documentGeneration || doc !== pdf || number !== pageNumber)
       return;
     pageElement.replaceChildren(wrapper);
+    pageReady = true;
+    updateSelectionButton();
     pageText = text.items.map((item) => "str" in item ? item.str : "").join(" ").replace(/\s+/g, " ").slice(0, 24e3);
     document.title = `${pageTitle} \xB7 ${message("pageLabel", { page: number, total: doc.numPages })}`;
     pageLabel.textContent = message("pageLabel", {
@@ -27702,26 +27873,39 @@ async function publishContext(documentId, renderId) {
   }
 }
 function selectedText() {
-  const selection = getSelection()?.toString().trim() || "";
-  return selection.slice(0, 5e3);
+  rememberSelection();
+  return passageSelection;
 }
 async function ask(action) {
   if (!pdf) {
     setStatus("openFirst");
     return;
   }
+  if (!pageReady) {
+    setStatus("loading");
+    return;
+  }
   const selected = selectedText();
+  if (action === "summary-selection" && !selected) {
+    setStatus("selectFirst");
+    return;
+  }
+  if (action !== "summary" && selected.length > 5e3) {
+    setStatus("selectionTooLong");
+    return;
+  }
   const text = action === "summary" ? "" : selected || pageText;
   const questions = {
     ask: selected ? "Help me understand this selected passage." : "Explain what this PDF page says and its key points.",
     translate: selected ? "Translate this selected passage into my target language." : "Translate this PDF page into my target language.",
     summary: "Summarize this PDF page.",
+    "summary-selection": "Summarize only this selected PDF passage.",
     guide: selected ? "Guide me through this selected passage, explaining its steps in order." : "Guide me through this PDF page, explaining its key steps in order."
   };
   try {
     const canvas = pageElement.querySelector("canvas");
     let image;
-    if (canvas) {
+    if (canvas && action !== "summary-selection") {
       const thumbnail = document.createElement("canvas");
       const scale = Math.min(1, 1600 / Math.max(canvas.width, canvas.height));
       thumbnail.width = Math.round(canvas.width * scale);
@@ -27739,10 +27923,16 @@ async function ask(action) {
       image
     });
     if (!response?.ok) {
-      setStatus(response?.error === "busy" ? "actionBusy" : "actionError");
+      setStatus(
+        response?.error === "busy" ? "actionBusy" : response?.error === "selection_limit" ? "selectionTooLong" : "actionError"
+      );
       return;
     }
-    const statusKey = action === "summary" ? "summarySent" : action === "translate" ? "translationSent" : action === "guide" ? "guideSent" : "questionSent";
+    if (action === "ask") {
+      setStatus("questionReady");
+      return;
+    }
+    const statusKey = action === "summary" || action === "summary-selection" ? "summarySent" : action === "translate" ? "translationSent" : action === "guide" ? "guideSent" : "questionSent";
     setStatus("actionSent", { action: message(statusKey) });
   } catch {
     setStatus("actionError");
@@ -27820,9 +28010,7 @@ document.querySelector("#next").addEventListener("click", () => {
 document.querySelectorAll("[data-action]").forEach((button) => {
   button.addEventListener(
     "click",
-    () => void ask(
-      button.dataset.action
-    )
+    () => void ask(button.dataset.action)
   );
 });
 document.querySelector("#open-panel").addEventListener("click", () => {

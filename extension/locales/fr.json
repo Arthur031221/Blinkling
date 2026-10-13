@@ -161,5 +161,10 @@
   "captureProgress": "Capture de {completed} sections sur {total}",
   "translationPageChanged": "Traduction appliquée. {count} textes en cours de modification ont été ignorés. Traduisez à nouveau pour les inclure.",
   "guideCapturePermission": "Cliquez sur l’icône Glimpselet de la barre d’outils sur cette page, puis relancez le guide. L’étape reste ouverte.",
-  "skipPractice": "Passer cette étape"
+  "skipPractice": "Passer cette étape",
+  "guideClose": "Fermer le guide",
+  "guideDone": "Terminé",
+  "captureReopen": "L’écran est prêt. Rouvrez la bulle pour continuer.",
+  "captureReopenAction": "Rouvrir la bulle",
+  "captureFailed": "Impossible de capturer l’écran partagé. Réessayez."
 }

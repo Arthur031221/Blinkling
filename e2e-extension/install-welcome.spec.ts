@@ -1,10 +1,5 @@
-import {
-  chromium,
-  expect,
-  test,
-  type BrowserContext,
-  type Page,
-} from "@playwright/test";
+import { launchExtensionContext } from "./browser";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -65,8 +60,7 @@ test.beforeEach(async () => {
     throw new Error("No server port");
   origin = `http://127.0.0.1:${address.port}`;
   const extension = resolve("dist-extension");
-  context = await chromium.launchPersistentContext(join(directory, "profile"), {
-    channel: "chromium",
+  context = await launchExtensionContext(join(directory, "profile"), {
     headless: false,
     args: [
       `--disable-extensions-except=${extension}`,

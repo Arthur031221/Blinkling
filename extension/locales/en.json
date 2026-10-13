@@ -161,5 +161,10 @@
   "captureProgress": "Capturing {completed} of {total} sections",
   "translationPageChanged": "Translation applied. {count} changing text items were skipped. Translate again to include them.",
   "guideCapturePermission": "Click the Glimpselet toolbar icon on this page, then try Guide again. Your practice step stays open.",
-  "skipPractice": "Skip practice step"
+  "skipPractice": "Skip practice step",
+  "guideClose": "Close guide",
+  "guideDone": "Done",
+  "captureReopen": "The screen is ready. Reopen the bubble to continue.",
+  "captureReopenAction": "Reopen bubble",
+  "captureFailed": "The shared screen could not be captured. Try again."
 }

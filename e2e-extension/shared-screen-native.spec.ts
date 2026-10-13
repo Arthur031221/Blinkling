@@ -1,7 +1,7 @@
+import { launchExtensionContext } from "./browser";
 import {
   test,
   expect,
-  chromium,
   type BrowserContext,
   type Page,
   type TestInfo,
@@ -89,9 +89,16 @@ function nativeInput(...args: string[]) {
 }
 
 async function nativeClick(selector: string, bubble = false) {
-  await panel.evaluate((bubble) => {
-    (bubble ? window.documentPictureInPicture.window! : window).focus();
-  }, bubble);
+  await panel.evaluate(
+    ({ bubble, selector }) => {
+      const view = bubble ? window.documentPictureInPicture.window! : window;
+      view.focus();
+      view.document
+        .querySelector(selector)!
+        .scrollIntoView({ block: "center" });
+    },
+    { bubble, selector },
+  );
   let previous: string | undefined;
   let point = { x: 0, y: 0 };
   // Newly created native windows can still be decorated/repositioned. Require
@@ -280,8 +287,7 @@ chrome.runtime.onMessage.addListener(message => {
     target: "chrome116",
   });
   const dpi = testInfo.title.includes("HiDPI") ? 2 : 1;
-  context = await chromium.launchPersistentContext(join(directory, "profile"), {
-    channel: "chromium",
+  context = await launchExtensionContext(join(directory, "profile"), {
     headless: false,
     viewport: null,
     env: { ...process.env, DISPLAY: display },
@@ -409,6 +415,48 @@ chrome.runtime.onMessage.addListener(message => {
 
 test.afterEach(async ({ browserName }, testInfo) => {
   try {
+    if (
+      testInfo.status !== testInfo.expectedStatus &&
+      panel &&
+      !panel.isClosed()
+    ) {
+      await attachJson(
+        testInfo,
+        "failure-state",
+        await panel.evaluate(() => {
+          const pip = window.documentPictureInPicture.window;
+          return {
+            pip: pip && {
+              closed: pip.closed,
+              text: pip.document.body.innerText,
+            },
+            opener: document.body.innerText,
+          };
+        }),
+      );
+      const image = testInfo.outputPath("desktop-failure.png");
+      execFileSync(
+        "ffmpeg",
+        [
+          "-loglevel",
+          "error",
+          "-f",
+          "x11grab",
+          "-video_size",
+          "1440x1000",
+          "-i",
+          display,
+          "-frames:v",
+          "1",
+          image,
+        ],
+        { timeout: 10000 },
+      );
+      await testInfo.attach("native-failure", {
+        path: image,
+        contentType: "image/png",
+      });
+    }
     await context?.close();
   } finally {
     // Wait for the owned desktop to exit before the next test starts, including
@@ -799,5 +847,239 @@ for (const trigger of ["Shift in PiP", "global shortcut"]) {
         previousTabId,
       ),
     ).toBe(true);
+  });
+}
+
+for (const mode of ["unpacked", "dedicated"]) {
+  test(`production chat preserves sharing, draft and history through native capture in ${mode} mode`, async ({
+    browserName,
+  }, testInfo) => {
+    expect(browserName).toBe("chromium");
+    const worker = context.serviceWorkers()[0];
+    await worker.evaluate(async () => {
+      await chrome.storage.local.set({
+        backend: "api",
+        pipSize: { width: 420, height: 650 },
+      });
+      await chrome.storage.session.set({ apiKey: "fixture-key" });
+    });
+    const images: string[] = [];
+    await context.route(
+      "https://api.anthropic.com/v1/messages",
+      async (route) => {
+        const headers = {
+          "access-control-allow-origin": "*",
+          "access-control-allow-headers": "*",
+          "access-control-allow-methods": "POST, OPTIONS",
+        };
+        if (route.request().method() === "OPTIONS") {
+          await route.fulfill({ status: 204, headers });
+          return;
+        }
+        const input = route.request().postDataJSON();
+        for (const message of input.messages)
+          for (const block of message.content)
+            if (block.type === "image")
+              images.push(`data:image/png;base64,${block.source.data}`);
+        await route.fulfill({
+          headers,
+          contentType: "text/event-stream",
+          body: [
+            {
+              type: "content_block_delta",
+              delta: { type: "text_delta", text: "Native answer" },
+            },
+            { type: "message_delta", delta: { stop_reason: "end_turn" } },
+            { type: "message_stop" },
+          ]
+            .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+            .join(""),
+        });
+      },
+    );
+    await panel.goto(
+      `chrome-extension://${new URL(worker.url()).host}/panel.html`,
+    );
+    await panel.bringToFront();
+    await panel.locator(".composer textarea").fill("First conversation");
+    await panel.locator(".composer button.send").click();
+    await panel
+      .getByRole("button", { name: "Ask without page content", exact: true })
+      .click();
+    await expect(panel.locator(".message .answer .markdown")).toHaveText(
+      "Native answer",
+    );
+    await nativeClick(".float-start button");
+    await expect
+      .poll(() =>
+        panel.evaluate(() =>
+          Boolean(
+            window.documentPictureInPicture.window?.document.querySelector(
+              ".composer textarea",
+            ),
+          ),
+        ),
+      )
+      .toBe(true);
+    await panel.evaluate(() => {
+      const field =
+        window.documentPictureInPicture.window!.document.querySelector(
+          "textarea",
+        )!;
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )!.set!.call(field, "Keep this draft and conversation");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await site.bringToFront();
+    await nativeClick('.capture-buttons button[title="Share a screen"]', true);
+    await expect(panel.locator(".capture-reopen button")).toBeVisible();
+    expect(
+      await panel.evaluate(() => window.documentPictureInPicture.window),
+    ).toBeNull();
+    await nativeClick(".capture-reopen button");
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            window.documentPictureInPicture.window?.document.querySelector(
+              ".status",
+            )?.textContent,
+        ),
+      )
+      .toContain("Sharing");
+    await panel.evaluate(() => {
+      const video = document.querySelector("video")!;
+      (
+        window as Window & {
+          savedVideo?: HTMLVideoElement;
+          savedTrack?: MediaStreamTrack;
+        }
+      ).savedVideo = video;
+      (window as Window & { savedTrack?: MediaStreamTrack }).savedTrack = (
+        video.srcObject as MediaStream
+      ).getVideoTracks()[0];
+    });
+    const checkState = async () => {
+      expect(
+        await panel.evaluate(() => {
+          const saved = window as Window & {
+            savedVideo: HTMLVideoElement;
+            savedTrack: MediaStreamTrack;
+          };
+          const doc = window.documentPictureInPicture.window!.document;
+          return {
+            sameVideo: saved.savedVideo === document.querySelector("video"),
+            sameTrack:
+              (
+                document.querySelector("video")!.srcObject as MediaStream
+              ).getVideoTracks()[0] === saved.savedTrack,
+            live: saved.savedTrack.readyState,
+            draft: doc.querySelector("textarea")!.value,
+            history: doc
+              .querySelector(".message .answer .markdown")!
+              .textContent?.trim(),
+          };
+        }),
+      ).toEqual({
+        sameVideo: true,
+        sameTrack: true,
+        live: "live",
+        draft: "Keep this draft and conversation",
+        history: "Native answer",
+      });
+    };
+    await checkState();
+    await site.bringToFront();
+    await nativeClick(
+      '.capture-buttons button[title="Crop the shared screen (Ctrl+Shift+S, or Cmd+Shift+S on Mac)"]',
+      true,
+    );
+    await attachJson(
+      testInfo,
+      "production-crop-controls",
+      await panel.evaluate(() => {
+        const view = window.documentPictureInPicture.window;
+        const button = view?.document.querySelector(
+          '.capture-buttons button[title^="Crop"]',
+        );
+        return {
+          pip: Boolean(view),
+          status: (view?.document || document).querySelector(".status")
+            ?.textContent,
+          rectangle: button?.getBoundingClientRect().toJSON(),
+          dimensions: view && [
+            view.screenX,
+            view.screenY,
+            view.innerWidth,
+            view.innerHeight,
+          ],
+        };
+      }),
+    );
+    await expect(panel.locator("[data-glimpselet-frozen-crop]")).toBeVisible();
+    expect(
+      await panel.evaluate(() => window.documentPictureInPicture.window),
+    ).toBeNull();
+    nativeInput("key", "Escape");
+    await expect(panel.locator(".capture-reopen button")).toBeVisible();
+    await nativeClick(".capture-reopen button");
+    await expect
+      .poll(() =>
+        panel.evaluate(() =>
+          Boolean(
+            window.documentPictureInPicture.window?.document.querySelector(
+              ".composer textarea",
+            ),
+          ),
+        ),
+      )
+      .toBe(true);
+    await checkState();
+    await site.bringToFront();
+    await nativeClick(".composer button.send", true);
+    await expect(panel.locator(".capture-reopen button")).toBeVisible();
+    await nativeClick(".capture-reopen button");
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            window.documentPictureInPicture.window?.document.querySelectorAll(
+              ".message .answer .markdown",
+            ).length,
+        ),
+      )
+      .toBe(2);
+    await expect.poll(() => images.length).toBe(1);
+    const pixel = await panel.evaluate(async (image) => {
+      const img = new Image();
+      img.src = image;
+      await img.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      return [...ctx.getImageData(1360, 920, 1, 1).data];
+    }, images[0]);
+    expect(pixel).toEqual([17, 90, 154, 255]);
+    expect(
+      await panel.evaluate(
+        () =>
+          (window as Window & { savedTrack: MediaStreamTrack }).savedTrack
+            .readyState,
+      ),
+    ).toBe("live");
+    await panel.evaluate(() => window.documentPictureInPicture.window!.close());
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as Window & { savedTrack: MediaStreamTrack }).savedTrack
+              .readyState,
+        ),
+      )
+      .toBe("ended");
   });
 }

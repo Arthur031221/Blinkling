@@ -74,7 +74,7 @@
     if (window.opener) {
       window.opener.postMessage(
         {
-          type: "glimpselet:tutorial:ack",
+          type: "glimpselet:tutorial:ready",
           version: 1,
           requestId: request.requestId,
           action: request.action,

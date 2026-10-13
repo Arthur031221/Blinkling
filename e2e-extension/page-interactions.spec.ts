@@ -1,7 +1,7 @@
+import { launchExtensionContext } from "./browser";
 import {
   test,
   expect,
-  chromium,
   type BrowserContext,
   type Page,
   type Worker,
@@ -76,8 +76,7 @@ test.beforeEach(async () => {
     throw new Error("Missing fixture port");
   origin = `http://127.0.0.1:${address.port}`;
   const extension = testExtension;
-  context = await chromium.launchPersistentContext(join(directory, "profile"), {
-    channel: "chromium",
+  context = await launchExtensionContext(join(directory, "profile"), {
     headless: false,
     viewport: { width: 1100, height: 780 },
     args: [

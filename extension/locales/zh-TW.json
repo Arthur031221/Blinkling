@@ -161,5 +161,10 @@
   "captureProgress": "正在擷取第 {completed} / {total} 個區塊",
   "translationPageChanged": "已套用翻譯。有 {count} 段變動中的文字已略過，可再次翻譯以包含這些文字。",
   "guideCapturePermission": "請在此頁點擊 Glimpselet 工具列圖示，再重試導覽。練習步驟會保留。",
-  "skipPractice": "略過練習步驟"
+  "skipPractice": "略過練習步驟",
+  "guideClose": "關閉導覽",
+  "guideDone": "完成",
+  "captureReopen": "畫面已準備好。重新開啟浮動視窗以繼續。",
+  "captureReopenAction": "重新開啟浮動視窗",
+  "captureFailed": "無法擷取分享畫面，請再試一次。"
 }

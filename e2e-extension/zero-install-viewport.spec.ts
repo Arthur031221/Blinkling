@@ -1,3 +1,4 @@
+import { launchExtensionContext } from "./browser";
 import {
   test,
   expect,
@@ -209,8 +210,9 @@ async function checkNativeResize(panel: Page, label: string, info: TestInfo) {
 
 for (const mode of ["zero-install", "unpacked"] as const) {
   test(`${mode} PiP content follows native window resizing`, async ({
-    playwright,
+    browserName,
   }, info) => {
+    expect(browserName).toBe("chromium");
     test.skip(
       process.platform !== "linux",
       "Native framebuffer coverage uses X11",
@@ -283,22 +285,18 @@ child.on('exit', code => process.exit(code ?? 1));
       )?.[0];
       if (!url) throw new Error(`No welcome URL: ${text}`);
       const extension = join(directory, ".glimpselet/extension");
-      driver = await playwright.chromium.launchPersistentContext(
-        join(directory, "driver"),
-        {
-          channel: "chromium",
-          headless: false,
-          viewport: null,
-          args:
-            mode === "unpacked"
-              ? [
-                  `--disable-extensions-except=${extension}`,
-                  `--load-extension=${extension}`,
-                  "--no-sandbox",
-                ]
-              : ["--no-sandbox"],
-        },
-      );
+      driver = await launchExtensionContext(join(directory, "driver"), {
+        headless: false,
+        viewport: null,
+        args:
+          mode === "unpacked"
+            ? [
+                `--disable-extensions-except=${extension}`,
+                `--load-extension=${extension}`,
+                "--no-sandbox",
+              ]
+            : ["--no-sandbox"],
+      });
       let context = driver;
       let guide = driver.pages()[0];
       await guide.goto(url);
@@ -346,14 +344,10 @@ child.on('exit', code => process.exit(code ?? 1));
           )?.[0];
         if (!reopenedUrl)
           throw new Error(`No new welcome URL: ${reopenedText}`);
-        driver = await playwright.chromium.launchPersistentContext(
-          join(directory, "driver"),
-          {
-            channel: "chromium",
-            headless: false,
-            viewport: null,
-          },
-        );
+        driver = await launchExtensionContext(join(directory, "driver"), {
+          headless: false,
+          viewport: null,
+        });
         const launcherGuide = driver.pages()[0];
         await launcherGuide.goto(reopenedUrl);
         await launcherGuide

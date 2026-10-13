@@ -1,10 +1,5 @@
-import {
-  test,
-  expect,
-  chromium,
-  type BrowserContext,
-  type Page,
-} from "@playwright/test";
+import { launchExtensionContext } from "./browser";
+import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -70,8 +65,7 @@ test.beforeEach(async () => {
     throw new Error("Missing test port");
   origin = `http://127.0.0.1:${address.port}`;
   const extension = resolve("dist-extension");
-  context = await chromium.launchPersistentContext(join(directory, "profile"), {
-    channel: "chromium",
+  context = await launchExtensionContext(join(directory, "profile"), {
     headless: false,
     viewport: null,
     args: [
@@ -181,7 +175,7 @@ test("waits for the listener and a matching acknowledgement before announcing de
   const sample = await popup;
   try {
     await expect(welcome.locator("#try-note")).toContainText(
-      "Opening the sample page",
+      "Waiting for the sample page to receive this step…",
     );
     await welcome.evaluate(() => {
       window.postMessage(
@@ -238,6 +232,6 @@ test("an unavailable practice listener gives an actionable delivery failure", as
     "Could not deliver",
     { timeout: 12000 },
   );
-  await expect(welcome.locator("#try-note")).toContainText("try again");
+  await expect(welcome.locator("#try-note")).toContainText("Try again");
   await expect(welcome.locator(".step").nth(4)).not.toHaveClass(/done/);
 });

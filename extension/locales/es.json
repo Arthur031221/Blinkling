@@ -161,5 +161,10 @@
   "captureProgress": "Capturando {completed} de {total} secciones",
   "translationPageChanged": "Traducción aplicada. Se omitieron {count} textos que estaban cambiando. Vuelve a traducir para incluirlos.",
   "guideCapturePermission": "Haz clic en el icono de Glimpselet de la barra de herramientas en esta página y vuelve a intentar la guía. El paso de práctica sigue abierto.",
-  "skipPractice": "Omitir paso de práctica"
+  "skipPractice": "Omitir paso de práctica",
+  "guideClose": "Cerrar guía",
+  "guideDone": "Listo",
+  "captureReopen": "La pantalla está lista. Vuelve a abrir la burbuja para continuar.",
+  "captureReopenAction": "Volver a abrir la burbuja",
+  "captureFailed": "No se pudo capturar la pantalla compartida. Inténtalo de nuevo."
 }

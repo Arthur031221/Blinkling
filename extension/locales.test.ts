@@ -47,6 +47,7 @@ describe("extension locale bundles", () => {
       "stopped",
       "genericError",
       "capturePermission",
+      "captureFailed",
       "crop_fullscreen_denied",
       "share_ended",
       "sessionInitialization",

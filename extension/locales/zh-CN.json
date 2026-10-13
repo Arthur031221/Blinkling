@@ -161,5 +161,10 @@
   "captureProgress": "正在截取第 {completed} / {total} 个区块",
   "translationPageChanged": "已应用翻译。有 {count} 段正在变化的文字已跳过，可再次翻译以包含这些文字。",
   "guideCapturePermission": "请在此页点击 Glimpselet 工具栏图标，再重试导览。练习步骤会保留。",
-  "skipPractice": "跳过练习步骤"
+  "skipPractice": "跳过练习步骤",
+  "guideClose": "关闭导览",
+  "guideDone": "完成",
+  "captureReopen": "画面已准备好。重新打开浮动窗口以继续。",
+  "captureReopenAction": "重新打开浮动窗口",
+  "captureFailed": "无法截取共享画面，请重试。"
 }

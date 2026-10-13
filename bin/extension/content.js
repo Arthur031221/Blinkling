@@ -11,7 +11,7 @@
       height: Math.abs(y2 - y1)
     };
   }
-  function selectCrop(host, bounds, labels, pixelScale = 1) {
+  function selectCrop(host, bounds, labels, pixelScale = 1, initialPointer) {
     const doc = host.ownerDocument, view = doc.defaultView;
     const root = host.attachShadow({ mode: "open" });
     const style = doc.createElement("style");
@@ -87,6 +87,13 @@
         view.removeEventListener("resize", resize);
         view.removeEventListener("scroll", render, true);
         view.removeEventListener("pagehide", cancelCrop);
+        view.removeEventListener("pointerdown", down, true);
+        view.removeEventListener("pointermove", move, true);
+        view.removeEventListener("pointerup", up, true);
+        view.removeEventListener("pointercancel", pointerCancel, true);
+        if (drag && surface.hasPointerCapture?.(drag.pointerId))
+          surface.releasePointerCapture(drag.pointerId);
+        drag = null;
         doc.removeEventListener("fullscreenchange", fullscreenChanged);
         host.remove();
         previousFocus?.focus();
@@ -184,23 +191,31 @@
           render();
         }
       };
-      surface.onpointerdown = (event) => {
-        if (event.target.closest(".tools")) return;
+      const beginDrag = (event, seeded = false) => {
+        if (event.button !== 0 || drag) return;
+        const target = event.composedPath()[0] || event.target;
+        if (!seeded && target.closest(".tools")) return;
         event.preventDefault();
-        surface.setPointerCapture(event.pointerId);
-        const target = event.target;
+        event.stopImmediatePropagation();
+        surface.setPointerCapture?.(event.pointerId);
         drag = {
+          pointerId: event.pointerId,
           start: point(event),
           origin: rect ? { ...rect } : null,
-          handle: target.dataset.handle || (target === box || target === readout ? "move" : "new")
+          handle: !seeded && target.dataset.handle || (target === box || target === readout ? "move" : "new")
         };
         if (drag.handle === "new") {
           rect = { ...drag.start, width: 0, height: 0 };
           render();
         }
       };
-      surface.onpointermove = (event) => {
-        if (!drag) return;
+      const down = (event) => {
+        if (event.composedPath().includes(surface)) beginDrag(event);
+      };
+      const move = (event) => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
         const p = point(event), r = bounds(), o = drag.origin;
         if (drag.handle === "move" && o)
           rect = {
@@ -227,12 +242,20 @@
         }
         render();
       };
-      surface.onpointerup = () => {
+      const up = (event) => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        move(event);
+        if (surface.hasPointerCapture?.(drag.pointerId))
+          surface.releasePointerCapture(drag.pointerId);
         drag = null;
         if (rect && !confirm.disabled) confirm.focus({ preventScroll: true });
       };
-      surface.onpointercancel = () => {
+      const pointerCancel = (event) => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
         drag = null;
+        finish(null);
       };
       confirm.onclick = () => {
         if (rect && !confirm.disabled) finish(rect);
@@ -242,7 +265,12 @@
       view.addEventListener("resize", resize);
       view.addEventListener("scroll", render, true);
       view.addEventListener("pagehide", cancelCrop, { once: true });
+      view.addEventListener("pointerdown", down, true);
+      view.addEventListener("pointermove", move, true);
+      view.addEventListener("pointerup", up, true);
+      view.addEventListener("pointercancel", pointerCancel, true);
       cancel.focus({ preventScroll: true });
+      if (initialPointer) beginDrag(initialPointer, true);
     });
   }
 
@@ -253,15 +281,17 @@
       view.clearTimeout(timer);
       timer = void 0;
     };
+    const editable = (event) => event.composedPath().some(
+      (target) => target?.closest?.(
+        "input,textarea,select,[contenteditable]:not([contenteditable='false']),[role='textbox']"
+      )
+    );
     const down = (event) => {
       if (event.key !== "Shift") {
         clear();
         return;
       }
-      const target = event.target;
-      if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || target?.closest?.(
-        "input,textarea,select,[contenteditable]:not([contenteditable='false']),[role='textbox']"
-      ) || !allowed())
+      if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || editable(event) || !allowed())
         return;
       clear();
       timer = view.setTimeout(() => {
@@ -272,16 +302,25 @@
     const up = (event) => {
       if (event.key === "Shift") clear();
     };
-    view.addEventListener("keydown", down);
-    view.addEventListener("keyup", up);
+    const pointerDown = (event) => {
+      const pending = timer !== void 0;
+      clear();
+      if (!pending || !event.shiftKey || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || editable(event) || !allowed())
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      start(event);
+    };
+    view.addEventListener("keydown", down, true);
+    view.addEventListener("keyup", up, true);
     view.addEventListener("blur", clear);
-    view.addEventListener("pointerdown", clear);
+    view.addEventListener("pointerdown", pointerDown, true);
     return () => {
       clear();
-      view.removeEventListener("keydown", down);
-      view.removeEventListener("keyup", up);
+      view.removeEventListener("keydown", down, true);
+      view.removeEventListener("keyup", up, true);
       view.removeEventListener("blur", clear);
-      view.removeEventListener("pointerdown", clear);
+      view.removeEventListener("pointerdown", pointerDown, true);
     };
   }
 
@@ -346,7 +385,11 @@
     "NOSCRIPT",
     "TEMPLATE",
     "SVG",
-    "CANVAS"
+    "CANVAS",
+    "IFRAME",
+    "FRAME",
+    "OBJECT",
+    "EMBED"
   ]);
   var scope = globalThis;
   var documentKeys = scope.glimpseletDocumentKeys ??= /* @__PURE__ */ new WeakMap();
@@ -412,7 +455,13 @@
     return true;
   }
   function buildPageContext(doc = document) {
-    const hasPassword = hasSensitiveContent(doc);
+    return readPageContext(doc, false);
+  }
+  function buildGuideContext(doc = document) {
+    return readPageContext(doc, true);
+  }
+  function readPageContext(doc, explicitGuide) {
+    const hasPassword = hasSensitiveContent(doc, explicitGuide);
     const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body || doc.documentElement;
     const elements = [];
     const selector = "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],[role=option],h1,h2,h3,h4,h5,h6";
@@ -421,6 +470,7 @@
         selector + (scope2.hasAttribute("data-glimpselet-reader-page") ? ",.pdf-text-layer>span" : "")
       )
     )) {
+      if (explicitGuide && hasPassword) break;
       if (elements.length >= 120) break;
       if (isExcluded(element) || isChoiceContent(element) || hasSensitiveAncestor(element) || !visible(element))
         continue;
@@ -443,7 +493,7 @@
     let length = 0;
     const walker = doc.createTreeWalker(scope2, NodeFilter.SHOW_TEXT);
     let node;
-    while ((node = walker.nextNode()) && length < 24e3) {
+    while (!(explicitGuide && hasPassword) && (node = walker.nextNode()) && length < 24e3) {
       if (!contextTextNode(node)) continue;
       const value = (node.nodeValue || "").replace(/\s+/g, " ").trim();
       if (!value) continue;
@@ -457,7 +507,11 @@
       title: doc.title.slice(0, 500),
       text: chunks.join(" ").slice(0, 24e3),
       elements,
-      hasPassword
+      hasPassword,
+      ...explicitGuide ? {
+        guideScope: "top-document-text",
+        excludedEmbeds: doc.querySelectorAll("iframe,frame,object,embed").length
+      } : {}
     };
   }
   function contextTextNode(node) {
@@ -469,18 +523,43 @@
     if (!root.isConnected) return "";
     const text = range.toString().trim();
     if (!text || text.length > 5e3) return "";
-    const safe = (node2) => {
-      if (!range.intersectsNode(node2)) return true;
-      const start = node2 === range.startContainer ? range.startOffset : 0;
-      const end = node2 === range.endContainer ? range.endOffset : node2.nodeValue.length;
-      return !node2.nodeValue.slice(start, end).trim() || contextTextNode(node2);
+    const safe = (node) => {
+      if (!range.intersectsNode(node)) return true;
+      const start = node === range.startContainer ? range.startOffset : 0;
+      const end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+      return !node.nodeValue.slice(start, end).trim() || contextTextNode(node);
     };
-    if (root.nodeType === Node.TEXT_NODE) return safe(root) ? text : "";
     const doc = root.nodeType === Node.DOCUMENT_NODE ? root : root.ownerDocument;
-    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let node;
-    while (node = walker.nextNode()) if (!safe(node)) return "";
-    return text;
+    if (root.nodeType === Node.TEXT_NODE) {
+      if (!safe(root)) return "";
+    } else {
+      const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node;
+      while (node = walker.nextNode()) if (!safe(node)) return "";
+    }
+    const selection = doc.defaultView?.getSelection();
+    const selected = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
+    let rendered;
+    if (selected && selected.startContainer === range.startContainer && selected.startOffset === range.startOffset && selected.endContainer === range.endContainer && selected.endOffset === range.endOffset)
+      rendered = selection.toString().trim();
+    else {
+      const walker = doc.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT
+      );
+      const pieces = [];
+      let node;
+      while (node = walker.nextNode()) {
+        if (!range.intersectsNode(node)) continue;
+        if (node.nodeType === Node.TEXT_NODE) {
+          const start = node === range.startContainer ? range.startOffset : 0;
+          const end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+          pieces.push(node.nodeValue.slice(start, end));
+        } else if (node.localName === "br") pieces.push("\n");
+      }
+      rendered = root.nodeType === Node.TEXT_NODE ? text : pieces.join("").trim();
+    }
+    return rendered.length <= 5e3 ? rendered : "";
   }
   function restorableTextNode(node) {
     const parent = composedTextParent(node);
@@ -698,7 +777,7 @@
       counter.style.cssText = "align-self:center;font-size:12px;color:#766957";
       const next = document.createElement("button");
       next.dataset.guideControl = "next";
-      next.textContent = currentGuide.index === currentGuide.steps.length - 1 ? currentGuide.labels.close : currentGuide.labels.next;
+      next.textContent = currentGuide.index === currentGuide.steps.length - 1 ? currentGuide.labels.done : currentGuide.labels.next;
       next.onclick = () => {
         if (!currentGuide) return;
         if (currentGuide.index + 1 >= currentGuide.steps.length) closeGuide();
@@ -707,7 +786,11 @@
           renderGuide();
         }
       };
-      nav.append(back, counter, next);
+      const close = document.createElement("button");
+      close.dataset.guideControl = "close";
+      close.textContent = currentGuide.labels.close;
+      close.onclick = closeGuide;
+      nav.append(back, counter, next, close);
       callout.append(nav);
       const top = point.y > 115 ? point.y - 110 : Math.min(innerHeight - 90, point.y + point.height + 18);
       const cardX = Math.max(8, Math.min(Math.max(8, point.x), innerWidth - 269));
@@ -735,6 +818,7 @@
         next.focus({ preventScroll: true });
       else if (activeControl === "back") back.focus({ preventScroll: true });
       else if (activeControl === "next") next.focus({ preventScroll: true });
+      else if (activeControl === "close") close.focus({ preventScroll: true });
     }, closeGuide = function() {
       const returnFocus = currentGuide ? guideReturnFocus : void 0;
       currentGuide = void 0;
@@ -867,25 +951,31 @@
       listenForShiftCrop(
         window,
         () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
-        () => {
-          void select("region", cropLabels.cropCancel).then((result) => {
-            const value = result;
-            if (value.rect)
-              void send({
-                type: "glimpselet:crop-selected",
-                rect: value.rect,
-                url: location.href
-              });
-          });
+        (initialPointer) => {
+          void select("region", cropLabels.cropCancel, initialPointer).then(
+            (result) => {
+              const value = result;
+              if (value.rect)
+                void send({
+                  type: "glimpselet:crop-selected",
+                  rect: value.rect,
+                  url: location.href
+                });
+            }
+          );
         }
       );
-      window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          closeGuide();
-          closeSelectionPopover();
-        }
-      });
-    }, select = function(mode, cancelLabel) {
+      window.addEventListener(
+        "keydown",
+        (event) => {
+          if (event.key === "Escape") {
+            closeGuide();
+            closeSelectionPopover();
+          }
+        },
+        true
+      );
+    }, select = function(mode, cancelLabel, initialPointer) {
       if (selecting) return Promise.resolve({ cancelled: true });
       selecting = true;
       selectionMode = mode;
@@ -898,7 +988,8 @@
           host,
           () => new DOMRect(0, 0, innerWidth, innerHeight),
           cropLabels,
-          devicePixelRatio
+          devicePixelRatio,
+          initialPointer
         ).then(
           (rect) => rect ? { rect: [rect.x, rect.y, rect.width, rect.height] } : { cancelled: true }
         ).finally(() => {
@@ -1093,6 +1184,14 @@
           respond(buildPageContext());
           return;
         }
+        if (message.type === "glimpselet:guide-context") {
+          if (hasSensitiveContent(document, true)) {
+            respond({ error: "password_page" });
+            return;
+          }
+          respond(buildGuideContext());
+          return;
+        }
         if (message.type === "glimpselet:identity") {
           respond({
             documentKey: pageDocumentKey(),
@@ -1131,7 +1230,12 @@
           return true;
         }
         if (message.type === "glimpselet:guide" && Array.isArray(message.steps)) {
-          const pageMap = buildPageContext();
+          if (hasSensitiveContent(document, true)) {
+            closeGuide();
+            respond({ error: "password_page" });
+            return;
+          }
+          const pageMap = buildGuideContext();
           const incoming = validateGuideSteps(
             { steps: message.steps },
             new Set(pageMap.elements.map((item) => item.id))
@@ -1149,7 +1253,8 @@
               labels: {
                 next: guideLabels.next || "Next",
                 back: guideLabels.back || "Back",
-                close: guideLabels.close || "Close",
+                close: guideLabels.close || "Close guide",
+                done: guideLabels.done || "Done",
                 title: guideLabels.title || "Glimpselet"
               }
             };

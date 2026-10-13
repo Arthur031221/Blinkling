@@ -7,6 +7,7 @@ import en from "./locales/en.json";
 const mocks = vi.hoisted(() => ({
   ask: vi.fn(),
   context: vi.fn(),
+  guide: vi.fn(),
   sensitive: vi.fn(),
   capture: vi.fn(),
   root: undefined as Root | undefined,
@@ -37,6 +38,7 @@ vi.mock("./api", async (original) => ({
 }));
 vi.mock("./capture", () => ({
   getPageContext: mocks.context,
+  getGuideContext: mocks.guide,
   isSensitivePage: mocks.sensitive,
   captureWeb: mocks.capture,
   getDocumentIdentity: vi.fn().mockResolvedValue(undefined),
@@ -162,6 +164,9 @@ beforeEach(() => {
     },
   });
   mocks.context.mockReset().mockResolvedValue(page);
+  mocks.guide
+    .mockReset()
+    .mockResolvedValue({ ...page, guideScope: "top-document-text" });
   mocks.sensitive.mockReset().mockResolvedValue(false);
   mocks.capture.mockReset().mockResolvedValue({
     page,
@@ -421,13 +426,57 @@ describe("bubble answer rendering and feedback", () => {
     await flush();
     expect(status()).toBe(en.siteAccess);
   });
+  it("uses explicit guide text without attaching the previous screenshot or seeding automatic context", async () => {
+    await start();
+    await click(en.visible);
+    mocks.capture.mockClear();
+    const guidePage = {
+      ...page,
+      text: "Safe top document only",
+      guideScope: "top-document-text",
+    };
+    mocks.guide.mockResolvedValue(guidePage);
+    await click(en.guideAction);
+    expect(mocks.capture).not.toHaveBeenCalled();
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(mocks.ask.mock.calls[0][0]).toMatchObject({
+      kind: "guide",
+      page: guidePage,
+    });
+    expect(mocks.ask.mock.calls[0][0].image).toBeUndefined();
+    const overlay = sendToTab.mock.calls.find(
+      ([, message]) => message.type === "glimpselet:guide",
+    )?.[1];
+    expect(overlay.labels).toEqual({
+      next: en.next,
+      back: en.back,
+      close: en.guideClose,
+      done: en.guideDone,
+      title: en.guideAction,
+    });
+  });
+  it("rechecks the guide document before dispatch and discards a navigation", async () => {
+    await start();
+    mocks.guide
+      .mockResolvedValueOnce({ ...page, guideScope: "top-document-text" })
+      .mockResolvedValueOnce({ ...page, guideScope: "top-document-text" })
+      .mockRejectedValueOnce(new Error("tab_changed"));
+    await click(en.guideAction);
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(status()).toBe(en.tabChanged);
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:guide",
+      ),
+    ).toBe(false);
+  });
   it("explains how to retry Guide and preserves its practice step after a capture permission error", async () => {
     await start();
     await send(
       { type: "glimpselet:tutorial", action: "guide", step: 5 },
       "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
     );
-    mocks.capture.mockRejectedValue(new Error("capture_permission"));
+    mocks.guide.mockRejectedValue(new Error("capture_permission"));
     const guideControls = [
       ...document.querySelectorAll<HTMLButtonElement>("button"),
     ].filter((element) => element.textContent?.trim() === en.guideAction);
@@ -446,10 +495,7 @@ describe("bubble answer rendering and feedback", () => {
         ([, message]) => message.type === "glimpselet:tutorial-done",
       ),
     ).toBe(false);
-    mocks.capture.mockResolvedValue({
-      page,
-      capture: { image: "data:image/png;base64,AAA=", label: "Visible" },
-    });
+    mocks.guide.mockResolvedValue({ ...page, guideScope: "top-document-text" });
     await click(en.guideAction);
     expect(
       sendToTab.mock.calls.some(
@@ -463,7 +509,7 @@ describe("bubble answer rendering and feedback", () => {
   });
   it("gives Guide-specific toolbar recovery outside the tutorial too", async () => {
     await start();
-    mocks.capture.mockRejectedValue(new Error("capture_permission"));
+    mocks.guide.mockRejectedValue(new Error("capture_permission"));
     await click(en.guideAction);
     expect(status()).toMatch(/toolbar.*try Guide again/);
     expect(mocks.ask).not.toHaveBeenCalled();

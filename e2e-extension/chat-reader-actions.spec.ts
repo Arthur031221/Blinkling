@@ -1,7 +1,7 @@
+import { launchExtensionContext } from "./browser";
 import {
   test,
   expect,
-  chromium,
   type BrowserContext,
   type Page,
   type Worker,
@@ -105,8 +105,7 @@ test.beforeEach(async () => {
     throw new Error("Missing test port");
   origin = `http://127.0.0.1:${address.port}`;
   const extension = resolve("dist-extension");
-  context = await chromium.launchPersistentContext(join(directory, "profile"), {
-    channel: "chromium",
+  context = await launchExtensionContext(join(directory, "profile"), {
     headless: false,
     viewport: null,
     args: [
@@ -262,11 +261,32 @@ test("Guide practice has one keyboard-accessible action and keeps its step throu
     ).toBe(true);
   }
   await panel.evaluate(() => {
-    const original = chrome.tabs.captureVisibleTab.bind(chrome.tabs);
+    const contains = chrome.permissions.contains.bind(chrome.permissions);
+    chrome.permissions.contains = ((permissions) =>
+      permissions.origins?.some((origin) =>
+        origin.startsWith("http://127.0.0.1:"),
+      )
+        ? Promise.resolve(false)
+        : contains(permissions)) as typeof chrome.permissions.contains;
+    const original = chrome.scripting.executeScript.bind(chrome.scripting);
     let denied = true;
-    chrome.tabs.captureVisibleTab = ((...args: Parameters<typeof original>) => {
-      if (denied) {
+    const request = chrome.permissions.request.bind(chrome.permissions);
+    chrome.permissions.request = ((permissions) => {
+      if (
+        denied &&
+        permissions.origins?.some((origin) =>
+          origin.startsWith("http://127.0.0.1:"),
+        )
+      ) {
         denied = false;
+        return Promise.resolve(false);
+      }
+      return request(permissions);
+    }) as typeof chrome.permissions.request;
+    chrome.scripting.executeScript = ((
+      ...args: Parameters<typeof original>
+    ) => {
+      if (denied && args[0].func && !args[0].args) {
         return Promise.reject(
           new Error(
             "Either the '<all_urls>' or 'activeTab' permission is required.",
@@ -274,7 +294,7 @@ test("Guide practice has one keyboard-accessible action and keeps its step throu
         );
       }
       return original(...args);
-    }) as typeof chrome.tabs.captureVisibleTab;
+    }) as typeof chrome.scripting.executeScript;
   });
   await guides.focus();
   await panel.keyboard.press("Enter");
