@@ -21,7 +21,7 @@
     "demo": "node scripts/demo.mjs",
     "test:e2e": "npm run build && npm run build:plugin && node scripts/mcp-e2e.mjs && xvfb-run -a playwright test",
     "record-demo": "node scripts/record-demo.mjs",
-    "test:screen": "xvfb-run -a node scripts/screen-e2e.mjs",
+    "test:screen": "bash scripts/screen-e2e.sh",
     "test:launcher": "xvfb-run -a node scripts/launcher-test.mjs",
     "build:extension": "tsc -p tsconfig.extension.json && node scripts/build-extension.mjs",
     "package:extension": "npm run build:extension && python3 scripts/package-extension.py",

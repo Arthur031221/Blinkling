@@ -138,7 +138,7 @@ try {
   );
   await panel.evaluate(() => {
     const child = window.documentPictureInPicture.window;
-    const media = child.navigator.mediaDevices;
+    const media = navigator.mediaDevices;
     const original = media.getDisplayMedia.bind(media);
     child.__testCaptureTracks = [];
     media.getDisplayMedia = async (options) => {
@@ -170,9 +170,17 @@ try {
     userGesture: true,
   });
   await panel.waitForFunction(
-    () =>
-      window.documentPictureInPicture.window.document.querySelector("video")
-        ?.videoWidth > 0,
+    // The shared video stays in the opener while the controls move into PiP.
+    () => document.querySelector("video")?.videoWidth > 0,
+  );
+  assert.deepEqual(
+    await panel.evaluate(() =>
+      window.documentPictureInPicture.window.__testCaptureTracks.map(
+        ({ kind, readyState }) => ({ kind, readyState }),
+      ),
+    ),
+    [{ kind: "video", readyState: "live" }],
+    "native sharing must produce a real video track for the cleanup check",
   );
 
   const captured = await client.callTool({
