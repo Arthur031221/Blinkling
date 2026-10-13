@@ -18,7 +18,24 @@ export async function cropSharedScreen(
   let browserWindow:
     | { id: number; state: chrome.windows.Window["state"] }
     | undefined;
+  let previousTab: number | undefined;
+  let previousWindow: number | undefined;
+  let foregroundChanged = false;
+  const wasDomFullscreen = Boolean(doc.fullscreenElement);
   try {
+    // The caller runs in the opener even when the gesture comes from PiP.
+    // The last focused tab/window may instead belong to the shared app.
+    const opener = await chrome.tabs.getCurrent();
+    if (opener?.id === undefined || opener.windowId === undefined)
+      throw new Error("crop_fullscreen_denied");
+    const current = await chrome.windows.get(opener.windowId);
+    browserWindow = { id: opener.windowId, state: current.state };
+    const [active] = await chrome.tabs.query({
+      active: true,
+      windowId: opener.windowId,
+    });
+    previousTab = active?.id;
+    previousWindow = (await chrome.windows.getLastFocused()).id;
     // Two paints let the outgoing share observe the hidden bubble before freezing.
     await Promise.race([
       new Promise<void>((resolve) =>
@@ -45,20 +62,37 @@ export async function cropSharedScreen(
     image.src = frame.toDataURL("image/png");
     image.style.cssText = "display:block;max-width:none;max-height:none";
     container.append(image);
-    doc.body.append(container);
+    // Freeze first: activating the opener earlier would capture our own UI.
+    foregroundChanged = true;
+    await chrome.tabs.update(opener.id, { active: true });
     // Fullscreen belongs to the opener, never the small Document PiP window.
     try {
-      await doc.documentElement.requestFullscreen();
+      if (!wasDomFullscreen) await doc.documentElement.requestFullscreen();
     } catch {
-      // Global commands have no DOM activation. Browser fullscreen still
-      // provides a full screen selector outside the bubble.
-      const current = await chrome.windows.getCurrent();
-      if (current.id === undefined) throw new Error("crop_fullscreen_denied");
-      browserWindow = { id: current.id, state: current.state };
-      await chrome.windows.update(current.id, {
+      // Global commands need the native fullscreen path without DOM activation.
+    }
+    try {
+      // A resolved DOM request does not guarantee that the native window filled
+      // the display. Enforce and check both paths through the extension API.
+      await chrome.windows.update(opener.windowId, {
         state: "fullscreen",
         focused: true,
       });
+      const deadline = performance.now() + 1500;
+      while (true) {
+        const native = await chrome.windows.get(opener.windowId);
+        if (
+          native.state === "fullscreen" &&
+          (native.width || 0) >= window.screen.width &&
+          (native.height || 0) >= window.screen.height
+        )
+          break;
+        if (performance.now() >= deadline)
+          throw new Error("crop_fullscreen_denied");
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+      }
+    } catch {
+      throw new Error("crop_fullscreen_denied");
     }
     // One captured pixel occupies one physical display pixel, including HiDPI.
     const view = doc.defaultView!;
@@ -84,6 +118,7 @@ export async function cropSharedScreen(
     view.addEventListener("resize", scaleChanged);
     if (bubble) bubble.body.style.opacity = ".25";
     await image.decode();
+    doc.body.append(container);
     const host = doc.createElement("div");
     container.append(host);
     const rect = await selectCrop(
@@ -122,10 +157,17 @@ export async function cropSharedScreen(
     if (scaleChanged)
       doc.defaultView?.removeEventListener("resize", scaleChanged);
     container?.remove();
-    if (doc.fullscreenElement) await doc.exitFullscreen().catch(() => {});
-    if (browserWindow)
+    if (!wasDomFullscreen && doc.fullscreenElement)
+      await doc.exitFullscreen().catch(() => {});
+    if (browserWindow && foregroundChanged)
       await chrome.windows
         .update(browserWindow.id, { state: browserWindow.state })
+        .catch(() => {});
+    if (foregroundChanged && previousTab !== undefined)
+      await chrome.tabs.update(previousTab, { active: true }).catch(() => {});
+    if (foregroundChanged && previousWindow !== undefined)
+      await chrome.windows
+        .update(previousWindow, { focused: true })
         .catch(() => {});
     if (bubble) bubble.body.style.opacity = oldOpacity;
     frame.width = 0;
