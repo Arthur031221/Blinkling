@@ -21,13 +21,27 @@ Glimpselet starts a dedicated conversation. You can select a recent Claude Code 
    /plugin install glimpselet@glimpselet
    ```
 
-2. Run `/glimpselet:glimpse`.
+2. In your terminal, check `claude plugin list` shows Glimpselet **2.0.0**, then run `/glimpselet:glimpse` in Claude Code.
 
 3. Follow the welcome guide to connect your browser. Choose **Try without installing** on a local desktop, or load and pair the extension in your own browser. For a remote Claude Code host, use the SSH command shown in the guide on the computer with your browser, then download the ZIP there and load and pair the extension. The no-install browser option is unavailable on a remote host. A successful pairing shows the connection mode and project in the Glimpselet panel.
 
 ### Advanced: load from source
 
 For your own desktop browser, the extension is kept in the stable folder `~/.glimpselet/extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
+
+## Upgrading from v1
+
+If Glimpselet is already installed, refresh the marketplace and update the plugin from your terminal:
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Restart Claude Code, or run `/reload-plugins` in the open session. Check that `claude plugin list` shows Glimpselet **2.0.0**, then run `/glimpselet:glimpse` again. It should open the welcome and pairing guide. If the installed version is still 1.x, v2 may not be published at the marketplace source yet; repeating Install does not upgrade a cached plugin.
+
+For an unpacked extension, the guide copies the new files to `~/.glimpselet/extension`. Reload Glimpselet in `chrome://extensions` or `edge://extensions` and check its version is **2.0.0**. With SSH, download the new ZIP through the guide on the browser computer, extract it into the folder you previously loaded, then reload. The remote host cannot open the zero-install browser on your computer.
 
 ## What you can do
 

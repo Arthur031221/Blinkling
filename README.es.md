@@ -21,13 +21,27 @@ Glimpselet inicia una conversación dedicada. También puedes continuar una sesi
    /plugin install glimpselet@glimpselet
    ```
 
-2. Ejecuta `/glimpselet:glimpse`.
+2. En tu terminal, comprueba que `claude plugin list` muestre Glimpselet **2.0.0** y ejecuta `/glimpselet:glimpse` en Claude Code.
 
 3. Sigue la guía de bienvenida para conectar el navegador. En un escritorio local, elige **Try without installing** o carga y empareja la extensión en tu navegador. Si Claude Code está en un host remoto, ejecuta el comando SSH que muestra la guía en el equipo con el navegador. Descarga allí el ZIP y carga la extensión en ese navegador. La opción sin instalación no está disponible en el host remoto. Al completar el emparejamiento, el panel de Glimpselet muestra el modo de conexión y el proyecto.
 
 ### Avanzado: cargar desde el código fuente
 
 En tu navegador de escritorio, la extensión se guarda en la carpeta estable `~/.glimpselet/extension`. En Chrome o Edge, abre `chrome://extensions` o `edge://extensions`, activa **Developer mode**, elige **Load unpacked** y selecciona esa carpeta. El aviso de desarrollador seguirá visible y tendrás que actualizar la extensión manualmente cuando haya una nueva versión.
+
+## Actualizar desde v1
+
+Si ya tienes Glimpselet instalado, actualiza el catálogo y el plugin desde tu terminal:
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Reinicia Claude Code o ejecuta `/reload-plugins` en la sesión abierta. Comprueba que `claude plugin list` muestre Glimpselet **2.0.0** y vuelve a ejecutar `/glimpselet:glimpse`. Debe abrir la guía de bienvenida y vinculación. Si sigue en 1.x, puede que v2 aún no esté publicado en el origen del catálogo; repetir la instalación no actualiza un plugin en caché.
+
+Para la extensión sin empaquetar, la guía copia los archivos nuevos a `~/.glimpselet/extension`. Recarga Glimpselet en `chrome://extensions` o `edge://extensions` y comprueba que sea **2.0.0**. Con SSH, descarga el ZIP nuevo desde la guía en el equipo con tu navegador, extráelo en la carpeta que cargaste antes y recarga la extensión. El host remoto no puede abrir el navegador sin instalación en tu equipo.
 
 ## Qué puedes hacer
 

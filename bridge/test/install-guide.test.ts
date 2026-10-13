@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JSDOM } from "jsdom";
+import { readFile } from "node:fs/promises";
 import {
   INSTALL_GUIDE_SCRIPT,
   installGuide,
@@ -51,6 +52,29 @@ afterEach(() => {
 });
 
 describe("welcome install guide remote onboarding", () => {
+  it.each([
+    "README.md",
+    "README.zh-TW.md",
+    "README.zh-CN.md",
+    "README.ja.md",
+    "README.ko.md",
+    "README.es.md",
+    "README.fr.md",
+    "README.de.md",
+    "README.pt-BR.md",
+  ])(
+    "%s explains refreshing, updating and checking an existing plugin",
+    async (file) => {
+      const readme = await readFile(file, "utf8");
+      expect(readme).toContain("claude plugin marketplace update glimpselet");
+      expect(readme).toContain("claude plugin update glimpselet@glimpselet");
+      expect(readme).toContain("claude plugin list");
+      expect(readme).toContain("/reload-plugins");
+      expect(readme).toContain("2.0.0");
+      expect(readme.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(true);
+    },
+  );
+
   it("keeps the stable local folder flow and zero-install for direct mode", async () => {
     const { dom } = await openGuide("direct");
     const { document } = dom.window;

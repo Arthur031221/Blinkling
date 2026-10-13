@@ -56,6 +56,14 @@ Both API paths send the selected effort through `output_config.effort`, as descr
 
 Guide prompts share the chat question limit of 8,000 characters. Compact element tuples preserve all 120 stable IDs on normal pages. The builder measures serialized JSON, including escaped labels, and reduces label length to fit. If IDs and roles alone exceed the budget, it removes complete trailing entries. It never cuts a JSON record in half.
 
+## Marketplace upgrades
+
+An existing marketplace cache and an installed plugin are separate. Repeating Install can leave the installed v1 plugin in place. Refresh with `claude plugin marketplace update glimpselet`, then run `claude plugin update glimpselet@glimpselet`. Restart Claude Code or use `/reload-plugins` to load the updated plugin. Verify `claude plugin list` reports **2.0.0** before invoking `/glimpselet:glimpse`. These commands follow the [Claude Code plugin update documentation](https://code.claude.com/docs/en/discover-plugins) and [marketplace refresh documentation](https://code.claude.com/docs/en/plugin-marketplaces).
+
+We verified both a fresh install and a cached v1.1.1 upgrade with Claude Code 2.1.296 in isolated configuration directories against staged Git marketplace artifacts. Both installed plugin and extension 2.0.0; the installed command's `panel_open` tool opened the welcome guide and paired with the packaged extension in Chromium. The cached-v1 fixture came from commit `a27fd993`. This verifies the staged artifacts. A later authorized release must separately verify the public marketplace commit, packaged launcher and extension, and installed welcome/pairing flow before declaring publication complete.
+
+The welcome guide refreshes the stable local extension folder. A browser that already loaded it must reload the extension and verify version 2.0.0. For SSH, download the updated ZIP on the browser computer, extract it into the previously loaded folder, and reload there. The remote host cannot launch a zero-install browser on the user's computer.
+
 ## Pairing, page access and privacy
 
 The bridge binds to loopback. Pairing uses a ten minute, one use code and an origin bound token lasting twelve hours. An SSH local forward supports a remote Claude Code host. In tunnel mode, the welcome guide offers the extension release ZIP and instructs the browser user to extract it and load the extracted folder on their own computer. It does not show the remote host's extension path or offer zero-install launch. Direct mode keeps the stable local extension path, while a configured browser store link takes precedence over either unpacked flow. Direct API mode uses the user's Anthropic key instead. The bubble names its connection mode.

@@ -21,13 +21,27 @@ Glimpselet inicia uma conversa dedicada. Você também pode continuar uma sessã
    /plugin install glimpselet@glimpselet
    ```
 
-2. Execute `/glimpselet:glimpse`.
+2. No terminal, confira se `claude plugin list` mostra Glimpselet **2.0.0** e execute `/glimpselet:glimpse` no Claude Code.
 
 3. Siga o guia de boas-vindas para conectar o navegador. Em um desktop local, escolha **Try without installing** ou carregue e pareie a extensão no seu navegador. Se o Claude Code estiver em um host remoto, execute o comando SSH exibido pelo guia no computador com o navegador. Baixe o ZIP nesse computador e carregue a extensão no navegador. A opção sem instalação não está disponível no host remoto. Após o pareamento, o painel do Glimpselet mostra o modo de conexão e o projeto.
 
 ### Avançado: carregar do código-fonte
 
 No seu navegador de desktop, a extensão fica na pasta estável `~/.glimpselet/extension`. No Chrome ou Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continuará visível. As atualizações precisam ser feitas manualmente.
+
+## Atualizar a partir da v1
+
+Se o Glimpselet já estiver instalado, atualize o catálogo e o plugin pelo terminal:
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Reinicie o Claude Code ou execute `/reload-plugins` na sessão aberta. Confira se `claude plugin list` mostra Glimpselet **2.0.0** e execute `/glimpselet:glimpse` novamente. O guia de boas-vindas e pareamento deve abrir. Se a versão continuar em 1.x, a v2 pode ainda não estar publicada na origem do catálogo; repetir a instalação não atualiza um plugin em cache.
+
+Para a extensão descompactada, o guia copia os novos arquivos para `~/.glimpselet/extension`. Recarregue o Glimpselet em `chrome://extensions` ou `edge://extensions` e confira a versão **2.0.0**. Com SSH, baixe o novo ZIP pelo guia no computador com seu navegador, extraia na pasta carregada anteriormente e recarregue a extensão. O host remoto não pode abrir o navegador sem instalação no seu computador.
 
 ## O que você pode fazer
 

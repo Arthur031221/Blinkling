@@ -21,13 +21,27 @@ Glimpselet beginnt eine eigene Unterhaltung. Alternativ können Sie eine aktuell
    /plugin install glimpselet@glimpselet
    ```
 
-2. Führe `/glimpselet:glimpse` aus.
+2. Prüfe im Terminal, dass `claude plugin list` Glimpselet **2.0.0** anzeigt, und führe dann `/glimpselet:glimpse` in Claude Code aus.
 
 3. Folge der Willkommensanleitung, um deinen Browser zu verbinden. Wähle auf einem lokalen Desktop **Try without installing** oder lade die Erweiterung in deinem eigenen Browser und kopple sie. Bei einem entfernten Claude-Code-Host führe den angezeigten SSH-Befehl auf dem Computer mit deinem Browser aus. Lade dort die ZIP-Datei herunter und lade die Erweiterung in diesem Browser. Die Option ohne Installation ist auf dem entfernten Host nicht verfügbar. Nach erfolgreicher Kopplung zeigt das Glimpselet-Panel den Verbindungsmodus und das Projekt an.
 
 ### Erweitert: aus dem Quellcode laden
 
 Für deinen eigenen Desktop-Browser liegt die Erweiterung dauerhaft im Ordner `~/.glimpselet/extension`. Öffne in Chrome oder Edge `chrome://extensions` oder `edge://extensions`, aktiviere den **Entwicklermodus**, wähle **Entpackte Erweiterung laden** und dann diesen Ordner. Der Entwicklermodus-Hinweis bleibt sichtbar. Neue Versionen musst du manuell aktualisieren.
+
+## Von v1 aktualisieren
+
+Wenn Glimpselet bereits installiert ist, aktualisiere den Marketplace und das Plugin im Terminal:
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Starte Claude Code neu oder führe `/reload-plugins` in der offenen Sitzung aus. Prüfe, dass `claude plugin list` Glimpselet **2.0.0** anzeigt, und starte dann erneut `/glimpselet:glimpse`. Die Willkommens- und Verbindungsanleitung sollte sich öffnen. Bleibt die Version bei 1.x, ist v2 möglicherweise noch nicht an der Marketplace-Quelle veröffentlicht. Erneutes Installieren aktualisiert kein zwischengespeichertes Plugin.
+
+Bei einer entpackten Erweiterung kopiert die Anleitung die neuen Dateien nach `~/.glimpselet/extension`. Lade Glimpselet unter `chrome://extensions` oder `edge://extensions` neu und prüfe die Version **2.0.0**. Lade bei SSH die neue ZIP-Datei über die Anleitung auf den Computer mit deinem Browser herunter, entpacke sie in den zuvor geladenen Ordner und lade die Erweiterung neu. Der entfernte Host kann den Browser ohne Installation nicht auf deinem Computer öffnen.
 
 ## Was du damit tun kannst
 
