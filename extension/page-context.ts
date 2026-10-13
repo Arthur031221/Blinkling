@@ -94,7 +94,24 @@ export function textForElement(element: Element, limit = 240): string {
   )
     .replace(/\s+/g, " ")
     .trim();
-  return text.slice(0, limit);
+  if (text) return text.slice(0, limit);
+  // The captured hamburger has no label, but its ARIA popup contract is real
+  // evidence of a menu. Do not infer its purpose from SVG paths or CSS names.
+  if (
+    element.matches("button,[role=button]") &&
+    /^(?:menu|true)$/i.test(element.getAttribute("aria-haspopup") || "")
+  ) {
+    const expanded = element.getAttribute("aria-expanded");
+    return (
+      "Menu" +
+      (expanded === "true"
+        ? " (expanded)"
+        : expanded === "false"
+          ? " (collapsed)"
+          : "")
+    ).slice(0, limit);
+  }
+  return "";
 }
 
 function isExcluded(element: Element, includeHidden = false): boolean {

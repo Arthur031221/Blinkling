@@ -786,7 +786,10 @@ if (!contentScope.glimpseletContentReady) {
           renderedStep = "";
           renderGuide();
           respond({ ok: true });
-        } else respond({ ok: false });
+        } else {
+          closeGuide();
+          respond({ ok: false });
+        }
         return;
       }
       if (message.type === "glimpselet:text-nodes") {

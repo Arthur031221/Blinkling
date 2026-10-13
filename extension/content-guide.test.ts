@@ -101,6 +101,46 @@ describe("content script guide focus", () => {
     expect(openGuide([firstId])).toEqual({ error: "password_page" });
   });
 
+  it("clears a previous tour when a text-only unavailable result has no steps", async () => {
+    const { firstId } = await setup();
+    expect(openGuide([firstId])).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    expect(root.querySelector(".guide")).not.toBeNull();
+    expect(send("glimpselet:guide", { steps: [] })).toEqual({ ok: false });
+    expect(root.querySelector(".guide")).toBeNull();
+    expect(root.querySelector("svg.draw")).toBeNull();
+  });
+
+  it("omits a literal no-op action and rejects replaced targets without leaving stale ink", async () => {
+    const { firstId } = await setup();
+    expect(
+      send("glimpselet:guide", {
+        steps: [
+          { elementId: firstId, note: "Use this control", action: " none " },
+        ],
+      }),
+    ).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    expect(root.querySelector(".guide p")!.textContent).toBe(
+      "Use this control",
+    );
+    const target = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "First target",
+    )!;
+    target.replaceWith(target.cloneNode(true));
+    expect(
+      send("glimpselet:guide", {
+        steps: [{ elementId: firstId, note: "Use this old control" }],
+      }),
+    ).toEqual({ ok: false });
+    expect(root.querySelector(".guide")).toBeNull();
+    expect(root.querySelector("svg.draw")).toBeNull();
+  });
+
   it("keeps the focused nav control through scroll and resize repositioning", async () => {
     const { firstId, secondId } = await setup();
     expect(openGuide([firstId, secondId]).ok).toBe(true);
