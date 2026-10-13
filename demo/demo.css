@@ -1,0 +1,252 @@
+@font-face {
+  font-family: Inter;
+  src: url("assets/Inter.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: Fraunces;
+  src: url("assets/Fraunces.ttf") format("truetype");
+  font-display: swap;
+}
+:root {
+  color-scheme: light dark;
+  --paper: #f7f3ec;
+  --ink: #302c27;
+  --muted: #6d655c;
+  --line: #ded6ca;
+  --accent: #a34f35;
+  --card: #fffdf9;
+}
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font:
+    16px/1.6 Inter,
+    sans-serif;
+}
+header,
+main,
+footer {
+  width: min(1180px, calc(100% - 64px));
+  margin-inline: auto;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--line);
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 4px;
+}
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 5px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  font:
+    24px Fraunces,
+    serif;
+}
+.brand span {
+  font:
+    12px Inter,
+    sans-serif;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 3px 7px;
+}
+nav,
+footer {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+nav a {
+  color: var(--muted);
+}
+section {
+  padding: 64px 0;
+  border-bottom: 1px solid var(--line);
+}
+.hero {
+  padding-top: 48px;
+}
+.eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+h1,
+h2,
+h3 {
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 500;
+  line-height: 1.1;
+}
+h1 {
+  font-size: clamp(42px, 6.5vw, 80px);
+  letter-spacing: -0.045em;
+  margin: 20px 0;
+}
+h2 {
+  font-size: clamp(30px, 4vw, 46px);
+  letter-spacing: -0.025em;
+  margin: 12px 0 32px;
+}
+h3 {
+  font-size: 24px;
+}
+.intro {
+  max-width: 660px;
+  color: var(--muted);
+  font-size: 20px;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 28px 0 16px;
+}
+.button {
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.hint,
+figcaption {
+  font-size: 13px;
+  color: var(--muted);
+}
+.screens,
+.features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.screens {
+  margin-top: 36px;
+}
+figure {
+  margin: 0;
+  min-width: 0;
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+figure img,
+article img {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+figcaption {
+  margin-top: 10px;
+}
+.install-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  padding-left: 24px;
+}
+.install-steps li {
+  min-width: 0;
+  padding-left: 4px;
+}
+.install-steps h3 {
+  margin-top: 0;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--card);
+  border: 1px solid var(--line);
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.features article {
+  padding: 24px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.features h3 {
+  margin-top: 0;
+}
+.features p,
+.limits p {
+  color: var(--muted);
+}
+.limits {
+  max-width: 840px;
+}
+footer {
+  padding: 28px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #211e1b;
+    --ink: #f4ece2;
+    --muted: #c4b9ac;
+    --line: #4a4239;
+    --accent: #e8a183;
+    --card: #2b2621;
+  }
+  .button {
+    color: #211e1b;
+  }
+}
+@media (max-width: 720px) {
+  header,
+  main,
+  footer {
+    width: calc(100% - 32px);
+  }
+  header {
+    align-items: flex-start;
+  }
+  nav {
+    gap: 12px;
+    font-size: 13px;
+  }
+  section {
+    padding: 40px 0;
+  }
+  .screens,
+  .features,
+  .install-steps {
+    grid-template-columns: 1fr;
+  }
+  .install-steps {
+    gap: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

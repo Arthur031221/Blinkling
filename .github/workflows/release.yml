@@ -45,6 +45,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run package:stores
+      - run: python3 .github/workflows/check-release.py
       - name: Upload assets and publish
         uses: actions/github-script@v9
         env:

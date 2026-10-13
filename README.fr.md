@@ -50,7 +50,7 @@ Dans votre navigateur de bureau, l'extension se trouve dans le dossier stable `~
 | Maintenir Shift                      | Démarrer un recadrage dans une bulle ou une page Glimpselet.                                   |
 | Alt+P                                | Mettre en pause les résumés Passive.                                                           |
 
-Sur macOS, Cmd+Shift+5 ouvre l'outil système de capture d'écran. Shift dans une page web fonctionne uniquement sur les pages Glimpselet et ne peut pas écouter les autres applications.
+Sur macOS, Cmd+Shift+5 ouvre l'outil système de capture d'écran. Shift fonctionne sur les pages auxquelles Glimpselet a accès. Une page web ne peut pas recevoir cette touche depuis une autre application.
 
 **Float** est la première action. L'extension demande l'accès à la page lorsque vous utilisez une fonction qui en a besoin. Aucune clé API n'est nécessaire avec votre propre session Claude Code connectée. Le mode API direct est facultatif et nécessite votre clé API.
 
@@ -60,7 +60,7 @@ Consultez [Sessions Claude Code](docs/DESIGN.md#the-running-claude-code-conversa
 
 ## Limites et confidentialité
 
-Glimpselet fonctionne sur ordinateur avec Chrome, Edge et les autres navigateurs Chromium. La bannière de développement reste visible jusqu'à la distribution dans une boutique, et les mises à jour sont manuelles. Certaines pages, comme les paramètres du navigateur, les boutiques d'extensions et les pages restreintes, bloquent l'accès. Le lecteur PDF intégré à Chrome n'est pas accessible. Utilisez le lecteur Glimpselet. Les applications natives ne fournissent que des pixels, sans texte ni superposition. Shift fonctionne uniquement dans les surfaces de navigateur propres à Glimpselet, pas dans une autre application. La fenêtre flottante ne permet pas de transmettre les clics.
+Glimpselet fonctionne sur ordinateur avec Chrome, Edge et les autres navigateurs Chromium. La bannière de développement reste visible jusqu'à la distribution dans une boutique, et les mises à jour sont manuelles. Certaines pages, comme les paramètres du navigateur, les boutiques d'extensions et les pages restreintes, bloquent l'accès. Le lecteur PDF intégré à Chrome n'est pas accessible. Utilisez le lecteur Glimpselet. Les applications natives ne fournissent que des pixels, sans texte ni superposition. Shift fonctionne dans la bulle et sur les pages dont l'accès est autorisé. Dans une autre application, utilisez le raccourci global de capture. La fenêtre flottante ne permet pas de transmettre les clics.
 
 Les questions suggérées automatiquement utilisent le contexte de la page uniquement avec votre consentement. Les résumés passifs sont facultatifs et nécessitent le partage d'un onglet de navigateur inspecté. Si la source partagée est une fenêtre, un écran, une application native, une source inconnue ou inaccessible, les résumés automatiques se mettent en pause. Les questions et captures manuelles restent disponibles.
 

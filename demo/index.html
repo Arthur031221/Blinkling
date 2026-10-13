@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta
+      name="description"
+      content="Glimpselet 2: a floating Claude Code chat for the page or screen you choose to share. Capture, get a guide, translate and read PDFs."
+    />
+    <title>Glimpselet 2 | Keep the answer beside the page</title>
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="./"
+        ><img src="assets/logo.svg" width="32" height="32" alt="" />Glimpselet
+        <span>2.0</span></a
+      >
+      <nav aria-label="Main">
+        <a href="#install">Install</a><a href="privacy.html">Privacy</a
+        ><a href="https://github.com/Arthur031221/Glimpselet">GitHub</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <p class="eyebrow">Your page. A small question.</p>
+        <h1 id="hero-title">Keep the answer<br />beside the page.</h1>
+        <p class="intro">
+          A floating Claude Code chat for what you're reading. Capture an area,
+          ask a follow-up, or let a guide point to the right button.
+        </p>
+        <div class="actions">
+          <a class="button" href="#install">Get started</a
+          ><a href="try.html?demo=1">Try the prerecorded chat</a>
+        </div>
+        <p class="hint">
+          Desktop Chrome or Edge. Your Claude Code login. No publisher server.
+        </p>
+        <div class="screens">
+          <figure>
+            <img
+              src="demo-assets/floating.png"
+              width="1280"
+              height="800"
+              alt="Glimpselet's floating chat over GitHub's TypeScript repository"
+            />
+            <figcaption>
+              The chat stays above the page while you work.
+            </figcaption>
+          </figure>
+          <figure>
+            <img
+              src="demo-assets/guide.png"
+              width="1280"
+              height="800"
+              alt="A Glimpselet guide circling the Code button on GitHub"
+            />
+            <figcaption>
+              A guide draws around the page's actual controls.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+      <section id="install" aria-labelledby="install-title">
+        <p class="eyebrow">Three steps</p>
+        <h2 id="install-title">Start with Claude Code.</h2>
+        <ol class="install-steps">
+          <li>
+            <h3>Add the plugin</h3>
+            <p>In your signed-in Claude Code terminal:</p>
+            <pre><code>/plugin marketplace add Arthur031221/Glimpselet
+/plugin install glimpselet@glimpselet</code></pre>
+          </li>
+          <li>
+            <h3>Open the welcome guide</h3>
+            <pre><code>/glimpselet:glimpse</code></pre>
+            <p>
+              It walks you through the browser connection in Chinese or English.
+            </p>
+          </li>
+          <li>
+            <h3>Choose your browser</h3>
+            <p>
+              Try a dedicated Chromium window on a local desktop, or load the
+              extension in your own browser. If Claude Code is remote, run the
+              guide's SSH command on the computer with Chrome.
+            </p>
+          </li>
+        </ol>
+        <p>
+          Store listings are not available yet. The welcome guide uses Developer
+          mode and Load unpacked today. Updates are manual.
+          <a
+            href="https://github.com/Arthur031221/Glimpselet/blob/main/docs/INSTALL.md"
+            >Read the install guide</a
+          >.
+        </p>
+      </section>
+      <section aria-labelledby="features-title">
+        <p class="eyebrow">While you read</p>
+        <h2 id="features-title">Ask, point, translate.</h2>
+        <div class="features">
+          <article>
+            <h3>Capture and ask</h3>
+            <p>
+              Hold Shift and drag on a supported page, or crop a shared screen
+              in full screen. The capture lands in the bubble for your next
+              question.
+            </p>
+            <img
+              src="demo-assets/crop.gif"
+              width="960"
+              height="600"
+              loading="lazy"
+              alt="Browser recording of Shift crop landing in the floating chat"
+            />
+          </article>
+          <article>
+            <h3>Find your way</h3>
+            <p>
+              Ask where a control is. Guide mode circles real page elements and
+              adds a short note beside them.
+            </p>
+            <img
+              src="demo-assets/guide.gif"
+              width="960"
+              height="600"
+              loading="lazy"
+              alt="Browser recording of the guide over a GitHub page"
+            />
+          </article>
+          <article>
+            <h3>Read across languages</h3>
+            <p>
+              Translate page text in place and restore the original. Select a
+              passage to explain, translate or ask. PDFs open in the Glimpselet
+              reader.
+            </p>
+          </article>
+          <article>
+            <h3>Keep the conversation</h3>
+            <p>
+              Get suggested questions and streamed follow-ups. Enable the
+              channel preview to talk to your running terminal session, or use a
+              dedicated conversation. Passive summaries are optional.
+            </p>
+          </article>
+        </div>
+        <p class="hint">
+          These recordings use the real extension on a public GitHub page with
+          local example replies. The prerecorded chat makes no provider calls.
+        </p>
+      </section>
+      <section class="limits" aria-labelledby="limits-title">
+        <h2 id="limits-title">A few limits, up front.</h2>
+        <p>
+          Desktop Chromium browsers only. Browser settings and extension stores
+          block page tools. Native apps support screen capture and chat, while
+          guides and in-place translation need a web page. PDFs use the bundled
+          reader. The floating window cannot pass clicks through.
+        </p>
+        <p>
+          Page context is used after consent. Suggested questions can send page
+          text automatically. Passive summaries are opt-in and pause for whole
+          screens, native windows and unknown sources. Your selected provider's
+          terms apply. <a href="privacy.html">Read what is sent and stored</a>.
+        </p>
+      </section>
+    </main>
+    <footer>
+      <span>Glimpselet is open source.</span
+      ><a href="https://github.com/Arthur031221/Glimpselet/issues"
+        >Help and feedback</a
+      ><a href="privacy.html">Privacy policy</a>
+    </footer>
+  </body>
+</html>

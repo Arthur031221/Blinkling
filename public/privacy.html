@@ -8,26 +8,111 @@
       content="Glimpselet privacy policy: what the extension reads, sends and stores."
     />
     <title>Glimpselet Privacy Policy</title>
+    <meta name="referrer" content="no-referrer" />
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        background: #f7f3ec;
+        color: #302c27;
+        font:
+          16px/1.65 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 880px;
+        margin: 48px auto;
+        padding: 0 24px;
+      }
+      h1,
+      h2 {
+        font-family: Georgia, serif;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      h1 {
+        font-size: 42px;
+      }
+      h2 {
+        margin-top: 40px;
+      }
+      a {
+        color: #9e482e;
+        text-underline-offset: 4px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        border: 1px solid #cfc6b9;
+        padding: 12px;
+      }
+      th:first-child,
+      td:first-child {
+        width: 28%;
+      }
+      @media (max-width: 520px) {
+        main {
+          margin-block: 28px;
+          padding-inline: 16px;
+        }
+        h1 {
+          font-size: 32px;
+        }
+        th,
+        td {
+          padding: 8px;
+          overflow-wrap: anywhere;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #211e1b;
+          color: #f4ece2;
+        }
+        a {
+          color: #e8a183;
+        }
+        th,
+        td {
+          border-color: #63574b;
+        }
+      }
+    </style>
   </head>
   <body>
     <main>
       <h1>Glimpselet Privacy Policy</h1>
-      <p>Last updated: 12 October 2026</p>
+      <p><a href="./">Glimpselet</a> / Privacy</p>
+      <p>Last updated: 13 October 2026 · Version 2.0.0</p>
       <p>
         Glimpselet has no telemetry. It does not send analytics or diagnostic
         events to its publisher. This policy explains what the extension reads,
         where user data goes, and how it is stored.
       </p>
+      <p>
+        Glimpselet has no publisher-operated answer service. Your chosen backend
+        processes requests using your own Claude Code account or Anthropic API
+        key. The publisher does not receive those requests. Glimpselet does not
+        sell user data or use it for advertising.
+      </p>
 
       <h2>Information the extension can access</h2>
       <p>
         When you invoke Glimpselet on a page, it can read bounded visible page
-        text and descriptions of selected interactive elements. It skips hidden,
-        editable, private and password fields and does not read form values. You
-        can choose to capture a visible tab, full page, region, element, or
-        screen in the browser's share picker. Images may contain information
-        that cannot be recognized by text filters. Review a capture before
-        asking a question.
+        text, the page URL and title, and descriptions of selected interactive
+        elements. It skips hidden, editable, private and password fields and
+        does not read form values. You can choose to capture a visible tab, full
+        page, region, element, or screen in the browser's share picker. Images
+        may contain information that cannot be recognized by text filters.
+        Review a capture before asking a question.
       </p>
       <p>
         Page tools ask the browser for access to the site when you use them. You
@@ -71,6 +156,15 @@
         you entered. The key is not sent to the local bridge. The service's data
         practices and retention terms apply to these requests.
       </p>
+      <p>
+        Data is used to provide the chat, capture and page-reading features you
+        choose. Glimpselet's use of information received from browser APIs
+        complies with the Chrome Web Store User Data Policy, including the
+        Limited Use requirements. The publisher does not use page content for
+        unrelated purposes or maintain a browsing-history log. Your questions
+        and captures can contain personal information. Your chosen provider's
+        own data policy applies to processing and retention there.
+      </p>
 
       <h2>Storage</h2>
       <table>
@@ -93,8 +187,9 @@
             <td>Browser session storage</td>
             <td>
               Bridge token, bridge connection settings and direct API key.
-              Captures and shared frames remain only in bubble memory. Browser
-              session storage is cleared when the browser session ends.
+              Captures, shared frames and chat history remain only in bubble
+              memory. Browser session storage is cleared when the browser
+              session ends.
             </td>
           </tr>
           <tr>
@@ -132,13 +227,21 @@
         session storage, including the API key. You can remove the extension and
         its browser data through the browser's extension settings.
       </p>
+      <p>
+        Revoke site permissions in the browser's extension settings. Clear
+        extension data or remove the extension to delete saved preferences.
+        Closing the bubble ends sharing. Removing the extension does not delete
+        Claude Code transcripts on the host or records retained by your
+        provider. Manage those with the host application or provider account.
+      </p>
 
       <h2>Contact</h2>
       <p>
-        For privacy questions, open an issue at
+        For privacy questions, contact the maintainer, Arthur031221, through
         <a href="https://github.com/Arthur031221/Glimpselet/issues"
           >the Glimpselet issue tracker</a
-        >.
+        >. Issues are public. Do not include private page content or
+        credentials.
       </p>
     </main>
   </body>

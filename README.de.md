@@ -10,7 +10,7 @@ Ein kleiner schwebender Chat, mit dem du Claude Code Fragen zur geöffneten Seit
 
 Voraussetzungen: eine aktuelle Claude-Code-Version, Anmeldung mit deinem eigenen Abo-Konto und ein Chromium-Desktopbrowser wie Chrome oder Edge.
 
-Glimpselet beginnt eine eigene Unterhaltung. Alternativ können Sie eine aktuelle Claude Code Sitzung in einem separaten Prozess fortsetzen. Um Anfragen an die bereits im Terminal geöffnete interaktive Sitzung zu senden, aktivieren Sie die Channel Vorschau. [Channel Einrichtung](docs/DESIGN.md#the-running-claude-code-conversation).
+Glimpselet beginnt eine eigene Unterhaltung. Du kannst auch eine aktuelle Claude-Code-Sitzung in einem separaten Prozess fortsetzen. Um Fragen an deine bereits im Terminal geöffnete Sitzung zu senden, aktiviere die Channel-Vorschau. [Channel Einrichtung](docs/DESIGN.md#the-running-claude-code-conversation).
 
 ## Installation
 
@@ -50,7 +50,7 @@ Für deinen eigenen Desktop-Browser liegt die Erweiterung dauerhaft im Ordner `~
 | Shift gedrückt halten                | In einer Glimpselet-Blase oder -Seite einen Zuschnitt starten.                        |
 | Alt+P                                | Passive-Zusammenfassungen pausieren.                                                  |
 
-Auf macOS öffnet Cmd+Shift+5 das Screenshot-Werkzeug. Shift auf Webseiten funktioniert nur auf Glimpselet-Seiten und kann keine anderen Apps erfassen.
+Auf macOS öffnet Cmd+Shift+5 das Screenshot-Werkzeug. Shift funktioniert auf Webseiten, auf denen Glimpselet Seitenzugriff hat. Andere Apps können die Taste nicht an Glimpselet weitergeben.
 
 **Float** ist die erste Aktion. Die Erweiterung fragt nach Seitenzugriff, wenn du eine Funktion verwendest, die ihn benötigt. Mit deiner eigenen angemeldeten Claude-Code-Sitzung ist kein API-Schlüssel nötig. Der direkte API-Modus ist optional und erfordert deinen eigenen API-Schlüssel.
 
@@ -60,7 +60,7 @@ Befehl und Einrichtung für die Channel-Vorschau findest du unter [Claude-Code-S
 
 ## Grenzen und Datenschutz
 
-Glimpselet funktioniert in Desktop-Browsern auf Chrome, Edge und anderen Chromium-Browsern. Der Entwicklermodus-Hinweis bleibt sichtbar, bis eine Store-Verteilung verfügbar ist. Updates erfolgen manuell. Manche Browserseiten wie Einstellungen, Erweiterungsstores und eingeschränkte Seiten sind nicht zugänglich. Der integrierte PDF-Viewer von Chrome ist nicht zugänglich. Verwende den Glimpselet-Reader. Native Apps liefern nur Bildpunkte, keinen Seitentext und keine Overlays. Umschalt funktioniert nur in Glimpselets eigenen Browseroberflächen, nicht in einer anderen App. Das schwebende Fenster kann Klicks nicht durchlassen.
+Glimpselet funktioniert in Desktop-Browsern auf Chrome, Edge und anderen Chromium-Browsern. Der Entwicklermodus-Hinweis bleibt sichtbar, bis eine Store-Verteilung verfügbar ist. Updates erfolgen manuell. Manche Browserseiten wie Einstellungen, Erweiterungsstores und eingeschränkte Seiten sind nicht zugänglich. Der integrierte PDF-Viewer von Chrome ist nicht zugänglich. Verwende den Glimpselet-Reader. Native Apps liefern nur Bildpunkte, keinen Seitentext und keine Overlays. Shift funktioniert in der Blase und auf Seiten mit erteiltem Zugriff. In anderen Apps nutze das globale Tastenkürzel zum Zuschneiden. Das schwebende Fenster kann Klicks nicht durchlassen.
 
 Automatische Vorschlagsfragen verwenden Seitenkontext nur mit deiner Zustimmung. Passive Zusammenfassungen sind optional und benötigen einen geteilten, geprüften Browser-Tab. Bei Fenstern, Bildschirmen, nativen Apps, unbekannten oder anderweitig nicht zugänglichen Quellen pausieren automatische Zusammenfassungen. Manuelle Fragen und Aufnahmen bleiben verfügbar.
 

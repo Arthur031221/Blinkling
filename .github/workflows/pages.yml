@@ -9,9 +9,18 @@ permissions:
   contents: read
   pages: write
   id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +32,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: PAGES=1 npm run build
+      - run: node .github/workflows/build-pages.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: node .github/workflows/check-pages.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
