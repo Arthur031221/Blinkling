@@ -97,9 +97,10 @@ chrome.runtime.onMessage.addListener(
     ) {
       const target = new URL(chrome.runtime.getURL("reader.html"));
       target.searchParams.set("url", message.url);
-      void chrome.tabs
-        .create({ url: target.toString() })
-        .then(() => sendResponse({ ok: true }));
+      void chrome.tabs.create({ url: target.toString() }).then(
+        (tab) => sendResponse({ ok: true, tabId: tab.id }),
+        () => sendResponse({ ok: false }),
+      );
       return true;
     }
     if (

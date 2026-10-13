@@ -85,6 +85,7 @@ const page: PageContext = {
 let runtime: ReturnType<typeof event>;
 let updated: ReturnType<typeof event>;
 let focused: ReturnType<typeof event>;
+let activated: ReturnType<typeof event>;
 let sendToTab: ReturnType<typeof vi.fn>;
 let stored: Record<string, unknown>;
 let tabUrls: Map<number, string>;
@@ -180,6 +181,42 @@ function completions() {
     .filter(([, message]) => message.type === "glimpselet:tutorial-done")
     .map(([tab, message]) => ({ tab, step: message.step }));
 }
+async function pendingPdfPractice() {
+  await start();
+  const readerTab = {
+    id: 3,
+    windowId: 1,
+    url: "about:blank",
+    pendingUrl: "",
+  } as chrome.tabs.Tab;
+  let destinationUrl = "";
+  vi.mocked(chrome.tabs.get).mockImplementation(async (id) =>
+    id === 3
+      ? { ...readerTab }
+      : ({
+          id,
+          windowId: 1,
+          url: tabUrls.get(id) || page.url,
+        } as chrome.tabs.Tab),
+  );
+  vi.mocked(chrome.runtime.sendMessage).mockImplementation(async (message) => {
+    if (message.type === "glimpselet:open-reader") {
+      const destination = new URL(chrome.runtime.getURL("reader.html"));
+      destination.searchParams.set("url", message.url);
+      destinationUrl = destination.toString();
+      readerTab.pendingUrl = destinationUrl;
+      tabUrls.set(3, readerTab.url!);
+      activated.emit({ tabId: 3 });
+      for (let i = 0; i < 15; i++) await Promise.resolve();
+      return { ok: true, tabId: 3 };
+    }
+    return { ok: true };
+  });
+  await practice("pdf", 8);
+  expect(destinationUrl).not.toBe("");
+  expect(completions()).toEqual([]);
+  return { readerTab, destinationUrl };
+}
 async function send(message: Record<string, unknown>, url = page.url) {
   const response = vi.fn();
   tabUrls.set(1, url);
@@ -205,6 +242,7 @@ beforeEach(() => {
   runtime = event();
   updated = event();
   focused = event();
+  activated = event();
   sendToTab = vi.fn().mockResolvedValue({ ok: true });
   stored = { consented: true, locale: "en", targetLocale: "zh-TW" };
   tabUrls = new Map([[1, page.url]]);
@@ -233,7 +271,7 @@ beforeEach(() => {
       getCurrent: vi.fn().mockResolvedValue({ id: 2 }),
       query: vi.fn().mockResolvedValue([{ id: 1, windowId: 1, url: page.url }]),
       sendMessage: sendToTab,
-      onActivated: event(),
+      onActivated: activated,
       onUpdated: updated,
     },
     windows: { onFocusChanged: focused },
@@ -281,6 +319,169 @@ afterEach(async () => {
 });
 
 describe("bubble answer rendering and feedback", () => {
+  it("acknowledges Passive practice after its setting refresh while validation is pending", async () => {
+    await start();
+    let validate!: (tab: chrome.tabs.Tab) => void;
+    vi.mocked(chrome.tabs.get).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          validate = resolve;
+        }),
+    );
+    await practice("passive", 4);
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({ passive: true });
+    expect(completions()).toEqual([]);
+    await act(async () => {
+      validate({ id: 1, windowId: 1, url: sampleUrl } as chrome.tabs.Tab);
+    });
+    await flush();
+    expect(completions()).toEqual([{ tab: 1, step: 4 }]);
+    await act(async () => {
+      activated.emit({ tabId: 1 });
+    });
+    await flush();
+    expect(completions()).toEqual([{ tab: 1, step: 4 }]);
+  });
+  it("defers successful Passive practice through its setting refresh and pending same-source activation", async () => {
+    await start();
+    let validate!: (tab: chrome.tabs.Tab) => void;
+    vi.mocked(chrome.tabs.get).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          validate = resolve;
+        }),
+    );
+    await practice("passive", 4);
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({ passive: true });
+    let settleSource!: (tab: chrome.tabs.Tab) => void;
+    vi.mocked(chrome.tabs.get).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          settleSource = resolve;
+        }),
+    );
+    await act(async () => {
+      activated.emit({ tabId: 1 });
+    });
+    await flush();
+    await act(async () => {
+      validate({ id: 1, windowId: 1, url: sampleUrl } as chrome.tabs.Tab);
+    });
+    await flush();
+    expect(completions()).toEqual([]);
+    await act(async () => {
+      settleSource({ id: 1, windowId: 1, url: sampleUrl } as chrome.tabs.Tab);
+    });
+    await flush();
+    expect(completions()).toEqual([{ tab: 1, step: 4 }]);
+    await act(async () => {
+      activated.emit({ tabId: 1 });
+    });
+    await flush();
+    expect(completions()).toEqual([{ tab: 1, step: 4 }]);
+  });
+  it.each([
+    ["selection", "focus"],
+    ["selection", "activation"],
+    ["suggest", "focus"],
+    ["suggest", "activation"],
+  ] as const)(
+    "completes %s practice when %s re-adopts the same sample while its answer streams",
+    async (action, sourceEvent) => {
+      await start();
+      const step = action === "selection" ? 7 : 3;
+      await practice(action, step);
+      if (action === "selection")
+        await send(
+          {
+            type: "glimpselet:selection",
+            action: "ask",
+            text: "The selected sample passage",
+          },
+          sampleUrl,
+        );
+      let complete!: (result: { answer: string }) => void;
+      mocks.ask.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            complete = resolve;
+          }),
+      );
+      await act(async () => {
+        if (action === "selection")
+          document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+        else button("What is this page? ↗").click();
+      });
+      await flush();
+      vi.mocked(chrome.tabs.query).mockResolvedValueOnce([
+        { id: 1, windowId: 1, url: sampleUrl },
+      ]);
+      await act(async () => {
+        if (sourceEvent === "focus") focused.emit(1);
+        else activated.emit({ tabId: 1 });
+      });
+      await flush();
+      await act(async () =>
+        complete({ answer: "The successful sample answer" }),
+      );
+      await flush();
+      expect(completions()).toEqual([{ tab: 1, step }]);
+    },
+  );
+  it.each(["selection", "suggest"] as const)(
+    "acknowledges successful %s practice after its pending same-source activation resolves",
+    async (action) => {
+      await start();
+      const step = action === "selection" ? 7 : 3;
+      await practice(action, step);
+      if (action === "selection") {
+        await send(
+          {
+            type: "glimpselet:selection",
+            action: "ask",
+            text: "The selected sample passage",
+          },
+          sampleUrl,
+        );
+      }
+      let complete!: (result: { answer: string }) => void;
+      mocks.ask.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            complete = resolve;
+          }),
+      );
+      await act(async () => {
+        if (action === "selection")
+          document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+        else button("What is this page? ↗").click();
+      });
+      await flush();
+      let settleSource!: (tab: chrome.tabs.Tab) => void;
+      vi.mocked(chrome.tabs.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            settleSource = resolve;
+          }),
+      );
+      await act(async () => {
+        activated.emit({ tabId: 1 });
+        complete({ answer: "The successful original sample answer" });
+      });
+      await flush();
+      expect(completions()).toEqual([]);
+      await act(async () => {
+        settleSource({ id: 1, windowId: 1, url: sampleUrl } as chrome.tabs.Tab);
+      });
+      await flush();
+      expect(completions()).toEqual([{ tab: 1, step }]);
+      await act(async () => {
+        activated.emit({ tabId: 1 });
+      });
+      await flush();
+      expect(completions()).toEqual([{ tab: 1, step }]);
+    },
+  );
   it.each(["selection", "suggest"] as const)(
     "completes %s practice after switching to another app while its answer streams",
     async (action) => {
@@ -313,6 +514,87 @@ describe("bubble answer rendering and feedback", () => {
       await act(async () => {
         focused.emit(-1);
         complete({ answer: "The successful sample answer" });
+      });
+      await flush();
+      expect(completions()).toEqual([{ tab: 1, step }]);
+    },
+  );
+  it.each([
+    ["selection", "answer"],
+    ["selection", "validation"],
+    ["suggest", "answer"],
+    ["suggest", "validation"],
+  ] as const)(
+    "completes %s practice when a delayed same-document sample revision arrives during %s",
+    async (action, pendingStage) => {
+      await start();
+      const step = action === "selection" ? 7 : 3;
+      await practice(action, step);
+      if (action === "selection")
+        await send(
+          {
+            type: "glimpselet:selection",
+            action: "ask",
+            text: "The selected sample passage",
+          },
+          sampleUrl,
+        );
+      let answer!: (result: { answer: string }) => void;
+      mocks.ask.mockClear().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+      await act(async () => {
+        if (action === "selection")
+          document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+        else button("What is this page? ↗").click();
+      });
+      await flush();
+      expect(mocks.ask).toHaveBeenCalledTimes(1);
+      let validate!: (tab: chrome.tabs.Tab) => void;
+      if (pendingStage === "validation") {
+        vi.mocked(chrome.tabs.get).mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              validate = resolve;
+            }),
+        );
+        await act(async () =>
+          answer({ answer: "The successful sample answer" }),
+        );
+        await flush();
+        expect(validate).toBeTypeOf("function");
+      }
+      expect(completions()).toEqual([]);
+      await send(
+        {
+          type: "glimpselet:page-changed",
+          revision: `sample-${action}-practice-controls-rendered`,
+        },
+        sampleUrl,
+      );
+      await act(async () => {
+        if (pendingStage === "answer")
+          answer({ answer: "The successful sample answer" });
+        else
+          validate({ id: 1, windowId: 1, url: sampleUrl } as chrome.tabs.Tab);
+      });
+      await flush();
+      expect(
+        document.querySelector(".message .markdown")?.textContent?.trim(),
+      ).toBe("The successful sample answer");
+      expect(completions()).toEqual([{ tab: 1, step }]);
+      await send(
+        {
+          type: "glimpselet:page-changed",
+          revision: `sample-${action}-practice-controls-rendered`,
+        },
+        sampleUrl,
+      );
+      await act(async () => {
+        activated.emit({ tabId: 1 });
       });
       await flush();
       expect(completions()).toEqual([{ tab: 1, step }]);
@@ -408,6 +690,7 @@ describe("bubble answer rendering and feedback", () => {
       adoptSource([{ id: 3, windowId: 3, url: page.url } as chrome.tabs.Tab]),
     );
     await flush();
+    expect(completions()).toEqual([]);
   });
   it.each([false, true])(
     "acknowledges Float practice once when the native bubble is already open: %s",
@@ -467,6 +750,7 @@ describe("bubble answer rendering and feedback", () => {
               { tab: { id: 3, url } },
               vi.fn(),
             );
+            return { ok: true, tabId: 3 };
           }
           return { ok: true };
         },
@@ -479,6 +763,489 @@ describe("bubble answer rendering and feedback", () => {
       });
     },
   );
+  it.each(["matching", "mismatched", "failed"] as const)(
+    "acknowledges PDF practice once after a %s pending reader navigation commits",
+    async (navigation) => {
+      await start();
+      let destinationUrl = "";
+      let readerTab: chrome.tabs.Tab = {
+        id: 3,
+        windowId: 1,
+        url: "about:blank",
+      } as chrome.tabs.Tab;
+      vi.mocked(chrome.tabs.get).mockImplementation(async (id) =>
+        id === 3
+          ? { ...readerTab }
+          : ({
+              id,
+              windowId: 1,
+              url: tabUrls.get(id) || page.url,
+            } as chrome.tabs.Tab),
+      );
+      vi.mocked(chrome.runtime.sendMessage).mockImplementation(
+        async (message) => {
+          if (message.type === "glimpselet:open-reader") {
+            const destination = new URL(chrome.runtime.getURL("reader.html"));
+            destination.searchParams.set("url", message.url);
+            destinationUrl = destination.toString();
+            readerTab.pendingUrl = destinationUrl;
+            tabUrls.set(3, readerTab.url!);
+            activated.emit({ tabId: 3 });
+            for (let i = 0; i < 15; i++) await Promise.resolve();
+            return { ok: true, tabId: 3 };
+          }
+          return { ok: true };
+        },
+      );
+      await practice("pdf", 8);
+      expect(destinationUrl).not.toBe("");
+      expect(completions()).toEqual([]);
+      const differentReader = new URL(chrome.runtime.getURL("reader.html"));
+      differentReader.searchParams.set("url", "https://example.com/other.pdf");
+      readerTab = {
+        ...readerTab,
+        pendingUrl: undefined,
+        url:
+          navigation === "matching"
+            ? destinationUrl
+            : navigation === "mismatched"
+              ? differentReader.toString()
+              : "chrome-error://chromewebdata/",
+      };
+      tabUrls.set(3, readerTab.url!);
+      await act(async () => {
+        updated.emit(3, { url: readerTab.url, status: "complete" }, readerTab);
+      });
+      await flush();
+      await refresh();
+      expect(completions()).toEqual(
+        navigation === "matching" ? [{ tab: 1, step: 8 }] : [],
+      );
+      await act(async () => {
+        updated.emit(3, { url: readerTab.url, status: "complete" }, readerTab);
+      });
+      await flush();
+      await refresh();
+      expect(completions()).toEqual(
+        navigation === "matching" ? [{ tab: 1, step: 8 }] : [],
+      );
+      if (navigation !== "matching") {
+        await act(async () => {
+          runtime.emit(
+            { type: "glimpselet:focus", sourceTab: 1 },
+            { tab: { id: 1, url: sampleUrl } },
+            vi.fn(),
+          );
+        });
+        await flush();
+        expect(completions()).toEqual([]);
+      }
+    },
+  );
+  it.each(["sample", "reader"] as const)(
+    "completes PDF practice when its %s source changes to the matching handoff during validation",
+    async (initialSource) => {
+      await start();
+      let opened = false;
+      let held = false;
+      let destinationUrl = "";
+      let finishValidation!: (tab: chrome.tabs.Tab) => void;
+      vi.mocked(chrome.tabs.get).mockImplementation((id) => {
+        if (opened && !held && id === (initialSource === "sample" ? 1 : 3)) {
+          held = true;
+          return new Promise((resolve) => {
+            finishValidation = resolve;
+          });
+        }
+        return Promise.resolve({
+          id,
+          windowId: 1,
+          url: tabUrls.get(id) || page.url,
+        } as chrome.tabs.Tab);
+      });
+      vi.mocked(chrome.runtime.sendMessage).mockImplementation(
+        async (message) => {
+          if (message.type === "glimpselet:open-reader") {
+            const destination = new URL(chrome.runtime.getURL("reader.html"));
+            destination.searchParams.set("url", message.url);
+            destinationUrl = destination.toString();
+            tabUrls.set(3, destinationUrl);
+            opened = true;
+            if (initialSource === "reader") {
+              runtime.emit(
+                { type: "glimpselet:focus", sourceTab: 3 },
+                { tab: { id: 3, url: destinationUrl } },
+                vi.fn(),
+              );
+            }
+            return { ok: true, tabId: 3 };
+          }
+          return { ok: true };
+        },
+      );
+      await practice("pdf", 8);
+      expect(held).toBe(true);
+      expect(completions()).toEqual([]);
+      await act(async () => {
+        const sourceTab = initialSource === "sample" ? 3 : 1;
+        runtime.emit(
+          { type: "glimpselet:focus", sourceTab },
+          { tab: { id: sourceTab, url: tabUrls.get(sourceTab) } },
+          vi.fn(),
+        );
+        finishValidation({
+          id: initialSource === "sample" ? 1 : 3,
+          windowId: 1,
+          url: initialSource === "sample" ? sampleUrl : destinationUrl,
+        } as chrome.tabs.Tab);
+      });
+      await flush();
+      expect(completions()).toEqual([{ tab: 1, step: 8 }]);
+      await refresh();
+      expect(completions()).toEqual([{ tab: 1, step: 8 }]);
+    },
+  );
+  it("keeps PDF practice pending after returning to the sample before the reader commits", async () => {
+    const { readerTab, destinationUrl } = await pendingPdfPractice();
+    await act(async () => {
+      runtime.emit(
+        { type: "glimpselet:focus", sourceTab: 1 },
+        { tab: { id: 1, url: sampleUrl } },
+        vi.fn(),
+      );
+    });
+    await flush();
+    expect(completions()).toEqual([]);
+    readerTab.url = destinationUrl;
+    readerTab.pendingUrl = undefined;
+    tabUrls.set(3, destinationUrl);
+    await act(async () => {
+      updated.emit(3, { url: destinationUrl, status: "complete" }, readerTab);
+    });
+    await flush();
+    expect(completions()).toEqual([{ tab: 1, step: 8 }]);
+    await act(async () => {
+      updated.emit(3, { status: "complete" }, readerTab);
+    });
+    await flush();
+    expect(completions()).toEqual([{ tab: 1, step: 8 }]);
+  });
+  it.each(["sample", "reader"] as const)(
+    "acknowledges committed PDF practice once after an older panel lookup settles behind its newer %s source",
+    async (newerSource) => {
+      const { readerTab, destinationUrl } = await pendingPdfPractice();
+      readerTab.url = destinationUrl;
+      readerTab.pendingUrl = undefined;
+      tabUrls.set(3, destinationUrl);
+      const getTab = vi.mocked(chrome.tabs.get).getMockImplementation()!;
+      let resolveOlder!: (tab: chrome.tabs.Tab) => void;
+      let resolveNewer!: (tab: chrome.tabs.Tab) => void;
+      let olderHeld = false;
+      let newerHeld = false;
+      const newerId = newerSource === "sample" ? 1 : 3;
+      vi.mocked(chrome.tabs.get).mockImplementation((id) => {
+        if (id === 2 && !olderHeld) {
+          olderHeld = true;
+          return new Promise((resolve) => {
+            resolveOlder = resolve;
+          });
+        }
+        if (id === newerId && !newerHeld) {
+          newerHeld = true;
+          return new Promise((resolve) => {
+            resolveNewer = resolve;
+          });
+        }
+        return getTab(id);
+      });
+      await act(async () => {
+        activated.emit({ tabId: 2 });
+        activated.emit({ tabId: newerId });
+        updated.emit(3, { url: destinationUrl, status: "complete" }, readerTab);
+      });
+      await flush();
+      expect(completions()).toEqual([]);
+      await act(async () => {
+        resolveNewer({
+          id: newerId,
+          windowId: 1,
+          url: newerSource === "sample" ? sampleUrl : destinationUrl,
+        } as chrome.tabs.Tab);
+      });
+      await flush();
+      expect(completions()).toEqual([]);
+      await act(async () => {
+        resolveOlder({
+          id: 2,
+          windowId: 2,
+          url: chrome.runtime.getURL("panel.html"),
+        } as chrome.tabs.Tab);
+      });
+      await flush();
+      expect(completions()).toEqual([{ tab: 1, step: 8 }]);
+      await act(async () => {
+        updated.emit(3, { status: "complete" }, readerTab);
+      });
+      await flush();
+      expect(completions()).toEqual([{ tab: 1, step: 8 }]);
+    },
+  );
+  it.each(["reader", "sample-url", "sample-reload"] as const)(
+    "does not acknowledge PDF practice when %s navigation starts during reader validation",
+    async (navigation) => {
+      const { readerTab, destinationUrl } = await pendingPdfPractice();
+      let finishValidation!: (tab: chrome.tabs.Tab) => void;
+      const getTab = vi.mocked(chrome.tabs.get).getMockImplementation()!;
+      let held = false;
+      vi.mocked(chrome.tabs.get).mockImplementation((id) => {
+        if (id === 3 && !held) {
+          held = true;
+          return new Promise((resolve) => {
+            finishValidation = resolve;
+          });
+        }
+        return getTab(id);
+      });
+      readerTab.url = destinationUrl;
+      readerTab.pendingUrl = undefined;
+      tabUrls.set(3, destinationUrl);
+      await act(async () => {
+        updated.emit(3, { url: destinationUrl, status: "complete" }, readerTab);
+      });
+      await flush();
+      expect(finishValidation).toBeTypeOf("function");
+      await act(async () => {
+        if (navigation === "reader") {
+          readerTab.pendingUrl = "https://example.com/different-document";
+          updated.emit(3, { status: "loading" }, readerTab);
+        } else {
+          const url = navigation === "sample-url" ? page.url : sampleUrl;
+          tabUrls.set(1, url);
+          updated.emit(
+            1,
+            navigation === "sample-url"
+              ? { url, status: "loading" }
+              : { status: "loading" },
+            { id: 1, windowId: 1, url },
+          );
+        }
+        finishValidation({
+          id: 3,
+          windowId: 1,
+          url: destinationUrl,
+        } as chrome.tabs.Tab);
+      });
+      await flush();
+      expect(completions()).toEqual([]);
+      await act(async () => {
+        runtime.emit(
+          { type: "glimpselet:focus", sourceTab: 1 },
+          { tab: { id: 1, url: tabUrls.get(1) } },
+          vi.fn(),
+        );
+      });
+      await flush();
+      expect(completions()).toEqual([]);
+    },
+  );
+  it("does not complete reloaded sample practice when its delayed reader-open response arrives", async () => {
+    await start();
+    let finishOpen!: (result: { ok: true; tabId: number }) => void;
+    let destinationUrl = "";
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((message) => {
+      if (message.type === "glimpselet:open-reader") {
+        const destination = new URL(chrome.runtime.getURL("reader.html"));
+        destination.searchParams.set("url", message.url);
+        destinationUrl = destination.toString();
+        tabUrls.set(3, destinationUrl);
+        return new Promise((resolve) => {
+          finishOpen = resolve;
+        });
+      }
+      return Promise.resolve({ ok: true });
+    });
+    await practice("pdf", 8);
+    expect(finishOpen).toBeTypeOf("function");
+    expect(completions()).toEqual([]);
+    await act(async () => {
+      updated.emit(
+        1,
+        { status: "loading" },
+        { id: 1, windowId: 1, url: sampleUrl },
+      );
+      finishOpen({ ok: true, tabId: 3 });
+    });
+    await flush();
+    expect(completions()).toEqual([]);
+    await act(async () => {
+      updated.emit(
+        3,
+        { url: destinationUrl, status: "complete" },
+        { id: 3, windowId: 1, url: destinationUrl },
+      );
+    });
+    await flush();
+    expect(completions()).toEqual([]);
+  });
+  it("does not acknowledge PDF practice from a stale reader validation after its navigation fails", async () => {
+    const { readerTab, destinationUrl } = await pendingPdfPractice();
+    let finishValidation!: (tab: chrome.tabs.Tab) => void;
+    const getTab = vi.mocked(chrome.tabs.get).getMockImplementation()!;
+    vi.mocked(chrome.tabs.get).mockImplementation((id) =>
+      id === 3
+        ? new Promise((resolve) => {
+            finishValidation = resolve;
+          })
+        : getTab(id),
+    );
+    readerTab.url = destinationUrl;
+    readerTab.pendingUrl = undefined;
+    tabUrls.set(3, destinationUrl);
+    await act(async () => {
+      updated.emit(3, { url: destinationUrl, status: "complete" }, readerTab);
+    });
+    await flush();
+    expect(finishValidation).toBeTypeOf("function");
+    readerTab.url = "chrome-error://chromewebdata/";
+    tabUrls.set(3, readerTab.url);
+    await act(async () => {
+      updated.emit(3, { url: readerTab.url, status: "complete" }, readerTab);
+      finishValidation({
+        id: 3,
+        windowId: 1,
+        url: destinationUrl,
+      } as chrome.tabs.Tab);
+    });
+    await flush();
+    expect(completions()).toEqual([]);
+    await act(async () => {
+      runtime.emit(
+        { type: "glimpselet:focus", sourceTab: 1 },
+        { tab: { id: 1, url: sampleUrl } },
+        vi.fn(),
+      );
+    });
+    await flush();
+    expect(completions()).toEqual([]);
+  });
+  it("does not bind an unrelated same-PDF tab update to the pending reader handoff", async () => {
+    const { readerTab, destinationUrl } = await pendingPdfPractice();
+    let finishValidation!: (tab: chrome.tabs.Tab) => void;
+    const getTab = vi.mocked(chrome.tabs.get).getMockImplementation()!;
+    vi.mocked(chrome.tabs.get).mockImplementationOnce(
+      (id) =>
+        new Promise((resolve) => {
+          expect(id).toBe(1);
+          finishValidation = resolve;
+        }),
+    );
+    tabUrls.set(4, destinationUrl);
+    await act(async () => {
+      updated.emit(
+        4,
+        { url: destinationUrl, status: "complete" },
+        { id: 4, windowId: 1, url: destinationUrl },
+      );
+    });
+    await flush();
+    readerTab.url = "chrome-error://chromewebdata/";
+    readerTab.pendingUrl = undefined;
+    tabUrls.set(3, readerTab.url);
+    await act(async () => {
+      updated.emit(3, { url: readerTab.url, status: "complete" }, readerTab);
+      runtime.emit(
+        { type: "glimpselet:focus", sourceTab: 1 },
+        { tab: { id: 1, url: sampleUrl } },
+        vi.fn(),
+      );
+      if (finishValidation)
+        finishValidation({
+          id: 1,
+          windowId: 1,
+          url: sampleUrl,
+        } as chrome.tabs.Tab);
+    });
+    await flush();
+    expect(completions()).toEqual([]);
+    vi.mocked(chrome.tabs.get).mockImplementation(getTab);
+    await refresh();
+    expect(completions()).toEqual([]);
+  });
+  it.each(["selection", "suggest"] as const)(
+    "does not complete %s practice after a same-URL reload starts while its answer streams",
+    async (action) => {
+      await start();
+      await practice(action, action === "selection" ? 7 : 3);
+      if (action === "selection") {
+        await send(
+          {
+            type: "glimpselet:selection",
+            action: "ask",
+            text: "A passage selected before reloading",
+          },
+          sampleUrl,
+        );
+      }
+      let complete!: (result: { answer: string }) => void;
+      mocks.ask.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            complete = resolve;
+          }),
+      );
+      await act(async () => {
+        if (action === "selection")
+          document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+        else button("What is this page? ↗").click();
+      });
+      await flush();
+      await act(async () => {
+        updated.emit(
+          1,
+          { status: "loading" },
+          { id: 1, windowId: 1, url: sampleUrl },
+        );
+        complete({ answer: "The answer for the previous document" });
+      });
+      await flush();
+      expect(completions()).toEqual([]);
+    },
+  );
+  it("returns the exact created reader tab in the successful service-worker handoff", async () => {
+    const pdfUrl = new URL(
+      "glimpselet-welcome-sample.pdf",
+      sampleUrl,
+    ).toString();
+    const destination = new URL(chrome.runtime.getURL("reader.html"));
+    destination.searchParams.set("url", pdfUrl);
+    const create = vi.fn().mockResolvedValue({
+      id: 3,
+      windowId: 1,
+      url: "about:blank",
+      pendingUrl: destination.toString(),
+    });
+    vi.stubGlobal("chrome", {
+      ...chrome,
+      action: { onClicked: event() },
+      commands: { onCommand: event() },
+      runtime: { ...chrome.runtime, onInstalled: event() },
+      tabs: { ...chrome.tabs, create },
+    });
+    await import("./background");
+    const response = vi.fn();
+    expect(
+      runtime.emit(
+        { type: "glimpselet:open-reader", url: pdfUrl },
+        { tab: { id: 1, url: sampleUrl } },
+        response,
+      ),
+    ).toEqual([true]);
+    await flush();
+    expect(create).toHaveBeenCalledExactlyOnceWith({
+      url: destination.toString(),
+    });
+    expect(response).toHaveBeenCalledExactlyOnceWith({ ok: true, tabId: 3 });
+  });
   it("does not complete cancelled selection practice and acknowledges a successful retry once", async () => {
     await start();
     await practice("selection", 7);
@@ -524,6 +1291,82 @@ describe("bubble answer rendering and feedback", () => {
     await submitDraft("An ordinary follow-up after practice");
     expect(completions()).toEqual([{ tab: 1, step: 7 }]);
   });
+  it.each(["selection", "suggest"] as const)(
+    "does not acknowledge cancelled %s practice while successful-answer validation is pending",
+    async (action) => {
+      await start();
+      const step = action === "selection" ? 7 : 3;
+      await practice(action, step);
+      if (action === "selection")
+        await send(
+          {
+            type: "glimpselet:selection",
+            action: "ask",
+            text: "The passage selected before stopping",
+          },
+          sampleUrl,
+        );
+      let answer!: (result: { answer: string }) => void;
+      mocks.ask.mockClear().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+      await act(async () => {
+        if (action === "selection")
+          document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+        else button("What is this page? ↗").click();
+      });
+      await flush();
+      expect(mocks.ask).toHaveBeenCalledTimes(1);
+      let validate!: (tab: chrome.tabs.Tab) => void;
+      vi.mocked(chrome.tabs.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            validate = resolve;
+          }),
+      );
+      await act(async () => answer({ answer: "The successful sample answer" }));
+      await flush();
+      expect(validate).toBeTypeOf("function");
+      expect(completions()).toEqual([]);
+      expect(
+        document.querySelector(".message .markdown")?.textContent?.trim(),
+      ).toBe("The successful sample answer");
+      await clickAccessible(en.stop);
+      expect(status()).toBe(en.stopped);
+      await act(async () => {
+        validate({ id: 1, windowId: 1, url: sampleUrl } as chrome.tabs.Tab);
+      });
+      await flush();
+      expect(completions()).toEqual([]);
+      expect(
+        button(
+          action === "selection" ? en.selectionPractice : en.suggestionPractice,
+        ).disabled,
+      ).toBe(false);
+      mocks.ask.mockResolvedValue({ answer: "Successful retry" });
+      if (action === "selection") {
+        await send(
+          {
+            type: "glimpselet:selection",
+            action: "ask",
+            text: "The selected retry passage",
+          },
+          sampleUrl,
+        );
+        await act(async () => {
+          document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+        });
+        await flush();
+      } else await clickSuggestion("What is this page?");
+      expect(mocks.ask).toHaveBeenCalledTimes(2);
+      expect(completions()).toEqual([{ tab: 1, step }]);
+      await submitDraft("An ordinary follow-up after practice");
+      expect(completions()).toEqual([{ tab: 1, step }]);
+    },
+  );
   it("does not let an earlier selection reply complete replacement suggestion practice", async () => {
     await start();
     await practice("selection", 7);

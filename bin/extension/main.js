@@ -19300,7 +19300,11 @@ function App() {
   const [tutorial, updateTutorial] = (0, import_react.useState)(null);
   const tutorialRef = (0, import_react.useRef)(null);
   const acknowledgingTutorial = (0, import_react.useRef)(null);
+  const pendingTutorialCompletion = (0, import_react.useRef)(null);
+  const pendingPdfTutorial = (0, import_react.useRef)(null);
   const setTutorial = (0, import_react.useCallback)((value) => {
+    pendingTutorialCompletion.current = null;
+    pendingPdfTutorial.current = null;
     tutorialRef.current = value;
     updateTutorial(value);
   }, []);
@@ -19487,17 +19491,23 @@ function App() {
       sourceResolving.current = pendingSources.size > 0;
       if (!sourceResolving.current && pendingPageRefresh.current)
         schedulePageRefresh();
-      if (epoch < adoptedEpoch) return;
-      if (tab?.id && !ownSource) {
-        adoptedEpoch = epoch;
-        activeTabId.current = tab.id;
-        rememberSourceTab(tab.id);
-        schedulePageRefresh(true);
-      } else if (failed) {
-        adoptedEpoch = epoch;
-        activeTabId.current = void 0;
-        rememberSourceTab(void 0);
-        schedulePageRefresh(true);
+      if (epoch >= adoptedEpoch) {
+        if (tab?.id && !ownSource) {
+          adoptedEpoch = epoch;
+          const changedSource = activeTabId.current !== tab.id;
+          activeTabId.current = tab.id;
+          rememberSourceTab(tab.id);
+          schedulePageRefresh(changedSource);
+        } else if (failed) {
+          adoptedEpoch = epoch;
+          activeTabId.current = void 0;
+          rememberSourceTab(void 0);
+          schedulePageRefresh(true);
+        }
+      }
+      if (!sourceResolving.current) {
+        resumeTutorialCompletion();
+        resumePdfTutorial();
       }
     };
     const activated = (info) => {
@@ -19520,7 +19530,12 @@ function App() {
       }).catch(() => adoptSource(epoch, void 0, true));
     };
     const changed = (tabId, change, tab) => {
-      if (tabId === activeTabId.current && (change.url || change.status === "complete") && !isOwnExtensionUrl(tab.url))
+      const practice = tutorialRef.current;
+      if (practice?.tabId === tabId && (change.url || change.status === "loading"))
+        setTutorial(null);
+      if (change.url || change.status)
+        resumePdfTutorial(tab, change.status === "complete");
+      if (tabId === activeTabId.current && (change.url || change.status === "loading" || change.status === "complete") && !isOwnExtensionUrl(tab.url))
         schedulePageRefresh(true);
     };
     const source = Number(
@@ -19639,6 +19654,7 @@ function App() {
           activeTabId.current = value.sourceTab;
           rememberSourceTab(value.sourceTab);
           schedulePageRefresh();
+          resumePdfTutorial();
         }
         (pipDoc?.defaultView || window).focus();
         respond({ ok: true });
@@ -20106,17 +20122,59 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     const practice = tutorialRef.current;
     return practice?.action === "selection" && practice.tabId === tabId ? practice : void 0;
   }
-  async function completeTutorial(practice, destinationUrl) {
-    if (tutorialRef.current !== practice || activeTabId.current !== practice.tabId && !destinationUrl || acknowledgingTutorial.current === practice)
+  function resumeTutorialCompletion() {
+    const pending = pendingTutorialCompletion.current;
+    if (!pending || sourceResolving.current) return;
+    pendingTutorialCompletion.current = null;
+    if (tutorialRef.current === pending.practice && activeTabId.current === pending.tabId)
+      void completeTutorial(pending.practice, void 0, pending.requestId);
+  }
+  function resumePdfTutorial(tab, navigationComplete = false) {
+    const pending = pendingPdfTutorial.current;
+    if (!pending || tutorialRef.current !== pending.practice) return;
+    if (tab && tab.id !== pending.readerTabId) return;
+    if (tab && (tab.pendingUrl && tab.pendingUrl !== pending.destinationUrl || navigationComplete && tab.url !== pending.destinationUrl && tab.pendingUrl !== pending.destinationUrl)) {
+      pendingPdfTutorial.current = null;
       return;
+    }
+    void completeTutorial(pending.practice, pending.destinationUrl);
+  }
+  async function completeTutorial(practice, destinationUrl, requestId) {
+    const pending = destinationUrl ? pendingPdfTutorial.current : null;
+    if (tutorialRef.current !== practice || destinationUrl && (!pending || pending.practice !== practice || pending.destinationUrl !== destinationUrl) || activeTabId.current !== practice.tabId && (!pending || activeTabId.current !== pending.readerTabId))
+      return;
+    if (acknowledgingTutorial.current === practice) {
+      const pending2 = pendingPdfTutorial.current;
+      if (pending2?.practice === practice) pending2.retry = true;
+      return;
+    }
     acknowledgingTutorial.current = practice;
     try {
       const tab = await chrome.tabs.get(practice.tabId);
-      const completionTabId = activeTabId.current;
-      if (completionTabId === void 0) return;
-      if (completionTabId !== practice.tabId && (!destinationUrl || (await chrome.tabs.get(completionTabId)).url !== destinationUrl))
+      if (pending) {
+        const reader = await chrome.tabs.get(pending.readerTabId);
+        if (reader.pendingUrl && reader.pendingUrl !== destinationUrl) {
+          if (pendingPdfTutorial.current === pending)
+            pendingPdfTutorial.current = null;
+          return;
+        }
+        if (reader.url !== destinationUrl) {
+          const navigating = reader.pendingUrl === destinationUrl || !reader.pendingUrl && (!reader.url || reader.url === "about:blank");
+          if (!navigating && pendingPdfTutorial.current === pending)
+            pendingPdfTutorial.current = null;
+          return;
+        }
+      }
+      if (requestId && cancelledRequests.current.has(requestId)) return;
+      if (!pending && sourceResolving.current) {
+        pendingTutorialCompletion.current = {
+          practice,
+          tabId: practice.tabId,
+          requestId
+        };
         return;
-      if (tab.url !== practice.url || tutorialRef.current !== practice || activeTabId.current !== completionTabId)
+      }
+      if (tab.url !== practice.url || tutorialRef.current !== practice || sourceResolving.current || (pending ? pendingPdfTutorial.current !== pending || activeTabId.current !== practice.tabId && activeTabId.current !== pending.readerTabId : activeTabId.current !== practice.tabId))
         return;
       await chrome.tabs.sendMessage(practice.tabId, {
         type: "glimpselet:tutorial-done",
@@ -20127,6 +20185,11 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     } finally {
       if (acknowledgingTutorial.current === practice)
         acknowledgingTutorial.current = null;
+      const pending2 = pendingPdfTutorial.current;
+      if (pending2?.practice === practice && pending2.retry) {
+        pending2.retry = false;
+        void completeTutorial(practice, pending2.destinationUrl);
+      }
     }
   }
   function schedulePageRefresh(invalidate = false) {
@@ -20456,9 +20519,17 @@ ${t.selectedPassage}: ${selected}` : ""}`;
           type: "glimpselet:open-reader",
           url
         });
-        if (!result?.ok) throw new Error("reader_open_failed");
+        if (!result?.ok || !Number.isInteger(result.tabId) || result.tabId < 0)
+          throw new Error("reader_open_failed");
         const destination = new URL(chrome.runtime.getURL("reader.html"));
         destination.searchParams.set("url", url);
+        if (tutorialRef.current !== practice) return;
+        pendingPdfTutorial.current = {
+          practice,
+          destinationUrl: destination.toString(),
+          readerTabId: result.tabId,
+          retry: false
+        };
         await completeTutorial(practice, destination.toString());
         return;
       }
@@ -20741,8 +20812,15 @@ ${step.action}` : ""}`
           )
         );
       if (kind !== "suggest") setStatus(t.answerReady);
-      if (options.tutorialCompletion && !sourceResolving.current && sourceTabId === activeTabId.current && sourceVersion === pageVersion.current)
-        await completeTutorial(options.tutorialCompletion);
+      if (options.tutorialCompletion && sourceTabId !== void 0 && sourceTabId === activeTabId.current) {
+        if (sourceResolving.current)
+          pendingTutorialCompletion.current = {
+            practice: options.tutorialCompletion,
+            tabId: sourceTabId,
+            requestId: id
+          };
+        else await completeTutorial(options.tutorialCompletion, void 0, id);
+      }
       return true;
     } catch (error) {
       if (!cancelledRequests.current.has(id) && !options.silent)
@@ -20819,6 +20897,8 @@ ${step.action}` : ""}`
     if (translating) translating.abort();
     else {
       cancelledRequests.current.add(activeId);
+      if (pendingTutorialCompletion.current?.requestId === activeId)
+        pendingTutorialCompletion.current = null;
       requestRef.current?.abort();
       setEntries(
         (old) => old.map(
