@@ -68488,11 +68488,17 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
           "launch-browser.mjs"
         );
         await (0, import_promises16.stat)(launcher);
+        const trialCode = this.extension.issueCode();
+        const trialUrl = new URL("/install", this.origin);
+        const locale = params.get("locale");
+        if (locale === "en" || locale === "zh-TW")
+          trialUrl.searchParams.set("locale", locale);
+        trialUrl.hash = `code=${trialCode}`;
         const child = (0, import_node_child_process4.spawn)(process.execPath, [launcher], {
           env: {
             ...process.env,
             GLIMPSELET_EXTENSION_DIR: extensionFolder(),
-            GLIMPSELET_TRIAL_URL: `${this.origin}/install#code=${code}`
+            GLIMPSELET_TRIAL_URL: trialUrl.toString()
           },
           stdio: ["ignore", "ignore", "pipe"]
         });

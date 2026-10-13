@@ -309,9 +309,31 @@ child.on('exit', code => process.exit(code ?? 1));
         driver = undefined;
         context = browser.contexts()[0];
         await expect
-          .poll(() => context.pages().some((page) => page.url() === url))
+          .poll(() =>
+            context.pages().some((page) => {
+              const target = new URL(page.url());
+              return (
+                target.origin === new URL(url).origin &&
+                target.pathname === "/install"
+              );
+            }),
+          )
           .toBe(true);
-        guide = context.pages().find((page) => page.url() === url)!;
+        guide = context.pages().find((page) => {
+          const target = new URL(page.url());
+          return (
+            target.origin === new URL(url).origin &&
+            target.pathname === "/install"
+          );
+        })!;
+        const trialCode = new URLSearchParams(
+          new URL(guide.url()).hash.slice(1),
+        ).get("code");
+        const sourceCode = new URLSearchParams(new URL(url).hash.slice(1)).get(
+          "code",
+        );
+        expect(trialCode).toMatch(/^[A-F0-9]{16}$/);
+        expect(trialCode).not.toBe(sourceCode);
       }
       await expect(guide.locator("#connect")).toBeVisible();
       const ownerOpened = context.waitForEvent("page");
