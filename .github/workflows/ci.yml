@@ -39,6 +39,8 @@ jobs:
       - run: npm run test:screen
       - run: npm run test:launcher
       - run: npm run demo
+      - name: Build recording bridge modules
+        run: npm run build --workspace bridge
       - name: Verify browser demo recording
         run: |
           recording_assets=$(mktemp -d)

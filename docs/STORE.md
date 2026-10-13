@@ -34,7 +34,15 @@ Use [`STORE-LISTING.md`](STORE-LISTING.md) for listing text and reviewer instruc
 | `assets/store/promo.png`        | 440×280    | Small promotional tile using the browser recording.          |
 | `extension/icons/blink-128.png` | 128×128    | Store icon, also included in the extension ZIP.              |
 
-All five listing images are RGB PNGs. Example responses and suggested questions use the local provider fixture. Guide annotations in the recording are deterministic example steps applied through the real content script. These assets show the real browser interface, not a claim of live model testing. The browser recording script can refresh them with `GLIMPSELET_RECORD_PUBLIC=1 npm run record-demo`; it requires Chromium, Xvfb, xfwm4 and ffmpeg. Edge can reuse the images, but still needs a browser-specific smoke test before submission.
+All five listing images are RGB PNGs. Example responses and suggested questions use the local provider fixture. Guide annotations in the recording are deterministic example steps applied through the real content script. These assets show the real browser interface, not a claim of live model testing. To refresh the public-site recordings after `npm ci`, run:
+
+```sh
+npm run build:plugin
+npm run build --workspace bridge
+GLIMPSELET_RECORD_PUBLIC=1 npm run record-demo
+```
+
+The recorder requires Chromium, Xvfb, xfwm4 and ffmpeg. Edge can reuse the images, but still needs a browser-specific smoke test before submission.
 
 The sizes follow the official [Chrome image guidance](https://developer.chrome.com/docs/webstore/images) and [Edge publishing guide](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension). Chrome accepts up to five screenshots. Edge accepts up to six. The supplied four screenshots fit both.
 
