@@ -19,19 +19,42 @@
     selection: "Select a sentence and choose Explain, Translate, or Ask.",
     pdf: "Open the sample PDF in the Glimpselet reader.",
   };
+  let readyRequestId;
+  const delivered = new Set();
   window.addEventListener("message", (event) => {
     if (event.source !== window.opener || event.origin !== location.origin)
       return;
     const request = event.data;
     if (
+      request?.version !== 1 ||
+      typeof request.requestId !== "string" ||
+      !request.requestId
+    )
+      return;
+    if (request.type === "glimpselet:tutorial:probe") {
+      readyRequestId = request.requestId;
+      window.opener.postMessage(
+        {
+          type: "glimpselet:tutorial:loaded",
+          version: 1,
+          requestId: readyRequestId,
+        },
+        location.origin,
+      );
+      return;
+    }
+    if (
       request?.type !== "glimpselet:tutorial-action" ||
-      request.version !== 1 ||
+      request.requestId !== readyRequestId ||
+      delivered.has(request.requestId) ||
       !allowed.has(request.action) ||
       !Number.isInteger(request.step) ||
       request.step < 1 ||
-      request.step > 8
+      request.step > 8 ||
+      [...allowed][request.step - 1] !== request.action
     )
       return;
+    delivered.add(request.requestId);
     const banner = document.querySelector("#tour-request");
     banner.innerHTML = "<strong>Tour step " + request.step + ":</strong> ";
     banner.append(document.createTextNode(labels[request.action]));
@@ -52,6 +75,7 @@
         {
           type: "glimpselet:tutorial:ready",
           version: 1,
+          requestId: request.requestId,
           action: request.action,
           step: request.step,
         },

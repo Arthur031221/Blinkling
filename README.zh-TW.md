@@ -21,13 +21,27 @@ Glimpselet 預設建立專用對話。你也可以選擇最近的 Claude Code �
    /plugin install glimpselet@glimpselet
    ```
 
-2. 執行 `/glimpselet:glimpse`。
+2. 在終端機確認 `claude plugin list` 顯示 Glimpselet **2.0.0**，再於 Claude Code 執行 `/glimpselet:glimpse`。
 
 3. 依照歡迎指南連接瀏覽器。在本機桌面上，可選擇 **Try without installing**，也可以在自己的瀏覽器載入並配對擴充功能。如果 Claude Code 在遠端主機執行，請在有瀏覽器的電腦執行指南提供的 SSH 指令，並在該電腦下載 ZIP、於瀏覽器載入擴充功能。遠端主機無法使用免安裝瀏覽器。配對成功後，Glimpselet 面板會顯示連線模式與專案。
 
 ### 進階：從原始碼載入
 
 在自己的桌面瀏覽器中，擴充功能會放在固定資料夾 `~/.glimpselet/extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
+
+## 從 v1 升級
+
+若已安裝 Glimpselet，請在終端機重新整理市集並更新外掛：
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+重新啟動 Claude Code，或在目前工作階段執行 `/reload-plugins`。確認 `claude plugin list` 顯示 Glimpselet **2.0.0**，再執行 `/glimpselet:glimpse`，應會開啟歡迎與配對指南。若仍顯示 1.x，市集來源可能尚未發布 v2；重複安裝不會更新快取中的外掛。
+
+使用未封裝擴充功能時，指南會把新檔案複製到 `~/.glimpselet/extension`。請在 `chrome://extensions` 或 `edge://extensions` 重新載入 Glimpselet，確認版本為 **2.0.0**。透過 SSH 使用時，請在瀏覽器所在電腦從指南下載新版 ZIP，解壓縮到原先載入的資料夾，再重新載入。遠端主機無法在你的電腦開啟免安裝瀏覽器。
 
 ## 可以做什麼
 

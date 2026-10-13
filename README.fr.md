@@ -21,13 +21,27 @@ Glimpselet démarre une conversation dédiée. Vous pouvez aussi poursuivre une 
    /plugin install glimpselet@glimpselet
    ```
 
-2. Exécutez `/glimpselet:glimpse`.
+2. Dans votre terminal, vérifiez que `claude plugin list` affiche Glimpselet **2.0.0**, puis exécutez `/glimpselet:glimpse` dans Claude Code.
 
 3. Suivez le guide de bienvenue pour connecter votre navigateur. Sur un ordinateur local, choisissez **Try without installing** ou chargez et associez l'extension dans votre navigateur. Si Claude Code fonctionne sur un hôte distant, exécutez la commande SSH affichée par le guide sur l'ordinateur avec le navigateur. Téléchargez-y le ZIP et chargez l'extension dans ce navigateur. L'option sans installation n'est pas disponible sur l'hôte distant. Une fois l'association réussie, le panneau Glimpselet affiche le mode de connexion et le projet.
 
 ### Avancé : charger depuis les sources
 
 Dans votre navigateur de bureau, l'extension se trouve dans le dossier stable `~/.glimpselet/extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
+
+## Mettre à jour depuis v1
+
+Si Glimpselet est déjà installé, actualisez le catalogue et mettez à jour le plugin depuis votre terminal :
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Redémarrez Claude Code ou exécutez `/reload-plugins` dans la session ouverte. Vérifiez que `claude plugin list` affiche Glimpselet **2.0.0**, puis relancez `/glimpselet:glimpse`. Le guide de bienvenue et de connexion doit s’ouvrir. Si la version reste en 1.x, v2 n’est peut-être pas encore publié à la source du catalogue ; répéter l’installation ne met pas à jour un plugin en cache.
+
+Pour l’extension non empaquetée, le guide copie les nouveaux fichiers dans `~/.glimpselet/extension`. Rechargez Glimpselet dans `chrome://extensions` ou `edge://extensions` et vérifiez la version **2.0.0**. Avec SSH, téléchargez le nouveau ZIP depuis le guide sur l’ordinateur de votre navigateur, extrayez-le dans le dossier déjà chargé, puis rechargez l’extension. L’hôte distant ne peut pas ouvrir le navigateur sans installation sur votre ordinateur.
 
 ## Ce que vous pouvez faire
 

@@ -21,13 +21,27 @@ Glimpselet は専用の会話を開始します。最近の Claude Code セッ�
    /plugin install glimpselet@glimpselet
    ```
 
-2. `/glimpselet:glimpse` を実行します。
+2. ターミナルの `claude plugin list` で Glimpselet が **2.0.0** であることを確認し、Claude Code で `/glimpselet:glimpse` を実行します。
 
 3. ウェルカムガイドに従ってブラウザーを接続します。ローカルのデスクトップでは **Try without installing** を選ぶか、自分のブラウザーに拡張機能を読み込んでペア設定します。Claude Code がリモートホストで動作している場合は、ガイドの SSH コマンドをブラウザーのあるコンピューターで実行し、そのコンピューターで ZIP をダウンロードして拡張機能を読み込みます。リモートホストではインストール不要のブラウザーは使えません。ペア設定が成功すると、Glimpselet パネルに接続モードとプロジェクトが表示されます。
 
 ### 詳細設定: ソースから読み込む
 
 自分のデスクトップブラウザーでは、拡張機能は固定フォルダー `~/.glimpselet/extension` にあります。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
+
+## v1 からのアップグレード
+
+Glimpselet をすでにインストールしている場合は、ターミナルでマーケットプレイスを更新し、プラグインをアップデートします：
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Claude Code を再起動するか、現在のセッションで `/reload-plugins` を実行してください。`claude plugin list` で Glimpselet が **2.0.0** になっていることを確認し、`/glimpselet:glimpse` を再実行すると、ウェルカム・ペアリングガイドが開きます。1.x のままなら、マーケットプレイスの配信元に v2 がまだ公開されていない可能性があります。インストールを繰り返しても、キャッシュ済みのプラグインは更新されません。
+
+パッケージ化されていない拡張機能では、ガイドが新しいファイルを `~/.glimpselet/extension` にコピーします。`chrome://extensions` または `edge://extensions` で Glimpselet を再読み込みし、バージョンが **2.0.0** であることを確認してください。SSH の場合は、ブラウザーのある端末でガイドから新しい ZIP をダウンロードし、以前読み込んだフォルダーに展開して再読み込みします。リモートホストから手元の端末にインストール不要のブラウザーを開くことはできません。
 
 ## できること
 

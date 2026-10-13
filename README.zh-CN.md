@@ -21,13 +21,27 @@ Glimpselet 默认创建专用对话。你也可以选择最近的 Claude Code �
    /plugin install glimpselet@glimpselet
    ```
 
-2. 运行 `/glimpselet:glimpse`。
+2. 在终端确认 `claude plugin list` 显示 Glimpselet **2.0.0**，再在 Claude Code 运行 `/glimpselet:glimpse`。
 
 3. 按照欢迎指南连接浏览器。在本地桌面上，可选择 **Try without installing**，也可以在自己的浏览器中加载并配对扩展。如果 Claude Code 运行在远程主机，请在有浏览器的电脑上运行指南提供的 SSH 命令，在该电脑下载 ZIP 并在浏览器中加载扩展。远程主机不支持免安装浏览器。配对成功后，Glimpselet 面板会显示连接模式和项目。
 
 ### 高级：从源代码加载
 
 在自己的桌面浏览器中，扩展保存在固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
+
+## 从 v1 升级
+
+如果已安装 Glimpselet，请在终端刷新市场并更新插件：
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+重启 Claude Code，或在当前会话运行 `/reload-plugins`。确认 `claude plugin list` 显示 Glimpselet **2.0.0**，再运行 `/glimpselet:glimpse`，应会打开欢迎与配对指南。如果仍显示 1.x，市场来源可能尚未发布 v2；重复安装不会更新缓存中的插件。
+
+使用未打包扩展时，指南会把新文件复制到 `~/.glimpselet/extension`。请在 `chrome://extensions` 或 `edge://extensions` 重新加载 Glimpselet，确认版本为 **2.0.0**。通过 SSH 使用时，请在浏览器所在电脑从指南下载新版 ZIP，解压到原先加载的文件夹，再重新加载。远程主机无法在你的电脑打开免安装浏览器。
 
 ## 可以做什么
 
