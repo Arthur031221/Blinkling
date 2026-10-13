@@ -1,4 +1,5 @@
 export type SharedFrameOptions = {
+  // Used only when a live native bubble obstructs a monitor or unknown source.
   // The UI owns the PiP portal and share lifetime. Move its video into the
   // opener before closing PiP, and restore the conversation from a user gesture.
   // Restore is called even if hide fails, so each hook must support rollback.
@@ -15,6 +16,23 @@ function trackCanvas(track: MediaStreamTrack | undefined) {
     : undefined;
 }
 
+export function needsSharedFrameClearance(
+  video: HTMLVideoElement,
+  bubble: Document | null,
+): boolean {
+  const view = bubble?.defaultView;
+  const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0];
+  const surface = track?.getSettings().displaySurface;
+  // Canvas tracks capture their backing element rather than the native desktop.
+  // Other unidentified display tracks still require real clearance.
+  return (
+    Boolean(bubble && view && !view.closed) &&
+    !trackCanvas(track) &&
+    surface !== "browser" &&
+    surface !== "window"
+  );
+}
+
 export async function withBubbleCleared<T>(
   video: HTMLVideoElement,
   bubble: Document | null,
@@ -23,22 +41,14 @@ export async function withBubbleCleared<T>(
 ): Promise<T> {
   options.signal?.throwIfAborted();
   const view = bubble?.defaultView;
-  const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0];
-  const surface = track?.getSettings().displaySurface;
-  // Canvas tracks capture their backing element rather than the native desktop.
-  // Other unidentified display tracks still require real clearance.
-  const canvasSource = trackCanvas(track);
-  const needsClearance =
-    Boolean(bubble && view && !view.closed) &&
-    !canvasSource &&
-    surface !== "browser" &&
-    surface !== "window";
-  if (needsClearance && !options.clearBubble)
+  const needsClearance = needsSharedFrameClearance(video, bubble);
+  const clearBubble = needsClearance ? options.clearBubble : undefined;
+  if (needsClearance && !clearBubble)
     throw new Error("capture_bubble_obstructed");
   const opacity = bubble?.body.style.opacity || "";
   try {
-    if (options.clearBubble) {
-      await options.clearBubble.hide();
+    if (clearBubble) {
+      await clearBubble.hide();
       // CSS opacity cannot hide the native window or its chrome. Do not accept
       // an ineffective hook as proof that the desktop is unobstructed.
       if (needsClearance && !view?.closed)
@@ -47,7 +57,7 @@ export async function withBubbleCleared<T>(
     options.signal?.throwIfAborted();
     return await capture();
   } finally {
-    if (options.clearBubble) await options.clearBubble.restore();
+    if (clearBubble) await clearBubble.restore();
     else if (bubble) bubble.body.style.opacity = opacity;
   }
 }
@@ -197,7 +207,6 @@ export async function freezeSharedFrame(
   bubble: Document | null,
   options: SharedFrameOptions = {},
 ): Promise<HTMLCanvasElement> {
-  if (!video.videoWidth || !video.videoHeight) throw new Error("share_ended");
   return withBubbleCleared(video, bubble, options, async () => {
     const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0];
     const canvasSource = trackCanvas(track);
@@ -219,9 +228,12 @@ export async function freezeSharedFrame(
       options.signal?.throwIfAborted();
       if (track?.readyState === "ended") throw new Error("share_ended");
       const frame = document.createElement("canvas");
-      frame.width = canvasSource?.width || bitmap?.width || video.videoWidth;
+      // A newly attached decoder can still report 0x0 while its shared track
+      // is live. Direct snapshots supply their own authoritative dimensions;
+      // only the video fallback depends on decoded metadata.
+      frame.width = canvasSource?.width ?? bitmap?.width ?? video.videoWidth;
       frame.height =
-        canvasSource?.height || bitmap?.height || video.videoHeight;
+        canvasSource?.height ?? bitmap?.height ?? video.videoHeight;
       const context = frame.getContext("2d");
       if (!context || !frame.width || !frame.height)
         throw new Error("capture_failed");

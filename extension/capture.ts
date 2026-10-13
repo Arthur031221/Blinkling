@@ -10,13 +10,45 @@ export type CaptureProgress = { completed: number; total: number };
 export type CaptureWebOptions = {
   signal?: AbortSignal;
   onProgress?: (progress: CaptureProgress) => void;
+  // For a rectangle received from a content script, use the browser-provided
+  // sender identity and the viewport geometry recorded when selection ended.
+  selectedSource?: SelectedWebCaptureSource;
 };
+export type WebCaptureGeometry = {
+  width: number;
+  height: number;
+  scrollX: number;
+  scrollY: number;
+  devicePixelRatio: number;
+};
+export type SelectedWebCaptureSource = Pick<
+  CaptureBinding,
+  "tabId" | "url" | "documentId"
+> & {
+  geometry?: WebCaptureGeometry;
+};
+type WebCaptureDocument = SelectedWebCaptureSource & {
+  geometry: WebCaptureGeometry;
+};
+/** Keep this in memory until a toolbar activation; never reuse it after a source change. */
+export type PendingWebCapture = WebCaptureDocument & {
+  kind: "visible" | "region" | "element";
+  rect?: [number, number, number, number];
+};
+
+export class CaptureAuthorizationError extends Error {
+  constructor(readonly pending?: PendingWebCapture) {
+    super("capture_permission");
+    this.name = "CaptureAuthorizationError";
+  }
+}
 type Tab = chrome.tabs.Tab;
 type ActiveTab = Tab & { id: number; windowId: number };
 
 let currentTabId =
   Number(new URLSearchParams(location.search).get("sourceTab")) || undefined;
 const ownOrigin = new URL(chrome.runtime.getURL("panel.html")).origin;
+let lastScreenshotAttempt = -Infinity;
 
 export function setCurrentActiveTab(tabId: number | undefined): void {
   currentTabId = Number.isInteger(tabId) && tabId! > 0 ? tabId : undefined;
@@ -114,7 +146,7 @@ async function sendToPage(tab: ActiveTab, message: unknown): Promise<unknown> {
 }
 
 export async function isSensitivePage(
-  binding?: CaptureBinding,
+  binding?: Pick<CaptureBinding, "tabId" | "url" | "documentId">,
   manualTextOnly = false,
 ): Promise<boolean> {
   const candidate = binding
@@ -279,10 +311,130 @@ export async function captureWeb(
   labels?: Record<string, string>,
   options: CaptureWebOptions = {},
 ): Promise<{ capture: CaptureResult; page?: PageContext }> {
+  return captureWebInternal(kind, selectedRect, labels, options);
+}
+
+/** Retry with fresh pixels, preserving the user's rectangle only on its original document. */
+export async function retryPendingWebCapture(
+  pending: PendingWebCapture,
+  labels?: Record<string, string>,
+  options: CaptureWebOptions = {},
+): Promise<{ capture: CaptureResult; page?: PageContext }> {
+  return captureWebInternal(
+    pending.kind,
+    pending.rect,
+    labels,
+    options,
+    pending,
+  );
+}
+
+async function readWebCaptureDocument(
+  tab: ActiveTab,
+  expected?: SelectedWebCaptureSource,
+): Promise<WebCaptureDocument> {
+  if (expected && (expected.tabId !== tab.id || expected.url !== tab.url))
+    throw new Error("tab_changed");
+  const [frame] = await chrome.scripting
+    .executeScript({
+      target: {
+        tabId: tab.id,
+        ...(expected ? { documentIds: [expected.documentId] } : {}),
+      },
+      func: () => ({
+        width: innerWidth,
+        height: innerHeight,
+        scrollX,
+        scrollY,
+        devicePixelRatio,
+      }),
+    })
+    .catch(() => {
+      throw new Error("tab_changed");
+    });
+  if (
+    frame?.frameId !== 0 ||
+    !frame.documentId ||
+    !frame.result ||
+    (expected &&
+      (frame.documentId !== expected.documentId ||
+        (expected.geometry &&
+          (Object.keys(expected.geometry) as (keyof WebCaptureGeometry)[]).some(
+            (key) => frame.result![key] !== expected.geometry![key],
+          ))))
+  )
+    throw new Error("tab_changed");
+  const geometry = frame.result;
+  if (
+    !Object.values(geometry).every(Number.isFinite) ||
+    geometry.width <= 0 ||
+    geometry.height <= 0 ||
+    geometry.devicePixelRatio <= 0
+  )
+    throw new Error("capture_failed");
+  return {
+    tabId: tab.id,
+    url: tab.url!,
+    documentId: frame.documentId,
+    geometry: Object.freeze({ ...geometry }),
+  };
+}
+
+async function captureVisibleFrame(
+  tab: ActiveTab,
+  signal?: AbortSignal,
+  binding?: WebCaptureDocument,
+): Promise<string> {
+  // Chrome allows only two screenshot requests per second. The authorization
+  // probe counts too, including when an immediately confirmed selector follows.
+  const delay = lastScreenshotAttempt + 550 - Date.now();
+  if (delay > 0) await waitForCaptureDelay(delay, signal);
+  throwIfAborted(signal);
+  await assertStillActive(tab);
+  if (binding) await readWebCaptureDocument(tab, binding);
+  if (await isSensitivePage(binding)) throw new Error("password_page");
+  throwIfAborted(signal);
+  const assertScreenshotSource = async () => {
+    const [focused] = await chrome.tabs.query({
+      active: true,
+      windowId: tab.windowId,
+    });
+    // Unlike text reads, captureVisibleTab cannot target a tab. The opener
+    // being active is therefore unsafe even though it may legitimately own focus.
+    if (focused?.id !== tab.id) throw new Error("tab_changed");
+  };
+  await assertScreenshotSource();
+  lastScreenshotAttempt = Date.now();
+  const image = await chrome.tabs
+    .captureVisibleTab(tab.windowId, { format: "png" })
+    .catch(() => {
+      throw new CaptureAuthorizationError();
+    });
+  await assertScreenshotSource();
+  return image;
+}
+
+async function captureWebInternal(
+  kind: Exclude<CaptureKind, "screen">,
+  selectedRect: [number, number, number, number] | undefined,
+  labels: Record<string, string> | undefined,
+  options: CaptureWebOptions,
+  pending?: PendingWebCapture,
+): Promise<{ capture: CaptureResult; page?: PageContext }> {
   throwIfAborted(options.signal);
   const tab = await activeTab();
+  const expectedSource = pending || options.selectedSource;
+  if (
+    expectedSource &&
+    (expectedSource.tabId !== tab.id || expectedSource.url !== tab.url)
+  )
+    throw new Error("tab_changed");
   await requireSiteAccess(tab);
-  if (await isSensitivePage()) throw new Error("password_page");
+  const captureDocument =
+    kind === "full"
+      ? undefined
+      : await readWebCaptureDocument(tab, expectedSource);
+  if (await isSensitivePage(captureDocument)) throw new Error("password_page");
   let page: PageContext | undefined;
   try {
     page = (await sendToPage(tab, {
@@ -293,6 +445,9 @@ export async function captureWeb(
   }
   let rect: [number, number, number, number] | undefined = selectedRect;
   if (!rect && (kind === "region" || kind === "element")) {
+    // Site access allows the overlay, but captureVisibleTab separately needs a
+    // toolbar/command activation. Explain that before asking the user to draw.
+    await captureVisibleFrame(tab, options.signal, captureDocument);
     const selected = (await sendToPage(tab, {
       type: "glimpselet:select",
       mode: kind,
@@ -311,21 +466,29 @@ export async function captureWeb(
   }
   if (kind !== "full") {
     await assertStillActive(tab);
-    if (await isSensitivePage()) throw new Error("password_page");
-    const data = await chrome.tabs
-      .captureVisibleTab(tab.windowId, {
-        format: "png",
-      })
-      .catch(() => {
-        throw new Error("capture_permission");
-      });
-    await assertStillActive(tab);
-    const dimensions = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => innerWidth,
+    const data = await captureVisibleFrame(
+      tab,
+      options.signal,
+      captureDocument,
+    ).catch((error: unknown) => {
+      if (error instanceof CaptureAuthorizationError) {
+        const saved = Object.freeze({
+          ...captureDocument!,
+          kind,
+          rect: rect
+            ? (Object.freeze([...rect]) as unknown as typeof rect)
+            : undefined,
+        });
+        throw new CaptureAuthorizationError(saved);
+      }
+      throw error;
     });
-    const image = await crop(data, rect, dimensions[0]?.result || 1280);
-    if (await isSensitivePage()) throw new Error("password_page");
+    await assertStillActive(tab);
+    await readWebCaptureDocument(tab, captureDocument);
+    const image = await crop(data, rect, captureDocument!.geometry.width);
+    if (await isSensitivePage(captureDocument))
+      throw new Error("password_page");
+    await readWebCaptureDocument(tab, captureDocument);
     await assertStillActive(tab);
     return {
       capture: {
@@ -398,7 +561,6 @@ export async function captureWeb(
         throwIfAborted(options.signal);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
-        if (completed) await waitForCaptureDelay(550, options.signal);
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: (px: number, py: number) =>
@@ -412,13 +574,7 @@ export async function captureWeb(
         throwIfAborted(options.signal);
         if (await isSensitivePage()) throw new Error("password_page");
         throwIfAborted(options.signal);
-        const image = await chrome.tabs
-          .captureVisibleTab(tab.windowId, {
-            format: "png",
-          })
-          .catch(() => {
-            throw new Error("capture_permission");
-          });
+        const image = await captureVisibleFrame(tab, options.signal);
         throwIfAborted(options.signal);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
@@ -551,13 +707,9 @@ function crop(
   });
 }
 
-export async function captureScreen(
-  sourceTabId?: number,
-  bubble: Document | null = null,
-  options: (video: HTMLVideoElement) => SharedFrameOptions = () => ({}),
-): Promise<{
+/** Start sharing from the user's gesture; taking a frame is a separate action. */
+export async function startScreenShare(sourceTabId?: number): Promise<{
   stream: MediaStream;
-  image: string;
   binding?: CaptureBinding;
 }> {
   const bindingPromise = (
@@ -571,7 +723,27 @@ export async function captureScreen(
     selfBrowserSurface: "exclude",
     preferCurrentTab: false,
   } as DisplayMediaStreamOptions);
-  const binding = await bindingPromise;
+  try {
+    const binding = await bindingPromise;
+    const track = stream.getVideoTracks()[0];
+    if (!track || track.readyState === "ended") throw new Error("share_ended");
+    return { stream, binding };
+  } catch (error) {
+    for (const track of stream.getTracks()) track.stop();
+    throw error;
+  }
+}
+
+export async function captureScreen(
+  sourceTabId?: number,
+  bubble: Document | null = null,
+  options: (video: HTMLVideoElement) => SharedFrameOptions = () => ({}),
+): Promise<{
+  stream: MediaStream;
+  image: string;
+  binding?: CaptureBinding;
+}> {
+  const { stream, binding } = await startScreenShare(sourceTabId);
   const video = document.createElement("video");
   try {
     video.srcObject = stream;

@@ -145,6 +145,91 @@ afterEach(() => {
 });
 
 describe("foreground shared screen crop", () => {
+  it("crops a live shared track before the video decoder has metadata", async () => {
+    video = document.createElement("video");
+    const clone = {
+      stop: vi.fn(),
+      getConstraints: () => ({}),
+      applyConstraints: vi.fn(async () => {}),
+    };
+    const track = Object.assign(new EventTarget(), {
+      readyState: "live",
+      getSettings: () => ({ displaySurface: "monitor" }),
+      clone: vi.fn(() => clone),
+    });
+    video.srcObject = {
+      getVideoTracks: () => [track],
+    } as unknown as MediaStream;
+    expect([video.videoWidth, video.videoHeight]).toEqual([0, 0]);
+    const queued = { width: 1440, height: 1000, close: vi.fn() };
+    const fresh = { width: 1440, height: 1000, close: vi.fn() };
+    const grabFrame = vi
+      .fn()
+      .mockResolvedValueOnce(queued)
+      .mockResolvedValueOnce(fresh);
+    vi.stubGlobal(
+      "ImageCapture",
+      vi.fn(function () {
+        return { grabFrame };
+      }),
+    );
+    await expect(cropSharedScreen(video, null, labels)).resolves.toBe(
+      "data:image/png;base64,eA==",
+    );
+    expect(draw).toHaveBeenCalledWith(fresh, 0, 0);
+    expect(draw).toHaveBeenLastCalledWith(
+      expect.any(HTMLCanvasElement),
+      1340,
+      900,
+      100,
+      100,
+      0,
+      0,
+      100,
+      100,
+    );
+    expect(queued.close).toHaveBeenCalledOnce();
+    expect(fresh.close).toHaveBeenCalledOnce();
+    expect(clone.stop).toHaveBeenCalledOnce();
+    expect(track.readyState).toBe("live");
+  });
+
+  it.each(["browser", "window"])(
+    "keeps the bubble present and dimmed during a %s-source crop even when clearance hooks are supplied",
+    async (surface) => {
+      const bubble = document.implementation.createHTMLDocument();
+      bubble.body.style.opacity = "0.8";
+      Object.defineProperty(bubble, "defaultView", {
+        configurable: true,
+        value: { closed: false },
+      });
+      const track = Object.assign(new EventTarget(), {
+        readyState: "live",
+        getSettings: () => ({ displaySurface: surface }),
+      });
+      Object.defineProperty(video, "srcObject", {
+        configurable: true,
+        value: { getVideoTracks: () => [track] },
+      });
+      const clearBubble = {
+        hide: vi.fn(async () => {}),
+        restore: vi.fn(async () => {}),
+      };
+      let selectionOpacity = "";
+      vi.mocked(selectCrop).mockImplementation(async () => {
+        selectionOpacity = bubble.body.style.opacity;
+        return null;
+      });
+      expect(
+        await cropSharedScreen(video, bubble, labels, { clearBubble }),
+      ).toBeNull();
+      expect(selectionOpacity).toBe("0.25");
+      expect(clearBubble.hide).not.toHaveBeenCalled();
+      expect(clearBubble.restore).not.toHaveBeenCalled();
+      expect(bubble.body.style.opacity).toBe("0.8");
+    },
+  );
+
   it("freezes before activating the actual opener, then restores the previous tab and window", async () => {
     await cropSharedScreen(video, null, labels);
     expect(chromeMock.tabs.getCurrent).toHaveBeenCalled();

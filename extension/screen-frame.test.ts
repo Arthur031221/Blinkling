@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { freezeSharedFrame } from "./screen-frame";
+import { freezeSharedFrame, needsSharedFrameClearance } from "./screen-frame";
 
 let video: HTMLVideoElement;
 let track: MediaStreamTrack;
@@ -72,13 +72,91 @@ async function nextFrame(mediaTime: number) {
 }
 
 describe("shared desktop frame clearance", () => {
+  it.each(["browser", "window"])(
+    "keeps the floating window open for an unobstructed %s source even when hooks are supplied",
+    async (surface) => {
+      Object.assign(track, {
+        getSettings: () => ({ displaySurface: surface }),
+      });
+      const clearBubble = {
+        hide: vi.fn(async () => {
+          closed = true;
+        }),
+        restore: vi.fn(async () => {
+          closed = false;
+        }),
+      };
+      const result = freezeSharedFrame(video, bubble, { clearBubble });
+      await nextFrame(1);
+      await nextFrame(2);
+      await result;
+      expect(clearBubble.hide).not.toHaveBeenCalled();
+      expect(clearBubble.restore).not.toHaveBeenCalled();
+      expect(closed).toBe(false);
+      expect(bubble.body.style.opacity).toBe("0.8");
+      expect(draw).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("does not run native-clearance hooks for a canvas source", async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1440;
+    canvas.height = 1000;
+    Object.assign(track, { canvas });
+    const clearBubble = {
+      hide: vi.fn(async () => {
+        closed = true;
+      }),
+      restore: vi.fn(async () => {
+        closed = false;
+      }),
+    };
+    const result = freezeSharedFrame(video, bubble, { clearBubble });
+    await vi.advanceTimersByTimeAsync(100);
+    await result;
+    expect(clearBubble.hide).not.toHaveBeenCalled();
+    expect(clearBubble.restore).not.toHaveBeenCalled();
+    expect(draw).toHaveBeenCalledWith(canvas, 0, 0);
+    expect(bubble.body.style.opacity).toBe("0.8");
+  });
+
+  it.each(["absent", "already closed"])(
+    "does not request a reopen gesture when the floating window is %s",
+    async (state) => {
+      const currentBubble = state === "absent" ? null : bubble;
+      closed = state === "already closed";
+      const clearBubble = {
+        hide: vi.fn(async () => {}),
+        restore: vi.fn(async () => {}),
+      };
+      const result = freezeSharedFrame(video, currentBubble, { clearBubble });
+      await nextFrame(1);
+      await nextFrame(2);
+      await result;
+      expect(clearBubble.hide).not.toHaveBeenCalled();
+      expect(clearBubble.restore).not.toHaveBeenCalled();
+      expect(draw).toHaveBeenCalledOnce();
+    },
+  );
+
   it("refuses a monitor capture with native PiP still covering it instead of treating body opacity as exclusion", async () => {
+    expect(needsSharedFrameClearance(video, bubble)).toBe(true);
     const result = freezeSharedFrame(video, bubble);
     const rejection = expect(result).rejects.toThrow(
       "capture_bubble_obstructed",
     );
     await vi.advanceTimersByTimeAsync(3000);
     await rejection;
+    expect(draw).not.toHaveBeenCalled();
+    expect(bubble.body.style.opacity).toBe("0.8");
+  });
+
+  it("requires native clearance for an unidentified display source", async () => {
+    Object.assign(track, { getSettings: () => ({}) });
+    expect(needsSharedFrameClearance(video, bubble)).toBe(true);
+    await expect(freezeSharedFrame(video, bubble)).rejects.toThrow(
+      "capture_bubble_obstructed",
+    );
     expect(draw).not.toHaveBeenCalled();
     expect(bubble.body.style.opacity).toBe("0.8");
   });
@@ -142,6 +220,44 @@ describe("shared desktop frame clearance", () => {
 });
 
 describe("shared frame freshness and cleanup", () => {
+  it("freezes a live shared track before the video decoder has metadata", async () => {
+    const decoder = document.createElement("video");
+    decoder.srcObject = video.srcObject;
+    expect([decoder.videoWidth, decoder.videoHeight]).toEqual([0, 0]);
+    const clone = {
+      stop: vi.fn(),
+      getConstraints: () => ({}),
+      applyConstraints: vi.fn(async () => {}),
+    };
+    Object.assign(track, { clone: vi.fn(() => clone) });
+    const queued = { width: 1440, height: 1000, close: vi.fn() };
+    const fresh = { width: 1440, height: 1000, close: vi.fn() };
+    const grabFrame = vi
+      .fn()
+      .mockResolvedValueOnce(queued)
+      .mockResolvedValueOnce(fresh);
+    vi.stubGlobal(
+      "ImageCapture",
+      vi.fn(function () {
+        return { grabFrame };
+      }),
+    );
+    const outcome = freezeSharedFrame(decoder, null).then(
+      (frame) => ({ frame }),
+      (error) => ({ error }),
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await outcome).toMatchObject({
+      frame: { width: 1440, height: 1000 },
+    });
+    expect(draw).toHaveBeenCalledWith(fresh, 0, 0);
+    expect(queued.close).toHaveBeenCalledOnce();
+    expect(fresh.close).toHaveBeenCalledOnce();
+    expect(clone.stop).toHaveBeenCalledOnce();
+    expect(track.readyState).toBe("live");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("reads current canvas pixels even when its stream stopped emitting frames", async () => {
     const canvas = document.createElement("canvas");
     canvas.width = 1440;

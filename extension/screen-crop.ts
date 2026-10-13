@@ -2,6 +2,7 @@ import { imageRect, selectCrop, type CropLabels } from "./crop-selection";
 import { encodeCanvasPng } from "./png";
 import {
   freezeSharedFrame,
+  needsSharedFrameClearance,
   withBubbleCleared,
   type SharedFrameOptions,
 } from "./screen-frame";
@@ -19,10 +20,17 @@ export async function cropSharedScreen(
   const signal = options.signal
     ? AbortSignal.any([options.signal, controller.signal])
     : controller.signal;
+  const frameOptions = {
+    ...options,
+    clearBubble: needsSharedFrameClearance(video, bubble)
+      ? options.clearBubble
+      : undefined,
+    signal,
+  };
   tracks.forEach((track) => track.addEventListener("ended", ended));
   try {
-    return await withBubbleCleared(video, bubble, { ...options, signal }, () =>
-      cropFrozenFrame(video, bubble, labels, { ...options, signal }),
+    return await withBubbleCleared(video, bubble, frameOptions, () =>
+      cropFrozenFrame(video, bubble, labels, frameOptions),
     );
   } finally {
     tracks.forEach((track) => track.removeEventListener("ended", ended));
@@ -35,7 +43,6 @@ async function cropFrozenFrame(
   labels: CropLabels,
   options: SharedFrameOptions,
 ): Promise<string | null> {
-  if (!video.videoWidth || !video.videoHeight) throw new Error("share_ended");
   const doc = document;
   const oldOpacity = bubble?.body.style.opacity || "";
   if (bubble) bubble.body.style.opacity = "0";
