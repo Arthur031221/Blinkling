@@ -23,6 +23,15 @@ import {
   installGuide,
 } from "../bridge/src/extension-install";
 
+async function openTools(page: Page) {
+  if (!(await page.locator(".tools-menu").isVisible()))
+    await page.getByRole("button", { name: en.moreTools, exact: true }).click();
+}
+async function clickTool(page: Page, label: string) {
+  await openTools(page);
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
+
 interface DocumentPictureInPicture {
   readonly window: Window | null;
   requestWindow(options?: { width?: number; height?: number }): Promise<Window>;
@@ -345,7 +354,9 @@ test("selection excludes private content between public endpoints and closes sta
   await site.evaluate(() =>
     document.querySelector("#start")!.setAttribute("data-private", ""),
   );
-  await popover.getByRole("button", { name: en.explain, exact: true }).click();
+  await popover
+    .getByRole("button", { name: en.actionExplain, exact: true })
+    .click();
   await expect(popover).toHaveCount(0);
   await site.waitForTimeout(150);
   expect(
@@ -396,7 +407,9 @@ test("selection excludes private content between public endpoints and closes sta
     document.dispatchEvent(new Event("selectionchange"));
   });
   await expect(popover).toBeVisible();
-  await popover.getByRole("button", { name: en.explain, exact: true }).click();
+  await popover
+    .getByRole("button", { name: en.actionExplain, exact: true })
+    .click();
   await expect
     .poll(() =>
       providerRequests.some(
@@ -498,9 +511,7 @@ test("translation preserves stable text while the source page changes", async ()
       }),
     };
   };
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(site.locator("#stable")).toHaveText("Translated: 固定の説明");
   await expect(site.locator("#updated")).toHaveText("最新価格");
   await expect(site.locator("#hidden")).toHaveText("追加情報");
@@ -518,7 +529,7 @@ test("selection Explain interrupts pending suggested questions", async () => {
   let cancelled = false;
   providerResponder = (request) => {
     if (
-      request.question.startsWith("Give 3 to 5") &&
+      request.question.startsWith("Give at most 3") &&
       request.page?.url.endsWith("/selection-background")
     ) {
       pending = true;
@@ -548,7 +559,7 @@ test("selection Explain interrupts pending suggested questions", async () => {
   });
   await site
     .locator("[data-glimpselet-overlay] .popover")
-    .getByRole("button", { name: en.explain, exact: true })
+    .getByRole("button", { name: en.actionExplain, exact: true })
     .click();
   await expect.poll(() => cancelled).toBe(true);
   await expect(panel.locator(".message .answer")).toContainText(
@@ -594,7 +605,7 @@ for (const backend of ["bridge", "api"] as const) {
         .getByRole("button", {
           name:
             action === "explain"
-              ? en.explain
+              ? en.actionExplain
               : action === "translate"
                 ? en.selectionTranslate
                 : "Ask",
@@ -760,7 +771,7 @@ test("automatic questions exclude nested form choices while preserving safe labe
     .poll(() =>
       providerRequests.find(
         (request) =>
-          request.question.startsWith("Give 3 to 5") &&
+          request.question.startsWith("Give at most 3") &&
           request.page?.url.endsWith("/choice-privacy"),
       ),
     )
@@ -933,7 +944,7 @@ for (const startup of [false, true]) {
       );
       await expect(panel.locator(".foot")).not.toContainText(pairedSession);
       await panel
-        .getByRole("button", { name: en.visible, exact: true })
+        .getByRole("button", { name: en.wholeScreen, exact: true })
         .click();
       await expect(panel.locator(".capture-chip img")).toBeVisible();
       await panel
@@ -1271,7 +1282,7 @@ test("interrupted session initialization offers a working new session", async ()
 test("same-URL semantic DOM changes refresh once and ignore identical re-renders", async () => {
   const automaticRequests = () =>
     providerRequests.filter((request) =>
-      request.question.startsWith("Give 3 to 5"),
+      request.question.startsWith("Give at most 3"),
     );
   await expect.poll(() => automaticRequests().length).toBeGreaterThan(0);
   const initialCount = automaticRequests().length;
@@ -1327,9 +1338,11 @@ test("passive summaries refresh permitted sample page content without screen sha
   await expect.poll(() => providerRequests.at(-1)?.page?.url).toBe(sampleUrl);
   await expect(panel.locator("button.stop")).toHaveCount(0);
   await expect(
-    panel.getByRole("button", { name: en.stopSharing, exact: true }),
+    panel.getByRole("button", { name: en.shareEnded, exact: true }),
   ).toHaveCount(0);
-  await panel.getByRole("button", { name: en.passive, exact: true }).click();
+  await panel
+    .getByRole("switch", { name: en.autoExplain, exact: true })
+    .click();
   const summaries = () =>
     providerRequests.filter((request) =>
       request.question.startsWith(en.passivePrompt),
@@ -1392,7 +1405,9 @@ test("blocklisting the inspected page stops passive summaries without screen sha
       throw new Error("This page-only flow must not request screen sharing");
     };
   });
-  await panel.getByRole("button", { name: en.passive, exact: true }).click();
+  await panel
+    .getByRole("switch", { name: en.autoExplain, exact: true })
+    .click();
   await expect(panel.locator(".thread article")).toHaveCount(1);
   await expect(panel.locator("button.stop")).toHaveCount(0);
   const before = providerRequests.length;
@@ -1425,7 +1440,7 @@ for (const kind of ["shadow", "frame", "opaque", "object"] as const) {
     test(`${kind} password gate prevents ${mode} requests and visible capture`, async () => {
       if (mode === "passive") {
         await panel
-          .getByRole("button", { name: en.passive, exact: true })
+          .getByRole("switch", { name: en.autoExplain, exact: true })
           .click();
         await expect
           .poll(() =>
@@ -1443,7 +1458,7 @@ for (const kind of ["shadow", "frame", "opaque", "object"] as const) {
       await site.waitForTimeout(1600);
       expect(providerRequests).toHaveLength(0);
       await panel
-        .getByRole("button", { name: en.visible, exact: true })
+        .getByRole("button", { name: en.wholeScreen, exact: true })
         .click();
       await expect(panel.locator(".status")).toContainText(en.passwordPage);
       await expect(panel.locator(".capture-chip")).toHaveCount(0);
@@ -1537,7 +1552,7 @@ test("a password appearing between full page frames discards the capture and res
       return image;
     }) as typeof chrome.tabs.captureVisibleTab;
   });
-  await panel.getByRole("button", { name: en.fullPage, exact: true }).click();
+  await clickTool(panel, en.fullPage);
   await expect(panel.locator(".status")).toContainText(en.passwordPage);
   await expect(panel.locator(".capture-chip")).toHaveCount(0);
   await expect.poll(() => site.evaluate(() => scrollY)).toBe(originalScroll);
@@ -1797,7 +1812,7 @@ test("same-URL changes queue behind a foreground answer and refresh afterward", 
       .poll(() =>
         providerRequests.some(
           (request) =>
-            request.question.startsWith("Give 3 to 5") &&
+            request.question.startsWith("Give at most 3") &&
             request.page?.text.includes("Queued same URL page revision."),
         ),
       )
@@ -1841,7 +1856,7 @@ for (const backend of ["bridge", "api"] as const) {
             .content.find(
               (block: { type: string }) => block.type === "text",
             ).text;
-          const answer = question.includes("Give 3 to 5")
+          const answer = question.includes("Give at most 3")
             ? JSON.stringify({
                 questions: [
                   "What is this page?",
@@ -1886,11 +1901,13 @@ for (const backend of ["bridge", "api"] as const) {
       await panel.getByLabel(en.targetLanguage).selectOption("ja");
       await panel.getByRole("button", { name: en.close, exact: true }).click();
     }
-    await panel.getByRole("button", { name: en.visible, exact: true }).click();
+    await panel
+      .getByRole("button", { name: en.wholeScreen, exact: true })
+      .click();
     await expect(panel.locator(".capture-chip img")).toBeVisible();
     await panel
       .locator(".capture-chip .quick-actions")
-      .getByRole("button", { name: en.translate, exact: true })
+      .getByRole("button", { name: en.actionTranslate, exact: true })
       .click();
     await expect(panel.locator(".thread article").last()).toContainText(
       backend === "api" ? "Translated screenshot." : "Japanese",
@@ -2071,7 +2088,7 @@ test("switching tabs hides stale suggestions and refreshes after an automatic re
   };
   providerResponder = (request) => {
     if (
-      request.question.startsWith("Give 3 to 5") &&
+      request.question.startsWith("Give at most 3") &&
       request.page?.url.endsWith("/slow-suggestions")
     ) {
       return new Promise((resolveAnswer) => {
@@ -2098,7 +2115,7 @@ test("switching tabs hides stale suggestions and refreshes after an automatic re
     expect(
       providerRequests.some(
         (request) =>
-          request.question.startsWith("Give 3 to 5") &&
+          request.question.startsWith("Give at most 3") &&
           request.page?.url.endsWith("/current-page"),
       ),
     ).toBe(true);
@@ -2628,7 +2645,9 @@ test("paired chat streams and follows up, captures a page and cancels", async ()
   await expect(panel.locator(".message .answer p").last()).toContainText(
     "Japanese",
   );
-  await panel.getByRole("button", { name: en.visible, exact: true }).click();
+  await panel
+    .getByRole("button", { name: en.wholeScreen, exact: true })
+    .click();
   await expect(panel.locator(".capture-chip img")).toBeVisible();
   const dimensions = await panel
     .locator(".capture-chip img")
@@ -2656,14 +2675,12 @@ test("guide follows offscreen elements, translation restores and element selecti
   await site.keyboard.press("Escape");
   await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
   const original = await site.locator("#foreign").textContent();
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(site.locator("#foreign")).toContainText("Translated:");
   await panel.getByRole("button", { name: en.restore, exact: true }).click();
   await expect(site.locator("#foreign")).toHaveText(original!);
   await site.evaluate(() => scrollTo(0, 0));
-  await panel.getByRole("button", { name: en.element, exact: true }).click();
+  await clickTool(panel, en.element);
   await expect(site.locator("[data-glimpselet-overlay] .shade")).toBeVisible();
   const box = await site.locator("#export").boundingBox();
   await site.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
@@ -2805,10 +2822,12 @@ for (const backend of ["bridge", "api"] as const) {
       );
       await site.bringToFront();
       await expect(panel.locator(".suggestions button")).toHaveCount(3);
+      await openTools(panel);
       const translate = panel.getByRole("button", {
         name: en.translatePage,
         exact: true,
       });
+      await openTools(panel);
       await expect(translate).toBeEnabled();
       await translate.click();
       if (scenario === "unchanged") {
@@ -2968,7 +2987,7 @@ test("full page capture stitches native frames and restores the source scroll", 
     width: document.documentElement.scrollWidth,
     y: scrollY,
   }));
-  await panel.getByRole("button", { name: en.fullPage, exact: true }).click();
+  await clickTool(panel, en.fullPage);
   const thumbnail = panel.locator(".capture-chip img");
   await expect(thumbnail).toBeVisible();
   const dimensions = await thumbnail.evaluate((image: HTMLImageElement) => [
@@ -3124,7 +3143,7 @@ for (const backend of ["bridge", "api"] as const) {
     "unsupported",
   ] as const) {
     test(`${backend} passive screen ${change} protects the checked source and pixels`, async () => {
-      await worker.evaluate(() => chrome.storage.local.set({ passive: true }));
+      await worker.evaluate(() => chrome.storage.local.set({ passive: false }));
       if (change === "pixels")
         await panel.addInitScript(() => {
           const add = chrome.runtime.onMessage.addListener.bind(
@@ -3277,7 +3296,7 @@ for (const backend of ["bridge", "api"] as const) {
         };
       }, sourceId);
       await panel.locator(".float-start button").click();
-      await clickInBubble(en.share);
+      await clickInBubble(en.autoExplain);
       await expect
         .poll(() =>
           panel.evaluate(() =>
@@ -3369,7 +3388,7 @@ for (const backend of ["bridge", "api"] as const) {
         );
         await panel.waitForTimeout(700);
         expect(images()).toEqual([]);
-        await clickBubble(en.stopSharing);
+        await clickBubble(en.autoExplain);
         return;
       }
       await panel.evaluate(() => {
@@ -3439,7 +3458,7 @@ for (const backend of ["bridge", "api"] as const) {
             ).breakScreenBinding(change),
           change,
         );
-      if (change === "stop") await clickBubble(en.stopSharing);
+      if (change === "stop") await clickBubble(en.autoExplain);
       await panel.evaluate(() =>
         (window as Window & { screenGate: ScreenGate }).screenGate.release(),
       );
@@ -3468,7 +3487,7 @@ for (const backend of ["bridge", "api"] as const) {
           window as Window & { screenGate: ScreenGate }
         ).screenGate.releaseLookup(),
       );
-      if (change !== "stop") await clickBubble(en.stopSharing);
+      if (change !== "stop") await clickBubble(en.autoExplain);
       await other?.close();
     });
   }
@@ -3492,7 +3511,7 @@ for (const ending of ["stop", "browser"] as const) {
       (window as Window & { shareStartBubble?: Window }).shareStartBubble =
         window.documentPictureInPicture.window!;
     });
-    await clickInBubble(en.share);
+    await clickInBubble(en.autoExplain);
     await expect
       .poll(() =>
         panel.evaluate(() => {
@@ -3518,7 +3537,7 @@ for (const ending of ["stop", "browser"] as const) {
         sameBubble: true,
         recovery: false,
       });
-    if (ending === "stop") await clickBubble(en.stopSharing);
+    if (ending === "stop") await clickBubble(en.autoExplain);
     else
       await panel.evaluate(() => {
         const video = document.querySelector("video")!;
@@ -3544,7 +3563,7 @@ for (const ending of ["stop", "browser"] as const) {
                 "button",
               ),
             ].some((button) => button.textContent?.trim() === shareLabel),
-          en.share,
+          en.autoExplain,
         ),
       )
       .toBe(true);
@@ -3569,7 +3588,7 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
       ),
     )
     .toContain("Glimpselet");
-  await clickInBubble(en.share);
+  await clickInBubble(en.autoExplain);
   await expect
     .poll(() =>
       panel.evaluate(() => document.querySelector("video")?.videoWidth || 0),
@@ -3668,7 +3687,7 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
     await panel.evaluate(
       () => window.documentPictureInPicture.window!.document.body.style.opacity,
     ),
-  ).toBe("");
+  ).toMatch(/^(0\.35|0\.75|1)$/);
 });
 
 for (const backend of ["bridge", "api"] as const) {
@@ -3756,7 +3775,7 @@ for (const backend of ["bridge", "api"] as const) {
       };
     });
     await panel.locator(".float-start button").click();
-    await clickInBubble(en.share);
+    await clickInBubble(en.autoExplain);
     await expect
       .poll(() =>
         panel.evaluate(() => document.querySelector("video")?.videoWidth),
@@ -3912,7 +3931,7 @@ test("compacting and expanding keeps the shared video and crop available", async
       panel.evaluate(() => Boolean(window.documentPictureInPicture?.window)),
     )
     .toBe(true);
-  await clickInBubble(en.share);
+  await clickInBubble(en.autoExplain);
   await expect
     .poll(() =>
       panel.evaluate(() => document.querySelector("video")?.videoWidth || 0),
@@ -4152,13 +4171,13 @@ for (const mode of ["suggestions", "passive"] as const) {
   test(`background PDF context never redirects ${mode} from the active web page`, async () => {
     if (mode === "passive")
       await panel
-        .getByRole("button", { name: en.passive, exact: true })
+        .getByRole("switch", { name: en.autoExplain, exact: true })
         .click();
     const automatic = () =>
       providerRequests.filter((request) =>
         mode === "passive"
           ? request.question.startsWith(en.passivePrompt)
-          : request.question.startsWith("Give 3 to 5"),
+          : request.question.startsWith("Give at most 3"),
       );
     await expect.poll(() => automatic().length).toBeGreaterThan(0);
     await expect(
@@ -4236,13 +4255,13 @@ for (const mode of ["suggestions", "passive"] as const) {
   test(`same-URL PDF page revisions refresh ${mode} context`, async () => {
     if (mode === "passive")
       await panel
-        .getByRole("button", { name: en.passive, exact: true })
+        .getByRole("switch", { name: en.autoExplain, exact: true })
         .click();
     const automatic = () =>
       providerRequests.filter((request) =>
         mode === "passive"
           ? request.question.startsWith(en.passivePrompt)
-          : request.question.startsWith("Give 3 to 5"),
+          : request.question.startsWith("Give at most 3"),
       );
     const reader = await context.newPage();
     reader.setDefaultTimeout(15000);
@@ -4315,9 +4334,7 @@ test("bundled PDF.js reader renders the sample, exposes page context and selecte
     .locator(".pdf-text-layer span")
     .first()
     .textContent();
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(reader.locator(".pdf-text-layer span").first()).toContainText(
     "Translated:",
   );
@@ -4554,9 +4571,7 @@ test("manual translation excludes opaque embeds while capture remains blocked", 
       }, origin),
     )
     .toBe(true);
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(site.locator("#foreign")).toContainText("Translated:");
   const translations = providerRequests.filter((request) =>
     request.question.includes('Return JSON only: {"nodes"'),
@@ -4583,16 +4598,16 @@ test("manual translation excludes opaque embeds while capture remains blocked", 
   );
   await panel.getByRole("button", { name: en.restore, exact: true }).click();
   await expect(site.locator("#foreign")).toHaveText(original!);
-  await panel.getByRole("button", { name: en.visible, exact: true }).click();
+  await panel
+    .getByRole("button", { name: en.wholeScreen, exact: true })
+    .click();
   await expect(panel.locator(".status")).toHaveText(en.passwordPage);
   await expect(panel.locator(".capture img")).toHaveCount(0);
   await site.evaluate(() => {
     document.body.insertAdjacentHTML("beforeend", '<input type="password">');
   });
   const before = translations.length;
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(panel.locator(".status")).toHaveText(en.passwordPage);
   expect(
     providerRequests.filter((request) =>
@@ -4603,9 +4618,7 @@ test("manual translation excludes opaque embeds while capture remains blocked", 
 
 test("a reloaded bubble recovers translation restore from its source document", async () => {
   const original = await site.locator("#foreign").textContent();
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(site.locator("#foreign")).toContainText("Translated:");
   await expect(
     panel.getByRole("button", { name: en.restore, exact: true }),
@@ -4620,9 +4633,7 @@ test("a reloaded bubble recovers translation restore from its source document", 
 
 test("translation restoration belongs to the original document and fresh documents are injected", async () => {
   const original = await site.locator("#foreign").textContent();
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(site.locator("#foreign")).toContainText("Translated:");
   const second = await context.newPage();
   await second.goto(origin + "/second");
@@ -4642,9 +4653,7 @@ test("translation restoration belongs to the original document and fresh documen
   });
   await cdp.detach();
   // Keep the original panel, which now follows the new tab.
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(second.locator("#foreign")).toContainText("Translated:");
   await panel.getByRole("button", { name: en.restore, exact: true }).click();
   await expect(second.locator("#foreign")).toHaveText(original!);
@@ -4691,7 +4700,7 @@ test("document-bound page tools reject requests from a previous load at the same
 
 test("ordinary shared-screen questions refresh the frame and omit unrelated page text", async () => {
   await panel.locator(".float-start button").click();
-  await clickInBubble(en.share);
+  await clickInBubble(en.autoExplain);
   await expect
     .poll(() =>
       panel.evaluate(() => document.querySelector("video")!.videoWidth),
@@ -4769,7 +4778,7 @@ test("ordinary shared-screen questions refresh the frame and omit unrelated page
   );
   expect(changedFraction).toBeGreaterThan(0.15);
   expect(request.page).toBeUndefined();
-  await clickInBubble(en.stopSharing);
+  await clickInBubble(en.autoExplain);
 });
 
 for (const failure of ["provider", "invalid-target"] as const) {
@@ -5285,9 +5294,11 @@ for (const locale of ["en", "zh-TW"] as const) {
       expect(entry.split(t.pageSummary)).toHaveLength(2);
     }
 
-    await panel.getByRole("button", { name: t.passiveOn, exact: true }).click();
+    await panel
+      .getByRole("switch", { name: t.autoExplain, exact: true })
+      .click();
     await expect(
-      panel.getByRole("button", { name: t.passive, exact: true }),
+      panel.getByRole("switch", { name: t.autoExplain, exact: true }),
     ).toBeVisible();
 
     await requestWelcomePractice(welcome, 5);
@@ -5474,8 +5485,8 @@ test("compact height never overwrites the saved expanded size", async () => {
     await clickBubble(en.compact);
     await expectMode("compact");
     await expect
-      .poll(floatingSize)
-      .toMatchObject({ width: expandedSize.width });
+      .poll(async () => (await floatingSize()).width)
+      .toBeLessThan(expandedSize.width);
     await expect
       .poll(async () => (await floatingSize()).height)
       .toBeGreaterThan(0);
@@ -5549,7 +5560,7 @@ test("full-page capture can be cancelled and restores the original scroll", asyn
     document.body.style.minHeight = "12000px";
     window.scrollTo(0, 225);
   });
-  await panel.getByRole("button", { name: en.fullPage, exact: true }).click();
+  await clickTool(panel, en.fullPage);
   await expect(panel.locator(".capture-progress")).toBeVisible();
   await panel
     .locator(".capture-progress")
@@ -5558,4 +5569,219 @@ test("full-page capture can be cancelled and restores the original scroll", asyn
   await expect(panel.locator(".capture-progress")).toHaveCount(0);
   await expect.poll(() => site.evaluate(() => scrollY)).toBe(225);
   await expect(panel.locator(".capture-chip")).toHaveCount(0);
+});
+
+test("bubble fades, wakes, docks Blink and remembers its right-edge peek", async () => {
+  const app = panel.locator(".app");
+  const opacity = () =>
+    app.evaluate((surface) => getComputedStyle(surface).opacity);
+  await app.dispatchEvent("pointerleave");
+  await expect.poll(opacity).toBe("0.35");
+  await app.dispatchEvent("pointerenter");
+  await expect.poll(opacity).toBe("0.75");
+  await panel.locator(".brand-copy strong").click();
+  await expect.poll(opacity).toBe("1");
+  await panel.getByRole("button", { name: en.compact, exact: true }).click();
+  const blink = panel.getByRole("button", { name: en.expand, exact: true });
+  await expect(blink).toBeVisible();
+  await expect(panel.locator("textarea")).toHaveCount(0);
+  expect(
+    await blink.evaluate((button) => getComputedStyle(button).borderRadius),
+  ).toBe("50%");
+  const bounds = (await blink.boundingBox())!;
+  const viewport = await panel.evaluate(() => ({
+    width: innerWidth,
+    height: innerHeight,
+  }));
+  await panel.mouse.move(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height / 2,
+  );
+  await panel.mouse.down();
+  await panel.mouse.move(viewport.width - 8, viewport.height * 0.4, {
+    steps: 8,
+  });
+  await panel.mouse.up();
+  await expect(panel.locator(".blink-dot.peek")).toBeVisible();
+  await expect(app).toHaveClass(/compact/);
+  await expect
+    .poll(() =>
+      worker.evaluate(
+        async () => (await chrome.storage.local.get("blinkDock")).blinkDock,
+      ),
+    )
+    .toMatchObject({ edge: "right" });
+  await panel.reload();
+  await panel.getByRole("button", { name: en.compact, exact: true }).click();
+  await expect(panel.locator(".blink-dot.peek")).toBeVisible();
+  await blink.click();
+  await expect(app).toHaveClass(/expanded/);
+  await expect(panel.locator("textarea")).toBeVisible();
+});
+
+test("native Blink minimizes at the screen edge and restores its window position", async () => {
+  await panel.locator(".float-start button").click();
+  const bounds = () =>
+    panel.evaluate(async () => {
+      const opener = await chrome.tabs.getCurrent();
+      return (await chrome.windows.getAll({ populate: true })).find(
+        (win) =>
+          win.alwaysOnTop &&
+          win.tabs?.some(
+            (tab) =>
+              tab.openerTabId === opener?.id && tab.url === "about:blank",
+          ),
+      )!;
+    });
+  const original = await bounds();
+  await clickBubble(en.compact);
+  await expect
+    .poll(async () => (await bounds()).height!)
+    .toBeLessThan(original.height!);
+  const expectedEdge = await panel.evaluate(() => {
+    const screen = window.documentPictureInPicture.window!.screen as Screen & {
+      availLeft?: number;
+      availTop?: number;
+    };
+    return {
+      right: (screen.availLeft || 0) + screen.availWidth,
+      bottom: (screen.availTop || 0) + screen.availHeight,
+    };
+  });
+  await expect
+    .poll(async () => {
+      const compact = await bounds();
+      return {
+        right: compact.left! + compact.width!,
+        bottom: compact.top! + compact.height!,
+      };
+    })
+    .toEqual(expectedEdge);
+  await panel.evaluate(() => {
+    const body = window.documentPictureInPicture.window!.document.body;
+    body.dispatchEvent(new Event("pointerleave"));
+  });
+  await expect
+    .poll(() =>
+      panel.evaluate(
+        () =>
+          getComputedStyle(
+            window.documentPictureInPicture.window!.document.body,
+          ).opacity,
+      ),
+    )
+    .toBe("0.35");
+  const floating = context
+    .pages()
+    .find((page) => page.url() === "about:blank")!;
+  await expect(floating.locator(".blink-dot")).toBeVisible();
+  const dot = (await floating.locator(".blink-dot").boundingBox())!;
+  const targetY = await floating.evaluate(() => {
+    const area = screen as Screen & { availTop?: number };
+    return (
+      (area.availTop || 0) +
+      area.availHeight * 0.4 -
+      screenY -
+      (outerHeight - innerHeight)
+    );
+  });
+  await floating.mouse.move(dot.x + dot.width / 2, dot.y + dot.height / 2);
+  await floating.mouse.down();
+  await floating.mouse.move(dot.x + dot.width / 2, targetY, { steps: 8 });
+  await floating.mouse.up();
+  await expect
+    .poll(() =>
+      panel.evaluate(() =>
+        Boolean(
+          window.documentPictureInPicture.window!.document.querySelector(
+            ".app.compact .blink-dot.peek",
+          ),
+        ),
+      ),
+    )
+    .toBe(true);
+  await expect
+    .poll(async () => {
+      const peek = await bounds();
+      const middle = peek.top! + peek.height! / 2;
+      const dock = await worker.evaluate(
+        async () => (await chrome.storage.local.get("blinkDock")).blinkDock,
+      );
+      const target = await floating.evaluate((dock) => {
+        const area = screen as Screen & { availTop?: number };
+        return (area.availTop || 0) + area.availHeight * dock.y;
+      }, dock);
+      return Math.abs(middle - target);
+    })
+    .toBeLessThanOrEqual(1);
+  // A page Shift crop must also release the minimized dot's explicit hit target.
+  await site.bringToFront();
+  await site.keyboard.down("Shift");
+  await expect
+    .poll(() =>
+      panel.evaluate(() => {
+        const doc = window.documentPictureInPicture.window!.document;
+        const blink = doc.querySelector(".blink-dot")!;
+        return {
+          opacity: getComputedStyle(doc.body).opacity,
+          pointer: getComputedStyle(blink).pointerEvents,
+        };
+      }),
+    )
+    .toEqual({ opacity: "0.25", pointer: "none" });
+  await site.keyboard.up("Shift");
+  await site.keyboard.press("Escape");
+  await expect
+    .poll(() =>
+      panel.evaluate(
+        () =>
+          window.documentPictureInPicture.window!.document.body.dataset
+            .bubbleState,
+      ),
+    )
+    .not.toBe("crop");
+  await clickBubble(en.expand);
+  await expect
+    .poll(async () => {
+      const restored = await bounds();
+      return {
+        left: restored.left,
+        top: restored.top,
+        width: restored.width,
+        height: restored.height,
+      };
+    })
+    .toEqual({
+      left: original.left,
+      top: original.top,
+      width: original.width,
+      height: original.height,
+    });
+});
+
+test("short answers render an opening line, compact headings, bold terms and bullets", async () => {
+  const original = providerResponder;
+  providerResponder = async (request) =>
+    request.question === "Give a short structured answer."
+      ? {
+          answer:
+            "This page explains iced tea.\n\n#### Key points\n\n- **Brew** the tea.\n- **Chill** before serving.\n- **Check** the cited recipe.",
+        }
+      : original(request);
+  await panel.locator("textarea").fill("Give a short structured answer.");
+  await panel.locator(".composer button.send").click();
+  const answer = panel.locator(".message .answer .markdown").last();
+  await expect(answer.locator(":scope > p").first()).toHaveText(
+    "This page explains iced tea.",
+  );
+  await expect(answer.locator("li")).toHaveCount(3);
+  await expect(answer.locator("strong")).toHaveText(["Brew", "Chill", "Check"]);
+  await expect(answer.locator("h4")).toHaveText("Key points");
+  expect(
+    await answer.evaluate(
+      (element) =>
+        getComputedStyle(element.querySelector("h4")!).fontSize ===
+        getComputedStyle(element).fontSize,
+    ),
+  ).toBe(true);
 });

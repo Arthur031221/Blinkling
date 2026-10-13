@@ -408,11 +408,47 @@ describe("extension bridge payloads", () => {
     expect(elements.every(([, , label]) => label.length < 180)).toBe(true);
     expect(new Set(elements.map(([, , label]) => label.length)).size).toBe(1);
   });
+  it("asks the direct API for short structured prose while preserving structured tasks", async () => {
+    anthropicStream([
+      event("content_block_delta", {
+        delta: { type: "text_delta", text: "Short answer." },
+      }),
+      event("message_stop"),
+    ]);
+    await runAnthropic();
+    const fetchMock = vi.mocked(fetch);
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body.system).toContain("one short answer sentence");
+    expect(body.system).toContain("Bold key terms");
+    expect(body.system).toContain("under 80 words");
+    expect(body.system).toContain(
+      "Preserve requested JSON schemas and complete translations",
+    );
+  });
+
   it("safely parses bounded suggestion, passive, and translation structures", () => {
     expect(parseSuggestions('{"questions":["  Why? ",1,"How?"]}')).toEqual([
       "Why?",
       "How?",
     ]);
+    expect(
+      parseSuggestions(
+        JSON.stringify({ questions: ["One", "Two", "Three", "Four"] }),
+      ),
+    ).toEqual(["One", "Two", "Three"]);
+    expect(
+      parsePassiveAnswer(
+        JSON.stringify({
+          what: "New page",
+          points: ["One", "Two", "Three", "Four"],
+          questions: ["One?", "Two?", "Three?", "Four?"],
+        }),
+      ),
+    ).toEqual({
+      what: "New page",
+      points: ["One", "Two", "Three"],
+      questions: ["One?", "Two?", "Three?"],
+    });
     expect(
       parsePassiveAnswer(
         '{"what":"Change","points":["One",1,"Two"],"questions":["Next?"]}',

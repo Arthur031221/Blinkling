@@ -22,6 +22,12 @@ describe("running session channel", () => {
     const answer = channel.ask(input);
     const id = push.mock.calls[1][0].params.meta.request_id;
     expect(channel.context(id)).toEqual(input.image);
+    expect(push.mock.calls[1][0].params.content).toContain(
+      "one short answer sentence",
+    );
+    expect(push.mock.calls[1][0].params.content).toContain(
+      "Preserve requested JSON schemas",
+    );
     expect(() => channel.reply("other", "leak", true)).toThrow();
     channel.reply(id, "Export ", false);
     channel.reply(id, "is on the right.", true);

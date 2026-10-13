@@ -138,12 +138,23 @@ async function start() {
 }
 function button(name: string, scope: ParentNode = document) {
   const result = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(
-    (element) => element.textContent?.trim() === name,
+    (element) =>
+      element.textContent?.trim() === name ||
+      element.getAttribute("aria-label") === name,
   );
   if (!result) throw new Error(`Missing button: ${name}`);
   return result;
 }
 async function click(name: string, scope: ParentNode = document) {
+  if (
+    [en.visible, en.fullPage, en.element, en.translatePage].includes(name) &&
+    !scope.querySelector(".tools-menu")
+  ) {
+    const tools = scope.querySelector<HTMLButtonElement>(
+      `[aria-label="${en.moreTools}"]`,
+    )!;
+    await act(async () => tools.click());
+  }
   await act(async () => button(name, scope).click());
   await flush();
 }
@@ -294,7 +305,11 @@ async function startSharing(surface = "monitor") {
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
   mocks.startShare.mockResolvedValue({ stream });
   await click(en.float);
-  await click(en.share, floating.document);
+  const auto =
+    floating.document.querySelector<HTMLButtonElement>('[role="switch"]')!;
+  if (auto.getAttribute("aria-checked") === "true")
+    await click(en.autoExplain, floating.document);
+  await click(en.autoExplain, floating.document);
   return { floating, close, requestWindow, stream, track };
 }
 
@@ -2056,6 +2071,8 @@ describe("bubble answer rendering and feedback", () => {
       usage: { inputTokens: 50, outputTokens: 10, costUsd: 0.0123 },
     });
     await submitDraft("What is on this page?");
+    expect(document.querySelector(".usage-estimate")).toBeNull();
+    await clickAccessible(en.settings);
     expect(document.querySelector(".usage-estimate")?.textContent).toBe(
       "Equivalent API usage, past hour: $0.0123",
     );
@@ -2066,6 +2083,7 @@ describe("bubble answer rendering and feedback", () => {
   it("keeps the direct API estimate distinct from the Claude Code subscription explanation", async () => {
     stored.backend = "api";
     await start();
+    await clickAccessible(en.settings);
     expect(document.querySelector(".usage-estimate")?.textContent).toBe(
       `${en.costEstimate}: $0.0000`,
     );
@@ -2111,6 +2129,7 @@ describe("bubble answer rendering and feedback", () => {
       expect(entry.querySelector(".answer .markdown")?.textContent).toContain(
         `Page change ${index + 1}`,
       );
+      expect(entry.querySelectorAll(".answer .markdown li")).toHaveLength(3);
     }
     expect(document.querySelectorAll(".suggestions button")).toHaveLength(3);
   });
@@ -2203,6 +2222,7 @@ describe("bubble answer rendering and feedback", () => {
       action: "summary",
       context: page,
     });
+    await clickAccessible(en.moreTools);
     for (const name of [en.visible, en.fullPage, en.element])
       expect(button(name).disabled).toBe(true);
     await act(async () => complete({ answer: "Finished answer" }));
@@ -2425,7 +2445,7 @@ describe("bubble answer rendering and feedback", () => {
       ),
     ).toBe(true);
     expect(document.querySelector(".capture-buttons button")?.textContent).toBe(
-      en.guideAction,
+      en.wholeScreen,
     );
   });
   it("gives Guide-specific toolbar recovery outside the tutorial too", async () => {
@@ -2463,13 +2483,13 @@ describe("bubble answer rendering and feedback", () => {
     );
     await click("Skip practice step");
     expect(document.querySelector(".capture-buttons button")?.textContent).toBe(
-      en.guideAction,
+      en.wholeScreen,
     );
   });
   it("renders streaming and completed Markdown safely and preserves copy/pin text", async () => {
     await start();
     const answer =
-      '**Key point**\n\n- First\n- Second\n\n```js\nconst value = 1;\n```\n\n[Source](https://example.com)\n\n<img src="https://tracker.invalid/pixel" onerror="alert(1)"><script>alert(1)</script>[bad](javascript:alert(1)) ![image](https://tracker.invalid/image)';
+      'Here is the short answer.\n\n#### Details\n\n- **Key point**: First\n- Second\n\n```js\nconst value = 1;\n```\n\n[Source](https://example.com)\n\n<img src="https://tracker.invalid/pixel" onerror="alert(1)"><script>alert(1)</script>[bad](javascript:alert(1)) ![image](https://tracker.invalid/image)';
     let complete!: (result: { answer: string }) => void;
     mocks.ask.mockImplementation((_input, delta) => {
       delta(answer);
@@ -2485,6 +2505,10 @@ describe("bubble answer rendering and feedback", () => {
     expect(document.querySelector(".answer strong")?.textContent).toBe(
       "Key point",
     );
+    expect(document.querySelector(".answer .markdown > p")?.textContent).toBe(
+      "Here is the short answer.",
+    );
+    expect(document.querySelector(".answer h4")?.textContent).toBe("Details");
     expect(document.querySelectorAll(".answer li")).toHaveLength(2);
     expect(document.querySelector(".answer pre code")?.textContent).toContain(
       "const value = 1;",
@@ -2498,6 +2522,7 @@ describe("bubble answer rendering and feedback", () => {
       ),
     ).toBeNull();
     await act(async () => complete({ answer }));
+    expect(document.querySelectorAll(".answer li")).toHaveLength(2);
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -3085,7 +3110,7 @@ describe("floating window size persistence", () => {
   it("restores both inner dimensions and ignores a delayed compact resize before saving later user resizes", async () => {
     const { floating, resize, nativeResize, expand } = await openSizedFloat();
     await click(en.compact, floating.document);
-    expect(resize).toHaveBeenLastCalledWith(428, 218);
+    expect(resize).toHaveBeenLastCalledWith(80, 110);
     await nativeResize(420, 180);
     expect(chrome.storage.local.set).not.toHaveBeenCalled();
     await expand();
@@ -3132,11 +3157,49 @@ describe("floating window size persistence", () => {
     const { floating, nativeResize, expand } = await openSizedFloat();
     await click(en.compact, floating.document);
     await expand();
-    await nativeResize(420, 180);
+    await nativeResize(72, 72);
     expect(chrome.storage.local.set).not.toHaveBeenCalled();
     await nativeResize(420, 600);
     expect(chrome.storage.local.set).toHaveBeenLastCalledWith({
       pipSize: { width: 420, height: 600 },
+    });
+  });
+
+  it("restores native dimensions after an in-flight minimize finishes late", async () => {
+    const { floating, expand } = await openSizedFloat();
+    const native = {
+      id: 9,
+      width: 428,
+      height: 638,
+      left: 120,
+      top: 80,
+      alwaysOnTop: true,
+      tabs: [{ url: "about:blank", openerTabId: 2 }],
+    };
+    Object.defineProperties(floating, {
+      screenX: { configurable: true, value: 120 },
+      screenY: { configurable: true, value: 80 },
+    });
+    let finishResize!: () => void;
+    Object.assign(chrome.windows, {
+      getAll: vi.fn().mockResolvedValue([native]),
+      update: vi.fn(async (_id: number, change: chrome.windows.UpdateInfo) => {
+        if (change.width === 80)
+          await new Promise<void>((resolve) => (finishResize = resolve));
+        Object.assign(native, change);
+        return { ...native };
+      }),
+    });
+    await click(en.compact, floating.document);
+    expect(finishResize).toBeTypeOf("function");
+    await expand();
+    await act(async () => finishResize());
+    await flush();
+    expect(native).toMatchObject({
+      left: 120,
+      top: 80,
+      width: 428,
+      height: 638,
     });
   });
 
@@ -3194,9 +3257,7 @@ describe("screen sharing and capture authorization in the bubble", () => {
     expect(
       floating.document.querySelector(".toolbar .status")!.textContent,
     ).toBe(en.sharing);
-    expect(floating.document.querySelector(".hint")!.textContent).toBe(
-      en.captureScreenClearance,
-    );
+    expect(floating.document.querySelector(".hint")).toBeNull();
     expect(document.querySelector<HTMLVideoElement>("video")!.srcObject).toBe(
       stream,
     );
@@ -3453,3 +3514,276 @@ describe("screen sharing and capture authorization in the bubble", () => {
     },
   );
 });
+
+describe("v2.1 bubble states", () => {
+  it("shows three main actions, a single narration switch and no hint paragraphs", async () => {
+    await start();
+    expect(
+      [...document.querySelectorAll(".capture-buttons button")].map((item) =>
+        item.textContent?.trim(),
+      ),
+    ).toEqual([en.wholeScreen, en.region, en.guideAction]);
+    expect(document.querySelectorAll('[role="switch"]')).toHaveLength(1);
+    expect(document.querySelector('[role="switch"]')?.textContent).toBe(
+      en.autoExplain,
+    );
+    expect(document.querySelector(".composer small, .usage-hint")).toBeNull();
+    expect(
+      document.querySelectorAll(".suggestions button").length,
+    ).toBeLessThanOrEqual(3);
+    expect(document.querySelector(".tools-menu")).toBeNull();
+  });
+  it.each([false, true])(
+    "dims the entire crop and restores the bubble after failure=%s",
+    async (fail) => {
+      await start();
+      const surface = document.querySelector<HTMLElement>(".app")!;
+      let complete!: () => void;
+      mocks.capture.mockImplementation(
+        () =>
+          new Promise((resolve, reject) => {
+            complete = () =>
+              fail
+                ? reject(new Error("capture_cancelled"))
+                : resolve({
+                    capture: {
+                      image: "data:image/png;base64,AAA=",
+                      label: "Region",
+                    },
+                    page,
+                  });
+          }),
+      );
+      await click(en.region);
+      expect(surface.dataset.bubbleState).toBe("crop");
+      expect(surface.style.opacity).toBe("0.25");
+      expect(surface.style.pointerEvents).toBe("none");
+      surface.dispatchEvent(new Event("pointerenter"));
+      expect(surface.style.opacity).toBe("0.25");
+      await act(async () => complete());
+      expect(surface.style.opacity).toBe("0.75");
+      expect(surface.style.pointerEvents).toBe("");
+    },
+  );
+  it("keeps page Shift crop see-through until cancel and ignores unrelated pages", async () => {
+    await start();
+    const surface = document.querySelector<HTMLElement>(".app")!;
+    surface.click();
+    await send({ type: "glimpselet:crop-mode", active: true });
+    expect(surface.style.opacity).toBe("0.25");
+    await act(async () => {
+      runtime.emit(
+        { type: "glimpselet:crop-mode", active: false },
+        { tab: { id: 99 } },
+        vi.fn(),
+      );
+    });
+    expect(surface.style.opacity).toBe("0.25");
+    await send({ type: "glimpselet:crop-mode", active: false });
+    expect(surface.style.opacity).toBe("1");
+  });
+  it.each(["button", "Shift"])(
+    "keeps a shared %s crop see-through until cancel and restores the previous draft",
+    async (gesture) => {
+      await start();
+      const { floating } = await startSharing("browser");
+      await draft("Keep my draft", floating.document);
+      let cancel!: (value: null) => void;
+      mocks.crop.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            cancel = resolve;
+          }),
+      );
+      if (gesture === "button") await click(en.region, floating.document);
+      else {
+        await act(async () =>
+          floating.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Shift" }),
+          ),
+        );
+        await act(async () => vi.advanceTimersByTimeAsync(210));
+      }
+      await flush();
+      expect(mocks.crop).toHaveBeenCalledOnce();
+      const surface = floating.document.body;
+      expect(surface.dataset.bubbleState).toBe("crop");
+      expect(surface.style.opacity).toBe("0.25");
+      expect(surface.style.pointerEvents).toBe("none");
+      surface.dispatchEvent(new Event("pointerenter"));
+      floating.dispatchEvent(new Event("blur"));
+      expect(surface.style.opacity).toBe("0.25");
+      await act(async () => cancel(null));
+      await flush();
+      expect(surface.dataset.bubbleState).toBe("idle");
+      expect(surface.style.opacity).toBe("0.35");
+      expect(surface.style.pointerEvents).toBe("");
+      expect(
+        floating.document.querySelector<HTMLTextAreaElement>("textarea")!.value,
+      ).toBe("Keep my draft");
+    },
+  );
+  it("minimizes to Blink, restores the chat and preserves the live stream and expanded size", async () => {
+    await start();
+    const { floating, stream, track } = await startSharing("browser");
+    const resize = vi.spyOn(floating, "resizeTo").mockImplementation(() => {});
+    await clickAccessibleIn(en.compact, floating.document);
+    expect(
+      floating.document.querySelector(".app")?.classList.contains("compact"),
+    ).toBe(true);
+    expect(floating.document.querySelector(".blink-dot .blink")).not.toBeNull();
+    expect(floating.document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("video")?.srcObject).toBe(stream);
+    expect(track.stop).not.toHaveBeenCalled();
+    expect(resize.mock.calls[0][0]).toBe(
+      72 + floating.outerWidth - floating.innerWidth,
+    );
+    await clickAccessibleIn(en.expand, floating.document);
+    expect(
+      floating.document.querySelector(".app")?.classList.contains("expanded"),
+    ).toBe(true);
+    expect(floating.document.querySelector("textarea")).not.toBeNull();
+    expect(resize).toHaveBeenCalledTimes(2);
+    expect(document.querySelector("video")?.srcObject).toBe(stream);
+  });
+  it("remembers Blink's edge peek and prevents a drag from restoring the chat", async () => {
+    stored.blinkDock = { edge: "right", y: 0.4 };
+    await start();
+    await clickAccessible(en.compact);
+    const dot = document.querySelector<HTMLButtonElement>(".blink-dot")!;
+    expect(dot.classList.contains("peek")).toBe(true);
+    expect(dot.style.top).toBe("40%");
+    await act(async () => {
+      dot.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          clientX: 400,
+          clientY: 250,
+        }),
+      );
+      dot.dispatchEvent(
+        new MouseEvent("pointermove", {
+          bubbles: true,
+          clientX: 400,
+          clientY: 700,
+        }),
+      );
+      dot.dispatchEvent(
+        new MouseEvent("pointerup", {
+          bubbles: true,
+          clientX: 400,
+          clientY: 700,
+        }),
+      );
+      dot.click();
+    });
+    expect(document.querySelector(".app.compact")).not.toBeNull();
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      blinkDock: { edge: "bottom", y: 0.85 },
+    });
+    await clickAccessible(en.expand);
+    expect(document.querySelector(".app.expanded")).not.toBeNull();
+  });
+  it("the narration switch starts sharing once and turns both sharing and summaries off", async () => {
+    await start();
+    const { floating, track } = await startSharing("browser");
+    expect(mocks.startShare).toHaveBeenCalledTimes(1);
+    expect(
+      floating.document
+        .querySelector('[role="switch"]')
+        ?.getAttribute("aria-checked"),
+    ).toBe("true");
+    await click(en.autoExplain, floating.document);
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({ passive: false });
+    expect(
+      floating.document
+        .querySelector('[role="switch"]')
+        ?.getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+  it("captures the whole shared frame without reopening the picker or cropping", async () => {
+    await start();
+    const { floating } = await startSharing("browser");
+    await click(en.wholeScreen, floating.document);
+    expect(mocks.startShare).toHaveBeenCalledOnce();
+    expect(mocks.freeze).toHaveBeenCalledOnce();
+    expect(mocks.crop).not.toHaveBeenCalled();
+    expect(mocks.capture).not.toHaveBeenCalled();
+    expect(
+      floating.document.querySelector<HTMLImageElement>(".capture-chip img")!
+        .src,
+    ).toBe("data:image/png;base64,CCC=");
+    expect(
+      floating.document.querySelector(".capture-chip")!.textContent,
+    ).toContain(en.wholeScreen);
+    const frame = await mocks.freeze.mock.results[0].value;
+    expect([frame.width, frame.height]).toEqual([0, 0]);
+  });
+  it("preserves the accepted capture if sharing ends while a whole frame is freezing", async () => {
+    await start();
+    await click(en.visible);
+    const { floating, track } = await startSharing("browser");
+    let finish!: (canvas: HTMLCanvasElement) => void;
+    mocks.freeze.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await click(en.wholeScreen, floating.document);
+    await act(async () => {
+      track.readyState = "ended";
+      track.dispatchEvent(new Event("ended"));
+    });
+    const frame = document.createElement("canvas");
+    frame.width = 80;
+    frame.height = 60;
+    frame.toDataURL = vi.fn().mockReturnValue("data:image/png;base64,CCC=");
+    await act(async () => finish(frame));
+    await flush();
+    expect(
+      floating.document.querySelector<HTMLImageElement>(".capture-chip img")!
+        .src,
+    ).toBe("data:image/png;base64,AAA=");
+    expect(frame.toDataURL).not.toHaveBeenCalled();
+    expect([frame.width, frame.height]).toEqual([0, 0]);
+    expect(
+      floating.document
+        .querySelector('[role="switch"]')!
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+  it("opens only one sharing picker while repeated switch clicks are pending", async () => {
+    await start();
+    const { floating, stream } = await startSharing("browser");
+    await click(en.autoExplain, floating.document);
+    let choose!: (value: { stream: typeof stream }) => void;
+    mocks.startShare.mockClear().mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          choose = resolve;
+        }),
+    );
+    await click(en.autoExplain, floating.document);
+    expect(button(en.autoExplain, floating.document).disabled).toBe(true);
+    await click(en.autoExplain, floating.document);
+    expect(mocks.startShare).toHaveBeenCalledOnce();
+    await act(async () => choose({ stream }));
+    await flush();
+    expect(button(en.autoExplain, floating.document).disabled).toBe(false);
+    expect(
+      floating.document
+        .querySelector('[role="switch"]')!
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+});
+async function clickAccessibleIn(name: string, scope: ParentNode) {
+  const target = scope.querySelector<HTMLButtonElement>(
+    `[aria-label="${name}"]`,
+  )!;
+  await act(async () => target.click());
+  await flush();
+}

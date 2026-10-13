@@ -22,6 +22,15 @@ let server: Server,
   bridge: ExtensionBridge,
   context: BrowserContext,
   worker: Worker;
+async function openTools(page: Page) {
+  if (!(await page.locator(".tools-menu").isVisible()))
+    await page.getByRole("button", { name: en.moreTools, exact: true }).click();
+}
+async function clickTool(page: Page, label: string) {
+  await openTools(page);
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
+
 let panel: Page,
   site: Page,
   directory: string,
@@ -359,7 +368,9 @@ test("clears an obsolete password warning after clicking an SPA sidebar link", a
     password.type = "password";
     document.body.append(password);
   });
-  await panel.getByRole("button", { name: en.visible, exact: true }).click();
+  await panel
+    .getByRole("button", { name: en.wholeScreen, exact: true })
+    .click();
   await expect(panel.locator(".toolbar .status")).toHaveText(en.passwordPage);
   await site.getByRole("link", { name: "Dashboards", exact: true }).click();
   await expect(site).toHaveURL(origin + "/dashboards");
@@ -1166,9 +1177,7 @@ test("bubble translates inline grammatical omission and restores the exact sourc
       }),
     };
   };
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(panel.locator(".toolbar .status")).toHaveText(
     en.translationApplied,
   );
@@ -1255,16 +1264,14 @@ test("bubble retranslates an omitted fragment from its original source and retai
       }),
     };
   };
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(panel.locator(".toolbar .status")).toHaveText(
     en.translationApplied,
   );
   expect(
     await site.locator("#repeat-fragments span").nth(2).textContent(),
   ).toBe("");
-  await panel.getByRole("button", { name: en.translated, exact: true }).click();
+  await clickTool(panel, en.translatePage);
   await expect(site.locator("#repeat-fragments")).toHaveText(
     secondTranslation.join(""),
   );
@@ -1312,9 +1319,7 @@ test("bubble keeps escaped translation requests within the limit and preserves e
       }),
     };
   };
-  await panel
-    .getByRole("button", { name: en.translatePage, exact: true })
-    .click();
+  await clickTool(panel, en.translatePage);
   await expect(panel.locator(".toolbar .status")).toHaveText(
     en.translationApplied,
   );
@@ -1354,17 +1359,20 @@ test("bubble rejects extra duplicate or unknown translation IDs before writing",
       }),
     };
   };
+  await openTools(panel);
   const translate = panel.getByRole("button", {
     name: en.translatePage,
     exact: true,
   });
   for (const id of ["unknown", "duplicate"]) {
     extraId = id;
+    await openTools(panel);
     await expect(translate).toBeEnabled();
     await translate.click();
     await expect(panel.locator(".toolbar .status")).toHaveText(
       en.translationIncomplete,
     );
+    await openTools(panel);
     await expect(translate).toBeEnabled();
     await expect(site.locator("#source")).toHaveText("検証可能な出典");
     await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(0);
