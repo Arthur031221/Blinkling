@@ -145,6 +145,42 @@ afterEach(() => {
 });
 
 describe("foreground shared screen crop", () => {
+  it.each(["browser", "window"])(
+    "keeps the bubble present and dimmed during a %s-source crop even when clearance hooks are supplied",
+    async (surface) => {
+      const bubble = document.implementation.createHTMLDocument();
+      bubble.body.style.opacity = "0.8";
+      Object.defineProperty(bubble, "defaultView", {
+        configurable: true,
+        value: { closed: false },
+      });
+      const track = Object.assign(new EventTarget(), {
+        readyState: "live",
+        getSettings: () => ({ displaySurface: surface }),
+      });
+      Object.defineProperty(video, "srcObject", {
+        configurable: true,
+        value: { getVideoTracks: () => [track] },
+      });
+      const clearBubble = {
+        hide: vi.fn(async () => {}),
+        restore: vi.fn(async () => {}),
+      };
+      let selectionOpacity = "";
+      vi.mocked(selectCrop).mockImplementation(async () => {
+        selectionOpacity = bubble.body.style.opacity;
+        return null;
+      });
+      expect(
+        await cropSharedScreen(video, bubble, labels, { clearBubble }),
+      ).toBeNull();
+      expect(selectionOpacity).toBe("0.25");
+      expect(clearBubble.hide).not.toHaveBeenCalled();
+      expect(clearBubble.restore).not.toHaveBeenCalled();
+      expect(bubble.body.style.opacity).toBe("0.8");
+    },
+  );
+
   it("freezes before activating the actual opener, then restores the previous tab and window", async () => {
     await cropSharedScreen(video, null, labels);
     expect(chromeMock.tabs.getCurrent).toHaveBeenCalled();
