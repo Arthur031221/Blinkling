@@ -73,6 +73,36 @@ const ask: AskInput = {
 };
 
 describe("extension bridge payloads", () => {
+  it("explicit top-document text supports asks and translation without authorizing pixels or automatic reads", async () => {
+    const page = {
+      url: "https://example.test",
+      title: "Public mug",
+      text: "350 ml · ¥2,290",
+      elements: [],
+      hasPassword: false,
+      textScope: "top-document-text" as const,
+      excludedEmbeds: 2,
+    };
+    for (const kind of ["ask", "translate"] as const)
+      expect(() => validateAsk({ ...ask, kind, page })).not.toThrow();
+    for (const kind of ["suggest", "passive", "guide"] as const)
+      expect(() => validateAsk({ ...ask, kind, page })).toThrow(
+        "explicit_context_only",
+      );
+    expect(() =>
+      validateAsk({ ...ask, page: { ...page, hasPassword: true } }),
+    ).toThrow("password_page");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    await expect(
+      runAnthropicInput({
+        ...ask,
+        page,
+        image: "data:image/png;base64,UNCHECKED_PIXELS",
+      }),
+    ).rejects.toThrow("explicit_text_only");
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("text-only guide contexts cannot authorize pixels or automatic page requests", async () => {
     const page: PageContext = {
       url: "https://example.test",

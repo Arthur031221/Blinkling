@@ -15700,6 +15700,12 @@ function validateAsk(input) {
     if (input.kind !== "guide") throw new Error("guide_context_only");
     if (input.image) throw new Error("guide_text_only");
   }
+  if (input.page?.textScope === "top-document-text") {
+    if (input.page.hasPassword) throw new Error("password_page");
+    if (input.kind !== "ask" && input.kind !== "translate")
+      throw new Error("explicit_context_only");
+    if (input.image) throw new Error("explicit_text_only");
+  }
   if (!input.question.trim() || input.question.length > MAX_QUESTION)
     throw new Error("question_limit");
   if (input.image && (input.image.length > MAX_PNG_LENGTH || !input.image.startsWith("data:image/png;base64,")))
@@ -16290,8 +16296,48 @@ async function freezeSharedFrame(video, bubble, options = {}) {
 }
 
 // extension/privacy.ts
-function hasSensitiveContent(doc = document, manualTextOnly = false) {
+function hasSensitiveContent(doc = document, mode = false) {
   doc ??= document;
+  const manualTextOnly = mode === true;
+  const contributesNoPixels = (element) => {
+    try {
+      const owner = element.ownerDocument;
+      const view = owner.defaultView;
+      if (!view) return false;
+      const ownStyle = view.getComputedStyle(element);
+      if (element.localName !== "object" && ["hidden", "collapse"].includes(ownStyle.visibility))
+        return true;
+      const ancestors = /* @__PURE__ */ new Set();
+      let expandedPaint = false;
+      let current = element;
+      while (current) {
+        if (ancestors.has(current)) return false;
+        ancestors.add(current);
+        const style = current.ownerDocument.defaultView?.getComputedStyle(current);
+        if (!style) return false;
+        if (style.display === "none" || style.opacity === "0") return true;
+        if (style.filter && style.filter !== "none") expandedPaint = true;
+        const root = current.getRootNode();
+        current = current.assignedSlot || current.parentElement || (root.nodeType === 11 ? root.host : null) || current.ownerDocument.defaultView?.frameElement || null;
+      }
+      if (element.localName === "object" || expandedPaint) return false;
+      const rects = Array.from(element.getClientRects());
+      if (!rects.length || view.innerWidth <= 0 || view.innerHeight <= 0)
+        return false;
+      return rects.every(
+        (rect) => [
+          rect.left,
+          rect.top,
+          rect.right,
+          rect.bottom,
+          rect.width,
+          rect.height
+        ].every(Number.isFinite) && (rect.width === 0 || rect.height === 0 || rect.right <= 0 || rect.bottom <= 0 || rect.left >= view.innerWidth || rect.top >= view.innerHeight)
+      );
+    } catch {
+      return false;
+    }
+  };
   const roots = [doc];
   const seen = /* @__PURE__ */ new Set();
   let remaining = 5e4;
@@ -16312,21 +16358,23 @@ function hasSensitiveContent(doc = document, manualTextOnly = false) {
         return true;
       if (element.shadowRoot) roots.push(element.shadowRoot);
       if (["iframe", "frame", "object", "embed"].includes(element.localName)) {
+        const excludedPixels = () => mode === "visible-capture" && contributesNoPixels(element);
         try {
           const frame = element;
           const nested = frame.contentDocument ?? frame.getSVGDocument?.();
           if (!nested) {
-            if (manualTextOnly) continue;
+            if (manualTextOnly || excludedPixels()) continue;
             return true;
           }
-          if (nested.readyState !== "complete" && !manualTextOnly) return true;
+          if (nested.readyState !== "complete" && !manualTextOnly && !excludedPixels())
+            return true;
           const source = frame.getAttribute("src")?.trim().toLowerCase();
           if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank")) {
-            if (!manualTextOnly) return true;
+            if (!manualTextOnly && !excludedPixels()) return true;
           }
           roots.push(nested);
         } catch {
-          if (manualTextOnly) continue;
+          if (manualTextOnly || excludedPixels()) continue;
           return true;
         }
       }
@@ -16443,6 +16491,16 @@ async function requireSiteAccess(tab) {
     }
   }
 }
+async function requireUnblockedPage(tab) {
+  const { blocklist } = await chrome.storage.local.get("blocklist");
+  const host = new URL(tab.url).hostname.toLowerCase();
+  if (Array.isArray(blocklist) && blocklist.some((entry) => {
+    if (typeof entry !== "string") return false;
+    const item = entry.trim().toLowerCase();
+    return item && (host === item || host.endsWith(`.${item}`));
+  }))
+    throw new Error("blocked_page");
+}
 async function injectContent(tab) {
   await requireSiteAccess(tab);
   try {
@@ -16462,7 +16520,7 @@ async function sendToPage(tab, message) {
     throw new Error("allow_site_access");
   }
 }
-async function isSensitivePage(binding, manualTextOnly = false) {
+async function isSensitivePage(binding, mode = false) {
   const candidate = binding ? await chrome.tabs.get(binding.tabId).catch(() => void 0) : await activeTab();
   if (!candidate?.id || candidate.windowId === void 0 || binding && candidate.url !== binding.url)
     return true;
@@ -16476,7 +16534,7 @@ async function isSensitivePage(binding, manualTextOnly = false) {
         ...binding ? { documentIds: [binding.documentId] } : {}
       },
       func: hasSensitiveContent,
-      args: [null, manualTextOnly]
+      args: [null, mode]
     });
     return result[0]?.result !== false || Boolean(binding && result[0]?.documentId !== binding.documentId);
   } catch (error) {
@@ -16493,6 +16551,7 @@ async function getDocumentIdentity() {
   return identity;
 }
 async function getPageContext(manualTextOnly = false) {
+  if (manualTextOnly) return getExplicitPageContext();
   const tab = await activeTab();
   await requireSiteAccess(tab);
   if (await isSensitivePage(void 0, manualTextOnly))
@@ -16504,30 +16563,27 @@ async function getPageContext(manualTextOnly = false) {
   return context;
 }
 async function getGuideContext(expected) {
+  return getScopedPageContext("glimpselet:guide-context", expected);
+}
+async function getExplicitPageContext(expected) {
+  return getScopedPageContext("glimpselet:explicit-context", expected);
+}
+async function getScopedPageContext(type, expected) {
   const tab = await activeTab();
   await requireSiteAccess(tab);
-  const checkBlocklist = async () => {
-    const { blocklist } = await chrome.storage.local.get("blocklist");
-    const host = new URL(tab.url).hostname.toLowerCase();
-    if (Array.isArray(blocklist) && blocklist.some((entry) => {
-      if (typeof entry !== "string") return false;
-      const item = entry.trim().toLowerCase();
-      return item && (host === item || host.endsWith(`.${item}`));
-    }))
-      throw new Error("blocked_page");
-  };
+  const checkBlocklist = () => requireUnblockedPage(tab);
   await checkBlocklist();
   if (tab.url?.startsWith(chrome.runtime.getURL("reader.html"))) {
     const read = async (bound = expected) => {
       const page3 = await chrome.tabs.sendMessage(tab.id, {
-        type: "glimpselet:guide-context",
+        type,
         ...bound ? { documentKey: bound.documentKey, url: bound.url } : {}
       }).catch(() => {
         throw new Error("tab_changed");
       });
       if (page3?.error) throw new Error(page3.error);
       if (page3?.hasPassword) throw new Error("password_page");
-      if (!page3?.documentKey || page3.url !== tab.url || page3.guideScope !== "top-document-text" || bound && (page3.documentKey !== bound.documentKey || page3.url !== bound.url))
+      if (!page3?.documentKey || page3.url !== tab.url || (type === "glimpselet:guide-context" ? page3.guideScope : page3.textScope) !== "top-document-text" || bound && (page3.documentKey !== bound.documentKey || page3.url !== bound.url))
         throw new Error("tab_changed");
       return page3;
     };
@@ -16555,12 +16611,12 @@ async function getGuideContext(expected) {
   };
   const documentId = await inspect();
   await injectContent(tab);
-  const page = await chrome.tabs.sendMessage(tab.id, { type: "glimpselet:guide-context" }, { documentId }).catch(() => {
+  const page = await chrome.tabs.sendMessage(tab.id, { type }, { documentId }).catch(() => {
     throw new Error("tab_changed");
   });
   if (page?.error) throw new Error(page.error);
   if (page?.hasPassword) throw new Error("password_page");
-  if (!page?.documentKey || page.url !== tab.url || page.guideScope !== "top-document-text" || expected && (page.documentKey !== expected.documentKey || page.url !== expected.url))
+  if (!page?.documentKey || page.url !== tab.url || (type === "glimpselet:guide-context" ? page.guideScope : page.textScope) !== "top-document-text" || expected && (page.documentKey !== expected.documentKey || page.url !== expected.url))
     throw new Error("tab_changed");
   await assertStillActive(tab);
   await checkBlocklist();
@@ -16572,13 +16628,21 @@ async function captureWeb(kind, selectedRect, labels, options = {}) {
   throwIfAborted(options.signal);
   const tab = await activeTab();
   await requireSiteAccess(tab);
-  if (await isSensitivePage()) throw new Error("password_page");
+  await requireUnblockedPage(tab);
+  const privacyMode = kind === "full" ? false : "visible-capture";
+  if (await isSensitivePage(void 0, privacyMode))
+    throw new Error("password_page");
   let page;
   try {
-    page = await sendToPage(tab, {
-      type: "glimpselet:context"
+    const context = await sendToPage(tab, {
+      type: kind === "full" ? "glimpselet:context" : "glimpselet:explicit-context"
     });
-  } catch {
+    if (context?.error) throw new Error(context.error);
+    if (context?.hasPassword) throw new Error("password_page");
+    page = context;
+  } catch (error) {
+    if (error instanceof Error && ["password_page", "blocked_page", "tab_changed"].includes(error.message))
+      throw error;
   }
   let rect = selectedRect;
   if (!rect && (kind === "region" || kind === "element")) {
@@ -16597,8 +16661,10 @@ async function captureWeb(kind, selectedRect, labels, options = {}) {
     rect = selected?.rect;
   }
   if (kind !== "full") {
+    await requireUnblockedPage(tab);
     await assertStillActive(tab);
-    if (await isSensitivePage()) throw new Error("password_page");
+    if (await isSensitivePage(void 0, privacyMode))
+      throw new Error("password_page");
     const data = await chrome.tabs.captureVisibleTab(tab.windowId, {
       format: "png"
     }).catch(() => {
@@ -16610,14 +16676,18 @@ async function captureWeb(kind, selectedRect, labels, options = {}) {
       func: () => innerWidth
     });
     const image2 = await crop(data, rect, dimensions[0]?.result || 1280);
-    if (await isSensitivePage()) throw new Error("password_page");
+    await requireUnblockedPage(tab);
+    if (await isSensitivePage(void 0, privacyMode))
+      throw new Error("password_page");
     await assertStillActive(tab);
+    const capturedPage = page ? { ...page } : void 0;
+    if (capturedPage) delete capturedPage.textScope;
     return {
       capture: {
         image: image2,
         label: kind === "visible" ? "Visible tab" : kind === "region" ? "Selected region" : "Selected element"
       },
-      page
+      page: capturedPage
     };
   }
   const original = await chrome.scripting.executeScript({
@@ -16685,6 +16755,7 @@ async function captureWeb(kind, selectedRect, labels, options = {}) {
         throwIfAborted(options.signal);
         await waitForCaptureDelay(80, options.signal);
         throwIfAborted(options.signal);
+        await requireUnblockedPage(tab);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
         if (await isSensitivePage()) throw new Error("password_page");
@@ -16697,6 +16768,7 @@ async function captureWeb(kind, selectedRect, labels, options = {}) {
         throwIfAborted(options.signal);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
+        await requireUnblockedPage(tab);
         if (await isSensitivePage()) throw new Error("password_page");
         throwIfAborted(options.signal);
         await drawFrame(
@@ -16726,6 +16798,7 @@ async function captureWeb(kind, selectedRect, labels, options = {}) {
   }
   throwIfAborted(options.signal);
   const image = encodeCanvasPng(canvas);
+  await requireUnblockedPage(tab);
   if (await isSensitivePage()) throw new Error("password_page");
   await assertStillActive(tab);
   return {
@@ -20492,7 +20565,7 @@ ${step.action}` : ""}`
       setBusy(true);
       let admitted = false;
       try {
-        freshPage = await getPageContext() ?? null;
+        freshPage = await getExplicitPageContext() ?? null;
         if (freshPage && isBlocked(freshPage.url))
           throw new Error("blocked_page");
         if (!freshPage) throw new Error("unsupported_page");

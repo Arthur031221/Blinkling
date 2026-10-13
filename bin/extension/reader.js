@@ -26127,8 +26127,48 @@ function listenForShiftCrop(view, allowed, start) {
 }
 
 // extension/privacy.ts
-function hasSensitiveContent(doc = document, manualTextOnly = false) {
+function hasSensitiveContent(doc = document, mode = false) {
   doc ??= document;
+  const manualTextOnly = mode === true;
+  const contributesNoPixels = (element) => {
+    try {
+      const owner = element.ownerDocument;
+      const view = owner.defaultView;
+      if (!view) return false;
+      const ownStyle = view.getComputedStyle(element);
+      if (element.localName !== "object" && ["hidden", "collapse"].includes(ownStyle.visibility))
+        return true;
+      const ancestors = /* @__PURE__ */ new Set();
+      let expandedPaint = false;
+      let current = element;
+      while (current) {
+        if (ancestors.has(current)) return false;
+        ancestors.add(current);
+        const style = current.ownerDocument.defaultView?.getComputedStyle(current);
+        if (!style) return false;
+        if (style.display === "none" || style.opacity === "0") return true;
+        if (style.filter && style.filter !== "none") expandedPaint = true;
+        const root = current.getRootNode();
+        current = current.assignedSlot || current.parentElement || (root.nodeType === 11 ? root.host : null) || current.ownerDocument.defaultView?.frameElement || null;
+      }
+      if (element.localName === "object" || expandedPaint) return false;
+      const rects = Array.from(element.getClientRects());
+      if (!rects.length || view.innerWidth <= 0 || view.innerHeight <= 0)
+        return false;
+      return rects.every(
+        (rect) => [
+          rect.left,
+          rect.top,
+          rect.right,
+          rect.bottom,
+          rect.width,
+          rect.height
+        ].every(Number.isFinite) && (rect.width === 0 || rect.height === 0 || rect.right <= 0 || rect.bottom <= 0 || rect.left >= view.innerWidth || rect.top >= view.innerHeight)
+      );
+    } catch {
+      return false;
+    }
+  };
   const roots = [doc];
   const seen = /* @__PURE__ */ new Set();
   let remaining = 5e4;
@@ -26149,21 +26189,23 @@ function hasSensitiveContent(doc = document, manualTextOnly = false) {
         return true;
       if (element.shadowRoot) roots.push(element.shadowRoot);
       if (["iframe", "frame", "object", "embed"].includes(element.localName)) {
+        const excludedPixels = () => mode === "visible-capture" && contributesNoPixels(element);
         try {
           const frame = element;
           const nested = frame.contentDocument ?? frame.getSVGDocument?.();
           if (!nested) {
-            if (manualTextOnly) continue;
+            if (manualTextOnly || excludedPixels()) continue;
             return true;
           }
-          if (nested.readyState !== "complete" && !manualTextOnly) return true;
+          if (nested.readyState !== "complete" && !manualTextOnly && !excludedPixels())
+            return true;
           const source = frame.getAttribute("src")?.trim().toLowerCase();
           if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank")) {
-            if (!manualTextOnly) return true;
+            if (!manualTextOnly && !excludedPixels()) return true;
           }
           roots.push(nested);
         } catch {
-          if (manualTextOnly) continue;
+          if (manualTextOnly || excludedPixels()) continue;
           return true;
         }
       }
@@ -26256,14 +26298,19 @@ function visible(element) {
   }
   return true;
 }
-function buildPageContext(doc = document) {
-  return readPageContext(doc, false);
+function buildPageContext(doc = document, explicitTextOnly = false) {
+  return readPageContext(doc, explicitTextOnly);
+}
+function buildExplicitPageContext(doc = document) {
+  return buildPageContext(doc, true);
 }
 function buildGuideContext(doc = document) {
-  return readPageContext(doc, true);
+  const context = buildExplicitPageContext(doc);
+  delete context.textScope;
+  return { ...context, guideScope: "top-document-text" };
 }
-function readPageContext(doc, explicitGuide) {
-  const hasPassword = hasSensitiveContent(doc, explicitGuide);
+function readPageContext(doc, explicitTextOnly) {
+  const hasPassword = hasSensitiveContent(doc, explicitTextOnly);
   const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body || doc.documentElement;
   const elements = [];
   const selector = "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],[role=option],h1,h2,h3,h4,h5,h6";
@@ -26272,7 +26319,7 @@ function readPageContext(doc, explicitGuide) {
       selector + (scope2.hasAttribute("data-glimpselet-reader-page") ? ",.pdf-text-layer>span" : "")
     )
   )) {
-    if (explicitGuide && hasPassword) break;
+    if (explicitTextOnly && hasPassword) break;
     if (elements.length >= 120) break;
     if (isExcluded(element) || isChoiceContent(element) || hasSensitiveAncestor(element) || !visible(element))
       continue;
@@ -26295,7 +26342,7 @@ function readPageContext(doc, explicitGuide) {
   let length = 0;
   const walker = doc.createTreeWalker(scope2, NodeFilter.SHOW_TEXT);
   let node;
-  while (!(explicitGuide && hasPassword) && (node = walker.nextNode()) && length < 24e3) {
+  while (!(explicitTextOnly && hasPassword) && (node = walker.nextNode()) && length < 24e3) {
     if (!contextTextNode(node)) continue;
     const value = (node.nodeValue || "").replace(/\s+/g, " ").trim();
     if (!value) continue;
@@ -26310,8 +26357,8 @@ function readPageContext(doc, explicitGuide) {
     text: chunks.join(" ").slice(0, 24e3),
     elements,
     hasPassword,
-    ...explicitGuide ? {
-      guideScope: "top-document-text",
+    ...explicitTextOnly ? {
+      textScope: "top-document-text",
       excludedEmbeds: doc.querySelectorAll("iframe,frame,object,embed").length
     } : {}
   };
@@ -26472,7 +26519,7 @@ if (!contentScope.glimpseletContentReady) {
     overlayHost.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
     overlayRoot = overlayHost.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;max-width:245px;padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4}.guide nav{display:flex;justify-content:space-between;gap:6px}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
+    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;display:flex;flex-direction:column;box-sizing:border-box;width:269px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4;min-height:0;overflow:auto;overflow-wrap:anywhere}.guide nav{display:flex;flex-wrap:wrap;flex-shrink:0;justify-content:space-between;gap:6px}.guide nav button{max-width:100%;overflow-wrap:anywhere}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
     overlayRoot.append(style);
     style.textContent += `.guide button:focus-visible,.popover button:focus-visible,.cancel:focus-visible{outline:2px solid #86513d;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ink,.arrow{animation:none;stroke-dashoffset:0}}`;
     const surface = document.createElement("div");
@@ -26557,7 +26604,7 @@ if (!contentScope.glimpseletContentReady) {
     wink.setAttribute("stroke-width", "2");
     blink.append(wink);
     const head = document.createElement("div");
-    head.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
+    head.style.cssText = "display:flex;flex-shrink:0;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
     head.append(blink, document.createTextNode(currentGuide.labels.title));
     callout.append(head);
     const note = document.createElement("p");
@@ -26594,15 +26641,106 @@ if (!contentScope.glimpseletContentReady) {
     close.onclick = closeGuide;
     nav.append(back, counter, next, close);
     callout.append(nav);
-    const top = point.y > 115 ? point.y - 110 : Math.min(innerHeight - 90, point.y + point.height + 18);
-    const cardX = Math.max(8, Math.min(Math.max(8, point.x), innerWidth - 269));
-    const cardY = Math.max(8, Math.min(top, innerHeight - 130));
+    callout.style.visibility = "hidden";
+    root.append(callout);
+    const margin = 8;
+    const viewportWidth = innerWidth - margin * 2;
+    const viewportHeight = innerHeight - margin * 2;
+    const naturalWidth = callout.getBoundingClientRect().width || 269;
+    const minimumNoteHeight = Math.ceil(
+      Number.parseFloat(getComputedStyle(note).lineHeight)
+    );
+    const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+    const spaces = (gap) => [
+      {
+        x: margin,
+        y: margin,
+        width: viewportWidth,
+        height: clamp(point.y - gap - margin, 0, viewportHeight),
+        side: "above"
+      },
+      {
+        x: margin,
+        y: Math.max(margin, point.y + point.height + gap),
+        width: viewportWidth,
+        height: clamp(
+          innerHeight - margin - point.y - point.height - gap,
+          0,
+          viewportHeight
+        ),
+        side: "below"
+      },
+      {
+        x: Math.max(margin, point.x + point.width + gap),
+        y: margin,
+        width: clamp(
+          innerWidth - margin - point.x - point.width - gap,
+          0,
+          viewportWidth
+        ),
+        height: viewportHeight,
+        side: "right"
+      },
+      {
+        x: margin,
+        y: margin,
+        width: clamp(point.x - gap - margin, 0, viewportWidth),
+        height: viewportHeight,
+        side: "left"
+      }
+    ];
+    let placement;
+    for (const compact of [false, true]) {
+      if (compact) {
+        head.append(counter);
+        counter.style.marginLeft = "auto";
+        head.style.marginBottom = "3px";
+        blink.style.flexShrink = "0";
+        for (const button of [back, next, close])
+          button.style.padding = "6px 8px";
+      }
+      for (const [index, space] of spaces(compact ? 8 : 18).entries()) {
+        if (space.width <= 0 || space.height <= 0) continue;
+        const width = Math.min(
+          compact ? viewportWidth : naturalWidth,
+          space.width
+        );
+        callout.style.width = `${width}px`;
+        callout.style.maxHeight = `${space.height}px`;
+        const bounds = callout.getBoundingClientRect();
+        if (bounds.height > space.height || bounds.width > space.width || note.scrollHeight > 0 && note.clientHeight < minimumNoteHeight || [back, next, close].some((button) => {
+          const control = button.getBoundingClientRect();
+          return control.left < bounds.left || control.right > bounds.right || control.top < bounds.top || control.bottom > bounds.bottom;
+        }))
+          continue;
+        const x2 = space.side === "left" ? space.x + space.width - bounds.width : clamp(point.x, space.x, space.x + space.width - bounds.width);
+        const y2 = space.side === "above" ? space.y + space.height - bounds.height : clamp(point.y, space.y, space.y + space.height - bounds.height);
+        const visibleNote = note.scrollHeight ? Math.min(1, note.clientHeight / note.scrollHeight) : 1;
+        const score = visibleNote * 1e3 - index;
+        if (!placement || score > placement.score)
+          placement = { x: x2, y: y2, width, height: space.height, score };
+      }
+      if (placement) break;
+    }
+    placement ??= {
+      x: margin,
+      y: margin,
+      width: viewportWidth,
+      height: viewportHeight,
+      score: 0
+    };
+    callout.style.width = `${placement.width}px`;
+    callout.style.maxHeight = `${placement.height}px`;
+    const cardX = placement.x;
+    const cardY = placement.y;
     callout.style.left = `${cardX}px`;
     callout.style.top = `${cardY}px`;
+    callout.style.visibility = "visible";
+    const card = callout.getBoundingClientRect();
     const startX = point.x + point.width / 2;
     const startY = point.y + point.height / 2;
-    const endX = Math.min(Math.max(startX, cardX), cardX + 245);
-    const endY = cardY + (cardY > startY ? 0 : 64);
+    const endX = clamp(startX, cardX, cardX + card.width);
+    const endY = clamp(startY, cardY, cardY + card.height);
     const arrow = document.createElementNS(svg.namespaceURI, "path");
     arrow.setAttribute("class", "arrow");
     arrow.setAttribute(
@@ -26630,10 +26768,13 @@ if (!contentScope.glimpseletContentReady) {
     overlayRoot?.querySelector("svg.draw")?.remove();
     if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
   }, closeSelectionPopover = function() {
+    window.clearTimeout(selectionTimer);
+    selectionTimer = 0;
     selectionPopover?.remove();
     selectionPopover = void 0;
   }, showSelectionPopover = function() {
     closeSelectionPopover();
+    if (currentGuide) return;
     const selection = getSelection();
     if (selection?.rangeCount !== 1) return;
     const range = selection.getRangeAt(0).cloneRange();
@@ -26673,7 +26814,11 @@ if (!contentScope.glimpseletContentReady) {
     ensureOverlay().append(pop);
   }, onSelectionChange = function() {
     closeSelectionPopover();
-    window.setTimeout(showSelectionPopover, 40);
+    if (currentGuide) return;
+    selectionTimer = window.setTimeout(() => {
+      selectionTimer = 0;
+      showSelectionPopover();
+    }, 40);
   }, updateGuidePosition = function() {
     if (!guideFrame && currentGuide)
       guideFrame = requestAnimationFrame(() => {
@@ -26752,7 +26897,7 @@ if (!contentScope.glimpseletContentReady) {
     document.addEventListener("selectionchange", onSelectionChange);
     listenForShiftCrop(
       window,
-      () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
+      () => shiftCropEnabled && !selecting && !hasSensitiveContent(document, "visible-capture"),
       (initialPointer) => {
         void select("region", cropLabels.cropCancel, initialPointer).then(
           (result) => {
@@ -26778,12 +26923,15 @@ if (!contentScope.glimpseletContentReady) {
       true
     );
   }, select = function(mode, cancelLabel, initialPointer) {
+    if (hasSensitiveContent(document, "visible-capture"))
+      return Promise.resolve({ error: "password_page" });
     if (selecting) return Promise.resolve({ cancelled: true });
     selecting = true;
     selectionMode = mode;
     if (mode === "region") {
       const host = document.createElement("div");
       host.dataset.glimpseletCrop = "true";
+      host.style.setProperty("display", "block", "important");
       document.documentElement.append(host);
       void send({ type: "glimpselet:crop-mode", active: true });
       return selectCrop(
@@ -26880,6 +27028,7 @@ if (!contentScope.glimpseletContentReady) {
   let overlayHost;
   let overlayRoot;
   let selectionPopover;
+  let selectionTimer = 0;
   let currentGuide;
   let guideReturnFocus;
   let lastUrl = location.href;
@@ -26948,6 +27097,8 @@ if (!contentScope.glimpseletContentReady) {
     (message2, _sender, respond) => {
       if (!message2 || typeof message2.type !== "string") return;
       if ([
+        "glimpselet:guide-context",
+        "glimpselet:explicit-context",
         "glimpselet:guide",
         "glimpselet:text-nodes",
         "glimpselet:translate",
@@ -26986,12 +27137,14 @@ if (!contentScope.glimpseletContentReady) {
         respond(buildPageContext());
         return;
       }
-      if (message2.type === "glimpselet:guide-context") {
+      if (message2.type === "glimpselet:guide-context" || message2.type === "glimpselet:explicit-context") {
         if (hasSensitiveContent(document, true)) {
           respond({ error: "password_page" });
           return;
         }
-        respond(buildGuideContext());
+        respond(
+          message2.type === "glimpselet:guide-context" ? buildGuideContext() : buildExplicitPageContext()
+        );
         return;
       }
       if (message2.type === "glimpselet:identity") {
@@ -27044,6 +27197,7 @@ if (!contentScope.glimpseletContentReady) {
         );
         const valid = incoming.filter((step) => guidePoint(step.elementId));
         if (valid.length) {
+          closeSelectionPopover();
           if (!currentGuide) {
             const active = document.activeElement;
             guideReturnFocus = active && active !== document.body && !overlayHost?.contains(active) ? active : void 0;

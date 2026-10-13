@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./privacy", () => ({ hasSensitiveContent: vi.fn(() => false) }));
-vi.mock("./png", () => ({ encodeCanvasPng: vi.fn(() => "stitched-png") }));
+vi.mock("./png", async (original) => ({
+  ...(await original<typeof import("./png")>()),
+  encodeCanvasPng: vi.fn(() => "stitched-png"),
+}));
 
 const tab = { id: 7, windowId: 1, url: "https://public.test/" };
 const metrics = {
@@ -35,6 +38,7 @@ function setupChrome(captureVisibleTab = vi.fn(async () => "tile-png")) {
     },
     permissions: { contains: vi.fn(async () => true) },
     scripting: { executeScript },
+    storage: { local: { get: vi.fn(async () => ({ blocklist: [] })) } },
   });
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     drawImage,
@@ -58,6 +62,53 @@ describe("full-page capture progress and cancellation", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     drawImage.mockClear();
+  });
+
+  it("allows a visible capture answer only after independent pixel privacy checks", async () => {
+    const { executeScript, captureVisibleTab } = setupChrome();
+    const page = {
+      url: tab.url,
+      documentKey: "document-seven",
+      title: "Public mug",
+      text: "350 ml · ¥2,290",
+      elements: [],
+      hasPassword: false,
+      textScope: "top-document-text" as const,
+      excludedEmbeds: 2,
+    };
+    vi.mocked(chrome.tabs.sendMessage).mockResolvedValue(page);
+    const { encodeCanvasPng } = await import("./png");
+    vi.mocked(encodeCanvasPng).mockReturnValueOnce(
+      "data:image/png;base64,AAA=",
+    );
+    const { captureWeb } = await import("./capture");
+    const { validateAsk } = await import("./api");
+    const result = await captureWeb("visible");
+    const request = {
+      id: "answer-visible-capture",
+      question: "What is the price and capacity?",
+      kind: "ask" as const,
+      model: "haiku" as const,
+      effort: "low" as const,
+      image: result.capture.image,
+    };
+    expect(() => validateAsk({ ...request, page })).toThrow(
+      "explicit_text_only",
+    );
+    expect(() => validateAsk({ ...request, page: result.page })).not.toThrow();
+    expect(result.page?.textScope).toBeUndefined();
+    expect(result.page?.text).toBe(page.text);
+    expect(page.textScope).toBe("top-document-text");
+    expect(captureVisibleTab).toHaveBeenCalledOnce();
+    expect(
+      executeScript.mock.calls.filter(
+        ([details]) => details.args?.[0] === null,
+      ),
+    ).toEqual([
+      [expect.objectContaining({ args: [null, "visible-capture"] })],
+      [expect.objectContaining({ args: [null, "visible-capture"] })],
+      [expect.objectContaining({ args: [null, "visible-capture"] })],
+    ]);
   });
 
   it("reports the initial and completed tile counts", async () => {
@@ -113,6 +164,94 @@ describe("full-page capture progress and cancellation", () => {
   });
 });
 
+describe("visible pixels versus explicit text privacy", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["visible", "region", "element"] as const)(
+    "%s capture can exclude a non-rendered opaque tracker without a text-only pixel exemption",
+    async (kind) => {
+      const { executeScript, captureVisibleTab } = setupChrome();
+      executeScript.mockImplementation(async (details) => {
+        if (details.args?.[0] === null)
+          return [{ result: details.args[1] !== "visible-capture" }];
+        return [{ result: 100 }];
+      });
+      const { captureWeb } = await import("./capture");
+      const result = await captureWeb(kind, [0, 0, 80, 80]);
+      expect(result.capture.image).toBe("stitched-png");
+      expect(captureVisibleTab).toHaveBeenCalledOnce();
+      const checks = executeScript.mock.calls.filter(
+        ([details]) => details.args?.[0] === null,
+      );
+      expect(checks).toHaveLength(3);
+      expect(
+        checks.every(([details]) => details.args?.[1] === "visible-capture"),
+      ).toBe(true);
+    },
+  );
+
+  it("full-page capture keeps the strict guard on offscreen opaque embeds", async () => {
+    const { executeScript, captureVisibleTab } = setupChrome();
+    executeScript.mockImplementation(async (details) => [
+      {
+        result: details.args?.[0] === null && details.args[1] !== true,
+      },
+    ]);
+    const { captureWeb } = await import("./capture");
+    await expect(captureWeb("full")).rejects.toThrow("password_page");
+    expect(captureVisibleTab).not.toHaveBeenCalled();
+  });
+
+  it.each(["before", "after"])(
+    "visible capture fails closed if opaque pixels appear %s the screenshot",
+    async (when) => {
+      const { executeScript, captureVisibleTab } = setupChrome();
+      let checks = 0;
+      executeScript.mockImplementation(async (details) => {
+        if (details.args?.[0] === null)
+          return [{ result: ++checks >= (when === "before" ? 2 : 3) }];
+        return [{ result: 100 }];
+      });
+      const { captureWeb } = await import("./capture");
+      await expect(captureWeb("visible")).rejects.toThrow("password_page");
+      expect(captureVisibleTab).toHaveBeenCalledTimes(
+        when === "before" ? 0 : 1,
+      );
+    },
+  );
+
+  it("does not treat a rejected explicit context as page data alongside captured pixels", async () => {
+    const { captureVisibleTab } = setupChrome();
+    vi.mocked(chrome.tabs.sendMessage).mockResolvedValue({
+      error: "password_page",
+    });
+    const { captureWeb } = await import("./capture");
+    await expect(captureWeb("visible")).rejects.toThrow("password_page");
+    expect(captureVisibleTab).not.toHaveBeenCalled();
+  });
+
+  it.each(["initial", "before-pixels", "after-pixels"])(
+    "rejects a blocklisted capture %s",
+    async (when) => {
+      const { captureVisibleTab } = setupChrome();
+      const reads = when === "initial" ? 1 : when === "before-pixels" ? 2 : 3;
+      let checked = 0;
+      vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({
+        blocklist: ++checked >= reads ? ["PUBLIC.TEST"] : [],
+      }));
+      const { captureWeb } = await import("./capture");
+      await expect(captureWeb("visible")).rejects.toThrow("blocked_page");
+      expect(captureVisibleTab).toHaveBeenCalledTimes(
+        when === "after-pixels" ? 1 : 0,
+      );
+    },
+  );
+});
+
 describe("explicit guide context", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -144,6 +283,17 @@ describe("explicit guide context", () => {
     return { ...mocks, page };
   }
 
+  function setupExplicit() {
+    const mocks = setupGuide();
+    const page = {
+      ...mocks.page,
+      guideScope: undefined,
+      textScope: "top-document-text" as const,
+    };
+    vi.mocked(chrome.tabs.sendMessage).mockResolvedValue(page);
+    return { ...mocks, page };
+  }
+
   it("requests text and map with document pinning and no screenshot", async () => {
     const { page, executeScript, captureVisibleTab } = setupGuide();
     const { getGuideContext } = await import("./capture");
@@ -160,6 +310,40 @@ describe("explicit guide context", () => {
         args: [null, true],
       }),
     );
+  });
+
+  it("manual page reading uses the bounded pinned context protocol instead of unmarked default context", async () => {
+    const { page, executeScript, captureVisibleTab } = setupExplicit();
+    const { getPageContext } = await import("./capture");
+    expect(await getPageContext(true)).toEqual(page);
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(
+      tab.id,
+      { type: "glimpselet:explicit-context" },
+      { documentId: "document-seven" },
+    );
+    expect(executeScript).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        target: { tabId: tab.id, documentIds: ["document-seven"] },
+        args: [null, true],
+      }),
+    );
+    expect(captureVisibleTab).not.toHaveBeenCalled();
+  });
+
+  it("manual page reading rejects unmarked context and a newly blocklisted page", async () => {
+    const { page } = setupExplicit();
+    vi.mocked(chrome.tabs.sendMessage).mockResolvedValue({
+      ...page,
+      textScope: undefined,
+    });
+    const { getPageContext } = await import("./capture");
+    await expect(getPageContext(true)).rejects.toThrow("tab_changed");
+    vi.mocked(chrome.tabs.sendMessage).mockResolvedValue(page);
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({
+      blocklist: ["PUBLIC.TEST"],
+    });
+    await expect(getPageContext(true)).rejects.toThrow("blocked_page");
+    expect(chrome.tabs.captureVisibleTab).not.toHaveBeenCalled();
   });
 
   it("reads a bundled PDF reader through its document-bound listener without scripting or pixels", async () => {

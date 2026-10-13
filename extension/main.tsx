@@ -31,6 +31,7 @@ import {
   captureScreen,
   captureWeb,
   getPageContext,
+  getExplicitPageContext,
   getGuideContext,
   getDocumentIdentity,
   isSensitivePage,
@@ -1964,7 +1965,7 @@ function App() {
       setBusy(true);
       let admitted = false;
       try {
-        freshPage = (await getPageContext()) ?? null;
+        freshPage = (await getExplicitPageContext()) ?? null;
         if (freshPage && isBlocked(freshPage.url))
           throw new Error("blocked_page");
         if (!freshPage) throw new Error("unsupported_page");

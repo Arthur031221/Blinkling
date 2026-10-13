@@ -35,6 +35,33 @@ describe("bounded page context", () => {
     expect(JSON.stringify(guide)).not.toContain("UNCHECKED");
   });
 
+  it("explicit page reading returns product details without opaque or fallback embed text", () => {
+    document.body.innerHTML =
+      "<h1>Public mug</h1><p>500 ml · ¥2,200</p><iframe></iframe><object><p>PRIVATE_EMBED_FALLBACK</p></object>";
+    Object.defineProperty(
+      document.querySelector("iframe")!,
+      "contentDocument",
+      { value: null },
+    );
+    const page = buildPageContext(document, true);
+    expect(page.hasPassword).toBe(false);
+    expect(page.textScope).toBe("top-document-text");
+    expect(page.guideScope).toBeUndefined();
+    expect(page.excludedEmbeds).toBe(2);
+    expect(page.text).toBe("Public mug 500 ml · ¥2,200");
+    expect(JSON.stringify(page)).not.toContain("PRIVATE_EMBED");
+    expect(buildPageContext().hasPassword).toBe(true);
+  });
+
+  it("explicit page reading returns no public context when a hidden password is present", () => {
+    document.body.innerHTML =
+      '<h1>Public mug</h1><p>500 ml · ¥2,200</p><input type="password" hidden>';
+    const page = buildPageContext(document, true);
+    expect(page.hasPassword).toBe(true);
+    expect(page.text).toBe("");
+    expect(page.elements).toEqual([]);
+  });
+
   it.each(["top", "frame", "shadow"])(
     "explicit guide keeps the known %s password gate",
     (where) => {

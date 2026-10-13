@@ -1,5 +1,5 @@
 import { freezeSharedFrame, type SharedFrameOptions } from "./screen-frame";
-import { hasSensitiveContent } from "./privacy";
+import { hasSensitiveContent, type PrivacyReadMode } from "./privacy";
 import { encodeCanvasPng } from "./png";
 import { prepareCaptureBinding, type CaptureBinding } from "./capture-binding";
 import type { PageContext } from "./page-context";
@@ -92,6 +92,20 @@ async function requireSiteAccess(tab: ActiveTab): Promise<void> {
   }
 }
 
+async function requireUnblockedPage(tab: ActiveTab): Promise<void> {
+  const { blocklist } = await chrome.storage.local.get("blocklist");
+  const host = new URL(tab.url!).hostname.toLowerCase();
+  if (
+    Array.isArray(blocklist) &&
+    blocklist.some((entry: unknown) => {
+      if (typeof entry !== "string") return false;
+      const item = entry.trim().toLowerCase();
+      return item && (host === item || host.endsWith(`.${item}`));
+    })
+  )
+    throw new Error("blocked_page");
+}
+
 async function injectContent(tab: ActiveTab): Promise<void> {
   await requireSiteAccess(tab);
   try {
@@ -115,7 +129,7 @@ async function sendToPage(tab: ActiveTab, message: unknown): Promise<unknown> {
 
 export async function isSensitivePage(
   binding?: CaptureBinding,
-  manualTextOnly = false,
+  mode: PrivacyReadMode = false,
 ): Promise<boolean> {
   const candidate = binding
     ? await chrome.tabs.get(binding.tabId).catch(() => undefined)
@@ -136,7 +150,7 @@ export async function isSensitivePage(
         ...(binding ? { documentIds: [binding.documentId] } : {}),
       },
       func: hasSensitiveContent,
-      args: [null, manualTextOnly],
+      args: [null, mode],
     });
     return (
       result[0]?.result !== false ||
@@ -164,6 +178,7 @@ export async function getDocumentIdentity(): Promise<
 export async function getPageContext(
   manualTextOnly = false,
 ): Promise<PageContext | undefined> {
+  if (manualTextOnly) return getExplicitPageContext();
   const tab = await activeTab();
   await requireSiteAccess(tab);
   // Check for password fields before requesting text from the content script.
@@ -180,21 +195,23 @@ export async function getPageContext(
 export async function getGuideContext(
   expected?: Pick<PageContext, "documentKey" | "url">,
 ): Promise<PageContext> {
+  return getScopedPageContext("glimpselet:guide-context", expected);
+}
+
+/** Explicit ask/translation read, with the same document and privacy protections as guides. */
+export async function getExplicitPageContext(
+  expected?: Pick<PageContext, "documentKey" | "url">,
+): Promise<PageContext> {
+  return getScopedPageContext("glimpselet:explicit-context", expected);
+}
+
+async function getScopedPageContext(
+  type: "glimpselet:guide-context" | "glimpselet:explicit-context",
+  expected?: Pick<PageContext, "documentKey" | "url">,
+): Promise<PageContext> {
   const tab = await activeTab();
   await requireSiteAccess(tab);
-  const checkBlocklist = async () => {
-    const { blocklist } = await chrome.storage.local.get("blocklist");
-    const host = new URL(tab.url!).hostname.toLowerCase();
-    if (
-      Array.isArray(blocklist) &&
-      blocklist.some((entry: unknown) => {
-        if (typeof entry !== "string") return false;
-        const item = entry.trim().toLowerCase();
-        return item && (host === item || host.endsWith(`.${item}`));
-      })
-    )
-      throw new Error("blocked_page");
-  };
+  const checkBlocklist = () => requireUnblockedPage(tab);
   await checkBlocklist();
   if (tab.url?.startsWith(chrome.runtime.getURL("reader.html"))) {
     // Chrome rejects scripting injection into extension pages. The bundled
@@ -202,7 +219,7 @@ export async function getGuideContext(
     const read = async (bound = expected): Promise<PageContext> => {
       const page = (await chrome.tabs
         .sendMessage(tab.id, {
-          type: "glimpselet:guide-context",
+          type,
           ...(bound ? { documentKey: bound.documentKey, url: bound.url } : {}),
         })
         .catch(() => {
@@ -213,7 +230,9 @@ export async function getGuideContext(
       if (
         !page?.documentKey ||
         page.url !== tab.url ||
-        page.guideScope !== "top-document-text" ||
+        (type === "glimpselet:guide-context"
+          ? page.guideScope
+          : page.textScope) !== "top-document-text" ||
         (bound &&
           (page.documentKey !== bound.documentKey || page.url !== bound.url))
       )
@@ -251,7 +270,7 @@ export async function getGuideContext(
   const documentId = await inspect();
   await injectContent(tab);
   const page = (await chrome.tabs
-    .sendMessage(tab.id, { type: "glimpselet:guide-context" }, { documentId })
+    .sendMessage(tab.id, { type }, { documentId })
     .catch(() => {
       throw new Error("tab_changed");
     })) as PageContext & { error?: string };
@@ -260,7 +279,8 @@ export async function getGuideContext(
   if (
     !page?.documentKey ||
     page.url !== tab.url ||
-    page.guideScope !== "top-document-text" ||
+    (type === "glimpselet:guide-context" ? page.guideScope : page.textScope) !==
+      "top-document-text" ||
     (expected &&
       (page.documentKey !== expected.documentKey || page.url !== expected.url))
   )
@@ -282,13 +302,25 @@ export async function captureWeb(
   throwIfAborted(options.signal);
   const tab = await activeTab();
   await requireSiteAccess(tab);
-  if (await isSensitivePage()) throw new Error("password_page");
+  await requireUnblockedPage(tab);
+  const privacyMode = kind === "full" ? false : "visible-capture";
+  if (await isSensitivePage(undefined, privacyMode))
+    throw new Error("password_page");
   let page: PageContext | undefined;
   try {
-    page = (await sendToPage(tab, {
-      type: "glimpselet:context",
-    })) as PageContext;
-  } catch {
+    const context = (await sendToPage(tab, {
+      type:
+        kind === "full" ? "glimpselet:context" : "glimpselet:explicit-context",
+    })) as (PageContext & { error?: string }) | undefined;
+    if (context?.error) throw new Error(context.error);
+    if (context?.hasPassword) throw new Error("password_page");
+    page = context;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      ["password_page", "blocked_page", "tab_changed"].includes(error.message)
+    )
+      throw error;
     /* visible capture remains available */
   }
   let rect: [number, number, number, number] | undefined = selectedRect;
@@ -310,8 +342,10 @@ export async function captureWeb(
     rect = selected?.rect;
   }
   if (kind !== "full") {
+    await requireUnblockedPage(tab);
     await assertStillActive(tab);
-    if (await isSensitivePage()) throw new Error("password_page");
+    if (await isSensitivePage(undefined, privacyMode))
+      throw new Error("password_page");
     const data = await chrome.tabs
       .captureVisibleTab(tab.windowId, {
         format: "png",
@@ -325,8 +359,14 @@ export async function captureWeb(
       func: () => innerWidth,
     });
     const image = await crop(data, rect, dimensions[0]?.result || 1280);
-    if (await isSensitivePage()) throw new Error("password_page");
+    await requireUnblockedPage(tab);
+    if (await isSensitivePage(undefined, privacyMode))
+      throw new Error("password_page");
     await assertStillActive(tab);
+    // The explicit text read did not authorize these pixels. Only the completed
+    // capture and its separate privacy checks permit attaching this context.
+    const capturedPage = page ? { ...page } : undefined;
+    if (capturedPage) delete capturedPage.textScope;
     return {
       capture: {
         image,
@@ -337,7 +377,7 @@ export async function captureWeb(
               ? "Selected region"
               : "Selected element",
       },
-      page,
+      page: capturedPage,
     };
   }
   const original = await chrome.scripting.executeScript({
@@ -408,6 +448,7 @@ export async function captureWeb(
         throwIfAborted(options.signal);
         await waitForCaptureDelay(80, options.signal);
         throwIfAborted(options.signal);
+        await requireUnblockedPage(tab);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
         if (await isSensitivePage()) throw new Error("password_page");
@@ -422,6 +463,7 @@ export async function captureWeb(
         throwIfAborted(options.signal);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
+        await requireUnblockedPage(tab);
         if (await isSensitivePage()) throw new Error("password_page");
         throwIfAborted(options.signal);
         await drawFrame(
@@ -452,6 +494,7 @@ export async function captureWeb(
   }
   throwIfAborted(options.signal);
   const image = encodeCanvasPng(canvas);
+  await requireUnblockedPage(tab);
   if (await isSensitivePage()) throw new Error("password_page");
   await assertStillActive(tab);
   return {
