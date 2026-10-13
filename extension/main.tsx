@@ -51,6 +51,8 @@ import {
 import "./style.css";
 import { isReaderPdfCandidate } from "./reader-url";
 import { cropSharedScreen } from "./screen-crop";
+import { nativeBubbleClearance } from "./native-bubble";
+import { requestCaptureAccess } from "./capture-access";
 import {
   freezeSharedFrame,
   needsSharedFrameClearance,
@@ -203,7 +205,7 @@ function errorLabel(error: unknown, t: Record<string, string>): string {
     tab_changed: "tabChanged",
     capture_cancelled: "captureCancelled",
     capture_permission: "capturePermission",
-    capture_bubble_obstructed: "captureReopen",
+    capture_bubble_obstructed: "captureFailed",
     capture_failed: "captureFailed",
     crop_fullscreen_denied: "crop_fullscreen_denied",
     share_ended: "share_ended",
@@ -238,9 +240,7 @@ function App() {
   const [consented, setConsented] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [pipDoc, setPipDoc] = useState<Document | null>(null);
-  const [reopenCapture, setReopenCapture] = useState(false);
   const controlledPipClose = useRef(false);
-  const finishCaptureRestore = useRef<(() => void) | null>(null);
   const [fallback, setFallback] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [blinkDock, setBlinkDock] = useState<BlinkDock>(DEFAULT_BLINK_DOCK);
@@ -408,6 +408,7 @@ function App() {
   );
   const [size, setSize] = useState({ width: 420, height: 650 });
   const cropBusy = useRef(false);
+  const [cropPending, setCropPending] = useState(false);
   const [shareStream, setShareStream] = useState<MediaStream | null>(null);
   const [connectionUrl, setConnectionUrl] = useState(
     "ws://127.0.0.1:37115/extension",
@@ -759,7 +760,7 @@ function App() {
       endRef.current?.scrollIntoView({ block: "nearest" });
   }, [entries, answer, suggestions]);
   useEffect(() => {
-    if (!consented || reopenCapture) return;
+    if (!consented) return;
     const surface = pipDoc?.body || document.querySelector<HTMLElement>(".app");
     if (!surface) return;
     const binding = bindBubbleSurface(surface);
@@ -769,7 +770,7 @@ function App() {
       binding.dispose();
       bubbleSurface.current = null;
     };
-  }, [consented, pipDoc, reopenCapture]);
+  }, [consented, pipDoc]);
   useEffect(() => {
     if (!pipDoc) return;
     const child = pipDoc.defaultView!;
@@ -1251,8 +1252,7 @@ function App() {
           shareStream &&
           video?.videoWidth &&
           video.videoHeight &&
-          !cropBusy.current &&
-          !finishCaptureRestore.current
+          !cropBusy.current
         ) {
           try {
             const frame = await freezeSharedFrame(
@@ -1420,39 +1420,29 @@ function App() {
   function frameOptions(video: HTMLVideoElement): SharedFrameOptions {
     const floating = pipDoc?.defaultView;
     if (!floating || !needsSharedFrameClearance(video, pipDoc)) return {};
+    const floatingSize = {
+      width: floating.innerWidth,
+      height: floating.innerHeight,
+    };
     return {
-      clearBubble: {
-        hide: async () => {
+      clearBubble: nativeBubbleClearance(floating, {
+        close: () => {
           controlledPipClose.current = true;
-          // The decoder stays in the opener while the portal moves back there.
-          flushSync(() => setPipDoc(null));
           try {
+            flushSync(() => setPipDoc(null));
             floating.close();
           } finally {
             controlledPipClose.current = false;
           }
         },
-        restore: async () => {
-          // Chrome requires a fresh gesture to recreate Document PiP. Keep the
-          // share and request alive until the user clicks this reachable action.
-          const restored = new Promise<void>((resolve) => {
-            finishCaptureRestore.current = resolve;
-          });
-          flushSync(() => setReopenCapture(true));
-          setStatus(t.captureReopen);
-          const opener = await chrome.tabs.getCurrent();
-          if (opener?.id)
-            await chrome.tabs
-              .update(opener.id, { active: true })
-              .catch(() => undefined);
-          if (opener?.windowId !== undefined)
-            await chrome.windows
-              .update(opener.windowId, { focused: true })
-              .catch(() => undefined);
-          window.focus();
-          await restored;
+        open: async () => {
+          const replacement = await (
+            window as WindowWithPiP
+          ).documentPictureInPicture!.requestWindow(floatingSize);
+          await mountFloat(replacement);
+          return replacement;
         },
-      },
+      }),
     };
   }
   async function startCrop() {
@@ -1460,6 +1450,7 @@ function App() {
     cropBusy.current = true;
     localCrop.current = true;
     bubbleSurface.current?.setCropping(true);
+    setCropPending(true);
     try {
       if (shareRef.current && videoRef.current) {
         const image = await cropSharedScreen(
@@ -1480,6 +1471,7 @@ function App() {
       cropBusy.current = false;
       localCrop.current = false;
       bubbleSurface.current?.setCropping(pageCrop.current);
+      setCropPending(false);
     }
   }
   async function openFloat() {
@@ -1522,11 +1514,7 @@ function App() {
     compactViewport.current = null;
     flushSync(() => {
       setPipDoc(docWindow.document);
-      setReopenCapture(false);
     });
-    const restored = finishCaptureRestore.current;
-    finishCaptureRestore.current = null;
-    restored?.();
     setFallback(false);
     setStatus(t.floatingReady);
     await completeFloatTutorial();
@@ -1794,7 +1782,7 @@ function App() {
         reportError(error);
     }
   }
-  async function requestSiteAccess(): Promise<number> {
+  async function requestSiteAccess(captureAccess = false): Promise<number> {
     const tabId = activeTabId.current;
     if (!tabId) throw new Error("no_active_tab");
     const tab = await chrome.tabs.get(tabId);
@@ -1809,24 +1797,37 @@ function App() {
       });
       return tabId;
     } catch {
-      // A toolbar click grants temporary access. Ask for a site only when needed.
+      // Temporary access may already suffice. Capture needs the all-sites grant
+      // for both page controls and pixels, so it must not ask twice.
     }
     const allowed =
       (await chrome.permissions.contains({ origins: [`${origin}/*`] })) ||
-      (await chrome.permissions.request({ origins: [`${origin}/*`] }));
-    if (!allowed) throw new Error("allow_site_access");
+      (await (
+        captureAccess
+          ? requestCaptureAccess()
+          : chrome.permissions.request({ origins: [`${origin}/*`] })
+      ).catch(() => false));
+    if (!allowed)
+      throw captureAccess
+        ? new CaptureAuthorizationError()
+        : new Error("allow_site_access");
     return tabId;
   }
   async function allowPageAccess(allSites: boolean) {
     try {
+      if (allSites) {
+        if (!(await requestCaptureAccess()))
+          throw new Error("allow_site_access");
+        setStatus(t.siteAccessGranted);
+        schedulePageRefresh(true);
+        return;
+      }
       const tabId = activeTabId.current;
       if (!tabId) throw new Error("no_active_tab");
       const tab = await chrome.tabs.get(tabId);
       if (!tab.url || !/^https?:/.test(tab.url))
         throw new Error("unsupported_page");
-      const origins = allSites
-        ? ["http://*/*", "https://*/*"]
-        : [`${new URL(tab.url).origin}/*`];
+      const origins = [`${new URL(tab.url).origin}/*`];
       if (!(await chrome.permissions.request({ origins })))
         throw new Error("allow_site_access");
       setStatus(t.siteAccessGranted);
@@ -1904,6 +1905,7 @@ function App() {
     if (!retry || busy || pageCaptureController.current) return;
     const epoch = captureRetryEpoch.current;
     try {
+      if (!(await requestCaptureAccess())) throw new Error("allow_site_access");
       const tab = await chrome.tabs.get(retry.tabId);
       if (
         epoch !== captureRetryEpoch.current ||
@@ -1990,7 +1992,13 @@ function App() {
           activeTabId.current !== tabId
         )
           throw new Error("tab_changed");
-        await requestSiteAccess();
+        await requestSiteAccess(true);
+        if (
+          epoch !== captureRetryEpoch.current ||
+          activeTabId.current !== tabId ||
+          (await chrome.tabs.get(tabId)).url !== source.url
+        )
+          throw new Error("tab_changed");
         const result = await captureWeb(kind, undefined, t, {
           signal: controller?.signal,
           onProgress: controller ? setCaptureProgress : undefined,
@@ -2676,6 +2684,7 @@ function App() {
       !q ||
       !consented ||
       busy ||
+      cropBusy.current ||
       pageCaptureController.current ||
       requestIdRef.current ||
       translationController.current ||
@@ -3204,6 +3213,11 @@ function App() {
               ))}
           </select>
         </label>
+        <button className="wide" onClick={() => void allowPageAccess(true)}>
+          {t.allowAllSites}
+        </button>
+        <p>{t.captureAccessHint}</p>
+        {status !== t.ready && <p role="status">{status}</p>}
         <button
           className="primary wide"
           onClick={() => {
@@ -3279,7 +3293,7 @@ function App() {
           >
             ⚙
           </button>
-          {!pipDoc && !reopenCapture && (
+          {!pipDoc && (
             <button
               className="icon"
               title={t.float}
@@ -3291,14 +3305,6 @@ function App() {
           )}
         </div>
       </header>
-      {reopenCapture && (
-        <section className="float-start capture-reopen">
-          <button className="primary wide" onClick={() => void openFloat()}>
-            {t.captureReopenAction}
-          </button>
-          <p>{t.captureReopen}</p>
-        </section>
-      )}
       {!expanded ? (
         <button
           className={`blink-dot ${blinkDock.edge === "right" ? "peek" : ""}`}
@@ -3350,7 +3356,7 @@ function App() {
         </button>
       ) : (
         <>
-          {!pipDoc && !reopenCapture && (
+          {!pipDoc && (
             <section className="float-start">
               <button className="primary wide" onClick={() => void openFloat()}>
                 {t.float}
@@ -3426,14 +3432,24 @@ function App() {
             <div className="capture-buttons">
               <button
                 onClick={() => void captureWholeScreen()}
-                disabled={busy || screenCapturing || Boolean(captureProgress)}
+                disabled={
+                  busy ||
+                  cropPending ||
+                  screenCapturing ||
+                  Boolean(captureProgress)
+                }
               >
                 {t.wholeScreen}
               </button>
               <button
                 onClick={() => void startCrop()}
                 title={t.cropShortcut}
-                disabled={busy || screenCapturing || Boolean(captureProgress)}
+                disabled={
+                  busy ||
+                  cropPending ||
+                  screenCapturing ||
+                  Boolean(captureProgress)
+                }
               >
                 {t.region}
               </button>
@@ -3575,7 +3591,7 @@ function App() {
                 {suggestions.slice(0, 3).map((s, i) => (
                   <button
                     key={i}
-                    disabled={busy}
+                    disabled={busy || cropPending}
                     onClick={() => void askNow(s, false, "suggest")}
                   >
                     {s} <span>↗</span>
@@ -3643,7 +3659,10 @@ function App() {
                   ■ {t.stop}
                 </button>
               ) : (
-                <button className="send" disabled={!question.trim()}>
+                <button
+                  className="send"
+                  disabled={cropPending || !question.trim()}
+                >
                   {t.send} ↗
                 </button>
               )}

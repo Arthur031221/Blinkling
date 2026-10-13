@@ -59,6 +59,25 @@ function openGuide(elementIds: string[]) {
 }
 
 describe("content script guide focus", () => {
+  it("does not focus a background page when a guide arrives, repositions or closes", async () => {
+    const { firstId } = await setup();
+    const previous =
+      document.querySelector<HTMLButtonElement>("#return-focus")!;
+    previous.focus();
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    openGuide([firstId]);
+    expect(
+      document
+        .querySelector("[data-glimpselet-overlay]")!
+        .shadowRoot!.querySelector(".guide"),
+    ).not.toBeNull();
+    window.dispatchEvent(new Event("scroll"));
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(100);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(focus).not.toHaveBeenCalled();
+  });
   const listeners: Array<{
     target: EventTarget;
     type: string;

@@ -2429,7 +2429,7 @@ describe("bubble answer rendering and feedback", () => {
       [...document.querySelectorAll(".float-start")].at(-1)?.textContent,
     ).toContain(en.guideCapturePermission);
     await click(en.guideAction);
-    expect(status()).toMatch(/toolbar.*try Guide again/);
+    expect(status()).toMatch(/Allow on all sites.*try Guide again/);
     expect(document.querySelector(".float-start p")?.textContent).toBeDefined();
     expect(
       sendToTab.mock.calls.some(
@@ -2448,11 +2448,11 @@ describe("bubble answer rendering and feedback", () => {
       en.wholeScreen,
     );
   });
-  it("gives Guide-specific toolbar recovery outside the tutorial too", async () => {
+  it("gives Guide-specific permission recovery outside the tutorial too", async () => {
     await start();
     mocks.guide.mockRejectedValue(new Error("capture_permission"));
     await click(en.guideAction);
-    expect(status()).toMatch(/toolbar.*try Guide again/);
+    expect(status()).toMatch(/Allow on all sites.*try Guide again/);
     expect(mocks.ask).not.toHaveBeenCalled();
   });
   it("keeps Guide practice open when the page rejects the guide overlay", async () => {
@@ -3258,6 +3258,7 @@ describe("screen sharing and capture authorization in the bubble", () => {
       floating.document.querySelector(".toolbar .status")!.textContent,
     ).toBe(en.sharing);
     expect(floating.document.querySelector(".hint")).toBeNull();
+    expect(floating.document.querySelector(".capture-reopen")).toBeNull();
     expect(document.querySelector<HTMLVideoElement>("video")!.srcObject).toBe(
       stream,
     );
@@ -3285,6 +3286,49 @@ describe("screen sharing and capture authorization in the bubble", () => {
       floating.document.querySelector<HTMLImageElement>(".capture-chip img")!
         .src,
     ).toBe("data:image/png;base64,CCC=");
+  });
+
+  it("keeps crop and sending unavailable until native selection and restoration finish", async () => {
+    await start();
+    const { floating } = await startSharing("window");
+    let finish!: (image: string) => void;
+    mocks.crop.mockImplementationOnce(
+      () => new Promise((resolve) => (finish = resolve)),
+    );
+    await click(en.region, floating.document);
+    const crop = floating.document.querySelector<HTMLButtonElement>(
+      '.capture-buttons button[title^="Crop"]',
+    )!;
+    expect(crop.disabled).toBe(true);
+    await click(en.region, floating.document);
+    expect(mocks.crop).toHaveBeenCalledOnce();
+    await submitDraft("Explain the pending crop", floating.document);
+    const send =
+      floating.document.querySelector<HTMLButtonElement>(".composer .send")!;
+    expect(send.disabled).toBe(true);
+    // Enter/form submission must obey the same guard as the disabled button.
+    await act(async () => {
+      floating.document
+        .querySelector(".composer form")!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(
+      floating.document.querySelector<HTMLTextAreaElement>("textarea")!.value,
+    ).toBe("Explain the pending crop");
+    await act(async () => finish("data:image/png;base64,DDD="));
+    await flush();
+    expect(crop.disabled).toBe(false);
+    expect(send.disabled).toBe(false);
+    await act(async () => send.click());
+    await flush();
+    expect(mocks.ask).toHaveBeenCalledOnce();
+    expect(mocks.ask.mock.calls[0][0].image).toBe("data:image/png;base64,DDD=");
+    mocks.crop.mockResolvedValueOnce("data:image/png;base64,DDD=");
+    await click(en.region, floating.document);
+    expect(mocks.crop).toHaveBeenCalledTimes(2);
   });
 
   it("uses a confirmed region while sharing and keeps it after a cancelled later crop", async () => {
@@ -3324,40 +3368,43 @@ describe("screen sharing and capture authorization in the bubble", () => {
     expect(mocks.freeze).not.toHaveBeenCalled();
   });
 
-  it("offers one recovery action while a manual monitor frame awaits restored PiP", async () => {
+  it("restores the same monitor bubble automatically without focusing the opener", async () => {
     await start();
     const { floating, close, requestWindow, track } = await startSharing();
-    const restored = floatingWindow();
-    requestWindow.mockResolvedValueOnce(restored.floating);
+    let native = {
+      id: 8,
+      state: "normal",
+      focused: true,
+      alwaysOnTop: true,
+      tabs: [{ url: "about:blank", openerTabId: 2 }],
+    };
+    Object.assign(chrome.windows, {
+      getAll: vi.fn(async () => [native]),
+      get: vi.fn(async () => native),
+      update: vi.fn(async (_id, change) => {
+        native = { ...native, ...change };
+        return native;
+      }),
+    });
     const acquireFrame = mocks.freeze.getMockImplementation()!;
     mocks.freeze.mockImplementationOnce(async (...args) => {
       const options = args[2];
-      await options.clearBubble.hide();
+      expect(await options.clearBubble.hide()).toBe(true);
+      expect(native.state).toBe("minimized");
       await options.clearBubble.restore();
       return acquireFrame(...args);
     });
     await submitDraft("Capture this monitor", floating.document);
-    expect(close).toHaveBeenCalledOnce();
-    expect(document.querySelectorAll(".capture-reopen button")).toHaveLength(1);
-    expect(
-      document.querySelector(`button[aria-label="${en.float}"]`),
-    ).toBeNull();
-    expect(
-      [...document.querySelectorAll("button")].filter(
-        (element) => element.textContent === en.float,
-      ),
-    ).toHaveLength(0);
-    expect(track.stop).not.toHaveBeenCalled();
-    expect(mocks.ask).not.toHaveBeenCalled();
-    await click(en.captureReopenAction);
+    expect(close).not.toHaveBeenCalled();
+    expect(requestWindow).toHaveBeenCalledOnce();
+    expect(native.state).toBe("normal");
+    expect(chrome.tabs.update).not.toHaveBeenCalled();
     expect(mocks.ask).toHaveBeenCalledOnce();
     expect(mocks.ask.mock.calls[0][0].image).toBe("data:image/png;base64,CCC=");
     expect(
-      restored.floating.document.querySelector(".message .answer")!.textContent,
+      floating.document.querySelector(".message .answer")!.textContent,
     ).toContain("Answer text");
-    expect(
-      restored.floating.document.querySelector(".capture-reopen"),
-    ).toBeNull();
+    expect(document.querySelector(".capture-reopen")).toBeNull();
     expect(track.stop).not.toHaveBeenCalled();
   });
 

@@ -271,7 +271,8 @@ export function selectCrop(
       if (!seeded && target.closest(".tools")) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      surface.setPointerCapture?.(event.pointerId);
+      // Relayed PiP events already hold native capture in their own document.
+      if (event.isTrusted) surface.setPointerCapture?.(event.pointerId);
       drag = {
         pointerId: event.pointerId,
         start: point(event),
