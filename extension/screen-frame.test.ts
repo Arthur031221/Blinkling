@@ -220,6 +220,44 @@ describe("shared desktop frame clearance", () => {
 });
 
 describe("shared frame freshness and cleanup", () => {
+  it("freezes a live shared track before the video decoder has metadata", async () => {
+    const decoder = document.createElement("video");
+    decoder.srcObject = video.srcObject;
+    expect([decoder.videoWidth, decoder.videoHeight]).toEqual([0, 0]);
+    const clone = {
+      stop: vi.fn(),
+      getConstraints: () => ({}),
+      applyConstraints: vi.fn(async () => {}),
+    };
+    Object.assign(track, { clone: vi.fn(() => clone) });
+    const queued = { width: 1440, height: 1000, close: vi.fn() };
+    const fresh = { width: 1440, height: 1000, close: vi.fn() };
+    const grabFrame = vi
+      .fn()
+      .mockResolvedValueOnce(queued)
+      .mockResolvedValueOnce(fresh);
+    vi.stubGlobal(
+      "ImageCapture",
+      vi.fn(function () {
+        return { grabFrame };
+      }),
+    );
+    const outcome = freezeSharedFrame(decoder, null).then(
+      (frame) => ({ frame }),
+      (error) => ({ error }),
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await outcome).toMatchObject({
+      frame: { width: 1440, height: 1000 },
+    });
+    expect(draw).toHaveBeenCalledWith(fresh, 0, 0);
+    expect(queued.close).toHaveBeenCalledOnce();
+    expect(fresh.close).toHaveBeenCalledOnce();
+    expect(clone.stop).toHaveBeenCalledOnce();
+    expect(track.readyState).toBe("live");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("reads current canvas pixels even when its stream stopped emitting frames", async () => {
     const canvas = document.createElement("canvas");
     canvas.width = 1440;

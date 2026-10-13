@@ -145,6 +145,55 @@ afterEach(() => {
 });
 
 describe("foreground shared screen crop", () => {
+  it("crops a live shared track before the video decoder has metadata", async () => {
+    video = document.createElement("video");
+    const clone = {
+      stop: vi.fn(),
+      getConstraints: () => ({}),
+      applyConstraints: vi.fn(async () => {}),
+    };
+    const track = Object.assign(new EventTarget(), {
+      readyState: "live",
+      getSettings: () => ({ displaySurface: "monitor" }),
+      clone: vi.fn(() => clone),
+    });
+    video.srcObject = {
+      getVideoTracks: () => [track],
+    } as unknown as MediaStream;
+    expect([video.videoWidth, video.videoHeight]).toEqual([0, 0]);
+    const queued = { width: 1440, height: 1000, close: vi.fn() };
+    const fresh = { width: 1440, height: 1000, close: vi.fn() };
+    const grabFrame = vi
+      .fn()
+      .mockResolvedValueOnce(queued)
+      .mockResolvedValueOnce(fresh);
+    vi.stubGlobal(
+      "ImageCapture",
+      vi.fn(function () {
+        return { grabFrame };
+      }),
+    );
+    await expect(cropSharedScreen(video, null, labels)).resolves.toBe(
+      "data:image/png;base64,eA==",
+    );
+    expect(draw).toHaveBeenCalledWith(fresh, 0, 0);
+    expect(draw).toHaveBeenLastCalledWith(
+      expect.any(HTMLCanvasElement),
+      1340,
+      900,
+      100,
+      100,
+      0,
+      0,
+      100,
+      100,
+    );
+    expect(queued.close).toHaveBeenCalledOnce();
+    expect(fresh.close).toHaveBeenCalledOnce();
+    expect(clone.stop).toHaveBeenCalledOnce();
+    expect(track.readyState).toBe("live");
+  });
+
   it.each(["browser", "window"])(
     "keeps the bubble present and dimmed during a %s-source crop even when clearance hooks are supplied",
     async (surface) => {

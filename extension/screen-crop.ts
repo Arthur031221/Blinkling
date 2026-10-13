@@ -43,7 +43,6 @@ async function cropFrozenFrame(
   labels: CropLabels,
   options: SharedFrameOptions,
 ): Promise<string | null> {
-  if (!video.videoWidth || !video.videoHeight) throw new Error("share_ended");
   const doc = document;
   const oldOpacity = bubble?.body.style.opacity || "";
   if (bubble) bubble.body.style.opacity = "0";

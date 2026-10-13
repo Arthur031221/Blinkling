@@ -207,7 +207,6 @@ export async function freezeSharedFrame(
   bubble: Document | null,
   options: SharedFrameOptions = {},
 ): Promise<HTMLCanvasElement> {
-  if (!video.videoWidth || !video.videoHeight) throw new Error("share_ended");
   return withBubbleCleared(video, bubble, options, async () => {
     const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0];
     const canvasSource = trackCanvas(track);
@@ -229,9 +228,12 @@ export async function freezeSharedFrame(
       options.signal?.throwIfAborted();
       if (track?.readyState === "ended") throw new Error("share_ended");
       const frame = document.createElement("canvas");
-      frame.width = canvasSource?.width || bitmap?.width || video.videoWidth;
+      // A newly attached decoder can still report 0x0 while its shared track
+      // is live. Direct snapshots supply their own authoritative dimensions;
+      // only the video fallback depends on decoded metadata.
+      frame.width = canvasSource?.width ?? bitmap?.width ?? video.videoWidth;
       frame.height =
-        canvasSource?.height || bitmap?.height || video.videoHeight;
+        canvasSource?.height ?? bitmap?.height ?? video.videoHeight;
       const context = frame.getContext("2d");
       if (!context || !frame.width || !frame.height)
         throw new Error("capture_failed");
