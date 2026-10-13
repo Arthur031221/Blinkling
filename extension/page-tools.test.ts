@@ -32,6 +32,47 @@ describe("page tool model output", () => {
     expect(step.note).toContain("<img"); // Rendering uses textContent, never HTML.
   });
 
+  it.each([
+    undefined,
+    null,
+    "",
+    "  ",
+    "none",
+    " None ",
+    "N/A",
+    "null",
+    "noop",
+    "no-op",
+  ])("omits absent and no-op guide actions: %j", (action) => {
+    expect(
+      validateGuideSteps(
+        { steps: [{ elementId: "a", note: "Read this control", action }] },
+        new Set(["a"]),
+      ),
+    ).toEqual([{ elementId: "a", note: "Read this control" }]);
+  });
+
+  it("keeps a meaningful guide action and rejects blank notes and stale ids", () => {
+    expect(
+      validateGuideSteps(
+        {
+          steps: [
+            { elementId: "a", note: " ", action: "Click" },
+            { elementId: "stale", note: "Old target" },
+            {
+              elementId: "a",
+              note: "Open this menu",
+              action: "  Click to open  ",
+            },
+          ],
+        },
+        new Set(["a"]),
+      ),
+    ).toEqual([
+      { elementId: "a", note: "Open this menu", action: "Click to open" },
+    ]);
+  });
+
   it.each(["", " \n\t", "\u00a0\u3000"])(
     "rejects blank replies without erasing nonempty source text: %j",
     (blank) => {

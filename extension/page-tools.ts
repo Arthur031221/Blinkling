@@ -25,11 +25,13 @@ export function validateGuideSteps(
       continue;
     if (typeof step.note !== "string" || !step.note.trim()) continue;
     seen.add(step.elementId);
+    const action =
+      typeof step.action === "string" ? step.action.trim().slice(0, 120) : "";
     steps.push({
       elementId: step.elementId,
       note: step.note.trim().slice(0, 360),
-      ...(typeof step.action === "string"
-        ? { action: step.action.trim().slice(0, 120) }
+      ...(action && !/^(?:none|null|n\/?a|no[ -]?op)$/i.test(action)
+        ? { action }
         : {}),
     });
   }
