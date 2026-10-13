@@ -7,7 +7,7 @@ export type ProviderRequest = {
   model: "sonnet" | "opus" | "haiku";
   backend: "cli" | "api";
   key?: string;
-  kind: AnswerKind;
+  kind: AnswerKind | "guide";
   context: AnswerEntry[];
   signal: AbortSignal;
   onText: (text: string) => void;
