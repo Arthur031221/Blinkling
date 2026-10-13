@@ -27,6 +27,22 @@ Glimpselet beginnt eine eigene Unterhaltung. Du kannst auch eine aktuelle Claude
 
 ### Erweitert: aus dem Quellcode laden
 
+Um das Plugin aus dem Quellcode zu starten, brauchst du Node.js 22+ und eine aktuelle Claude-Code-Version. Wenn dein Terminal bereits im Stammordner eines vorhandenen Checkouts ist, überspringe die ersten beiden Befehle. Führe im Terminal diese Befehle aus:
+
+```sh
+git clone https://github.com/Arthur031221/Glimpselet.git
+cd Glimpselet
+npm ci
+npm run build:plugin
+claude plugin validate .
+node -p "require('./.claude-plugin/plugin.json').version"
+node -p "require('./dist-extension/manifest.json').version"
+claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD"
+```
+
+Beide Versionsprüfungen sollten `2.0.0` ausgeben. Die Plugin-Liste sollte `glimpselet@inline` mit Version `2.0.0` als für diese Sitzung aktiviert anzeigen. Der letzte Befehl öffnet Claude Code; führe dort `/glimpselet:glimpse` aus, um die Willkommensanleitung zu öffnen. `--plugin-dir` lädt diesen Checkout nur für diese Sitzung. Verwende die Option bei jedem Start und starte Claude Code nach einem erneuten `npm run build:plugin` neu. Die erstellte Erweiterung liegt in `dist-extension`; die Willkommensanleitung kopiert sie in den festen Ordner unten.
+
 Für deinen eigenen Desktop-Browser liegt die Erweiterung dauerhaft im Ordner `~/.glimpselet/extension`. Öffne in Chrome oder Edge `chrome://extensions` oder `edge://extensions`, aktiviere den **Entwicklermodus**, wähle **Entpackte Erweiterung laden** und dann diesen Ordner. Der Entwicklermodus-Hinweis bleibt sichtbar. Neue Versionen musst du manuell aktualisieren.
 
 Schließe zum Aktualisieren einer entpackten Erweiterung die alte Bubble und führe `/glimpselet:glimpse` erneut aus, um den festen Ordner zu aktualisieren. Klicke auf der Erweiterungskarte auf Neu laden. Bei einem entfernten Claude-Code-Host lade die neue ZIP über die Anleitung herunter, ersetze die entpackten Dateien auf dem Browser-Computer und lade die Erweiterung neu.
@@ -78,7 +94,7 @@ Befehl und Einrichtung für die Channel-Vorschau findest du unter [Claude-Code-S
 
 Glimpselet funktioniert in Desktop-Browsern auf Chrome, Edge und anderen Chromium-Browsern. Der Entwicklermodus-Hinweis bleibt sichtbar, bis eine Store-Verteilung verfügbar ist. Updates erfolgen manuell. Manche Browserseiten wie Einstellungen, Erweiterungsstores und eingeschränkte Seiten sind nicht zugänglich. Der integrierte PDF-Viewer von Chrome ist nicht zugänglich. Verwende den Glimpselet-Reader. Native Apps liefern nur Bildpunkte, keinen Seitentext und keine Overlays. Shift funktioniert in der Blase und auf Seiten mit erteiltem Zugriff. In anderen Apps nutze das globale Tastenkürzel zum Zuschneiden. Das schwebende Fenster kann Klicks nicht durchlassen.
 
-Automatische Vorschlagsfragen verwenden Seitenkontext nur mit deiner Zustimmung. Passive Zusammenfassungen sind optional und benötigen einen geteilten, geprüften Browser-Tab. Bei Fenstern, Bildschirmen, nativen Apps, unbekannten oder anderweitig nicht zugänglichen Quellen pausieren automatische Zusammenfassungen. Manuelle Fragen und Aufnahmen bleiben verfügbar.
+Automatische Vorschlagsfragen verwenden Seitenkontext nur mit deiner Zustimmung. Passive ist optional: Erlaube Glimpselet den Zugriff auf die Website, aktiviere **Passive** und besuche oder wechsle geprüfte Seiten, um Zusammenfassungen ohne Bildschirmfreigabe zu erhalten. Seitenzusammenfassungen verwenden den Text und die Struktur von Seiten mit erteiltem Zugriff. Bei aktiver Bildschirmfreigabe benötigen Zusammenfassungen von Bildschirmänderungen einen verifizierten geteilten Browser-Tab, der zur geprüften Seite gehört. Bei einem Fenster, dem ganzen Bildschirm, einer nativen App oder einer unbekannten oder nicht zugänglichen Quelle pausieren diese Zusammenfassungen. Seiten mit Passwortfeldern und Websites auf der Sperrliste sind von automatischen Zusammenfassungen und Vorschlagsfragen ausgeschlossen. Manuelle Fragen und Aufnahmen bleiben verfügbar.
 
 [Installationsanleitung](docs/INSTALL.md) | [Nutzung](docs/USAGE.md) | [Design](docs/DESIGN.md) | [Datenschutzdetails](docs/SECURITY.md)
 

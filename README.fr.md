@@ -27,6 +27,22 @@ Glimpselet démarre une conversation dédiée. Vous pouvez aussi poursuivre une 
 
 ### Avancé : charger depuis les sources
 
+Pour lancer le plugin depuis les sources, il vous faut Node.js 22+ et une version récente de Claude Code. Si votre terminal se trouve déjà à la racine d’une copie locale du dépôt, sautez les deux premières commandes. Exécutez ces commandes dans le terminal :
+
+```sh
+git clone https://github.com/Arthur031221/Glimpselet.git
+cd Glimpselet
+npm ci
+npm run build:plugin
+claude plugin validate .
+node -p "require('./.claude-plugin/plugin.json').version"
+node -p "require('./dist-extension/manifest.json').version"
+claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD"
+```
+
+Les deux vérifications de version doivent afficher `2.0.0`. La liste des plugins doit afficher `glimpselet@inline` en version `2.0.0`, activé pour cette session. La dernière commande ouvre Claude Code ; exécutez-y `/glimpselet:glimpse` pour ouvrir le guide de bienvenue. `--plugin-dir` charge cette copie du dépôt uniquement pour cette session. Utilisez cette option à chaque lancement et redémarrez Claude Code après avoir relancé `npm run build:plugin`. L’extension compilée se trouve dans `dist-extension` ; le guide de bienvenue la copie dans le dossier stable indiqué ci-dessous.
+
 Dans votre navigateur de bureau, l'extension se trouve dans le dossier stable `~/.glimpselet/extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
 
 Pour mettre à jour une extension décompressée, fermez l’ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l’extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l’extension.
@@ -78,7 +94,7 @@ Consultez [Sessions Claude Code](docs/DESIGN.md#the-running-claude-code-conversa
 
 Glimpselet fonctionne sur ordinateur avec Chrome, Edge et les autres navigateurs Chromium. La bannière de développement reste visible jusqu'à la distribution dans une boutique, et les mises à jour sont manuelles. Certaines pages, comme les paramètres du navigateur, les boutiques d'extensions et les pages restreintes, bloquent l'accès. Le lecteur PDF intégré à Chrome n'est pas accessible. Utilisez le lecteur Glimpselet. Les applications natives ne fournissent que des pixels, sans texte ni superposition. Shift fonctionne dans la bulle et sur les pages dont l'accès est autorisé. Dans une autre application, utilisez le raccourci global de capture. La fenêtre flottante ne permet pas de transmettre les clics.
 
-Les questions suggérées automatiquement utilisent le contexte de la page uniquement avec votre consentement. Les résumés passifs sont facultatifs et nécessitent le partage d'un onglet de navigateur inspecté. Si la source partagée est une fenêtre, un écran, une application native, une source inconnue ou inaccessible, les résumés automatiques se mettent en pause. Les questions et captures manuelles restent disponibles.
+Les questions suggérées automatiquement utilisent le contexte de la page uniquement avec votre consentement. Passive est facultatif : autorisez Glimpselet à accéder au site, activez **Passive**, puis naviguez ou changez la page inspectée pour recevoir des résumés sans partage d’écran. Les résumés de pages utilisent le texte et la structure des pages dont l’accès est autorisé. Lors d’un partage d’écran, les résumés des changements à l’écran nécessitent un onglet de navigateur partagé et vérifié qui correspond à la page inspectée. Une fenêtre, l’écran entier, une application native ou une source inconnue ou inaccessible mettent ces résumés en pause. Les pages contenant des champs de mot de passe et les sites bloqués sont exclus des résumés et des questions suggérées automatiques. Les questions et captures manuelles restent disponibles.
 
 [Guide d'installation](docs/INSTALL.md) | [Utilisation](docs/USAGE.md) | [Conception](docs/DESIGN.md) | [Détails sur la confidentialité](docs/SECURITY.md)
 

@@ -27,6 +27,22 @@ Glimpselet inicia una conversación dedicada. También puedes continuar una sesi
 
 ### Avanzado: cargar desde el código fuente
 
+Para ejecutar el plugin desde el código fuente, necesitas Node.js 22+ y una versión reciente de Claude Code. Si la terminal ya está en la carpeta raíz de una copia local del repositorio, omite los dos primeros comandos. Ejecuta estos comandos en la terminal:
+
+```sh
+git clone https://github.com/Arthur031221/Glimpselet.git
+cd Glimpselet
+npm ci
+npm run build:plugin
+claude plugin validate .
+node -p "require('./.claude-plugin/plugin.json').version"
+node -p "require('./dist-extension/manifest.json').version"
+claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD"
+```
+
+Las dos comprobaciones de versión deben mostrar `2.0.0`. La lista de plugins debe mostrar `glimpselet@inline` con la versión `2.0.0` habilitado para esta sesión. El último comando abre Claude Code; ejecuta allí `/glimpselet:glimpse` para abrir la guía de bienvenida. `--plugin-dir` carga esta copia del repositorio solo para esa sesión. Usa la opción cada vez que inicies Claude Code y reinícialo después de volver a ejecutar `npm run build:plugin`. La extensión compilada está en `dist-extension`; la guía de bienvenida la copia a la carpeta estable indicada abajo.
+
 En tu navegador de escritorio, la extensión se guarda en la carpeta estable `~/.glimpselet/extension`. En Chrome o Edge, abre `chrome://extensions` o `edge://extensions`, activa **Developer mode**, elige **Load unpacked** y selecciona esa carpeta. El aviso de desarrollador seguirá visible y tendrás que actualizar la extensión manualmente cuando haya una nueva versión.
 
 Para actualizar una extensión descomprimida, cierra la burbuja anterior y vuelve a ejecutar `/glimpselet:glimpse` para actualizar la carpeta estable. Pulsa Recargar en la tarjeta de la extensión. Si Claude Code es remoto, descarga el nuevo ZIP desde la guía, reemplaza los archivos extraídos en el equipo con el navegador y recarga la extensión.
@@ -78,7 +94,7 @@ Consulta [Sesiones de Claude Code](docs/DESIGN.md#the-running-claude-code-conver
 
 Glimpselet funciona en Chrome, Edge y otros navegadores Chromium de escritorio. El aviso de desarrollador seguirá visible hasta que haya distribución en una tienda, y las actualizaciones son manuales. Algunas páginas, como la configuración del navegador, las tiendas de extensiones y páginas restringidas, bloquean el acceso. El visor PDF integrado de Chrome no es accesible. Usa el lector de Glimpselet. Las aplicaciones nativas solo aportan píxeles, sin texto ni superposiciones. Shift funciona en la burbuja y en las páginas con acceso autorizado. En otra aplicación, usa el atajo global de recorte. La ventana flotante no permite atravesarla con clics.
 
-Las preguntas sugeridas automáticamente usan el contexto de la página solo con tu consentimiento. Los resúmenes pasivos son opcionales y requieren compartir una pestaña inspeccionada. Si la fuente compartida es una ventana, una pantalla, una aplicación nativa, desconocida o inaccesible, los resúmenes automáticos se pausan. Las preguntas y capturas manuales siguen disponibles.
+Las preguntas sugeridas automáticamente usan el contexto de la página solo con tu consentimiento. Passive es opcional: permite que Glimpselet acceda al sitio, activa **Passive** y navega o cambia la página inspeccionada para recibir resúmenes sin compartir pantalla. Los resúmenes de páginas usan el texto y la estructura de las páginas con acceso autorizado. Con la pantalla compartida, los resúmenes de cambios en la pantalla requieren una pestaña de navegador compartida y verificada que coincida con la página inspeccionada. Si la fuente es una ventana, la pantalla completa, una aplicación nativa, desconocida o inaccesible, estos resúmenes se pausan. Las páginas con campos de contraseña y los sitios bloqueados se excluyen de los resúmenes y las preguntas sugeridas automáticos. Las preguntas y capturas manuales siguen disponibles.
 
 [Guía de instalación](docs/INSTALL.md) | [Uso](docs/USAGE.md) | [Diseño](docs/DESIGN.md) | [Detalles de privacidad](docs/SECURITY.md)
 

@@ -27,6 +27,22 @@ Glimpselet은 전용 대화를 시작합니다. 최근 Claude Code 세션을 선
 
 ### 고급: 소스에서 불러오기
 
+소스에서 플러그인을 실행하려면 Node.js 22+와 최신 Claude Code가 필요합니다. 터미널이 이미 기존 소스 저장소의 루트 폴더에 있다면 처음 두 명령은 건너뛰세요. 터미널에서 다음 명령을 실행하세요.
+
+```sh
+git clone https://github.com/Arthur031221/Glimpselet.git
+cd Glimpselet
+npm ci
+npm run build:plugin
+claude plugin validate .
+node -p "require('./.claude-plugin/plugin.json').version"
+node -p "require('./dist-extension/manifest.json').version"
+claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD"
+```
+
+두 버전 확인 명령 모두 `2.0.0`을 표시해야 합니다. 플러그인 목록에는 `glimpselet@inline` 버전 `2.0.0`이 이 세션에서 활성화된 것으로 표시되어야 합니다. 마지막 명령으로 Claude Code가 열리면 그 세션에서 `/glimpselet:glimpse`를 실행해 시작 안내를 여세요. `--plugin-dir`는 이 세션에서만 소스 플러그인을 불러옵니다. 시작할 때마다 이 옵션을 사용하고, `npm run build:plugin`으로 다시 빌드한 후에는 Claude Code를 다시 시작하세요. 빌드한 확장 프로그램은 `dist-extension`에 있으며, 시작 안내가 아래 고정 폴더로 복사합니다.
+
 본인 데스크톱 브라우저에서 확장 프로그램은 고정 폴더 `~/.glimpselet/extension`에 저장됩니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
 
 압축 해제한 확장 프로그램을 업데이트할 때는 기존 버블을 닫고 `/glimpselet:glimpse`를 다시 실행해 고정 폴더를 갱신한 뒤 확장 프로그램 카드에서 새로고침을 누르세요. Claude Code가 원격 호스트에 있으면 안내에서 새 ZIP을 받아 브라우저 컴퓨터의 압축 해제한 파일을 교체하고 확장 프로그램을 새로고침하세요.
@@ -78,7 +94,7 @@ Channel 미리 보기 명령과 설정은 [Claude Code 세션](docs/DESIGN.md#th
 
 Glimpselet은 데스크톱 Chrome, Edge 및 기타 Chromium 브라우저에서 작동합니다. 스토어 배포 전까지 개발자 배너가 표시되고 업데이트는 수동입니다. 브라우저 설정, 확장 프로그램 스토어, 제한된 페이지 등 일부 페이지는 접근을 차단합니다. Chrome 내장 PDF 뷰어는 읽을 수 없으므로 Glimpselet 리더를 사용하세요. 네이티브 앱에서는 픽셀만 제공되며 페이지 텍스트나 오버레이는 사용할 수 없습니다. Shift는 버블과 접근을 허용한 페이지에서 작동합니다. 다른 앱에서는 전역 캡처 단축키를 사용하세요. 플로팅 창은 클릭을 통과시키지 않습니다.
 
-자동 질문 제안은 동의한 경우에만 페이지 정보를 사용합니다. 자동 요약 기능은 선택 사항이며 검사 가능한 브라우저 탭을 공유해야 합니다. 공유 소스가 창, 화면, 네이티브 앱, 알 수 없는 소스 또는 접근 불가 페이지라면 자동 요약이 일시 중지됩니다. 수동 질문과 캡처는 계속 사용할 수 있습니다.
+자동 질문 제안은 동의한 경우에만 페이지 정보를 사용합니다. Passive는 선택 사항입니다. Glimpselet의 사이트 접근을 허용하고 **Passive**를 켠 뒤 검사 가능한 페이지를 탐색하거나 바꾸면 화면 공유 없이 요약을 받을 수 있습니다. 페이지 요약에는 접근을 허용한 페이지의 텍스트와 구조를 사용합니다. 화면 공유 중 화면 변화에 대한 요약을 받으려면 공유 소스가 검사한 페이지와 일치하는 검증된 브라우저 탭이어야 합니다. 공유 소스가 창, 전체 화면, 네이티브 앱, 알 수 없는 소스 또는 접근할 수 없는 소스라면 이러한 요약은 일시 중지됩니다. 비밀번호 입력란이 있는 페이지와 차단 목록의 사이트에서는 자동 요약과 질문 제안을 생성하지 않습니다. 수동 질문과 캡처는 계속 사용할 수 있습니다.
 
 [설치 안내](docs/INSTALL.md) | [사용법](docs/USAGE.md) | [설계](docs/DESIGN.md) | [개인정보 상세](docs/SECURITY.md)
 
