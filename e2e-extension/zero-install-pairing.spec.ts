@@ -54,7 +54,7 @@ async function connectTrial(port: number) {
 async function pairFromWelcome(welcome: Page, context: BrowserContext) {
   const opened = context.waitForEvent("page");
   await welcome
-    .getByRole("button", { name: "Pair extension", exact: true })
+    .getByRole("button", { name: "Open the bubble", exact: true })
     .click();
   const owner = await opened;
   await expect(
@@ -67,7 +67,7 @@ async function pairFromWelcome(welcome: Page, context: BrowserContext) {
   const panel = await pipOpened;
   await expect(panel.locator(".app.in-pip")).toBeVisible();
   await expect(panel.locator(".connection")).toHaveClass(/online/);
-  await expect(welcome.locator("#pair-controls")).toBeHidden();
+  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
   return { owner, panel };
 }
 
@@ -181,7 +181,7 @@ child.on('exit', code => process.exit(code ?? 1));
       const origin = new URL(sourceUrl).origin;
       const status = async (code: string) =>
         (await fetch(`${origin}/install/status?code=${code}`)).json();
-      const extension = join(directory, ".glimpselet/extension");
+      const extension = join(directory, "Glimpselet-extension");
       ordinary = await launchExtensionContext(
         join(directory, "ordinary-profile"),
         {
@@ -200,11 +200,9 @@ child.on('exit', code => process.exit(code ?? 1));
       await welcome.goto(sourceUrl);
       let ordinaryToken: string | undefined;
       let ordinaryPanel: Page | undefined;
-      let ordinaryOwner: Page | undefined;
       if (ordinaryPaired) {
         const paired = await pairFromWelcome(welcome, ordinary);
         ordinaryPanel = paired.panel;
-        ordinaryOwner = paired.owner;
         await askQuestion(ordinaryPanel, "What can I do here?");
         const worker = ordinary.serviceWorkers()[0];
         ordinaryToken = (
@@ -241,6 +239,9 @@ child.on('exit', code => process.exit(code ?? 1));
       const trialWorker =
         trialContext.serviceWorkers()[0] ||
         (await trialContext.waitForEvent("serviceworker"));
+      await expect(trialWelcome.locator("#connection")).toHaveClass(
+        /connected/,
+      );
       const trialStorage = await trialWorker.evaluate(() =>
         chrome.storage.session.get(["bridgeToken"]),
       );
@@ -273,11 +274,13 @@ child.on('exit', code => process.exit(code ?? 1));
       expect(trialCode).toMatch(/^[A-F0-9]{16}$/);
       expect(trialCode).not.toBe(sourceCode);
       expect(trialUrl.searchParams.get("locale")).toBe("en");
-      expect(trialStorage).toEqual({});
-      expect(trialStatus.connected).toBe(false);
+      expect(trialStorage.bridgeToken).toMatch(/^[a-f0-9]{64}$/);
+      expect(trialStatus.connected).toBe(true);
       expect(sourceStatus.connected).toBe(ordinaryPaired);
-      await expect(trialWelcome.locator("#pair-controls")).toBeVisible();
-      await expect(trialWelcome.locator("#connect")).toBeVisible();
+      await expect(trialWelcome.locator("#connection")).toHaveClass(
+        /connected/,
+      );
+      await expect(trialWelcome.locator("#open-bubble")).toBeEnabled();
 
       const { panel: trialPanel } = await pairFromWelcome(
         trialWelcome,
@@ -340,72 +343,11 @@ child.on('exit', code => process.exit(code ?? 1));
           ordinaryPanel,
           "Can this original browser still ask a follow-up?",
         );
-        await ordinaryPanel
-          .getByRole("button", { name: en.settings, exact: true })
-          .click();
-        const replayOpened = ordinary.waitForEvent("page");
-        await ordinaryPanel
-          .getByRole("button", { name: en.replayTour, exact: true })
-          .click();
-        const replay = await replayOpened;
-        await expect(replay).toHaveURL(`${origin}/install?locale=en#tour`);
-        expect(new URL(replay.url()).searchParams.has("code")).toBe(false);
-        expect(new URL(replay.url()).hash).toBe("#tour");
-        await expect(replay.locator("#pairing")).toBeHidden();
-        await expect(replay.locator("#installation")).toBeHidden();
-        await expect(replay.locator("#pair")).not.toBeVisible();
-        expect(
-          await ordinaryOwner!.evaluate(() => {
-            const owner = window as Window & {
-              documentPictureInPicture: { window?: Window };
-              replayFloatPiP?: Window;
-            };
-            owner.replayFloatPiP = owner.documentPictureInPicture.window;
-            return Boolean(
-              owner.replayFloatPiP && !owner.replayFloatPiP.closed,
-            );
-          }),
-        ).toBe(true);
-        const pagesBeforeSample = ordinary.pages().length;
-        const sampleOpened = ordinary.waitForEvent("page");
-        await replay
-          .getByRole("button", {
-            name: "Open sample + request float",
-            exact: true,
-          })
-          .click();
-        const sample = await sampleOpened;
-        await expect(sample.locator("#tour-request")).toContainText("step 1");
-        // Float is already practiced in this native bubble. The replay must
-        // acknowledge that window without requiring or creating another one.
-        await expect(replay.locator(".step").first()).toHaveClass(/done/);
         expect(ordinaryPanel.isClosed()).toBe(false);
         await expect(ordinaryPanel.locator(".app.in-pip")).toBeVisible();
-        await expect(ordinaryPanel.locator(".float-start")).toHaveCount(0);
-        expect(ordinary.pages()).toHaveLength(pagesBeforeSample + 1);
-        expect(
-          await ordinaryOwner!.evaluate(() => {
-            const owner = window as Window & {
-              documentPictureInPicture: { window?: Window };
-              replayFloatPiP?: Window;
-            };
-            const floating = owner.documentPictureInPicture.window;
-            return {
-              samePiP: floating === owner.replayFloatPiP,
-              open: Boolean(floating && !floating.closed),
-              appInPiP: Boolean(
-                floating?.document.querySelector(".app.in-pip"),
-              ),
-            };
-          }),
-        ).toEqual({ samePiP: true, open: true, appInPiP: true });
         await expect(ordinaryPanel.locator(".connection")).toHaveClass(
           /online/,
         );
-        await replay.screenshot({
-          path: info.outputPath("connected-replay.png"),
-          fullPage: true,
-        });
       }
     } finally {
       await info.attach("plugin-stderr", {

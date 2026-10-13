@@ -119,7 +119,7 @@ async function welcome(profile, pluginPath) {
     });
     const copied = JSON.parse(
       await readFile(
-        join(profile.cwd, ".glimpselet/extension/manifest.json"),
+        join(profile.cwd, "Glimpselet-extension/manifest.json"),
         "utf8",
       ),
     );

@@ -1,6 +1,5 @@
 import { launchExtensionContext } from "./browser";
 import en from "../extension/locales/en.json" with { type: "json" };
-import zh from "../extension/locales/zh-TW.json" with { type: "json" };
 import {
   test,
   expect,
@@ -309,14 +308,10 @@ test.beforeEach(async () => {
   panel.setDefaultTimeout(10000);
   site.setDefaultTimeout(10000);
   await panel.waitForLoadState();
-  await panel.getByRole("button", { name: "Settings", exact: true }).click();
-  await panel
-    .locator(".dialog input")
-    .nth(0)
-    .fill(origin.replace("http:", "ws:") + "/extension");
-  await panel.locator(".dialog input").nth(1).fill(bridge.issueCode());
-  await panel.getByRole("button", { name: en.pair, exact: true }).click();
-  await panel.getByRole("button", { name: en.close, exact: true }).click();
+  const welcome = await context.newPage();
+  await welcome.goto(`${origin}/install#code=${bridge.issueCode()}`);
+  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
+  await welcome.close();
   await expect(panel.locator(".connection")).toHaveClass(/online/);
   await expect(panel.locator(".suggestions button")).toHaveCount(3);
 });
@@ -876,9 +871,7 @@ for (const startup of [false, true]) {
         );
         panel = await opened;
         await panel.waitForLoadState();
-        await expect(panel.locator(".connection")).toContainText(
-          secondDirectory.split("/").at(-1)!,
-        );
+        await expect(panel.locator(".connection")).toHaveText(en.connected);
         await panel.evaluate(() => {
           (window as Window & { releaseCredentials?: () => void })
             .releaseCredentials!();
@@ -905,9 +898,7 @@ for (const startup of [false, true]) {
           )
           .toBe(true);
         await expect(panel.locator(".connection")).toHaveClass(/online/);
-        await expect(panel.locator(".connection")).toContainText(
-          secondDirectory.split("/").at(-1)!,
-        );
+        await expect(panel.locator(".connection")).toHaveText(en.connected);
       } else {
         const welcome = await context.newPage();
         await welcome
@@ -915,16 +906,12 @@ for (const startup of [false, true]) {
           .catch((error: unknown) => {
             if (!String(error).includes("ERR_ABORTED")) throw error;
           });
-        await welcome.locator("#connect").click();
-        await expect(panel.locator(".connection")).toContainText(
-          secondDirectory.split("/").at(-1)!,
-        );
+        await expect(welcome.locator("#connection")).toHaveClass(/connected/);
+        await expect(panel.locator(".connection")).toHaveText(en.connected);
         await welcome.waitForTimeout(1000);
         await site.bringToFront();
       }
-      await expect(panel.locator(".connection")).toContainText(
-        secondDirectory.split("/").at(-1)!,
-      );
+      await expect(panel.locator(".connection")).toHaveText(en.connected);
       const credentials = await worker.evaluate(async () =>
         chrome.storage.session.get(["bridgeToken", "bridgeUrl"]),
       );
@@ -939,10 +926,10 @@ for (const startup of [false, true]) {
       ).pairs;
       const pairedSession = newPairs.get(credentials.bridgeToken)!.thread.id;
       expect(pairedSession).not.toBe(previousSession);
-      await expect(panel.locator(".foot span").first()).toHaveText(
-        en.connectionDedicated,
+      await expect(panel.locator(".connection")).toHaveText(en.connected);
+      expect(await panel.locator("body").innerText()).not.toContain(
+        pairedSession,
       );
-      await expect(panel.locator(".foot")).not.toContainText(pairedSession);
       await panel
         .getByRole("button", { name: en.wholeScreen, exact: true })
         .click();
@@ -983,11 +970,9 @@ for (const startup of [false, true]) {
         "このページは研究ノートの使い方を説明します。",
       );
       expect(request.cliSession!.id).toBe(pairedSession);
-      await expect(panel.locator(".foot span").first()).toHaveText(
-        en.connectionDedicated,
-      );
-      await expect(panel.locator(".foot")).not.toContainText(
-        request.cliSession!.id,
+      await expect(panel.locator(".connection")).toHaveText(en.connected);
+      expect(await panel.locator("body").innerText()).not.toContain(
+        pairedSession,
       );
       expect(Buffer.isBuffer(request.image)).toBe(true);
       expect(request.image!.length).toBeGreaterThan(100);
@@ -1001,12 +986,8 @@ for (const startup of [false, true]) {
       );
       const expectedSession = newPairs.get(expectedToken)!.thread.id;
       await panel.reload();
-      await expect(panel.locator(".connection")).toContainText(
-        secondDirectory.split("/").at(-1)!,
-      );
-      await expect(panel.locator(".foot span").first()).toHaveText(
-        en.connectionDedicated,
-      );
+      await expect(panel.locator(".connection")).toHaveText(en.connected);
+      await expect(panel.locator(".connection")).toHaveText(en.connected);
       expect(
         await worker.evaluate(
           async () =>
@@ -2491,97 +2472,30 @@ test.afterEach(async ({ browserName }, testInfo) => {
   await rm(directory, { recursive: true, force: true });
 });
 
-test("welcome page pairs on request and completes its real guide tutorial", async () => {
-  const blockedScripts: string[] = [];
-  context.on("page", (created) => {
-    created.on("console", (message) => {
-      if (message.text().includes("Executing inline script violates"))
-        blockedScripts.push(message.text());
-    });
-  });
-  const code = bridge.issueCode();
+test("welcome connects automatically and contains exactly three steps without exercises", async () => {
   const welcome = await context.newPage();
-  welcome.setDefaultTimeout(10000);
+  const code = bridge.issueCode();
   await welcome.goto(`${origin}/install#code=${code}`);
-  await welcome.locator("#connect").click();
-  await expect
-    .poll(async () =>
-      welcome.evaluate(async () => {
-        const response = await fetch(
-          `/install/status?code=${location.hash.slice(6)}`,
-        );
-        const status = (await response.json()) as { connected?: boolean };
-        return status.connected === true;
-      }),
-    )
-    .toBe(true);
-  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
-  const sampleUrl = `${origin}/assets/glimpselet-welcome-sample.html`;
-  expect(context.pages().some((page) => page.url() === sampleUrl)).toBe(false);
-  await welcome
-    .getByRole("button", { name: "Open sample + request float", exact: true })
-    .click();
-  await expect
-    .poll(() => context.pages().some((page) => page.url() === sampleUrl))
-    .toBe(true);
-  const sample = context.pages().find((page) => page.url() === sampleUrl)!;
-  sample.setDefaultTimeout(10000);
-  await expect(sample.locator("#tour-request")).toContainText("step 1");
-  await expect(welcome.locator("#progress-label")).toHaveText(
-    "Completed 0 of 8",
+  await expect(welcome.locator("#connection")).toHaveText(en.connected);
+  await expect(welcome.locator("section")).toHaveCount(3);
+  await expect(welcome.locator("#open-bubble")).toBeEnabled();
+  expect(await welcome.locator("body").innerText()).not.toMatch(
+    /practice|exercise|Pairing code/i,
   );
-  const guideTry = welcome.getByRole("button", {
-    name: "Open sample + request guide",
-    exact: true,
-  });
-  await guideTry.click();
-  await expect(sample.locator("#tour-request")).toContainText("step 5");
-  await expect(panel.locator(".float-start").last()).toContainText("5/8");
-  await sample.bringToFront();
-  const browserCdp = await context.browser()!.newBrowserCDPSession();
-  const { targetInfos } = await browserCdp.send("Target.getTargets", {
-    filter: [{ type: "tab", exclude: false }],
-  });
-  const sampleTarget = targetInfos.find((target) => target.url === sampleUrl);
-  if (!sampleTarget) throw new Error("Welcome sample tab target not found");
-  await browserCdp.send("Extensions.triggerAction", {
-    id: extensionId,
-    targetId: sampleTarget.targetId,
-  });
-  await browserCdp.detach();
-  await panel.locator(".float-start button").last().click();
-  await expect(panel.locator(".message .answer").last()).toContainText(
-    "Choose Save these brewing notes",
-  );
-  const guide = sample.locator("[data-glimpselet-overlay] .guide");
-  await expect(guide).toBeVisible();
-  await expect(guide).toContainText(en.guideAction);
-  await expect(guide).toContainText("Understand this page and its main task.");
-  await expect(guide).toContainText("A tiny field guide to tea");
-  await guide.getByRole("button", { name: en.guideOverview }).click();
-  const overview = sample.locator("[data-glimpselet-overlay] .guide-overview");
-  await expect(overview).toContainText("Tea leaves change as they meet water");
-  await overview
-    .getByRole("button", { name: /Choose Save these brewing notes/ })
-    .click();
-  await expect(guide).toContainText("Save these brewing notes");
-  await expect(
-    sample.locator("[data-glimpselet-overlay] svg.draw .ink"),
-  ).toBeVisible();
-  await expect(welcome.locator(".step").nth(4)).toHaveClass(/done/);
-  await expect(welcome.locator(".progress")).toHaveAttribute(
-    "aria-valuenow",
-    "1",
-  );
-  expect(blockedScripts).toEqual([]);
 });
 
 test("a paired bridge never displays an unavailable-session instruction", async () => {
   await panel.getByRole("button", { name: en.settings, exact: true }).click();
   await expect(panel.locator(".dialog")).toBeVisible();
-  await expect(panel.getByText(en.bridgeHelp, { exact: true })).toHaveCount(0);
-  await expect(panel.getByLabel(en.bridgeUrl, { exact: true })).toHaveCount(0);
-  await expect(panel.getByLabel(en.pairCode, { exact: true })).toHaveCount(0);
+  await expect(
+    panel.getByText("Run /glimpse in Claude Code to connect.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(panel.getByLabel("Connection URL", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(panel.getByLabel("Pairing code", { exact: true })).toHaveCount(
+    0,
+  );
   await expect(panel.locator(".connection.online")).toBeVisible();
   await expect(
     panel
@@ -2616,22 +2530,19 @@ test("remote welcome installs on the browser computer in both languages", async 
   await welcome.goto(`${origin}/install#code=${installCode}`);
   await expect(welcome.locator("#install-remote")).toBeVisible();
   await expect(welcome.locator("#install-local")).toBeHidden();
-  await expect(welcome.locator("#try-zero")).toBeHidden();
-  await expect(welcome.locator("#mode")).toContainText("another computer");
-  await expect(welcome.locator("#tunnel-command")).toHaveValue(tunnel);
+  await expect(welcome.locator("#try-zero")).toBeDisabled();
   await expect(
-    welcome.getByRole("link", { name: "Download extension ZIP" }),
+    welcome.getByRole("link", { name: "Download extension" }),
   ).toHaveAttribute("href", `/install/extension.zip?code=${installCode}`);
   await expect(welcome.locator("#install-remote")).toContainText(
-    "Extract it on this computer",
+    "Downloads/Glimpselet-extension",
   );
   expect(await welcome.locator("body").innerText()).not.toContain(
     "/tmp/glimpselet-extension-e2e",
   );
-  await welcome.getByRole("button", { name: "切換為繁體中文" }).click();
-  await expect(welcome.locator("#mode")).toContainText("另一台電腦");
+  await welcome.locator("#language").selectOption("zh-TW");
   await expect(
-    welcome.getByRole("link", { name: "下載擴充功能 ZIP" }),
+    welcome.getByRole("link", { name: "下載擴充功能" }),
   ).toBeVisible();
   expect(await welcome.locator("body").innerText()).not.toContain(
     "/tmp/glimpselet-extension-e2e",
@@ -4814,630 +4725,6 @@ test("ordinary shared-screen questions refresh the frame and omit unrelated page
   expect(request.page).toBeUndefined();
   await clickInBubble(en.autoExplain);
 });
-
-for (const failure of ["provider", "invalid-target"] as const) {
-  test(`a ${failure} welcome guide stays available to retry and is not marked done`, async () => {
-    const normal = providerResponder;
-    providerResponder = async (request) => {
-      if (request.question.includes("Create a short, actionable guide")) {
-        if (failure === "provider")
-          throw new Error("Guide provider unavailable");
-        const answer = JSON.stringify({
-          steps: [
-            { elementId: "missing-element", note: "Choose a missing button." },
-          ],
-        });
-        request.onText(answer);
-        return { answer };
-      }
-      return await normal(request);
-    };
-    const code = bridge.issueCode();
-    const welcome = await context.newPage();
-    await welcome.goto(`${origin}/install#code=${code}`);
-    await welcome.locator("#connect").click();
-    await expect(welcome.locator("#connection")).toHaveClass(/connected/);
-    const sampleUrl = `${origin}/assets/glimpselet-welcome-sample.html`;
-    await welcome
-      .getByRole("button", { name: "Open sample + request guide", exact: true })
-      .click();
-    await expect
-      .poll(() =>
-        context.pages().some((candidate) => candidate.url() === sampleUrl),
-      )
-      .toBe(true);
-    const sample = context
-      .pages()
-      .find((candidate) => candidate.url() === sampleUrl)!;
-    await welcome
-      .getByRole("button", { name: "Open sample + request guide", exact: true })
-      .click();
-    await expect(panel.locator(".float-start").last()).toContainText("5/8");
-    await sample.bringToFront();
-    const cdp = await context.browser()!.newBrowserCDPSession();
-    try {
-      const { targetInfos } = await cdp.send("Target.getTargets", {
-        filter: [{ type: "tab", exclude: false }],
-      });
-      const target = targetInfos.find(
-        (candidate) => candidate.url === sampleUrl,
-      )!;
-      await cdp.send("Extensions.triggerAction", {
-        id: extensionId,
-        targetId: target.targetId,
-      });
-    } finally {
-      await cdp.detach();
-    }
-    await panel.locator(".float-start button").last().click();
-    await expect
-      .poll(() =>
-        providerRequests.some((request) =>
-          request.question.includes("Create a short, actionable guide"),
-        ),
-      )
-      .toBe(true);
-    await expect(panel.locator(".toolbar .status")).toContainText(
-      failure === "provider" ? en.genericError : en.guideFailed,
-    );
-    await expect(panel.locator(".live-answer")).toHaveCount(0);
-    await expect(panel.locator(".float-start").last()).toContainText("5/8");
-    await expect(welcome.locator(".step").nth(4)).not.toHaveClass(/done/);
-    await expect(
-      sample.locator("[data-glimpselet-overlay] .guide"),
-    ).toHaveCount(0);
-  });
-}
-
-async function pairedWelcome() {
-  const code = bridge.issueCode();
-  const welcome = await context.newPage();
-  await welcome.goto(`${origin}/install#code=${code}`);
-  await welcome.evaluate(() => {
-    const acknowledgements: number[] = [];
-    (
-      window as Window & { tutorialAcknowledgements: number[] }
-    ).tutorialAcknowledgements = acknowledgements;
-    window.addEventListener("message", (event) => {
-      if (
-        event.origin === location.origin &&
-        event.data?.type === "glimpselet:tutorial:done" &&
-        event.data.version === 1
-      )
-        acknowledgements.push(event.data.step);
-    });
-  });
-  await welcome.locator("#connect").click();
-  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
-  return welcome;
-}
-
-async function requestWelcomePractice(welcome: Page, step: number) {
-  const welcomeLanguage = await welcome.locator("html").getAttribute("lang");
-  expect(["en", "zh-Hant"]).toContain(welcomeLanguage);
-  const locale = welcomeLanguage === "zh-Hant" ? "zh-TW" : "en";
-  await welcome
-    .locator(".step")
-    .nth(step - 1)
-    .locator(".try")
-    .click();
-  const sampleLocation = new URL(
-    "/assets/glimpselet-welcome-sample.html",
-    origin,
-  );
-  if (locale === "zh-TW") sampleLocation.searchParams.set("locale", locale);
-  const sampleUrl = sampleLocation.href;
-  await expect
-    .poll(() => context.pages().some((page) => page.url() === sampleUrl))
-    .toBe(true);
-  const sample = context.pages().find((page) => page.url() === sampleUrl)!;
-  sample.setDefaultTimeout(10000);
-  await expect(sample.locator("html")).toHaveAttribute("lang", locale);
-  await expect(sample.locator("#tour-request strong")).toHaveText(
-    locale === "zh-TW" ? `導覽步驟 ${step}：` : `Tour step ${step}:`,
-  );
-  return sample;
-}
-
-async function welcomeAcknowledgements(welcome: Page) {
-  return await welcome.evaluate(
-    () =>
-      (window as Window & { tutorialAcknowledgements: number[] })
-        .tutorialAcknowledgements,
-  );
-}
-
-async function grantWelcomeSampleAccess(sample: Page) {
-  await sample.bringToFront();
-  const cdp = await context.browser()!.newBrowserCDPSession();
-  try {
-    const { targetInfos } = await cdp.send("Target.getTargets", {
-      filter: [{ type: "tab", exclude: false }],
-    });
-    const target = targetInfos.find(
-      (candidate) => candidate.url === sample.url(),
-    );
-    if (!target) throw new Error("Welcome sample tab target not found");
-    await cdp.send("Extensions.triggerAction", {
-      id: extensionId,
-      targetId: target.targetId,
-    });
-  } finally {
-    await cdp.detach();
-  }
-}
-
-async function prepareSelectionPractice(sample: Page, askLabel = en.send) {
-  await sample.bringToFront();
-  await sample.evaluate(() => {
-    const range = document.createRange();
-    range.selectNodeContents(document.querySelector("p")!);
-    getSelection()!.removeAllRanges();
-    getSelection()!.addRange(range);
-    document.dispatchEvent(new Event("selectionchange"));
-  });
-  await sample
-    .locator("[data-glimpselet-overlay] .popover")
-    .getByRole("button", { name: askLabel, exact: true })
-    .click();
-  await expect(panel.locator(".composer textarea")).toHaveValue(
-    /Tea leaves change/,
-  );
-  return (await panel.locator(".composer textarea").inputValue()).trim();
-}
-
-test("Float practice reuses the existing bubble without another opening action", async () => {
-  const welcome = await pairedWelcome();
-  await panel.locator(".float-start button").click();
-  await expect
-    .poll(() =>
-      panel.evaluate(() => Boolean(window.documentPictureInPicture?.window)),
-    )
-    .toBe(true);
-  await panel.evaluate(() => {
-    window.documentPictureInPicture.window!.document.body.dataset.practiceWindow =
-      "existing";
-  });
-  await requestWelcomePractice(welcome, 1);
-  await expect(welcome.locator(".step").first()).toHaveClass(/done/);
-  await expect(welcome.locator("#progress-label")).toHaveText(
-    "Completed 1 of 8",
-  );
-  expect(
-    await panel.evaluate(
-      () =>
-        window.documentPictureInPicture.window?.document.body.dataset
-          .practiceWindow,
-    ),
-  ).toBe("existing");
-  const floating = await panel.evaluate(() => {
-    const document = window.documentPictureInPicture.window!.document;
-    return {
-      guidance: document.body.textContent,
-      reopenActions: [...document.querySelectorAll("button")].filter(
-        (button) =>
-          button.getAttribute("aria-label") === "Open floating panel" ||
-          button.textContent?.trim() === "Open floating panel",
-      ).length,
-    };
-  });
-  expect(floating.guidance).toContain(
-    "Your chat is floating. Switch to another window to see it stay on top.",
-  );
-  expect(floating.reopenActions).toBe(0);
-  expect(await welcomeAcknowledgements(welcome)).toEqual([1]);
-});
-
-test("fresh Float practice opens one native bubble and acknowledges its sample", async () => {
-  const welcome = await pairedWelcome();
-  const sample = await requestWelcomePractice(welcome, 1);
-  await expect(panel.locator(".float-start").last()).toContainText("1/8");
-  expect(
-    await panel.evaluate(() => window.documentPictureInPicture.window),
-  ).toBeNull();
-  await expect(welcome.locator(".step").first()).not.toHaveClass(/done/);
-  expect(await welcomeAcknowledgements(welcome)).toEqual([]);
-  await panel.locator(".float-start button").last().click();
-  await expect(welcome.locator(".step").first()).toHaveClass(/done/);
-  await expect
-    .poll(() =>
-      panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),
-    )
-    .toBe(true);
-  await sample.bringToFront();
-  const floating = await panel.evaluate(() => ({
-    open: !window.documentPictureInPicture.window!.closed,
-    guidance: window.documentPictureInPicture.window!.document.body.textContent,
-  }));
-  expect(floating.open).toBe(true);
-  expect(floating.guidance).toContain(
-    "Your chat is floating. Switch to another window to see it stay on top.",
-  );
-  expect(await welcomeAcknowledgements(welcome)).toEqual([1]);
-});
-
-for (const action of ["suggestion", "selection"] as const) {
-  const step = action === "suggestion" ? 3 : 7;
-  test(`welcome ${action} practice completes only after its successful answer`, async () => {
-    const welcome = await pairedWelcome();
-    const sample = await requestWelcomePractice(welcome, step);
-    await grantWelcomeSampleAccess(sample);
-    await expect(panel.locator(".float-start").last()).toContainText(
-      `${step}/8`,
-    );
-    await panel.locator(".float-start button").last().click();
-    await expect(welcome.locator(".step").nth(step - 1)).not.toHaveClass(
-      /done/,
-    );
-    expect(await welcomeAcknowledgements(welcome)).toEqual([]);
-
-    await panel.locator(".composer textarea").fill("What does steeping mean?");
-    await panel.locator(".composer .send").click();
-    await expect(panel.locator(".message .answer").last()).toContainText(
-      "Your notebook can be exported",
-    );
-    await expect(welcome.locator(".step").nth(step - 1)).not.toHaveClass(
-      /done/,
-    );
-    expect(await welcomeAcknowledgements(welcome)).toEqual([]);
-
-    let question: string;
-    if (action === "selection")
-      question = await prepareSelectionPractice(sample);
-    else {
-      await expect(panel.locator(".suggestions button")).toHaveCount(3);
-      question = (
-        await panel.locator(".suggestions button").nth(2).innerText()
-      ).replace(/\s*↗$/, "");
-    }
-    const normal = providerResponder;
-    const practiceRequest = (request: ProviderRequest) =>
-      action === "selection"
-        ? selectedPassageFromQuestion(request.question) === question
-        : request.question === question;
-    providerResponder = async (request) => {
-      if (practiceRequest(request))
-        throw new Error("Practice answer unavailable");
-      return await normal(request);
-    };
-    if (action === "selection") await panel.locator(".composer .send").click();
-    else await panel.locator(".suggestions button").nth(2).click();
-    await expect(panel.locator(".toolbar .status")).toContainText(
-      en.genericError,
-    );
-    await expect(welcome.locator(".step").nth(step - 1)).not.toHaveClass(
-      /done/,
-    );
-    expect(await welcomeAcknowledgements(welcome)).toEqual([]);
-
-    providerResponder = normal;
-    if (action === "selection") {
-      await prepareSelectionPractice(sample);
-      await panel.locator(".composer .send").click();
-    } else await panel.locator(".suggestions button").nth(2).click();
-    await expect(panel.locator(".message .answer").last()).toContainText(
-      "Your notebook can be exported",
-    );
-    await expect(welcome.locator(".step").nth(step - 1)).toHaveClass(/done/);
-    expect(providerRequests.filter(practiceRequest)).toHaveLength(2);
-    expect(providerRequests.find(practiceRequest)?.page?.url).toBe(
-      sample.url(),
-    );
-    expect(await welcomeAcknowledgements(welcome)).toEqual([step]);
-
-    await panel.locator(".composer textarea").fill("What does infusion mean?");
-    await panel.locator(".composer .send").click();
-    await expect(panel.locator(".toolbar .status")).toContainText(
-      en.answerReady,
-    );
-    expect(await welcomeAcknowledgements(welcome)).toEqual([step]);
-  });
-
-  test(`welcome ${action} answer from a replaced sample document does not complete practice`, async () => {
-    const welcome = await pairedWelcome();
-    const sample = await requestWelcomePractice(welcome, step);
-    await grantWelcomeSampleAccess(sample);
-    await expect(panel.locator(".float-start").last()).toContainText(
-      `${step}/8`,
-    );
-    await panel.locator(".float-start button").last().click();
-    let question: string;
-    if (action === "selection")
-      question = await prepareSelectionPractice(sample);
-    else {
-      await expect(panel.locator(".suggestions button")).toHaveCount(3);
-      question = (
-        await panel.locator(".suggestions button").nth(2).innerText()
-      ).replace(/\s*↗$/, "");
-    }
-    let release!: () => void;
-    let waiting = false;
-    const pending = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const normal = providerResponder;
-    const practiceRequest = (request: ProviderRequest) =>
-      action === "selection"
-        ? selectedPassageFromQuestion(request.question) === question
-        : request.question === question;
-    providerResponder = async (request) => {
-      if (practiceRequest(request)) {
-        waiting = true;
-        await pending;
-      }
-      return await normal(request);
-    };
-    try {
-      if (action === "selection")
-        await panel.locator(".composer .send").click();
-      else await panel.locator(".suggestions button").nth(2).click();
-      await expect.poll(() => waiting).toBe(true);
-      await sample.goto(origin + "/replaced-practice-document");
-      await sample.bringToFront();
-      release();
-      await expect(panel.locator(".live-answer")).toHaveCount(0);
-      await expect(welcome.locator(".step").nth(step - 1)).not.toHaveClass(
-        /done/,
-      );
-      expect(await welcomeAcknowledgements(welcome)).toEqual([]);
-    } finally {
-      release();
-    }
-  });
-}
-
-test("selection practice describes its action rather than replaying the tour", async () => {
-  const welcome = await pairedWelcome();
-  await requestWelcomePractice(welcome, 7);
-  await expect(panel.locator(".float-start").last()).toContainText("7/8");
-  await expect(panel.locator(".float-start button").last()).toHaveText(
-    "Select text and ask",
-  );
-});
-
-for (const locale of ["en", "zh-TW"] as const) {
-  test(`${locale} welcome reaches eight completed steps through actual feature actions`, async () => {
-    const t = locale === "en" ? en : zh;
-    if (locale !== "en") {
-      await worker.evaluate(
-        (locale) => chrome.storage.local.set({ locale, targetLocale: locale }),
-        locale,
-      );
-      await panel.reload();
-      await expect(panel.locator(".connection")).toHaveClass(/online/);
-    }
-    const welcome = await pairedWelcome();
-    await panel.evaluate(() => {
-      const events: unknown[] = [];
-      (
-        window as Window & { welcomeSourceEvents: unknown[] }
-      ).welcomeSourceEvents = events;
-      chrome.tabs.onActivated.addListener((info) => {
-        events.push({ at: Date.now(), type: "tab-activated", ...info });
-      });
-      chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
-        if (change.url || change.status)
-          events.push({
-            at: Date.now(),
-            type: "tab-updated",
-            tabId,
-            url: tab.url,
-            status: change.status,
-          });
-      });
-      chrome.windows.onFocusChanged.addListener((windowId) => {
-        events.push({ at: Date.now(), type: "window-focused", windowId });
-      });
-      chrome.runtime.onMessage.addListener((message, sender) => {
-        if (
-          message?.type === "glimpselet:tutorial" ||
-          message?.type === "glimpselet:selection" ||
-          message?.type === "glimpselet:reader-context" ||
-          message?.type === "glimpselet:reader-action" ||
-          message?.type === "glimpselet:page-changed"
-        )
-          events.push({
-            at: Date.now(),
-            type: message.type,
-            action: message.action,
-            step: message.step,
-            tabId: sender.tab?.id,
-            url: sender.tab?.url,
-            contextUrl: message.context?.url,
-          });
-      });
-    });
-    if (locale !== "en") await welcome.locator("#language").click();
-
-    const sample = await requestWelcomePractice(welcome, 1);
-    await expect(panel.locator(".float-start").last()).toContainText("1/8");
-    await panel.locator(".float-start button").last().click();
-    await expect(welcome.locator(".step").nth(0)).toHaveClass(/done/);
-    await sample.bringToFront();
-    expect(
-      await panel.evaluate(
-        () => !window.documentPictureInPicture.window!.closed,
-      ),
-    ).toBe(true);
-    await panel.evaluate(() => window.documentPictureInPicture.window!.close());
-    await expect(panel.locator(".app")).toBeVisible();
-
-    await requestWelcomePractice(welcome, 2);
-    await grantWelcomeSampleAccess(sample);
-    await expect(panel.locator(".float-start").last()).toContainText("2/8");
-    await panel.locator(".float-start button").last().click();
-    await expect(panel.locator(".capture-chip img")).toBeVisible();
-    await panel
-      .locator(".composer textarea")
-      .fill("What changes the taste of tea?");
-    await panel.locator(".composer .send").click();
-    await expect(panel.locator(".message.ask .answer").last()).toContainText(
-      "Your notebook can be exported",
-    );
-    expect(
-      providerRequests.find(
-        (request) => request.question === "What changes the taste of tea?",
-      )?.image,
-    ).toBeTruthy();
-    await expect(welcome.locator(".step").nth(1)).toHaveClass(/done/);
-    await panel.getByRole("button", { name: t.remove, exact: true }).click();
-
-    await requestWelcomePractice(welcome, 3);
-    await expect(panel.locator(".float-start").last()).toContainText("3/8");
-    await panel.locator(".float-start button").last().click();
-    await expect(panel.locator(".suggestions button")).toHaveCount(3);
-    await expect(welcome.locator(".step").nth(2)).not.toHaveClass(/done/);
-    await panel.locator(".suggestions button").nth(2).click();
-    await expect(panel.locator(".message.ask .answer").last()).toContainText(
-      "Your notebook can be exported",
-    );
-    await expect(welcome.locator(".step").nth(2)).toHaveClass(/done/);
-
-    await requestWelcomePractice(welcome, 4);
-    await expect(panel.locator(".float-start").last()).toContainText("4/8");
-    await panel.locator(".float-start button").last().click();
-    await sample.evaluate(() => {
-      const note = document.createElement("p");
-      note.textContent =
-        "A new tea note: shorter steeping keeps green tea fresh.";
-      document.body.append(note);
-    });
-    await expect(
-      panel.locator(".message.passive .answer").last(),
-    ).toContainText("A research notebook page.");
-    await expect(welcome.locator(".step").nth(3)).toHaveClass(/done/);
-    const firstSummaries = await panel.locator(".message.passive").count();
-    await sample.evaluate(() => {
-      const note = document.createElement("p");
-      note.textContent =
-        "Another tea note: the second oolong infusion has a different aroma.";
-      document.body.append(note);
-    });
-    await expect(panel.locator(".message.passive")).toHaveCount(
-      firstSummaries + 1,
-    );
-    await expect(
-      panel.locator(".message.passive .question").first(),
-    ).toHaveText(t.pageSummary);
-    await expect(panel.locator(".message.passive .question").last()).toHaveText(
-      t.pageSummary,
-    );
-    for (const entry of await panel
-      .locator(".message.passive")
-      .allTextContents()) {
-      expect(entry.split(t.pageSummary)).toHaveLength(2);
-    }
-
-    await panel
-      .getByRole("switch", { name: t.autoExplain, exact: true })
-      .click();
-    await expect(
-      panel.getByRole("switch", { name: t.autoExplain, exact: true }),
-    ).toBeVisible();
-
-    await requestWelcomePractice(welcome, 5);
-    await grantWelcomeSampleAccess(sample);
-    await expect(panel.locator(".float-start").last()).toContainText("5/8");
-    await panel.locator(".float-start button").last().click();
-    await expect(
-      sample.locator("[data-glimpselet-overlay] .guide"),
-    ).toContainText("Understand this page and its main task.");
-    const guide = sample.locator("[data-glimpselet-overlay] .guide");
-    await guide.getByRole("button", { name: t.guideOverview }).click();
-    const overview = sample.locator(
-      "[data-glimpselet-overlay] .guide-overview",
-    );
-    await expect(overview).toContainText(
-      "Tea leaves change as they meet water",
-    );
-    await overview
-      .getByRole("button", { name: /Choose Save these brewing notes/ })
-      .click();
-    await expect(guide).toContainText("Save these brewing notes");
-    await expect(
-      sample.locator("[data-glimpselet-overlay] svg.draw .ink"),
-    ).toBeVisible();
-    await expect(welcome.locator(".step").nth(4)).toHaveClass(/done/);
-    await sample.keyboard.press("Escape");
-    await expect(
-      sample.locator("[data-glimpselet-overlay] .guide"),
-    ).toHaveCount(0);
-
-    await requestWelcomePractice(welcome, 6);
-    const original = await sample.locator("p[lang=ja]").textContent();
-    await expect(panel.locator(".float-start").last()).toContainText("6/8");
-    await panel.locator(".float-start button").last().click();
-    await expect(sample.locator("p[lang=ja]")).toContainText("Translated:");
-    await expect(welcome.locator(".step").nth(5)).toHaveClass(/done/);
-    await panel.getByRole("button", { name: t.restore, exact: true }).click();
-    await expect(sample.locator("p[lang=ja]")).toHaveText(original!);
-
-    await requestWelcomePractice(welcome, 7);
-    await expect(panel.locator(".float-start").last()).toContainText("7/8");
-    await expect(panel.locator(".float-start button").last()).toHaveText(
-      t.selectionPractice,
-    );
-    await panel.locator(".float-start button").last().click();
-    await expect(welcome.locator(".step").nth(6)).not.toHaveClass(/done/);
-    const selected = await prepareSelectionPractice(sample, t.send);
-    await panel.locator(".composer .send").click();
-    await expect(panel.locator(".message.ask .answer").last()).toContainText(
-      "Your notebook can be exported",
-    );
-    await expect
-      .poll(
-        () =>
-          providerRequests.find(
-            (request) =>
-              selectedPassageFromQuestion(request.question) === selected,
-          )?.page?.url,
-      )
-      .toBe(sample.url());
-    await expect(welcome.locator(".step").nth(6)).toHaveClass(/done/);
-
-    await requestWelcomePractice(welcome, 8);
-    await expect(panel.locator(".float-start").last()).toContainText("8/8");
-    const openedReader = context.waitForEvent("page");
-    await panel.locator(".float-start button").last().click();
-    const reader = await openedReader;
-    await reader.waitForURL(`chrome-extension://${extensionId}/reader.html*`);
-    await expect(reader.locator(".pdf-page")).toBeVisible();
-    const passage = reader
-      .locator(".pdf-text-layer span")
-      .filter({ hasText: /Glimpselet/i })
-      .first();
-    await expect(passage).toBeVisible();
-    await passage.evaluate((element) => {
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      getSelection()!.removeAllRanges();
-      getSelection()!.addRange(range);
-    });
-    await reader.locator('[data-action="ask"]').click();
-    await expect(panel.locator(".composer textarea")).toHaveValue(
-      /Glimpselet/i,
-    );
-    await panel.locator(".composer .send").click();
-    await expect(panel.locator(".message.ask .answer").last()).toContainText(
-      "Your notebook can be exported",
-    );
-    await expect(welcome.locator(".step.done")).toHaveCount(8);
-    await expect(welcome.locator(".progress")).toHaveAttribute(
-      "aria-valuenow",
-      "8",
-    );
-    await expect(welcome.locator("#progress-label")).toHaveText(
-      locale === "en" ? "Completed 8 of 8" : "已完成 8 / 8",
-    );
-    expect(await welcomeAcknowledgements(welcome)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8,
-    ]);
-    await welcome.screenshot({
-      path: test.info().outputPath("welcome-completed.png"),
-      fullPage: true,
-    });
-  });
-}
 
 test("chat reads fresh page text before its first capture", async () => {
   await site.evaluate(() => {

@@ -40752,6 +40752,254 @@ function normalizePng(input, requestedLongEdge = DEFAULT_LONG_EDGE) {
   return { image, width, height, signature };
 }
 
+// bridge/src/welcome-locales.ts
+var en = {
+  title: "Welcome to Glimpselet",
+  install: "Install the extension",
+  connect: "Connect",
+  open: "Open the bubble",
+  click1: "Turn on Developer mode",
+  click2: "Click Load unpacked",
+  click3: "Choose this folder",
+  manager: "Extensions page",
+  copy: "Copy address",
+  paste: "Paste in your browser\u2019s address bar.",
+  reveal: "Show in Finder or Files",
+  download: "Download extension",
+  remoteFolder: "Extract into Downloads/Glimpselet-extension on this computer.",
+  waiting: "Connecting automatically\u2026",
+  connected: "Connected to your Claude Code",
+  expired: "Run /glimpse again to reconnect.",
+  retry: "Reconnect",
+  try: "Try without installing",
+  trying: "Opening Glimpselet\u2026",
+  tried: "Glimpselet is ready in the new window.",
+  tryFailed: "Could not open Glimpselet. Try again.",
+  remoteTry: "Try this on the computer running Claude Code.",
+  revealFailed: "Open the folder shown above.",
+  copyFailed: "Select and copy the address above.",
+  store: "Add to browser"
+};
+var welcomeLocales = {
+  en,
+  "zh-TW": {
+    title: "\u6B61\u8FCE\u4F7F\u7528 Glimpselet",
+    install: "\u5B89\u88DD\u64F4\u5145\u529F\u80FD",
+    connect: "\u9023\u63A5",
+    open: "\u958B\u555F\u6D6E\u52D5\u8996\u7A97",
+    click1: "\u555F\u7528\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F",
+    click2: "\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D",
+    click3: "\u9078\u64C7\u9019\u500B\u8CC7\u6599\u593E",
+    manager: "\u64F4\u5145\u529F\u80FD\u9801\u9762",
+    copy: "\u8907\u88FD\u7DB2\u5740",
+    paste: "\u8CBC\u5230\u700F\u89BD\u5668\u7DB2\u5740\u5217\u3002",
+    reveal: "\u5728 Finder \u6216\u6A94\u6848\u4E2D\u986F\u793A",
+    download: "\u4E0B\u8F09\u64F4\u5145\u529F\u80FD",
+    remoteFolder: "\u5728\u9019\u53F0\u96FB\u8166\u89E3\u58D3\u7E2E\u5230 Downloads/Glimpselet-extension\u3002",
+    waiting: "\u6B63\u5728\u81EA\u52D5\u9023\u63A5\u22EF",
+    connected: "\u5DF2\u9023\u5230\u4F60\u7684 Claude Code",
+    expired: "\u8ACB\u518D\u57F7\u884C /glimpse \u91CD\u65B0\u9023\u63A5\u3002",
+    retry: "\u91CD\u65B0\u9023\u63A5",
+    try: "\u4E0D\u5B89\u88DD\uFF0C\u5148\u8A66\u7528",
+    trying: "\u6B63\u5728\u958B\u555F Glimpselet\u22EF",
+    tried: "Glimpselet \u5DF2\u5728\u65B0\u8996\u7A97\u6E96\u5099\u597D\u3002",
+    tryFailed: "\u7121\u6CD5\u958B\u555F Glimpselet\uFF0C\u8ACB\u91CD\u8A66\u3002",
+    remoteTry: "\u8ACB\u5728\u57F7\u884C Claude Code \u7684\u96FB\u8166\u4E0A\u8A66\u7528\u3002",
+    revealFailed: "\u8ACB\u958B\u555F\u4E0A\u65B9\u7684\u8CC7\u6599\u593E\u3002",
+    copyFailed: "\u8ACB\u9078\u53D6\u4E26\u8907\u88FD\u4E0A\u65B9\u7DB2\u5740\u3002",
+    store: "\u52A0\u5165\u700F\u89BD\u5668"
+  },
+  "zh-CN": {
+    title: "\u6B22\u8FCE\u4F7F\u7528 Glimpselet",
+    install: "\u5B89\u88C5\u6269\u5C55",
+    connect: "\u8FDE\u63A5",
+    open: "\u6253\u5F00\u60AC\u6D6E\u7A97",
+    click1: "\u5F00\u542F\u5F00\u53D1\u8005\u6A21\u5F0F",
+    click2: "\u70B9\u51FB\u201C\u52A0\u8F7D\u5DF2\u89E3\u538B\u7684\u6269\u5C55\u7A0B\u5E8F\u201D",
+    click3: "\u9009\u62E9\u8FD9\u4E2A\u6587\u4EF6\u5939",
+    manager: "\u6269\u5C55\u7A0B\u5E8F\u9875\u9762",
+    copy: "\u590D\u5236\u5730\u5740",
+    paste: "\u7C98\u8D34\u5230\u6D4F\u89C8\u5668\u5730\u5740\u680F\u3002",
+    reveal: "\u5728 Finder \u6216\u6587\u4EF6\u4E2D\u663E\u793A",
+    download: "\u4E0B\u8F7D\u6269\u5C55",
+    remoteFolder: "\u5728\u8FD9\u53F0\u7535\u8111\u89E3\u538B\u5230 Downloads/Glimpselet-extension\u3002",
+    waiting: "\u6B63\u5728\u81EA\u52A8\u8FDE\u63A5\u2026",
+    connected: "\u5DF2\u8FDE\u63A5\u5230\u4F60\u7684 Claude Code",
+    expired: "\u8BF7\u518D\u6B21\u8FD0\u884C /glimpse \u91CD\u65B0\u8FDE\u63A5\u3002",
+    retry: "\u91CD\u65B0\u8FDE\u63A5",
+    try: "\u4E0D\u5B89\u88C5\uFF0C\u5148\u8BD5\u7528",
+    trying: "\u6B63\u5728\u6253\u5F00 Glimpselet\u2026",
+    tried: "Glimpselet \u5DF2\u5728\u65B0\u7A97\u53E3\u51C6\u5907\u597D\u3002",
+    tryFailed: "\u65E0\u6CD5\u6253\u5F00 Glimpselet\uFF0C\u8BF7\u91CD\u8BD5\u3002",
+    remoteTry: "\u8BF7\u5728\u8FD0\u884C Claude Code \u7684\u7535\u8111\u4E0A\u8BD5\u7528\u3002",
+    revealFailed: "\u8BF7\u6253\u5F00\u4E0A\u65B9\u7684\u6587\u4EF6\u5939\u3002",
+    copyFailed: "\u8BF7\u9009\u62E9\u5E76\u590D\u5236\u4E0A\u65B9\u5730\u5740\u3002",
+    store: "\u6DFB\u52A0\u5230\u6D4F\u89C8\u5668"
+  },
+  ja: {
+    title: "Glimpselet \u3078\u3088\u3046\u3053\u305D",
+    install: "\u62E1\u5F35\u6A5F\u80FD\u3092\u8FFD\u52A0",
+    connect: "\u63A5\u7D9A",
+    open: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u753B\u9762\u3092\u958B\u304F",
+    click1: "\u30C7\u30D9\u30ED\u30C3\u30D1\u30FC\u30E2\u30FC\u30C9\u3092\u30AA\u30F3",
+    click2: "\u300C\u30D1\u30C3\u30B1\u30FC\u30B8\u5316\u3055\u308C\u3066\u3044\u306A\u3044\u62E1\u5F35\u6A5F\u80FD\u3092\u8AAD\u307F\u8FBC\u3080\u300D\u3092\u30AF\u30EA\u30C3\u30AF",
+    click3: "\u3053\u306E\u30D5\u30A9\u30EB\u30C0\u3092\u9078\u629E",
+    manager: "\u62E1\u5F35\u6A5F\u80FD\u30DA\u30FC\u30B8",
+    copy: "\u30A2\u30C9\u30EC\u30B9\u3092\u30B3\u30D4\u30FC",
+    paste: "\u30D6\u30E9\u30A6\u30B6\u306E\u30A2\u30C9\u30EC\u30B9\u30D0\u30FC\u306B\u8CBC\u308A\u4ED8\u3051\u307E\u3059\u3002",
+    reveal: "Finder \u307E\u305F\u306F\u30D5\u30A1\u30A4\u30EB\u3067\u8868\u793A",
+    download: "\u62E1\u5F35\u6A5F\u80FD\u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9",
+    remoteFolder: "\u3053\u306E\u30D1\u30BD\u30B3\u30F3\u306E Downloads/Glimpselet-extension \u306B\u5C55\u958B\u3057\u307E\u3059\u3002",
+    waiting: "\u81EA\u52D5\u63A5\u7D9A\u4E2D\u2026",
+    connected: "\u3042\u306A\u305F\u306E Claude Code \u306B\u63A5\u7D9A\u6E08\u307F",
+    expired: "/glimpse \u3092\u3082\u3046\u4E00\u5EA6\u5B9F\u884C\u3057\u3066\u63A5\u7D9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    retry: "\u518D\u63A5\u7D9A",
+    try: "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u305B\u305A\u306B\u8A66\u3059",
+    trying: "Glimpselet \u3092\u8D77\u52D5\u4E2D\u2026",
+    tried: "\u65B0\u3057\u3044\u30A6\u30A3\u30F3\u30C9\u30A6\u3067 Glimpselet \u304C\u4F7F\u3048\u307E\u3059\u3002",
+    tryFailed: "Glimpselet \u3092\u958B\u3051\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    remoteTry: "Claude Code \u3092\u5B9F\u884C\u3057\u3066\u3044\u308B\u30D1\u30BD\u30B3\u30F3\u3067\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
+    revealFailed: "\u4E0A\u306E\u30D5\u30A9\u30EB\u30C0\u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
+    copyFailed: "\u4E0A\u306E\u30A2\u30C9\u30EC\u30B9\u3092\u9078\u629E\u3057\u3066\u30B3\u30D4\u30FC\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    store: "\u30D6\u30E9\u30A6\u30B6\u306B\u8FFD\u52A0"
+  },
+  ko: {
+    title: "Glimpselet\uC5D0 \uC624\uC2E0 \uAC83\uC744 \uD658\uC601\uD569\uB2C8\uB2E4",
+    install: "\uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8 \uC124\uCE58",
+    connect: "\uC5F0\uACB0",
+    open: "\uD50C\uB85C\uD305 \uCC3D \uC5F4\uAE30",
+    click1: "\uAC1C\uBC1C\uC790 \uBAA8\uB4DC \uCF1C\uAE30",
+    click2: "\u2018\uC555\uCD95\uD574\uC81C\uB41C \uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8\uC744 \uB85C\uB4DC\uD569\uB2C8\uB2E4\u2019 \uD074\uB9AD",
+    click3: "\uC774 \uD3F4\uB354 \uC120\uD0DD",
+    manager: "\uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8 \uD398\uC774\uC9C0",
+    copy: "\uC8FC\uC18C \uBCF5\uC0AC",
+    paste: "\uBE0C\uB77C\uC6B0\uC800 \uC8FC\uC18C\uCC3D\uC5D0 \uBD99\uC5EC\uB123\uC73C\uC138\uC694.",
+    reveal: "Finder \uB610\uB294 \uD30C\uC77C\uC5D0\uC11C \uBCF4\uAE30",
+    download: "\uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8 \uB2E4\uC6B4\uB85C\uB4DC",
+    remoteFolder: "\uC774 \uCEF4\uD4E8\uD130\uC758 Downloads/Glimpselet-extension\uC5D0 \uC555\uCD95\uC744 \uD478\uC138\uC694.",
+    waiting: "\uC790\uB3D9\uC73C\uB85C \uC5F0\uACB0 \uC911\u2026",
+    connected: "\uB0B4 Claude Code\uC5D0 \uC5F0\uACB0\uB428",
+    expired: "/glimpse\uB97C \uB2E4\uC2DC \uC2E4\uD589\uD574 \uC5F0\uACB0\uD558\uC138\uC694.",
+    retry: "\uB2E4\uC2DC \uC5F0\uACB0",
+    try: "\uC124\uCE58 \uC5C6\uC774 \uCCB4\uD5D8",
+    trying: "Glimpselet \uC5EC\uB294 \uC911\u2026",
+    tried: "\uC0C8 \uCC3D\uC5D0\uC11C Glimpselet\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC5B4\uC694.",
+    tryFailed: "Glimpselet\uC744 \uC5F4 \uC218 \uC5C6\uC5B4\uC694. \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
+    remoteTry: "Claude Code\uAC00 \uC2E4\uD589 \uC911\uC778 \uCEF4\uD4E8\uD130\uC5D0\uC11C \uCCB4\uD5D8\uD558\uC138\uC694.",
+    revealFailed: "\uC704\uC5D0 \uD45C\uC2DC\uB41C \uD3F4\uB354\uB97C \uC5EC\uC138\uC694.",
+    copyFailed: "\uC704 \uC8FC\uC18C\uB97C \uC120\uD0DD\uD574 \uBCF5\uC0AC\uD558\uC138\uC694.",
+    store: "\uBE0C\uB77C\uC6B0\uC800\uC5D0 \uCD94\uAC00"
+  },
+  es: {
+    title: "Te damos la bienvenida a Glimpselet",
+    install: "Instala la extensi\xF3n",
+    connect: "Conecta",
+    open: "Abre la burbuja",
+    click1: "Activa el modo de desarrollador",
+    click2: "Haz clic en Cargar descomprimida",
+    click3: "Elige esta carpeta",
+    manager: "P\xE1gina de extensiones",
+    copy: "Copiar direcci\xF3n",
+    paste: "P\xE9gala en la barra de direcciones del navegador.",
+    reveal: "Mostrar en Finder o Archivos",
+    download: "Descargar extensi\xF3n",
+    remoteFolder: "Extrae en Downloads/Glimpselet-extension en este equipo.",
+    waiting: "Conectando autom\xE1ticamente\u2026",
+    connected: "Conectado a tu Claude Code",
+    expired: "Ejecuta /glimpse de nuevo para conectar.",
+    retry: "Volver a conectar",
+    try: "Probar sin instalar",
+    trying: "Abriendo Glimpselet\u2026",
+    tried: "Glimpselet est\xE1 listo en la nueva ventana.",
+    tryFailed: "No se pudo abrir Glimpselet. Int\xE9ntalo de nuevo.",
+    remoteTry: "Pru\xE9balo en el equipo donde se ejecuta Claude Code.",
+    revealFailed: "Abre la carpeta indicada arriba.",
+    copyFailed: "Selecciona y copia la direcci\xF3n de arriba.",
+    store: "A\xF1adir al navegador"
+  },
+  fr: {
+    title: "Bienvenue dans Glimpselet",
+    install: "Installer l\u2019extension",
+    connect: "Connecter",
+    open: "Ouvrir la bulle",
+    click1: "Activer le mode d\xE9veloppeur",
+    click2: "Cliquer sur Charger l\u2019extension non empaquet\xE9e",
+    click3: "Choisir ce dossier",
+    manager: "Page des extensions",
+    copy: "Copier l\u2019adresse",
+    paste: "Collez dans la barre d\u2019adresse du navigateur.",
+    reveal: "Afficher dans Finder ou Fichiers",
+    download: "T\xE9l\xE9charger l\u2019extension",
+    remoteFolder: "Extraire dans Downloads/Glimpselet-extension sur cet ordinateur.",
+    waiting: "Connexion automatique\u2026",
+    connected: "Connect\xE9 \xE0 votre Claude Code",
+    expired: "Relancez /glimpse pour vous reconnecter.",
+    retry: "Reconnecter",
+    try: "Essayer sans installer",
+    trying: "Ouverture de Glimpselet\u2026",
+    tried: "Glimpselet est pr\xEAt dans la nouvelle fen\xEAtre.",
+    tryFailed: "Impossible d\u2019ouvrir Glimpselet. R\xE9essayez.",
+    remoteTry: "Essayez sur l\u2019ordinateur qui ex\xE9cute Claude Code.",
+    revealFailed: "Ouvrez le dossier indiqu\xE9 ci-dessus.",
+    copyFailed: "S\xE9lectionnez et copiez l\u2019adresse ci-dessus.",
+    store: "Ajouter au navigateur"
+  },
+  de: {
+    title: "Willkommen bei Glimpselet",
+    install: "Erweiterung installieren",
+    connect: "Verbinden",
+    open: "Schwebendes Fenster \xF6ffnen",
+    click1: "Entwicklermodus aktivieren",
+    click2: "Auf Entpackte Erweiterung laden klicken",
+    click3: "Diesen Ordner ausw\xE4hlen",
+    manager: "Erweiterungsseite",
+    copy: "Adresse kopieren",
+    paste: "In die Adressleiste des Browsers einf\xFCgen.",
+    reveal: "In Finder oder Dateien anzeigen",
+    download: "Erweiterung herunterladen",
+    remoteFolder: "Auf diesem Computer nach Downloads/Glimpselet-extension entpacken.",
+    waiting: "Automatische Verbindung\u2026",
+    connected: "Mit deinem Claude Code verbunden",
+    expired: "/glimpse erneut ausf\xFChren, um die Verbindung herzustellen.",
+    retry: "Erneut verbinden",
+    try: "Ohne Installation ausprobieren",
+    trying: "Glimpselet wird ge\xF6ffnet\u2026",
+    tried: "Glimpselet ist im neuen Fenster bereit.",
+    tryFailed: "Glimpselet konnte nicht ge\xF6ffnet werden. Erneut versuchen.",
+    remoteTry: "Auf dem Computer mit Claude Code ausprobieren.",
+    revealFailed: "Den oben angezeigten Ordner \xF6ffnen.",
+    copyFailed: "Die Adresse oben ausw\xE4hlen und kopieren.",
+    store: "Zum Browser hinzuf\xFCgen"
+  },
+  "pt-BR": {
+    title: "Boas-vindas ao Glimpselet",
+    install: "Instale a extens\xE3o",
+    connect: "Conecte",
+    open: "Abra a janela flutuante",
+    click1: "Ative o modo do desenvolvedor",
+    click2: "Clique em Carregar sem compacta\xE7\xE3o",
+    click3: "Escolha esta pasta",
+    manager: "P\xE1gina de extens\xF5es",
+    copy: "Copiar endere\xE7o",
+    paste: "Cole na barra de endere\xE7os do navegador.",
+    reveal: "Mostrar no Finder ou Arquivos",
+    download: "Baixar extens\xE3o",
+    remoteFolder: "Extraia em Downloads/Glimpselet-extension neste computador.",
+    waiting: "Conectando automaticamente\u2026",
+    connected: "Conectado ao seu Claude Code",
+    expired: "Execute /glimpse novamente para conectar.",
+    retry: "Reconectar",
+    try: "Experimentar sem instalar",
+    trying: "Abrindo o Glimpselet\u2026",
+    tried: "O Glimpselet est\xE1 pronto na nova janela.",
+    tryFailed: "N\xE3o foi poss\xEDvel abrir o Glimpselet. Tente novamente.",
+    remoteTry: "Experimente no computador que executa o Claude Code.",
+    revealFailed: "Abra a pasta indicada acima.",
+    copyFailed: "Selecione e copie o endere\xE7o acima.",
+    store: "Adicionar ao navegador"
+  }
+};
+
 // bridge/src/panel.ts
 var import_node_crypto8 = require("node:crypto");
 var import_node_child_process4 = require("node:child_process");
@@ -67346,11 +67594,15 @@ var ExtensionSessions = class {
       limit: 20,
       includeWorktrees: false
     });
-    return sessions.filter((s) => isSessionId(s.sessionId)).map((s) => ({
+    return sessions.filter((s) => isSessionId(s.sessionId)).sort((a, b) => b.lastModified - a.lastModified).map((s) => ({
       id: s.sessionId,
       title: (s.customTitle || s.summary || "Untitled session").slice(0, 160),
       updatedAt: s.lastModified
     }));
+  }
+  async latest(fallback) {
+    const [latest] = await this.recent();
+    return latest ? new ExtensionThread(this.project, latest.id, false, this.persisted) : fallback ?? this.create();
   }
   create() {
     return new ExtensionThread(this.project, void 0, false, this.persisted);
@@ -67506,14 +67758,28 @@ var ExtensionBridge = class {
   attachChannel(channel) {
     this.channel = channel;
     channel.onReady = () => {
-      for (const pair of this.pairs.values())
+      for (const pair of this.pairs.values()) {
+        if (pair.automatic && !pair.job) pair.live = true;
         if (pair.client)
-          send(pair.client, { type: "channel-status", liveAvailable: true });
+          send(pair.client, {
+            type: "channel-status",
+            liveAvailable: true,
+            live: Boolean(pair.live),
+            sessionId: pair.live ? "live" : pair.thread.id
+          });
+      }
     };
     channel.onUnavailable = () => {
-      for (const pair of this.pairs.values())
+      for (const pair of this.pairs.values()) {
+        if (pair.automatic) pair.live = false;
         if (pair.client)
-          send(pair.client, { type: "channel-status", liveAvailable: false });
+          send(pair.client, {
+            type: "channel-status",
+            liveAvailable: false,
+            live: Boolean(pair.live),
+            sessionId: pair.live ? "live" : pair.thread.id
+          });
+      }
     };
   }
   sharingIntent = false;
@@ -67540,7 +67806,7 @@ var ExtensionBridge = class {
     const status = this.installation.get(code);
     if (!status || status.expires <= this.now()) return void 0;
     return Boolean(
-      status.token && this.pairs.get(status.token)?.client?.readyState === import_websocket.default.OPEN
+      status.token && (this.pairs.get(status.token)?.expires ?? 0) > this.now()
     );
   }
   connect(client, req) {
@@ -67599,7 +67865,7 @@ var ExtensionBridge = class {
             send(client, {
               type: "error",
               code: "pairing_expired",
-              message: "Run /glimpselet:glimpse for a new pairing code."
+              message: "Run /glimpse to reconnect to your Claude Code."
             });
             client.close(4001, "Pair again");
             return;
@@ -67608,6 +67874,7 @@ var ExtensionBridge = class {
           pairToken = (0, import_node_crypto6.randomBytes)(32).toString("hex");
           pair = {
             origin,
+            automatic: true,
             expires: this.now() + 12 * 60 * 60 * 1e3,
             thread: this.sessions.create(),
             history: [],
@@ -67623,6 +67890,8 @@ var ExtensionBridge = class {
           pair.selecting = void 0;
         }
         pair.client = client;
+        if (pair.automatic && !pair.job)
+          pair.live = Boolean(this.channel?.ready);
         if (previous && previous !== client)
           previous.close(4002, "Opened in another window");
         clearTimeout(timer);
@@ -67719,6 +67988,8 @@ var ExtensionBridge = class {
           pair.thread = thread;
           pair.live = false;
         }
+        pair.automatic = false;
+        pair.initialized = true;
         pair.history = [];
         send(client, {
           type: "session",
@@ -67767,11 +68038,28 @@ var ExtensionBridge = class {
     pair.job = job;
     try {
       const conversational = message.kind === "ask" || message.kind === "guide";
-      if (conversational && !pair.live) {
+      if (conversational && pair.automatic) {
+        pair.live = Boolean(this.channel?.ready);
+        if (!pair.live && !pair.initialized) {
+          const thread = await this.sessions.latest(pair.thread);
+          if (controller.signal.aborted || pair.client !== client)
+            throw cancelled();
+          pair.thread = thread;
+          pair.initialized = true;
+        }
+        send(client, {
+          type: "channel-status",
+          liveAvailable: Boolean(this.channel?.ready),
+          live: Boolean(pair.live),
+          sessionId: pair.live ? "live" : pair.thread.id
+        });
+      }
+      const live = conversational && Boolean(pair.live);
+      if (conversational && !live) {
         await pair.thread.reconcile();
         if (controller.signal.aborted) throw cancelled();
       }
-      const result = await (conversational && pair.live ? this.channel.ask.bind(this.channel) : this.provider)({
+      const result = await (live ? this.channel.ask.bind(this.channel) : this.provider)({
         image,
         page,
         question: message.question,
@@ -67790,7 +68078,7 @@ var ExtensionBridge = class {
       if (controller.signal.aborted || pair.client !== client)
         throw new Error("The answer stopped. Partial text was kept.");
       if (conversational) {
-        if (!pair.live) pair.thread.complete(result);
+        if (!live) pair.thread.complete(result);
         pair.history.push({
           id: id2,
           at: this.now(),
@@ -67805,7 +68093,7 @@ var ExtensionBridge = class {
         id: id2,
         answer: result.answer,
         usage: result.usage,
-        sessionId: pair.live ? "live" : pair.thread.id
+        sessionId: live ? "live" : pair.thread.id
       });
     } finally {
       clearTimeout(timeout);
@@ -67861,6 +68149,8 @@ var ExtensionBridge = class {
         pair.selecting = void 0;
         pair.job?.controller.abort();
         await pair.job?.done;
+        pair.automatic = false;
+        pair.initialized = true;
         pair.history = [];
         pair.thread = this.sessions.create();
       })
@@ -67906,7 +68196,7 @@ function selectedStoreUrl(config2 = DEFAULT_DISTRIBUTION, browser = "chrome") {
   const valid = browser === "edge" ? /^https:\/\/microsoftedge\.microsoft\.com\/addons\/detail\/[\w-]+(?:\/[\w-]+)?\/?$/ : /^https:\/\/chromewebstore\.google\.com\/detail\/[\w/-]+$/;
   return valid.test(value) ? value : void 0;
 }
-var extensionFolder = () => (0, import_node_path5.join)((0, import_node_os5.homedir)(), ".glimpselet", "extension");
+var extensionFolder = () => (0, import_node_path5.join)((0, import_node_os5.homedir)(), "Glimpselet-extension");
 var extensionSourceFolder = () => (0, import_node_path5.resolve)(
   process.env.GLIMPSELET_EXTENSION_DIR || `${(0, import_node_path5.dirname)((0, import_node_path5.resolve)(process.argv[1] ?? process.cwd()))}/extension`
 );
@@ -68019,6 +68309,22 @@ function tunnelCommand(port, env = process.env) {
   const portOption = sshPort === 22 ? "" : `-p ${sshPort} `;
   return `ssh -N ${portOption}-L ${port}:127.0.0.1:${port} ${user}@${address}`;
 }
+function folderRevealCommand(folder, platform = process.platform) {
+  if (platform === "darwin") return ["open", ["-R", folder]];
+  if (platform === "win32") return ["explorer.exe", [folder]];
+  return ["xdg-open", [folder]];
+}
+function revealExtensionFolder() {
+  const [command, args] = folderRevealCommand(extensionFolder());
+  return new Promise(
+    (resolveReveal, reject) => (0, import_node_child_process3.execFile)(
+      command,
+      args,
+      { timeout: 5e3, windowsHide: true },
+      (error43) => error43 ? reject(error43) : resolveReveal()
+    )
+  );
+}
 function openInstallSurface(url2, folder) {
   if (process.env.GLIMPSELET_DISABLE_BROWSER_OPEN === "1" || process.env.SSH_CONNECTION)
     return;
@@ -68057,89 +68363,52 @@ function installGuide(folder, config2 = loadDistributionConfig()) {
     config2,
     process.env.GLIMPSELET_BROWSER === "msedge" ? "edge" : "chrome"
   );
-  const screenshots = `<div class="install-images"><figure><img src="/assets/install/01-extensions-before.png" alt="Chrome extensions page" loading="lazy"><figcaption data-en="1. Turn on Developer mode" data-zh="1. \u555F\u7528\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F"></figcaption></figure><figure><img src="/assets/install/02-developer-mode.png" alt="Chrome Load unpacked button" loading="lazy"><figcaption data-en="2. Choose Load unpacked" data-zh="2. \u6309\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE"></figcaption></figure><figure><img src="/assets/install/03-select-extension-folder.png" alt="Chrome extension folder picker" loading="lazy"><figcaption data-en="3. Select the extension folder" data-zh="3. \u9078\u64C7\u64F4\u5145\u529F\u80FD\u8CC7\u6599\u593E"></figcaption></figure></div>`;
-  const managerAddress = process.env.GLIMPSELET_BROWSER === "msedge" ? "edge://extensions" : "chrome://extensions";
-  const managerInstructions = (kind) => `<label for="manager-${kind}" data-en="Extensions page address" data-zh="\u64F4\u5145\u529F\u80FD\u9801\u9762\u7DB2\u5740"></label><div class="pairline"><input id="manager-${kind}" class="manager-address" readonly value="${managerAddress}"><button class="button copy-manager" type="button" data-en="Copy address" data-zh="\u8907\u88FD\u7DB2\u5740"></button></div><p class="quiet manager-help" role="status" data-en="Paste this address into your browser's address bar, then press Enter." data-zh="\u8ACB\u628A\u9019\u500B\u7DB2\u5740\u8CBC\u5230\u700F\u89BD\u5668\u7DB2\u5740\u5217\uFF0C\u518D\u6309 Enter\u3002"></p>`;
-  const installation = store ? `<div class="install-card" id="install-store"><p data-en="Install Glimpselet from the browser store. Confirm the browser prompt; updates arrive automatically." data-zh="\u5F9E\u700F\u89BD\u5668\u64F4\u5145\u529F\u80FD\u5546\u5E97\u5B89\u88DD Glimpselet\uFF0C\u4F9D\u63D0\u793A\u78BA\u8A8D\u5373\u53EF\uFF0C\u4E4B\u5F8C\u6703\u81EA\u52D5\u66F4\u65B0\u3002"></p><a class="button primary" href="${escapeHtml(store)}" data-en="Add to browser" data-zh="\u52A0\u5165\u700F\u89BD\u5668"></a><details><summary data-en="Advanced: load from source" data-zh="\u9032\u968E\uFF1A\u5F9E\u539F\u59CB\u78BC\u8F09\u5165"></summary><p data-en="Build the source on the computer with your browser using npm ci and npm run build:extension. Choose Load unpacked and select dist-extension." data-zh="\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C npm ci \u8207 npm run build:extension \u5EFA\u7F6E\u539F\u59CB\u78BC\u3002\u63A5\u8457\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u9078\u64C7 dist-extension \u8CC7\u6599\u593E\u3002"></p></details></div>` : `<div class="install-card" id="install-local" hidden><p data-en="Open your browser's extensions page. Turn on Developer mode, choose Load unpacked, then select this folder:" data-zh="\u958B\u555F\u700F\u89BD\u5668\u7684\u64F4\u5145\u529F\u80FD\u9801\u9762\uFF0C\u555F\u7528\u300C\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F\u300D\uFF0C\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u518D\u9078\u64C7\u9019\u500B\u8CC7\u6599\u593E\uFF1A"></p>${managerInstructions("local")}<code class="path">${escapeHtml(folder)}</code><p class="quiet" data-en="The browser asks you to confirm these steps. Updates are manual until the store listing is live." data-zh="\u700F\u89BD\u5668\u6703\u8ACB\u4F60\u624B\u52D5\u78BA\u8A8D\u9019\u4E9B\u6B65\u9A5F\u3002\u6B63\u5F0F\u4E0A\u67B6\u524D\u9700\u8981\u624B\u52D5\u66F4\u65B0\u3002"></p></div><div class="install-card" id="install-remote" hidden><p data-en="Download the extension ZIP on the computer where Chrome runs. Extract it on this computer, open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted folder." data-zh="\u8ACB\u5728\u57F7\u884C Chrome \u7684\u9019\u53F0\u96FB\u8166\u4E0B\u8F09\u64F4\u5145\u529F\u80FD ZIP\uFF0C\u4E26\u5728\u9019\u53F0\u96FB\u8166\u89E3\u58D3\u7E2E\u3002\u63A5\u8457\u958B\u555F chrome://extensions\u3001\u555F\u7528\u300C\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F\u300D\u3001\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u518D\u9078\u64C7\u89E3\u58D3\u7E2E\u5F8C\u7684\u8CC7\u6599\u593E\u3002"></p><a class="button primary" href="/install/extension.zip" data-en="Download extension ZIP" data-zh="\u4E0B\u8F09\u64F4\u5145\u529F\u80FD ZIP"></a>${managerInstructions("remote")}</div>${screenshots}`;
+  const manager = process.env.GLIMPSELET_BROWSER === "msedge" ? "edge://extensions" : "chrome://extensions";
+  const text = (key) => `<span data-i18n="${key}"></span>`;
+  const installation = store ? `<a class="button primary" href="${escapeHtml(store)}">${text("store")}</a>` : `<div id="install-local"><code class="path">${escapeHtml(folder)}</code><button class="button" id="reveal">${text("reveal")}</button></div><div id="install-remote" hidden><a class="button" id="download" href="/install/extension.zip">${text("download")}</a><p>${text("remoteFolder")}</p></div><div class="manager"><label for="manager">${text("manager")}</label><div class="row"><input id="manager" class="manager-address" value="${manager}" readonly><button class="button" id="copy-manager">${text("copy")}</button></div><small>${text("paste")}</small></div><div class="install-images">${["01-extensions-before", "02-developer-mode", "03-select-extension-folder"].map((name, i) => `<figure><img src="/assets/install/${name}.png" alt="" loading="lazy"><figcaption>${i + 1}. ${text(["click1", "click2", "click3"][i])}</figcaption></figure>`).join("")}</div>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to Glimpselet</title>
 <style>
-:root{color-scheme:light dark;--paper:#faf7f0;--ink:#302a23;--muted:#766d62;--line:#e6ddd0;--card:#fffdf9;--accent:#bd6849;--accent-dark:#91472f;--green:#397858}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif}main{max-width:900px;margin:auto;padding:30px 22px 70px}header{display:flex;align-items:center;gap:16px;margin:14px 0 28px}.blink{width:64px;height:64px;flex:none;display:grid;place-items:center;border:2px solid var(--ink);border-radius:48% 52% 50% 45%;background:#f3dfc4;overflow:hidden;transform:rotate(-5deg)}.blink img{width:46px;height:56px;object-fit:contain;transform:rotate(5deg)}h1,h2,h3{font-family:Georgia,serif;line-height:1.15}h1{font-size:clamp(32px,6vw,48px);margin:0 0 6px}h2{font-size:26px;margin:0 0 10px}h3{font-size:21px;margin:0}.lede{color:var(--muted);margin:0}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.lang,.button{border:1px solid #c7b8a5;border-radius:999px;padding:9px 14px;background:var(--card);color:var(--ink);text-decoration:none;font:600 14px system-ui;cursor:pointer}.button.primary{background:var(--accent);color:white;border-color:var(--accent)}button:hover,.button:hover{filter:brightness(.96)}section{margin:18px 0;padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--card);box-shadow:0 8px 25px #392b1910}.install-card{padding:16px;border-radius:14px;background:#f6efe4}.path,.manager-address{display:block;width:min(100%,680px);padding:11px;margin:14px 0;background:#eee5d8;color:var(--ink);border-radius:9px;overflow-wrap:anywhere}.path:focus,.manager-address:focus{outline:3px solid var(--accent);outline-offset:2px}.quiet,.muted{color:var(--muted)}.pairline{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.status{padding:12px 14px;border-radius:12px;background:#f5efe6}.status.connected{background:#e8f3ea;color:#285e3e}.progress{height:9px;border-radius:9px;background:#eee6da;overflow:hidden;margin:14px 0 18px}.progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.step{border:1px solid var(--line);border-radius:15px;padding:15px;background:var(--card);min-width:0}.step.done{border-color:#83b295;background:#f4faf4}.step-head{display:flex;align-items:center;gap:10px}.number{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:#f0e5d5;color:var(--accent-dark);font-weight:700}.step p{min-height:48px;color:var(--muted);margin:8px 0}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{padding:7px 11px}.illustration{height:86px;margin:12px 0;padding:9px;border:1px solid #e4d9ca;border-radius:10px;background:linear-gradient(#f2e9dc 0 20px,#fff 20px);position:relative;overflow:hidden}.browserbar{position:absolute;top:6px;left:10px;right:10px;height:8px;border-radius:5px;background:#dbcbb8}.mockline{position:absolute;left:14px;top:34px;width:55%;height:6px;border-radius:4px;background:#e9e2d9}.mockline.two{top:49px;width:72%}.mockline.three{top:64px;width:42%}.mockfocus{position:absolute;right:10px;top:30px;padding:7px 9px;border:2px solid var(--accent);border-radius:8px;background:#fff8eb;color:var(--accent-dark);font-size:11px;animation:pulse 1.8s infinite}@keyframes pulse{50%{box-shadow:0 0 0 5px #bd684920}}.tutorial-note{font-size:14px;color:var(--muted)}details{margin-top:12px}summary{cursor:pointer}a{color:var(--accent-dark)}@media(max-width:650px){main{padding:18px 14px 48px}.steps{grid-template-columns:1fr}section{padding:17px}.top{align-items:flex-start}}
-@media(prefers-color-scheme:dark){:root{--paper:#24221f;--ink:#f4eee5;--muted:#b4a99b;--line:#4a4137;--card:#302d29}.blink{background:#5c4938}.install-card,.status{background:#3a342d}.path,.manager-address{background:#24221f}.step.done{background:#28342b}.number{background:#493a2e}.illustration{background:linear-gradient(#51463a 0 20px,#393632 20px);border-color:#625648}.browserbar{background:#746453}.mockline{background:#61584e}.mockfocus{background:#362f28;color:#f2b89d}.status.connected{background:#293b2d;color:#b9e3c5}}
-.install-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.install-images figure{margin:0}.install-images img{width:100%;border:1px solid #c9bfaf;border-radius:8px}.install-images figcaption{font-size:13px;margin-top:8px}@media(max-width:600px){.install-images{grid-template-columns:1fr}}
-</style></head><body><main><div class="top"><header><div class="blink" aria-hidden="true"><img src="/assets/logo.svg" alt=""></div><div><h1 data-en="Glimpselet is ready when you are." data-zh="Glimpselet \u5DF2\u6E96\u5099\u597D\u966A\u4F60\u63A2\u7D22\u3002"></h1><p class="lede" data-en="A small, hands-on tour. Try each move, mark it done, or skip ahead." data-zh="\u7528\u5E7E\u500B\u5C0F\u6B65\u9A5F\u8A8D\u8B58 Glimpselet\u3002\u8A66\u904E\u5C31\u52FE\u9078\u5B8C\u6210\uFF0C\u4E5F\u53EF\u4EE5\u7565\u904E\u3002"></p></div></header><button class="lang" id="language" type="button" aria-label="Switch language">\u7E41\u9AD4\u4E2D\u6587</button></div>
-<section id="installation"><h2 data-en="1 \xB7 Add Glimpselet" data-zh="1 \xB7 \u5B89\u88DD Glimpselet"></h2>${installation}</section>
-<section id="pairing"><h2 data-en="2 \xB7 Connect your browser" data-zh="2 \xB7 \u9023\u63A5\u700F\u89BD\u5668"></h2><p id="pair" class="pairline" aria-live="polite"></p><div class="pairline" id="pair-controls"><button class="button" id="copy" hidden data-en="Copy code" data-zh="\u8907\u88FD\u914D\u5C0D\u78BC"></button><button class="button" id="connect" hidden data-en="Pair extension" data-zh="\u914D\u5C0D\u64F4\u5145\u529F\u80FD"></button></div><p class="status" id="connection" aria-live="polite" data-en="Waiting for Glimpselet. Click Pair extension in the browser window to approve the connection." data-zh="\u7B49\u5F85 Glimpselet \u9023\u7DDA\u3002\u8ACB\u5728\u700F\u89BD\u5668\u8996\u7A97\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\u4EE5\u78BA\u8A8D\u9023\u7DDA\u3002"></p><p id="mode" class="quiet" aria-live="polite"></p><div id="tunnel" hidden><label for="tunnel-command" data-en="Run this on the computer with your browser:" data-zh="\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C\uFF1A"></label><div class="pairline"><input id="tunnel-command" class="path" readonly aria-label="SSH tunnel command"><button id="copy-tunnel" class="button" type="button" data-en="Copy SSH command" data-zh="\u8907\u88FD SSH \u6307\u4EE4"></button></div></div><div class="pairline"><button class="button" id="try-zero" type="button" data-en="Try without installing" data-zh="\u4E0D\u5B89\u88DD\uFF0C\u5148\u8A66\u7528"></button><span id="try-note" class="quiet" role="status"></span></div></section>
-<section id="tour"><div class="top"><div><h2 data-en="3 \xB7 Take the tour" data-zh="3 \xB7 \u52D5\u624B\u8A66\u4E00\u5708"></h2><p class="tutorial-note" data-en="The sample page is a safe place to practise. Each Try button opens it and sends a small action request to the page." data-zh="\u7BC4\u4F8B\u9801\u662F\u5B89\u5168\u7684\u7DF4\u7FD2\u5834\u3002\u6309\u300C\u8A66\u8A66\u300D\u6703\u958B\u555F\u7BC4\u4F8B\u9801\uFF0C\u4E26\u50B3\u9001\u5C0D\u61C9\u7684\u64CD\u4F5C\u63D0\u793A\u3002"></p></div><button id="replay" class="button" type="button" data-en="Replay tour" data-zh="\u91CD\u64AD\u5C0E\u89BD"></button></div><div class="progress" role="progressbar" aria-label="Tour progress" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0"><span id="progress"></span></div><p id="progress-label" class="quiet" aria-live="polite"></p><div id="steps" class="steps"></div><p class="tutorial-note" data-en="The PDF practice action opens the bundled reader from the bubble. You can also open a local PDF there." data-zh="PDF \u7DF4\u7FD2\u6703\u5F9E\u6D6E\u52D5\u8996\u7A97\u958B\u555F\u5167\u5EFA\u95B1\u8B80\u5668\u3002\u4F60\u4E5F\u53EF\u4EE5\u5728\u95B1\u8B80\u5668\u9078\u64C7\u672C\u6A5F PDF\u3002"></p></section>
-<p><a href="https://github.com/Arthur031221/Glimpselet/blob/main/docs/INSTALL.md" data-en="Install help" data-zh="\u5B89\u88DD\u8AAA\u660E"></a> \xB7 <a href="https://arthur031221.github.io/Glimpselet/privacy.html" data-en="Privacy" data-zh="\u96B1\u79C1\u6B0A"></a></p></main><script src="/install-guide.js"></script></body></html>`;
+:root{color-scheme:light dark;--paper:#faf7f0;--ink:#302a23;--muted:#766d62;--line:#e6ddd0;--card:#fffdf9;--accent:#bd6849}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,sans-serif}main{max-width:850px;margin:auto;padding:30px 22px 45px}header{display:flex;align-items:center;gap:20px;margin-bottom:24px}.blink{width:82px;height:102px;object-fit:contain;animation:hello .5s ease-out}h1{font:clamp(27px,5vw,38px)/1.2 Georgia,serif;margin:0;flex:1}h2{font:23px/1.3 Georgia,serif;margin:0 0 16px}.number{display:inline-grid;place-items:center;width:30px;height:30px;margin-right:10px;border-radius:50%;background:#bd68491a;color:var(--accent);font:600 16px system-ui}section{margin:14px 0;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--card)}.button,select{border:1px solid var(--line);border-radius:999px;padding:10px 15px;background:var(--card);color:var(--ink);font:600 14px system-ui;cursor:pointer;text-decoration:none}.primary{background:var(--accent);color:#fff;border-color:var(--accent)}button:disabled{opacity:.45;cursor:default}button:hover:enabled,a.button:hover{filter:brightness(.96)}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.path{display:block;margin:0 0 12px;overflow-wrap:anywhere}.manager{margin-top:16px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}input{min-width:0;border:1px solid var(--line);border-radius:8px;padding:9px;background:var(--paper);color:var(--ink);font:14px system-ui}small,p{color:var(--muted)}small{font-size:13px}.install-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}figure{margin:0}figure img{width:100%;border:1px solid var(--line);border-radius:8px}figcaption{font-size:13px;margin-top:6px}#connection{margin:0}.connected{color:#397858!important;animation:hello .3s ease-out}#try-note,#folder-note,#manager-note{margin-left:8px;font-size:14px}#reconnect{margin-top:10px}@keyframes hello{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}@media(max-width:600px){main{padding:18px 14px}header{gap:10px;flex-wrap:wrap}.blink{width:60px;height:75px}header select{margin-left:auto}section{padding:18px}.install-images{gap:8px}}@media(prefers-color-scheme:dark){:root{--paper:#24221f;--ink:#f4eee5;--muted:#b4a99b;--line:#4a4137;--card:#302d29}.connected{color:#b9e3c5!important}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body><main><header><img class="blink" src="/assets/logo.svg" alt="Blink"><h1>${text("title")}</h1><select id="language" aria-label="Language">${Object.entries(
+    {
+      en: "English",
+      "zh-TW": "\u7E41\u9AD4\u4E2D\u6587",
+      "zh-CN": "\u7B80\u4F53\u4E2D\u6587",
+      ja: "\u65E5\u672C\u8A9E",
+      ko: "\uD55C\uAD6D\uC5B4",
+      es: "Espa\xF1ol",
+      fr: "Fran\xE7ais",
+      de: "Deutsch",
+      "pt-BR": "Portugu\xEAs"
+    }
+  ).map(([key, label]) => `<option value="${key}">${label}</option>`).join("")}</select></header>
+<section id="installation"><h2><span class="number">1</span>${text("install")}</h2>${installation}<span id="folder-note" role="status"></span><div class="row"><button class="button" id="try-zero">${text("try")}</button><span id="try-note" role="status"></span></div><span id="manager-note" role="status"></span></section>
+<section id="connection-step"><h2><span class="number">2</span>${text("connect")}</h2><p id="connection" role="status" aria-live="polite"></p><button id="reconnect" class="button" hidden>${text("retry")}</button></section>
+<section id="bubble-step"><h2><span class="number">3</span>${text("open")}</h2><button class="button primary" id="open-bubble" disabled>${text("open")}</button></section>
+</main><script src="/install-guide.js"></script></body></html>`;
 }
-var INSTALL_GUIDE_SCRIPT = `(()=>{
-const strings={en:{waiting:'Waiting for Glimpselet. Click Pair extension in the browser window to approve the connection.',connected:'Connected. Choose a practice step below.',copy:'Copied.',copyFail:'Select and copy the code above.',copyTunnelFail:'Select and copy the SSH command above.',try:'Opening your practice window\u2026',tryStarted:'Chromium launch requested. In the new practice window, click Pair extension to connect that browser.',pairing:'Pairing request sent. Waiting for you to approve the connection in Glimpselet\u2026',extensionReady:'Glimpselet is ready. Click Pair extension to approve the connection.',remote:'Zero-install mode is not available on a remote host. Use the SSH command below on the computer with your browser.',tryFail:'Could not open the practice browser. Check the error above or install the extension in your browser.',step:'Completed',of:'of',done:'Done',skip:'Skipped',practiceWaiting:'Waiting for the sample page to receive this step\u2026',practiceFailed:'Could not deliver the practice step. Try again using the same practice button to reopen the sample page. If it still fails, reload this welcome page.',popupBlocked:'Allow pop-ups for this local page, then try again.',request:'Requested in the sample page. Use the Glimpselet bubble to complete this step.',
-titles:['Float and switch windows','Capture a page and ask','Try a suggestion','Turn on passive mode','Take a page tour','Translate the page','Select text and ask','Read a PDF'],
-descs:['Open the floating bubble, then switch to another window and see it stay on top.','Capture the tea page and ask what changes the taste.','Choose a suggested question and send it with one click.','Turn on passive mode, then change the sample page or open another page.','Start Guide and watch it point out the tea buttons.','Translate the page in place, then switch back to the original.','Select a sentence and choose Explain, Translate, or Ask.','Open the sample PDF in the Glimpselet reader and try selecting a paragraph.'],
-focus:['Float','Capture','Suggested question','Passive','Guide','Translate','Select a sentence','Open PDF'],tries:['Open sample + request float','Open sample + request capture','Open sample + request suggestion','Open sample + request passive','Open sample + request guide','Open sample + request translation','Open sample + request selection','Open sample PDF'],
-labels:['Developer mode','Load unpacked','Select the folder'],
-},zh:{waiting:'\u7B49\u5F85 Glimpselet \u9023\u7DDA\u3002\u8ACB\u5728\u700F\u89BD\u5668\u8996\u7A97\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\u4EE5\u78BA\u8A8D\u9023\u7DDA\u3002',connected:'\u5DF2\u9023\u7DDA\uFF0C\u8ACB\u9078\u64C7\u4E0B\u65B9\u7684\u7DF4\u7FD2\u6B65\u9A5F\u3002',copy:'\u5DF2\u8907\u88FD\u3002',copyFail:'\u8ACB\u9078\u53D6\u4E0A\u65B9\u914D\u5C0D\u78BC\u4E26\u8907\u88FD\u3002',copyTunnelFail:'\u8ACB\u9078\u53D6\u4E0A\u65B9 SSH \u6307\u4EE4\u4E26\u8907\u88FD\u3002',try:'\u6B63\u5728\u958B\u555F\u7DF4\u7FD2\u8996\u7A97\u22EF',tryStarted:'\u5DF2\u8981\u6C42\u555F\u52D5 Chromium\u3002\u8ACB\u5728\u65B0\u958B\u555F\u7684\u7DF4\u7FD2\u8996\u7A97\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\uFF0C\u9023\u63A5\u8A72\u700F\u89BD\u5668\u3002',pairing:'\u5DF2\u9001\u51FA\u914D\u5C0D\u8981\u6C42\uFF0C\u8ACB\u5728 Glimpselet \u4E2D\u78BA\u8A8D\u9023\u7DDA\u22EF',extensionReady:'Glimpselet \u5DF2\u5C31\u7DD2\uFF0C\u8ACB\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\u78BA\u8A8D\u9023\u7DDA\u3002',remote:'\u9060\u7AEF\u4E3B\u6A5F\u7121\u6CD5\u4F7F\u7528\u514D\u5B89\u88DD\u6A21\u5F0F\u3002\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C\u4E0B\u65B9 SSH \u6307\u4EE4\u3002',tryFail:'\u7121\u6CD5\u958B\u555F\u7DF4\u7FD2\u700F\u89BD\u5668\u3002\u8ACB\u6AA2\u67E5\u4E0A\u65B9\u932F\u8AA4\uFF0C\u6216\u6539\u5728\u81EA\u5DF1\u7684\u700F\u89BD\u5668\u5B89\u88DD\u64F4\u5145\u529F\u80FD\u3002',step:'\u5DF2\u5B8C\u6210',of:'/',done:'\u5DF2\u5B8C\u6210',skip:'\u5DF2\u7565\u904E',practiceWaiting:'\u7B49\u5F85\u7BC4\u4F8B\u9801\u63A5\u6536\u9019\u500B\u6B65\u9A5F\u22EF',practiceFailed:'\u7121\u6CD5\u50B3\u9001\u7DF4\u7FD2\u6B65\u9A5F\u3002\u8ACB\u518D\u6309\u4E00\u6B21\u300C\u8A66\u8A66\u300D\u4EE5\u91CD\u65B0\u958B\u555F\u7BC4\u4F8B\u9801\u3002\u82E5\u4ECD\u5931\u6557\uFF0C\u8ACB\u91CD\u65B0\u8F09\u5165\u6B64\u6B61\u8FCE\u9801\u3002',popupBlocked:'\u8ACB\u5141\u8A31\u6B64\u672C\u6A5F\u9801\u9762\u958B\u555F\u5F48\u51FA\u8996\u7A97\uFF0C\u518D\u91CD\u8A66\u3002',request:'\u64CD\u4F5C\u63D0\u793A\u5DF2\u50B3\u5230\u7BC4\u4F8B\u9801\uFF0C\u8ACB\u5728 Glimpselet \u6D6E\u52D5\u8996\u7A97\u5B8C\u6210\u9019\u4E00\u6B65\u3002',
-titles:['\u6D6E\u52D5\u8996\u7A97\u8207\u5207\u63DB\u8996\u7A97','\u64F7\u53D6\u9801\u9762\u4E26\u63D0\u554F','\u8A66\u8A66\u5EFA\u8B70\u554F\u984C','\u958B\u555F\u88AB\u52D5\u6A21\u5F0F','\u5C0E\u89BD\u9801\u9762','\u7FFB\u8B6F\u6574\u9801','\u9078\u53D6\u6587\u5B57\u4E26\u63D0\u554F','\u95B1\u8B80 PDF'],
-descs:['\u958B\u555F\u6D6E\u52D5\u8996\u7A97\uFF0C\u518D\u5207\u5230\u53E6\u4E00\u500B\u8996\u7A97\uFF0C\u770B\u770B\u5B83\u662F\u5426\u4ECD\u5728\u6700\u4E0A\u5C64\u3002','\u64F7\u53D6\u8336\u8449\u7BC4\u4F8B\u9801\uFF0C\u554F\u554F\u54EA\u4E9B\u56E0\u7D20\u6703\u6539\u8B8A\u8336\u7684\u98A8\u5473\u3002','\u6309\u4E00\u4E0B\u5EFA\u8B70\u554F\u984C\uFF0C\u76F4\u63A5\u9001\u51FA\u3002','\u958B\u555F\u88AB\u52D5\u6A21\u5F0F\uFF0C\u518D\u5207\u63DB\u7BC4\u4F8B\u9801\u6216\u958B\u555F\u53E6\u4E00\u500B\u9801\u9762\u3002','\u555F\u52D5\u5C0E\u89BD\uFF0C\u770B\u770B\u5B83\u5982\u4F55\u6307\u51FA\u8336\u8449\u6309\u9215\u3002','\u5C31\u5730\u7FFB\u8B6F\u9801\u9762\uFF0C\u518D\u5207\u56DE\u539F\u6587\u3002','\u9078\u53D6\u4E00\u53E5\u6587\u5B57\uFF0C\u518D\u6309\u300C\u89E3\u91CB\u300D\u3001\u300C\u7FFB\u8B6F\u300D\u6216\u300C\u63D0\u554F\u300D\u3002','\u5728 Glimpselet \u95B1\u8B80\u5668\u958B\u555F\u7BC4\u4F8B PDF\uFF0C\u8A66\u8457\u9078\u53D6\u4E00\u6BB5\u6587\u5B57\u3002'],
-focus:['\u6D6E\u52D5','\u64F7\u53D6','\u5EFA\u8B70\u554F\u984C','\u88AB\u52D5\u6A21\u5F0F','\u5C0E\u89BD','\u7FFB\u8B6F','\u9078\u53D6\u53E5\u5B50','\u958B\u555F PDF'],tries:['\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u6D6E\u52D5','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u64F7\u53D6','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u5EFA\u8B70\u554F\u984C','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u88AB\u52D5\u6A21\u5F0F','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u5C0E\u89BD','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u7FFB\u8B6F','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u9078\u53D6\u6587\u5B57','\u958B\u555F PDF \u7BC4\u4F8B'],labels:['\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F','\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE','\u9078\u64C7\u8CC7\u6599\u593E']}};
-const steps=[['float','float'],['capture','capture'],['suggest','suggest'],['passive','passive'],['guide','guide'],['translate','translate'],['selection','selection'],['pdf','pdf']];
-const stateKey='glimpselet-install-tour-v1', getState=()=>{try{return JSON.parse(localStorage.getItem(stateKey)||'{}')}catch{return{}}};let state=getState(), lang=new URLSearchParams(location.search).get('locale')==='zh-TW'?'zh':'en', sample, isConnected=false, remoteMode=false, modeKind='';
-const code=new URLSearchParams(location.hash.slice(1)).get('code'), port=Number(location.port||80), status=document.querySelector('#connection'), tourOnly=location.hash==='#tour';
-let noteKey='', connectionKey='waiting';
-const locale=()=>lang==='zh'?'zh-TW':'en';
-function setNote(key=''){noteKey=key;document.querySelector('#try-note').textContent=key?strings[lang][key]:''}
-if(tourOnly){document.querySelector('#installation').hidden=true;document.querySelector('#pairing').hidden=true;document.querySelector('#tour').append(document.querySelector('#try-note'))}
-const applyLanguage=()=>{document.documentElement.lang=lang==='zh'?'zh-Hant':'en';document.querySelectorAll('[data-en][data-zh]').forEach(el=>{el.textContent=el.dataset[lang]});document.querySelector('#language').textContent=lang==='en'?'\u7E41\u9AD4\u4E2D\u6587':'English';document.querySelector('#language').setAttribute('aria-label',lang==='en'?'\u5207\u63DB\u70BA\u7E41\u9AD4\u4E2D\u6587':'Switch to English');renderPair();status.textContent=strings[lang][isConnected?'connected':connectionKey];setNote(noteKey);if(modeKind)document.querySelector('#mode').textContent=modeKind==='tunnel'?(lang==='en'?'Claude Code is on another computer.':'Claude Code \u4F4D\u65BC\u53E6\u4E00\u53F0\u96FB\u8166\u3002'):modeKind==='api'?(lang==='en'?'Using direct API mode.':'\u4F7F\u7528\u76F4\u63A5 API \u6A21\u5F0F\u3002'):(lang==='en'?'Claude Code is on this computer.':'Claude Code \u4F4D\u65BC\u9019\u53F0\u96FB\u8166\u3002');if(remoteMode&&(!noteKey||noteKey==='remote'))setNote('remote');render()};
-function render(){const t=strings[lang], host=document.querySelector('#steps');host.replaceChildren();steps.forEach(([action],i)=>{const card=document.createElement('article');card.className='step'+(state[i]?' done':'');card.innerHTML='<div class="step-head"><span class="number">'+(state[i]?'\u2713':i+1)+'</span><h3></h3></div><p></p><div class="illustration" aria-hidden="true"><span class="browserbar"></span><span class="mockline"></span><span class="mockline two"></span><span class="mockline three"></span><span class="mockfocus"></span></div><div class="actions"><button class="button primary try"></button><button class="button done"></button><button class="button skip"></button></div>';card.querySelector('h3').textContent=t.titles[i];card.querySelector('p').textContent=t.descs[i];card.querySelector('.mockfocus').textContent=t.focus[i];card.querySelector('.try').textContent=t.tries[i];card.querySelector('.done').textContent=state[i]?t.done:(lang==='en'?'Done':'\u5B8C\u6210');card.querySelector('.skip').textContent=state[i]?'':(lang==='en'?'Skip':'\u7565\u904E');card.querySelector('.skip').hidden=!!state[i];card.querySelector('.try').onclick=()=>tryStep(i,action);card.querySelector('.done').onclick=()=>mark(i);card.querySelector('.skip').onclick=()=>mark(i);host.append(card)});const count=Object.values(state).filter(Boolean).length;document.querySelector('#progress').style.width=(count/8*100)+'%';document.querySelector('.progress').setAttribute('aria-valuenow',String(count));document.querySelector('#progress-label').textContent=t.step+' '+count+' '+t.of+' 8';}
-function mark(i){state[i]=true;localStorage.setItem(stateKey,JSON.stringify(state));render()}
-let practiceRequest, practicePoll, practiceTimeout, deliveredStep=0;
-const deliveredSteps=new Set();
-function stopPracticeWait(){clearInterval(practicePoll);clearTimeout(practiceTimeout)}
-function tryStep(i,action){
-  const canReuseSample=deliveredStep>0;
-  stopPracticeWait();deliveredStep=0;
-  const request={type:'glimpselet:tutorial-action',version:1,requestId:crypto.randomUUID(),action,step:i+1,code:code||null,locale:locale()};
-  practiceRequest={request,sent:false};
-  const sampleLocation=new URL('/assets/glimpselet-welcome-sample.html',location.origin);if(lang==='zh')sampleLocation.searchParams.set('locale','zh-TW');const sampleUrl=sampleLocation.href;
-  let replacedDocument;
-  // Restore a same-origin tab; create a fresh practice tab when its document is inaccessible.
-  try{
-    if(sample&&!sample.closed){
-      if(sample.location.href!==sampleUrl||!canReuseSample){deliveredSteps.clear();replacedDocument=sample.document;sample.location.replace(sampleUrl)}
-    }else{deliveredSteps.clear();sample=window.open(sampleUrl,'_blank')}
-  }catch{deliveredSteps.clear();sample=window.open(sampleUrl,'_blank')}
-  if(!sample){practiceRequest=undefined;setNote('popupBlocked');return}
-  setNote('practiceWaiting');
-  const fail=()=>{stopPracticeWait();practiceRequest=undefined;setNote('practiceFailed')};
-  const probe=()=>{
-    if(sample.closed){fail();return}
-    if(!practiceRequest||practiceRequest.sent)return;
-    // A retry must reach the new document, never the listener being unloaded.
-    if(replacedDocument){try{if(sample.document===replacedDocument)return}catch{return}}
-    sample.postMessage({type:'glimpselet:tutorial:probe',version:1,requestId:request.requestId,locale:locale()},location.origin);
-  };
-  practicePoll=setInterval(probe,150);practiceTimeout=setTimeout(fail,8000);probe();sample.focus();
-}
-const pair=document.querySelector('#pair'), copy=document.querySelector('#copy'), connect=document.querySelector('#connect');function renderPair(){if(isConnected){pair.hidden=true;copy.hidden=true;connect.hidden=true;return}if(/^[A-F0-9]{16}$/.test(code||'')){pair.textContent=(lang==='en'?'Pairing code: ':'\u914D\u5C0D\u78BC\uFF1A')+code+' \xB7 '+(lang==='en'?'Port: ':'\u9023\u63A5\u57E0\uFF1A')+port;copy.hidden=false;connect.hidden=false}else pair.textContent=lang==='en'?'Open Glimpselet from Claude Code to receive a pairing code.':'\u8ACB\u5F9E Claude Code \u958B\u555F Glimpselet \u53D6\u5F97\u914D\u5C0D\u78BC\u3002'}renderPair();if(/^[A-F0-9]{16}$/.test(code||'')){copy.onclick=async()=>{try{await navigator.clipboard.writeText(port+' '+code);setNote('copy')}catch{setNote('copyFail')}};connect.onclick=()=>{connectionKey='pairing';status.textContent=strings[lang].pairing;window.postMessage({type:'glimpselet:pair',port,code,locale:locale()},location.origin)}}
-document.querySelector('#language').onclick=()=>{lang=lang==='en'?'zh':'en';applyLanguage()};document.querySelector('#replay').onclick=()=>{stopPracticeWait();practiceRequest=undefined;deliveredStep=0;deliveredSteps.clear();state={};localStorage.removeItem(stateKey);render();document.querySelector('#tour').scrollIntoView({behavior:'smooth'})};
-document.querySelector('#copy-tunnel').onclick=async()=>{const input=document.querySelector('#tunnel-command');try{await navigator.clipboard.writeText(input.value);setNote('copy')}catch{input.focus();input.select();setNote('copyTunnelFail')}};
-document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero');button.disabled=true;setNote('try');try{const response=await fetch('/install/try?'+new URLSearchParams({code:code||'',locale:locale()}),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(response.status===409||data.mode==='tunnel'){remoteMode=true;button.hidden=true;setNote('remote');return}if(!response.ok)throw new Error('launch');setNote('tryStarted')}catch{setNote('tryFail')}finally{button.disabled=false}};
-function setInstallMode(){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(!local||!remote)return;const isRemote=modeKind==='tunnel';local.hidden=isRemote;remote.hidden=!isRemote}
-function setConnected(){if(isConnected)return;isConnected=true;status.classList.add('connected');status.textContent=strings[lang].connected;document.querySelector('#pair-controls').hidden=true;pair.hidden=true;document.querySelector('#copy').hidden=true;document.querySelector('#connect').hidden=true;if(noteKey==='extensionReady'||noteKey==='tryStarted')setNote()}
-async function poll(){if(!/^[A-F0-9]{16}$/.test(code||''))return;try{const response=await fetch('/install/status?code='+encodeURIComponent(code),{cache:'no-store'});if(response.ok){const result=await response.json();const download=document.querySelector('#install-remote a');if(download)download.href='/install/extension.zip?code='+encodeURIComponent(code);if(typeof result.mode==='string'){const nextKind=result.mode==='tunnel'?'tunnel':result.mode==='api'?'api':'direct';if(nextKind!==modeKind){modeKind=nextKind;setInstallMode();applyLanguage()}}if(typeof result.tunnelCommand==='string'&&/^ssh -N(?: -p [0-9]{1,5})? -L /.test(result.tunnelCommand)&&!/[\\r\\n]/.test(result.tunnelCommand)){document.querySelector('#tunnel').hidden=false;document.querySelector('#tunnel-command').value=result.tunnelCommand}if(modeKind==='tunnel'){if(!remoteMode)setNote('remote');remoteMode=true;document.querySelector('#try-zero').disabled=true;document.querySelector('#try-zero').hidden=true}if(result.trialError===true)setNote('tryFail');if(result.connected===true){setConnected();setTimeout(()=>{document.querySelector('#tour').scrollIntoView({behavior:'smooth'})},650);return}}}catch{}setTimeout(poll,1200)}
-window.addEventListener('message',event=>{
-  if(event.origin!==location.origin||(event.source!==window&&event.source!==sample))return;
-  const data=event.data, pending=practiceRequest;
-  if(event.source===sample&&data?.version===1&&pending&&data.requestId===pending.request.requestId){
-    if(data.type==='glimpselet:tutorial:loaded'&&!pending.sent){pending.sent=true;clearInterval(practicePoll);sample.postMessage(pending.request,location.origin)}
-    if(data.type==='glimpselet:tutorial:ready'&&pending.sent&&data.action===pending.request.action&&data.step===pending.request.step){stopPracticeWait();deliveredStep=data.step;deliveredSteps.add(data.step);practiceRequest=undefined;setNote('request')}
-  }
-  if(data?.type==='glimpselet:tutorial:done'&&data.version===1&&event.source===sample&&Number.isInteger(data.step)&&deliveredSteps.has(data.step))mark(data.step-1);
-  if(data?.type==='glimpselet:paired'&&event.source===window)setConnected();
-  if(data?.type==='glimpselet:extension-ready'&&event.source===window&&!isConnected&&/^[A-F0-9]{16}$/.test(code||''))setNote('extensionReady');
-});
-document.querySelectorAll('.copy-manager').forEach(button=>{button.onclick=async()=>{const card=button.closest('.install-card'),input=card.querySelector('.manager-address');try{await navigator.clipboard.writeText(input.value)}catch{input.focus();input.select()}}});
-setInstallMode();applyLanguage();if(!tourOnly)poll();if(tourOnly)document.querySelector('#tour').scrollIntoView();})();`;
+var INSTALL_GUIDE_SCRIPT = `
+const translations=${JSON.stringify(welcomeLocales)};
+window.addEventListener('hashchange',()=>location.reload());
+const params=new URLSearchParams(location.hash.slice(1)),code=params.get('code')||'';
+const locales=Object.keys(translations),requested=new URLSearchParams(location.search).get('locale');
+let lang=locales.includes(requested)?requested:locales.find(l=>l===navigator.language)||locales.find(l=>l===navigator.language.split('-')[0])||'en';
+let connected=false,extensionReady=false,connecting=false,connectionKey='waiting',noteKey='';
+const language=document.querySelector('#language'),status=document.querySelector('#connection'),open=document.querySelector('#open-bubble');
+function render(){document.documentElement.lang=lang;document.title=translations[lang].title;language.value=lang;document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=translations[lang][el.dataset.i18n]);status.textContent=translations[lang][connectionKey];document.querySelector('#try-note').textContent=noteKey?translations[lang][noteKey]:''}
+function setConnected(){connected=true;connecting=false;connectionKey='connected';status.classList.add('connected');open.disabled=false;document.querySelector('#reconnect').hidden=true;render()}
+function connect(){if(connected||connecting||!extensionReady||!/^[A-F0-9]{16}$/.test(code))return;connecting=true;connectionKey='waiting';render();window.postMessage({type:'glimpselet:pair',port:Number(location.port||80),code,locale:lang},location.origin)}
+language.onchange=()=>{lang=language.value;render()};
+window.addEventListener('message',event=>{if(event.source!==window||event.origin!==location.origin)return;const data=event.data;if(data?.type==='glimpselet:extension-ready'){extensionReady=true;connect()}if(data?.type==='glimpselet:paired')setConnected();if(data?.type==='glimpselet:connection-failed'){connecting=false;connectionKey='expired';document.querySelector('#reconnect').hidden=false;render()}});
+open.onclick=()=>window.postMessage({type:'glimpselet:open-bubble',locale:lang},location.origin);
+document.querySelector('#reconnect').onclick=()=>{window.postMessage({type:'glimpselet:hello'},location.origin);connect()};
+const download=document.querySelector('#download');if(download)download.href='/install/extension.zip?code='+encodeURIComponent(code);
+const copy=document.querySelector('#copy-manager');if(copy)copy.onclick=async()=>{const input=document.querySelector('#manager');try{await navigator.clipboard.writeText(input.value)}catch{input.focus();input.select();document.querySelector('#manager-note').textContent=translations[lang].copyFailed}};
+const reveal=document.querySelector('#reveal');if(reveal)reveal.onclick=async()=>{try{const result=await fetch('/install/reveal?code='+encodeURIComponent(code),{method:'POST'});if(!result.ok)throw new Error()}catch{document.querySelector('#folder-note').textContent=translations[lang].revealFailed}};
+document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero');button.disabled=true;noteKey='trying';render();try{const result=await fetch('/install/try?'+new URLSearchParams({code,locale:lang}),{method:'POST'});if(!result.ok)throw new Error();noteKey='tried'}catch{noteKey='tryFailed'}finally{button.disabled=false;render()}};
+async function poll(){try{const response=await fetch('/install/status?code='+encodeURIComponent(code));if(!response.ok){connectionKey='expired';render();return}const result=await response.json();if(result.connected)setConnected();if(result.mode==='tunnel'){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(local)local.hidden=true;if(remote)remote.hidden=false;document.querySelector('#try-zero').disabled=true;noteKey='remoteTry';render()}if(result.trialError){noteKey='tryFailed';render()}}catch{}setTimeout(poll,1200)}
+render();window.postMessage({type:'glimpselet:hello'},location.origin);poll();
+`;
 
 // bridge/src/sessions.ts
 var import_node_crypto7 = require("node:crypto");
@@ -68251,7 +68520,10 @@ var PanelServer = class {
   server;
   captures;
   extension;
+  channel;
+  channelHintShown = false;
   attachChannel(channel) {
+    this.channel = channel;
     this.extension?.attachChannel(channel);
   }
   expiryTimer;
@@ -68356,13 +68628,21 @@ var PanelServer = class {
     );
     openInstallSurface(url2, storeUrl ? void 0 : folder);
     const tunnel = tunnelCommand(this.port);
-    return tunnel ? `On the computer with your browser, run this tunnel, then open ${url2} to install and pair.
+    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || (0, import_node_path6.resolve)((0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] || ".")), "..");
+    const sourceCheckout = await (0, import_promises16.stat)((0, import_node_path6.resolve)(pluginRoot, ".git")).then(() => true).catch(() => false);
+    const channelCommand = sourceCheckout ? `claude --plugin-dir '${pluginRoot.replaceAll("'", "'\\''")}' --continue --dangerously-load-development-channels server:plugin:glimpselet:glimpselet` : "claude --continue --dangerously-load-development-channels plugin:glimpselet@glimpselet";
+    const channelHint = !this.channel?.ready && !this.channelHintShown ? `
+
+Optional live terminal sync: exit Claude Code first, then run this once in the same project:
+\`\`\`sh
+${channelCommand}
+\`\`\`` : "";
+    this.channelHintShown = true;
+    return (tunnel ? `On the computer with your browser, run this tunnel, then open ${url2} to get started. Glimpselet connects to your Claude Code automatically.
 
 \`\`\`sh
 ${tunnel}
-\`\`\`
-
-Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pair the floating extension. Pair with port ${this.port} and code ${code}.`;
+\`\`\`` : `Open ${url2} to get started. Glimpselet connects to your Claude Code automatically.`) + channelHint;
   }
   async openUrl() {
     const url2 = `${this.origin}/#${this.tokens.issue()}`;
@@ -68461,7 +68741,7 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
       res.end(archive);
       return;
     }
-    if (path === "/install/status" || path === "/install/try") {
+    if (path === "/install/status" || path === "/install/try" || path === "/install/reveal") {
       const params = new URL(req.url, this.origin).searchParams;
       const code = params.get("code") || "";
       const connected = this.extension?.installStatus(code);
@@ -68480,12 +68760,23 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
         });
         return;
       }
-      if (path !== "/install/try" || req.method !== "POST" || req.headers.origin !== this.origin)
+      if (path !== "/install/try" && path !== "/install/reveal" || req.method !== "POST" || req.headers.origin !== this.origin)
         throw new PanelError(
           "invalid_origin",
           "Open the setup page to try Glimpselet.",
           403
         );
+      if (path === "/install/reveal") {
+        if (process.env.SSH_CONNECTION)
+          throw new PanelError(
+            "remote_browser",
+            "Download the extension on this computer.",
+            409
+          );
+        await revealExtensionFolder();
+        this.reply(res, 200, { revealed: true });
+        return;
+      }
       if (process.env.SSH_CONNECTION)
         throw new PanelError(
           "remote_browser",
@@ -68501,7 +68792,7 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
         const trialCode = this.extension.issueCode();
         const trialUrl = new URL("/install", this.origin);
         const locale = params.get("locale");
-        if (locale === "en" || locale === "zh-TW")
+        if (locale && Object.hasOwn(welcomeLocales, locale))
           trialUrl.searchParams.set("locale", locale);
         trialUrl.hash = `code=${trialCode}`;
         const child = (0, import_node_child_process4.spawn)(process.execPath, [launcher], {

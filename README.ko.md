@@ -10,7 +10,7 @@
 
 필요 사항: 최신 Claude Code, 본인 구독 계정 로그인, Chrome 또는 Edge 같은 데스크톱 Chromium 브라우저.
 
-Glimpselet은 전용 대화를 시작합니다. 최근 Claude Code 세션을 선택하면 별도 프로세스에서 이어갈 수 있습니다. 터미널에 열려 있는 대화형 세션으로 요청을 보내려면 channel 미리보기를 활성화하세요. [Channel 설정](docs/DESIGN.md#the-running-claude-code-conversation).
+Glimpselet은 사용 가능한 Claude Code 실시간 세션에 연결합니다. 그렇지 않으면 현재 프로젝트의 최신 대화를 자동으로 이어가고, 저장된 대화가 없으면 새로 시작합니다. [세션 설정과 제한](docs/DESIGN.md#the-running-claude-code-conversation).
 
 ## 설치
 
@@ -23,7 +23,7 @@ Glimpselet은 전용 대화를 시작합니다. 최근 Claude Code 세션을 선
 
 2. 터미널에서 `claude plugin list`에 Glimpselet **2.0.0**이 표시되는지 확인한 후 Claude Code에서 `/glimpselet:glimpse`를 실행합니다.
 
-3. 시작 안내에 따라 브라우저를 연결합니다. 로컬 데스크톱에서는 **Try without installing**을 선택하거나 본인 브라우저에 확장 프로그램을 불러와 페어링하세요. Claude Code가 원격 호스트에서 실행 중이면 안내의 SSH 명령을 브라우저가 있는 컴퓨터에서 실행하고, 그 컴퓨터에서 ZIP을 다운로드해 확장 프로그램을 불러옵니다. 원격 호스트에서는 설치 없는 브라우저를 사용할 수 없습니다. 페어링이 완료되면 Glimpselet 패널에 연결 모드와 프로젝트가 표시됩니다.
+3. 시작 페이지는 세 단계입니다. 확장 프로그램 설치, 자동 연결, 버블 열기. 로컬 데스크톱에서는 **설치 없이 사용해 보기**를 선택하거나 자신의 브라우저에 확장 프로그램을 로드하세요. Claude Code가 원격 호스트에서 실행된다면 브라우저가 있는 컴퓨터에서 터미널에 표시된 SSH 명령을 실행하고 ZIP을 다운로드해 로드하세요. 버블에는 **내 Claude Code에 연결됨**이 표시됩니다. [연결 안내](docs/INSTALL.md)를 참고하세요.
 
 ### 고급: 소스에서 불러오기
 
@@ -47,9 +47,9 @@ claude --plugin-dir "$PWD"
 
 플러그인 세부 정보에는 `glimpse`와 `install` 스킬 및 `glimpselet` MCP 서버도 있어야 합니다. 패키지 확장 프로그램은 `bin/extension`에 있으며 버전도 **2.0.0**이어야 합니다. Claude Code가 원격 호스트에 있으면 안내의 SSH 명령을 사용하고, 브라우저가 있는 컴퓨터에서 확장 프로그램 ZIP을 다운로드한 후 압축을 푼 폴더를 불러오세요.
 
-브라우저와 Claude Code가 같은 컴퓨터에서 실행되면 시작 안내가 빌드한 확장 프로그램을 고정 폴더 `~/.glimpselet/extension`에 복사합니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
+브라우저와 Claude Code가 같은 컴퓨터에서 실행되면 시작 안내가 빌드한 확장 프로그램을 고정 폴더 `~/Glimpselet-extension`에 복사합니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
 
-압축 해제한 확장 프로그램을 업데이트할 때는 기존 버블을 닫고 `/glimpselet:glimpse`를 다시 실행해 고정 폴더를 갱신한 뒤 확장 프로그램 카드에서 새로고침을 누르세요. Claude Code가 원격 호스트에 있으면 안내에서 새 ZIP을 받아 브라우저 컴퓨터의 압축 해제한 파일을 교체하고 확장 프로그램을 새로고침하세요.
+압축 해제한 확장 프로그램을 업데이트할 때는 기존 버블을 닫고 `/glimpselet:glimpse`를 다시 실행해 고정 폴더를 갱신한 뒤 확장 프로그램 카드에서 새로고침을 누르세요. Claude Code가 원격 호스트에 있으면 안내에서 새 ZIP을 받아 브라우저 컴퓨터의 압축 해제한 파일을 교체하고 확장 프로그램을 새로고침하세요. `~/Glimpselet-extension`으로 옮길 때는 기존 확장 프로그램 카드를 삭제하고 이 폴더를 한 번 로드하세요.
 
 ## 이미 Glimpselet을 설치했나요?
 
@@ -90,7 +90,7 @@ macOS에서 Cmd+Shift+5는 시스템 스크린샷 도구를 엽니다. Shift는 
 
 ## Claude Code 세션
 
-Channel 미리 보기 명령과 설정은 [Claude Code 세션](docs/DESIGN.md#the-running-claude-code-conversation)을 참조하세요. channel이 없으면 선택한 세션을 별도 프로세스에서 이어갈 수 있습니다. 이는 병렬 이어쓰기입니다. 동시에 터미널에서 같은 세션을 사용하지 마세요. 동시 접근은 충돌을 일으킬 수 있습니다.
+Channel 미리 보기 명령과 설정은 [Claude Code 세션](docs/DESIGN.md#the-running-claude-code-conversation)을 참조하세요. channel이 없으면 현재 프로젝트의 최신 세션을 별도 프로세스에서 자동으로 이어갑니다. 이는 병렬 이어쓰기입니다. 동시에 터미널에서 같은 세션을 사용하지 마세요. 동시 접근은 충돌을 일으킬 수 있습니다.
 
 ## 제한 및 개인정보
 

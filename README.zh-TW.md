@@ -10,7 +10,7 @@
 
 需求：較新的 Claude Code、使用你自己的訂閱帳號登入，以及桌面版 Chromium 瀏覽器，例如 Chrome 或 Edge。
 
-Glimpselet 預設建立專用對話。你也可以選擇最近的 Claude Code 工作階段，在另一個程序中接續。若要將請求傳送到終端機中已開啟的互動工作階段，請啟用 channel 預覽功能。[Channel 設定](docs/DESIGN.md#the-running-claude-code-conversation)。
+Glimpselet 會優先連接已啟用的 Claude Code 即時工作階段，否則自動接續目前專案最新的對話。若沒有已儲存的對話，就建立新對話。[工作階段設定與限制](docs/DESIGN.md#the-running-claude-code-conversation)。
 
 ## 安裝
 
@@ -23,7 +23,7 @@ Glimpselet 預設建立專用對話。你也可以選擇最近的 Claude Code �
 
 2. 在終端機確認 `claude plugin list` 顯示 Glimpselet **2.0.0**，再於 Claude Code 執行 `/glimpselet:glimpse`。
 
-3. 依照歡迎指南連接瀏覽器。在本機桌面上，可選擇 **Try without installing**，也可以在自己的瀏覽器載入並配對擴充功能。如果 Claude Code 在遠端主機執行，請在有瀏覽器的電腦執行指南提供的 SSH 指令，並在該電腦下載 ZIP、於瀏覽器載入擴充功能。遠端主機無法使用免安裝瀏覽器。配對成功後，Glimpselet 面板會顯示連線模式與專案。
+3. 歡迎頁只有三步：安裝擴充功能、自動連接、開啟泡泡。在本機桌面可選 **不安裝，先試用**，也可在自己的瀏覽器載入擴充功能。若 Claude Code 在遠端主機，請在有瀏覽器的電腦執行終端機提供的 SSH 指令，再下載並載入 ZIP。泡泡只顯示 **已連到你的 Claude Code**。詳見[連接說明](docs/INSTALL.md)。
 
 ### 進階：從原始碼載入
 
@@ -47,9 +47,9 @@ claude --plugin-dir "$PWD"
 
 外掛詳情也應包含 `glimpse` 和 `install` 技能，以及 `glimpselet` MCP 伺服器。封裝後的擴充功能位於 `bin/extension`，版本也應為 **2.0.0**。若 Claude Code 在遠端主機，請使用指南中的 SSH 指令，在瀏覽器所在電腦下載擴充功能 ZIP，並載入解壓縮後的資料夾。
 
-如果瀏覽器和 Claude Code 在同一台電腦上執行，歡迎指南會把建置好的擴充功能複製到固定資料夾 `~/.glimpselet/extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
+如果瀏覽器和 Claude Code 在同一台電腦上執行，歡迎指南會把建置好的擴充功能複製到固定資料夾 `~/Glimpselet-extension`。在 Chrome 或 Edge 開啟 `chrome://extensions` 或 `edge://extensions`，開啟 **Developer mode**，選擇 **Load unpacked**，再選取該資料夾。開發者提示會持續顯示。新版本需要手動更新。
 
-更新未封裝擴充功能時，先關閉舊浮動視窗，再執行 `/glimpselet:glimpse` 更新固定資料夾，然後在擴充功能頁面的卡片按「重新載入」。若 Claude Code 在遠端，請透過歡迎指南下載新版 ZIP，在瀏覽器所在電腦替換解壓縮後的檔案，再重新載入擴充功能。
+更新未封裝擴充功能時，先關閉舊浮動視窗，再執行 `/glimpselet:glimpse` 更新固定資料夾，然後在擴充功能頁面的卡片按「重新載入」。若 Claude Code 在遠端，請透過歡迎指南下載新版 ZIP，在瀏覽器所在電腦替換解壓縮後的檔案，再重新載入擴充功能。 改用 `~/Glimpselet-extension` 時，請移除舊擴充功能卡片，再載入這個資料夾一次。
 
 ## 已經安裝 Glimpselet？
 
@@ -90,7 +90,7 @@ claude plugin list
 
 ## Claude Code 工作階段
 
-Channel 預覽的指令與設定請參閱 [Claude Code 工作階段](docs/DESIGN.md#the-running-claude-code-conversation)。未啟用 channel 時，Glimpselet 可以在另一個程序中繼續所選工作階段。這是平行延續。請勿同時在終端機使用該工作階段，否則並行存取可能造成衝突。
+Channel 預覽的指令與設定請參閱 [Claude Code 工作階段](docs/DESIGN.md#the-running-claude-code-conversation)。未啟用 channel 時，Glimpselet 會在另一個程序中自動接續目前專案最新的工作階段。這是平行延續。請勿同時在終端機使用該工作階段，否則並行存取可能造成衝突。
 
 ## 限制與隱私
 

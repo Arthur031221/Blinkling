@@ -12294,6 +12294,20 @@ var require_jsx_runtime = __commonJS({
   }
 });
 
+// extension/connection.ts
+var welcomeLocaleNames = {
+  en: "English",
+  "zh-TW": "\u7E41\u9AD4\u4E2D\u6587",
+  "zh-CN": "\u7B80\u4F53\u4E2D\u6587",
+  ja: "\u65E5\u672C\u8A9E",
+  ko: "\uD55C\uAD6D\uC5B4",
+  es: "Espa\xF1ol",
+  fr: "Fran\xE7ais",
+  de: "Deutsch",
+  "pt-BR": "Portugu\xEAs"
+};
+var isWelcomeLocale = (value) => typeof value === "string" && Object.hasOwn(welcomeLocaleNames, value);
+
 // extension/shift-crop.ts
 function listenForShiftCrop(view, allowed, start) {
   let timer;
@@ -15972,8 +15986,8 @@ var BridgeClient = class extends EventTarget {
   sessionId = "";
   liveAvailable = false;
   live = false;
-  async load() {
-    if (this.closed || this.credentialsRevision !== 0) return;
+  async load(refresh = false) {
+    if (this.closed || !refresh && this.credentialsRevision !== 0) return;
     const revision = this.credentialsRevision;
     const stored = await chrome.storage.session.get([
       "bridgeToken",
@@ -15981,10 +15995,16 @@ var BridgeClient = class extends EventTarget {
       "bridgeUrl"
     ]);
     if (this.closed || revision !== this.credentialsRevision) return;
+    const token = typeof stored.bridgeToken === "string" ? stored.bridgeToken : "";
+    const url = typeof stored.bridgeUrl === "string" ? stored.bridgeUrl : this.url;
+    if (refresh && token === this.token && url === this.url) return;
+    this.retireSocket();
     this.credentialsRevision++;
-    this.token = typeof stored.bridgeToken === "string" ? stored.bridgeToken : "";
+    this.token = token;
     this.mode = stored.bridgeMode === "tunnel" ? "tunnel" : "direct";
-    this.url = typeof stored.bridgeUrl === "string" ? stored.bridgeUrl : this.url;
+    this.url = url;
+    this.sessionId = "";
+    this.live = this.liveAvailable = false;
     if (this.token) this.connect();
   }
   pair(code, url = "ws://127.0.0.1:37115/extension") {
@@ -16097,6 +16117,11 @@ var BridgeClient = class extends EventTarget {
         this.dispatchEvent(new Event("connected"));
         this.dispatchEvent(new Event("paired"));
         return;
+      }
+      if (m2.type === "channel-status") {
+        this.liveAvailable = Boolean(m2.liveAvailable);
+        this.live = Boolean(m2.live);
+        if (typeof m2.sessionId === "string") this.sessionId = m2.sessionId;
       }
       if (m2.type === "delta" && typeof m2.id === "string" && typeof m2.text === "string") {
         this.pending.get(m2.id)?.onDelta?.(m2.text);
@@ -18028,16 +18053,14 @@ var en_default = {
   backend: "AI provider",
   blinkAnswer: "Answer",
   blocklist: "Sites to ignore (one hostname per line)",
-  bridgeHelp: "Run /glimpselet:glimpse in Claude Code to connect.",
-  bridgeLost: "The bridge connection dropped. Reconnect in Settings.",
+  bridgeLost: "Connection lost. Run /glimpse in Claude Code to reconnect.",
   bridgeMode: "Claude Code",
-  bridgeUrl: "Connection URL",
   captureCancelled: "Selection cancelled.",
   capturePreview: "Shared screen preview",
   captureReady: "Ready. Captures are available immediately.",
   close: "Close panel",
   compact: "Minimize",
-  connected: "Sharing",
+  connected: "Connected to your Claude Code",
   consent1: "Page text and element labels are sent to your selected provider automatically to suggest questions.",
   consent2: "Images are sent when you ask or use a page tool. Passive mode sends captures and summaries automatically when enabled.",
   consent3: "Frames stay in memory. API keys and pairing tokens stay in browser session storage.",
@@ -18050,7 +18073,6 @@ var en_default = {
   copyError: "Could not copy. Check clipboard permission.",
   costEstimate: "API estimate, past hour",
   dedicatedThread: "Dedicated conversation",
-  directMode: "Direct connection",
   disconnected: "Not connected",
   effort: "Reasoning effort",
   element: "Select element",
@@ -18073,11 +18095,7 @@ var en_default = {
   openPdf: "Open PDF reader",
   pageNote: "Auto explain",
   pageSummary: "Summarize this page.",
-  pair: "Connect",
-  pairCode: "Pairing code",
-  pairHint: "Connect Claude Code in Settings.",
-  pairPlaceholder: "Enter pairing code",
-  paired: "Connected",
+  pairHint: "Run /glimpse in Claude Code to connect.",
   partialFailureRestore: "Translation stopped after partial changes. Restored the original text.",
   passive: "Auto explain",
   passivePrompt: "Briefly describe the meaningful change in this screen.",
@@ -18091,7 +18109,7 @@ var en_default = {
   question: "What would you like to know?",
   questionLimit: "Enter a shorter question.",
   readerReady: "PDF request received by Glimpselet.",
-  ready: "Ready to ask about this page or a capture.",
+  ready: "Connected to your Claude Code",
   region: "Pick an area",
   remove: "Remove",
   restore: "Restore original text",
@@ -18100,8 +18118,6 @@ var en_default = {
   screen: "Share a screen",
   selectionReady: "Selection received.",
   send: "Ask",
-  sessionFork: "New session starts a separate Glimpselet conversation. Choosing a recent session continues it in parallel. Close that session in the terminal first.",
-  sessionSelected: "Session opened.",
   sessions: "Conversations",
   settings: "Settings",
   shareEnded: "Screen sharing ended.",
@@ -18119,7 +18135,6 @@ var en_default = {
   translatePage: "Translate page",
   translatePrompt: "Translate the visible text into {language}.",
   translationApplied: "Translation applied.",
-  tunnelMode: "Tunnel connection",
   unpin: "Unpin",
   unsupportedPage: "This browser page cannot be captured.",
   untitled: "Capture notes",
@@ -18134,9 +18149,6 @@ var en_default = {
   crop_fullscreen_denied: "Could not open the fullscreen crop view. Click Crop in the floating window and try again.",
   share_ended: "Screen sharing ended. Start sharing again from the floating window.",
   liveSession: "Live Claude Code session",
-  liveSessionHint: "Send messages into the running session and see its replies here. The session keeps its terminal-selected model and permissions.",
-  parallelSession: "Continue session in parallel",
-  replayTour: "Replay the tour",
   globalCropShortcut: "Global crop shortcut: Ctrl+Shift+7 (Cmd+Shift+7 on Mac). Change it at chrome://extensions/shortcuts.",
   screenChangeSummary: "The shared screen changed. Here is a short summary.",
   capturePermission: "Allow on all sites once to capture pages and select an area. Chrome will ask for permission.",
@@ -18169,9 +18181,6 @@ var en_default = {
   effortLow: "Low",
   effortMedium: "Medium",
   effortHigh: "High",
-  connectionLive: "Live Claude Code",
-  connectionDedicated: "Glimpselet conversation",
-  connectionContinued: "Continued conversation",
   cliUsageEstimate: "Equivalent API usage, past hour",
   cliUsageHint: "Estimate of equivalent API usage in the past hour with Claude Code. This is not an additional charge from Glimpselet.",
   apiUsageHint: "Estimate based on direct API usage in the past hour. Your provider\u2019s final bill may differ.",
@@ -18213,16 +18222,14 @@ var zh_TW_default = {
   backend: "AI \u670D\u52D9\u4F86\u6E90",
   blinkAnswer: "\u56DE\u7B54",
   blocklist: "\u5FFD\u7565\u7684\u7DB2\u7AD9\uFF08\u6BCF\u884C\u4E00\u500B\u4E3B\u6A5F\u540D\u7A31\uFF09",
-  bridgeHelp: "\u5728 Claude Code \u57F7\u884C /glimpselet:glimpse \u4EE5\u9023\u7DDA\u3002",
-  bridgeLost: "\u6A4B\u63A5\u9023\u7DDA\u5DF2\u4E2D\u65B7\uFF0C\u8ACB\u5728\u8A2D\u5B9A\u4E2D\u91CD\u65B0\u9023\u7DDA\u3002",
+  bridgeLost: "\u9023\u7DDA\u5DF2\u4E2D\u65B7\uFF0C\u8ACB\u5728 Claude Code \u57F7\u884C /glimpse \u91CD\u65B0\u9023\u63A5\u3002",
   bridgeMode: "Claude Code",
-  bridgeUrl: "\u9023\u7DDA\u7DB2\u5740",
   captureCancelled: "\u5DF2\u53D6\u6D88\u9078\u53D6\u3002",
   capturePreview: "\u5206\u4EAB\u4E2D\u7684\u87A2\u5E55\u9810\u89BD",
   captureReady: "\u5DF2\u5C31\u7DD2\u3002\u64F7\u53D6\u5167\u5BB9\u53EF\u7ACB\u5373\u4F7F\u7528\u3002",
   close: "\u95DC\u9589\u9762\u677F",
   compact: "\u7E2E\u5C0F",
-  connected: "\u5206\u4EAB\u4E2D",
+  connected: "\u5DF2\u9023\u5230\u4F60\u7684 Claude Code",
   consent1: "\u7DB2\u9801\u6587\u5B57\u548C\u5143\u7D20\u6A19\u7C64\u6703\u81EA\u52D5\u50B3\u9001\u81F3\u4F60\u9078\u64C7\u7684\u4F9B\u61C9\u5546\uFF0C\u7528\u4F86\u63A8\u85A6\u554F\u984C\u3002",
   consent2: "\u63D0\u554F\u6216\u4F7F\u7528\u7DB2\u9801\u5DE5\u5177\u6642\u6703\u50B3\u9001\u5716\u7247\u3002\u555F\u7528\u88AB\u52D5\u6A21\u5F0F\u5F8C\uFF0C\u64F7\u53D6\u756B\u9762\u548C\u6458\u8981\u6703\u81EA\u52D5\u50B3\u9001\u3002",
   consent3: "\u756B\u9762\u5F71\u683C\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D\u3002API \u91D1\u9470\u548C\u914D\u5C0D\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
@@ -18235,7 +18242,6 @@ var zh_TW_default = {
   copyError: "\u7121\u6CD5\u8907\u88FD\uFF0C\u8ACB\u6AA2\u67E5\u526A\u8CBC\u7C3F\u6B0A\u9650\u3002",
   costEstimate: "\u904E\u53BB\u4E00\u5C0F\u6642 API \u8CBB\u7528\u4F30\u7B97",
   dedicatedThread: "\u7368\u7ACB\u5C0D\u8A71",
-  directMode: "\u76F4\u63A5\u9023\u7DDA",
   disconnected: "\u672A\u9023\u7DDA",
   effort: "\u63A8\u7406\u5F37\u5EA6",
   element: "\u9078\u53D6\u5143\u7D20",
@@ -18258,11 +18264,7 @@ var zh_TW_default = {
   openPdf: "\u958B\u555F PDF \u95B1\u8B80\u5668",
   pageNote: "\u81EA\u52D5\u89E3\u8AAA",
   pageSummary: "\u6458\u8981\u6B64\u7DB2\u9801\u3002",
-  pair: "\u9023\u7DDA",
-  pairCode: "\u914D\u5C0D\u78BC",
-  pairHint: "\u5728\u8A2D\u5B9A\u4E2D\u9023\u63A5 Claude Code\u3002",
-  pairPlaceholder: "\u8F38\u5165\u914D\u5C0D\u78BC",
-  paired: "\u5DF2\u9023\u7DDA",
+  pairHint: "\u5728 Claude Code \u57F7\u884C /glimpse \u5373\u53EF\u9023\u63A5\u3002",
   partialFailureRestore: "\u7FFB\u8B6F\u4E2D\u6B62\u3002\u5DF2\u9084\u539F\u90E8\u5206\u8B8A\u66F4\u7684\u539F\u6587\u3002",
   passive: "\u81EA\u52D5\u89E3\u8AAA",
   passivePrompt: "\u7C21\u77ED\u63CF\u8FF0\u756B\u9762\u4E2D\u6709\u610F\u7FA9\u7684\u8B8A\u5316\u3002",
@@ -18276,7 +18278,7 @@ var zh_TW_default = {
   question: "\u60F3\u4E86\u89E3\u4EC0\u9EBC\uFF1F",
   questionLimit: "\u8ACB\u8F38\u5165\u8F03\u77ED\u7684\u554F\u984C\u3002",
   readerReady: "Glimpselet \u5DF2\u6536\u5230 PDF \u8ACB\u6C42\u3002",
-  ready: "\u53EF\u4EE5\u8A62\u554F\u76EE\u524D\u9801\u9762\u6216\u64F7\u53D6\u756B\u9762\u3002",
+  ready: "\u5DF2\u9023\u5230\u4F60\u7684 Claude Code",
   region: "\u9078\u53D6\u5340\u57DF",
   remove: "\u79FB\u9664",
   restore: "\u9084\u539F\u539F\u6587",
@@ -18285,8 +18287,6 @@ var zh_TW_default = {
   screen: "\u5206\u4EAB\u87A2\u5E55",
   selectionReady: "\u5DF2\u6536\u5230\u9078\u53D6\u5167\u5BB9\u3002",
   send: "\u8A62\u554F",
-  sessionFork: "\u65B0\u5DE5\u4F5C\u968E\u6BB5\u6703\u958B\u59CB\u7368\u7ACB\u7684 Glimpselet \u5C0D\u8A71\u3002\u9078\u64C7\u6700\u8FD1\u7684\u5DE5\u4F5C\u968E\u6BB5\u6703\u53E6\u5916\u63A5\u7E8C\u90A3\u6BB5\u5C0D\u8A71\uFF0C\u8ACB\u5148\u95DC\u9589\u7D42\u7AEF\u6A5F\u4E2D\u7684\u540C\u4E00\u5DE5\u4F5C\u968E\u6BB5\u3002",
-  sessionSelected: "\u5DF2\u958B\u555F\u5DE5\u4F5C\u968E\u6BB5\u3002",
   sessions: "\u5C0D\u8A71",
   settings: "\u8A2D\u5B9A",
   shareEnded: "\u87A2\u5E55\u5206\u4EAB\u5DF2\u7D50\u675F\u3002",
@@ -18304,7 +18304,6 @@ var zh_TW_default = {
   translatePage: "\u7FFB\u8B6F\u6574\u9801",
   translatePrompt: "\u5C07\u756B\u9762\u4E2D\u7684\u6587\u5B57\u7FFB\u8B6F\u6210{language}\u3002",
   translationApplied: "\u5DF2\u5957\u7528\u7FFB\u8B6F\u3002",
-  tunnelMode: "\u901A\u9053\u9023\u7DDA",
   unpin: "\u53D6\u6D88\u91D8\u9078",
   unsupportedPage: "\u7121\u6CD5\u64F7\u53D6\u6B64\u700F\u89BD\u5668\u9801\u9762\u3002",
   untitled: "\u64F7\u53D6\u7B46\u8A18",
@@ -18319,9 +18318,6 @@ var zh_TW_default = {
   crop_fullscreen_denied: "\u7121\u6CD5\u958B\u555F\u5168\u87A2\u5E55\u88C1\u5207\u756B\u9762\u3002\u8ACB\u5728\u6D6E\u52D5\u8996\u7A97\u4E2D\u6309\u300C\u88C1\u5207\u300D\u5F8C\u91CD\u8A66\u3002",
   share_ended: "\u87A2\u5E55\u5206\u4EAB\u5DF2\u7D50\u675F\u3002\u8ACB\u5F9E\u6D6E\u52D5\u8996\u7A97\u91CD\u65B0\u958B\u59CB\u5206\u4EAB\u3002",
   liveSession: "Claude Code \u5373\u6642\u5DE5\u4F5C\u968E\u6BB5",
-  liveSessionHint: "\u8A0A\u606F\u6703\u9001\u9032\u57F7\u884C\u4E2D\u7684\u5DE5\u4F5C\u968E\u6BB5\uFF0C\u56DE\u8986\u4E5F\u6703\u986F\u793A\u5728\u9019\u88E1\u3002\u6A21\u578B\u8207\u6B0A\u9650\u4ECD\u7531\u7D42\u7AEF\u6A5F\u4E2D\u7684\u5DE5\u4F5C\u968E\u6BB5\u63A7\u5236\u3002",
-  parallelSession: "\u5E73\u884C\u5EF6\u7E8C\u5DE5\u4F5C\u968E\u6BB5",
-  replayTour: "\u91CD\u64AD\u5C0E\u89BD",
   globalCropShortcut: "\u5168\u57DF\u88C1\u5207\u5FEB\u6377\u9375\uFF1ACtrl+Shift+7\uFF0CMac \u70BA Cmd+Shift+7\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4FEE\u6539\u3002",
   screenChangeSummary: "\u5206\u4EAB\u7684\u87A2\u5E55\u6709\u6240\u8B8A\u5316\uFF0C\u4EE5\u4E0B\u662F\u7C21\u77ED\u6458\u8981\u3002",
   capturePermission: "\u5141\u8A31\u5B58\u53D6\u6240\u6709\u7DB2\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u64F7\u53D6\u7DB2\u9801\u8207\u9078\u53D6\u5340\u57DF\u3002Chrome \u6703\u8A62\u554F\u6B0A\u9650\u3002",
@@ -18354,9 +18350,6 @@ var zh_TW_default = {
   effortLow: "\u4F4E",
   effortMedium: "\u4E2D",
   effortHigh: "\u9AD8",
-  connectionLive: "Claude Code \u5373\u6642\u5C0D\u8A71",
-  connectionDedicated: "Glimpselet \u5C0D\u8A71",
-  connectionContinued: "\u5EF6\u7E8C\u7684\u5C0D\u8A71",
   cliUsageEstimate: "\u904E\u53BB\u4E00\u5C0F\u6642 API \u7B49\u503C\u7528\u91CF",
   cliUsageHint: "\u9019\u662F\u904E\u53BB\u4E00\u5C0F\u6642 Claude Code \u7528\u91CF\u63DB\u7B97\u6210 API \u8CBB\u7528\u7684\u4F30\u7B97\u3002Glimpselet \u4E0D\u6703\u56E0\u6B64\u984D\u5916\u5411\u4F60\u6536\u8CBB\u3002",
   apiUsageHint: "\u6839\u64DA\u904E\u53BB\u4E00\u5C0F\u6642\u76F4\u63A5\u4F7F\u7528 API \u7684\u7528\u91CF\u4F30\u7B97\u3002\u670D\u52D9\u5546\u7684\u5BE6\u969B\u5E33\u55AE\u53EF\u80FD\u4E0D\u540C\u3002",
@@ -18398,16 +18391,14 @@ var zh_CN_default = {
   backend: "AI \u670D\u52A1\u6765\u6E90",
   blinkAnswer: "\u56DE\u7B54",
   blocklist: "\u5FFD\u7565\u7684\u7F51\u7AD9\uFF08\u6BCF\u884C\u4E00\u4E2A\u4E3B\u673A\u540D\uFF09",
-  bridgeHelp: "\u5728 Claude Code \u8FD0\u884C /glimpselet:glimpse \u4EE5\u8FDE\u63A5\u3002",
-  bridgeLost: "\u6865\u63A5\u8FDE\u63A5\u5DF2\u4E2D\u65AD\uFF0C\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u91CD\u65B0\u8FDE\u63A5\u3002",
+  bridgeLost: "\u8FDE\u63A5\u5DF2\u4E2D\u65AD\uFF0C\u8BF7\u5728 Claude Code \u8FD0\u884C /glimpse \u91CD\u65B0\u8FDE\u63A5\u3002",
   bridgeMode: "Claude Code",
-  bridgeUrl: "\u8FDE\u63A5\u7F51\u5740",
   captureCancelled: "\u5DF2\u53D6\u6D88\u9009\u62E9\u3002",
   capturePreview: "\u5171\u4EAB\u5C4F\u5E55\u9884\u89C8",
   captureReady: "\u5DF2\u5C31\u7EEA\u3002\u622A\u53D6\u5185\u5BB9\u53EF\u7ACB\u5373\u4F7F\u7528\u3002",
   close: "\u5173\u95ED\u9762\u677F",
   compact: "\u6700\u5C0F\u5316",
-  connected: "\u5171\u4EAB\u4E2D",
+  connected: "\u5DF2\u8FDE\u63A5\u5230\u4F60\u7684 Claude Code",
   consent1: "\u7F51\u9875\u6587\u672C\u548C\u5143\u7D20\u6807\u7B7E\u4F1A\u81EA\u52A8\u53D1\u9001\u7ED9\u4F60\u9009\u62E9\u7684\u670D\u52A1\u5546\uFF0C\u7528\u4E8E\u63A8\u8350\u95EE\u9898\u3002",
   consent2: "\u63D0\u95EE\u6216\u4F7F\u7528\u7F51\u9875\u5DE5\u5177\u65F6\u4F1A\u53D1\u9001\u56FE\u50CF\u3002\u542F\u7528\u88AB\u52A8\u6A21\u5F0F\u540E\uFF0C\u622A\u53D6\u7684\u753B\u9762\u548C\u6458\u8981\u4F1A\u81EA\u52A8\u53D1\u9001\u3002",
   consent3: "\u753B\u9762\u5E27\u4FDD\u7559\u5728\u5185\u5B58\u4E2D\u3002API \u5BC6\u94A5\u548C\u914D\u5BF9\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
@@ -18420,7 +18411,6 @@ var zh_CN_default = {
   copyError: "\u65E0\u6CD5\u590D\u5236\uFF0C\u8BF7\u68C0\u67E5\u526A\u8D34\u677F\u6743\u9650\u3002",
   costEstimate: "\u8FC7\u53BB\u4E00\u5C0F\u65F6 API \u8D39\u7528\u4F30\u7B97",
   dedicatedThread: "\u72EC\u7ACB\u5BF9\u8BDD",
-  directMode: "\u76F4\u63A5\u8FDE\u63A5",
   disconnected: "\u672A\u8FDE\u63A5",
   effort: "\u63A8\u7406\u5F3A\u5EA6",
   element: "\u9009\u62E9\u5143\u7D20",
@@ -18443,11 +18433,7 @@ var zh_CN_default = {
   openPdf: "\u6253\u5F00 PDF \u9605\u8BFB\u5668",
   pageNote: "\u81EA\u52A8\u89E3\u8BF4",
   pageSummary: "\u603B\u7ED3\u6B64\u9875\u9762\u3002",
-  pair: "\u8FDE\u63A5",
-  pairCode: "\u914D\u5BF9\u7801",
-  pairHint: "\u5728\u8BBE\u7F6E\u4E2D\u8FDE\u63A5 Claude Code\u3002",
-  pairPlaceholder: "\u8F93\u5165\u914D\u5BF9\u7801",
-  paired: "\u5DF2\u8FDE\u63A5",
+  pairHint: "\u5728 Claude Code \u8FD0\u884C /glimpse \u5373\u53EF\u8FDE\u63A5\u3002",
   partialFailureRestore: "\u7FFB\u8BD1\u5DF2\u505C\u6B62\u3002\u5DF2\u8FD8\u539F\u90E8\u5206\u66F4\u6539\u7684\u539F\u6587\u3002",
   passive: "\u81EA\u52A8\u89E3\u8BF4",
   passivePrompt: "\u7B80\u8981\u63CF\u8FF0\u5C4F\u5E55\u4E0A\u6709\u610F\u4E49\u7684\u53D8\u5316\u3002",
@@ -18461,7 +18447,7 @@ var zh_CN_default = {
   question: "\u4F60\u60F3\u4E86\u89E3\u4EC0\u4E48\uFF1F",
   questionLimit: "\u8BF7\u8F93\u5165\u8F83\u77ED\u7684\u95EE\u9898\u3002",
   readerReady: "Glimpselet \u5DF2\u6536\u5230 PDF \u8BF7\u6C42\u3002",
-  ready: "\u53EF\u4EE5\u8BE2\u95EE\u5F53\u524D\u9875\u9762\u6216\u622A\u56FE\u3002",
+  ready: "\u5DF2\u8FDE\u63A5\u5230\u4F60\u7684 Claude Code",
   region: "\u9009\u53D6\u533A\u57DF",
   remove: "\u79FB\u9664",
   restore: "\u6062\u590D\u539F\u6587",
@@ -18470,8 +18456,6 @@ var zh_CN_default = {
   screen: "\u5171\u4EAB\u5C4F\u5E55",
   selectionReady: "\u5DF2\u6536\u5230\u6240\u9009\u5185\u5BB9\u3002",
   send: "\u63D0\u95EE",
-  sessionFork: "\u65B0\u4F1A\u8BDD\u4F1A\u5F00\u59CB\u72EC\u7ACB\u7684 Glimpselet \u5BF9\u8BDD\u3002\u9009\u62E9\u6700\u8FD1\u7684\u4F1A\u8BDD\u4F1A\u53E6\u5916\u7EE7\u7EED\u90A3\u6BB5\u5BF9\u8BDD\uFF0C\u8BF7\u5148\u5173\u95ED\u7EC8\u7AEF\u4E2D\u7684\u540C\u4E00\u4F1A\u8BDD\u3002",
-  sessionSelected: "\u5DF2\u6253\u5F00\u4F1A\u8BDD\u3002",
   sessions: "\u5BF9\u8BDD",
   settings: "\u8BBE\u7F6E",
   shareEnded: "\u5C4F\u5E55\u5171\u4EAB\u5DF2\u7ED3\u675F\u3002",
@@ -18489,7 +18473,6 @@ var zh_CN_default = {
   translatePage: "\u7FFB\u8BD1\u6574\u9875",
   translatePrompt: "\u5C06\u753B\u9762\u4E2D\u7684\u6587\u5B57\u7FFB\u8BD1\u6210{language}\u3002",
   translationApplied: "\u5DF2\u5E94\u7528\u7FFB\u8BD1\u3002",
-  tunnelMode: "\u96A7\u9053\u8FDE\u63A5",
   unpin: "\u53D6\u6D88\u56FA\u5B9A",
   unsupportedPage: "\u65E0\u6CD5\u622A\u53D6\u6B64\u6D4F\u89C8\u5668\u9875\u9762\u3002",
   untitled: "\u622A\u53D6\u7B14\u8BB0",
@@ -18504,9 +18487,6 @@ var zh_CN_default = {
   crop_fullscreen_denied: '\u65E0\u6CD5\u6253\u5F00\u5168\u5C4F\u88C1\u526A\u753B\u9762\u3002\u8BF7\u5728\u6D6E\u52A8\u7A97\u53E3\u4E2D\u70B9\u51FB"\u88C1\u526A"\u540E\u91CD\u8BD5\u3002',
   share_ended: "\u5C4F\u5E55\u5171\u4EAB\u5DF2\u7ED3\u675F\u3002\u8BF7\u4ECE\u6D6E\u52A8\u7A97\u53E3\u91CD\u65B0\u5F00\u59CB\u5171\u4EAB\u3002",
   liveSession: "Claude Code \u5B9E\u65F6\u4F1A\u8BDD",
-  liveSessionHint: "\u6D88\u606F\u4F1A\u53D1\u9001\u5230\u6B63\u5728\u8FD0\u884C\u7684\u4F1A\u8BDD\uFF0C\u56DE\u590D\u4E5F\u4F1A\u663E\u793A\u5728\u8FD9\u91CC\u3002\u6A21\u578B\u548C\u6743\u9650\u4ECD\u7531\u7EC8\u7AEF\u4E2D\u7684\u4F1A\u8BDD\u63A7\u5236\u3002",
-  parallelSession: "\u5E76\u884C\u7EE7\u7EED\u4F1A\u8BDD",
-  replayTour: "\u91CD\u653E\u5F15\u5BFC",
   globalCropShortcut: "\u5168\u5C40\u88C1\u526A\u5FEB\u6377\u952E\uFF1ACtrl+Shift+7\uFF0CMac \u4E3A Cmd+Shift+7\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4E2D\u4FEE\u6539\u3002",
   screenChangeSummary: "\u5171\u4EAB\u5C4F\u5E55\u53D1\u751F\u4E86\u53D8\u5316\uFF0C\u4EE5\u4E0B\u662F\u7B80\u77ED\u6458\u8981\u3002",
   capturePermission: "\u5141\u8BB8\u8BBF\u95EE\u6240\u6709\u7F51\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u622A\u53D6\u7F51\u9875\u4E0E\u9009\u62E9\u533A\u57DF\u3002Chrome \u4F1A\u8BE2\u95EE\u6743\u9650\u3002",
@@ -18539,9 +18519,6 @@ var zh_CN_default = {
   effortLow: "\u4F4E",
   effortMedium: "\u4E2D",
   effortHigh: "\u9AD8",
-  connectionLive: "Claude Code \u5B9E\u65F6\u5BF9\u8BDD",
-  connectionDedicated: "Glimpselet \u5BF9\u8BDD",
-  connectionContinued: "\u5EF6\u7EED\u7684\u5BF9\u8BDD",
   cliUsageEstimate: "\u8FC7\u53BB\u4E00\u5C0F\u65F6 API \u7B49\u503C\u7528\u91CF",
   cliUsageHint: "\u8FD9\u662F\u8FC7\u53BB\u4E00\u5C0F\u65F6 Claude Code \u7528\u91CF\u6362\u7B97\u6210 API \u8D39\u7528\u7684\u4F30\u7B97\u3002Glimpselet \u4E0D\u4F1A\u56E0\u6B64\u989D\u5916\u5411\u4F60\u6536\u8D39\u3002",
   apiUsageHint: "\u6839\u636E\u8FC7\u53BB\u4E00\u5C0F\u65F6\u76F4\u63A5\u4F7F\u7528 API \u7684\u7528\u91CF\u4F30\u7B97\u3002\u670D\u52A1\u5546\u7684\u5B9E\u9645\u8D26\u5355\u53EF\u80FD\u4E0D\u540C\u3002",
@@ -18583,16 +18560,14 @@ var ja_default = {
   backend: "AI \u63A5\u7D9A\u5148",
   blinkAnswer: "\u56DE\u7B54",
   blocklist: "\u7121\u8996\u3059\u308B\u30B5\u30A4\u30C8\uFF08\u30DB\u30B9\u30C8\u540D\u30921\u884C\u306B1\u3064\uFF09",
-  bridgeHelp: "Claude Code \u3067 /glimpselet:glimpse \u3092\u5B9F\u884C\u3057\u3066\u63A5\u7D9A\u3057\u307E\u3059\u3002",
-  bridgeLost: "\u30D6\u30EA\u30C3\u30B8\u63A5\u7D9A\u304C\u5207\u308C\u307E\u3057\u305F\u3002\u8A2D\u5B9A\u304B\u3089\u518D\u63A5\u7D9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  bridgeLost: "\u63A5\u7D9A\u304C\u5207\u308C\u307E\u3057\u305F\u3002Claude Code \u3067 /glimpse \u3092\u5B9F\u884C\u3057\u3066\u518D\u63A5\u7D9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   bridgeMode: "Claude Code",
-  bridgeUrl: "\u63A5\u7D9A URL",
   captureCancelled: "\u9078\u629E\u3092\u30AD\u30E3\u30F3\u30BB\u30EB\u3057\u307E\u3057\u305F\u3002",
   capturePreview: "\u5171\u6709\u753B\u9762\u306E\u30D7\u30EC\u30D3\u30E5\u30FC",
   captureReady: "\u6E96\u5099\u5B8C\u4E86\u3002\u30AD\u30E3\u30D7\u30C1\u30E3\u306F\u3059\u3050\u306B\u5229\u7528\u3067\u304D\u307E\u3059\u3002",
   close: "\u30D1\u30CD\u30EB\u3092\u9589\u3058\u308B",
   compact: "\u6700\u5C0F\u5316",
-  connected: "\u5171\u6709\u4E2D",
+  connected: "\u3042\u306A\u305F\u306E Claude Code \u306B\u63A5\u7D9A\u6E08\u307F",
   consent1: "\u8CEA\u554F\u5019\u88DC\u3092\u63D0\u6848\u3059\u308B\u305F\u3081\u3001\u30DA\u30FC\u30B8\u306E\u30C6\u30AD\u30B9\u30C8\u3068\u8981\u7D20\u306E\u30E9\u30D9\u30EB\u304C\u9078\u629E\u3057\u305F\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306B\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
   consent2: "\u8CEA\u554F\u3057\u305F\u3068\u304D\u3001\u307E\u305F\u306F\u30DA\u30FC\u30B8\u30C4\u30FC\u30EB\u3092\u4F7F\u3063\u305F\u3068\u304D\u306B\u753B\u50CF\u304C\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002\u30D1\u30C3\u30B7\u30D6\u30E2\u30FC\u30C9\u3092\u6709\u52B9\u306B\u3059\u308B\u3068\u3001\u30AD\u30E3\u30D7\u30C1\u30E3\u3068\u8981\u7D04\u304C\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
   consent3: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30DA\u30A2\u30EA\u30F3\u30B0\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
@@ -18605,7 +18580,6 @@ var ja_default = {
   copyError: "\u30B3\u30D4\u30FC\u3067\u304D\u307E\u305B\u3093\u3002\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u306E\u6A29\u9650\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   costEstimate: "\u904E\u53BB1\u6642\u9593\u306EAPI\u6599\u91D1\u76EE\u5B89",
   dedicatedThread: "\u5C02\u7528\u306E\u4F1A\u8A71",
-  directMode: "\u76F4\u63A5\u63A5\u7D9A",
   disconnected: "\u672A\u63A5\u7D9A",
   effort: "\u63A8\u8AD6\u306E\u5F37\u3055",
   element: "\u8981\u7D20\u3092\u9078\u629E",
@@ -18628,11 +18602,7 @@ var ja_default = {
   openPdf: "PDF \u30EA\u30FC\u30C0\u30FC\u3092\u958B\u304F",
   pageNote: "\u81EA\u52D5\u89E3\u8AAC",
   pageSummary: "\u3053\u306E\u30DA\u30FC\u30B8\u3092\u8981\u7D04",
-  pair: "\u63A5\u7D9A",
-  pairCode: "\u30DA\u30A2\u30EA\u30F3\u30B0\u30B3\u30FC\u30C9",
-  pairHint: "\u8A2D\u5B9A\u3067 Claude Code \u306B\u63A5\u7D9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-  pairPlaceholder: "\u30B3\u30FC\u30C9\u3092\u5165\u529B",
-  paired: "\u63A5\u7D9A\u3057\u307E\u3057\u305F",
+  pairHint: "Claude Code \u3067 /glimpse \u3092\u5B9F\u884C\u3057\u3066\u63A5\u7D9A\u3057\u307E\u3059\u3002",
   partialFailureRestore: "\u7FFB\u8A33\u3092\u505C\u6B62\u3057\u3001\u9014\u4E2D\u307E\u3067\u306E\u5909\u66F4\u3092\u5143\u306E\u6587\u7AE0\u306B\u623B\u3057\u307E\u3057\u305F\u3002",
   passive: "\u81EA\u52D5\u89E3\u8AAC",
   passivePrompt: "\u753B\u9762\u4E0A\u306E\u91CD\u8981\u306A\u5909\u5316\u3092\u7C21\u6F54\u306B\u8AAC\u660E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
@@ -18646,7 +18616,7 @@ var ja_default = {
   question: "\u4F55\u3092\u77E5\u308A\u305F\u3044\u3067\u3059\u304B\uFF1F",
   questionLimit: "\u77ED\u3044\u8CEA\u554F\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   readerReady: "Glimpselet \u304C PDF \u30EA\u30AF\u30A8\u30B9\u30C8\u3092\u53D7\u4FE1\u3057\u307E\u3057\u305F\u3002",
-  ready: "\u3053\u306E\u30DA\u30FC\u30B8\u3084\u30AD\u30E3\u30D7\u30C1\u30E3\u306B\u3064\u3044\u3066\u8CEA\u554F\u3067\u304D\u307E\u3059\u3002",
+  ready: "\u3042\u306A\u305F\u306E Claude Code \u306B\u63A5\u7D9A\u6E08\u307F",
   region: "\u7BC4\u56F2\u3092\u9078\u629E",
   remove: "\u524A\u9664",
   restore: "\u539F\u6587\u306B\u623B\u3059",
@@ -18655,8 +18625,6 @@ var ja_default = {
   screen: "\u753B\u9762\u3092\u5171\u6709",
   selectionReady: "\u9078\u629E\u7BC4\u56F2\u3092\u53D7\u4FE1\u3057\u307E\u3057\u305F\u3002",
   send: "\u8CEA\u554F\u3059\u308B",
-  sessionFork: "\u65B0\u3057\u3044\u30BB\u30C3\u30B7\u30E7\u30F3\u306F\u72EC\u7ACB\u3057\u305F Glimpselet \u306E\u4F1A\u8A71\u3067\u3059\u3002\u6700\u8FD1\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u9078\u3076\u3068\u4E26\u884C\u3057\u3066\u7D9A\u3051\u307E\u3059\u3002\u5148\u306B\u30BF\u30FC\u30DF\u30CA\u30EB\u306E\u540C\u3058\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u9589\u3058\u3066\u304F\u3060\u3055\u3044\u3002",
-  sessionSelected: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u958B\u304D\u307E\u3057\u305F\u3002",
   sessions: "\u4F1A\u8A71",
   settings: "\u8A2D\u5B9A",
   shareEnded: "\u753B\u9762\u5171\u6709\u3092\u7D42\u4E86\u3057\u307E\u3057\u305F\u3002",
@@ -18674,7 +18642,6 @@ var ja_default = {
   translatePage: "\u30DA\u30FC\u30B8\u3092\u7FFB\u8A33",
   translatePrompt: "\u753B\u9762\u5185\u306E\u30C6\u30AD\u30B9\u30C8\u3092{language}\u306B\u7FFB\u8A33\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   translationApplied: "\u7FFB\u8A33\u3092\u9069\u7528\u3057\u307E\u3057\u305F\u3002",
-  tunnelMode: "\u30C8\u30F3\u30CD\u30EB\u63A5\u7D9A",
   unpin: "\u30D4\u30F3\u7559\u3081\u3092\u89E3\u9664",
   unsupportedPage: "\u3053\u306E\u30DA\u30FC\u30B8\u306F\u30AD\u30E3\u30D7\u30C1\u30E3\u3067\u304D\u307E\u305B\u3093\u3002",
   untitled: "\u64AE\u5F71\u30E1\u30E2",
@@ -18689,9 +18656,6 @@ var ja_default = {
   crop_fullscreen_denied: "\u5168\u753B\u9762\u306E\u5207\u308A\u629C\u304D\u753B\u9762\u3092\u958B\u3051\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30A6\u30A3\u30F3\u30C9\u30A6\u3067\u300C\u5207\u308A\u629C\u304D\u300D\u3092\u62BC\u3057\u3066\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   share_ended: "\u753B\u9762\u5171\u6709\u304C\u7D42\u4E86\u3057\u307E\u3057\u305F\u3002\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30A6\u30A3\u30F3\u30C9\u30A6\u304B\u3089\u5171\u6709\u3092\u518D\u958B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   liveSession: "Claude Code \u306E\u30E9\u30A4\u30D6\u30BB\u30C3\u30B7\u30E7\u30F3",
-  liveSessionHint: "\u5B9F\u884C\u4E2D\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u30E1\u30C3\u30BB\u30FC\u30B8\u3092\u9001\u308A\u3001\u8FD4\u4FE1\u3092\u3053\u3053\u306B\u8868\u793A\u3057\u307E\u3059\u3002\u30E2\u30C7\u30EB\u3068\u6A29\u9650\u306F\u30BF\u30FC\u30DF\u30CA\u30EB\u5074\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u8A2D\u5B9A\u306B\u5F93\u3044\u307E\u3059\u3002",
-  parallelSession: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u4E26\u884C\u3057\u3066\u7D9A\u884C",
-  replayTour: "\u30C4\u30A2\u30FC\u3092\u3082\u3046\u4E00\u5EA6\u898B\u308B",
   globalCropShortcut: "\u5168\u4F53\u306E\u5207\u308A\u629C\u304D\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\uFF1ACtrl+Shift+7\uFF08Mac \u306F Cmd+Shift+7\uFF09\u3002chrome://extensions/shortcuts \u3067\u5909\u66F4\u3067\u304D\u307E\u3059\u3002",
   screenChangeSummary: "\u5171\u6709\u753B\u9762\u304C\u5909\u308F\u308A\u307E\u3057\u305F\u3002\u7C21\u5358\u306A\u6982\u8981\u3092\u8868\u793A\u3057\u307E\u3059\u3002",
   capturePermission: "\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u4E00\u5EA6\u8A31\u53EF\u3059\u308B\u3068\u3001\u30DA\u30FC\u30B8\u64AE\u5F71\u3068\u7BC4\u56F2\u9078\u629E\u304C\u4F7F\u3048\u307E\u3059\u3002Chrome \u304C\u8A31\u53EF\u3092\u78BA\u8A8D\u3057\u307E\u3059\u3002",
@@ -18724,9 +18688,6 @@ var ja_default = {
   effortLow: "\u4F4E",
   effortMedium: "\u4E2D",
   effortHigh: "\u9AD8",
-  connectionLive: "Claude Code \u306E\u30E9\u30A4\u30D6\u4F1A\u8A71",
-  connectionDedicated: "Glimpselet \u306E\u4F1A\u8A71",
-  connectionContinued: "\u7D9A\u304D\u306E\u4F1A\u8A71",
   cliUsageEstimate: "\u904E\u53BB1\u6642\u9593\u306EAPI\u63DB\u7B97\u5229\u7528\u984D",
   cliUsageHint: "\u904E\u53BB1\u6642\u9593\u306E Claude Code \u306E\u5229\u7528\u91CF\u3092 API \u6599\u91D1\u306B\u63DB\u7B97\u3057\u305F\u76EE\u5B89\u3067\u3059\u3002Glimpselet \u306F\u8FFD\u52A0\u6599\u91D1\u3092\u8ACB\u6C42\u3057\u307E\u305B\u3093\u3002",
   apiUsageHint: "\u904E\u53BB1\u6642\u9593\u306E API \u76F4\u63A5\u5229\u7528\u91CF\u306B\u57FA\u3065\u304F\u76EE\u5B89\u3067\u3059\u3002\u63D0\u4F9B\u5143\u306E\u5B9F\u969B\u306E\u8ACB\u6C42\u984D\u3068\u306F\u7570\u306A\u308B\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002",
@@ -18768,16 +18729,14 @@ var ko_default = {
   backend: "AI \uC5F0\uACB0 \uBC29\uC2DD",
   blinkAnswer: "\uB2F5\uBCC0",
   blocklist: "\uBB34\uC2DC\uD560 \uC0AC\uC774\uD2B8 (\uD638\uC2A4\uD2B8 \uC774\uB984\uC744 \uD55C \uC904\uC5D0 \uD558\uB098\uC529)",
-  bridgeHelp: "Claude Code\uC5D0\uC11C /glimpselet:glimpse\uB97C \uC2E4\uD589\uD574 \uC5F0\uACB0\uD558\uC138\uC694.",
-  bridgeLost: "\uBE0C\uB9AC\uC9C0 \uC5F0\uACB0\uC774 \uB04A\uACBC\uC2B5\uB2C8\uB2E4. \uC124\uC815\uC5D0\uC11C \uB2E4\uC2DC \uC5F0\uACB0\uD558\uC138\uC694.",
+  bridgeLost: "\uC5F0\uACB0\uC774 \uB04A\uACBC\uC5B4\uC694. Claude Code\uC5D0\uC11C /glimpse\uB97C \uC2E4\uD589\uD574 \uB2E4\uC2DC \uC5F0\uACB0\uD558\uC138\uC694.",
   bridgeMode: "Claude Code",
-  bridgeUrl: "\uC5F0\uACB0 URL",
   captureCancelled: "\uC120\uD0DD\uC774 \uCDE8\uC18C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.",
   capturePreview: "\uACF5\uC720 \uD654\uBA74 \uBBF8\uB9AC\uBCF4\uAE30",
   captureReady: "\uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uCEA1\uCC98\uB97C \uBC14\uB85C \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   close: "\uD328\uB110 \uB2EB\uAE30",
   compact: "\uCD5C\uC18C\uD654",
-  connected: "\uACF5\uC720 \uC911",
+  connected: "\uB0B4 Claude Code\uC5D0 \uC5F0\uACB0\uB428",
   consent1: "\uC9C8\uBB38\uC744 \uC81C\uC548\uD558\uAE30 \uC704\uD574 \uD398\uC774\uC9C0 \uD14D\uC2A4\uD2B8\uC640 \uC694\uC18C \uB77C\uBCA8\uC774 \uC120\uD0DD\uD55C \uC81C\uACF5\uC5C5\uCCB4\uB85C \uC790\uB3D9 \uC804\uC1A1\uB429\uB2C8\uB2E4.",
   consent2: "\uC9C8\uBB38\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uB54C \uC774\uBBF8\uC9C0\uAC00 \uC804\uC1A1\uB429\uB2C8\uB2E4. \uD328\uC2DC\uBE0C \uBAA8\uB4DC\uB97C \uCF1C\uBA74 \uCEA1\uCC98\uC640 \uC694\uC57D\uC774 \uC790\uB3D9\uC73C\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4.",
   consent3: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uD398\uC5B4\uB9C1 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
@@ -18790,7 +18749,6 @@ var ko_default = {
   copyError: "\uBCF5\uC0AC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD074\uB9BD\uBCF4\uB4DC \uAD8C\uD55C\uC744 \uD655\uC778\uD558\uC138\uC694.",
   costEstimate: "\uC9C0\uB09C 1\uC2DC\uAC04 API \uBE44\uC6A9 \uCD94\uC815",
   dedicatedThread: "\uC804\uC6A9 \uB300\uD654",
-  directMode: "\uC9C1\uC811 \uC5F0\uACB0",
   disconnected: "\uC5F0\uACB0 \uC548 \uB428",
   effort: "\uCD94\uB860 \uAC15\uB3C4",
   element: "\uC694\uC18C \uC120\uD0DD",
@@ -18813,11 +18771,7 @@ var ko_default = {
   openPdf: "PDF \uB9AC\uB354 \uC5F4\uAE30",
   pageNote: "\uC790\uB3D9 \uC124\uBA85",
   pageSummary: "\uC774 \uD398\uC774\uC9C0 \uC694\uC57D",
-  pair: "\uC5F0\uACB0",
-  pairCode: "\uD398\uC5B4\uB9C1 \uCF54\uB4DC",
-  pairHint: "\uC124\uC815\uC5D0\uC11C Claude Code\uC5D0 \uC5F0\uACB0\uD558\uC138\uC694.",
-  pairPlaceholder: "\uCF54\uB4DC \uC785\uB825",
-  paired: "\uC5F0\uACB0\uB428",
+  pairHint: "Claude Code\uC5D0\uC11C /glimpse\uB97C \uC2E4\uD589\uD574 \uC5F0\uACB0\uD558\uC138\uC694.",
   partialFailureRestore: "\uBC88\uC5ED\uC744 \uC911\uC9C0\uD558\uACE0 \uBD80\uBD84 \uBCC0\uACBD \uB0B4\uC6A9\uC744 \uC6D0\uBB38\uC73C\uB85C \uBCF5\uC6D0\uD588\uC2B5\uB2C8\uB2E4.",
   passive: "\uC790\uB3D9 \uC124\uBA85",
   passivePrompt: "\uD654\uBA74\uC758 \uC758\uBBF8 \uC788\uB294 \uBCC0\uD654\uB97C \uAC04\uB2E8\uD788 \uC124\uBA85\uD574 \uC8FC\uC138\uC694.",
@@ -18831,7 +18785,7 @@ var ko_default = {
   question: "\uBB34\uC5C7\uC744 \uC54C\uACE0 \uC2F6\uB098\uC694?",
   questionLimit: "\uC9E7\uC740 \uC9C8\uBB38\uC744 \uC785\uB825\uD558\uC138\uC694.",
   readerReady: "Glimpselet\uC774 PDF \uC694\uCCAD\uC744 \uBC1B\uC558\uC2B5\uB2C8\uB2E4.",
-  ready: "\uC774 \uD398\uC774\uC9C0\uB098 \uCEA1\uCC98\uC5D0 \uB300\uD574 \uC9C8\uBB38\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+  ready: "\uB0B4 Claude Code\uC5D0 \uC5F0\uACB0\uB428",
   region: "\uC601\uC5ED \uC120\uD0DD",
   remove: "\uC0AD\uC81C",
   restore: "\uC6D0\uBB38 \uBCF5\uC6D0",
@@ -18840,8 +18794,6 @@ var ko_default = {
   screen: "\uD654\uBA74 \uACF5\uC720",
   selectionReady: "\uC120\uD0DD\uD55C \uD14D\uC2A4\uD2B8\uB97C \uBC1B\uC558\uC2B5\uB2C8\uB2E4.",
   send: "\uC9C8\uBB38",
-  sessionFork: "\uC0C8 \uC138\uC158\uC740 \uBCC4\uB3C4\uC758 Glimpselet \uB300\uD654\uB97C \uC2DC\uC791\uD569\uB2C8\uB2E4. \uCD5C\uADFC \uC138\uC158\uC744 \uC120\uD0DD\uD558\uBA74 \uBCD1\uB82C\uB85C \uC774\uC5B4\uC9D1\uB2C8\uB2E4. \uBA3C\uC800 \uD130\uBBF8\uB110\uC758 \uAC19\uC740 \uC138\uC158\uC744 \uB2EB\uC73C\uC138\uC694.",
-  sessionSelected: "\uC138\uC158\uC744 \uC5F4\uC5C8\uC2B5\uB2C8\uB2E4.",
   sessions: "\uB300\uD654",
   settings: "\uC124\uC815",
   shareEnded: "\uD654\uBA74 \uACF5\uC720\uAC00 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.",
@@ -18859,7 +18811,6 @@ var ko_default = {
   translatePage: "\uD398\uC774\uC9C0 \uBC88\uC5ED",
   translatePrompt: "\uD654\uBA74\uC758 \uD14D\uC2A4\uD2B8\uB97C {language}(\uC73C)\uB85C \uBC88\uC5ED\uD574 \uC8FC\uC138\uC694.",
   translationApplied: "\uBC88\uC5ED\uC744 \uC801\uC6A9\uD588\uC2B5\uB2C8\uB2E4.",
-  tunnelMode: "\uD130\uB110 \uC5F0\uACB0",
   unpin: "\uACE0\uC815 \uD574\uC81C",
   unsupportedPage: "\uC774 \uBE0C\uB77C\uC6B0\uC800 \uD398\uC774\uC9C0\uB294 \uCEA1\uCC98\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
   untitled: "\uCEA1\uCC98 \uBA54\uBAA8",
@@ -18874,9 +18825,6 @@ var ko_default = {
   crop_fullscreen_denied: "\uC804\uCCB4 \uD654\uBA74 \uC790\uB974\uAE30 \uD654\uBA74\uC744 \uC5F4\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uCC3D\uC5D0\uC11C \uC790\uB974\uAE30\uB97C \uB204\uB974\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
   share_ended: "\uD654\uBA74 \uACF5\uC720\uAC00 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uCC3D\uC5D0\uC11C \uB2E4\uC2DC \uACF5\uC720\uB97C \uC2DC\uC791\uD558\uC138\uC694.",
   liveSession: "\uC2E4\uC2DC\uAC04 Claude Code \uC138\uC158",
-  liveSessionHint: "\uC2E4\uD589 \uC911\uC778 \uC138\uC158\uC5D0 \uBA54\uC2DC\uC9C0\uB97C \uBCF4\uB0B4\uACE0 \uB2F5\uBCC0\uC744 \uC5EC\uAE30\uC11C \uD655\uC778\uD569\uB2C8\uB2E4. \uBAA8\uB378\uACFC \uAD8C\uD55C\uC740 \uD130\uBBF8\uB110\uC758 \uC138\uC158 \uC124\uC815\uC744 \uB530\uB985\uB2C8\uB2E4.",
-  parallelSession: "\uC138\uC158\uC744 \uBCD1\uB82C\uB85C \uC774\uC5B4\uAC00\uAE30",
-  replayTour: "\uB458\uB7EC\uBCF4\uAE30 \uB2E4\uC2DC \uBCF4\uAE30",
   globalCropShortcut: "\uC804\uC5ED \uC790\uB974\uAE30 \uB2E8\uCD95\uD0A4: Ctrl+Shift+7(Mac\uC740 Cmd+Shift+7). chrome://extensions/shortcuts\uC5D0\uC11C \uBCC0\uACBD\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   screenChangeSummary: "\uACF5\uC720 \uD654\uBA74\uC774 \uBC14\uB00C\uC5C8\uC2B5\uB2C8\uB2E4. \uAC04\uB2E8\uD788 \uC694\uC57D\uD569\uB2C8\uB2E4.",
   capturePermission: "\uBAA8\uB4E0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD55C \uBC88 \uD5C8\uC6A9\uD558\uBA74 \uD398\uC774\uC9C0 \uCEA1\uCC98\uC640 \uC601\uC5ED \uC120\uD0DD\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. Chrome\uC774 \uAD8C\uD55C\uC744 \uC694\uCCAD\uD569\uB2C8\uB2E4.",
@@ -18909,9 +18857,6 @@ var ko_default = {
   effortLow: "\uB0AE\uC74C",
   effortMedium: "\uBCF4\uD1B5",
   effortHigh: "\uB192\uC74C",
-  connectionLive: "Claude Code \uC2E4\uC2DC\uAC04 \uB300\uD654",
-  connectionDedicated: "Glimpselet \uB300\uD654",
-  connectionContinued: "\uC774\uC5B4\uAC00\uB294 \uB300\uD654",
   cliUsageEstimate: "\uC9C0\uB09C 1\uC2DC\uAC04 API \uD658\uC0B0 \uC0AC\uC6A9\uC561",
   cliUsageHint: "\uC9C0\uB09C 1\uC2DC\uAC04 \uB3D9\uC548\uC758 Claude Code \uC0AC\uC6A9\uB7C9\uC744 API \uBE44\uC6A9\uC73C\uB85C \uD658\uC0B0\uD55C \uCD94\uC815\uCE58\uC785\uB2C8\uB2E4. Glimpselet\uC740 \uCD94\uAC00 \uC694\uAE08\uC744 \uCCAD\uAD6C\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.",
   apiUsageHint: "\uC9C0\uB09C 1\uC2DC\uAC04 \uB3D9\uC548 API\uB97C \uC9C1\uC811 \uC0AC\uC6A9\uD55C \uC591\uC744 \uAE30\uC900\uC73C\uB85C \uD55C \uCD94\uC815\uCE58\uC785\uB2C8\uB2E4. \uC81C\uACF5\uC5C5\uCCB4\uC758 \uC2E4\uC81C \uCCAD\uAD6C\uC561\uC740 \uB2E4\uB97C \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
@@ -18953,16 +18898,14 @@ var es_default = {
   backend: "Servicio de IA",
   blinkAnswer: "Respuesta",
   blocklist: "Sitios que ignorar (un nombre de host por l\xEDnea)",
-  bridgeHelp: "Ejecuta /glimpselet:glimpse en Claude Code para conectar.",
-  bridgeLost: "Se perdi\xF3 el puente. Reconecta en Ajustes.",
+  bridgeLost: "Se perdi\xF3 la conexi\xF3n. Ejecuta /glimpse en Claude Code para reconectar.",
   bridgeMode: "Claude Code",
-  bridgeUrl: "URL de conexi\xF3n",
   captureCancelled: "Selecci\xF3n cancelada.",
   capturePreview: "Vista previa de la pantalla compartida",
   captureReady: "Listo. Las capturas est\xE1n disponibles de inmediato.",
   close: "Cerrar panel",
   compact: "Minimizar",
-  connected: "Compartiendo",
+  connected: "Conectado a tu Claude Code",
   consent1: "El texto de la p\xE1gina y las etiquetas de los elementos se env\xEDan autom\xE1ticamente al proveedor seleccionado para sugerir preguntas.",
   consent2: "Las im\xE1genes se env\xEDan cuando haces una pregunta o usas una herramienta de la p\xE1gina. El modo pasivo env\xEDa capturas y res\xFAmenes autom\xE1ticamente cuando est\xE1 activado.",
   consent3: "Los fotogramas permanecen en la memoria. Las claves API y los tokens de emparejamiento permanecen en el almacenamiento de sesi\xF3n del navegador.",
@@ -18975,7 +18918,6 @@ var es_default = {
   copyError: "No se pudo copiar. Comprueba el permiso del portapapeles.",
   costEstimate: "Estimaci\xF3n API, \xFAltima hora",
   dedicatedThread: "Conversaci\xF3n independiente",
-  directMode: "Conexi\xF3n directa",
   disconnected: "Sin conexi\xF3n",
   effort: "Nivel de razonamiento",
   element: "Seleccionar elemento",
@@ -18998,11 +18940,7 @@ var es_default = {
   openPdf: "Abrir lector de PDF",
   pageNote: "Explicar autom\xE1ticamente",
   pageSummary: "Resumir esta p\xE1gina.",
-  pair: "Conectar",
-  pairCode: "C\xF3digo de vinculaci\xF3n",
-  pairHint: "Conecta Claude Code en Ajustes.",
-  pairPlaceholder: "Introduce el c\xF3digo",
-  paired: "Conectado",
+  pairHint: "Ejecuta /glimpse en Claude Code para conectar.",
   partialFailureRestore: "Traducci\xF3n detenida. Se restaur\xF3 el texto original tras los cambios parciales.",
   passive: "Explicar autom\xE1ticamente",
   passivePrompt: "Describe brevemente el cambio relevante en esta pantalla.",
@@ -19016,7 +18954,7 @@ var es_default = {
   question: "\xBFQu\xE9 quieres saber?",
   questionLimit: "Escribe una pregunta m\xE1s corta.",
   readerReady: "Glimpselet recibi\xF3 la solicitud del PDF.",
-  ready: "Puedes preguntar sobre esta p\xE1gina o una captura.",
+  ready: "Conectado a tu Claude Code",
   region: "Elegir \xE1rea",
   remove: "Quitar",
   restore: "Restaurar texto original",
@@ -19025,8 +18963,6 @@ var es_default = {
   screen: "Compartir pantalla",
   selectionReady: "Selecci\xF3n recibida.",
   send: "Preguntar",
-  sessionFork: "Una sesi\xF3n nueva inicia una conversaci\xF3n de Glimpselet independiente. Una sesi\xF3n reciente contin\xFAa en paralelo. Cierra primero esa sesi\xF3n en la terminal.",
-  sessionSelected: "Sesi\xF3n abierta.",
   sessions: "Conversaciones",
   settings: "Ajustes",
   shareEnded: "Se dej\xF3 de compartir la pantalla.",
@@ -19044,7 +18980,6 @@ var es_default = {
   translatePage: "Traducir la p\xE1gina",
   translatePrompt: "Traduce el texto visible al {language}.",
   translationApplied: "Traducci\xF3n aplicada.",
-  tunnelMode: "Conexi\xF3n por t\xFAnel",
   unpin: "Desfijar",
   unsupportedPage: "No se puede capturar esta p\xE1gina.",
   untitled: "Notas de captura",
@@ -19059,9 +18994,6 @@ var es_default = {
   crop_fullscreen_denied: "No se pudo abrir la vista de recorte a pantalla completa. Pulsa Recortar en la ventana flotante e int\xE9ntalo de nuevo.",
   share_ended: "Se termin\xF3 la pantalla compartida. Vuelve a compartir desde la ventana flotante.",
   liveSession: "Sesi\xF3n activa de Claude Code",
-  liveSessionHint: "Env\xEDa mensajes a la sesi\xF3n en curso y muestra aqu\xED sus respuestas. El modelo y los permisos los controla la sesi\xF3n en la terminal.",
-  parallelSession: "Continuar la sesi\xF3n en paralelo",
-  replayTour: "Repetir el recorrido",
   globalCropShortcut: "Atajo global para recortar: Ctrl+Shift+7 (Cmd+Shift+7 en Mac). Puedes cambiarlo en chrome://extensions/shortcuts.",
   screenChangeSummary: "La pantalla compartida cambi\xF3. Aqu\xED tienes un breve resumen.",
   capturePermission: "Permite el acceso a todos los sitios una vez para capturar p\xE1ginas y seleccionar \xE1reas. Chrome pedir\xE1 permiso.",
@@ -19094,9 +19026,6 @@ var es_default = {
   effortLow: "Bajo",
   effortMedium: "Medio",
   effortHigh: "Alto",
-  connectionLive: "Claude Code en directo",
-  connectionDedicated: "Conversaci\xF3n de Glimpselet",
-  connectionContinued: "Conversaci\xF3n retomada",
   cliUsageEstimate: "Uso API equivalente, \xFAltima hora",
   cliUsageHint: "Estimaci\xF3n del uso de Claude Code en la \xFAltima hora convertido a coste API. Glimpselet no cobra ning\xFAn cargo adicional por ello.",
   apiUsageHint: "Estimaci\xF3n basada en el uso directo de la API en la \xFAltima hora. La factura final del proveedor puede ser diferente.",
@@ -19138,16 +19067,14 @@ var fr_default = {
   backend: "Service d'IA",
   blinkAnswer: "R\xE9ponse",
   blocklist: "Sites \xE0 ignorer (un nom d'h\xF4te par ligne)",
-  bridgeHelp: "Lancez /glimpselet:glimpse dans Claude Code pour vous connecter.",
-  bridgeLost: "Connexion au pont perdue. Reconnectez-vous dans les param\xE8tres.",
+  bridgeLost: "Connexion perdue. Ex\xE9cutez /glimpse dans Claude Code pour vous reconnecter.",
   bridgeMode: "Claude Code",
-  bridgeUrl: "URL de connexion",
   captureCancelled: "S\xE9lection annul\xE9e.",
   capturePreview: "Aper\xE7u de l'\xE9cran partag\xE9",
   captureReady: "Pr\xEAt. Les captures sont disponibles imm\xE9diatement.",
   close: "Fermer le panneau",
   compact: "R\xE9duire",
-  connected: "Partage actif",
+  connected: "Connect\xE9 \xE0 votre Claude Code",
   consent1: "Le texte de la page et les libell\xE9s des \xE9l\xE9ments sont envoy\xE9s automatiquement au fournisseur choisi pour sugg\xE9rer des questions.",
   consent2: "Les images sont envoy\xE9es lorsque vous posez une question ou utilisez un outil de la page. Le mode passif envoie automatiquement des captures et des r\xE9sum\xE9s lorsqu'il est activ\xE9.",
   consent3: "Les images restent en m\xE9moire. Les cl\xE9s API et les jetons d'association restent dans le stockage de session du navigateur.",
@@ -19160,7 +19087,6 @@ var fr_default = {
   copyError: "Copie impossible. V\xE9rifiez l'acc\xE8s au presse-papiers.",
   costEstimate: "Co\xFBt API estim\xE9, derni\xE8re heure",
   dedicatedThread: "Conversation d\xE9di\xE9e",
-  directMode: "Connexion directe",
   disconnected: "Non connect\xE9",
   effort: "Niveau de raisonnement",
   element: "S\xE9lectionner un \xE9l\xE9ment",
@@ -19183,11 +19109,7 @@ var fr_default = {
   openPdf: "Ouvrir le lecteur PDF",
   pageNote: "Explication automatique",
   pageSummary: "R\xE9sumer cette page.",
-  pair: "Connecter",
-  pairCode: "Code d'association",
-  pairHint: "Connectez Claude Code dans les param\xE8tres.",
-  pairPlaceholder: "Saisir le code",
-  paired: "Connect\xE9",
+  pairHint: "Lancez /glimpse dans Claude Code pour vous connecter.",
   partialFailureRestore: "Traduction arr\xEAt\xE9e. Le texte d'origine a \xE9t\xE9 restaur\xE9 apr\xE8s les modifications partielles.",
   passive: "Explication automatique",
   passivePrompt: "D\xE9crivez bri\xE8vement le changement important \xE0 l'\xE9cran.",
@@ -19201,7 +19123,7 @@ var fr_default = {
   question: "Que voulez-vous savoir ?",
   questionLimit: "Saisissez une question plus courte.",
   readerReady: "Glimpselet a re\xE7u la demande PDF.",
-  ready: "Vous pouvez poser une question sur cette page ou une capture.",
+  ready: "Connect\xE9 \xE0 votre Claude Code",
   region: "Choisir une zone",
   remove: "Retirer",
   restore: "Restaurer le texte original",
@@ -19210,8 +19132,6 @@ var fr_default = {
   screen: "Partager un \xE9cran",
   selectionReady: "S\xE9lection re\xE7ue.",
   send: "Demander",
-  sessionFork: "Une nouvelle session d\xE9marre une conversation Glimpselet distincte. Une session r\xE9cente se poursuit en parall\xE8le. Fermez cette session dans le terminal avant de continuer.",
-  sessionSelected: "Session ouverte.",
   sessions: "Conversations",
   settings: "Param\xE8tres",
   shareEnded: "Le partage d'\xE9cran est termin\xE9.",
@@ -19229,7 +19149,6 @@ var fr_default = {
   translatePage: "Traduire la page",
   translatePrompt: "Traduisez le texte visible en {language}.",
   translationApplied: "Traduction appliqu\xE9e.",
-  tunnelMode: "Connexion par tunnel",
   unpin: "D\xE9s\xE9pingler",
   unsupportedPage: "Cette page ne peut pas \xEAtre captur\xE9e.",
   untitled: "Notes de capture",
@@ -19244,9 +19163,6 @@ var fr_default = {
   crop_fullscreen_denied: "Impossible d'ouvrir le recadrage en plein \xE9cran. Cliquez sur Recadrer dans la fen\xEAtre flottante, puis r\xE9essayez.",
   share_ended: "Le partage d'\xE9cran est termin\xE9. Relancez-le depuis la fen\xEAtre flottante.",
   liveSession: "Session Claude Code en direct",
-  liveSessionHint: "Envoyez des messages \xE0 la session en cours et voyez ses r\xE9ponses ici. Le mod\xE8le et les autorisations restent contr\xF4l\xE9s par la session du terminal.",
-  parallelSession: "Continuer la session en parall\xE8le",
-  replayTour: "Revoir la visite guid\xE9e",
   globalCropShortcut: "Raccourci global de recadrage : Ctrl+Maj+7 (Cmd+Maj+7 sur Mac). Modifiez-le dans chrome://extensions/shortcuts.",
   screenChangeSummary: "L'\xE9cran partag\xE9 a chang\xE9. Voici un bref r\xE9sum\xE9.",
   capturePermission: "Autorisez une fois l\u2019acc\xE8s \xE0 tous les sites pour capturer des pages et s\xE9lectionner une zone. Chrome demandera votre permission.",
@@ -19279,9 +19195,6 @@ var fr_default = {
   effortLow: "Faible",
   effortMedium: "Moyen",
   effortHigh: "\xC9lev\xE9",
-  connectionLive: "Claude Code en direct",
-  connectionDedicated: "Conversation Glimpselet",
-  connectionContinued: "Conversation reprise",
   cliUsageEstimate: "Utilisation API \xE9quivalente, derni\xE8re heure",
   cliUsageHint: "Estimation de l\u2019utilisation de Claude Code durant la derni\xE8re heure, convertie en co\xFBt API. Glimpselet ne facture aucuns frais suppl\xE9mentaires pour cela.",
   apiUsageHint: "Estimation bas\xE9e sur l\u2019utilisation directe de l\u2019API durant la derni\xE8re heure. La facture finale du fournisseur peut \xEAtre diff\xE9rente.",
@@ -19323,16 +19236,14 @@ var de_default = {
   backend: "KI-Dienst",
   blinkAnswer: "Antwort",
   blocklist: "Zu ignorierende Websites (ein Hostname pro Zeile)",
-  bridgeHelp: "F\xFChre /glimpselet:glimpse in Claude Code aus, um die Verbindung herzustellen.",
-  bridgeLost: "Bridge-Verbindung getrennt. In den Einstellungen erneut verbinden.",
+  bridgeLost: "Verbindung getrennt. F\xFChre /glimpse in Claude Code aus, um dich erneut zu verbinden.",
   bridgeMode: "Claude Code",
-  bridgeUrl: "Verbindungs-URL",
   captureCancelled: "Auswahl abgebrochen.",
   capturePreview: "Vorschau des freigegebenen Bildschirms",
   captureReady: "Bereit. Aufnahmen sind sofort verf\xFCgbar.",
   close: "Panel schlie\xDFen",
   compact: "Minimieren",
-  connected: "Freigabe aktiv",
+  connected: "Mit deinem Claude Code verbunden",
   consent1: "Seitentext und Elementbeschriftungen werden automatisch an den ausgew\xE4hlten Anbieter gesendet, damit passende Fragen vorgeschlagen werden k\xF6nnen.",
   consent2: "Bilder werden gesendet, wenn du eine Frage stellst oder ein Seitentool verwendest. Im passiven Modus werden Aufnahmen und Zusammenfassungen automatisch gesendet, wenn er aktiviert ist.",
   consent3: "Einzelbilder bleiben im Arbeitsspeicher. API-Schl\xFCssel und Kopplungstokens bleiben im Browser-Sitzungsspeicher.",
@@ -19345,7 +19256,6 @@ var de_default = {
   copyError: "Kopieren nicht m\xF6glich. Zwischenablage pr\xFCfen.",
   costEstimate: "API-Sch\xE4tzung, letzte Stunde",
   dedicatedThread: "Eigene Unterhaltung",
-  directMode: "Direktverbindung",
   disconnected: "Nicht verbunden",
   effort: "Denkaufwand",
   element: "Element ausw\xE4hlen",
@@ -19368,11 +19278,7 @@ var de_default = {
   openPdf: "PDF-Reader \xF6ffnen",
   pageNote: "Automatisch erkl\xE4ren",
   pageSummary: "Diese Seite zusammenfassen.",
-  pair: "Verbinden",
-  pairCode: "Kopplungscode",
-  pairHint: "Verbinde Claude Code in den Einstellungen.",
-  pairPlaceholder: "Code eingeben",
-  paired: "Verbunden",
+  pairHint: "Zum Verbinden /glimpse in Claude Code ausf\xFChren.",
   partialFailureRestore: "\xDCbersetzung gestoppt. Der Originaltext wurde nach den Teil\xE4nderungen wiederhergestellt.",
   passive: "Automatisch erkl\xE4ren",
   passivePrompt: "Beschreibe kurz die relevante \xC4nderung auf diesem Bildschirm.",
@@ -19386,7 +19292,7 @@ var de_default = {
   question: "Was m\xF6chtest du wissen?",
   questionLimit: "K\xFCrzere Frage eingeben.",
   readerReady: "Glimpselet hat die PDF-Anfrage erhalten.",
-  ready: "Du kannst zu dieser Seite oder einer Aufnahme fragen.",
+  ready: "Mit deinem Claude Code verbunden",
   region: "Bereich w\xE4hlen",
   remove: "Entfernen",
   restore: "Originaltext wiederherstellen",
@@ -19395,8 +19301,6 @@ var de_default = {
   screen: "Bildschirm freigeben",
   selectionReady: "Auswahl empfangen.",
   send: "Fragen",
-  sessionFork: "Eine neue Sitzung startet ein eigenes Glimpselet Gespr\xE4ch. Eine k\xFCrzlich verwendete Sitzung wird parallel fortgesetzt. Schlie\xDFe diese Sitzung zuerst im Terminal.",
-  sessionSelected: "Sitzung ge\xF6ffnet.",
   sessions: "Unterhaltungen",
   settings: "Einstellungen",
   shareEnded: "Bildschirmfreigabe beendet.",
@@ -19414,7 +19318,6 @@ var de_default = {
   translatePage: "Seite \xFCbersetzen",
   translatePrompt: "\xDCbersetze den sichtbaren Text ins {language}.",
   translationApplied: "\xDCbersetzung angewendet.",
-  tunnelMode: "Tunnelverbindung",
   unpin: "Losl\xF6sen",
   unsupportedPage: "Diese Seite kann nicht erfasst werden.",
   untitled: "Aufnahmenotizen",
@@ -19429,9 +19332,6 @@ var de_default = {
   crop_fullscreen_denied: 'Die Vollbildansicht zum Zuschneiden lie\xDF sich nicht \xF6ffnen. Klicke im schwebenden Fenster auf "Zuschneiden" und versuche es erneut.',
   share_ended: "Die Bildschirmfreigabe wurde beendet. Starte sie im schwebenden Fenster erneut.",
   liveSession: "Aktive Claude-Code-Sitzung",
-  liveSessionHint: "Nachrichten gehen an die laufende Sitzung. Antworten erscheinen hier. Modell und Berechtigungen werden weiterhin im Terminal festgelegt.",
-  parallelSession: "Sitzung parallel fortsetzen",
-  replayTour: "Einf\xFChrung erneut ansehen",
   globalCropShortcut: "Globaler Zuschnitt: Strg+Umschalt+7 (Cmd+Umschalt+7 auf dem Mac). \xC4ndere ihn unter chrome://extensions/shortcuts.",
   screenChangeSummary: "Der freigegebene Bildschirm hat sich ge\xE4ndert. Hier ist eine kurze Zusammenfassung.",
   capturePermission: "Erlaube einmal den Zugriff auf alle Websites, um Seiten aufzunehmen und Bereiche auszuw\xE4hlen. Chrome fragt nach deiner Zustimmung.",
@@ -19464,9 +19364,6 @@ var de_default = {
   effortLow: "Niedrig",
   effortMedium: "Mittel",
   effortHigh: "Hoch",
-  connectionLive: "Claude Code live",
-  connectionDedicated: "Glimpselet-Unterhaltung",
-  connectionContinued: "Fortgesetzte Unterhaltung",
   cliUsageEstimate: "API-Gegenwert, letzte Stunde",
   cliUsageHint: "Gesch\xE4tzter API-Gegenwert der Claude-Code-Nutzung in der letzten Stunde. Glimpselet berechnet daf\xFCr keine zus\xE4tzlichen Geb\xFChren.",
   apiUsageHint: "Sch\xE4tzung anhand der direkten API-Nutzung in der letzten Stunde. Die endg\xFCltige Rechnung des Anbieters kann abweichen.",
@@ -19508,16 +19405,14 @@ var pt_BR_default = {
   backend: "Servi\xE7o de IA",
   blinkAnswer: "Resposta",
   blocklist: "Sites a ignorar (um nome de host por linha)",
-  bridgeHelp: "Execute /glimpselet:glimpse no Claude Code para conectar.",
-  bridgeLost: "A conex\xE3o com a ponte caiu. Reconecte nas configura\xE7\xF5es.",
+  bridgeLost: "Conex\xE3o perdida. Execute /glimpse no Claude Code para reconectar.",
   bridgeMode: "Claude Code",
-  bridgeUrl: "URL de conex\xE3o",
   captureCancelled: "Sele\xE7\xE3o cancelada.",
   capturePreview: "Pr\xE9via da tela compartilhada",
   captureReady: "Pronto. As capturas ficam dispon\xEDveis imediatamente.",
   close: "Fechar painel",
   compact: "Minimizar",
-  connected: "Compartilhando",
+  connected: "Conectado ao seu Claude Code",
   consent1: "O texto da p\xE1gina e os r\xF3tulos dos elementos s\xE3o enviados automaticamente ao provedor selecionado para sugerir perguntas.",
   consent2: "As imagens s\xE3o enviadas quando voc\xEA faz uma pergunta ou usa uma ferramenta da p\xE1gina. O modo passivo envia capturas e resumos automaticamente quando est\xE1 ativado.",
   consent3: "Os quadros ficam na mem\xF3ria. As chaves de API e os tokens de pareamento ficam no armazenamento de sess\xE3o do navegador.",
@@ -19530,7 +19425,6 @@ var pt_BR_default = {
   copyError: "N\xE3o foi poss\xEDvel copiar. Verifique a permiss\xE3o da \xE1rea de transfer\xEAncia.",
   costEstimate: "Estimativa API, \xFAltima hora",
   dedicatedThread: "Conversa dedicada",
-  directMode: "Conex\xE3o direta",
   disconnected: "Desconectado",
   effort: "N\xEDvel de racioc\xEDnio",
   element: "Selecionar elemento",
@@ -19553,11 +19447,7 @@ var pt_BR_default = {
   openPdf: "Abrir leitor de PDF",
   pageNote: "Explica\xE7\xE3o autom\xE1tica",
   pageSummary: "Resumir esta p\xE1gina.",
-  pair: "Conectar",
-  pairCode: "C\xF3digo de pareamento",
-  pairHint: "Conecte o Claude Code nas configura\xE7\xF5es.",
-  pairPlaceholder: "Digite o c\xF3digo",
-  paired: "Conectado",
+  pairHint: "Execute /glimpse no Claude Code para conectar.",
   partialFailureRestore: "Tradu\xE7\xE3o interrompida. O texto original foi restaurado ap\xF3s as altera\xE7\xF5es parciais.",
   passive: "Explica\xE7\xE3o autom\xE1tica",
   passivePrompt: "Descreva brevemente a mudan\xE7a relevante nesta tela.",
@@ -19571,7 +19461,7 @@ var pt_BR_default = {
   question: "O que voc\xEA quer saber?",
   questionLimit: "Digite uma pergunta mais curta.",
   readerReady: "O Glimpselet recebeu a solicita\xE7\xE3o do PDF.",
-  ready: "Voc\xEA pode perguntar sobre esta p\xE1gina ou uma captura.",
+  ready: "Conectado ao seu Claude Code",
   region: "Escolher \xE1rea",
   remove: "Remover",
   restore: "Restaurar texto original",
@@ -19580,8 +19470,6 @@ var pt_BR_default = {
   screen: "Compartilhar tela",
   selectionReady: "Sele\xE7\xE3o recebida.",
   send: "Perguntar",
-  sessionFork: "Uma nova sess\xE3o inicia uma conversa separada no Glimpselet. Uma sess\xE3o recente continua em paralelo. Feche primeiro essa sess\xE3o no terminal.",
-  sessionSelected: "Sess\xE3o aberta.",
   sessions: "Conversas",
   settings: "Configura\xE7\xF5es",
   shareEnded: "O compartilhamento de tela terminou.",
@@ -19599,7 +19487,6 @@ var pt_BR_default = {
   translatePage: "Traduzir p\xE1gina",
   translatePrompt: "Traduza o texto vis\xEDvel para {language}.",
   translationApplied: "Tradu\xE7\xE3o aplicada.",
-  tunnelMode: "Conex\xE3o por t\xFAnel",
   unpin: "Desafixar",
   unsupportedPage: "Esta p\xE1gina n\xE3o pode ser capturada.",
   untitled: "Notas de captura",
@@ -19614,9 +19501,6 @@ var pt_BR_default = {
   crop_fullscreen_denied: "N\xE3o foi poss\xEDvel abrir a visualiza\xE7\xE3o de recorte em tela cheia. Clique em Recortar na janela flutuante e tente novamente.",
   share_ended: "O compartilhamento de tela terminou. Inicie novamente pela janela flutuante.",
   liveSession: "Sess\xE3o ativa do Claude Code",
-  liveSessionHint: "As mensagens v\xE3o para a sess\xE3o em execu\xE7\xE3o e as respostas aparecem aqui. O modelo e as permiss\xF5es continuam sob controle da sess\xE3o no terminal.",
-  parallelSession: "Continuar a sess\xE3o em paralelo",
-  replayTour: "Rever o passo a passo",
   globalCropShortcut: "Atalho global de recorte: Ctrl+Shift+7 (Cmd+Shift+7 no Mac). Altere em chrome://extensions/shortcuts.",
   screenChangeSummary: "A tela compartilhada mudou. Veja um breve resumo.",
   capturePermission: "Permita o acesso a todos os sites uma vez para capturar p\xE1ginas e selecionar \xE1reas. O Chrome pedir\xE1 permiss\xE3o.",
@@ -19649,9 +19533,6 @@ var pt_BR_default = {
   effortLow: "Baixo",
   effortMedium: "M\xE9dio",
   effortHigh: "Alto",
-  connectionLive: "Claude Code ao vivo",
-  connectionDedicated: "Conversa do Glimpselet",
-  connectionContinued: "Conversa retomada",
   cliUsageEstimate: "Uso API equivalente, \xFAltima hora",
   cliUsageHint: "Estimativa do uso do Claude Code na \xFAltima hora convertido em custo de API. O Glimpselet n\xE3o faz nenhuma cobran\xE7a adicional por isso.",
   apiUsageHint: "Estimativa baseada no uso direto da API na \xFAltima hora. A fatura final do provedor pode ser diferente.",
@@ -19805,8 +19686,6 @@ function App() {
   );
   const [contextFailure, setContextFailure] = (0, import_react.useState)("");
   const [connected, setConnected] = (0, import_react.useState)(false);
-  const [mode, setMode] = (0, import_react.useState)("direct");
-  const [pairCode, setPairCode] = (0, import_react.useState)("");
   const [readerSourceUrl, setReaderSourceUrl] = (0, import_react.useState)();
   const [apiKey, setApiKey] = (0, import_react.useState)("");
   const [backend, setBackend] = (0, import_react.useState)("bridge");
@@ -19895,7 +19774,6 @@ function App() {
   const [sessionId, setSessionId] = (0, import_react.useState)("");
   const [liveAvailable, setLiveAvailable] = (0, import_react.useState)(false);
   const [liveSession, setLiveSession] = (0, import_react.useState)(false);
-  const [continuedSessionId, setContinuedSessionId] = (0, import_react.useState)("");
   const [showSettings, setShowSettings] = (0, import_react.useState)(false);
   const [showTools, setShowTools] = (0, import_react.useState)(false);
   const [showSessions, setShowSessions] = (0, import_react.useState)(false);
@@ -19921,9 +19799,6 @@ function App() {
   const cropBusy = (0, import_react.useRef)(false);
   const [cropPending, setCropPending] = (0, import_react.useState)(false);
   const [shareStream, setShareStream] = (0, import_react.useState)(null);
-  const [connectionUrl, setConnectionUrl] = (0, import_react.useState)(
-    "ws://127.0.0.1:37115/extension"
-  );
   const [blocklist, setBlocklist] = (0, import_react.useState)("");
   const requestRef = (0, import_react.useRef)(null);
   const apiRequestRef = (0, import_react.useRef)(null);
@@ -19986,9 +19861,9 @@ function App() {
       const params = new URLSearchParams(location.search);
       const welcomeLocale = params.get("welcomeLocale");
       const hasSavedLocale = supportedLocales.includes(stored.locale);
-      const lang = hasSavedLocale ? stored.locale : welcomeLocale === "en" || welcomeLocale === "zh-TW" ? welcomeLocale : "en";
+      const lang = hasSavedLocale ? stored.locale : isWelcomeLocale(welcomeLocale) ? welcomeLocale : "en";
       setLocale(lang);
-      if (!hasSavedLocale && (welcomeLocale === "en" || welcomeLocale === "zh-TW"))
+      if (!hasSavedLocale && isWelcomeLocale(welcomeLocale))
         await chrome.storage.local.set({ locale: lang });
       setTargetLocale(
         supportedLocales.includes(stored.targetLocale) ? stored.targetLocale : lang
@@ -20029,14 +19904,11 @@ function App() {
       const code = params.get("pairCode") || "";
       if (Number.isInteger(port) && port > 0 && port <= 65535 && /^[A-F0-9]{16}$/.test(code)) {
         const wsUrl = `ws://127.0.0.1:${port}/extension`;
-        setConnectionUrl(wsUrl);
-        setPairCode(code);
         window.setTimeout(() => {
           void bridge.pair(code, wsUrl).then(() => {
             setConnected(true);
             setSessionId(bridge.sessionId);
-            setMode(bridge.mode);
-            setStatus(messages[lang].paired);
+            setStatus(messages[lang].connected);
           }).catch(
             (error) => setStatus(errorLabel(error, messages[lang]))
           );
@@ -20045,7 +19917,6 @@ function App() {
       await bridge.load();
       setConnected(Boolean(bridge.token && bridge.sessionId));
       setSessionId(bridge.sessionId);
-      setMode(bridge.mode);
     })();
     const connectedHandler = () => setConnected(true);
     const disconnectedHandler = () => {
@@ -20054,7 +19925,6 @@ function App() {
     };
     const pairedHandler = () => {
       setConnected(true);
-      setMode(bridge.mode);
       setSessionId(bridge.sessionId);
       setLiveSession(bridge.live);
       setLiveAvailable(bridge.liveAvailable);
@@ -20065,10 +19935,16 @@ function App() {
     bridge.addEventListener("connected", connectedHandler);
     bridge.addEventListener("disconnected", disconnectedHandler);
     bridge.addEventListener("paired", pairedHandler);
+    const refreshConnection = (message) => {
+      if (message.type === "glimpselet:connection-updated")
+        void bridge.load(true).catch(() => setConnected(false));
+    };
+    chrome.runtime.onMessage.addListener(refreshConnection);
     return () => {
       bridge.removeEventListener("connected", connectedHandler);
       bridge.removeEventListener("disconnected", disconnectedHandler);
       bridge.removeEventListener("paired", pairedHandler);
+      chrome.runtime.onMessage.removeListener(refreshConnection);
       bridge.close();
     };
   }, []);
@@ -20569,6 +20445,9 @@ ${t.selectedPassage}: ${selected}` : ""}`;
       const message = event.detail;
       if (message?.type === "channel-status") {
         setLiveAvailable(Boolean(message.liveAvailable));
+        setLiveSession(Boolean(message.live));
+        if (typeof message.sessionId === "string")
+          setSessionId(message.sessionId);
         return;
       }
       if (message?.type !== "capture" || !message.id) return;
@@ -21053,21 +20932,6 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     })();
     return blocklist.split(/[\n,]/).map((v2) => v2.trim().toLowerCase()).filter(Boolean).some((item) => host === item || host.endsWith(`.${item}`));
   }
-  async function pair() {
-    try {
-      const code = pairCode.trim();
-      if (!/^[A-F0-9]{16}$/.test(code)) throw new Error("invalid_pair_code");
-      await bridge.pair(code, connectionUrl);
-      setConnected(true);
-      setSessionId(bridge.sessionId);
-      setMode(bridge.mode);
-      setStatus(t.paired);
-      setPairCode("");
-      schedulePageRefresh();
-    } catch (error) {
-      reportError2(error);
-    }
-  }
   async function persistApiKey(value) {
     setApiKey(value);
     await chrome.storage.session.set({ apiKey: value });
@@ -21370,14 +21234,6 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     } catch (error) {
       reportError2(error);
     }
-  }
-  async function replayTour() {
-    const url = backend === "bridge" ? new URL(
-      `/install?locale=${locale}#tour`,
-      connectionUrl.replace(/^ws/, "http")
-    ).toString() : chrome.runtime.getURL("assets/glimpselet-welcome-sample.html");
-    await chrome.tabs.create({ url });
-    setShowSettings(false);
   }
   async function guidePage() {
     try {
@@ -21816,14 +21672,9 @@ ${step.action}` : ""}`
       const response = await bridge.request("session", id);
       setSessionId(String(response.sessionId || ""));
       setLiveSession(Boolean(response.live));
-      setContinuedSessionId(
-        id && id !== "live" ? String(response.sessionId || "") : ""
-      );
       setEntries([]);
       setShowSessions(false);
-      setStatus(
-        id === "live" ? t.sessionSelected : id ? t.parallelSession : t.newThread
-      );
+      setStatus(t.connected);
     } catch (error) {
       reportError2(error);
     }
@@ -22175,7 +22026,7 @@ ${step.action}` : ""}`
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, { mood: busy ? "think" : "idle" }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "brand-copy", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Glimpselet" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `connection ${connected ? "online" : "offline"}`, children: backend === "api" ? t.apiMode : connected ? `${mode === "tunnel" ? t.tunnelMode : t.directMode} \xB7 ${bridge.project.split(/[\\/]/).filter(Boolean).at(-1) || t.connected}` : t.disconnected })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `connection ${connected ? "online" : "offline"}`, children: backend === "api" ? t.apiMode : connected ? t.connected : t.disconnected })
             ] })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "top-actions", children: [
@@ -22664,35 +22515,7 @@ ${step.action}` : ""}`
                       }
                     )
                   ] }),
-                  backend === "bridge" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: !connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "field", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [
-                      t.bridgeUrl,
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                        "input",
-                        {
-                          value: connectionUrl,
-                          onChange: (e) => setConnectionUrl(e.target.value),
-                          spellCheck: false
-                        }
-                      )
-                    ] }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "field", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [
-                        t.pairCode,
-                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                          "input",
-                          {
-                            value: pairCode,
-                            onChange: (e) => setPairCode(e.target.value),
-                            autoComplete: "one-time-code",
-                            placeholder: t.pairPlaceholder
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "primary", onClick: () => void pair(), children: t.pair })
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.bridgeHelp })
-                  ] }) }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "field", children: [
+                  backend === "bridge" ? !connected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.pairHint }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "field", children: [
                     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [
                       t.apiKey,
                       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -22835,8 +22658,7 @@ ${step.action}` : ""}`
                     }
                   ),
                   /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "usage-hint", children: backend === "api" ? t.apiUsageHint : t.cliUsageHint }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "privacy", children: t.privacy }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "outline", onClick: () => void replayTour(), children: t.replayTour })
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "privacy", children: t.privacy })
                 ]
               }
             )
@@ -22870,16 +22692,12 @@ ${step.action}` : ""}`
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.sessionFork }),
-                  liveAvailable && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  liveAvailable && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                     "button",
                     {
                       className: "session-row",
                       onClick: () => void selectSession("live"),
-                      children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.liveSession }),
-                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t.liveSessionHint })
-                      ]
+                      children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.liveSession })
                     }
                   ),
                   /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
@@ -22909,8 +22727,7 @@ ${step.action}` : ""}`
               }
             )
           }
-        ),
-        expanded && backend === "bridge" && sessionId && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("footer", { className: "foot", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: liveSession || sessionId === "live" ? t.connectionLive : sessionId === continuedSessionId ? t.connectionContinued : t.connectionDedicated }) })
+        )
       ]
     }
   );

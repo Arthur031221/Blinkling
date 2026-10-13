@@ -58,6 +58,54 @@ describe("paired browser bridge", () => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
+  it("adopts background credentials and retires the old connection without losing ownership", async () => {
+    const old = Socket.instances[0];
+    old.open();
+    old.receive({ type: "paired", sessionId: "old-session" });
+    const pending = client.ask(question, () => {});
+    const rejected = expect(pending).rejects.toThrow("bridge_disconnected");
+    vi.mocked(chrome.storage.session.get).mockResolvedValue({
+      bridgeToken: "new-token",
+      bridgeUrl: "ws://127.0.0.1:45000/extension",
+    });
+    await client.load(true);
+    await rejected;
+    const replacement = Socket.instances[1];
+    replacement.open();
+    expect(replacement.url).toBe("ws://127.0.0.1:45000/extension");
+    expect(replacement.sent[0]).toEqual({ type: "pair", token: "new-token" });
+    old.receive({ type: "paired", sessionId: "retired-session" });
+    expect(client.sessionId).toBe("");
+    replacement.receive({ type: "paired", sessionId: "new-session" });
+    expect(client.sessionId).toBe("new-session");
+    await client.load(true);
+    expect(Socket.instances).toHaveLength(2);
+  });
+
+  it("tracks automatic channel changes while keeping one authenticated connection", () => {
+    const socket = Socket.instances[0];
+    socket.open();
+    socket.receive({ type: "paired", sessionId: "fallback-session" });
+    socket.receive({
+      type: "channel-status",
+      liveAvailable: true,
+      live: true,
+      sessionId: "live",
+    });
+    expect(client.live).toBe(true);
+    expect(client.liveAvailable).toBe(true);
+    expect(client.sessionId).toBe("live");
+    socket.receive({
+      type: "channel-status",
+      liveAvailable: false,
+      live: false,
+      sessionId: "fallback-session",
+    });
+    expect(client.live).toBe(false);
+    expect(client.sessionId).toBe("fallback-session");
+    expect(Socket.instances).toHaveLength(1);
+  });
+
   it("preserves a bridge error code and readable message for localized recovery", async () => {
     const socket = Socket.instances[0];
     socket.open();

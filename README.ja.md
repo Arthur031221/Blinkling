@@ -10,7 +10,7 @@
 
 必要なもの：新しいバージョンの Claude Code、自分のサブスクリプションアカウントでのログイン、Chrome や Edge などのデスクトップ Chromium ブラウザー。
 
-Glimpselet は専用の会話を開始します。最近の Claude Code セッションを選ぶと、別のプロセスで続行できます。ターミナルで開いている対話セッションに送るには、channel プレビューを有効にしてください。[Channel の設定](docs/DESIGN.md#the-running-claude-code-conversation)。
+Glimpselet は利用可能な Claude Code のライブセッションに接続します。それ以外は現在のプロジェクトの最新の会話を自動で続行し、保存済みの会話がなければ新しく作成します。[セッションの設定と制限](docs/DESIGN.md#the-running-claude-code-conversation)。
 
 ## インストール
 
@@ -23,7 +23,7 @@ Glimpselet は専用の会話を開始します。最近の Claude Code セッ�
 
 2. ターミナルの `claude plugin list` で Glimpselet が **2.0.0** であることを確認し、Claude Code で `/glimpselet:glimpse` を実行します。
 
-3. ウェルカムガイドに従ってブラウザーを接続します。ローカルのデスクトップでは **Try without installing** を選ぶか、自分のブラウザーに拡張機能を読み込んでペア設定します。Claude Code がリモートホストで動作している場合は、ガイドの SSH コマンドをブラウザーのあるコンピューターで実行し、そのコンピューターで ZIP をダウンロードして拡張機能を読み込みます。リモートホストではインストール不要のブラウザーは使えません。ペア設定が成功すると、Glimpselet パネルに接続モードとプロジェクトが表示されます。
+3. ようこそページの手順は3つです。拡張機能をインストールし、自動接続して、バブルを開きます。ローカルのデスクトップでは **インストールせずに試す** を選ぶか、自分のブラウザーに拡張機能を読み込んでください。Claude Code がリモートホストで動く場合は、ブラウザーのあるPCでターミナルに表示された SSH コマンドを実行し、ZIP をダウンロードして読み込みます。バブルには **あなたの Claude Code に接続済み** と表示されます。[接続の詳細](docs/INSTALL.md)をご覧ください。
 
 ### 詳細設定: ソースから読み込む
 
@@ -47,9 +47,9 @@ claude --plugin-dir "$PWD"
 
 プラグインの詳細には、`glimpse` と `install` のスキル、および `glimpselet` MCP サーバーも必要です。パッケージされた拡張機能は `bin/extension` にあり、そのバージョンも **2.0.0** であることを確認します。Claude Code がリモートで動く場合は、ガイドの SSH コマンドを使い、ブラウザーのある端末で拡張機能 ZIP をダウンロードして、展開したフォルダーを読み込んでください。
 
-ブラウザーと Claude Code が同じ端末で動いている場合、ウェルカムガイドがビルドした拡張機能を固定フォルダー `~/.glimpselet/extension` にコピーします。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
+ブラウザーと Claude Code が同じ端末で動いている場合、ウェルカムガイドがビルドした拡張機能を固定フォルダー `~/Glimpselet-extension` にコピーします。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
 
-展開済み拡張機能の更新では、古いバブルを閉じて `/glimpselet:glimpse` を再実行し、固定フォルダーを更新してから拡張機能のカードで再読み込みします。Claude Code がリモートの場合は、ガイドから新しい ZIP をダウンロードし、ブラウザー側の展開済みファイルを置き換えて再読み込みしてください。
+展開済み拡張機能の更新では、古いバブルを閉じて `/glimpselet:glimpse` を再実行し、固定フォルダーを更新してから拡張機能のカードで再読み込みします。Claude Code がリモートの場合は、ガイドから新しい ZIP をダウンロードし、ブラウザー側の展開済みファイルを置き換えて再読み込みしてください。 `~/Glimpselet-extension` に移す際は、古い拡張機能のカードを削除し、このフォルダーを一度読み込んでください。
 
 ## すでに Glimpselet を使っている場合
 
@@ -90,7 +90,7 @@ macOS では Cmd+Shift+5 でシステムのスクリーンショットツール�
 
 ## Claude Code セッション
 
-Channel プレビューのコマンドと設定は[Claude Code セッション](docs/DESIGN.md#the-running-claude-code-conversation)を参照してください。channel を使わない場合、選択したセッションを別プロセスで続行できます。これは並行続行です。同じセッションをターミナルでも同時に使用しないでください。競合する可能性があります。
+Channel プレビューのコマンドと設定は[Claude Code セッション](docs/DESIGN.md#the-running-claude-code-conversation)を参照してください。channel を使わない場合、現在のプロジェクトの最新セッションを別プロセスで自動的に続行します。これは並行続行です。同じセッションをターミナルでも同時に使用しないでください。競合する可能性があります。
 
 ## 制限とプライバシー
 

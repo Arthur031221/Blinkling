@@ -284,7 +284,7 @@ child.on('exit', code => process.exit(code ?? 1));
         text,
       )?.[0];
       if (!url) throw new Error(`No welcome URL: ${text}`);
-      const extension = join(directory, ".glimpselet/extension");
+      const extension = join(directory, "Glimpselet-extension");
       driver = await launchExtensionContext(join(directory, "driver"), {
         headless: false,
         viewport: null,
@@ -335,10 +335,10 @@ child.on('exit', code => process.exit(code ?? 1));
         expect(trialCode).toMatch(/^[A-F0-9]{16}$/);
         expect(trialCode).not.toBe(sourceCode);
       }
-      await expect(guide.locator("#connect")).toBeVisible();
+      await expect(guide.locator("#open-bubble")).toBeEnabled();
       const ownerOpened = context.waitForEvent("page");
       await guide
-        .getByRole("button", { name: "Pair extension", exact: true })
+        .getByRole("button", { name: "Open the bubble", exact: true })
         .click();
       const owner = await ownerOpened;
       const pipOpened = context.waitForEvent("page");

@@ -197,15 +197,6 @@ async function submitDraft(value: string, scope: ParentNode = document) {
   });
   await flush();
 }
-async function inputValue(input: HTMLInputElement, value: string) {
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )!.set!.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
 const sampleUrl = "http://127.0.0.1/assets/glimpselet-welcome-sample.html";
 async function practice(action: string, step: number) {
   await send({ type: "glimpselet:tutorial", action, step }, sampleUrl);
@@ -1743,53 +1734,31 @@ describe("bubble answer rendering and feedback", () => {
       "Keep this permission-recovery draft",
     );
   });
-  it("reports explicit manual pairing separately from token reconnect", async () => {
+  it("recovers connection through the welcome page without losing the draft", async () => {
     await start();
     await bridgeEvent("disconnected");
-    await draft("Keep this manual-pair draft");
+    await draft("Keep this reconnect draft");
     await clickAccessible(en.settings);
-    await inputValue(
-      document.querySelector<HTMLInputElement>(
-        `input[placeholder="${en.pairPlaceholder}"]`,
-      )!,
-      "ABCDEF0123456789",
-    );
-    await click(en.pair);
-    expect(mocks.pair).toHaveBeenCalledWith(
-      "ABCDEF0123456789",
-      "ws://127.0.0.1:37115/extension",
-    );
-    expect(status()).toBe(en.paired);
-    expect(document.querySelector("textarea")?.value).toBe(
-      "Keep this manual-pair draft",
-    );
-  });
-  it("keeps a failed manual pairing recoverable without discarding the draft", async () => {
-    await start();
-    await bridgeEvent("disconnected");
-    await draft("Keep this failed-pair draft");
-    await clickAccessible(en.settings);
-    await inputValue(
-      document.querySelector<HTMLInputElement>(
-        `input[placeholder="${en.pairPlaceholder}"]`,
-      )!,
-      "ABCDEF0123456789",
-    );
-    mocks.pair.mockRejectedValue(new Error("bridge_disconnected"));
-    await click(en.pair);
-    expect(status()).toBe(en.bridgeLost);
+    expect(document.body.textContent).toContain(en.pairHint);
+    expect(
+      document.querySelector('input[placeholder="ABCDEF0123456789"]'),
+    ).toBeNull();
+    await act(async () => {
+      runtime.emit({ type: "glimpselet:connection-updated" }, {}, () => {});
+    });
+    await bridgeEvent("paired");
     expect(document.querySelector(".connection")?.textContent).toBe(
-      en.disconnected,
+      en.connected,
     );
     expect(document.querySelector("textarea")?.value).toBe(
-      "Keep this failed-pair draft",
+      "Keep this reconnect draft",
     );
   });
   it("localizes Claude Code effort controls and hides raw conversation identity", async () => {
     stored.locale = "zh-TW";
     await start();
-    expect(document.querySelector(".foot")?.textContent).toBe(
-      "Glimpselet 對話",
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      zhTW.connected,
     );
     expect(document.body.textContent).not.toContain("test-session");
     await clickAccessible(zhTW.settings);
@@ -1805,8 +1774,8 @@ describe("bubble answer rendering and feedback", () => {
     mocks.bridge!.sessionId = "live";
     mocks.bridge!.live = true;
     await bridgeEvent("paired");
-    expect(document.querySelector(".foot")?.textContent).toBe(
-      "Claude Code 即時對話",
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      zhTW.connected,
     );
   });
   it("localizes every effort option without changing its submitted enum", async () => {
@@ -1831,7 +1800,7 @@ describe("bubble answer rendering and feedback", () => {
     await submitDraft("Explain this dashboard");
     expect(mocks.ask.mock.lastCall?.[0].effort).toBe("high");
   });
-  it("distinguishes continued, live and dedicated conversations without exposing raw identifiers", async () => {
+  it("keeps one connected label while honoring explicit conversation choices", async () => {
     stored.locale = "zh-TW";
     mocks.request.mockImplementation(async (type, id) => {
       if (type === "sessions")
@@ -1851,8 +1820,8 @@ describe("bubble answer rendering and feedback", () => {
       };
     });
     await start();
-    expect(document.querySelector(".foot")?.textContent).toBe(
-      zhTW.connectionDedicated,
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      zhTW.connected,
     );
     const choose = async (name: string) => {
       await clickAccessible(zhTW.sessions);
@@ -1864,27 +1833,27 @@ describe("bubble answer rendering and feedback", () => {
       await flush();
     };
     await choose("Research notes");
-    expect(document.querySelector(".foot")?.textContent).toBe(
-      zhTW.connectionContinued,
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      zhTW.connected,
     );
     expect(document.body.textContent).not.toContain("raw-continued-id");
     await submitDraft("Continue the research notes");
     expect(mocks.ask.mock.lastCall?.[0].sessionId).toBe("raw-continued-id");
     await choose(zhTW.liveSession);
-    expect(document.querySelector(".foot")?.textContent).toBe(
-      zhTW.connectionLive,
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      zhTW.connected,
     );
     await submitDraft("Send this into Claude Code");
     expect(mocks.ask.mock.lastCall?.[0].sessionId).toBe("live");
     await choose(zhTW.newThread);
-    expect(document.querySelector(".foot")?.textContent).toBe(
-      zhTW.connectionDedicated,
+    expect(document.querySelector(".connection")?.textContent).toBe(
+      zhTW.connected,
     );
     expect(document.body.textContent).not.toContain("raw-dedicated-id");
     await submitDraft("Start the dedicated conversation");
     expect(mocks.ask.mock.lastCall?.[0].sessionId).toBe("raw-dedicated-id");
   });
-  it.each(["same-token", "new-token", "manual"] as const)(
+  it.each(["same-token", "new-token"] as const)(
     "labels the actual conversation after %s pairing from a continued session",
     async (pairing) => {
       mocks.request.mockImplementation(async (type) =>
@@ -1910,28 +1879,16 @@ describe("bubble answer rendering and feedback", () => {
       )!;
       await act(async () => conversation.click());
       await flush();
-      expect(document.querySelector(".foot")?.textContent).toBe(
-        en.connectionContinued,
+      expect(document.querySelector(".connection")?.textContent).toBe(
+        en.connected,
       );
       mocks.bridge!.sessionId =
         pairing === "same-token" ? "continued-session" : "new-project-session";
-      if (pairing === "manual") {
-        await bridgeEvent("disconnected");
-        await clickAccessible(en.settings);
-        await inputValue(
-          document.querySelector<HTMLInputElement>(
-            `input[placeholder="${en.pairPlaceholder}"]`,
-          )!,
-          "ABCDEF0123456789",
-        );
-        await click(en.pair);
-      } else await bridgeEvent("paired");
-      expect(document.querySelector(".foot")?.textContent).toBe(
-        pairing === "same-token"
-          ? en.connectionContinued
-          : en.connectionDedicated,
+      await bridgeEvent("paired");
+      expect(document.querySelector(".connection")?.textContent).toBe(
+        pairing === "same-token" ? en.connected : en.connected,
       );
-      expect(document.querySelector(".foot")?.textContent).not.toContain(
+      expect(document.querySelector(".connection")?.textContent).not.toContain(
         mocks.bridge!.sessionId,
       );
     },
