@@ -1,3 +1,4 @@
+import { welcomeLocales } from "./welcome-locales.js";
 import type { LiveChannel } from "./live-channel.js";
 import { randomBytes } from "node:crypto";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
@@ -32,6 +33,7 @@ import { runProvider, type AnswerProvider } from "./provider.js";
 import { ExtensionBridge } from "./extension-bridge.js";
 import {
   extensionFolder,
+  revealExtensionFolder,
   extensionSourceFolder,
   installExtension,
   createExtensionZip,
@@ -75,7 +77,10 @@ export class PanelServer {
   private server?: Server;
   private captures?: BrowserCaptures;
   private extension?: ExtensionBridge;
+  private channel?: LiveChannel;
+  private channelHintShown = false;
   attachChannel(channel: LiveChannel): void {
+    this.channel = channel;
     this.extension?.attachChannel(channel);
   }
   private expiryTimer?: NodeJS.Timeout;
@@ -222,9 +227,26 @@ export class PanelServer {
     );
     openInstallSurface(url, storeUrl ? undefined : folder);
     const tunnel = tunnelCommand(this.port);
-    return tunnel
-      ? `On the computer with your browser, run this tunnel, then open ${url} to install and pair.\n\n\`\`\`sh\n${tunnel}\n\`\`\`\n\nPair with port ${this.port} and code ${code}.`
-      : `Open ${url} to install and pair the floating extension. Pair with port ${this.port} and code ${code}.`;
+    const pluginRoot =
+      process.env.CLAUDE_PLUGIN_ROOT ||
+      resolve(dirname(resolve(process.argv[1] || ".")), "..");
+    const sourceCheckout = await stat(resolve(pluginRoot, ".git"))
+      .then(() => true)
+      .catch(() => false);
+    const channelCommand = sourceCheckout
+      ? `claude --plugin-dir '${pluginRoot.replaceAll("'", "'\\''")}' --continue --dangerously-load-development-channels server:plugin:glimpselet:glimpselet`
+      : "claude --continue --dangerously-load-development-channels plugin:glimpselet@glimpselet";
+    const channelHint =
+      !this.channel?.ready && !this.channelHintShown
+        ? `\n\nOptional live terminal sync: exit Claude Code first, then run this once in the same project:\n\`\`\`sh\n${channelCommand}\n\`\`\``
+        : "";
+    this.channelHintShown = true;
+    return (
+      (tunnel
+        ? `On the computer with your browser, run this tunnel, then open ${url} to get started. Glimpselet connects to your Claude Code automatically.\n\n\`\`\`sh\n${tunnel}\n\`\`\``
+        : `Open ${url} to get started. Glimpselet connects to your Claude Code automatically.`) +
+      channelHint
+    );
   }
 
   async openUrl(): Promise<string> {
@@ -340,7 +362,11 @@ export class PanelServer {
       res.end(archive);
       return;
     }
-    if (path === "/install/status" || path === "/install/try") {
+    if (
+      path === "/install/status" ||
+      path === "/install/try" ||
+      path === "/install/reveal"
+    ) {
       const params = new URL(req.url!, this.origin).searchParams;
       const code = params.get("code") || "";
       const connected = this.extension?.installStatus(code);
@@ -360,7 +386,7 @@ export class PanelServer {
         return;
       }
       if (
-        path !== "/install/try" ||
+        (path !== "/install/try" && path !== "/install/reveal") ||
         req.method !== "POST" ||
         req.headers.origin !== this.origin
       )
@@ -369,6 +395,17 @@ export class PanelServer {
           "Open the setup page to try Glimpselet.",
           403,
         );
+      if (path === "/install/reveal") {
+        if (process.env.SSH_CONNECTION)
+          throw new PanelError(
+            "remote_browser",
+            "Download the extension on this computer.",
+            409,
+          );
+        await revealExtensionFolder();
+        this.reply(res, 200, { revealed: true });
+        return;
+      }
       if (process.env.SSH_CONNECTION)
         throw new PanelError(
           "remote_browser",
@@ -388,7 +425,7 @@ export class PanelServer {
         const trialCode = this.extension!.issueCode();
         const trialUrl = new URL("/install", this.origin);
         const locale = params.get("locale");
-        if (locale === "en" || locale === "zh-TW")
+        if (locale && Object.hasOwn(welcomeLocales, locale))
           trialUrl.searchParams.set("locale", locale);
         trialUrl.hash = `code=${trialCode}`;
         const child = spawn(process.execPath, [launcher], {

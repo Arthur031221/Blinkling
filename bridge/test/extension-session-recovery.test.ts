@@ -200,6 +200,43 @@ describe("extension thread cancellation recovery", () => {
     });
   });
 
+  it("automatically resumes the latest saved session only in the current project", async () => {
+    const older = "e3a3a74c-455a-4a08-8a7c-a22d9afc84d5";
+    const latest = "5ba69fd3-6cd0-49f7-a7c7-a22d9afc84d6";
+    const foreign = "27a6a5b6-330e-4fd8-8a7c-a22d9afc84d7";
+    const otherProject = path.join(root, "other-project");
+    await mkdir(otherProject);
+    for (const [id, dir, age] of [
+      [older, project, 120_000],
+      [latest, project, 60_000],
+      [foreign, otherProject, 0],
+    ] as const) {
+      const file = await writeTranscript(
+        id,
+        [userMessage(id, `prompt ${id}`)],
+        dir,
+      );
+      const modified = new Date(Date.now() - age);
+      await utimes(file, modified, modified);
+    }
+    const sessions = new ExtensionSessions(project);
+    expect((await sessions.recent()).map(({ id }) => id)).toEqual([
+      latest,
+      older,
+    ]);
+    expect((await sessions.latest()).options).toEqual({
+      id: latest,
+      project,
+      resume: true,
+      fork: false,
+    });
+    await rm(transcriptPath(latest));
+    await rm(transcriptPath(older));
+    const fresh = sessions.create();
+    expect(await sessions.latest(fresh)).toBe(fresh);
+    expect(fresh.options.resume).toBe(false);
+  });
+
   it("skips lookup for started threads and propagates lookup errors", async () => {
     const lookup = vi.fn(async () => {
       throw new Error("session lookup failed");

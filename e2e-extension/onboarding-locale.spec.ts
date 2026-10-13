@@ -52,9 +52,11 @@ test.beforeEach(async () => {
     } else if (url.pathname.startsWith("/assets/")) {
       response.setHeader(
         "Content-Type",
-        url.pathname.endsWith(".js")
-          ? "text/javascript; charset=utf-8"
-          : "text/html; charset=utf-8",
+        url.pathname.endsWith(".svg")
+          ? "image/svg+xml"
+          : url.pathname.endsWith(".js")
+            ? "text/javascript; charset=utf-8"
+            : "image/png",
       );
       void readFile(resolve(`public${url.pathname}`)).then(
         (data) => response.end(data),
@@ -99,7 +101,7 @@ test.beforeEach(async () => {
     context.serviceWorkers()[0] ||
     (await context.waitForEvent("serviceworker"));
   welcome = await context.newPage();
-  await welcome.goto(`${origin}/install#code=${code}`);
+  await welcome.goto(`${origin}/install`);
 });
 
 test.afterEach(async () => {
@@ -111,49 +113,32 @@ test.afterEach(async () => {
 });
 
 for (const preference of [undefined, "en", "ja", "unsupported"] as const) {
-  test(`Chinese welcome consent and practice respect saved locale ${preference || "none"}`, async () => {
+  test(`automatic Chinese welcome respects saved preference ${preference || "none"}`, async () => {
     if (preference)
       await worker.evaluate(
         (locale) => chrome.storage.local.set({ locale }),
         preference,
       );
-    // Extension-ready comes before the language switch in this fresh browser.
-    await expect(welcome.locator("#try-note")).toContainText("Pair extension");
-    await welcome.locator("#language").click();
-    await expect(welcome.locator("#try-note")).toContainText("配對擴充功能");
+    await welcome.goto(`${origin}/install#code=${code}`);
+    await welcome.locator("#language").selectOption("zh-TW");
+    await expect(welcome.locator("#connection")).toHaveText(
+      "已連到你的 Claude Code",
+    );
+    expect(
+      context.pages().some((page) => page.url().includes("panel.html")),
+    ).toBe(false);
     const opened = context.waitForEvent("page", {
       predicate: (page) => page.url().startsWith("chrome-extension:"),
     });
-    await welcome
-      .getByRole("button", { name: "配對擴充功能", exact: true })
-      .click();
+    await welcome.locator("#open-bubble").click();
     const panel = await opened;
     const expected = preference === "en" ? en : preference === "ja" ? ja : zh;
+    const locale =
+      preference === "en" || preference === "ja" ? preference : "zh-TW";
     await expect(
       panel.getByRole("heading", { name: expected.consentTitle, exact: true }),
     ).toBeVisible();
-    await expect(panel.locator(".consent select")).toHaveValue(
-      preference === "en" || preference === "ja" ? preference : "zh-TW",
-    );
-    await expect(welcome.locator("#connection")).toContainText("已連線");
-    await expect(welcome.locator("#try-note")).toHaveText("");
-    await expect(welcome.locator("#pair-controls")).toBeHidden();
-    // The connected note follows both subsequent language switches.
-    await welcome.locator("#language").click();
-    await expect(welcome.locator("#try-note")).toHaveText("");
-    await expect(welcome.locator("#connection")).toContainText("Connected");
-    await welcome.locator("#language").click();
-    await expect(welcome.locator("#try-note")).toHaveText("");
-    await expect(welcome.locator("#connection")).toContainText("已連線");
-    const expectedLocale =
-      preference === "en" || preference === "ja" ? preference : "zh-TW";
-    await expect
-      .poll(() =>
-        worker.evaluate(
-          async () => (await chrome.storage.local.get("locale")).locale,
-        ),
-      )
-      .toBe(expectedLocale);
+    await expect(panel.locator(".consent select")).toHaveValue(locale);
     await panel
       .getByRole("button", { name: expected.consentAccept, exact: true })
       .click();
@@ -162,150 +147,43 @@ for (const preference of [undefined, "en", "ja", "unsupported"] as const) {
         panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),
       )
       .toBe(true);
-    const sampleOpened = welcome.waitForEvent("popup");
-    await welcome
-      .getByRole("button", { name: "開啟範例並提示翻譯", exact: true })
-      .click();
-    const sample = await sampleOpened;
-    await expect(sample.locator("#tour-request")).toContainText("導覽步驟 6：");
-    await expect(sample.locator("#tour-request")).toContainText(
-      "在頁面上翻譯內容，再切回原文。",
-    );
-    await expect(sample.locator("[data-practice-label]")).toHaveText(
-      "Glimpselet 練習頁面",
-    );
     await expect
       .poll(() =>
-        panel.evaluate(() =>
-          window.documentPictureInPicture.window?.document
-            .querySelector("main")
-            ?.getAttribute("lang"),
+        panel.evaluate(
+          () =>
+            window.documentPictureInPicture.window?.document.querySelector(
+              ".connection",
+            )?.textContent,
         ),
       )
-      .toBe(expectedLocale);
+      .toBe(expected.connected);
+    expect(
+      (await worker.evaluate(() => chrome.storage.session.get("bridgeToken")))
+        .bridgeToken,
+    ).toMatch(/^[a-f0-9]{64}$/);
+    await welcome.reload();
+    await expect(welcome.locator("#connection")).toHaveClass(/connected/);
     await expect
       .poll(() =>
         worker.evaluate(
           async () => (await chrome.storage.local.get("locale")).locale,
         ),
       )
-      .toBe(expectedLocale);
-    if (preference === undefined) {
-      // Actual content-script crop + Chrome screenshot + React attachment, in Chinese.
-      await expect
-        .poll(() =>
-          panel.evaluate(
-            () =>
-              window.documentPictureInPicture.window?.document.querySelector(
-                ".float-start",
-              )?.textContent || "",
-          ),
-        )
-        .toContain(zh.replayTourHint.replace("{step}", "6"));
-      await sample.bringToFront();
-      // A real toolbar activation grants Chrome's activeTab screenshot permission.
-      const browserCdp = await context.browser()!.newBrowserCDPSession();
-      const { targetInfos } = await browserCdp.send("Target.getTargets", {
-        filter: [{ type: "tab", exclude: false }],
-      });
-      const sampleTarget = targetInfos.find(
-        (target) => target.url === sample.url(),
-      );
-      if (!sampleTarget) throw new Error("Missing practice tab target");
-      await browserCdp.send("Extensions.triggerAction", {
-        id: new URL(worker.url()).host,
-        targetId: sampleTarget.targetId,
-      });
-      await browserCdp.detach();
-      await sample.bringToFront();
-      await sample.keyboard.down("Shift");
-      await expect(
-        sample.locator("[data-glimpselet-crop] .surface"),
-      ).toBeVisible();
-      await sample.keyboard.up("Shift");
-      await sample.mouse.move(50, 80);
-      await sample.mouse.down();
-      await sample.mouse.move(300, 240);
-      await sample.mouse.up();
-      await expect(
-        sample.locator("[data-glimpselet-crop] [data-handle]"),
-      ).toHaveCount(8);
-      await sample.keyboard.press("Enter");
-      await expect
-        .poll(() =>
-          panel.evaluate(
-            () =>
-              window.documentPictureInPicture.window?.document.querySelector(
-                ".capture-chip",
-              )?.textContent || "",
-          ),
-        )
-        .toContain(zh.region);
-      await expect
-        .poll(() =>
-          panel.evaluate(() => {
-            const image =
-              window.documentPictureInPicture.window?.document.querySelector<HTMLImageElement>(
-                ".capture-chip img",
-              );
-            return image ? [image.naturalWidth, image.naturalHeight] : [];
-          }),
-        )
-        .toEqual([250, 160]);
-    }
+      .toBe(locale);
   });
 }
 
-test("fresh English welcome opens English consent and delivers the first practice action", async () => {
-  await expect(welcome.locator("#try-note")).toContainText("Pair extension");
-  const opened = context.waitForEvent("page", {
-    predicate: (page) => page.url().startsWith("chrome-extension:"),
-  });
-  await welcome
-    .getByRole("button", { name: "Pair extension", exact: true })
-    .click();
-  const panel = await opened;
-  await expect(
-    panel.getByRole("heading", { name: en.consentTitle, exact: true }),
-  ).toBeVisible();
-  await expect(panel.locator(".consent select")).toHaveValue("en");
-  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
-  await expect(welcome.locator("#try-note")).toHaveText("");
-  await expect(welcome.locator("#pair-controls")).toBeHidden();
-  await expect
-    .poll(() =>
-      worker.evaluate(
-        async () => (await chrome.storage.local.get("locale")).locale,
-      ),
-    )
-    .toBe("en");
-  await panel
-    .getByRole("button", { name: en.consentAccept, exact: true })
-    .click();
-  await expect
-    .poll(() =>
-      panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),
-    )
-    .toBe(true);
-  const sampleOpened = welcome.waitForEvent("popup");
-  await welcome
-    .getByRole("button", {
-      name: "Open sample + request translation",
-      exact: true,
-    })
-    .click();
-  const sample = await sampleOpened;
-  await expect(sample.locator("#tour-request")).toContainText(
-    "Tour step 6: Translate this page in place, then restore the original.",
+test("a forged readiness message cannot connect with an invalid capability", async () => {
+  await welcome.goto(`${origin}/install?locale=en#code=0000000000000000`);
+  await welcome.evaluate(() =>
+    window.postMessage({ type: "glimpselet:extension-ready" }, location.origin),
   );
-  await expect
-    .poll(() =>
-      panel.evaluate(
-        () =>
-          window.documentPictureInPicture.window?.document.querySelector(
-            ".float-start",
-          )?.textContent || "",
-      ),
-    )
-    .toContain(en.replayTourHint.replace("{step}", "6"));
+  await expect(welcome.locator("#connection")).toContainText("Run /glimpse");
+  await expect(welcome.locator("#open-bubble")).toBeDisabled();
+  expect(
+    await worker.evaluate(() => chrome.storage.session.get("bridgeToken")),
+  ).toEqual({});
+  expect(
+    context.pages().some((page) => page.url().includes("panel.html")),
+  ).toBe(false);
 });

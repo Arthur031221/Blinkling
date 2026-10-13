@@ -1,4 +1,18 @@
 (() => {
+  // extension/connection.ts
+  var welcomeLocaleNames = {
+    en: "English",
+    "zh-TW": "\u7E41\u9AD4\u4E2D\u6587",
+    "zh-CN": "\u7B80\u4F53\u4E2D\u6587",
+    ja: "\u65E5\u672C\u8A9E",
+    ko: "\uD55C\uAD6D\uC5B4",
+    es: "Espa\xF1ol",
+    fr: "Fran\xE7ais",
+    de: "Deutsch",
+    "pt-BR": "Portugu\xEAs"
+  };
+  var isWelcomeLocale = (value) => typeof value === "string" && Object.hasOwn(welcomeLocaleNames, value);
+
   // extension/crop-selection.ts
   function selectionRect(start, end, width, height) {
     const clamp = (v, max) => Math.max(0, Math.min(max, v));
@@ -1280,14 +1294,35 @@
       if (event.source !== window || event.origin !== location.origin || location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/install")
         return;
       const value = event.data;
+      if (value?.type === "glimpselet:hello") {
+        window.postMessage(
+          { type: "glimpselet:extension-ready" },
+          location.origin
+        );
+        return;
+      }
+      if (value?.type === "glimpselet:open-bubble") {
+        void send({
+          type: "glimpselet:open-bubble",
+          locale: isWelcomeLocale(value.locale) ? value.locale : void 0
+        });
+        return;
+      }
       if (!value || value.type !== "glimpselet:pair" || typeof value.code !== "string" || !/^[A-F0-9]{16}$/.test(value.code) || Number(value.port) !== Number(location.port || 80))
         return;
       void send({
         type: "glimpselet:pair",
         port: Number(value.port),
         code: value.code,
-        locale: value.locale === "en" || value.locale === "zh-TW" ? value.locale : void 0
-      });
+        locale: isWelcomeLocale(value.locale) ? value.locale : void 0
+      }).then(
+        (result) => window.postMessage(
+          {
+            type: result?.ok ? "glimpselet:paired" : "glimpselet:connection-failed"
+          },
+          location.origin
+        )
+      );
     });
     window.addEventListener("glimpselet:tutorial-action", (event) => {
       if (location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/assets/glimpselet-welcome-sample.html")

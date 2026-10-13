@@ -10,7 +10,7 @@
 
 准备条件：较新的 Claude Code、使用你自己的订阅账号登录，以及桌面版 Chromium 浏览器，例如 Chrome 或 Edge。
 
-Glimpselet 默认创建专用对话。你也可以选择最近的 Claude Code 会话，在另一个进程中继续。要将请求发送到终端中已打开的交互会话，请启用 channel 预览功能。[Channel 设置](docs/DESIGN.md#the-running-claude-code-conversation)。
+Glimpselet 优先连接已启用的 Claude Code 实时会话，否则自动继续当前项目最新的对话。如果没有已保存的对话，就创建新对话。[会话设置与限制](docs/DESIGN.md#the-running-claude-code-conversation)。
 
 ## 安装
 
@@ -23,7 +23,7 @@ Glimpselet 默认创建专用对话。你也可以选择最近的 Claude Code �
 
 2. 在终端确认 `claude plugin list` 显示 Glimpselet **2.0.0**，再在 Claude Code 运行 `/glimpselet:glimpse`。
 
-3. 按照欢迎指南连接浏览器。在本地桌面上，可选择 **Try without installing**，也可以在自己的浏览器中加载并配对扩展。如果 Claude Code 运行在远程主机，请在有浏览器的电脑上运行指南提供的 SSH 命令，在该电脑下载 ZIP 并在浏览器中加载扩展。远程主机不支持免安装浏览器。配对成功后，Glimpselet 面板会显示连接模式和项目。
+3. 欢迎页只有三步：安装扩展、自动连接、打开浮窗。在本地桌面可选 **不安装，先试用**，也可在自己的浏览器加载扩展。如果 Claude Code 在远程主机，请在有浏览器的电脑运行终端提供的 SSH 命令，再下载并加载 ZIP。浮窗只显示 **已连接到你的 Claude Code**。详见[连接说明](docs/INSTALL.md)。
 
 ### 高级：从源代码加载
 
@@ -47,8 +47,8 @@ claude --plugin-dir "$PWD"
 
 插件详情还应包含 `glimpse` 和 `install` 技能以及 `glimpselet` MCP 服务器。打包后的扩展位于 `bin/extension`，版本也应为 **2.0.0**。如果 Claude Code 在远程主机上运行，请使用指南中的 SSH 命令，在浏览器所在的电脑下载扩展 ZIP，并加载解压后的文件夹。
 
-如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
-更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。
+如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/Glimpselet-extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
+更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。 改用 `~/Glimpselet-extension` 时，请移除旧扩展卡片，再加载这个文件夹一次。
 
 ## 已经安装 Glimpselet？
 
@@ -89,7 +89,7 @@ claude plugin list
 
 ## Claude Code 会话
 
-Channel 预览的命令和配置请参阅 [Claude Code 会话](docs/DESIGN.md#the-running-claude-code-conversation)。没有启用 channel 时，Glimpselet 可以在单独进程中继续所选会话。这是并行继续。请勿同时在终端中使用该会话，否则并发访问可能冲突。
+Channel 预览的命令和配置请参阅 [Claude Code 会话](docs/DESIGN.md#the-running-claude-code-conversation)。没有启用 channel 时，Glimpselet 会在单独进程中自动继续当前项目最新的会话。这是并行继续。请勿同时在终端中使用该会话，否则并发访问可能冲突。
 
 ## 限制与隐私
 

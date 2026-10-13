@@ -92,7 +92,7 @@ async function main() {
     );
   }
 
-  const stableExtension = join(homedir(), ".glimpselet", "extension");
+  const stableExtension = join(homedir(), "Glimpselet-extension");
   const builtExtension = resolve("dist-extension");
   const extension = resolve(
     process.env.GLIMPSELET_EXTENSION_DIR ||

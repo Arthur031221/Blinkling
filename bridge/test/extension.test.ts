@@ -30,13 +30,7 @@ async function setup(
   let url = "";
   const sessions = new ExtensionSessions(
     "/fixture/project",
-    async () => [
-      {
-        sessionId: sourceId,
-        summary: "Export preferences",
-        lastModified: 1700000000000,
-      },
-    ],
+    async () => [],
     persisted,
   );
   const bridge = new ExtensionBridge(server, () => url, {
@@ -83,7 +77,7 @@ async function setup(
       send: (message: unknown) => socket.send(JSON.stringify(message)),
     };
   }
-  return { bridge, client, url };
+  return { bridge, client, url, sessions };
 }
 const ask = {
   type: "ask",
@@ -124,7 +118,7 @@ describe("extension pairing and answers", () => {
     const trialClosed = once(trial.socket, "close");
     trial.socket.close();
     await trialClosed;
-    await expect.poll(() => app.bridge.installStatus(trialCode)).toBe(false);
+    expect(app.bridge.installStatus(trialCode)).toBe(true);
     expect(app.bridge.installStatus(ordinaryCode)).toBe(true);
     const reconnected = await app.client();
     reconnected.send({ type: "pair", token: trialPair.token });
@@ -445,6 +439,52 @@ describe("extension pairing and answers", () => {
     });
   }
 
+  it("does not pin a cancelled automatic lookup and resolves the latest session on retry", async () => {
+    let finishLookup!: (thread: ExtensionThread) => void;
+    const lookup = vi
+      .spyOn(ExtensionSessions.prototype, "latest")
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishLookup = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(new ExtensionThread("/fixture/project", sourceId));
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Latest session", sessionId: request.cliSession!.id };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    try {
+      a.send(ask);
+      await vi.waitFor(() => expect(lookup).toHaveBeenCalledOnce());
+      a.send({ type: "cancel", id: "stop-lookup", jobId: ask.id });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      finishLookup(
+        new ExtensionThread(
+          "/fixture/project",
+          "00000000-0000-4000-8000-000000000001",
+        ),
+      );
+      await a.wait("cancelled");
+      expect(requests).toHaveLength(0);
+      a.send({ ...ask, id: "retry-lookup" });
+      expect((await a.wait("done")).sessionId).toBe(sourceId);
+      expect(lookup).toHaveBeenCalledTimes(2);
+      expect(requests[0]!.cliSession).toMatchObject({
+        id: sourceId,
+        resume: true,
+        fork: false,
+      });
+    } finally {
+      finishLookup?.(new ExtensionThread("/fixture/project", sourceId));
+      lookup.mockRestore();
+    }
+  });
+
   it("holds session ownership while reconciling and stops before provider launch", async () => {
     let finishLookup: ((persisted: boolean) => void) | undefined;
     const inspect = vi.fn(
@@ -488,6 +528,100 @@ describe("extension pairing and answers", () => {
     expect(provider).toHaveBeenCalledOnce();
     expect(provider.mock.calls[0][0].cliSession).toBeUndefined();
     expect(inspect).not.toHaveBeenCalled();
+  });
+
+  it("automatically resumes the latest current-project session and keeps subsequent turns anchored", async () => {
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Continued", sessionId: request.cliSession!.id };
+    });
+    const latest = vi
+      .spyOn(app.sessions, "recent")
+      .mockResolvedValue([
+        { id: sourceId, title: "Current terminal", updatedAt: 2 },
+      ]);
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    a.send(ask);
+    expect((await a.wait("done")).sessionId).toBe(sourceId);
+    latest.mockResolvedValue([
+      {
+        id: "a88b5348-a13b-42fd-9685-000000000002",
+        title: "Another terminal",
+        updatedAt: 3,
+      },
+    ]);
+    a.send({ ...ask, id: "followup" });
+    expect((await a.wait("done")).sessionId).toBe(sourceId);
+    expect(latest).toHaveBeenCalledOnce();
+    expect(requests.map((r) => r.cliSession)).toEqual(
+      [0, 1].map(() => ({
+        id: sourceId,
+        project: "/fixture/project",
+        resume: true,
+        fork: false,
+      })),
+    );
+  });
+
+  it("automatically prefers a late live channel and falls back after it disconnects", async () => {
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Fallback", sessionId: request.cliSession!.id };
+    });
+    vi.spyOn(app.sessions, "recent").mockResolvedValue([
+      { id: sourceId, title: "Terminal", updatedAt: 2 },
+    ]);
+    const pushed: Parameters<
+      ConstructorParameters<typeof LiveChannel>[0]
+    >[0][] = [];
+    const channel = new LiveChannel(async (event) => {
+      pushed.push(event);
+    });
+    app.bridge.attachChannel(channel);
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    await channel.probe();
+    channel.confirm(pushed[0].params.meta.nonce!);
+    expect(await a.wait("channel-status")).toMatchObject({
+      live: true,
+      sessionId: "live",
+    });
+    a.send(ask);
+    await vi.waitFor(() => expect(pushed).toHaveLength(2));
+    channel.reply(pushed[1].params.meta.request_id!, "Live reply", true);
+    expect((await a.wait("done")).sessionId).toBe("live");
+    expect(requests).toHaveLength(0);
+    channel.close();
+    a.send({ ...ask, id: "fallback" });
+    expect((await a.wait("done")).sessionId).toBe(sourceId);
+    expect(requests[0].cliSession?.resume).toBe(true);
+  });
+
+  it("honors an explicit new conversation even when automatic live sync becomes available", async () => {
+    const app = await setup(async (request) => ({
+      answer: "Chosen new conversation",
+      sessionId: request.cliSession!.id,
+    }));
+    let nonce = "";
+    const channel = new LiveChannel(async (event) => {
+      nonce = event.params.meta.nonce || "";
+    });
+    app.bridge.attachChannel(channel);
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    await a.wait("paired");
+    a.send({ type: "session", id: "new" });
+    const selected = await a.wait("session");
+    await channel.probe();
+    channel.confirm(nonce);
+    a.send(ask);
+    expect((await a.wait("done")).sessionId).toBe(selected.sessionId);
+    channel.close();
   });
 
   it("routes live chat into the connected MCP channel and keeps replies paired", async () => {
@@ -616,6 +750,9 @@ describe("extension pairing and answers", () => {
       requests.push(request);
       return { answer: "Continued", sessionId: sourceId };
     });
+    vi.spyOn(app.sessions, "recent").mockResolvedValue([
+      { id: sourceId, title: "Export preferences", updatedAt: 1700000000000 },
+    ]);
     const a = await app.client();
     a.send({ type: "pair", code: app.bridge.issueCode() });
     await a.wait("paired");

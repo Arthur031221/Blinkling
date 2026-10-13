@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   distributionMode,
-  INSTALL_GUIDE_SCRIPT,
   installExtension,
+  extensionFolder,
+  folderRevealCommand,
   installGuide,
   loadDistributionConfig,
   selectedStoreUrl,
@@ -15,9 +16,7 @@ import {
 describe("extension distribution and first-run guide", () => {
   it("defaults to unpacked and only selects validated store URLs", () => {
     expect(distributionMode()).toBe("unpacked");
-    expect(installGuide("/home/test/.glimpselet/extension")).toContain(
-      "Developer mode",
-    );
+    expect(extensionFolder().split("/").at(-1)).toBe("Glimpselet-extension");
     const config = {
       chromeWebStoreUrl:
         "https://chromewebstore.google.com/detail/glimpselet/abcdefgh",
@@ -25,7 +24,7 @@ describe("extension distribution and first-run guide", () => {
     };
     expect(distributionMode(config)).toBe("store");
     expect(selectedStoreUrl(config)).toBe(config.chromeWebStoreUrl);
-    expect(installGuide("/x", config)).toContain("Add to browser");
+    expect(installGuide("/x", config)).toContain(config.chromeWebStoreUrl);
     expect(installGuide("/x", config)).not.toContain(
       "turn on <strong>Developer mode",
     );
@@ -47,42 +46,23 @@ describe("extension distribution and first-run guide", () => {
     ).toContain("microsoftedge.microsoft.com");
   });
 
-  it("escapes the stable path and renders a single-language beginner guide", () => {
+  it("escapes user paths and reveals folders with literal platform arguments", () => {
     const guide = installGuide('/tmp/<script>"&');
     expect(guide).toContain("&lt;script&gt;&quot;&amp;");
     expect(guide).not.toContain('/tmp/<script>"&');
-    expect(guide).toContain('aria-live="polite"');
-    expect(guide).toContain('id="language"');
-    expect(guide).toContain("data-en=");
-    expect(guide).toContain("data-zh=");
-    expect(guide).not.toContain("English / 繁體中文");
-    expect(guide).toContain('id="replay"');
-    expect(guide).toContain('id="progress"');
-    expect(guide).toContain('id="tunnel-command"');
-    expect(guide).toContain("Copy SSH command");
-    expect(guide).toContain("Glimpselet is ready when you are.");
-    expect(guide).not.toContain("Blink is ready when you are.");
-    expect(guide).toContain("Click Pair extension in the browser window");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet-install-tour-v1");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet-welcome-sample.html");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("titles:[");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("descs:[");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("/install/status?code=");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("/install/try?");
-    expect(INSTALL_GUIDE_SCRIPT).toContain(
-      "new URLSearchParams({code:code||'',locale:locale()})",
-    );
-    expect(INSTALL_GUIDE_SCRIPT).toContain("method:'POST'");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet:tutorial-action");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("glimpselet:tutorial:done");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("result.tunnelCommand");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("copy-tunnel");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("copyTunnelFail");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("tryStarted");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("extensionReady");
-    expect(INSTALL_GUIDE_SCRIPT).not.toContain("autoPairing");
-    expect(INSTALL_GUIDE_SCRIPT).toContain("pair-controls').hidden=true");
-    expect(() => new Function(INSTALL_GUIDE_SCRIPT)).not.toThrow();
+    const folder = "/tmp/a folder $(touch nope)";
+    expect(folderRevealCommand(folder, "darwin")).toEqual([
+      "open",
+      ["-R", folder],
+    ]);
+    expect(folderRevealCommand(folder, "linux")).toEqual([
+      "xdg-open",
+      [folder],
+    ]);
+    expect(folderRevealCommand(folder, "win32")).toEqual([
+      "explorer.exe",
+      [folder],
+    ]);
   });
 
   it("uses the validated SSH server port while preserving default and IPv6 commands", () => {
@@ -115,42 +95,6 @@ describe("extension distribution and first-run guide", () => {
     }
   });
 
-  it("uses the fixture message actions for all eight hands-on steps", async () => {
-    const fixture = await readFile(
-      join(process.cwd(), "public/assets/glimpselet-welcome-sample.html"),
-      "utf8",
-    );
-    expect(fixture).toContain(
-      '<script src="/assets/glimpselet-welcome-sample.js"></script>',
-    );
-    expect(fixture).not.toContain("<script>");
-    const fixtureScript = await readFile(
-      join(process.cwd(), "public/assets/glimpselet-welcome-sample.js"),
-      "utf8",
-    );
-    for (const action of [
-      "float",
-      "capture",
-      "suggest",
-      "passive",
-      "guide",
-      "translate",
-      "selection",
-      "pdf",
-    ]) {
-      expect(INSTALL_GUIDE_SCRIPT).toContain(`'${action}'`);
-      expect(fixtureScript).toContain(`"${action}"`);
-    }
-    expect(fixtureScript).toContain("glimpselet:tutorial-action");
-    expect(fixtureScript).toContain("glimpselet:tutorial:ready");
-    expect(fixtureScript).toContain("event.source !== window.opener");
-    expect(fixtureScript).toContain(
-      'new CustomEvent("glimpselet:tutorial-action"',
-    );
-    expect(fixtureScript).toContain('type: "glimpselet:tutorial-action"');
-    expect(fixtureScript).toContain("version: 1");
-  });
-
   it("loads only store URL fields from the one distribution file", async () => {
     const root = await mkdtemp(join(tmpdir(), "glimpselet-dist-"));
     try {
@@ -176,7 +120,7 @@ describe("extension distribution and first-run guide", () => {
     }
   });
 
-  it("selects the active browser store while keeping source loading advanced", () => {
+  it("selects the active browser store without extra installation steps", () => {
     const previous = process.env.GLIMPSELET_BROWSER;
     process.env.GLIMPSELET_BROWSER = "msedge";
     try {
@@ -189,9 +133,8 @@ describe("extension distribution and first-run guide", () => {
       expect(guide).toContain(
         'href="https://microsoftedge.microsoft.com/addons/detail/glimpselet/id"',
       );
-      expect(guide).toContain("Advanced: load from source");
-      expect(guide).toContain("dist-extension");
-      expect(guide).toContain("Add to browser");
+      expect(guide).not.toContain('id="manager"');
+      expect(guide).not.toContain("/stable/path");
     } finally {
       if (previous === undefined) delete process.env.GLIMPSELET_BROWSER;
       else process.env.GLIMPSELET_BROWSER = previous;

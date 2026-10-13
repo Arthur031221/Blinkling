@@ -29,11 +29,19 @@ export class ExtensionSessions {
     });
     return sessions
       .filter((s) => isSessionId(s.sessionId))
+      .sort((a, b) => b.lastModified - a.lastModified)
       .map((s) => ({
         id: s.sessionId,
         title: (s.customTitle || s.summary || "Untitled session").slice(0, 160),
         updatedAt: s.lastModified,
       }));
+  }
+
+  async latest(fallback?: ExtensionThread): Promise<ExtensionThread> {
+    const [latest] = await this.recent();
+    return latest
+      ? new ExtensionThread(this.project, latest.id, false, this.persisted)
+      : (fallback ?? this.create());
   }
 
   create(): ExtensionThread {

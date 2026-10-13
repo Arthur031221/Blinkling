@@ -1,3 +1,4 @@
+import { welcomeLocales } from "./welcome-locales.js";
 import { cp, lstat, mkdir, readFile, readdir } from "node:fs/promises";
 import { deflateRaw } from "node:zlib";
 import { homedir, hostname, userInfo } from "node:os";
@@ -56,8 +57,7 @@ export function selectedStoreUrl(
   return valid.test(value) ? value : undefined;
 }
 
-export const extensionFolder = () =>
-  join(homedir(), ".glimpselet", "extension");
+export const extensionFolder = () => join(homedir(), "Glimpselet-extension");
 
 export const extensionSourceFolder = () =>
   resolve(
@@ -202,6 +202,24 @@ export function tunnelCommand(
   return `ssh -N ${portOption}-L ${port}:127.0.0.1:${port} ${user}@${address}`;
 }
 
+export function folderRevealCommand(
+  folder: string,
+  platform = process.platform,
+): [string, string[]] {
+  if (platform === "darwin") return ["open", ["-R", folder]];
+  if (platform === "win32") return ["explorer.exe", [folder]];
+  return ["xdg-open", [folder]];
+}
+
+export function revealExtensionFolder(): Promise<void> {
+  const [command, args] = folderRevealCommand(extensionFolder());
+  return new Promise((resolveReveal, reject) =>
+    execFile(command, args, { timeout: 5000, windowsHide: true }, (error) =>
+      error ? reject(error) : resolveReveal(),
+    ),
+  );
+}
+
 export function openInstallSurface(url: string, folder?: string): void {
   if (
     process.env.GLIMPSELET_DISABLE_BROWSER_OPEN === "1" ||
@@ -252,93 +270,58 @@ export function installGuide(
     config,
     process.env.GLIMPSELET_BROWSER === "msedge" ? "edge" : "chrome",
   );
-  const screenshots = `<div class="install-images"><figure><img src="/assets/install/01-extensions-before.png" alt="Chrome extensions page" loading="lazy"><figcaption data-en="1. Turn on Developer mode" data-zh="1. 啟用開發人員模式"></figcaption></figure><figure><img src="/assets/install/02-developer-mode.png" alt="Chrome Load unpacked button" loading="lazy"><figcaption data-en="2. Choose Load unpacked" data-zh="2. 按載入未封裝項目"></figcaption></figure><figure><img src="/assets/install/03-select-extension-folder.png" alt="Chrome extension folder picker" loading="lazy"><figcaption data-en="3. Select the extension folder" data-zh="3. 選擇擴充功能資料夾"></figcaption></figure></div>`;
-  const managerAddress =
+  const manager =
     process.env.GLIMPSELET_BROWSER === "msedge"
       ? "edge://extensions"
       : "chrome://extensions";
-  const managerInstructions = (kind: "local" | "remote") =>
-    `<label for="manager-${kind}" data-en="Extensions page address" data-zh="擴充功能頁面網址"></label><div class="pairline"><input id="manager-${kind}" class="manager-address" readonly value="${managerAddress}"><button class="button copy-manager" type="button" data-en="Copy address" data-zh="複製網址"></button></div><p class="quiet manager-help" role="status" data-en="Paste this address into your browser's address bar, then press Enter." data-zh="請把這個網址貼到瀏覽器網址列，再按 Enter。"></p>`;
+  const text = (key: keyof typeof welcomeLocales.en) =>
+    `<span data-i18n="${key}"></span>`;
   const installation = store
-    ? `<div class="install-card" id="install-store"><p data-en="Install Glimpselet from the browser store. Confirm the browser prompt; updates arrive automatically." data-zh="從瀏覽器擴充功能商店安裝 Glimpselet，依提示確認即可，之後會自動更新。"></p><a class="button primary" href="${escapeHtml(store)}" data-en="Add to browser" data-zh="加入瀏覽器"></a><details><summary data-en="Advanced: load from source" data-zh="進階：從原始碼載入"></summary><p data-en="Build the source on the computer with your browser using npm ci and npm run build:extension. Choose Load unpacked and select dist-extension." data-zh="請在瀏覽器所在電腦執行 npm ci 與 npm run build:extension 建置原始碼。接著按「載入未封裝項目」，選擇 dist-extension 資料夾。"></p></details></div>`
-    : `<div class="install-card" id="install-local" hidden><p data-en="Open your browser's extensions page. Turn on Developer mode, choose Load unpacked, then select this folder:" data-zh="開啟瀏覽器的擴充功能頁面，啟用「開發人員模式」，按「載入未封裝項目」，再選擇這個資料夾："></p>${managerInstructions("local")}<code class="path">${escapeHtml(folder)}</code><p class="quiet" data-en="The browser asks you to confirm these steps. Updates are manual until the store listing is live." data-zh="瀏覽器會請你手動確認這些步驟。正式上架前需要手動更新。"></p></div><div class="install-card" id="install-remote" hidden><p data-en="Download the extension ZIP on the computer where Chrome runs. Extract it on this computer, open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted folder." data-zh="請在執行 Chrome 的這台電腦下載擴充功能 ZIP，並在這台電腦解壓縮。接著開啟 chrome://extensions、啟用「開發人員模式」、按「載入未封裝項目」，再選擇解壓縮後的資料夾。"></p><a class="button primary" href="/install/extension.zip" data-en="Download extension ZIP" data-zh="下載擴充功能 ZIP"></a>${managerInstructions("remote")}</div>${screenshots}`;
+    ? `<a class="button primary" href="${escapeHtml(store)}">${text("store")}</a>`
+    : `<div id="install-local"><code class="path">${escapeHtml(folder)}</code><button class="button" id="reveal">${text("reveal")}</button></div><div id="install-remote" hidden><a class="button" id="download" href="/install/extension.zip">${text("download")}</a><p>${text("remoteFolder")}</p></div><div class="manager"><label for="manager">${text("manager")}</label><div class="row"><input id="manager" class="manager-address" value="${manager}" readonly><button class="button" id="copy-manager">${text("copy")}</button></div><small>${text("paste")}</small></div><div class="install-images">${["01-extensions-before", "02-developer-mode", "03-select-extension-folder"].map((name, i) => `<figure><img src="/assets/install/${name}.png" alt="" loading="lazy"><figcaption>${i + 1}. ${text((["click1", "click2", "click3"] as const)[i]!)}</figcaption></figure>`).join("")}</div>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to Glimpselet</title>
 <style>
-:root{color-scheme:light dark;--paper:#faf7f0;--ink:#302a23;--muted:#766d62;--line:#e6ddd0;--card:#fffdf9;--accent:#bd6849;--accent-dark:#91472f;--green:#397858}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif}main{max-width:900px;margin:auto;padding:30px 22px 70px}header{display:flex;align-items:center;gap:16px;margin:14px 0 28px}.blink{width:64px;height:64px;flex:none;display:grid;place-items:center;border:2px solid var(--ink);border-radius:48% 52% 50% 45%;background:#f3dfc4;overflow:hidden;transform:rotate(-5deg)}.blink img{width:46px;height:56px;object-fit:contain;transform:rotate(5deg)}h1,h2,h3{font-family:Georgia,serif;line-height:1.15}h1{font-size:clamp(32px,6vw,48px);margin:0 0 6px}h2{font-size:26px;margin:0 0 10px}h3{font-size:21px;margin:0}.lede{color:var(--muted);margin:0}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.lang,.button{border:1px solid #c7b8a5;border-radius:999px;padding:9px 14px;background:var(--card);color:var(--ink);text-decoration:none;font:600 14px system-ui;cursor:pointer}.button.primary{background:var(--accent);color:white;border-color:var(--accent)}button:hover,.button:hover{filter:brightness(.96)}section{margin:18px 0;padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--card);box-shadow:0 8px 25px #392b1910}.install-card{padding:16px;border-radius:14px;background:#f6efe4}.path,.manager-address{display:block;width:min(100%,680px);padding:11px;margin:14px 0;background:#eee5d8;color:var(--ink);border-radius:9px;overflow-wrap:anywhere}.path:focus,.manager-address:focus{outline:3px solid var(--accent);outline-offset:2px}.quiet,.muted{color:var(--muted)}.pairline{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.status{padding:12px 14px;border-radius:12px;background:#f5efe6}.status.connected{background:#e8f3ea;color:#285e3e}.progress{height:9px;border-radius:9px;background:#eee6da;overflow:hidden;margin:14px 0 18px}.progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.step{border:1px solid var(--line);border-radius:15px;padding:15px;background:var(--card);min-width:0}.step.done{border-color:#83b295;background:#f4faf4}.step-head{display:flex;align-items:center;gap:10px}.number{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:#f0e5d5;color:var(--accent-dark);font-weight:700}.step p{min-height:48px;color:var(--muted);margin:8px 0}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{padding:7px 11px}.illustration{height:86px;margin:12px 0;padding:9px;border:1px solid #e4d9ca;border-radius:10px;background:linear-gradient(#f2e9dc 0 20px,#fff 20px);position:relative;overflow:hidden}.browserbar{position:absolute;top:6px;left:10px;right:10px;height:8px;border-radius:5px;background:#dbcbb8}.mockline{position:absolute;left:14px;top:34px;width:55%;height:6px;border-radius:4px;background:#e9e2d9}.mockline.two{top:49px;width:72%}.mockline.three{top:64px;width:42%}.mockfocus{position:absolute;right:10px;top:30px;padding:7px 9px;border:2px solid var(--accent);border-radius:8px;background:#fff8eb;color:var(--accent-dark);font-size:11px;animation:pulse 1.8s infinite}@keyframes pulse{50%{box-shadow:0 0 0 5px #bd684920}}.tutorial-note{font-size:14px;color:var(--muted)}details{margin-top:12px}summary{cursor:pointer}a{color:var(--accent-dark)}@media(max-width:650px){main{padding:18px 14px 48px}.steps{grid-template-columns:1fr}section{padding:17px}.top{align-items:flex-start}}
-@media(prefers-color-scheme:dark){:root{--paper:#24221f;--ink:#f4eee5;--muted:#b4a99b;--line:#4a4137;--card:#302d29}.blink{background:#5c4938}.install-card,.status{background:#3a342d}.path,.manager-address{background:#24221f}.step.done{background:#28342b}.number{background:#493a2e}.illustration{background:linear-gradient(#51463a 0 20px,#393632 20px);border-color:#625648}.browserbar{background:#746453}.mockline{background:#61584e}.mockfocus{background:#362f28;color:#f2b89d}.status.connected{background:#293b2d;color:#b9e3c5}}
-.install-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.install-images figure{margin:0}.install-images img{width:100%;border:1px solid #c9bfaf;border-radius:8px}.install-images figcaption{font-size:13px;margin-top:8px}@media(max-width:600px){.install-images{grid-template-columns:1fr}}
-</style></head><body><main><div class="top"><header><div class="blink" aria-hidden="true"><img src="/assets/logo.svg" alt=""></div><div><h1 data-en="Glimpselet is ready when you are." data-zh="Glimpselet 已準備好陪你探索。"></h1><p class="lede" data-en="A small, hands-on tour. Try each move, mark it done, or skip ahead." data-zh="用幾個小步驟認識 Glimpselet。試過就勾選完成，也可以略過。"></p></div></header><button class="lang" id="language" type="button" aria-label="Switch language">繁體中文</button></div>
-<section id="installation"><h2 data-en="1 · Add Glimpselet" data-zh="1 · 安裝 Glimpselet"></h2>${installation}</section>
-<section id="pairing"><h2 data-en="2 · Connect your browser" data-zh="2 · 連接瀏覽器"></h2><p id="pair" class="pairline" aria-live="polite"></p><div class="pairline" id="pair-controls"><button class="button" id="copy" hidden data-en="Copy code" data-zh="複製配對碼"></button><button class="button" id="connect" hidden data-en="Pair extension" data-zh="配對擴充功能"></button></div><p class="status" id="connection" aria-live="polite" data-en="Waiting for Glimpselet. Click Pair extension in the browser window to approve the connection." data-zh="等待 Glimpselet 連線。請在瀏覽器視窗按「配對擴充功能」以確認連線。"></p><p id="mode" class="quiet" aria-live="polite"></p><div id="tunnel" hidden><label for="tunnel-command" data-en="Run this on the computer with your browser:" data-zh="請在瀏覽器所在電腦執行："></label><div class="pairline"><input id="tunnel-command" class="path" readonly aria-label="SSH tunnel command"><button id="copy-tunnel" class="button" type="button" data-en="Copy SSH command" data-zh="複製 SSH 指令"></button></div></div><div class="pairline"><button class="button" id="try-zero" type="button" data-en="Try without installing" data-zh="不安裝，先試用"></button><span id="try-note" class="quiet" role="status"></span></div></section>
-<section id="tour"><div class="top"><div><h2 data-en="3 · Take the tour" data-zh="3 · 動手試一圈"></h2><p class="tutorial-note" data-en="The sample page is a safe place to practise. Each Try button opens it and sends a small action request to the page." data-zh="範例頁是安全的練習場。按「試試」會開啟範例頁，並傳送對應的操作提示。"></p></div><button id="replay" class="button" type="button" data-en="Replay tour" data-zh="重播導覽"></button></div><div class="progress" role="progressbar" aria-label="Tour progress" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0"><span id="progress"></span></div><p id="progress-label" class="quiet" aria-live="polite"></p><div id="steps" class="steps"></div><p class="tutorial-note" data-en="The PDF practice action opens the bundled reader from the bubble. You can also open a local PDF there." data-zh="PDF 練習會從浮動視窗開啟內建閱讀器。你也可以在閱讀器選擇本機 PDF。"></p></section>
-<p><a href="https://github.com/Arthur031221/Glimpselet/blob/main/docs/INSTALL.md" data-en="Install help" data-zh="安裝說明"></a> · <a href="https://arthur031221.github.io/Glimpselet/privacy.html" data-en="Privacy" data-zh="隱私權"></a></p></main><script src="/install-guide.js"></script></body></html>`;
+:root{color-scheme:light dark;--paper:#faf7f0;--ink:#302a23;--muted:#766d62;--line:#e6ddd0;--card:#fffdf9;--accent:#bd6849}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,sans-serif}main{max-width:850px;margin:auto;padding:30px 22px 45px}header{display:flex;align-items:center;gap:20px;margin-bottom:24px}.blink{width:82px;height:102px;object-fit:contain;animation:hello .5s ease-out}h1{font:clamp(27px,5vw,38px)/1.2 Georgia,serif;margin:0;flex:1}h2{font:23px/1.3 Georgia,serif;margin:0 0 16px}.number{display:inline-grid;place-items:center;width:30px;height:30px;margin-right:10px;border-radius:50%;background:#bd68491a;color:var(--accent);font:600 16px system-ui}section{margin:14px 0;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--card)}.button,select{border:1px solid var(--line);border-radius:999px;padding:10px 15px;background:var(--card);color:var(--ink);font:600 14px system-ui;cursor:pointer;text-decoration:none}.primary{background:var(--accent);color:#fff;border-color:var(--accent)}button:disabled{opacity:.45;cursor:default}button:hover:enabled,a.button:hover{filter:brightness(.96)}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.path{display:block;margin:0 0 12px;overflow-wrap:anywhere}.manager{margin-top:16px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}input{min-width:0;border:1px solid var(--line);border-radius:8px;padding:9px;background:var(--paper);color:var(--ink);font:14px system-ui}small,p{color:var(--muted)}small{font-size:13px}.install-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}figure{margin:0}figure img{width:100%;border:1px solid var(--line);border-radius:8px}figcaption{font-size:13px;margin-top:6px}#connection{margin:0}.connected{color:#397858!important;animation:hello .3s ease-out}#try-note,#folder-note,#manager-note{margin-left:8px;font-size:14px}#reconnect{margin-top:10px}@keyframes hello{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}@media(max-width:600px){main{padding:18px 14px}header{gap:10px;flex-wrap:wrap}.blink{width:60px;height:75px}header select{margin-left:auto}section{padding:18px}.install-images{gap:8px}}@media(prefers-color-scheme:dark){:root{--paper:#24221f;--ink:#f4eee5;--muted:#b4a99b;--line:#4a4137;--card:#302d29}.connected{color:#b9e3c5!important}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body><main><header><img class="blink" src="/assets/logo.svg" alt="Blink"><h1>${text("title")}</h1><select id="language" aria-label="Language">${Object.entries(
+    {
+      en: "English",
+      "zh-TW": "繁體中文",
+      "zh-CN": "简体中文",
+      ja: "日本語",
+      ko: "한국어",
+      es: "Español",
+      fr: "Français",
+      de: "Deutsch",
+      "pt-BR": "Português",
+    },
+  )
+    .map(([key, label]) => `<option value="${key}">${label}</option>`)
+    .join("")}</select></header>
+<section id="installation"><h2><span class="number">1</span>${text("install")}</h2>${installation}<span id="folder-note" role="status"></span><div class="row"><button class="button" id="try-zero">${text("try")}</button><span id="try-note" role="status"></span></div><span id="manager-note" role="status"></span></section>
+<section id="connection-step"><h2><span class="number">2</span>${text("connect")}</h2><p id="connection" role="status" aria-live="polite"></p><button id="reconnect" class="button" hidden>${text("retry")}</button></section>
+<section id="bubble-step"><h2><span class="number">3</span>${text("open")}</h2><button class="button primary" id="open-bubble" disabled>${text("open")}</button></section>
+</main><script src="/install-guide.js"></script></body></html>`;
 }
 
-export const INSTALL_GUIDE_SCRIPT = `(()=>{
-const strings={en:{waiting:'Waiting for Glimpselet. Click Pair extension in the browser window to approve the connection.',connected:'Connected. Choose a practice step below.',copy:'Copied.',copyFail:'Select and copy the code above.',copyTunnelFail:'Select and copy the SSH command above.',try:'Opening your practice window…',tryStarted:'Chromium launch requested. In the new practice window, click Pair extension to connect that browser.',pairing:'Pairing request sent. Waiting for you to approve the connection in Glimpselet…',extensionReady:'Glimpselet is ready. Click Pair extension to approve the connection.',remote:'Zero-install mode is not available on a remote host. Use the SSH command below on the computer with your browser.',tryFail:'Could not open the practice browser. Check the error above or install the extension in your browser.',step:'Completed',of:'of',done:'Done',skip:'Skipped',practiceWaiting:'Waiting for the sample page to receive this step…',practiceFailed:'Could not deliver the practice step. Try again using the same practice button to reopen the sample page. If it still fails, reload this welcome page.',popupBlocked:'Allow pop-ups for this local page, then try again.',request:'Requested in the sample page. Use the Glimpselet bubble to complete this step.',
-titles:['Float and switch windows','Capture a page and ask','Try a suggestion','Turn on passive mode','Take a page tour','Translate the page','Select text and ask','Read a PDF'],
-descs:['Open the floating bubble, then switch to another window and see it stay on top.','Capture the tea page and ask what changes the taste.','Choose a suggested question and send it with one click.','Turn on passive mode, then change the sample page or open another page.','Start Guide and watch it point out the tea buttons.','Translate the page in place, then switch back to the original.','Select a sentence and choose Explain, Translate, or Ask.','Open the sample PDF in the Glimpselet reader and try selecting a paragraph.'],
-focus:['Float','Capture','Suggested question','Passive','Guide','Translate','Select a sentence','Open PDF'],tries:['Open sample + request float','Open sample + request capture','Open sample + request suggestion','Open sample + request passive','Open sample + request guide','Open sample + request translation','Open sample + request selection','Open sample PDF'],
-labels:['Developer mode','Load unpacked','Select the folder'],
-},zh:{waiting:'等待 Glimpselet 連線。請在瀏覽器視窗按「配對擴充功能」以確認連線。',connected:'已連線，請選擇下方的練習步驟。',copy:'已複製。',copyFail:'請選取上方配對碼並複製。',copyTunnelFail:'請選取上方 SSH 指令並複製。',try:'正在開啟練習視窗⋯',tryStarted:'已要求啟動 Chromium。請在新開啟的練習視窗按「配對擴充功能」，連接該瀏覽器。',pairing:'已送出配對要求，請在 Glimpselet 中確認連線⋯',extensionReady:'Glimpselet 已就緒，請按「配對擴充功能」確認連線。',remote:'遠端主機無法使用免安裝模式。請在瀏覽器所在電腦執行下方 SSH 指令。',tryFail:'無法開啟練習瀏覽器。請檢查上方錯誤，或改在自己的瀏覽器安裝擴充功能。',step:'已完成',of:'/',done:'已完成',skip:'已略過',practiceWaiting:'等待範例頁接收這個步驟⋯',practiceFailed:'無法傳送練習步驟。請再按一次「試試」以重新開啟範例頁。若仍失敗，請重新載入此歡迎頁。',popupBlocked:'請允許此本機頁面開啟彈出視窗，再重試。',request:'操作提示已傳到範例頁，請在 Glimpselet 浮動視窗完成這一步。',
-titles:['浮動視窗與切換視窗','擷取頁面並提問','試試建議問題','開啟被動模式','導覽頁面','翻譯整頁','選取文字並提問','閱讀 PDF'],
-descs:['開啟浮動視窗，再切到另一個視窗，看看它是否仍在最上層。','擷取茶葉範例頁，問問哪些因素會改變茶的風味。','按一下建議問題，直接送出。','開啟被動模式，再切換範例頁或開啟另一個頁面。','啟動導覽，看看它如何指出茶葉按鈕。','就地翻譯頁面，再切回原文。','選取一句文字，再按「解釋」、「翻譯」或「提問」。','在 Glimpselet 閱讀器開啟範例 PDF，試著選取一段文字。'],
-focus:['浮動','擷取','建議問題','被動模式','導覽','翻譯','選取句子','開啟 PDF'],tries:['開啟範例並提示浮動','開啟範例並提示擷取','開啟範例並提示建議問題','開啟範例並提示被動模式','開啟範例並提示導覽','開啟範例並提示翻譯','開啟範例並提示選取文字','開啟 PDF 範例'],labels:['開發人員模式','載入未封裝項目','選擇資料夾']}};
-const steps=[['float','float'],['capture','capture'],['suggest','suggest'],['passive','passive'],['guide','guide'],['translate','translate'],['selection','selection'],['pdf','pdf']];
-const stateKey='glimpselet-install-tour-v1', getState=()=>{try{return JSON.parse(localStorage.getItem(stateKey)||'{}')}catch{return{}}};let state=getState(), lang=new URLSearchParams(location.search).get('locale')==='zh-TW'?'zh':'en', sample, isConnected=false, remoteMode=false, modeKind='';
-const code=new URLSearchParams(location.hash.slice(1)).get('code'), port=Number(location.port||80), status=document.querySelector('#connection'), tourOnly=location.hash==='#tour';
-let noteKey='', connectionKey='waiting';
-const locale=()=>lang==='zh'?'zh-TW':'en';
-function setNote(key=''){noteKey=key;document.querySelector('#try-note').textContent=key?strings[lang][key]:''}
-if(tourOnly){document.querySelector('#installation').hidden=true;document.querySelector('#pairing').hidden=true;document.querySelector('#tour').append(document.querySelector('#try-note'))}
-const applyLanguage=()=>{document.documentElement.lang=lang==='zh'?'zh-Hant':'en';document.querySelectorAll('[data-en][data-zh]').forEach(el=>{el.textContent=el.dataset[lang]});document.querySelector('#language').textContent=lang==='en'?'繁體中文':'English';document.querySelector('#language').setAttribute('aria-label',lang==='en'?'切換為繁體中文':'Switch to English');renderPair();status.textContent=strings[lang][isConnected?'connected':connectionKey];setNote(noteKey);if(modeKind)document.querySelector('#mode').textContent=modeKind==='tunnel'?(lang==='en'?'Claude Code is on another computer.':'Claude Code 位於另一台電腦。'):modeKind==='api'?(lang==='en'?'Using direct API mode.':'使用直接 API 模式。'):(lang==='en'?'Claude Code is on this computer.':'Claude Code 位於這台電腦。');if(remoteMode&&(!noteKey||noteKey==='remote'))setNote('remote');render()};
-function render(){const t=strings[lang], host=document.querySelector('#steps');host.replaceChildren();steps.forEach(([action],i)=>{const card=document.createElement('article');card.className='step'+(state[i]?' done':'');card.innerHTML='<div class="step-head"><span class="number">'+(state[i]?'✓':i+1)+'</span><h3></h3></div><p></p><div class="illustration" aria-hidden="true"><span class="browserbar"></span><span class="mockline"></span><span class="mockline two"></span><span class="mockline three"></span><span class="mockfocus"></span></div><div class="actions"><button class="button primary try"></button><button class="button done"></button><button class="button skip"></button></div>';card.querySelector('h3').textContent=t.titles[i];card.querySelector('p').textContent=t.descs[i];card.querySelector('.mockfocus').textContent=t.focus[i];card.querySelector('.try').textContent=t.tries[i];card.querySelector('.done').textContent=state[i]?t.done:(lang==='en'?'Done':'完成');card.querySelector('.skip').textContent=state[i]?'':(lang==='en'?'Skip':'略過');card.querySelector('.skip').hidden=!!state[i];card.querySelector('.try').onclick=()=>tryStep(i,action);card.querySelector('.done').onclick=()=>mark(i);card.querySelector('.skip').onclick=()=>mark(i);host.append(card)});const count=Object.values(state).filter(Boolean).length;document.querySelector('#progress').style.width=(count/8*100)+'%';document.querySelector('.progress').setAttribute('aria-valuenow',String(count));document.querySelector('#progress-label').textContent=t.step+' '+count+' '+t.of+' 8';}
-function mark(i){state[i]=true;localStorage.setItem(stateKey,JSON.stringify(state));render()}
-let practiceRequest, practicePoll, practiceTimeout, deliveredStep=0;
-const deliveredSteps=new Set();
-function stopPracticeWait(){clearInterval(practicePoll);clearTimeout(practiceTimeout)}
-function tryStep(i,action){
-  const canReuseSample=deliveredStep>0;
-  stopPracticeWait();deliveredStep=0;
-  const request={type:'glimpselet:tutorial-action',version:1,requestId:crypto.randomUUID(),action,step:i+1,code:code||null,locale:locale()};
-  practiceRequest={request,sent:false};
-  const sampleLocation=new URL('/assets/glimpselet-welcome-sample.html',location.origin);if(lang==='zh')sampleLocation.searchParams.set('locale','zh-TW');const sampleUrl=sampleLocation.href;
-  let replacedDocument;
-  // Restore a same-origin tab; create a fresh practice tab when its document is inaccessible.
-  try{
-    if(sample&&!sample.closed){
-      if(sample.location.href!==sampleUrl||!canReuseSample){deliveredSteps.clear();replacedDocument=sample.document;sample.location.replace(sampleUrl)}
-    }else{deliveredSteps.clear();sample=window.open(sampleUrl,'_blank')}
-  }catch{deliveredSteps.clear();sample=window.open(sampleUrl,'_blank')}
-  if(!sample){practiceRequest=undefined;setNote('popupBlocked');return}
-  setNote('practiceWaiting');
-  const fail=()=>{stopPracticeWait();practiceRequest=undefined;setNote('practiceFailed')};
-  const probe=()=>{
-    if(sample.closed){fail();return}
-    if(!practiceRequest||practiceRequest.sent)return;
-    // A retry must reach the new document, never the listener being unloaded.
-    if(replacedDocument){try{if(sample.document===replacedDocument)return}catch{return}}
-    sample.postMessage({type:'glimpselet:tutorial:probe',version:1,requestId:request.requestId,locale:locale()},location.origin);
-  };
-  practicePoll=setInterval(probe,150);practiceTimeout=setTimeout(fail,8000);probe();sample.focus();
-}
-const pair=document.querySelector('#pair'), copy=document.querySelector('#copy'), connect=document.querySelector('#connect');function renderPair(){if(isConnected){pair.hidden=true;copy.hidden=true;connect.hidden=true;return}if(/^[A-F0-9]{16}$/.test(code||'')){pair.textContent=(lang==='en'?'Pairing code: ':'配對碼：')+code+' · '+(lang==='en'?'Port: ':'連接埠：')+port;copy.hidden=false;connect.hidden=false}else pair.textContent=lang==='en'?'Open Glimpselet from Claude Code to receive a pairing code.':'請從 Claude Code 開啟 Glimpselet 取得配對碼。'}renderPair();if(/^[A-F0-9]{16}$/.test(code||'')){copy.onclick=async()=>{try{await navigator.clipboard.writeText(port+' '+code);setNote('copy')}catch{setNote('copyFail')}};connect.onclick=()=>{connectionKey='pairing';status.textContent=strings[lang].pairing;window.postMessage({type:'glimpselet:pair',port,code,locale:locale()},location.origin)}}
-document.querySelector('#language').onclick=()=>{lang=lang==='en'?'zh':'en';applyLanguage()};document.querySelector('#replay').onclick=()=>{stopPracticeWait();practiceRequest=undefined;deliveredStep=0;deliveredSteps.clear();state={};localStorage.removeItem(stateKey);render();document.querySelector('#tour').scrollIntoView({behavior:'smooth'})};
-document.querySelector('#copy-tunnel').onclick=async()=>{const input=document.querySelector('#tunnel-command');try{await navigator.clipboard.writeText(input.value);setNote('copy')}catch{input.focus();input.select();setNote('copyTunnelFail')}};
-document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero');button.disabled=true;setNote('try');try{const response=await fetch('/install/try?'+new URLSearchParams({code:code||'',locale:locale()}),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(response.status===409||data.mode==='tunnel'){remoteMode=true;button.hidden=true;setNote('remote');return}if(!response.ok)throw new Error('launch');setNote('tryStarted')}catch{setNote('tryFail')}finally{button.disabled=false}};
-function setInstallMode(){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(!local||!remote)return;const isRemote=modeKind==='tunnel';local.hidden=isRemote;remote.hidden=!isRemote}
-function setConnected(){if(isConnected)return;isConnected=true;status.classList.add('connected');status.textContent=strings[lang].connected;document.querySelector('#pair-controls').hidden=true;pair.hidden=true;document.querySelector('#copy').hidden=true;document.querySelector('#connect').hidden=true;if(noteKey==='extensionReady'||noteKey==='tryStarted')setNote()}
-async function poll(){if(!/^[A-F0-9]{16}$/.test(code||''))return;try{const response=await fetch('/install/status?code='+encodeURIComponent(code),{cache:'no-store'});if(response.ok){const result=await response.json();const download=document.querySelector('#install-remote a');if(download)download.href='/install/extension.zip?code='+encodeURIComponent(code);if(typeof result.mode==='string'){const nextKind=result.mode==='tunnel'?'tunnel':result.mode==='api'?'api':'direct';if(nextKind!==modeKind){modeKind=nextKind;setInstallMode();applyLanguage()}}if(typeof result.tunnelCommand==='string'&&/^ssh -N(?: -p [0-9]{1,5})? -L /.test(result.tunnelCommand)&&!/[\\r\\n]/.test(result.tunnelCommand)){document.querySelector('#tunnel').hidden=false;document.querySelector('#tunnel-command').value=result.tunnelCommand}if(modeKind==='tunnel'){if(!remoteMode)setNote('remote');remoteMode=true;document.querySelector('#try-zero').disabled=true;document.querySelector('#try-zero').hidden=true}if(result.trialError===true)setNote('tryFail');if(result.connected===true){setConnected();setTimeout(()=>{document.querySelector('#tour').scrollIntoView({behavior:'smooth'})},650);return}}}catch{}setTimeout(poll,1200)}
-window.addEventListener('message',event=>{
-  if(event.origin!==location.origin||(event.source!==window&&event.source!==sample))return;
-  const data=event.data, pending=practiceRequest;
-  if(event.source===sample&&data?.version===1&&pending&&data.requestId===pending.request.requestId){
-    if(data.type==='glimpselet:tutorial:loaded'&&!pending.sent){pending.sent=true;clearInterval(practicePoll);sample.postMessage(pending.request,location.origin)}
-    if(data.type==='glimpselet:tutorial:ready'&&pending.sent&&data.action===pending.request.action&&data.step===pending.request.step){stopPracticeWait();deliveredStep=data.step;deliveredSteps.add(data.step);practiceRequest=undefined;setNote('request')}
-  }
-  if(data?.type==='glimpselet:tutorial:done'&&data.version===1&&event.source===sample&&Number.isInteger(data.step)&&deliveredSteps.has(data.step))mark(data.step-1);
-  if(data?.type==='glimpselet:paired'&&event.source===window)setConnected();
-  if(data?.type==='glimpselet:extension-ready'&&event.source===window&&!isConnected&&/^[A-F0-9]{16}$/.test(code||''))setNote('extensionReady');
-});
-document.querySelectorAll('.copy-manager').forEach(button=>{button.onclick=async()=>{const card=button.closest('.install-card'),input=card.querySelector('.manager-address');try{await navigator.clipboard.writeText(input.value)}catch{input.focus();input.select()}}});
-setInstallMode();applyLanguage();if(!tourOnly)poll();if(tourOnly)document.querySelector('#tour').scrollIntoView();})();`;
+export const INSTALL_GUIDE_SCRIPT = `
+const translations=${JSON.stringify(welcomeLocales)};
+window.addEventListener('hashchange',()=>location.reload());
+const params=new URLSearchParams(location.hash.slice(1)),code=params.get('code')||'';
+const locales=Object.keys(translations),requested=new URLSearchParams(location.search).get('locale');
+let lang=locales.includes(requested)?requested:locales.find(l=>l===navigator.language)||locales.find(l=>l===navigator.language.split('-')[0])||'en';
+let connected=false,extensionReady=false,connecting=false,connectionKey='waiting',noteKey='';
+const language=document.querySelector('#language'),status=document.querySelector('#connection'),open=document.querySelector('#open-bubble');
+function render(){document.documentElement.lang=lang;document.title=translations[lang].title;language.value=lang;document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=translations[lang][el.dataset.i18n]);status.textContent=translations[lang][connectionKey];document.querySelector('#try-note').textContent=noteKey?translations[lang][noteKey]:''}
+function setConnected(){connected=true;connecting=false;connectionKey='connected';status.classList.add('connected');open.disabled=false;document.querySelector('#reconnect').hidden=true;render()}
+function connect(){if(connected||connecting||!extensionReady||!/^[A-F0-9]{16}$/.test(code))return;connecting=true;connectionKey='waiting';render();window.postMessage({type:'glimpselet:pair',port:Number(location.port||80),code,locale:lang},location.origin)}
+language.onchange=()=>{lang=language.value;render()};
+window.addEventListener('message',event=>{if(event.source!==window||event.origin!==location.origin)return;const data=event.data;if(data?.type==='glimpselet:extension-ready'){extensionReady=true;connect()}if(data?.type==='glimpselet:paired')setConnected();if(data?.type==='glimpselet:connection-failed'){connecting=false;connectionKey='expired';document.querySelector('#reconnect').hidden=false;render()}});
+open.onclick=()=>window.postMessage({type:'glimpselet:open-bubble',locale:lang},location.origin);
+document.querySelector('#reconnect').onclick=()=>{window.postMessage({type:'glimpselet:hello'},location.origin);connect()};
+const download=document.querySelector('#download');if(download)download.href='/install/extension.zip?code='+encodeURIComponent(code);
+const copy=document.querySelector('#copy-manager');if(copy)copy.onclick=async()=>{const input=document.querySelector('#manager');try{await navigator.clipboard.writeText(input.value)}catch{input.focus();input.select();document.querySelector('#manager-note').textContent=translations[lang].copyFailed}};
+const reveal=document.querySelector('#reveal');if(reveal)reveal.onclick=async()=>{try{const result=await fetch('/install/reveal?code='+encodeURIComponent(code),{method:'POST'});if(!result.ok)throw new Error()}catch{document.querySelector('#folder-note').textContent=translations[lang].revealFailed}};
+document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero');button.disabled=true;noteKey='trying';render();try{const result=await fetch('/install/try?'+new URLSearchParams({code,locale:lang}),{method:'POST'});if(!result.ok)throw new Error();noteKey='tried'}catch{noteKey='tryFailed'}finally{button.disabled=false;render()}};
+async function poll(){try{const response=await fetch('/install/status?code='+encodeURIComponent(code));if(!response.ok){connectionKey='expired';render();return}const result=await response.json();if(result.connected)setConnected();if(result.mode==='tunnel'){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(local)local.hidden=true;if(remote)remote.hidden=false;document.querySelector('#try-zero').disabled=true;noteKey='remoteTry';render()}if(result.trialError){noteKey='tryFailed';render()}}catch{}setTimeout(poll,1200)}
+render();window.postMessage({type:'glimpselet:hello'},location.origin);poll();
+`;

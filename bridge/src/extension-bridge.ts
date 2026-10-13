@@ -18,6 +18,8 @@ import { cancelled, PanelError } from "./errors.js";
 type Page = NonNullable<ProviderRequest["page"]> & { hasPassword: boolean };
 type Pair = {
   selecting?: { id: string };
+  automatic: boolean;
+  initialized?: boolean;
   live?: boolean;
   origin: string;
   expires: number;
@@ -122,14 +124,28 @@ export class ExtensionBridge {
   attachChannel(channel: LiveChannel): void {
     this.channel = channel;
     channel.onReady = () => {
-      for (const pair of this.pairs.values())
+      for (const pair of this.pairs.values()) {
+        if (pair.automatic && !pair.job) pair.live = true;
         if (pair.client)
-          send(pair.client, { type: "channel-status", liveAvailable: true });
+          send(pair.client, {
+            type: "channel-status",
+            liveAvailable: true,
+            live: Boolean(pair.live),
+            sessionId: pair.live ? "live" : pair.thread.id,
+          });
+      }
     };
     channel.onUnavailable = () => {
-      for (const pair of this.pairs.values())
+      for (const pair of this.pairs.values()) {
+        if (pair.automatic) pair.live = false;
         if (pair.client)
-          send(pair.client, { type: "channel-status", liveAvailable: false });
+          send(pair.client, {
+            type: "channel-status",
+            liveAvailable: false,
+            live: Boolean(pair.live),
+            sessionId: pair.live ? "live" : pair.thread.id,
+          });
+      }
     };
   }
   private sharingIntent = false;
@@ -184,8 +200,7 @@ export class ExtensionBridge {
     const status = this.installation.get(code);
     if (!status || status.expires <= this.now()) return undefined;
     return Boolean(
-      status.token &&
-        this.pairs.get(status.token)?.client?.readyState === WebSocket.OPEN,
+      status.token && (this.pairs.get(status.token)?.expires ?? 0) > this.now(),
     );
   }
 
@@ -250,7 +265,7 @@ export class ExtensionBridge {
             send(client, {
               type: "error",
               code: "pairing_expired",
-              message: "Run /glimpselet:glimpse for a new pairing code.",
+              message: "Run /glimpse to reconnect to your Claude Code.",
             });
             client.close(4001, "Pair again");
             return;
@@ -259,6 +274,7 @@ export class ExtensionBridge {
           pairToken = randomBytes(32).toString("hex");
           pair = {
             origin,
+            automatic: true,
             expires: this.now() + 12 * 60 * 60 * 1000,
             thread: this.sessions.create(),
             history: [],
@@ -274,6 +290,8 @@ export class ExtensionBridge {
           pair.selecting = undefined;
         }
         pair.client = client;
+        if (pair.automatic && !pair.job)
+          pair.live = Boolean(this.channel?.ready);
         if (previous && previous !== client)
           previous.close(4002, "Opened in another window");
         clearTimeout(timer);
@@ -389,6 +407,8 @@ export class ExtensionBridge {
           pair.thread = thread;
           pair.live = false;
         }
+        pair.automatic = false;
+        pair.initialized = true;
         pair.history = [];
         send(client, {
           type: "session",
@@ -458,14 +478,31 @@ export class ExtensionBridge {
     pair.job = job;
     try {
       const conversational = message.kind === "ask" || message.kind === "guide";
-      if (conversational && !pair.live) {
+      if (conversational && pair.automatic) {
+        pair.live = Boolean(this.channel?.ready);
+        if (!pair.live && !pair.initialized) {
+          const thread = await this.sessions.latest(pair.thread);
+          if (controller.signal.aborted || pair.client !== client)
+            throw cancelled();
+          pair.thread = thread;
+          pair.initialized = true;
+        }
+        send(client, {
+          type: "channel-status",
+          liveAvailable: Boolean(this.channel?.ready),
+          live: Boolean(pair.live),
+          sessionId: pair.live ? "live" : pair.thread.id,
+        });
+      }
+      // A channel can disconnect during an answer. Keep that answer's transport
+      // fixed so its reply cannot mutate the fallback transcript.
+      const live = conversational && Boolean(pair.live);
+      if (conversational && !live) {
         await pair.thread.reconcile();
         if (controller.signal.aborted) throw cancelled();
       }
       const result = await (
-        conversational && pair.live
-          ? this.channel!.ask.bind(this.channel)
-          : this.provider
+        live ? this.channel!.ask.bind(this.channel) : this.provider
       )({
         image,
         page,
@@ -485,7 +522,7 @@ export class ExtensionBridge {
       if (controller.signal.aborted || pair.client !== client)
         throw new Error("The answer stopped. Partial text was kept.");
       if (conversational) {
-        if (!pair.live) pair.thread.complete(result);
+        if (!live) pair.thread.complete(result);
         pair.history.push({
           id,
           at: this.now(),
@@ -500,7 +537,7 @@ export class ExtensionBridge {
         id,
         answer: result.answer,
         usage: result.usage,
-        sessionId: pair.live ? "live" : pair.thread.id,
+        sessionId: live ? "live" : pair.thread.id,
       });
     } finally {
       clearTimeout(timeout);
@@ -564,6 +601,8 @@ export class ExtensionBridge {
         pair.selecting = undefined;
         pair.job?.controller.abort();
         await pair.job?.done;
+        pair.automatic = false;
+        pair.initialized = true;
         pair.history = [];
         pair.thread = this.sessions.create();
       }),

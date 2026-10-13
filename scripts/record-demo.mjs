@@ -7,6 +7,10 @@ import { join, resolve } from "node:path";
 import { once } from "node:events";
 import { ExtensionBridge } from "../bridge/dist/extension-bridge.js";
 import { ExtensionSessions } from "../bridge/dist/extension-sessions.js";
+import {
+  INSTALL_GUIDE_SCRIPT,
+  installGuide,
+} from "../bridge/dist/extension-install.js";
 import en from "../extension/locales/en.json" with { type: "json" };
 
 const here = resolve(".");
@@ -252,9 +256,40 @@ if (
 
 try {
   const fixture = await readFile(fixtureFile);
-  server = createServer((request, response) => {
+  server = createServer(async (request, response) => {
+    const url = new URL(request.url, "http://127.0.0.1");
+    if (url.pathname === "/install/status") {
+      const connected = bridge.installStatus(url.searchParams.get("code"));
+      response.writeHead(connected === undefined ? 401 : 200, {
+        "content-type": "application/json",
+      });
+      response.end(JSON.stringify({ connected, mode: "direct" }));
+      return;
+    }
+    if (url.pathname === "/install-guide.js") {
+      response.writeHead(200, { "content-type": "text/javascript" });
+      response.end(INSTALL_GUIDE_SCRIPT);
+      return;
+    }
+    if (url.pathname.startsWith("/assets/")) {
+      try {
+        const asset = await readFile(resolve("bin/panel", `.${url.pathname}`));
+        response.writeHead(200, {
+          "content-type": url.pathname.endsWith(".svg")
+            ? "image/svg+xml"
+            : "image/png",
+        });
+        response.end(asset);
+      } catch {
+        response.writeHead(404);
+        response.end();
+      }
+      return;
+    }
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    response.end(fixture);
+    response.end(
+      url.pathname === "/install" ? installGuide(extension) : fixture,
+    );
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -316,6 +351,10 @@ try {
       pipSize: { width: 390, height: 650 },
     }),
   );
+  const welcome = await browserContext.newPage();
+  await welcome.goto(`${origin}/install#code=${bridge.issueCode()}`);
+  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
+  await welcome.close();
   sitePage = await browserContext.newPage();
   await sitePage.goto(publicMode ? publicUrl : origin, {
     waitUntil: "domcontentloaded",
@@ -334,17 +373,9 @@ try {
   appPage.setDefaultTimeout(12000);
   sitePage.setDefaultTimeout(12000);
   await appPage.locator(".app").waitFor();
-  await appPage.getByRole("button", { name: en.settings, exact: true }).click();
-  await appPage
-    .locator(".dialog input")
-    .nth(0)
-    .fill(`ws://127.0.0.1:${port}/extension`);
-  await appPage.locator(".dialog input").nth(1).fill(bridge.issueCode());
-  await appPage.getByRole("button", { name: en.pair, exact: true }).click();
   await expect(appPage.locator(".connection")).toHaveClass(/online/, {
     timeout: 15000,
   });
-  await appPage.getByRole("button", { name: en.close, exact: true }).click();
   await expect(appPage.locator(".suggestions button")).toHaveCount(3, {
     timeout: 15000,
   });

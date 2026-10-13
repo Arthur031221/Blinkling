@@ -65,9 +65,8 @@ describe("extension locale bundles", () => {
         expect(value.trim(), `${locale}.${key}`).not.toBe("");
       expect(bundle.sessionInitialization, locale).toContain(bundle.newThread);
     }
-    expect(en.pair).toBe("Connect");
-    expect(en.pairCode).toBe("Pairing code");
-    expect(en.bridgeUrl).toBe("Connection URL");
+    expect(zhTW.connected).toBe("已連到你的 Claude Code");
+    expect(en.pairHint).toContain("/glimpse");
     expect(en.visible).toBe("Visible area");
     expect(en.restore).toBe("Restore original text");
     expect(en.float).toBe("Open floating panel");
@@ -103,7 +102,7 @@ describe("extension locale bundles", () => {
     }
   });
 
-  it("names Claude Code, conversation states and reasoning levels in every locale", () => {
+  it("names Claude Code and reasoning levels without exposing transport states in every locale", () => {
     const reasoning = {
       en: ["Low", "Medium", "High"],
       "zh-TW": ["低", "中", "高"],
@@ -122,26 +121,20 @@ describe("extension locale bundles", () => {
         [text.effortLow, text.effortMedium, text.effortHigh],
         locale,
       ).toEqual(reasoning[locale as keyof typeof reasoning]);
-      const states = [
-        text.connectionLive,
-        text.connectionDedicated,
-        text.connectionContinued,
-      ];
-      expect(
-        states.every((label) => typeof label === "string" && label.trim()),
-        locale,
-      ).toBe(true);
-      expect(new Set(states).size, locale).toBe(3);
-      expect(text.connectionLive, locale).toContain("Claude Code");
-      if (locale !== "en")
-        for (const key of [
-          "connectionLive",
-          "connectionDedicated",
-          "connectionContinued",
-        ])
-          expect(text[key], `${locale}.${key}`).not.toBe(
-            (en as Record<string, string>)[key],
-          );
+      expect(text.connected, locale).toContain("Claude Code");
+      expect(text.ready, locale).toBe(text.connected);
+      expect(text.bridgeLost, locale).toContain("/glimpse");
+      for (const removed of [
+        "pairCode",
+        "bridgeUrl",
+        "connectionLive",
+        "connectionDedicated",
+        "connectionContinued",
+        "replayTour",
+      ])
+        expect(Object.hasOwn(bundle, removed), `${locale}.${removed}`).toBe(
+          false,
+        );
     }
   });
 

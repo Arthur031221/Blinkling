@@ -147,14 +147,30 @@ test(
       opened.content[0].text,
     );
     assert.ok(url, opened.content[0].text);
-    assert.match(opened.content[0].text, /install and pair/);
+    assert.match(
+      opened.content[0].text,
+      /connects to your Claude Code automatically/,
+    );
+    assert.match(
+      opened.content[0].text,
+      /claude --continue --dangerously-load-development-channels plugin:glimpselet@glimpselet/,
+    );
+    const reopened = await client.callTool({
+      name: "extension_install",
+      arguments: {},
+    });
+    assert.match(reopened.content[0].text, /\/install#code=[A-F0-9]{16}/);
+    assert.doesNotMatch(
+      reopened.content[0].text,
+      /Optional live terminal sync|--dangerously-load-development-channels/,
+    );
     const panel = url[0].split("/install")[0];
     const code = url[1];
     const origin = new URL(panel).origin;
     const guide = await fetch(`${panel}/install`);
     assert.equal(guide.status, 200);
     const guideText = await guide.text();
-    assert.match(guideText, /Connect your browser/);
+    assert.match(guideText, /Welcome to Glimpselet/);
     assert.match(guideText, /\/install\/extension\.zip/);
     const download = await fetch(`${panel}/install/extension.zip?code=${code}`);
     assert.equal(download.status, 200);

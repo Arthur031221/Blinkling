@@ -1,3 +1,4 @@
+import { connectWelcome, saveWelcomeLocale } from "./connection";
 const panelUrl = () => chrome.runtime.getURL("panel.html");
 const readerUrl = () => chrome.runtime.getURL("reader.html");
 type BrowserTab = { id?: number; url?: string; windowId?: number };
@@ -143,6 +144,27 @@ chrome.runtime.onMessage.addListener(
         );
       return true;
     }
+    if (message?.type === "glimpselet:open-bubble" && sender.tab?.url) {
+      let source: URL;
+      try {
+        source = new URL(sender.tab.url);
+      } catch {
+        return false;
+      }
+      if (
+        source.protocol !== "http:" ||
+        !["127.0.0.1", "localhost"].includes(source.hostname) ||
+        source.username !== "" ||
+        source.password !== "" ||
+        source.pathname !== "/install"
+      )
+        return false;
+      void saveWelcomeLocale((message as { locale?: unknown }).locale)
+        .then(() => openPanel())
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message?.type === "glimpselet:pair" && sender.tab?.url) {
       let senderUrl: URL;
       try {
@@ -172,32 +194,13 @@ chrome.runtime.onMessage.addListener(
         sendResponse({ ok: false, error: "invalid_pair_request" });
         return false;
       }
-      const target = new URL(panelUrl());
-      target.searchParams.set("pairPort", String(port));
-      target.searchParams.set("pairCode", code);
-      const locale = (message as { locale?: unknown }).locale;
-      if (locale === "en" || locale === "zh-TW")
-        target.searchParams.set("welcomeLocale", locale);
-      void chrome.tabs
-        .query({ url: `${panelUrl()}*` })
-        .then(async ([existing]) => {
-          if (existing?.id !== undefined) {
-            await chrome.tabs.update(existing.id, {
-              url: target.toString(),
-              active: true,
-            });
-            if (existing.windowId !== undefined)
-              await chrome.windows.update(existing.windowId, { focused: true });
-          } else
-            await chrome.windows.create({
-              url: target.toString(),
-              type: "popup",
-              width: 420,
-              height: 620,
-              focused: true,
-            });
-          sendResponse({ ok: true });
-        })
+      void connectWelcome(port, code)
+        .then(() =>
+          chrome.runtime
+            .sendMessage({ type: "glimpselet:connection-updated" })
+            .catch(() => {}),
+        )
+        .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
       return true;
     }

@@ -154,7 +154,7 @@ describe("distribution README sync", () => {
       expect(advanced).toContain(sourceBootstrap);
       expect(advanced).toContain("/glimpselet:glimpse");
       expect(advanced).toContain("2.0.0");
-      expect(advanced).toContain("~/.glimpselet/extension");
+      expect(advanced).toContain("~/Glimpselet-extension");
       expect(advanced).toContain("chrome://extensions");
       expect(content.slice(0, content.indexOf("\n### "))).toContain(
         "/plugin marketplace add Arthur031221/Glimpselet",
@@ -225,7 +225,7 @@ describe("distribution README sync", () => {
       const advancedEnd = content.indexOf("\n## ", advancedStart);
       const advanced = content.slice(advancedStart, advancedEnd);
       expect(advanced).toContain(sourceBootstrap);
-      expect(advanced).toContain("~/.glimpselet/extension");
+      expect(advanced).toContain("~/Glimpselet-extension");
       expect(advanced).toContain("chrome://extensions");
       expect(content.slice(0, advancedStart)).not.toContain("Load unpacked");
       expect(content.slice(0, advancedStart)).not.toContain("37115");
@@ -234,7 +234,7 @@ describe("distribution README sync", () => {
       // replacement belong only in Advanced after distribution is configured.
       expect(
         content.slice(0, advancedStart) + content.slice(advancedEnd),
-      ).not.toContain("~/.glimpselet/extension");
+      ).not.toContain("~/Glimpselet-extension");
       expect(content.slice(advancedEnd)).not.toMatch(
         /developer banner|Entwicklermodus-Hinweis|개발자 배너|开发者提示|開發者提示/,
       );

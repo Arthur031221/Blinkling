@@ -285,8 +285,8 @@ export class BridgeClient extends EventTarget {
   liveAvailable = false;
   live = false;
 
-  async load(): Promise<void> {
-    if (this.closed || this.credentialsRevision !== 0) return;
+  async load(refresh = false): Promise<void> {
+    if (this.closed || (!refresh && this.credentialsRevision !== 0)) return;
     const revision = this.credentialsRevision;
     const stored = await chrome.storage.session.get([
       "bridgeToken",
@@ -294,12 +294,18 @@ export class BridgeClient extends EventTarget {
       "bridgeUrl",
     ]);
     if (this.closed || revision !== this.credentialsRevision) return;
-    this.credentialsRevision++;
-    this.token =
+    const token =
       typeof stored.bridgeToken === "string" ? stored.bridgeToken : "";
-    this.mode = stored.bridgeMode === "tunnel" ? "tunnel" : "direct";
-    this.url =
+    const url =
       typeof stored.bridgeUrl === "string" ? stored.bridgeUrl : this.url;
+    if (refresh && token === this.token && url === this.url) return;
+    this.retireSocket();
+    this.credentialsRevision++;
+    this.token = token;
+    this.mode = stored.bridgeMode === "tunnel" ? "tunnel" : "direct";
+    this.url = url;
+    this.sessionId = "";
+    this.live = this.liveAvailable = false;
     if (this.token) this.connect();
   }
 
@@ -421,6 +427,11 @@ export class BridgeClient extends EventTarget {
         this.dispatchEvent(new Event("connected"));
         this.dispatchEvent(new Event("paired"));
         return;
+      }
+      if (m.type === "channel-status") {
+        this.liveAvailable = Boolean(m.liveAvailable);
+        this.live = Boolean(m.live);
+        if (typeof m.sessionId === "string") this.sessionId = m.sessionId;
       }
       if (
         m.type === "delta" &&

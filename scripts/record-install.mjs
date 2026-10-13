@@ -87,13 +87,15 @@ async function recordNativeInstall() {
   assert.ok(evidence, "Evidence output directory was not set");
 
   const sourceExtension = join(root, "bin", "extension");
-  const stableFolder = join(home, ".glimpselet", "extension");
+  const stableFolder = join(home, "Glimpselet-extension");
   const profile = join(home, "chrome-profile");
   let context;
   let windowManager;
 
   const nativeFolderInput = String.raw`
 import ctypes
+import os
+import subprocess
 import sys
 import time
 
@@ -105,26 +107,22 @@ x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
 x11.XStringToKeysym.restype = ctypes.c_ulong
 x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
 x11.XKeysymToKeycode.restype = ctypes.c_uint
+xtest.XTestFakeKeyEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
 x11.XFlush.argtypes = [ctypes.c_void_p]
 x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
-xtest.XTestFakeKeyEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
 xtest.XTestFakeMotionEvent.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_ulong]
 xtest.XTestFakeButtonEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
 
 display = x11.XOpenDisplay(None)
 assert display, "Cannot connect to the owned X display"
 
-def keycode(name):
-    return x11.XKeysymToKeycode(display, x11.XStringToKeysym(name.encode()))
-
-def key(name, down):
-    xtest.XTestFakeKeyEvent(display, keycode(name), int(down), 0)
+def press_return():
+    code = x11.XKeysymToKeycode(display, x11.XStringToKeysym(b"Return"))
+    xtest.XTestFakeKeyEvent(display, code, 1, 0)
     x11.XFlush(display)
-
-def press(name):
-    key(name, True)
     time.sleep(0.025)
-    key(name, False)
+    xtest.XTestFakeKeyEvent(display, code, 0, 0)
+    x11.XFlush(display)
 
 def click(x, y):
     xtest.XTestFakeMotionEvent(display, -1, x, y, 0)
@@ -132,41 +130,21 @@ def click(x, y):
     xtest.XTestFakeButtonEvent(display, 1, 0, 0)
     x11.XFlush(display)
 
-click(int(sys.argv[2]), int(sys.argv[3]))
-time.sleep(0.3)
-key("Control_L", True)
-press("l")
-key("Control_L", False)
-time.sleep(0.2)
-
-symbols = {
-    "/": "slash",
-    ".": "period",
-    "-": "minus",
-    "_": "underscore",
-}
-for character in sys.argv[1]:
-    if character.isupper():
-        key("Shift_L", True)
-        press(character.lower())
-        key("Shift_L", False)
-    elif character.islower() or character.isdigit():
-        press(character)
-    else:
-        assert character in symbols, "Unsupported path character: " + character
-        press(symbols[character])
-    time.sleep(0.01)
-
+# Navigate Home, then select the visible folder using the actual native UI.
+click(int(sys.argv[1]), int(sys.argv[2]))
 time.sleep(0.5)
-press("Return")
-time.sleep(1.5)
-press("Return")
-time.sleep(1.5)
-press("Return")
-time.sleep(1.0)
-click(int(sys.argv[4]), int(sys.argv[5]))
-time.sleep(0.2)
-press("Return")
+click(int(sys.argv[3]), int(sys.argv[4]))
+time.sleep(0.5)
+subprocess.run([
+    "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+    "-f", "x11grab", "-video_size", "1440x1000",
+    "-i", os.environ["DISPLAY"], "-frames:v", "1", sys.argv[7],
+], check=True)
+click(int(sys.argv[5]), int(sys.argv[6]))
+time.sleep(0.5)
+press_return()
+time.sleep(0.5)
+press_return()
 time.sleep(1.0)
 x11.XCloseDisplay(display)
 `;
@@ -261,34 +239,22 @@ x11.XCloseDisplay(display)
     const chooserHeight = Number(chooserSize[2]);
     const chooserX = Number(chooserOrigin[1]);
     const chooserY = Number(chooserOrigin[2]);
-    const focusX = chooserX + 55;
-    const focusY = chooserY + 60;
+    const homeX = chooserX + 55;
+    const homeY = chooserY + 60;
+    const folderX = chooserX + 260;
+    const folderY = chooserY + 85;
     const selectX = chooserX + chooserWidth - 48;
     const selectY = chooserY + chooserHeight - 23;
-    run("ffmpeg", [
-      "-y",
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-f",
-      "x11grab",
-      "-video_size",
-      "1440x1000",
-      "-i",
-      display,
-      "-frames:v",
-      "1",
-      picker,
-    ]);
-
     run("python3", [
       "-c",
       nativeFolderInput,
-      stableFolder,
-      String(focusX),
-      String(focusY),
+      String(homeX),
+      String(homeY),
+      String(folderX),
+      String(folderY),
       String(selectX),
       String(selectY),
+      picker,
     ]);
     await page.waitForTimeout(1500);
     const postSelectionWindows = run("xwininfo", ["-root", "-tree"]);

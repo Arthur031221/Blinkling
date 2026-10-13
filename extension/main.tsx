@@ -1,3 +1,4 @@
+import { isWelcomeLocale } from "./connection";
 import { listenForShiftCrop } from "./shift-crop";
 import { encodeCanvasPng } from "./png";
 import { attachmentToPng } from "./attachment";
@@ -237,8 +238,6 @@ function App() {
   );
   const [contextFailure, setContextFailure] = useState("");
   const [connected, setConnected] = useState(false);
-  const [mode, setMode] = useState<"direct" | "tunnel">("direct");
-  const [pairCode, setPairCode] = useState("");
   const [readerSourceUrl, setReaderSourceUrl] = useState<string>();
   const [apiKey, setApiKey] = useState("");
   const [backend, setBackend] = useState<"bridge" | "api">("bridge");
@@ -345,7 +344,6 @@ function App() {
   const [sessionId, setSessionId] = useState("");
   const [liveAvailable, setLiveAvailable] = useState(false);
   const [liveSession, setLiveSession] = useState(false);
-  const [continuedSessionId, setContinuedSessionId] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [tutorial, updateTutorial] = useState<TutorialPractice | null>(null);
@@ -379,9 +377,6 @@ function App() {
   const [size, setSize] = useState({ width: 420, height: 650 });
   const cropBusy = useRef(false);
   const [shareStream, setShareStream] = useState<MediaStream | null>(null);
-  const [connectionUrl, setConnectionUrl] = useState(
-    "ws://127.0.0.1:37115/extension",
-  );
   const [blocklist, setBlocklist] = useState("");
   const requestRef = useRef<AbortController | null>(null);
   const apiRequestRef = useRef<ReturnType<typeof askAnthropic> | null>(null);
@@ -445,18 +440,15 @@ function App() {
       const params = new URLSearchParams(location.search);
       const welcomeLocale = params.get("welcomeLocale");
       const hasSavedLocale = supportedLocales.includes(stored.locale as Locale);
-      // An explicit preference survives pairing or replaying the welcome tour.
+      // An explicit preference survives reopening the welcome page.
       // On a fresh profile, the welcome choice also applies to first consent.
       const lang = hasSavedLocale
         ? (stored.locale as Locale)
-        : welcomeLocale === "en" || welcomeLocale === "zh-TW"
+        : isWelcomeLocale(welcomeLocale)
           ? welcomeLocale
           : "en";
       setLocale(lang);
-      if (
-        !hasSavedLocale &&
-        (welcomeLocale === "en" || welcomeLocale === "zh-TW")
-      )
+      if (!hasSavedLocale && isWelcomeLocale(welcomeLocale))
         await chrome.storage.local.set({ locale: lang });
       setTargetLocale(
         supportedLocales.includes(stored.targetLocale as Locale)
@@ -519,16 +511,13 @@ function App() {
         /^[A-F0-9]{16}$/.test(code)
       ) {
         const wsUrl = `ws://127.0.0.1:${port}/extension`;
-        setConnectionUrl(wsUrl);
-        setPairCode(code);
         window.setTimeout(() => {
           void bridge
             .pair(code, wsUrl)
             .then(() => {
               setConnected(true);
               setSessionId(bridge.sessionId);
-              setMode(bridge.mode);
-              setStatus(messages[lang].paired);
+              setStatus(messages[lang].connected);
             })
             .catch((error: unknown) =>
               setStatus(errorLabel(error, messages[lang])),
@@ -538,7 +527,6 @@ function App() {
       await bridge.load();
       setConnected(Boolean(bridge.token && bridge.sessionId));
       setSessionId(bridge.sessionId);
-      setMode(bridge.mode);
     })();
     const connectedHandler = () => setConnected(true);
     const disconnectedHandler = () => {
@@ -547,7 +535,6 @@ function App() {
     };
     const pairedHandler = () => {
       setConnected(true);
-      setMode(bridge.mode);
       setSessionId(bridge.sessionId);
       setLiveSession(bridge.live);
       setLiveAvailable(bridge.liveAvailable);
@@ -558,10 +545,16 @@ function App() {
     bridge.addEventListener("connected", connectedHandler);
     bridge.addEventListener("disconnected", disconnectedHandler);
     bridge.addEventListener("paired", pairedHandler);
+    const refreshConnection = (message: { type?: string }) => {
+      if (message.type === "glimpselet:connection-updated")
+        void bridge.load(true).catch(() => setConnected(false));
+    };
+    chrome.runtime.onMessage.addListener(refreshConnection);
     return () => {
       bridge.removeEventListener("connected", connectedHandler);
       bridge.removeEventListener("disconnected", disconnectedHandler);
       bridge.removeEventListener("paired", pairedHandler);
+      chrome.runtime.onMessage.removeListener(refreshConnection);
       bridge.close();
     };
   }, []);
@@ -1187,9 +1180,14 @@ function App() {
         type?: string;
         id?: string;
         liveAvailable?: boolean;
+        live?: boolean;
+        sessionId?: string;
       };
       if (message?.type === "channel-status") {
         setLiveAvailable(Boolean(message.liveAvailable));
+        setLiveSession(Boolean(message.live));
+        if (typeof message.sessionId === "string")
+          setSessionId(message.sessionId);
         return;
       }
       if (message?.type !== "capture" || !message.id) return;
@@ -1794,21 +1792,6 @@ function App() {
       .filter(Boolean)
       .some((item) => host === item || host.endsWith(`.${item}`));
   }
-  async function pair() {
-    try {
-      const code = pairCode.trim();
-      if (!/^[A-F0-9]{16}$/.test(code)) throw new Error("invalid_pair_code");
-      await bridge.pair(code, connectionUrl);
-      setConnected(true);
-      setSessionId(bridge.sessionId);
-      setMode(bridge.mode);
-      setStatus(t.paired);
-      setPairCode("");
-      schedulePageRefresh();
-    } catch (error) {
-      reportError(error);
-    }
-  }
   async function persistApiKey(value: string) {
     setApiKey(value);
     await chrome.storage.session.set({ apiKey: value });
@@ -2060,17 +2043,6 @@ function App() {
     } catch (error) {
       reportError(error);
     }
-  }
-  async function replayTour() {
-    const url =
-      backend === "bridge"
-        ? new URL(
-            `/install?locale=${locale}#tour`,
-            connectionUrl.replace(/^ws/, "http"),
-          ).toString()
-        : chrome.runtime.getURL("assets/glimpselet-welcome-sample.html");
-    await chrome.tabs.create({ url });
-    setShowSettings(false);
   }
   async function guidePage() {
     try {
@@ -2639,18 +2611,9 @@ function App() {
       const response = await bridge.request("session", id);
       setSessionId(String(response.sessionId || ""));
       setLiveSession(Boolean(response.live));
-      setContinuedSessionId(
-        id && id !== "live" ? String(response.sessionId || "") : "",
-      );
       setEntries([]);
       setShowSessions(false);
-      setStatus(
-        id === "live"
-          ? t.sessionSelected
-          : id
-            ? t.parallelSession
-            : t.newThread,
-      );
+      setStatus(t.connected);
     } catch (error) {
       reportError(error);
     }
@@ -3071,7 +3034,7 @@ function App() {
               {backend === "api"
                 ? t.apiMode
                 : connected
-                  ? `${mode === "tunnel" ? t.tunnelMode : t.directMode} · ${bridge.project.split(/[\\/]/).filter(Boolean).at(-1) || t.connected}`
+                  ? t.connected
                   : t.disconnected}
             </span>
           </div>
@@ -3564,37 +3527,7 @@ function App() {
               </select>
             </label>
             {backend === "bridge" ? (
-              <>
-                {!connected && (
-                  <>
-                    <div className="field">
-                      <label>
-                        {t.bridgeUrl}
-                        <input
-                          value={connectionUrl}
-                          onChange={(e) => setConnectionUrl(e.target.value)}
-                          spellCheck={false}
-                        />
-                      </label>
-                    </div>
-                    <div className="field">
-                      <label>
-                        {t.pairCode}
-                        <input
-                          value={pairCode}
-                          onChange={(e) => setPairCode(e.target.value)}
-                          autoComplete="one-time-code"
-                          placeholder={t.pairPlaceholder}
-                        />
-                      </label>
-                      <button className="primary" onClick={() => void pair()}>
-                        {t.pair}
-                      </button>
-                    </div>
-                    <p className="help">{t.bridgeHelp}</p>
-                  </>
-                )}
-              </>
+              !connected && <p className="help">{t.pairHint}</p>
             ) : (
               <div className="field">
                 <label>
@@ -3734,9 +3667,6 @@ function App() {
               {t.attach}
             </button>
             <p className="privacy">{t.privacy}</p>
-            <button className="outline" onClick={() => void replayTour()}>
-              {t.replayTour}
-            </button>
           </section>
         </div>
       )}
@@ -3764,14 +3694,12 @@ function App() {
                 ×
               </button>
             </header>
-            <p>{t.sessionFork}</p>
             {liveAvailable && (
               <button
                 className="session-row"
                 onClick={() => void selectSession("live")}
               >
                 <b>{t.liveSession}</b>
-                <span>{t.liveSessionHint}</span>
               </button>
             )}
             <button
@@ -3793,17 +3721,6 @@ function App() {
             ))}
           </section>
         </div>
-      )}
-      {expanded && backend === "bridge" && sessionId && (
-        <footer className="foot">
-          <span>
-            {liveSession || sessionId === "live"
-              ? t.connectionLive
-              : sessionId === continuedSessionId
-                ? t.connectionContinued
-                : t.connectionDedicated}
-          </span>
-        </footer>
       )}
     </main>
   );

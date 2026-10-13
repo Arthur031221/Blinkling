@@ -10,7 +10,7 @@ Un petit chat flottant pour poser à Claude Code des questions sur la page ou l'
 
 Prérequis : une version récente de Claude Code, une connexion avec votre propre abonnement et un navigateur Chromium de bureau comme Chrome ou Edge.
 
-Glimpselet démarre une conversation dédiée. Vous pouvez aussi poursuivre une session récente de Claude Code dans un processus séparé. Pour envoyer des demandes à la session interactive déjà ouverte dans le terminal, activez la préversion des channels. [Configuration du channel](docs/DESIGN.md#the-running-claude-code-conversation).
+Glimpselet se connecte à une session Claude Code en direct vérifiée lorsqu’elle est disponible. Sinon, il reprend automatiquement la dernière conversation du projet actuel, ou en crée une si aucune n’est enregistrée. [Configuration et limites des sessions](docs/DESIGN.md#the-running-claude-code-conversation).
 
 ## Installation
 
@@ -23,7 +23,7 @@ Glimpselet démarre une conversation dédiée. Vous pouvez aussi poursuivre une 
 
 2. Dans votre terminal, vérifiez que `claude plugin list` affiche Glimpselet **2.0.0**, puis exécutez `/glimpselet:glimpse` dans Claude Code.
 
-3. Suivez le guide de bienvenue pour connecter votre navigateur. Sur un ordinateur local, choisissez **Try without installing** ou chargez et associez l'extension dans votre navigateur. Si Claude Code fonctionne sur un hôte distant, exécutez la commande SSH affichée par le guide sur l'ordinateur avec le navigateur. Téléchargez-y le ZIP et chargez l'extension dans ce navigateur. L'option sans installation n'est pas disponible sur l'hôte distant. Une fois l'association réussie, le panneau Glimpselet affiche le mode de connexion et le projet.
+3. La page d’accueil comporte trois étapes : installer l’extension, se connecter automatiquement et ouvrir la bulle. Choisissez **Essayer sans installer** sur un bureau local ou chargez l’extension dans votre navigateur. Si Claude Code s’exécute sur un hôte distant, lancez la commande SSH affichée dans le terminal depuis l’ordinateur du navigateur, puis téléchargez et chargez le ZIP. La bulle affiche **Connecté à votre Claude Code**. Consultez les [détails de connexion](docs/INSTALL.md).
 
 ### Avancé : charger depuis les sources
 
@@ -47,8 +47,8 @@ Les deux vérifications de version doivent afficher `2.0.0`. La liste des plugin
 
 Les détails du plugin doivent aussi inclure les compétences `glimpse` et `install` et le serveur MCP `glimpselet`. L'extension empaquetée se trouve dans `bin/extension`. Sa version doit aussi être **2.0.0**. Si Claude Code est distant, utilisez la commande SSH du guide, téléchargez le ZIP de l'extension sur l'ordinateur avec le navigateur et chargez-y le dossier extrait.
 
-Si le navigateur et Claude Code fonctionnent sur le même ordinateur, le guide de bienvenue copie l'extension compilée dans le dossier stable `~/.glimpselet/extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
-Pour mettre à jour une extension décompressée, fermez l'ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l'extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l'extension.
+Si le navigateur et Claude Code fonctionnent sur le même ordinateur, le guide de bienvenue copie l'extension compilée dans le dossier stable `~/Glimpselet-extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
+Pour mettre à jour une extension décompressée, fermez l'ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l'extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l'extension. Pour passer à `~/Glimpselet-extension`, supprimez l’ancienne fiche et chargez ce dossier une fois.
 
 ## Glimpselet est déjà installé ?
 
@@ -89,7 +89,7 @@ Sur macOS, Cmd+Shift+5 ouvre l'outil système de capture d'écran. Shift fonctio
 
 ## Sessions Claude Code
 
-Consultez [Sessions Claude Code](docs/DESIGN.md#the-running-claude-code-conversation) pour la commande et la configuration de l'aperçu des channels. Sans le channel, Glimpselet peut continuer une session choisie dans un processus séparé. Il s'agit d'une continuation parallèle. N'utilisez pas cette session dans le terminal en même temps, car les accès simultanés peuvent entrer en conflit.
+Consultez [Sessions Claude Code](docs/DESIGN.md#the-running-claude-code-conversation) pour la commande et la configuration de l'aperçu des channels. Sans le channel, Glimpselet reprend automatiquement la dernière session du projet actuel dans un processus séparé. Il s'agit d'une continuation parallèle. N'utilisez pas cette session dans le terminal en même temps, car les accès simultanés peuvent entrer en conflit.
 
 ## Limites et confidentialité
 

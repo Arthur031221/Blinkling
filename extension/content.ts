@@ -1,3 +1,4 @@
+import { isWelcomeLocale } from "./connection";
 import { selectCrop, type CropLabels } from "./crop-selection";
 import { listenForShiftCrop } from "./shift-crop";
 import {
@@ -91,6 +92,20 @@ if (!contentScope.glimpseletContentReady) {
     )
       return;
     const value = event.data;
+    if (value?.type === "glimpselet:hello") {
+      window.postMessage(
+        { type: "glimpselet:extension-ready" },
+        location.origin,
+      );
+      return;
+    }
+    if (value?.type === "glimpselet:open-bubble") {
+      void send({
+        type: "glimpselet:open-bubble",
+        locale: isWelcomeLocale(value.locale) ? value.locale : undefined,
+      });
+      return;
+    }
     if (
       !value ||
       value.type !== "glimpselet:pair" ||
@@ -103,11 +118,17 @@ if (!contentScope.glimpseletContentReady) {
       type: "glimpselet:pair",
       port: Number(value.port),
       code: value.code,
-      locale:
-        value.locale === "en" || value.locale === "zh-TW"
-          ? value.locale
-          : undefined,
-    });
+      locale: isWelcomeLocale(value.locale) ? value.locale : undefined,
+    }).then((result) =>
+      window.postMessage(
+        {
+          type: result?.ok
+            ? "glimpselet:paired"
+            : "glimpselet:connection-failed",
+        },
+        location.origin,
+      ),
+    );
   });
 
   window.addEventListener("glimpselet:tutorial-action", (event) => {

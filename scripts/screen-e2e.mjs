@@ -108,7 +108,7 @@ try {
   await install.goto(guideUrl);
   const panelOpened = context.waitForEvent("page", { timeout: 15000 });
   await install
-    .getByRole("button", { name: "Pair extension", exact: true })
+    .getByRole("button", { name: "Open the bubble", exact: true })
     .click();
   const panel = await panelOpened;
   await panel.waitForURL((url) =>

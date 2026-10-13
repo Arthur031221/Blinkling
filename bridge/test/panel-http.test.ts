@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChildProcess } from "node:child_process";
@@ -10,6 +10,7 @@ import { PNG } from "pngjs";
 import WebSocket from "ws";
 import { CaptureHistory } from "../src/history.js";
 import { PanelServer } from "../src/panel.js";
+import { extensionFolder } from "../src/extension-install.js";
 import type { ExtensionBridge } from "../src/extension-bridge.js";
 import {
   contextPrompt,
@@ -397,6 +398,68 @@ setInterval(() => {}, 1000);
         .filter(Boolean);
     return { panel, extension, recorded };
   }
+
+  it.runIf(process.platform === "linux")(
+    "reveals only the fixed folder after a same-origin capability request",
+    async () => {
+      let now = 1000;
+      const { panel, extension } = await fixture(() => now);
+      const directory = await mkdtemp(join(tmpdir(), "glimpselet-reveal-"));
+      fixtureCleanup.push(() =>
+        rm(directory, { recursive: true, force: true }),
+      );
+      const recorded = join(directory, "revealed.json");
+      const executable = join(directory, "xdg-open");
+      await writeFile(
+        executable,
+        `#!/usr/bin/env node
+import { writeFileSync } from "node:fs";
+writeFileSync(${JSON.stringify(recorded)}, JSON.stringify(process.argv.slice(2)));
+`,
+      );
+      await chmod(executable, 0o700);
+      vi.stubEnv("PATH", `${directory}:${process.env.PATH}`);
+      const code = extension.issueCode();
+      expect(
+        (await fetch(`${panel.origin}/install/reveal?code=${code}`)).status,
+      ).toBe(403);
+      expect(
+        (
+          await post(panel, `/install/reveal?code=${code}`, {}, undefined, {
+            origin: "https://elsewhere.invalid",
+          })
+        ).status,
+      ).toBe(403);
+      expect(
+        (await post(panel, "/install/reveal?code=0000000000000000", {})).status,
+      ).toBe(401);
+      await expect(readFile(recorded)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      const response = await post(
+        panel,
+        `/install/reveal?code=${code}&folder=/tmp/another-project`,
+        { folder: "/tmp/another-project" },
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ revealed: true });
+      expect(JSON.parse(await readFile(recorded, "utf8"))).toEqual([
+        extensionFolder(),
+      ]);
+      await rm(recorded);
+      vi.stubEnv("SSH_CONNECTION", "192.0.2.1 50000 198.51.100.2 22");
+      expect(
+        (await post(panel, `/install/reveal?code=${code}`, {})).status,
+      ).toBe(409);
+      await expect(readFile(recorded)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      now += 600001;
+      expect(
+        (await post(panel, `/install/reveal?code=${code}`, {})).status,
+      ).toBe(401);
+    },
+  );
 
   async function extensionClient(panel: PanelServer) {
     const socket = new WebSocket(

@@ -10,7 +10,7 @@ A small floating chat for asking Claude Code about the page or screen you are vi
 
 Requirements: recent Claude Code, signed in with your own subscription account, and a desktop Chromium browser such as Chrome or Edge.
 
-Glimpselet starts a dedicated conversation. You can select a recent Claude Code session instead, which continues in a separate process. To send requests into the interactive session already open in your terminal, enable the channel preview. [Channel setup](docs/DESIGN.md#the-running-claude-code-conversation).
+Glimpselet connects to a verified live Claude Code session when available. Otherwise it automatically continues the latest session in the current project, or starts one if there is no saved conversation. [Session setup and limits](docs/DESIGN.md#the-running-claude-code-conversation).
 
 ## Install
 
@@ -23,7 +23,7 @@ Glimpselet starts a dedicated conversation. You can select a recent Claude Code 
 
 2. In your terminal, check `claude plugin list` shows Glimpselet **2.0.0**, then run `/glimpselet:glimpse` in Claude Code.
 
-3. Follow the welcome guide to connect your browser. Choose **Try without installing** on a local desktop, or load and pair the extension in your own browser. For a remote Claude Code host, use the SSH command shown in the guide on the computer with your browser, then download the ZIP there and load and pair the extension. The no-install browser option is unavailable on a remote host. A successful pairing shows the connection mode and project in the Glimpselet panel.
+3. Follow the welcome page’s three steps: install, connect automatically, and open the bubble. Choose **Try without installing** on a local desktop, or load the extension in your own browser. For a remote Claude Code host, run the SSH command printed in the terminal on the computer with your browser, then download and load the ZIP there. The bubble shows **Connected to your Claude Code**. See [connection details](docs/INSTALL.md).
 
 ### Advanced: load from source
 
@@ -47,9 +47,9 @@ Both version checks must print **2.0.0**, and the plugin list must show `glimpse
 
 The plugin details must also list the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is in `bin/extension`. Its version must also be **2.0.0**. If Claude Code is remote, use the guide's SSH command, download its extension ZIP on the browser computer, and load the extracted folder there.
 
-If your browser and Claude Code run on the same computer, the welcome guide copies the built extension to the stable folder `~/.glimpselet/extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
+If your browser and Claude Code run on the same computer, the welcome guide copies the built extension to the stable folder `~/Glimpselet-extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
 
-After upgrading an unpacked extension, close the old bubble and rerun `/glimpselet:glimpse` to refresh the stable folder. Click Reload on its card in the extensions page. If Claude Code is remote, download the new ZIP through the welcome guide, replace the extracted files on the browser computer, then reload its extension card.
+After upgrading an unpacked extension, close the old bubble and rerun `/glimpselet:glimpse` to refresh the stable folder. Click Reload on its card in the extensions page. If Claude Code is remote, download the new ZIP through the welcome guide, replace the extracted files on the browser computer, then reload its extension card. When moving to `~/Glimpselet-extension`, remove the old extension card and load this folder once.
 
 ## Already installed Glimpselet?
 
@@ -90,7 +90,7 @@ Float is the first action. The extension asks for page access when you use a fea
 
 ## Claude Code sessions
 
-For the channel preview command and setup details, see [Claude Code sessions](docs/DESIGN.md#the-running-claude-code-conversation). Without the channel, Glimpselet can continue a selected session in a separate process. This is a parallel continuation. Do not use that session in the terminal at the same time because concurrent access can conflict.
+For the channel preview command and setup details, see [Claude Code sessions](docs/DESIGN.md#the-running-claude-code-conversation). Without the channel, Glimpselet automatically continues the latest session in the current project in a separate process. This is a parallel continuation. Do not use that session in the terminal at the same time because concurrent access can conflict.
 
 ## Limits and privacy
 
