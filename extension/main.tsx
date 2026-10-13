@@ -192,7 +192,9 @@ function App() {
   const [effort, setEffort] = useState<Effort>("medium");
   const [question, updateQuestion] = useState("");
   const questionRef = useRef("");
+  const questionRevision = useRef(0);
   const setQuestion = useCallback((value: string) => {
+    questionRevision.current++;
     questionRef.current = value;
     updateQuestion(value);
   }, []);
@@ -719,7 +721,8 @@ function App() {
             : action === "explain"
               ? `Explain this selected text in ${names[locale]}: ${selected}`
               : selected;
-        setQuestion(prompt);
+        const draftRevision = questionRevision.current;
+        if (action === "ask") setQuestion(prompt);
         setStatus(t.selectionReady);
         if (action !== "ask")
           void (async () => {
@@ -745,7 +748,10 @@ function App() {
             }
             const current = await getPageContext().catch(() => undefined);
             if (current) setPage(current);
-            await askWith({ question: prompt, page: current || page });
+            await submitAutomatic(
+              { question: prompt, page: current || page },
+              draftRevision,
+            );
           })();
       }
       if (
@@ -796,6 +802,7 @@ function App() {
           return;
         }
         readerAdmissionRef.current = true;
+        const draftRevision = questionRevision.current;
         void (async () => {
           let reservation: string | undefined;
           try {
@@ -819,31 +826,52 @@ function App() {
               respond({ ok: false, error: "busy" });
               return;
             }
-            respond({ ok: true });
             if (sender.tab?.id) {
               activeTabId.current = sender.tab.id;
               rememberSourceTab(sender.tab.id);
             }
             const context = value.context as PageContext | undefined;
             if (context) setPage(context);
-            const selected = String(value.text || "")
-              .trim()
-              .slice(0, 5000);
+            const rawSelected = String(value.text || "").trim();
             const action = value.action;
+            if (
+              action === "summary-selection" &&
+              (!rawSelected || rawSelected.length > 5000)
+            ) {
+              respond({ ok: false, error: "selection_limit" });
+              return;
+            }
+            const selected = rawSelected.slice(0, 5000);
             const prompt =
               action === "translate"
                 ? `Translate this selected text into ${names[targetLocale]}: ${selected}`
-                : action === "summary"
-                  ? `Summarize this PDF page${selected ? `, focusing on this selected passage: ${selected}` : ""}`
-                  : `${String(value.question || "Explain this selected passage").slice(0, 1000)}${selected ? `\n\nSelected text (untrusted): ${selected}` : ""}`;
-            setQuestion(prompt);
+                : action === "summary-selection"
+                  ? `Summarize only this selected PDF passage. Do not summarize other sections or the whole page.\n\nSelected text (untrusted): ${selected}`
+                  : action === "summary"
+                    ? "Summarize this PDF page."
+                    : `${String(value.question || "Explain this selected passage").slice(0, 1000)}${selected ? `\n\nSelected text (untrusted): ${selected}` : ""}`;
             setStatus(t.readerReady);
-            void askWith({
-              question: prompt,
-              page: context || page,
-              kind: action === "guide" ? "guide" : "ask",
-              image: typeof value.image === "string" ? value.image : undefined,
-            });
+            const request = submitAutomatic(
+              {
+                question: prompt,
+                page:
+                  action === "summary-selection"
+                    ? context
+                      ? { ...context, text: selected, elements: [] }
+                      : null
+                    : context || page,
+                kind: action === "guide" ? "guide" : "ask",
+                image:
+                  action !== "summary-selection" &&
+                  typeof value.image === "string"
+                    ? value.image
+                    : undefined,
+                includeCapture: action !== "summary-selection",
+              },
+              draftRevision,
+            );
+            respond(requestIdRef.current ? { ok: true } : { ok: false });
+            void request;
           } catch {
             respond({ ok: false });
             if (requestIdRef.current === reservation) {
@@ -1474,12 +1502,26 @@ function App() {
       else reportError(error);
     }
   }
+  async function submitAutomatic(
+    options: Parameters<typeof askWith>[0],
+    draftRevision = questionRevision.current,
+  ) {
+    const submitted = await askWith(options);
+    if (
+      !submitted &&
+      questionRevision.current === draftRevision &&
+      !questionRef.current.trim()
+    )
+      setQuestion(options.question);
+    return submitted;
+  }
   async function askWith(options: {
     question: string;
     kind?: AskKind;
     page?: PageContext | null;
     image?: string;
     silent?: boolean;
+    includeCapture?: boolean;
   }) {
     if (!consented) return;
     if (options.kind === "translate" && !capture && !options.image) {
@@ -1536,7 +1578,8 @@ function App() {
       at: Date.now(),
       image:
         options.image ||
-        (kind === "ask" || kind === "guide" || kind === "translate"
+        (options.includeCapture !== false &&
+        (kind === "ask" || kind === "guide" || kind === "translate")
           ? capture?.image
           : undefined),
     };
@@ -1557,6 +1600,7 @@ function App() {
       let finalUsage: Usage | undefined;
       if (
         !options.image &&
+        options.includeCapture !== false &&
         capture?.liveScreen &&
         shareRef.current &&
         videoRef.current &&
@@ -1738,22 +1782,19 @@ function App() {
                 `${index + 1}. ${step.note}${step.action ? `\n${step.action}` : ""}`,
             )
             .join("\n\n");
-        if (
-          steps.length &&
-          sourceTabId &&
-          currentPage.documentKey &&
-          sourceTabId === activeTabId.current
-        )
-          await sendToDocument(sourceTabId, currentPage, {
-            type: "glimpselet:guide",
-            steps,
-            labels: {
-              next: t.next,
-              back: t.back,
-              close: t.close,
-              title: t.guideAction,
-            },
-          });
+        if (!sourceTabId || !currentPage.documentKey)
+          throw new Error("guide_invalid");
+        const result = (await sendToDocument(sourceTabId, currentPage, {
+          type: "glimpselet:guide",
+          steps,
+          labels: {
+            next: t.next,
+            back: t.back,
+            close: t.close,
+            title: t.guideAction,
+          },
+        })) as { ok?: boolean } | undefined;
+        if (!result?.ok) throw new Error("guide_invalid");
       }
       setAnswer(visibleAnswer);
       if (!options.silent)
@@ -2421,6 +2462,7 @@ function App() {
                             : t.replayTour}
               </button>
               <p>{t.replayTourHint.replace("{step}", String(tutorial.step))}</p>
+              {tutorial.action === "guide" && <p>{t.guideCapturePermission}</p>}
               <button className="plain" onClick={() => setTutorial(null)}>
                 {t.skipPractice}
               </button>

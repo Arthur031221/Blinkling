@@ -94,6 +94,14 @@ describe("extension locale bundles", () => {
     }
   });
 
+  it("keeps completion feedback independent of an image attachment in every locale", () => {
+    for (const [locale, bundle] of Object.entries(locales)) {
+      expect(bundle.answerReady, locale).not.toMatch(
+        /image|画像|이미지|圖片|图片|imagen|imagem|Bild/i,
+      );
+    }
+  });
+
   it("translates every reader label and formats status placeholders", () => {
     const expected = Object.keys(readerLocales.en).sort();
     for (const [locale, bundle] of Object.entries(readerLocales)) {

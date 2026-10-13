@@ -193,6 +193,135 @@ afterEach(async () => {
 });
 
 describe("bubble answer rendering and feedback", () => {
+  it.each(["summary", "translate"])(
+    "submits a reader %s once without leaving its instruction in the draft",
+    async (action) => {
+      await start();
+      const response = await send({
+        type: "glimpselet:reader-action",
+        action,
+        text: "Selected Transformer passage",
+        context: page,
+      });
+      expect(response).toHaveBeenCalledWith({ ok: true });
+      expect(mocks.ask).toHaveBeenCalledTimes(1);
+      expect(document.querySelector("textarea")?.value).toBe("");
+      const input = mocks.ask.mock.calls[0][0];
+      if (action === "translate") {
+        expect(input.question).toContain("繁體中文");
+        expect(input.question).toContain("Selected Transformer passage");
+      }
+      expect(
+        document.querySelector(".message .question")?.textContent,
+      ).toContain(input.question);
+    },
+  );
+  it("submits automatic selection actions but keeps Ask editable", async () => {
+    await start();
+    await send({
+      type: "glimpselet:selection",
+      action: "explain",
+      text: "Selected passage",
+    });
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("textarea")?.value).toBe("");
+    mocks.ask.mockClear();
+    await send({
+      type: "glimpselet:selection",
+      action: "ask",
+      text: "Editable selection",
+    });
+    expect(document.querySelector("textarea")?.value).toBe(
+      "Editable selection",
+    );
+    expect(mocks.ask).not.toHaveBeenCalled();
+  });
+  it.each([false, true])(
+    "preserves a newer typed draft after late automatic success/rejection=%s",
+    async (reject) => {
+      await start();
+      let complete!: (result: { answer: string }) => void;
+      let fail!: (error: Error) => void;
+      mocks.ask.mockImplementation(
+        () =>
+          new Promise((resolve, reject) => {
+            complete = resolve;
+            fail = reject;
+          }),
+      );
+      await send({
+        type: "glimpselet:reader-action",
+        action: "translate",
+        text: "Selected passage",
+        context: page,
+      });
+      await draft("A new question I am writing");
+      await act(async () =>
+        reject
+          ? fail(new Error("bridge_disconnected"))
+          : complete({ answer: "Translation" }),
+      );
+      await flush();
+      expect(document.querySelector("textarea")?.value).toBe(
+        "A new question I am writing",
+      );
+      expect(mocks.ask).toHaveBeenCalledTimes(1);
+    },
+  );
+  it("keeps the current draft on a busy reader rejection", async () => {
+    await start();
+    mocks.ask.mockImplementation(() => new Promise(() => {}));
+    await send({
+      type: "glimpselet:reader-action",
+      action: "summary",
+      context: page,
+    });
+    await draft("Do not lose this draft");
+    const response = await send({
+      type: "glimpselet:reader-action",
+      action: "translate",
+      text: "Another passage",
+      context: page,
+    });
+    expect(response).toHaveBeenCalledWith({ ok: false, error: "busy" });
+    expect(document.querySelector("textarea")?.value).toBe(
+      "Do not lose this draft",
+    );
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+  });
+  it("keeps a rejected automatic request editable when no newer draft exists", async () => {
+    await start();
+    mocks.ask.mockRejectedValue(new Error("bridge_disconnected"));
+    await send({
+      type: "glimpselet:reader-action",
+      action: "translate",
+      text: "Selected passage",
+      context: page,
+    });
+    expect(document.querySelector("textarea")?.value).toContain(
+      "Selected passage",
+    );
+    expect(status()).toBe(en.bridgeLost);
+  });
+  it("explicitly scopes a section summary to its selected text without an unrelated image or section", async () => {
+    await start();
+    await click(en.visible);
+    expect(document.querySelector(".capture-chip img")).not.toBeNull();
+    await send({
+      type: "glimpselet:reader-action",
+      action: "summary-selection",
+      text: "Transformer introduction",
+      context: { ...page, text: "Transformer introduction. UNRELATED_SECTION" },
+      image: "data:image/png;base64,AAA=",
+    });
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    const input = mocks.ask.mock.calls[0][0];
+    expect(input.question).toMatch(/Summarize only this selected PDF passage/);
+    expect(input.question).toContain("Transformer introduction");
+    expect(input.page.text).toBe("Transformer introduction");
+    expect(input.image).toBeUndefined();
+    expect(document.querySelector("textarea")?.value).toBe("");
+  });
   it("clears a page warning after readable SPA context and suggestions arrive", async () => {
     mocks.sensitive.mockResolvedValue(true);
     await start();
@@ -253,6 +382,9 @@ describe("bubble answer rendering and feedback", () => {
       ...document.querySelectorAll<HTMLButtonElement>("button"),
     ].filter((element) => element.textContent?.trim() === en.guideAction);
     expect(guideControls).toHaveLength(1);
+    expect(
+      [...document.querySelectorAll(".float-start")].at(-1)?.textContent,
+    ).toContain(en.guideCapturePermission);
     await click(en.guideAction);
     expect(status()).toMatch(/toolbar.*try Guide again/);
     expect(document.querySelector(".float-start p")?.textContent).toBeDefined();
@@ -282,6 +414,26 @@ describe("bubble answer rendering and feedback", () => {
     await click(en.guideAction);
     expect(status()).toMatch(/toolbar.*try Guide again/);
     expect(mocks.ask).not.toHaveBeenCalled();
+  });
+  it("keeps Guide practice open when the page rejects the guide overlay", async () => {
+    await start();
+    await send(
+      { type: "glimpselet:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+    );
+    sendToTab.mockImplementation(async (_tab, message) => ({
+      ok: message.type !== "glimpselet:guide",
+    }));
+    await click(en.guideAction);
+    expect(status()).toBe(en.guideFailed);
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:tutorial-done",
+      ),
+    ).toBe(false);
+    expect(
+      [...document.querySelectorAll(".float-start")].at(-1)?.textContent,
+    ).toContain("5/8");
   });
   it("offers the ordinary Guide control when practice is dismissed", async () => {
     await start();

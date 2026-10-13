@@ -69,6 +69,10 @@ button:hover,
 .open:hover {
   background: #efe4d2;
 }
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 main {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);

@@ -244,11 +244,23 @@ test("Guide practice has one keyboard-accessible action and keeps its step throu
     ),
   );
   await expect(panel.locator(".float-start").last()).toContainText("5/8");
+  await expect(panel.locator(".float-start").last()).toContainText(
+    en.guideCapturePermission,
+  );
   const guides = panel.getByRole("button", {
     name: en.guideAction,
     exact: true,
   });
   await expect(guides).toHaveCount(1);
+  for (const width of [320, 420, 520]) {
+    await panel.setViewportSize({ width, height: 700 });
+    await expect(guides).toBeVisible();
+    expect(
+      await panel.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
   await panel.evaluate(() => {
     const original = chrome.tabs.captureVisibleTab.bind(chrome.tabs);
     let denied = true;
@@ -283,11 +295,18 @@ test("Guide practice has one keyboard-accessible action and keeps its step throu
 });
 
 test("streams safe Markdown in readable narrow and wide light/dark bubbles", async () => {
-  const markdown =
+  let markdown =
     '**Key points**\n\n- First point\n- Second point\n\n```js\nconst value = 1;\n```\n\n[Source](https://example.com)\n\n<img src="https://tracker.invalid/pixel" onerror="window.pwned=1"><script>window.pwned=1</script>[bad](javascript:alert(1)) ![image](https://tracker.invalid/image)';
+  markdown += "\n\n" + "A paragraph to exercise scrolling.\n\n".repeat(30);
   let finish!: () => void;
+  let continueStreaming!: () => void;
   responder = async (request) => {
     request.onText(markdown);
+    continueStreaming = () => {
+      const more = "\n\nThe latest streamed paragraph.";
+      markdown += more;
+      request.onText(more);
+    };
     await new Promise<void>((resolve) => {
       finish = resolve;
       request.signal.addEventListener("abort", () => resolve(), { once: true });
@@ -313,6 +332,24 @@ test("streams safe Markdown in readable narrow and wide light/dark bubbles", asy
     "rel",
     "noopener noreferrer",
   );
+  const thread = panel.locator(".thread");
+  await expect
+    .poll(() =>
+      thread.evaluate(
+        (element) =>
+          element.scrollHeight - element.scrollTop - element.clientHeight,
+      ),
+    )
+    .toBeLessThan(72);
+  await thread.evaluate((element) => {
+    element.scrollTop = 0;
+    element.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  continueStreaming();
+  await expect(panel.locator(".answer .markdown")).toContainText(
+    "The latest streamed paragraph",
+  );
+  expect(await thread.evaluate((element) => element.scrollTop)).toBe(0);
   finish();
   await expect(panel.locator(".toolbar .status")).toHaveText("Answer ready.");
   expect(requests.at(-1)?.image).toBeUndefined();
@@ -339,3 +376,163 @@ test("streams safe Markdown in readable narrow and wide light/dark bubbles", asy
     panel.getByRole("button", { name: en.unpin, exact: true }),
   ).toBeVisible();
 });
+
+test("summarizes the selected PDF section while retaining a whole-page summary", async () => {
+  const reader = await openReader();
+  const original = responder;
+  responder = async (request) => {
+    if (request.kind !== "ask") return original(request);
+    const answer = request.question.startsWith(
+      "Summarize only this selected PDF passage",
+    )
+      ? "**Introduction:** The Transformer trains in twelve hours on eight P100 GPUs."
+      : "Whole page: Introduction and Background.";
+    request.onText(answer);
+    return { answer, sessionId: request.cliSession?.id };
+  };
+  await selectIntroduction(reader);
+  await reader
+    .getByRole("button", { name: "Summarize selection", exact: true })
+    .click();
+  await expect(panel.locator(".message .answer").last()).toContainText(
+    "Introduction: The Transformer trains",
+  );
+  const selected = requests.filter((request) => request.kind === "ask").at(-1)!;
+  expect(selected.question).toContain(
+    "Summarize only this selected PDF passage",
+  );
+  expect(selected.question).toContain(
+    "In this work we propose the Transformer",
+  );
+  expect(selected.question).not.toContain("UNRELATED_SECTION");
+  expect(selected.page?.text).not.toContain("UNRELATED_SECTION");
+  expect(selected.image).toBeUndefined();
+  await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
+    "",
+  );
+  await reader
+    .getByRole("button", { name: "Summarize page", exact: true })
+    .click();
+  await expect(panel.locator(".message .answer").last()).toContainText(
+    "Whole page: Introduction and Background",
+  );
+  const wholePage = requests
+    .filter((request) => request.kind === "ask")
+    .at(-1)!;
+  expect(wholePage.page?.text).toContain("UNRELATED_SECTION");
+  expect(wholePage.image).toBeInstanceOf(Buffer);
+});
+
+test("reader translation submits once in the target language and PDF popover Ask remains editable and text-only", async () => {
+  const reader = await openReader();
+  const original = responder;
+  responder = async (request) => {
+    if (request.kind !== "ask") return original(request);
+    const answer = "**翻譯：** 本研究提出 Transformer。";
+    request.onText(answer);
+    return { answer, sessionId: request.cliSession?.id };
+  };
+  await selectIntroduction(reader);
+  await reader
+    .getByRole("button", { name: "Translate selection", exact: true })
+    .click();
+  await expect(panel.locator(".message .answer").last()).toContainText(
+    "本研究提出 Transformer",
+  );
+  const translations = requests.filter((request) =>
+    request.question.startsWith("Translate this selected text"),
+  );
+  expect(translations).toHaveLength(1);
+  expect(translations[0].question).toContain("繁體中文");
+  expect(translations[0].question).toContain(
+    "In this work we propose the Transformer",
+  );
+  await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
+    "",
+  );
+  await selectIntroduction(reader);
+  const popover = reader.locator("[data-glimpselet-overlay] .popover");
+  await expect(popover).toBeVisible();
+  await popover.getByRole("button", { name: en.send, exact: true }).click();
+  await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
+    /In this work/,
+  );
+  await panel.locator(".send").click();
+  await expect(panel.locator(".toolbar .status")).toHaveText("Answer ready.");
+  expect(
+    requests.filter((request) => request.kind === "ask").at(-1)?.image,
+  ).toBeUndefined();
+});
+
+// An opt-in smoke uses the original paper without introducing a network
+// dependency into the deterministic extension suite.
+if (process.env.GLIMPSELET_REAL_PDF) {
+  test("actual arXiv PDF keeps a native selected introduction separate from Background", async () => {
+    const reader = await context.newPage();
+    await reader.goto(`chrome-extension://${extensionId}/reader.html`);
+    await reader
+      .locator("#file")
+      .setInputFiles(process.env.GLIMPSELET_REAL_PDF!);
+    await expect(reader.locator(".pdf-text-layer")).toContainText(
+      "Attention Is All You Need",
+    );
+    await reader
+      .getByRole("button", { name: "Next page", exact: true })
+      .click();
+    await expect(reader.locator(".pdf-text-layer")).toContainText(
+      "In this work we propose the Transformer",
+    );
+    const first = reader
+      .locator(".pdf-text-layer span")
+      .filter({ hasText: /^In this work we propose/ })
+      .first();
+    const last = reader
+      .locator(".pdf-text-layer span")
+      .filter({ hasText: /P100 GPUs\./ })
+      .last();
+    await reader.bringToFront();
+    await first.scrollIntoViewIfNeeded();
+    await last.scrollIntoViewIfNeeded();
+    const start = (await first.boundingBox())!;
+    const end = (await last.boundingBox())!;
+    // Select the first line, then extend it to the end of the paragraph using
+    // the browser's native selection rather than constructing a DOM Range.
+    await reader.mouse.click(start.x + 1, start.y + start.height / 2, {
+      clickCount: 3,
+    });
+    await reader.keyboard.down("Shift");
+    await reader.mouse.click(end.x + end.width - 1, end.y + end.height / 2);
+    await reader.keyboard.up("Shift");
+    await reader.screenshot({
+      path: test.info().outputPath("arxiv-selected-introduction.png"),
+    });
+    const selection = await reader.evaluate(() => getSelection()!.toString());
+    expect(selection).toContain("In this work we propose the Transformer");
+    expect(selection).toContain("twelve hours on eight P100 GPUs");
+    expect(selection).not.toContain("Background");
+    const original = responder;
+    responder = async (request) => {
+      if (request.kind !== "ask") return original(request);
+      const answer =
+        "**Selected introduction:** The Transformer uses attention and allows parallel training.";
+      request.onText(answer);
+      return { answer, sessionId: request.cliSession?.id };
+    };
+    await reader
+      .getByRole("button", { name: "Summarize selection", exact: true })
+      .click();
+    await expect(panel.locator(".message .answer").last()).toContainText(
+      "Selected introduction",
+    );
+    const selected = requests
+      .filter((request) => request.kind === "ask")
+      .at(-1)!;
+    expect(selected.page?.text).toBe(selection.trim());
+    expect(selected.question).toContain(selection.trim());
+    expect(selected.question).not.toContain("Background");
+    expect(selected.image).toBeUndefined();
+    await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
+      "",
+    );
+  });
+}
