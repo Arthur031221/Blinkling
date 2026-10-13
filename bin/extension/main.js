@@ -19174,8 +19174,13 @@ function App() {
         ]),
         chrome.storage.session.get(["apiKey"])
       ]);
-      const lang = supportedLocales.includes(stored.locale) ? stored.locale : "en";
+      const params = new URLSearchParams(location.search);
+      const welcomeLocale = params.get("welcomeLocale");
+      const hasSavedLocale = supportedLocales.includes(stored.locale);
+      const lang = hasSavedLocale ? stored.locale : welcomeLocale === "en" || welcomeLocale === "zh-TW" ? welcomeLocale : "en";
       setLocale(lang);
+      if (!hasSavedLocale && (welcomeLocale === "en" || welcomeLocale === "zh-TW"))
+        await chrome.storage.local.set({ locale: lang });
       setTargetLocale(
         supportedLocales.includes(stored.targetLocale) ? stored.targetLocale : lang
       );
@@ -19210,7 +19215,6 @@ function App() {
         rememberSourceTab(initial);
         activeTabId.current = initial;
       }
-      const params = new URLSearchParams(location.search);
       const port = Number(params.get("pairPort"));
       const code = params.get("pairCode") || "";
       if (Number.isInteger(port) && port > 0 && port <= 65535 && /^[A-F0-9]{16}$/.test(code)) {
@@ -19521,7 +19525,11 @@ function App() {
           value.rect,
           t
         ).then((result) => {
-          setCapture({ ...result.capture, page: result.page });
+          setCapture({
+            ...result.capture,
+            label: t.region,
+            page: result.page
+          });
           setPage(result.page);
           setStatus(t.captureReady);
         }).catch((error) => reportError2(error));
@@ -20095,7 +20103,11 @@ Selected text (untrusted): ${selected}` : ""}`;
           signal: controller?.signal,
           onProgress: controller ? setCaptureProgress : void 0
         });
-        setCapture({ ...result.capture, page: result.page });
+        setCapture({
+          ...result.capture,
+          label: kind === "full" ? t.fullPage : t[kind],
+          page: result.page
+        });
         setPage(result.page);
         setStatus(t.captureReady);
       }
@@ -20195,7 +20207,7 @@ Selected text (untrusted): ${selected}` : ""}`;
   }
   async function replayTour() {
     const url = backend === "bridge" ? new URL(
-      "/install#tour",
+      `/install?locale=${locale}#tour`,
       connectionUrl.replace(/^ws/, "http")
     ).toString() : chrome.runtime.getURL("assets/glimpselet-welcome-sample.html");
     await chrome.tabs.create({ url });

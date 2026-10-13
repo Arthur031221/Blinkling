@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   INSTALL_GUIDE_SCRIPT,
+  createExtensionZip,
   installGuide,
 } from "../bridge/src/extension-install";
 
@@ -15,8 +16,12 @@ let context: BrowserContext,
   directory: string,
   origin: string,
   welcome: Page;
+let installMode: "direct" | "tunnel";
+let storeUrl: string;
 
 test.beforeEach(async () => {
+  installMode = "direct";
+  storeUrl = "";
   directory = await mkdtemp(join(tmpdir(), "glimpselet-welcome-recovery-"));
   server = createServer((req, res) => {
     const path = new URL(req.url || "/", "http://127.0.0.1").pathname;
@@ -26,10 +31,30 @@ test.beforeEach(async () => {
     );
     if (path === "/install") {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.end(installGuide("/tmp/glimpselet-extension"));
+      res.end(
+        installGuide("/tmp/glimpselet-extension", {
+          chromeWebStoreUrl: storeUrl,
+          edgeAddonsUrl: "",
+        }),
+      );
+    } else if (path === "/install/status") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ connected: false, mode: installMode }));
+    } else if (path === "/install/extension.zip") {
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="glimpselet-extension.zip"',
+      );
+      void createExtensionZip(resolve("dist-extension")).then((data) =>
+        res.end(data),
+      );
     } else if (path === "/install-guide.js") {
       res.setHeader("Content-Type", "text/javascript; charset=utf-8");
       res.end(INSTALL_GUIDE_SCRIPT);
+    } else if (path === "/store-listing") {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.end("<h1>Glimpselet store listing</h1>");
     } else if (path.startsWith("/assets/")) {
       res.setHeader(
         "Content-Type",
@@ -100,6 +125,87 @@ async function openPractice() {
   );
   return sample;
 }
+
+for (const mode of ["direct", "tunnel"] as const) {
+  test(`copies a usable extensions-manager address for ${mode} install`, async () => {
+    installMode = mode;
+    welcome = await context.newPage();
+    await welcome.goto(`${origin}/install#code=0123456789ABCDEF`);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+      origin,
+    });
+    const card = welcome.locator(
+      mode === "direct" ? "#install-local" : "#install-remote",
+    );
+    await expect(card).toBeVisible();
+    await expect(card).toContainText(
+      "Paste this address into your browser's address bar",
+    );
+    await expect(card.locator(".manager-address")).toHaveValue(
+      "chrome://extensions",
+    );
+    await card
+      .getByRole("button", { name: "Copy address", exact: true })
+      .click();
+    const copied = await welcome.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toBe("chrome://extensions");
+    const manager = await context.newPage();
+    // Navigate the actual browser to the address the user copies, including its
+    // native manager UI; localhost anchors cannot perform this navigation.
+    await manager.goto(copied);
+    await expect(manager).toHaveURL("chrome://extensions/");
+    await expect(manager.locator("extensions-manager")).toBeVisible();
+    await manager.close();
+    if (mode === "tunnel") {
+      const downloadPromise = welcome.waitForEvent("download");
+      await card.getByRole("link", { name: "Download extension ZIP" }).click();
+      const download = await downloadPromise;
+      expect(download.suggestedFilename()).toBe("glimpselet-extension.zip");
+      const data = await readFile((await download.path())!);
+      expect(data.readUInt32LE(0)).toBe(0x04034b50);
+      expect(data.includes(Buffer.from("manifest.json"))).toBe(true);
+    }
+  });
+}
+
+test("configured store install navigates to its listing without unpacked controls", async () => {
+  storeUrl =
+    "https://chromewebstore.google.com/detail/glimpselet/abcdefghijklmnopabcdefghijklmnop";
+  await context.route(storeUrl, (route) =>
+    route.fulfill({
+      status: 302,
+      headers: { Location: `${origin}/store-listing` },
+    }),
+  );
+  await welcome.reload();
+  await expect(welcome.locator("#install-local")).toHaveCount(0);
+  await expect(welcome.locator("#install-remote")).toHaveCount(0);
+  const navigation = welcome.waitForRequest(storeUrl);
+  await welcome.getByRole("link", { name: "Add to browser" }).click();
+  expect((await navigation).isNavigationRequest()).toBe(true);
+  await expect(welcome).toHaveURL(`${origin}/store-listing`);
+  await expect(
+    welcome.getByRole("heading", { name: "Glimpselet store listing" }),
+  ).toBeVisible();
+});
+
+test("replay is tour-only and still delivers practice requests", async () => {
+  welcome = await context.newPage();
+  await welcome.goto(`${origin}/install#tour`);
+  await expect(welcome.locator("#pairing")).toBeHidden();
+  await expect(welcome.locator("#installation")).toBeHidden();
+  await expect(
+    welcome.getByText("Waiting for Glimpselet", { exact: false }),
+  ).toBeHidden();
+  expect(new URL(welcome.url()).hash).toBe("#tour");
+  const sample = await openPractice();
+  expect(
+    await sample.evaluate(
+      () => (window as Window & { practiceActions: unknown[] }).practiceActions,
+    ),
+  ).toEqual([expect.objectContaining({ action: "float", step: 1 })]);
+  await expect(welcome.locator("#tour #try-note")).toBeVisible();
+});
 
 for (const navigation of ["cross-origin", "same-origin", "closed"]) {
   test(`restores a ${navigation} practice tab and delivers the requested action once`, async () => {

@@ -95,6 +95,49 @@ const ask = {
 };
 
 describe("extension pairing and answers", () => {
+  it("keeps installation status isolated between browser profiles without reusing or extending codes", async () => {
+    let now = 1000;
+    const app = await setup(
+      async () => ({ answer: "unused" }),
+      () => now,
+    );
+    const ordinaryCode = app.bridge.issueCode();
+    const ordinary = await app.client();
+    ordinary.send({ type: "pair", code: ordinaryCode });
+    await ordinary.wait("paired");
+    expect(app.bridge.installStatus(ordinaryCode)).toBe(true);
+
+    now += 1000;
+    const trialCode = app.bridge.issueCode();
+    expect(trialCode).not.toBe(ordinaryCode);
+    expect(app.bridge.installStatus(trialCode)).toBe(false);
+    const trial = await app.client();
+    trial.send({ type: "pair", code: trialCode });
+    const trialPair = await trial.wait("paired");
+    expect(app.bridge.installStatus(trialCode)).toBe(true);
+    expect(app.bridge.installStatus(ordinaryCode)).toBe(true);
+
+    const duplicate = await app.client();
+    duplicate.send({ type: "pair", code: trialCode });
+    expect((await duplicate.wait("error")).code).toBe("pairing_expired");
+    expect(app.bridge.installStatus(trialCode)).toBe(true);
+    const trialClosed = once(trial.socket, "close");
+    trial.socket.close();
+    await trialClosed;
+    await expect.poll(() => app.bridge.installStatus(trialCode)).toBe(false);
+    expect(app.bridge.installStatus(ordinaryCode)).toBe(true);
+    const reconnected = await app.client();
+    reconnected.send({ type: "pair", token: trialPair.token });
+    await reconnected.wait("paired");
+    expect(app.bridge.installStatus(trialCode)).toBe(true);
+
+    now = 601000;
+    expect(app.bridge.installStatus(ordinaryCode)).toBeUndefined();
+    expect(app.bridge.installStatus(trialCode)).toBe(true);
+    now = 602000;
+    expect(app.bridge.installStatus(trialCode)).toBeUndefined();
+  });
+
   function serverSocket(app: Awaited<ReturnType<typeof setup>>) {
     const clients = (
       app.bridge as unknown as { sockets: { clients: Set<WebSocket> } }

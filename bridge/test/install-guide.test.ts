@@ -10,6 +10,7 @@ const openGuide = async (
   mode: "direct" | "tunnel",
   store = false,
   connected = false,
+  url = "http://127.0.0.1:4312/install#code=0123456789ABCDEF",
 ) => {
   const html = installGuide("/home/linux/.glimpselet/extension", {
     chromeWebStoreUrl: store
@@ -18,7 +19,7 @@ const openGuide = async (
     edgeAddonsUrl: "",
   });
   const dom = new JSDOM(html, {
-    url: "http://127.0.0.1:4312/#code=0123456789ABCDEF",
+    url,
     runScripts: "outside-only",
   });
   const { window } = dom;
@@ -42,6 +43,7 @@ const openGuide = async (
     throw new Error(`Unexpected request: ${String(input)}`);
   });
   Object.assign(window, { fetch, setTimeout: () => 0 });
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
   window.eval(INSTALL_GUIDE_SCRIPT);
   await new Promise((resolve) => setTimeout(resolve, 0));
   return { dom, fetch };
@@ -49,6 +51,7 @@ const openGuide = async (
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("documented plugin upgrades", () => {
@@ -82,6 +85,228 @@ describe("documented plugin upgrades", () => {
 });
 
 describe("welcome install guide remote onboarding", () => {
+  it.each(["direct", "tunnel"] as const)(
+    "offers a copyable manager address with address-bar instructions in %s mode",
+    async (mode) => {
+      const { dom } = await openGuide(mode);
+      const { document, navigator } = dom.window;
+      const card = document.querySelector(
+        mode === "direct" ? "#install-local" : "#install-remote",
+      )!;
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+      expect(card.querySelector('a[href="chrome://extensions"]')).toBeNull();
+      expect(
+        card.querySelector<HTMLInputElement>(".manager-address")?.value,
+      ).toBe("chrome://extensions");
+      expect(card.textContent).toContain(
+        "Paste this address into your browser's address bar",
+      );
+      card.querySelector<HTMLButtonElement>(".copy-manager")!.click();
+      await Promise.resolve();
+      expect(writeText).toHaveBeenCalledWith("chrome://extensions");
+      dom.window.close();
+    },
+  );
+
+  it.each(["direct", "tunnel"] as const)(
+    "selects the manager address for manual copying if clipboard access is denied in %s mode",
+    async (mode) => {
+      const { dom } = await openGuide(mode);
+      const { document, navigator } = dom.window;
+      const card = document.querySelector(
+        mode === "direct" ? "#install-local" : "#install-remote",
+      )!;
+      const input = card.querySelector<HTMLInputElement>(".manager-address")!;
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          writeText: vi.fn().mockRejectedValue(new Error("Permission denied")),
+        },
+        configurable: true,
+      });
+
+      document.querySelector<HTMLButtonElement>("#language")!.click();
+      expect(card.textContent).toContain("請把這個網址貼到瀏覽器網址列");
+      card.querySelector<HTMLButtonElement>(".copy-manager")!.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(document.activeElement).toBe(input);
+      expect(input.value).toBe("chrome://extensions");
+      expect(input.readOnly).toBe(true);
+      expect(input.selectionStart).toBe(0);
+      expect(input.selectionEnd).toBe(input.value.length);
+      dom.window.close();
+    },
+  );
+
+  it("offers the Edge manager address when Edge is the configured browser", async () => {
+    vi.stubEnv("GLIMPSELET_BROWSER", "msedge");
+    const { dom } = await openGuide("direct");
+    const { document, navigator } = dom.window;
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    expect(
+      document.querySelector<HTMLInputElement>("#manager-local")?.value,
+    ).toBe("edge://extensions");
+    document
+      .querySelector<HTMLButtonElement>("#install-local .copy-manager")!
+      .click();
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith("edge://extensions");
+    expect(document.querySelector('a[href="edge://extensions"]')).toBeNull();
+    dom.window.close();
+  });
+
+  it("offers tour-only replay without reporting a false setup failure", async () => {
+    const { dom, fetch } = await openGuide(
+      "direct",
+      false,
+      false,
+      "http://127.0.0.1:4312/install#tour",
+    );
+    const { document } = dom.window;
+    expect(document.querySelector<HTMLElement>("#installation")?.hidden).toBe(
+      true,
+    );
+    expect(document.querySelector<HTMLElement>("#pairing")?.hidden).toBe(true);
+    expect(document.querySelector("#tour #try-note")).not.toBeNull();
+    expect(document.querySelector("#tour")?.textContent).not.toContain(
+      "Waiting for Glimpselet",
+    );
+    expect(document.querySelector("#tour")?.textContent).not.toContain(
+      "pairing code",
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    dom.window.close();
+  });
+
+  it("keeps setup visible for a genuinely unpaired normal welcome", async () => {
+    const { dom } = await openGuide(
+      "direct",
+      false,
+      false,
+      "http://127.0.0.1:4312/install",
+    );
+    const { document } = dom.window;
+    expect(document.querySelector<HTMLElement>("#installation")?.hidden).toBe(
+      false,
+    );
+    expect(document.querySelector<HTMLElement>("#pairing")?.hidden).toBe(false);
+    expect(document.querySelector("#pair")?.textContent).toContain(
+      "pairing code",
+    );
+    dom.window.close();
+  });
+
+  it("carries the selected welcome language to pairing and practice", async () => {
+    const { dom } = await openGuide("direct");
+    const { window } = dom;
+    const pair = vi.spyOn(window, "postMessage").mockImplementation(() => {});
+    window.document.querySelector<HTMLButtonElement>("#language")!.click();
+    window.document.querySelector<HTMLButtonElement>("#connect")!.click();
+    expect(pair).toHaveBeenCalledWith(
+      {
+        type: "glimpselet:pair",
+        port: 4312,
+        code: "0123456789ABCDEF",
+        locale: "zh-TW",
+      },
+      window.location.origin,
+    );
+    const sample = { closed: false, focus: vi.fn(), postMessage: vi.fn() };
+    const open = vi
+      .spyOn(window, "open")
+      .mockReturnValue(sample as unknown as Window);
+    window.document.querySelector<HTMLButtonElement>(".try")!.click();
+    expect(open).toHaveBeenCalledWith(
+      "http://127.0.0.1:4312/assets/glimpselet-welcome-sample.html?locale=zh-TW",
+      "_blank",
+    );
+    const probe = sample.postMessage.mock.calls[0][0];
+    expect(probe.locale).toBe("zh-TW");
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        origin: window.location.origin,
+        source: sample as unknown as Window,
+        data: {
+          type: "glimpselet:tutorial:loaded",
+          version: 1,
+          requestId: probe.requestId,
+        },
+      }),
+    );
+    expect(sample.postMessage.mock.calls[1][0]).toMatchObject({
+      locale: "zh-TW",
+      action: "float",
+    });
+    dom.window.close();
+  });
+
+  it("clears obsolete Pair guidance after ready, language switch and connection", async () => {
+    const { dom } = await openGuide("direct");
+    const { window } = dom;
+    const send = (type: string) =>
+      window.dispatchEvent(
+        new window.MessageEvent("message", {
+          source: window,
+          origin: window.location.origin,
+          data: { type },
+        }),
+      );
+    send("glimpselet:extension-ready");
+    window.document.querySelector<HTMLButtonElement>("#language")!.click();
+    expect(window.document.querySelector("#try-note")?.textContent).toContain(
+      "配對擴充功能",
+    );
+    send("glimpselet:paired");
+    expect(
+      window.document.querySelector("#try-note")?.textContent,
+    ).not.toContain("Pair extension");
+    expect(
+      window.document.querySelector("#try-note")?.textContent,
+    ).not.toContain("配對擴充功能");
+    window.document.querySelector<HTMLButtonElement>("#language")!.click();
+    expect(window.document.querySelector("#connection")?.textContent).toContain(
+      "Connected.",
+    );
+    expect(
+      window.document.querySelector("#try-note")?.textContent,
+    ).not.toContain("Pair extension");
+    expect(
+      window.document.querySelector<HTMLElement>("#pair-controls")?.hidden,
+    ).toBe(true);
+    expect(
+      window.document.querySelector<HTMLButtonElement>("#connect")?.hidden,
+    ).toBe(true);
+    expect(
+      window.document.querySelector<HTMLButtonElement>("#copy")?.hidden,
+    ).toBe(true);
+    dom.window.close();
+  });
+
+  it("initializes replay language only from supported locale values", async () => {
+    for (const [locale, language] of [
+      ["zh-TW", "zh-Hant"],
+      ["en", "en"],
+      ["invalid", "en"],
+    ]) {
+      const { dom } = await openGuide(
+        "direct",
+        false,
+        false,
+        `http://127.0.0.1:4312/install?locale=${locale}#tour`,
+      );
+      expect(dom.window.document.documentElement.lang).toBe(language);
+      dom.window.close();
+    }
+  });
   it.each([
     "README.md",
     "README.zh-TW.md",
@@ -262,11 +487,11 @@ describe("welcome install guide remote onboarding", () => {
     document.querySelector<HTMLButtonElement>("#try-zero")?.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(fetch).toHaveBeenCalledWith(
-      "/install/try?code=0123456789ABCDEF",
+      "/install/try?code=0123456789ABCDEF&locale=en",
       expect.objectContaining({ method: "POST" }),
     );
     expect(document.querySelector("#try-note")?.textContent).toContain(
-      "Chromium launch requested. If its Glimpselet window opens, click Pair extension",
+      "In the new practice window, click Pair extension to connect that browser.",
     );
     expect(document.querySelector("#connection")?.textContent).toContain(
       "Waiting for Glimpselet",

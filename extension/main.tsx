@@ -329,10 +329,22 @@ function App() {
         ]),
         chrome.storage.session.get(["apiKey"]),
       ]);
-      const lang = supportedLocales.includes(stored.locale as Locale)
+      const params = new URLSearchParams(location.search);
+      const welcomeLocale = params.get("welcomeLocale");
+      const hasSavedLocale = supportedLocales.includes(stored.locale as Locale);
+      // An explicit preference survives pairing or replaying the welcome tour.
+      // On a fresh profile, the welcome choice also applies to first consent.
+      const lang = hasSavedLocale
         ? (stored.locale as Locale)
-        : "en";
+        : welcomeLocale === "en" || welcomeLocale === "zh-TW"
+          ? welcomeLocale
+          : "en";
       setLocale(lang);
+      if (
+        !hasSavedLocale &&
+        (welcomeLocale === "en" || welcomeLocale === "zh-TW")
+      )
+        await chrome.storage.local.set({ locale: lang });
       setTargetLocale(
         supportedLocales.includes(stored.targetLocale as Locale)
           ? (stored.targetLocale as Locale)
@@ -385,7 +397,6 @@ function App() {
         rememberSourceTab(initial);
         activeTabId.current = initial;
       }
-      const params = new URLSearchParams(location.search);
       const port = Number(params.get("pairPort"));
       const code = params.get("pairCode") || "";
       if (
@@ -774,7 +785,11 @@ function App() {
           t,
         )
           .then((result) => {
-            setCapture({ ...result.capture, page: result.page });
+            setCapture({
+              ...result.capture,
+              label: t.region,
+              page: result.page,
+            });
             setPage(result.page);
             setStatus(t.captureReady);
           })
@@ -1471,7 +1486,11 @@ function App() {
           signal: controller?.signal,
           onProgress: controller ? setCaptureProgress : undefined,
         });
-        setCapture({ ...result.capture, page: result.page });
+        setCapture({
+          ...result.capture,
+          label: kind === "full" ? t.fullPage : t[kind],
+          page: result.page,
+        });
         setPage(result.page);
         setStatus(t.captureReady);
       }
@@ -1573,7 +1592,7 @@ function App() {
     const url =
       backend === "bridge"
         ? new URL(
-            "/install#tour",
+            `/install?locale=${locale}#tour`,
             connectionUrl.replace(/^ws/, "http"),
           ).toString()
         : chrome.runtime.getURL("assets/glimpselet-welcome-sample.html");
