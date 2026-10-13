@@ -1,18 +1,45 @@
 import { imageRect, selectCrop, type CropLabels } from "./crop-selection";
 import { encodeCanvasPng } from "./png";
+import {
+  freezeSharedFrame,
+  withBubbleCleared,
+  type SharedFrameOptions,
+} from "./screen-frame";
 
 export async function cropSharedScreen(
   video: HTMLVideoElement,
   bubble: Document | null,
   labels: CropLabels,
+  options: SharedFrameOptions = {},
+): Promise<string | null> {
+  const controller = new AbortController();
+  const tracks =
+    (video.srcObject as MediaStream | null)?.getVideoTracks() || [];
+  const ended = () => controller.abort(new Error("share_ended"));
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, controller.signal])
+    : controller.signal;
+  tracks.forEach((track) => track.addEventListener("ended", ended));
+  try {
+    return await withBubbleCleared(video, bubble, { ...options, signal }, () =>
+      cropFrozenFrame(video, bubble, labels, { ...options, signal }),
+    );
+  } finally {
+    tracks.forEach((track) => track.removeEventListener("ended", ended));
+  }
+}
+
+async function cropFrozenFrame(
+  video: HTMLVideoElement,
+  bubble: Document | null,
+  labels: CropLabels,
+  options: SharedFrameOptions,
 ): Promise<string | null> {
   if (!video.videoWidth || !video.videoHeight) throw new Error("share_ended");
   const doc = document;
   const oldOpacity = bubble?.body.style.opacity || "";
   if (bubble) bubble.body.style.opacity = "0";
-  const frame = doc.createElement("canvas");
-  frame.width = video.videoWidth;
-  frame.height = video.videoHeight;
+  let frame = doc.createElement("canvas");
   let container: HTMLDivElement | undefined;
   let scaleChanged: (() => void) | undefined;
   let browserWindow:
@@ -21,7 +48,12 @@ export async function cropSharedScreen(
   let previousTab: number | undefined;
   let previousWindow: number | undefined;
   let foregroundChanged = false;
+  let fullscreenStateChanged = false;
   const wasDomFullscreen = Boolean(doc.fullscreenElement);
+  const cancelSelection = () =>
+    doc.defaultView?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape" }),
+    );
   try {
     // The caller runs in the opener even when the gesture comes from PiP.
     // The last focused tab/window may instead belong to the shared app.
@@ -36,23 +68,8 @@ export async function cropSharedScreen(
     });
     previousTab = active?.id;
     previousWindow = (await chrome.windows.getLastFocused()).id;
-    // Two paints let the outgoing share observe the hidden bubble before freezing.
-    await Promise.race([
-      new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      ),
-      new Promise<void>((resolve) => window.setTimeout(resolve, 80)),
-    ]);
-    await new Promise<void>((resolve) => {
-      const timer = window.setTimeout(resolve, 700);
-      video.requestVideoFrameCallback(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-    const context = frame.getContext("2d");
-    if (!context) throw new Error("capture_failed");
-    context.drawImage(video, 0, 0);
+    frame = await freezeSharedFrame(video, null, { signal: options.signal });
+    options.signal?.throwIfAborted();
     container = doc.createElement("div");
     container.dataset.glimpseletFrozenCrop = "true";
     container.style.cssText =
@@ -67,31 +84,43 @@ export async function cropSharedScreen(
     await chrome.tabs.update(opener.id, { active: true });
     // Fullscreen belongs to the opener, never the small Document PiP window.
     try {
-      if (!wasDomFullscreen) await doc.documentElement.requestFullscreen();
+      if (!wasDomFullscreen) {
+        fullscreenStateChanged = true;
+        await doc.documentElement.requestFullscreen();
+      }
     } catch {
       // Global commands need the native fullscreen path without DOM activation.
     }
     try {
       // A resolved DOM request does not guarantee that the native window filled
-      // the display. Enforce and check both paths through the extension API.
-      await chrome.windows.update(opener.windowId, {
-        state: "fullscreen",
-        focused: true,
-      });
+      // the display. Inspect both paths through the extension API. Overlapping
+      // DOM and native fullscreen transitions can revert the window's bounds.
+      const fillsScreen = (native: chrome.windows.Window) =>
+        native.state === "fullscreen" &&
+        (native.width || 0) >= window.screen.width &&
+        (native.height || 0) >= window.screen.height;
+      if (fillsScreen(await chrome.windows.get(opener.windowId))) {
+        await chrome.windows.update(opener.windowId, { focused: true });
+      } else {
+        if (!wasDomFullscreen && doc.fullscreenElement)
+          await doc.exitFullscreen();
+        fullscreenStateChanged = true;
+        await chrome.windows.update(opener.windowId, {
+          state: "fullscreen",
+          focused: true,
+        });
+      }
       const deadline = performance.now() + 1500;
       while (true) {
+        options.signal?.throwIfAborted();
         const native = await chrome.windows.get(opener.windowId);
-        if (
-          native.state === "fullscreen" &&
-          (native.width || 0) >= window.screen.width &&
-          (native.height || 0) >= window.screen.height
-        )
-          break;
+        if (fillsScreen(native)) break;
         if (performance.now() >= deadline)
           throw new Error("crop_fullscreen_denied");
         await new Promise((resolve) => window.setTimeout(resolve, 40));
       }
     } catch {
+      options.signal?.throwIfAborted();
       throw new Error("crop_fullscreen_denied");
     }
     // One captured pixel occupies one physical display pixel, including HiDPI.
@@ -116,17 +145,20 @@ export async function cropSharedScreen(
         view.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     };
     view.addEventListener("resize", scaleChanged);
-    if (bubble) bubble.body.style.opacity = ".25";
+    if (bubble && !options.clearBubble) bubble.body.style.opacity = ".25";
     await image.decode();
+    options.signal?.throwIfAborted();
     doc.body.append(container);
     const host = doc.createElement("div");
     container.append(host);
+    options.signal?.addEventListener("abort", cancelSelection, { once: true });
     const rect = await selectCrop(
       host,
       () => image.getBoundingClientRect(),
       labels,
       frame.width / image.getBoundingClientRect().width,
     );
+    options.signal?.throwIfAborted();
     if (!rect) return null;
     const area = imageRect(rect, image.getBoundingClientRect(), frame);
     const result = doc.createElement("canvas");
@@ -154,12 +186,13 @@ export async function cropSharedScreen(
       throw new Error("crop_fullscreen_denied");
     throw error;
   } finally {
+    options.signal?.removeEventListener("abort", cancelSelection);
     if (scaleChanged)
       doc.defaultView?.removeEventListener("resize", scaleChanged);
     container?.remove();
     if (!wasDomFullscreen && doc.fullscreenElement)
       await doc.exitFullscreen().catch(() => {});
-    if (browserWindow && foregroundChanged)
+    if (browserWindow && fullscreenStateChanged)
       await chrome.windows
         .update(browserWindow.id, { state: browserWindow.state })
         .catch(() => {});

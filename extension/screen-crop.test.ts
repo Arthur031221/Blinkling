@@ -178,6 +178,26 @@ describe("foreground shared screen crop", () => {
 });
 
 describe("native fullscreen shared screen crop", () => {
+  it("ends an incomplete DOM fullscreen transition before requesting native fullscreen", async () => {
+    const update = chromeMock.windows.update.getMockImplementation()!;
+    chromeMock.windows.update.mockImplementation(async (id, change) => {
+      const result = await update(id, change);
+      // Chromium can report fullscreen but revert bounds when both DOM and
+      // native fullscreen transitions overlap.
+      if (change.state === "fullscreen" && fullscreen) {
+        native.width = 1200;
+        native.height = 900;
+      }
+      return result;
+    });
+    await cropSharedScreen(video, null, labels);
+    expect(document.exitFullscreen).toHaveBeenCalled();
+    expect(selectCrop).toHaveBeenCalledOnce();
+    expect(chromeMock.windows.update).toHaveBeenCalledWith(4, {
+      state: "normal",
+    });
+  });
+
   it("enforces native fullscreen even when DOM fullscreen resolves without changing native bounds", async () => {
     await cropSharedScreen(video, null, labels);
     expect(chromeMock.windows.update).toHaveBeenCalledWith(4, {
@@ -222,6 +242,9 @@ describe("native fullscreen shared screen crop", () => {
     await cropSharedScreen(video, null, labels);
     expect(document.exitFullscreen).not.toHaveBeenCalled();
     expect(
+      chromeMock.windows.update.mock.calls.filter(([, change]) => change.state),
+    ).toEqual([]);
+    expect(
       chromeMock.windows.update.mock.calls.every(
         ([, update]) => !update.state || update.state === "fullscreen",
       ),
@@ -265,5 +288,54 @@ describe("native fullscreen shared screen crop", () => {
       100,
       100,
     );
+  });
+
+  it("rejects a resolved native request whose window still has clipped bounds", async () => {
+    chromeMock.windows.update.mockImplementation(async (id, update) => {
+      if (id === native.id && update.state) native.state = update.state;
+      return { ...native };
+    });
+    await expect(cropSharedScreen(video, null, labels)).rejects.toThrow(
+      "crop_fullscreen_denied",
+    );
+    expect(selectCrop).not.toHaveBeenCalled();
+    expect(chromeMock.windows.update).toHaveBeenCalledWith(4, {
+      state: "normal",
+    });
+    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+  });
+
+  it("cancels a visible selector and restores the native window when sharing ends", async () => {
+    const track = Object.assign(new EventTarget(), {
+      readyState: "live",
+      getSettings: () => ({ displaySurface: "monitor" }),
+    });
+    Object.defineProperty(video, "srcObject", {
+      configurable: true,
+      value: { getVideoTracks: () => [track] },
+    });
+    vi.mocked(selectCrop).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          window.addEventListener(
+            "keydown",
+            (event) => {
+              if (event.key === "Escape") resolve(null);
+            },
+            { once: true },
+          );
+          track.dispatchEvent(new Event("ended"));
+        }),
+    );
+    await expect(cropSharedScreen(video, null, labels)).rejects.toThrow(
+      "share_ended",
+    );
+    expect(chromeMock.windows.update).toHaveBeenCalledWith(4, {
+      state: "normal",
+    });
+    expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(31, {
+      active: true,
+    });
+    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
   });
 });
