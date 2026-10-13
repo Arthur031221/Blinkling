@@ -32,6 +32,18 @@ describe("page tool model output", () => {
     expect(step.note).toContain("<img"); // Rendering uses textContent, never HTML.
   });
 
+  it.each(["", " \n\t", "\u00a0\u3000"])(
+    "rejects blank replies without erasing nonempty source text: %j",
+    (blank) => {
+      expect(
+        validateTranslationNodes(
+          { nodes: [{ id: "n1", text: blank }] },
+          new Map([["n1", "Original paragraph"]]),
+        ),
+      ).toEqual([]);
+    },
+  );
+
   it("accepts translations only for supplied ids, once, and within size limits", () => {
     const result = validateTranslationNodes(
       {

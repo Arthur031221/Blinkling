@@ -1609,6 +1609,8 @@ function App() {
           }),
         );
         if (!Number.isInteger(result.nextCursor)) break;
+        if (pageCount === 19 || (result.nextCursor as number) <= cursor)
+          throw new Error("translation_incomplete");
         cursor = result.nextCursor as number;
       }
       if (!collected.length) throw new Error("translation_empty");

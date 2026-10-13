@@ -36,7 +36,7 @@ export function validateGuideSteps(
   return steps;
 }
 
-/** Clamp translations to the exact text nodes sent by the page and reject oversized output. */
+/** Accept complete translations for requested nodes and reject blank or oversized output. */
 export function validateTranslationNodes(
   value: unknown,
   supplied: ReadonlyMap<string, string>,
@@ -56,7 +56,8 @@ export function validateTranslationNodes(
       typeof node.id !== "string" ||
       !supplied.has(node.id) ||
       seen.has(node.id) ||
-      typeof node.text !== "string"
+      typeof node.text !== "string" ||
+      !node.text.trim()
     )
       continue;
     if (

@@ -1976,6 +1976,9 @@ for (const backend of ["bridge", "api"] as const) {
     "partial",
     "long source",
     "very long source",
+    "empty",
+    "whitespace",
+    "collection limit",
   ] as const) {
     test(`${backend} translation ${scenario} preserves complete text or restores originals`, async () => {
       const source =
@@ -2007,9 +2010,13 @@ for (const backend of ["bridge", "api"] as const) {
               {
                 id: node.id,
                 text: target
-                  ? scenario === "oversized"
-                    ? "x".repeat(12001)
-                    : expanded
+                  ? scenario === "empty"
+                    ? ""
+                    : scenario === "whitespace"
+                      ? " \n\t"
+                      : scenario === "oversized"
+                        ? "x".repeat(12001)
+                        : expanded
                   : "Translated: " + node.text,
               },
             ];
@@ -2074,6 +2081,16 @@ for (const backend of ["bridge", "api"] as const) {
             second.textContent = values.secondSource;
             element.after(second);
           }
+          if (values.scenario === "collection limit") {
+            const fragment = document.createDocumentFragment();
+            for (let index = 0; index < 180; index++) {
+              const paragraph = document.createElement("p");
+              paragraph.className = "translation-collection";
+              paragraph.textContent = "Collection passage. ".repeat(145);
+              fragment.append(paragraph);
+            }
+            element.after(fragment);
+          }
         },
         { source, secondSource, scenario },
       );
@@ -2107,8 +2124,26 @@ for (const backend of ["bridge", "api"] as const) {
             secondSource,
           );
         }
-        if (scenario === "long source" || scenario === "very long source")
+        if (
+          scenario === "long source" ||
+          scenario === "very long source" ||
+          scenario === "collection limit"
+        )
           expect(translationRequests).toBe(0);
+        if (scenario === "collection limit") {
+          const paragraphs = await site
+            .locator(".translation-collection")
+            .allTextContents();
+          expect(paragraphs).toHaveLength(180);
+          expect(
+            paragraphs.every(
+              (paragraph) => paragraph === "Collection passage. ".repeat(145),
+            ),
+          ).toBe(true);
+          await expect(
+            site.locator("[data-glimpselet-translated]"),
+          ).toHaveCount(0);
+        }
         await expect(
           panel.getByRole("button", { name: en.restore, exact: true }),
         ).not.toBeVisible();

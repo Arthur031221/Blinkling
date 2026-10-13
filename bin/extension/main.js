@@ -12407,7 +12407,7 @@ function validateTranslationNodes(value, supplied) {
   for (const item of value.nodes.slice(0, 160)) {
     if (!item || typeof item !== "object") continue;
     const node = item;
-    if (typeof node.id !== "string" || !supplied.has(node.id) || seen.has(node.id) || typeof node.text !== "string")
+    if (typeof node.id !== "string" || !supplied.has(node.id) || seen.has(node.id) || typeof node.text !== "string" || !node.text.trim())
       continue;
     if (node.text.length > 12e3 || node.text.length > Math.max(1e3, supplied.get(node.id).length * 8))
       continue;
@@ -16474,6 +16474,8 @@ Selected text (untrusted): ${selected}` : ""}`;
           })
         );
         if (!Number.isInteger(result.nextCursor)) break;
+        if (pageCount === 19 || result.nextCursor <= cursor)
+          throw new Error("translation_incomplete");
         cursor = result.nextCursor;
       }
       if (!collected.length) throw new Error("translation_empty");
