@@ -7,6 +7,7 @@ import en from "./locales/en.json";
 const mocks = vi.hoisted(() => ({
   ask: vi.fn(),
   context: vi.fn(),
+  explicitContext: vi.fn(),
   guide: vi.fn(),
   sensitive: vi.fn(),
   capture: vi.fn(),
@@ -22,22 +23,29 @@ vi.mock("react-dom/client", async (original) => {
     },
   };
 });
-vi.mock("./api", async (original) => ({
-  ...(await original<typeof import("./api")>()),
-  BridgeClient: class extends EventTarget {
-    token = "test-token";
-    sessionId = "test-session";
-    mode = "direct";
-    project = "/tmp/project";
-    models = [];
-    ask = mocks.ask;
-    load = vi.fn().mockResolvedValue(undefined);
-    close = vi.fn();
-    cancelAndWait = vi.fn().mockResolvedValue(undefined);
-  },
-}));
+vi.mock("./api", async (original) => {
+  const actual = await original<typeof import("./api")>();
+  return {
+    ...actual,
+    BridgeClient: class extends EventTarget {
+      token = "test-token";
+      sessionId = "test-session";
+      mode = "direct";
+      project = "/tmp/project";
+      models = [];
+      ask = (...args: Parameters<typeof actual.BridgeClient.prototype.ask>) => {
+        actual.validateAsk(args[0]);
+        return mocks.ask(...args);
+      };
+      load = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn();
+      cancelAndWait = vi.fn().mockResolvedValue(undefined);
+    },
+  };
+});
 vi.mock("./capture", () => ({
   getPageContext: mocks.context,
+  getExplicitPageContext: mocks.explicitContext,
   getGuideContext: mocks.guide,
   isSensitivePage: mocks.sensitive,
   captureWeb: mocks.capture,
@@ -164,6 +172,9 @@ beforeEach(() => {
     },
   });
   mocks.context.mockReset().mockResolvedValue(page);
+  mocks.explicitContext
+    .mockReset()
+    .mockResolvedValue({ ...page, textScope: "top-document-text" });
   mocks.guide
     .mockReset()
     .mockResolvedValue({ ...page, guideScope: "top-document-text" });
@@ -198,6 +209,47 @@ afterEach(async () => {
 });
 
 describe("bubble answer rendering and feedback", () => {
+  it("asks explicitly about public text excluded from automatic reads without taking a screenshot", async () => {
+    mocks.sensitive.mockResolvedValue(true);
+    mocks.context.mockRejectedValue(new Error("password_page"));
+    const publicPage = {
+      ...page,
+      text: "Travel tumbler: 350 ml, ¥2,290",
+      textScope: "top-document-text",
+      excludedEmbeds: 2,
+    };
+    mocks.explicitContext.mockResolvedValue(publicPage);
+    await start();
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(document.querySelectorAll(".suggestions button")).toHaveLength(0);
+    await draft("What is the price and capacity?");
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+    });
+    await flush();
+    expect(mocks.ask).toHaveBeenCalledOnce();
+    expect(mocks.ask.mock.calls[0][0].page).toEqual(publicPage);
+    expect(mocks.ask.mock.calls[0][0].image).toBeUndefined();
+    expect(mocks.capture).not.toHaveBeenCalled();
+    expect(document.querySelectorAll(".suggestions button")).toHaveLength(0);
+  });
+
+  it.each(["password_page", "blocked_page", "tab_changed"])(
+    "keeps an explicit page ask blocked on %s",
+    async (reason) => {
+      await start();
+      mocks.explicitContext.mockRejectedValue(new Error(reason));
+      await draft("What is the price?");
+      await act(async () => {
+        document.querySelector<HTMLButtonElement>(".composer .send")!.click();
+      });
+      await flush();
+      expect(mocks.ask).not.toHaveBeenCalled();
+      expect(document.querySelector("textarea")?.value).toBe(
+        "What is the price?",
+      );
+    },
+  );
   it.each(["summary", "translate"])(
     "submits a reader %s once without leaving its instruction in the draft",
     async (action) => {

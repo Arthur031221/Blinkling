@@ -13,6 +13,8 @@ import { mkdtemp, rm, cp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { build } from "esbuild";
 import type { PageContext } from "../extension/page-context";
+import en from "../extension/locales/en.json" with { type: "json" };
+import zhTW from "../extension/locales/zh-TW.json" with { type: "json" };
 
 let server: Server, context: BrowserContext, site: Page, worker: Worker;
 let directory: string, origin: string, tabId: number;
@@ -64,8 +66,14 @@ test.afterAll(async () => {
 
 test.beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "glimpselet-page-interactions-"));
-  server = createServer((_request, response) => {
+  server = createServer((request, response) => {
     response.setHeader("Content-Type", "text/html; charset=utf-8");
+    if (request.url === "/opaque") {
+      response.end(
+        "<p>EXCLUDED_EMBED_SECRET</p><button>Embedded control</button>",
+      );
+      return;
+    }
     response.end(`<style>body{height:1800px}button{margin:20px}#app{position:absolute;left:300px;top:200px;width:600px;height:450px;background:#eee}</style>
       <button id="previous">Previous focus</button><button>Time range</button><button>Share dashboard</button><button>Export dashboard</button><div id="app">Drag surface</div>`);
   });
@@ -137,6 +145,28 @@ async function openHarness() {
   return harness;
 }
 
+async function grantActiveTabCapture() {
+  // A real toolbar gesture grants activeTab; host access alone cannot take pixels.
+  await site.bringToFront();
+  const session = await context.browser()!.newBrowserCDPSession();
+  try {
+    const { targetInfos } = await session.send("Target.getTargets", {
+      filter: [{ type: "tab", exclude: false }],
+    });
+    const target = targetInfos.find((target) => target.url === site.url());
+    if (!target) throw new Error("Missing public-page tab");
+    const opened = context.waitForEvent("page");
+    await session.send("Extensions.triggerAction", {
+      id: new URL(worker.url()).host,
+      targetId: target.targetId,
+    });
+    await (await opened).close();
+  } finally {
+    await session.detach();
+  }
+  await site.bringToFront();
+}
+
 async function openGuide() {
   const page = await sendPage<PageContext>({ type: "glimpselet:context" });
   await site.locator("#previous").focus();
@@ -148,6 +178,120 @@ async function openGuide() {
     }));
   expect(await sendPage({ type: "glimpselet:guide", steps })).toEqual({
     ok: true,
+  });
+}
+
+for (const hiddenBy of ["display", "offscreen"] as const) {
+  test(`explicit public reading and Shift crop exclude a ${hiddenBy} opaque tracker while automatic reads stay blocked`, async () => {
+    await site.evaluate(
+      ({ url, hiddenBy }) => {
+        document.body.innerHTML =
+          '<h1>Public product</h1><p>Travel tumbler: 350 ml, ¥2,290</p><button>Buy</button><iframe id="tracker"></iframe>';
+        const frame = document.querySelector<HTMLIFrameElement>("#tracker")!;
+        frame.src = url.replace("127.0.0.1", "localhost") + "/opaque";
+        frame.style.cssText =
+          hiddenBy === "display"
+            ? "display:none"
+            : "position:absolute;top:1800px;left:0;width:4px;height:4px;border:0";
+      },
+      { url: origin, hiddenBy },
+    );
+    await expect
+      .poll(
+        async () =>
+          (await sendPage<PageContext>({ type: "glimpselet:context" }))
+            .hasPassword,
+      )
+      .toBe(true);
+    const harness = await openHarness();
+    const read = () =>
+      harness.evaluate(() =>
+        (window as HarnessWindow).GlimpseletTest.getPageContext(true),
+      );
+    const publicPage = await read();
+    expect(publicPage).toMatchObject({
+      hasPassword: false,
+      text: "Public product Travel tumbler: 350 ml, ¥2,290 Buy",
+      textScope: "top-document-text",
+      excludedEmbeds: 1,
+    });
+    expect(publicPage).not.toHaveProperty("guideScope");
+    expect(JSON.stringify(publicPage)).not.toContain("EXCLUDED_EMBED_SECRET");
+    const translation = await sendPage<{ nodes: Array<{ text: string }> }>({
+      type: "glimpselet:text-nodes",
+    });
+    expect(translation.nodes.map((node) => node.text).join(" ")).toContain(
+      "350 ml",
+    );
+    expect(JSON.stringify(translation)).not.toContain("EXCLUDED_EMBED_SECRET");
+    await expect(
+      harness.evaluate(() =>
+        (window as HarnessWindow).GlimpseletTest.getPageContext(),
+      ),
+    ).rejects.toThrow("password_page");
+    await site.bringToFront();
+    await site.keyboard.down("Shift");
+    await site.waitForTimeout(100);
+    await site.mouse.move(360, 250);
+    await site.mouse.down();
+    await site.mouse.move(660, 450, { steps: 12 });
+    await site.mouse.up();
+    await site.keyboard.up("Shift");
+    await expect(
+      site.locator("[data-glimpselet-crop] .selection"),
+    ).toBeVisible();
+    await site.keyboard.press("Escape");
+    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+    await grantActiveTabCapture();
+    const captured = await harness.evaluate(() =>
+      (window as HarnessWindow).GlimpseletTest.captureWeb("visible"),
+    );
+    expect(captured.capture.image).toMatch(/^data:image\/png;base64,/);
+    const expectedPixelPage = { ...publicPage };
+    delete expectedPixelPage.textScope;
+    expect(captured.page).toEqual(expectedPixelPage);
+    expect(captured.page).not.toHaveProperty("textScope");
+    await expect(
+      harness.evaluate(() =>
+        (window as HarnessWindow).GlimpseletTest.captureWeb("full"),
+      ),
+    ).rejects.toThrow("password_page");
+
+    // A text-only exception never admits a visible uninspectable image.
+    await site.evaluate(() => {
+      document.querySelector<HTMLIFrameElement>("#tracker")!.style.cssText =
+        "position:absolute;left:100px;top:150px;width:300px;height:150px";
+    });
+    expect((await read())?.hasPassword).toBe(false);
+    await expect(
+      harness.evaluate(() =>
+        (window as HarnessWindow).GlimpseletTest.captureWeb("visible"),
+      ),
+    ).rejects.toThrow("password_page");
+    expect(
+      await sendPage({ type: "glimpselet:select", mode: "region" }),
+    ).toEqual({ error: "password_page" });
+    await site.keyboard.down("Shift");
+    await site.waitForTimeout(350);
+    await site.keyboard.up("Shift");
+    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+    await site.evaluate(() =>
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        '<input type="password" hidden>',
+      ),
+    );
+    await expect(read()).rejects.toThrow("password_page");
+    expect(await sendPage({ type: "glimpselet:text-nodes" })).toEqual({
+      error: "password_page",
+    });
+    await site
+      .locator('input[type="password"]')
+      .evaluate((input) => input.remove());
+    await worker.evaluate(() =>
+      chrome.storage.local.set({ blocklist: ["127.0.0.1"] }),
+    );
+    await expect(read()).rejects.toThrow("blocked_page");
   });
 }
 
@@ -351,6 +495,263 @@ test("Close guide is accessible on every step and retains focus through layout c
   }
 });
 
+for (const language of ["en", "zh-TW"] as const)
+  for (const height of [480, 240]) {
+    test(`long ${language} guide notes keep edge targets clickable at ${height}px after scroll and resize`, async () => {
+      await site.setViewportSize({ width: 320, height });
+      await site.evaluate((height) => {
+        document.body.innerHTML = `<style>
+        body{height:1600px;margin:0}
+        #export{position:absolute;left:8px;top:${height - 70}px;width:130px;height:42px;margin:0}
+        #menu{position:absolute;right:8px;top:16px;width:130px;height:42px;margin:0}
+        </style><div role="menu" aria-label="Drawing actions"><button id="export" role="menuitem">Export image</button></div><button id="menu">Open menu</button>`;
+        for (const button of document.querySelectorAll("button"))
+          button.addEventListener("click", () => {
+            document.body.dataset.clicked = button.id;
+          });
+      }, height);
+      const page = await sendPage<PageContext>({ type: "glimpselet:context" });
+      const note =
+        language === "en"
+          ? "Choose Export image to save your drawing. Check the background, scale, and selected elements before downloading. ".repeat(
+              4,
+            )
+          : "按下匯出圖片即可儲存你的繪圖。下載前請檢查背景、比例以及選取的元素。你可以返回上一步確認設定，再繼續完成操作。".repeat(
+              6,
+            );
+      expect(
+        await sendPage({
+          type: "glimpselet:guide",
+          steps: page.elements
+            .filter(
+              (element) =>
+                element.role === "menuitem" || element.text === "Open menu",
+            )
+            .map((element) => ({
+              elementId: element.id,
+              note,
+            })),
+          labels:
+            language === "en"
+              ? {
+                  next: "Next step",
+                  back: "Previous step",
+                  close: "Close guide",
+                  done: "Finish tour",
+                }
+              : {
+                  next: "前往下一步",
+                  back: "返回上一步",
+                  close: "關閉導覽",
+                  done: "完成導覽",
+                },
+        }),
+      ).toEqual({ ok: true });
+      const guide = site.locator("[data-glimpselet-overlay] .guide");
+      const checkPlacement = async (targetId: string) => {
+        await expect
+          .poll(async () => {
+            const card = await guide.boundingBox();
+            const target = await site.locator(targetId).boundingBox();
+            const viewport = site.viewportSize()!;
+            if (!card || !target) return false;
+            const inViewport =
+              card.x >= 0 &&
+              card.y >= 0 &&
+              card.x + card.width <= viewport.width &&
+              card.y + card.height <= viewport.height;
+            const clearOfTarget =
+              card.x + card.width <= target.x ||
+              card.x >= target.x + target.width ||
+              card.y + card.height <= target.y ||
+              card.y >= target.y + target.height;
+            return inViewport && clearOfTarget;
+          })
+          .toBe(true);
+        const card = (await guide.boundingBox())!;
+        const passageNote = guide.locator("p");
+        const passage = (await passageNote.boundingBox())!;
+        const lineHeight = await passageNote.evaluate((note) =>
+          parseFloat(getComputedStyle(note).lineHeight),
+        );
+        expect(passage.height).toBeGreaterThanOrEqual(lineHeight);
+        expect(passage.x).toBeGreaterThanOrEqual(card.x);
+        expect(passage.y).toBeGreaterThanOrEqual(card.y);
+        expect(passage.x + passage.width).toBeLessThanOrEqual(
+          card.x + card.width,
+        );
+        expect(passage.y + passage.height).toBeLessThanOrEqual(
+          card.y + card.height,
+        );
+        for (const button of await guide.locator("nav button").all()) {
+          const bounds = (await button.boundingBox())!;
+          expect(bounds.x).toBeGreaterThanOrEqual(card.x);
+          expect(bounds.y).toBeGreaterThanOrEqual(card.y);
+          expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+            card.x + card.width,
+          );
+          expect(bounds.y + bounds.height).toBeLessThanOrEqual(
+            card.y + card.height,
+          );
+        }
+        if (
+          await passageNote.evaluate(
+            (note) => note.scrollHeight > note.clientHeight,
+          )
+        ) {
+          await passageNote.hover();
+          const pageScroll = await site.evaluate(() => scrollY);
+          await site.mouse.wheel(0, 5000);
+          await expect
+            .poll(() => passageNote.evaluate((note) => note.scrollTop))
+            .toBeGreaterThan(0);
+          expect(await site.evaluate(() => scrollY)).toBe(pageScroll);
+        }
+        await site.locator(targetId).click({ timeout: 2000 });
+        await expect(site.locator("body")).toHaveAttribute(
+          "data-clicked",
+          targetId.slice(1),
+        );
+      };
+      await checkPlacement("#export");
+      await site.setViewportSize({ width: 280, height });
+      await checkPlacement("#export");
+      await site.evaluate(() => window.scrollBy(0, 60));
+      await checkPlacement("#export");
+      await guide.locator('[data-guide-control="next"]').click();
+      await checkPlacement("#menu");
+      await guide.locator('[data-guide-control="back"]').click();
+      await checkPlacement("#export");
+    });
+  }
+
+for (const [language, labels] of [
+  ["en", en],
+  ["zh-TW", zhTW],
+] as const) {
+  test(`the observed Excalidraw menu target stays clickable with long ${language} notes at 320x240`, async () => {
+    await site.setViewportSize({ width: 320, height: 240 });
+    await site.evaluate(() => {
+      // This is the actual menuitem rectangle observed in the live smoke test.
+      document.body.innerHTML = `<style>
+        body{height:1600px;margin:0}
+        #export{position:absolute;left:20px;top:126px;width:212px;height:32px;margin:0}
+        #settings{position:absolute;left:20px;top:360px;width:130px;height:32px;margin:0}
+        </style><div role="menu" aria-label="Drawing actions"><button id="export" role="menuitem">Export image</button></div><button id="settings">Export settings</button>`;
+      document.querySelector("#export")!.addEventListener("click", () => {
+        document.body.dataset.clicked = "export";
+      });
+    });
+    const target = site.getByRole("menuitem", {
+      name: "Export image",
+      exact: true,
+    });
+    expect(await target.boundingBox()).toEqual({
+      x: 20,
+      y: 126,
+      width: 212,
+      height: 32,
+    });
+    const page = await sendPage<PageContext>({ type: "glimpselet:context" });
+    const element = page.elements.find(
+      (element) => element.role === "menuitem",
+    );
+    const settings = page.elements.find(
+      (element) => element.text === "Export settings",
+    );
+    expect(element).toBeDefined();
+    expect(settings).toBeDefined();
+    const note = (
+      language === "en"
+        ? "Choose Export image to save your drawing. Check the background, scale, and selected elements before downloading. ".repeat(
+            4,
+          )
+        : "按下匯出圖片即可儲存你的繪圖。下載前請檢查背景、比例以及選取的元素。你可以返回上一步確認設定，再繼續完成操作。".repeat(
+            6,
+          )
+    )
+      .trim()
+      .slice(0, 360);
+    expect(
+      await sendPage({
+        type: "glimpselet:guide",
+        steps: [
+          { elementId: element!.id, note },
+          { elementId: settings!.id, note },
+        ],
+        labels: {
+          next: labels.next,
+          back: labels.back,
+          close: labels.guideClose,
+          done: labels.guideDone,
+          title: labels.guideAction,
+        },
+      }),
+    ).toEqual({ ok: true });
+    const guide = site.locator("[data-glimpselet-overlay] .guide");
+    await expect
+      .poll(async () => {
+        const card = await guide.boundingBox();
+        const bounds = await target.boundingBox();
+        if (!card || !bounds) return false;
+        const inViewport =
+          card.x >= 0 &&
+          card.y >= 0 &&
+          card.x + card.width <= 320 &&
+          card.y + card.height <= 240;
+        const clearOfTarget =
+          card.x + card.width <= bounds.x ||
+          card.x >= bounds.x + bounds.width ||
+          card.y + card.height <= bounds.y ||
+          card.y >= bounds.y + bounds.height;
+        return inViewport && clearOfTarget;
+      })
+      .toBe(true);
+    const card = (await guide.boundingBox())!;
+    const passageNote = guide.locator("p");
+    await expect(passageNote).toHaveText(note);
+    const passage = (await passageNote.boundingBox())!;
+    const lineHeight = await passageNote.evaluate((note) =>
+      parseFloat(getComputedStyle(note).lineHeight),
+    );
+    expect(passage.height).toBeGreaterThanOrEqual(lineHeight);
+    for (const bounds of [
+      passage,
+      ...(await Promise.all(
+        (await guide.locator("nav button").all()).map((button) =>
+          button.boundingBox(),
+        ),
+      )),
+    ]) {
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(card.x);
+      expect(bounds!.y).toBeGreaterThanOrEqual(card.y);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+        card.x + card.width,
+      );
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
+        card.y + card.height,
+      );
+    }
+    await expect(guide.locator("nav button")).toHaveText([
+      labels.back,
+      labels.next,
+      labels.guideClose,
+    ]);
+    await passageNote.hover();
+    await site.mouse.wheel(0, 5000);
+    await expect
+      .poll(() => passageNote.evaluate((note) => note.scrollTop))
+      .toBeGreaterThan(0);
+    expect(await site.evaluate(() => scrollY)).toBe(0);
+    await target.click({ timeout: 2000 });
+    await expect(site.locator("body")).toHaveAttribute(
+      "data-clicked",
+      "export",
+    );
+  });
+}
+
 test("the first Shift drag at 100 ms crosses activation without operating the page", async () => {
   await site.evaluate(() => {
     document.addEventListener(
@@ -386,6 +787,83 @@ test("the first Shift drag at 100 ms crosses activation without operating the pa
   await crop.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(crop).toHaveCount(0);
 });
+
+for (const [rule, css] of [
+  ["empty", "div:empty { display: none }"],
+  ["root", "html > div { display: none !important }"],
+] as const)
+  for (const mode of ["shift", "region"] as const) {
+    test(`${mode} crop remains visible and intercepts dragging when page CSS hides ${rule} divs`, async () => {
+      await site.addStyleTag({
+        content: css,
+      });
+      await site.evaluate(() => {
+        document.addEventListener("pointerdown", () => {
+          document.body.dataset.operated = "true";
+        });
+        document.addEventListener("pointermove", (event) => {
+          if (event.buttons) document.body.dataset.operated = "true";
+        });
+      });
+      let selected:
+        | Promise<{ rect?: number[]; cancelled?: boolean }>
+        | undefined;
+      if (mode === "region") {
+        selected = sendPage({ type: "glimpselet:select", mode: "region" });
+        // Closing a failed test's tab also closes this pending selection channel.
+        void selected.catch(() => undefined);
+      } else {
+        await site.keyboard.down("Shift");
+        await site.waitForTimeout(250);
+      }
+      const crop = site.locator("[data-glimpselet-crop]");
+      await expect(crop.locator(".surface")).toBeVisible();
+      expect(await crop.boundingBox()).toEqual(
+        await site.evaluate(() => ({
+          x: 0,
+          y: 0,
+          width: document.documentElement.clientWidth,
+          height: innerHeight,
+        })),
+      );
+      await site.mouse.move(500, 300);
+      await site.mouse.down();
+      await site.mouse.move(750, 480, { steps: 12 });
+      await site.mouse.up();
+      if (mode === "shift") await site.keyboard.up("Shift");
+      await expect(crop.locator(".selection")).toBeVisible();
+      expect(await crop.locator(".selection").boundingBox()).toEqual({
+        x: 500,
+        y: 300,
+        width: 250,
+        height: 180,
+      });
+      expect(
+        await site.locator("body").getAttribute("data-operated"),
+      ).toBeNull();
+      await crop.getByRole("button", { name: "Confirm", exact: true }).click();
+      if (selected)
+        expect(await selected).toEqual({ rect: [500, 300, 250, 180] });
+      else
+        await expect
+          .poll(async () =>
+            worker.evaluate(() =>
+              (
+                globalThis as typeof globalThis & MessageLog
+              ).glimpseletTestMessages!.filter(
+                (message) => message.type === "glimpselet:crop-selected",
+              ),
+            ),
+          )
+          .toEqual([
+            expect.objectContaining({
+              type: "glimpselet:crop-selected",
+              rect: [500, 300, 250, 180],
+            }),
+          ]);
+      await expect(crop).toHaveCount(0);
+    });
+  }
 
 test("slow Shift hold, cancellation and re-entry leave one usable crop", async () => {
   for (const delay of [350, 100, 350]) {
@@ -539,3 +1017,126 @@ test("bundled PDF.js reader selection actions preserve the rendered multiline pa
       .toMatchObject({ text: expected, action: action.toLowerCase() });
   }
 });
+
+async function selectGuidePassage(kind: "webpage" | "reader") {
+  return site.evaluate((kind) => {
+    const range = document.createRange();
+    if (kind === "reader") {
+      const spans = document.querySelectorAll(".pdf-text-layer span");
+      range.setStart(spans[0].firstChild!, 0);
+      range.setEnd(
+        spans[spans.length - 1].firstChild!,
+        spans[spans.length - 1].textContent!.length,
+      );
+    } else range.selectNodeContents(document.querySelector("#passage")!);
+    const selection = getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection.toString().trim();
+  }, kind);
+}
+
+for (const kind of ["webpage", "reader"] as const) {
+  test(`${kind} selection tools yield to guide navigation and work again after close`, async () => {
+    if (kind === "reader") {
+      const id = new URL(worker.url()).host;
+      await site.goto(`chrome-extension://${id}/reader.html`);
+      await site.locator("#file").setInputFiles({
+        name: "guided-section.pdf",
+        mimeType: "application/pdf",
+        buffer: selectionPdf(),
+      });
+      await expect(site.locator(".pdf-text-layer span")).toHaveCount(4);
+    } else {
+      await site.evaluate(() => {
+        document.body.innerHTML =
+          '<main><h2>Attention section</h2><p id="passage">This selected section explains <span>trans</span><span>formations</span><br>and attention weights.</p><button>Compare attention heads</button><button>Read the next section</button></main>';
+      });
+    }
+
+    const expected = await selectGuidePassage(kind);
+    expect(expected).toContain("\n");
+    const popover = site.locator("[data-glimpselet-overlay] .popover");
+    await expect(popover).toBeVisible();
+    const page = await sendPage<PageContext>({
+      type: "glimpselet:guide-context",
+    });
+    const steps = page.elements.slice(0, 3).map((element, index) => ({
+      elementId: element.id,
+      note: `Guide the selected passage: step ${index + 1}`,
+    }));
+    expect(steps.length).toBe(3);
+    const guide = site.locator("[data-glimpselet-overlay] .guide");
+    const expectSelection = async () => {
+      expect(await site.evaluate(() => getSelection()!.toString().trim())).toBe(
+        expected,
+      );
+    };
+    const startGuide = async () => {
+      expect(await sendPage({ type: "glimpselet:guide", steps })).toEqual({
+        ok: true,
+      });
+      await expect(guide).toBeVisible();
+      await expect(popover).toHaveCount(0);
+      await expectSelection();
+    };
+    await startGuide();
+
+    const checkStep = async (index: number) => {
+      await expect(guide.locator("p")).toHaveText(steps[index].note);
+      await expect(guide.locator('[data-guide-control="next"]')).toBeVisible();
+      await expect(guide.locator('[data-guide-control="back"]')).toBeVisible();
+      await site.evaluate(() =>
+        document.dispatchEvent(new Event("selectionchange")),
+      );
+      // Wait beyond the content script's delay so a resurrected toolbar is seen.
+      await site.waitForTimeout(80);
+      await expect(popover).toHaveCount(0);
+      await expectSelection();
+    };
+    for (let index = 0; index < steps.length; index++) {
+      await checkStep(index);
+      if (index + 1 < steps.length)
+        await guide.locator('[data-guide-control="next"]').click();
+    }
+    for (let index = steps.length - 2; index >= 0; index--) {
+      await guide.locator('[data-guide-control="back"]').click();
+      await checkStep(index);
+    }
+    await guide.locator('[data-guide-control="close"]').click();
+    await expect(guide).toHaveCount(0);
+    await expectSelection();
+
+    // Queue a toolbar before guide start and close the guide before its delay.
+    // The old selection callback must remain canceled after the guide is gone.
+    await site.evaluate(() =>
+      document.dispatchEvent(new Event("selectionchange")),
+    );
+    await startGuide();
+    await guide
+      .locator('[data-guide-control="close"]')
+      .evaluate((button) => (button as HTMLButtonElement).click());
+    await site.waitForTimeout(80);
+    await expect(guide).toHaveCount(0);
+    await expect(popover).toHaveCount(0);
+    await expectSelection();
+
+    for (const action of ["Explain", "Translate", "Ask"]) {
+      expect(await selectGuidePassage(kind)).toBe(expected);
+      await popover.getByRole("button", { name: action, exact: true }).click();
+      await expect
+        .poll(() =>
+          worker.evaluate(() =>
+            (globalThis as typeof globalThis & MessageLog)
+              .glimpseletTestMessages!.filter(
+                (message) => message.type === "glimpselet:selection",
+              )
+              .at(-1),
+          ),
+        )
+        .toMatchObject({ text: expected, action: action.toLowerCase() });
+      await expect(popover).toHaveCount(0);
+      await expectSelection();
+    }
+  });
+}

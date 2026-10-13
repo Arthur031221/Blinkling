@@ -2,6 +2,7 @@ import { selectCrop, type CropLabels } from "./crop-selection";
 import { listenForShiftCrop } from "./shift-crop";
 import {
   buildPageContext,
+  buildExplicitPageContext,
   buildGuideContext,
   contextRangeText,
   contextTextNode,
@@ -35,6 +36,7 @@ if (!contentScope.glimpseletContentReady) {
   let overlayHost: HTMLDivElement | undefined;
   let overlayRoot: ShadowRoot | undefined;
   let selectionPopover: HTMLDivElement | undefined;
+  let selectionTimer = 0;
   let currentGuide:
     | {
         steps: GuideStep[];
@@ -169,7 +171,7 @@ if (!contentScope.glimpseletContentReady) {
       "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
     overlayRoot = overlayHost.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;max-width:245px;padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4}.guide nav{display:flex;justify-content:space-between;gap:6px}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
+    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;display:flex;flex-direction:column;box-sizing:border-box;width:269px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4;min-height:0;overflow:auto;overflow-wrap:anywhere}.guide nav{display:flex;flex-wrap:wrap;flex-shrink:0;justify-content:space-between;gap:6px}.guide nav button{max-width:100%;overflow-wrap:anywhere}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
     overlayRoot.append(style);
     style.textContent += `.guide button:focus-visible,.popover button:focus-visible,.cancel:focus-visible{outline:2px solid #86513d;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ink,.arrow{animation:none;stroke-dashoffset:0}}`;
     const surface = document.createElement("div");
@@ -275,7 +277,7 @@ if (!contentScope.glimpseletContentReady) {
     blink.append(wink);
     const head = document.createElement("div");
     head.style.cssText =
-      "display:flex;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
+      "display:flex;flex-shrink:0;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
     head.append(blink, document.createTextNode(currentGuide.labels.title));
     callout.append(head);
     const note = document.createElement("p");
@@ -315,18 +317,138 @@ if (!contentScope.glimpseletContentReady) {
     close.onclick = closeGuide;
     nav.append(back, counter, next, close);
     callout.append(nav);
-    const top =
-      point.y > 115
-        ? point.y - 110
-        : Math.min(innerHeight - 90, point.y + point.height + 18);
-    const cardX = Math.max(8, Math.min(Math.max(8, point.x), innerWidth - 269));
-    const cardY = Math.max(8, Math.min(top, innerHeight - 130));
+    // Measure the real note and localized controls before choosing a clear side.
+    // Only the passage scrolls when space is tight; navigation stays visible.
+    callout.style.visibility = "hidden";
+    root.append(callout);
+    const margin = 8;
+    const viewportWidth = innerWidth - margin * 2;
+    const viewportHeight = innerHeight - margin * 2;
+    const naturalWidth = callout.getBoundingClientRect().width || 269;
+    // clientHeight is integral; round up the rendered line height so a
+    // candidate cannot leave a partially clipped first line of the note.
+    const minimumNoteHeight = Math.ceil(
+      Number.parseFloat(getComputedStyle(note).lineHeight),
+    );
+    const clamp = (value: number, min: number, max: number) =>
+      Math.max(min, Math.min(value, max));
+    const spaces = (gap: number) => [
+      {
+        x: margin,
+        y: margin,
+        width: viewportWidth,
+        height: clamp(point.y - gap - margin, 0, viewportHeight),
+        side: "above",
+      },
+      {
+        x: margin,
+        y: Math.max(margin, point.y + point.height + gap),
+        width: viewportWidth,
+        height: clamp(
+          innerHeight - margin - point.y - point.height - gap,
+          0,
+          viewportHeight,
+        ),
+        side: "below",
+      },
+      {
+        x: Math.max(margin, point.x + point.width + gap),
+        y: margin,
+        width: clamp(
+          innerWidth - margin - point.x - point.width - gap,
+          0,
+          viewportWidth,
+        ),
+        height: viewportHeight,
+        side: "right",
+      },
+      {
+        x: margin,
+        y: margin,
+        width: clamp(point.x - gap - margin, 0, viewportWidth),
+        height: viewportHeight,
+        side: "left",
+      },
+    ];
+    let placement:
+      | { x: number; y: number; width: number; height: number; score: number }
+      | undefined;
+    for (const compact of [false, true]) {
+      if (compact) {
+        // A short viewport can fit a full line and all controls above the
+        // target when the counter shares the header and navigation fits a row.
+        // Keep the normal layout whenever any clear side can accommodate it.
+        head.append(counter);
+        counter.style.marginLeft = "auto";
+        head.style.marginBottom = "3px";
+        blink.style.flexShrink = "0";
+        for (const button of [back, next, close])
+          button.style.padding = "6px 8px";
+      }
+      for (const [index, space] of spaces(compact ? 8 : 18).entries()) {
+        if (space.width <= 0 || space.height <= 0) continue;
+        const width = Math.min(
+          compact ? viewportWidth : naturalWidth,
+          space.width,
+        );
+        callout.style.width = `${width}px`;
+        callout.style.maxHeight = `${space.height}px`;
+        const bounds = callout.getBoundingClientRect();
+        // A side too small for the header, full note line or localized
+        // controls cannot be used, even if the outer card fits there.
+        if (
+          bounds.height > space.height ||
+          bounds.width > space.width ||
+          (note.scrollHeight > 0 && note.clientHeight < minimumNoteHeight) ||
+          [back, next, close].some((button) => {
+            const control = button.getBoundingClientRect();
+            return (
+              control.left < bounds.left ||
+              control.right > bounds.right ||
+              control.top < bounds.top ||
+              control.bottom > bounds.bottom
+            );
+          })
+        )
+          continue;
+        const x =
+          space.side === "left"
+            ? space.x + space.width - bounds.width
+            : clamp(point.x, space.x, space.x + space.width - bounds.width);
+        const y =
+          space.side === "above"
+            ? space.y + space.height - bounds.height
+            : clamp(point.y, space.y, space.y + space.height - bounds.height);
+        const visibleNote = note.scrollHeight
+          ? Math.min(1, note.clientHeight / note.scrollHeight)
+          : 1;
+        const score = visibleNote * 1000 - index;
+        if (!placement || score > placement.score)
+          placement = { x, y, width, height: space.height, score };
+      }
+      if (placement) break;
+    }
+    // Very large page regions can leave no clear side. Keep controls in the
+    // viewport even in that case rather than letting the note leave the screen.
+    placement ??= {
+      x: margin,
+      y: margin,
+      width: viewportWidth,
+      height: viewportHeight,
+      score: 0,
+    };
+    callout.style.width = `${placement.width}px`;
+    callout.style.maxHeight = `${placement.height}px`;
+    const cardX = placement.x;
+    const cardY = placement.y;
     callout.style.left = `${cardX}px`;
     callout.style.top = `${cardY}px`;
+    callout.style.visibility = "visible";
+    const card = callout.getBoundingClientRect();
     const startX = point.x + point.width / 2;
     const startY = point.y + point.height / 2;
-    const endX = Math.min(Math.max(startX, cardX), cardX + 245);
-    const endY = cardY + (cardY > startY ? 0 : 64);
+    const endX = clamp(startX, cardX, cardX + card.width);
+    const endY = clamp(startY, cardY, cardY + card.height);
     const arrow = document.createElementNS(svg.namespaceURI, "path");
     arrow.setAttribute("class", "arrow");
     arrow.setAttribute(
@@ -358,12 +480,15 @@ if (!contentScope.glimpseletContentReady) {
   }
 
   function closeSelectionPopover(): void {
+    window.clearTimeout(selectionTimer);
+    selectionTimer = 0;
     selectionPopover?.remove();
     selectionPopover = undefined;
   }
 
   function showSelectionPopover(): void {
     closeSelectionPopover();
+    if (currentGuide) return;
     const selection = getSelection();
     if (selection?.rangeCount !== 1) return;
     const range = selection.getRangeAt(0).cloneRange();
@@ -410,7 +535,11 @@ if (!contentScope.glimpseletContentReady) {
 
   function onSelectionChange(): void {
     closeSelectionPopover();
-    window.setTimeout(showSelectionPopover, 40);
+    if (currentGuide) return;
+    selectionTimer = window.setTimeout(() => {
+      selectionTimer = 0;
+      showSelectionPopover();
+    }, 40);
   }
 
   function updateGuidePosition(): void {
@@ -509,7 +638,10 @@ if (!contentScope.glimpseletContentReady) {
     document.addEventListener("selectionchange", onSelectionChange);
     listenForShiftCrop(
       window,
-      () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
+      () =>
+        shiftCropEnabled &&
+        !selecting &&
+        !hasSensitiveContent(document, "visible-capture"),
       (initialPointer) => {
         void select("region", cropLabels.cropCancel, initialPointer).then(
           (result) => {
@@ -541,12 +673,16 @@ if (!contentScope.glimpseletContentReady) {
     cancelLabel: string,
     initialPointer?: PointerEvent,
   ): Promise<unknown> {
+    if (hasSensitiveContent(document, "visible-capture"))
+      return Promise.resolve({ error: "password_page" });
     if (selecting) return Promise.resolve({ cancelled: true });
     selecting = true;
     selectionMode = mode;
     if (mode === "region") {
       const host = document.createElement("div");
       host.dataset.glimpseletCrop = "true";
+      // Host-page styles outrank ordinary shadow :host rules and can hide it.
+      host.style.setProperty("display", "block", "important");
       document.documentElement.append(host);
       void send({ type: "glimpselet:crop-mode", active: true });
       return selectCrop(
@@ -651,6 +787,8 @@ if (!contentScope.glimpseletContentReady) {
       if (!message || typeof message.type !== "string") return;
       if (
         [
+          "glimpselet:guide-context",
+          "glimpselet:explicit-context",
           "glimpselet:guide",
           "glimpselet:text-nodes",
           "glimpselet:translate",
@@ -702,12 +840,19 @@ if (!contentScope.glimpseletContentReady) {
         respond(buildPageContext());
         return;
       }
-      if (message.type === "glimpselet:guide-context") {
+      if (
+        message.type === "glimpselet:guide-context" ||
+        message.type === "glimpselet:explicit-context"
+      ) {
         if (hasSensitiveContent(document, true)) {
           respond({ error: "password_page" });
           return;
         }
-        respond(buildGuideContext());
+        respond(
+          message.type === "glimpselet:guide-context"
+            ? buildGuideContext()
+            : buildExplicitPageContext(),
+        );
         return;
       }
       if (message.type === "glimpselet:identity") {
@@ -774,6 +919,7 @@ if (!contentScope.glimpseletContentReady) {
         );
         const valid = incoming.filter((step) => guidePoint(step.elementId));
         if (valid.length) {
+          closeSelectionPopover();
           if (!currentGuide) {
             const active = document.activeElement;
             guideReturnFocus =

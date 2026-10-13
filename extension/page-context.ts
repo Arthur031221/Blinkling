@@ -15,6 +15,7 @@ export type PageContext = {
   elements: PageElement[];
   hasPassword: boolean;
   guideScope?: "top-document-text";
+  textScope?: "top-document-text";
   excludedEmbeds?: number;
 };
 
@@ -152,18 +153,32 @@ function visible(element: Element): boolean {
   return true;
 }
 
-export function buildPageContext(doc: Document = document): PageContext {
-  return readPageContext(doc, false);
+export function buildPageContext(
+  doc: Document = document,
+  explicitTextOnly = false,
+): PageContext {
+  return readPageContext(doc, explicitTextOnly);
 }
 
-// Explicit guides may read only inspectable top-document text and controls.
+// Explicit requests may read only inspectable top-document text and controls.
 // This result never authorizes a screenshot or an automatic page request.
-export function buildGuideContext(doc: Document = document): PageContext {
-  return readPageContext(doc, true);
+export function buildExplicitPageContext(
+  doc: Document = document,
+): PageContext {
+  return buildPageContext(doc, true);
 }
 
-function readPageContext(doc: Document, explicitGuide: boolean): PageContext {
-  const hasPassword = hasSensitiveContent(doc, explicitGuide);
+export function buildGuideContext(doc: Document = document): PageContext {
+  const context = buildExplicitPageContext(doc);
+  delete context.textScope;
+  return { ...context, guideScope: "top-document-text" };
+}
+
+function readPageContext(
+  doc: Document,
+  explicitTextOnly: boolean,
+): PageContext {
+  const hasPassword = hasSensitiveContent(doc, explicitTextOnly);
   const scope =
     doc.querySelector("[data-glimpselet-reader-page]") ||
     doc.body ||
@@ -179,7 +194,7 @@ function readPageContext(doc: Document, explicitGuide: boolean): PageContext {
           : ""),
     ),
   )) {
-    if (explicitGuide && hasPassword) break;
+    if (explicitTextOnly && hasPassword) break;
     if (elements.length >= 120) break;
     if (
       isExcluded(element) ||
@@ -211,7 +226,7 @@ function readPageContext(doc: Document, explicitGuide: boolean): PageContext {
   const walker = doc.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
   let node: Node | null;
   while (
-    !(explicitGuide && hasPassword) &&
+    !(explicitTextOnly && hasPassword) &&
     (node = walker.nextNode()) &&
     length < 24_000
   ) {
@@ -229,9 +244,9 @@ function readPageContext(doc: Document, explicitGuide: boolean): PageContext {
     text: chunks.join(" ").slice(0, 24_000),
     elements,
     hasPassword,
-    ...(explicitGuide
+    ...(explicitTextOnly
       ? {
-          guideScope: "top-document-text" as const,
+          textScope: "top-document-text" as const,
           excludedEmbeds: doc.querySelectorAll("iframe,frame,object,embed")
             .length,
         }
