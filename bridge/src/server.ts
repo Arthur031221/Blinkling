@@ -38,7 +38,7 @@ export async function createGlimpselet(options: ServerOptions = {}) {
     onClear: () => onClear(),
   }).start();
   const server = new McpServer(
-    { name: "glimpselet", version: "2.0.0" },
+    { name: "glimpselet", version: "2.1.0" },
     {
       capabilities: { experimental: { "claude/channel": {} } },
       instructions:

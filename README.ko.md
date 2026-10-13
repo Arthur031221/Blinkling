@@ -21,7 +21,7 @@ Glimpselet은 사용 가능한 Claude Code 실시간 세션에 연결합니다. 
    /plugin install glimpselet@glimpselet
    ```
 
-2. 터미널에서 `claude plugin list`에 Glimpselet **2.0.0**이 표시되는지 확인한 후 Claude Code에서 `/glimpselet:glimpse`를 실행합니다.
+2. 터미널에서 `claude plugin list`에 Glimpselet **2.1.0**이 표시되는지 확인한 후 Claude Code에서 `/glimpselet:glimpse`를 실행합니다.
 
 3. 시작 페이지는 세 단계입니다. 확장 프로그램 설치, 자동 연결, 버블 열기. 로컬 데스크톱에서는 **설치 없이 사용해 보기**를 선택하거나 자신의 브라우저에 확장 프로그램을 로드하세요. Claude Code가 원격 호스트에서 실행된다면 브라우저가 있는 컴퓨터에서 터미널에 표시된 SSH 명령을 실행하고 ZIP을 다운로드해 로드하세요. 버블에는 **내 Claude Code에 연결됨**이 표시됩니다. [연결 안내](docs/INSTALL.md)를 참고하세요.
 
@@ -43,9 +43,9 @@ node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-두 버전 확인 명령 모두 `2.0.0`을 표시해야 합니다. 플러그인 목록에는 `glimpselet@inline` 버전 `2.0.0`이 이 세션에서 활성화된 것으로 표시되어야 합니다. 마지막 명령으로 Claude Code가 열리면 그 세션에서 `/glimpselet:glimpse`를 실행해 시작 안내를 여세요. `--plugin-dir`는 이 세션에서만 소스 플러그인을 불러옵니다. 시작할 때마다 이 옵션을 사용하고, `npm run build:plugin`으로 다시 빌드한 후에는 Claude Code를 다시 시작하세요. 빌드한 확장 프로그램은 `dist-extension`에 있으며, 시작 안내가 아래 고정 폴더로 복사합니다.
+두 버전 확인 명령 모두 `2.1.0`을 표시해야 합니다. 플러그인 목록에는 `glimpselet@inline` 버전 `2.1.0`이 이 세션에서 활성화된 것으로 표시되어야 합니다. 마지막 명령으로 Claude Code가 열리면 그 세션에서 `/glimpselet:glimpse`를 실행해 시작 안내를 여세요. `--plugin-dir`는 이 세션에서만 소스 플러그인을 불러옵니다. 시작할 때마다 이 옵션을 사용하고, `npm run build:plugin`으로 다시 빌드한 후에는 Claude Code를 다시 시작하세요. 빌드한 확장 프로그램은 `dist-extension`에 있으며, 시작 안내가 아래 고정 폴더로 복사합니다.
 
-플러그인 세부 정보에는 `glimpse`와 `install` 스킬 및 `glimpselet` MCP 서버도 있어야 합니다. 패키지 확장 프로그램은 `bin/extension`에 있으며 버전도 **2.0.0**이어야 합니다. Claude Code가 원격 호스트에 있으면 안내의 SSH 명령을 사용하고, 브라우저가 있는 컴퓨터에서 확장 프로그램 ZIP을 다운로드한 후 압축을 푼 폴더를 불러오세요.
+플러그인 세부 정보에는 `glimpse`와 `install` 스킬 및 `glimpselet` MCP 서버도 있어야 합니다. 패키지 확장 프로그램은 `bin/extension`에 있으며 버전도 **2.1.0**이어야 합니다. Claude Code가 원격 호스트에 있으면 안내의 SSH 명령을 사용하고, 브라우저가 있는 컴퓨터에서 확장 프로그램 ZIP을 다운로드한 후 압축을 푼 폴더를 불러오세요.
 
 브라우저와 Claude Code가 같은 컴퓨터에서 실행되면 시작 안내가 빌드한 확장 프로그램을 고정 폴더 `~/Glimpselet-extension`에 복사합니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
 
@@ -61,7 +61,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-열린 Claude Code 세션에서 `/reload-plugins`를 실행하거나 Claude Code를 다시 시작한 다음 `/glimpselet:glimpse`를 실행하세요. 목록의 `glimpselet@glimpselet`이 **2.0.0**이고 시작 및 페어링 안내가 열리는지 확인하세요. 브라우저 컴퓨터의 `chrome://extensions` 또는 `edge://extensions`에서도 Glimpselet이 **2.0.0**인지 확인하세요. 여전히 1.1.1이라면 공개 마켓플레이스에 v2가 아직 배포되지 않았을 수 있습니다. 예전 화면 선택 페이지는 v2 시작 안내가 아닙니다. [업데이트 확인](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+열린 Claude Code 세션에서 `/reload-plugins`를 실행하거나 Claude Code를 다시 시작한 다음 `/glimpselet:glimpse`를 실행하세요. 목록의 `glimpselet@glimpselet`이 **2.1.0**이고 시작 및 페어링 안내가 열리는지 확인하세요. 브라우저 컴퓨터의 `chrome://extensions` 또는 `edge://extensions`에서도 Glimpselet이 **2.1.0**인지 확인하세요. 여전히 1.1.1이라면 공개 마켓플레이스에 v2가 아직 배포되지 않았을 수 있습니다. 예전 화면 선택 페이지는 v2 시작 안내가 아닙니다. [업데이트 확인](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 ## 할 수 있는 일
 

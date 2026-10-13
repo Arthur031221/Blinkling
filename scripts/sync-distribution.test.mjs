@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { syncDistribution } from "./sync-distribution.mjs";
 
+const { version: releaseVersion } = JSON.parse(
+  await readFile(join(process.cwd(), "package.json"), "utf8"),
+);
+
 const readmeFiles = [
   "README.md",
   "README.de.md",
@@ -153,7 +157,7 @@ describe("distribution README sync", () => {
       const advanced = advancedSection(content);
       expect(advanced).toContain(sourceBootstrap);
       expect(advanced).toContain("/glimpselet:glimpse");
-      expect(advanced).toContain("2.0.0");
+      expect(advanced).toContain(releaseVersion);
       expect(advanced).toContain("~/Glimpselet-extension");
       expect(advanced).toContain("chrome://extensions");
       expect(content.slice(0, content.indexOf("\n### "))).toContain(
@@ -171,7 +175,7 @@ describe("distribution README sync", () => {
       "utf8",
     );
     expect(content).toContain(sourceBootstrap);
-    expect(content).toContain("2.0.0");
+    expect(content).toContain(releaseVersion);
   });
 
   it.each(passiveLanguageChecks)(
@@ -288,7 +292,7 @@ function expectCheckoutInstructions(content) {
     commands.indexOf('claude --plugin-dir "$PWD"'),
   );
   expect(advanced).toContain("/glimpselet:glimpse");
-  expect(advanced).toContain("2.0.0");
+  expect(advanced).toContain(releaseVersion);
   expect(advanced).toContain("dist-extension");
   expect(content.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(true);
 }

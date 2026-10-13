@@ -17,6 +17,9 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const { version: releaseVersion } = JSON.parse(
+  await readFile(join(root, "package.json"), "utf8"),
+);
 const script = fileURLToPath(import.meta.url);
 const output = "/tmp/glimpselet-v2-native-record-final";
 const screenshotNames = [
@@ -171,7 +174,7 @@ x11.XCloseDisplay(display)
       await readFile(join(sourceExtension, "manifest.json"), "utf8"),
     );
     assert.equal(manifest.name, "Glimpselet");
-    assert.equal(manifest.version, "2.0.0");
+    assert.equal(manifest.version, releaseVersion);
     await mkdir(join(home, ".glimpselet"), { recursive: true });
     await cp(sourceExtension, stableFolder, { recursive: true });
     assert.ok((await stat(stableFolder)).isDirectory());
@@ -285,7 +288,7 @@ x11.XCloseDisplay(display)
     const name = (await card.locator("#name").innerText()).trim();
     const version = (await card.locator("#version").innerText()).trim();
     assert.equal(name, "Glimpselet");
-    assert.equal(version, "2.0.0");
+    assert.equal(version, releaseVersion);
 
     const loaded = join(evidence, "loaded.png");
     await page.screenshot({ path: loaded, animations: "disabled" });

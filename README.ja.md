@@ -21,7 +21,7 @@ Glimpselet は利用可能な Claude Code のライブセッションに接続�
    /plugin install glimpselet@glimpselet
    ```
 
-2. ターミナルの `claude plugin list` で Glimpselet が **2.0.0** であることを確認し、Claude Code で `/glimpselet:glimpse` を実行します。
+2. ターミナルの `claude plugin list` で Glimpselet が **2.1.0** であることを確認し、Claude Code で `/glimpselet:glimpse` を実行します。
 
 3. ようこそページの手順は3つです。拡張機能をインストールし、自動接続して、バブルを開きます。ローカルのデスクトップでは **インストールせずに試す** を選ぶか、自分のブラウザーに拡張機能を読み込んでください。Claude Code がリモートホストで動く場合は、ブラウザーのあるPCでターミナルに表示された SSH コマンドを実行し、ZIP をダウンロードして読み込みます。バブルには **あなたの Claude Code に接続済み** と表示されます。[接続の詳細](docs/INSTALL.md)をご覧ください。
 
@@ -43,9 +43,9 @@ node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-2 つのバージョン確認で、どちらも `2.0.0` と表示されることを確認してください。プラグイン一覧には、`glimpselet@inline` のバージョン `2.0.0` がこのセッションで有効と表示されます。最後のコマンドで Claude Code が開いたら、そのセッションで `/glimpselet:glimpse` を実行してウェルカムガイドを開きます。`--plugin-dir` は、このセッションだけでソースのプラグインを読み込みます。起動のたびにこのオプションを付け、`npm run build:plugin` で再ビルドしたら Claude Code を再起動してください。ビルドした拡張機能は `dist-extension` にあります。ウェルカムガイドが、以下の固定フォルダーにコピーします。
+2 つのバージョン確認で、どちらも `2.1.0` と表示されることを確認してください。プラグイン一覧には、`glimpselet@inline` のバージョン `2.1.0` がこのセッションで有効と表示されます。最後のコマンドで Claude Code が開いたら、そのセッションで `/glimpselet:glimpse` を実行してウェルカムガイドを開きます。`--plugin-dir` は、このセッションだけでソースのプラグインを読み込みます。起動のたびにこのオプションを付け、`npm run build:plugin` で再ビルドしたら Claude Code を再起動してください。ビルドした拡張機能は `dist-extension` にあります。ウェルカムガイドが、以下の固定フォルダーにコピーします。
 
-プラグインの詳細には、`glimpse` と `install` のスキル、および `glimpselet` MCP サーバーも必要です。パッケージされた拡張機能は `bin/extension` にあり、そのバージョンも **2.0.0** であることを確認します。Claude Code がリモートで動く場合は、ガイドの SSH コマンドを使い、ブラウザーのある端末で拡張機能 ZIP をダウンロードして、展開したフォルダーを読み込んでください。
+プラグインの詳細には、`glimpse` と `install` のスキル、および `glimpselet` MCP サーバーも必要です。パッケージされた拡張機能は `bin/extension` にあり、そのバージョンも **2.1.0** であることを確認します。Claude Code がリモートで動く場合は、ガイドの SSH コマンドを使い、ブラウザーのある端末で拡張機能 ZIP をダウンロードして、展開したフォルダーを読み込んでください。
 
 ブラウザーと Claude Code が同じ端末で動いている場合、ウェルカムガイドがビルドした拡張機能を固定フォルダー `~/Glimpselet-extension` にコピーします。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
 
@@ -61,7 +61,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-開いている Claude Code で `/reload-plugins` を実行するか再起動し、`/glimpselet:glimpse` を実行します。一覧の `glimpselet@glimpselet` が **2.0.0** で、ウェルカム・ペアリングガイドが開くことを確認してください。ブラウザー側の `chrome://extensions` または `edge://extensions` でも Glimpselet が **2.0.0** か確認します。まだ 1.1.1 なら、公開マーケットプレイスに v2 が未公開の可能性があります。古い画面選択ページは v2 のガイドではありません。[更新の確認](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
+開いている Claude Code で `/reload-plugins` を実行するか再起動し、`/glimpselet:glimpse` を実行します。一覧の `glimpselet@glimpselet` が **2.1.0** で、ウェルカム・ペアリングガイドが開くことを確認してください。ブラウザー側の `chrome://extensions` または `edge://extensions` でも Glimpselet が **2.1.0** か確認します。まだ 1.1.1 なら、公開マーケットプレイスに v2 が未公開の可能性があります。古い画面選択ページは v2 のガイドではありません。[更新の確認](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 ## できること
 

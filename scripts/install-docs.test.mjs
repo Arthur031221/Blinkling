@@ -2,6 +2,10 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+const { version: releaseVersion } = JSON.parse(
+  await readFile(join(process.cwd(), "package.json"), "utf8"),
+);
+
 async function readConnectionGuide() {
   const install = await readFile(
     join(process.cwd(), "docs/INSTALL.md"),
@@ -97,7 +101,7 @@ describe("installation guidance", () => {
       expect(shell.split("\n")).toContain(command);
     }
     expect(source).toContain("glimpselet@inline");
-    expect(source).toContain("2.0.0");
+    expect(source).toContain(releaseVersion);
     expect(source).toContain("/glimpselet:glimpse");
     expect(source).toContain("dist-extension");
     expect(source).toMatch(/session/i);

@@ -11,6 +11,9 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 const execute = promisify(execFile);
 const root = resolve(".");
+const { version: releaseVersion } = JSON.parse(
+  await readFile(join(root, "package.json"), "utf8"),
+);
 const directory = await mkdtemp(join(tmpdir(), "glimpselet-plugin-upgrade-"));
 const stage = join(directory, "marketplace");
 const cli = process.env.GLIMPSELET_CLAUDE_CLI || "claude";
@@ -67,7 +70,7 @@ async function welcome(profile, pluginPath) {
   const extension = JSON.parse(
     await readFile(join(pluginPath, "bin/extension/manifest.json"), "utf8"),
   );
-  assert.equal(extension.version, "2.0.0");
+  assert.equal(extension.version, releaseVersion);
   assert.deepEqual(
     await readFile(join(pluginPath, "bin/glimpselet.cjs")),
     await readFile(join(root, "bin/glimpselet.cjs")),
@@ -123,9 +126,9 @@ async function welcome(profile, pluginPath) {
         "utf8",
       ),
     );
-    assert.equal(copied.version, "2.0.0");
+    assert.equal(copied.version, releaseVersion);
     console.log(
-      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension 2.0.0; packaged /glimpse tool opened welcome/pairing`,
+      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension ${releaseVersion}; packaged /glimpse tool opened welcome/pairing`,
     );
   } finally {
     await client.close();
@@ -148,11 +151,11 @@ try {
   });
   await upgrade.run("marketplace", "update", "glimpselet");
   await upgrade.run("update", pluginId);
-  await welcome(upgrade, await installed(upgrade, "2.0.0"));
+  await welcome(upgrade, await installed(upgrade, releaseVersion));
   const fresh = await profile("fresh-v2");
   await fresh.run("marketplace", "add", stage);
   await fresh.run("install", pluginId);
-  await welcome(fresh, await installed(fresh, "2.0.0"));
+  await welcome(fresh, await installed(fresh, releaseVersion));
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

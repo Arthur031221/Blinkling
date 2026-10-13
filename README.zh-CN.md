@@ -21,7 +21,7 @@ Glimpselet 优先连接已启用的 Claude Code 实时会话，否则自动继�
    /plugin install glimpselet@glimpselet
    ```
 
-2. 在终端确认 `claude plugin list` 显示 Glimpselet **2.0.0**，再在 Claude Code 运行 `/glimpselet:glimpse`。
+2. 在终端确认 `claude plugin list` 显示 Glimpselet **2.1.0**，再在 Claude Code 运行 `/glimpselet:glimpse`。
 
 3. 欢迎页只有三步：安装扩展、自动连接、打开浮窗。在本地桌面可选 **不安装，先试用**，也可在自己的浏览器加载扩展。如果 Claude Code 在远程主机，请在有浏览器的电脑运行终端提供的 SSH 命令，再下载并加载 ZIP。浮窗只显示 **已连接到你的 Claude Code**。详见[连接说明](docs/INSTALL.md)。
 
@@ -43,9 +43,9 @@ node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-两条版本检查命令都应显示 `2.0.0`。插件列表应显示 `glimpselet@inline` 的版本为 `2.0.0`，并已在此会话中启用。最后一条命令会打开 Claude Code。在这个会话中运行 `/glimpselet:glimpse`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项。重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
+两条版本检查命令都应显示 `2.1.0`。插件列表应显示 `glimpselet@inline` 的版本为 `2.1.0`，并已在此会话中启用。最后一条命令会打开 Claude Code。在这个会话中运行 `/glimpselet:glimpse`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项。重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
 
-插件详情还应包含 `glimpse` 和 `install` 技能以及 `glimpselet` MCP 服务器。打包后的扩展位于 `bin/extension`，版本也应为 **2.0.0**。如果 Claude Code 在远程主机上运行，请使用指南中的 SSH 命令，在浏览器所在的电脑下载扩展 ZIP，并加载解压后的文件夹。
+插件详情还应包含 `glimpse` 和 `install` 技能以及 `glimpselet` MCP 服务器。打包后的扩展位于 `bin/extension`，版本也应为 **2.1.0**。如果 Claude Code 在远程主机上运行，请使用指南中的 SSH 命令，在浏览器所在的电脑下载扩展 ZIP，并加载解压后的文件夹。
 
 如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/Glimpselet-extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
 更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。 改用 `~/Glimpselet-extension` 时，请移除旧扩展卡片，再加载这个文件夹一次。
@@ -60,7 +60,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.0.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.0.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2。旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
+在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.1.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.1.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2。旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
 
 ## 可以做什么
 

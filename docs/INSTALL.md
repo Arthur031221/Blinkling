@@ -27,11 +27,11 @@ node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-For this v2 checkout, all three version checks should print `2.0.0`. The plugin list should show `glimpselet@inline`, version `2.0.0`, enabled for the session. In the Claude Code session opened by the last command, run `/glimpselet:glimpse`. This loads the checkout for that session only; use `--plugin-dir` each time you want to run it. The published marketplace installation above remains the usual install path. This [session-local loading method](https://code.claude.com/docs/en/plugins/cli-reference#flags-that-load-a-plugin-for-one-session) is documented by Claude Code.
+For this v2 checkout, all three version checks should print `2.1.0`. The plugin list should show `glimpselet@inline`, version `2.1.0`, enabled for the session. In the Claude Code session opened by the last command, run `/glimpselet:glimpse`. This loads the checkout for that session only; use `--plugin-dir` each time you want to run it. The published marketplace installation above remains the usual install path. This [session-local loading method](https://code.claude.com/docs/en/plugins/cli-reference#flags-that-load-a-plugin-for-one-session) is documented by Claude Code.
 
-The plugin details must also report **glimpselet 2.0.0**, include the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is at `bin/extension`; its version check must also print **2.0.0**.
+The plugin details must also report **glimpselet 2.1.0**, include the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is at `bin/extension`; its version check must also print **2.1.0**.
 
-For the browser extension, **Load unpacked** can use the checkout's `dist-extension` folder after the build, or the stable `~/Glimpselet-extension` folder copied by `/glimpselet:glimpse`. Check version `2.0.0` on its card at `chrome://extensions` or `edge://extensions`. If the checkout is on a remote host, download and extract its extension ZIP on the browser computer using the tunnel flow below.
+For the browser extension, **Load unpacked** can use the checkout's `dist-extension` folder after the build, or the stable `~/Glimpselet-extension` folder copied by `/glimpselet:glimpse`. Check version `2.1.0` on its card at `chrome://extensions` or `edge://extensions`. If the checkout is on a remote host, download and extract its extension ZIP on the browser computer using the tunnel flow below.
 
 ## Load the unpacked extension
 

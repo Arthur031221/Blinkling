@@ -21,7 +21,7 @@ O Glimpselet se conecta a uma sessão ao vivo verificada do Claude Code quando d
    /plugin install glimpselet@glimpselet
    ```
 
-2. No terminal, confira se `claude plugin list` mostra Glimpselet **2.0.0** e execute `/glimpselet:glimpse` no Claude Code.
+2. No terminal, confira se `claude plugin list` mostra Glimpselet **2.1.0** e execute `/glimpselet:glimpse` no Claude Code.
 
 3. A página de boas-vindas tem três passos: instalar a extensão, conectar automaticamente e abrir a bolha. Escolha **Experimentar sem instalar** em um desktop local ou carregue a extensão no seu navegador. Se o Claude Code estiver em um host remoto, execute o comando SSH exibido no terminal no computador com o navegador; depois baixe e carregue o ZIP ali. A bolha mostra **Conectado ao seu Claude Code**. Veja os [detalhes de conexão](docs/INSTALL.md).
 
@@ -43,9 +43,9 @@ node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-As duas verificações de versão devem mostrar `2.0.0`. A lista de plugins deve mostrar `glimpselet@inline` na versão `2.0.0`, ativado para esta sessão. O último comando abre o Claude Code. Execute `/glimpselet:glimpse` nessa sessão para abrir o guia de boas-vindas. `--plugin-dir` carrega esta cópia do repositório apenas para essa sessão. Use a opção a cada inicialização e reinicie o Claude Code depois de executar `npm run build:plugin` novamente. A extensão compilada fica em `dist-extension`. O guia de boas-vindas a copia para a pasta estável indicada abaixo.
+As duas verificações de versão devem mostrar `2.1.0`. A lista de plugins deve mostrar `glimpselet@inline` na versão `2.1.0`, ativado para esta sessão. O último comando abre o Claude Code. Execute `/glimpselet:glimpse` nessa sessão para abrir o guia de boas-vindas. `--plugin-dir` carrega esta cópia do repositório apenas para essa sessão. Use a opção a cada inicialização e reinicie o Claude Code depois de executar `npm run build:plugin` novamente. A extensão compilada fica em `dist-extension`. O guia de boas-vindas a copia para a pasta estável indicada abaixo.
 
-Os detalhes do plugin também devem incluir as habilidades `glimpse` e `install` e o servidor MCP `glimpselet`. A extensão empacotada fica em `bin/extension` e também deve estar na versão **2.0.0**. Se o Claude Code estiver em um host remoto, use o comando SSH do guia, baixe o ZIP da extensão no computador com o navegador e carregue a pasta extraída ali.
+Os detalhes do plugin também devem incluir as habilidades `glimpse` e `install` e o servidor MCP `glimpselet`. A extensão empacotada fica em `bin/extension` e também deve estar na versão **2.1.0**. Se o Claude Code estiver em um host remoto, use o comando SSH do guia, baixe o ZIP da extensão no computador com o navegador e carregue a pasta extraída ali.
 
 Se o navegador e o Claude Code rodam no mesmo computador, o guia de boas-vindas copia a extensão compilada para a pasta estável `~/Glimpselet-extension`. No Chrome ou Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continuará visível. As atualizações precisam ser feitas manualmente.
 
@@ -61,7 +61,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Na sessão aberta do Claude Code, execute `/reload-plugins` (ou reinicie o Claude Code) e depois `/glimpselet:glimpse`. A lista deve mostrar `glimpselet@glimpselet` na versão **2.0.0**, e o comando deve abrir o guia de boas-vindas e pareamento. Confira também **2.0.0** em `chrome://extensions` ou `edge://extensions` no computador com o navegador. Se ainda aparecer 1.1.1, a v2 pode não estar publicada no catálogo público. A antiga página de seleção de tela não é o guia da v2. [Verificação da atualização](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+Na sessão aberta do Claude Code, execute `/reload-plugins` (ou reinicie o Claude Code) e depois `/glimpselet:glimpse`. A lista deve mostrar `glimpselet@glimpselet` na versão **2.1.0**, e o comando deve abrir o guia de boas-vindas e pareamento. Confira também **2.1.0** em `chrome://extensions` ou `edge://extensions` no computador com o navegador. Se ainda aparecer 1.1.1, a v2 pode não estar publicada no catálogo público. A antiga página de seleção de tela não é o guia da v2. [Verificação da atualização](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 ## O que você pode fazer
 

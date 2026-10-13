@@ -21,7 +21,7 @@ Glimpselet connects to a verified live Claude Code session when available. Other
    /plugin install glimpselet@glimpselet
    ```
 
-2. In your terminal, check `claude plugin list` shows Glimpselet **2.0.0**, then run `/glimpselet:glimpse` in Claude Code.
+2. In your terminal, check `claude plugin list` shows Glimpselet **2.1.0**, then run `/glimpselet:glimpse` in Claude Code.
 
 3. Follow the welcome page’s three steps: install, connect automatically, and open the bubble. Choose **Try without installing** on a local desktop, or load the extension in your own browser. For a remote Claude Code host, run the SSH command printed in the terminal on the computer with your browser, then download and load the ZIP there. The bubble shows **Connected to your Claude Code**. See [connection details](docs/INSTALL.md).
 
@@ -43,9 +43,9 @@ node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-Both version checks must print **2.0.0**, and the plugin list must show `glimpselet@inline` at **2.0.0**, enabled for this session. In the Claude Code session opened by the last command, run `/glimpselet:glimpse`. The `--plugin-dir` flag loads your checkout for that session. Use it each time you launch Claude Code from source, and restart that session after rebuilding. The built extension is in `dist-extension` inside the checkout.
+Both version checks must print **2.1.0**, and the plugin list must show `glimpselet@inline` at **2.1.0**, enabled for this session. In the Claude Code session opened by the last command, run `/glimpselet:glimpse`. The `--plugin-dir` flag loads your checkout for that session. Use it each time you launch Claude Code from source, and restart that session after rebuilding. The built extension is in `dist-extension` inside the checkout.
 
-The plugin details must also list the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is in `bin/extension`. Its version must also be **2.0.0**. If Claude Code is remote, use the guide's SSH command, download its extension ZIP on the browser computer, and load the extracted folder there.
+The plugin details must also list the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is in `bin/extension`. Its version must also be **2.1.0**. If Claude Code is remote, use the guide's SSH command, download its extension ZIP on the browser computer, and load the extracted folder there.
 
 If your browser and Claude Code run on the same computer, the welcome guide copies the built extension to the stable folder `~/Glimpselet-extension`. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select that folder. The developer banner stays visible, and you must update the extension manually when a new version is available.
 
@@ -61,7 +61,7 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-In your open Claude Code session, run `/reload-plugins` (or restart Claude Code), then `/glimpselet:glimpse`. The list must show `glimpselet@glimpselet` at **2.0.0**, and the command must open the welcome and pairing guide. Check that Glimpselet also shows **2.0.0** on `chrome://extensions` or `edge://extensions` on the computer with your browser. If the plugin still shows 1.1.1, v2 may not yet be available from the public marketplace. An old screen-picker page is not the v2 welcome guide. [Upgrade verification](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+In your open Claude Code session, run `/reload-plugins` (or restart Claude Code), then `/glimpselet:glimpse`. The list must show `glimpselet@glimpselet` at **2.1.0**, and the command must open the welcome and pairing guide. Check that Glimpselet also shows **2.1.0** on `chrome://extensions` or `edge://extensions` on the computer with your browser. If the plugin still shows 1.1.1, v2 may not yet be available from the public marketplace. An old screen-picker page is not the v2 welcome guide. [Upgrade verification](docs/DESIGN.md#plugin-upgrades-and-release-verification).
 
 ## What you can do
 

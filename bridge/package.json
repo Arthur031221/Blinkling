@@ -1,6 +1,6 @@
 {
   "name": "@arthur031221/glimpselet-bridge",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Local MCP bridge for already-redacted Glimpselet captures",
   "type": "module",
   "bin": {

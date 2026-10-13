@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.0 - 2026-10-14
+
+The floating bubble, capture flow, page guides and welcome guide now follow the account holder's hands-on feedback.
+
+- Keep the bubble quiet with idle, hover and active opacity, a compact Blink control, edge placement and remembered window position.
+- Put Capture whole screen, Pick an area and Guide this page first. Auto explain combines automatic questions and page summaries, with at most three suggested questions and shorter structured answers.
+- Request capture access where it is needed. Clear and restore the native floating window during screen capture, keep crop gestures working across displays, and remove the manual reopen step.
+- Guide the whole page through reading regions and paragraphs, with an annotated overview and a Next/Back tour. Background guide redraws preserve the user's focus.
+- Use a three-step welcome guide in all nine languages, a visible `~/Glimpselet-extension` folder and automatic browser connection. Reuse the latest project conversation unless a live channel is available.
+- Keep the plugin, extension, bridge, installation instructions and packaged assets at version 2.1.0.
+
+Native window opacity, click-through and focus remain subject to browser and operating system limits. Automatic screen summaries still pause for whole monitors, native windows and unknown sharing sources. Live terminal delivery requires the opt-in Claude Code channel; session continuation cannot inject messages into a terminal that is already running.
+
+See the [release notes](docs/releases/v2.1.0.md) and [install guide](docs/INSTALL.md).
+
 ## 2.0.0 - 2026-10-13
 
 Glimpselet moves into a Chrome and Edge extension. Its Document Picture-in-Picture chat stays above other tabs and apps. Float is the first action, and screen sharing starts inside the bubble.
