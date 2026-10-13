@@ -13,6 +13,7 @@ import { createPortal, flushSync } from "react-dom";
 import { safeMarkdown } from "../src/sanitize";
 import {
   BridgeClient,
+  MAX_QUESTION,
   askAnthropic,
   buildGuidePrompt,
   estimateCost,
@@ -2169,15 +2170,50 @@ function App() {
         cursor = result.nextCursor as number;
       }
       if (!collected.length) throw new Error("translation_empty");
+      const instruction = t.translatePrompt.replace(
+        "{language}",
+        names[targetLocale],
+      );
+      const batches: Array<{
+        nodes: Array<{ id: string; text: string }>;
+        question: string;
+      }> = [];
+      const planBatch = (nodes: Array<{ id: string; text: string }>) => {
+        if (!nodes.length) return;
+        let question = buildTranslationPrompt(instruction, nodes);
+        if (question.length > MAX_QUESTION && nodes.length === 1)
+          question = buildTranslationPrompt(instruction, nodes, {
+            includeWorkedExample: false,
+          });
+        if (question.length > MAX_QUESTION)
+          throw new Error("translation_incomplete");
+        batches.push({ nodes, question });
+      };
       let batch: Array<{ id: string; text: string }> = [];
       let batchLength = 0;
-      const applyBatch = async (nodes: Array<{ id: string; text: string }>) => {
+      for (const node of collected) {
+        const length = node.text.length + node.id.length + 32;
+        if (
+          batch.length &&
+          (batchLength + length > 5_000 ||
+            batch.length >= 24 ||
+            buildTranslationPrompt(instruction, [...batch, node]).length >
+              MAX_QUESTION)
+        ) {
+          planBatch(batch);
+          batch = [];
+          batchLength = 0;
+        }
+        batch.push(node);
+        batchLength += length;
+      }
+      planBatch(batch);
+      const applyBatch = async (
+        nodes: Array<{ id: string; text: string }>,
+        questionText: string,
+      ) => {
         if (!nodes.length) return;
         if (controller.signal.aborted) throw new Error("cancelled");
-        const questionText = buildTranslationPrompt(
-          t.translatePrompt.replace("{language}", names[targetLocale]),
-          nodes,
-        );
         const id = crypto.randomUUID();
         translationBridgeId.current = id;
         let answerText = "";
@@ -2255,20 +2291,8 @@ function App() {
         changed += writes;
         skipped += skippedCount;
       };
-      for (const node of collected) {
-        const length = node.text.length + node.id.length + 32;
-        if (
-          batch.length &&
-          (batchLength + length > 5_000 || batch.length >= 24)
-        ) {
-          await applyBatch(batch);
-          batch = [];
-          batchLength = 0;
-        }
-        batch.push(node);
-        batchLength += length;
-      }
-      await applyBatch(batch);
+      for (const planned of batches)
+        await applyBatch(planned.nodes, planned.question);
       if (!changed) {
         setStatus(skipped ? t.tabChanged : t.translationUnchanged);
         return;

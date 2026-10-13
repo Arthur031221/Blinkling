@@ -42,7 +42,7 @@ export type Usage = {
 };
 export type BridgeMessage = { type: string; [key: string]: unknown };
 
-const MAX_QUESTION = 8_000;
+export const MAX_QUESTION = 8_000;
 const MAX_ANSWER = 40_000;
 const MAX_FOLLOWUPS = 8;
 const MAX_FOLLOWUP_CHARS = 4_000;

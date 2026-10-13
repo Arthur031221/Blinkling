@@ -1,7 +1,7 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AskInput, PageContext } from "./api";
+import { validateAsk, type AskInput, type PageContext } from "./api";
 import en from "./locales/en.json";
 
 const mocks = vi.hoisted(() => ({
@@ -247,19 +247,38 @@ describe("bubble answer rendering and feedback", () => {
     { id: "t21", omit: true },
     { id: "t22", text: "references or sources" },
   ];
-  function translationSource() {
+  function translationSource(nodes = inlineSources) {
     sendToTab.mockImplementation(async (_tab, message) => {
-      if (message.type === "glimpselet:text-nodes")
-        return { nodes: inlineSources };
+      if (message.type === "glimpselet:text-nodes") return { nodes };
       if (message.type === "glimpselet:translate")
         return {
-          applied: 3,
-          changed: 3,
+          applied: message.nodes.length,
+          changed: message.nodes.length,
           rejected: 0,
           skipped: { disconnected: 0, sourceChanged: 0, ineligible: 0 },
         };
       return { ok: true };
     });
+  }
+
+  function boundedTranslationProvider() {
+    mocks.ask.mockImplementation(async (input: AskInput) => {
+      validateAsk(input);
+      const nodes = JSON.parse(
+        input.question.slice(input.question.lastIndexOf("\n") + 1),
+      ) as Array<{ id: string; text: string }>;
+      return {
+        answer: JSON.stringify({
+          nodes: nodes.map(({ id }) => ({ id, text: `Translated ${id}` })),
+        }),
+      };
+    });
+  }
+
+  function requestedTranslationSources() {
+    return mocks.ask.mock.calls.flatMap(([input]) =>
+      JSON.parse(input.question.slice(input.question.lastIndexOf("\n") + 1)),
+    );
   }
 
   it("requests explicit inline omission and applies a complete translation batch", async () => {
@@ -281,6 +300,121 @@ describe("bubble answer rendering and feedback", () => {
       inlineTranslations[2],
     ]);
     expect(status()).toBe(en.translationApplied);
+  });
+
+  it("translates a maximum batch containing 1500 escaped quotes within the provider budget", async () => {
+    stored.targetLocale = "en";
+    await start();
+    const nodes = [
+      { id: "t1", text: '"'.repeat(1_500) + "x".repeat(2_000) },
+      { id: "t2", text: "x".repeat(1_432) },
+    ];
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(mocks.ask).toHaveBeenCalled();
+    for (const [input] of mocks.ask.mock.calls)
+      expect(input.question.length).toBeLessThanOrEqual(8_000);
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+
+  it("fits a single 3500-character quoted source by omitting only the optional example", async () => {
+    stored.targetLocale = "en";
+    await start();
+    const nodes = [{ id: "t1", text: '"'.repeat(3_500) }];
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    const input = mocks.ask.mock.calls[0][0];
+    expect(input.question.length).toBeLessThanOrEqual(8_000);
+    expect(input.question).not.toContain("Worked example");
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+
+  it("flushes escaped batches using the exact serialized request length", async () => {
+    stored.targetLocale = "en";
+    await start();
+    const nodes = [
+      { id: "t1", text: '"'.repeat(3_500) },
+      { id: "t2", text: '"'.repeat(1_432) },
+    ];
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(mocks.ask).toHaveBeenCalledTimes(2);
+    for (const [input] of mocks.ask.mock.calls)
+      expect(input.question.length).toBeLessThanOrEqual(8_000);
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+
+  it("rejects a source whose escaped request cannot fit before any provider call or page write", async () => {
+    stored.targetLocale = "en";
+    await start();
+    translationSource([
+      { id: "t1", text: "Readable source" },
+      { id: "t2", text: "\u0000".repeat(3_500) },
+    ]);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationIncomplete);
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:translate",
+      ),
+    ).toBe(false);
+  });
+
+  it.each([
+    {
+      limit: "24 nodes",
+      nodes: Array.from({ length: 25 }, (_, index) => ({
+        id: `t${index + 1}`,
+        text: "Source",
+      })),
+      sizes: [24, 1],
+    },
+    {
+      limit: "5000 source characters with mapping overhead",
+      nodes: [
+        { id: "t1", text: "x".repeat(2_500) },
+        { id: "t2", text: "x".repeat(2_500) },
+      ],
+      sizes: [1, 1],
+    },
+  ])("keeps the existing $limit batch limit", async ({ nodes, sizes }) => {
+    stored.targetLocale = "en";
+    await start();
+    translationSource(nodes);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationApplied);
+    expect(
+      mocks.ask.mock.calls.map(
+        ([input]) =>
+          JSON.parse(input.question.slice(input.question.lastIndexOf("\n") + 1))
+            .length,
+      ),
+    ).toEqual(sizes);
+    expect(requestedTranslationSources()).toEqual(nodes);
+  });
+
+  it("keeps an oversized source ID intact and rejects it before provider calls", async () => {
+    await start();
+    translationSource([{ id: "t1", text: "x".repeat(3_501) }]);
+    boundedTranslationProvider();
+    await click(en.translatePage);
+    expect(status()).toBe(en.translationIncomplete);
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:translate",
+      ),
+    ).toBe(false);
   });
 
   it.each(["duplicate", "unknown"])(
