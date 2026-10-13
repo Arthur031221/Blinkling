@@ -198,6 +198,118 @@ afterEach(async () => {
 });
 
 describe("bubble answer rendering and feedback", () => {
+  it("shows an unavailable guide reason and clears previous highlights without completing practice", async () => {
+    await start();
+    await send(
+      { type: "glimpselet:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+    );
+    const reason =
+      "I cannot reliably identify the export menu from these controls.";
+    mocks.ask.mockResolvedValue({
+      answer: JSON.stringify({
+        status: "unavailable",
+        reason,
+        steps: [{ elementId: "g1", note: "Unrelated control", action: "none" }],
+      }),
+    });
+    await click(en.guideAction);
+    expect(document.querySelector(".message .answer")?.textContent).toContain(
+      reason,
+    );
+    expect(status()).toBe(en.answerReady);
+    expect(
+      sendToTab.mock.calls
+        .filter(([, message]) => message.type === "glimpselet:guide")
+        .map(([, message]) => message),
+    ).toEqual([
+      {
+        type: "glimpselet:guide",
+        steps: [],
+        documentKey: page.documentKey,
+        url: page.url,
+      },
+    ]);
+    expect(
+      sendToTab.mock.calls.some(
+        ([, message]) => message.type === "glimpselet:tutorial-done",
+      ),
+    ).toBe(false);
+  });
+
+  const inlineSources = [
+    { id: "t20", text: "検証可能" },
+    { id: "t21", text: "な" },
+    { id: "t22", text: "参考文献や出典" },
+  ];
+  const inlineTranslations = [
+    { id: "t20", text: "verifiable " },
+    { id: "t21", omit: true },
+    { id: "t22", text: "references or sources" },
+  ];
+  function translationSource() {
+    sendToTab.mockImplementation(async (_tab, message) => {
+      if (message.type === "glimpselet:text-nodes")
+        return { nodes: inlineSources };
+      if (message.type === "glimpselet:translate")
+        return {
+          applied: 3,
+          changed: 3,
+          rejected: 0,
+          skipped: { disconnected: 0, sourceChanged: 0, ineligible: 0 },
+        };
+      return { ok: true };
+    });
+  }
+
+  it("requests explicit inline omission and applies a complete translation batch", async () => {
+    await start();
+    translationSource();
+    mocks.ask.mockResolvedValue({
+      answer: JSON.stringify({ nodes: inlineTranslations }),
+    });
+    await click(en.translatePage);
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(mocks.ask.mock.calls[0][0].question).toContain('"omit":true');
+    expect(
+      sendToTab.mock.calls.find(
+        ([, message]) => message.type === "glimpselet:translate",
+      )?.[1].nodes,
+    ).toEqual([
+      inlineTranslations[0],
+      { id: "t21", text: "", omit: true },
+      inlineTranslations[2],
+    ]);
+    expect(status()).toBe(en.translationApplied);
+  });
+
+  it.each(["duplicate", "unknown"])(
+    "rejects an extra %s mapping before applying translations",
+    async (kind) => {
+      await start();
+      translationSource();
+      const regular = inlineSources.map(({ id }) => ({
+        id,
+        text: "Translated",
+      }));
+      mocks.ask.mockResolvedValue({
+        answer: JSON.stringify({
+          nodes: [
+            ...regular,
+            { id: kind === "duplicate" ? "t20" : "unknown", text: "Extra" },
+          ],
+        }),
+      });
+      await click(en.translatePage);
+      expect(
+        sendToTab.mock.calls.some(
+          ([, message]) => message.type === "glimpselet:translate",
+        ),
+      ).toBe(false);
+      expect(status()).toBe(en.translationIncomplete);
+    },
+  );
+
   it.each(["summary", "translate"])(
     "submits a reader %s once without leaving its instruction in the draft",
     async (action) => {
