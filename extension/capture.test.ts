@@ -274,6 +274,114 @@ describe("web screenshot authorization", () => {
     expect(capturedAt[1] - capturedAt[0]).toBeGreaterThanOrEqual(550);
   });
 
+  it.each([
+    "source",
+    "navigation",
+    "same-url-reload",
+    "scroll",
+    "viewport",
+    "pixel-ratio",
+  ])(
+    "rejects an externally selected rectangle after a %s change",
+    async (change) => {
+      const captureVisibleTab = vi.fn(async () => {
+        throw new Error("activeTab permission required");
+      });
+      const { setDocument, setGeometry } =
+        setupAuthorization(captureVisibleTab);
+      const { captureWeb, setCurrentActiveTab } = await import("./capture");
+      const selectedSource = {
+        tabId: tab.id,
+        url: tab.url,
+        documentId: "document-seven",
+        geometry: { ...geometry },
+      };
+      if (change === "source") {
+        setCurrentActiveTab(8);
+        vi.mocked(chrome.tabs.get).mockResolvedValue({ ...tab, id: 8 });
+        vi.mocked(chrome.tabs.query).mockResolvedValue([{ ...tab, id: 8 }]);
+      }
+      if (change === "navigation") {
+        const navigated = { ...tab, url: "https://public.test/another" };
+        vi.mocked(chrome.tabs.get).mockResolvedValue(navigated);
+        vi.mocked(chrome.tabs.query).mockResolvedValue([navigated]);
+      }
+      if (change === "same-url-reload") setDocument("replacement-document");
+      if (change === "scroll") setGeometry({ ...geometry, scrollY: 9 });
+      if (change === "viewport") setGeometry({ ...geometry, width: 101 });
+      if (change === "pixel-ratio")
+        setGeometry({ ...geometry, devicePixelRatio: 2 });
+
+      const error = await captureWeb("region", rect, undefined, {
+        selectedSource,
+      }).catch((reason) => reason);
+
+      expect(error.message).toBe("tab_changed");
+      expect(error).not.toHaveProperty("pending");
+      expect(captureVisibleTab).not.toHaveBeenCalled();
+      expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
+      expect(drawImage).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([true, false])(
+    "pins an external selection before preserving and retrying it, with geometry: %s",
+    async (includeGeometry) => {
+      const captureVisibleTab = vi.fn(async () => {
+        throw new Error("activeTab permission required");
+      });
+      const { executeScript } = setupAuthorization(captureVisibleTab);
+      const { captureWeb, retryPendingWebCapture } = await import("./capture");
+      const selectedSource = {
+        tabId: tab.id,
+        url: tab.url,
+        documentId: "document-seven",
+        ...(includeGeometry ? { geometry: { ...geometry } } : {}),
+      };
+
+      const error = await captureWeb("region", rect, undefined, {
+        selectedSource,
+      }).catch((reason) => reason);
+
+      expect(error.message).toBe("capture_permission");
+      expect(executeScript).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          target: { tabId: tab.id, documentIds: [selectedSource.documentId] },
+        }),
+      );
+      expect(error.pending).toEqual({
+        tabId: tab.id,
+        url: tab.url,
+        documentId: selectedSource.documentId,
+        geometry,
+        kind: "region",
+        rect,
+      });
+      captureVisibleTab.mockResolvedValue("tile-png");
+
+      const result = await retryPendingWebCapture(error.pending);
+
+      expect(result.capture.image).toBe("stitched-png");
+      expect(captureVisibleTab).toHaveBeenCalledTimes(2);
+      expect(chrome.tabs.sendMessage).not.toHaveBeenCalledWith(
+        tab.id,
+        expect.objectContaining({ type: "glimpselet:select" }),
+      );
+      expect(drawImage).toHaveBeenLastCalledWith(
+        expect.anything(),
+        10,
+        20,
+        30,
+        40,
+        0,
+        0,
+        30,
+        40,
+      );
+    },
+  );
+
   async function deniedSelectedCapture(
     kind: "region" | "element" | "visible" = "region",
   ) {

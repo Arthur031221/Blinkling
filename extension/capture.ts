@@ -10,18 +10,24 @@ export type CaptureProgress = { completed: number; total: number };
 export type CaptureWebOptions = {
   signal?: AbortSignal;
   onProgress?: (progress: CaptureProgress) => void;
+  // For a rectangle received from a content script, use the browser-provided
+  // sender identity and the viewport geometry recorded when selection ended.
+  selectedSource?: SelectedWebCaptureSource;
 };
-type WebCaptureGeometry = {
+export type WebCaptureGeometry = {
   width: number;
   height: number;
   scrollX: number;
   scrollY: number;
   devicePixelRatio: number;
 };
-type WebCaptureDocument = Pick<
+export type SelectedWebCaptureSource = Pick<
   CaptureBinding,
   "tabId" | "url" | "documentId"
 > & {
+  geometry?: WebCaptureGeometry;
+};
+type WebCaptureDocument = SelectedWebCaptureSource & {
   geometry: WebCaptureGeometry;
 };
 /** Keep this in memory until a toolbar activation; never reuse it after a source change. */
@@ -325,7 +331,7 @@ export async function retryPendingWebCapture(
 
 async function readWebCaptureDocument(
   tab: ActiveTab,
-  expected?: WebCaptureDocument,
+  expected?: SelectedWebCaptureSource,
 ): Promise<WebCaptureDocument> {
   if (expected && (expected.tabId !== tab.id || expected.url !== tab.url))
     throw new Error("tab_changed");
@@ -352,9 +358,10 @@ async function readWebCaptureDocument(
     !frame.result ||
     (expected &&
       (frame.documentId !== expected.documentId ||
-        (Object.keys(expected.geometry) as (keyof WebCaptureGeometry)[]).some(
-          (key) => frame.result![key] !== expected.geometry[key],
-        )))
+        (expected.geometry &&
+          (Object.keys(expected.geometry) as (keyof WebCaptureGeometry)[]).some(
+            (key) => frame.result![key] !== expected.geometry![key],
+          ))))
   )
     throw new Error("tab_changed");
   const geometry = frame.result;
@@ -416,11 +423,17 @@ async function captureWebInternal(
 ): Promise<{ capture: CaptureResult; page?: PageContext }> {
   throwIfAborted(options.signal);
   const tab = await activeTab();
-  if (pending && (pending.tabId !== tab.id || pending.url !== tab.url))
+  const expectedSource = pending || options.selectedSource;
+  if (
+    expectedSource &&
+    (expectedSource.tabId !== tab.id || expectedSource.url !== tab.url)
+  )
     throw new Error("tab_changed");
   await requireSiteAccess(tab);
   const captureDocument =
-    kind === "full" ? undefined : await readWebCaptureDocument(tab, pending);
+    kind === "full"
+      ? undefined
+      : await readWebCaptureDocument(tab, expectedSource);
   if (await isSensitivePage(captureDocument)) throw new Error("password_page");
   let page: PageContext | undefined;
   try {
