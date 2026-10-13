@@ -233,15 +233,53 @@ export function contextRangeText(range: Range): string {
       node === range.endContainer ? range.endOffset : node.nodeValue!.length;
     return !node.nodeValue!.slice(start, end).trim() || contextTextNode(node);
   };
-  if (root.nodeType === Node.TEXT_NODE) return safe(root) ? text : "";
   const doc =
     root.nodeType === Node.DOCUMENT_NODE
       ? (root as Document)
       : root.ownerDocument!;
-  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let node: Node | null;
-  while ((node = walker.nextNode())) if (!safe(node)) return "";
-  return text;
+  if (root.nodeType === Node.TEXT_NODE) {
+    if (!safe(root)) return "";
+  } else {
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    while ((node = walker.nextNode())) if (!safe(node)) return "";
+  }
+  // Chromium's Selection text includes rendered PDF.js line/word boundaries;
+  // Range text concatenates the text nodes. Never substitute another selection.
+  const selection = doc.defaultView?.getSelection();
+  const selected = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
+  let rendered: string;
+  if (
+    selected &&
+    selected.startContainer === range.startContainer &&
+    selected.startOffset === range.startOffset &&
+    selected.endContainer === range.endContainer &&
+    selected.endOffset === range.endOffset
+  )
+    rendered = selection!.toString().trim();
+  else {
+    // A standalone range has no rendered Selection; retain explicit line breaks
+    // without adding spaces between adjacent spans that can split a single word.
+    const walker = doc.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+    );
+    const pieces: string[] = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      if (!range.intersectsNode(node)) continue;
+      if (node.nodeType === Node.TEXT_NODE) {
+        const start = node === range.startContainer ? range.startOffset : 0;
+        const end =
+          node === range.endContainer
+            ? range.endOffset
+            : node.nodeValue!.length;
+        pieces.push(node.nodeValue!.slice(start, end));
+      } else if ((node as Element).localName === "br") pieces.push("\n");
+    }
+    rendered = root.nodeType === Node.TEXT_NODE ? text : pieces.join("").trim();
+  }
+  return rendered.length <= 5000 ? rendered : "";
 }
 
 export function restorableTextNode(node: Node): boolean {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPageContext,
   contextTextNode,
@@ -10,6 +10,39 @@ import {
 describe("bounded page context", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
+    window.getSelection()?.removeAllRanges();
+  });
+
+  it("preserves PDF line boundaries without splitting words across adjacent spans", () => {
+    document.body.innerHTML =
+      "<div><span>instead</span><br><span>relying on </span><span>trans</span><span>formations</span></div>";
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector("div")!);
+    expect(contextRangeText(range)).toBe("instead\nrelying on transformations");
+  });
+
+  it("uses rendered selection only for the exact checked range and checks its length", () => {
+    document.body.innerHTML =
+      "<p><span>First line.</span><span>Second line.</span></p><p>Unrelated text.</p>";
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector("p")!);
+    const selection = window.getSelection()!;
+    selection.addRange(range);
+    const rendered = vi
+      .spyOn(selection, "toString")
+      .mockReturnValue("First line.\nSecond line.");
+    expect(contextRangeText(range.cloneRange())).toBe(
+      "First line.\nSecond line.",
+    );
+    rendered.mockReturnValue("x".repeat(5001));
+    expect(contextRangeText(range)).toBe("");
+    rendered.mockReturnValue("PRIVATE_UNRELATED_SELECTION");
+    selection.removeAllRanges();
+    const other = document.createRange();
+    other.selectNodeContents(document.querySelectorAll("p")[1]);
+    selection.addRange(other);
+    expect(contextRangeText(range)).toBe("First line.Second line.");
+    rendered.mockRestore();
   });
 
   it.each([
