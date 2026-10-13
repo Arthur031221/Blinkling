@@ -87,6 +87,7 @@ type Entry = {
 type WindowWithPiP = Window & {
   documentPictureInPicture?: {
     requestWindow(options: { width: number; height: number }): Promise<Window>;
+    window?: Window | null;
   };
 };
 type BrowserTab = {
@@ -730,10 +731,50 @@ function App() {
       if (!message || typeof message !== "object") return;
       const value = message as Record<string, unknown>;
       if (value.type === "glimpselet:reader-permission-handoff") {
+        // The background coordinates the reader's original request, including
+        // minimizing the panel. Only acknowledge its forwarded handoff here.
+        if (sender.tab) return;
         const floating = pipDoc?.defaultView;
-        if (floating && !floating.closed) floating.close();
-        respond({ ok: true });
+        const interrupted = Boolean(floating && !floating.closed);
+        if (interrupted) {
+          controlledPipClose.current = true;
+          flushSync(() => setPipDoc(null));
+          try {
+            floating!.close();
+          } finally {
+            controlledPipClose.current = false;
+          }
+        }
+        respond({ ok: true, interrupted });
         return;
+      }
+      if (value.type === "glimpselet:reader-resume-floating") {
+        const source = sender.tab;
+        const readerUrl = chrome.runtime.getURL("reader.html");
+        if (
+          source?.id === undefined ||
+          !source.url ||
+          source.url.split(/[?#]/, 1)[0] !== readerUrl
+        ) {
+          respond({ ok: false });
+          return;
+        }
+        const owner = chrome.extension
+          .getViews({ type: "tab", tabId: source.id })
+          .find((view) => view.location.href === source.url) as
+          | WindowWithPiP
+          | undefined;
+        const floating = owner?.documentPictureInPicture?.window;
+        if (!floating || floating.closed) {
+          respond({ ok: false });
+          return;
+        }
+        // The reader opens this window synchronously in its Resume click.
+        // Adopt it without another activation so the existing chat needs one click.
+        void mountFloat(floating)
+          .then(() => respond({ ok: true }))
+          .catch(() => respond({ ok: false }));
+        return true;
       }
       if (value.type === "glimpselet:focus") {
         if (typeof value.sourceTab === "number") {
@@ -918,6 +959,17 @@ function App() {
         scheduleRevisionRefresh(senderTabId, pageRevision(context));
       }
       if (value.type === "glimpselet:reader-action") {
+        const rawSelected = String(value.text || "");
+        const action = value.action;
+        const selectionOnly =
+          action === "translate" || action === "summary-selection";
+        if (
+          selectionOnly &&
+          (!rawSelected.trim() || rawSelected.length > 5000)
+        ) {
+          respond({ ok: false, error: "selection_limit" });
+          return;
+        }
         if (!consented || readerAdmissionRef.current) {
           respond({ ok: false });
           return;
@@ -953,15 +1005,6 @@ function App() {
             }
             const context = value.context as PageContext | undefined;
             if (context) setPage(context);
-            const rawSelected = String(value.text || "");
-            const action = value.action;
-            if (
-              action === "summary-selection" &&
-              (!rawSelected.trim() || rawSelected.length > 5000)
-            ) {
-              respond({ ok: false, error: "selection_limit" });
-              return;
-            }
             const selected = rawSelected.slice(0, 5000);
             const prompt =
               action === "translate"
@@ -987,19 +1030,17 @@ function App() {
             const request = submitAutomatic(
               {
                 question: prompt,
-                page:
-                  action === "summary-selection"
-                    ? context
-                      ? { ...context, text: selected, elements: [] }
-                      : null
-                    : context || page,
+                page: selectionOnly
+                  ? context
+                    ? { ...context, text: selected, elements: [] }
+                    : null
+                  : context || page,
                 kind: action === "guide" ? "guide" : "ask",
                 image:
-                  action !== "summary-selection" &&
-                  typeof value.image === "string"
+                  !selectionOnly && typeof value.image === "string"
                     ? value.image
                     : undefined,
-                includeCapture: action !== "summary-selection",
+                includeCapture: !selectionOnly,
                 untrustedSelection:
                   selected &&
                   ["translate", "summary-selection"].includes(String(action))
@@ -1301,32 +1342,36 @@ function App() {
     try {
       // requestWindow must run before any await so Chrome still sees the click activation.
       const docWindow = await pip.requestWindow(size);
-      // Mount the portal only after its stylesheet is ready. Unstyled capture
-      // thumbnails can resize and scroll the native window before controls load.
-      const response = await fetch(chrome.runtime.getURL("style.css"));
-      if (!response.ok) {
-        docWindow.close();
-        throw new Error("pip_styles_unavailable");
-      }
-      const style = docWindow.document.createElement("style");
-      style.textContent = await response.text();
-      docWindow.document.head.append(style);
-      flushSync(() => {
-        setPipDoc(docWindow.document);
-        setReopenCapture(false);
-      });
-      const restored = finishCaptureRestore.current;
-      finishCaptureRestore.current = null;
-      restored?.();
-      setFallback(false);
-      setStatus(t.floatingReady);
-      await completeFloatTutorial();
+      await mountFloat(docWindow);
       return true;
     } catch {
       setFallback(true);
       setStatus(t.activationNeeded);
       return false;
     }
+  }
+  async function mountFloat(docWindow: Window) {
+    // Mount the portal only after its stylesheet is ready. Unstyled capture
+    // thumbnails can resize and scroll the native window before controls load.
+    const response = await fetch(chrome.runtime.getURL("style.css"));
+    if (!response.ok) {
+      docWindow.close();
+      throw new Error("pip_styles_unavailable");
+    }
+    const style = docWindow.document.createElement("style");
+    style.textContent = await response.text();
+    if (docWindow.closed) throw new Error("pip_closed");
+    docWindow.document.head.append(style);
+    flushSync(() => {
+      setPipDoc(docWindow.document);
+      setReopenCapture(false);
+    });
+    const restored = finishCaptureRestore.current;
+    finishCaptureRestore.current = null;
+    restored?.();
+    setFallback(false);
+    setStatus(t.floatingReady);
+    await completeFloatTutorial();
   }
   async function completeFloatTutorial() {
     const practice = tutorialRef.current;

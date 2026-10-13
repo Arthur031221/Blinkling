@@ -1,8 +1,19 @@
 export const readerLocales = {
   en: {
+    permissionNotice:
+      "Chrome's site permission prompt may briefly close floating chat. Your conversation will be kept.",
+    permissionPaused:
+      "Floating chat paused for site access. Your session, draft and attachment are kept. Resume it with one click.",
+    resumePanel: "Resume floating chat",
+    floatingResumed: "Floating chat resumed.",
+    resumeError:
+      "Could not resume floating chat. Select Resume floating chat to try again.",
     questionReady: "Question ready in chat. Review it and select Ask to send.",
     summarySelection: "Summarize selection",
-    selectFirst: "Select a passage to summarize first.",
+    selectFirst: "Select a passage first.",
+    selectionHelp: "Select a passage to translate or summarize it.",
+    selectionUnavailable:
+      "This page has no selectable text. Use Ask about page or Summarize page to ask about the page image.",
     selectionTooLong:
       "Select at most 5,000 characters, or use Summarize page for the whole page.",
     title: "Glimpselet PDF Reader",
@@ -47,9 +58,19 @@ export const readerLocales = {
       "PDF page. Select text to ask, translate, summarize, or request guidance.",
   },
   "zh-TW": {
+    permissionNotice:
+      "Chrome 顯示網站權限提示時，可能會暫時關閉浮動聊天。對話會保留。",
+    permissionPaused:
+      "浮動聊天因網站存取權限暫停。工作階段、草稿與附件都已保留。按一下即可恢復。",
+    resumePanel: "恢復浮動聊天",
+    floatingResumed: "浮動聊天已恢復。",
+    resumeError: "無法恢復浮動聊天。請選擇「恢復浮動聊天」重試。",
     questionReady: "問題已準備在聊天中。請檢查後選取「詢問」傳送。",
     summarySelection: "摘要選取文字",
-    selectFirst: "請先選取要摘要的段落。",
+    selectFirst: "請先選取一段文字。",
+    selectionHelp: "選取一段文字後即可翻譯或摘要。",
+    selectionUnavailable:
+      "此頁沒有可選取的文字。可選擇「詢問此頁」或「摘要此頁」來詢問頁面圖片。",
     selectionTooLong: "請選取不超過 5,000 個字元，或使用「摘要此頁」摘要整頁。",
     title: "Glimpselet PDF 閱讀器",
     openFile: "開啟 PDF",
@@ -88,9 +109,19 @@ export const readerLocales = {
     resizeHelp: "PDF 頁面。選取文字後可提問、翻譯、摘要或要求引導。",
   },
   "zh-CN": {
+    permissionNotice:
+      "Chrome 显示网站权限提示时，可能会暂时关闭浮动聊天。对话会保留。",
+    permissionPaused:
+      "浮动聊天因网站访问权限暂停。会话、草稿与附件都已保留。点击即可恢复。",
+    resumePanel: "恢复浮动聊天",
+    floatingResumed: "浮动聊天已恢复。",
+    resumeError: "无法恢复浮动聊天。请选择“恢复浮动聊天”重试。",
     questionReady: "问题已准备在聊天中。请检查后选择「询问」发送。",
     summarySelection: "总结选取文字",
-    selectFirst: "请先选取要总结的段落。",
+    selectFirst: "请先选择一段文字。",
+    selectionHelp: "选择一段文字后即可翻译或总结。",
+    selectionUnavailable:
+      "此页没有可选择的文字。可选择“询问此页”或“总结此页”来询问页面图片。",
     selectionTooLong: "请选取不超过 5,000 个字符，或使用“总结此页”总结整页。",
     title: "Glimpselet PDF 阅读器",
     openFile: "打开 PDF",
@@ -129,10 +160,21 @@ export const readerLocales = {
     resizeHelp: "PDF 页面。选择文本后可提问、翻译、总结或请求引导。",
   },
   ja: {
+    permissionNotice:
+      "Chrome のサイト権限の確認中は、フローティングチャットが一時的に閉じる場合があります。会話は保持されます。",
+    permissionPaused:
+      "サイト権限の確認のためチャットを一時停止しました。セッション、下書き、添付は保持されています。ワンクリックで再開できます。",
+    resumePanel: "フローティングチャットを再開",
+    floatingResumed: "フローティングチャットを再開しました。",
+    resumeError:
+      "フローティングチャットを再開できませんでした。「フローティングチャットを再開」で再試行してください。",
     questionReady:
       "チャットに質問を準備しました。確認して「質問」で送信してください。",
     summarySelection: "選択した文章を要約",
-    selectFirst: "要約する文章を先に選択してください。",
+    selectFirst: "先に文章を選択してください。",
+    selectionHelp: "文章を選択すると翻訳や要約ができます。",
+    selectionUnavailable:
+      "このページには選択できるテキストがありません。「このページについて質問」または「ページを要約」でページの画像について質問できます。",
     selectionTooLong:
       "5,000文字以内を選択するか、「このページを要約」でページ全体を要約してください。",
     title: "Glimpselet PDF リーダー",
@@ -180,10 +222,21 @@ export const readerLocales = {
       "PDF ページです。テキストを選択して質問、翻訳、要約、案内の依頼ができます。",
   },
   ko: {
+    permissionNotice:
+      "Chrome 사이트 권한 창이 표시되는 동안 플로팅 채팅이 잠시 닫힐 수 있습니다. 대화는 유지됩니다.",
+    permissionPaused:
+      "사이트 권한 확인을 위해 플로팅 채팅을 일시 중지했습니다. 세션, 초안, 첨부 파일은 유지됩니다. 한 번 클릭해 재개하세요.",
+    resumePanel: "플로팅 채팅 재개",
+    floatingResumed: "플로팅 채팅을 재개했습니다.",
+    resumeError:
+      "플로팅 채팅을 재개할 수 없습니다. 플로팅 채팅 재개를 선택해 다시 시도하세요.",
     questionReady:
       "채팅에 질문이 준비되었습니다. 검토한 뒤 질문 버튼을 눌러 보내세요.",
     summarySelection: "선택한 내용 요약",
-    selectFirst: "요약할 문단을 먼저 선택하세요.",
+    selectFirst: "먼저 문단을 선택하세요.",
+    selectionHelp: "번역하거나 요약할 문단을 선택하세요.",
+    selectionUnavailable:
+      "이 페이지에는 선택할 수 있는 텍스트가 없습니다. 페이지 질문하기 또는 페이지 요약으로 페이지 이미지에 대해 질문하세요.",
     selectionTooLong:
       "5,000자 이하를 선택하거나 페이지 요약으로 전체 페이지를 요약하세요.",
     title: "Glimpselet PDF 리더",
@@ -229,10 +282,21 @@ export const readerLocales = {
       "PDF 페이지입니다. 텍스트를 선택해 질문, 번역, 요약 또는 안내를 요청하세요.",
   },
   es: {
+    permissionNotice:
+      "El aviso de permiso de Chrome puede cerrar brevemente el chat flotante. Tu conversación se conservará.",
+    permissionPaused:
+      "El chat flotante se pausó para el permiso del sitio. Se conservan tu sesión, borrador y adjunto. Reanúdalo con un clic.",
+    resumePanel: "Reanudar chat flotante",
+    floatingResumed: "Chat flotante reanudado.",
+    resumeError:
+      "No se pudo reanudar el chat flotante. Selecciona Reanudar chat flotante para volver a intentarlo.",
     questionReady:
       "Pregunta preparada en el chat. Revísala y pulsa Preguntar para enviarla.",
     summarySelection: "Resumir selección",
-    selectFirst: "Selecciona primero un pasaje para resumir.",
+    selectFirst: "Selecciona primero un pasaje.",
+    selectionHelp: "Selecciona un pasaje para traducirlo o resumirlo.",
+    selectionUnavailable:
+      "Esta página no tiene texto seleccionable. Usa Preguntar sobre la página o Resumir página para preguntar sobre la imagen de la página.",
     selectionTooLong:
       "Selecciona como máximo 5.000 caracteres o usa Resumir página para toda la página.",
     title: "Lector de PDF de Glimpselet",
@@ -279,10 +343,21 @@ export const readerLocales = {
       "Página PDF. Selecciona texto para preguntar, traducir, resumir o pedir orientación.",
   },
   fr: {
+    permissionNotice:
+      "La demande d’autorisation de Chrome peut fermer brièvement le chat flottant. Votre conversation sera conservée.",
+    permissionPaused:
+      "Le chat flottant est en pause pour l’accès au site. Votre session, brouillon et pièce jointe sont conservés. Reprenez en un clic.",
+    resumePanel: "Reprendre le chat flottant",
+    floatingResumed: "Chat flottant repris.",
+    resumeError:
+      "Impossible de reprendre le chat flottant. Sélectionnez Reprendre le chat flottant pour réessayer.",
     questionReady:
       "Question prête dans le chat. Relisez-la et choisissez Demander pour l’envoyer.",
     summarySelection: "Résumer la sélection",
-    selectFirst: "Sélectionnez d’abord un passage à résumer.",
+    selectFirst: "Sélectionnez d'abord un passage.",
+    selectionHelp: "Sélectionnez un passage à traduire ou à résumer.",
+    selectionUnavailable:
+      "Cette page n'a pas de texte sélectionnable. Utilisez Poser une question sur la page ou Résumer la page pour interroger l'image de la page.",
     selectionTooLong:
       "Sélectionnez au maximum 5 000 caractères ou utilisez Résumer la page pour la page entière.",
     title: "Lecteur PDF Glimpselet",
@@ -329,10 +404,22 @@ export const readerLocales = {
       "Page PDF. Sélectionnez du texte pour poser une question, traduire, résumer ou demander un guide.",
   },
   de: {
+    permissionNotice:
+      "Die Website-Berechtigungsabfrage von Chrome kann den schwebenden Chat kurz schließen. Dein Gespräch bleibt erhalten.",
+    permissionPaused:
+      "Der schwebende Chat pausiert für den Website-Zugriff. Sitzung, Entwurf und Anhang bleiben erhalten. Mit einem Klick fortsetzen.",
+    resumePanel: "Schwebenden Chat fortsetzen",
+    floatingResumed: "Schwebender Chat fortgesetzt.",
+    resumeError:
+      "Der schwebende Chat konnte nicht fortgesetzt werden. Wähle Schwebenden Chat fortsetzen, um es erneut zu versuchen.",
     questionReady:
       "Die Frage ist im Chat bereit. Prüfe sie und wähle Fragen zum Senden.",
     summarySelection: "Auswahl zusammenfassen",
-    selectFirst: "Wähle zuerst einen Abschnitt zum Zusammenfassen aus.",
+    selectFirst: "Wähle zuerst einen Abschnitt aus.",
+    selectionHelp:
+      "Wähle einen Abschnitt zum Übersetzen oder Zusammenfassen aus.",
+    selectionUnavailable:
+      "Diese Seite hat keinen auswählbaren Text. Nutze Frage zur Seite oder Seite zusammenfassen, um zum Seitenbild zu fragen.",
     selectionTooLong:
       "Wähle höchstens 5.000 Zeichen oder nutze Seite zusammenfassen für die gesamte Seite.",
     title: "Glimpselet PDF-Reader",
@@ -379,10 +466,21 @@ export const readerLocales = {
       "PDF-Seite. Wähle Text aus, um zu fragen, zu übersetzen, zusammenzufassen oder eine Anleitung anzufordern.",
   },
   "pt-BR": {
+    permissionNotice:
+      "O pedido de permissão do Chrome pode fechar brevemente a conversa flutuante. Sua conversa será mantida.",
+    permissionPaused:
+      "A conversa flutuante foi pausada para o acesso ao site. Sua sessão, rascunho e anexo foram mantidos. Retome com um clique.",
+    resumePanel: "Retomar conversa flutuante",
+    floatingResumed: "Conversa flutuante retomada.",
+    resumeError:
+      "Não foi possível retomar a conversa flutuante. Selecione Retomar conversa flutuante para tentar novamente.",
     questionReady:
       "Pergunta pronta no chat. Revise e selecione Perguntar para enviar.",
     summarySelection: "Resumir seleção",
-    selectFirst: "Selecione primeiro um trecho para resumir.",
+    selectFirst: "Selecione primeiro um trecho.",
+    selectionHelp: "Selecione um trecho para traduzir ou resumir.",
+    selectionUnavailable:
+      "Esta página não tem texto selecionável. Use Perguntar sobre a página ou Resumir página para perguntar sobre a imagem da página.",
     selectionTooLong:
       "Selecione no máximo 5.000 caracteres ou use Resumir página para a página inteira.",
     title: "Leitor de PDF do Glimpselet",
