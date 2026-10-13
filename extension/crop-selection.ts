@@ -53,6 +53,7 @@ export function selectCrop(
   bounds: () => DOMRect,
   labels: CropLabels,
   pixelScale = 1,
+  initialPointer?: PointerEvent,
 ): Promise<CropRect | null> {
   const doc = host.ownerDocument,
     view = doc.defaultView!;
@@ -104,8 +105,12 @@ export function selectCrop(
   surface.append(box, tools);
   root.append(surface);
   let rect: CropRect | null = null;
-  let drag: { start: Point; origin: CropRect | null; handle: string } | null =
-    null;
+  let drag: {
+    pointerId: number;
+    start: Point;
+    origin: CropRect | null;
+    handle: string;
+  } | null = null;
   const point = (event: PointerEvent): Point => {
     const r = bounds();
     return { x: event.clientX - r.left, y: event.clientY - r.top };
@@ -131,6 +136,13 @@ export function selectCrop(
       view.removeEventListener("resize", resize);
       view.removeEventListener("scroll", render, true);
       view.removeEventListener("pagehide", cancelCrop);
+      view.removeEventListener("pointerdown", down, true);
+      view.removeEventListener("pointermove", move, true);
+      view.removeEventListener("pointerup", up, true);
+      view.removeEventListener("pointercancel", pointerCancel, true);
+      if (drag && surface.hasPointerCapture?.(drag.pointerId))
+        surface.releasePointerCapture(drag.pointerId);
+      drag = null;
       doc.removeEventListener("fullscreenchange", fullscreenChanged);
       host.remove();
       previousFocus?.focus();
@@ -253,16 +265,19 @@ export function selectCrop(
         render();
       }
     };
-    surface.onpointerdown = (event) => {
-      if ((event.target as Element).closest(".tools")) return;
+    const beginDrag = (event: PointerEvent, seeded = false) => {
+      if (event.button !== 0 || drag) return;
+      const target = (event.composedPath()[0] || event.target) as HTMLElement;
+      if (!seeded && target.closest(".tools")) return;
       event.preventDefault();
-      surface.setPointerCapture(event.pointerId);
-      const target = event.target as HTMLElement;
+      event.stopImmediatePropagation();
+      surface.setPointerCapture?.(event.pointerId);
       drag = {
+        pointerId: event.pointerId,
         start: point(event),
         origin: rect ? { ...rect } : null,
         handle:
-          target.dataset.handle ||
+          (!seeded && target.dataset.handle) ||
           (target === box || target === readout ? "move" : "new"),
       };
       if (drag.handle === "new") {
@@ -270,8 +285,13 @@ export function selectCrop(
         render();
       }
     };
-    surface.onpointermove = (event) => {
-      if (!drag) return;
+    const down = (event: PointerEvent) => {
+      if (event.composedPath().includes(surface)) beginDrag(event);
+    };
+    const move = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
       const p = point(event),
         r = bounds(),
         o = drag.origin;
@@ -300,12 +320,20 @@ export function selectCrop(
       }
       render();
     };
-    surface.onpointerup = () => {
+    const up = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      move(event);
+      if (surface.hasPointerCapture?.(drag.pointerId))
+        surface.releasePointerCapture(drag.pointerId);
       drag = null;
       if (rect && !confirm.disabled) confirm.focus({ preventScroll: true });
     };
-    surface.onpointercancel = () => {
+    const pointerCancel = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
       drag = null;
+      finish(null);
     };
     confirm.onclick = () => {
       if (rect && !confirm.disabled) finish(rect);
@@ -315,6 +343,11 @@ export function selectCrop(
     view.addEventListener("resize", resize);
     view.addEventListener("scroll", render, true);
     view.addEventListener("pagehide", cancelCrop, { once: true });
+    view.addEventListener("pointerdown", down, true);
+    view.addEventListener("pointermove", move, true);
+    view.addEventListener("pointerup", up, true);
+    view.addEventListener("pointercancel", pointerCancel, true);
     cancel.focus({ preventScroll: true });
+    if (initialPointer) beginDrag(initialPointer, true);
   });
 }

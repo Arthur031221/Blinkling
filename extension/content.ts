@@ -2,6 +2,7 @@ import { selectCrop, type CropLabels } from "./crop-selection";
 import { listenForShiftCrop } from "./shift-crop";
 import {
   buildPageContext,
+  buildGuideContext,
   contextRangeText,
   contextTextNode,
   restorableTextNode,
@@ -38,7 +39,13 @@ if (!contentScope.glimpseletContentReady) {
     | {
         steps: GuideStep[];
         index: number;
-        labels: { next: string; back: string; close: string; title: string };
+        labels: {
+          next: string;
+          back: string;
+          close: string;
+          done: string;
+          title: string;
+        };
       }
     | undefined;
   let guideReturnFocus: HTMLElement | undefined;
@@ -274,7 +281,7 @@ if (!contentScope.glimpseletContentReady) {
     next.dataset.guideControl = "next";
     next.textContent =
       currentGuide.index === currentGuide.steps.length - 1
-        ? currentGuide.labels.close
+        ? currentGuide.labels.done
         : currentGuide.labels.next;
     next.onclick = () => {
       if (!currentGuide) return;
@@ -284,7 +291,11 @@ if (!contentScope.glimpseletContentReady) {
         renderGuide();
       }
     };
-    nav.append(back, counter, next);
+    const close = document.createElement("button");
+    close.dataset.guideControl = "close";
+    close.textContent = currentGuide.labels.close;
+    close.onclick = closeGuide;
+    nav.append(back, counter, next, close);
     callout.append(nav);
     const top =
       point.y > 115
@@ -315,6 +326,7 @@ if (!contentScope.glimpseletContentReady) {
       next.focus({ preventScroll: true });
     else if (activeControl === "back") back.focus({ preventScroll: true });
     else if (activeControl === "next") next.focus({ preventScroll: true });
+    else if (activeControl === "close") close.focus({ preventScroll: true });
   }
 
   function closeGuide(): void {
@@ -480,29 +492,36 @@ if (!contentScope.glimpseletContentReady) {
     listenForShiftCrop(
       window,
       () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
-      () => {
-        void select("region", cropLabels.cropCancel).then((result) => {
-          const value = result as { rect?: number[] };
-          if (value.rect)
-            void send({
-              type: "glimpselet:crop-selected",
-              rect: value.rect,
-              url: location.href,
-            });
-        });
+      (initialPointer) => {
+        void select("region", cropLabels.cropCancel, initialPointer).then(
+          (result) => {
+            const value = result as { rect?: number[] };
+            if (value.rect)
+              void send({
+                type: "glimpselet:crop-selected",
+                rect: value.rect,
+                url: location.href,
+              });
+          },
+        );
       },
     );
-    window.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        closeGuide();
-        closeSelectionPopover();
-      }
-    });
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") {
+          closeGuide();
+          closeSelectionPopover();
+        }
+      },
+      true,
+    );
   }
 
   function select(
     mode: "region" | "element",
     cancelLabel: string,
+    initialPointer?: PointerEvent,
   ): Promise<unknown> {
     if (selecting) return Promise.resolve({ cancelled: true });
     selecting = true;
@@ -517,6 +536,7 @@ if (!contentScope.glimpseletContentReady) {
         () => new DOMRect(0, 0, innerWidth, innerHeight),
         cropLabels,
         devicePixelRatio,
+        initialPointer,
       )
         .then((rect) =>
           rect
@@ -664,6 +684,14 @@ if (!contentScope.glimpseletContentReady) {
         respond(buildPageContext());
         return;
       }
+      if (message.type === "glimpselet:guide-context") {
+        if (hasSensitiveContent(document, true)) {
+          respond({ error: "password_page" });
+          return;
+        }
+        respond(buildGuideContext());
+        return;
+      }
       if (message.type === "glimpselet:identity") {
         respond({
           documentKey: pageDocumentKey(),
@@ -716,7 +744,12 @@ if (!contentScope.glimpseletContentReady) {
         return true;
       }
       if (message.type === "glimpselet:guide" && Array.isArray(message.steps)) {
-        const pageMap = buildPageContext();
+        if (hasSensitiveContent(document, true)) {
+          closeGuide();
+          respond({ error: "password_page" });
+          return;
+        }
+        const pageMap = buildGuideContext();
         const incoming = validateGuideSteps(
           { steps: message.steps },
           new Set(pageMap.elements.map((item) => item.id)),
@@ -736,6 +769,7 @@ if (!contentScope.glimpseletContentReady) {
             next?: string;
             back?: string;
             close?: string;
+            done?: string;
             title?: string;
           };
           currentGuide = {
@@ -744,7 +778,8 @@ if (!contentScope.glimpseletContentReady) {
             labels: {
               next: guideLabels.next || "Next",
               back: guideLabels.back || "Back",
-              close: guideLabels.close || "Close",
+              close: guideLabels.close || "Close guide",
+              done: guideLabels.done || "Done",
               title: guideLabels.title || "Glimpselet",
             },
           };

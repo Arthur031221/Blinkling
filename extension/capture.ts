@@ -175,6 +175,73 @@ export async function getPageContext(
   return context as PageContext | undefined;
 }
 
+/** Explicit guide read: no pixels, no embedded-document text, pinned to one document. */
+export async function getGuideContext(
+  expected?: Pick<PageContext, "documentKey" | "url">,
+): Promise<PageContext> {
+  const tab = await activeTab();
+  await requireSiteAccess(tab);
+  const checkBlocklist = async () => {
+    const { blocklist } = await chrome.storage.local.get("blocklist");
+    const host = new URL(tab.url!).hostname.toLowerCase();
+    if (
+      Array.isArray(blocklist) &&
+      blocklist.some((entry: unknown) => {
+        if (typeof entry !== "string") return false;
+        const item = entry.trim().toLowerCase();
+        return item && (host === item || host.endsWith(`.${item}`));
+      })
+    )
+      throw new Error("blocked_page");
+  };
+  await checkBlocklist();
+  const inspect = async (documentId?: string): Promise<string> => {
+    const [result] = await chrome.scripting
+      .executeScript({
+        target: {
+          tabId: tab.id,
+          ...(documentId ? { documentIds: [documentId] } : {}),
+        },
+        func: hasSensitiveContent,
+        args: [null, true],
+      })
+      .catch(() => {
+        throw new Error("tab_changed");
+      });
+    if (
+      !result?.documentId ||
+      result.frameId !== 0 ||
+      (documentId && result.documentId !== documentId)
+    )
+      throw new Error("tab_changed");
+    if (result.result !== false) throw new Error("password_page");
+    return result.documentId;
+  };
+  const documentId = await inspect();
+  await injectContent(tab);
+  const page = (await chrome.tabs
+    .sendMessage(tab.id, { type: "glimpselet:guide-context" }, { documentId })
+    .catch(() => {
+      throw new Error("tab_changed");
+    })) as PageContext & { error?: string };
+  if (page?.error) throw new Error(page.error);
+  if (page?.hasPassword) throw new Error("password_page");
+  if (
+    !page?.documentKey ||
+    page.url !== tab.url ||
+    page.guideScope !== "top-document-text" ||
+    (expected &&
+      (page.documentKey !== expected.documentKey || page.url !== expected.url))
+  )
+    throw new Error("tab_changed");
+  await assertStillActive(tab);
+  await checkBlocklist();
+  await assertStillActive(tab);
+  // Finish with the pinned privacy check, after all storage/tab reads.
+  await inspect(documentId);
+  return page;
+}
+
 export async function captureWeb(
   kind: Exclude<CaptureKind, "screen">,
   selectedRect?: [number, number, number, number],

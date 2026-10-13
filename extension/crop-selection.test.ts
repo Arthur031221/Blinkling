@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { selectionRect, imageRect, selectCrop } from "./crop-selection";
 describe("crop geometry", () => {
   it("supports reverse drags and clamps all screen edges", () => {
@@ -42,6 +42,49 @@ describe("keyboard crop", () => {
     cropConfirm: "Confirm",
     cropCancel: "Cancel",
   };
+  it("continues a pointer that began before the overlay and ignores other pointers", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const pointer = (type: string, x: number, y: number, id = 1) => {
+      const event = new MouseEvent(type, {
+        clientX: x,
+        clientY: y,
+        button: 0,
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(event, "pointerId", { value: id });
+      return event as unknown as PointerEvent;
+    };
+    const result = selectCrop(
+      host,
+      () => new DOMRect(0, 0, 1100, 780),
+      labels,
+      1,
+      pointer("pointerdown", 748, 157),
+    );
+    const operate = vi.fn();
+    document.addEventListener("pointermove", operate);
+    try {
+      document.body.dispatchEvent(pointer("pointermove", 900, 300, 2));
+      document.body.dispatchEvent(pointer("pointermove", 1045, 560));
+      document.body.dispatchEvent(pointer("pointerup", 1045, 560));
+      expect(operate).toHaveBeenCalledTimes(1); // Only the unrelated pointer reaches the page.
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      await expect(result).resolves.toEqual({
+        x: 748,
+        y: 157,
+        width: 297,
+        height: 403,
+      });
+      const move = pointer("pointermove", 10, 10);
+      document.body.dispatchEvent(move);
+      expect(move.defaultPrevented).toBe(false);
+    } finally {
+      document.removeEventListener("pointermove", operate);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    }
+  });
   it("creates and resizes a selection without a pointer, then restores focus", async () => {
     const previous = document.createElement("button");
     const host = document.createElement("div");
