@@ -132,7 +132,7 @@
   "liveStopped": "气泡已停止等待。终端可能仍在运行。按 Esc 可在终端中停止它。",
   "replayTourHint": "练习步骤 {step}/8。请在这个浮动窗口完成。",
   "guideAction": "导览这页",
-  "guidePrompt": "带我看看这个页面的主要操作",
+  "guidePrompt": "说明这页的用途、各主要区域与段落，以及如何完成主要操作",
   "replyInterrupted": "回复中断了，请再试一次。",
   "replyLimit": "回复达到长度上限，请缩短问题。",
   "replyServiceError": "回复服务无法完成，请再试一次。",
@@ -177,5 +177,7 @@
   "wholeScreen": "截取全屏幕",
   "autoExplain": "自动解说",
   "moreTools": "更多工具",
-  "captureAccessHint": "可选：允许访问所有网站一次，即可在新标签页截取网页与选择区域。"
+  "captureAccessHint": "可选：允许访问所有网站一次，即可在新标签页截取网页与选择区域。",
+  "guideOverview": "总览",
+  "guideTour": "逐步导览"
 }

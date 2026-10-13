@@ -132,7 +132,7 @@
   "liveStopped": "泡泡已停止等待。終端可能仍在執行。按 Esc 可在終端中停止它。",
   "replayTourHint": "練習步驟 {step}/8。請在這個浮動視窗完成。",
   "guideAction": "導覽這頁",
-  "guidePrompt": "帶我看看這個頁面的主要操作",
+  "guidePrompt": "說明這頁的用途、各主要區塊與段落，以及如何完成主要操作",
   "replyInterrupted": "回覆中斷了，請再試一次。",
   "replyLimit": "回覆達到長度上限，請縮短問題。",
   "replyServiceError": "回覆服務無法完成，請再試一次。",
@@ -177,5 +177,7 @@
   "wholeScreen": "截取全螢幕",
   "autoExplain": "自動解說",
   "moreTools": "更多工具",
-  "captureAccessHint": "選用：允許存取所有網站一次，即可在新分頁擷取網頁與選取區域。"
+  "captureAccessHint": "選用：允許存取所有網站一次，即可在新分頁擷取網頁與選取區域。",
+  "guideOverview": "總覽",
+  "guideTour": "逐步導覽"
 }

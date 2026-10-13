@@ -20,16 +20,24 @@ if (prompt.includes('"nodes"')) {
     nodes: nodes.map((n) => ({ id: n.id, text: "Translated: " + n.text })),
   });
 } else if (prompt.includes('"steps"')) {
-  const matches = [
+  const elements = [
     ...prompt.matchAll(
-      /"id":"(g\d+)","role":"(?:button|paragraph)","text":"([^"\n]+)"/g,
+      /\{"id":"g\d+","role":"(?:button|paragraph|section|h[1-6])","text":"(?:[^"\\]|\\.)*"/g,
     ),
-  ];
+  ].map((match) => JSON.parse(match[0] + "}"));
+  const wholePage = prompt.includes("Explain the whole page.");
+  const controls = elements.filter((element) => element.role === "button");
+  const targets = wholePage
+    ? elements
+    : (controls.length ? controls : elements).slice(0, 2);
   answer = JSON.stringify({
-    steps: matches.slice(0, 2).map((m) => ({
-      elementId: m[1],
-      note: "Choose " + m[2],
-      action: "Click when ready",
+    ...(wholePage
+      ? { purpose: "Understand this page and its main task." }
+      : {}),
+    steps: targets.map((element) => ({
+      elementId: element.id,
+      note: (element.role === "button" ? "Choose " : "About ") + element.text,
+      ...(element.role === "button" ? { action: "Click when ready" } : {}),
     })),
   });
 } else if (prompt.includes('"what"')) {

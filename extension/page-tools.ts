@@ -1,4 +1,5 @@
 export type GuideStep = { elementId: string; note: string; action?: string };
+export const MAX_GUIDE_STEPS = 160;
 export type TranslationNode = { id: string; text: string; omit?: true };
 
 /** Keep the model's omission contract in sync with translation validation. */
@@ -53,7 +54,10 @@ export function validateGuideSteps(
     return [];
   const seen = new Set<string>();
   const steps: GuideStep[] = [];
-  for (const item of (value as { steps: unknown[] }).steps.slice(0, 12)) {
+  for (const item of (value as { steps: unknown[] }).steps.slice(
+    0,
+    MAX_GUIDE_STEPS,
+  )) {
     if (!item || typeof item !== "object") continue;
     const step = item as Record<string, unknown>;
     if (

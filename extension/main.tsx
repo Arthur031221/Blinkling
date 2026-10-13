@@ -2470,6 +2470,7 @@ function App() {
               ? buildGuidePrompt(
                   `${q}\nReply in ${names[locale]}.`,
                   currentPage,
+                  q === t.guidePrompt,
                 )
               : modelQuestion;
         const apiRequest = askAnthropic(
@@ -2500,6 +2501,7 @@ function App() {
               ? buildGuidePrompt(
                   `${q}\nReply in ${names[locale]}.`,
                   currentPage,
+                  q === t.guidePrompt,
                 )
               : modelQuestion;
         const result = await bridge.ask(
@@ -2584,21 +2586,29 @@ function App() {
             steps: [],
           });
         } else {
-          visibleAnswer = guide.steps
-            .map(
-              (step, index) =>
-                `${index + 1}. ${step.note}${step.action ? `\n${step.action}` : ""}`,
-            )
+          visibleAnswer = [
+            guide.purpose,
+            guide.steps
+              .map(
+                (step, index) =>
+                  `${index + 1}. ${step.note}${step.action ? `\n${step.action}` : ""}`,
+              )
+              .join("\n\n"),
+          ]
+            .filter(Boolean)
             .join("\n\n");
           const result = (await sendToDocument(sourceTabId, currentPage, {
             type: "glimpselet:guide",
             steps: guide.steps,
+            purpose: guide.purpose,
             labels: {
               next: t.next,
               back: t.back,
               close: t.guideClose,
               done: t.guideDone,
               title: t.guideAction,
+              overview: t.guideOverview,
+              tour: t.guideTour,
             },
           })) as { ok?: boolean } | undefined;
           if (!result?.ok) throw new Error("guide_invalid");

@@ -133,6 +133,167 @@ async function sendPage<T>(message: Record<string, unknown>): Promise<T> {
   )) as T;
 }
 
+test("whole-page tours cover reading regions and task controls with a scrollable overview", async () => {
+  await site.evaluate(() => {
+    document.body.innerHTML = `<style>main{max-width:650px;margin:30px}section{padding:24px;border:1px solid #ddd;margin-bottom:60px}p{line-height:1.7}#last{margin-top:1300px}</style>
+      <button id="return">Return focus</button><main><h1>Plan a trip</h1><p>Compare flights, then check the fare rules.</p>
+      ${Array.from({ length: 14 }, (_, i) => `<section ${i === 13 ? 'id="last"' : ""}><h2>Part ${i}</h2><p>Travel paragraph ${i} explains this part of the journey.</p>${i === 0 ? '<label>Departure<input aria-label="Departure"></label><button id="search">Search flights</button>' : ""}</section>`).join("")}</main>`;
+  });
+  await site.locator("#return").focus();
+  const page = await sendPage<PageContext>({
+    type: "glimpselet:guide-context",
+  });
+  const paragraphs = page.elements.filter((e) => e.role === "paragraph");
+  expect(paragraphs).toHaveLength(15);
+  const steps = paragraphs.map((e) => ({
+    elementId: e.id,
+    note: `Meaning: ${e.text}`,
+  }));
+  steps.push({
+    elementId: page.elements.find((e) => e.text === "Search flights")!.id,
+    note: "Enter airports and dates, then search.",
+  });
+  // Simulate content arriving while the provider is writing the old map's tour.
+  await site.evaluate(() =>
+    document
+      .querySelector("main")!
+      .insertAdjacentHTML(
+        "afterbegin",
+        "<p>Late-loaded travel information.</p>".repeat(300),
+      ),
+  );
+  const newerMap = await sendPage<PageContext>({
+    type: "glimpselet:guide-context",
+  });
+  expect(
+    paragraphs.some((e) => !newerMap.elements.some((n) => n.id === e.id)),
+  ).toBe(true);
+  expect(
+    await sendPage({
+      type: "glimpselet:guide",
+      purpose: "Compare and book a trip",
+      steps,
+      labels: { overview: en.guideOverview, tour: en.guideTour },
+    }),
+  ).toEqual({ ok: true });
+  const guide = site.locator("[data-glimpselet-overlay] .guide");
+  await expect(guide.locator("p")).toContainText("Compare and book a trip");
+  await expect(site.locator("[data-glimpselet-overlay] rect.ink")).toHaveCount(
+    1,
+  );
+  await guide
+    .getByRole("button", { name: en.guideOverview, exact: true })
+    .click();
+  const overview = site.locator("[data-glimpselet-overlay] .guide-overview");
+  await expect(overview.locator("li")).toHaveCount(16);
+  await expect(
+    site.locator("[data-glimpselet-overlay] .guide-annotation").first(),
+  ).toBeVisible();
+  const layout = await site.evaluate(() => {
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    const outlined = [...root.querySelectorAll("[data-guide-target]")];
+    return outlined.map((e) => ({
+      id: e.getAttribute("data-guide-target"),
+      x: Number(e.getAttribute("x")),
+      y: Number(e.getAttribute("y")),
+    }));
+  });
+  expect(layout.some((r) => r.id === paragraphs[0].id)).toBe(true);
+  const annotation = site
+    .locator("[data-glimpselet-overlay] .guide-annotation")
+    .first();
+  const annotationIndex = await annotation.getAttribute("data-guide-index");
+  await annotation.focus();
+  await site.evaluate(() => window.scrollBy(0, 20));
+  await expect
+    .poll(() =>
+      site.evaluate(
+        () =>
+          (
+            document.querySelector("[data-glimpselet-overlay]")!.shadowRoot!
+              .activeElement as HTMLElement
+          )?.dataset.guideIndex,
+      ),
+    )
+    .toBe(annotationIndex);
+  await overview.locator('[data-guide-index="14"]').click();
+  await expect(guide.locator("p")).toContainText("Travel paragraph 13");
+  expect(await site.evaluate(() => scrollY)).toBeGreaterThan(1300);
+  await expect(guide).toContainText("15/16");
+  await guide.locator('[data-guide-control="back"]').click();
+  await expect(guide.locator("p")).toContainText("Travel paragraph 12");
+  await guide.locator('[data-guide-control="overview"]').click();
+  const current = overview.locator('[aria-current="step"]');
+  await expect(current).toHaveAttribute("data-guide-index", "13");
+  await current.focus();
+  await site.setViewportSize({ width: 420, height: 520 });
+  await expect(current).toBeFocused();
+  expect(
+    await overview.evaluate((element) => {
+      const r = element.getBoundingClientRect();
+      return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
+    }),
+  ).toBe(true);
+  await site.keyboard.press("Escape");
+  await expect(overview).toHaveCount(0);
+  await expect(site.locator("[data-glimpselet-overlay] .draw")).toHaveCount(0);
+  await expect(site.locator("#return")).toBeFocused();
+});
+
+test("responsive guide targets can collapse without losing the tour, and tall regions start at the top", async () => {
+  await site.evaluate(() => {
+    document.body.innerHTML = `<style>main{margin-top:1000px;padding:16px;height:1600px}p{max-width:400px}@media(max-width:600px){aside{display:none}}</style>
+      <main><p id="first">The article introduces the research problem.</p><aside><p id="sidebar">Use these links to browse the paper.</p></aside><p id="last">The final paragraph explains the results.</p></main>`;
+  });
+  const page = await sendPage<PageContext>({
+    type: "glimpselet:guide-context",
+  });
+  const regions = page.elements.filter((e) => e.role === "paragraph");
+  const section = page.elements.find((e) => e.role === "section")!;
+  expect(
+    await sendPage({
+      type: "glimpselet:guide",
+      steps: [
+        { elementId: section.id, note: "Read the research article." },
+        ...regions.map((e) => ({ elementId: e.id, note: e.text })),
+      ],
+    }),
+  ).toEqual({ ok: true });
+  const guide = site.locator("[data-glimpselet-overlay] .guide");
+  await expect(guide).toBeVisible();
+  expect(
+    await site.locator("main").evaluate((e) => e.getBoundingClientRect().top),
+  ).toBeLessThan(20);
+  await guide.locator('[data-guide-control="next"]').click();
+  await expect(guide.locator("p")).toContainText(
+    "introduces the research problem",
+  );
+  await site.setViewportSize({ width: 520, height: 680 });
+  await expect(guide).toBeVisible();
+  await guide.locator('[data-guide-control="next"]').click();
+  await expect(guide.locator("p")).toContainText("explains the results");
+  await guide.locator('[data-guide-control="back"]').click();
+  await expect(guide.locator("p")).toContainText(
+    "introduces the research problem",
+  );
+  await guide.locator('[data-guide-control="overview"]').click();
+  const sidebar = site.locator(
+    '[data-glimpselet-overlay] .guide-overview [data-guide-index="2"]',
+  );
+  await expect(sidebar).toBeDisabled();
+  await expect(sidebar).toHaveCSS("opacity", "0.45");
+  await site.setViewportSize({ width: 1280, height: 850 });
+  await expect(sidebar).toBeEnabled();
+  await sidebar.click();
+  await expect(guide.locator("p")).toContainText("browse the paper");
+  await site.setViewportSize({ width: 520, height: 680 });
+  await expect(guide.locator("p")).toContainText("explains the results");
+  await site.keyboard.press("Escape");
+  await expect(guide).toHaveCount(0);
+});
+
 async function openHarness() {
   const harness = await context.newPage();
   await harness.goto(

@@ -132,7 +132,7 @@
   "liveStopped": "O balão parou de aguardar. O terminal ainda pode estar trabalhando. Pressione Esc nele para parar.",
   "replayTourHint": "Exercício {step}/8. Conclua nesta janela.",
   "guideAction": "Guiar esta página",
-  "guidePrompt": "Mostre as principais ações desta página",
+  "guidePrompt": "Explique a finalidade desta página, cada seção e parágrafo principal e como realizar a tarefa principal",
   "replyInterrupted": "A resposta foi interrompida. Tente novamente.",
   "replyLimit": "A resposta atingiu o limite de tamanho. Faça uma pergunta mais curta.",
   "replyServiceError": "O serviço não conseguiu concluir a resposta. Tente novamente.",
@@ -177,5 +177,7 @@
   "wholeScreen": "Capturar tela inteira",
   "autoExplain": "Explicação automática",
   "moreTools": "Mais ferramentas",
-  "captureAccessHint": "Opcional: permita o acesso a todos os sites uma vez para capturar páginas e selecionar áreas em novas abas."
+  "captureAccessHint": "Opcional: permita o acesso a todos os sites uma vez para capturar páginas e selecionar áreas em novas abas.",
+  "guideOverview": "Visão geral",
+  "guideTour": "Passo a passo"
 }

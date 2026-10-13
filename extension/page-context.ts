@@ -7,6 +7,47 @@ export type PageElement = {
   rect: [number, number, number, number];
 };
 
+export const MAX_GUIDE_ELEMENTS = 160;
+export const GUIDE_SELECTOR =
+  "main,article,section,form,[role=main],[role=region],[role=form],h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],.pdf-text-layer>span";
+
+export function resolveGuideTargets(
+  doc: Document = document,
+): Map<string, { element: Element; role: string }> {
+  const targets = new Map<string, { element: Element; role: string }>();
+  for (const element of doc.querySelectorAll(GUIDE_SELECTOR)) {
+    const id = registry.ids.get(element);
+    if (id && guideElementAvailable(element))
+      targets.set(id, { element, role: guideRole(element) });
+  }
+  return targets;
+}
+
+function guideRole(element: Element): string {
+  return element.matches(
+    "main,article,section,form,[role=main],[role=region],[role=form]",
+  )
+    ? "section"
+    : element.matches("p,li,dt,dd,blockquote,.pdf-text-layer>span")
+      ? "paragraph"
+      : element.getAttribute("role") || element.tagName.toLowerCase();
+}
+
+export function guideElementSafe(element: Element): boolean {
+  return (
+    element.isConnected &&
+    !isExcluded(element, true) &&
+    !isChoiceContent(element) &&
+    !hasSensitiveAncestor(element)
+  );
+}
+
+export function guideElementAvailable(element: Element): boolean {
+  return (
+    guideElementSafe(element) && visible(element) && !!textForElement(element)
+  );
+}
+
 export type PageContext = {
   documentKey?: string;
   url: string;
@@ -188,7 +229,77 @@ export function buildExplicitPageContext(
 export function buildGuideContext(doc: Document = document): PageContext {
   const context = buildExplicitPageContext(doc);
   delete context.textScope;
-  return { ...context, guideScope: "top-document-text" };
+  const scope = doc.querySelector("[data-glimpselet-reader-page]") || doc.body;
+  const candidates =
+    scope && !context.hasPassword
+      ? Array.from(scope.querySelectorAll(GUIDE_SELECTOR)).filter(
+          guideElementAvailable,
+        )
+      : [];
+  // Preserve content throughout the document when menus exhaust a prefix map.
+  const groups = [
+    candidates.filter((element) =>
+      element.matches(
+        "main,article,section,form,[role=main],[role=region],[role=form],h1,h2,h3,h4,h5,h6",
+      ),
+    ),
+    candidates.filter((element) =>
+      element.matches("p,li,dt,dd,blockquote,.pdf-text-layer>span"),
+    ),
+    candidates.filter((element) =>
+      element.matches(
+        "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox]",
+      ),
+    ),
+  ];
+  const selected = new Set<Element>();
+  const budgets = [40, 80, 40];
+  let spare = budgets.reduce(
+    (sum, budget, i) => sum + Math.max(0, budget - groups[i].length),
+    0,
+  );
+  for (const [i, group] of groups.entries()) {
+    const count = Math.min(group.length, budgets[i] + spare);
+    spare -= Math.max(0, count - budgets[i]);
+    // Navigation trees and reference lists can contain hundreds of list
+    // items. Map article paragraphs before filling spare slots with lists.
+    const tiers =
+      i === 1
+        ? [
+            group.filter((element) => !element.matches("li")),
+            group.filter((element) => element.matches("li")),
+          ]
+        : [group];
+    let remaining = count;
+    for (const tier of tiers) {
+      const take = Math.min(remaining, tier.length);
+      for (let n = 0; n < take; n++)
+        selected.add(
+          tier[
+            take === 1 ? 0 : Math.round((n * (tier.length - 1)) / (take - 1))
+          ],
+        );
+      remaining -= take;
+    }
+  }
+  const elements = candidates
+    .filter((element) => selected.has(element))
+    .slice(0, MAX_GUIDE_ELEMENTS)
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        id: stableElementId(element),
+        role: guideRole(element),
+        text: textForElement(element, 500),
+        rect: [
+          Math.round(rect.left + doc.defaultView!.scrollX),
+          Math.round(rect.top + doc.defaultView!.scrollY),
+          Math.round(rect.width),
+          Math.round(rect.height),
+        ] as [number, number, number, number],
+      };
+    });
+  return { ...context, elements, guideScope: "top-document-text" };
 }
 
 function readPageContext(

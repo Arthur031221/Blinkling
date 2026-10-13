@@ -2556,6 +2556,14 @@ test("welcome page pairs on request and completes its real guide tutorial", asyn
   const guide = sample.locator("[data-glimpselet-overlay] .guide");
   await expect(guide).toBeVisible();
   await expect(guide).toContainText(en.guideAction);
+  await expect(guide).toContainText("Understand this page and its main task.");
+  await expect(guide).toContainText("A tiny field guide to tea");
+  await guide.getByRole("button", { name: en.guideOverview }).click();
+  const overview = sample.locator("[data-glimpselet-overlay] .guide-overview");
+  await expect(overview).toContainText("Tea leaves change as they meet water");
+  await overview
+    .getByRole("button", { name: /Choose Save these brewing notes/ })
+    .click();
   await expect(guide).toContainText("Save these brewing notes");
   await expect(
     sample.locator("[data-glimpselet-overlay] svg.draw .ink"),
@@ -5333,7 +5341,19 @@ for (const locale of ["en", "zh-TW"] as const) {
     await panel.locator(".float-start button").last().click();
     await expect(
       sample.locator("[data-glimpselet-overlay] .guide"),
-    ).toContainText("Save these brewing notes");
+    ).toContainText("Understand this page and its main task.");
+    const guide = sample.locator("[data-glimpselet-overlay] .guide");
+    await guide.getByRole("button", { name: t.guideOverview }).click();
+    const overview = sample.locator(
+      "[data-glimpselet-overlay] .guide-overview",
+    );
+    await expect(overview).toContainText(
+      "Tea leaves change as they meet water",
+    );
+    await overview
+      .getByRole("button", { name: /Choose Save these brewing notes/ })
+      .click();
+    await expect(guide).toContainText("Save these brewing notes");
     await expect(
       sample.locator("[data-glimpselet-overlay] svg.draw .ink"),
     ).toBeVisible();

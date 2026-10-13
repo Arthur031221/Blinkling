@@ -9,6 +9,9 @@ import {
   restorableTextNode,
   stableElementId,
   pageDocumentKey,
+  resolveGuideTargets,
+  guideElementAvailable,
+  guideElementSafe,
 } from "./page-context";
 import { pageRevision } from "./page-revision";
 import { validateGuideSteps } from "./page-tools";
@@ -41,12 +44,18 @@ if (!contentScope.glimpseletContentReady) {
     | {
         steps: GuideStep[];
         index: number;
+        purpose?: string;
+        url: string;
+        overview: boolean;
+        targets: Map<string, { element: Element; role: string }>;
         labels: {
           next: string;
           back: string;
           close: string;
           done: string;
           title: string;
+          overview: string;
+          tour: string;
         };
       }
     | undefined;
@@ -174,6 +183,7 @@ if (!contentScope.glimpseletContentReady) {
     style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;display:flex;flex-direction:column;box-sizing:border-box;width:269px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4;min-height:0;overflow:auto;overflow-wrap:anywhere}.guide nav{display:flex;flex-wrap:wrap;flex-shrink:0;justify-content:space-between;gap:6px}.guide nav button{max-width:100%;overflow-wrap:anywhere}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
     overlayRoot.append(style);
     style.textContent += `.guide button:focus-visible,.popover button:focus-visible,.cancel:focus-visible{outline:2px solid #86513d;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ink,.arrow{animation:none;stroke-dashoffset:0}}`;
+    style.textContent += `.guide-overview{position:fixed;z-index:3;right:8px;top:8px;width:300px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);display:flex;flex-direction:column;box-sizing:border-box;padding:12px;border:1px solid #d9b98b;border-radius:12px;background:#fffaf0;box-shadow:0 5px 22px #22190d30;pointer-events:auto;font:14px system-ui;color:#312922}.guide-overview header{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0}.guide-overview strong{width:100%}.guide-overview p{line-height:1.4;flex-shrink:0}.guide-overview ol{overflow:auto;min-height:0;margin:10px 0 0;padding-left:25px}.guide-overview li{padding:4px 0}.guide-overview button,.guide-annotation{font:600 12px system-ui;color:#30271d;border:0;border-radius:8px;background:#f2e8d6;padding:6px 9px;cursor:pointer}.guide-overview li button{width:100%;text-align:left;line-height:1.4;overflow-wrap:anywhere}.guide-overview [aria-current]{box-shadow:inset 3px 0 #cc704e}.guide-annotation{position:fixed;z-index:2;box-sizing:border-box;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;pointer-events:auto;box-shadow:0 2px 8px #22190d25}.guide-overview button:focus-visible,.guide-annotation:focus-visible{outline:2px solid #86513d;outline-offset:2px}.guide button:disabled,.guide-overview button:disabled{opacity:.45;cursor:default}`;
     const surface = document.createElement("div");
     surface.className = "surface";
     overlayRoot.append(surface);
@@ -188,12 +198,8 @@ if (!contentScope.glimpseletContentReady) {
     height: number;
     element: Element;
   } | null {
-    const element = Array.from(
-      document.querySelectorAll(
-        "a,button,input,select,textarea,[role],h1,h2,h3,h4,h5,h6,.pdf-text-layer>span",
-      ),
-    ).find((candidate) => stableElementId(candidate) === elementId);
-    if (!element) return null;
+    const element = currentGuide?.targets.get(elementId)?.element;
+    if (!element || !guideElementAvailable(element)) return null;
     const r = element.getBoundingClientRect();
     return { x: r.left, y: r.top, width: r.width, height: r.height, element };
   }
@@ -201,18 +207,27 @@ if (!contentScope.glimpseletContentReady) {
   function renderGuide(): void {
     if (!currentGuide) return;
     const step = currentGuide.steps[currentGuide.index];
-    const context = buildGuideContext();
     if (
-      context.hasPassword ||
-      !context.elements.some((element) => element.id === step.elementId)
+      hasSensitiveContent(document, true) ||
+      currentGuide.url !== location.href ||
+      [...currentGuide.targets.values()].some(
+        ({ element }) => !guideElementSafe(element),
+      )
     ) {
       closeGuide();
       return;
     }
     const root = ensureOverlay();
     const hadFocus = document.hasFocus();
+    if (currentGuide.overview) {
+      renderOverview();
+      return;
+    }
+    root
+      .querySelectorAll("[data-guide-overview]")
+      .forEach((element) => element.remove());
     const activeControl = root
-      .querySelector(".guide nav")
+      .querySelector(".guide")
       ?.contains(root.activeElement)
       ? (root.activeElement as HTMLElement).dataset.guideControl
       : undefined;
@@ -220,7 +235,12 @@ if (!contentScope.glimpseletContentReady) {
     root.querySelector('svg[class~="draw"]')?.remove();
     let point = guidePoint(step.elementId);
     if (!point) {
-      closeGuide();
+      const index = Math.max(adjacentGuideStep(1), adjacentGuideStep(-1));
+      if (index < 0) closeGuide();
+      else {
+        currentGuide.index = index;
+        renderGuide();
+      }
       return;
     }
     const changed = renderedStep !== step.elementId;
@@ -232,7 +252,7 @@ if (!contentScope.glimpseletContentReady) {
         point.x > innerWidth)
     ) {
       point.element.scrollIntoView({
-        block: "center",
+        block: point.height > innerHeight - 16 ? "start" : "center",
         inline: "nearest",
         behavior: "instant",
       });
@@ -247,15 +267,19 @@ if (!contentScope.glimpseletContentReady) {
     const y = Math.max(4, point.y - pad);
     const w = Math.max(24, point.width + pad * 2);
     const h = Math.max(24, point.height + pad * 2);
-    const ellipse = document.createElementNS(svg.namespaceURI, "ellipse");
-    ellipse.setAttribute("class", "ink");
-    ellipse.setAttribute("cx", String(x + w / 2));
-    ellipse.setAttribute("cy", String(y + h / 2));
-    ellipse.setAttribute("rx", String(w / 2));
-    ellipse.setAttribute("ry", String(h / 2));
-    svg.append(ellipse);
+    drawRegion(
+      svg,
+      point,
+      currentGuide.targets.get(step.elementId)?.role || "",
+      x,
+      y,
+      w,
+      h,
+    );
     const callout = document.createElement("div");
     callout.className = "guide";
+    callout.setAttribute("role", "region");
+    callout.setAttribute("aria-label", currentGuide.labels.title);
     const blink = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     blink.setAttribute("viewBox", "0 0 38 24");
     blink.setAttribute("width", "38");
@@ -289,20 +313,44 @@ if (!contentScope.glimpseletContentReady) {
     blink.append(wink);
     const head = document.createElement("div");
     head.style.cssText =
-      "display:flex;flex-shrink:0;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
-    head.append(blink, document.createTextNode(currentGuide.labels.title));
+      "display:flex;flex-wrap:wrap;flex-shrink:0;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
+    const title = document.createElement("span");
+    title.textContent = currentGuide.labels.title;
+    head.append(blink, title);
+    const overview = document.createElement("button");
+    overview.dataset.guideControl = "overview";
+    overview.textContent = currentGuide.labels.overview;
+    overview.style.cssText =
+      "margin-left:auto;padding:3px 5px;font-size:11px;flex-shrink:0";
+    overview.onclick = () => {
+      if (!currentGuide) return;
+      currentGuide.overview = true;
+      renderGuide();
+      overlayRoot
+        ?.querySelector<HTMLButtonElement>('[data-guide-control="tour"]')
+        ?.focus({ preventScroll: true });
+    };
+    head.append(overview);
     callout.append(head);
     const note = document.createElement("p");
-    note.textContent = step.note + (step.action ? ` · ${step.action}` : "");
+    note.textContent =
+      (currentGuide.index === 0 && currentGuide.purpose
+        ? `${currentGuide.purpose}\n\n`
+        : "") +
+      step.note +
+      (step.action ? ` · ${step.action}` : "");
+    note.style.whiteSpace = "pre-line";
+    note.setAttribute("aria-live", "polite");
     callout.append(note);
     const nav = document.createElement("nav");
     const back = document.createElement("button");
     back.dataset.guideControl = "back";
     back.textContent = currentGuide.labels.back;
-    back.disabled = currentGuide.index === 0;
+    back.disabled = adjacentGuideStep(-1) < 0;
     back.onclick = () => {
-      if (currentGuide && currentGuide.index > 0) {
-        currentGuide.index--;
+      const index = adjacentGuideStep(-1);
+      if (currentGuide && index >= 0) {
+        currentGuide.index = index;
         renderGuide();
       }
     };
@@ -312,14 +360,15 @@ if (!contentScope.glimpseletContentReady) {
     const next = document.createElement("button");
     next.dataset.guideControl = "next";
     next.textContent =
-      currentGuide.index === currentGuide.steps.length - 1
+      adjacentGuideStep(1) < 0
         ? currentGuide.labels.done
         : currentGuide.labels.next;
     next.onclick = () => {
       if (!currentGuide) return;
-      if (currentGuide.index + 1 >= currentGuide.steps.length) closeGuide();
+      const index = adjacentGuideStep(1);
+      if (index < 0) closeGuide();
       else {
-        currentGuide.index++;
+        currentGuide.index = index;
         renderGuide();
       }
     };
@@ -391,11 +440,15 @@ if (!contentScope.glimpseletContentReady) {
         // target when the counter shares the header and navigation fits a row.
         // Keep the normal layout whenever any clear side can accommodate it.
         head.append(counter);
+        blink.style.display = "none";
+        title.style.display = "none";
+        callout.style.padding = "6px 8px";
+        note.style.marginBottom = "4px";
         counter.style.marginLeft = "auto";
         head.style.marginBottom = "3px";
         blink.style.flexShrink = "0";
         for (const button of [back, next, close])
-          button.style.padding = "6px 4px";
+          button.style.padding = "4px 4px";
       }
       for (const [index, space] of spaces(compact ? 8 : 18).entries()) {
         if (space.width <= 0 || space.height <= 0) continue;
@@ -481,6 +534,213 @@ if (!contentScope.glimpseletContentReady) {
     else if (activeControl === "back") back.focus({ preventScroll: true });
     else if (activeControl === "next") next.focus({ preventScroll: true });
     else if (activeControl === "close") close.focus({ preventScroll: true });
+    else if (activeControl === "overview")
+      overview.focus({ preventScroll: true });
+  }
+
+  function drawRegion(
+    svg: SVGSVGElement,
+    point: NonNullable<ReturnType<typeof guidePoint>>,
+    role: string,
+    x = point.x - 6,
+    y = point.y - 6,
+    width = point.width + 12,
+    height = point.height + 12,
+  ): void {
+    const region = document.createElementNS(
+      svg.namespaceURI,
+      role === "section" || role === "paragraph" ? "rect" : "ellipse",
+    );
+    region.setAttribute("class", "ink");
+    region.setAttribute("data-guide-target", stableElementId(point.element));
+    region.setAttribute("pathLength", "900");
+    if (region.tagName === "rect") {
+      for (const [key, value] of Object.entries({
+        x,
+        y,
+        width,
+        height,
+        rx: 10,
+      }))
+        region.setAttribute(key, String(value));
+    } else {
+      for (const [key, value] of Object.entries({
+        cx: x + width / 2,
+        cy: y + height / 2,
+        rx: width / 2,
+        ry: height / 2,
+      }))
+        region.setAttribute(key, String(value));
+    }
+    svg.append(region);
+  }
+
+  function renderOverview(): void {
+    if (!currentGuide || !overlayRoot) return;
+    const hadFocus = document.hasFocus();
+    const root = overlayRoot;
+    const focusedAnnotation = root.activeElement?.matches(".guide-annotation")
+      ? (root.activeElement as HTMLElement).dataset.guideIndex
+      : undefined;
+    root.querySelector(".guide")?.remove();
+    root.querySelector('svg[class~="draw"]')?.remove();
+    root
+      .querySelectorAll('[data-guide-overview="annotation"]')
+      .forEach((element) => element.remove());
+    let panel = root.querySelector<HTMLElement>(
+      '[data-guide-overview="panel"]',
+    );
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.className = "guide-overview";
+      panel.dataset.guideOverview = "panel";
+      panel.setAttribute("aria-label", currentGuide.labels.overview);
+      const header = document.createElement("header");
+      const title = document.createElement("strong");
+      title.textContent = currentGuide.labels.overview;
+      const tour = document.createElement("button");
+      tour.dataset.guideControl = "tour";
+      tour.textContent = currentGuide.labels.tour;
+      tour.onclick = () => {
+        if (!currentGuide) return;
+        if (!guidePoint(currentGuide.steps[currentGuide.index].elementId)) {
+          const index = Math.max(adjacentGuideStep(1), adjacentGuideStep(-1));
+          if (index < 0) {
+            closeGuide();
+            return;
+          }
+          currentGuide.index = index;
+        }
+        currentGuide.overview = false;
+        renderedStep = "";
+        renderGuide();
+      };
+      const close = document.createElement("button");
+      close.dataset.guideControl = "close";
+      close.textContent = currentGuide.labels.close;
+      close.onclick = closeGuide;
+      header.append(title, tour, close);
+      panel.append(header);
+      if (currentGuide.purpose) {
+        const purpose = document.createElement("p");
+        purpose.textContent = currentGuide.purpose;
+        panel.append(purpose);
+      }
+      const list = document.createElement("ol");
+      for (const [index, step] of currentGuide.steps.entries()) {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        button.dataset.guideIndex = String(index);
+        button.textContent =
+          step.note + (step.action ? ` · ${step.action}` : "");
+        button.onclick = () => visitGuideStep(index);
+        item.append(button);
+        list.append(item);
+      }
+      panel.append(list);
+      root.append(panel);
+    }
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("draw");
+    svg.setAttribute("aria-hidden", "true");
+    const occupied: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }> = [];
+    const panelRect = panel.getBoundingClientRect();
+    occupied.push(panelRect);
+    for (const [index, step] of currentGuide.steps.entries()) {
+      const point = guidePoint(step.elementId);
+      if (
+        !point ||
+        point.y >= innerHeight ||
+        point.y + point.height <= 0 ||
+        point.x >= innerWidth ||
+        point.x + point.width <= 0
+      )
+        continue;
+      const isRegion = point.element.matches(
+        "main,article,section,form,[role=main],[role=region],[role=form],p,li,dt,dd,blockquote,.pdf-text-layer>span",
+      );
+      drawRegion(svg, point, isRegion ? "section" : "control");
+      const annotation = document.createElement("button");
+      annotation.className = "guide-annotation";
+      annotation.dataset.guideOverview = "annotation";
+      annotation.dataset.guideIndex = String(index);
+      annotation.textContent = `${index + 1}. ${step.note}`;
+      annotation.title = step.note;
+      annotation.onclick = () => visitGuideStep(index);
+      const width = Math.min(220, innerWidth - 16);
+      const x = Math.max(8, Math.min(innerWidth - width - 8, point.x));
+      let y = Math.max(8, Math.min(innerHeight - 36, point.y));
+      // Compact callouts share a number with the full explanation in the list.
+      // Avoid piling labels on top of neighboring sections and paragraphs.
+      while (
+        y < innerHeight - 36 &&
+        occupied.some(
+          (r) =>
+            x < r.x + r.width &&
+            x + width > r.x &&
+            y < r.y + r.height &&
+            y + 28 > r.y,
+        )
+      )
+        y += 32;
+      if (y >= innerHeight - 36) continue;
+      annotation.style.cssText = `left:${x}px;top:${y}px;width:${width}px`;
+      occupied.push({ x, y, width, height: 28 });
+      root.append(annotation);
+    }
+    for (const ink of svg.querySelectorAll<SVGElement>(".ink")) {
+      ink.style.animation = "none";
+      ink.style.strokeDashoffset = "0";
+    }
+    root.append(svg);
+    for (const button of panel.querySelectorAll<HTMLButtonElement>(
+      "[data-guide-index]",
+    )) {
+      button.disabled = !guidePoint(
+        currentGuide.steps[Number(button.dataset.guideIndex)].elementId,
+      );
+      if (Number(button.dataset.guideIndex) === currentGuide.index)
+        button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+    }
+    if (hadFocus && focusedAnnotation !== undefined)
+      (
+        root.querySelector<HTMLButtonElement>(
+          `.guide-annotation[data-guide-index="${focusedAnnotation}"]`,
+        ) ||
+        panel.querySelector<HTMLButtonElement>(
+          `[data-guide-index="${focusedAnnotation}"]`,
+        )
+      )?.focus({ preventScroll: true });
+  }
+
+  function visitGuideStep(index: number): void {
+    if (
+      !currentGuide ||
+      !currentGuide.steps[index] ||
+      !guidePoint(currentGuide.steps[index].elementId)
+    )
+      return;
+    currentGuide.index = index;
+    currentGuide.overview = false;
+    renderedStep = "";
+    renderGuide();
+  }
+
+  function adjacentGuideStep(direction: 1 | -1): number {
+    if (!currentGuide) return -1;
+    for (
+      let index = currentGuide.index + direction;
+      index >= 0 && index < currentGuide.steps.length;
+      index += direction
+    )
+      if (guidePoint(currentGuide.steps[index].elementId)) return index;
+    return -1;
   }
 
   function closeGuide(): void {
@@ -491,6 +751,9 @@ if (!contentScope.glimpseletContentReady) {
     renderedStep = "";
     overlayRoot?.querySelector(".guide")?.remove();
     overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
+    overlayRoot
+      ?.querySelectorAll("[data-guide-overview]")
+      .forEach((element) => element.remove());
     if (hadFocus && returnFocus?.isConnected)
       returnFocus.focus({ preventScroll: true });
   }
@@ -620,6 +883,7 @@ if (!contentScope.glimpseletContentReady) {
     lastRevision = pageRevision(context);
     observer = new MutationObserver((records) => {
       if (!records.some(relevantMutation)) return;
+      updateGuidePosition();
       window.clearTimeout(pageTimer);
       pageTimer = window.setTimeout(() => reportPageChange(true), 250);
     });
@@ -935,12 +1199,19 @@ if (!contentScope.glimpseletContentReady) {
           respond({ error: "password_page" });
           return;
         }
-        const pageMap = buildGuideContext();
-        const incoming = validateGuideSteps(
+        // Keep the IDs from the requested map even when late content changes
+        // which regions would fit in a newly sampled map.
+        const availableTargets = resolveGuideTargets();
+        const valid = validateGuideSteps(
           { steps: message.steps },
-          new Set(pageMap.elements.map((item) => item.id)),
+          new Set(availableTargets.keys()),
         );
-        const valid = incoming.filter((step) => guidePoint(step.elementId));
+        const targets = new Map(
+          valid.map((step) => [
+            step.elementId,
+            availableTargets.get(step.elementId)!,
+          ]),
+        );
         if (valid.length) {
           closeSelectionPopover();
           if (!currentGuide) {
@@ -958,16 +1229,27 @@ if (!contentScope.glimpseletContentReady) {
             close?: string;
             done?: string;
             title?: string;
+            overview?: string;
+            tour?: string;
           };
           currentGuide = {
             steps: valid,
             index: 0,
+            overview: false,
+            targets,
+            url: location.href,
+            purpose:
+              typeof message.purpose === "string"
+                ? message.purpose.trim().slice(0, 360)
+                : undefined,
             labels: {
               next: guideLabels.next || "Next",
               back: guideLabels.back || "Back",
               close: guideLabels.close || "Close guide",
               done: guideLabels.done || "Done",
               title: guideLabels.title || "Glimpselet",
+              overview: guideLabels.overview || "Overview",
+              tour: guideLabels.tour || "Step by step",
             },
           };
           renderedStep = "";

@@ -75,6 +75,81 @@ const ask: AskInput = {
 };
 
 describe("extension bridge payloads", () => {
+  it("asks for purpose, sections, paragraph meaning and task instructions for a whole-page guide", () => {
+    const page: PageContext = {
+      url: "https://example.test",
+      title: "Paper",
+      text: "Introduction",
+      hasPassword: false,
+      elements: Array.from({ length: 160 }, (_, index) => ({
+        id: `g${index}`,
+        role: "paragraph",
+        text: `Passage ${index}`,
+        rect: [0, index * 50, 500, 40],
+      })),
+    };
+    const prompt = buildGuidePrompt("Explain this page", page, true);
+    expect(prompt).toContain("Explain the whole page");
+    expect(prompt).toContain("every main section and substantive paragraph");
+    expect(prompt).toContain("complete the main task");
+    expect(prompt).toContain("below the fold");
+    expect(prompt.length).toBeLessThanOrEqual(8000);
+    expect(buildGuidePrompt("Where is download?", page)).not.toContain(
+      "Explain the whole page",
+    );
+    const result = parseGuideResult(
+      JSON.stringify({
+        purpose: "Read this paper",
+        steps: page.elements
+          .slice(0, 32)
+          .map((e) => ({ elementId: e.id, note: `Explain ${e.text}` })),
+      }),
+      page,
+    );
+    expect(result.status).toBe("ready");
+    expect(result.steps).toHaveLength(32);
+    expect(result).toHaveProperty("purpose", "Read this paper");
+    expect(() => validateAsk({ ...ask, kind: "guide", page })).not.toThrow();
+    expect(() => validateAsk({ ...ask, page })).toThrow("page_limit");
+  });
+
+  it("includes the full region map and enough output space in API guides", async () => {
+    anthropicStream([
+      event("message_start", { message: { usage: { input_tokens: 10 } } }),
+      event("content_block_delta", {
+        delta: { type: "text_delta", text: "{}" },
+      }),
+      event("message_delta", {
+        delta: { stop_reason: "end_turn" },
+        usage: { output_tokens: 2 },
+      }),
+      event("message_stop", {}),
+    ]);
+    const page: PageContext = {
+      url: "https://example.test",
+      title: "Article",
+      text: "Text",
+      hasPassword: false,
+      guideScope: "top-document-text",
+      elements: [
+        {
+          id: "g1",
+          role: "paragraph",
+          text: "Full paragraph meaning",
+          rect: [0, 800, 600, 50],
+        },
+      ],
+    };
+    await runAnthropicInput({ ...ask, kind: "guide", page });
+    const request = JSON.parse(
+      vi.mocked(fetch).mock.calls[0][1]!.body as string,
+    );
+    expect(request.max_tokens).toBe(12000);
+    expect(JSON.stringify(request.messages)).toContain(
+      "Full paragraph meaning",
+    );
+    expect(JSON.stringify(request.messages)).toContain("g1");
+  });
   it("explicit top-document text supports asks and translation without authorizing pixels or automatic reads", async () => {
     const page = {
       url: "https://example.test",

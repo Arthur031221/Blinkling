@@ -240,6 +240,33 @@ describe("CLI provider protocol", () => {
 });
 
 describe("API provider SSE protocol", () => {
+  it.each([
+    ["guide", 12_000],
+    ["ask", 4096],
+    ["passive", 2048],
+  ] as const)(
+    "budgets %s responses for their task",
+    async (kind, max_tokens) => {
+      let sentBody = "";
+      await runApiProvider(
+        request({ kind, backend: "api", key: "api-test-key" }),
+        async (_url, init) => {
+          sentBody = String(init?.body);
+          return new Response(
+            sse({
+              type: "content_block_delta",
+              delta: { type: "text_delta", text: "ok" },
+            }) + sse({ type: "message_stop" }),
+            {
+              headers: { "content-type": "text/event-stream" },
+            },
+          );
+        },
+      );
+      expect(JSON.parse(sentBody)).toMatchObject({ max_tokens });
+    },
+  );
+
   it("forwards every provided effort level for each model alias", async () => {
     const modelIds = {
       sonnet: "claude-sonnet-5-5",
