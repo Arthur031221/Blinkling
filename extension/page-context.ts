@@ -14,6 +14,8 @@ export type PageContext = {
   text: string;
   elements: PageElement[];
   hasPassword: boolean;
+  guideScope?: "top-document-text";
+  excludedEmbeds?: number;
 };
 
 const privateSelector = [
@@ -31,6 +33,10 @@ const ignoredTags = new Set([
   "TEMPLATE",
   "SVG",
   "CANVAS",
+  "IFRAME",
+  "FRAME",
+  "OBJECT",
+  "EMBED",
 ]);
 const scope = globalThis as typeof globalThis & {
   glimpseletElementRegistry?: { ids: WeakMap<Element, string>; nextId: number };
@@ -147,7 +153,17 @@ function visible(element: Element): boolean {
 }
 
 export function buildPageContext(doc: Document = document): PageContext {
-  const hasPassword = hasSensitiveContent(doc);
+  return readPageContext(doc, false);
+}
+
+// Explicit guides may read only inspectable top-document text and controls.
+// This result never authorizes a screenshot or an automatic page request.
+export function buildGuideContext(doc: Document = document): PageContext {
+  return readPageContext(doc, true);
+}
+
+function readPageContext(doc: Document, explicitGuide: boolean): PageContext {
+  const hasPassword = hasSensitiveContent(doc, explicitGuide);
   const scope =
     doc.querySelector("[data-glimpselet-reader-page]") ||
     doc.body ||
@@ -163,6 +179,7 @@ export function buildPageContext(doc: Document = document): PageContext {
           : ""),
     ),
   )) {
+    if (explicitGuide && hasPassword) break;
     if (elements.length >= 120) break;
     if (
       isExcluded(element) ||
@@ -193,7 +210,11 @@ export function buildPageContext(doc: Document = document): PageContext {
   let length = 0;
   const walker = doc.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
   let node: Node | null;
-  while ((node = walker.nextNode()) && length < 24_000) {
+  while (
+    !(explicitGuide && hasPassword) &&
+    (node = walker.nextNode()) &&
+    length < 24_000
+  ) {
     if (!contextTextNode(node)) continue;
     const value = (node.nodeValue || "").replace(/\s+/g, " ").trim();
     if (!value) continue;
@@ -208,6 +229,13 @@ export function buildPageContext(doc: Document = document): PageContext {
     text: chunks.join(" ").slice(0, 24_000),
     elements,
     hasPassword,
+    ...(explicitGuide
+      ? {
+          guideScope: "top-document-text" as const,
+          excludedEmbeds: doc.querySelectorAll("iframe,frame,object,embed")
+            .length,
+        }
+      : {}),
   };
 }
 

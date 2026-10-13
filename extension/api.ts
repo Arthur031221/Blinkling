@@ -15,6 +15,8 @@ export type PageContext = {
     rect: [number, number, number, number];
   }>;
   hasPassword: boolean;
+  guideScope?: "top-document-text";
+  excludedEmbeds?: number;
 };
 export type AskKind = "ask" | "passive" | "guide" | "translate" | "suggest";
 export type AskInput = {
@@ -190,6 +192,12 @@ export function estimateCost(
 }
 
 export function validateAsk(input: AskInput): void {
+  if (input.kind === "guide" && input.page?.hasPassword)
+    throw new Error("password_page");
+  if (input.page?.guideScope === "top-document-text") {
+    if (input.kind !== "guide") throw new Error("guide_context_only");
+    if (input.image) throw new Error("guide_text_only");
+  }
   if (!input.question.trim() || input.question.length > MAX_QUESTION)
     throw new Error("question_limit");
   if (

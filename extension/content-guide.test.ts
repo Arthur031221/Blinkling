@@ -80,6 +80,27 @@ describe("content script guide focus", () => {
     document.body.innerHTML = "";
   });
 
+  it("serves an explicit text-only guide context but refuses known password reads and draws", async () => {
+    const { firstId } = await setup();
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    Object.defineProperty(frame, "contentDocument", { value: null });
+    expect(
+      send<{ hasPassword: boolean }>("glimpselet:context").hasPassword,
+    ).toBe(true);
+    expect(
+      send<{ hasPassword: boolean; guideScope: string }>(
+        "glimpselet:guide-context",
+      ),
+    ).toMatchObject({ hasPassword: false, guideScope: "top-document-text" });
+    expect(openGuide([firstId])).toEqual({ ok: true });
+    document.body.insertAdjacentHTML("beforeend", '<input type="password">');
+    expect(send("glimpselet:guide-context")).toEqual({
+      error: "password_page",
+    });
+    expect(openGuide([firstId])).toEqual({ error: "password_page" });
+  });
+
   it("keeps the focused nav control through scroll and resize repositioning", async () => {
     const { firstId, secondId } = await setup();
     expect(openGuide([firstId, secondId]).ok).toBe(true);

@@ -73,6 +73,48 @@ const ask: AskInput = {
 };
 
 describe("extension bridge payloads", () => {
+  it("text-only guide contexts cannot authorize pixels or automatic page requests", async () => {
+    const page: PageContext = {
+      url: "https://example.test",
+      title: "Public",
+      text: "Export",
+      elements: [],
+      hasPassword: false,
+      guideScope: "top-document-text",
+      excludedEmbeds: 1,
+    };
+    expect(() => validateAsk({ ...ask, kind: "guide", page })).not.toThrow();
+    expect(() =>
+      validateAsk({
+        ...ask,
+        kind: "guide",
+        page,
+        image: "data:image/png;base64,UNCHECKED_PIXELS",
+      }),
+    ).toThrow("guide_text_only");
+    for (const kind of ["suggest", "passive", "ask"] as const)
+      expect(() => validateAsk({ ...ask, kind, page })).toThrow(
+        "guide_context_only",
+      );
+    expect(() =>
+      validateAsk({
+        ...ask,
+        kind: "guide",
+        page: { ...page, hasPassword: true },
+      }),
+    ).toThrow("password_page");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    await expect(
+      runAnthropicInput({
+        ...ask,
+        kind: "guide",
+        page,
+        image: "data:image/png;base64,UNCHECKED_PIXELS",
+      }),
+    ).rejects.toThrow("guide_text_only");
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("accepts bounded plain questions and page context", () => {
     expect(() =>
       validateAsk({

@@ -112,3 +112,135 @@ describe("full-page capture progress and cancellation", () => {
     );
   });
 });
+
+describe("explicit guide context", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  function setupGuide() {
+    const mocks = setupChrome();
+    const page = {
+      url: tab.url,
+      documentKey: "content-seven",
+      title: "Public",
+      text: "Export",
+      elements: [],
+      hasPassword: false,
+      guideScope: "top-document-text",
+      excludedEmbeds: 1,
+    };
+    Object.assign(chrome, {
+      storage: {
+        local: { get: vi.fn(async () => ({ blocklist: [] as string[] })) },
+      },
+    });
+    mocks.executeScript.mockImplementation(async () => [
+      { result: false, documentId: "document-seven", frameId: 0 },
+    ]);
+    vi.mocked(chrome.tabs.sendMessage).mockResolvedValue(page);
+    return { ...mocks, page };
+  }
+
+  it("requests text and map with document pinning and no screenshot", async () => {
+    const { page, executeScript, captureVisibleTab } = setupGuide();
+    const { getGuideContext } = await import("./capture");
+    expect(await getGuideContext()).toEqual(page);
+    expect(captureVisibleTab).not.toHaveBeenCalled();
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(
+      tab.id,
+      { type: "glimpselet:guide-context" },
+      { documentId: "document-seven" },
+    );
+    expect(executeScript).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        target: { tabId: tab.id, documentIds: ["document-seven"] },
+        args: [null, true],
+      }),
+    );
+  });
+
+  it.each([
+    "initial-password",
+    "later-password",
+    "reloaded",
+    "url-changed",
+    "content-error",
+    "wrong-context",
+    "blocked",
+    "later-blocked",
+    "password-during-blocklist",
+    "expected-document-changed",
+  ])("rejects an explicit guide when %s", async (reason) => {
+    const { page, executeScript } = setupGuide();
+    if (reason === "blocked")
+      vi.mocked(chrome.storage.local.get).mockResolvedValue({
+        blocklist: ["test", "PUBLIC.TEST"],
+      });
+    if (reason === "later-blocked")
+      vi.mocked(chrome.storage.local.get)
+        .mockResolvedValueOnce({ blocklist: [] })
+        .mockResolvedValue({ blocklist: ["PUBLIC.TEST"] });
+    if (reason === "password-during-blocklist")
+      vi.mocked(chrome.storage.local.get)
+        .mockResolvedValueOnce({ blocklist: [] })
+        .mockImplementation(async () => {
+          executeScript.mockResolvedValue([
+            { result: true, documentId: "document-seven", frameId: 0 },
+          ]);
+          return { blocklist: [] };
+        });
+    if (reason === "initial-password")
+      executeScript.mockResolvedValue([
+        { result: true, documentId: "document-seven", frameId: 0 },
+      ]);
+    if (reason === "content-error")
+      vi.mocked(chrome.tabs.sendMessage).mockResolvedValue({
+        error: "password_page",
+      });
+    if (reason === "wrong-context") page.url = "https://another.test/";
+    if (["later-password", "reloaded", "url-changed"].includes(reason)) {
+      vi.mocked(chrome.tabs.sendMessage).mockImplementation(
+        async (_id, message) => {
+          if (message.type === "glimpselet:guide-context") {
+            if (reason === "later-password")
+              executeScript.mockResolvedValue([
+                { result: true, documentId: "document-seven", frameId: 0 },
+              ]);
+            if (reason === "reloaded")
+              executeScript.mockResolvedValue([
+                {
+                  result: false,
+                  documentId: "replacement-document",
+                  frameId: 0,
+                },
+              ]);
+            if (reason === "url-changed")
+              vi.mocked(chrome.tabs.get).mockResolvedValue({
+                ...tab,
+                url: "https://public.test/login",
+              });
+          }
+          return page;
+        },
+      );
+    }
+    const { getGuideContext } = await import("./capture");
+    await expect(
+      getGuideContext(
+        reason === "expected-document-changed"
+          ? { documentKey: "previous-content", url: page.url }
+          : undefined,
+      ),
+    ).rejects.toThrow(
+      reason.includes("password") || reason === "content-error"
+        ? "password_page"
+        : reason.includes("blocked")
+          ? "blocked_page"
+          : "tab_changed",
+    );
+    expect(chrome.tabs.captureVisibleTab).not.toHaveBeenCalled();
+  });
+});

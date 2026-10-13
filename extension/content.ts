@@ -2,6 +2,7 @@ import { selectCrop, type CropLabels } from "./crop-selection";
 import { listenForShiftCrop } from "./shift-crop";
 import {
   buildPageContext,
+  buildGuideContext,
   contextRangeText,
   contextTextNode,
   restorableTextNode,
@@ -683,6 +684,14 @@ if (!contentScope.glimpseletContentReady) {
         respond(buildPageContext());
         return;
       }
+      if (message.type === "glimpselet:guide-context") {
+        if (hasSensitiveContent(document, true)) {
+          respond({ error: "password_page" });
+          return;
+        }
+        respond(buildGuideContext());
+        return;
+      }
       if (message.type === "glimpselet:identity") {
         respond({
           documentKey: pageDocumentKey(),
@@ -735,7 +744,12 @@ if (!contentScope.glimpseletContentReady) {
         return true;
       }
       if (message.type === "glimpselet:guide" && Array.isArray(message.steps)) {
-        const pageMap = buildPageContext();
+        if (hasSensitiveContent(document, true)) {
+          closeGuide();
+          respond({ error: "password_page" });
+          return;
+        }
+        const pageMap = buildGuideContext();
         const incoming = validateGuideSteps(
           { steps: message.steps },
           new Set(pageMap.elements.map((item) => item.id)),

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPageContext,
+  buildGuideContext,
   contextTextNode,
   contextRangeText,
   stableElementId,
@@ -12,6 +13,53 @@ describe("bounded page context", () => {
     document.body.innerHTML = "";
     window.getSelection()?.removeAllRanges();
   });
+
+  it("explicit guides map only the top document, excluding opaque embeds and fallback text", () => {
+    document.body.innerHTML =
+      "<h1>Public dashboard</h1><button>Export</button><iframe></iframe><object><p>UNCHECKED_FALLBACK</p><button>UNCHECKED_CONTROL</button></object>";
+    Object.defineProperty(
+      document.querySelector("iframe")!,
+      "contentDocument",
+      { value: null },
+    );
+    expect(buildPageContext().hasPassword).toBe(true);
+    const guide = buildGuideContext();
+    expect(guide.hasPassword).toBe(false);
+    expect(guide.guideScope).toBe("top-document-text");
+    expect(guide.excludedEmbeds).toBe(2);
+    expect(guide.text).toBe("Public dashboard Export");
+    expect(guide.elements.map((element) => element.text)).toEqual([
+      "Public dashboard",
+      "Export",
+    ]);
+    expect(JSON.stringify(guide)).not.toContain("UNCHECKED");
+  });
+
+  it.each(["top", "frame", "shadow"])(
+    "explicit guide keeps the known %s password gate",
+    (where) => {
+      document.body.innerHTML =
+        "<h1>Public dashboard</h1><iframe></iframe><div></div>";
+      const frame = document.querySelector("iframe")!;
+      if (where === "frame")
+        frame.contentDocument!.body.innerHTML =
+          '<input autocomplete="current-password">';
+      else {
+        Object.defineProperty(frame, "contentDocument", { value: null });
+        if (where === "top")
+          document.body.insertAdjacentHTML(
+            "beforeend",
+            '<input type="password">',
+          );
+        else
+          document
+            .querySelector("div")!
+            .attachShadow({ mode: "open" }).innerHTML =
+            '<input type="password">';
+      }
+      expect(buildGuideContext().hasPassword).toBe(true);
+    },
+  );
 
   it("preserves PDF line boundaries without splitting words across adjacent spans", () => {
     document.body.innerHTML =
