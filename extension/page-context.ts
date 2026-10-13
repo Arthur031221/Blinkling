@@ -256,11 +256,11 @@ function readPageContext(doc: Document, explicitGuide: boolean): PageContext {
   };
 }
 
-export function contextTextNode(node: Node): boolean {
+export function contextTextNode(node: Node, allowEmpty = false): boolean {
   const parent = composedTextParent(node);
   return !!(
     parent &&
-    node.nodeValue?.trim() &&
+    (node.nodeValue?.trim() || (allowEmpty && node.nodeValue === "")) &&
     restorableTextNode(node) &&
     visible(parent)
   );

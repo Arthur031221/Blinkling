@@ -229,6 +229,51 @@ describe("content script guide focus", () => {
     expect(root.querySelector("svg.draw")).toBeNull();
   });
 
+  it.each(["private", "hidden", "replaced", "password"])(
+    "clears an active tour when its target becomes %s before redraw",
+    async (state) => {
+      const { firstId } = await setup();
+      expect(openGuide([firstId])).toEqual({ ok: true });
+      const root = document.querySelector(
+        "[data-glimpselet-overlay]",
+      )!.shadowRoot!;
+      const target = [...document.querySelectorAll("button")].find(
+        (button) => button.textContent === "First target",
+      )!;
+      if (state === "private") target.setAttribute("data-private", "true");
+      if (state === "hidden") target.hidden = true;
+      if (state === "replaced") target.replaceWith(target.cloneNode(true));
+      if (state === "password")
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          '<input type="password">',
+        );
+
+      window.dispatchEvent(new Event("resize"));
+
+      expect(root.querySelector(".guide")).toBeNull();
+      expect(root.querySelector("svg.draw")).toBeNull();
+    },
+  );
+
+  it("closes a tour before navigating to a target that became private", async () => {
+    const { firstId, secondId } = await setup();
+    expect(openGuide([firstId, secondId])).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    const target = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "Second target",
+    )!;
+    target.setAttribute("data-private", "true");
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="next"]')!
+      .click();
+
+    expect(root.querySelector(".guide")).toBeNull();
+    expect(root.querySelector("svg.draw")).toBeNull();
+  });
+
   it("keeps the focused nav control through scroll and resize repositioning", async () => {
     const { firstId, secondId } = await setup();
     expect(openGuide([firstId, secondId]).ok).toBe(true);
