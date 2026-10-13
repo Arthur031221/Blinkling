@@ -3,6 +3,7 @@ import "./content";
 import { buildPageContext } from "./page-context";
 import { encodeCanvasPng } from "./png";
 import { parseReaderPdfUrl, readerUrlOriginPattern } from "./reader-url";
+import { prepareReaderPermissionHandoff } from "./permission-handoff";
 import {
   formatReaderText,
   readerLocales,
@@ -38,6 +39,33 @@ let activeTextLayer: InstanceType<typeof pdfjs.TextLayer> | undefined;
 let resizeFrame = 0;
 let currentStatusKey: keyof ReaderStrings = "choose";
 let currentStatusValues: Record<string, string | number> = {};
+const preparedPermissionOrigins = new Set<string>();
+const permissionPreparations = new Map<string, Promise<boolean>>();
+
+function preparePermissionOrigin(parsed: URL): Promise<boolean> {
+  const origin = readerUrlOriginPattern(parsed);
+  const current = permissionPreparations.get(origin);
+  if (current) return current;
+  const preparation: Promise<boolean> = prepareReaderPermissionHandoff(
+    [origin],
+    (details) => chrome.permissions.contains(details),
+    () =>
+      chrome.runtime.sendMessage({
+        type: "glimpselet:reader-permission-handoff",
+      }),
+  )
+    .then((result) => {
+      preparedPermissionOrigins.add(origin);
+      return result === "granted";
+    })
+    .catch(() => {
+      if (permissionPreparations.get(origin) === preparation)
+        permissionPreparations.delete(origin);
+      return false;
+    });
+  permissionPreparations.set(origin, preparation);
+  return preparation;
+}
 
 function message(
   key: keyof ReaderStrings,
@@ -291,17 +319,15 @@ async function ask(
     return;
   }
   const selected = selectedText();
-  const text = selected || pageText;
+  const text = action === "summary" ? "" : selected || pageText;
   const questions = {
     ask: selected
       ? "Help me understand this selected passage."
-      : "Answer my question about this PDF page.",
+      : "Explain what this PDF page says and its key points.",
     translate: selected
       ? "Translate this selected passage into my target language."
       : "Translate this PDF page into my target language.",
-    summary: selected
-      ? "Summarize this selected passage."
-      : "Summarize this PDF page.",
+    summary: "Summarize this PDF page.",
     guide: selected
       ? "Guide me through this selected passage, explaining its steps in order."
       : "Guide me through this PDF page, explaining its key steps in order.",
@@ -354,6 +380,12 @@ urlForm.addEventListener("submit", (event) => {
     setStatus("badUrl");
     return;
   }
+  const origin = readerUrlOriginPattern(parsed);
+  if (!preparedPermissionOrigins.has(origin)) {
+    setStatus("permissionRequired");
+    void preparePermissionOrigin(parsed);
+    return;
+  }
   // Keep this call in the submit gesture so Chrome can show its permission prompt.
   let permissionRequest: Promise<boolean>;
   try {
@@ -384,6 +416,10 @@ urlForm.addEventListener("submit", (event) => {
     .catch(() => {
       if (intent === sourceIntent) setStatus("permissionDenied");
     });
+});
+urlInput.addEventListener("input", () => {
+  const parsed = parseReaderPdfUrl(urlInput.value.trim());
+  if (parsed) void preparePermissionOrigin(parsed);
 });
 fileInput.addEventListener("change", () => {
   const intent = ++sourceIntent;
@@ -454,8 +490,7 @@ void initializeLocale().then(() => {
       setStatus("badUrl");
       return;
     }
-    void chrome.permissions
-      .contains({ origins: [readerUrlOriginPattern(parsed)] })
+    void preparePermissionOrigin(parsed)
       .then((granted: boolean) => {
         if (
           intent !== sourceIntent ||

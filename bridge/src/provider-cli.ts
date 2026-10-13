@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { MAX_UPLOAD_MESSAGE_BYTES } from "./config.js";
 import { cancelled, PanelError } from "./errors.js";
@@ -24,10 +24,20 @@ export async function runCliProvider(
 ): Promise<ProviderResult> {
   if (request.signal.aborted) throw cancelled();
   const directory = await mkdtemp(
-    join(options.tempRoot ?? tmpdir(), "glimpselet-"),
+    join(resolve(options.tempRoot ?? tmpdir()), "glimpselet-"),
   );
   try {
     const imagePath = join(directory, "capture.png");
+    // Read rules use // for absolute paths and gitignore pattern escaping.
+    const permissionPath =
+      process.platform === "win32"
+        ? imagePath
+            .replaceAll("\\", "/")
+            .replace(
+              /^([a-z]):/i,
+              (_, drive: string) => `/${drive.toLowerCase()}`,
+            )
+        : imagePath;
     if (request.image)
       await writeFile(imagePath, request.image, { mode: 0o600 });
     if (request.signal.aborted) throw cancelled();
@@ -73,8 +83,12 @@ export async function runCliProvider(
       SYSTEM_PROMPT,
       "--tools",
       request.image ? "Read" : "",
+      // Restricted file tools cannot leave the project cwd without --add-dir.
+      ...(request.image ? ["--add-dir", directory] : []),
       "--allowedTools",
-      request.image ? `Read(${imagePath})` : "",
+      request.image
+        ? `Read(/${permissionPath.replace(/[\\*?[\]]/g, "\\$&")})`
+        : "",
       "--strict-mcp-config",
       "--mcp-config",
       JSON.stringify({ mcpServers: {} }),

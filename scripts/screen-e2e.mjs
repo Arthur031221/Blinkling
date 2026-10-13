@@ -27,7 +27,7 @@ const transport = new StdioClientTransport({
   env: { ...process.env, GLIMPSELET_DISABLE_BROWSER_OPEN: "1" },
 });
 let browser, context, profile;
-async function clickFloatingShare(targetId) {
+async function floatingCommand(targetId, method, params) {
   const cdp = await browser.newBrowserCDPSession();
   const { sessionId } = await cdp.send("Target.attachToTarget", {
     targetId,
@@ -57,11 +57,8 @@ async function clickFloatingShare(targetId) {
       sessionId,
       message: JSON.stringify({
         id: 1,
-        method: "Runtime.evaluate",
-        params: {
-          expression: `[...document.querySelectorAll('button')].find(b => b.textContent === 'Share a screen').click()`,
-          userGesture: true,
-        },
+        method,
+        params,
       }),
     });
     await response;
@@ -168,7 +165,10 @@ try {
   );
   await panelCdp.detach();
   await cdp.detach();
-  await clickFloatingShare(pipTarget.targetId);
+  await floatingCommand(pipTarget.targetId, "Runtime.evaluate", {
+    expression: `[...document.querySelectorAll('button')].find(b => b.textContent === 'Share a screen').click()`,
+    userGesture: true,
+  });
   await panel.waitForFunction(
     () =>
       window.documentPictureInPicture.window.document.querySelector("video")
@@ -195,6 +195,58 @@ try {
     "the captured tab must contain rendered fixture content",
   );
 
+  const previousCapture = await panel.evaluate(
+    () =>
+      window.documentPictureInPicture.window.document.querySelector(
+        ".capture-chip img",
+      )?.src,
+  );
+  await floatingCommand(pipTarget.targetId, "Runtime.evaluate", {
+    expression: `[...document.querySelectorAll('button')].find(b => b.textContent === 'Selected area').click()`,
+    userGesture: true,
+  });
+  const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+  await frozen.waitFor({ state: "visible" });
+  await panel.bringToFront();
+  const frameBounds = await frozen.locator("img").boundingBox();
+  const dpr = await panel.evaluate(() => devicePixelRatio);
+  assert.ok(Math.abs(frameBounds.width * dpr - png.width) < 1);
+  assert.ok(Math.abs(frameBounds.height * dpr - png.height) < 1);
+  await panel.mouse.move(frameBounds.x + 20, frameBounds.y + 20);
+  await panel.mouse.down();
+  await panel.mouse.move(frameBounds.x + 320, frameBounds.y + 220);
+  await panel.mouse.up();
+  await panel.keyboard.press("Enter");
+  await frozen.waitFor({ state: "detached" });
+  await panel.waitForFunction((previous) => {
+    const image =
+      window.documentPictureInPicture.window.document.querySelector(
+        ".capture-chip img",
+      );
+    return image?.complete && image.src !== previous;
+  }, previousCapture);
+  const cropImage = await panel.evaluate(
+    () =>
+      window.documentPictureInPicture.window.document.querySelector(
+        ".capture-chip img",
+      ).src,
+  );
+  const crop = PNG.sync.read(Buffer.from(cropImage.split(",")[1], "base64"));
+  assert.equal(crop.width, Math.round(300 * dpr));
+  assert.equal(crop.height, Math.round(200 * dpr));
+
+  await panel.bringToFront();
+  await panel.evaluate(() => document.activeElement?.blur());
+  await panel.waitForFunction(() => document.hasFocus());
+  await panel.keyboard.down("Shift");
+  try {
+    await frozen.locator(".surface").waitFor({ state: "visible" });
+  } finally {
+    await panel.keyboard.up("Shift");
+  }
+  await panel.keyboard.press("Escape");
+  await frozen.waitFor({ state: "detached" });
+
   await client.callTool({ name: "screen_clear", arguments: {} });
   await panel.evaluate(() => {
     window.__testCaptureTracks =
@@ -206,7 +258,7 @@ try {
     window.__testCaptureTracks.every((track) => track.readyState === "ended"),
   );
   console.log(
-    `Screen E2E passed: actual /install pairing, native tab sharing (${png.width}x${png.height}), MCP PNG delivery, real PiP and track cleanup. Capture APIs were not mocked.`,
+    `Screen E2E passed: actual /install pairing, native sharing (${png.width}x${png.height}), MCP PNG, fullscreen crop, native Shift crop, real PiP and track cleanup. Capture APIs were not mocked.`,
   );
 } finally {
   await context?.close();

@@ -17,3 +17,13 @@ export function parseReaderPdfUrl(value: string): URL | undefined {
 export function readerUrlOriginPattern(parsed: URL): string {
   return `${parsed.protocol}//${parsed.host}/*`;
 }
+
+export function isReaderPdfCandidate(value: string): boolean {
+  const parsed = parseReaderPdfUrl(value);
+  return Boolean(
+    parsed &&
+      (/\.pdf$/i.test(parsed.pathname) ||
+        (parsed.hostname === "arxiv.org" &&
+          /^\/pdf\/[^/]+\/?$/.test(parsed.pathname))),
+  );
+}

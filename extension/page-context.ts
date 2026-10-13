@@ -8,6 +8,7 @@ export type PageElement = {
 };
 
 export type PageContext = {
+  documentKey?: string;
   url: string;
   title: string;
   text: string;
@@ -33,7 +34,17 @@ const ignoredTags = new Set([
 ]);
 const scope = globalThis as typeof globalThis & {
   glimpseletElementRegistry?: { ids: WeakMap<Element, string>; nextId: number };
+  glimpseletDocumentKeys?: WeakMap<Document, string>;
 };
+const documentKeys = (scope.glimpseletDocumentKeys ??= new WeakMap());
+export function pageDocumentKey(doc: Document = document): string {
+  let key = documentKeys.get(doc);
+  if (!key) {
+    key = crypto.randomUUID();
+    documentKeys.set(doc, key);
+  }
+  return key;
+}
 const registry = (scope.glimpseletElementRegistry ??= {
   ids: new WeakMap<Element, string>(),
   nextId: 1,
@@ -191,6 +202,7 @@ export function buildPageContext(doc: Document = document): PageContext {
     length += piece.length + 1;
   }
   return {
+    documentKey: pageDocumentKey(doc),
     url: doc.location.href,
     title: doc.title.slice(0, 500),
     text: chunks.join(" ").slice(0, 24_000),

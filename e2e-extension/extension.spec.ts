@@ -137,11 +137,21 @@ test.beforeEach(async () => {
       );
       return;
     }
-    if (requestUrl.pathname === "/assets/glimpselet-welcome-sample.html") {
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      void readFile(
-        resolve("public/assets/glimpselet-welcome-sample.html"),
-      ).then(
+    if (
+      requestUrl.pathname === "/assets/glimpselet-welcome-sample.html" ||
+      requestUrl.pathname === "/assets/glimpselet-welcome-sample.js"
+    ) {
+      res.setHeader(
+        "Content-Type",
+        requestUrl.pathname.endsWith(".js")
+          ? "text/javascript; charset=utf-8"
+          : "text/html; charset=utf-8",
+      );
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      );
+      void readFile(resolve(`public${requestUrl.pathname}`)).then(
         (body) => res.end(body),
         () => {
           res.statusCode = 404;
@@ -191,7 +201,9 @@ test.beforeEach(async () => {
   const addr = server.address();
   if (!addr || typeof addr === "string") throw new Error("No test port");
   origin = `http://127.0.0.1:${addr.port}`;
-  const extension = resolve("dist-extension");
+  const extension = resolve(
+    process.env.GLIMPSELET_E2E_EXTENSION || "dist-extension",
+  );
   context = await chromium.launchPersistentContext(join(directory, "profile"), {
     channel: "chromium",
     headless: false,
@@ -414,6 +426,97 @@ async function useUnpairedApi(
   return questions;
 }
 
+test("translation preserves stable text while the source page changes", async () => {
+  await site.evaluate(() => {
+    document.body.innerHTML =
+      '<p id="stable">固定の説明</p><p id="updated">旧価格</p><p id="removed">販売終了</p><p id="hidden">追加情報</p>';
+  });
+  await site.bringToFront();
+  await expect(panel.locator("button.stop")).toHaveCount(0);
+  const originalProvider = providerResponder;
+  providerResponder = async (request) => {
+    if (!request.question.includes('Return JSON only: {"nodes"'))
+      return originalProvider(request);
+    const nodes = JSON.parse(
+      request.question.slice(request.question.lastIndexOf("\n") + 1),
+    ) as Array<{ id: string; text: string }>;
+    await site.evaluate(() => {
+      document.querySelector("#updated")!.textContent = "最新価格";
+      document.querySelector("#removed")!.remove();
+      (document.querySelector("#hidden") as HTMLElement).hidden = true;
+    });
+    return {
+      answer: JSON.stringify({
+        nodes: nodes.map((node) => ({
+          id: node.id,
+          text: "Translated: " + node.text,
+        })),
+      }),
+    };
+  };
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(site.locator("#stable")).toHaveText("Translated: 固定の説明");
+  await expect(site.locator("#updated")).toHaveText("最新価格");
+  await expect(site.locator("#hidden")).toHaveText("追加情報");
+  await expect(panel.locator(".status")).toHaveText(
+    en.translationPageChanged.replace("{count}", "3"),
+  );
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(site.locator("#stable")).toHaveText("固定の説明");
+  await expect(site.locator("#updated")).toHaveText("最新価格");
+});
+
+test("selection Explain interrupts pending suggested questions", async () => {
+  const originalProvider = providerResponder;
+  let pending = false;
+  let cancelled = false;
+  providerResponder = (request) => {
+    if (
+      request.question.startsWith("Give 3 to 5") &&
+      request.page?.url.endsWith("/selection-background")
+    ) {
+      pending = true;
+      return new Promise((_, reject) => {
+        request.signal.addEventListener(
+          "abort",
+          () => {
+            cancelled = true;
+            reject(new Error("cancelled"));
+          },
+          { once: true },
+        );
+      });
+    }
+    return originalProvider(request);
+  };
+  await site.goto(origin + "/selection-background");
+  await site.bringToFront();
+  await expect.poll(() => pending).toBe(true);
+  await site.evaluate(() => {
+    const node = document.querySelector("h1")!;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  await site
+    .locator("[data-glimpselet-overlay] .popover")
+    .getByRole("button", { name: en.explain, exact: true })
+    .click();
+  await expect.poll(() => cancelled).toBe(true);
+  await expect(panel.locator(".message .answer")).toContainText(
+    "Your notebook can be exported",
+  );
+  expect(
+    providerRequests.some((request) =>
+      request.question.startsWith("Explain this selected text in English:"),
+    ),
+  ).toBe(true);
+});
+
 for (const backend of ["bridge", "api"] as const) {
   for (const action of ["explain", "translate", "ask"] as const) {
     test(`${backend} selection ${action} sends every accepted character`, async () => {
@@ -423,7 +526,7 @@ for (const backend of ["bridge", "api"] as const) {
         "SELECTION_END_93817";
       const prompt =
         action === "explain"
-          ? `Explain this selected text: ${text}`
+          ? `Explain this selected text in English: ${text}`
           : action === "translate"
             ? `Translate this selected text into English: ${text}`
             : text;
@@ -611,7 +714,31 @@ test("automatic questions exclude nested form choices while preserving safe labe
 
 for (const startup of [false, true]) {
   test(`${startup ? "startup auto-pairing" : "re-pairing"} moves questions, page text and captures to the new project`, async () => {
-    const secondServer = createServer();
+    const secondServer = createServer((req, res) => {
+      const url = new URL(req.url || "/", "http://127.0.0.1");
+      if (url.pathname === "/install") {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(installGuide(secondDirectory));
+      } else if (url.pathname === "/install-guide.js") {
+        res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+        res.end(INSTALL_GUIDE_SCRIPT);
+      } else if (url.pathname === "/install/status") {
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(
+          JSON.stringify({
+            connected: secondBridge.installStatus(
+              url.searchParams.get("code") || "",
+            ),
+            mode: secondBridge.mode,
+          }),
+        );
+      } else {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        void readFile(resolve("e2e-extension/fixture.html")).then((body) =>
+          res.end(body),
+        );
+      }
+    });
     let secondOrigin = "";
     const secondRequests: ProviderRequest[] = [];
     const secondDirectory = await mkdtemp(join(directory, "new-project-"));
@@ -672,7 +799,10 @@ for (const startup of [false, true]) {
         await panel.evaluate(() => {
           (window as Window & { releaseCredentials?: () => void })
             .releaseCredentials!();
-          history.replaceState(null, "", location.pathname);
+          const url = new URL(location.href);
+          for (const key of ["pairPort", "pairCode", "delayedCredentials"])
+            url.searchParams.delete(key);
+          history.replaceState(null, "", url);
         });
         await expect(panel.locator(".suggestions button")).toHaveCount(3);
         const sockets = (
@@ -696,18 +826,18 @@ for (const startup of [false, true]) {
           secondDirectory.split("/").at(-1)!,
         );
       } else {
-        await panel
-          .getByRole("button", { name: en.settings, exact: true })
-          .click();
-        await panel
-          .locator(".dialog input")
-          .nth(0)
-          .fill(secondOrigin.replace("http:", "ws:") + "/extension");
-        await panel
-          .locator(".dialog input")
-          .nth(1)
-          .fill(secondBridge.issueCode());
-        await panel.getByRole("button", { name: en.pair, exact: true }).click();
+        const welcome = await context.newPage();
+        await welcome
+          .goto(`${secondOrigin}/install#code=${secondBridge.issueCode()}`)
+          .catch((error: unknown) => {
+            if (!String(error).includes("ERR_ABORTED")) throw error;
+          });
+        await welcome.locator("#connect").click();
+        await expect(panel.locator(".connection")).toContainText(
+          secondDirectory.split("/").at(-1)!,
+        );
+        await welcome.waitForTimeout(1000);
+        await site.bringToFront();
       }
       await expect(panel.locator(".connection")).toContainText(
         secondDirectory.split("/").at(-1)!,
@@ -715,10 +845,6 @@ for (const startup of [false, true]) {
       await expect(panel.locator(".foot span").first()).not.toHaveText(
         previousSession,
       );
-      if (!startup)
-        await panel
-          .getByRole("button", { name: en.close, exact: true })
-          .click();
       await panel
         .getByRole("button", { name: en.visible, exact: true })
         .click();
@@ -792,14 +918,28 @@ for (const startup of [false, true]) {
         .locator(".composer textarea")
         .fill("Stay in the new project after reloading.");
       await panel.locator(".composer button.send").click();
-      await expect
-        .poll(() =>
-          secondRequests.some(
-            (entry) =>
-              entry.question === "Stay in the new project after reloading.",
-          ),
-        )
-        .toBe(true);
+      try {
+        await expect
+          .poll(() =>
+            secondRequests.some(
+              (entry) =>
+                entry.question === "Stay in the new project after reloading.",
+            ),
+          )
+          .toBe(true);
+      } catch (error) {
+        console.log(
+          "Reload routing diagnostic",
+          JSON.stringify({
+            status: await panel.locator(".status").innerText(),
+            draft: await panel.locator(".composer textarea").inputValue(),
+            thread: await panel.locator(".thread").innerText(),
+            newQuestions: secondRequests.map((request) => request.question),
+            oldQuestions: providerRequests.map((request) => request.question),
+          }),
+        );
+        throw error;
+      }
       expect(
         providerRequests.some(
           (entry) =>
@@ -953,8 +1093,8 @@ for (const kind of ["shadow", "frame", "opaque", "object"] as const) {
           .click();
         await expect
           .poll(() =>
-            providerRequests.some(
-              (request) => request.question === en.passivePrompt,
+            providerRequests.some((request) =>
+              request.question.startsWith(en.passivePrompt),
             ),
           )
           .toBe(true);
@@ -1919,11 +2059,19 @@ test.afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
-test("welcome page auto-pairs an existing install tab and completes its real guide tutorial", async () => {
+test("welcome page pairs on request and completes its real guide tutorial", async () => {
+  const blockedScripts: string[] = [];
+  context.on("page", (created) => {
+    created.on("console", (message) => {
+      if (message.text().includes("Executing inline script violates"))
+        blockedScripts.push(message.text());
+    });
+  });
   const code = bridge.issueCode();
   const welcome = await context.newPage();
   welcome.setDefaultTimeout(10000);
   await welcome.goto(`${origin}/install#code=${code}`);
+  await welcome.locator("#connect").click();
   await expect
     .poll(async () =>
       welcome.evaluate(async () => {
@@ -1937,12 +2085,19 @@ test("welcome page auto-pairs an existing install tab and completes its real gui
     .toBe(true);
   await expect(welcome.locator("#connection")).toHaveClass(/connected/);
   const sampleUrl = `${origin}/assets/glimpselet-welcome-sample.html`;
+  expect(context.pages().some((page) => page.url() === sampleUrl)).toBe(false);
+  await welcome
+    .getByRole("button", { name: "Open sample + request float", exact: true })
+    .click();
   await expect
     .poll(() => context.pages().some((page) => page.url() === sampleUrl))
     .toBe(true);
   const sample = context.pages().find((page) => page.url() === sampleUrl)!;
   sample.setDefaultTimeout(10000);
   await expect(sample.locator("#tour-request")).toContainText("step 1");
+  await expect(welcome.locator("#progress-label")).toHaveText(
+    "Completed 0 of 8",
+  );
   const guideTry = welcome.getByRole("button", {
     name: "Open sample + request guide",
     exact: true,
@@ -1968,6 +2123,7 @@ test("welcome page auto-pairs an existing install tab and completes its real gui
   );
   const guide = sample.locator("[data-glimpselet-overlay] .guide");
   await expect(guide).toBeVisible();
+  await expect(guide).toContainText(en.guideAction);
   await expect(guide).toContainText("Save these brewing notes");
   await expect(
     sample.locator("[data-glimpselet-overlay] svg.draw .ink"),
@@ -1977,10 +2133,34 @@ test("welcome page auto-pairs an existing install tab and completes its real gui
     "aria-valuenow",
     "1",
   );
+  expect(blockedScripts).toEqual([]);
+});
+
+test("a paired bridge never displays an unavailable-session instruction", async () => {
+  await panel.getByRole("button", { name: en.settings, exact: true }).click();
+  await expect(panel.locator(".dialog")).toBeVisible();
+  await expect(panel.getByText(en.bridgeHelp, { exact: true })).toHaveCount(0);
+  await expect(panel.getByLabel(en.bridgeUrl, { exact: true })).toHaveCount(0);
+  await expect(panel.getByLabel(en.pairCode, { exact: true })).toHaveCount(0);
+  await expect(panel.locator(".connection.online")).toBeVisible();
+  await expect(
+    panel
+      .locator(".dialog")
+      .getByRole("button", { name: en.sessions, exact: true }),
+  ).toHaveCount(0);
+  await panel
+    .locator(".dialog")
+    .getByRole("button", { name: en.close, exact: true })
+    .click();
+  await panel.getByRole("button", { name: en.sessions, exact: true }).click();
+  await expect(panel.getByText(en.liveSession, { exact: true })).toHaveCount(0);
+  await expect(
+    panel.getByRole("button", { name: new RegExp(`^${en.newThread}`) }),
+  ).toBeEnabled();
 });
 
 test("remote welcome installs on the browser computer in both languages", async () => {
-  const tunnel = "ssh -N -L 37115:127.0.0.1:37115 levi@linux-host";
+  const tunnel = "ssh -N -p 2222 -L 37115:127.0.0.1:37115 levi@linux-host";
   await context.route(origin + "/install/status?*", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -1992,7 +2172,8 @@ test("remote welcome installs on the browser computer in both languages", async 
     });
   });
   const welcome = await context.newPage();
-  await welcome.goto(`${origin}/install#code=${bridge.issueCode()}`);
+  const installCode = bridge.issueCode();
+  await welcome.goto(`${origin}/install#code=${installCode}`);
   await expect(welcome.locator("#install-remote")).toBeVisible();
   await expect(welcome.locator("#install-local")).toBeHidden();
   await expect(welcome.locator("#try-zero")).toBeHidden();
@@ -2000,10 +2181,7 @@ test("remote welcome installs on the browser computer in both languages", async 
   await expect(welcome.locator("#tunnel-command")).toHaveValue(tunnel);
   await expect(
     welcome.getByRole("link", { name: "Download extension ZIP" }),
-  ).toHaveAttribute(
-    "href",
-    "https://github.com/Arthur031221/Glimpselet/releases/download/v2.0.0/glimpselet-extension.zip",
-  );
+  ).toHaveAttribute("href", `/install/extension.zip?code=${installCode}`);
   await expect(welcome.locator("#install-remote")).toContainText(
     "Extract it on this computer",
   );
@@ -2084,6 +2262,7 @@ test("guide follows offscreen elements, translation restores and element selecti
 for (const backend of ["bridge", "api"] as const) {
   for (const scenario of [
     "expanded",
+    "unchanged",
     "oversized",
     "partial",
     "long source",
@@ -2121,15 +2300,18 @@ for (const backend of ["bridge", "api"] as const) {
             return [
               {
                 id: node.id,
-                text: target
-                  ? scenario === "empty"
-                    ? ""
-                    : scenario === "whitespace"
-                      ? " \n\t"
-                      : scenario === "oversized"
-                        ? "x".repeat(12001)
-                        : expanded
-                  : "Translated: " + node.text,
+                text:
+                  scenario === "unchanged"
+                    ? node.text
+                    : target
+                      ? scenario === "empty"
+                        ? ""
+                        : scenario === "whitespace"
+                          ? " \n\t"
+                          : scenario === "oversized"
+                            ? "x".repeat(12001)
+                            : expanded
+                      : "Translated: " + node.text,
               },
             ];
           }),
@@ -2209,12 +2391,23 @@ for (const backend of ["bridge", "api"] as const) {
       await site.bringToFront();
       await expect(panel.locator(".suggestions button")).toHaveCount(3);
       const translate = panel.getByRole("button", {
-        name: en.translate,
+        name: en.translatePage,
         exact: true,
       });
       await expect(translate).toBeEnabled();
       await translate.click();
-      if (scenario === "expanded") {
+      if (scenario === "unchanged") {
+        await expect(panel.locator(".status")).toHaveText(
+          en.translationUnchanged,
+        );
+        await expect(site.locator("#foreign")).toHaveText(source);
+        await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(
+          0,
+        );
+        await expect(
+          panel.getByRole("button", { name: en.restore, exact: true }),
+        ).toHaveCount(0);
+      } else if (scenario === "expanded") {
         await expect(site.locator("#foreign")).toHaveText(expanded);
         await expect(panel.locator(".status")).toHaveText(
           en.translationApplied,
@@ -2465,6 +2658,12 @@ for (const backend of ["bridge", "api"] as const) {
     "pixels",
     "stop",
     "stable",
+    "unbound",
+    "wrong-tab",
+    "monitor",
+    "lost-handle",
+    "handle-roundtrip",
+    "unsupported",
   ] as const) {
     test(`${backend} passive screen ${change} protects the checked source and pixels`, async () => {
       await worker.evaluate(() => chrome.storage.local.set({ passive: true }));
@@ -2507,6 +2706,29 @@ for (const backend of ["bridge", "api"] as const) {
         drawing.fillStyle = "#ff0000";
         drawing.fillRect(0, 0, 640, 360);
         const stream = canvas.captureStream(2);
+        const track = stream.getVideoTracks()[0];
+        let capturedHandle: { handle: string; origin: string } | null = null;
+        let surface = "browser";
+        const originalSettings = track.getSettings.bind(track);
+        track.getSettings = () => ({
+          ...originalSettings(),
+          displaySurface: surface,
+        });
+        Object.assign(track, { getCaptureHandle: () => capturedHandle });
+        (
+          window as Window & { breakScreenBinding: (mode: string) => void }
+        ).breakScreenBinding = (mode) => {
+          if (mode === "handle-roundtrip") {
+            const original = capturedHandle;
+            capturedHandle = null;
+            track.dispatchEvent(new Event("capturehandlechange"));
+            capturedHandle = original;
+            track.dispatchEvent(new Event("capturehandlechange"));
+          } else if (mode === "monitor") surface = "monitor";
+          else if (mode === "wrong-tab" && capturedHandle)
+            capturedHandle = { ...capturedHandle, handle: "another-tab" };
+          else capturedHandle = null;
+        };
         navigator.mediaDevices.getDisplayMedia = async () => stream;
         let release!: () => void, releaseLookup!: () => void;
         const held = new Promise<void>((resolve) => {
@@ -2548,6 +2770,22 @@ for (const backend of ["bridge", "api"] as const) {
           injection: Parameters<typeof chrome.scripting.executeScript>[0],
         ) => {
           const result = await execute(injection);
+          if (
+            injection.func?.toString().includes("setCaptureHandleConfig") &&
+            injection.target.tabId === sourceId &&
+            injection.world === "MAIN" &&
+            injection.args?.[1] ===
+              new URL(chrome.runtime.getURL("panel.html")).origin &&
+            result[0]?.frameId === 0 &&
+            result[0]?.documentId &&
+            typeof result[0]?.result === "object" &&
+            result[0]?.result?.url === injection.args?.[2]
+          ) {
+            capturedHandle = {
+              handle: injection.args![0] as string,
+              origin: result[0].result.origin,
+            };
+          }
           if (injection.func?.toString().includes("current-password")) {
             control.checks++;
             if (control.hold && !control.waiting) {
@@ -2634,13 +2872,48 @@ for (const backend of ["bridge", "api"] as const) {
           : providerRequests
               .filter(
                 (request) =>
-                  request.question === en.passivePrompt && request.image,
+                  request.question.startsWith(en.passivePrompt) &&
+                  request.image,
               )
               .map(
                 (request) =>
                   "data:image/png;base64," + request.image!.toString("base64"),
               );
       expect(images()).toEqual([]);
+      if (["unbound", "wrong-tab", "monitor", "unsupported"].includes(change)) {
+        await panel.evaluate(
+          ({ change, sourceId }) => {
+            if (change === "unsupported") {
+              const get = chrome.tabs.get.bind(chrome.tabs);
+              chrome.tabs.get = (async (id: number) => {
+                const tab = await get(id);
+                return id === sourceId
+                  ? { ...tab, url: "file:///private.txt" }
+                  : tab;
+              }) as typeof chrome.tabs.get;
+            } else
+              (
+                window as Window & {
+                  breakScreenBinding: (mode: string) => void;
+                }
+              ).breakScreenBinding(change);
+            const gate = (window as Window & { screenGate: ScreenGate })
+              .screenGate;
+            const drawing = gate.canvas.getContext("2d")!;
+            drawing.fillStyle = "#0000ff";
+            drawing.fillRect(0, 0, 640, 360);
+          },
+          { change, sourceId },
+        );
+        await panel.waitForTimeout(600);
+        await panel.evaluate(() =>
+          (window as Window & { screenGate: ScreenGate }).screenGate.sample!(),
+        );
+        await panel.waitForTimeout(700);
+        expect(images()).toEqual([]);
+        await clickBubble(en.stopSharing);
+        return;
+      }
       await panel.evaluate(() => {
         const gate = (window as Window & { screenGate: ScreenGate }).screenGate;
         gate.hold = true;
@@ -2703,6 +2976,14 @@ for (const backend of ["bridge", "api"] as const) {
           )
           .toBeGreaterThan(200);
       }
+      if (change === "lost-handle" || change === "handle-roundtrip")
+        await panel.evaluate(
+          (change) =>
+            (
+              window as Window & { breakScreenBinding: (mode: string) => void }
+            ).breakScreenBinding(change),
+          change,
+        );
       if (change === "stop") await clickBubble(en.stopSharing);
       await panel.evaluate(() =>
         (window as Window & { screenGate: ScreenGate }).screenGate.release(),
@@ -2832,6 +3113,39 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
       ),
     )
     .toBeGreaterThan(600);
+  const nativeBinding = await panel.evaluate(async () => {
+    const video =
+      window.documentPictureInPicture.window!.document.querySelector("video")!;
+    const track = (
+      video.srcObject as MediaStream
+    ).getVideoTracks()[0] as MediaStreamTrack & {
+      getCaptureHandle: () => { handle: string; origin: string } | null;
+    };
+    return {
+      windows: (await chrome.windows.getAll({ populate: true })).map((win) => ({
+        id: win.id,
+        type: win.type,
+        top: win.alwaysOnTop,
+        tabs: win.tabs?.map((tab) => ({
+          id: tab.id,
+          opener: tab.openerTabId,
+          url: tab.url,
+        })),
+      })),
+      surface: track.getSettings().displaySurface,
+      handle: track.getCaptureHandle(),
+    };
+  });
+  expect(
+    nativeBinding.windows.some(
+      (win) =>
+        win.top &&
+        win.tabs?.some((tab) => tab.url === "about:blank" && tab.opener),
+    ),
+  ).toBe(true);
+  expect(nativeBinding.surface).toBe("browser");
+  expect(nativeBinding.handle?.origin).toBe(origin);
+  expect(nativeBinding.handle?.handle).toMatch(/^[0-9a-f-]{36}$/);
   await clickInBubble(en.region);
   const frozen = panel.locator("[data-glimpselet-frozen-crop]");
   await expect(frozen).toBeVisible();
@@ -2870,7 +3184,22 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
     return [img.naturalWidth, img.naturalHeight];
   });
   expect(pixels[1]).toBeGreaterThan(80);
-  await clickInBubble(en.region);
+  await panel.bringToFront();
+  await panel.evaluate(() => document.activeElement?.blur());
+  await panel.keyboard.down("Shift");
+  await panel.evaluate(() => {
+    const field =
+      window.documentPictureInPicture.window!.document.querySelector(
+        "textarea",
+      )!;
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(field, "Keep this draft while selecting");
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(frozen.locator(".surface")).toBeVisible();
+  await panel.keyboard.up("Shift");
   await expect(frozen).toBeVisible();
   await panel.keyboard.press("Escape");
   await expect(frozen).toHaveCount(0);
@@ -2884,6 +3213,13 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
 for (const backend of ["bridge", "api"] as const) {
   test(`large shared screen crop reaches the provider in ${backend} mode`, async () => {
     const receivedImages: string[] = [];
+    const metrics = await context.newCDPSession(panel);
+    await metrics.send("Emulation.setDeviceMetricsOverride", {
+      width: 1280,
+      height: 800,
+      deviceScaleFactor: backend === "bridge" ? 1.25 : 2,
+      mobile: false,
+    });
     if (backend === "api") {
       await context.route(
         "https://api.anthropic.com/v1/messages",
@@ -2983,14 +3319,21 @@ for (const backend of ["bridge", "api"] as const) {
     expect(nativeFrame).toMatchObject({ width: 4096, height: 2160 });
     expect(nativeFrame.length).toBeGreaterThan(5_000_000);
     const bounds = (await frozen.locator("img").boundingBox())!;
+    const ratio = await panel.evaluate(() => devicePixelRatio);
+    expect(bounds.width * ratio).toBeCloseTo(nativeFrame.width);
+    expect(bounds.height * ratio).toBeCloseTo(nativeFrame.height);
     await panel.mouse.move(
       bounds.x + bounds.width * 0.05,
       bounds.y + bounds.height * 0.05,
     );
     await panel.mouse.down();
+    await frozen.evaluate((node) =>
+      node.scrollTo(node.scrollWidth, node.scrollHeight),
+    );
+    const scrolledBounds = (await frozen.locator("img").boundingBox())!;
     await panel.mouse.move(
-      bounds.x + bounds.width * 0.95,
-      bounds.y + bounds.height * 0.95,
+      scrolledBounds.x + scrolledBounds.width * 0.95,
+      scrolledBounds.y + scrolledBounds.height * 0.95,
     );
     await panel.mouse.up();
     await expect(frozen.locator("[data-handle]")).toHaveCount(8);
@@ -3154,6 +3497,7 @@ test("compacting and expanding keeps the shared video and crop available", async
   await clickInBubble(en.region);
   const frozen = panel.locator("[data-glimpselet-frozen-crop]");
   await expect(frozen).toBeVisible();
+  await panel.bringToFront();
   await panel.keyboard.press("Escape");
   await expect(frozen).toHaveCount(0);
   await expect
@@ -3175,7 +3519,7 @@ test("bubble has no horizontal overflow in light and dark modes at compact width
   await responsive
     .locator(".app")
     .evaluate((element) => element.classList.add("in-pip"));
-  const widths = [320, 390, 520];
+  const widths = [288, 320, 390, 520];
   const backgrounds = new Set<string>();
   for (const colorScheme of ["light", "dark"] as const) {
     await responsive.emulateMedia({ colorScheme });
@@ -3369,7 +3713,7 @@ for (const mode of ["suggestions", "passive"] as const) {
     const automatic = () =>
       providerRequests.filter((request) =>
         mode === "passive"
-          ? request.question === en.passivePrompt
+          ? request.question.startsWith(en.passivePrompt)
           : request.question.startsWith("Give 3 to 5"),
       );
     await expect.poll(() => automatic().length).toBeGreaterThan(0);
@@ -3392,7 +3736,11 @@ for (const mode of ["suggestions", "passive"] as const) {
     });
     await expect(reader.locator("#page-label")).toContainText("Page 1 of 2");
     await reader.waitForTimeout(1500);
-    expect(automatic()).toHaveLength(before);
+    expect(
+      automatic()
+        .slice(before)
+        .every((request) => request.page?.url === origin + "/"),
+    ).toBe(true);
     expect(
       automatic().some((request) =>
         request.page?.text.includes("PDF_PAGE_ALPHA"),
@@ -3449,7 +3797,7 @@ for (const mode of ["suggestions", "passive"] as const) {
     const automatic = () =>
       providerRequests.filter((request) =>
         mode === "passive"
-          ? request.question === en.passivePrompt
+          ? request.question.startsWith(en.passivePrompt)
           : request.question.startsWith("Give 3 to 5"),
       );
     const reader = await context.newPage();
@@ -3469,6 +3817,10 @@ for (const mode of ["suggestions", "passive"] as const) {
       )
       .toBe(true);
     const firstCount = automatic().length;
+    if (mode === "passive") {
+      await expect(panel.locator(".thread article")).toHaveCount(1);
+      await expect(panel.locator("button.stop")).toHaveCount(0);
+    }
     await reader.locator("#next").click();
     await expect(reader.locator("#page-label")).toContainText("Page 2 of 2");
     await expect
@@ -3544,6 +3896,41 @@ test("bundled PDF.js reader renders the sample, exposes page context and selecte
     0,
   );
   await reader.close();
+});
+
+test("arXiv PDF reader remains available after a conversation starts", async () => {
+  await panel.locator("textarea").fill("What can I do here?");
+  await panel
+    .getByRole("button", { name: en.send + " ↗", exact: true })
+    .click();
+  await expect(panel.locator(".message")).toHaveCount(1);
+  await expect(panel.locator("button.stop")).toHaveCount(0);
+  const pdfUrl = "https://arxiv.org/pdf/1706.03762";
+  const pdfTab = await context.newPage();
+  await pdfTab.route(pdfUrl, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<title>Attention Is All You Need</title><p>PDF viewer shell</p>",
+    }),
+  );
+  await pdfTab.goto(pdfUrl);
+  await pdfTab.bringToFront();
+  const openReader = panel.getByRole("button", {
+    name: en.openPdf,
+    exact: true,
+  });
+  await expect(openReader).toBeVisible();
+  const opened = context.waitForEvent("page");
+  await openReader.click();
+  const reader = await opened;
+  await reader.waitForLoadState();
+  expect(new URL(reader.url()).pathname).toBe("/reader.html");
+  expect(new URL(reader.url()).searchParams.get("url")).toBe(pdfUrl);
+  await expect(reader.locator("#pdf-url")).toHaveValue(pdfUrl);
+  await reader.close();
+  await site.bringToFront();
+  await expect(openReader).toHaveCount(0);
+  await pdfTab.close();
 });
 
 test("PDF startup waits for a fresh-site click and requests permission with activation", async () => {
@@ -3652,4 +4039,558 @@ test("PDF URL permission denial and invalid startup URLs keep the reader actiona
     "Enter a PDF link beginning with https:// or http://.",
   );
   await invalid.close();
+});
+
+test("a delayed guide cannot target a reloaded document with reused element ids", async () => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  providerResponder = async (request) => {
+    if (!request.question.includes("Create a short, actionable guide"))
+      return { answer: '{"questions":["One?","Two?","Three?"]}' };
+    await Promise.race([
+      held,
+      new Promise<void>((resolve) =>
+        request.signal.addEventListener("abort", () => resolve(), {
+          once: true,
+        }),
+      ),
+    ]);
+    const id = request.page!.elements.find(
+      (element) => element.role === "button",
+    )!.id;
+    return {
+      answer: JSON.stringify({
+        steps: [{ elementId: id, note: "STALE_GUIDE_DO_NOT_DRAW" }],
+      }),
+    };
+  };
+  await panel
+    .getByRole("button", { name: en.guideAction, exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      providerRequests.some((request) =>
+        request.question.includes("Create a short, actionable guide"),
+      ),
+    )
+    .toBe(true);
+  await site.reload();
+  await panel.evaluate(async (tabUrl) => {
+    const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id! },
+      files: ["content.js"],
+    });
+    await chrome.tabs.sendMessage(tab.id!, { type: "glimpselet:context" });
+  }, origin);
+  release();
+  await expect(panel.locator(".live-answer")).toHaveCount(0);
+  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
+});
+
+test("manual translation excludes opaque embeds while capture remains blocked", async () => {
+  const original = await site.locator("#foreign").textContent();
+  await site.evaluate(() => {
+    const frame = document.createElement("iframe");
+    frame.srcdoc = "<p>PRIVATE_EMBED_TEXT</p><input type=password>";
+    frame.setAttribute("sandbox", "");
+    document.body.append(frame);
+  });
+  await expect
+    .poll(async () =>
+      panel.evaluate(async (tabUrl) => {
+        const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
+        return (
+          await chrome.tabs.sendMessage(tab.id!, {
+            type: "glimpselet:sensitive",
+          })
+        ).hasPassword;
+      }, origin),
+    )
+    .toBe(true);
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(site.locator("#foreign")).toContainText("Translated:");
+  const translations = providerRequests.filter((request) =>
+    request.question.includes('Return JSON only: {"nodes"'),
+  );
+  expect(translations.length).toBeGreaterThan(0);
+  expect(
+    translations.every(
+      (request) => !request.question.includes("PRIVATE_EMBED_TEXT"),
+    ),
+  ).toBe(true);
+  await expect
+    .poll(() =>
+      panel.evaluate(async (tabUrl) => {
+        const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
+        return (
+          await chrome.tabs.sendMessage(tab.id!, { type: "glimpselet:context" })
+        ).hasPassword;
+      }, origin),
+    )
+    .toBe(true);
+  await panel.waitForTimeout(1500);
+  await site.evaluate(() =>
+    document.body.insertAdjacentHTML("beforeend", '<input type="password">'),
+  );
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(site.locator("#foreign")).toHaveText(original!);
+  await panel.getByRole("button", { name: en.visible, exact: true }).click();
+  await expect(panel.locator(".status")).toHaveText(en.passwordPage);
+  await expect(panel.locator(".capture img")).toHaveCount(0);
+  await site.evaluate(() => {
+    document.body.insertAdjacentHTML("beforeend", '<input type="password">');
+  });
+  const before = translations.length;
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(panel.locator(".status")).toHaveText(en.passwordPage);
+  expect(
+    providerRequests.filter((request) =>
+      request.question.includes('Return JSON only: {"nodes"'),
+    ),
+  ).toHaveLength(before);
+});
+
+test("a reloaded bubble recovers translation restore from its source document", async () => {
+  const original = await site.locator("#foreign").textContent();
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(site.locator("#foreign")).toContainText("Translated:");
+  await expect(
+    panel.getByRole("button", { name: en.restore, exact: true }),
+  ).toBeVisible();
+  await panel.reload();
+  await expect(
+    panel.getByRole("button", { name: en.restore, exact: true }),
+  ).toBeVisible();
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(site.locator("#foreign")).toHaveText(original!);
+});
+
+test("translation restoration belongs to the original document and fresh documents are injected", async () => {
+  const original = await site.locator("#foreign").textContent();
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(site.locator("#foreign")).toContainText("Translated:");
+  const second = await context.newPage();
+  await second.goto(origin + "/second");
+  await second.bringToFront();
+  await expect(
+    panel.getByRole("button", { name: en.restore, exact: true }),
+  ).toHaveCount(0);
+  // Toolbar activation grants access for this document, without injecting content first.
+  const cdp = await context.browser()!.newBrowserCDPSession();
+  const { targetInfos } = await cdp.send("Target.getTargets", {
+    filter: [{ type: "tab", exclude: false }],
+  });
+  const target = targetInfos.find((value) => value.url === origin + "/second")!;
+  await cdp.send("Extensions.triggerAction", {
+    id: extensionId,
+    targetId: target.targetId,
+  });
+  await cdp.detach();
+  // Keep the original panel, which now follows the new tab.
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(second.locator("#foreign")).toContainText("Translated:");
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(second.locator("#foreign")).toHaveText(original!);
+  await expect(site.locator("#foreign")).toContainText("Translated:");
+  await site.bringToFront();
+  await expect(
+    panel.getByRole("button", { name: en.restore, exact: true }),
+  ).toBeVisible();
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(site.locator("#foreign")).toHaveText(original!);
+});
+
+test("document-bound page tools reject requests from a previous load at the same URL", async () => {
+  const source = await panel.evaluate(async (tabUrl) => {
+    const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
+    return await chrome.tabs.sendMessage(tab.id!, {
+      type: "glimpselet:context",
+    });
+  }, origin);
+  await site.reload();
+  const responses = await panel.evaluate(
+    async ({ tabUrl, source }) => {
+      const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id! },
+        files: ["content.js"],
+      });
+      return await Promise.all(
+        ["guide", "text-nodes", "translate", "restore"].map((kind) =>
+          chrome.tabs.sendMessage(tab.id!, {
+            type: "glimpselet:" + kind,
+            documentKey: source.documentKey,
+            url: source.url,
+            steps: [{ elementId: source.elements[0].id, note: "Old guide" }],
+            nodes: [],
+          }),
+        ),
+      );
+    },
+    { tabUrl: origin, source },
+  );
+  expect(responses).toEqual(Array(4).fill({ error: "tab_changed" }));
+});
+
+test("ordinary shared-screen questions refresh the frame and omit unrelated page text", async () => {
+  await panel.locator(".float-start button").click();
+  await clickInBubble(en.share);
+  await expect
+    .poll(() =>
+      panel.evaluate(
+        () =>
+          window.documentPictureInPicture.window!.document.querySelector(
+            "video",
+          )!.videoWidth,
+      ),
+    )
+    .toBeGreaterThan(600);
+  const initial = await panel.evaluate(
+    () =>
+      window.documentPictureInPicture.window!.document.querySelector<HTMLImageElement>(
+        ".capture-chip img",
+      )!.src,
+  );
+  await site.evaluate(() => {
+    document.body.style.background = "rgb(10, 45, 190)";
+    document.querySelector("h1")!.textContent = "A new shared frame";
+  });
+  await site.bringToFront();
+  await panel.evaluate(() => {
+    const doc = window.documentPictureInPicture.window!.document;
+    const textarea =
+      doc.querySelector<HTMLTextAreaElement>(".composer textarea")!;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!;
+    setter.call(textarea, "Describe the latest shared frame.");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await clickInBubble(en.send + " ↗");
+  await expect
+    .poll(() =>
+      providerRequests.some(
+        (request) => request.question === "Describe the latest shared frame.",
+      ),
+    )
+    .toBe(true);
+  const request = providerRequests.find(
+    (request) => request.question === "Describe the latest shared frame.",
+  )!;
+  expect(request.image).toBeTruthy();
+  const changedFraction = await panel.evaluate(
+    async ([first, second]) => {
+      async function pixels(data: string) {
+        const bitmap = await createImageBitmap(
+          await (await fetch(data)).blob(),
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 64;
+        const drawing = canvas.getContext("2d")!;
+        drawing.drawImage(bitmap, 0, 0, 64, 64);
+        bitmap.close();
+        return drawing.getImageData(0, 0, 64, 64).data;
+      }
+      const [before, after] = await Promise.all([
+        pixels(first),
+        pixels(second),
+      ]);
+      let changed = 0;
+      for (let index = 0; index < after.length; index += 4) {
+        if (
+          Math.abs(after[index] - before[index]) +
+            Math.abs(after[index + 1] - before[index + 1]) +
+            Math.abs(after[index + 2] - before[index + 2]) >
+          90
+        )
+          changed++;
+      }
+      return changed / (after.length / 4);
+    },
+    [initial, `data:image/png;base64,${request.image!.toString("base64")}`],
+  );
+  expect(changedFraction).toBeGreaterThan(0.15);
+  expect(request.page).toBeUndefined();
+  await clickInBubble(en.stopSharing);
+});
+
+for (const failure of ["provider", "invalid-target"] as const) {
+  test(`a ${failure} welcome guide stays available to retry and is not marked done`, async () => {
+    const normal = providerResponder;
+    providerResponder = async (request) => {
+      if (request.question.includes("Create a short, actionable guide")) {
+        if (failure === "provider")
+          throw new Error("Guide provider unavailable");
+        const answer = JSON.stringify({
+          steps: [
+            { elementId: "missing-element", note: "Choose a missing button." },
+          ],
+        });
+        request.onText(answer);
+        return { answer };
+      }
+      return await normal(request);
+    };
+    const code = bridge.issueCode();
+    const welcome = await context.newPage();
+    await welcome.goto(`${origin}/install#code=${code}`);
+    await welcome.locator("#connect").click();
+    await expect(welcome.locator("#connection")).toHaveClass(/connected/);
+    const sampleUrl = `${origin}/assets/glimpselet-welcome-sample.html`;
+    await welcome
+      .getByRole("button", { name: "Open sample + request guide", exact: true })
+      .click();
+    await expect
+      .poll(() =>
+        context.pages().some((candidate) => candidate.url() === sampleUrl),
+      )
+      .toBe(true);
+    const sample = context
+      .pages()
+      .find((candidate) => candidate.url() === sampleUrl)!;
+    await welcome
+      .getByRole("button", { name: "Open sample + request guide", exact: true })
+      .click();
+    await expect(panel.locator(".float-start").last()).toContainText("5/8");
+    await sample.bringToFront();
+    const cdp = await context.browser()!.newBrowserCDPSession();
+    try {
+      const { targetInfos } = await cdp.send("Target.getTargets", {
+        filter: [{ type: "tab", exclude: false }],
+      });
+      const target = targetInfos.find(
+        (candidate) => candidate.url === sampleUrl,
+      )!;
+      await cdp.send("Extensions.triggerAction", {
+        id: extensionId,
+        targetId: target.targetId,
+      });
+    } finally {
+      await cdp.detach();
+    }
+    await panel.locator(".float-start button").last().click();
+    await expect
+      .poll(() =>
+        providerRequests.some((request) =>
+          request.question.includes("Create a short, actionable guide"),
+        ),
+      )
+      .toBe(true);
+    await expect(panel.locator(".toolbar .status")).toContainText(
+      failure === "provider" ? en.genericError : en.guideFailed,
+    );
+    await expect(panel.locator(".live-answer")).toHaveCount(0);
+    await expect(panel.locator(".float-start").last()).toContainText("5/8");
+    await expect(welcome.locator(".step").nth(4)).not.toHaveClass(/done/);
+    await expect(
+      sample.locator("[data-glimpselet-overlay] .guide"),
+    ).toHaveCount(0);
+  });
+}
+
+test("Float practice reuses the existing bubble and completes the welcome step", async () => {
+  const code = bridge.issueCode();
+  const welcome = await context.newPage();
+  await welcome.goto(`${origin}/install#code=${code}`);
+  await welcome.locator("#connect").click();
+  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
+  await panel.locator(".float-start button").click();
+  await expect
+    .poll(() =>
+      panel.evaluate(() => Boolean(window.documentPictureInPicture?.window)),
+    )
+    .toBe(true);
+  await panel.evaluate(() => {
+    window.documentPictureInPicture.window!.document.body.dataset.practiceWindow =
+      "existing";
+  });
+  await welcome
+    .getByRole("button", { name: "Open sample + request float", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      panel.evaluate(
+        () =>
+          window.documentPictureInPicture.window?.document.querySelector(
+            ".float-start",
+          )?.textContent,
+      ),
+    )
+    .toContain("Practice step 1/8");
+  await panel.evaluate(() =>
+    window.documentPictureInPicture
+      .window!.document.querySelector<HTMLButtonElement>(
+        "header button:last-child",
+      )!
+      .click(),
+  );
+  await expect(welcome.locator(".step").first()).toHaveClass(/done/);
+  await expect(welcome.locator("#progress-label")).toHaveText(
+    "Completed 1 of 8",
+  );
+  expect(
+    await panel.evaluate(
+      () =>
+        window.documentPictureInPicture.window?.document.body.dataset
+          .practiceWindow,
+    ),
+  ).toBe("existing");
+});
+
+test("chat reads fresh page text before its first capture", async () => {
+  await site.evaluate(() => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "The current delivery estimate is nineteen days.";
+    document.body.append(paragraph);
+  });
+  await panel
+    .locator(".composer textarea")
+    .fill("What is the delivery estimate?");
+  await panel.locator(".composer .send").click();
+  await expect
+    .poll(
+      () =>
+        providerRequests.find(
+          (request) => request.question === "What is the delivery estimate?",
+        )?.page?.text,
+    )
+    .toContain("nineteen days");
+  expect(
+    providerRequests.find(
+      (request) => request.question === "What is the delivery estimate?",
+    )?.image,
+  ).toBeUndefined();
+});
+
+test("chat requires an explicit choice when fresh page context is private", async () => {
+  await site.evaluate(() => {
+    const password = document.createElement("input");
+    password.type = "password";
+    document.body.append(password);
+  });
+  await panel.locator(".composer textarea").fill("What should I read next?");
+  await panel.locator(".composer .send").click();
+  await expect(panel.locator(".status")).toContainText(en.passwordPage);
+  await expect(panel.locator(".composer textarea")).toHaveValue(
+    "What should I read next?",
+  );
+  expect(
+    providerRequests.some(
+      (request) => request.question === "What should I read next?",
+    ),
+  ).toBe(false);
+  await panel
+    .getByRole("button", { name: en.askWithoutPage, exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      providerRequests.find(
+        (request) => request.question === "What should I read next?",
+      ),
+    )
+    .toBeDefined();
+  expect(
+    providerRequests.find(
+      (request) => request.question === "What should I read next?",
+    )?.page,
+  ).toBeUndefined();
+});
+
+test("compact height never overwrites the saved expanded size", async () => {
+  await panel.locator(".float-start button").click();
+  await expect
+    .poll(() =>
+      panel.evaluate(() => Boolean(window.documentPictureInPicture?.window)),
+    )
+    .toBe(true);
+  await panel.evaluate(() => {
+    const pip = window.documentPictureInPicture.window!;
+    pip.resizeTo(pip.outerWidth, 650 + pip.outerHeight - pip.innerHeight);
+    pip.dispatchEvent(new Event("resize"));
+  });
+  await expect
+    .poll(() =>
+      worker.evaluate(
+        async () => (await chrome.storage.local.get("pipSize")).pipSize.height,
+      ),
+    )
+    .toBeGreaterThan(500);
+  const height = await worker.evaluate(
+    async () => (await chrome.storage.local.get("pipSize")).pipSize.height,
+  );
+  await clickBubble(en.compact);
+  await panel.evaluate(() => {
+    const pip = window.documentPictureInPicture.window!;
+    pip.dispatchEvent(new Event("resize"));
+  });
+  expect(
+    await worker.evaluate(
+      async () => (await chrome.storage.local.get("pipSize")).pipSize.height,
+    ),
+  ).toBe(height);
+  await panel.evaluate(() => window.documentPictureInPicture.window!.close());
+  await panel.reload();
+  await panel.locator(".float-start button").click();
+  await expect
+    .poll(() =>
+      panel.evaluate(
+        () => window.documentPictureInPicture?.window?.innerHeight || 0,
+      ),
+    )
+    .toBeGreaterThan(500);
+});
+
+test("page guide requests work in Chinese", async () => {
+  providerResponder = async (request) => ({
+    answer: request.question.includes("Create a short, actionable guide")
+      ? JSON.stringify({
+          steps: [
+            {
+              elementId: request.page!.elements.find(
+                (e) => e.role === "button",
+              )!.id,
+              note: "Use this button.",
+            },
+          ],
+        })
+      : JSON.stringify({ questions: ["One?", "Two?", "Three?"] }),
+  });
+  await panel.locator(".composer textarea").fill("匯出按鈕在哪裡？");
+  await panel.locator(".composer .send").click();
+  await expect(site.locator("[data-glimpselet-overlay] .guide")).toBeVisible();
+  expect(
+    providerRequests.find((request) =>
+      request.question.includes("Create a short, actionable guide"),
+    )?.question,
+  ).toContain("匯出按鈕在哪裡");
+});
+
+test("full-page capture can be cancelled and restores the original scroll", async () => {
+  await site.evaluate(() => {
+    document.body.style.minHeight = "12000px";
+    window.scrollTo(0, 225);
+  });
+  await panel.getByRole("button", { name: en.fullPage, exact: true }).click();
+  await expect(panel.locator(".capture-progress")).toBeVisible();
+  await panel
+    .locator(".capture-progress")
+    .getByRole("button", { name: en.cropCancel, exact: true })
+    .click();
+  await expect(panel.locator(".capture-progress")).toHaveCount(0);
+  await expect.poll(() => site.evaluate(() => scrollY)).toBe(225);
+  await expect(panel.locator(".capture-chip")).toHaveCount(0);
 });

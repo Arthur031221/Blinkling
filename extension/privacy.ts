@@ -1,5 +1,9 @@
 // Keep this function self contained: Chrome serializes it for executeScript.
-export function hasSensitiveContent(doc: Document = document): boolean {
+export function hasSensitiveContent(
+  doc: Document | null = document,
+  manualTextOnly = false,
+): boolean {
+  doc ??= document;
   const roots: (Document | ShadowRoot)[] = [doc];
   const seen = new Set<Document | ShadowRoot>();
   let remaining = 50_000;
@@ -27,17 +31,23 @@ export function hasSensitiveContent(doc: Document = document): boolean {
             getSVGDocument?: () => Document | null;
           };
           const nested = frame.contentDocument ?? frame.getSVGDocument?.();
-          if (!nested || nested.readyState !== "complete") return true;
+          if (!nested) {
+            if (manualTextOnly) continue;
+            return true;
+          }
+          if (nested.readyState !== "complete" && !manualTextOnly) return true;
           const source = frame.getAttribute("src")?.trim().toLowerCase();
           // A navigating frame can temporarily expose its previous blank document.
           if (
             nested.URL === "about:blank" &&
             (frame.hasAttribute("srcdoc") ||
               (source && source !== "about:blank"))
-          )
-            return true;
+          ) {
+            if (!manualTextOnly) return true;
+          }
           roots.push(nested);
         } catch {
+          if (manualTextOnly) continue;
           return true;
         }
       }

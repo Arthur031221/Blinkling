@@ -6,6 +6,7 @@ import {
   contextTextNode,
   restorableTextNode,
   stableElementId,
+  pageDocumentKey,
 } from "./page-context";
 import { pageRevision } from "./page-revision";
 import { validateGuideSteps } from "./page-tools";
@@ -40,6 +41,7 @@ if (!contentScope.glimpseletContentReady) {
         labels: { next: string; back: string; close: string; title: string };
       }
     | undefined;
+  let guideReturnFocus: HTMLElement | undefined;
   let lastUrl = location.href;
   let lastRevision = "";
   let lastSensitive = false;
@@ -172,6 +174,11 @@ if (!contentScope.glimpseletContentReady) {
   function renderGuide(): void {
     if (!currentGuide) return;
     const root = ensureOverlay();
+    const activeControl = root
+      .querySelector(".guide nav")
+      ?.contains(root.activeElement)
+      ? (root.activeElement as HTMLElement).dataset.guideControl
+      : undefined;
     root.querySelector(".guide")?.remove();
     root.querySelector("svg.draw")?.remove();
     const step = currentGuide.steps[currentGuide.index];
@@ -251,6 +258,7 @@ if (!contentScope.glimpseletContentReady) {
     callout.append(note);
     const nav = document.createElement("nav");
     const back = document.createElement("button");
+    back.dataset.guideControl = "back";
     back.textContent = currentGuide.labels.back;
     back.disabled = currentGuide.index === 0;
     back.onclick = () => {
@@ -263,6 +271,7 @@ if (!contentScope.glimpseletContentReady) {
     counter.textContent = `${currentGuide.index + 1}/${currentGuide.steps.length}`;
     counter.style.cssText = "align-self:center;font-size:12px;color:#766957";
     const next = document.createElement("button");
+    next.dataset.guideControl = "next";
     next.textContent =
       currentGuide.index === currentGuide.steps.length - 1
         ? currentGuide.labels.close
@@ -302,14 +311,20 @@ if (!contentScope.glimpseletContentReady) {
         ink.style.animation = "none";
         ink.style.strokeDashoffset = "0";
       }
-    if (changed) next.focus({ preventScroll: true });
+    if (changed || (activeControl === "back" && back.disabled))
+      next.focus({ preventScroll: true });
+    else if (activeControl === "back") back.focus({ preventScroll: true });
+    else if (activeControl === "next") next.focus({ preventScroll: true });
   }
 
   function closeGuide(): void {
+    const returnFocus = currentGuide ? guideReturnFocus : undefined;
     currentGuide = undefined;
+    guideReturnFocus = undefined;
     renderedStep = "";
     overlayRoot?.querySelector(".guide")?.remove();
     overlayRoot?.querySelector("svg.draw")?.remove();
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
   }
 
   function closeSelectionPopover(): void {
@@ -597,6 +612,20 @@ if (!contentScope.glimpseletContentReady) {
     ) => {
       if (!message || typeof message.type !== "string") return;
       if (
+        [
+          "glimpselet:guide",
+          "glimpselet:text-nodes",
+          "glimpselet:translate",
+          "glimpselet:restore",
+        ].includes(message.type) &&
+        typeof message.documentKey === "string" &&
+        (message.documentKey !== pageDocumentKey() ||
+          message.url !== location.href)
+      ) {
+        respond({ error: "tab_changed" });
+        return;
+      }
+      if (
         message.type === "glimpselet:tutorial-select" &&
         location.pathname === "/assets/glimpselet-welcome-sample.html"
       ) {
@@ -633,6 +662,20 @@ if (!contentScope.glimpseletContentReady) {
       }
       if (message.type === "glimpselet:context") {
         respond(buildPageContext());
+        return;
+      }
+      if (message.type === "glimpselet:identity") {
+        respond({
+          documentKey: pageDocumentKey(),
+          url: location.href,
+          translated: [...originals.values()].some(
+            (entry) =>
+              entry.node.isConnected &&
+              entry.lastWritten !== undefined &&
+              entry.node.nodeValue === entry.lastWritten &&
+              restorableTextNode(entry.node),
+          ),
+        });
         return;
       }
       if (
@@ -680,6 +723,15 @@ if (!contentScope.glimpseletContentReady) {
         );
         const valid = incoming.filter((step) => guidePoint(step.elementId));
         if (valid.length) {
+          if (!currentGuide) {
+            const active = document.activeElement;
+            guideReturnFocus =
+              active &&
+              active !== document.body &&
+              !overlayHost?.contains(active)
+                ? (active as HTMLElement)
+                : undefined;
+          }
           const guideLabels = (message.labels || {}) as {
             next?: string;
             back?: string;
@@ -703,6 +755,10 @@ if (!contentScope.glimpseletContentReady) {
         return;
       }
       if (message.type === "glimpselet:text-nodes") {
+        if (hasSensitiveContent(document, true)) {
+          respond({ error: "password_page" });
+          return;
+        }
         const nodes: Array<{ id: string; text: string }> = [];
         const cursor = Math.max(0, Math.floor(Number(message.cursor) || 0));
         const walker = document.createTreeWalker(
@@ -753,7 +809,14 @@ if (!contentScope.glimpseletContentReady) {
         message.type === "glimpselet:translate" &&
         Array.isArray(message.nodes)
       ) {
+        if (hasSensitiveContent(document, true)) {
+          respond({ error: "password_page" });
+          return;
+        }
         let applied = 0;
+        let changed = 0;
+        let rejected = 0;
+        const skipped = { disconnected: 0, sourceChanged: 0, ineligible: 0 };
         for (const entry of (
           message.nodes as Array<{ id?: string; text?: string }>
         ).slice(0, 160)) {
@@ -761,32 +824,43 @@ if (!contentScope.glimpseletContentReady) {
             !entry ||
             typeof entry.id !== "string" ||
             typeof entry.text !== "string"
-          )
+          ) {
+            rejected++;
             continue;
+          }
           const original = originals.get(entry.id);
-          if (
-            !original ||
-            !original.node.isConnected ||
-            !contextTextNode(original.node)
-          )
+          if (!original || entry.text.length > 12_000) {
+            rejected++;
             continue;
-          if (entry.text.length > 12_000) continue;
+          }
+          if (!original.node.isConnected) {
+            skipped.disconnected++;
+            continue;
+          }
+          if (!contextTextNode(original.node)) {
+            skipped.ineligible++;
+            continue;
+          }
           if (
             original.node.nodeValue !== (original.lastWritten ?? original.text)
           ) {
             originals.delete(entry.id);
             nodeIds.delete(original.node);
+            skipped.sourceChanged++;
             continue;
           }
-          original.node.nodeValue = entry.text;
-          original.lastWritten = entry.text;
-          original.node.parentElement?.setAttribute(
-            "data-glimpselet-translated",
-            "true",
-          );
+          if (original.node.nodeValue !== entry.text) {
+            original.node.nodeValue = entry.text;
+            original.lastWritten = entry.text;
+            changed++;
+            original.node.parentElement?.setAttribute(
+              "data-glimpselet-translated",
+              "true",
+            );
+          }
           applied++;
         }
-        respond({ applied });
+        respond({ applied, changed, skipped, rejected });
         return;
       }
       if (message.type === "glimpselet:restore") {

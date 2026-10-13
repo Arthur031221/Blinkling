@@ -13,7 +13,7 @@ export const readerLocales = {
     translate: "Translate selection",
     summary: "Summarize page",
     guide: "Guide me through this section",
-    openPanel: "Open floating panel",
+    openPanel: "Open chat",
     pdfPage: "PDF page",
     choose: "Choose a PDF file or open a URL.",
     loading: "Loading PDF...",
@@ -30,7 +30,8 @@ export const readerLocales = {
     actionBusy: "Wait for the current answer, then try again.",
     actionError:
       "Glimpselet could not receive this action. Open the floating panel and try again.",
-    panelOpened: "Floating panel opened.",
+    panelOpened:
+      "Chat opened. Choose Open floating panel there to keep it above other windows.",
     panelError:
       "Could not open the floating panel. Try again from the extension button.",
     summarySent: "Summary",
@@ -54,7 +55,7 @@ export const readerLocales = {
     translate: "翻譯選取文字",
     summary: "摘要此頁",
     guide: "引導我閱讀此段",
-    openPanel: "開啟浮動面板",
+    openPanel: "開啟聊天",
     pdfPage: "PDF 頁面",
     choose: "選擇 PDF 檔案或開啟網址。",
     loading: "正在載入 PDF...",
@@ -68,7 +69,8 @@ export const readerLocales = {
     actionSent: "已將「{action}」傳送至 Glimpselet。請保持浮動面板開啟以接收。",
     actionBusy: "請等目前的回答完成，再試一次。",
     actionError: "Glimpselet 無法接收此操作。請開啟浮動面板後重試。",
-    panelOpened: "已開啟浮動面板。",
+    panelOpened:
+      "已開啟聊天。請在聊天中選擇開啟浮動面板，讓它保持在其他視窗上方。",
     panelError: "無法開啟浮動面板。請從擴充功能按鈕重試。",
     summarySent: "摘要",
     questionSent: "問題",
@@ -90,7 +92,7 @@ export const readerLocales = {
     translate: "翻译所选文本",
     summary: "总结此页",
     guide: "引导我阅读此段",
-    openPanel: "打开浮动面板",
+    openPanel: "打开聊天",
     pdfPage: "PDF 页面",
     choose: "选择 PDF 文件或打开网址。",
     loading: "正在加载 PDF...",
@@ -104,7 +106,8 @@ export const readerLocales = {
     actionSent: '已将"{action}"发送到 Glimpselet。请保持浮动面板打开以接收。',
     actionBusy: "请等待当前回答完成后重试。",
     actionError: "Glimpselet 无法接收此操作。请打开浮动面板后重试。",
-    panelOpened: "已打开浮动面板。",
+    panelOpened:
+      "已打开聊天。请在聊天中选择打开浮动面板，让它保持在其他窗口上方。",
     panelError: "无法打开浮动面板。请通过扩展程序按钮重试。",
     summarySent: "总结",
     questionSent: "问题",
@@ -126,7 +129,7 @@ export const readerLocales = {
     translate: "選択範囲を翻訳",
     summary: "ページを要約",
     guide: "この箇所を案内",
-    openPanel: "フローティングパネルを開く",
+    openPanel: "チャットを開く",
     pdfPage: "PDF ページ",
     choose: "PDF ファイルを選ぶか URL を開いてください。",
     loading: "PDF を読み込み中...",
@@ -146,7 +149,8 @@ export const readerLocales = {
     actionBusy: "現在の回答が完了してから、もう一度お試しください。",
     actionError:
       "Glimpselet が操作を受信できません。パネルを開いてから再試行してください。",
-    panelOpened: "フローティングパネルを開きました。",
+    panelOpened:
+      "チャットを開きました。チャットでフローティングパネルを開くと、他のウィンドウの上に表示できます。",
     panelError:
       "パネルを開けませんでした。拡張機能ボタンから再試行してください。",
     summarySent: "要約",
@@ -170,7 +174,7 @@ export const readerLocales = {
     translate: "선택한 텍스트 번역",
     summary: "페이지 요약",
     guide: "이 부분 안내받기",
-    openPanel: "플로팅 패널 열기",
+    openPanel: "채팅 열기",
     pdfPage: "PDF 페이지",
     choose: "PDF 파일을 선택하거나 URL을 여세요.",
     loading: "PDF 로드 중...",
@@ -188,7 +192,8 @@ export const readerLocales = {
     actionBusy: "현재 답변이 완료되면 다시 시도하세요.",
     actionError:
       "Glimpselet이 작업을 받지 못했습니다. 플로팅 패널을 열고 다시 시도하세요.",
-    panelOpened: "플로팅 패널을 열었습니다.",
+    panelOpened:
+      "채팅을 열었습니다. 채팅에서 플로팅 패널을 열면 다른 창 위에 표시됩니다.",
     panelError:
       "플로팅 패널을 열 수 없습니다. 확장 프로그램 버튼에서 다시 시도하세요.",
     summarySent: "요약",
@@ -212,7 +217,7 @@ export const readerLocales = {
     translate: "Traducir selección",
     summary: "Resumir página",
     guide: "Guíame por esta sección",
-    openPanel: "Abrir panel flotante",
+    openPanel: "Abrir chat",
     pdfPage: "Página del PDF",
     choose: "Elige un archivo PDF o abre una URL.",
     loading: "Cargando PDF...",
@@ -231,7 +236,8 @@ export const readerLocales = {
       "Espera a que termine la respuesta actual y vuelve a intentarlo.",
     actionError:
       "Glimpselet no pudo recibir la acción. Abre el panel flotante e inténtalo de nuevo.",
-    panelOpened: "Panel flotante abierto.",
+    panelOpened:
+      "Chat abierto. Elige Abrir panel flotante en el chat para mantenerlo sobre otras ventanas.",
     panelError:
       "No se pudo abrir el panel flotante. Inténtalo desde el botón de la extensión.",
     summarySent: "Resumen",
@@ -255,7 +261,7 @@ export const readerLocales = {
     translate: "Traduire la sélection",
     summary: "Résumer la page",
     guide: "Me guider dans cette section",
-    openPanel: "Ouvrir le panneau flottant",
+    openPanel: "Ouvrir le chat",
     pdfPage: "Page PDF",
     choose: "Choisissez un PDF ou ouvrez une URL.",
     loading: "Chargement du PDF...",
@@ -274,7 +280,8 @@ export const readerLocales = {
     actionBusy: "Attendez la fin de la réponse en cours, puis réessayez.",
     actionError:
       "Glimpselet n'a pas reçu l'action. Ouvrez le panneau flottant et réessayez.",
-    panelOpened: "Panneau flottant ouvert.",
+    panelOpened:
+      "Chat ouvert. Choisissez Ouvrir le panneau flottant dans le chat pour le garder au-dessus des autres fenêtres.",
     panelError:
       "Impossible d'ouvrir le panneau flottant. Réessayez depuis le bouton de l'extension.",
     summarySent: "Résumé",
@@ -298,7 +305,7 @@ export const readerLocales = {
     translate: "Auswahl übersetzen",
     summary: "Seite zusammenfassen",
     guide: "Durch diesen Abschnitt führen",
-    openPanel: "Schwebendes Panel öffnen",
+    openPanel: "Chat öffnen",
     pdfPage: "PDF-Seite",
     choose: "Wähle eine PDF-Datei oder öffne eine URL.",
     loading: "PDF wird geladen...",
@@ -317,7 +324,8 @@ export const readerLocales = {
       "Warte, bis die aktuelle Antwort fertig ist, und versuche es erneut.",
     actionError:
       "Glimpselet konnte die Aktion nicht empfangen. Öffne das schwebende Panel und versuche es erneut.",
-    panelOpened: "Schwebendes Panel geöffnet.",
+    panelOpened:
+      "Chat geöffnet. Wählen Sie dort Schwebendes Panel öffnen, damit es über anderen Fenstern bleibt.",
     panelError:
       "Das schwebende Panel konnte nicht geöffnet werden. Versuche es über die Erweiterungsschaltfläche.",
     summarySent: "Zusammenfassung",
@@ -341,7 +349,7 @@ export const readerLocales = {
     translate: "Traduzir seleção",
     summary: "Resumir página",
     guide: "Me guie por esta seção",
-    openPanel: "Abrir painel flutuante",
+    openPanel: "Abrir conversa",
     pdfPage: "Página do PDF",
     choose: "Escolha um arquivo PDF ou abra uma URL.",
     loading: "Carregando PDF...",
@@ -359,7 +367,8 @@ export const readerLocales = {
     actionBusy: "Aguarde a resposta atual terminar e tente novamente.",
     actionError:
       "O Glimpselet não recebeu a ação. Abra o painel flutuante e tente novamente.",
-    panelOpened: "Painel flutuante aberto.",
+    panelOpened:
+      "Conversa aberta. Escolha Abrir painel flutuante na conversa para mantê-lo sobre outras janelas.",
     panelError:
       "Não foi possível abrir o painel flutuante. Tente pelo botão da extensão.",
     summarySent: "Resumo",

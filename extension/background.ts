@@ -1,6 +1,7 @@
 const panelUrl = () => chrome.runtime.getURL("panel.html");
-type BrowserTab = { id?: number; url?: string };
-type MessageSender = { tab?: { id?: number; url?: string } };
+const readerUrl = () => chrome.runtime.getURL("reader.html");
+type BrowserTab = { id?: number; url?: string; windowId?: number };
+type MessageSender = { tab?: { id?: number; url?: string; windowId?: number } };
 async function injectContent(tabId: number): Promise<void> {
   try {
     await chrome.scripting.executeScript({
@@ -15,6 +16,16 @@ async function openPanel(source?: BrowserTab): Promise<void> {
   const [existing] = await chrome.tabs.query({ url: `${panelUrl()}*` });
   if (existing?.id !== undefined) {
     if (source?.id !== undefined) await injectContent(source.id);
+    if (existing.windowId !== undefined) {
+      const owner = await chrome.windows
+        .get(existing.windowId)
+        .catch(() => undefined);
+      if (owner?.state === "minimized")
+        await chrome.windows.update(existing.windowId, {
+          state: "normal",
+          focused: true,
+        });
+    }
     await chrome.runtime
       .sendMessage({ type: "glimpselet:focus", sourceTab: source?.id })
       .catch(() => {});
@@ -89,6 +100,35 @@ chrome.runtime.onMessage.addListener(
       void chrome.tabs
         .create({ url: target.toString() })
         .then(() => sendResponse({ ok: true }));
+      return true;
+    }
+    if (
+      message?.type === "glimpselet:reader-permission-handoff" &&
+      sender.tab?.url?.startsWith(readerUrl())
+    ) {
+      void (async () => {
+        const panels = await chrome.tabs.query({ url: `${panelUrl()}*` });
+        if (!panels.length) return;
+        // The panel owns any document PiP window. Require its acknowledgement
+        // before reporting readiness, so the reader cannot open a prompt while
+        // an unclosed PiP window may still cover Chromium's permission UI.
+        const response = (await chrome.runtime
+          .sendMessage({ type: "glimpselet:reader-permission-handoff" })
+          .catch(() => undefined)) as { ok?: boolean } | undefined;
+        if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
+        const panel = panels.find(
+          (tab: BrowserTab) => tab.windowId !== undefined,
+        );
+        if (panel?.windowId !== undefined) {
+          const owner = await chrome.windows
+            .get(panel.windowId)
+            .catch(() => undefined);
+          if (owner?.type === "popup" && owner.state !== "minimized")
+            await chrome.windows.update(panel.windowId, { state: "minimized" });
+        }
+      })()
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
       return true;
     }
     if (message?.type === "glimpselet:pair" && sender.tab?.url) {

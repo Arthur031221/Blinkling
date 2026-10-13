@@ -81,6 +81,14 @@ describe("content script translation freshness", () => {
     Reflect.deleteProperty(globalThis, "glimpseletContentReady");
   });
 
+  it("leaves unchanged provider text available without a restore marker", async () => {
+    const node = await setup();
+    expect(translate(node.id, node.text).applied).toBe(1);
+    expect(document.querySelector("[data-glimpselet-translated]")).toBeNull();
+    expect(send<{ restored: number }>("glimpselet:restore").restored).toBe(0);
+    expect(text.nodeValue).toBe(node.text);
+  });
+
   it("restores the original when the translated value is still present", async () => {
     const node = await setup();
     expect(translate(node.id, "Precio original").applied).toBe(1);
@@ -108,6 +116,42 @@ describe("content script translation freshness", () => {
       expect(text.nodeValue).toBe("Original product price");
     },
   );
+
+  it.each(["disconnected", "sourceChanged", "ineligible"] as const)(
+    "accounts for a delayed translation skipped because of %s",
+    async (reason) => {
+      const node = await setup();
+      if (reason === "disconnected") text.remove();
+      if (reason === "sourceChanged") text.nodeValue = "Updated product price";
+      if (reason === "ineligible") document.querySelector("p")!.hidden = true;
+      expect(translate(node.id, "Translated price")).toEqual({
+        applied: 0,
+        changed: 0,
+        rejected: 0,
+        skipped: {
+          disconnected: Number(reason === "disconnected"),
+          sourceChanged: Number(reason === "sourceChanged"),
+          ineligible: Number(reason === "ineligible"),
+        },
+      });
+    },
+  );
+
+  it("counts actual writes separately from accepted unchanged values", async () => {
+    const node = await setup();
+    expect(translate(node.id, node.text)).toMatchObject({
+      applied: 1,
+      changed: 0,
+    });
+    expect(translate(node.id, "Translated price")).toMatchObject({
+      applied: 1,
+      changed: 1,
+    });
+    expect(translate("unknown", "Translated price")).toMatchObject({
+      applied: 0,
+      rejected: 1,
+    });
+  });
 
   it("does not apply a delayed translation over a site update", async () => {
     const node = await setup();

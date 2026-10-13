@@ -44,6 +44,7 @@ for (const name of [
 ])
   await cp(`extension/${name}`, `dist-extension/${name}`);
 await cp("public/assets", "dist-extension/assets", { recursive: true });
+await cp("extension/icons", "dist-extension/icons", { recursive: true });
 await cp("public/licenses", "dist-extension/licenses", { recursive: true });
 await cp(
   resolve("node_modules/pdfjs-dist/build/pdf.worker.min.mjs"),

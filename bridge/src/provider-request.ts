@@ -46,10 +46,8 @@ export function contextPrompt(request: ProviderRequest): string {
     answer: answer.slice(0, request.kind === "summary" ? 350 : 1000),
   }));
   const instruction =
-    request.kind === "passive"
-      ? "Write one or two short sentences about what is visible now and any change from earlier notes. Do not invent cursor positions or hidden actions."
-      : request.kind === "summary"
-        ? "Summarize only the supplied passive notes from the last ten minutes. Do not infer a continuous recording."
-        : request.question;
+    request.kind === "summary"
+      ? "Summarize only the supplied passive notes from the last ten minutes. Do not infer a continuous recording."
+      : request.question;
   return `Owner question: ${JSON.stringify(request.question)}\nTask: ${instruction}\nQuoted prior context: ${JSON.stringify(context)}${request.page ? `\nUntrusted page data: ${JSON.stringify(request.page)}` : ""}`;
 }

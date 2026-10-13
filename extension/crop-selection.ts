@@ -129,6 +129,7 @@ export function selectCrop(
       finished = true;
       view.removeEventListener("keydown", key, true);
       view.removeEventListener("resize", resize);
+      view.removeEventListener("scroll", render, true);
       view.removeEventListener("pagehide", cancelCrop);
       doc.removeEventListener("fullscreenchange", fullscreenChanged);
       host.remove();
@@ -157,7 +158,11 @@ export function selectCrop(
         event.stopImmediatePropagation();
         finish(null);
       }
-      if (event.key === "Enter" && rect && !confirm.disabled) {
+      if (event.key === "Enter" && cancel === root.activeElement) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        finish(null);
+      } else if (event.key === "Enter" && rect && !confirm.disabled) {
         event.preventDefault();
         event.stopImmediatePropagation();
         finish(rect);
@@ -168,6 +173,7 @@ export function selectCrop(
         event.preventDefault();
         const r = bounds(),
           step = event.shiftKey ? 10 : 1;
+        const creatingSelection = !rect;
         if (!rect)
           rect = {
             x: Math.round(r.width / 4),
@@ -201,6 +207,7 @@ export function selectCrop(
             ),
           );
           render();
+          if (creatingSelection) confirm.focus({ preventScroll: true });
           return;
         }
         rect = {
@@ -231,6 +238,7 @@ export function selectCrop(
           ),
         };
         render();
+        if (creatingSelection) confirm.focus({ preventScroll: true });
       }
     };
     const resize = () => {
@@ -304,8 +312,8 @@ export function selectCrop(
     };
     cancel.onclick = cancelCrop;
     view.addEventListener("keydown", key, true);
-    cancel.focus();
     view.addEventListener("resize", resize);
+    view.addEventListener("scroll", render, true);
     view.addEventListener("pagehide", cancelCrop, { once: true });
     cancel.focus({ preventScroll: true });
   });

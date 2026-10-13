@@ -1,8 +1,15 @@
 import { hasSensitiveContent } from "./privacy";
 import { encodeCanvasPng } from "./png";
+import { prepareCaptureBinding, type CaptureBinding } from "./capture-binding";
+import type { PageContext } from "./page-context";
 
 export type CaptureKind = "visible" | "full" | "region" | "element" | "screen";
 export type CaptureResult = { image: string; label: string };
+export type CaptureProgress = { completed: number; total: number };
+export type CaptureWebOptions = {
+  signal?: AbortSignal;
+  onProgress?: (progress: CaptureProgress) => void;
+};
 type Tab = chrome.tabs.Tab;
 type ActiveTab = Tab & { id: number; windowId: number };
 
@@ -11,7 +18,7 @@ let currentTabId =
 const ownOrigin = new URL(chrome.runtime.getURL("panel.html")).origin;
 
 export function setCurrentActiveTab(tabId: number | undefined): void {
-  if (Number.isInteger(tabId) && tabId! > 0) currentTabId = tabId;
+  currentTabId = Number.isInteger(tabId) && tabId! > 0 ? tabId : undefined;
 }
 
 function isOwnTab(tab: Tab | undefined): boolean {
@@ -105,16 +112,35 @@ async function sendToPage(tab: ActiveTab, message: unknown): Promise<unknown> {
   }
 }
 
-export async function isSensitivePage(): Promise<boolean> {
-  const tab = await activeTab();
+export async function isSensitivePage(
+  binding?: CaptureBinding,
+  manualTextOnly = false,
+): Promise<boolean> {
+  const candidate = binding
+    ? await chrome.tabs.get(binding.tabId).catch(() => undefined)
+    : await activeTab();
+  if (
+    !candidate?.id ||
+    candidate.windowId === undefined ||
+    (binding && candidate.url !== binding.url)
+  )
+    return true;
+  const tab = candidate as ActiveTab;
   if (tab.url?.startsWith(chrome.runtime.getURL("reader.html"))) return false;
   try {
     await requireSiteAccess(tab);
     const result = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: {
+        tabId: tab.id,
+        ...(binding ? { documentIds: [binding.documentId] } : {}),
+      },
       func: hasSensitiveContent,
+      args: [null, manualTextOnly],
     });
-    return result[0]?.result !== false;
+    return (
+      result[0]?.result !== false ||
+      Boolean(binding && result[0]?.documentId !== binding.documentId)
+    );
   } catch (error) {
     if (error instanceof Error && error.message === "allow_site_access")
       throw error;
@@ -122,34 +148,40 @@ export async function isSensitivePage(): Promise<boolean> {
   }
 }
 
-export async function getPageContext(): Promise<PageContext | undefined> {
+export async function getDocumentIdentity(): Promise<
+  Pick<PageContext, "documentKey" | "url"> & { translated?: boolean }
+> {
+  const tab = await activeTab();
+  await requireSiteAccess(tab);
+  const identity = await sendToPage(tab, { type: "glimpselet:identity" });
+  await assertStillActive(tab);
+  return identity as Pick<PageContext, "documentKey" | "url"> & {
+    translated?: boolean;
+  };
+}
+
+export async function getPageContext(
+  manualTextOnly = false,
+): Promise<PageContext | undefined> {
   const tab = await activeTab();
   await requireSiteAccess(tab);
   // Check for password fields before requesting text from the content script.
-  if (await isSensitivePage()) throw new Error("password_page");
+  if (await isSensitivePage(undefined, manualTextOnly))
+    throw new Error("password_page");
   const context = await sendToPage(tab, { type: "glimpselet:context" });
   await assertStillActive(tab);
-  if (await isSensitivePage()) throw new Error("password_page");
+  if (await isSensitivePage(undefined, manualTextOnly))
+    throw new Error("password_page");
   return context as PageContext | undefined;
 }
 
-type PageContext = {
-  url: string;
-  title: string;
-  text: string;
-  hasPassword: boolean;
-  elements: Array<{
-    id: string;
-    role: string;
-    text: string;
-    rect: [number, number, number, number];
-  }>;
-};
 export async function captureWeb(
   kind: Exclude<CaptureKind, "screen">,
   selectedRect?: [number, number, number, number],
   labels?: Record<string, string>,
+  options: CaptureWebOptions = {},
 ): Promise<{ capture: CaptureResult; page?: PageContext }> {
+  throwIfAborted(options.signal);
   const tab = await activeTab();
   await requireSiteAccess(tab);
   if (await isSensitivePage()) throw new Error("password_page");
@@ -223,33 +255,65 @@ export async function captureWeb(
       frameHeight: innerHeight,
     }),
   });
+  throwIfAborted(options.signal);
   const metrics = original[0]?.result;
   if (!metrics || metrics.width * metrics.height > 90_000_000)
     throw new Error("page_too_large");
-  const frames: Array<{ image: string; x: number; y: number }> = [];
+  if (metrics.viewportWidth <= 0 || metrics.viewportHeight <= 0)
+    throw new Error("capture_failed");
+  const ys = [
+    ...new Set(
+      Array.from(
+        { length: Math.ceil(metrics.height / metrics.viewportHeight) },
+        (_, i) =>
+          Math.min(
+            i * metrics.viewportHeight,
+            Math.max(0, metrics.height - metrics.viewportHeight),
+          ),
+      ),
+    ),
+  ];
+  const xs = [
+    ...new Set(
+      Array.from(
+        { length: Math.ceil(metrics.width / metrics.viewportWidth) },
+        (_, i) =>
+          Math.min(
+            i * metrics.viewportWidth,
+            Math.max(0, metrics.width - metrics.viewportWidth),
+          ),
+      ),
+    ),
+  ];
+  const total = xs.length * ys.length;
+  const canvas = document.createElement("canvas");
+  const scale = Math.min(1, 4096 / Math.max(metrics.width, metrics.height));
+  canvas.width = Math.round(metrics.width * scale);
+  canvas.height = Math.round(metrics.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("capture_failed");
+  let completed = 0;
+  options.onProgress?.({ completed, total });
   try {
-    const ys: number[] = [];
-    for (let y = 0; y < metrics.height; y += metrics.viewportHeight)
-      ys.push(
-        Math.min(y, Math.max(0, metrics.height - metrics.viewportHeight)),
-      );
-    const xs: number[] = [];
-    for (let x = 0; x < metrics.width; x += metrics.viewportWidth)
-      xs.push(Math.min(x, Math.max(0, metrics.width - metrics.viewportWidth)));
-    for (const y of [...new Set(ys)])
-      for (const x of [...new Set(xs)]) {
+    for (const y of ys)
+      for (const x of xs) {
+        throwIfAborted(options.signal);
         await assertStillActive(tab);
-        if (frames.length)
-          await new Promise((resolve) => setTimeout(resolve, 550));
+        throwIfAborted(options.signal);
+        if (completed) await waitForCaptureDelay(550, options.signal);
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: (px: number, py: number) =>
             window.scrollTo({ left: px, top: py, behavior: "instant" }),
           args: [x, y],
         });
-        await new Promise((resolve) => setTimeout(resolve, 80));
+        throwIfAborted(options.signal);
+        await waitForCaptureDelay(80, options.signal);
+        throwIfAborted(options.signal);
         await assertStillActive(tab);
+        throwIfAborted(options.signal);
         if (await isSensitivePage()) throw new Error("password_page");
+        throwIfAborted(options.signal);
         const image = await chrome.tabs
           .captureVisibleTab(tab.windowId, {
             format: "png",
@@ -257,9 +321,27 @@ export async function captureWeb(
           .catch(() => {
             throw new Error("capture_permission");
           });
+        throwIfAborted(options.signal);
         await assertStillActive(tab);
+        throwIfAborted(options.signal);
         if (await isSensitivePage()) throw new Error("password_page");
-        frames.push({ image, x, y });
+        throwIfAborted(options.signal);
+        await drawFrame(
+          ctx,
+          image,
+          x,
+          y,
+          metrics.width,
+          metrics.height,
+          metrics.viewportWidth,
+          metrics.viewportHeight,
+          metrics.frameWidth,
+          metrics.frameHeight,
+          scale,
+        );
+        throwIfAborted(options.signal);
+        completed++;
+        options.onProgress?.({ completed, total });
       }
   } finally {
     await chrome.scripting
@@ -270,15 +352,8 @@ export async function captureWeb(
       })
       .catch(() => {});
   }
-  const image = await stitch(
-    frames,
-    metrics.width,
-    metrics.height,
-    metrics.viewportWidth,
-    metrics.viewportHeight,
-    metrics.frameWidth,
-    metrics.frameHeight,
-  );
+  throwIfAborted(options.signal);
+  const image = encodeCanvasPng(canvas);
   if (await isSensitivePage()) throw new Error("password_page");
   await assertStillActive(tab);
   return {
@@ -288,6 +363,62 @@ export async function captureWeb(
     },
     page,
   };
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error("capture_cancelled");
+}
+
+function waitForCaptureDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal);
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(new Error("capture_cancelled"));
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  source: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  frameWidth: number,
+  frameHeight: number,
+  scale: number,
+): Promise<void> {
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("capture_failed"));
+    img.src = source;
+  });
+  const visibleWidth = Math.min(viewportWidth, width - x);
+  const visibleHeight = Math.min(viewportHeight, height - y);
+  ctx.drawImage(
+    img,
+    0,
+    0,
+    (img.width * visibleWidth) / frameWidth,
+    (img.height * visibleHeight) / frameHeight,
+    x * scale,
+    y * scale,
+    visibleWidth * scale,
+    visibleHeight * scale,
+  );
+  img.src = "";
 }
 
 function crop(
@@ -322,55 +453,23 @@ function crop(
   });
 }
 
-async function stitch(
-  frames: Array<{ image: string; x: number; y: number }>,
-  width: number,
-  height: number,
-  viewportWidth: number,
-  viewportHeight: number,
-  frameWidth: number,
-  frameHeight: number,
-): Promise<string> {
-  const canvas = document.createElement("canvas");
-  const scale = Math.min(1, 4096 / Math.max(width, height));
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("capture_failed");
-  for (const frame of frames) {
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("capture_failed"));
-      img.src = frame.image;
-    });
-    const w = Math.min(viewportWidth, width - frame.x) * scale;
-    const h = Math.min(viewportHeight, height - frame.y) * scale;
-    ctx.drawImage(
-      img,
-      0,
-      0,
-      (img.width * Math.min(viewportWidth, width - frame.x)) / frameWidth,
-      (img.height * Math.min(viewportHeight, height - frame.y)) / frameHeight,
-      frame.x * scale,
-      frame.y * scale,
-      w,
-      h,
-    );
-  }
-  return encodeCanvasPng(canvas);
-}
-
-export async function captureScreen(): Promise<{
+export async function captureScreen(sourceTabId?: number): Promise<{
   stream: MediaStream;
   image: string;
+  binding?: CaptureBinding;
 }> {
+  const bindingPromise = (
+    sourceTabId ? chrome.tabs.get(sourceTabId) : activeTab()
+  )
+    .then(prepareCaptureBinding)
+    .catch(() => undefined);
   const stream = await navigator.mediaDevices.getDisplayMedia({
     video: { frameRate: 2, displaySurface: "monitor" },
     audio: false,
     selfBrowserSurface: "exclude",
     preferCurrentTab: false,
   } as DisplayMediaStreamOptions);
+  const binding = await bindingPromise;
   const video = document.createElement("video");
   try {
     video.srcObject = stream;
@@ -387,7 +486,7 @@ export async function captureScreen(): Promise<{
       .getContext("2d")
       ?.drawImage(video, 0, 0, canvas.width, canvas.height);
     const image = encodeCanvasPng(canvas);
-    return { stream, image };
+    return { stream, image, binding };
   } catch (error) {
     for (const track of stream.getTracks()) track.stop();
     throw error;

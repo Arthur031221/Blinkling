@@ -36,6 +36,7 @@ describe("extension locale bundles", () => {
       "replyLimit",
       "replyServiceError",
       "passwordPage",
+      "blockedPage",
       "siteAccess",
       "unsupportedPage",
       "tabChanged",
@@ -53,6 +54,7 @@ describe("extension locale bundles", () => {
       "imageLimit",
       "imageDecode",
       "translationIncomplete",
+      "guideFailed",
     ])
       keys.add(key);
     const expected = [...keys].sort();

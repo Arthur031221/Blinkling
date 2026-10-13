@@ -104,4 +104,40 @@ describe("page privacy gate", () => {
     document.body.innerHTML = "<span></span>".repeat(50_001);
     expect(hasSensitiveContent()).toBe(true);
   });
+
+  it("manual text can exclude unreadable embeds without relaxing the default", () => {
+    document.body.innerHTML = "<p>Japanese article</p><iframe></iframe>";
+    const frame = document.querySelector("iframe")!;
+    Object.defineProperty(frame, "contentDocument", { value: null });
+    expect(hasSensitiveContent(document, true)).toBe(false);
+    expect(hasSensitiveContent()).toBe(true);
+    document.body.insertAdjacentHTML("beforeend", '<input type="password">');
+    expect(hasSensitiveContent(document, true)).toBe(true);
+  });
+
+  it("manual text still blocks passwords in accessible frames and shadow roots", () => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const nested = frame.contentDocument!;
+    Object.defineProperty(nested, "readyState", { value: "complete" });
+    nested.body.innerHTML = '<input type="password">';
+    expect(hasSensitiveContent(document, true)).toBe(true);
+    nested.body.innerHTML = "";
+    const host = document.createElement("div");
+    document.body.append(host);
+    host.attachShadow({ mode: "open" }).innerHTML = '<input type="password">';
+    expect(hasSensitiveContent(document, true)).toBe(true);
+  });
+
+  it("manual text inspects accessible frames while their resources are loading", () => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const nested = frame.contentDocument!;
+    Object.defineProperty(nested, "readyState", { value: "loading" });
+    nested.body.innerHTML = '<input type="password">';
+    expect(hasSensitiveContent(document, true)).toBe(true);
+    nested.body.innerHTML = "<p>Public article</p>";
+    expect(hasSensitiveContent(document, true)).toBe(false);
+    expect(hasSensitiveContent()).toBe(true);
+  });
 });

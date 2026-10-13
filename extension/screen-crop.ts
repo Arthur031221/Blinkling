@@ -14,6 +14,7 @@ export async function cropSharedScreen(
   frame.width = video.videoWidth;
   frame.height = video.videoHeight;
   let container: HTMLDivElement | undefined;
+  let scaleChanged: (() => void) | undefined;
   let browserWindow:
     | { id: number; state: chrome.windows.Window["state"] }
     | undefined;
@@ -38,12 +39,11 @@ export async function cropSharedScreen(
     container = doc.createElement("div");
     container.dataset.glimpseletFrozenCrop = "true";
     container.style.cssText =
-      "position:fixed;inset:0;z-index:2147483646;background:#171410;display:grid;place-items:center";
+      "position:fixed;inset:0;z-index:2147483646;background:#171410;overflow:auto";
     const image = doc.createElement("img");
     image.alt = labels.cropTitle;
     image.src = frame.toDataURL("image/png");
-    image.style.cssText =
-      "display:block;max-width:100vw;max-height:100vh;object-fit:contain;width:auto;height:auto";
+    image.style.cssText = "display:block;max-width:none;max-height:none";
     container.append(image);
     doc.body.append(container);
     // Fullscreen belongs to the opener, never the small Document PiP window.
@@ -60,6 +60,28 @@ export async function cropSharedScreen(
         focused: true,
       });
     }
+    // One captured pixel occupies one physical display pixel, including HiDPI.
+    const view = doc.defaultView!;
+    const ratio = view.devicePixelRatio || 1;
+    image.style.width = `${frame.width / ratio}px`;
+    image.style.height = `${frame.height / ratio}px`;
+    container.addEventListener(
+      "wheel",
+      (event) => {
+        if (!container) return;
+        event.preventDefault();
+        container.scrollBy(
+          event.shiftKey ? event.deltaX || event.deltaY : event.deltaX,
+          event.shiftKey ? 0 : event.deltaY,
+        );
+      },
+      { passive: false },
+    );
+    scaleChanged = () => {
+      if ((view.devicePixelRatio || 1) !== ratio)
+        view.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    };
+    view.addEventListener("resize", scaleChanged);
     if (bubble) bubble.body.style.opacity = ".25";
     await image.decode();
     const host = doc.createElement("div");
@@ -97,6 +119,8 @@ export async function cropSharedScreen(
       throw new Error("crop_fullscreen_denied");
     throw error;
   } finally {
+    if (scaleChanged)
+      doc.defaultView?.removeEventListener("resize", scaleChanged);
     container?.remove();
     if (doc.fullscreenElement) await doc.exitFullscreen().catch(() => {});
     if (browserWindow)

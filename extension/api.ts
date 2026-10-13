@@ -4,6 +4,7 @@ import { validateTranslationNodes } from "./page-tools";
 export type Model = "sonnet" | "opus" | "haiku";
 export type Effort = "low" | "medium" | "high";
 export type PageContext = {
+  documentKey?: string;
   url: string;
   title: string;
   text: string;

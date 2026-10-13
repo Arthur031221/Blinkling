@@ -90,4 +90,27 @@ describe("keyboard crop", () => {
     window.dispatchEvent(key);
     expect(key.defaultPrevented).toBe(false);
   });
+  it("keeps a scrolled selection attached to the same captured pixels", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    let bounds = new DOMRect(0, 0, 1600, 1000);
+    const result = selectCrop(host, () => bounds, labels, 2);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+    const box = host.shadowRoot!.querySelector<HTMLElement>(".selection")!;
+    const before = { left: box.style.left, top: box.style.top };
+    bounds = new DOMRect(-600, -400, 1600, 1000);
+    window.dispatchEvent(new Event("scroll"));
+    expect(parseFloat(box.style.left)).toBe(parseFloat(before.left) - 600);
+    expect(parseFloat(box.style.top)).toBe(parseFloat(before.top) - 400);
+    expect(host.shadowRoot!.querySelector("output")!.textContent).toBe(
+      "1600 × 1000 px",
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await expect(result).resolves.toEqual({
+      x: 401,
+      y: 250,
+      width: 800,
+      height: 500,
+    });
+  });
 });
