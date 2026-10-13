@@ -143,7 +143,7 @@
   "liveStopped": "バブルは待機を終了しました。ターミナルでは処理が続いている場合があります。停止するにはターミナルで Esc を押してください。",
   "replayTourHint": "練習 {step}/8。このウィンドウで完了してください。",
   "guideAction": "このページを案内",
-  "guidePrompt": "このページの主な操作を案内してください",
+  "guidePrompt": "このページの目的、主なセクションと段落の内容、主な操作の進め方を説明してください",
   "replyInterrupted": "回答が中断されました。もう一度お試しください。",
   "replyLimit": "回答が長さの上限に達しました。質問を短くしてください。",
   "replyServiceError": "回答サービスが完了できませんでした。もう一度お試しください。",
@@ -187,5 +187,7 @@
   "readerSummaryPrompt": "この PDF のページを要約してください。",
   "selectionAskPrompt": "選択したこの文章を説明してください。",
   "captureRetryAction": "撮影を再開",
-  "captureScreenClearance": "この画面を撮影すると、フローティング画面が一時的に閉じます。開き直して続けてください。"
+  "captureScreenClearance": "この画面を撮影すると、フローティング画面が一時的に閉じます。開き直して続けてください。",
+  "guideOverview": "全体を見る",
+  "guideTour": "順に案内"
 }

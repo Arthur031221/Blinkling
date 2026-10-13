@@ -386,6 +386,50 @@ describe("content script guide focus", () => {
     expect(root.querySelector('svg[class~="draw"]')).toBeNull();
   });
 
+  it("skips collapsed responsive targets and restores their overview entries when visible", async () => {
+    const { firstId, secondId } = await setup();
+    const page = send<{ elements: Array<{ id: string; text: string }> }>(
+      "glimpselet:guide-context",
+    );
+    const returnId = page.elements.find((e) => e.text === "Return focus")!.id;
+    openGuide([firstId, secondId, returnId]);
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    const control = (name: string) =>
+      root.querySelector<HTMLButtonElement>(`[data-guide-control="${name}"]`)!;
+    const target = document.querySelectorAll<HTMLButtonElement>("button")[2];
+    target.hidden = true;
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(16);
+    expect(root.querySelector(".guide p")!.textContent).toBe("Step 1");
+    control("next").click();
+    expect(root.querySelector(".guide p")!.textContent).toBe("Step 3");
+    control("back").click();
+    expect(root.querySelector(".guide p")!.textContent).toBe("Step 1");
+    control("overview").click();
+    const collapsed = root.querySelector<HTMLButtonElement>(
+      '.guide-overview [data-guide-index="1"]',
+    )!;
+    expect(collapsed.disabled).toBe(true);
+    target.hidden = false;
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(16);
+    expect(collapsed.disabled).toBe(false);
+    collapsed.click();
+    expect(root.querySelector(".guide p")!.textContent).toBe("Step 2");
+
+    target.hidden = true;
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(16);
+    expect(root.querySelector(".guide p")!.textContent).toBe("Step 3");
+    // Collapsing a target must never exempt it from the privacy check.
+    target.setAttribute("data-private", "true");
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(16);
+    expect(root.querySelector(".guide")).toBeNull();
+  });
+
   it("keeps the focused nav control through scroll and resize repositioning", async () => {
     const { firstId, secondId } = await setup();
     expect(openGuide([firstId, secondId]).ok).toBe(true);
@@ -435,6 +479,13 @@ describe("content script guide focus", () => {
     back().click();
     expect(back().disabled).toBe(true);
     expect(root.activeElement).toBe(next());
+
+    const overview = () =>
+      root.querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!;
+    overview().focus();
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(16);
+    expect(root.activeElement).toBe(overview());
   });
 
   it("returns focus to the previously focused page element when closed", async () => {
@@ -458,6 +509,116 @@ describe("content script guide focus", () => {
     expect(host.shadowRoot!.querySelector(".guide")).toBeNull();
     expect(restoreFocus).toHaveBeenCalledWith({ preventScroll: true });
     expect(document.activeElement).toBe(returnFocus);
+  });
+
+  it("outlines page regions, shows purpose and navigates a tour longer than twelve steps", async () => {
+    document.body.innerHTML = `<main><h1>Read the paper</h1>${Array.from({ length: 20 }, (_, i) => `<section><h2>Section ${i}</h2><p>Paragraph ${i}</p></section>`).join("")}</main>`;
+    await startContentScript();
+    const page = send<{
+      elements: Array<{ id: string; role: string; text: string }>;
+    }>("glimpselet:guide-context");
+    const regions = page.elements.filter((e) => e.role === "paragraph");
+    expect(
+      send("glimpselet:guide", {
+        purpose: "Understand the research",
+        steps: regions.map((e) => ({ elementId: e.id, note: e.text })),
+      }),
+    ).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    expect(root.querySelector("rect.ink")).not.toBeNull();
+    expect(root.querySelector(".guide p")!.textContent).toContain(
+      "Understand the research",
+    );
+    for (let i = 0; i < 19; i++)
+      root
+        .querySelector<HTMLButtonElement>('[data-guide-control="next"]')!
+        .click();
+    expect(root.querySelector(".guide p")!.textContent).toBe("Paragraph 19");
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="back"]')!
+      .click();
+    expect(root.querySelector(".guide p")!.textContent).toBe("Paragraph 18");
+  });
+
+  it("keeps requested targets when late content changes the bounded map", async () => {
+    document.body.innerHTML = `<article>${Array.from({ length: 30 }, (_, i) => `<p>Original paragraph ${i}</p>`).join("")}</article>`;
+    await startContentScript();
+    const page = send<{
+      elements: Array<{ id: string; role: string; text: string }>;
+    }>("glimpselet:guide-context");
+    const paragraphs = page.elements.filter((e) => e.role === "paragraph");
+    document
+      .querySelector("article")!
+      .insertAdjacentHTML(
+        "afterbegin",
+        "<p>Late loaded article content.</p>".repeat(300),
+      );
+    const newPage = send<typeof page>("glimpselet:guide-context");
+    expect(
+      paragraphs.some((e) => !newPage.elements.some((n) => n.id === e.id)),
+    ).toBe(true);
+    expect(
+      send("glimpselet:guide", {
+        steps: paragraphs.map((e) => ({ elementId: e.id, note: e.text })),
+      }),
+    ).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
+      .click();
+    expect(root.querySelectorAll(".guide-overview li")).toHaveLength(30);
+    expect(root.querySelector(".guide-overview")!.textContent).toContain(
+      "Original paragraph 29",
+    );
+  });
+
+  it("keeps overview explanations, focus and scroll position through redraw and returns to a selected step", async () => {
+    const { firstId, secondId } = await setup();
+    openGuide([firstId, secondId]);
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
+      .click();
+    const panel = root.querySelector<HTMLElement>(".guide-overview")!;
+    expect(panel.querySelectorAll("li")).toHaveLength(2);
+    expect(root.querySelector(".guide")).toBeNull();
+    const second = panel.querySelector<HTMLButtonElement>(
+      '[data-guide-index="1"]',
+    )!;
+    second.focus();
+    panel.querySelector("ol")!.scrollTop = 40;
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(16);
+    expect(root.querySelector(".guide-overview")).toBe(panel);
+    expect(root.activeElement).toBe(second);
+    expect(panel.querySelector("ol")!.scrollTop).toBe(40);
+    second.click();
+    expect(root.querySelector(".guide-overview")).toBeNull();
+    expect(root.querySelector(".guide p")!.textContent).toBe("Step 2");
+    expect(root.querySelector(".guide")!.textContent).toContain("2/2");
+  });
+
+  it("clears every overview layer when any target becomes private", async () => {
+    const { firstId, secondId } = await setup();
+    openGuide([firstId, secondId]);
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
+      .click();
+    document.querySelectorAll("button")[2].setAttribute("data-private", "true");
+    window.dispatchEvent(new Event("resize"));
+    await vi.advanceTimersByTimeAsync(16);
+    expect(
+      root.querySelectorAll(".guide-overview,.guide-annotation,svg.draw"),
+    ).toHaveLength(0);
   });
 
   it.each([0, 1, 2])(

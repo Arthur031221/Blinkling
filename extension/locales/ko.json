@@ -143,7 +143,7 @@
   "liveStopped": "버블이 더 이상 기다리지 않습니다. 터미널 작업은 계속 중일 수 있습니다. 중지하려면 터미널에서 Esc를 누르세요.",
   "replayTourHint": "연습 {step}/8. 이 창에서 완료하세요.",
   "guideAction": "이 페이지 안내",
-  "guidePrompt": "이 페이지의 주요 작업을 안내해 주세요",
+  "guidePrompt": "이 페이지의 목적, 주요 섹션과 문단의 내용, 주요 작업을 진행하는 방법을 설명해 주세요",
   "replyInterrupted": "답변이 중단되었습니다. 다시 시도해 주세요.",
   "replyLimit": "답변이 길이 제한에 도달했습니다. 질문을 짧게 해 주세요.",
   "replyServiceError": "답변 서비스가 완료하지 못했습니다. 다시 시도해 주세요.",
@@ -187,5 +187,7 @@
   "readerSummaryPrompt": "이 PDF 페이지를 요약해 주세요.",
   "selectionAskPrompt": "선택한 이 글을 설명해 주세요.",
   "captureRetryAction": "캡처 계속",
-  "captureScreenClearance": "이 화면을 캡처할 때 버블이 잠시 닫힙니다. 다시 열어 계속하세요."
+  "captureScreenClearance": "이 화면을 캡처할 때 버블이 잠시 닫힙니다. 다시 열어 계속하세요.",
+  "guideOverview": "전체 보기",
+  "guideTour": "단계별 안내"
 }

@@ -41553,7 +41553,7 @@ async function runApiProvider(request, fetcher = fetch) {
     },
     body: JSON.stringify({
       model: API_MODELS[request.model],
-      max_tokens: request.kind === "passive" ? 2048 : 4096,
+      max_tokens: request.kind === "guide" ? 12e3 : request.kind === "passive" ? 2048 : 4096,
       stream: true,
       ...request.effort ? { output_config: { effort: request.effort } } : {},
       system: SYSTEM_PROMPT,

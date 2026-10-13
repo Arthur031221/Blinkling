@@ -143,7 +143,7 @@
   "liveStopped": "The bubble stopped waiting. The terminal may still be working. Press Esc there to stop it.",
   "replayTourHint": "Practice step {step}/8. Complete it in this bubble.",
   "guideAction": "Guide this page",
-  "guidePrompt": "Show me the main actions on this page",
+  "guidePrompt": "Explain what this page is for, each main section and paragraph, and how to do its main task",
   "replyInterrupted": "The reply was interrupted. Try again.",
   "replyLimit": "The reply reached its length limit. Ask a shorter question.",
   "replyServiceError": "The answer service could not finish. Try again.",
@@ -187,5 +187,7 @@
   "readerSummaryPrompt": "Summarize this PDF page.",
   "selectionAskPrompt": "Explain this selected passage.",
   "captureRetryAction": "Resume capture",
-  "captureScreenClearance": "When you capture this screen, the bubble briefly closes. Reopen it to continue."
+  "captureScreenClearance": "When you capture this screen, the bubble briefly closes. Reopen it to continue.",
+  "guideOverview": "Overview",
+  "guideTour": "Step by step"
 }

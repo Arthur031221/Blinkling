@@ -14,6 +14,61 @@ describe("bounded page context", () => {
     window.getSelection()?.removeAllRanges();
   });
 
+  it("maps sections, paragraphs and task controls below the fold in reading order", () => {
+    document.body.innerHTML = `<main><h1>Find a flight</h1><p>Compare fares and book a trip.</p>
+      <section><h2>Your trip</h2><p>Choose airports and dates.</p><label>Departure<input value="PRIVATE_INPUT"></label><button>Search flights</button></section>
+      <section style="margin-top:2000px"><h2>Fare rules</h2><p>Check baggage before booking.</p></section>
+      <p hidden>HIDDEN</p><p data-private>PRIVATE_PARAGRAPH</p></main>`;
+    const map = buildGuideContext();
+    expect(map.elements.map((e) => e.role)).toEqual([
+      "section",
+      "h1",
+      "paragraph",
+      "section",
+      "h2",
+      "paragraph",
+      "input",
+      "button",
+      "section",
+      "h2",
+      "paragraph",
+    ]);
+    expect(map.elements.at(-1)?.text).toBe("Check baggage before booking.");
+    expect(JSON.stringify(map)).not.toMatch(/PRIVATE_|HIDDEN/);
+    expect(buildGuideContext().elements.map((e) => e.id)).toEqual(
+      map.elements.map((e) => e.id),
+    );
+  });
+
+  it("preserves the end of a long article despite hundreds of navigation links", () => {
+    document.body.innerHTML = `<nav>${Array.from({ length: 300 }, (_, i) => `<a href="#">Link ${i}</a>`).join("")}</nav>
+      <article><h1>Paper</h1>${Array.from({ length: 180 }, (_, i) => `<p>Research paragraph ${i}</p>`).join("")}<button>Download paper</button></article>`;
+    const map = buildGuideContext();
+    expect(map.elements.length).toBeLessThanOrEqual(160);
+    expect(
+      map.elements.filter((e) => e.role === "paragraph").length,
+    ).toBeGreaterThan(80);
+    expect(map.elements.some((e) => e.text === "Research paragraph 179")).toBe(
+      true,
+    );
+    expect(map.elements.some((e) => e.text === "Download paper")).toBe(true);
+  });
+
+  it("keeps every article paragraph when navigation and reference lists exhaust the map", () => {
+    const paragraphs = Array.from(
+      { length: 71 },
+      (_, i) => `Article paragraph ${i}`,
+    );
+    document.body.innerHTML = `<nav><ul>${'<li><a href="#">Menu entry</a></li>'.repeat(200)}</ul></nav><article><h1>Tea</h1>${paragraphs.map((text) => `<p>${text}</p>`).join("")}<ol>${"<li>Reference citation</li>".repeat(300)}</ol></article>`;
+    const map = buildGuideContext();
+    expect(map.elements.length).toBeLessThanOrEqual(160);
+    expect(
+      map.elements
+        .filter((e) => e.text.startsWith("Article paragraph"))
+        .map((e) => e.text),
+    ).toEqual(paragraphs);
+  });
+
   it("explicit guides map only the top document, excluding opaque embeds and fallback text", () => {
     document.body.innerHTML =
       "<h1>Public dashboard</h1><button>Export</button><iframe></iframe><object><p>UNCHECKED_FALLBACK</p><button>UNCHECKED_CONTROL</button></object>";

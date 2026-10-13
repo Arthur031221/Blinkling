@@ -2374,6 +2374,8 @@ describe("bubble answer rendering and feedback", () => {
       close: en.guideClose,
       done: en.guideDone,
       title: en.guideAction,
+      overview: en.guideOverview,
+      tour: en.guideTour,
     });
   });
   it("rechecks the guide document before dispatch and discards a navigation", async () => {
