@@ -1,47 +1,85 @@
 # Store submission preparation
 
-This document prepares Chrome Web Store and Microsoft Edge Add-ons copy, permission explanations, and package guidance. No submission was made and neither store is represented as having approved Glimpselet.
+The account holder submits Glimpselet to the Chrome Web Store and Microsoft Edge Add-ons. These are preparation files, not approved listings. Leave both URLs in [`config/distribution.json`](../config/distribution.json) empty until approval.
 
-## Listing copy
+## Build and upload
 
-**Name:** Glimpselet
+```sh
+npm ci
+npm run package:stores
+python3 .github/workflows/check-release.py
+```
 
-**Short description:** Ask about a page or screen you choose to share from a compact floating chat.
+The output is in `release/`:
 
-**Description:** Glimpselet is a browser companion for understanding a page or screen. Capture a visible tab, full page, selected region or element, or a screen chosen in the browser picker. Ask questions in a compact chat and receive streamed answers. Page tools can explain selected text, translate eligible page text, and show a short guide over page elements. Optional passive summaries are off until enabled. Connect to a local command-line assistant through a loopback bridge and an SSH tunnel when browser and assistant are on different computers, or choose direct API-key mode. Page context and captures are sent only for the selected action or enabled feature.
+| File                          | Use                                                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `glimpselet-extension.zip`    | Upload this extension package to either store. Its manifest is at the archive root. Users can also extract it and load the folder unpacked.      |
+| `glimpselet-chrome-store.zip` | Chrome submission kit: extension ZIP, listing copy, permission explanations, privacy policy and images. Extract it before filling the dashboard. |
+| `glimpselet-edge-store.zip`   | Edge submission kit with the same code and assets. Extract it before filling Partner Center.                                                     |
+| `SHA256SUMS`                  | SHA-256 checksums of all three ZIPs. Run `sha256sum -c SHA256SUMS` from `release/`.                                                              |
 
-**Category:** Productivity  
-**Support:** `https://github.com/Arthur031221/Glimpselet/issues`  
-**Privacy:** `https://arthur031221.github.io/Glimpselet/privacy.html`
+Upload the inner `glimpselet-extension.zip`, not the whole submission kit. The automated release check verifies versions, archive structure, bundled script paths, absence of source maps and development files, image dimensions and checksums. CI runs it on Node 22 and 24 and keeps the kits as workflow artifacts. The release workflow requires successful push CI for the exact main commit before publishing.
 
-## Permission explanations
+## Listing and images
 
-| Permission or origin                       | Review justification                                                                                                                                                                                                                                                            |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activeTab`                                | After the user invokes Glimpselet, grant temporary access to the current tab for the requested capture or page action. It avoids asking for access to every site at install.                                                                                                    |
-| `scripting`                                | Inject the page selection, guide, and translation controls into the active tab after the user invokes a page action.                                                                                                                                                            |
-| `storage`                                  | Save language, consent, and feature preferences. Session storage holds pairing details, the user entered API key only for the browser session. Captures and video frames stay in bubble memory.                                                                                 |
-| `tabs`                                     | Identify the active tab for capture, detect tab changes during capture, and open the bundled PDF reader.                                                                                                                                                                        |
-| `http://127.0.0.1/*`, `http://localhost/*` | Connect only to the Glimpselet companion process on the user's own computer, or to its loopback endpoint forwarded through an SSH tunnel. The bridge is not a public service.                                                                                                   |
-| Optional `https://api.anthropic.com/*`     | In direct API mode, send the user's question and selected page context to the API after the user chooses the mode and supplies their key.                                                                                                                                       |
-| Optional `<all_urls>`                      | Request access when a page-specific action needs it, including reading a page, inserting the guide/translation overlay, or opening a remote PDF. The user can grant access for the current site through browser controls. Do not claim "all sites" access is needed at install. |
+Use [`STORE-LISTING.md`](STORE-LISTING.md) for listing text and reviewer instructions. Category: Productivity. Support: [issue tracker](https://github.com/Arthur031221/Glimpselet/issues). Website: [demo](https://arthur031221.github.io/Glimpselet/). Privacy: [policy](https://arthur031221.github.io/Glimpselet/privacy.html).
 
-These justifications describe the current manifest. Optional page origins are declared in `optional_host_permissions`. Browser prompts are shown when an action needs access to a site. The extension does not fetch executable code from a server. The bundled PDF reader and worker are local package files.
+| Asset                           | Dimensions | What it shows                                                |
+| ------------------------------- | ---------- | ------------------------------------------------------------ |
+| `assets/store/floating.png`     | 1280×800   | Real Document PiP chat above GitHub's TypeScript repository. |
+| `assets/store/guide.png`        | 1280×800   | A guide circle and note on the real GitHub Code control.     |
+| `assets/store/crop.png`         | 1280×800   | A page crop attached in the floating chat.                   |
+| `assets/store/translation.png`  | 1280×800   | In-place translation on the bundled practice page.           |
+| `assets/store/promo.png`        | 440×280    | Small promotional tile using the browser recording.          |
+| `extension/icons/blink-128.png` | 128×128    | Store icon, also included in the extension ZIP.              |
 
-The welcome tour opens the bundled article or PDF fixture in a separate local tab/window. Its same-origin `glimpselet:tutorial-action` message includes a version, action name, step number, and optional pairing code. The article accepts messages only from its same-origin opener, checks the action against the eight supported tutorial actions, displays the prompt, and dispatches a `glimpselet:tutorial-action` DOM `CustomEvent` on `window`. The extension content script should listen for that event and relay its `detail` to the extension runtime using this shape: `{ type: "glimpselet:tutorial-action", version: 1, action, step, code }`. This page event is a local bridge for the practice tour. It does not grant permissions or send page contents to the bridge by itself.
+All five listing images are RGB PNGs. Example responses and suggested questions use the local provider fixture. Guide annotations in the recording are deterministic example steps applied through the real content script. These assets show the real browser interface, not a claim of live model testing. To refresh the public-site recordings after `npm ci`, run:
 
-## Package and listing assets
+```sh
+npm run build:plugin
+npm run build --workspace bridge
+GLIMPSELET_RECORD_PUBLIC=1 npm run record-demo
+```
 
-Build a clean release package with `npm run package:extension`. It creates `release/glimpselet-extension.zip` with extension files at the archive root. Inspect the unpacked build and test both Chromium browsers before uploading the same code package to each store. The submitted package must not include source maps, development credentials, or unrelated files.
+The recorder requires Chromium, Xvfb, xfwm4 and ffmpeg. Edge can reuse the images, but still needs a browser-specific smoke test before submission.
 
-When the bridge reports tunnel mode, the welcome guide links to the versioned extension ZIP release and tells the browser user to extract it on the computer running Chrome, then load that extracted folder. It does not show the SSH host's local extension path. A configured store URL replaces both unpacked installation flows.
+The sizes follow the official [Chrome image guidance](https://developer.chrome.com/docs/webstore/images) and [Edge publishing guide](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension). Chrome accepts up to five screenshots. Edge accepts up to six. The supplied four screenshots fit both.
 
-The listing assets in `assets/store/` include 1280 by 800 screenshots of the floating chat, guide, translation and crop, plus a 440 by 280 promotional tile. The floating, guide and crop screenshots show the real extension over the public TypeScript GitHub page. The translation screenshot uses the bundled practice page. The recorded example replies use a local provider fixture. Run `GLIMPSELET_RECORD_PUBLIC=1 npm run record-demo` to refresh the public site images, demo GIF and short guide and crop GIFs. Edge Add-ons can reuse them. `npm run package:stores` creates separate submission packages for both stores, including the listing, privacy policy and permission justifications. The account holder submits them.
+## Single purpose and permissions
 
-## Store rollout
+**Single purpose:** Help users understand the page or screen they choose to share, through a floating chat, captures and reading tools.
 
-The only rollout change is to fill `chromeWebStoreUrl` and/or `edgeAddonsUrl` in [`config/distribution.json`](../config/distribution.json) with the approved HTTPS listing URLs, then rebuild. The build adds localized store links to all nine READMEs and removes the outdated developer mode warning. Source loading stays under Advanced. Empty URLs leave the current README files untouched. No store submission or listing publication is performed by the build.
+These explanations match [`extension/manifest.json`](../extension/manifest.json). Broad website access is optional, not requested at install.
 
-## Data handling summary
+| Permission or origin                       | Review justification                                                                                                                                                                                                                                                                           |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activeTab`                                | Temporary access to the tab the user invokes Glimpselet on, for capture and page actions.                                                                                                                                                                                                      |
+| `scripting`                                | Inject the selection, guide and translation controls after the user invokes a page tool. All injected code is bundled.                                                                                                                                                                         |
+| `storage`                                  | Save consent, language, model, site blocklist and window size. Pairing tokens and an optional API key use session storage. Captures and chat history remain in memory.                                                                                                                         |
+| `tabs`                                     | Keep actions attached to the correct source tab, check URL changes to avoid capturing a different page, refresh suggestions and open the PDF reader. Tab URLs and titles provide this context. No browsing-history log is stored or sent to the publisher.                                     |
+| `http://127.0.0.1/*`, `http://localhost/*` | Connect to the user's paired local bridge and support the local welcome tour. Remote Claude Code hosts use an SSH tunnel ending at loopback on the browser computer.                                                                                                                           |
+| Optional `https://api.anthropic.com/*`     | Send questions, selected page context and images to Anthropic only when the user chooses direct API mode with their own key.                                                                                                                                                                   |
+| Optional `<all_urls>`                      | Read page text, insert guide or translation controls, and fetch a user-selected PDF. The user can grant the current site, or choose **Allow on all sites**. Only HTTP and HTTPS origins are requested by that all-sites control. Access is revocable through the browser's extension settings. |
 
-There is no telemetry. Preferences live in browser local storage. Pairing state and a direct API key use browser session storage. Captures and video frames remain in bubble memory. Page text may be sent after consent for suggested questions. Questions, captures, page actions, and opt-in passive summaries send relevant page text or images to the selected backend. Bridge mode sends requests to the local host bridge, which invokes the user's CLI or pushes into its enabled live channel. Direct API mode sends requests from the browser to the configured API provider. The CLI may persist its conversation transcript. See the [privacy policy](../public/privacy.html) for storage and processing details.
+No remote executable code is loaded. The PDF.js reader, worker and all scripts are bundled. Model replies are data. Screen sharing uses the browser's picker and needs a user gesture. Normal consumer browsers cannot silently install an extension. Enterprise policy is a separate managed-browser option.
+
+## Privacy dashboard disclosures
+
+Use the following when completing each store's privacy form. A lack of publisher telemetry does not mean no data is transmitted.
+
+- **Website content:** page text, element labels, selected passages, PDF text and chosen screenshots can be processed by the selected backend. Page context can also contain a URL and title. User questions are transmitted with it.
+- **Web history / website context:** the active source tab's URL and title are used for page actions and suggestions. Glimpselet does not keep a browsing-history log. Disclose this access where the dashboard asks about visited URLs.
+- **Authentication information:** pairing tokens and an optional user-entered Anthropic API key are kept in browser session storage. The key is sent to Anthropic to authenticate direct API requests, and is not sent to the bridge or publisher.
+- Relevant page content can contain personal information. There is no separate profile, payment, location or health-data collector. Do not promise that chosen screenshots or questions cannot include sensitive data.
+- Data is used for the visible chat and reading features. It is not sold, used for advertising, or used by the publisher for unrelated purposes. There is no publisher-operated backend. Provider retention terms still apply.
+
+After consent, suggested questions may send page text automatically. Passive summaries are off until enabled and require an inspected shared browser tab. Whole screens, native windows and unknown sources pause automatic summaries. Browser preferences persist locally. Captures and chat history remain in memory. CLI requests may write conversation transcripts on the host. Images used by CLI requests are written to a private temporary directory and removed when the request ends. Full details are in [`public/privacy.html`](../public/privacy.html).
+
+The policy includes an affirmative Limited Use statement. Check that the hosted policy is reachable and matches the packaged extension before submitting. The store disclosures must agree with the implementation and policy, as explained in [Chrome's user-data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq) and [Limited Use policy](https://developer.chrome.com/docs/webstore/program-policies/limited-use).
+
+## After approval
+
+Fill `chromeWebStoreUrl` and/or `edgeAddonsUrl` in [`config/distribution.json`](../config/distribution.json) with the approved HTTPS listing URLs, then rebuild the plugin and demo site. That is the only distribution setting to change. The welcome page, `/glimpselet:glimpse`, all nine README install sections and the demo switch to store links. Unpacked instructions remain under Advanced. Empty URLs keep the load-unpacked flow.
+
+Before submission, complete the real Chrome and Edge smoke tests, verify the live privacy URL, and supply reviewer access to an answer backend if requested. This preparation branch does not submit, publish, deploy or push anything.

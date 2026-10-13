@@ -66,7 +66,7 @@ Para la extensión sin empaquetar, la guía copia los archivos nuevos a `~/.glim
 | Mantener Shift                      | Inicia un recorte en una burbuja o página de Glimpselet.                          |
 | Alt+P                               | Pausa los resúmenes Passive.                                                      |
 
-En macOS, Cmd+Shift+5 abre la herramienta del sistema para capturas de pantalla. Shift en una página web solo funciona en páginas de Glimpselet. No puede escuchar otras aplicaciones.
+En macOS, Cmd+Shift+5 abre la herramienta de captura del sistema. Shift funciona en las páginas a las que Glimpselet tiene acceso. Una página web no puede recibir esa tecla desde otra aplicación.
 
 **Float** es la primera acción. La extensión solicita acceso a la página cuando usas una función que lo necesita. No hace falta una clave API si usas tu propia sesión iniciada de Claude Code. El modo API directo es opcional y requiere tu propia clave API.
 
@@ -76,7 +76,7 @@ Consulta [Sesiones de Claude Code](docs/DESIGN.md#the-running-claude-code-conver
 
 ## Límites y privacidad
 
-Glimpselet funciona en Chrome, Edge y otros navegadores Chromium de escritorio. El aviso de desarrollador seguirá visible hasta que haya distribución en una tienda, y las actualizaciones son manuales. Algunas páginas, como la configuración del navegador, las tiendas de extensiones y páginas restringidas, bloquean el acceso. El visor PDF integrado de Chrome no es accesible. Usa el lector de Glimpselet. Las aplicaciones nativas solo aportan píxeles, sin texto ni superposiciones. Shift solo funciona en las superficies del navegador propias de Glimpselet, no en otra aplicación. La ventana flotante no permite atravesarla con clics.
+Glimpselet funciona en Chrome, Edge y otros navegadores Chromium de escritorio. El aviso de desarrollador seguirá visible hasta que haya distribución en una tienda, y las actualizaciones son manuales. Algunas páginas, como la configuración del navegador, las tiendas de extensiones y páginas restringidas, bloquean el acceso. El visor PDF integrado de Chrome no es accesible. Usa el lector de Glimpselet. Las aplicaciones nativas solo aportan píxeles, sin texto ni superposiciones. Shift funciona en la burbuja y en las páginas con acceso autorizado. En otra aplicación, usa el atajo global de recorte. La ventana flotante no permite atravesarla con clics.
 
 Las preguntas sugeridas automáticamente usan el contexto de la página solo con tu consentimiento. Los resúmenes pasivos son opcionales y requieren compartir una pestaña inspeccionada. Si la fuente compartida es una ventana, una pantalla, una aplicación nativa, desconocida o inaccesible, los resúmenes automáticos se pausan. Las preguntas y capturas manuales siguen disponibles.
 

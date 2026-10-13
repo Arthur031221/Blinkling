@@ -1,5 +1,10 @@
 name: CI
 on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
     strategy:
@@ -34,4 +39,29 @@ jobs:
       - run: npm run test:screen
       - run: npm run test:launcher
       - run: npm run demo
-      - run: npm run record-demo
+      - name: Build recording bridge modules
+        run: npm run build --workspace bridge
+      - name: Verify browser demo recording
+        run: |
+          recording_assets=$(mktemp -d)
+          cp -a assets/. "$recording_assets/"
+          trap 'cp -a "$recording_assets"/. assets/; rm -rf "$recording_assets"' EXIT
+          npm run record-demo
+      - run: npm run package:stores
+      - run: python3 .github/workflows/check-release.py
+      - run: PAGES=1 npm run build
+      - run: node .github/workflows/build-pages.mjs
+      - run: node .github/workflows/check-pages.mjs
+      - name: Save store submission kits
+        uses: actions/upload-artifact@v4
+        with:
+          name: glimpselet-store-kits-node-${{ matrix.node }}
+          path: release/
+          if-no-files-found: error
+      - name: Save browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failures-node-${{ matrix.node }}
+          path: test-results/
+          if-no-files-found: ignore

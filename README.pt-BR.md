@@ -66,7 +66,7 @@ Para a extensão descompactada, o guia copia os novos arquivos para `~/.glimpsel
 | Segurar Shift                       | Inicia um recorte em uma bolha ou página do Glimpselet.                             |
 | Alt+P                               | Pausa os resumos Passive.                                                           |
 
-No macOS, Cmd+Shift+5 abre a ferramenta de captura de tela do sistema. Shift em uma página só funciona nas páginas do Glimpselet. Não pode receber teclas em outros aplicativos.
+No macOS, Cmd+Shift+5 abre a ferramenta de captura de tela do sistema. Shift funciona nas páginas às quais o Glimpselet tem acesso. Uma página não pode receber essa tecla em outro aplicativo.
 
 **Float** é a primeira ação. A extensão pede acesso à página quando você usa um recurso que precisa dele. Não é necessária uma chave de API do provedor quando você usa sua própria sessão conectada do Claude Code. O modo de API direta é opcional e exige sua própria chave de API.
 
@@ -76,7 +76,7 @@ Veja [Sessões do Claude Code](docs/DESIGN.md#the-running-claude-code-conversati
 
 ## Limites e privacidade
 
-O Glimpselet funciona no Chrome, Edge e outros navegadores Chromium para desktop. O aviso de desenvolvedor permanece até a distribuição em uma loja, e as atualizações são manuais. Algumas páginas, como configurações do navegador, lojas de extensões e páginas restritas, bloqueiam o acesso. O leitor de PDF integrado do Chrome não é acessível. Use o leitor do Glimpselet. Aplicativos nativos fornecem apenas pixels, sem texto de página ou sobreposições. Shift funciona somente nas superfícies de navegador do próprio Glimpselet, não em outro aplicativo. A janela flutuante não permite que cliques passem por ela.
+O Glimpselet funciona no Chrome, Edge e outros navegadores Chromium para desktop. O aviso de desenvolvedor permanece até a distribuição em uma loja, e as atualizações são manuais. Algumas páginas, como configurações do navegador, lojas de extensões e páginas restritas, bloqueiam o acesso. O leitor de PDF integrado do Chrome não é acessível. Use o leitor do Glimpselet. Aplicativos nativos fornecem apenas pixels, sem texto de página ou sobreposições. Shift funciona na bolha e nas páginas com acesso autorizado. Em outro aplicativo, use o atalho global de recorte. A janela flutuante não permite que cliques passem por ela.
 
 As perguntas sugeridas automaticamente usam o contexto da página somente com seu consentimento. Resumos passivos são opcionais e exigem o compartilhamento de uma guia inspecionada. Se a origem compartilhada for uma janela, tela, aplicativo nativo, origem desconhecida ou inacessível, os resumos automáticos pausam. Perguntas e capturas manuais continuam disponíveis.
 

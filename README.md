@@ -66,7 +66,7 @@ For an unpacked extension, the guide copies the new files to `~/.glimpselet/exte
 | Hold Shift                          | Start a crop in a Glimpselet bubble or page.                    |
 | Alt+P                               | Pause Passive summaries.                                        |
 
-On macOS, Cmd+Shift+5 opens the system screenshot tool. Shift in a webpage works only on Glimpselet pages. It cannot listen in other apps.
+On macOS, Cmd+Shift+5 opens the system screenshot tool. Shift works on web pages where Glimpselet has page access. A web page cannot listen for it in another app.
 
 Float is the first action. The extension asks for page access when you use a feature that needs it. No provider API key is needed when you use your own logged-in Claude Code session. Direct API mode is optional and requires your own API key.
 
@@ -76,7 +76,7 @@ For the channel preview command and setup details, see [Claude Code sessions](do
 
 ## Limits and privacy
 
-Glimpselet works in desktop Chrome, Edge, and other Chromium browsers. The developer banner remains until store distribution is available, and updates are manual. Some browser pages block access, including settings, extension stores, and restricted pages. Chrome's built-in PDF viewer is not accessible, so use the Glimpselet reader. Native apps provide pixels only, with no page text or overlays. Shift works only in Glimpselet's own browser surfaces, not in another app. The floating window cannot pass clicks through.
+Glimpselet works in desktop Chrome, Edge, and other Chromium browsers. The developer banner remains until store distribution is available, and updates are manual. Some browser pages block access, including settings, extension stores, and restricted pages. Chrome's built-in PDF viewer is not accessible, so use the Glimpselet reader. Native apps provide pixels only, with no page text or overlays. Shift works in the bubble and on pages with site access. In another app, use the global crop shortcut. The floating window cannot pass clicks through.
 
 Automatic suggested questions use page context only with your consent. Passive summaries are opt-in and require a shared, inspected browser tab. If the shared source is a window, screen, native app, unknown, or otherwise inaccessible, automatic summaries pause. Manual questions and captures remain available.
 
