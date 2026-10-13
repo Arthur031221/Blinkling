@@ -694,13 +694,9 @@ function crop(
   });
 }
 
-export async function captureScreen(
-  sourceTabId?: number,
-  bubble: Document | null = null,
-  options: (video: HTMLVideoElement) => SharedFrameOptions = () => ({}),
-): Promise<{
+/** Start sharing from the user's gesture; taking a frame is a separate action. */
+export async function startScreenShare(sourceTabId?: number): Promise<{
   stream: MediaStream;
-  image: string;
   binding?: CaptureBinding;
 }> {
   const bindingPromise = (
@@ -714,7 +710,27 @@ export async function captureScreen(
     selfBrowserSurface: "exclude",
     preferCurrentTab: false,
   } as DisplayMediaStreamOptions);
-  const binding = await bindingPromise;
+  try {
+    const binding = await bindingPromise;
+    const track = stream.getVideoTracks()[0];
+    if (!track || track.readyState === "ended") throw new Error("share_ended");
+    return { stream, binding };
+  } catch (error) {
+    for (const track of stream.getTracks()) track.stop();
+    throw error;
+  }
+}
+
+export async function captureScreen(
+  sourceTabId?: number,
+  bubble: Document | null = null,
+  options: (video: HTMLVideoElement) => SharedFrameOptions = () => ({}),
+): Promise<{
+  stream: MediaStream;
+  image: string;
+  binding?: CaptureBinding;
+}> {
+  const { stream, binding } = await startScreenShare(sourceTabId);
   const video = document.createElement("video");
   try {
     video.srcObject = stream;

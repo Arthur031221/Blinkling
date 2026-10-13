@@ -16,6 +16,81 @@ const metrics = {
 };
 const drawImage = vi.fn();
 
+describe("starting a shared screen without taking a snapshot", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  function setupShare() {
+    setupChrome();
+    const track = { readyState: "live", stop: vi.fn() };
+    const stream = {
+      getVideoTracks: () => [track],
+      getTracks: () => [track],
+    };
+    const getDisplayMedia = vi.fn(async () => stream);
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getDisplayMedia },
+    });
+    return { stream, track, getDisplayMedia };
+  }
+
+  it("starts the native picker immediately and keeps sharing without freezing or closing PiP", async () => {
+    const { stream, track, getDisplayMedia } = setupShare();
+    let resolveTab!: (value: typeof tab) => void;
+    vi.mocked(chrome.tabs.get).mockReturnValue(
+      new Promise((resolve) => {
+        resolveTab = resolve;
+      }),
+    );
+    const freeze = vi.spyOn(
+      await import("./screen-frame"),
+      "freezeSharedFrame",
+    );
+    const { startScreenShare } = await import("./capture");
+
+    const pending = startScreenShare(tab.id);
+    expect(getDisplayMedia).toHaveBeenCalledOnce();
+    resolveTab(tab);
+    const result = await pending;
+
+    expect(result.stream).toBe(stream);
+    expect(result).not.toHaveProperty("image");
+    expect(freeze).not.toHaveBeenCalled();
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
+  it("reports picker cancellation without taking a snapshot", async () => {
+    const { track, getDisplayMedia } = setupShare();
+    const cancelled = new DOMException("Picker cancelled", "NotAllowedError");
+    getDisplayMedia.mockRejectedValue(cancelled);
+    const { startScreenShare } = await import("./capture");
+
+    await expect(startScreenShare(tab.id)).rejects.toBe(cancelled);
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
+  it("cleans up a share that ended while its source was being prepared", async () => {
+    const { track } = setupShare();
+    let resolveTab!: (value: typeof tab) => void;
+    vi.mocked(chrome.tabs.get).mockReturnValue(
+      new Promise((resolve) => {
+        resolveTab = resolve;
+      }),
+    );
+    const { startScreenShare } = await import("./capture");
+    const pending = startScreenShare(tab.id);
+    track.readyState = "ended";
+    resolveTab(tab);
+
+    await expect(pending).rejects.toThrow("share_ended");
+    expect(track.stop).toHaveBeenCalledOnce();
+  });
+});
+
 function setupChrome(captureVisibleTab = vi.fn(async () => "tile-png")) {
   const executeScript = vi.fn(
     async (details: { func: () => unknown; args?: unknown[] }) => {
