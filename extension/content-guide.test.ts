@@ -129,4 +129,96 @@ describe("content script guide focus", () => {
     expect(restoreFocus).toHaveBeenCalledWith({ preventScroll: true });
     expect(document.activeElement).toBe(returnFocus);
   });
+
+  it.each([0, 1, 2])(
+    "Escape closes step %s before the page can stop propagation",
+    async (index) => {
+      const { firstId, secondId } = await setup();
+      const returnFocus =
+        document.querySelector<HTMLButtonElement>("#return-focus")!;
+      returnFocus.focus();
+      const context = send<{ elements: Array<{ id: string; text: string }> }>(
+        "glimpselet:context",
+      );
+      openGuide([firstId, secondId, context.elements[0].id]);
+      const root = document.querySelector(
+        "[data-glimpselet-overlay]",
+      )!.shadowRoot!;
+      for (let i = 0; i < index; i++)
+        root
+          .querySelector<HTMLButtonElement>('[data-guide-control="next"]')!
+          .click();
+      const stop = (event: KeyboardEvent) => event.stopPropagation();
+      document.addEventListener("keydown", stop);
+      try {
+        const control = root.querySelector<HTMLButtonElement>(
+          '[data-guide-control="next"]',
+        )!;
+        // Exercise both a focused shadow control and actual page content.
+        for (const target of [control, returnFocus]) {
+          target.focus();
+          target.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "Escape",
+              bubbles: true,
+              composed: true,
+            }),
+          );
+          expect(root.querySelector(".guide")).toBeNull();
+          expect(root.querySelector("svg.draw")).toBeNull();
+          expect(document.activeElement).toBe(returnFocus);
+          openGuide([firstId, secondId, context.elements[0].id]);
+          for (let i = 0; i < index; i++)
+            root
+              .querySelector<HTMLButtonElement>('[data-guide-control="next"]')!
+              .click();
+        }
+      } finally {
+        document.removeEventListener("keydown", stop);
+      }
+    },
+  );
+
+  it("offers Close guide at every step and restores focus without affecting page Escape", async () => {
+    const { firstId, secondId } = await setup();
+    const previous =
+      document.querySelector<HTMLButtonElement>("#return-focus")!;
+    for (const index of [0, 1]) {
+      previous.focus();
+      openGuide([firstId, secondId]);
+      const root = document.querySelector(
+        "[data-glimpselet-overlay]",
+      )!.shadowRoot!;
+      if (index)
+        root
+          .querySelector<HTMLButtonElement>('[data-guide-control="next"]')!
+          .click();
+      const close = root.querySelector<HTMLButtonElement>(
+        '[data-guide-control="close"]',
+      );
+      expect(close?.textContent).toBe("Close guide");
+      close!.focus();
+      window.dispatchEvent(new Event("resize"));
+      expect(root.activeElement?.getAttribute("data-guide-control")).toBe(
+        "close",
+      );
+      (root.activeElement as HTMLButtonElement).click();
+      expect(root.querySelector(".guide")).toBeNull();
+      expect(document.activeElement).toBe(previous);
+    }
+    const pageEscape = vi.fn();
+    document.addEventListener("keydown", pageEscape);
+    try {
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      });
+      previous.dispatchEvent(event);
+      expect(pageEscape).toHaveBeenCalledOnce();
+      expect(event.defaultPrevented).toBe(false);
+    } finally {
+      document.removeEventListener("keydown", pageEscape);
+    }
+  });
 });

@@ -38,7 +38,13 @@ if (!contentScope.glimpseletContentReady) {
     | {
         steps: GuideStep[];
         index: number;
-        labels: { next: string; back: string; close: string; title: string };
+        labels: {
+          next: string;
+          back: string;
+          close: string;
+          done: string;
+          title: string;
+        };
       }
     | undefined;
   let guideReturnFocus: HTMLElement | undefined;
@@ -274,7 +280,7 @@ if (!contentScope.glimpseletContentReady) {
     next.dataset.guideControl = "next";
     next.textContent =
       currentGuide.index === currentGuide.steps.length - 1
-        ? currentGuide.labels.close
+        ? currentGuide.labels.done
         : currentGuide.labels.next;
     next.onclick = () => {
       if (!currentGuide) return;
@@ -284,7 +290,11 @@ if (!contentScope.glimpseletContentReady) {
         renderGuide();
       }
     };
-    nav.append(back, counter, next);
+    const close = document.createElement("button");
+    close.dataset.guideControl = "close";
+    close.textContent = currentGuide.labels.close;
+    close.onclick = closeGuide;
+    nav.append(back, counter, next, close);
     callout.append(nav);
     const top =
       point.y > 115
@@ -315,6 +325,7 @@ if (!contentScope.glimpseletContentReady) {
       next.focus({ preventScroll: true });
     else if (activeControl === "back") back.focus({ preventScroll: true });
     else if (activeControl === "next") next.focus({ preventScroll: true });
+    else if (activeControl === "close") close.focus({ preventScroll: true });
   }
 
   function closeGuide(): void {
@@ -492,12 +503,16 @@ if (!contentScope.glimpseletContentReady) {
         });
       },
     );
-    window.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        closeGuide();
-        closeSelectionPopover();
-      }
-    });
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape") {
+          closeGuide();
+          closeSelectionPopover();
+        }
+      },
+      true,
+    );
   }
 
   function select(
@@ -736,6 +751,7 @@ if (!contentScope.glimpseletContentReady) {
             next?: string;
             back?: string;
             close?: string;
+            done?: string;
             title?: string;
           };
           currentGuide = {
@@ -744,7 +760,8 @@ if (!contentScope.glimpseletContentReady) {
             labels: {
               next: guideLabels.next || "Next",
               back: guideLabels.back || "Back",
-              close: guideLabels.close || "Close",
+              close: guideLabels.close || "Close guide",
+              done: guideLabels.done || "Done",
               title: guideLabels.title || "Glimpselet",
             },
           };
