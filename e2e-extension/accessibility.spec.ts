@@ -3,9 +3,10 @@ import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import { resolve, join } from "node:path";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { build } from "esbuild";
+import zhTW from "../extension/locales/zh-TW.json" with { type: "json" };
 
 let server: Server;
 let context: BrowserContext;
@@ -219,3 +220,215 @@ test("locale action labels preserve their intended meanings", async () => {
   expect(english.dedicatedThread).toBe("Dedicated conversation");
   expect(english.pageNote).toBe("Passive mode");
 });
+
+// Document PiP owns a separate target: opener media emulation does not reach it.
+async function withFloatingTarget<T>(
+  panel: Page,
+  run: (
+    send: (
+      method: string,
+      params?: Record<string, unknown>,
+    ) => Promise<Record<string, unknown>>,
+  ) => Promise<T>,
+): Promise<T> {
+  const cdp = await context.browser()!.newBrowserCDPSession();
+  const openerCdp = await context.newCDPSession(panel);
+  const { targetInfo: opener } = await openerCdp.send("Target.getTargetInfo");
+  await openerCdp.detach();
+  const { targetInfos } = await cdp.send("Target.getTargets");
+  const target = targetInfos.find(
+    (candidate) =>
+      candidate.type === "page" &&
+      candidate.openerId === opener.targetId &&
+      candidate.url === "about:blank",
+  );
+  if (!target) throw new Error("Native floating target not found");
+  const { sessionId } = await cdp.send("Target.attachToTarget", {
+    targetId: target.targetId,
+    flatten: false,
+  });
+  try {
+    let nextId = 0;
+    return await run(async (method, params = {}) => {
+      const id = ++nextId;
+      const response = new Promise<Record<string, unknown>>(
+        (resolve, reject) => {
+          const timer = setTimeout(
+            () => reject(new Error("Floating target command timed out")),
+            10000,
+          );
+          cdp.on("Target.receivedMessageFromTarget", (event) => {
+            if (event.sessionId !== sessionId) return;
+            const message = JSON.parse(event.message);
+            if (message.id !== id) return;
+            clearTimeout(timer);
+            if (message.error) reject(new Error(JSON.stringify(message.error)));
+            else resolve(message.result);
+          });
+        },
+      );
+      await cdp.send("Target.sendMessageToTarget", {
+        sessionId,
+        message: JSON.stringify({ id, method, params }),
+      });
+      return await response;
+    });
+  } finally {
+    await cdp.send("Target.detachFromTarget", { sessionId });
+    await cdp.detach();
+  }
+}
+
+for (const width of [320, 520]) {
+  for (const colorScheme of ["light", "dark"] as const) {
+    test(`Traditional Chinese bubble controls fit ${width}px in ${colorScheme} mode`, async () => {
+      const worker = context.serviceWorkers()[0];
+      await worker.evaluate(() =>
+        chrome.storage.local.set({ consented: true, locale: "zh-TW" }),
+      );
+      const extensionId = new URL(worker.url()).host;
+      const panel = await context.newPage();
+      await panel.setViewportSize({ width, height: 780 });
+      await panel.emulateMedia({ colorScheme });
+      await panel.goto(`chrome-extension://${extensionId}/panel.html`);
+      await panel
+        .getByRole("button", { name: zhTW.settings, exact: true })
+        .click();
+      const dialog = panel.getByRole("dialog", { name: zhTW.settings });
+      await expect(dialog.getByLabel(zhTW.backend)).toHaveValue("bridge");
+      await expect(dialog.getByLabel(zhTW.backend)).toContainText(
+        "Claude Code",
+      );
+      await expect(dialog.getByLabel(zhTW.effort)).not.toContainText("MEDIUM");
+      await panel.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+      await expect(panel.locator(".usage-hint")).toBeVisible();
+      await expect(panel.locator(".usage-hint")).toContainText("Glimpselet");
+      const bounds = await panel
+        .locator(".composer-modes")
+        .evaluate((container) => {
+          const bounds = container.getBoundingClientRect();
+          return [...container.children].map((child) => {
+            const rect = child.getBoundingClientRect();
+            return {
+              left: rect.left >= bounds.left,
+              right: rect.right <= bounds.right + 1,
+            };
+          });
+        });
+      expect(bounds.every((bound) => bound.left && bound.right)).toBe(true);
+      expect(
+        await panel.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      const input = panel.getByRole("textbox", { name: zhTW.question });
+      await input.focus();
+      await input.fill("這個頁面有什麼？");
+      await panel.keyboard.press("Tab");
+      await expect(
+        panel.getByRole("button", { name: `${zhTW.send} ↗`, exact: true }),
+      ).toBeFocused();
+      await panel
+        .getByRole("button", { name: zhTW.float, exact: true })
+        .first()
+        .click();
+      await expect
+        .poll(() =>
+          panel.evaluate(() =>
+            Boolean(
+              window.documentPictureInPicture.window?.document.querySelector(
+                ".app.in-pip",
+              ),
+            ),
+          ),
+        )
+        .toBe(true);
+      await panel.evaluate((width) => {
+        const floating = window.documentPictureInPicture.window!;
+        floating.resizeTo(
+          width + floating.outerWidth - floating.innerWidth,
+          600 + floating.outerHeight - floating.innerHeight,
+        );
+      }, width);
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            () => window.documentPictureInPicture.window!.innerWidth,
+          ),
+        )
+        .toBe(width);
+      await withFloatingTarget(panel, async (send) => {
+        await send("Emulation.setEmulatedMedia", {
+          features: [{ name: "prefers-color-scheme", value: colorScheme }],
+        });
+        await expect
+          .poll(() =>
+            panel.evaluate(
+              () =>
+                window.documentPictureInPicture.window!.matchMedia(
+                  "(prefers-color-scheme: dark)",
+                ).matches,
+            ),
+          )
+          .toBe(colorScheme === "dark");
+        const floating = await panel.evaluate(() => {
+          const window = globalThis.window.documentPictureInPicture.window!;
+          const document = window.document;
+          const composer = document.querySelector(".composer-modes")!;
+          const bounds = composer.getBoundingClientRect();
+          return {
+            dark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+            overflow: document.documentElement.scrollWidth > window.innerWidth,
+            labels: [...document.querySelectorAll("button")].map(
+              (button) =>
+                button.getAttribute("aria-label") || button.textContent?.trim(),
+            ),
+            modesFit: [...composer.children].every((child) => {
+              const rect = child.getBoundingClientRect();
+              return rect.left >= bounds.left && rect.right <= bounds.right + 1;
+            }),
+            usage: document.querySelector(".usage-hint")?.textContent,
+          };
+        });
+        expect(floating.dark).toBe(colorScheme === "dark");
+        expect(floating.overflow).toBe(false);
+        expect(floating.modesFit).toBe(true);
+        expect(floating.labels).toContain(zhTW.settings);
+        expect(floating.labels).toContain(zhTW.returnToTab);
+        expect(floating.labels).not.toContain(zhTW.float);
+        expect(floating.usage).toBe(zhTW.cliUsageHint);
+        await panel.evaluate(() => {
+          const floating = window.documentPictureInPicture.window!;
+          floating.focus();
+          floating.document
+            .querySelector<HTMLTextAreaElement>("textarea")!
+            .focus();
+        });
+        const tab = {
+          key: "Tab",
+          code: "Tab",
+          windowsVirtualKeyCode: 9,
+          nativeVirtualKeyCode: 9,
+        };
+        await send("Input.dispatchKeyEvent", { ...tab, type: "keyDown" });
+        await send("Input.dispatchKeyEvent", { ...tab, type: "keyUp" });
+        await expect
+          .poll(() =>
+            panel.evaluate(() => {
+              const document = window.documentPictureInPicture.window!.document;
+              return document.activeElement === document.querySelector(".send");
+            }),
+          )
+          .toBe(true);
+        const screenshot = await send("Page.captureScreenshot", {
+          format: "png",
+        });
+        await writeFile(
+          test.info().outputPath("native-bubble.png"),
+          Buffer.from(String(screenshot.data), "base64"),
+        );
+      });
+    });
+  }
+}
