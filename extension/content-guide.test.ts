@@ -80,6 +80,94 @@ describe("content script guide focus", () => {
     document.body.innerHTML = "";
   });
 
+  it.each([
+    {
+      name: "the real export menu item with a multiline note",
+      viewport: [1280, 850],
+      target: [24, 134, 207, 32],
+      card: [271, 154],
+      expected: [24, 184],
+    },
+    {
+      name: "a target at the lower right viewport edge",
+      viewport: [1100, 780],
+      target: [1040, 720, 32, 32],
+      card: [271, 154],
+      expected: [821, 548],
+    },
+    {
+      name: "a tall note with space to the right",
+      viewport: [1280, 850],
+      target: [24, 330, 207, 32],
+      card: [271, 650],
+      expected: [249, 192],
+    },
+    {
+      name: "a tall note with space to the left",
+      viewport: [1100, 780],
+      target: [1040, 330, 32, 32],
+      card: [271, 650],
+      expected: [751, 122],
+    },
+    {
+      name: "a narrow viewport requiring a bounded scrollable note",
+      viewport: [320, 320],
+      target: [0, 170, 320, 32],
+      card: [271, 250],
+      expected: [8, 8],
+    },
+  ])(
+    "keeps the guide clear of $name",
+    async ({ viewport, target, card, expected }) => {
+      vi.stubGlobal("innerWidth", viewport[0]);
+      vi.stubGlobal("innerHeight", viewport[1]);
+      const { firstId } = await setup();
+      const originalBounds = HTMLElement.prototype.getBoundingClientRect;
+      const measure = vi
+        .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: HTMLElement) {
+          if (this.textContent === "First target")
+            return new DOMRect(...(target as [number, number, number, number]));
+          if (this.classList.contains("guide"))
+            return new DOMRect(
+              Number.parseFloat(this.style.left) || 0,
+              Number.parseFloat(this.style.top) || 0,
+              Math.min(
+                card[0],
+                Number.parseFloat(this.style.maxWidth) || Infinity,
+              ),
+              Math.min(
+                card[1],
+                Number.parseFloat(this.style.maxHeight) || Infinity,
+              ),
+            );
+          return originalBounds.call(this);
+        });
+      try {
+        expect(openGuide([firstId])).toEqual({ ok: true });
+        const callout = document
+          .querySelector("[data-glimpselet-overlay]")!
+          .shadowRoot!.querySelector<HTMLElement>(".guide")!;
+        const bounds = callout.getBoundingClientRect();
+        const [x, y, width, height] = target;
+        expect(
+          bounds.right <= x ||
+            bounds.left >= x + width ||
+            bounds.bottom <= y ||
+            bounds.top >= y + height,
+        ).toBe(true);
+        expect([bounds.left, bounds.top]).toEqual(expected);
+        expect(bounds.left).toBeGreaterThanOrEqual(8);
+        expect(bounds.top).toBeGreaterThanOrEqual(8);
+        expect(bounds.right).toBeLessThanOrEqual(viewport[0] - 8);
+        expect(bounds.bottom).toBeLessThanOrEqual(viewport[1] - 8);
+        expect(measure.mock.instances).toContain(callout);
+      } finally {
+        measure.mockRestore();
+      }
+    },
+  );
+
   it("serves an explicit text-only guide context but refuses known password reads and draws", async () => {
     const { firstId } = await setup();
     const frame = document.createElement("iframe");

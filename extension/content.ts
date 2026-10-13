@@ -151,7 +151,7 @@ if (!contentScope.glimpseletContentReady) {
       "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
     overlayRoot = overlayHost.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;max-width:245px;padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4}.guide nav{display:flex;justify-content:space-between;gap:6px}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
+    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;display:flex;flex-direction:column;box-sizing:border-box;width:271px;padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto;overflow:auto}.guide p{margin:0 0 8px;line-height:1.4;min-height:0;overflow:auto}.guide nav{display:flex;justify-content:space-between;gap:6px;flex-shrink:0;flex-wrap:wrap}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
     overlayRoot.append(style);
     style.textContent += `.guide button:focus-visible,.popover button:focus-visible,.cancel:focus-visible{outline:2px solid #86513d;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ink,.arrow{animation:none;stroke-dashoffset:0}}`;
     const surface = document.createElement("div");
@@ -257,7 +257,7 @@ if (!contentScope.glimpseletContentReady) {
     blink.append(wink);
     const head = document.createElement("div");
     head.style.cssText =
-      "display:flex;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
+      "display:flex;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d;flex-shrink:0";
     head.append(blink, document.createTextNode(currentGuide.labels.title));
     callout.append(head);
     const note = document.createElement("p");
@@ -297,18 +297,75 @@ if (!contentScope.glimpseletContentReady) {
     close.onclick = closeGuide;
     nav.append(back, counter, next, close);
     callout.append(nav);
-    const top =
-      point.y > 115
-        ? point.y - 110
-        : Math.min(innerHeight - 90, point.y + point.height + 18);
-    const cardX = Math.max(8, Math.min(Math.max(8, point.x), innerWidth - 269));
-    const cardY = Math.max(8, Math.min(top, innerHeight - 130));
+    // The note and localized controls determine the real card height. Measure
+    // after insertion before choosing a side, so the card never masks a target
+    // merely because its text is taller than a guessed fixed height.
+    const margin = 8;
+    const gap = 18;
+    const viewportWidth = Math.max(1, innerWidth - margin * 2);
+    const viewportHeight = Math.max(1, innerHeight - margin * 2);
+    callout.style.maxWidth = `${viewportWidth}px`;
+    callout.style.maxHeight = `${viewportHeight}px`;
+    root.append(svg, callout);
+    const natural = callout.getBoundingClientRect();
+    const spaces = [
+      {
+        side: "below",
+        width: viewportWidth,
+        height: innerHeight - margin - (point.y + point.height + gap),
+      },
+      { side: "above", width: viewportWidth, height: point.y - gap - margin },
+      {
+        side: "right",
+        width: innerWidth - margin - (point.x + point.width + gap),
+        height: viewportHeight,
+      },
+      { side: "left", width: point.x - gap - margin, height: viewportHeight },
+    ];
+    const fits = spaces.find(
+      (space) => space.width >= natural.width && space.height >= natural.height,
+    );
+    const usable = spaces.filter(
+      (space) => space.width > 0 && space.height > 0,
+    );
+    // If every side needs less space than the full note, retain the largest
+    // portion of the card and let its text scroll inside that available space.
+    const area = (space: (typeof spaces)[number]) =>
+      Math.min(space.width, natural.width) *
+      Math.min(space.height, natural.height);
+    const placement =
+      fits ||
+      usable.reduce<(typeof spaces)[number] | undefined>(
+        (best, space) => (!best || area(space) > area(best) ? space : best),
+        undefined,
+      );
+    if (placement) {
+      callout.style.maxWidth = `${Math.min(viewportWidth, placement.width)}px`;
+      callout.style.maxHeight = `${Math.min(viewportHeight, placement.height)}px`;
+    }
+    const card = callout.getBoundingClientRect();
+    const clampX = (value: number) =>
+      Math.max(margin, Math.min(value, innerWidth - margin - card.width));
+    const clampY = (value: number) =>
+      Math.max(margin, Math.min(value, innerHeight - margin - card.height));
+    const cardX =
+      placement?.side === "right"
+        ? point.x + point.width + gap
+        : placement?.side === "left"
+          ? point.x - gap - card.width
+          : clampX(point.x);
+    const cardY =
+      placement?.side === "below"
+        ? point.y + point.height + gap
+        : placement?.side === "above"
+          ? point.y - gap - card.height
+          : clampY(point.y);
     callout.style.left = `${cardX}px`;
     callout.style.top = `${cardY}px`;
     const startX = point.x + point.width / 2;
     const startY = point.y + point.height / 2;
-    const endX = Math.min(Math.max(startX, cardX), cardX + 245);
-    const endY = cardY + (cardY > startY ? 0 : 64);
+    const endX = Math.min(Math.max(startX, cardX), cardX + card.width);
+    const endY = Math.min(Math.max(startY, cardY), cardY + card.height);
     const arrow = document.createElementNS(svg.namespaceURI, "path");
     arrow.setAttribute("class", "arrow");
     arrow.setAttribute(
@@ -316,7 +373,6 @@ if (!contentScope.glimpseletContentReady) {
       `M${startX} ${startY} Q${(startX + endX) / 2 + 22} ${(startY + endY) / 2} ${endX} ${endY} m-7 -4 l7 4 l-7 4`,
     );
     svg.append(arrow);
-    root.append(svg, callout);
     if (!changed)
       for (const ink of svg.querySelectorAll<SVGElement>(".ink,.arrow")) {
         ink.style.animation = "none";
