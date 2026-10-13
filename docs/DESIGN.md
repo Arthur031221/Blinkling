@@ -26,13 +26,29 @@ Chrome [commands](https://developer.chrome.com/docs/extensions/reference/api/com
 
 The chosen integration is a documented [Claude Code channel](https://code.claude.com/docs/en/channels), which pushes messages into a running interactive session. The MCP server declares `experimental: {"claude/channel": {}}` and sends `notifications/claude/channel`. A nonce delivered through the channel must be returned by the session before live mode is offered. Ordinary MCP connectivity cannot be mistaken for live delivery. The [channel reference](https://code.claude.com/docs/en/channels-reference) documents notifications and reply tools.
 
-Custom channels are a research preview. After installing the plugin, restart the desired conversation with its actual UUID:
+Custom channels are a research preview. After installing the plugin, select the existing conversation before restarting it. The documented [session naming and resume procedure](https://code.claude.com/docs/en/sessions#name-your-sessions) avoids guessing its UUID:
+
+1. In the terminal conversation you want to connect, wait for its current answer to finish. Run `/rename glimpselet-reading`, using a unique name if that name is already used. To get its exact UUID instead, run [`/status`](https://code.claude.com/docs/en/commands), copy the **Session ID** row and press Esc to return. We verified this row in Claude Code 2.1.296.
+2. Run `/exit` and wait until the shell prompt returns. Keep only one owner of this conversation; two terminals or processes writing to it can interleave messages.
+3. In that project directory on the same host, run the command below. If you chose another name, replace `glimpselet-reading` with it. For SSH, run this on the remote host where Claude Code and the conversation live.
 
 ```sh
-claude --resume SESSION_ID --dangerously-load-development-channels plugin:glimpselet@glimpselet
+claude --resume "glimpselet-reading" --dangerously-load-development-channels plugin:glimpselet@glimpselet
 ```
 
-Accept the channel warning yourself. Authentication and organization policy must allow channels. The bubble selects live mode when its readiness check succeeds. Questions enter that interactive conversation. Images are fetched through `glimpse_channel_context`. The session returns scoped chunks through `glimpse_channel_reply`, with `done=true` on its final chunk. Those chunks stream into the bubble. The terminal's existing model, permissions and tools apply. Bubble model and effort controls are disabled for live requests.
+For a source checkout loaded with `--plugin-dir`, pass that flag again when resuming; it is not saved with the conversation. Replace the absolute path below with your Glimpselet checkout. Run it from the original conversation's project directory, which can differ from the plugin checkout:
+
+```sh
+claude --plugin-dir "/absolute/path/to/Glimpselet" --resume "glimpselet-reading" --dangerously-load-development-channels server:plugin:glimpselet:glimpselet
+```
+
+If the original terminal has already closed, run `claude --resume` from the project directory. Search the picker and press Space to preview the messages; Ctrl+A includes other projects on this host. Resume the matching conversation, then follow steps 1–3. A known session UUID also works in place of the quoted name. An ambiguous name opens the picker instead of resuming directly.
+
+After either startup command, accept the channel warning and any MCP server consent prompt yourself. Run `/mcp` and check that `plugin:glimpselet:glimpselet` is connected. If it is disabled or failed, enable or reconnect it there before opening the bubble. Authentication and organization policy must allow channels; a connected MCP server alone does not prove that channel messages can arrive.
+
+Run `/glimpselet:glimpse` in that resumed terminal and pair the browser through the welcome guide. Keep the terminal visible during the first connection: if Claude Code asks for permission to answer the readiness probe with `glimpse_channel_ready`, approve that call. Approve the scoped context and reply calls when prompted for the first bubble question too. These prompts use your session's normal tool permissions; the slash command does not bypass them. A pending prompt pauses delivery until you answer it. See the [channel permission guidance](https://code.claude.com/docs/en/channels#push-a-message-in).
+
+The bubble selects live mode only when its nonce readiness check succeeds. Questions enter that interactive conversation. Images are fetched through `glimpse_channel_context`. The session returns scoped chunks through `glimpse_channel_reply`, with `done=true` on its final chunk. Those chunks stream into the bubble. The terminal's existing model, permissions and tools apply. Bubble model and effort controls are disabled for live requests.
 
 Only replies to bubble requests are mirrored. Ordinary terminal turns are not copied. Stopping the bubble stops waiting and rejects late chunks. It cannot send Esc to the terminal. Its status says to stop the terminal separately if it is still working.
 
@@ -44,7 +60,7 @@ When a live channel is unavailable, recent conversations for the current project
 
 We checked [hooks](https://code.claude.com/docs/en/hooks): SessionStart, Stop and message events report lifecycle or output information, and hook inputs include `session_id` and `transcript_path`. Hooks do not provide an independent arbitrary input channel. Claude Code owns its JSONL session files. Glimpselet lists sessions through the SDK and never edits transcripts or watches every terminal message. Scoped MCP replies avoid copying unrelated terminal content.
 
-For local development with `--plugin-dir`, the plugin identity is `glimpselet@inline`. Claude Code 2.1.296 may display an installed plugin warning for this session only identity. Its MCP tools and channel still load. The equivalent development server selector is `server:plugin:glimpselet:glimpselet`. We confirm actual delivery through the nonce handshake rather than trusting this startup message. The `/glimpse` command authorizes connection probes and scoped bubble replies while preserving ordinary tool permissions.
+For local development with `--plugin-dir`, the plugin identity is `glimpselet@inline`. Claude Code 2.1.296 may display an installed plugin warning for this session only identity. Use the development server selector `server:plugin:glimpselet:glimpselet`, check the actual server in `/mcp`, and complete its consent prompts. We confirm actual delivery through the nonce handshake rather than trusting a startup message. The `/glimpselet:glimpse` command instructs Claude to handle connection probes and scoped bubble replies while preserving ordinary tool permissions.
 
 Before retrying an interrupted first answer, the bridge checks the exact UUID through the SDK conversation history API. A saved user message makes that same conversation resumable, even without a completed reply or summary. The request stays reserved during this check, and cancellation prevents the child from starting. If no conversation message exists, creation keeps the original UUID. An initialization file that blocks creation produces a clear instruction to choose a new conversation. Glimpselet never deletes an ambiguous transcript.
 

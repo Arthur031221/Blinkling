@@ -132,3 +132,114 @@ describe("distribution README sync", () => {
 
 const WARNING_MARKER =
   /(?:developer mode|entwicklermodus|mode développeur|modo de desarrollador|デベロッパーモード|개발자 모드|modo de desenvolvedor|开发者模式|開發人員模式)/i;
+
+function advancedSource(content) {
+  const start = content.search(/^### /m);
+  const following = content.slice(start).search(/\n## /);
+  return content.slice(start, following < 0 ? undefined : start + following);
+}
+
+function expectCheckoutInstructions(content) {
+  const advanced = advancedSource(content);
+  const commands = [...advanced.matchAll(/```sh\n([\s\S]*?)\n```/g)]
+    .map((match) => match[1])
+    .join("\n");
+  expect(commands).toMatch(/npm ci\s+\n?npm run build:plugin/);
+  expect(commands).toContain("claude plugin validate .");
+  expect(commands).toMatch(
+    /node -p [^\n]*\.claude-plugin\/plugin\.json[^\n]*\.version/,
+  );
+  expect(commands).toMatch(
+    /node -p [^\n]*dist-extension\/manifest\.json[^\n]*\.version/,
+  );
+  expect(commands).toContain('claude --plugin-dir "$PWD"');
+  expect(commands.indexOf("npm run build:plugin")).toBeLessThan(
+    commands.indexOf('claude --plugin-dir "$PWD"'),
+  );
+  expect(advanced).toContain("/glimpselet:glimpse");
+  expect(advanced).toContain("2.0.0");
+  expect(advanced).toContain("dist-extension");
+  expect(content.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(true);
+}
+
+describe("source checkout instructions", () => {
+  for (const file of readmeFiles) {
+    it(`${file} builds and loads its local plugin before starting Glimpselet`, async () => {
+      expectCheckoutInstructions(
+        await readFile(join(process.cwd(), file), "utf8"),
+      );
+    });
+  }
+
+  it("preserves the complete checkout recipe when store links are configured", async () => {
+    const root = await makeCopy({
+      chromeWebStoreUrl:
+        "https://chromewebstore.google.com/detail/glimpselet/example",
+      edgeAddonsUrl:
+        "https://microsoftedge.microsoft.com/addons/detail/glimpselet/example",
+    });
+    await syncDistribution({ root, configPath: join(root, "config.json") });
+    for (const content of await readReadmes(root))
+      expectCheckoutInstructions(content);
+  });
+});
+
+const passiveDocumentation = [
+  {
+    noShare: /without (?:screen )?sharing/i,
+    password: /password/i,
+    blocked: /blocklist/i,
+  },
+  {
+    noShare: /ohne (?:Bildschirmfreigabe|.*teilen)/i,
+    password: /Passwort/i,
+    blocked: /Sperrliste/i,
+  },
+  {
+    noShare: /sin compartir (?:la )?pantalla/i,
+    password: /contraseñ/i,
+    blocked: /bloquead/i,
+  },
+  {
+    noShare: /sans partage d['’]écran/i,
+    password: /mot[s]? de passe/i,
+    blocked: /bloqu/i,
+  },
+  {
+    noShare: /画面共有(?:なし|せず|は不要|を開始せず|をしなくても)/,
+    password: /パスワード/,
+    blocked: /ブロック/,
+  },
+  {
+    noShare: /화면(?:을)? 공유(?:하지 않| 없이)/,
+    password: /비밀번호/,
+    blocked: /차단/,
+  },
+  {
+    noShare: /sem compartilhar a tela/i,
+    password: /senha/i,
+    blocked: /bloquead/i,
+  },
+  {
+    noShare: /(?:无需|不需要|不必)共享屏幕|不共享屏幕/,
+    password: /密码/,
+    blocked: /屏蔽|阻止|封锁|黑名单/,
+  },
+  {
+    noShare: /(?:無需|不需要|不必)分享螢幕|不分享螢幕/,
+    password: /密碼/,
+    blocked: /封鎖|封鎖清單|黑名單/,
+  },
+];
+
+describe("passive page summary instructions", () => {
+  for (const [index, file] of readmeFiles.entries()) {
+    it(`${file} explains summaries without a share and keeps sensitive-page restrictions`, async () => {
+      const content = await readFile(join(process.cwd(), file), "utf8");
+      const rules = passiveDocumentation[index];
+      expect(content).toMatch(rules.noShare);
+      expect(content).toMatch(rules.password);
+      expect(content).toMatch(rules.blocked);
+    });
+  }
+});
