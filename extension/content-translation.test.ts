@@ -119,7 +119,9 @@ describe("content script translation freshness", () => {
     expect(paragraph.textContent).toBe(
       " \nThis article does not cite any sources or has insufficient citations.\t ",
     );
-    expect([...paragraph.childNodes]).toEqual(children);
+    expect(paragraph.childNodes.length).toBe(children.length);
+    for (const [index, child] of children.entries())
+      expect(paragraph.childNodes[index]).toBe(child);
     for (const [index, fragment] of fragments.entries())
       expect(fragment.firstChild).toBe(originals[index]);
     expect(originals[2].nodeValue).toBe("");
