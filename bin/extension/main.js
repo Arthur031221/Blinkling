@@ -19717,10 +19717,12 @@ function App() {
   const statusRevision = (0, import_react.useRef)(0);
   const pageWarningRevision = (0, import_react.useRef)(void 0);
   const connectionErrorRevision = (0, import_react.useRef)(void 0);
+  const errorStatusRevision = (0, import_react.useRef)(void 0);
   const setStatus = (0, import_react.useCallback)((value) => {
     statusRevision.current++;
     pageWarningRevision.current = void 0;
     connectionErrorRevision.current = void 0;
+    errorStatusRevision.current = void 0;
     updateStatus(value);
   }, []);
   function setPageStatus(value) {
@@ -19738,6 +19740,7 @@ function App() {
       ))
         connectionErrorRevision.current = statusRevision.current;
     }
+    errorStatusRevision.current = statusRevision.current;
   }
   const attachmentGeneration = (0, import_react.useRef)(0);
   const [captureRetry, updateCaptureRetry] = (0, import_react.useState)(
@@ -20524,7 +20527,8 @@ ${t.selectedPassage}: ${selected}` : ""}`;
         if (!sourceTabId) return;
         const checkedBindingVersion = bindingVersion;
         if (!matchesCaptureBinding(track, sharedBinding.current, sourceTabId)) {
-          setStatus(t.passiveScreenUnverified);
+          if (errorStatusRevision.current !== statusRevision.current)
+            setStatus(t.passiveScreenUnverified);
           return;
         }
         const frame = document.createElement("canvas");

@@ -306,10 +306,12 @@ function App() {
   const statusRevision = useRef(0);
   const pageWarningRevision = useRef<number | undefined>(undefined);
   const connectionErrorRevision = useRef<number | undefined>(undefined);
+  const errorStatusRevision = useRef<number | undefined>(undefined);
   const setStatus = useCallback((value: string) => {
     statusRevision.current++;
     pageWarningRevision.current = undefined;
     connectionErrorRevision.current = undefined;
+    errorStatusRevision.current = undefined;
     updateStatus(value);
   }, []);
   function setPageStatus(value: string) {
@@ -329,6 +331,7 @@ function App() {
       )
         connectionErrorRevision.current = statusRevision.current;
     }
+    errorStatusRevision.current = statusRevision.current;
   }
   const attachmentGeneration = useRef(0);
   const [captureRetry, updateCaptureRetry] = useState<CaptureRetry | null>(
@@ -1339,7 +1342,8 @@ function App() {
         if (!sourceTabId) return;
         const checkedBindingVersion = bindingVersion;
         if (!matchesCaptureBinding(track, sharedBinding.current, sourceTabId)) {
-          setStatus(t.passiveScreenUnverified);
+          if (errorStatusRevision.current !== statusRevision.current)
+            setStatus(t.passiveScreenUnverified);
           return;
         }
         const frame = document.createElement("canvas");

@@ -3305,6 +3305,42 @@ describe("screen sharing and capture authorization in the bubble", () => {
     expect(mocks.freeze).not.toHaveBeenCalled();
   });
 
+  it("keeps a crop failure visible across background screen checks without sending unverified pixels", async () => {
+    await start();
+    const { floating } = await startSharing();
+    const video = document.querySelector("video")!;
+    Object.defineProperties(video, {
+      videoWidth: { configurable: true, value: 640 },
+      videoHeight: { configurable: true, value: 480 },
+    });
+    mocks.crop.mockResolvedValueOnce("data:image/png;base64,DDD=");
+    await click(en.region, floating.document);
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    const screenStatus = () =>
+      floating.document.querySelector(".toolbar .status")!.textContent;
+    expect(screenStatus()).toBe(en.passiveScreenUnverified);
+    mocks.ask.mockClear();
+
+    mocks.crop.mockRejectedValueOnce(new Error("crop_fullscreen_denied"));
+    await click(en.region, floating.document);
+    expect(screenStatus()).toBe(en.crop_fullscreen_denied);
+    await act(async () => vi.advanceTimersByTimeAsync(4000));
+    expect(screenStatus()).toBe(en.crop_fullscreen_denied);
+    expect(
+      floating.document.querySelector<HTMLImageElement>(".capture-chip img")!
+        .src,
+    ).toBe("data:image/png;base64,DDD=");
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(mocks.freeze).not.toHaveBeenCalled();
+
+    mocks.crop.mockResolvedValueOnce("data:image/png;base64,EEE=");
+    await click(en.region, floating.document);
+    expect(screenStatus()).toBe(en.captureReady);
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(screenStatus()).toBe(en.passiveScreenUnverified);
+    expect(mocks.ask).not.toHaveBeenCalled();
+  });
+
   it("does not add a shared frame to an explicit selected-text ask", async () => {
     await start();
     const { floating } = await startSharing("window");
