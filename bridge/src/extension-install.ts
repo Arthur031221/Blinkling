@@ -284,13 +284,90 @@ const code=new URLSearchParams(location.hash.slice(1)).get('code'), port=Number(
 const applyLanguage=()=>{document.documentElement.lang=lang==='zh'?'zh-Hant':'en';document.querySelectorAll('[data-en][data-zh]').forEach(el=>{el.textContent=el.dataset[lang]});document.querySelector('#language').textContent=lang==='en'?'繁體中文':'English';document.querySelector('#language').setAttribute('aria-label',lang==='en'?'切換為繁體中文':'Switch to English');renderPair();if(isConnected)status.textContent=strings[lang].connected;if(modeKind)document.querySelector('#mode').textContent=modeKind==='tunnel'?(lang==='en'?'Claude Code is on another computer.':'Claude Code 位於另一台電腦。'):modeKind==='api'?(lang==='en'?'Using direct API mode.':'使用直接 API 模式。'):(lang==='en'?'Claude Code is on this computer.':'Claude Code 位於這台電腦。');if(remoteMode)document.querySelector('#try-note').textContent=strings[lang].remote;render()};
 function render(){const t=strings[lang], host=document.querySelector('#steps');host.replaceChildren();steps.forEach(([action],i)=>{const card=document.createElement('article');card.className='step'+(state[i]?' done':'');card.innerHTML='<div class="step-head"><span class="number">'+(state[i]?'✓':i+1)+'</span><h3></h3></div><p></p><div class="illustration" aria-hidden="true"><span class="browserbar"></span><span class="mockline"></span><span class="mockline two"></span><span class="mockline three"></span><span class="mockfocus"></span></div><div class="actions"><button class="button primary try"></button><button class="button done"></button><button class="button skip"></button></div>';card.querySelector('h3').textContent=t.titles[i];card.querySelector('p').textContent=t.descs[i];card.querySelector('.mockfocus').textContent=t.focus[i];card.querySelector('.try').textContent=t.tries[i];card.querySelector('.done').textContent=state[i]?t.done:(lang==='en'?'Done':'完成');card.querySelector('.skip').textContent=state[i]?'':(lang==='en'?'Skip':'略過');card.querySelector('.skip').hidden=!!state[i];card.querySelector('.try').onclick=()=>tryStep(i,action);card.querySelector('.done').onclick=()=>mark(i);card.querySelector('.skip').onclick=()=>mark(i);host.append(card)});const count=Object.values(state).filter(Boolean).length;document.querySelector('#progress').style.width=(count/8*100)+'%';document.querySelector('.progress').setAttribute('aria-valuenow',String(count));document.querySelector('#progress-label').textContent=t.step+' '+count+' '+t.of+' 8';}
 function mark(i){state[i]=true;localStorage.setItem(stateKey,JSON.stringify(state));render()}
-function tryStep(i,action){const base='/assets/glimpselet-welcome-sample.html';const fresh=!sample||sample.closed;if(fresh)sample=window.open(base,'glimpselet-sample');if(!sample){document.querySelector('#try-note').textContent=lang==='en'?'Allow pop-ups for this local page, then try again.':'請允許此本機頁面開啟彈出視窗，再重試。';return}const request={type:'glimpselet:tutorial-action',version:1,action,step:i+1,code:code||null};if(fresh)sample.addEventListener('load',()=>sample.postMessage(request,location.origin),{once:true});else sample.postMessage(request,location.origin);document.querySelector('#try-note').textContent=strings[lang].request;sample.focus()}
+let pendingPractice;
+const deliveredSteps = new Set();
+function clearPractice() {
+  if (!pendingPractice) return;
+  clearTimeout(pendingPractice.probe);
+  clearTimeout(pendingPractice.timeout);
+  pendingPractice = undefined;
+}
+function practiceFailure() {
+  clearPractice();
+  document.querySelector('#try-note').textContent = lang === 'en'
+    ? 'Could not deliver the practice action. Close the sample tab and try again.'
+    : '無法傳送練習操作。請關閉範例分頁，再試一次。';
+}
+function probePractice() {
+  if (!pendingPractice || pendingPractice.sent) return;
+  if (!sample || sample.closed) { practiceFailure(); return; }
+  try {
+    sample.postMessage({
+      type: 'glimpselet:tutorial:ping', version: 1,
+      requestId: pendingPractice.request.requestId,
+    }, location.origin);
+  } catch { practiceFailure(); return; }
+  pendingPractice.probe = setTimeout(probePractice, 100);
+}
+function tryStep(i, action) {
+  clearPractice();
+  const base = new URL('/assets/glimpselet-welcome-sample.html', location.origin).href;
+  let restore = !sample || sample.closed, target = 'glimpselet-sample';
+  if (!restore) {
+    try { restore = sample.location.href !== base; }
+    catch { restore = true; target = '_blank'; }
+  }
+  if (restore) deliveredSteps.clear();
+  pendingPractice = {
+    request: {
+      type: 'glimpselet:tutorial-action', version: 1,
+      requestId: crypto.randomUUID(), action, step: i + 1, code: code || null,
+    },
+    sent: false,
+  };
+  try { if (restore) sample = window.open(base, target); }
+  catch { practiceFailure(); return; }
+  if (!sample) {
+    clearPractice();
+    document.querySelector('#try-note').textContent = lang === 'en'
+      ? 'Allow pop-ups for this local page, then try again.'
+      : '請允許此本機頁面開啟彈出視窗，再重試。';
+    return;
+  }
+  document.querySelector('#try-note').textContent = lang === 'en'
+    ? 'Opening the sample page. Waiting for the practice action…'
+    : '正在開啟範例頁，等待傳送練習操作⋯';
+  pendingPractice.timeout = setTimeout(practiceFailure, 6000);
+  probePractice();
+  sample.focus();
+}
 const pair=document.querySelector('#pair'), copy=document.querySelector('#copy'), connect=document.querySelector('#connect');function renderPair(){if(/^[A-F0-9]{16}$/.test(code||'')){pair.textContent=(lang==='en'?'Pairing code: ':'配對碼：')+code+' · '+(lang==='en'?'Port: ':'連接埠：')+port;copy.hidden=false;connect.hidden=false}else pair.textContent=lang==='en'?'Open Glimpselet from Claude Code to receive a pairing code.':'請從 Claude Code 開啟 Glimpselet 取得配對碼。'}renderPair();if(/^[A-F0-9]{16}$/.test(code||'')){copy.onclick=async()=>{try{await navigator.clipboard.writeText(port+' '+code);document.querySelector('#try-note').textContent=strings[lang].copy}catch{document.querySelector('#try-note').textContent=strings[lang].copyFail}};connect.onclick=()=>{document.querySelector('#connection').textContent=strings[lang].pairing;window.postMessage({type:'glimpselet:pair',port,code},location.origin)}}
-document.querySelector('#language').onclick=()=>{lang=lang==='en'?'zh':'en';applyLanguage()};document.querySelector('#replay').onclick=()=>{state={};localStorage.removeItem(stateKey);render();document.querySelector('#tour').scrollIntoView({behavior:'smooth'})};
+document.querySelector('#language').onclick=()=>{lang=lang==='en'?'zh':'en';applyLanguage()};document.querySelector('#replay').onclick=()=>{clearPractice();deliveredSteps.clear();state={};localStorage.removeItem(stateKey);render();document.querySelector('#tour').scrollIntoView({behavior:'smooth'})};
 document.querySelector('#copy-tunnel').onclick=async()=>{const input=document.querySelector('#tunnel-command');try{await navigator.clipboard.writeText(input.value);document.querySelector('#try-note').textContent=strings[lang].copy}catch{input.focus();input.select();document.querySelector('#try-note').textContent=strings[lang].copyTunnelFail}};
 document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero'),note=document.querySelector('#try-note');button.disabled=true;note.textContent=strings[lang].try;try{const response=await fetch('/install/try?code='+encodeURIComponent(code||''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(response.status===409||data.mode==='tunnel'){remoteMode=true;button.hidden=true;note.textContent=strings[lang].remote;return}if(!response.ok)throw new Error('launch');note.textContent=strings[lang].tryStarted}catch{note.textContent=strings[lang].tryFail}finally{button.disabled=false}};
 function setInstallMode(){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(!local||!remote)return;const isRemote=modeKind==='tunnel';local.hidden=isRemote;remote.hidden=!isRemote}
 function setConnected(){if(isConnected)return;isConnected=true;status.classList.add('connected');status.textContent=strings[lang].connected;document.querySelector('#pair-controls').hidden=true;pair.hidden=true;document.querySelector('#copy').hidden=true;document.querySelector('#connect').hidden=true}
 async function poll(){if(!/^[A-F0-9]{16}$/.test(code||''))return;try{const response=await fetch('/install/status?code='+encodeURIComponent(code),{cache:'no-store'});if(response.ok){const result=await response.json();const download=document.querySelector('#install-remote a');if(download)download.href='/install/extension.zip?code='+encodeURIComponent(code);if(typeof result.mode==='string'){const nextKind=result.mode==='tunnel'?'tunnel':result.mode==='api'?'api':'direct';if(nextKind!==modeKind){modeKind=nextKind;setInstallMode();applyLanguage()}}if(typeof result.tunnelCommand==='string'&&/^ssh -N(?: -p [0-9]{1,5})? -L /.test(result.tunnelCommand)&&!/[\\r\\n]/.test(result.tunnelCommand)){document.querySelector('#tunnel').hidden=false;document.querySelector('#tunnel-command').value=result.tunnelCommand}if(modeKind==='tunnel'){remoteMode=true;document.querySelector('#try-zero').disabled=true;document.querySelector('#try-zero').hidden=true;document.querySelector('#try-note').textContent=strings[lang].remote}if(result.trialError===true)document.querySelector('#try-note').textContent=strings[lang].tryFail;if(result.connected===true){setConnected();setTimeout(()=>{document.querySelector('#tour').scrollIntoView({behavior:'smooth'})},650);return}}}catch{}setTimeout(poll,1200)}
-window.addEventListener('message',event=>{if(event.origin!==location.origin||(event.source!==window&&event.source!==sample))return;if(event.data?.type==='glimpselet:tutorial:ready'&&event.source===sample){document.querySelector('#try-note').textContent=strings[lang].request}if(event.data?.type==='glimpselet:tutorial:done'&&event.source===sample&&Number.isInteger(event.data.step)&&event.data.step>=1&&event.data.step<=8)mark(event.data.step-1);if(event.data?.type==='glimpselet:paired'&&event.source===window)setConnected();if(event.data?.type==='glimpselet:extension-ready'&&event.source===window&&!isConnected&&/^[A-F0-9]{16}$/.test(code||''))document.querySelector('#try-note').textContent=strings[lang].extensionReady});
+window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||(event.source!==window&&event.source!==sample))return;
+  const value=event.data;
+  if(event.source===sample&&value?.version===1){
+    const request=pendingPractice?.request;
+    if (request && value.requestId === request.requestId) {
+      if (value.type === 'glimpselet:tutorial:ready' && !pendingPractice.sent) {
+        pendingPractice.sent = true;
+        clearTimeout(pendingPractice.probe);
+        sample.postMessage(request, location.origin);
+      }
+      if (value.type === 'glimpselet:tutorial:ack' && pendingPractice.sent
+          && value.action === request.action && value.step === request.step) {
+        deliveredSteps.add(request.step);
+        clearPractice();
+        document.querySelector('#try-note').textContent = strings[lang].request;
+      }
+    }
+    if(value.type==='glimpselet:tutorial:done'&&Number.isInteger(value.step)&&deliveredSteps.has(value.step))mark(value.step-1);
+  }
+  if(value?.type==='glimpselet:paired'&&event.source===window)setConnected();if(value?.type==='glimpselet:extension-ready'&&event.source===window&&!isConnected&&/^[A-F0-9]{16}$/.test(code||''))document.querySelector('#try-note').textContent=strings[lang].extensionReady
+});
 applyLanguage();poll();if(location.hash==='#tour')document.querySelector('#tour').scrollIntoView();})();`;

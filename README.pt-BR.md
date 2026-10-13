@@ -29,6 +29,20 @@ Glimpselet inicia uma conversa dedicada. Você também pode continuar uma sessã
 
 No seu navegador de desktop, a extensão fica na pasta estável `~/.glimpselet/extension`. No Chrome ou Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continuará visível. As atualizações precisam ser feitas manualmente.
 
+Para atualizar uma extensão descompactada, feche a bolha antiga e execute `/glimpselet:glimpse` novamente para atualizar a pasta estável. Clique em Recarregar no cartão da extensão. Se o Claude Code for remoto, baixe o novo ZIP pelo guia, substitua os arquivos extraídos no computador com o navegador e recarregue a extensão.
+
+## Já instalou o Glimpselet?
+
+Execute estes comandos em um terminal no computador onde o Claude Code roda. Atualizar apenas o catálogo não garante que o plugin instalado seja atualizado.
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Na sessão aberta do Claude Code, execute `/reload-plugins` (ou reinicie o Claude Code) e depois `/glimpselet:glimpse`. A lista deve mostrar `glimpselet@glimpselet` na versão **2.0.0**, e o comando deve abrir o guia de boas-vindas e pareamento. Confira também **2.0.0** em `chrome://extensions` ou `edge://extensions` no computador com o navegador. Se ainda aparecer 1.1.1, a v2 pode não estar publicada no catálogo público; a antiga página de seleção de tela não é o guia da v2. [Verificação da atualização](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+
 ## O que você pode fazer
 
 - Receber respostas em streaming e fazer perguntas de acompanhamento com Opus, Sonnet ou Haiku.

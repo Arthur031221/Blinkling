@@ -29,6 +29,20 @@ Glimpselet beginnt eine eigene Unterhaltung. Alternativ können Sie eine aktuell
 
 Für deinen eigenen Desktop-Browser liegt die Erweiterung dauerhaft im Ordner `~/.glimpselet/extension`. Öffne in Chrome oder Edge `chrome://extensions` oder `edge://extensions`, aktiviere den **Entwicklermodus**, wähle **Entpackte Erweiterung laden** und dann diesen Ordner. Der Entwicklermodus-Hinweis bleibt sichtbar. Neue Versionen musst du manuell aktualisieren.
 
+Schließe zum Aktualisieren einer entpackten Erweiterung die alte Bubble und führe `/glimpselet:glimpse` erneut aus, um den festen Ordner zu aktualisieren. Klicke auf der Erweiterungskarte auf Neu laden. Bei einem entfernten Claude-Code-Host lade die neue ZIP über die Anleitung herunter, ersetze die entpackten Dateien auf dem Browser-Computer und lade die Erweiterung neu.
+
+## Glimpselet schon installiert?
+
+Führe diese Befehle im Terminal auf dem Computer aus, auf dem Claude Code läuft. Das Aktualisieren des Marketplace-Katalogs allein garantiert kein Update des installierten Plugins.
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Führe in deiner offenen Claude-Code-Sitzung `/reload-plugins` aus (oder starte Claude Code neu), danach `/glimpselet:glimpse`. Die Liste muss `glimpselet@glimpselet` mit **2.0.0** zeigen und der Befehl die Begrüßungs- und Kopplungsanleitung öffnen. Prüfe auch **2.0.0** unter `chrome://extensions` oder `edge://extensions` auf dem Browser-Computer. Bleibt das Plugin bei 1.1.1, ist v2 möglicherweise noch nicht im öffentlichen Marketplace verfügbar; die alte Bildschirm-Auswahlseite ist keine v2-Begrüßung. [Update prüfen](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+
 ## Was du damit tun kannst
 
 - Streame Chat-Antworten und stelle Rückfragen mit Opus, Sonnet oder Haiku.

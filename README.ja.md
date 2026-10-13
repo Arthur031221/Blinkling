@@ -29,6 +29,20 @@ Glimpselet は専用の会話を開始します。最近の Claude Code セッ�
 
 自分のデスクトップブラウザーでは、拡張機能は固定フォルダー `~/.glimpselet/extension` にあります。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
 
+展開済み拡張機能の更新では、古いバブルを閉じて `/glimpselet:glimpse` を再実行し、固定フォルダーを更新してから拡張機能のカードで再読み込みします。Claude Code がリモートの場合は、ガイドから新しい ZIP をダウンロードし、ブラウザー側の展開済みファイルを置き換えて再読み込みしてください。
+
+## すでに Glimpselet を使っている場合
+
+Claude Code が動いているコンピューターのターミナルで次のコマンドを実行します。マーケットプレイスの更新だけでは、インストール済みプラグインの更新は保証されません。
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+開いている Claude Code で `/reload-plugins` を実行するか再起動し、`/glimpselet:glimpse` を実行します。一覧の `glimpselet@glimpselet` が **2.0.0** で、ウェルカム・ペアリングガイドが開くことを確認してください。ブラウザー側の `chrome://extensions` または `edge://extensions` でも Glimpselet が **2.0.0** か確認します。まだ 1.1.1 なら、公開マーケットプレイスに v2 が未公開の可能性があります。古い画面選択ページは v2 のガイドではありません。[更新の確認](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
+
 ## できること
 
 - Opus、Sonnet、Haiku のストリーミング返信を受け取り、追加の質問もできます。

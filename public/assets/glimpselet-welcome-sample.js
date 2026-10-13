@@ -19,10 +19,29 @@
     selection: "Select a sentence and choose Explain, Translate, or Ask.",
     pdf: "Open the sample PDF in the Glimpselet reader.",
   };
+  const delivered = new Set();
   window.addEventListener("message", (event) => {
     if (event.source !== window.opener || event.origin !== location.origin)
       return;
     const request = event.data;
+    if (
+      request?.version !== 1 ||
+      typeof request.requestId !== "string" ||
+      !request.requestId ||
+      request.requestId.length > 128
+    )
+      return;
+    if (request.type === "glimpselet:tutorial:ping") {
+      window.opener.postMessage(
+        {
+          type: "glimpselet:tutorial:ready",
+          version: 1,
+          requestId: request.requestId,
+        },
+        location.origin,
+      );
+      return;
+    }
     if (
       request?.type !== "glimpselet:tutorial-action" ||
       request.version !== 1 ||
@@ -32,6 +51,8 @@
       request.step > 8
     )
       return;
+    if (delivered.has(request.requestId)) return;
+    delivered.add(request.requestId);
     const banner = document.querySelector("#tour-request");
     banner.innerHTML = "<strong>Tour step " + request.step + ":</strong> ";
     banner.append(document.createTextNode(labels[request.action]));
@@ -50,8 +71,9 @@
     if (window.opener) {
       window.opener.postMessage(
         {
-          type: "glimpselet:tutorial:ready",
+          type: "glimpselet:tutorial:ack",
           version: 1,
+          requestId: request.requestId,
           action: request.action,
           step: request.step,
         },
