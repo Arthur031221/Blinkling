@@ -491,16 +491,18 @@ if (!contentScope.glimpseletContentReady) {
     listenForShiftCrop(
       window,
       () => shiftCropEnabled && !selecting && !hasSensitiveContent(),
-      () => {
-        void select("region", cropLabels.cropCancel).then((result) => {
-          const value = result as { rect?: number[] };
-          if (value.rect)
-            void send({
-              type: "glimpselet:crop-selected",
-              rect: value.rect,
-              url: location.href,
-            });
-        });
+      (initialPointer) => {
+        void select("region", cropLabels.cropCancel, initialPointer).then(
+          (result) => {
+            const value = result as { rect?: number[] };
+            if (value.rect)
+              void send({
+                type: "glimpselet:crop-selected",
+                rect: value.rect,
+                url: location.href,
+              });
+          },
+        );
       },
     );
     window.addEventListener(
@@ -518,6 +520,7 @@ if (!contentScope.glimpseletContentReady) {
   function select(
     mode: "region" | "element",
     cancelLabel: string,
+    initialPointer?: PointerEvent,
   ): Promise<unknown> {
     if (selecting) return Promise.resolve({ cancelled: true });
     selecting = true;
@@ -532,6 +535,7 @@ if (!contentScope.glimpseletContentReady) {
         () => new DOMRect(0, 0, innerWidth, innerHeight),
         cropLabels,
         devicePixelRatio,
+        initialPointer,
       )
         .then((rect) =>
           rect
