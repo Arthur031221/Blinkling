@@ -26231,7 +26231,12 @@ function textForElement(element, limit = 240) {
     if (pieces.join(" ").length >= limit) break;
   }
   const text = (element.getAttribute("aria-label") || element.getAttribute("title") || pieces.join(" ")).replace(/\s+/g, " ").trim();
-  return text.slice(0, limit);
+  if (text) return text.slice(0, limit);
+  if (element.matches("button,[role=button]") && /^(?:menu|true)$/i.test(element.getAttribute("aria-haspopup") || "")) {
+    const expanded = element.getAttribute("aria-expanded");
+    return ("Menu" + (expanded === "true" ? " (expanded)" : expanded === "false" ? " (collapsed)" : "")).slice(0, limit);
+  }
+  return "";
 }
 function isExcluded(element, includeHidden = false) {
   for (let current = element; current; current = composedParent(current)) {
@@ -26316,9 +26321,9 @@ function readPageContext(doc, explicitGuide) {
     } : {}
   };
 }
-function contextTextNode(node) {
+function contextTextNode(node, allowEmpty = false) {
   const parent = composedTextParent(node);
-  return !!(parent && node.nodeValue?.trim() && restorableTextNode(node) && visible(parent));
+  return !!(parent && (node.nodeValue?.trim() || allowEmpty && node.nodeValue === "") && restorableTextNode(node) && visible(parent));
 }
 function contextRangeText(range) {
   const root = range.commonAncestorContainer;
@@ -26453,10 +26458,11 @@ function validateGuideSteps(value, knownElementIds) {
       continue;
     if (typeof step.note !== "string" || !step.note.trim()) continue;
     seen.add(step.elementId);
+    const action = typeof step.action === "string" ? step.action.trim().slice(0, 120) : "";
     steps.push({
       elementId: step.elementId,
       note: step.note.trim().slice(0, 360),
-      ...typeof step.action === "string" ? { action: step.action.trim().slice(0, 120) } : {}
+      ...action && !/^(?:none|null|n\/?a|no[ -]?op)$/i.test(action) ? { action } : {}
     });
   }
   return steps;
@@ -26472,7 +26478,7 @@ if (!contentScope.glimpseletContentReady) {
     overlayHost.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
     overlayRoot = overlayHost.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;max-width:245px;padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4}.guide nav{display:flex;justify-content:space-between;gap:6px}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
+    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;display:flex;flex-direction:column;box-sizing:border-box;width:271px;padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto;overflow:auto}.guide p{margin:0 0 8px;line-height:1.4;min-height:0;overflow:auto}.guide nav{display:flex;justify-content:space-between;gap:6px;flex-shrink:0;flex-wrap:wrap}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
     overlayRoot.append(style);
     style.textContent += `.guide button:focus-visible,.popover button:focus-visible,.cancel:focus-visible{outline:2px solid #86513d;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ink,.arrow{animation:none;stroke-dashoffset:0}}`;
     const surface = document.createElement("div");
@@ -26491,13 +26497,21 @@ if (!contentScope.glimpseletContentReady) {
     return { x: r.left, y: r.top, width: r.width, height: r.height, element };
   }, renderGuide = function() {
     if (!currentGuide) return;
+    const step = currentGuide.steps[currentGuide.index];
+    const context = buildGuideContext();
+    if (context.hasPassword || !context.elements.some((element) => element.id === step.elementId)) {
+      closeGuide();
+      return;
+    }
     const root = ensureOverlay();
     const activeControl = root.querySelector(".guide nav")?.contains(root.activeElement) ? root.activeElement.dataset.guideControl : void 0;
     root.querySelector(".guide")?.remove();
     root.querySelector("svg.draw")?.remove();
-    const step = currentGuide.steps[currentGuide.index];
     let point = guidePoint(step.elementId);
-    if (!point) return;
+    if (!point) {
+      closeGuide();
+      return;
+    }
     const changed = renderedStep !== step.elementId;
     if (changed && (point.y < 0 || point.y + point.height > innerHeight || point.x < 0 || point.x > innerWidth)) {
       point.element.scrollIntoView({
@@ -26557,7 +26571,7 @@ if (!contentScope.glimpseletContentReady) {
     wink.setAttribute("stroke-width", "2");
     blink.append(wink);
     const head = document.createElement("div");
-    head.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
+    head.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d;flex-shrink:0";
     head.append(blink, document.createTextNode(currentGuide.labels.title));
     callout.append(head);
     const note = document.createElement("p");
@@ -26594,15 +26608,54 @@ if (!contentScope.glimpseletContentReady) {
     close.onclick = closeGuide;
     nav.append(back, counter, next, close);
     callout.append(nav);
-    const top = point.y > 115 ? point.y - 110 : Math.min(innerHeight - 90, point.y + point.height + 18);
-    const cardX = Math.max(8, Math.min(Math.max(8, point.x), innerWidth - 269));
-    const cardY = Math.max(8, Math.min(top, innerHeight - 130));
+    const margin = 8;
+    const gap = 18;
+    const viewportWidth = Math.max(1, innerWidth - margin * 2);
+    const viewportHeight = Math.max(1, innerHeight - margin * 2);
+    callout.style.maxWidth = `${viewportWidth}px`;
+    callout.style.maxHeight = `${viewportHeight}px`;
+    root.append(svg, callout);
+    const natural = callout.getBoundingClientRect();
+    const spaces = [
+      {
+        side: "below",
+        width: viewportWidth,
+        height: innerHeight - margin - (point.y + point.height + gap)
+      },
+      { side: "above", width: viewportWidth, height: point.y - gap - margin },
+      {
+        side: "right",
+        width: innerWidth - margin - (point.x + point.width + gap),
+        height: viewportHeight
+      },
+      { side: "left", width: point.x - gap - margin, height: viewportHeight }
+    ];
+    const fits = spaces.find(
+      (space) => space.width >= natural.width && space.height >= natural.height
+    );
+    const usable = spaces.filter(
+      (space) => space.width > 0 && space.height > 0
+    );
+    const area = (space) => Math.min(space.width, natural.width) * Math.min(space.height, natural.height);
+    const placement = fits || usable.reduce(
+      (best, space) => !best || area(space) > area(best) ? space : best,
+      void 0
+    );
+    if (placement) {
+      callout.style.maxWidth = `${Math.min(viewportWidth, placement.width)}px`;
+      callout.style.maxHeight = `${Math.min(viewportHeight, placement.height)}px`;
+    }
+    const card = callout.getBoundingClientRect();
+    const clampX = (value) => Math.max(margin, Math.min(value, innerWidth - margin - card.width));
+    const clampY = (value) => Math.max(margin, Math.min(value, innerHeight - margin - card.height));
+    const cardX = placement?.side === "right" ? point.x + point.width + gap : placement?.side === "left" ? point.x - gap - card.width : clampX(point.x);
+    const cardY = placement?.side === "below" ? point.y + point.height + gap : placement?.side === "above" ? point.y - gap - card.height : clampY(point.y);
     callout.style.left = `${cardX}px`;
     callout.style.top = `${cardY}px`;
     const startX = point.x + point.width / 2;
     const startY = point.y + point.height / 2;
-    const endX = Math.min(Math.max(startX, cardX), cardX + 245);
-    const endY = cardY + (cardY > startY ? 0 : 64);
+    const endX = Math.min(Math.max(startX, cardX), cardX + card.width);
+    const endY = Math.min(Math.max(startY, cardY), cardY + card.height);
     const arrow = document.createElementNS(svg.namespaceURI, "path");
     arrow.setAttribute("class", "arrow");
     arrow.setAttribute(
@@ -26610,7 +26663,6 @@ if (!contentScope.glimpseletContentReady) {
       `M${startX} ${startY} Q${(startX + endX) / 2 + 22} ${(startY + endY) / 2} ${endX} ${endY} m-7 -4 l7 4 l-7 4`
     );
     svg.append(arrow);
-    root.append(svg, callout);
     if (!changed)
       for (const ink of svg.querySelectorAll(".ink,.arrow")) {
         ink.style.animation = "none";
@@ -27063,7 +27115,10 @@ if (!contentScope.glimpseletContentReady) {
           renderedStep = "";
           renderGuide();
           respond({ ok: true });
-        } else respond({ ok: false });
+        } else {
+          closeGuide();
+          respond({ ok: false });
+        }
         return;
       }
       if (message2.type === "glimpselet:text-nodes") {
@@ -27082,15 +27137,16 @@ if (!contentScope.glimpseletContentReady) {
         let index = 0;
         let hasMore = false;
         while (node = walker.nextNode()) {
-          if (!(node instanceof Text) || !contextTextNode(node)) continue;
-          const text = node.nodeValue.trim();
-          if (!text) continue;
+          if (!(node instanceof Text)) continue;
+          const retainedId = nodeIds.get(node);
+          let original = retainedId ? originals.get(retainedId) : void 0;
+          const retainedEmpty = original?.node === node && original.lastWritten === "" && node.nodeValue === "";
+          if (!contextTextNode(node, retainedEmpty)) continue;
           if (index < cursor) {
             index++;
             continue;
           }
-          let id = textNodeId(node);
-          let original = originals.get(id);
+          let id = retainedId ?? textNodeId(node);
           if (original && node.nodeValue !== (original.lastWritten ?? original.text)) {
             originals.delete(id);
             nodeIds.delete(node);
@@ -27137,7 +27193,10 @@ if (!contentScope.glimpseletContentReady) {
             skipped.disconnected++;
             continue;
           }
-          if (!contextTextNode(original.node)) {
+          if (!contextTextNode(
+            original.node,
+            original.lastWritten === "" && original.node.nodeValue === ""
+          )) {
             skipped.ineligible++;
             continue;
           }

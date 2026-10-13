@@ -154,6 +154,9 @@ test("an unavailable target suppresses a conflicting Undo highlight", async () =
   });
   const undo = page.elements.find((element) => element.text === "Undo")!;
   expect(undo).toBeDefined();
+  expect(
+    page.elements.find((element) => element.text === "Menu (collapsed)"),
+  ).toMatchObject({ role: "button" });
   expect(page.elements.some((element) => /export/i.test(element.text))).toBe(
     false,
   );
@@ -225,6 +228,54 @@ test("a known guide target draws on the actual control without a literal no-op a
   await expect(site.locator("[data-glimpselet-overlay] svg.draw")).toHaveCount(
     0,
   );
+});
+
+test("a multiline guide callout leaves its actual export target visible", async () => {
+  await site.locator("#export").evaluate((element) => {
+    (element as HTMLElement).style.cssText =
+      "position:fixed;left:24px;top:134px;width:207px;height:32px;margin:0;padding:0";
+  });
+  const page = await sendPage<PageContext>({
+    type: "glimpselet:guide-context",
+  });
+  const target = page.elements.find(
+    (element) => element.text === "Export drawing",
+  )!;
+  const result = await parseGuide(
+    {
+      status: "ready",
+      steps: [
+        {
+          elementId: target.id,
+          note: "Click Export image to save your drawing as a PNG or SVG image. You can adjust the export settings before saving.",
+          action: "Click",
+        },
+      ],
+    },
+    page,
+  );
+  expect(
+    await sendPage({ type: "glimpselet:guide", steps: result.steps }),
+  ).toEqual({ ok: true });
+  const guide = site.locator("[data-glimpselet-overlay] .guide");
+  await expect(guide).toBeVisible();
+  const control = (await site.locator("#export").boundingBox())!;
+  const callout = (await guide.boundingBox())!;
+  expect(callout.height).toBeGreaterThan(110);
+  expect(
+    callout.x + callout.width <= control.x ||
+      callout.x >= control.x + control.width ||
+      callout.y + callout.height <= control.y ||
+      callout.y >= control.y + control.height,
+  ).toBe(true);
+  const viewport = site.viewportSize()!;
+  expect(callout.x).toBeGreaterThanOrEqual(8);
+  expect(callout.y).toBeGreaterThanOrEqual(8);
+  expect(callout.x + callout.width).toBeLessThanOrEqual(viewport.width - 8);
+  expect(callout.y + callout.height).toBeLessThanOrEqual(viewport.height - 8);
+  // The overlay must also leave the target available to pointer input.
+  await expect(site.locator("#export")).toBeVisible();
+  await site.locator("#export").click({ trial: true });
 });
 
 async function prepareFragments(): Promise<SourceNode[]> {

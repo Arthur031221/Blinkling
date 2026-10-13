@@ -28,6 +28,351 @@ let panel: Page,
   extensionId: string;
 let requests: ProviderRequest[], responder: AnswerProvider;
 
+test("bubble displays unavailable guide text and clears an earlier highlight", async () => {
+  const original = responder;
+  let unavailable = false;
+  const reason =
+    "I cannot reliably identify the export menu from these controls.";
+  responder = async (request) => {
+    if (!request.question.includes("Create a short, actionable guide"))
+      return original(request);
+    const target = request.page!.elements.find(
+      (element) => element.text === "Export",
+    )!;
+    const answer = JSON.stringify(
+      unavailable
+        ? {
+            status: "unavailable",
+            reason,
+            steps: [
+              {
+                elementId: target.id,
+                note: "Unrelated highlight",
+                action: "none",
+              },
+            ],
+          }
+        : {
+            steps: [
+              { elementId: target.id, note: "Use Export", action: "none" },
+            ],
+          },
+    );
+    request.onText(answer);
+    return { answer };
+  };
+  const guide = panel.getByRole("button", {
+    name: en.guideAction,
+    exact: true,
+  });
+  await guide.click();
+  await expect(site.locator("[data-glimpselet-overlay] .guide")).toContainText(
+    "Use Export",
+  );
+  await expect(site.locator("[data-glimpselet-overlay] .guide p")).toHaveText(
+    "Use Export",
+  );
+  await expect(guide).toBeEnabled();
+  unavailable = true;
+  await guide.click();
+  await expect(panel.locator(".message .answer").last()).toContainText(reason);
+  await expect(panel.locator(".toolbar .status")).toHaveText(en.answerReady);
+  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
+  await expect(site.locator("[data-glimpselet-overlay] svg.draw")).toHaveCount(
+    0,
+  );
+});
+
+test("an unavailable PDF guide is handled without restoring its instruction into the draft", async () => {
+  const reader = await openReader();
+  const original = responder;
+  const reason = "This PDF has no reliably identified diagram target.";
+  responder = async (request) => {
+    if (!request.question.includes("Create a short, actionable guide"))
+      return original(request);
+    const answer = JSON.stringify({
+      status: "unavailable",
+      reason,
+      steps: [],
+    });
+    request.onText(answer);
+    return { answer };
+  };
+  await reader.locator('[data-action="guide"]').click();
+  await expect(panel.locator(".message .answer").last()).toContainText(reason);
+  await expect(panel.locator(".toolbar .status")).toHaveText(en.answerReady);
+  await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
+    "",
+  );
+  await expect(reader.locator("[data-glimpselet-overlay] .guide")).toHaveCount(
+    0,
+  );
+  expect(
+    requests.filter((request) =>
+      request.question.includes("Create a short, actionable guide"),
+    ),
+  ).toHaveLength(1);
+});
+
+test("bubble translates inline grammatical omission and restores the exact source nodes", async () => {
+  await site.evaluate(() => {
+    document.body.innerHTML =
+      '<p id="fragments"> \n<span>この記事は</span><a href="#verifiable">検証可能</a><span>な</span><a href="#sources">参考文献や出典</a><span>が全く示されていないか、不十分です。</span>\t </p>';
+    const scope = window as Window & { sourceNodes?: Node[] };
+    const walker = document.createTreeWalker(
+      document.querySelector("#fragments")!,
+      NodeFilter.SHOW_TEXT,
+    );
+    scope.sourceNodes = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) scope.sourceNodes.push(node);
+  });
+  const originalValues = await site.evaluate(() =>
+    (window as Window & { sourceNodes: Node[] }).sourceNodes.map(
+      (node) => node.nodeValue,
+    ),
+  );
+  const original = responder;
+  responder = async (request) => {
+    if (!request.question.includes('Return JSON only: {"nodes":'))
+      return original(request);
+    expect(request.question).toContain('"omit":true');
+    const nodes = JSON.parse(request.question.split("\n").at(-1)!) as Array<{
+      id: string;
+      text: string;
+    }>;
+    expect(nodes.map((node) => node.text)).toEqual([
+      "この記事は",
+      "検証可能",
+      "な",
+      "参考文献や出典",
+      "が全く示されていないか、不十分です。",
+    ]);
+    const translated = [
+      "This article ",
+      "does not cite ",
+      "",
+      "any sources",
+      " or has insufficient citations.",
+    ];
+    return {
+      answer: JSON.stringify({
+        nodes: nodes.map((node, index) =>
+          index === 2
+            ? { id: node.id, omit: true }
+            : { id: node.id, text: translated[index] },
+        ),
+      }),
+    };
+  };
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(panel.locator(".toolbar .status")).toHaveText(
+    en.translationApplied,
+  );
+  expect(await site.locator("#fragments").textContent()).toBe(
+    " \nThis article does not cite any sources or has insufficient citations.\t ",
+  );
+  expect(
+    await site.evaluate(() =>
+      (window as Window & { sourceNodes: Node[] }).sourceNodes.every(
+        (node) => node.isConnected,
+      ),
+    ),
+  ).toBe(true);
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(0);
+  expect(
+    await site.evaluate(() =>
+      (window as Window & { sourceNodes: Node[] }).sourceNodes.map(
+        (node) => node.nodeValue,
+      ),
+    ),
+  ).toEqual(originalValues);
+  expect(
+    await site
+      .locator("#fragments a")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
+  ).toEqual(["#verifiable", "#sources"]);
+});
+
+test("bubble retranslates an omitted fragment from its original source and retained ID", async () => {
+  const sources = [
+    "この記事は",
+    "検証可能",
+    "な",
+    "参考文献や出典",
+    "が全く示されていないか、不十分です。",
+  ];
+  await site.evaluate((values) => {
+    document.body.innerHTML = '<p id="repeat-fragments"></p>';
+    const paragraph = document.querySelector("p")!;
+    for (const value of values) {
+      const span = document.createElement("span");
+      span.textContent = value;
+      paragraph.append(span);
+    }
+  }, sources);
+  const original = responder;
+  let originalSource: Array<{ id: string; text: string }> | undefined;
+  let round = 0;
+  const secondTranslation = [
+    "本文完全缺乏",
+    "可驗證",
+    "的",
+    "參考文獻和來源",
+    "，或引用不足。",
+  ];
+  responder = async (request) => {
+    if (!request.question.includes('Return JSON only: {"nodes":'))
+      return original(request);
+    const nodes = JSON.parse(request.question.split("\n").at(-1)!) as Array<{
+      id: string;
+      text: string;
+    }>;
+    expect(nodes.map(({ text }) => text)).toEqual(sources);
+    if (originalSource) expect(nodes).toEqual(originalSource);
+    else originalSource = nodes;
+    round++;
+    const values =
+      round === 1
+        ? [
+            "This article lacks ",
+            "verifiable ",
+            "",
+            "references or sources",
+            ", or its citations are insufficient.",
+          ]
+        : secondTranslation;
+    return {
+      answer: JSON.stringify({
+        nodes: nodes.map(({ id }, index) =>
+          round === 1 && index === 2
+            ? { id, omit: true }
+            : { id, text: values[index] },
+        ),
+      }),
+    };
+  };
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(panel.locator(".toolbar .status")).toHaveText(
+    en.translationApplied,
+  );
+  expect(
+    await site.locator("#repeat-fragments span").nth(2).textContent(),
+  ).toBe("");
+  await panel.getByRole("button", { name: en.translated, exact: true }).click();
+  await expect(site.locator("#repeat-fragments")).toHaveText(
+    secondTranslation.join(""),
+  );
+  await expect(panel.locator(".toolbar .status")).toHaveText(
+    en.translationApplied,
+  );
+  expect(round).toBe(2);
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(panel.locator(".toolbar .status")).toHaveText(
+    `${en.restored} 5`,
+  );
+  expect(await site.locator("#repeat-fragments").textContent()).toBe(
+    sources.join(""),
+  );
+});
+
+test("bubble keeps escaped translation requests within the limit and preserves every source ID", async () => {
+  const sources = ['"'.repeat(3500), "出".repeat(1432)];
+  await site.evaluate((values) => {
+    document.body.replaceChildren();
+    for (const [index, value] of values.entries()) {
+      const paragraph = document.createElement("p");
+      paragraph.id = `escaped-${index}`;
+      paragraph.textContent = value;
+      document.body.append(paragraph);
+    }
+  }, sources);
+  const original = responder;
+  const received: Array<{ id: string; text: string }> = [];
+  responder = async (request) => {
+    if (!request.question.includes('Return JSON only: {"nodes":'))
+      return original(request);
+    if (request.question.length > 8000)
+      throw new Error("Translation request exceeds the API question limit");
+    const nodes = JSON.parse(request.question.split("\n").at(-1)!) as Array<{
+      id: string;
+      text: string;
+    }>;
+    received.push(...nodes);
+    return {
+      answer: JSON.stringify({
+        nodes: nodes.map(({ id, text }) => ({
+          id,
+          text: text.startsWith('"') ? "Quoted text" : "Source text",
+        })),
+      }),
+    };
+  };
+  await panel
+    .getByRole("button", { name: en.translatePage, exact: true })
+    .click();
+  await expect(panel.locator(".toolbar .status")).toHaveText(
+    en.translationApplied,
+  );
+  expect(received.map(({ text }) => text)).toEqual(sources);
+  expect(new Set(received.map(({ id }) => id)).size).toBe(sources.length);
+  await expect(site.locator("#escaped-0")).toHaveText("Quoted text");
+  await expect(site.locator("#escaped-1")).toHaveText("Source text");
+  await panel.getByRole("button", { name: en.restore, exact: true }).click();
+  await expect(panel.locator(".toolbar .status")).toHaveText(
+    `${en.restored} 2`,
+  );
+  expect(await site.locator("#escaped-0").textContent()).toBe(sources[0]);
+  expect(await site.locator("#escaped-1").textContent()).toBe(sources[1]);
+});
+
+test("bubble rejects extra duplicate or unknown translation IDs before writing", async () => {
+  await site.evaluate(() => {
+    document.body.innerHTML = '<p id="source">検証可能な出典</p>';
+  });
+  const original = responder;
+  let extraId = "unknown";
+  responder = async (request) => {
+    if (!request.question.includes('Return JSON only: {"nodes":'))
+      return original(request);
+    const source = JSON.parse(request.question.split("\n").at(-1)!) as Array<{
+      id: string;
+      text: string;
+    }>;
+    return {
+      answer: JSON.stringify({
+        nodes: [
+          ...source.map(({ id }) => ({ id, text: "verifiable sources" })),
+          {
+            id: extraId === "duplicate" ? source[0].id : extraId,
+            text: "extra",
+          },
+        ],
+      }),
+    };
+  };
+  const translate = panel.getByRole("button", {
+    name: en.translatePage,
+    exact: true,
+  });
+  for (const id of ["unknown", "duplicate"]) {
+    extraId = id;
+    await expect(translate).toBeEnabled();
+    await translate.click();
+    await expect(panel.locator(".toolbar .status")).toHaveText(
+      en.translationIncomplete,
+    );
+    await expect(translate).toBeEnabled();
+    await expect(site.locator("#source")).toHaveText("検証可能な出典");
+    await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(0);
+  }
+});
+
 function sectionPdf(): Buffer {
   const streams = [
     "BT /F1 18 Tf 54 720 Td (First page) Tj ET",
