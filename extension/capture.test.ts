@@ -162,6 +162,37 @@ describe("explicit guide context", () => {
     );
   });
 
+  it("reads a bundled PDF reader through its document-bound listener without scripting or pixels", async () => {
+    const { page, executeScript, captureVisibleTab } = setupGuide();
+    page.url = chrome.runtime.getURL("reader.html");
+    const reader = { ...tab, url: page.url };
+    vi.mocked(chrome.tabs.get).mockResolvedValue(reader);
+    vi.mocked(chrome.tabs.query).mockResolvedValue([reader]);
+    const { getGuideContext } = await import("./capture");
+    expect(await getGuideContext(page)).toEqual(page);
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(captureVisibleTab).not.toHaveBeenCalled();
+    expect(chrome.tabs.sendMessage).toHaveBeenLastCalledWith(tab.id, {
+      type: "glimpselet:guide-context",
+      documentKey: page.documentKey,
+      url: page.url,
+    });
+  });
+
+  it("discards a reader document changed during guide collection", async () => {
+    const { page, executeScript } = setupGuide();
+    page.url = chrome.runtime.getURL("reader.html");
+    const reader = { ...tab, url: page.url };
+    vi.mocked(chrome.tabs.get).mockResolvedValue(reader);
+    vi.mocked(chrome.tabs.query).mockResolvedValue([reader]);
+    vi.mocked(chrome.tabs.sendMessage)
+      .mockResolvedValueOnce(page)
+      .mockResolvedValueOnce({ ...page, documentKey: "reloaded-reader" });
+    const { getGuideContext } = await import("./capture");
+    await expect(getGuideContext()).rejects.toThrow("tab_changed");
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
   it.each([
     "initial-password",
     "later-password",

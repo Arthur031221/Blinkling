@@ -196,6 +196,36 @@ export async function getGuideContext(
       throw new Error("blocked_page");
   };
   await checkBlocklist();
+  if (tab.url?.startsWith(chrome.runtime.getURL("reader.html"))) {
+    // Chrome rejects scripting injection into extension pages. The bundled
+    // reader already owns the content listener and enforces its document key.
+    const read = async (bound = expected): Promise<PageContext> => {
+      const page = (await chrome.tabs
+        .sendMessage(tab.id, {
+          type: "glimpselet:guide-context",
+          ...(bound ? { documentKey: bound.documentKey, url: bound.url } : {}),
+        })
+        .catch(() => {
+          throw new Error("tab_changed");
+        })) as PageContext & { error?: string };
+      if (page?.error) throw new Error(page.error);
+      if (page?.hasPassword) throw new Error("password_page");
+      if (
+        !page?.documentKey ||
+        page.url !== tab.url ||
+        page.guideScope !== "top-document-text" ||
+        (bound &&
+          (page.documentKey !== bound.documentKey || page.url !== bound.url))
+      )
+        throw new Error("tab_changed");
+      return page;
+    };
+    const page = await read();
+    await assertStillActive(tab);
+    await checkBlocklist();
+    await assertStillActive(tab);
+    return read(page);
+  }
   const inspect = async (documentId?: string): Promise<string> => {
     const [result] = await chrome.scripting
       .executeScript({

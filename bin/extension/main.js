@@ -16517,6 +16517,26 @@ async function getGuideContext(expected) {
       throw new Error("blocked_page");
   };
   await checkBlocklist();
+  if (tab.url?.startsWith(chrome.runtime.getURL("reader.html"))) {
+    const read = async (bound = expected) => {
+      const page3 = await chrome.tabs.sendMessage(tab.id, {
+        type: "glimpselet:guide-context",
+        ...bound ? { documentKey: bound.documentKey, url: bound.url } : {}
+      }).catch(() => {
+        throw new Error("tab_changed");
+      });
+      if (page3?.error) throw new Error(page3.error);
+      if (page3?.hasPassword) throw new Error("password_page");
+      if (!page3?.documentKey || page3.url !== tab.url || page3.guideScope !== "top-document-text" || bound && (page3.documentKey !== bound.documentKey || page3.url !== bound.url))
+        throw new Error("tab_changed");
+      return page3;
+    };
+    const page2 = await read();
+    await assertStillActive(tab);
+    await checkBlocklist();
+    await assertStillActive(tab);
+    return read(page2);
+  }
   const inspect = async (documentId2) => {
     const [result] = await chrome.scripting.executeScript({
       target: {

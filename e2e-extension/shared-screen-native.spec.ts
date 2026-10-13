@@ -89,13 +89,21 @@ function nativeInput(...args: string[]) {
 }
 
 async function nativeClick(selector: string, bubble = false) {
+  if (!bubble) await panel.bringToFront();
   await panel.evaluate(
-    ({ bubble, selector }) => {
+    async ({ bubble, selector }) => {
       const view = bubble ? window.documentPictureInPicture.window! : window;
       view.focus();
       view.document
         .querySelector(selector)!
         .scrollIntoView({ block: "center" });
+      // A newly activated Chrome target can report its initial tiny viewport
+      // until its first compositor paint. Native input needs the painted layout.
+      await new Promise<void>((resolve) =>
+        view.requestAnimationFrame(() =>
+          view.requestAnimationFrame(() => resolve()),
+        ),
+      );
     },
     { bubble, selector },
   );
@@ -141,6 +149,13 @@ async function nativeClick(selector: string, bubble = false) {
     "click",
     String(Math.round(point.x)),
     String(Math.round(point.y)),
+  );
+  await panel.evaluate(
+    (click) => {
+      (window as Window & { lastNativeClick?: unknown }).lastNativeClick =
+        click;
+    },
+    { selector, bubble, point, display },
   );
 }
 
@@ -431,6 +446,8 @@ test.afterEach(async ({ browserName }, testInfo) => {
               text: pip.document.body.innerText,
             },
             opener: document.body.innerText,
+            click: (window as Window & { lastNativeClick?: unknown })
+              .lastNativeClick,
           };
         }),
       );
