@@ -1083,6 +1083,113 @@ test("same-URL semantic DOM changes refresh once and ignore identical re-renders
   expect(automaticRequests()).toHaveLength(refreshedCount);
 });
 
+test("passive summaries refresh permitted sample page content without screen sharing", async () => {
+  await panel.evaluate(() => {
+    const state = window as Window & { passiveDisplayMediaCalls: number };
+    state.passiveDisplayMediaCalls = 0;
+    navigator.mediaDevices.getDisplayMedia = async () => {
+      state.passiveDisplayMediaCalls++;
+      throw new Error("This page-only flow must not request screen sharing");
+    };
+  });
+  const sampleUrl = `${origin}/assets/glimpselet-welcome-sample.html`;
+  await site.goto(sampleUrl);
+  await expect.poll(() => providerRequests.at(-1)?.page?.url).toBe(sampleUrl);
+  await expect(panel.locator("button.stop")).toHaveCount(0);
+  await expect(
+    panel.getByRole("button", { name: en.stopSharing, exact: true }),
+  ).toHaveCount(0);
+  await panel.getByRole("button", { name: en.passive, exact: true }).click();
+  const summaries = () =>
+    providerRequests.filter((request) =>
+      request.question.startsWith(en.passivePrompt),
+    );
+  await expect.poll(() => summaries().length).toBe(1);
+  await expect(panel.locator(".thread article")).toHaveCount(1);
+  await expect(
+    panel.locator(".thread article.passive .markdown"),
+  ).toContainText("A research notebook page.");
+  for (const point of [
+    "Notes retain sources.",
+    "Exports share your work.",
+    "Review citations.",
+  ])
+    await expect(
+      panel.locator(".thread article.passive .markdown"),
+    ).toContainText(point);
+  await expect(panel.locator(".suggestions button")).toHaveCount(3);
+  await expect(panel.locator("button.stop")).toHaveCount(0);
+  expect(summaries()[0].page?.text).toContain("Green tea:");
+  expect(summaries()[0].image).toBeUndefined();
+
+  await site.locator("h1").evaluate((heading) => {
+    heading.textContent = "PASSIVE_PAGE_REVISION: A tiny guide to iced tea";
+  });
+  await expect
+    .poll(() =>
+      summaries().some((request) =>
+        request.page?.text.includes("PASSIVE_PAGE_REVISION"),
+      ),
+    )
+    .toBe(true);
+  await expect(panel.locator(".thread article")).toHaveCount(2);
+  await expect(
+    panel.locator(".thread article.passive").last().locator(".markdown"),
+  ).toContainText("Review citations.");
+  await expect(panel.locator("button.stop")).toHaveCount(0);
+  expect(summaries()).toHaveLength(2);
+  expect(summaries().every((request) => request.page?.url === sampleUrl)).toBe(
+    true,
+  );
+  expect(summaries().every((request) => request.image === undefined)).toBe(
+    true,
+  );
+  expect(
+    await panel.evaluate(
+      () =>
+        (window as Window & { passiveDisplayMediaCalls: number })
+          .passiveDisplayMediaCalls,
+    ),
+  ).toBe(0);
+});
+
+test("blocklisting the inspected page stops passive summaries without screen sharing", async () => {
+  await panel.evaluate(() => {
+    const state = window as Window & { passiveDisplayMediaCalls: number };
+    state.passiveDisplayMediaCalls = 0;
+    navigator.mediaDevices.getDisplayMedia = async () => {
+      state.passiveDisplayMediaCalls++;
+      throw new Error("This page-only flow must not request screen sharing");
+    };
+  });
+  await panel.getByRole("button", { name: en.passive, exact: true }).click();
+  await expect(panel.locator(".thread article")).toHaveCount(1);
+  await expect(panel.locator("button.stop")).toHaveCount(0);
+  const before = providerRequests.length;
+  await panel.getByRole("button", { name: "Settings", exact: true }).click();
+  await panel.getByLabel(en.blocklist, { exact: true }).fill("127.0.0.1");
+  await panel.getByRole("button", { name: en.close, exact: true }).click();
+  await site.locator("#foreign").evaluate((paragraph) => {
+    paragraph.textContent = "BLOCKLISTED_PAGE_REVISION must never be sent.";
+  });
+  await expect(panel.locator(".status")).toHaveText(en.blockedPage);
+  await expect(panel.locator(".suggestions button")).toHaveCount(0);
+  await site.waitForTimeout(1600);
+  expect(providerRequests).toHaveLength(before);
+  expect(
+    providerRequests.some((request) =>
+      request.page?.text.includes("BLOCKLISTED_PAGE_REVISION"),
+    ),
+  ).toBe(false);
+  expect(
+    await panel.evaluate(
+      () =>
+        (window as Window & { passiveDisplayMediaCalls: number })
+          .passiveDisplayMediaCalls,
+    ),
+  ).toBe(0);
+});
+
 for (const kind of ["shadow", "frame", "opaque", "object"] as const) {
   for (const mode of ["suggest", "passive"] as const) {
     test(`${kind} password gate prevents ${mode} requests and visible capture`, async () => {

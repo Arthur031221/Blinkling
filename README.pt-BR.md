@@ -38,12 +38,16 @@ claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
 node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
 As duas verificações de versão devem mostrar `2.0.0`. A lista de plugins deve mostrar `glimpselet@inline` na versão `2.0.0`, ativado para esta sessão. O último comando abre o Claude Code. Execute `/glimpselet:glimpse` nessa sessão para abrir o guia de boas-vindas. `--plugin-dir` carrega esta cópia do repositório apenas para essa sessão. Use a opção a cada inicialização e reinicie o Claude Code depois de executar `npm run build:plugin` novamente. A extensão compilada fica em `dist-extension`. O guia de boas-vindas a copia para a pasta estável indicada abaixo.
 
-No seu navegador de desktop, a extensão fica na pasta estável `~/.glimpselet/extension`. No Chrome ou Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continuará visível. As atualizações precisam ser feitas manualmente.
+Os detalhes do plugin também devem incluir as habilidades `glimpse` e `install` e o servidor MCP `glimpselet`. A extensão empacotada fica em `bin/extension` e também deve estar na versão **2.0.0**. Se o Claude Code estiver em um host remoto, use o comando SSH do guia, baixe o ZIP da extensão no computador com o navegador e carregue a pasta extraída ali.
+
+Se o navegador e o Claude Code rodam no mesmo computador, o guia de boas-vindas copia a extensão compilada para a pasta estável `~/.glimpselet/extension`. No Chrome ou Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continuará visível. As atualizações precisam ser feitas manualmente.
 
 Para atualizar uma extensão descompactada, feche a bolha antiga e execute `/glimpselet:glimpse` novamente para atualizar a pasta estável. Clique em Recarregar no cartão da extensão. Se o Claude Code for remoto, baixe o novo ZIP pelo guia, substitua os arquivos extraídos no computador com o navegador e recarregue a extensão.
 
@@ -58,8 +62,6 @@ claude plugin list
 ```
 
 Na sessão aberta do Claude Code, execute `/reload-plugins` (ou reinicie o Claude Code) e depois `/glimpselet:glimpse`. A lista deve mostrar `glimpselet@glimpselet` na versão **2.0.0**, e o comando deve abrir o guia de boas-vindas e pareamento. Confira também **2.0.0** em `chrome://extensions` ou `edge://extensions` no computador com o navegador. Se ainda aparecer 1.1.1, a v2 pode não estar publicada no catálogo público. A antiga página de seleção de tela não é o guia da v2. [Verificação da atualização](docs/DESIGN.md#plugin-upgrades-and-release-verification).
-
-Para a extensão descompactada, o guia copia os novos arquivos para `~/.glimpselet/extension`. Recarregue o Glimpselet em `chrome://extensions` ou `edge://extensions` e confira a versão **2.0.0**. Com SSH, baixe o novo ZIP pelo guia no computador com seu navegador, extraia na pasta carregada anteriormente e recarregue a extensão. O host remoto não pode abrir o navegador sem instalação no seu computador.
 
 ## O que você pode fazer
 
@@ -94,7 +96,9 @@ Veja [Sessões do Claude Code](docs/DESIGN.md#the-running-claude-code-conversati
 
 O Glimpselet funciona no Chrome, Edge e outros navegadores Chromium para desktop. O aviso de desenvolvedor permanece até a distribuição em uma loja, e as atualizações são manuais. Algumas páginas, como configurações do navegador, lojas de extensões e páginas restritas, bloqueiam o acesso. O leitor de PDF integrado do Chrome não é acessível. Use o leitor do Glimpselet. Aplicativos nativos fornecem apenas pixels, sem texto de página ou sobreposições. Shift funciona na bolha e nas páginas com acesso autorizado. Em outro aplicativo, use o atalho global de recorte. A janela flutuante não permite que cliques passem por ela.
 
-As perguntas sugeridas automaticamente usam o contexto da página somente com seu consentimento. Passive é opcional: permita que o Glimpselet acesse o site, ative **Passive** e navegue ou mude a página inspecionada para receber resumos sem compartilhar a tela. Os resumos de páginas usam o texto e a estrutura das páginas com acesso autorizado. Com o compartilhamento de tela ativo, os resumos de mudanças na tela exigem uma guia compartilhada e verificada do navegador que corresponda à página inspecionada. Se a origem for uma janela, a tela inteira, um aplicativo nativo ou uma fonte desconhecida ou inacessível, esses resumos pausam. Páginas com campos de senha e sites bloqueados são excluídos dos resumos e das perguntas sugeridas automáticos. Perguntas e capturas manuais continuam disponíveis.
+As perguntas sugeridas automaticamente usam o contexto da página somente com seu consentimento. Para receber resumos de páginas sem compartilhar a tela, abra uma página, ative **Passive** e permita o acesso do Glimpselet ao site quando solicitado. O Glimpselet inspeciona o texto da página e pode resumir mudanças no conteúdo ou na URL. Campos de senha e sites bloqueados na lista de bloqueio pausam os resumos automáticos e as perguntas sugeridas.
+
+Durante o compartilhamento de tela, os resumos automáticos de mudanças visuais exigem uma guia compartilhada vinculada à mesma guia inspecionada, com acesso à página e as mesmas verificações de privacidade. Se a origem for uma janela, a tela inteira, um aplicativo nativo, desconhecida ou inacessível, os resumos automáticos pausam. Perguntas e capturas manuais continuam disponíveis.
 
 [Guia de instalação](docs/INSTALL.md) | [Uso](docs/USAGE.md) | [Design](docs/DESIGN.md) | [Detalhes de privacidade](docs/SECURITY.md)
 

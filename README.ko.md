@@ -38,12 +38,16 @@ claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
 node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
 두 버전 확인 명령 모두 `2.0.0`을 표시해야 합니다. 플러그인 목록에는 `glimpselet@inline` 버전 `2.0.0`이 이 세션에서 활성화된 것으로 표시되어야 합니다. 마지막 명령으로 Claude Code가 열리면 그 세션에서 `/glimpselet:glimpse`를 실행해 시작 안내를 여세요. `--plugin-dir`는 이 세션에서만 소스 플러그인을 불러옵니다. 시작할 때마다 이 옵션을 사용하고, `npm run build:plugin`으로 다시 빌드한 후에는 Claude Code를 다시 시작하세요. 빌드한 확장 프로그램은 `dist-extension`에 있으며, 시작 안내가 아래 고정 폴더로 복사합니다.
 
-본인 데스크톱 브라우저에서 확장 프로그램은 고정 폴더 `~/.glimpselet/extension`에 저장됩니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
+플러그인 세부 정보에는 `glimpse`와 `install` 스킬 및 `glimpselet` MCP 서버도 있어야 합니다. 패키지 확장 프로그램은 `bin/extension`에 있으며 버전도 **2.0.0**이어야 합니다. Claude Code가 원격 호스트에 있으면 안내의 SSH 명령을 사용하고, 브라우저가 있는 컴퓨터에서 확장 프로그램 ZIP을 다운로드한 후 압축을 푼 폴더를 불러오세요.
+
+브라우저와 Claude Code가 같은 컴퓨터에서 실행되면 시작 안내가 빌드한 확장 프로그램을 고정 폴더 `~/.glimpselet/extension`에 복사합니다. Chrome 또는 Edge에서 `chrome://extensions` 또는 `edge://extensions`를 열고 **Developer mode**를 켠 뒤 **Load unpacked**를 선택하고 이 폴더를 지정합니다. 개발자 배너는 계속 표시됩니다. 새 버전은 수동으로 업데이트해야 합니다.
 
 압축 해제한 확장 프로그램을 업데이트할 때는 기존 버블을 닫고 `/glimpselet:glimpse`를 다시 실행해 고정 폴더를 갱신한 뒤 확장 프로그램 카드에서 새로고침을 누르세요. Claude Code가 원격 호스트에 있으면 안내에서 새 ZIP을 받아 브라우저 컴퓨터의 압축 해제한 파일을 교체하고 확장 프로그램을 새로고침하세요.
 
@@ -58,8 +62,6 @@ claude plugin list
 ```
 
 열린 Claude Code 세션에서 `/reload-plugins`를 실행하거나 Claude Code를 다시 시작한 다음 `/glimpselet:glimpse`를 실행하세요. 목록의 `glimpselet@glimpselet`이 **2.0.0**이고 시작 및 페어링 안내가 열리는지 확인하세요. 브라우저 컴퓨터의 `chrome://extensions` 또는 `edge://extensions`에서도 Glimpselet이 **2.0.0**인지 확인하세요. 여전히 1.1.1이라면 공개 마켓플레이스에 v2가 아직 배포되지 않았을 수 있습니다. 예전 화면 선택 페이지는 v2 시작 안내가 아닙니다. [업데이트 확인](docs/DESIGN.md#plugin-upgrades-and-release-verification).
-
-압축 해제한 확장 프로그램을 사용하면 안내가 새 파일을 `~/.glimpselet/extension`에 복사합니다. `chrome://extensions` 또는 `edge://extensions`에서 Glimpselet을 새로 고치고 버전이 **2.0.0**인지 확인하세요. SSH로 사용한다면 브라우저가 있는 컴퓨터에서 안내의 새 ZIP을 다운로드하고 이전에 불러온 폴더에 압축을 푼 후 새로 고치세요. 원격 호스트에서는 사용자 컴퓨터의 무설치 브라우저를 열 수 없습니다.
 
 ## 할 수 있는 일
 
@@ -94,7 +96,9 @@ Channel 미리 보기 명령과 설정은 [Claude Code 세션](docs/DESIGN.md#th
 
 Glimpselet은 데스크톱 Chrome, Edge 및 기타 Chromium 브라우저에서 작동합니다. 스토어 배포 전까지 개발자 배너가 표시되고 업데이트는 수동입니다. 브라우저 설정, 확장 프로그램 스토어, 제한된 페이지 등 일부 페이지는 접근을 차단합니다. Chrome 내장 PDF 뷰어는 읽을 수 없으므로 Glimpselet 리더를 사용하세요. 네이티브 앱에서는 픽셀만 제공되며 페이지 텍스트나 오버레이는 사용할 수 없습니다. Shift는 버블과 접근을 허용한 페이지에서 작동합니다. 다른 앱에서는 전역 캡처 단축키를 사용하세요. 플로팅 창은 클릭을 통과시키지 않습니다.
 
-자동 질문 제안은 동의한 경우에만 페이지 정보를 사용합니다. Passive는 선택 사항입니다. Glimpselet의 사이트 접근을 허용하고 **Passive**를 켠 뒤 검사 가능한 페이지를 탐색하거나 바꾸면 화면 공유 없이 요약을 받을 수 있습니다. 페이지 요약에는 접근을 허용한 페이지의 텍스트와 구조를 사용합니다. 화면 공유 중 화면 변화에 대한 요약을 받으려면 공유 소스가 검사한 페이지와 일치하는 검증된 브라우저 탭이어야 합니다. 공유 소스가 창, 전체 화면, 네이티브 앱, 알 수 없는 소스 또는 접근할 수 없는 소스라면 이러한 요약은 일시 중지됩니다. 비밀번호 입력란이 있는 페이지와 차단 목록의 사이트에서는 자동 요약과 질문 제안을 생성하지 않습니다. 수동 질문과 캡처는 계속 사용할 수 있습니다.
+자동 질문 제안은 동의한 경우에만 페이지 정보를 사용합니다. 화면 공유 없이 페이지 요약을 받으려면 페이지를 열고 **Passive**를 켠 다음 요청이 표시되면 Glimpselet의 해당 사이트 접근을 허용하세요. Glimpselet이 페이지 텍스트를 검사하고 내용이나 URL 변경을 요약할 수 있습니다. 비밀번호 필드와 차단 목록의 사이트에서는 자동 요약과 질문 제안이 일시 중지됩니다.
+
+화면을 공유하는 동안 화면 변화에 따른 자동 요약은 검사한 동일한 탭에 연결된 브라우저 탭 공유, 페이지 접근 권한, 동일한 개인정보 확인이 필요합니다. 공유 소스가 창, 전체 화면, 네이티브 앱, 알 수 없는 소스 또는 접근 불가 소스라면 자동 요약이 일시 중지됩니다. 수동 질문과 캡처는 계속 사용할 수 있습니다.
 
 [설치 안내](docs/INSTALL.md) | [사용법](docs/USAGE.md) | [설계](docs/DESIGN.md) | [개인정보 상세](docs/SECURITY.md)
 

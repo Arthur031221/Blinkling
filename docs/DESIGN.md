@@ -28,9 +28,11 @@ The chosen integration is a documented [Claude Code channel](https://code.claude
 
 Custom channels are a research preview. After installing the plugin, select the existing conversation before restarting it. The documented [session naming and resume procedure](https://code.claude.com/docs/en/sessions#name-your-sessions) avoids guessing its UUID:
 
-1. In the terminal conversation you want to connect, wait for its current answer to finish. Run `/rename glimpselet-reading`, using a unique name if that name is already used. To get its exact UUID instead, run [`/status`](https://code.claude.com/docs/en/commands), copy the **Session ID** row and press Esc to return. We verified this row in Claude Code 2.1.296.
-2. Run `/exit` and wait until the shell prompt returns. Keep only one owner of this conversation; two terminals or processes writing to it can interleave messages.
-3. In that project directory on the same host, run the command below. If you chose another name, replace `glimpselet-reading` with it. For SSH, run this on the remote host where Claude Code and the conversation live.
+1. In the terminal conversation you want to connect, wait for its current answer to finish. Run `/rename glimpselet-reading`, using a unique name if that name is already used. To get its exact UUID instead, run [`/status`](https://code.claude.com/docs/en/commands), copy the **Session ID** row: it is the conversation's UUID. Press Esc to return. We verified this row in Claude Code 2.1.296.
+2. Run `/exit` and wait until the shell prompt returns. For an attached background conversation, use `/stop` instead: `/exit` only detaches from it. Keep only one owner of this conversation. Do not keep two interactive terminals or processes writing to it; their messages can interleave.
+3. In the same project directory on the same host, run the command below. If you chose another name, replace `glimpselet-reading` with it. For SSH, run this on the remote host where Claude Code and the conversation live. A known UUID also works in place of the quoted name.
+
+These discovery and resume steps follow the [session guide](https://code.claude.com/docs/en/sessions) and [built-in commands](https://code.claude.com/docs/en/commands).
 
 ```sh
 claude --resume "glimpselet-reading" --dangerously-load-development-channels plugin:glimpselet@glimpselet
@@ -43,6 +45,8 @@ claude --plugin-dir "/absolute/path/to/Glimpselet" --resume "glimpselet-reading"
 ```
 
 If the original terminal has already closed, run `claude --resume` from the project directory. Search the picker and press Space to preview the messages; Ctrl+A includes other projects on this host. Resume the matching conversation, then follow steps 1–3. A known session UUID also works in place of the quoted name. An ambiguous name opens the picker instead of resuming directly.
+
+After reopening, check `/status` still shows the same Session ID and that an earlier message is present before running `/glimpselet:glimpse`.
 
 After either startup command, accept the channel warning and any MCP server consent prompt yourself. Run `/mcp` and check that `plugin:glimpselet:glimpselet` is connected. If it is disabled or failed, enable or reconnect it there before opening the bubble. Authentication and organization policy must allow channels; a connected MCP server alone does not prove that channel messages can arrive.
 

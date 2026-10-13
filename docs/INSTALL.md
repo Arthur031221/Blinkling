@@ -19,13 +19,17 @@ cd Glimpselet
 npm ci
 npm run build:plugin
 claude plugin validate .
-node -p 'require("./.claude-plugin/plugin.json").version'
-node -p 'require("./dist-extension/manifest.json").version'
+node -p "require('./.claude-plugin/plugin.json').version"
+node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-For this v2 checkout, both version checks should print `2.0.0`. The plugin list should show `glimpselet@inline`, version `2.0.0`, enabled for the session. In the Claude Code session opened by the last command, run `/glimpselet:glimpse`. This loads the checkout for that session only; use `--plugin-dir` each time you want to run it. The published marketplace installation above remains the usual install path. This [session-local loading method](https://code.claude.com/docs/en/plugins/cli-reference#flags-that-load-a-plugin-for-one-session) is documented by Claude Code.
+For this v2 checkout, all three version checks should print `2.0.0`. The plugin list should show `glimpselet@inline`, version `2.0.0`, enabled for the session. In the Claude Code session opened by the last command, run `/glimpselet:glimpse`. This loads the checkout for that session only; use `--plugin-dir` each time you want to run it. The published marketplace installation above remains the usual install path. This [session-local loading method](https://code.claude.com/docs/en/plugins/cli-reference#flags-that-load-a-plugin-for-one-session) is documented by Claude Code.
+
+The plugin details must also report **glimpselet 2.0.0**, include the `glimpse` and `install` skills and the `glimpselet` MCP server. The packaged extension is at `bin/extension`; its version check must also print **2.0.0**.
 
 For the browser extension, **Load unpacked** can use the checkout's `dist-extension` folder after the build, or the stable `~/.glimpselet/extension` folder copied by `/glimpselet:glimpse`. Check version `2.0.0` on its card at `chrome://extensions` or `edge://extensions`. If the checkout is on a remote host, download and extract its extension ZIP on the browser computer using the tunnel flow below.
 
@@ -57,9 +61,9 @@ ssh -N -L 37115:127.0.0.1:37115 user@remote-host
 
 The tunnel forwards the browser's local loopback connection to the host's loopback bridge. On the welcome page, **Download extension ZIP** downloads the extension files packaged with that installed plugin directly from its loopback bridge. The download requires the page's short-lived setup code and includes only regular files from the packaged extension directory. Extract it on the browser computer, then use **Load unpacked** in Chrome or Edge. Do not expose the bridge port publicly. The dedicated zero-install browser mode is unavailable on a remote host because it has no local desktop.
 
-Your paired remote Claude Code login works through the SSH tunnel. You do not need to install Claude Code on the browser computer, and you do not need an Anthropic API key. Keep Claude Code running on the host and the tunnel open on the browser computer.
+Your paired remote Claude Code login works through the SSH tunnel. You do not need to install Claude Code on the browser computer, and you do not need an Anthropic API key: no local Claude Code installation on the browser computer and no API key are required. Keep the SSH tunnel running on the browser computer and the bridge running on the remote host while using the extension.
 
-If there is no usable Claude Code host, or you choose to use your own API key instead, select direct API mode in extension settings and enter an Anthropic API key. The key is held in `chrome.storage.session` and is not sent to the bridge.
+Use direct API mode only if there is no usable Claude Code host, or if you choose it explicitly. Select it in extension settings and enter your own Anthropic API key. The key is held in `chrome.storage.session` and is not sent to the bridge.
 
 ## Browser and page limits
 

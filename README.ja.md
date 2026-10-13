@@ -38,12 +38,16 @@ claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
 node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
 2 つのバージョン確認で、どちらも `2.0.0` と表示されることを確認してください。プラグイン一覧には、`glimpselet@inline` のバージョン `2.0.0` がこのセッションで有効と表示されます。最後のコマンドで Claude Code が開いたら、そのセッションで `/glimpselet:glimpse` を実行してウェルカムガイドを開きます。`--plugin-dir` は、このセッションだけでソースのプラグインを読み込みます。起動のたびにこのオプションを付け、`npm run build:plugin` で再ビルドしたら Claude Code を再起動してください。ビルドした拡張機能は `dist-extension` にあります。ウェルカムガイドが、以下の固定フォルダーにコピーします。
 
-自分のデスクトップブラウザーでは、拡張機能は固定フォルダー `~/.glimpselet/extension` にあります。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
+プラグインの詳細には、`glimpse` と `install` のスキル、および `glimpselet` MCP サーバーも必要です。パッケージされた拡張機能は `bin/extension` にあり、そのバージョンも **2.0.0** であることを確認します。Claude Code がリモートで動く場合は、ガイドの SSH コマンドを使い、ブラウザーのある端末で拡張機能 ZIP をダウンロードして、展開したフォルダーを読み込んでください。
+
+ブラウザーと Claude Code が同じ端末で動いている場合、ウェルカムガイドがビルドした拡張機能を固定フォルダー `~/.glimpselet/extension` にコピーします。Chrome または Edge で `chrome://extensions` または `edge://extensions` を開き、**Developer mode** をオンにして **Load unpacked** を選び、このフォルダーを指定します。開発者向けの表示は残ります。新しいバージョンが出たら手動で更新してください。
 
 展開済み拡張機能の更新では、古いバブルを閉じて `/glimpselet:glimpse` を再実行し、固定フォルダーを更新してから拡張機能のカードで再読み込みします。Claude Code がリモートの場合は、ガイドから新しい ZIP をダウンロードし、ブラウザー側の展開済みファイルを置き換えて再読み込みしてください。
 
@@ -58,8 +62,6 @@ claude plugin list
 ```
 
 開いている Claude Code で `/reload-plugins` を実行するか再起動し、`/glimpselet:glimpse` を実行します。一覧の `glimpselet@glimpselet` が **2.0.0** で、ウェルカム・ペアリングガイドが開くことを確認してください。ブラウザー側の `chrome://extensions` または `edge://extensions` でも Glimpselet が **2.0.0** か確認します。まだ 1.1.1 なら、公開マーケットプレイスに v2 が未公開の可能性があります。古い画面選択ページは v2 のガイドではありません。[更新の確認](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
-
-パッケージ化されていない拡張機能では、ガイドが新しいファイルを `~/.glimpselet/extension` にコピーします。`chrome://extensions` または `edge://extensions` で Glimpselet を再読み込みし、バージョンが **2.0.0** であることを確認してください。SSH の場合は、ブラウザーのある端末でガイドから新しい ZIP をダウンロードし、以前読み込んだフォルダーに展開して再読み込みします。リモートホストから手元の端末にインストール不要のブラウザーを開くことはできません。
 
 ## できること
 
@@ -94,7 +96,9 @@ Channel プレビューのコマンドと設定は[Claude Code セッション](
 
 Glimpselet はデスクトップ版 Chrome、Edge、その他の Chromium ブラウザーに対応します。ストア配布が始まるまでは開発者向けの表示があり、更新は手動です。設定画面、拡張機能ストア、アクセス制限されたページなど、一部のページにはアクセスできません。Chrome 内蔵 PDF ビューアーは読み取れないため、Glimpselet リーダーを使ってください。ネイティブアプリから取得できるのは画像だけで、ページテキストやオーバーレイは利用できません。Shift はバブルとアクセスを許可したページで使えます。他のアプリではグローバル切り取りショートカットを使ってください。フローティングウィンドウはクリックを透過しません。
 
-自動の質問候補がページ情報を使うのは、同意した場合だけです。Passive は任意の機能です。サイトへのアクセスを Glimpselet に許可して **Passive** を有効にすると、検査可能なページを閲覧したり切り替えたりするだけで、画面共有なしで要約を受け取れます。ページの要約には、アクセスを許可したページのテキストと構造を使います。画面共有中に画面の変化を要約するには、共有元が検証済みのブラウザータブで、検査対象のページと一致している必要があります。共有元がウィンドウ、画面全体、ネイティブアプリ、不明なソース、またはアクセスできないソースの場合、この要約は一時停止します。パスワード入力欄があるページとブロックリストのサイトでは、自動要約も質問候補の生成も行いません。手動の質問とキャプチャは引き続き使えます。
+自動の質問候補は、同意した場合だけページ情報を使います。画面共有なしでページの要約を受け取るには、ページを開いて **Passive** をオンにし、求められたらそのサイトへの Glimpselet のアクセスを許可します。Glimpselet はページのテキストを検査し、内容や URL の変更を要約できます。パスワード欄やブロックリストのサイトでは自動要約と質問候補が停止します。
+
+画面共有中の画面変化による自動要約には、検査した同じタブに結び付いたブラウザータブの共有、ページへのアクセス権、同じプライバシーチェックが必要です。共有元がウィンドウ、画面全体、ネイティブアプリ、不明またはアクセスできない場合は、自動要約が停止します。手動の質問とキャプチャは引き続き使えます。
 
 [インストールガイド](docs/INSTALL.md) | [使い方](docs/USAGE.md) | [設計](docs/DESIGN.md) | [プライバシー詳細](docs/SECURITY.md)
 

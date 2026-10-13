@@ -38,13 +38,16 @@ claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
 node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
+claude --plugin-dir "$PWD" plugin details glimpselet
+node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
 两条版本检查命令都应显示 `2.0.0`。插件列表应显示 `glimpselet@inline` 的版本为 `2.0.0`，并已在此会话中启用。最后一条命令会打开 Claude Code。在这个会话中运行 `/glimpselet:glimpse`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项。重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
 
-在自己的桌面浏览器中，扩展保存在固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
+插件详情还应包含 `glimpse` 和 `install` 技能以及 `glimpselet` MCP 服务器。打包后的扩展位于 `bin/extension`，版本也应为 **2.0.0**。如果 Claude Code 在远程主机上运行，请使用指南中的 SSH 命令，在浏览器所在的电脑下载扩展 ZIP，并加载解压后的文件夹。
 
+如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/.glimpselet/extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
 更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。
 
 ## 已经安装 Glimpselet？
@@ -58,8 +61,6 @@ claude plugin list
 ```
 
 在打开的 Claude Code 会话中运行 `/reload-plugins`（或重启 Claude Code），再运行 `/glimpselet:glimpse`。列表中的 `glimpselet@glimpselet` 应显示 **2.0.0**，命令应打开欢迎与配对指南。也请在浏览器所在电脑的 `chrome://extensions` 或 `edge://extensions` 确认 Glimpselet 为 **2.0.0**。如果插件仍是 1.1.1，公开市场可能尚未提供 v2。旧的屏幕选择页面不是 v2 欢迎指南。[更新验证](docs/DESIGN.md#plugin-upgrades-and-release-verification)。
-
-使用未打包扩展时，指南会把新文件复制到 `~/.glimpselet/extension`。请在 `chrome://extensions` 或 `edge://extensions` 重新加载 Glimpselet，确认版本为 **2.0.0**。通过 SSH 使用时，请在浏览器所在电脑从指南下载新版 ZIP，解压到原先加载的文件夹，再重新加载。远程主机无法在你的电脑打开免安装浏览器。
 
 ## 可以做什么
 
@@ -94,7 +95,9 @@ Channel 预览的命令和配置请参阅 [Claude Code 会话](docs/DESIGN.md#th
 
 Glimpselet 支持桌面版 Chrome、Edge 和其他 Chromium 浏览器。商店发布前会显示开发者提示，更新需要手动完成。浏览器设置、扩展商店和受限页面等部分页面会阻止访问。Chrome 内置 PDF 查看器无法读取，请使用 Glimpselet 阅读器。原生应用只能提供像素画面，无法读取页面文字或显示叠加层。Shift 可在悬浮窗及已授予访问权限的网页上使用。在其他应用中，请使用全局裁剪快捷键。悬浮窗口不支持点击穿透。
 
-只有在你同意后，自动建议问题才会使用页面内容。Passive 是可选功能：允许 Glimpselet 访问网站，开启 **Passive**，再浏览或切换可检查的页面，即可获得摘要，无需共享屏幕。页面摘要使用已授权页面的文字和结构。共享屏幕期间，屏幕变化摘要需要已验证的共享浏览器标签页，且该标签页与正在检查的页面一致。如果共享来源是窗口、整个屏幕、原生应用、未知来源或无法访问的来源，这类摘要会暂停。包含密码输入框的页面和黑名单中的网站不会生成自动摘要或建议问题。手动提问和截图仍可使用。
+只有在你同意后，自动建议问题才会使用页面内容。要在无需共享屏幕的情况下获取页面摘要，请打开页面、开启 **Passive**，并在提示时允许 Glimpselet 访问该网站。Glimpselet 会检查页面文本，并可在内容或 URL 改变时生成摘要。密码字段和屏蔽列表中的网站会暂停自动摘要和建议问题。
+
+共享屏幕期间，屏幕变化触发的自动摘要要求共享浏览器标签页，并绑定到同一个已检查的标签页，同时具备页面访问权限并通过相同的隐私检查。如果共享来源是窗口、整个屏幕、原生应用、未知或无法访问的来源，自动摘要会暂停。手动提问和截图仍可使用。
 
 [安装指南](docs/INSTALL.md) | [使用方法](docs/USAGE.md) | [设计](docs/DESIGN.md) | [隐私详情](docs/SECURITY.md)
 
