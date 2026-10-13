@@ -10,7 +10,7 @@ xfwm4 --compositor=off > /tmp/glimpselet-test-wm-"${DISPLAY//:/}".log 2>&1 &
 manager_pid=$!
 trap 'kill "$manager_pid" 2>/dev/null || true' EXIT
 for ((attempt=0; attempt<100; attempt++)); do
-  if xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | rg -q 'window id'; then
+  if [[ $(xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null) == *"window id"* ]]; then
     npx playwright test --config playwright.extension.config.ts "$@"
     exit $?
   fi
