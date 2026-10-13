@@ -1585,12 +1585,13 @@ function App() {
     try {
       await requestSiteAccess();
       const context = await getGuideContext();
-      return await askWith({
+      const result = await askWith({
         question: t.guidePrompt,
         kind: "guide",
         page: context,
         includeCapture: false,
       });
+      return Boolean(result && result.guideReady);
     } catch (error) {
       if (
         ["capture_permission", "allow_site_access"].includes(errorCode(error))
@@ -1925,7 +1926,7 @@ function App() {
           ),
         );
       if (kind !== "suggest") setStatus(t.answerReady);
-      return guideReady;
+      return { guideReady };
     } catch (error) {
       if (!cancelledRequests.current.has(id) && !options.silent)
         setEntries((old) =>

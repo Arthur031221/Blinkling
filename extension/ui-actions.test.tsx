@@ -333,6 +333,33 @@ describe("bubble answer rendering and feedback", () => {
       ).toContain(input.question);
     },
   );
+  it("handles an unavailable reader guide without restoring its instruction in the draft", async () => {
+    await start();
+    const reason = "This PDF has no reliably identified diagram target.";
+    mocks.ask.mockResolvedValue({
+      answer: JSON.stringify({ status: "unavailable", reason, steps: [] }),
+    });
+    const response = await send({
+      type: "glimpselet:reader-action",
+      action: "guide",
+      context: page,
+      question: "Guide me through this PDF",
+    });
+
+    expect(response).toHaveBeenCalledWith({ ok: true });
+    expect(mocks.ask).toHaveBeenCalledTimes(1);
+    expect(status()).toBe(en.answerReady);
+    expect(document.querySelector(".message .answer")?.textContent).toContain(
+      reason,
+    );
+    expect(document.querySelector("textarea")?.value).toBe("");
+    expect(
+      sendToTab.mock.calls.find(
+        ([, message]) => message.type === "glimpselet:guide",
+      )?.[1].steps,
+    ).toEqual([]);
+  });
+
   it("submits automatic selection actions but keeps Ask editable", async () => {
     await start();
     await send({
