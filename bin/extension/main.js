@@ -20151,6 +20151,8 @@ function App() {
                 requestIdRef.current = null;
                 requestRef.current = null;
                 apiRequestRef.current = null;
+                setBusy(false);
+                setActiveId("");
               }
             }
             if (requestIdRef.current || translationController.current) {

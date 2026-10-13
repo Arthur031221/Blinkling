@@ -2528,6 +2528,47 @@ describe("bubble answer rendering and feedback", () => {
       expect(status()).toBe("Answer ready.");
     },
   );
+  it("allows a PDF Ask draft to be sent after canceling a pending suggestion", async () => {
+    let finishSuggestion!: (result: { answer: string }) => void;
+    let suggestionId = "";
+    mocks.ask.mockImplementationOnce((input: AskInput) => {
+      expect(input.kind).toBe("suggest");
+      suggestionId = input.id;
+      return new Promise((resolve) => {
+        finishSuggestion = resolve;
+      });
+    });
+    mocks.cancel.mockImplementation(async () => {
+      finishSuggestion({ answer: '{"questions":["Canceled suggestion"]}' });
+      await Promise.resolve();
+    });
+    await start();
+    expect(document.querySelector(".composer .stop")).not.toBeNull();
+    const passage = "Glimpselet PDF passage";
+    const response = await send({
+      type: "glimpselet:reader-action",
+      action: "ask",
+      text: passage,
+      context: page,
+    });
+    expect(response).toHaveBeenCalledWith({ ok: true });
+    expect(mocks.cancel).toHaveBeenCalledExactlyOnceWith(suggestionId);
+    expect(document.querySelector("textarea")?.value).toContain(passage);
+    expect(document.querySelector(".composer .stop")).toBeNull();
+    const sendButton =
+      document.querySelector<HTMLButtonElement>(".composer .send");
+    expect(sendButton).not.toBeNull();
+    expect(sendButton!.disabled).toBe(false);
+    await act(async () => sendButton!.click());
+    await flush();
+    expect(mocks.ask).toHaveBeenCalledOnce();
+    expect(mocks.ask.mock.calls[0][0]).toMatchObject({
+      kind: "ask",
+      page,
+    });
+    expect(mocks.ask.mock.calls[0][0].question).toContain(passage);
+    expect(status()).toBe("Answer ready.");
+  });
   it.each(["translate", "summary-selection"])(
     "rejects invalid reader %s selections before disturbing a background request or draft",
     async (action) => {
