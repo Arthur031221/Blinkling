@@ -18,6 +18,7 @@ let native: { id: number; state: string; width: number; height: number };
 let draw: ReturnType<typeof vi.fn>;
 let events: string[];
 let fullscreen: Element | null;
+let focusedWindow: number;
 let chromeMock: {
   tabs: {
     getCurrent: ReturnType<typeof vi.fn>;
@@ -36,6 +37,7 @@ beforeEach(() => {
   events = [];
   native = { id: 4, state: "normal", width: 1200, height: 900 };
   fullscreen = null;
+  focusedWindow = 8;
   chromeMock = {
     tabs: {
       getCurrent: vi.fn(async () => ({ id: 17, windowId: 4, active: false })),
@@ -46,11 +48,15 @@ beforeEach(() => {
     },
     windows: {
       getCurrent: vi.fn(async () => ({ ...native })),
-      getLastFocused: vi.fn(async () => ({ id: 8 })),
-      get: vi.fn(async () => ({ ...native })),
+      getLastFocused: vi.fn(async () => ({ id: focusedWindow, focused: true })),
+      get: vi.fn(async (id: number) => ({
+        ...(id === native.id ? native : { id }),
+        focused: id === focusedWindow,
+      })),
       update: vi.fn(
         async (id: number, update: { state?: string; focused?: boolean }) => {
           events.push(`window:${id}:${update.state || "focus"}`);
+          if (update.focused) focusedWindow = id;
           if (id === native.id && update.state) {
             native = { ...native, ...update };
             if (update.state === "fullscreen") {
@@ -145,6 +151,24 @@ afterEach(() => {
 });
 
 describe("foreground shared screen crop", () => {
+  it("restores the compatibility bubble after freezing but before fullscreen consumes activation", async () => {
+    const bubble = document.implementation.createHTMLDocument();
+    Object.defineProperty(bubble, "defaultView", { value: { closed: false } });
+    const clearBubble = {
+      hide: vi.fn(async () => true),
+      prepareSelection: vi.fn(async () => {
+        events.push("prepare");
+      }),
+      relaySelection: vi.fn(),
+      restore: vi.fn(async () => {}),
+    };
+    await cropSharedScreen(video, bubble, labels, { clearBubble });
+    expect(events.indexOf("freeze")).toBeLessThan(events.indexOf("prepare"));
+    expect(events.indexOf("prepare")).toBeLessThan(events.indexOf("tab:17"));
+    expect(clearBubble.relaySelection).toHaveBeenCalledOnce();
+    expect(clearBubble.restore).toHaveBeenCalledOnce();
+  });
+
   it("crops a live shared track before the video decoder has metadata", async () => {
     video = document.createElement("video");
     const clone = {
@@ -239,6 +263,53 @@ describe("foreground shared screen crop", () => {
       active: true,
     });
     expect(chromeMock.windows.update).toHaveBeenLastCalledWith(8, {
+      focused: true,
+    });
+  });
+
+  it("preserves a Chrome window brought forward while selection is pending", async () => {
+    chromeMock.windows.getLastFocused
+      .mockResolvedValueOnce({ id: 8, focused: true })
+      .mockResolvedValueOnce({ id: 11, focused: true });
+    await cropSharedScreen(video, null, labels);
+    expect(chromeMock.windows.update).toHaveBeenLastCalledWith(11, {
+      focused: true,
+    });
+  });
+
+  it("repairs late opener activation after native restoration acknowledges completion", async () => {
+    chromeMock.windows.getLastFocused.mockResolvedValueOnce({
+      id: 8,
+      focused: true,
+    });
+    vi.mocked(selectCrop).mockImplementation(async () => {
+      focusedWindow = 11;
+      return null;
+    });
+    const update = chromeMock.windows.update.getMockImplementation()!;
+    chromeMock.windows.update.mockImplementation(async (id, change) => {
+      const result = await update(id, change);
+      if (change.state === "normal")
+        setTimeout(() => {
+          focusedWindow = native.id;
+        }, 120);
+      return result;
+    });
+    expect(await cropSharedScreen(video, null, labels)).toBeNull();
+    expect(focusedWindow).toBe(11);
+    expect(
+      chromeMock.windows.update.mock.calls.filter(
+        ([id, change]) => id === 11 && change.focused,
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("does not explicitly activate the old Chrome window after switching to another application", async () => {
+    chromeMock.windows.getLastFocused
+      .mockResolvedValueOnce({ id: 8, focused: true })
+      .mockResolvedValueOnce({ id: 8, focused: false });
+    await cropSharedScreen(video, null, labels);
+    expect(chromeMock.windows.update).not.toHaveBeenCalledWith(8, {
       focused: true,
     });
   });

@@ -138,7 +138,7 @@
   "replayTour": "둘러보기 다시 보기",
   "globalCropShortcut": "전역 자르기 단축키: Ctrl+Shift+7(Mac은 Cmd+Shift+7). chrome://extensions/shortcuts에서 변경할 수 있습니다.",
   "screenChangeSummary": "공유 화면이 바뀌었습니다. 간단히 요약합니다.",
-  "capturePermission": "이 페이지에서 Chrome 확장 프로그램 메뉴를 열고 Glimpselet을 선택한 다음, 여기서 캡처를 계속하세요.",
+  "capturePermission": "모든 사이트 접근을 한 번 허용하면 페이지 캡처와 영역 선택을 사용할 수 있습니다. Chrome이 권한을 요청합니다.",
   "shiftCrop": "Shift를 누른 채 자르기",
   "liveStopped": "버블이 더 이상 기다리지 않습니다. 터미널 작업은 계속 중일 수 있습니다. 중지하려면 터미널에서 Esc를 누르세요.",
   "replayTourHint": "연습 {step}/8. 이 창에서 완료하세요.",
@@ -160,12 +160,10 @@
   "blockedPage": "차단 목록에 있는 사이트입니다. 페이지 읽기를 일시 중지했습니다.",
   "captureProgress": "{total}개 영역 중 {completed}개 캡처 중",
   "translationPageChanged": "번역을 적용했습니다. 변경 중인 텍스트 {count}개를 건너뛰었습니다. 다시 번역하면 포함할 수 있습니다.",
-  "guideCapturePermission": "이 페이지에서 Glimpselet 도구 모음 아이콘을 클릭한 뒤 가이드를 다시 시도하세요. 연습 단계는 유지됩니다.",
+  "guideCapturePermission": "설정에서 모든 사이트 접근을 허용한 뒤 가이드를 다시 시도하세요. 연습 단계는 유지됩니다.",
   "skipPractice": "연습 단계 건너뛰기",
   "guideClose": "가이드 닫기",
   "guideDone": "완료",
-  "captureReopen": "화면이 준비되었습니다. 버블을 다시 열어 계속하세요.",
-  "captureReopenAction": "버블 다시 열기",
   "captureFailed": "공유 화면을 캡처할 수 없습니다. 다시 시도하세요.",
   "effortLow": "낮음",
   "effortMedium": "보통",
@@ -186,6 +184,6 @@
   "selectedSummaryPrompt": "선택한 이 PDF 글만 요약해 주세요.",
   "readerSummaryPrompt": "이 PDF 페이지를 요약해 주세요.",
   "selectionAskPrompt": "선택한 이 글을 설명해 주세요.",
-  "captureRetryAction": "캡처 계속",
-  "captureScreenClearance": "이 화면을 캡처할 때 버블이 잠시 닫힙니다. 다시 열어 계속하세요."
+  "captureRetryAction": "허용하고 캡처 계속",
+  "captureAccessHint": "선택 사항: 모든 사이트 접근을 한 번 허용하면 새 탭에서도 페이지 캡처와 영역 선택을 사용할 수 있습니다."
 }

@@ -3629,12 +3629,23 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
   await expect(frozen).toHaveCount(0);
   await expect
     .poll(() =>
+      panel.evaluate(
+        (title) =>
+          window.documentPictureInPicture.window!.document.querySelector<HTMLButtonElement>(
+            `button[title="${title}"]`,
+          )?.disabled,
+        en.cropShortcut,
+      ),
+    )
+    .toBe(false);
+  await expect
+    .poll(() =>
       panel.evaluate(() => {
         const img =
           window.documentPictureInPicture.window!.document.querySelector(
             ".capture-chip img",
           ) as HTMLImageElement;
-        return img.naturalWidth;
+        return img?.naturalWidth || 0;
       }),
     )
     .toBeGreaterThan(100);
@@ -3664,11 +3675,14 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
   await expect(frozen).toBeVisible();
   await panel.keyboard.press("Escape");
   await expect(frozen).toHaveCount(0);
-  expect(
-    await panel.evaluate(
-      () => window.documentPictureInPicture.window!.document.body.style.opacity,
-    ),
-  ).toBe("");
+  await expect
+    .poll(() =>
+      panel.evaluate(
+        () =>
+          window.documentPictureInPicture.window!.document.body.style.opacity,
+      ),
+    )
+    .toBe("");
 });
 
 for (const backend of ["bridge", "api"] as const) {
@@ -3824,6 +3838,18 @@ for (const backend of ["bridge", "api"] as const) {
     expect(nativeCrop.length).toBeGreaterThan(5_000_000);
     await panel.keyboard.press("Enter");
     await expect(frozen).toHaveCount(0);
+    // The native window must finish restoring before the crop becomes current.
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          (title) =>
+            window.documentPictureInPicture.window!.document.querySelector<HTMLButtonElement>(
+              `button[title="${title}"]`,
+            )?.disabled,
+          en.cropShortcut,
+        ),
+      )
+      .toBe(false);
     await panel.evaluate(() =>
       window.documentPictureInPicture
         .window!.document.querySelector<HTMLButtonElement>(".composer .send")!

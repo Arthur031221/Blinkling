@@ -138,7 +138,7 @@
   "replayTour": "Revoir la visite guidée",
   "globalCropShortcut": "Raccourci global de recadrage : Ctrl+Maj+7 (Cmd+Maj+7 sur Mac). Modifiez-le dans chrome://extensions/shortcuts.",
   "screenChangeSummary": "L'écran partagé a changé. Voici un bref résumé.",
-  "capturePermission": "Sur cette page, ouvrez le menu des extensions de Chrome et choisissez Glimpselet. Reprenez ensuite la capture ici.",
+  "capturePermission": "Autorisez une fois l’accès à tous les sites pour capturer des pages et sélectionner une zone. Chrome demandera votre permission.",
   "shiftCrop": "Maintenez Maj pour recadrer",
   "liveStopped": "La bulle a cessé d'attendre. Le terminal travaille peut-être encore. Appuyez sur Échap dans le terminal pour l'arrêter.",
   "replayTourHint": "Exercice {step}/8. Terminez dans cette fenêtre.",
@@ -160,12 +160,10 @@
   "blockedPage": "Ce site figure dans votre liste de blocage. La lecture est suspendue.",
   "captureProgress": "Capture de {completed} sections sur {total}",
   "translationPageChanged": "Traduction appliquée. {count} textes en cours de modification ont été ignorés. Traduisez à nouveau pour les inclure.",
-  "guideCapturePermission": "Cliquez sur l’icône Glimpselet de la barre d’outils sur cette page, puis relancez le guide. L’étape reste ouverte.",
+  "guideCapturePermission": "Autorisez l’accès à tous les sites dans les paramètres, puis relancez le guide. L’étape reste ouverte.",
   "skipPractice": "Passer cette étape",
   "guideClose": "Fermer le guide",
   "guideDone": "Terminé",
-  "captureReopen": "L’écran est prêt. Rouvrez la bulle pour continuer.",
-  "captureReopenAction": "Rouvrir la bulle",
   "captureFailed": "Impossible de capturer l’écran partagé. Réessayez.",
   "effortLow": "Faible",
   "effortMedium": "Moyen",
@@ -186,6 +184,6 @@
   "selectedSummaryPrompt": "Résume uniquement ce texte sélectionné du PDF.",
   "readerSummaryPrompt": "Résume cette page du PDF.",
   "selectionAskPrompt": "Explique ce texte sélectionné.",
-  "captureRetryAction": "Reprendre la capture",
-  "captureScreenClearance": "Lors de la capture de cet écran, la bulle se ferme brièvement. Rouvrez-la pour continuer."
+  "captureRetryAction": "Autoriser et reprendre la capture",
+  "captureAccessHint": "Facultatif : autorisez une fois l’accès à tous les sites pour capturer des pages et sélectionner une zone dans les nouveaux onglets."
 }

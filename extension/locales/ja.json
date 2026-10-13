@@ -138,7 +138,7 @@
   "replayTour": "ツアーをもう一度見る",
   "globalCropShortcut": "全体の切り抜きショートカット：Ctrl+Shift+7（Mac は Cmd+Shift+7）。chrome://extensions/shortcuts で変更できます。",
   "screenChangeSummary": "共有画面が変わりました。簡単な概要を表示します。",
-  "capturePermission": "このページで Chrome の拡張機能メニューを開き、Glimpselet を選んでから、ここで撮影を再開してください。",
+  "capturePermission": "すべてのサイトへのアクセスを一度許可すると、ページ撮影と範囲選択が使えます。Chrome が許可を確認します。",
   "shiftCrop": "Shift キーを押したまま切り抜く",
   "liveStopped": "バブルは待機を終了しました。ターミナルでは処理が続いている場合があります。停止するにはターミナルで Esc を押してください。",
   "replayTourHint": "練習 {step}/8。このウィンドウで完了してください。",
@@ -160,12 +160,10 @@
   "blockedPage": "このサイトはブロックリストに登録されています。ページの読み取りを停止しました。",
   "captureProgress": "{total} 区画中 {completed} 区画をキャプチャ中",
   "translationPageChanged": "翻訳を適用しました。変更中のテキスト {count} 件をスキップしました。もう一度翻訳すると対象に含められます。",
-  "guideCapturePermission": "このページで Glimpselet のツールバーアイコンをクリックし、ガイドを再試行してください。練習ステップは保持されます。",
+  "guideCapturePermission": "設定ですべてのサイトへのアクセスを許可してから、ガイドを再試行してください。練習ステップは保持されます。",
   "skipPractice": "練習ステップをスキップ",
   "guideClose": "ガイドを閉じる",
   "guideDone": "完了",
-  "captureReopen": "画面の準備ができました。フローティング画面を開き直して続けてください。",
-  "captureReopenAction": "フローティング画面を開き直す",
   "captureFailed": "共有画面をキャプチャできませんでした。もう一度お試しください。",
   "effortLow": "低",
   "effortMedium": "中",
@@ -186,6 +184,6 @@
   "selectedSummaryPrompt": "選択したこの PDF の文章だけを要約してください。",
   "readerSummaryPrompt": "この PDF のページを要約してください。",
   "selectionAskPrompt": "選択したこの文章を説明してください。",
-  "captureRetryAction": "撮影を再開",
-  "captureScreenClearance": "この画面を撮影すると、フローティング画面が一時的に閉じます。開き直して続けてください。"
+  "captureRetryAction": "許可して撮影を再開",
+  "captureAccessHint": "任意：すべてのサイトへのアクセスを一度許可すると、新しいタブでもページ撮影と範囲選択が使えます。"
 }

@@ -210,6 +210,7 @@ if (!contentScope.glimpseletContentReady) {
       return;
     }
     const root = ensureOverlay();
+    const hadFocus = document.hasFocus();
     const activeControl = root
       .querySelector(".guide nav")
       ?.contains(root.activeElement)
@@ -474,6 +475,7 @@ if (!contentScope.glimpseletContentReady) {
         ink.style.animation = "none";
         ink.style.strokeDashoffset = "0";
       }
+    if (!hadFocus) return;
     if (changed || (activeControl === "back" && back.disabled))
       next.focus({ preventScroll: true });
     else if (activeControl === "back") back.focus({ preventScroll: true });
@@ -482,13 +484,15 @@ if (!contentScope.glimpseletContentReady) {
   }
 
   function closeGuide(): void {
+    const hadFocus = document.hasFocus();
     const returnFocus = currentGuide ? guideReturnFocus : undefined;
     currentGuide = undefined;
     guideReturnFocus = undefined;
     renderedStep = "";
     overlayRoot?.querySelector(".guide")?.remove();
     overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
-    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    if (hadFocus && returnFocus?.isConnected)
+      returnFocus.focus({ preventScroll: true });
   }
 
   function closeSelectionPopover(): void {

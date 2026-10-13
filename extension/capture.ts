@@ -3,6 +3,7 @@ import { hasSensitiveContent, type PrivacyReadMode } from "./privacy";
 import { encodeCanvasPng } from "./png";
 import { prepareCaptureBinding, type CaptureBinding } from "./capture-binding";
 import type { PageContext } from "./page-context";
+import { requestCaptureAccess } from "./capture-access";
 
 export type CaptureKind = "visible" | "full" | "region" | "element" | "screen";
 export type CaptureResult = { image: string; label: string };
@@ -30,7 +31,7 @@ export type SelectedWebCaptureSource = Pick<
 type WebCaptureDocument = SelectedWebCaptureSource & {
   geometry: WebCaptureGeometry;
 };
-/** Keep this in memory until a toolbar activation; never reuse it after a source change. */
+/** Keep this in memory until authorization; never reuse it after a source change. */
 export type PendingWebCapture = WebCaptureDocument & {
   kind: "visible" | "region" | "element";
   rect?: [number, number, number, number];
@@ -405,6 +406,7 @@ async function captureVisibleFrame(
   signal?: AbortSignal,
   binding?: WebCaptureDocument,
   privacyMode: PrivacyReadMode = false,
+  allowPermissionRequest = true,
 ): Promise<string> {
   // Chrome allows only two screenshot requests per second. The authorization
   // probe counts too, including when an immediately confirmed selector follows.
@@ -427,11 +429,22 @@ async function captureVisibleFrame(
   };
   await assertScreenshotSource();
   lastScreenshotAttempt = Date.now();
-  const image = await chrome.tabs
-    .captureVisibleTab(tab.windowId, { format: "png" })
-    .catch(() => {
-      throw new CaptureAuthorizationError();
+  let image: string;
+  try {
+    image = await chrome.tabs.captureVisibleTab(tab.windowId, {
+      format: "png",
     });
+  } catch {
+    // Preserve activeTab's temporary access when it already suffices. If it
+    // does not, ask once on the capture gesture and repeat every source/privacy
+    // check after the native permission prompt. No toolbar/menu detour.
+    const granted =
+      allowPermissionRequest &&
+      navigator.userActivation?.isActive &&
+      (await requestCaptureAccess().catch(() => false));
+    if (!granted) throw new CaptureAuthorizationError();
+    return captureVisibleFrame(tab, signal, binding, privacyMode, false);
+  }
   await assertScreenshotSource();
   return image;
 }
@@ -480,14 +493,18 @@ async function captureWebInternal(
   }
   let rect: [number, number, number, number] | undefined = selectedRect;
   if (!rect && (kind === "region" || kind === "element")) {
-    // Site access allows the overlay, but captureVisibleTab separately needs a
-    // toolbar/command activation. Explain that before asking the user to draw.
+    // Authorize pixels before asking the user to draw. The selector must own
+    // native focus so a PiP gesture works with pointer and keyboard input.
     await captureVisibleFrame(
       tab,
       options.signal,
       captureDocument,
       privacyMode,
     );
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+    await assertStillActive(tab);
+    if (captureDocument) await readWebCaptureDocument(tab, captureDocument);
     const selected = (await sendToPage(tab, {
       type: "glimpselet:select",
       mode: kind,
@@ -767,11 +784,23 @@ export async function startScreenShare(sourceTabId?: number): Promise<{
   )
     .then(prepareCaptureBinding)
     .catch(() => undefined);
+  const Controller = (
+    window as unknown as {
+      CaptureController?: new () => {
+        setFocusBehavior: (behavior: "no-focus-change") => void;
+      };
+    }
+  ).CaptureController;
+  const controller = Controller ? new Controller() : undefined;
+  // Decide before the picker: after it returns, awaiting source metadata can
+  // miss Chrome's focus-decision deadline and raise another native window.
+  controller?.setFocusBehavior("no-focus-change");
   const stream = await navigator.mediaDevices.getDisplayMedia({
     video: { frameRate: 2, displaySurface: "monitor" },
     audio: false,
     selfBrowserSurface: "exclude",
     preferCurrentTab: false,
+    ...(controller ? { controller } : {}),
   } as DisplayMediaStreamOptions);
   try {
     const binding = await bindingPromise;

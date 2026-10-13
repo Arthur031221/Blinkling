@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./privacy", () => ({ hasSensitiveContent: vi.fn(() => false) }));
 vi.mock("./png", async (original) => ({
@@ -83,6 +83,25 @@ describe("starting a shared screen without taking a snapshot", () => {
     expect(track.stop).not.toHaveBeenCalled();
   });
 
+  it("sets conditional focus before starting the picker without waiting for source metadata", async () => {
+    const { getDisplayMedia } = setupShare();
+    const setFocusBehavior = vi.fn();
+    const controller = { setFocusBehavior };
+    vi.stubGlobal(
+      "CaptureController",
+      vi.fn(function () {
+        return controller;
+      }),
+    );
+    const { startScreenShare } = await import("./capture");
+    await startScreenShare(tab.id);
+    expect(setFocusBehavior).toHaveBeenCalledWith("no-focus-change");
+    expect(getDisplayMedia.mock.calls[0][0]).toMatchObject({ controller });
+    expect(setFocusBehavior.mock.invocationCallOrder[0]).toBeLessThan(
+      getDisplayMedia.mock.invocationCallOrder[0],
+    );
+  });
+
   it("cleans up a share that ended while its source was being prepared", async () => {
     const { track } = setupShare();
     let resolveTab!: (value: typeof tab) => void;
@@ -118,11 +137,13 @@ function setupChrome(captureVisibleTab = vi.fn(async () => "tile-png")) {
   vi.stubGlobal("chrome", {
     runtime: { getURL: (path: string) => `chrome-extension://test/${path}` },
     tabs: {
+      update: vi.fn(async () => tab),
       get: vi.fn(async () => tab),
       query: vi.fn(async () => [tab]),
       sendMessage: vi.fn(async () => ({})),
       captureVisibleTab,
     },
+    windows: { update: vi.fn(async () => ({ id: tab.windowId })) },
     permissions: { contains: vi.fn(async () => true) },
     scripting: { executeScript },
     storage: { local: { get: vi.fn(async () => ({ blocklist: [] })) } },
@@ -259,6 +280,9 @@ describe("web screenshot authorization", () => {
     vi.useRealTimers();
     drawImage.mockClear();
   });
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, "userActivation");
+  });
 
   const geometry = {
     width: 100,
@@ -296,6 +320,50 @@ describe("web screenshot authorization", () => {
       },
     };
   }
+
+  it.each(["grant", "deny", "navigation", "repeat-failure"])(
+    "requests screenshot access on a capture gesture and handles %s without stale pixels",
+    async (outcome) => {
+      vi.useFakeTimers();
+      const captureVisibleTab = vi
+        .fn(async () => "tile-png")
+        .mockRejectedValueOnce(new Error("Missing capture permission"));
+      setupAuthorization(captureVisibleTab);
+      Object.defineProperty(navigator, "userActivation", {
+        configurable: true,
+        value: { isActive: true },
+      });
+      const request = vi.fn(async () => {
+        if (outcome === "navigation")
+          vi.mocked(chrome.tabs.get).mockResolvedValue({
+            ...tab,
+            url: "https://public.test/changed",
+          });
+        return outcome !== "deny";
+      });
+      Object.assign(chrome.permissions, { request });
+      if (outcome === "repeat-failure")
+        captureVisibleTab.mockRejectedValue(new Error("Capture failed"));
+      const { captureWeb } = await import("./capture");
+      const capture = captureWeb("visible");
+      const expected =
+        outcome === "grant"
+          ? expect(capture).resolves.toMatchObject({
+              capture: { image: expect.any(String) },
+            })
+          : expect(capture).rejects.toThrow(
+              outcome === "navigation" ? "tab_changed" : "capture_permission",
+            );
+      await vi.runAllTimersAsync();
+      await expected;
+      expect(request).toHaveBeenCalledExactlyOnceWith({
+        origins: ["<all_urls>"],
+      });
+      expect(captureVisibleTab).toHaveBeenCalledTimes(
+        ["grant", "repeat-failure"].includes(outcome) ? 2 : 1,
+      );
+    },
+  );
 
   it.each(["region", "element"] as const)(
     "requires screenshot activation before opening the %s selector",

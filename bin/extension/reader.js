@@ -25999,7 +25999,7 @@ function selectCrop(host, bounds, labels, pixelScale = 1, initialPointer) {
       if (!seeded && target.closest(".tools")) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      surface.setPointerCapture?.(event.pointerId);
+      if (event.isTrusted) surface.setPointerCapture?.(event.pointerId);
       drag = {
         pointerId: event.pointerId,
         start: point(event),
@@ -26551,6 +26551,7 @@ if (!contentScope.glimpseletContentReady) {
       return;
     }
     const root = ensureOverlay();
+    const hadFocus = document.hasFocus();
     const activeControl = root.querySelector(".guide nav")?.contains(root.activeElement) ? root.activeElement.dataset.guideControl : void 0;
     root.querySelector(".guide")?.remove();
     root.querySelector('svg[class~="draw"]')?.remove();
@@ -26768,19 +26769,22 @@ if (!contentScope.glimpseletContentReady) {
         ink.style.animation = "none";
         ink.style.strokeDashoffset = "0";
       }
+    if (!hadFocus) return;
     if (changed || activeControl === "back" && back.disabled)
       next.focus({ preventScroll: true });
     else if (activeControl === "back") back.focus({ preventScroll: true });
     else if (activeControl === "next") next.focus({ preventScroll: true });
     else if (activeControl === "close") close.focus({ preventScroll: true });
   }, closeGuide = function() {
+    const hadFocus = document.hasFocus();
     const returnFocus = currentGuide ? guideReturnFocus : void 0;
     currentGuide = void 0;
     guideReturnFocus = void 0;
     renderedStep = "";
     overlayRoot?.querySelector(".guide")?.remove();
     overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
-    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    if (hadFocus && returnFocus?.isConnected)
+      returnFocus.focus({ preventScroll: true });
   }, closeSelectionPopover = function() {
     window.clearTimeout(selectionTimer);
     selectionTimer = 0;

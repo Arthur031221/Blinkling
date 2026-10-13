@@ -138,7 +138,7 @@
   "replayTour": "重播導覽",
   "globalCropShortcut": "全域裁切快捷鍵：Ctrl+Shift+7，Mac 為 Cmd+Shift+7。可在 chrome://extensions/shortcuts 修改。",
   "screenChangeSummary": "分享的螢幕有所變化，以下是簡短摘要。",
-  "capturePermission": "請在這個頁面開啟 Chrome 的擴充功能選單，選擇 Glimpselet，再回到這裡繼續擷取。",
+  "capturePermission": "允許存取所有網站一次，即可擷取網頁與選取區域。Chrome 會詢問權限。",
   "shiftCrop": "按住 Shift 裁切",
   "liveStopped": "泡泡已停止等待。終端可能仍在執行。按 Esc 可在終端中停止它。",
   "replayTourHint": "練習步驟 {step}/8。請在這個浮動視窗完成。",
@@ -160,12 +160,10 @@
   "blockedPage": "此網站在封鎖清單中，已暫停讀取頁面。",
   "captureProgress": "正在擷取第 {completed} / {total} 個區塊",
   "translationPageChanged": "已套用翻譯。有 {count} 段變動中的文字已略過，可再次翻譯以包含這些文字。",
-  "guideCapturePermission": "請在此頁點擊 Glimpselet 工具列圖示，再重試導覽。練習步驟會保留。",
+  "guideCapturePermission": "請在設定中允許存取所有網站，再重試導覽。練習步驟會保留。",
   "skipPractice": "略過練習步驟",
   "guideClose": "關閉導覽",
   "guideDone": "完成",
-  "captureReopen": "畫面已準備好。重新開啟浮動視窗以繼續。",
-  "captureReopenAction": "重新開啟浮動視窗",
   "captureFailed": "無法擷取分享畫面，請再試一次。",
   "effortLow": "低",
   "effortMedium": "中",
@@ -186,6 +184,6 @@
   "selectedSummaryPrompt": "只摘要這段選取的 PDF 文字。",
   "readerSummaryPrompt": "摘要這一頁 PDF。",
   "selectionAskPrompt": "解釋這段選取的文字。",
-  "captureRetryAction": "繼續擷取",
-  "captureScreenClearance": "擷取這個螢幕時，浮動視窗會暫時關閉。重新開啟後即可繼續。"
+  "captureRetryAction": "允許並繼續擷取",
+  "captureAccessHint": "選用：允許存取所有網站一次，即可在新分頁擷取網頁與選取區域。"
 }

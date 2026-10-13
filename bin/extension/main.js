@@ -16216,8 +16216,8 @@ async function withBubbleCleared(video, bubble, options, capture) {
   const opacity = bubble?.body.style.opacity || "";
   try {
     if (clearBubble) {
-      await clearBubble.hide();
-      if (needsClearance && !view?.closed)
+      const hidden = await clearBubble.hide();
+      if (needsClearance && hidden !== true && !view?.closed)
         throw new Error("capture_bubble_obstructed");
     } else if (bubble) bubble.body.style.opacity = "0";
     options.signal?.throwIfAborted();
@@ -16502,6 +16502,11 @@ async function prepareCaptureBinding(tab) {
   }
 }
 
+// extension/capture-access.ts
+function requestCaptureAccess() {
+  return chrome.permissions.request({ origins: ["<all_urls>"] });
+}
+
 // extension/capture.ts
 var CaptureAuthorizationError = class extends Error {
   constructor(pending) {
@@ -16747,7 +16752,7 @@ async function readWebCaptureDocument(tab, expected) {
     geometry: Object.freeze({ ...geometry })
   };
 }
-async function captureVisibleFrame(tab, signal, binding, privacyMode = false) {
+async function captureVisibleFrame(tab, signal, binding, privacyMode = false, allowPermissionRequest = true) {
   const delay = lastScreenshotAttempt + 550 - Date.now();
   if (delay > 0) await waitForCaptureDelay(delay, signal);
   throwIfAborted(signal);
@@ -16765,9 +16770,16 @@ async function captureVisibleFrame(tab, signal, binding, privacyMode = false) {
   };
   await assertScreenshotSource();
   lastScreenshotAttempt = Date.now();
-  const image = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" }).catch(() => {
-    throw new CaptureAuthorizationError();
-  });
+  let image;
+  try {
+    image = await chrome.tabs.captureVisibleTab(tab.windowId, {
+      format: "png"
+    });
+  } catch {
+    const granted = allowPermissionRequest && navigator.userActivation?.isActive && await requestCaptureAccess().catch(() => false);
+    if (!granted) throw new CaptureAuthorizationError();
+    return captureVisibleFrame(tab, signal, binding, privacyMode, false);
+  }
   await assertScreenshotSource();
   return image;
 }
@@ -16803,6 +16815,10 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
       captureDocument,
       privacyMode
     );
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+    await assertStillActive(tab);
+    if (captureDocument) await readWebCaptureDocument(tab, captureDocument);
     const selected = await sendToPage(tab, {
       type: "glimpselet:select",
       mode: kind,
@@ -17038,11 +17054,15 @@ function crop(image, rect, viewportWidth) {
 }
 async function startScreenShare(sourceTabId) {
   const bindingPromise = (sourceTabId ? chrome.tabs.get(sourceTabId) : activeTab()).then(prepareCaptureBinding).catch(() => void 0);
+  const Controller = window.CaptureController;
+  const controller = Controller ? new Controller() : void 0;
+  controller?.setFocusBehavior("no-focus-change");
   const stream = await navigator.mediaDevices.getDisplayMedia({
     video: { frameRate: 2, displaySurface: "monitor" },
     audio: false,
     selfBrowserSurface: "exclude",
-    preferCurrentTab: false
+    preferCurrentTab: false,
+    ...controller ? { controller } : {}
   });
   try {
     const binding = await bindingPromise;
@@ -17287,7 +17307,7 @@ function selectCrop(host, bounds, labels, pixelScale = 1, initialPointer) {
       if (!seeded && target.closest(".tools")) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      surface.setPointerCapture?.(event.pointerId);
+      if (event.isTrusted) surface.setPointerCapture?.(event.pointerId);
       drag = {
         pointerId: event.pointerId,
         start: point(event),
@@ -17416,6 +17436,7 @@ async function cropFrozenFrame(video, bubble, labels, options) {
     previousTab = active?.id;
     previousWindow = (await chrome.windows.getLastFocused()).id;
     frame = await freezeSharedFrame(video, null, { signal: options.signal });
+    await options.clearBubble?.prepareSelection?.();
     options.signal?.throwIfAborted();
     container = doc.createElement("div");
     container.dataset.glimpseletFrozenCrop = "true";
@@ -17488,12 +17509,14 @@ async function cropFrozenFrame(video, bubble, labels, options) {
     const host = doc.createElement("div");
     container.append(host);
     options.signal?.addEventListener("abort", cancelSelection, { once: true });
-    const rect = await selectCrop(
+    const selection = selectCrop(
       host,
       () => image.getBoundingClientRect(),
       labels,
       frame.width / image.getBoundingClientRect().width
     );
+    options.clearBubble?.relaySelection?.(host);
+    const rect = await selection;
     options.signal?.throwIfAborted();
     if (!rect) return null;
     const area = imageRect(rect, image.getBoundingClientRect(), frame);
@@ -17518,6 +17541,8 @@ async function cropFrozenFrame(video, bubble, labels, options) {
     throw error;
   } finally {
     options.signal?.removeEventListener("abort", cancelSelection);
+    const foreground = foregroundChanged ? await chrome.windows.getLastFocused().catch(() => void 0) : void 0;
+    const restoreFocus = foreground?.focused && foreground.id !== browserWindow?.id ? foreground.id : foreground?.focused === false ? void 0 : previousWindow;
     if (scaleChanged)
       doc.defaultView?.removeEventListener("resize", scaleChanged);
     container?.remove();
@@ -17530,13 +17555,222 @@ async function cropFrozenFrame(video, bubble, labels, options) {
     if (foregroundChanged && previousTab !== void 0)
       await chrome.tabs.update(previousTab, { active: true }).catch(() => {
       });
-    if (foregroundChanged && previousWindow !== void 0)
-      await chrome.windows.update(previousWindow, { focused: true }).catch(() => {
+    if (foregroundChanged && restoreFocus !== void 0)
+      await chrome.windows.update(restoreFocus, { focused: true }).then(async () => {
+        const deadline = performance.now() + 2e3;
+        let stableSince = performance.now();
+        while (performance.now() - stableSince < 200) {
+          await new Promise((resolve) => window.setTimeout(resolve, 40));
+          if (!(await chrome.windows.get(restoreFocus)).focused) {
+            const current = await chrome.windows.getLastFocused();
+            if (!current.focused || current.id !== browserWindow?.id) break;
+            await chrome.windows.update(restoreFocus, { focused: true });
+            stableSince = performance.now();
+          }
+          if (performance.now() >= deadline) break;
+        }
+      }).catch(() => {
       });
     if (bubble) bubble.body.style.opacity = oldOpacity;
     frame.width = 0;
     frame.height = 0;
   }
+}
+
+// extension/bubble-crop-input.ts
+function relayBubbleCropInput(floating, host) {
+  const view = host.ownerDocument.defaultView;
+  const surface = host.shadowRoot.querySelector(".surface");
+  const position = (event) => ({
+    clientX: event.screenX - view.screenX - (view.outerWidth - view.innerWidth) / 2,
+    clientY: event.screenY - view.screenY - (view.outerHeight - view.innerHeight)
+  });
+  const target = (event) => {
+    const p = position(event);
+    return host.shadowRoot.elementFromPoint(p.clientX, p.clientY) || surface;
+  };
+  const pointer = (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (event.type === "pointerdown")
+      floating.document.body.setPointerCapture(event.pointerId);
+    target(event).dispatchEvent(
+      new PointerEvent(event.type, {
+        ...position(event),
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        button: event.button,
+        buttons: event.buttons,
+        isPrimary: event.isPrimary,
+        bubbles: true,
+        composed: true,
+        cancelable: true
+      })
+    );
+    if ((event.type === "pointerup" || event.type === "pointercancel") && floating.document.body.hasPointerCapture(event.pointerId))
+      floating.document.body.releasePointerCapture(event.pointerId);
+  };
+  const click = (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    target(event).dispatchEvent(
+      new MouseEvent("click", {
+        ...position(event),
+        bubbles: true,
+        composed: true,
+        cancelable: true
+      })
+    );
+  };
+  const key = (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    view.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: event.key,
+        code: event.code,
+        shiftKey: event.shiftKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        repeat: event.repeat,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+  };
+  const pointerEvents = [
+    "pointerdown",
+    "pointermove",
+    "pointerup",
+    "pointercancel"
+  ];
+  for (const type of pointerEvents)
+    floating.addEventListener(type, pointer, true);
+  floating.addEventListener("click", click, true);
+  floating.addEventListener("keydown", key, true);
+  return () => {
+    for (const type of pointerEvents)
+      floating.removeEventListener(type, pointer, true);
+    floating.removeEventListener("click", click, true);
+    floating.removeEventListener("keydown", key, true);
+  };
+}
+
+// extension/native-bubble.ts
+var pendingClearance = /* @__PURE__ */ new WeakMap();
+function nativeBubbleClearance(floating, replacement) {
+  let original;
+  let changed = false;
+  let release;
+  let replace = false;
+  let replacementWindow;
+  let selectionOpacity;
+  let stopSelectionRelay;
+  const showReplacement = async () => {
+    if (!replace || replacementWindow) return;
+    const foreground = (await chrome.windows.getAll()).find((w2) => w2.focused);
+    replacementWindow = await replacement.open();
+    const opener = await chrome.tabs.getCurrent();
+    const native = (await chrome.windows.getAll({ populate: true })).find(
+      (w2) => w2.alwaysOnTop && w2.tabs?.some((tab) => tab.openerTabId === opener?.id)
+    );
+    if (native?.id === void 0) throw new Error("capture_bubble_obstructed");
+    await chrome.windows.update(native.id, {
+      left: original.left,
+      top: original.top,
+      width: original.width,
+      height: original.height
+    });
+    if (foreground?.id !== void 0)
+      await chrome.windows.update(foreground.id, { focused: true });
+  };
+  const waitForState = async (state) => {
+    const deadline = performance.now() + 2e3;
+    while (!floating.closed && original?.id !== void 0) {
+      if ((await chrome.windows.get(original.id)).state === state) return;
+      if (performance.now() >= deadline) break;
+      await new Promise((resolve) => window.setTimeout(resolve, 40));
+    }
+    throw new Error("capture_bubble_obstructed");
+  };
+  return {
+    hide: async () => {
+      const previous = pendingClearance.get(floating);
+      const pending = new Promise((resolve) => {
+        release = resolve;
+      });
+      pendingClearance.set(floating, pending);
+      await previous;
+      const opener = await chrome.tabs.getCurrent();
+      const windows = await chrome.windows.getAll({ populate: true });
+      original = windows.find(
+        (native) => native.alwaysOnTop && native.tabs?.some(
+          (tab) => opener?.id !== void 0 && tab.openerTabId === opener.id && tab.url === "about:blank"
+        )
+      );
+      if (original?.id === void 0 || floating.closed)
+        throw new Error("capture_bubble_obstructed");
+      if (original.state !== "minimized") {
+        changed = true;
+        try {
+          await chrome.windows.update(original.id, { state: "minimized" });
+        } catch (error) {
+          if (!String(error).includes(
+            "Operation not allowed for picture-in-picture windows"
+          ))
+            throw error;
+          changed = false;
+          if (!replacement || !navigator.userActivation.isActive)
+            throw new Error("capture_bubble_obstructed");
+          replace = true;
+          replacement.close();
+          if (!floating.closed) throw new Error("capture_bubble_obstructed");
+          return true;
+        }
+      }
+      await waitForState("minimized");
+      return true;
+    },
+    prepareSelection: async () => {
+      if (!replace) return;
+      await showReplacement();
+      selectionOpacity = replacementWindow.document.body.style.opacity;
+      replacementWindow.document.body.style.opacity = ".25";
+    },
+    relaySelection: (host) => {
+      if (replacementWindow)
+        stopSelectionRelay = relayBubbleCropInput(replacementWindow, host);
+    },
+    restore: async () => {
+      try {
+        stopSelectionRelay?.();
+        if (replace) {
+          await showReplacement();
+          if (selectionOpacity !== void 0 && replacementWindow && !replacementWindow.closed)
+            replacementWindow.document.body.style.opacity = selectionOpacity;
+          return;
+        }
+        if (!changed || original?.id === void 0 || floating.closed) return;
+        const bubbleId = original.id;
+        const foreground = (await chrome.windows.getAll()).find(
+          (native) => native.focused && native.id !== original?.id
+        );
+        await chrome.windows.update(original.id, {
+          state: original.state || "normal"
+        });
+        await waitForState(original.state || "normal");
+        if (foreground?.id !== void 0)
+          await chrome.windows.update(foreground.id, { focused: true }).catch(() => chrome.windows.update(bubbleId, { focused: false }));
+        else
+          await chrome.windows.update(original.id, {
+            focused: Boolean(original.focused)
+          });
+      } finally {
+        release?.();
+      }
+    }
+  };
 }
 
 // extension/history.ts
@@ -17766,7 +18000,7 @@ var en_default = {
   replayTour: "Replay the tour",
   globalCropShortcut: "Global crop shortcut: Ctrl+Shift+7 (Cmd+Shift+7 on Mac). Change it at chrome://extensions/shortcuts.",
   screenChangeSummary: "The shared screen changed. Here is a short summary.",
-  capturePermission: "On this page, open Chrome\u2019s Extensions menu and choose Glimpselet. Then resume the capture here.",
+  capturePermission: "Allow on all sites once to capture pages and select an area. Chrome will ask for permission.",
   shiftCrop: "Hold Shift to crop",
   liveStopped: "The bubble stopped waiting. The terminal may still be working. Press Esc there to stop it.",
   replayTourHint: "Practice step {step}/8. Complete it in this bubble.",
@@ -17788,12 +18022,10 @@ var en_default = {
   blockedPage: "This site is on your blocklist. Page reading is paused.",
   captureProgress: "Capturing {completed} of {total} sections",
   translationPageChanged: "Translation applied. {count} changing text items were skipped. Translate again to include them.",
-  guideCapturePermission: "Click the Glimpselet toolbar icon on this page, then try Guide again. Your practice step stays open.",
+  guideCapturePermission: "Allow on all sites in Settings, then try Guide again. Your practice step stays open.",
   skipPractice: "Skip practice step",
   guideClose: "Close guide",
   guideDone: "Done",
-  captureReopen: "The screen is ready. Reopen the bubble to continue.",
-  captureReopenAction: "Reopen bubble",
   captureFailed: "The shared screen could not be captured. Try again.",
   effortLow: "Low",
   effortMedium: "Medium",
@@ -17814,8 +18046,8 @@ var en_default = {
   selectedSummaryPrompt: "Summarize only this selected PDF passage.",
   readerSummaryPrompt: "Summarize this PDF page.",
   selectionAskPrompt: "Explain this selected passage.",
-  captureRetryAction: "Resume capture",
-  captureScreenClearance: "When you capture this screen, the bubble briefly closes. Reopen it to continue."
+  captureRetryAction: "Allow and resume capture",
+  captureAccessHint: "Optional: allow on all sites once so page capture and area selection work on new tabs."
 };
 
 // extension/locales/zh-TW.json
@@ -17959,7 +18191,7 @@ var zh_TW_default = {
   replayTour: "\u91CD\u64AD\u5C0E\u89BD",
   globalCropShortcut: "\u5168\u57DF\u88C1\u5207\u5FEB\u6377\u9375\uFF1ACtrl+Shift+7\uFF0CMac \u70BA Cmd+Shift+7\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4FEE\u6539\u3002",
   screenChangeSummary: "\u5206\u4EAB\u7684\u87A2\u5E55\u6709\u6240\u8B8A\u5316\uFF0C\u4EE5\u4E0B\u662F\u7C21\u77ED\u6458\u8981\u3002",
-  capturePermission: "\u8ACB\u5728\u9019\u500B\u9801\u9762\u958B\u555F Chrome \u7684\u64F4\u5145\u529F\u80FD\u9078\u55AE\uFF0C\u9078\u64C7 Glimpselet\uFF0C\u518D\u56DE\u5230\u9019\u88E1\u7E7C\u7E8C\u64F7\u53D6\u3002",
+  capturePermission: "\u5141\u8A31\u5B58\u53D6\u6240\u6709\u7DB2\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u64F7\u53D6\u7DB2\u9801\u8207\u9078\u53D6\u5340\u57DF\u3002Chrome \u6703\u8A62\u554F\u6B0A\u9650\u3002",
   shiftCrop: "\u6309\u4F4F Shift \u88C1\u5207",
   liveStopped: "\u6CE1\u6CE1\u5DF2\u505C\u6B62\u7B49\u5F85\u3002\u7D42\u7AEF\u53EF\u80FD\u4ECD\u5728\u57F7\u884C\u3002\u6309 Esc \u53EF\u5728\u7D42\u7AEF\u4E2D\u505C\u6B62\u5B83\u3002",
   replayTourHint: "\u7DF4\u7FD2\u6B65\u9A5F {step}/8\u3002\u8ACB\u5728\u9019\u500B\u6D6E\u52D5\u8996\u7A97\u5B8C\u6210\u3002",
@@ -17981,12 +18213,10 @@ var zh_TW_default = {
   blockedPage: "\u6B64\u7DB2\u7AD9\u5728\u5C01\u9396\u6E05\u55AE\u4E2D\uFF0C\u5DF2\u66AB\u505C\u8B80\u53D6\u9801\u9762\u3002",
   captureProgress: "\u6B63\u5728\u64F7\u53D6\u7B2C {completed} / {total} \u500B\u5340\u584A",
   translationPageChanged: "\u5DF2\u5957\u7528\u7FFB\u8B6F\u3002\u6709 {count} \u6BB5\u8B8A\u52D5\u4E2D\u7684\u6587\u5B57\u5DF2\u7565\u904E\uFF0C\u53EF\u518D\u6B21\u7FFB\u8B6F\u4EE5\u5305\u542B\u9019\u4E9B\u6587\u5B57\u3002",
-  guideCapturePermission: "\u8ACB\u5728\u6B64\u9801\u9EDE\u64CA Glimpselet \u5DE5\u5177\u5217\u5716\u793A\uFF0C\u518D\u91CD\u8A66\u5C0E\u89BD\u3002\u7DF4\u7FD2\u6B65\u9A5F\u6703\u4FDD\u7559\u3002",
+  guideCapturePermission: "\u8ACB\u5728\u8A2D\u5B9A\u4E2D\u5141\u8A31\u5B58\u53D6\u6240\u6709\u7DB2\u7AD9\uFF0C\u518D\u91CD\u8A66\u5C0E\u89BD\u3002\u7DF4\u7FD2\u6B65\u9A5F\u6703\u4FDD\u7559\u3002",
   skipPractice: "\u7565\u904E\u7DF4\u7FD2\u6B65\u9A5F",
   guideClose: "\u95DC\u9589\u5C0E\u89BD",
   guideDone: "\u5B8C\u6210",
-  captureReopen: "\u756B\u9762\u5DF2\u6E96\u5099\u597D\u3002\u91CD\u65B0\u958B\u555F\u6D6E\u52D5\u8996\u7A97\u4EE5\u7E7C\u7E8C\u3002",
-  captureReopenAction: "\u91CD\u65B0\u958B\u555F\u6D6E\u52D5\u8996\u7A97",
   captureFailed: "\u7121\u6CD5\u64F7\u53D6\u5206\u4EAB\u756B\u9762\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
   effortLow: "\u4F4E",
   effortMedium: "\u4E2D",
@@ -18007,8 +18237,8 @@ var zh_TW_default = {
   selectedSummaryPrompt: "\u53EA\u6458\u8981\u9019\u6BB5\u9078\u53D6\u7684 PDF \u6587\u5B57\u3002",
   readerSummaryPrompt: "\u6458\u8981\u9019\u4E00\u9801 PDF\u3002",
   selectionAskPrompt: "\u89E3\u91CB\u9019\u6BB5\u9078\u53D6\u7684\u6587\u5B57\u3002",
-  captureRetryAction: "\u7E7C\u7E8C\u64F7\u53D6",
-  captureScreenClearance: "\u64F7\u53D6\u9019\u500B\u87A2\u5E55\u6642\uFF0C\u6D6E\u52D5\u8996\u7A97\u6703\u66AB\u6642\u95DC\u9589\u3002\u91CD\u65B0\u958B\u555F\u5F8C\u5373\u53EF\u7E7C\u7E8C\u3002"
+  captureRetryAction: "\u5141\u8A31\u4E26\u7E7C\u7E8C\u64F7\u53D6",
+  captureAccessHint: "\u9078\u7528\uFF1A\u5141\u8A31\u5B58\u53D6\u6240\u6709\u7DB2\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u5728\u65B0\u5206\u9801\u64F7\u53D6\u7DB2\u9801\u8207\u9078\u53D6\u5340\u57DF\u3002"
 };
 
 // extension/locales/zh-CN.json
@@ -18152,7 +18382,7 @@ var zh_CN_default = {
   replayTour: "\u91CD\u653E\u5F15\u5BFC",
   globalCropShortcut: "\u5168\u5C40\u88C1\u526A\u5FEB\u6377\u952E\uFF1ACtrl+Shift+7\uFF0CMac \u4E3A Cmd+Shift+7\u3002\u53EF\u5728 chrome://extensions/shortcuts \u4E2D\u4FEE\u6539\u3002",
   screenChangeSummary: "\u5171\u4EAB\u5C4F\u5E55\u53D1\u751F\u4E86\u53D8\u5316\uFF0C\u4EE5\u4E0B\u662F\u7B80\u77ED\u6458\u8981\u3002",
-  capturePermission: "\u8BF7\u5728\u8FD9\u4E2A\u9875\u9762\u6253\u5F00 Chrome \u7684\u6269\u5C55\u7A0B\u5E8F\u83DC\u5355\uFF0C\u9009\u62E9 Glimpselet\uFF0C\u518D\u56DE\u5230\u8FD9\u91CC\u7EE7\u7EED\u622A\u56FE\u3002",
+  capturePermission: "\u5141\u8BB8\u8BBF\u95EE\u6240\u6709\u7F51\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u622A\u53D6\u7F51\u9875\u4E0E\u9009\u62E9\u533A\u57DF\u3002Chrome \u4F1A\u8BE2\u95EE\u6743\u9650\u3002",
   shiftCrop: "\u6309\u4F4F Shift \u88C1\u526A",
   liveStopped: "\u6C14\u6CE1\u5DF2\u505C\u6B62\u7B49\u5F85\u3002\u7EC8\u7AEF\u53EF\u80FD\u4ECD\u5728\u8FD0\u884C\u3002\u6309 Esc \u53EF\u5728\u7EC8\u7AEF\u4E2D\u505C\u6B62\u5B83\u3002",
   replayTourHint: "\u7EC3\u4E60\u6B65\u9AA4 {step}/8\u3002\u8BF7\u5728\u8FD9\u4E2A\u6D6E\u52A8\u7A97\u53E3\u5B8C\u6210\u3002",
@@ -18174,12 +18404,10 @@ var zh_CN_default = {
   blockedPage: "\u6B64\u7F51\u7AD9\u5728\u5C4F\u853D\u5217\u8868\u4E2D\uFF0C\u5DF2\u6682\u505C\u8BFB\u53D6\u9875\u9762\u3002",
   captureProgress: "\u6B63\u5728\u622A\u53D6\u7B2C {completed} / {total} \u4E2A\u533A\u5757",
   translationPageChanged: "\u5DF2\u5E94\u7528\u7FFB\u8BD1\u3002\u6709 {count} \u6BB5\u6B63\u5728\u53D8\u5316\u7684\u6587\u5B57\u5DF2\u8DF3\u8FC7\uFF0C\u53EF\u518D\u6B21\u7FFB\u8BD1\u4EE5\u5305\u542B\u8FD9\u4E9B\u6587\u5B57\u3002",
-  guideCapturePermission: "\u8BF7\u5728\u6B64\u9875\u70B9\u51FB Glimpselet \u5DE5\u5177\u680F\u56FE\u6807\uFF0C\u518D\u91CD\u8BD5\u5BFC\u89C8\u3002\u7EC3\u4E60\u6B65\u9AA4\u4F1A\u4FDD\u7559\u3002",
+  guideCapturePermission: "\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u5141\u8BB8\u8BBF\u95EE\u6240\u6709\u7F51\u7AD9\uFF0C\u518D\u91CD\u8BD5\u5BFC\u89C8\u3002\u7EC3\u4E60\u6B65\u9AA4\u4F1A\u4FDD\u7559\u3002",
   skipPractice: "\u8DF3\u8FC7\u7EC3\u4E60\u6B65\u9AA4",
   guideClose: "\u5173\u95ED\u5BFC\u89C8",
   guideDone: "\u5B8C\u6210",
-  captureReopen: "\u753B\u9762\u5DF2\u51C6\u5907\u597D\u3002\u91CD\u65B0\u6253\u5F00\u6D6E\u52A8\u7A97\u53E3\u4EE5\u7EE7\u7EED\u3002",
-  captureReopenAction: "\u91CD\u65B0\u6253\u5F00\u6D6E\u52A8\u7A97\u53E3",
   captureFailed: "\u65E0\u6CD5\u622A\u53D6\u5171\u4EAB\u753B\u9762\uFF0C\u8BF7\u91CD\u8BD5\u3002",
   effortLow: "\u4F4E",
   effortMedium: "\u4E2D",
@@ -18200,8 +18428,8 @@ var zh_CN_default = {
   selectedSummaryPrompt: "\u53EA\u603B\u7ED3\u8FD9\u6BB5\u9009\u4E2D\u7684 PDF \u6587\u5B57\u3002",
   readerSummaryPrompt: "\u603B\u7ED3\u8FD9\u4E00\u9875 PDF\u3002",
   selectionAskPrompt: "\u89E3\u91CA\u8FD9\u6BB5\u9009\u4E2D\u7684\u6587\u5B57\u3002",
-  captureRetryAction: "\u7EE7\u7EED\u622A\u56FE",
-  captureScreenClearance: "\u622A\u53D6\u8FD9\u4E2A\u5C4F\u5E55\u65F6\uFF0C\u6D6E\u52A8\u7A97\u53E3\u4F1A\u6682\u65F6\u5173\u95ED\u3002\u91CD\u65B0\u6253\u5F00\u540E\u5373\u53EF\u7EE7\u7EED\u3002"
+  captureRetryAction: "\u5141\u8BB8\u5E76\u7EE7\u7EED\u622A\u56FE",
+  captureAccessHint: "\u53EF\u9009\uFF1A\u5141\u8BB8\u8BBF\u95EE\u6240\u6709\u7F51\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u5728\u65B0\u6807\u7B7E\u9875\u622A\u53D6\u7F51\u9875\u4E0E\u9009\u62E9\u533A\u57DF\u3002"
 };
 
 // extension/locales/ja.json
@@ -18345,7 +18573,7 @@ var ja_default = {
   replayTour: "\u30C4\u30A2\u30FC\u3092\u3082\u3046\u4E00\u5EA6\u898B\u308B",
   globalCropShortcut: "\u5168\u4F53\u306E\u5207\u308A\u629C\u304D\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\uFF1ACtrl+Shift+7\uFF08Mac \u306F Cmd+Shift+7\uFF09\u3002chrome://extensions/shortcuts \u3067\u5909\u66F4\u3067\u304D\u307E\u3059\u3002",
   screenChangeSummary: "\u5171\u6709\u753B\u9762\u304C\u5909\u308F\u308A\u307E\u3057\u305F\u3002\u7C21\u5358\u306A\u6982\u8981\u3092\u8868\u793A\u3057\u307E\u3059\u3002",
-  capturePermission: "\u3053\u306E\u30DA\u30FC\u30B8\u3067 Chrome \u306E\u62E1\u5F35\u6A5F\u80FD\u30E1\u30CB\u30E5\u30FC\u3092\u958B\u304D\u3001Glimpselet \u3092\u9078\u3093\u3067\u304B\u3089\u3001\u3053\u3053\u3067\u64AE\u5F71\u3092\u518D\u958B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  capturePermission: "\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u4E00\u5EA6\u8A31\u53EF\u3059\u308B\u3068\u3001\u30DA\u30FC\u30B8\u64AE\u5F71\u3068\u7BC4\u56F2\u9078\u629E\u304C\u4F7F\u3048\u307E\u3059\u3002Chrome \u304C\u8A31\u53EF\u3092\u78BA\u8A8D\u3057\u307E\u3059\u3002",
   shiftCrop: "Shift \u30AD\u30FC\u3092\u62BC\u3057\u305F\u307E\u307E\u5207\u308A\u629C\u304F",
   liveStopped: "\u30D0\u30D6\u30EB\u306F\u5F85\u6A5F\u3092\u7D42\u4E86\u3057\u307E\u3057\u305F\u3002\u30BF\u30FC\u30DF\u30CA\u30EB\u3067\u306F\u51E6\u7406\u304C\u7D9A\u3044\u3066\u3044\u308B\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002\u505C\u6B62\u3059\u308B\u306B\u306F\u30BF\u30FC\u30DF\u30CA\u30EB\u3067 Esc \u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   replayTourHint: "\u7DF4\u7FD2 {step}/8\u3002\u3053\u306E\u30A6\u30A3\u30F3\u30C9\u30A6\u3067\u5B8C\u4E86\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
@@ -18367,12 +18595,10 @@ var ja_default = {
   blockedPage: "\u3053\u306E\u30B5\u30A4\u30C8\u306F\u30D6\u30ED\u30C3\u30AF\u30EA\u30B9\u30C8\u306B\u767B\u9332\u3055\u308C\u3066\u3044\u307E\u3059\u3002\u30DA\u30FC\u30B8\u306E\u8AAD\u307F\u53D6\u308A\u3092\u505C\u6B62\u3057\u307E\u3057\u305F\u3002",
   captureProgress: "{total} \u533A\u753B\u4E2D {completed} \u533A\u753B\u3092\u30AD\u30E3\u30D7\u30C1\u30E3\u4E2D",
   translationPageChanged: "\u7FFB\u8A33\u3092\u9069\u7528\u3057\u307E\u3057\u305F\u3002\u5909\u66F4\u4E2D\u306E\u30C6\u30AD\u30B9\u30C8 {count} \u4EF6\u3092\u30B9\u30AD\u30C3\u30D7\u3057\u307E\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u7FFB\u8A33\u3059\u308B\u3068\u5BFE\u8C61\u306B\u542B\u3081\u3089\u308C\u307E\u3059\u3002",
-  guideCapturePermission: "\u3053\u306E\u30DA\u30FC\u30B8\u3067 Glimpselet \u306E\u30C4\u30FC\u30EB\u30D0\u30FC\u30A2\u30A4\u30B3\u30F3\u3092\u30AF\u30EA\u30C3\u30AF\u3057\u3001\u30AC\u30A4\u30C9\u3092\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u7DF4\u7FD2\u30B9\u30C6\u30C3\u30D7\u306F\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002",
+  guideCapturePermission: "\u8A2D\u5B9A\u3067\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3057\u3066\u304B\u3089\u3001\u30AC\u30A4\u30C9\u3092\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u7DF4\u7FD2\u30B9\u30C6\u30C3\u30D7\u306F\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002",
   skipPractice: "\u7DF4\u7FD2\u30B9\u30C6\u30C3\u30D7\u3092\u30B9\u30AD\u30C3\u30D7",
   guideClose: "\u30AC\u30A4\u30C9\u3092\u9589\u3058\u308B",
   guideDone: "\u5B8C\u4E86",
-  captureReopen: "\u753B\u9762\u306E\u6E96\u5099\u304C\u3067\u304D\u307E\u3057\u305F\u3002\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u753B\u9762\u3092\u958B\u304D\u76F4\u3057\u3066\u7D9A\u3051\u3066\u304F\u3060\u3055\u3044\u3002",
-  captureReopenAction: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u753B\u9762\u3092\u958B\u304D\u76F4\u3059",
   captureFailed: "\u5171\u6709\u753B\u9762\u3092\u30AD\u30E3\u30D7\u30C1\u30E3\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
   effortLow: "\u4F4E",
   effortMedium: "\u4E2D",
@@ -18393,8 +18619,8 @@ var ja_default = {
   selectedSummaryPrompt: "\u9078\u629E\u3057\u305F\u3053\u306E PDF \u306E\u6587\u7AE0\u3060\u3051\u3092\u8981\u7D04\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   readerSummaryPrompt: "\u3053\u306E PDF \u306E\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   selectionAskPrompt: "\u9078\u629E\u3057\u305F\u3053\u306E\u6587\u7AE0\u3092\u8AAC\u660E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-  captureRetryAction: "\u64AE\u5F71\u3092\u518D\u958B",
-  captureScreenClearance: "\u3053\u306E\u753B\u9762\u3092\u64AE\u5F71\u3059\u308B\u3068\u3001\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u753B\u9762\u304C\u4E00\u6642\u7684\u306B\u9589\u3058\u307E\u3059\u3002\u958B\u304D\u76F4\u3057\u3066\u7D9A\u3051\u3066\u304F\u3060\u3055\u3044\u3002"
+  captureRetryAction: "\u8A31\u53EF\u3057\u3066\u64AE\u5F71\u3092\u518D\u958B",
+  captureAccessHint: "\u4EFB\u610F\uFF1A\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u4E00\u5EA6\u8A31\u53EF\u3059\u308B\u3068\u3001\u65B0\u3057\u3044\u30BF\u30D6\u3067\u3082\u30DA\u30FC\u30B8\u64AE\u5F71\u3068\u7BC4\u56F2\u9078\u629E\u304C\u4F7F\u3048\u307E\u3059\u3002"
 };
 
 // extension/locales/ko.json
@@ -18538,7 +18764,7 @@ var ko_default = {
   replayTour: "\uB458\uB7EC\uBCF4\uAE30 \uB2E4\uC2DC \uBCF4\uAE30",
   globalCropShortcut: "\uC804\uC5ED \uC790\uB974\uAE30 \uB2E8\uCD95\uD0A4: Ctrl+Shift+7(Mac\uC740 Cmd+Shift+7). chrome://extensions/shortcuts\uC5D0\uC11C \uBCC0\uACBD\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   screenChangeSummary: "\uACF5\uC720 \uD654\uBA74\uC774 \uBC14\uB00C\uC5C8\uC2B5\uB2C8\uB2E4. \uAC04\uB2E8\uD788 \uC694\uC57D\uD569\uB2C8\uB2E4.",
-  capturePermission: "\uC774 \uD398\uC774\uC9C0\uC5D0\uC11C Chrome \uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8 \uBA54\uB274\uB97C \uC5F4\uACE0 Glimpselet\uC744 \uC120\uD0DD\uD55C \uB2E4\uC74C, \uC5EC\uAE30\uC11C \uCEA1\uCC98\uB97C \uACC4\uC18D\uD558\uC138\uC694.",
+  capturePermission: "\uBAA8\uB4E0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD55C \uBC88 \uD5C8\uC6A9\uD558\uBA74 \uD398\uC774\uC9C0 \uCEA1\uCC98\uC640 \uC601\uC5ED \uC120\uD0DD\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. Chrome\uC774 \uAD8C\uD55C\uC744 \uC694\uCCAD\uD569\uB2C8\uB2E4.",
   shiftCrop: "Shift\uB97C \uB204\uB978 \uCC44 \uC790\uB974\uAE30",
   liveStopped: "\uBC84\uBE14\uC774 \uB354 \uC774\uC0C1 \uAE30\uB2E4\uB9AC\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uD130\uBBF8\uB110 \uC791\uC5C5\uC740 \uACC4\uC18D \uC911\uC77C \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uC911\uC9C0\uD558\uB824\uBA74 \uD130\uBBF8\uB110\uC5D0\uC11C Esc\uB97C \uB204\uB974\uC138\uC694.",
   replayTourHint: "\uC5F0\uC2B5 {step}/8. \uC774 \uCC3D\uC5D0\uC11C \uC644\uB8CC\uD558\uC138\uC694.",
@@ -18560,12 +18786,10 @@ var ko_default = {
   blockedPage: "\uCC28\uB2E8 \uBAA9\uB85D\uC5D0 \uC788\uB294 \uC0AC\uC774\uD2B8\uC785\uB2C8\uB2E4. \uD398\uC774\uC9C0 \uC77D\uAE30\uB97C \uC77C\uC2DC \uC911\uC9C0\uD588\uC2B5\uB2C8\uB2E4.",
   captureProgress: "{total}\uAC1C \uC601\uC5ED \uC911 {completed}\uAC1C \uCEA1\uCC98 \uC911",
   translationPageChanged: "\uBC88\uC5ED\uC744 \uC801\uC6A9\uD588\uC2B5\uB2C8\uB2E4. \uBCC0\uACBD \uC911\uC778 \uD14D\uC2A4\uD2B8 {count}\uAC1C\uB97C \uAC74\uB108\uB6F0\uC5C8\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uBC88\uC5ED\uD558\uBA74 \uD3EC\uD568\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
-  guideCapturePermission: "\uC774 \uD398\uC774\uC9C0\uC5D0\uC11C Glimpselet \uB3C4\uAD6C \uBAA8\uC74C \uC544\uC774\uCF58\uC744 \uD074\uB9AD\uD55C \uB4A4 \uAC00\uC774\uB4DC\uB97C \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694. \uC5F0\uC2B5 \uB2E8\uACC4\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
+  guideCapturePermission: "\uC124\uC815\uC5D0\uC11C \uBAA8\uB4E0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD5C8\uC6A9\uD55C \uB4A4 \uAC00\uC774\uB4DC\uB97C \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694. \uC5F0\uC2B5 \uB2E8\uACC4\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
   skipPractice: "\uC5F0\uC2B5 \uB2E8\uACC4 \uAC74\uB108\uB6F0\uAE30",
   guideClose: "\uAC00\uC774\uB4DC \uB2EB\uAE30",
   guideDone: "\uC644\uB8CC",
-  captureReopen: "\uD654\uBA74\uC774 \uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uBC84\uBE14\uC744 \uB2E4\uC2DC \uC5F4\uC5B4 \uACC4\uC18D\uD558\uC138\uC694.",
-  captureReopenAction: "\uBC84\uBE14 \uB2E4\uC2DC \uC5F4\uAE30",
   captureFailed: "\uACF5\uC720 \uD654\uBA74\uC744 \uCEA1\uCC98\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
   effortLow: "\uB0AE\uC74C",
   effortMedium: "\uBCF4\uD1B5",
@@ -18586,8 +18810,8 @@ var ko_default = {
   selectedSummaryPrompt: "\uC120\uD0DD\uD55C \uC774 PDF \uAE00\uB9CC \uC694\uC57D\uD574 \uC8FC\uC138\uC694.",
   readerSummaryPrompt: "\uC774 PDF \uD398\uC774\uC9C0\uB97C \uC694\uC57D\uD574 \uC8FC\uC138\uC694.",
   selectionAskPrompt: "\uC120\uD0DD\uD55C \uC774 \uAE00\uC744 \uC124\uBA85\uD574 \uC8FC\uC138\uC694.",
-  captureRetryAction: "\uCEA1\uCC98 \uACC4\uC18D",
-  captureScreenClearance: "\uC774 \uD654\uBA74\uC744 \uCEA1\uCC98\uD560 \uB54C \uBC84\uBE14\uC774 \uC7A0\uC2DC \uB2EB\uD799\uB2C8\uB2E4. \uB2E4\uC2DC \uC5F4\uC5B4 \uACC4\uC18D\uD558\uC138\uC694."
+  captureRetryAction: "\uD5C8\uC6A9\uD558\uACE0 \uCEA1\uCC98 \uACC4\uC18D",
+  captureAccessHint: "\uC120\uD0DD \uC0AC\uD56D: \uBAA8\uB4E0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD55C \uBC88 \uD5C8\uC6A9\uD558\uBA74 \uC0C8 \uD0ED\uC5D0\uC11C\uB3C4 \uD398\uC774\uC9C0 \uCEA1\uCC98\uC640 \uC601\uC5ED \uC120\uD0DD\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
 };
 
 // extension/locales/es.json
@@ -18731,7 +18955,7 @@ var es_default = {
   replayTour: "Repetir el recorrido",
   globalCropShortcut: "Atajo global para recortar: Ctrl+Shift+7 (Cmd+Shift+7 en Mac). Puedes cambiarlo en chrome://extensions/shortcuts.",
   screenChangeSummary: "La pantalla compartida cambi\xF3. Aqu\xED tienes un breve resumen.",
-  capturePermission: "En esta p\xE1gina, abre el men\xFA de extensiones de Chrome y elige Glimpselet. Luego reanuda la captura aqu\xED.",
+  capturePermission: "Permite el acceso a todos los sitios una vez para capturar p\xE1ginas y seleccionar \xE1reas. Chrome pedir\xE1 permiso.",
   shiftCrop: "Mant\xE9n Shift para recortar",
   liveStopped: "La burbuja dej\xF3 de esperar. Es posible que el terminal siga trabajando. Pulsa Esc all\xED para detenerlo.",
   replayTourHint: "Ejercicio {step}/8. Compl\xE9talo en esta ventana.",
@@ -18753,12 +18977,10 @@ var es_default = {
   blockedPage: "Este sitio est\xE1 en tu lista de bloqueo. La lectura est\xE1 pausada.",
   captureProgress: "Capturando {completed} de {total} secciones",
   translationPageChanged: "Traducci\xF3n aplicada. Se omitieron {count} textos que estaban cambiando. Vuelve a traducir para incluirlos.",
-  guideCapturePermission: "Haz clic en el icono de Glimpselet de la barra de herramientas en esta p\xE1gina y vuelve a intentar la gu\xEDa. El paso de pr\xE1ctica sigue abierto.",
+  guideCapturePermission: "Permite el acceso a todos los sitios en Ajustes y vuelve a intentar la gu\xEDa. El paso de pr\xE1ctica sigue abierto.",
   skipPractice: "Omitir paso de pr\xE1ctica",
   guideClose: "Cerrar gu\xEDa",
   guideDone: "Listo",
-  captureReopen: "La pantalla est\xE1 lista. Vuelve a abrir la burbuja para continuar.",
-  captureReopenAction: "Volver a abrir la burbuja",
   captureFailed: "No se pudo capturar la pantalla compartida. Int\xE9ntalo de nuevo.",
   effortLow: "Bajo",
   effortMedium: "Medio",
@@ -18779,8 +19001,8 @@ var es_default = {
   selectedSummaryPrompt: "Resume solo este texto seleccionado del PDF.",
   readerSummaryPrompt: "Resume esta p\xE1gina del PDF.",
   selectionAskPrompt: "Explica este texto seleccionado.",
-  captureRetryAction: "Reanudar captura",
-  captureScreenClearance: "Al capturar esta pantalla, la burbuja se cierra brevemente. Vuelve a abrirla para continuar."
+  captureRetryAction: "Permitir y reanudar captura",
+  captureAccessHint: "Opcional: permite el acceso a todos los sitios una vez para capturar p\xE1ginas y seleccionar \xE1reas en pesta\xF1as nuevas."
 };
 
 // extension/locales/fr.json
@@ -18924,7 +19146,7 @@ var fr_default = {
   replayTour: "Revoir la visite guid\xE9e",
   globalCropShortcut: "Raccourci global de recadrage : Ctrl+Maj+7 (Cmd+Maj+7 sur Mac). Modifiez-le dans chrome://extensions/shortcuts.",
   screenChangeSummary: "L'\xE9cran partag\xE9 a chang\xE9. Voici un bref r\xE9sum\xE9.",
-  capturePermission: "Sur cette page, ouvrez le menu des extensions de Chrome et choisissez Glimpselet. Reprenez ensuite la capture ici.",
+  capturePermission: "Autorisez une fois l\u2019acc\xE8s \xE0 tous les sites pour capturer des pages et s\xE9lectionner une zone. Chrome demandera votre permission.",
   shiftCrop: "Maintenez Maj pour recadrer",
   liveStopped: "La bulle a cess\xE9 d'attendre. Le terminal travaille peut-\xEAtre encore. Appuyez sur \xC9chap dans le terminal pour l'arr\xEAter.",
   replayTourHint: "Exercice {step}/8. Terminez dans cette fen\xEAtre.",
@@ -18946,12 +19168,10 @@ var fr_default = {
   blockedPage: "Ce site figure dans votre liste de blocage. La lecture est suspendue.",
   captureProgress: "Capture de {completed} sections sur {total}",
   translationPageChanged: "Traduction appliqu\xE9e. {count} textes en cours de modification ont \xE9t\xE9 ignor\xE9s. Traduisez \xE0 nouveau pour les inclure.",
-  guideCapturePermission: "Cliquez sur l\u2019ic\xF4ne Glimpselet de la barre d\u2019outils sur cette page, puis relancez le guide. L\u2019\xE9tape reste ouverte.",
+  guideCapturePermission: "Autorisez l\u2019acc\xE8s \xE0 tous les sites dans les param\xE8tres, puis relancez le guide. L\u2019\xE9tape reste ouverte.",
   skipPractice: "Passer cette \xE9tape",
   guideClose: "Fermer le guide",
   guideDone: "Termin\xE9",
-  captureReopen: "L\u2019\xE9cran est pr\xEAt. Rouvrez la bulle pour continuer.",
-  captureReopenAction: "Rouvrir la bulle",
   captureFailed: "Impossible de capturer l\u2019\xE9cran partag\xE9. R\xE9essayez.",
   effortLow: "Faible",
   effortMedium: "Moyen",
@@ -18972,8 +19192,8 @@ var fr_default = {
   selectedSummaryPrompt: "R\xE9sume uniquement ce texte s\xE9lectionn\xE9 du PDF.",
   readerSummaryPrompt: "R\xE9sume cette page du PDF.",
   selectionAskPrompt: "Explique ce texte s\xE9lectionn\xE9.",
-  captureRetryAction: "Reprendre la capture",
-  captureScreenClearance: "Lors de la capture de cet \xE9cran, la bulle se ferme bri\xE8vement. Rouvrez-la pour continuer."
+  captureRetryAction: "Autoriser et reprendre la capture",
+  captureAccessHint: "Facultatif : autorisez une fois l\u2019acc\xE8s \xE0 tous les sites pour capturer des pages et s\xE9lectionner une zone dans les nouveaux onglets."
 };
 
 // extension/locales/de.json
@@ -19117,7 +19337,7 @@ var de_default = {
   replayTour: "Einf\xFChrung erneut ansehen",
   globalCropShortcut: "Globaler Zuschnitt: Strg+Umschalt+7 (Cmd+Umschalt+7 auf dem Mac). \xC4ndere ihn unter chrome://extensions/shortcuts.",
   screenChangeSummary: "Der freigegebene Bildschirm hat sich ge\xE4ndert. Hier ist eine kurze Zusammenfassung.",
-  capturePermission: "\xD6ffne auf dieser Seite das Erweiterungsmen\xFC von Chrome und w\xE4hle Glimpselet. Setze die Aufnahme dann hier fort.",
+  capturePermission: "Erlaube einmal den Zugriff auf alle Websites, um Seiten aufzunehmen und Bereiche auszuw\xE4hlen. Chrome fragt nach deiner Zustimmung.",
   shiftCrop: "Halte Umschalt gedr\xFCckt, um zuzuschneiden",
   liveStopped: "Die Blase wartet nicht mehr. Das Terminal arbeitet m\xF6glicherweise noch. Dr\xFCcke dort Esc, um es zu beenden.",
   replayTourHint: "\xDCbung {step}/8. Schlie\xDFe sie in diesem Fenster ab.",
@@ -19139,12 +19359,10 @@ var de_default = {
   blockedPage: "Diese Website steht auf deiner Sperrliste. Das Lesen der Seite ist pausiert.",
   captureProgress: "{completed} von {total} Abschnitten werden aufgenommen",
   translationPageChanged: "\xDCbersetzung angewendet. {count} Textstellen wurden w\xE4hrend einer \xC4nderung \xFCbersprungen. \xDCbersetzen Sie erneut, um sie einzubeziehen.",
-  guideCapturePermission: "Klicke auf dieser Seite auf das Glimpselet-Symbol in der Symbolleiste und starte die Anleitung erneut. Der \xDCbungsschritt bleibt ge\xF6ffnet.",
+  guideCapturePermission: "Erlaube in den Einstellungen den Zugriff auf alle Websites und starte die Anleitung erneut. Der \xDCbungsschritt bleibt ge\xF6ffnet.",
   skipPractice: "\xDCbungsschritt \xFCberspringen",
   guideClose: "Anleitung schlie\xDFen",
   guideDone: "Fertig",
-  captureReopen: "Der Bildschirm ist bereit. \xD6ffne die Blase erneut, um fortzufahren.",
-  captureReopenAction: "Blase erneut \xF6ffnen",
   captureFailed: "Der geteilte Bildschirm konnte nicht aufgenommen werden. Versuche es erneut.",
   effortLow: "Niedrig",
   effortMedium: "Mittel",
@@ -19165,8 +19383,8 @@ var de_default = {
   selectedSummaryPrompt: "Fasse nur diesen ausgew\xE4hlten PDF-Text zusammen.",
   readerSummaryPrompt: "Fasse diese PDF-Seite zusammen.",
   selectionAskPrompt: "Erkl\xE4re diesen ausgew\xE4hlten Text.",
-  captureRetryAction: "Aufnahme fortsetzen",
-  captureScreenClearance: "Bei der Aufnahme dieses Bildschirms schlie\xDFt sich die Blase kurz. \xD6ffne sie erneut, um fortzufahren."
+  captureRetryAction: "Erlauben und Aufnahme fortsetzen",
+  captureAccessHint: "Optional: Erlaube einmal den Zugriff auf alle Websites, damit Seitenaufnahme und Bereichsauswahl auch in neuen Tabs funktionieren."
 };
 
 // extension/locales/pt-BR.json
@@ -19310,7 +19528,7 @@ var pt_BR_default = {
   replayTour: "Rever o passo a passo",
   globalCropShortcut: "Atalho global de recorte: Ctrl+Shift+7 (Cmd+Shift+7 no Mac). Altere em chrome://extensions/shortcuts.",
   screenChangeSummary: "A tela compartilhada mudou. Veja um breve resumo.",
-  capturePermission: "Nesta p\xE1gina, abra o menu de extens\xF5es do Chrome e escolha Glimpselet. Depois, retome a captura aqui.",
+  capturePermission: "Permita o acesso a todos os sites uma vez para capturar p\xE1ginas e selecionar \xE1reas. O Chrome pedir\xE1 permiss\xE3o.",
   shiftCrop: "Mantenha Shift pressionado para recortar",
   liveStopped: "O bal\xE3o parou de aguardar. O terminal ainda pode estar trabalhando. Pressione Esc nele para parar.",
   replayTourHint: "Exerc\xEDcio {step}/8. Conclua nesta janela.",
@@ -19332,12 +19550,10 @@ var pt_BR_default = {
   blockedPage: "Este site est\xE1 na sua lista de bloqueio. A leitura da p\xE1gina est\xE1 pausada.",
   captureProgress: "Capturando {completed} de {total} se\xE7\xF5es",
   translationPageChanged: "Tradu\xE7\xE3o aplicada. {count} textos que estavam mudando foram ignorados. Traduza novamente para inclu\xED-los.",
-  guideCapturePermission: "Clique no \xEDcone do Glimpselet na barra de ferramentas desta p\xE1gina e tente o guia novamente. A etapa de pr\xE1tica continua aberta.",
+  guideCapturePermission: "Permita o acesso a todos os sites nas configura\xE7\xF5es e tente o guia novamente. A etapa de pr\xE1tica continua aberta.",
   skipPractice: "Pular etapa de pr\xE1tica",
   guideClose: "Fechar guia",
   guideDone: "Conclu\xEDdo",
-  captureReopen: "A tela est\xE1 pronta. Reabra a bolha para continuar.",
-  captureReopenAction: "Reabrir bolha",
   captureFailed: "N\xE3o foi poss\xEDvel capturar a tela compartilhada. Tente novamente.",
   effortLow: "Baixo",
   effortMedium: "M\xE9dio",
@@ -19358,8 +19574,8 @@ var pt_BR_default = {
   selectedSummaryPrompt: "Resuma apenas este texto selecionado do PDF.",
   readerSummaryPrompt: "Resuma esta p\xE1gina do PDF.",
   selectionAskPrompt: "Explique este texto selecionado.",
-  captureRetryAction: "Retomar captura",
-  captureScreenClearance: "Ao capturar esta tela, a bolha fecha por um instante. Reabra para continuar."
+  captureRetryAction: "Permitir e retomar captura",
+  captureAccessHint: "Opcional: permita o acesso a todos os sites uma vez para capturar p\xE1ginas e selecionar \xE1reas em novas abas."
 };
 
 // extension/main.tsx
@@ -19432,7 +19648,7 @@ function errorLabel(error, t) {
     tab_changed: "tabChanged",
     capture_cancelled: "captureCancelled",
     capture_permission: "capturePermission",
-    capture_bubble_obstructed: "captureReopen",
+    capture_bubble_obstructed: "captureFailed",
     capture_failed: "captureFailed",
     crop_fullscreen_denied: "crop_fullscreen_denied",
     share_ended: "share_ended",
@@ -19467,9 +19683,7 @@ function App() {
   const [consented, setConsented] = (0, import_react.useState)(false);
   const [consentChecked, setConsentChecked] = (0, import_react.useState)(false);
   const [pipDoc, setPipDoc] = (0, import_react.useState)(null);
-  const [reopenCapture, setReopenCapture] = (0, import_react.useState)(false);
   const controlledPipClose = (0, import_react.useRef)(false);
-  const finishCaptureRestore = (0, import_react.useRef)(null);
   const [fallback, setFallback] = (0, import_react.useState)(false);
   const [expanded, setExpanded] = (0, import_react.useState)(true);
   const expandedRef = (0, import_react.useRef)(true);
@@ -19591,6 +19805,7 @@ function App() {
   );
   const [size, setSize] = (0, import_react.useState)({ width: 420, height: 650 });
   const cropBusy = (0, import_react.useRef)(false);
+  const [cropPending, setCropPending] = (0, import_react.useState)(false);
   const [shareStream, setShareStream] = (0, import_react.useState)(null);
   const [connectionUrl, setConnectionUrl] = (0, import_react.useState)(
     "ws://127.0.0.1:37115/extension"
@@ -20224,7 +20439,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
       const video = videoRef.current;
       void (async () => {
         let image = "";
-        if (shareStream && video?.videoWidth && video.videoHeight && !cropBusy.current && !finishCaptureRestore.current) {
+        if (shareStream && video?.videoWidth && video.videoHeight && !cropBusy.current) {
           try {
             const frame = await freezeSharedFrame(
               video,
@@ -20356,37 +20571,33 @@ ${t.selectedPassage}: ${selected}` : ""}`;
   function frameOptions(video) {
     const floating = pipDoc?.defaultView;
     if (!floating || !needsSharedFrameClearance(video, pipDoc)) return {};
+    const floatingSize = {
+      width: floating.innerWidth,
+      height: floating.innerHeight
+    };
     return {
-      clearBubble: {
-        hide: async () => {
+      clearBubble: nativeBubbleClearance(floating, {
+        close: () => {
           controlledPipClose.current = true;
-          (0, import_react_dom.flushSync)(() => setPipDoc(null));
           try {
+            (0, import_react_dom.flushSync)(() => setPipDoc(null));
             floating.close();
           } finally {
             controlledPipClose.current = false;
           }
         },
-        restore: async () => {
-          const restored = new Promise((resolve) => {
-            finishCaptureRestore.current = resolve;
-          });
-          (0, import_react_dom.flushSync)(() => setReopenCapture(true));
-          setStatus(t.captureReopen);
-          const opener = await chrome.tabs.getCurrent();
-          if (opener?.id)
-            await chrome.tabs.update(opener.id, { active: true }).catch(() => void 0);
-          if (opener?.windowId !== void 0)
-            await chrome.windows.update(opener.windowId, { focused: true }).catch(() => void 0);
-          window.focus();
-          await restored;
+        open: async () => {
+          const replacement = await window.documentPictureInPicture.requestWindow(floatingSize);
+          await mountFloat(replacement);
+          return replacement;
         }
-      }
+      })
     };
   }
   async function startCrop() {
     if (cropBusy.current) return;
     cropBusy.current = true;
+    setCropPending(true);
     try {
       if (shareRef.current && videoRef.current) {
         const image = await cropSharedScreen(
@@ -20405,6 +20616,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
       reportError2(error);
     } finally {
       cropBusy.current = false;
+      setCropPending(false);
     }
   }
   async function openFloat() {
@@ -20444,11 +20656,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     compactViewport.current = null;
     (0, import_react_dom.flushSync)(() => {
       setPipDoc(docWindow.document);
-      setReopenCapture(false);
     });
-    const restored = finishCaptureRestore.current;
-    finishCaptureRestore.current = null;
-    restored?.();
     setFallback(false);
     setStatus(t.floatingReady);
     await completeFloatTutorial();
@@ -20651,7 +20859,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
         reportError2(error);
     }
   }
-  async function requestSiteAccess() {
+  async function requestSiteAccess(captureAccess = false) {
     const tabId = activeTabId.current;
     if (!tabId) throw new Error("no_active_tab");
     const tab = await chrome.tabs.get(tabId);
@@ -20667,18 +20875,26 @@ ${t.selectedPassage}: ${selected}` : ""}`;
       return tabId;
     } catch {
     }
-    const allowed = await chrome.permissions.contains({ origins: [`${origin}/*`] }) || await chrome.permissions.request({ origins: [`${origin}/*`] });
-    if (!allowed) throw new Error("allow_site_access");
+    const allowed = await chrome.permissions.contains({ origins: [`${origin}/*`] }) || await (captureAccess ? requestCaptureAccess() : chrome.permissions.request({ origins: [`${origin}/*`] })).catch(() => false);
+    if (!allowed)
+      throw captureAccess ? new CaptureAuthorizationError() : new Error("allow_site_access");
     return tabId;
   }
   async function allowPageAccess(allSites) {
     try {
+      if (allSites) {
+        if (!await requestCaptureAccess())
+          throw new Error("allow_site_access");
+        setStatus(t.siteAccessGranted);
+        schedulePageRefresh(true);
+        return;
+      }
       const tabId = activeTabId.current;
       if (!tabId) throw new Error("no_active_tab");
       const tab = await chrome.tabs.get(tabId);
       if (!tab.url || !/^https?:/.test(tab.url))
         throw new Error("unsupported_page");
-      const origins = allSites ? ["http://*/*", "https://*/*"] : [`${new URL(tab.url).origin}/*`];
+      const origins = [`${new URL(tab.url).origin}/*`];
       if (!await chrome.permissions.request({ origins }))
         throw new Error("allow_site_access");
       setStatus(t.siteAccessGranted);
@@ -20736,6 +20952,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     if (!retry || busy || pageCaptureController.current) return;
     const epoch = captureRetryEpoch.current;
     try {
+      if (!await requestCaptureAccess()) throw new Error("allow_site_access");
       const tab = await chrome.tabs.get(retry.tabId);
       if (epoch !== captureRetryEpoch.current || retry.tabId !== activeTabId.current || tab.url !== retry.url)
         throw new Error("tab_changed");
@@ -20810,7 +21027,9 @@ ${t.selectedPassage}: ${selected}` : ""}`;
         source = { tabId, url: tab.url };
         if (epoch !== captureRetryEpoch.current || activeTabId.current !== tabId)
           throw new Error("tab_changed");
-        await requestSiteAccess();
+        await requestSiteAccess(true);
+        if (epoch !== captureRetryEpoch.current || activeTabId.current !== tabId || (await chrome.tabs.get(tabId)).url !== source.url)
+          throw new Error("tab_changed");
         const result = await captureWeb(kind, void 0, t, {
           signal: controller?.signal,
           onProgress: controller ? setCaptureProgress : void 0
@@ -21264,7 +21483,7 @@ ${step.action}` : ""}`
     const q2 = selection ? questionValue : questionValue.trim();
     const practice = tutorialRef.current;
     const tutorialCompletion = !withoutPage && practice && practice.tabId === activeTabId.current ? practiceAction === "suggest" && practice.action === "suggest" ? practice : selection?.practice === practice ? practice : void 0 : void 0;
-    if (!q2 || !consented || busy || pageCaptureController.current || requestIdRef.current || translationController.current || readerAdmissionRef.current)
+    if (!q2 || !consented || busy || cropBusy.current || pageCaptureController.current || requestIdRef.current || translationController.current || readerAdmissionRef.current)
       return;
     let freshPage = withoutPage ? null : void 0;
     if ((!capture && !liveScreenSelected || selection) && !withoutPage) {
@@ -21695,6 +21914,9 @@ ${step.action}` : ""}`
           }
         )
       ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "wide", onClick: () => void allowPageAccess(true), children: t.allowAllSites }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.captureAccessHint }),
+      status !== t.ready && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "status", children: status }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         "button",
         {
@@ -21754,7 +21976,7 @@ ${step.action}` : ""}`
                 children: "\u2699"
               }
             ),
-            !pipDoc && !reopenCapture && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            !pipDoc && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
               "button",
               {
                 className: "icon",
@@ -21765,10 +21987,6 @@ ${step.action}` : ""}`
               }
             )
           ] })
-        ] }),
-        reopenCapture && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "float-start capture-reopen", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "primary wide", onClick: () => void openFloat(), children: t.captureReopenAction }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.captureReopen })
         ] }),
         !expanded ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "pill", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `dot ${busy ? "busy" : ""}` }),
@@ -21793,7 +22011,7 @@ ${step.action}` : ""}`
                   "button",
                   {
                     "aria-label": t.send,
-                    disabled: busy || Boolean(captureProgress) || !question.trim(),
+                    disabled: busy || cropPending || Boolean(captureProgress) || !question.trim(),
                     children: "\u2197"
                   }
                 )
@@ -21810,7 +22028,7 @@ ${step.action}` : ""}`
             }
           )
         ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          !pipDoc && !reopenCapture && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "float-start", children: [
+          !pipDoc && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "float-start", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "primary wide", onClick: () => void openFloat(), children: t.float }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.floatFirst })
           ] }),
@@ -21847,7 +22065,6 @@ ${step.action}` : ""}`
                 }
               )
             ] }),
-            shareStream && videoRef.current && needsSharedFrameClearance(videoRef.current, pipDoc) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "hint", children: t.captureScreenClearance }),
             captureProgress && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "div",
               {
@@ -21878,7 +22095,15 @@ ${step.action}` : ""}`
                   children: t.fullPage
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => void startCrop(), title: t.cropShortcut, children: t.region }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  onClick: () => void startCrop(),
+                  title: t.cropShortcut,
+                  disabled: cropPending,
+                  children: t.region
+                }
+              ),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                 "button",
                 {
@@ -22010,7 +22235,7 @@ ${step.action}` : ""}`
                 suggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "suggestions", children: suggestions.map((s, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
                   "button",
                   {
-                    disabled: busy,
+                    disabled: busy || cropPending,
                     onClick: () => void askNow(s, false, "suggest"),
                     children: [
                       s,
@@ -22099,10 +22324,17 @@ ${step.action}` : ""}`
                         t.stop
                       ]
                     }
-                  ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { className: "send", disabled: !question.trim(), children: [
-                    t.send,
-                    " \u2197"
-                  ] })
+                  ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                    "button",
+                    {
+                      className: "send",
+                      disabled: cropPending || !question.trim(),
+                      children: [
+                        t.send,
+                        " \u2197"
+                      ]
+                    }
+                  )
                 ]
               }
             ),

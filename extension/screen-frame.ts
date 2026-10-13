@@ -1,11 +1,13 @@
 export type SharedFrameOptions = {
   // Used only when a live native bubble obstructs a monitor or unknown source.
-  // The UI owns the PiP portal and share lifetime. Move its video into the
-  // opener before closing PiP, and restore the conversation from a user gesture.
+  // Native clearance must be verified: hide returns true after confirming the
+  // window is minimized, or closes the window. CSS opacity is insufficient.
   // Restore is called even if hide fails, so each hook must support rollback.
   clearBubble?: {
-    hide: () => Promise<void>;
+    hide: () => Promise<boolean | void>;
     restore: () => Promise<void>;
+    prepareSelection?: () => Promise<void>;
+    relaySelection?: (host: HTMLElement) => void;
   };
   signal?: AbortSignal;
 };
@@ -48,10 +50,10 @@ export async function withBubbleCleared<T>(
   const opacity = bubble?.body.style.opacity || "";
   try {
     if (clearBubble) {
-      await clearBubble.hide();
+      const hidden = await clearBubble.hide();
       // CSS opacity cannot hide the native window or its chrome. Do not accept
       // an ineffective hook as proof that the desktop is unobstructed.
-      if (needsClearance && !view?.closed)
+      if (needsClearance && hidden !== true && !view?.closed)
         throw new Error("capture_bubble_obstructed");
     } else if (bubble) bubble.body.style.opacity = "0";
     options.signal?.throwIfAborted();

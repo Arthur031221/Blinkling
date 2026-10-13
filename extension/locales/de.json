@@ -138,7 +138,7 @@
   "replayTour": "Einführung erneut ansehen",
   "globalCropShortcut": "Globaler Zuschnitt: Strg+Umschalt+7 (Cmd+Umschalt+7 auf dem Mac). Ändere ihn unter chrome://extensions/shortcuts.",
   "screenChangeSummary": "Der freigegebene Bildschirm hat sich geändert. Hier ist eine kurze Zusammenfassung.",
-  "capturePermission": "Öffne auf dieser Seite das Erweiterungsmenü von Chrome und wähle Glimpselet. Setze die Aufnahme dann hier fort.",
+  "capturePermission": "Erlaube einmal den Zugriff auf alle Websites, um Seiten aufzunehmen und Bereiche auszuwählen. Chrome fragt nach deiner Zustimmung.",
   "shiftCrop": "Halte Umschalt gedrückt, um zuzuschneiden",
   "liveStopped": "Die Blase wartet nicht mehr. Das Terminal arbeitet möglicherweise noch. Drücke dort Esc, um es zu beenden.",
   "replayTourHint": "Übung {step}/8. Schließe sie in diesem Fenster ab.",
@@ -160,12 +160,10 @@
   "blockedPage": "Diese Website steht auf deiner Sperrliste. Das Lesen der Seite ist pausiert.",
   "captureProgress": "{completed} von {total} Abschnitten werden aufgenommen",
   "translationPageChanged": "Übersetzung angewendet. {count} Textstellen wurden während einer Änderung übersprungen. Übersetzen Sie erneut, um sie einzubeziehen.",
-  "guideCapturePermission": "Klicke auf dieser Seite auf das Glimpselet-Symbol in der Symbolleiste und starte die Anleitung erneut. Der Übungsschritt bleibt geöffnet.",
+  "guideCapturePermission": "Erlaube in den Einstellungen den Zugriff auf alle Websites und starte die Anleitung erneut. Der Übungsschritt bleibt geöffnet.",
   "skipPractice": "Übungsschritt überspringen",
   "guideClose": "Anleitung schließen",
   "guideDone": "Fertig",
-  "captureReopen": "Der Bildschirm ist bereit. Öffne die Blase erneut, um fortzufahren.",
-  "captureReopenAction": "Blase erneut öffnen",
   "captureFailed": "Der geteilte Bildschirm konnte nicht aufgenommen werden. Versuche es erneut.",
   "effortLow": "Niedrig",
   "effortMedium": "Mittel",
@@ -186,6 +184,6 @@
   "selectedSummaryPrompt": "Fasse nur diesen ausgewählten PDF-Text zusammen.",
   "readerSummaryPrompt": "Fasse diese PDF-Seite zusammen.",
   "selectionAskPrompt": "Erkläre diesen ausgewählten Text.",
-  "captureRetryAction": "Aufnahme fortsetzen",
-  "captureScreenClearance": "Bei der Aufnahme dieses Bildschirms schließt sich die Blase kurz. Öffne sie erneut, um fortzufahren."
+  "captureRetryAction": "Erlauben und Aufnahme fortsetzen",
+  "captureAccessHint": "Optional: Erlaube einmal den Zugriff auf alle Websites, damit Seitenaufnahme und Bereichsauswahl auch in neuen Tabs funktionieren."
 }

@@ -76,6 +76,7 @@ async function cropFrozenFrame(
     previousTab = active?.id;
     previousWindow = (await chrome.windows.getLastFocused()).id;
     frame = await freezeSharedFrame(video, null, { signal: options.signal });
+    await options.clearBubble?.prepareSelection?.();
     options.signal?.throwIfAborted();
     container = doc.createElement("div");
     container.dataset.glimpseletFrozenCrop = "true";
@@ -159,12 +160,14 @@ async function cropFrozenFrame(
     const host = doc.createElement("div");
     container.append(host);
     options.signal?.addEventListener("abort", cancelSelection, { once: true });
-    const rect = await selectCrop(
+    const selection = selectCrop(
       host,
       () => image.getBoundingClientRect(),
       labels,
       frame.width / image.getBoundingClientRect().width,
     );
+    options.clearBubble?.relaySelection?.(host);
+    const rect = await selection;
     options.signal?.throwIfAborted();
     if (!rect) return null;
     const area = imageRect(rect, image.getBoundingClientRect(), frame);
@@ -194,6 +197,17 @@ async function cropFrozenFrame(
     throw error;
   } finally {
     options.signal?.removeEventListener("abort", cancelSelection);
+    // Record focus before native restoration can activate the opener. If the
+    // user moved to another Chrome window during selection, keep that window.
+    const foreground = foregroundChanged
+      ? await chrome.windows.getLastFocused().catch(() => undefined)
+      : undefined;
+    const restoreFocus =
+      foreground?.focused && foreground.id !== browserWindow?.id
+        ? foreground.id
+        : foreground?.focused === false
+          ? undefined
+          : previousWindow;
     if (scaleChanged)
       doc.defaultView?.removeEventListener("resize", scaleChanged);
     container?.remove();
@@ -205,9 +219,27 @@ async function cropFrozenFrame(
         .catch(() => {});
     if (foregroundChanged && previousTab !== undefined)
       await chrome.tabs.update(previousTab, { active: true }).catch(() => {});
-    if (foregroundChanged && previousWindow !== undefined)
+    if (foregroundChanged && restoreFocus !== undefined)
       await chrome.windows
-        .update(previousWindow, { focused: true })
+        .update(restoreFocus, { focused: true })
+        .then(async () => {
+          // Restore can acknowledge its state before the window manager raises
+          // the opener. Require settled focus so that late activation cannot
+          // undo the user's intervening window choice.
+          const deadline = performance.now() + 2000;
+          let stableSince = performance.now();
+          while (performance.now() - stableSince < 200) {
+            await new Promise((resolve) => window.setTimeout(resolve, 40));
+            if (!(await chrome.windows.get(restoreFocus)).focused) {
+              const current = await chrome.windows.getLastFocused();
+              // Respect a new user choice, including another application.
+              if (!current.focused || current.id !== browserWindow?.id) break;
+              await chrome.windows.update(restoreFocus, { focused: true });
+              stableSince = performance.now();
+            }
+            if (performance.now() >= deadline) break;
+          }
+        })
         .catch(() => {});
     if (bubble) bubble.body.style.opacity = oldOpacity;
     frame.width = 0;

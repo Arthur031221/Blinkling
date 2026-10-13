@@ -138,7 +138,7 @@
   "replayTour": "Replay the tour",
   "globalCropShortcut": "Global crop shortcut: Ctrl+Shift+7 (Cmd+Shift+7 on Mac). Change it at chrome://extensions/shortcuts.",
   "screenChangeSummary": "The shared screen changed. Here is a short summary.",
-  "capturePermission": "On this page, open Chrome’s Extensions menu and choose Glimpselet. Then resume the capture here.",
+  "capturePermission": "Allow on all sites once to capture pages and select an area. Chrome will ask for permission.",
   "shiftCrop": "Hold Shift to crop",
   "liveStopped": "The bubble stopped waiting. The terminal may still be working. Press Esc there to stop it.",
   "replayTourHint": "Practice step {step}/8. Complete it in this bubble.",
@@ -160,12 +160,10 @@
   "blockedPage": "This site is on your blocklist. Page reading is paused.",
   "captureProgress": "Capturing {completed} of {total} sections",
   "translationPageChanged": "Translation applied. {count} changing text items were skipped. Translate again to include them.",
-  "guideCapturePermission": "Click the Glimpselet toolbar icon on this page, then try Guide again. Your practice step stays open.",
+  "guideCapturePermission": "Allow on all sites in Settings, then try Guide again. Your practice step stays open.",
   "skipPractice": "Skip practice step",
   "guideClose": "Close guide",
   "guideDone": "Done",
-  "captureReopen": "The screen is ready. Reopen the bubble to continue.",
-  "captureReopenAction": "Reopen bubble",
   "captureFailed": "The shared screen could not be captured. Try again.",
   "effortLow": "Low",
   "effortMedium": "Medium",
@@ -186,6 +184,6 @@
   "selectedSummaryPrompt": "Summarize only this selected PDF passage.",
   "readerSummaryPrompt": "Summarize this PDF page.",
   "selectionAskPrompt": "Explain this selected passage.",
-  "captureRetryAction": "Resume capture",
-  "captureScreenClearance": "When you capture this screen, the bubble briefly closes. Reopen it to continue."
+  "captureRetryAction": "Allow and resume capture",
+  "captureAccessHint": "Optional: allow on all sites once so page capture and area selection work on new tabs."
 }
