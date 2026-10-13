@@ -140,7 +140,7 @@ article {
   cursor: text;
 }
 .pdf-text-layer ::selection {
-  background: #c5dcff;
+  background: rgba(70, 120, 220, 0.25);
 }
 .dark {
   color-scheme: dark;

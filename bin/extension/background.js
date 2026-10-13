@@ -1,5 +1,6 @@
 // extension/background.ts
 var panelUrl = () => chrome.runtime.getURL("panel.html");
+var readerUrl = () => chrome.runtime.getURL("reader.html");
 async function injectContent(tabId) {
   try {
     await chrome.scripting.executeScript({
@@ -13,6 +14,14 @@ async function openPanel(source) {
   const [existing] = await chrome.tabs.query({ url: `${panelUrl()}*` });
   if (existing?.id !== void 0) {
     if (source?.id !== void 0) await injectContent(source.id);
+    if (existing.windowId !== void 0) {
+      const owner = await chrome.windows.get(existing.windowId).catch(() => void 0);
+      if (owner?.state === "minimized")
+        await chrome.windows.update(existing.windowId, {
+          state: "normal",
+          focused: true
+        });
+    }
     await chrome.runtime.sendMessage({ type: "glimpselet:focus", sourceTab: source?.id }).catch(() => {
     });
     return;
@@ -69,6 +78,23 @@ chrome.runtime.onMessage.addListener(
       const target = new URL(chrome.runtime.getURL("reader.html"));
       target.searchParams.set("url", message.url);
       void chrome.tabs.create({ url: target.toString() }).then(() => sendResponse({ ok: true }));
+      return true;
+    }
+    if (message?.type === "glimpselet:reader-permission-handoff" && sender.tab?.url?.startsWith(readerUrl())) {
+      void (async () => {
+        const panels = await chrome.tabs.query({ url: `${panelUrl()}*` });
+        if (!panels.length) return;
+        const response = await chrome.runtime.sendMessage({ type: "glimpselet:reader-permission-handoff" }).catch(() => void 0);
+        if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
+        const panel = panels.find(
+          (tab) => tab.windowId !== void 0
+        );
+        if (panel?.windowId !== void 0) {
+          const owner = await chrome.windows.get(panel.windowId).catch(() => void 0);
+          if (owner?.type === "popup" && owner.state !== "minimized")
+            await chrome.windows.update(panel.windowId, { state: "minimized" });
+        }
+      })().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
     if (message?.type === "glimpselet:pair" && sender.tab?.url) {

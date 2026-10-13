@@ -2982,7 +2982,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve4.call(this, root, ref);
+      let _sch = resolve6.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a2 = root.localRefs) === null || _a2 === void 0 ? void 0 : _a2[ref];
         const { schemaId } = this.opts;
@@ -3009,7 +3009,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s12, s22) {
       return s12.schema === s22.schema && s12.root === s22.root && s12.baseId === s22.baseId;
     }
-    function resolve4(root, ref) {
+    function resolve6(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3839,7 +3839,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve4(baseURI, relativeURI, options) {
+    function resolve6(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -3872,49 +3872,49 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative2, options, skipNormalization) {
+    function resolveComponent(base, relative3, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse4(serialize(base, options), options);
-        relative2 = parse4(serialize(relative2, options), options);
+        relative3 = parse4(serialize(relative3, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative2.scheme) {
-        target.scheme = relative2.scheme;
-        target.userinfo = relative2.userinfo;
-        target.host = relative2.host;
-        target.port = relative2.port;
-        target.path = removeDotSegments(relative2.path || "");
-        target.query = relative2.query;
+      if (!options.tolerant && relative3.scheme) {
+        target.scheme = relative3.scheme;
+        target.userinfo = relative3.userinfo;
+        target.host = relative3.host;
+        target.port = relative3.port;
+        target.path = removeDotSegments(relative3.path || "");
+        target.query = relative3.query;
       } else {
-        if (relative2.userinfo !== void 0 || relative2.host !== void 0 || relative2.port !== void 0) {
-          target.userinfo = relative2.userinfo;
-          target.host = relative2.host;
-          target.port = relative2.port;
-          target.path = removeDotSegments(relative2.path || "");
-          target.query = relative2.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target.userinfo = relative3.userinfo;
+          target.host = relative3.host;
+          target.port = relative3.port;
+          target.path = removeDotSegments(relative3.path || "");
+          target.query = relative3.query;
         } else {
-          if (!relative2.path) {
+          if (!relative3.path) {
             target.path = base.path;
-            if (relative2.query !== void 0) {
-              target.query = relative2.query;
+            if (relative3.query !== void 0) {
+              target.query = relative3.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative2.path[0] === "/") {
-              target.path = removeDotSegments(relative2.path);
+            if (relative3.path[0] === "/") {
+              target.path = removeDotSegments(relative3.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative2.path;
+                target.path = "/" + relative3.path;
               } else if (!base.path) {
-                target.path = relative2.path;
+                target.path = relative3.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative2.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative2.query;
+            target.query = relative3.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -3922,7 +3922,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative2.fragment;
+      target.fragment = relative3.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -4208,7 +4208,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve4,
+      resolve: resolve6,
       resolveComponent,
       equal,
       serialize,
@@ -9999,7 +9999,7 @@ var require_compile2 = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve4.call(this, root, ref);
+      let _sch = resolve6.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a2 = root.localRefs) === null || _a2 === void 0 ? void 0 : _a2[ref];
         const { schemaId } = this.opts;
@@ -10026,7 +10026,7 @@ var require_compile2 = __commonJS({
     function sameSchemaEnv(s12, s22) {
       return s12.schema === s22.schema && s12.root === s22.root && s12.baseId === s22.baseId;
     }
-    function resolve4(root, ref) {
+    function resolve6(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -13339,7 +13339,7 @@ var require_constants = __commonJS({
 var require_crc = __commonJS({
   "node_modules/pngjs/lib/crc.js"(exports2, module2) {
     "use strict";
-    var crcTable = [];
+    var crcTable2 = [];
     (function() {
       for (let i = 0; i < 256; i++) {
         let currentCrc = i;
@@ -13350,7 +13350,7 @@ var require_crc = __commonJS({
             currentCrc = currentCrc >>> 1;
           }
         }
-        crcTable[i] = currentCrc;
+        crcTable2[i] = currentCrc;
       }
     })();
     var CrcCalculator = module2.exports = function() {
@@ -13358,7 +13358,7 @@ var require_crc = __commonJS({
     };
     CrcCalculator.prototype.write = function(data) {
       for (let i = 0; i < data.length; i++) {
-        this._crc = crcTable[(this._crc ^ data[i]) & 255] ^ this._crc >>> 8;
+        this._crc = crcTable2[(this._crc ^ data[i]) & 255] ^ this._crc >>> 8;
       }
       return true;
     };
@@ -13368,7 +13368,7 @@ var require_crc = __commonJS({
     CrcCalculator.crc32 = function(buf) {
       let crc = -1;
       for (let i = 0; i < buf.length; i++) {
-        crc = crcTable[(crc ^ buf[i]) & 255] ^ crc >>> 8;
+        crc = crcTable2[(crc ^ buf[i]) & 255] ^ crc >>> 8;
       }
       return crc ^ -1;
     };
@@ -18705,7 +18705,7 @@ var LiveChannel = class {
         "The live session is busy. Try again when it has replied."
       );
     const id2 = (0, import_node_crypto.randomUUID)();
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve6, reject) => {
       const abort = () => {
         this.pending.delete(id2);
         request.signal.removeEventListener("abort", abort);
@@ -18719,7 +18719,7 @@ var LiveChannel = class {
       const pending = {
         request,
         answer: "",
-        resolve: resolve4,
+        resolve: resolve6,
         reject,
         cleanup
       };
@@ -38250,7 +38250,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
+        await new Promise((resolve6) => setTimeout(resolve6, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error43) {
@@ -38267,7 +38267,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve6, reject) => {
       const earlyReject = (error43) => {
         reject(error43);
       };
@@ -38345,7 +38345,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve4(parseResult.data);
+            resolve6(parseResult.data);
           }
         } catch (error43) {
           reject(error43);
@@ -38607,12 +38607,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve6, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve4, interval);
+      const timeoutId = setTimeout(resolve6, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -39743,7 +39743,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
+      await new Promise((resolve6) => setTimeout(resolve6, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -40407,12 +40407,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve4) => {
+    return new Promise((resolve6) => {
       const json2 = serializeMessage(message);
       if (this._stdout.write(json2)) {
-        resolve4();
+        resolve6();
       } else {
-        this._stdout.once("drain", resolve4);
+        this._stdout.once("drain", resolve6);
       }
     });
   }
@@ -40999,7 +40999,7 @@ var BrowserCaptures = class {
         )
       );
     const id2 = (0, import_node_crypto4.randomBytes)(12).toString("hex");
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve6, reject) => {
       const finish = (callback) => {
         signal?.removeEventListener("abort", abort);
         callback();
@@ -41025,7 +41025,7 @@ var BrowserCaptures = class {
       }, timeoutMs);
       this.pending.set(id2, {
         client,
-        resolve: (capture) => finish(() => resolve4(capture)),
+        resolve: (capture) => finish(() => resolve6(capture)),
         reject: (error43) => finish(() => reject(error43)),
         timer
       });
@@ -41261,7 +41261,7 @@ function contextPrompt(request) {
     question: question.slice(0, 400),
     answer: answer.slice(0, request.kind === "summary" ? 350 : 1e3)
   }));
-  const instruction = request.kind === "passive" ? "Write one or two short sentences about what is visible now and any change from earlier notes. Do not invent cursor positions or hidden actions." : request.kind === "summary" ? "Summarize only the supplied passive notes from the last ten minutes. Do not infer a continuous recording." : request.question;
+  const instruction = request.kind === "summary" ? "Summarize only the supplied passive notes from the last ten minutes. Do not infer a continuous recording." : request.question;
   return `Owner question: ${JSON.stringify(request.question)}
 Task: ${instruction}
 Quoted prior context: ${JSON.stringify(context)}${request.page ? `
@@ -41272,10 +41272,14 @@ Untrusted page data: ${JSON.stringify(request.page)}` : ""}`;
 async function runCliProvider(request, options = {}) {
   if (request.signal.aborted) throw cancelled();
   const directory = await (0, import_promises3.mkdtemp)(
-    (0, import_node_path3.join)(options.tempRoot ?? (0, import_node_os3.tmpdir)(), "glimpselet-")
+    (0, import_node_path3.join)((0, import_node_path3.resolve)(options.tempRoot ?? (0, import_node_os3.tmpdir)()), "glimpselet-")
   );
   try {
     const imagePath = (0, import_node_path3.join)(directory, "capture.png");
+    const permissionPath = process.platform === "win32" ? imagePath.replaceAll("\\", "/").replace(
+      /^([a-z]):/i,
+      (_, drive) => `/${drive.toLowerCase()}`
+    ) : imagePath;
     if (request.image)
       await (0, import_promises3.writeFile)(imagePath, request.image, { mode: 384 });
     if (request.signal.aborted) throw cancelled();
@@ -41315,13 +41319,15 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
       SYSTEM_PROMPT,
       "--tools",
       request.image ? "Read" : "",
+      // Restricted file tools cannot leave the project cwd without --add-dir.
+      ...request.image ? ["--add-dir", directory] : [],
       "--allowedTools",
-      request.image ? `Read(${imagePath})` : "",
+      request.image ? `Read(/${permissionPath.replace(/[\\*?[\]]/g, "\\$&")})` : "",
       "--strict-mcp-config",
       "--mcp-config",
       JSON.stringify({ mcpServers: {} })
     ];
-    return await new Promise((resolve4, reject) => {
+    return await new Promise((resolve6, reject) => {
       const child = (0, import_node_child_process2.spawn)(options.command ?? "claude", args, {
         cwd: request.cliSession?.project ?? directory,
         env,
@@ -41508,7 +41514,7 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
           );
         const usage = result.usage;
         const finite = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : void 0;
-        resolve4({
+        resolve6({
           answer,
           sessionId: typeof result.session_id === "string" ? result.session_id : void 0,
           usage: {
@@ -67751,8 +67757,8 @@ var ExtensionBridge = class {
       this.options.answerTimeoutMs ?? 12e4
     );
     let finish;
-    const done = new Promise((resolve4) => {
-      finish = resolve4;
+    const done = new Promise((resolve6) => {
+      finish = resolve6;
     });
     const job = { id: id2, controller, done };
     pair.job = job;
@@ -67808,13 +67814,13 @@ var ExtensionBridge = class {
     const client = this.sharingClient;
     if (!this.sharingIntent || client?.readyState !== import_websocket.default.OPEN || signal?.aborted)
       return Promise.resolve(void 0);
-    return new Promise((resolve4) => {
+    return new Promise((resolve6) => {
       const id2 = (0, import_node_crypto6.randomUUID)();
       const finish = (capture) => {
         clearTimeout(timer);
         signal?.removeEventListener("abort", abort);
         this.pendingCaptures.delete(id2);
-        resolve4(capture);
+        resolve6(capture);
       };
       const abort = () => finish();
       const timer = setTimeout(finish, timeoutMs);
@@ -67864,38 +67870,21 @@ var ExtensionBridge = class {
     this.pairs.clear();
     this.codes.clear();
     this.installation.clear();
-    await new Promise((resolve4) => this.sockets.close(() => resolve4()));
+    await new Promise((resolve6) => this.sockets.close(() => resolve6()));
   }
 };
 
 // bridge/src/extension-install.ts
 var import_promises15 = require("node:fs/promises");
+var import_node_zlib = require("node:zlib");
 var import_node_os5 = require("node:os");
 var import_node_path5 = require("node:path");
 var import_node_child_process3 = require("node:child_process");
 var import_node_fs3 = require("node:fs");
-var import_node_url = require("node:url");
 var DEFAULT_DISTRIBUTION = {
   chromeWebStoreUrl: "",
   edgeAddonsUrl: ""
 };
-var packageVersion = (() => {
-  for (const relative2 of ["../package.json", "../../package.json"]) {
-    try {
-      const manifest = JSON.parse(
-        (0, import_node_fs3.readFileSync)(
-          (0, import_node_url.fileURLToPath)(new import_node_url.URL(relative2, GLIMPSELET_MODULE_URL)),
-          "utf8"
-        )
-      );
-      if (manifest.name === "glimpselet" && typeof manifest.version === "string")
-        return manifest.version;
-    } catch {
-      continue;
-    }
-  }
-  throw new Error("Cannot read Glimpselet package version");
-})();
 function loadDistributionConfig(file2 = process.env.GLIMPSELET_DISTRIBUTION_CONFIG || (0, import_node_path5.join)(process.cwd(), "config", "distribution.json")) {
   try {
     const value = JSON.parse(
@@ -67915,6 +67904,98 @@ function selectedStoreUrl(config2 = DEFAULT_DISTRIBUTION, browser = "chrome") {
   return valid.test(value) ? value : void 0;
 }
 var extensionFolder = () => (0, import_node_path5.join)((0, import_node_os5.homedir)(), ".glimpselet", "extension");
+var extensionSourceFolder = () => (0, import_node_path5.resolve)(
+  process.env.GLIMPSELET_EXTENSION_DIR || `${(0, import_node_path5.dirname)((0, import_node_path5.resolve)(process.argv[1] ?? process.cwd()))}/extension`
+);
+var deflate = (input) => new Promise(
+  (resolveDeflate, reject) => (0, import_node_zlib.deflateRaw)(
+    input,
+    (error43, output) => error43 ? reject(error43) : resolveDeflate(output)
+  )
+);
+var crcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let value = n;
+    for (let bit = 0; bit < 8; bit++)
+      value = value & 1 ? 3988292384 ^ value >>> 1 : value >>> 1;
+    table[n] = value >>> 0;
+  }
+  return table;
+})();
+var crc32 = (data) => {
+  let crc = 4294967295;
+  for (const byte of data) crc = crcTable[(crc ^ byte) & 255] ^ crc >>> 8;
+  return (crc ^ 4294967295) >>> 0;
+};
+async function createExtensionZip(source) {
+  const root = (0, import_node_path5.resolve)(source);
+  const entries = [];
+  const visit = async (directory) => {
+    for (const entry of await (0, import_promises15.readdir)(directory, { withFileTypes: true })) {
+      const path = (0, import_node_path5.join)(directory, entry.name);
+      const info = await (0, import_promises15.lstat)(path);
+      if (info.isSymbolicLink())
+        throw new Error("Extension archives cannot contain symbolic links.");
+      if (info.isDirectory()) {
+        await visit(path);
+        continue;
+      }
+      if (!info.isFile()) continue;
+      const name = (0, import_node_path5.relative)(root, path).split(import_node_path5.sep).join("/");
+      if (!name || name.startsWith("/") || name.split("/").some((part) => !part || part === "." || part === "..") || name.includes("\\") || name.includes(":"))
+        throw new Error("Extension archive contains an unsafe path.");
+      const data = await (0, import_promises15.readFile)(path);
+      entries.push({
+        name,
+        data,
+        compressed: await deflate(data),
+        crc: crc32(data)
+      });
+    }
+  };
+  await visit(root);
+  if (!entries.some((entry) => entry.name === "manifest.json"))
+    throw new Error("Extension archive is missing manifest.json.");
+  const local = [];
+  const central = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = Buffer.from(entry.name, "utf8");
+    const header = Buffer.alloc(30);
+    header.writeUInt32LE(67324752, 0);
+    header.writeUInt16LE(20, 4);
+    header.writeUInt16LE(2048, 6);
+    header.writeUInt16LE(8, 8);
+    header.writeUInt32LE(entry.crc, 14);
+    header.writeUInt32LE(entry.compressed.length, 18);
+    header.writeUInt32LE(entry.data.length, 22);
+    header.writeUInt16LE(name.length, 26);
+    local.push(header, name, entry.compressed);
+    const directory = Buffer.alloc(46);
+    directory.writeUInt32LE(33639248, 0);
+    directory.writeUInt16LE(788, 4);
+    directory.writeUInt16LE(20, 6);
+    directory.writeUInt16LE(2048, 8);
+    directory.writeUInt16LE(8, 10);
+    directory.writeUInt32LE(entry.crc, 16);
+    directory.writeUInt32LE(entry.compressed.length, 20);
+    directory.writeUInt32LE(entry.data.length, 24);
+    directory.writeUInt16LE(name.length, 28);
+    directory.writeUInt32LE(33188 << 16 >>> 0, 38);
+    directory.writeUInt32LE(offset, 42);
+    central.push(directory, name);
+    offset += header.length + name.length + entry.compressed.length;
+  }
+  const centralSize = central.reduce((sum, part) => sum + part.length, 0);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(101010256, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...local, ...central, end]);
+}
 async function installExtension(source, destination = extensionFolder()) {
   await (0, import_promises15.readFile)((0, import_node_path5.join)(source, "manifest.json"));
   await (0, import_promises15.mkdir)(destination, { recursive: true, mode: 448 });
@@ -67923,11 +68004,17 @@ async function installExtension(source, destination = extensionFolder()) {
 }
 function tunnelCommand(port, env = process.env) {
   if (!env.SSH_CONNECTION) return void 0;
-  const host = env.GLIMPSELET_SSH_HOST || env.SSH_CONNECTION.split(" ")[2] || (0, import_node_os5.hostname)();
+  const connection = env.SSH_CONNECTION.trim().split(/\s+/);
+  const host = env.GLIMPSELET_SSH_HOST || connection[2] || (0, import_node_os5.hostname)();
+  const rawSshPort = env.GLIMPSELET_SSH_PORT || connection[3] || "22";
+  if (!/^\d{1,5}$/.test(rawSshPort)) return void 0;
+  const sshPort = Number(rawSshPort);
+  if (sshPort < 1 || sshPort > 65535) return void 0;
   const user = env.GLIMPSELET_SSH_USER || (0, import_node_os5.userInfo)().username;
   if (!/^[\w.:-]+$/.test(host) || !/^[\w.-]+$/.test(user)) return void 0;
   const address = host.includes(":") ? `[${host}]` : host;
-  return `ssh -N -L ${port}:127.0.0.1:${port} ${user}@${address}`;
+  const portOption = sshPort === 22 ? "" : `-p ${sshPort} `;
+  return `ssh -N ${portOption}-L ${port}:127.0.0.1:${port} ${user}@${address}`;
 }
 function openInstallSurface(url2, folder) {
   if (process.env.GLIMPSELET_DISABLE_BROWSER_OPEN === "1" || process.env.SSH_CONNECTION)
@@ -67967,47 +68054,45 @@ function installGuide(folder, config2 = loadDistributionConfig()) {
     config2,
     process.env.GLIMPSELET_BROWSER === "msedge" ? "edge" : "chrome"
   );
-  const installation = store ? `<div class="install-card" id="install-store"><p data-en="Install Glimpselet from the browser store. Confirm the browser prompt; updates arrive automatically." data-zh="\u5F9E\u700F\u89BD\u5668\u64F4\u5145\u529F\u80FD\u5546\u5E97\u5B89\u88DD Glimpselet\uFF0C\u4F9D\u63D0\u793A\u78BA\u8A8D\u5373\u53EF\uFF0C\u4E4B\u5F8C\u6703\u81EA\u52D5\u66F4\u65B0\u3002"></p><a class="button primary" href="${escapeHtml(store)}" data-en="Add to browser" data-zh="\u52A0\u5165\u700F\u89BD\u5668"></a><details><summary data-en="Advanced: load from source" data-zh="\u9032\u968E\uFF1A\u5F9E\u539F\u59CB\u78BC\u8F09\u5165"></summary><p data-en="Build the source on the computer with your browser using npm ci and npm run build:extension. Choose Load unpacked and select dist-extension." data-zh="\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C npm ci \u8207 npm run build:extension \u5EFA\u7F6E\u539F\u59CB\u78BC\u3002\u63A5\u8457\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u9078\u64C7 dist-extension \u8CC7\u6599\u593E\u3002"></p></details></div>` : `<div class="install-card" id="install-local" hidden><p data-en="Open your browser's extensions page. Turn on Developer mode, choose Load unpacked, then select this folder:" data-zh="\u958B\u555F\u700F\u89BD\u5668\u7684\u64F4\u5145\u529F\u80FD\u9801\u9762\uFF0C\u555F\u7528\u300C\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F\u300D\uFF0C\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u518D\u9078\u64C7\u9019\u500B\u8CC7\u6599\u593E\uFF1A"></p><a class="button primary" href="chrome://extensions" data-en="Open extensions" data-zh="\u958B\u555F\u64F4\u5145\u529F\u80FD"></a><code class="path">${escapeHtml(folder)}</code><p class="quiet" data-en="The browser asks you to confirm these steps. Updates are manual until the store listing is live." data-zh="\u700F\u89BD\u5668\u6703\u8ACB\u4F60\u624B\u52D5\u78BA\u8A8D\u9019\u4E9B\u6B65\u9A5F\u3002\u6B63\u5F0F\u4E0A\u67B6\u524D\u9700\u8981\u624B\u52D5\u66F4\u65B0\u3002"></p></div><div class="install-card" id="install-remote" hidden><p data-en="Download the extension ZIP on the computer where Chrome runs. Extract it on this computer, open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted folder." data-zh="\u8ACB\u5728\u57F7\u884C Chrome \u7684\u9019\u53F0\u96FB\u8166\u4E0B\u8F09\u64F4\u5145\u529F\u80FD ZIP\uFF0C\u4E26\u5728\u9019\u53F0\u96FB\u8166\u89E3\u58D3\u7E2E\u3002\u63A5\u8457\u958B\u555F chrome://extensions\u3001\u555F\u7528\u300C\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F\u300D\u3001\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u518D\u9078\u64C7\u89E3\u58D3\u7E2E\u5F8C\u7684\u8CC7\u6599\u593E\u3002"></p><a class="button primary" href="https://github.com/Arthur031221/Glimpselet/releases/download/v${escapeHtml(packageVersion)}/glimpselet-extension.zip" data-en="Download extension ZIP" data-zh="\u4E0B\u8F09\u64F4\u5145\u529F\u80FD ZIP"></a></div>`;
+  const screenshots = `<div class="install-images"><figure><img src="/assets/install/01-extensions-before.png" alt="Chrome extensions page" loading="lazy"><figcaption data-en="1. Turn on Developer mode" data-zh="1. \u555F\u7528\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F"></figcaption></figure><figure><img src="/assets/install/02-developer-mode.png" alt="Chrome Load unpacked button" loading="lazy"><figcaption data-en="2. Choose Load unpacked" data-zh="2. \u6309\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE"></figcaption></figure><figure><img src="/assets/install/03-select-extension-folder.png" alt="Chrome extension folder picker" loading="lazy"><figcaption data-en="3. Select the extension folder" data-zh="3. \u9078\u64C7\u64F4\u5145\u529F\u80FD\u8CC7\u6599\u593E"></figcaption></figure></div>`;
+  const installation = store ? `<div class="install-card" id="install-store"><p data-en="Install Glimpselet from the browser store. Confirm the browser prompt; updates arrive automatically." data-zh="\u5F9E\u700F\u89BD\u5668\u64F4\u5145\u529F\u80FD\u5546\u5E97\u5B89\u88DD Glimpselet\uFF0C\u4F9D\u63D0\u793A\u78BA\u8A8D\u5373\u53EF\uFF0C\u4E4B\u5F8C\u6703\u81EA\u52D5\u66F4\u65B0\u3002"></p><a class="button primary" href="${escapeHtml(store)}" data-en="Add to browser" data-zh="\u52A0\u5165\u700F\u89BD\u5668"></a><details><summary data-en="Advanced: load from source" data-zh="\u9032\u968E\uFF1A\u5F9E\u539F\u59CB\u78BC\u8F09\u5165"></summary><p data-en="Build the source on the computer with your browser using npm ci and npm run build:extension. Choose Load unpacked and select dist-extension." data-zh="\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C npm ci \u8207 npm run build:extension \u5EFA\u7F6E\u539F\u59CB\u78BC\u3002\u63A5\u8457\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u9078\u64C7 dist-extension \u8CC7\u6599\u593E\u3002"></p></details></div>` : `<div class="install-card" id="install-local" hidden><p data-en="Open your browser's extensions page. Turn on Developer mode, choose Load unpacked, then select this folder:" data-zh="\u958B\u555F\u700F\u89BD\u5668\u7684\u64F4\u5145\u529F\u80FD\u9801\u9762\uFF0C\u555F\u7528\u300C\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F\u300D\uFF0C\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u518D\u9078\u64C7\u9019\u500B\u8CC7\u6599\u593E\uFF1A"></p><a class="button primary" href="chrome://extensions" data-en="Open extensions" data-zh="\u958B\u555F\u64F4\u5145\u529F\u80FD"></a><code class="path">${escapeHtml(folder)}</code><p class="quiet" data-en="The browser asks you to confirm these steps. Updates are manual until the store listing is live." data-zh="\u700F\u89BD\u5668\u6703\u8ACB\u4F60\u624B\u52D5\u78BA\u8A8D\u9019\u4E9B\u6B65\u9A5F\u3002\u6B63\u5F0F\u4E0A\u67B6\u524D\u9700\u8981\u624B\u52D5\u66F4\u65B0\u3002"></p></div><div class="install-card" id="install-remote" hidden><p data-en="Download the extension ZIP on the computer where Chrome runs. Extract it on this computer, open chrome://extensions, turn on Developer mode, choose Load unpacked, and select the extracted folder." data-zh="\u8ACB\u5728\u57F7\u884C Chrome \u7684\u9019\u53F0\u96FB\u8166\u4E0B\u8F09\u64F4\u5145\u529F\u80FD ZIP\uFF0C\u4E26\u5728\u9019\u53F0\u96FB\u8166\u89E3\u58D3\u7E2E\u3002\u63A5\u8457\u958B\u555F chrome://extensions\u3001\u555F\u7528\u300C\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F\u300D\u3001\u6309\u300C\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE\u300D\uFF0C\u518D\u9078\u64C7\u89E3\u58D3\u7E2E\u5F8C\u7684\u8CC7\u6599\u593E\u3002"></p><a class="button primary" href="/install/extension.zip" data-en="Download extension ZIP" data-zh="\u4E0B\u8F09\u64F4\u5145\u529F\u80FD ZIP"></a></div>${screenshots}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to Glimpselet</title>
 <style>
 :root{color-scheme:light dark;--paper:#faf7f0;--ink:#302a23;--muted:#766d62;--line:#e6ddd0;--card:#fffdf9;--accent:#bd6849;--accent-dark:#91472f;--green:#397858}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif}main{max-width:900px;margin:auto;padding:30px 22px 70px}header{display:flex;align-items:center;gap:16px;margin:14px 0 28px}.blink{width:64px;height:64px;flex:none;display:grid;place-items:center;border:2px solid var(--ink);border-radius:48% 52% 50% 45%;background:#f3dfc4;overflow:hidden;transform:rotate(-5deg)}.blink img{width:46px;height:56px;object-fit:contain;transform:rotate(5deg)}h1,h2,h3{font-family:Georgia,serif;line-height:1.15}h1{font-size:clamp(32px,6vw,48px);margin:0 0 6px}h2{font-size:26px;margin:0 0 10px}h3{font-size:21px;margin:0}.lede{color:var(--muted);margin:0}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.lang,.button{border:1px solid #c7b8a5;border-radius:999px;padding:9px 14px;background:var(--card);color:var(--ink);text-decoration:none;font:600 14px system-ui;cursor:pointer}.button.primary{background:var(--accent);color:white;border-color:var(--accent)}button:hover,.button:hover{filter:brightness(.96)}section{margin:18px 0;padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--card);box-shadow:0 8px 25px #392b1910}.install-card{padding:16px;border-radius:14px;background:#f6efe4}.path{display:block;width:min(100%,680px);padding:11px;margin:14px 0;background:#eee5d8;border-radius:9px;overflow-wrap:anywhere}.path:focus{outline:3px solid var(--accent);outline-offset:2px}.quiet,.muted{color:var(--muted)}.pairline{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.status{padding:12px 14px;border-radius:12px;background:#f5efe6}.status.connected{background:#e8f3ea;color:#285e3e}.progress{height:9px;border-radius:9px;background:#eee6da;overflow:hidden;margin:14px 0 18px}.progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.step{border:1px solid var(--line);border-radius:15px;padding:15px;background:var(--card);min-width:0}.step.done{border-color:#83b295;background:#f4faf4}.step-head{display:flex;align-items:center;gap:10px}.number{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:#f0e5d5;color:var(--accent-dark);font-weight:700}.step p{min-height:48px;color:var(--muted);margin:8px 0}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{padding:7px 11px}.illustration{height:86px;margin:12px 0;padding:9px;border:1px solid #e4d9ca;border-radius:10px;background:linear-gradient(#f2e9dc 0 20px,#fff 20px);position:relative;overflow:hidden}.browserbar{position:absolute;top:6px;left:10px;right:10px;height:8px;border-radius:5px;background:#dbcbb8}.mockline{position:absolute;left:14px;top:34px;width:55%;height:6px;border-radius:4px;background:#e9e2d9}.mockline.two{top:49px;width:72%}.mockline.three{top:64px;width:42%}.mockfocus{position:absolute;right:10px;top:30px;padding:7px 9px;border:2px solid var(--accent);border-radius:8px;background:#fff8eb;color:var(--accent-dark);font-size:11px;animation:pulse 1.8s infinite}@keyframes pulse{50%{box-shadow:0 0 0 5px #bd684920}}.tutorial-note{font-size:14px;color:var(--muted)}details{margin-top:12px}summary{cursor:pointer}a{color:var(--accent-dark)}@media(max-width:650px){main{padding:18px 14px 48px}.steps{grid-template-columns:1fr}section{padding:17px}.top{align-items:flex-start}}
 @media(prefers-color-scheme:dark){:root{--paper:#24221f;--ink:#f4eee5;--muted:#b4a99b;--line:#4a4137;--card:#302d29}.blink{background:#5c4938}.install-card,.status{background:#3a342d}.path{background:#24221f}.step.done{background:#28342b}.number{background:#493a2e}.illustration{background:linear-gradient(#51463a 0 20px,#393632 20px);border-color:#625648}.browserbar{background:#746453}.mockline{background:#61584e}.mockfocus{background:#362f28;color:#f2b89d}.status.connected{background:#293b2d;color:#b9e3c5}}
-</style></head><body><main><div class="top"><header><div class="blink" aria-hidden="true"><img src="/assets/logo.svg" alt=""></div><div><h1 data-en="Blink is ready when you are." data-zh="Blink \u5DF2\u6E96\u5099\u597D\u966A\u4F60\u63A2\u7D22\u3002"></h1><p class="lede" data-en="A small, hands-on tour. Try each move, mark it done, or skip ahead." data-zh="\u7528\u5E7E\u500B\u5C0F\u6B65\u9A5F\u8A8D\u8B58 Glimpselet\u3002\u8A66\u904E\u5C31\u52FE\u9078\u5B8C\u6210\uFF0C\u4E5F\u53EF\u4EE5\u7565\u904E\u3002"></p></div></header><button class="lang" id="language" type="button" aria-label="Switch language">\u7E41\u9AD4\u4E2D\u6587</button></div>
+.install-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.install-images figure{margin:0}.install-images img{width:100%;border:1px solid #c9bfaf;border-radius:8px}.install-images figcaption{font-size:13px;margin-top:8px}@media(max-width:600px){.install-images{grid-template-columns:1fr}}
+</style></head><body><main><div class="top"><header><div class="blink" aria-hidden="true"><img src="/assets/logo.svg" alt=""></div><div><h1 data-en="Glimpselet is ready when you are." data-zh="Glimpselet \u5DF2\u6E96\u5099\u597D\u966A\u4F60\u63A2\u7D22\u3002"></h1><p class="lede" data-en="A small, hands-on tour. Try each move, mark it done, or skip ahead." data-zh="\u7528\u5E7E\u500B\u5C0F\u6B65\u9A5F\u8A8D\u8B58 Glimpselet\u3002\u8A66\u904E\u5C31\u52FE\u9078\u5B8C\u6210\uFF0C\u4E5F\u53EF\u4EE5\u7565\u904E\u3002"></p></div></header><button class="lang" id="language" type="button" aria-label="Switch language">\u7E41\u9AD4\u4E2D\u6587</button></div>
 <section><h2 data-en="1 \xB7 Add Glimpselet" data-zh="1 \xB7 \u5B89\u88DD Glimpselet"></h2>${installation}</section>
-<section id="pairing"><h2 data-en="2 \xB7 Connect your browser" data-zh="2 \xB7 \u9023\u63A5\u700F\u89BD\u5668"></h2><p id="pair" class="pairline" aria-live="polite"></p><div class="pairline"><button class="button" id="copy" hidden data-en="Copy code" data-zh="\u8907\u88FD\u914D\u5C0D\u78BC"></button><button class="button" id="connect" hidden data-en="Pair extension" data-zh="\u914D\u5C0D\u64F4\u5145\u529F\u80FD"></button></div><p class="status" id="connection" aria-live="polite" data-en="Waiting for Glimpselet. Pair it from the extension, then this page will move on when connected." data-zh="\u7B49\u5F85 Glimpselet \u9023\u7DDA\u3002\u8ACB\u5728\u64F4\u5145\u529F\u80FD\u4E2D\u914D\u5C0D\uFF1B\u9023\u7DDA\u6210\u529F\u5F8C\u6703\u81EA\u52D5\u9032\u5165\u4E0B\u4E00\u6B65\u3002"></p><p id="mode" class="quiet" aria-live="polite"></p><div id="tunnel" hidden><label for="tunnel-command" data-en="Run this on the computer with your browser:" data-zh="\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C\uFF1A"></label><div class="pairline"><input id="tunnel-command" class="path" readonly aria-label="SSH tunnel command"><button id="copy-tunnel" class="button" type="button" data-en="Copy SSH command" data-zh="\u8907\u88FD SSH \u6307\u4EE4"></button></div></div><div class="pairline"><button class="button" id="try-zero" type="button" data-en="Try without installing" data-zh="\u4E0D\u5B89\u88DD\uFF0C\u5148\u8A66\u7528"></button><span id="try-note" class="quiet" role="status"></span></div></section>
+<section id="pairing"><h2 data-en="2 \xB7 Connect your browser" data-zh="2 \xB7 \u9023\u63A5\u700F\u89BD\u5668"></h2><p id="pair" class="pairline" aria-live="polite"></p><div class="pairline" id="pair-controls"><button class="button" id="copy" hidden data-en="Copy code" data-zh="\u8907\u88FD\u914D\u5C0D\u78BC"></button><button class="button" id="connect" hidden data-en="Pair extension" data-zh="\u914D\u5C0D\u64F4\u5145\u529F\u80FD"></button></div><p class="status" id="connection" aria-live="polite" data-en="Waiting for Glimpselet. Click Pair extension in the browser window to approve the connection." data-zh="\u7B49\u5F85 Glimpselet \u9023\u7DDA\u3002\u8ACB\u5728\u700F\u89BD\u5668\u8996\u7A97\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\u4EE5\u78BA\u8A8D\u9023\u7DDA\u3002"></p><p id="mode" class="quiet" aria-live="polite"></p><div id="tunnel" hidden><label for="tunnel-command" data-en="Run this on the computer with your browser:" data-zh="\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C\uFF1A"></label><div class="pairline"><input id="tunnel-command" class="path" readonly aria-label="SSH tunnel command"><button id="copy-tunnel" class="button" type="button" data-en="Copy SSH command" data-zh="\u8907\u88FD SSH \u6307\u4EE4"></button></div></div><div class="pairline"><button class="button" id="try-zero" type="button" data-en="Try without installing" data-zh="\u4E0D\u5B89\u88DD\uFF0C\u5148\u8A66\u7528"></button><span id="try-note" class="quiet" role="status"></span></div></section>
 <section id="tour"><div class="top"><div><h2 data-en="3 \xB7 Take the tour" data-zh="3 \xB7 \u52D5\u624B\u8A66\u4E00\u5708"></h2><p class="tutorial-note" data-en="The sample page is a safe place to practise. Each Try button opens it and sends a small action request to the page." data-zh="\u7BC4\u4F8B\u9801\u662F\u5B89\u5168\u7684\u7DF4\u7FD2\u5834\u3002\u6309\u300C\u8A66\u8A66\u300D\u6703\u958B\u555F\u7BC4\u4F8B\u9801\uFF0C\u4E26\u50B3\u9001\u5C0D\u61C9\u7684\u64CD\u4F5C\u63D0\u793A\u3002"></p></div><button id="replay" class="button" type="button" data-en="Replay tour" data-zh="\u91CD\u64AD\u5C0E\u89BD"></button></div><div class="progress" role="progressbar" aria-label="Tour progress" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0"><span id="progress"></span></div><p id="progress-label" class="quiet" aria-live="polite"></p><div id="steps" class="steps"></div><p class="tutorial-note" data-en="The PDF practice action opens the bundled reader from the bubble. You can also open a local PDF there." data-zh="PDF \u7DF4\u7FD2\u6703\u5F9E\u6D6E\u52D5\u8996\u7A97\u958B\u555F\u5167\u5EFA\u95B1\u8B80\u5668\u3002\u4F60\u4E5F\u53EF\u4EE5\u5728\u95B1\u8B80\u5668\u9078\u64C7\u672C\u6A5F PDF\u3002"></p></section>
 <p><a href="https://github.com/Arthur031221/Glimpselet/blob/main/docs/INSTALL.md" data-en="Install help" data-zh="\u5B89\u88DD\u8AAA\u660E"></a> \xB7 <a href="https://arthur031221.github.io/Glimpselet/privacy.html" data-en="Privacy" data-zh="\u96B1\u79C1\u6B0A"></a></p></main><script src="/install-guide.js"></script></body></html>`;
 }
 var INSTALL_GUIDE_SCRIPT = `(()=>{
-const strings={en:{waiting:'Waiting for Glimpselet. Pair it from the extension, then this page will move on when connected.',connected:'Connected. Nice work \u2014 opening your practice page.',copy:'Copied.',copyFail:'Select and copy the code above.',copyTunnelFail:'Select and copy the SSH command above.',try:'Opening your practice window\u2026',remote:'Zero-install mode is not available on a remote host. Use the SSH command below on the computer with your browser.',tryFail:'Could not open the practice browser. Check the error above or install the extension in your browser.',step:'Step',of:'of',done:'Done',skip:'Skipped',request:'Requested in the sample page. Use the Glimpselet bubble to complete this step.',
+const strings={en:{waiting:'Waiting for Glimpselet. Click Pair extension in the browser window to approve the connection.',connected:'Connected. Choose a practice step below.',copy:'Copied.',copyFail:'Select and copy the code above.',copyTunnelFail:'Select and copy the SSH command above.',try:'Opening your practice window\u2026',tryStarted:'Chromium launch requested. If its Glimpselet window opens, click Pair extension; this page will confirm when connected.',pairing:'Pairing request sent. Waiting for you to approve the connection in Glimpselet\u2026',extensionReady:'Glimpselet is ready. Click Pair extension to approve the connection.',remote:'Zero-install mode is not available on a remote host. Use the SSH command below on the computer with your browser.',tryFail:'Could not open the practice browser. Check the error above or install the extension in your browser.',step:'Completed',of:'of',done:'Done',skip:'Skipped',request:'Requested in the sample page. Use the Glimpselet bubble to complete this step.',
 titles:['Float and switch windows','Capture a page and ask','Try a suggestion','Turn on passive mode','Take a page tour','Translate the page','Select text and ask','Read a PDF'],
 descs:['Open the floating bubble, then switch to another window and see it stay on top.','Capture the tea page and ask what changes the taste.','Choose a suggested question and send it with one click.','Turn on passive mode, then change the sample page or open another page.','Start Guide and watch it point out the tea buttons.','Translate the page in place, then switch back to the original.','Select a sentence and choose Explain, Translate, or Ask.','Open the sample PDF in the Glimpselet reader and try selecting a paragraph.'],
 focus:['Float','Capture','Suggested question','Passive','Guide','Translate','Select a sentence','Open PDF'],tries:['Open sample + request float','Open sample + request capture','Open sample + request suggestion','Open sample + request passive','Open sample + request guide','Open sample + request translation','Open sample + request selection','Open sample PDF'],
 labels:['Developer mode','Load unpacked','Select the folder'],
-},zh:{waiting:'\u7B49\u5F85 Glimpselet \u9023\u7DDA\u3002\u8ACB\u5728\u64F4\u5145\u529F\u80FD\u4E2D\u914D\u5C0D\uFF1B\u9023\u7DDA\u6210\u529F\u5F8C\u6703\u81EA\u52D5\u9032\u5165\u4E0B\u4E00\u6B65\u3002',connected:'\u5DF2\u9023\u7DDA\uFF0C\u505A\u5F97\u597D\uFF01\u73FE\u5728\u958B\u555F\u7DF4\u7FD2\u9801\u3002',copy:'\u5DF2\u8907\u88FD\u3002',copyFail:'\u8ACB\u9078\u53D6\u4E0A\u65B9\u914D\u5C0D\u78BC\u4E26\u8907\u88FD\u3002',copyTunnelFail:'\u8ACB\u9078\u53D6\u4E0A\u65B9 SSH \u6307\u4EE4\u4E26\u8907\u88FD\u3002',try:'\u6B63\u5728\u958B\u555F\u7DF4\u7FD2\u8996\u7A97\u22EF',remote:'\u9060\u7AEF\u4E3B\u6A5F\u7121\u6CD5\u4F7F\u7528\u514D\u5B89\u88DD\u6A21\u5F0F\u3002\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C\u4E0B\u65B9 SSH \u6307\u4EE4\u3002',tryFail:'\u7121\u6CD5\u958B\u555F\u7DF4\u7FD2\u700F\u89BD\u5668\u3002\u8ACB\u6AA2\u67E5\u4E0A\u65B9\u932F\u8AA4\uFF0C\u6216\u6539\u5728\u81EA\u5DF1\u7684\u700F\u89BD\u5668\u5B89\u88DD\u64F4\u5145\u529F\u80FD\u3002',step:'\u6B65\u9A5F',of:'/',done:'\u5DF2\u5B8C\u6210',skip:'\u5DF2\u7565\u904E',request:'\u64CD\u4F5C\u63D0\u793A\u5DF2\u50B3\u5230\u7BC4\u4F8B\u9801\uFF0C\u8ACB\u5728 Glimpselet \u6D6E\u52D5\u8996\u7A97\u5B8C\u6210\u9019\u4E00\u6B65\u3002',
+},zh:{waiting:'\u7B49\u5F85 Glimpselet \u9023\u7DDA\u3002\u8ACB\u5728\u700F\u89BD\u5668\u8996\u7A97\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\u4EE5\u78BA\u8A8D\u9023\u7DDA\u3002',connected:'\u5DF2\u9023\u7DDA\uFF0C\u8ACB\u9078\u64C7\u4E0B\u65B9\u7684\u7DF4\u7FD2\u6B65\u9A5F\u3002',copy:'\u5DF2\u8907\u88FD\u3002',copyFail:'\u8ACB\u9078\u53D6\u4E0A\u65B9\u914D\u5C0D\u78BC\u4E26\u8907\u88FD\u3002',copyTunnelFail:'\u8ACB\u9078\u53D6\u4E0A\u65B9 SSH \u6307\u4EE4\u4E26\u8907\u88FD\u3002',try:'\u6B63\u5728\u958B\u555F\u7DF4\u7FD2\u8996\u7A97\u22EF',tryStarted:'\u5DF2\u8981\u6C42\u555F\u52D5 Chromium\u3002\u82E5 Glimpselet \u8996\u7A97\u958B\u555F\uFF0C\u8ACB\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\uFF1B\u9023\u7DDA\u5F8C\u672C\u9801\u6703\u986F\u793A\u78BA\u8A8D\u3002',pairing:'\u5DF2\u9001\u51FA\u914D\u5C0D\u8981\u6C42\uFF0C\u8ACB\u5728 Glimpselet \u4E2D\u78BA\u8A8D\u9023\u7DDA\u22EF',extensionReady:'Glimpselet \u5DF2\u5C31\u7DD2\uFF0C\u8ACB\u6309\u300C\u914D\u5C0D\u64F4\u5145\u529F\u80FD\u300D\u78BA\u8A8D\u9023\u7DDA\u3002',remote:'\u9060\u7AEF\u4E3B\u6A5F\u7121\u6CD5\u4F7F\u7528\u514D\u5B89\u88DD\u6A21\u5F0F\u3002\u8ACB\u5728\u700F\u89BD\u5668\u6240\u5728\u96FB\u8166\u57F7\u884C\u4E0B\u65B9 SSH \u6307\u4EE4\u3002',tryFail:'\u7121\u6CD5\u958B\u555F\u7DF4\u7FD2\u700F\u89BD\u5668\u3002\u8ACB\u6AA2\u67E5\u4E0A\u65B9\u932F\u8AA4\uFF0C\u6216\u6539\u5728\u81EA\u5DF1\u7684\u700F\u89BD\u5668\u5B89\u88DD\u64F4\u5145\u529F\u80FD\u3002',step:'\u5DF2\u5B8C\u6210',of:'/',done:'\u5DF2\u5B8C\u6210',skip:'\u5DF2\u7565\u904E',request:'\u64CD\u4F5C\u63D0\u793A\u5DF2\u50B3\u5230\u7BC4\u4F8B\u9801\uFF0C\u8ACB\u5728 Glimpselet \u6D6E\u52D5\u8996\u7A97\u5B8C\u6210\u9019\u4E00\u6B65\u3002',
 titles:['\u6D6E\u52D5\u8996\u7A97\u8207\u5207\u63DB\u8996\u7A97','\u64F7\u53D6\u9801\u9762\u4E26\u63D0\u554F','\u8A66\u8A66\u5EFA\u8B70\u554F\u984C','\u958B\u555F\u88AB\u52D5\u6A21\u5F0F','\u5C0E\u89BD\u9801\u9762','\u7FFB\u8B6F\u6574\u9801','\u9078\u53D6\u6587\u5B57\u4E26\u63D0\u554F','\u95B1\u8B80 PDF'],
 descs:['\u958B\u555F\u6D6E\u52D5\u8996\u7A97\uFF0C\u518D\u5207\u5230\u53E6\u4E00\u500B\u8996\u7A97\uFF0C\u770B\u770B\u5B83\u662F\u5426\u4ECD\u5728\u6700\u4E0A\u5C64\u3002','\u64F7\u53D6\u8336\u8449\u7BC4\u4F8B\u9801\uFF0C\u554F\u554F\u54EA\u4E9B\u56E0\u7D20\u6703\u6539\u8B8A\u8336\u7684\u98A8\u5473\u3002','\u6309\u4E00\u4E0B\u5EFA\u8B70\u554F\u984C\uFF0C\u76F4\u63A5\u9001\u51FA\u3002','\u958B\u555F\u88AB\u52D5\u6A21\u5F0F\uFF0C\u518D\u5207\u63DB\u7BC4\u4F8B\u9801\u6216\u958B\u555F\u53E6\u4E00\u500B\u9801\u9762\u3002','\u555F\u52D5\u5C0E\u89BD\uFF0C\u770B\u770B\u5B83\u5982\u4F55\u6307\u51FA\u8336\u8449\u6309\u9215\u3002','\u5C31\u5730\u7FFB\u8B6F\u9801\u9762\uFF0C\u518D\u5207\u56DE\u539F\u6587\u3002','\u9078\u53D6\u4E00\u53E5\u6587\u5B57\uFF0C\u518D\u6309\u300C\u89E3\u91CB\u300D\u3001\u300C\u7FFB\u8B6F\u300D\u6216\u300C\u63D0\u554F\u300D\u3002','\u5728 Glimpselet \u95B1\u8B80\u5668\u958B\u555F\u7BC4\u4F8B PDF\uFF0C\u8A66\u8457\u9078\u53D6\u4E00\u6BB5\u6587\u5B57\u3002'],
 focus:['\u6D6E\u52D5','\u64F7\u53D6','\u5EFA\u8B70\u554F\u984C','\u88AB\u52D5\u6A21\u5F0F','\u5C0E\u89BD','\u7FFB\u8B6F','\u9078\u53D6\u53E5\u5B50','\u958B\u555F PDF'],tries:['\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u6D6E\u52D5','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u64F7\u53D6','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u5EFA\u8B70\u554F\u984C','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u88AB\u52D5\u6A21\u5F0F','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u5C0E\u89BD','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u7FFB\u8B6F','\u958B\u555F\u7BC4\u4F8B\u4E26\u63D0\u793A\u9078\u53D6\u6587\u5B57','\u958B\u555F PDF \u7BC4\u4F8B'],labels:['\u958B\u767C\u4EBA\u54E1\u6A21\u5F0F','\u8F09\u5165\u672A\u5C01\u88DD\u9805\u76EE','\u9078\u64C7\u8CC7\u6599\u593E']}};
 const steps=[['float','float'],['capture','capture'],['suggest','suggest'],['passive','passive'],['guide','guide'],['translate','translate'],['selection','selection'],['pdf','pdf']];
-const stateKey='glimpselet-install-tour-v1', getState=()=>{try{return JSON.parse(localStorage.getItem(stateKey)||'{}')}catch{return{}}};let state=getState(), lang='en', sample, isConnected=false, remoteMode=false, modeKind='', autoPairing=false;
+const stateKey='glimpselet-install-tour-v1', getState=()=>{try{return JSON.parse(localStorage.getItem(stateKey)||'{}')}catch{return{}}};let state=getState(), lang='en', sample, isConnected=false, remoteMode=false, modeKind='';
 const code=new URLSearchParams(location.hash.slice(1)).get('code'), port=Number(location.port||80), status=document.querySelector('#connection');
 const applyLanguage=()=>{document.documentElement.lang=lang==='zh'?'zh-Hant':'en';document.querySelectorAll('[data-en][data-zh]').forEach(el=>{el.textContent=el.dataset[lang]});document.querySelector('#language').textContent=lang==='en'?'\u7E41\u9AD4\u4E2D\u6587':'English';document.querySelector('#language').setAttribute('aria-label',lang==='en'?'\u5207\u63DB\u70BA\u7E41\u9AD4\u4E2D\u6587':'Switch to English');renderPair();if(isConnected)status.textContent=strings[lang].connected;if(modeKind)document.querySelector('#mode').textContent=modeKind==='tunnel'?(lang==='en'?'Claude Code is on another computer.':'Claude Code \u4F4D\u65BC\u53E6\u4E00\u53F0\u96FB\u8166\u3002'):modeKind==='api'?(lang==='en'?'Using direct API mode.':'\u4F7F\u7528\u76F4\u63A5 API \u6A21\u5F0F\u3002'):(lang==='en'?'Claude Code is on this computer.':'Claude Code \u4F4D\u65BC\u9019\u53F0\u96FB\u8166\u3002');if(remoteMode)document.querySelector('#try-note').textContent=strings[lang].remote;render()};
 function render(){const t=strings[lang], host=document.querySelector('#steps');host.replaceChildren();steps.forEach(([action],i)=>{const card=document.createElement('article');card.className='step'+(state[i]?' done':'');card.innerHTML='<div class="step-head"><span class="number">'+(state[i]?'\u2713':i+1)+'</span><h3></h3></div><p></p><div class="illustration" aria-hidden="true"><span class="browserbar"></span><span class="mockline"></span><span class="mockline two"></span><span class="mockline three"></span><span class="mockfocus"></span></div><div class="actions"><button class="button primary try"></button><button class="button done"></button><button class="button skip"></button></div>';card.querySelector('h3').textContent=t.titles[i];card.querySelector('p').textContent=t.descs[i];card.querySelector('.mockfocus').textContent=t.focus[i];card.querySelector('.try').textContent=t.tries[i];card.querySelector('.done').textContent=state[i]?t.done:(lang==='en'?'Done':'\u5B8C\u6210');card.querySelector('.skip').textContent=state[i]?'':(lang==='en'?'Skip':'\u7565\u904E');card.querySelector('.skip').hidden=!!state[i];card.querySelector('.try').onclick=()=>tryStep(i,action);card.querySelector('.done').onclick=()=>mark(i);card.querySelector('.skip').onclick=()=>mark(i);host.append(card)});const count=Object.values(state).filter(Boolean).length;document.querySelector('#progress').style.width=(count/8*100)+'%';document.querySelector('.progress').setAttribute('aria-valuenow',String(count));document.querySelector('#progress-label').textContent=t.step+' '+count+' '+t.of+' 8';}
 function mark(i){state[i]=true;localStorage.setItem(stateKey,JSON.stringify(state));render()}
 function tryStep(i,action){const base='/assets/glimpselet-welcome-sample.html';const fresh=!sample||sample.closed;if(fresh)sample=window.open(base,'glimpselet-sample');if(!sample){document.querySelector('#try-note').textContent=lang==='en'?'Allow pop-ups for this local page, then try again.':'\u8ACB\u5141\u8A31\u6B64\u672C\u6A5F\u9801\u9762\u958B\u555F\u5F48\u51FA\u8996\u7A97\uFF0C\u518D\u91CD\u8A66\u3002';return}const request={type:'glimpselet:tutorial-action',version:1,action,step:i+1,code:code||null};if(fresh)sample.addEventListener('load',()=>sample.postMessage(request,location.origin),{once:true});else sample.postMessage(request,location.origin);document.querySelector('#try-note').textContent=strings[lang].request;sample.focus()}
-const pair=document.querySelector('#pair'), copy=document.querySelector('#copy'), connect=document.querySelector('#connect');function renderPair(){if(/^[A-F0-9]{16}$/.test(code||'')){pair.textContent=(lang==='en'?'Pairing code: ':'\u914D\u5C0D\u78BC\uFF1A')+code+' \xB7 '+(lang==='en'?'Port: ':'\u9023\u63A5\u57E0\uFF1A')+port;copy.hidden=false;connect.hidden=false}else pair.textContent=lang==='en'?'Open Glimpselet from Claude Code to receive a pairing code.':'\u8ACB\u5F9E Claude Code \u958B\u555F Glimpselet \u53D6\u5F97\u914D\u5C0D\u78BC\u3002'}renderPair();if(/^[A-F0-9]{16}$/.test(code||'')){copy.onclick=async()=>{try{await navigator.clipboard.writeText(port+' '+code);document.querySelector('#try-note').textContent=strings[lang].copy}catch{document.querySelector('#try-note').textContent=strings[lang].copyFail}};connect.onclick=()=>window.postMessage({type:'glimpselet:pair',port,code},location.origin)}
+const pair=document.querySelector('#pair'), copy=document.querySelector('#copy'), connect=document.querySelector('#connect');function renderPair(){if(/^[A-F0-9]{16}$/.test(code||'')){pair.textContent=(lang==='en'?'Pairing code: ':'\u914D\u5C0D\u78BC\uFF1A')+code+' \xB7 '+(lang==='en'?'Port: ':'\u9023\u63A5\u57E0\uFF1A')+port;copy.hidden=false;connect.hidden=false}else pair.textContent=lang==='en'?'Open Glimpselet from Claude Code to receive a pairing code.':'\u8ACB\u5F9E Claude Code \u958B\u555F Glimpselet \u53D6\u5F97\u914D\u5C0D\u78BC\u3002'}renderPair();if(/^[A-F0-9]{16}$/.test(code||'')){copy.onclick=async()=>{try{await navigator.clipboard.writeText(port+' '+code);document.querySelector('#try-note').textContent=strings[lang].copy}catch{document.querySelector('#try-note').textContent=strings[lang].copyFail}};connect.onclick=()=>{document.querySelector('#connection').textContent=strings[lang].pairing;window.postMessage({type:'glimpselet:pair',port,code},location.origin)}}
 document.querySelector('#language').onclick=()=>{lang=lang==='en'?'zh':'en';applyLanguage()};document.querySelector('#replay').onclick=()=>{state={};localStorage.removeItem(stateKey);render();document.querySelector('#tour').scrollIntoView({behavior:'smooth'})};
 document.querySelector('#copy-tunnel').onclick=async()=>{const input=document.querySelector('#tunnel-command');try{await navigator.clipboard.writeText(input.value);document.querySelector('#try-note').textContent=strings[lang].copy}catch{input.focus();input.select();document.querySelector('#try-note').textContent=strings[lang].copyTunnelFail}};
-document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero'),note=document.querySelector('#try-note');button.disabled=true;note.textContent=strings[lang].try;try{const response=await fetch('/install/try?code='+encodeURIComponent(code||''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(response.status===409||data.mode==='tunnel'){remoteMode=true;button.hidden=true;note.textContent=strings[lang].remote;return}if(!response.ok)throw new Error('launch');note.textContent=lang==='en'?'Chromium is ready. Enjoy the tour!':'Chromium \u5DF2\u6E96\u5099\u597D\uFF0C\u958B\u59CB\u5C0E\u89BD\u5427\uFF01'}catch{note.textContent=strings[lang].tryFail}finally{button.disabled=false}};
+document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero'),note=document.querySelector('#try-note');button.disabled=true;note.textContent=strings[lang].try;try{const response=await fetch('/install/try?code='+encodeURIComponent(code||''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(response.status===409||data.mode==='tunnel'){remoteMode=true;button.hidden=true;note.textContent=strings[lang].remote;return}if(!response.ok)throw new Error('launch');note.textContent=strings[lang].tryStarted}catch{note.textContent=strings[lang].tryFail}finally{button.disabled=false}};
 function setInstallMode(){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(!local||!remote)return;const isRemote=modeKind==='tunnel';local.hidden=isRemote;remote.hidden=!isRemote}
-function setConnected(){isConnected=true;status.classList.add('connected');status.textContent=strings[lang].connected}
-async function poll(){if(!/^[A-F0-9]{16}$/.test(code||''))return;try{const response=await fetch('/install/status?code='+encodeURIComponent(code),{cache:'no-store'});if(response.ok){const result=await response.json();if(typeof result.mode==='string'){const nextKind=result.mode==='tunnel'?'tunnel':result.mode==='api'?'api':'direct';if(nextKind!==modeKind){modeKind=nextKind;setInstallMode();applyLanguage()}}if(typeof result.tunnelCommand==='string'&&result.tunnelCommand.startsWith('ssh -N -L ')&&!/[\\r\\n]/.test(result.tunnelCommand)){document.querySelector('#tunnel').hidden=false;document.querySelector('#tunnel-command').value=result.tunnelCommand}if(modeKind==='tunnel'){remoteMode=true;document.querySelector('#try-zero').disabled=true;document.querySelector('#try-zero').hidden=true;document.querySelector('#try-note').textContent=strings[lang].remote}if(result.trialError===true)document.querySelector('#try-note').textContent=strings[lang].tryFail;if(result.connected===true){setConnected();setTimeout(()=>{document.querySelector('#tour').scrollIntoView({behavior:'smooth'});tryStep(0,'float')},650);return}}}catch{}setTimeout(poll,1200)}
-window.addEventListener('message',event=>{if(event.origin!==location.origin||(event.source!==window&&event.source!==sample))return;if(event.data?.type==='glimpselet:tutorial:ready'&&event.source===sample){document.querySelector('#try-note').textContent=strings[lang].request}if(event.data?.type==='glimpselet:tutorial:done'&&event.source===sample&&Number.isInteger(event.data.step)&&event.data.step>=1&&event.data.step<=8)mark(event.data.step-1);if(event.data?.type==='glimpselet:paired'&&event.source===window)setConnected();if(event.data?.type==='glimpselet:extension-ready'&&event.source===window&&!autoPairing&&/^[A-F0-9]{16}$/.test(code||'')){autoPairing=true;fetch('/install/status?code='+encodeURIComponent(code),{cache:'no-store'}).then(r=>r.json()).then(result=>{if(result.connected)setConnected();else window.postMessage({type:'glimpselet:pair',port,code},location.origin)}).catch(()=>{autoPairing=false})}});
+function setConnected(){if(isConnected)return;isConnected=true;status.classList.add('connected');status.textContent=strings[lang].connected;document.querySelector('#pair-controls').hidden=true;pair.hidden=true;document.querySelector('#copy').hidden=true;document.querySelector('#connect').hidden=true}
+async function poll(){if(!/^[A-F0-9]{16}$/.test(code||''))return;try{const response=await fetch('/install/status?code='+encodeURIComponent(code),{cache:'no-store'});if(response.ok){const result=await response.json();const download=document.querySelector('#install-remote a');if(download)download.href='/install/extension.zip?code='+encodeURIComponent(code);if(typeof result.mode==='string'){const nextKind=result.mode==='tunnel'?'tunnel':result.mode==='api'?'api':'direct';if(nextKind!==modeKind){modeKind=nextKind;setInstallMode();applyLanguage()}}if(typeof result.tunnelCommand==='string'&&/^ssh -N(?: -p [0-9]{1,5})? -L /.test(result.tunnelCommand)&&!/[\\r\\n]/.test(result.tunnelCommand)){document.querySelector('#tunnel').hidden=false;document.querySelector('#tunnel-command').value=result.tunnelCommand}if(modeKind==='tunnel'){remoteMode=true;document.querySelector('#try-zero').disabled=true;document.querySelector('#try-zero').hidden=true;document.querySelector('#try-note').textContent=strings[lang].remote}if(result.trialError===true)document.querySelector('#try-note').textContent=strings[lang].tryFail;if(result.connected===true){setConnected();setTimeout(()=>{document.querySelector('#tour').scrollIntoView({behavior:'smooth'})},650);return}}}catch{}setTimeout(poll,1200)}
+window.addEventListener('message',event=>{if(event.origin!==location.origin||(event.source!==window&&event.source!==sample))return;if(event.data?.type==='glimpselet:tutorial:ready'&&event.source===sample){document.querySelector('#try-note').textContent=strings[lang].request}if(event.data?.type==='glimpselet:tutorial:done'&&event.source===sample&&Number.isInteger(event.data.step)&&event.data.step>=1&&event.data.step<=8)mark(event.data.step-1);if(event.data?.type==='glimpselet:paired'&&event.source===window)setConnected();if(event.data?.type==='glimpselet:extension-ready'&&event.source===window&&!isConnected&&/^[A-F0-9]{16}$/.test(code||''))document.querySelector('#try-note').textContent=strings[lang].extensionReady});
 applyLanguage();poll();if(location.hash==='#tour')document.querySelector('#tour').scrollIntoView();})();`;
-function installStepSvg(step) {
-  const label = ["Developer mode", "Load unpacked", "Select ~/.glimpselet/extension"][step - 1] || "Install";
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="180" viewBox="0 0 720 180"><rect width="720" height="180" rx="14" fill="#f4eee3"/><text x="30" y="44" font-family="sans-serif" font-size="20" fill="#29251e">Extensions</text><rect x="${step === 1 ? 480 : 30}" y="70" width="${step === 3 ? 480 : 210}" height="55" rx="10" fill="#fffdf8" stroke="#9a563b" stroke-width="3"/><text x="${step === 1 ? 495 : 45}" y="104" font-family="sans-serif" font-size="18" fill="#9a563b">${label}</text></svg>`;
-}
 
 // bridge/src/sessions.ts
 var import_node_crypto7 = require("node:crypto");
@@ -68125,6 +68210,7 @@ var PanelServer = class {
   expiryTimer;
   trialBrowser;
   trialError = false;
+  extensionArchive;
   distributionFile = process.env.GLIMPSELET_DISTRIBUTION_CONFIG || (0, import_node_path6.resolve)(
     (0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] || ".")),
     "config/distribution.json"
@@ -68204,7 +68290,7 @@ var PanelServer = class {
     this.extension?.cancelCaptures();
   }
   async openExtensionGuide() {
-    const source = process.env.GLIMPSELET_EXTENSION_DIR || `${(0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] ?? process.cwd()))}/extension`;
+    const source = extensionSourceFolder();
     let folder;
     try {
       folder = await installExtension(source);
@@ -68301,6 +68387,33 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
     } catch {
       throw new PanelError("invalid_request", "Invalid request path.");
     }
+    if (path === "/install/extension.zip") {
+      if (req.method !== "GET" || req.headers.origin !== void 0 && req.headers.origin !== this.origin)
+        throw new PanelError(
+          "invalid_origin",
+          "Open the setup page to download the extension.",
+          403
+        );
+      const code = new URL(req.url, this.origin).searchParams.get("code") || "";
+      if (this.extension?.installStatus(code) === void 0)
+        throw new PanelError(
+          "pairing_expired",
+          "Run /glimpse again for a new setup link.",
+          401
+        );
+      this.extensionArchive ??= createExtensionZip(extensionSourceFolder());
+      const archive = await this.extensionArchive;
+      res.writeHead(200, {
+        "Content-Type": "application/zip",
+        "Content-Length": archive.length,
+        "Content-Disposition": 'attachment; filename="glimpselet-extension.zip"',
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff"
+      });
+      res.end(archive);
+      return;
+    }
     if (path === "/install/status" || path === "/install/try") {
       const params = new URL(req.url, this.origin).searchParams;
       const code = params.get("code") || "";
@@ -68359,18 +68472,17 @@ Pair with port ${this.port} and code ${code}.` : `Open ${url2} to install and pa
       this.reply(res, 202, { started: true });
       return;
     }
-    if (req.method === "GET" && (path === "/install" || path === "/install-guide.js" || /^\/install-step-[123]\.svg$/.test(path))) {
+    if (req.method === "GET" && (path === "/install" || path === "/install-guide.js")) {
       const script = path === "/install-guide.js";
-      const svg = path.endsWith(".svg");
       res.writeHead(200, {
-        "Content-Type": script ? "text/javascript; charset=utf-8" : svg ? "image/svg+xml" : "text/html; charset=utf-8",
+        "Content-Type": script ? "text/javascript; charset=utf-8" : "text/html; charset=utf-8",
         "Cache-Control": "no-store",
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'"
       });
       res.end(
-        script ? INSTALL_GUIDE_SCRIPT : svg ? installStepSvg(Number(path[14])) : installGuide(
+        script ? INSTALL_GUIDE_SCRIPT : installGuide(
           extensionFolder(),
           loadDistributionConfig(this.distributionFile)
         )

@@ -25887,6 +25887,7 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
       finished = true;
       view.removeEventListener("keydown", key, true);
       view.removeEventListener("resize", resize);
+      view.removeEventListener("scroll", render, true);
       view.removeEventListener("pagehide", cancelCrop);
       doc.removeEventListener("fullscreenchange", fullscreenChanged);
       host.remove();
@@ -25913,7 +25914,11 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
         event.stopImmediatePropagation();
         finish(null);
       }
-      if (event.key === "Enter" && rect && !confirm.disabled) {
+      if (event.key === "Enter" && cancel === root.activeElement) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        finish(null);
+      } else if (event.key === "Enter" && rect && !confirm.disabled) {
         event.preventDefault();
         event.stopImmediatePropagation();
         finish(rect);
@@ -25921,6 +25926,7 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
         event.preventDefault();
         const r = bounds(), step = event.shiftKey ? 10 : 1;
+        const creatingSelection = !rect;
         if (!rect)
           rect = {
             x: Math.round(r.width / 4),
@@ -25944,6 +25950,7 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
             )
           );
           render();
+          if (creatingSelection) confirm.focus({ preventScroll: true });
           return;
         }
         rect = {
@@ -25964,6 +25971,7 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
           )
         };
         render();
+        if (creatingSelection) confirm.focus({ preventScroll: true });
       }
     };
     const resize = () => {
@@ -26033,8 +26041,8 @@ function selectCrop(host, bounds, labels, pixelScale = 1) {
     };
     cancel.onclick = cancelCrop;
     view.addEventListener("keydown", key, true);
-    cancel.focus();
     view.addEventListener("resize", resize);
+    view.addEventListener("scroll", render, true);
     view.addEventListener("pagehide", cancelCrop, { once: true });
     cancel.focus({ preventScroll: true });
   });
@@ -26080,7 +26088,8 @@ function listenForShiftCrop(view, allowed, start) {
 }
 
 // extension/privacy.ts
-function hasSensitiveContent(doc = document) {
+function hasSensitiveContent(doc = document, manualTextOnly = false) {
+  doc ??= document;
   const roots = [doc];
   const seen = /* @__PURE__ */ new Set();
   let remaining = 5e4;
@@ -26104,12 +26113,18 @@ function hasSensitiveContent(doc = document) {
         try {
           const frame = element;
           const nested = frame.contentDocument ?? frame.getSVGDocument?.();
-          if (!nested || nested.readyState !== "complete") return true;
-          const source = frame.getAttribute("src")?.trim().toLowerCase();
-          if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank"))
+          if (!nested) {
+            if (manualTextOnly) continue;
             return true;
+          }
+          if (nested.readyState !== "complete" && !manualTextOnly) return true;
+          const source = frame.getAttribute("src")?.trim().toLowerCase();
+          if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank")) {
+            if (!manualTextOnly) return true;
+          }
           roots.push(nested);
         } catch {
+          if (manualTextOnly) continue;
           return true;
         }
       }
@@ -26136,6 +26151,15 @@ var ignoredTags = /* @__PURE__ */ new Set([
   "CANVAS"
 ]);
 var scope = globalThis;
+var documentKeys = scope.glimpseletDocumentKeys ??= /* @__PURE__ */ new WeakMap();
+function pageDocumentKey(doc = document) {
+  let key = documentKeys.get(doc);
+  if (!key) {
+    key = crypto.randomUUID();
+    documentKeys.set(doc, key);
+  }
+  return key;
+}
 var registry = scope.glimpseletElementRegistry ??= {
   ids: /* @__PURE__ */ new WeakMap(),
   nextId: 1
@@ -26230,6 +26254,7 @@ function buildPageContext(doc = document) {
     length += piece.length + 1;
   }
   return {
+    documentKey: pageDocumentKey(doc),
     url: doc.location.href,
     title: doc.title.slice(0, 500),
     text: chunks.join(" ").slice(0, 24e3),
@@ -26388,6 +26413,7 @@ if (!contentScope.glimpseletContentReady) {
   }, renderGuide = function() {
     if (!currentGuide) return;
     const root = ensureOverlay();
+    const activeControl = root.querySelector(".guide nav")?.contains(root.activeElement) ? root.activeElement.dataset.guideControl : void 0;
     root.querySelector(".guide")?.remove();
     root.querySelector("svg.draw")?.remove();
     const step = currentGuide.steps[currentGuide.index];
@@ -26460,6 +26486,7 @@ if (!contentScope.glimpseletContentReady) {
     callout.append(note);
     const nav = document.createElement("nav");
     const back = document.createElement("button");
+    back.dataset.guideControl = "back";
     back.textContent = currentGuide.labels.back;
     back.disabled = currentGuide.index === 0;
     back.onclick = () => {
@@ -26472,6 +26499,7 @@ if (!contentScope.glimpseletContentReady) {
     counter.textContent = `${currentGuide.index + 1}/${currentGuide.steps.length}`;
     counter.style.cssText = "align-self:center;font-size:12px;color:#766957";
     const next = document.createElement("button");
+    next.dataset.guideControl = "next";
     next.textContent = currentGuide.index === currentGuide.steps.length - 1 ? currentGuide.labels.close : currentGuide.labels.next;
     next.onclick = () => {
       if (!currentGuide) return;
@@ -26505,12 +26533,18 @@ if (!contentScope.glimpseletContentReady) {
         ink.style.animation = "none";
         ink.style.strokeDashoffset = "0";
       }
-    if (changed) next.focus({ preventScroll: true });
+    if (changed || activeControl === "back" && back.disabled)
+      next.focus({ preventScroll: true });
+    else if (activeControl === "back") back.focus({ preventScroll: true });
+    else if (activeControl === "next") next.focus({ preventScroll: true });
   }, closeGuide = function() {
+    const returnFocus = currentGuide ? guideReturnFocus : void 0;
     currentGuide = void 0;
+    guideReturnFocus = void 0;
     renderedStep = "";
     overlayRoot?.querySelector(".guide")?.remove();
     overlayRoot?.querySelector("svg.draw")?.remove();
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
   }, closeSelectionPopover = function() {
     selectionPopover?.remove();
     selectionPopover = void 0;
@@ -26756,6 +26790,7 @@ if (!contentScope.glimpseletContentReady) {
   let overlayRoot;
   let selectionPopover;
   let currentGuide;
+  let guideReturnFocus;
   let lastUrl = location.href;
   let lastRevision = "";
   let lastSensitive = false;
@@ -26821,6 +26856,15 @@ if (!contentScope.glimpseletContentReady) {
   chrome.runtime.onMessage.addListener(
     (message2, _sender, respond) => {
       if (!message2 || typeof message2.type !== "string") return;
+      if ([
+        "glimpselet:guide",
+        "glimpselet:text-nodes",
+        "glimpselet:translate",
+        "glimpselet:restore"
+      ].includes(message2.type) && typeof message2.documentKey === "string" && (message2.documentKey !== pageDocumentKey() || message2.url !== location.href)) {
+        respond({ error: "tab_changed" });
+        return;
+      }
       if (message2.type === "glimpselet:tutorial-select" && location.pathname === "/assets/glimpselet-welcome-sample.html") {
         const paragraph = document.querySelector("main p, article p, p");
         if (paragraph) {
@@ -26849,6 +26893,16 @@ if (!contentScope.glimpseletContentReady) {
       }
       if (message2.type === "glimpselet:context") {
         respond(buildPageContext());
+        return;
+      }
+      if (message2.type === "glimpselet:identity") {
+        respond({
+          documentKey: pageDocumentKey(),
+          url: location.href,
+          translated: [...originals.values()].some(
+            (entry) => entry.node.isConnected && entry.lastWritten !== void 0 && entry.node.nodeValue === entry.lastWritten && restorableTextNode(entry.node)
+          )
+        });
         return;
       }
       if (message2.type === "glimpselet:labels" && message2.labels && typeof message2.labels === "object") {
@@ -26886,6 +26940,10 @@ if (!contentScope.glimpseletContentReady) {
         );
         const valid = incoming.filter((step) => guidePoint(step.elementId));
         if (valid.length) {
+          if (!currentGuide) {
+            const active = document.activeElement;
+            guideReturnFocus = active && active !== document.body && !overlayHost?.contains(active) ? active : void 0;
+          }
           const guideLabels = message2.labels || {};
           currentGuide = {
             steps: valid,
@@ -26904,6 +26962,10 @@ if (!contentScope.glimpseletContentReady) {
         return;
       }
       if (message2.type === "glimpselet:text-nodes") {
+        if (hasSensitiveContent(document, true)) {
+          respond({ error: "password_page" });
+          return;
+        }
         const nodes = [];
         const cursor = Math.max(0, Math.floor(Number(message2.cursor) || 0));
         const walker = document.createTreeWalker(
@@ -26948,28 +27010,50 @@ if (!contentScope.glimpseletContentReady) {
         return;
       }
       if (message2.type === "glimpselet:translate" && Array.isArray(message2.nodes)) {
+        if (hasSensitiveContent(document, true)) {
+          respond({ error: "password_page" });
+          return;
+        }
         let applied = 0;
+        let changed = 0;
+        let rejected = 0;
+        const skipped = { disconnected: 0, sourceChanged: 0, ineligible: 0 };
         for (const entry of message2.nodes.slice(0, 160)) {
-          if (!entry || typeof entry.id !== "string" || typeof entry.text !== "string")
+          if (!entry || typeof entry.id !== "string" || typeof entry.text !== "string") {
+            rejected++;
             continue;
+          }
           const original = originals.get(entry.id);
-          if (!original || !original.node.isConnected || !contextTextNode(original.node))
+          if (!original || entry.text.length > 12e3) {
+            rejected++;
             continue;
-          if (entry.text.length > 12e3) continue;
+          }
+          if (!original.node.isConnected) {
+            skipped.disconnected++;
+            continue;
+          }
+          if (!contextTextNode(original.node)) {
+            skipped.ineligible++;
+            continue;
+          }
           if (original.node.nodeValue !== (original.lastWritten ?? original.text)) {
             originals.delete(entry.id);
             nodeIds.delete(original.node);
+            skipped.sourceChanged++;
             continue;
           }
-          original.node.nodeValue = entry.text;
-          original.lastWritten = entry.text;
-          original.node.parentElement?.setAttribute(
-            "data-glimpselet-translated",
-            "true"
-          );
+          if (original.node.nodeValue !== entry.text) {
+            original.node.nodeValue = entry.text;
+            original.lastWritten = entry.text;
+            changed++;
+            original.node.parentElement?.setAttribute(
+              "data-glimpselet-translated",
+              "true"
+            );
+          }
           applied++;
         }
-        respond({ applied });
+        respond({ applied, changed, skipped, rejected });
         return;
       }
       if (message2.type === "glimpselet:restore") {
@@ -27036,6 +27120,14 @@ function readerUrlOriginPattern(parsed) {
   return `${parsed.protocol}//${parsed.host}/*`;
 }
 
+// extension/permission-handoff.ts
+async function prepareReaderPermissionHandoff(origins, contains, handoff) {
+  if (await contains({ origins })) return "granted";
+  const response = await handoff();
+  if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
+  return "prepared";
+}
+
 // extension/reader-locales.ts
 var readerLocales = {
   en: {
@@ -27052,7 +27144,7 @@ var readerLocales = {
     translate: "Translate selection",
     summary: "Summarize page",
     guide: "Guide me through this section",
-    openPanel: "Open floating panel",
+    openPanel: "Open chat",
     pdfPage: "PDF page",
     choose: "Choose a PDF file or open a URL.",
     loading: "Loading PDF...",
@@ -27066,7 +27158,7 @@ var readerLocales = {
     actionSent: "{action} sent to Glimpselet. Keep the floating panel open to receive it.",
     actionBusy: "Wait for the current answer, then try again.",
     actionError: "Glimpselet could not receive this action. Open the floating panel and try again.",
-    panelOpened: "Floating panel opened.",
+    panelOpened: "Chat opened. Choose Open floating panel there to keep it above other windows.",
     panelError: "Could not open the floating panel. Try again from the extension button.",
     summarySent: "Summary",
     questionSent: "Question",
@@ -27088,7 +27180,7 @@ var readerLocales = {
     translate: "\u7FFB\u8B6F\u9078\u53D6\u6587\u5B57",
     summary: "\u6458\u8981\u6B64\u9801",
     guide: "\u5F15\u5C0E\u6211\u95B1\u8B80\u6B64\u6BB5",
-    openPanel: "\u958B\u555F\u6D6E\u52D5\u9762\u677F",
+    openPanel: "\u958B\u555F\u804A\u5929",
     pdfPage: "PDF \u9801\u9762",
     choose: "\u9078\u64C7 PDF \u6A94\u6848\u6216\u958B\u555F\u7DB2\u5740\u3002",
     loading: "\u6B63\u5728\u8F09\u5165 PDF...",
@@ -27102,7 +27194,7 @@ var readerLocales = {
     actionSent: "\u5DF2\u5C07\u300C{action}\u300D\u50B3\u9001\u81F3 Glimpselet\u3002\u8ACB\u4FDD\u6301\u6D6E\u52D5\u9762\u677F\u958B\u555F\u4EE5\u63A5\u6536\u3002",
     actionBusy: "\u8ACB\u7B49\u76EE\u524D\u7684\u56DE\u7B54\u5B8C\u6210\uFF0C\u518D\u8A66\u4E00\u6B21\u3002",
     actionError: "Glimpselet \u7121\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8ACB\u958B\u555F\u6D6E\u52D5\u9762\u677F\u5F8C\u91CD\u8A66\u3002",
-    panelOpened: "\u5DF2\u958B\u555F\u6D6E\u52D5\u9762\u677F\u3002",
+    panelOpened: "\u5DF2\u958B\u555F\u804A\u5929\u3002\u8ACB\u5728\u804A\u5929\u4E2D\u9078\u64C7\u958B\u555F\u6D6E\u52D5\u9762\u677F\uFF0C\u8B93\u5B83\u4FDD\u6301\u5728\u5176\u4ED6\u8996\u7A97\u4E0A\u65B9\u3002",
     panelError: "\u7121\u6CD5\u958B\u555F\u6D6E\u52D5\u9762\u677F\u3002\u8ACB\u5F9E\u64F4\u5145\u529F\u80FD\u6309\u9215\u91CD\u8A66\u3002",
     summarySent: "\u6458\u8981",
     questionSent: "\u554F\u984C",
@@ -27124,7 +27216,7 @@ var readerLocales = {
     translate: "\u7FFB\u8BD1\u6240\u9009\u6587\u672C",
     summary: "\u603B\u7ED3\u6B64\u9875",
     guide: "\u5F15\u5BFC\u6211\u9605\u8BFB\u6B64\u6BB5",
-    openPanel: "\u6253\u5F00\u6D6E\u52A8\u9762\u677F",
+    openPanel: "\u6253\u5F00\u804A\u5929",
     pdfPage: "PDF \u9875\u9762",
     choose: "\u9009\u62E9 PDF \u6587\u4EF6\u6216\u6253\u5F00\u7F51\u5740\u3002",
     loading: "\u6B63\u5728\u52A0\u8F7D PDF...",
@@ -27138,7 +27230,7 @@ var readerLocales = {
     actionSent: '\u5DF2\u5C06"{action}"\u53D1\u9001\u5230 Glimpselet\u3002\u8BF7\u4FDD\u6301\u6D6E\u52A8\u9762\u677F\u6253\u5F00\u4EE5\u63A5\u6536\u3002',
     actionBusy: "\u8BF7\u7B49\u5F85\u5F53\u524D\u56DE\u7B54\u5B8C\u6210\u540E\u91CD\u8BD5\u3002",
     actionError: "Glimpselet \u65E0\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8BF7\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u540E\u91CD\u8BD5\u3002",
-    panelOpened: "\u5DF2\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u3002",
+    panelOpened: "\u5DF2\u6253\u5F00\u804A\u5929\u3002\u8BF7\u5728\u804A\u5929\u4E2D\u9009\u62E9\u6253\u5F00\u6D6E\u52A8\u9762\u677F\uFF0C\u8BA9\u5B83\u4FDD\u6301\u5728\u5176\u4ED6\u7A97\u53E3\u4E0A\u65B9\u3002",
     panelError: "\u65E0\u6CD5\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u3002\u8BF7\u901A\u8FC7\u6269\u5C55\u7A0B\u5E8F\u6309\u94AE\u91CD\u8BD5\u3002",
     summarySent: "\u603B\u7ED3",
     questionSent: "\u95EE\u9898",
@@ -27160,7 +27252,7 @@ var readerLocales = {
     translate: "\u9078\u629E\u7BC4\u56F2\u3092\u7FFB\u8A33",
     summary: "\u30DA\u30FC\u30B8\u3092\u8981\u7D04",
     guide: "\u3053\u306E\u7B87\u6240\u3092\u6848\u5185",
-    openPanel: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u304F",
+    openPanel: "\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304F",
     pdfPage: "PDF \u30DA\u30FC\u30B8",
     choose: "PDF \u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3076\u304B URL \u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
     loading: "PDF \u3092\u8AAD\u307F\u8FBC\u307F\u4E2D...",
@@ -27174,7 +27266,7 @@ var readerLocales = {
     actionSent: "Glimpselet \u306B\u300C{action}\u300D\u3092\u9001\u4FE1\u3057\u307E\u3057\u305F\u3002\u53D7\u4FE1\u3067\u304D\u308B\u3088\u3046\u30D1\u30CD\u30EB\u3092\u958B\u3044\u305F\u307E\u307E\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     actionBusy: "\u73FE\u5728\u306E\u56DE\u7B54\u304C\u5B8C\u4E86\u3057\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
     actionError: "Glimpselet \u304C\u64CD\u4F5C\u3092\u53D7\u4FE1\u3067\u304D\u307E\u305B\u3093\u3002\u30D1\u30CD\u30EB\u3092\u958B\u3044\u3066\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    panelOpened: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u304D\u307E\u3057\u305F\u3002",
+    panelOpened: "\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304D\u307E\u3057\u305F\u3002\u30C1\u30E3\u30C3\u30C8\u3067\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u304F\u3068\u3001\u4ED6\u306E\u30A6\u30A3\u30F3\u30C9\u30A6\u306E\u4E0A\u306B\u8868\u793A\u3067\u304D\u307E\u3059\u3002",
     panelError: "\u30D1\u30CD\u30EB\u3092\u958B\u3051\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u62E1\u5F35\u6A5F\u80FD\u30DC\u30BF\u30F3\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     summarySent: "\u8981\u7D04",
     questionSent: "\u8CEA\u554F",
@@ -27196,7 +27288,7 @@ var readerLocales = {
     translate: "\uC120\uD0DD\uD55C \uD14D\uC2A4\uD2B8 \uBC88\uC5ED",
     summary: "\uD398\uC774\uC9C0 \uC694\uC57D",
     guide: "\uC774 \uBD80\uBD84 \uC548\uB0B4\uBC1B\uAE30",
-    openPanel: "\uD50C\uB85C\uD305 \uD328\uB110 \uC5F4\uAE30",
+    openPanel: "\uCC44\uD305 \uC5F4\uAE30",
     pdfPage: "PDF \uD398\uC774\uC9C0",
     choose: "PDF \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uAC70\uB098 URL\uC744 \uC5EC\uC138\uC694.",
     loading: "PDF \uB85C\uB4DC \uC911...",
@@ -27210,7 +27302,7 @@ var readerLocales = {
     actionSent: "Glimpselet\uC5D0 {action}\uC744(\uB97C) \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4. \uBC1B\uC73C\uB824\uBA74 \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uC5B4 \uB450\uC138\uC694.",
     actionBusy: "\uD604\uC7AC \uB2F5\uBCC0\uC774 \uC644\uB8CC\uB418\uBA74 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
     actionError: "Glimpselet\uC774 \uC791\uC5C5\uC744 \uBC1B\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
-    panelOpened: "\uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uC5C8\uC2B5\uB2C8\uB2E4.",
+    panelOpened: "\uCC44\uD305\uC744 \uC5F4\uC5C8\uC2B5\uB2C8\uB2E4. \uCC44\uD305\uC5D0\uC11C \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uBA74 \uB2E4\uB978 \uCC3D \uC704\uC5D0 \uD45C\uC2DC\uB429\uB2C8\uB2E4.",
     panelError: "\uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8 \uBC84\uD2BC\uC5D0\uC11C \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
     summarySent: "\uC694\uC57D",
     questionSent: "\uC9C8\uBB38",
@@ -27232,7 +27324,7 @@ var readerLocales = {
     translate: "Traducir selecci\xF3n",
     summary: "Resumir p\xE1gina",
     guide: "Gu\xEDame por esta secci\xF3n",
-    openPanel: "Abrir panel flotante",
+    openPanel: "Abrir chat",
     pdfPage: "P\xE1gina del PDF",
     choose: "Elige un archivo PDF o abre una URL.",
     loading: "Cargando PDF...",
@@ -27246,7 +27338,7 @@ var readerLocales = {
     actionSent: "Se envi\xF3 {action} a Glimpselet. Mant\xE9n abierto el panel flotante para recibirlo.",
     actionBusy: "Espera a que termine la respuesta actual y vuelve a intentarlo.",
     actionError: "Glimpselet no pudo recibir la acci\xF3n. Abre el panel flotante e int\xE9ntalo de nuevo.",
-    panelOpened: "Panel flotante abierto.",
+    panelOpened: "Chat abierto. Elige Abrir panel flotante en el chat para mantenerlo sobre otras ventanas.",
     panelError: "No se pudo abrir el panel flotante. Int\xE9ntalo desde el bot\xF3n de la extensi\xF3n.",
     summarySent: "Resumen",
     questionSent: "Pregunta",
@@ -27268,7 +27360,7 @@ var readerLocales = {
     translate: "Traduire la s\xE9lection",
     summary: "R\xE9sumer la page",
     guide: "Me guider dans cette section",
-    openPanel: "Ouvrir le panneau flottant",
+    openPanel: "Ouvrir le chat",
     pdfPage: "Page PDF",
     choose: "Choisissez un PDF ou ouvrez une URL.",
     loading: "Chargement du PDF...",
@@ -27282,7 +27374,7 @@ var readerLocales = {
     actionSent: "{action} envoy\xE9 \xE0 Glimpselet. Gardez le panneau flottant ouvert pour le recevoir.",
     actionBusy: "Attendez la fin de la r\xE9ponse en cours, puis r\xE9essayez.",
     actionError: "Glimpselet n'a pas re\xE7u l'action. Ouvrez le panneau flottant et r\xE9essayez.",
-    panelOpened: "Panneau flottant ouvert.",
+    panelOpened: "Chat ouvert. Choisissez Ouvrir le panneau flottant dans le chat pour le garder au-dessus des autres fen\xEAtres.",
     panelError: "Impossible d'ouvrir le panneau flottant. R\xE9essayez depuis le bouton de l'extension.",
     summarySent: "R\xE9sum\xE9",
     questionSent: "Demande",
@@ -27304,7 +27396,7 @@ var readerLocales = {
     translate: "Auswahl \xFCbersetzen",
     summary: "Seite zusammenfassen",
     guide: "Durch diesen Abschnitt f\xFChren",
-    openPanel: "Schwebendes Panel \xF6ffnen",
+    openPanel: "Chat \xF6ffnen",
     pdfPage: "PDF-Seite",
     choose: "W\xE4hle eine PDF-Datei oder \xF6ffne eine URL.",
     loading: "PDF wird geladen...",
@@ -27318,7 +27410,7 @@ var readerLocales = {
     actionSent: "{action} an Glimpselet gesendet. Lass das schwebende Panel ge\xF6ffnet, damit es die Aktion empf\xE4ngt.",
     actionBusy: "Warte, bis die aktuelle Antwort fertig ist, und versuche es erneut.",
     actionError: "Glimpselet konnte die Aktion nicht empfangen. \xD6ffne das schwebende Panel und versuche es erneut.",
-    panelOpened: "Schwebendes Panel ge\xF6ffnet.",
+    panelOpened: "Chat ge\xF6ffnet. W\xE4hlen Sie dort Schwebendes Panel \xF6ffnen, damit es \xFCber anderen Fenstern bleibt.",
     panelError: "Das schwebende Panel konnte nicht ge\xF6ffnet werden. Versuche es \xFCber die Erweiterungsschaltfl\xE4che.",
     summarySent: "Zusammenfassung",
     questionSent: "Frage",
@@ -27340,7 +27432,7 @@ var readerLocales = {
     translate: "Traduzir sele\xE7\xE3o",
     summary: "Resumir p\xE1gina",
     guide: "Me guie por esta se\xE7\xE3o",
-    openPanel: "Abrir painel flutuante",
+    openPanel: "Abrir conversa",
     pdfPage: "P\xE1gina do PDF",
     choose: "Escolha um arquivo PDF ou abra uma URL.",
     loading: "Carregando PDF...",
@@ -27354,7 +27446,7 @@ var readerLocales = {
     actionSent: "{action} enviado ao Glimpselet. Mantenha o painel flutuante aberto para receb\xEA-lo.",
     actionBusy: "Aguarde a resposta atual terminar e tente novamente.",
     actionError: "O Glimpselet n\xE3o recebeu a a\xE7\xE3o. Abra o painel flutuante e tente novamente.",
-    panelOpened: "Painel flutuante aberto.",
+    panelOpened: "Conversa aberta. Escolha Abrir painel flutuante na conversa para mant\xEA-lo sobre outras janelas.",
     panelError: "N\xE3o foi poss\xEDvel abrir o painel flutuante. Tente pelo bot\xE3o da extens\xE3o.",
     summarySent: "Resumo",
     questionSent: "Pergunta",
@@ -27394,6 +27486,29 @@ var activeTextLayer;
 var resizeFrame = 0;
 var currentStatusKey = "choose";
 var currentStatusValues = {};
+var preparedPermissionOrigins = /* @__PURE__ */ new Set();
+var permissionPreparations = /* @__PURE__ */ new Map();
+function preparePermissionOrigin(parsed) {
+  const origin = readerUrlOriginPattern(parsed);
+  const current = permissionPreparations.get(origin);
+  if (current) return current;
+  const preparation = prepareReaderPermissionHandoff(
+    [origin],
+    (details) => chrome.permissions.contains(details),
+    () => chrome.runtime.sendMessage({
+      type: "glimpselet:reader-permission-handoff"
+    })
+  ).then((result) => {
+    preparedPermissionOrigins.add(origin);
+    return result === "granted";
+  }).catch(() => {
+    if (permissionPreparations.get(origin) === preparation)
+      permissionPreparations.delete(origin);
+    return false;
+  });
+  permissionPreparations.set(origin, preparation);
+  return preparation;
+}
 function message(key, values = {}) {
   return formatReaderText(t[key], values);
 }
@@ -27596,11 +27711,11 @@ async function ask(action) {
     return;
   }
   const selected = selectedText();
-  const text = selected || pageText;
+  const text = action === "summary" ? "" : selected || pageText;
   const questions = {
-    ask: selected ? "Help me understand this selected passage." : "Answer my question about this PDF page.",
+    ask: selected ? "Help me understand this selected passage." : "Explain what this PDF page says and its key points.",
     translate: selected ? "Translate this selected passage into my target language." : "Translate this PDF page into my target language.",
-    summary: selected ? "Summarize this selected passage." : "Summarize this PDF page.",
+    summary: "Summarize this PDF page.",
     guide: selected ? "Guide me through this selected passage, explaining its steps in order." : "Guide me through this PDF page, explaining its key steps in order."
   };
   try {
@@ -27642,6 +27757,12 @@ urlForm.addEventListener("submit", (event) => {
     setStatus("badUrl");
     return;
   }
+  const origin = readerUrlOriginPattern(parsed);
+  if (!preparedPermissionOrigins.has(origin)) {
+    setStatus("permissionRequired");
+    void preparePermissionOrigin(parsed);
+    return;
+  }
   let permissionRequest;
   try {
     permissionRequest = chrome.permissions.request({
@@ -27667,6 +27788,10 @@ urlForm.addEventListener("submit", (event) => {
   }).catch(() => {
     if (intent === sourceIntent) setStatus("permissionDenied");
   });
+});
+urlInput.addEventListener("input", () => {
+  const parsed = parseReaderPdfUrl(urlInput.value.trim());
+  if (parsed) void preparePermissionOrigin(parsed);
 });
 fileInput.addEventListener("change", () => {
   const intent = ++sourceIntent;
@@ -27721,7 +27846,7 @@ void initializeLocale().then(() => {
       setStatus("badUrl");
       return;
     }
-    void chrome.permissions.contains({ origins: [readerUrlOriginPattern(parsed)] }).then((granted) => {
+    void preparePermissionOrigin(parsed).then((granted) => {
       if (intent !== sourceIntent || urlInput.value.trim() !== initialUrl.trim())
         return;
       if (!granted) {

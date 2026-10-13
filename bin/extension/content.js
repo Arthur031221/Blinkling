@@ -85,6 +85,7 @@
         finished = true;
         view.removeEventListener("keydown", key, true);
         view.removeEventListener("resize", resize);
+        view.removeEventListener("scroll", render, true);
         view.removeEventListener("pagehide", cancelCrop);
         doc.removeEventListener("fullscreenchange", fullscreenChanged);
         host.remove();
@@ -111,7 +112,11 @@
           event.stopImmediatePropagation();
           finish(null);
         }
-        if (event.key === "Enter" && rect && !confirm.disabled) {
+        if (event.key === "Enter" && cancel === root.activeElement) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          finish(null);
+        } else if (event.key === "Enter" && rect && !confirm.disabled) {
           event.preventDefault();
           event.stopImmediatePropagation();
           finish(rect);
@@ -119,6 +124,7 @@
         if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
           event.preventDefault();
           const r = bounds(), step = event.shiftKey ? 10 : 1;
+          const creatingSelection = !rect;
           if (!rect)
             rect = {
               x: Math.round(r.width / 4),
@@ -142,6 +148,7 @@
               )
             );
             render();
+            if (creatingSelection) confirm.focus({ preventScroll: true });
             return;
           }
           rect = {
@@ -162,6 +169,7 @@
             )
           };
           render();
+          if (creatingSelection) confirm.focus({ preventScroll: true });
         }
       };
       const resize = () => {
@@ -231,8 +239,8 @@
       };
       cancel.onclick = cancelCrop;
       view.addEventListener("keydown", key, true);
-      cancel.focus();
       view.addEventListener("resize", resize);
+      view.addEventListener("scroll", render, true);
       view.addEventListener("pagehide", cancelCrop, { once: true });
       cancel.focus({ preventScroll: true });
     });
@@ -278,7 +286,8 @@
   }
 
   // extension/privacy.ts
-  function hasSensitiveContent(doc = document) {
+  function hasSensitiveContent(doc = document, manualTextOnly = false) {
+    doc ??= document;
     const roots = [doc];
     const seen = /* @__PURE__ */ new Set();
     let remaining = 5e4;
@@ -302,12 +311,18 @@
           try {
             const frame = element;
             const nested = frame.contentDocument ?? frame.getSVGDocument?.();
-            if (!nested || nested.readyState !== "complete") return true;
-            const source = frame.getAttribute("src")?.trim().toLowerCase();
-            if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank"))
+            if (!nested) {
+              if (manualTextOnly) continue;
               return true;
+            }
+            if (nested.readyState !== "complete" && !manualTextOnly) return true;
+            const source = frame.getAttribute("src")?.trim().toLowerCase();
+            if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank")) {
+              if (!manualTextOnly) return true;
+            }
             roots.push(nested);
           } catch {
+            if (manualTextOnly) continue;
             return true;
           }
         }
@@ -334,6 +349,15 @@
     "CANVAS"
   ]);
   var scope = globalThis;
+  var documentKeys = scope.glimpseletDocumentKeys ??= /* @__PURE__ */ new WeakMap();
+  function pageDocumentKey(doc = document) {
+    let key = documentKeys.get(doc);
+    if (!key) {
+      key = crypto.randomUUID();
+      documentKeys.set(doc, key);
+    }
+    return key;
+  }
   var registry = scope.glimpseletElementRegistry ??= {
     ids: /* @__PURE__ */ new WeakMap(),
     nextId: 1
@@ -428,6 +452,7 @@
       length += piece.length + 1;
     }
     return {
+      documentKey: pageDocumentKey(doc),
       url: doc.location.href,
       title: doc.title.slice(0, 500),
       text: chunks.join(" ").slice(0, 24e3),
@@ -586,6 +611,7 @@
     }, renderGuide = function() {
       if (!currentGuide) return;
       const root = ensureOverlay();
+      const activeControl = root.querySelector(".guide nav")?.contains(root.activeElement) ? root.activeElement.dataset.guideControl : void 0;
       root.querySelector(".guide")?.remove();
       root.querySelector("svg.draw")?.remove();
       const step = currentGuide.steps[currentGuide.index];
@@ -658,6 +684,7 @@
       callout.append(note);
       const nav = document.createElement("nav");
       const back = document.createElement("button");
+      back.dataset.guideControl = "back";
       back.textContent = currentGuide.labels.back;
       back.disabled = currentGuide.index === 0;
       back.onclick = () => {
@@ -670,6 +697,7 @@
       counter.textContent = `${currentGuide.index + 1}/${currentGuide.steps.length}`;
       counter.style.cssText = "align-self:center;font-size:12px;color:#766957";
       const next = document.createElement("button");
+      next.dataset.guideControl = "next";
       next.textContent = currentGuide.index === currentGuide.steps.length - 1 ? currentGuide.labels.close : currentGuide.labels.next;
       next.onclick = () => {
         if (!currentGuide) return;
@@ -703,12 +731,18 @@
           ink.style.animation = "none";
           ink.style.strokeDashoffset = "0";
         }
-      if (changed) next.focus({ preventScroll: true });
+      if (changed || activeControl === "back" && back.disabled)
+        next.focus({ preventScroll: true });
+      else if (activeControl === "back") back.focus({ preventScroll: true });
+      else if (activeControl === "next") next.focus({ preventScroll: true });
     }, closeGuide = function() {
+      const returnFocus = currentGuide ? guideReturnFocus : void 0;
       currentGuide = void 0;
+      guideReturnFocus = void 0;
       renderedStep = "";
       overlayRoot?.querySelector(".guide")?.remove();
       overlayRoot?.querySelector("svg.draw")?.remove();
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     }, closeSelectionPopover = function() {
       selectionPopover?.remove();
       selectionPopover = void 0;
@@ -954,6 +988,7 @@
     let overlayRoot;
     let selectionPopover;
     let currentGuide;
+    let guideReturnFocus;
     let lastUrl = location.href;
     let lastRevision = "";
     let lastSensitive = false;
@@ -1019,6 +1054,15 @@
     chrome.runtime.onMessage.addListener(
       (message, _sender, respond) => {
         if (!message || typeof message.type !== "string") return;
+        if ([
+          "glimpselet:guide",
+          "glimpselet:text-nodes",
+          "glimpselet:translate",
+          "glimpselet:restore"
+        ].includes(message.type) && typeof message.documentKey === "string" && (message.documentKey !== pageDocumentKey() || message.url !== location.href)) {
+          respond({ error: "tab_changed" });
+          return;
+        }
         if (message.type === "glimpselet:tutorial-select" && location.pathname === "/assets/glimpselet-welcome-sample.html") {
           const paragraph = document.querySelector("main p, article p, p");
           if (paragraph) {
@@ -1047,6 +1091,16 @@
         }
         if (message.type === "glimpselet:context") {
           respond(buildPageContext());
+          return;
+        }
+        if (message.type === "glimpselet:identity") {
+          respond({
+            documentKey: pageDocumentKey(),
+            url: location.href,
+            translated: [...originals.values()].some(
+              (entry) => entry.node.isConnected && entry.lastWritten !== void 0 && entry.node.nodeValue === entry.lastWritten && restorableTextNode(entry.node)
+            )
+          });
           return;
         }
         if (message.type === "glimpselet:labels" && message.labels && typeof message.labels === "object") {
@@ -1084,6 +1138,10 @@
           );
           const valid = incoming.filter((step) => guidePoint(step.elementId));
           if (valid.length) {
+            if (!currentGuide) {
+              const active = document.activeElement;
+              guideReturnFocus = active && active !== document.body && !overlayHost?.contains(active) ? active : void 0;
+            }
             const guideLabels = message.labels || {};
             currentGuide = {
               steps: valid,
@@ -1102,6 +1160,10 @@
           return;
         }
         if (message.type === "glimpselet:text-nodes") {
+          if (hasSensitiveContent(document, true)) {
+            respond({ error: "password_page" });
+            return;
+          }
           const nodes = [];
           const cursor = Math.max(0, Math.floor(Number(message.cursor) || 0));
           const walker = document.createTreeWalker(
@@ -1146,28 +1208,50 @@
           return;
         }
         if (message.type === "glimpselet:translate" && Array.isArray(message.nodes)) {
+          if (hasSensitiveContent(document, true)) {
+            respond({ error: "password_page" });
+            return;
+          }
           let applied = 0;
+          let changed = 0;
+          let rejected = 0;
+          const skipped = { disconnected: 0, sourceChanged: 0, ineligible: 0 };
           for (const entry of message.nodes.slice(0, 160)) {
-            if (!entry || typeof entry.id !== "string" || typeof entry.text !== "string")
+            if (!entry || typeof entry.id !== "string" || typeof entry.text !== "string") {
+              rejected++;
               continue;
+            }
             const original = originals.get(entry.id);
-            if (!original || !original.node.isConnected || !contextTextNode(original.node))
+            if (!original || entry.text.length > 12e3) {
+              rejected++;
               continue;
-            if (entry.text.length > 12e3) continue;
+            }
+            if (!original.node.isConnected) {
+              skipped.disconnected++;
+              continue;
+            }
+            if (!contextTextNode(original.node)) {
+              skipped.ineligible++;
+              continue;
+            }
             if (original.node.nodeValue !== (original.lastWritten ?? original.text)) {
               originals.delete(entry.id);
               nodeIds.delete(original.node);
+              skipped.sourceChanged++;
               continue;
             }
-            original.node.nodeValue = entry.text;
-            original.lastWritten = entry.text;
-            original.node.parentElement?.setAttribute(
-              "data-glimpselet-translated",
-              "true"
-            );
+            if (original.node.nodeValue !== entry.text) {
+              original.node.nodeValue = entry.text;
+              original.lastWritten = entry.text;
+              changed++;
+              original.node.parentElement?.setAttribute(
+                "data-glimpselet-translated",
+                "true"
+              );
+            }
             applied++;
           }
-          respond({ applied });
+          respond({ applied, changed, skipped, rejected });
           return;
         }
         if (message.type === "glimpselet:restore") {

@@ -7,7 +7,7 @@
   color: var(--ink);
   background: var(--paper);
   --ink: #28241f;
-  --muted: #827a70;
+  --muted: #71695f;
   --line: #e7dfd4;
   --paper: #fffdf9;
   --warm: #c96343;
@@ -22,7 +22,7 @@ html,
 body,
 #root {
   height: 100%;
-  min-width: 320px;
+  min-width: 0;
   margin: 0;
 }
 body {
@@ -48,7 +48,7 @@ select:focus-visible {
 }
 .app {
   height: 100%;
-  min-width: 320px;
+  min-width: 0;
   max-width: 720px;
   margin: auto;
   display: flex;
@@ -158,22 +158,22 @@ select:focus-visible {
   background: var(--soft);
 }
 .toolbar {
-  height: 34px;
+  min-height: 34px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 15px;
+  padding: 6px 15px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .status {
   display: flex;
   align-items: center;
   gap: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .dot {
   width: 7px;
@@ -425,6 +425,10 @@ select:focus-visible {
   border-radius: 12px;
   background: var(--paper);
 }
+.composer form:focus-within {
+  border-color: var(--warm);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warm) 24%, transparent);
+}
 .composer textarea {
   resize: none;
   border: 0;
@@ -437,6 +441,11 @@ select:focus-visible {
   line-height: 1.45;
   font-size: 12px;
   padding: 3px;
+}
+.composer textarea:focus-visible {
+  outline: 2px solid var(--warm);
+  outline-offset: 3px;
+  border-radius: 3px;
 }
 .composer form button {
   border: 0;
@@ -457,21 +466,15 @@ select:focus-visible {
   font-size: 9px;
   padding: 5px 2px 0;
 }
-.foot {
-  flex: none;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  border-top: 1px solid var(--line);
-  padding: 5px 12px;
-  color: var(--muted);
-  font-size: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.foot span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 .pill {
   display: flex;
