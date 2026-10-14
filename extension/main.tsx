@@ -2246,8 +2246,8 @@ function App() {
         const area = screenArea(floating);
         // PiP stays above Chrome's native picker. Temporarily tuck it at the
         // display edge so it cannot cover the picker choices or Share button.
-        // Start the move without awaiting: getDisplayMedia still needs this
-        // click's activation, and the saved geometry is restored below.
+        // Finish the move before handing focus to the opener. Otherwise a
+        // late native update can attach Chrome's picker to PiP instead.
         const pickerPlacement = placeBubbleWindow(
           floating,
           {
@@ -2258,9 +2258,9 @@ function App() {
         ).catch(() => {});
         let result: Awaited<ReturnType<typeof startScreenShare>>;
         try {
+          await pickerPlacement;
           result = await startScreenShare(activeTabId.current, floating);
         } finally {
-          await pickerPlacement;
           // Snapshot before the picker can move PiP, including a cancelled
           // first capture. Subsequent frame clearance then sees user bounds.
           await placeBubbleWindow(

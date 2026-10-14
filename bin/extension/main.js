@@ -17832,8 +17832,11 @@ function nativeBubbleClearance(floating, replacement) {
   let replacementWindow;
   const showReplacement = async () => {
     if (!replace || replacementWindow) return;
-    const foreground = (await chrome.windows.getAll()).find((w2) => w2.focused);
+    const foreground = (await chrome.windows.getAll()).find(
+      (w2) => w2.focused && w2.id !== original?.id
+    );
     replacementWindow = await replacement.open() || void 0;
+    let replacementId;
     if (replacementWindow) {
       const opener = await chrome.tabs.getCurrent();
       const native = (await chrome.windows.getAll({ populate: true })).find(
@@ -17841,6 +17844,7 @@ function nativeBubbleClearance(floating, replacement) {
       );
       if (native?.id === void 0)
         throw new Error("capture_bubble_obstructed");
+      replacementId = native.id;
       await chrome.windows.update(native.id, {
         left: original.left,
         top: original.top,
@@ -17848,8 +17852,21 @@ function nativeBubbleClearance(floating, replacement) {
         height: original.height
       });
     }
-    if (foreground?.id !== void 0)
+    if (foreground?.id !== void 0) {
       await chrome.windows.update(foreground.id, { focused: true });
+      if (replacementId === void 0) return;
+      const deadline = performance.now() + 2e3;
+      let stableSince = performance.now();
+      while (performance.now() - stableSince < 200) {
+        if (performance.now() >= deadline) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+        const current = (await chrome.windows.getAll()).find((w2) => w2.focused);
+        if (current?.id === foreground.id) continue;
+        if (current?.id !== replacementId) break;
+        await chrome.windows.update(foreground.id, { focused: true });
+        stableSince = performance.now();
+      }
+    }
   };
   const waitForState = async (state) => {
     const deadline = performance.now() + 2e3;
@@ -21368,9 +21385,9 @@ ${t.selectedPassage}: ${selected}` : ""}`;
         });
         let result;
         try {
+          await pickerPlacement;
           result = await startScreenShare(activeTabId.current, floating);
         } finally {
-          await pickerPlacement;
           await placeBubbleWindow(
             floating,
             geometry,

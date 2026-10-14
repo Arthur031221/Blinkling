@@ -4142,6 +4142,32 @@ describe("v2.1 bubble states", () => {
     ).toBe("false");
   });
 
+  it("finishes native bubble placement before handing focus to the screen picker", async () => {
+    await start();
+    const { floating } = await startSharing("browser");
+    await click(en.autoExplain, floating.document);
+    mocks.startShare.mockClear();
+    const native = {
+      id: 8,
+      alwaysOnTop: true,
+      tabs: [{ url: "about:blank", openerTabId: 2 }],
+    } as chrome.windows.Window;
+    Object.assign(chrome.windows, { getAll: vi.fn(async () => [native]) });
+    let finishPlacement!: () => void;
+    vi.mocked(chrome.windows.update).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishPlacement = () => resolve(native);
+        }),
+    );
+    await click(en.wholeScreen, floating.document);
+    expect(finishPlacement).toBeTypeOf("function");
+    expect(mocks.startShare).not.toHaveBeenCalled();
+    await act(async () => finishPlacement());
+    await flush();
+    expect(mocks.startShare).toHaveBeenCalledOnce();
+  });
+
   it("restores the first capture's pre-picker bubble geometry on success and cancellation", async () => {
     await start();
     const { floating, stream } = await startSharing("browser");

@@ -267,11 +267,68 @@ describe("native monitor clearance", () => {
       native,
       { id: 4, focused: true } as chrome.windows.Window,
     ]);
-    await hook.restore();
+    vi.mocked(chrome.windows.update).mockImplementation(async (id, change) => {
+      if (id === 4) {
+        native.focused = false;
+        return { id: 4, focused: true } as chrome.windows.Window;
+      }
+      native = { ...native, ...change };
+      return native;
+    });
+    const restore = hook.restore();
+    await vi.advanceTimersByTimeAsync(240);
+    await restore;
     expect(chrome.windows.update).toHaveBeenLastCalledWith(4, {
       focused: true,
     });
   });
+
+  it.each(["replacement", "another Chrome window", "another application"])(
+    "settles delayed replacement focus while respecting %s focus",
+    async (destination) => {
+      vi.stubGlobal("navigator", { userActivation: { isActive: true } });
+      forbidMinimize();
+      const fallback = replacement();
+      const hook = nativeBubbleClearance(floating, fallback);
+      await hook.hide();
+      native.focused = false;
+      const foreground = { id: 4, focused: true } as chrome.windows.Window;
+      const another = { id: 5, focused: false } as chrome.windows.Window;
+      vi.mocked(chrome.windows.getAll).mockImplementation(async () => [
+        native,
+        foreground,
+        another,
+      ]);
+      vi.mocked(chrome.windows.update).mockImplementation(
+        async (id, change) => {
+          if (id === native.id) {
+            native = { ...native, ...change };
+            return native;
+          }
+          foreground.focused = true;
+          native.focused = false;
+          another.focused = false;
+          return foreground;
+        },
+      );
+      setTimeout(() => {
+        foreground.focused = false;
+        native.focused = destination === "replacement";
+        another.focused = destination === "another Chrome window";
+      }, 120);
+      const restore = hook.restore();
+      await vi.advanceTimersByTimeAsync(400);
+      await restore;
+      expect(foreground.focused).toBe(destination === "replacement");
+      expect(native.focused).toBe(false);
+      expect(another.focused).toBe(destination === "another Chrome window");
+      expect(
+        vi
+          .mocked(chrome.windows.update)
+          .mock.calls.filter(([id, change]) => id === 4 && change.focused),
+      ).toHaveLength(destination === "replacement" ? 2 : 1);
+    },
+  );
 
   it("does not recreate a bubble closed while capture was pending", async () => {
     const hook = nativeBubbleClearance(floating);

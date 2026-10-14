@@ -23,8 +23,11 @@ export function nativeBubbleClearance(
   let replacementWindow: Window | undefined;
   const showReplacement = async () => {
     if (!replace || replacementWindow) return;
-    const foreground = (await chrome.windows.getAll()).find((w) => w.focused);
+    const foreground = (await chrome.windows.getAll()).find(
+      (w) => w.focused && w.id !== original?.id,
+    );
     replacementWindow = (await replacement!.open()) || undefined;
+    let replacementId: number | undefined;
     // Escape does not grant activation. On Chrome versions that forbid PiP
     // minimization the preserved opener surface is the recovery when a fresh
     // gesture is needed. Do not obscure selection by reopening ahead of time.
@@ -37,6 +40,7 @@ export function nativeBubbleClearance(
       );
       if (native?.id === undefined)
         throw new Error("capture_bubble_obstructed");
+      replacementId = native.id;
       await chrome.windows.update(native.id, {
         left: original!.left,
         top: original!.top,
@@ -44,8 +48,24 @@ export function nativeBubbleClearance(
         height: original!.height,
       });
     }
-    if (foreground?.id !== undefined)
+    if (foreground?.id !== undefined) {
       await chrome.windows.update(foreground.id, { focused: true });
+      if (replacementId === undefined) return;
+      // PiP creation can activate its native widget after requestWindow and
+      // windows.update resolve. Undo only that delayed activation, preserving
+      // a later user choice of another Chrome window or another application.
+      const deadline = performance.now() + 2000;
+      let stableSince = performance.now();
+      while (performance.now() - stableSince < 200) {
+        if (performance.now() >= deadline) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+        const current = (await chrome.windows.getAll()).find((w) => w.focused);
+        if (current?.id === foreground.id) continue;
+        if (current?.id !== replacementId) break;
+        await chrome.windows.update(foreground.id, { focused: true });
+        stableSince = performance.now();
+      }
+    }
   };
   const waitForState = async (state: chrome.windows.Window["state"]) => {
     const deadline = performance.now() + 2000;
