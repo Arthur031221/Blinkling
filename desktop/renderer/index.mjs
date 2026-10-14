@@ -163,19 +163,12 @@ if (surface === "composer") {
     const revealed = state.mode !== "peek",
       target =
         shell.drag ?? (revealed ? shell.position.reveal : shell.position.peek);
-    const area = shell.position.area,
-      rows = area.height < 610 ? 4 : 8;
-    const adjusted = { ...target };
-    if (revealed && !shell.drag)
-      adjusted.y = Math.max(
-        target.y,
-        Math.min(area.y + area.height - 18, area.y + rows * 51 + 156),
-      );
+    const area = shell.position.area;
     if (!current)
       current = { x: target.x, y: target.y, vx: 0, vy: 0, alpha: 0.4, va: 0 };
     for (const [key, vkey, t] of [
-      ["x", "vx", adjusted.x],
-      ["y", "vy", adjusted.y],
+      ["x", "vx", target.x],
+      ["y", "vy", target.y],
       ["alpha", "va", revealed ? 1 : 0.4],
     ]) {
       const q =

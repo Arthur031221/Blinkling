@@ -6,6 +6,7 @@ import {
   reconcileDisplay,
   cardBounds,
 } from "./placement.mjs";
+import { menuLayout, menuTransform } from "../menu/layout.mjs";
 const display = {
   id: 1,
   bounds: { x: -1280, y: 0, width: 1280, height: 800 },
@@ -55,3 +56,83 @@ for (const scale of [1, 1.5, 2])
     assert.ok(b.x + b.width <= display.workArea.x + display.workArea.width);
     assert.ok(b.y + b.height <= display.workArea.y + display.workArea.height);
   });
+
+const corners = [
+  ["top-left", (a) => ({ x: a.x, y: a.y })],
+  ["top-right", (a) => ({ x: a.x + a.width, y: a.y })],
+  ["bottom-left", (a) => ({ x: a.x, y: a.y + a.height })],
+  ["bottom-right", (a) => ({ x: a.x + a.width, y: a.y + a.height })],
+];
+const inside = (r, a) =>
+  r.x >= a.x - 0.5 &&
+  r.y >= a.y - 0.5 &&
+  r.x + r.width <= a.x + a.width + 0.5 &&
+  r.y + r.height <= a.y + a.height + 0.5;
+for (const scale of [1, 1.5])
+  for (const [name, corner] of corners)
+    test(`${name} rest position at ${scale * 100}%: hover keeps x, card and menu stay on screen`, () => {
+      const physical = { width: 1920, height: 1080 };
+      const bounds = {
+        x: 0,
+        y: 0,
+        width: physical.width / scale,
+        height: physical.height / scale,
+      };
+      const d = {
+        id: 1,
+        bounds,
+        workArea: { ...bounds, y: 28, height: bounds.height - 28 },
+        scaleFactor: scale,
+      };
+      const saved = snapPosition(d, corner(d.workArea));
+      const p = resolvePosition(d, saved);
+      const area = p.area;
+      // The character is 148 wide and hangs 142 above its anchor.
+      const body = (at) => ({
+        x: at.x - 74,
+        y: at.y - 142,
+        width: 148,
+        height: 152,
+      });
+      if (p.edge === "top" || p.edge === "bottom")
+        assert.equal(
+          p.reveal.x,
+          p.peek.x,
+          "hover must not move the character along the edge",
+        );
+      assert.ok(p.reveal.y >= area.y && p.reveal.y <= area.y + area.height);
+      if (p.edge === "left" || p.edge === "right")
+        assert.ok(
+          body(p.reveal).y >= area.y,
+          "revealed body stays below the top",
+        );
+      if (p.edge === "top" || p.edge === "bottom")
+        assert.ok(inside({ ...body(p.reveal), y: area.y }, area));
+      assert.ok(inside(cardBounds(d, p), d.workArea), "card");
+      for (const rect of menuLayout(area, p.reveal)) {
+        const shown = menuTransform(area, p.reveal, rect, 1);
+        const w = rect.width * shown.scale,
+          h = rect.height * shown.scale;
+        const cx = rect.x + shown.x + rect.width / 2,
+          cy = rect.y + shown.y + rect.height / 2;
+        assert.ok(
+          inside({ x: cx - w / 2, y: cy - h / 2, width: w, height: h }, area),
+          "menu pill",
+        );
+      }
+    });
+test("reveal never moves a top or bottom resting character sideways", () => {
+  for (const edge of ["top", "bottom"])
+    for (const ratio of [0, 0.02, 0.5, 0.98, 1]) {
+      const p = resolvePosition(display, { edge, ratio });
+      assert.equal(p.reveal.x, p.peek.x, `${edge} ${ratio}`);
+    }
+});
+test("revealed anchor leaves room for the whole fan above it", () => {
+  const p = resolvePosition(display, { edge: "top", ratio: 0.5 });
+  const rows = p.area.height < 610 ? 4 : 8;
+  assert.ok(
+    p.reveal.y >=
+      Math.min(p.area.y + p.area.height - 18, p.area.y + rows * 51 + 156),
+  );
+});
