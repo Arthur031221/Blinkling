@@ -21,7 +21,7 @@ export function contentMoved(
   height,
   display,
   regions = [],
-  { screen = 0.045, region = 0.08 } = {},
+  { screen = 0.045, region = 0.08, coverage = 0 } = {},
 ) {
   function fraction(rect) {
     const { left, right, top, bottom } = sampleBounds(
@@ -46,7 +46,9 @@ export function contentMoved(
         )
           changed++;
       }
-    return total ? changed / total : 0;
+    // Too few unmasked cells left to say anything about this region.
+    const cells = (right - left) * (bottom - top);
+    return total && total >= cells * coverage ? changed / total : 0;
   }
   return (
     fraction({

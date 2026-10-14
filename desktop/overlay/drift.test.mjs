@@ -75,6 +75,29 @@ test("a window that moved before the overlay appeared is caught on the first liv
   });
   assert.equal(d.observe(live(moved), masksFor(80), rects), "content-changed");
 });
+test("a region that is almost entirely masked cannot dismiss the guide on the first live frame", () => {
+  // A small target covered by its own label and arrow: only a one-cell edge is
+  // left unmasked and it holds the overlay's soft shadow, not page content.
+  const small = { x: 300, y: 200, width: 160, height: 54 };
+  const covered = [
+    { x: 296, y: 196, width: 170, height: 48 },
+    ...outlineMasks,
+    bubble(80),
+  ];
+  const d = new DriftDetector({ display, reference });
+  const edge = sample(
+    withBubble(
+      withBubble(withOverlay(screen, rects), {
+        x: 300,
+        y: 250,
+        width: 160,
+        height: 9,
+      }),
+      bubble(80),
+    ),
+  );
+  assert.equal(d.observe(edge, covered, [small, ...rects]), null);
+});
 test("selecting another step adopts the new overlay drawing instead of reporting it", () => {
   const d = new DriftDetector({ display, reference });
   d.observe(live(screen, 80, rects), masksFor(80), rects);
@@ -96,6 +119,44 @@ test("selecting another step adopts the new overlay drawing instead of reporting
     d.observe(live(moved, 100, [rects[2]]), masksFor(100), rects),
     "content-changed",
   );
+});
+test("a window that moves in the same moment a step is selected is still caught", () => {
+  const d = new DriftDetector({ display, reference });
+  assert.equal(d.observe(live(), masksFor(80), rects), null);
+  d.rebaseline();
+  const moved = desktop({
+    window: { x: 330, y: 160, width: 900, height: 600 },
+  });
+  assert.equal(
+    d.observe(live(moved, 80, [rects[2]]), masksFor(80), rects),
+    "content-changed",
+  );
+});
+test("a target that moved before the first live frame is caught even when its outline ring masks half of it", () => {
+  // The geometry of the Electron e2e: 1280x800, one 160x100 target.
+  const wide = { id: "1", bounds: { x: 0, y: 0, width: 1280, height: 800 } };
+  const target = { x: 240, y: 160, width: 160, height: 100 };
+  const paint = (left) => {
+    const b = Buffer.alloc(160 * 90 * 4, 255);
+    for (let y = 0; y < 90; y++)
+      for (let x = 0; x < 160; x++) {
+        const inside =
+          x >= Math.floor(left / 8) &&
+          x < Math.floor(left / 8) + 20 &&
+          y >= 18 &&
+          y < 29;
+        b.set(
+          inside ? [60, 60, 230, 255] : [128, 64, 32, 255],
+          (y * 160 + x) * 4,
+        );
+      }
+    return b;
+  };
+  const ring = [{ x: 236, y: 156, width: 168, height: 108, borderOnly: true }];
+  const d = new DriftDetector({ display: wide, reference: paint(240) });
+  assert.equal(d.observe(paint(420), ring, [target]), "content-changed");
+  const still = new DriftDetector({ display: wide, reference: paint(240) });
+  assert.equal(still.observe(paint(240), ring, [target]), null);
 });
 const recorded = JSON.parse(
   readFileSync(new URL("./recorded/static-guide.json", import.meta.url)),

@@ -8,7 +8,9 @@ export const CAPTURE_FAILURE_LIMIT = 3;
 // overlay draws (arrow heads, soft outline edges, label shadows reach beyond the
 // published masks), so its per-region check only reacts to a region that is
 // mostly different, i.e. a window that moved away before the guide appeared.
-const FIRST_FRAME = { screen: 0.045, region: 0.4 };
+// A region that its own label, arrow and Blink's bubbles mostly cover has too
+// few clean cells left to judge, so it is skipped (`coverage`).
+const FIRST_FRAME = { screen: 0.045, region: 0.4, coverage: 0.3 };
 
 /** Pure content-drift test for a visible guide.
  *
@@ -25,9 +27,14 @@ export class DriftDetector {
     Object.assign(this, { display, reference });
     this.baseline = null;
     this.baselineMasks = [];
+    this.previous = null;
   }
-  /** The overlay drawing changed (a step was selected): adopt the next frame. */
+  /** The overlay drawing changed (a step was selected): adopt the next frame,
+   * after checking it once against the last frame of the old drawing so a
+   * window that moved in that moment is still noticed. */
   rebaseline() {
+    if (this.baseline)
+      this.previous = { frame: this.baseline, masks: this.baselineMasks };
     this.baseline = null;
     this.baselineMasks = [];
   }
@@ -39,14 +46,16 @@ export class DriftDetector {
       w = SAMPLE_WIDTH,
       h = SAMPLE_HEIGHT;
     if (!this.baseline) {
-      const first = !this.checked;
-      this.checked = true;
+      // Both drawings are masked; the lenient limits only react to a region
+      // that is mostly different.
+      const before = this.previous ?? { frame: this.reference, masks: [] };
+      const all = [...before.masks, ...masks];
+      this.previous = null;
       this.baseline = Buffer.from(frame);
       this.baselineMasks = masks;
-      if (!first) return null;
       return contentMoved(
-        maskBitmap(this.reference, w, h, display, masks),
-        maskBitmap(frame, w, h, display, masks),
+        maskBitmap(before.frame, w, h, display, all),
+        maskBitmap(frame, w, h, display, all),
         w,
         h,
         display,
