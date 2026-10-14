@@ -501,9 +501,14 @@ a:focus-visible {
     var(--gl-border) calc(100% - var(--gl-age) * 70%),
     transparent
   );
-  box-shadow: 0 calc(2px * (1 - var(--gl-age)))
-    calc(8px * (1 - var(--gl-age)))
+  box-shadow: 0 calc(2px * (1 - var(--gl-age))) calc(8px * (1 - var(--gl-age)))
     color-mix(in srgb, #000 calc(7% * (1 - var(--gl-age))), transparent);
+}
+/* The bubble itself is the scroll-free clip; a nested scrollbar inside a capped
+   bubble would be the native widget the deck already hides. */
+.gl-answer-bubble .gl-code pre {
+  max-height: none;
+  overflow: hidden;
 }
 .gl-answer-bubble[data-clipped="true"] {
   cursor: pointer;

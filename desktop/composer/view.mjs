@@ -117,7 +117,15 @@ export function mountComposer(
   file.accept =
     "image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,.md,.txt";
   file.hidden = true;
-  toolbar.append(add, file, model.element, separator, effort.element, send, stop);
+  toolbar.append(
+    add,
+    file,
+    model.element,
+    separator,
+    effort.element,
+    send,
+    stop,
+  );
   form.append(attachments, text, toolbar);
   const error = node("div", "gl-composer-error");
   error.setAttribute("role", "alert");

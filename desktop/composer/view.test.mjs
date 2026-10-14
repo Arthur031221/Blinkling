@@ -9,12 +9,20 @@ import { mountComposer } from "./view.mjs";
 const css = readFileSync(new URL("./style.css", import.meta.url), "utf8");
 const blocks = (selector) =>
   [...css.matchAll(/(?:^|\n)([^{}\n]+)\{([^}]*)\}/g)]
-    .filter((m) => m[1].split(",").map((s) => s.trim()).includes(selector))
+    .filter((m) =>
+      m[1]
+        .split(",")
+        .map((s) => s.trim())
+        .includes(selector),
+    )
     .map((m) => m[2]);
-const long = "非常長的檔案名稱-screenshot-with-a-very-long-name-スクリーンショット.png";
+const long =
+  "非常長的檔案名稱-screenshot-with-a-very-long-name-スクリーンショット.png";
 
 function setup({ selection = { model: "haiku", effort: "low" } } = {}) {
-  const dom = new JSDOM("<body><div id='host'></div></body>", { pretendToBeVisual: true });
+  const dom = new JSDOM("<body><div id='host'></div></body>", {
+    pretendToBeVisual: true,
+  });
   const { window } = dom;
   const previous = globalThis.AbortController;
   globalThis.AbortController = window.AbortController;
@@ -36,10 +44,13 @@ function setup({ selection = { model: "haiku", effort: "low" } } = {}) {
   const q = (s) => host.querySelector(s);
   const picker = (label) =>
     [...host.querySelectorAll(".gl-picker")].find(
-      (p) => p.querySelector(".gl-picker-menu").getAttribute("aria-label") === label,
+      (p) =>
+        p.querySelector(".gl-picker-menu").getAttribute("aria-label") === label,
     );
   const options = (label) =>
-    [...picker(label).querySelectorAll(".gl-picker-option")].map((o) => o.dataset.value);
+    [...picker(label).querySelectorAll(".gl-picker-option")].map(
+      (o) => o.dataset.value,
+    );
   return {
     window,
     host,
@@ -51,7 +62,13 @@ function setup({ selection = { model: "haiku", effort: "low" } } = {}) {
     emit: (e) => listener(e),
     trigger: (label) => picker(label).querySelector(".gl-picker-trigger"),
     key: (el, key) =>
-      el.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })),
+      el.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
     dispose() {
       view.dispose();
       composer.dispose();
@@ -96,11 +113,25 @@ test("applied selections never add duplicates, however many answers arrive", () 
       t.emit({ type: "selection", applied: { model, effort } });
   assert.deepEqual(t.options("模型"), ["opus", "sonnet", "haiku"]);
   assert.deepEqual(t.options("思考程度"), ["low", "medium", "high"]);
-  t.emit({ type: "selection", applied: { model: "claude-opus-5-5-20260101", effort: "high" } });
+  t.emit({
+    type: "selection",
+    applied: { model: "claude-opus-5-5-20260101", effort: "high" },
+  });
   assert.equal(t.trigger("模型").textContent, "Opus 5.5");
-  t.emit({ type: "selection", applied: { model: "mystery-model", effort: "xhigh" } });
-  t.emit({ type: "selection", applied: { model: "mystery-model", effort: "xhigh" } });
-  assert.deepEqual(t.options("模型"), ["opus", "sonnet", "haiku", "mystery-model"]);
+  t.emit({
+    type: "selection",
+    applied: { model: "mystery-model", effort: "xhigh" },
+  });
+  t.emit({
+    type: "selection",
+    applied: { model: "mystery-model", effort: "xhigh" },
+  });
+  assert.deepEqual(t.options("模型"), [
+    "opus",
+    "sonnet",
+    "haiku",
+    "mystery-model",
+  ]);
   assert.equal(t.options("思考程度").filter((v) => v === "xhigh").length, 1);
   t.dispose();
 });
@@ -126,14 +157,22 @@ test("a picker is keyboard operable and Escape or an outside press only dismisse
     menu = t.picker("思考程度").querySelector(".gl-picker-menu");
   t.key(trigger, "ArrowDown");
   assert.equal(menu.hidden, false);
-  assert.equal(t.window.document.activeElement.dataset.value, "low", "focus starts on the current row");
+  assert.equal(
+    t.window.document.activeElement.dataset.value,
+    "low",
+    "focus starts on the current row",
+  );
   t.key(menu, "ArrowDown");
   t.key(menu, "ArrowDown");
   t.key(menu, "Enter");
   await new Promise((r) => setTimeout(r));
   assert.deepEqual(t.selected, [{ model: "haiku", effort: "high" }]);
   assert.equal(menu.hidden, true);
-  assert.equal(t.window.document.activeElement, trigger, "focus returns to the trigger");
+  assert.equal(
+    t.window.document.activeElement,
+    trigger,
+    "focus returns to the trigger",
+  );
 
   trigger.click();
   let escaped = 0;
@@ -144,7 +183,9 @@ test("a picker is keyboard operable and Escape or an outside press only dismisse
   assert.equal(t.selected.length, 1);
 
   trigger.click();
-  t.window.document.body.dispatchEvent(new t.window.Event("pointerdown", { bubbles: true }));
+  t.window.document.body.dispatchEvent(
+    new t.window.Event("pointerdown", { bubbles: true }),
+  );
   assert.equal(menu.hidden, true);
   t.dispose();
 });
@@ -156,7 +197,11 @@ test("a notice sits in the card's flow above the form instead of over the toolba
   const order = [...t.q(".gl-chat-card").children];
   assert.ok(order.indexOf(notice) < order.indexOf(t.q(".gl-composer")));
   for (const body of blocks(".gl-notice"))
-    assert.doesNotMatch(body, /position:\s*absolute/, "an absolute notice covers the toolbar");
+    assert.doesNotMatch(
+      body,
+      /position:\s*absolute/,
+      "an absolute notice covers the toolbar",
+    );
   t.dispose();
 });
 
@@ -164,7 +209,12 @@ test("attachment chips ellipsize long names, keep the full name, and leave no ga
   const t = setup();
   const strip = t.q(".gl-attachments");
   assert.equal(strip.hidden, true, "no strip, so no gap above the text box");
-  t.composer.attach({ id: "a", name: long, mediaType: "image/png", data: "aGVsbG8=" });
+  t.composer.attach({
+    id: "a",
+    name: long,
+    mediaType: "image/png",
+    data: "aGVsbG8=",
+  });
   assert.equal(strip.hidden, false);
   const chip = strip.querySelector(".gl-attachment-chip");
   assert.equal(chip.title, long);

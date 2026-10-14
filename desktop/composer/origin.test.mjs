@@ -22,10 +22,21 @@ const originFor = (edge, ratio = 0.5, d = display()) => {
 };
 
 test("the card grows from Blink's side on all four edges", () => {
-  assert.equal(originFor("left").x, 0, "Blink is left of a card on the left edge");
+  assert.equal(
+    originFor("left").x,
+    0,
+    "Blink is left of a card on the left edge",
+  );
   assert.equal(originFor("right").x, 100);
-  assert.equal(originFor("bottom").y, 100, "bottom edge: Blink is at the card's foot");
-  assert.ok(originFor("top").y < 50, "top edge: Blink is above the card's middle");
+  assert.equal(
+    originFor("bottom").y,
+    100,
+    "bottom edge: Blink is at the card's foot",
+  );
+  assert.ok(
+    originFor("top").y < 50,
+    "top edge: Blink is above the card's middle",
+  );
   assert.equal(originFor("top").x, 100);
   assert.equal(originFor("bottom").x, 100);
   assert.equal(originFor("left", 0.9).y, 100);
@@ -38,7 +49,10 @@ test("the origin never leaves the card and survives other displays and zoom", ()
         const { x, y } = originFor(edge, ratio, display(scale));
         assert.ok(x >= 0 && x <= 100 && y >= 0 && y <= 100, `${edge} ${ratio}`);
       }
-  assert.equal(growOrigin({ x: 0, y: 0, width: 0, height: 0 }, { x: 5, y: 5 }), "100% 100%");
+  assert.equal(
+    growOrigin({ x: 0, y: 0, width: 0, height: 0 }, { x: 5, y: 5 }),
+    "100% 100%",
+  );
 });
 
 test("the card reads the origin from a variable instead of a fixed corner", () => {

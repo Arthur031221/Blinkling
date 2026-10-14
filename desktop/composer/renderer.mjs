@@ -10,11 +10,18 @@ let shellState;
 function placeOrigin() {
   const card = document.querySelector(".gl-chat-card");
   if (!card || !shellState?.position) return;
-  const r = card.getBoundingClientRect();
+  // Layout offsets, not getBoundingClientRect: the grow animation is a
+  // transform, and measuring through it would shift the origin it is built on.
+  let x = screenX,
+    y = screenY;
+  for (let n = card; n; n = n.offsetParent) {
+    x += n.offsetLeft;
+    y += n.offsetTop;
+  }
   document.documentElement.style.setProperty(
     "--gl-origin",
     growOrigin(
-      { x: screenX + r.left, y: screenY + r.top, width: r.width, height: r.height },
+      { x, y, width: card.offsetWidth, height: card.offsetHeight },
       anchorOf(shellState),
     ),
   );
@@ -25,10 +32,13 @@ const unShell = api.onShell?.((event) => {
   shellState = event.state;
   placeOrigin();
 });
-api.shell?.({ type: "state" }).then((state) => {
-  shellState ??= state;
-  placeOrigin();
-}, () => {});
+api.shell?.({ type: "state" }).then(
+  (state) => {
+    shellState ??= state;
+    placeOrigin();
+  },
+  () => {},
+);
 export const conversation = mountConversation({
   session: sessionFromDesktopAPI(api),
   cardHost:
@@ -48,8 +58,8 @@ const unCapture = api.onCapture?.((capture) => conversation.capture(capture));
 const unSurface = api.onSurface?.((event) => {
   if (event.type === "hover") conversation.hover(event.value);
   if (event.type === "open") {
-    placeOrigin();
     conversation.card?.open(event.messageId);
+    placeOrigin();
   }
   if (event.type === "view" && conversation.card) {
     notice.hidden = false;
