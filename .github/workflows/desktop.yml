@@ -1,0 +1,41 @@
+name: Desktop scaffold
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:check
+      - name: Install Linux compositor
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb xfwm4 dbus-x11 libxtst6
+      - name: Test Linux desktop pixels and native input
+        if: runner.os == 'Linux'
+        run: xvfb-run -a -s '-screen 0 1280x800x24 +extension Composite' dbus-run-session -- bash desktop/e2e/linux.sh
+      - name: Native desktop smoke
+        if: runner.os != 'Linux'
+        run: npm run desktop:e2e
+      - run: npm run desktop:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: release/desktop/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: desktop-failures-${{ matrix.os }}
+          path: test-results/desktop/
+# Release builder adds x64/arm64 matrix, archives, pinned SHA256 manifest and
+# macOS upgrade/permission tests. No publishing from this scaffold workflow.

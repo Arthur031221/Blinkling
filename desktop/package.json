@@ -1,0 +1,19 @@
+{
+  "name": "@glimpselet/desktop",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "main": "main/index.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "tsc -p tsconfig.json && node distribution/build.mjs",
+    "test": "node --test */*.test.mjs",
+    "test:e2e": "playwright test -c e2e/playwright.config.mjs"
+  },
+  "dependencies": {
+    "x11": "2.3.0"
+  },
+  "devDependencies": {
+    "pngjs": "7.0.0"
+  }
+}
