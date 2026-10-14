@@ -592,3 +592,49 @@ test("the launcher adds --no-sandbox only when the machine cannot sandbox and un
   });
   assert.deepEqual(helper.args, ["--hidden"]);
 });
+
+test("a Windows install removes any Zone.Identifier stream from the extracted exe", async () => {
+  const root = await mkdtemp(join(tmpdir(), "blinkling-motw-"));
+  const exe = Buffer.alloc(256);
+  exe.write("MZ");
+  exe.writeUInt32LE(128, 60);
+  exe.writeUInt32LE(0x4550, 128);
+  exe.writeUInt16LE(0x8664, 132);
+  const unlinked = [];
+  try {
+    const installed = await installDesktop(
+      {
+        schemaVersion: 1,
+        version: "3.0.0",
+        builds: [
+          {
+            os: "win32",
+            arch: "x64",
+            url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.0.0/Blinkling-3.0.0-win-x64.exe",
+            sha256: sha(exe),
+            size: exe.length,
+            archive: "file",
+            entry: "Blinkling-3.0.0-win-x64.exe",
+          },
+        ],
+      },
+      {
+        root,
+        platform: "win32",
+        arch: "x64",
+        fetch: async () => new Response(exe),
+        unlink: async (path) => {
+          unlinked.push(path);
+          throw Object.assign(new Error("no stream"), { code: "ENOENT" });
+        },
+      },
+    );
+    assert.equal(unlinked.length, 1);
+    assert.ok(
+      unlinked[0].endsWith("Blinkling-3.0.0-win-x64.exe:Zone.Identifier"),
+    );
+    assert.ok(installed.entry.endsWith("Blinkling-3.0.0-win-x64.exe"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

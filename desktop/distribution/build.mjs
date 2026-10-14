@@ -11,7 +11,7 @@ const output = await packager({
   appVersion: "3.0.0",
   electronVersion: "44.7.2",
   platform: process.platform,
-  arch: process.arch,
+  arch: process.env.BLINKLING_TARGET_ARCH || process.arch,
   overwrite: true,
   prune: true,
   asar: true,

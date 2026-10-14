@@ -10,6 +10,7 @@ import {
   readdir,
   chmod,
   symlink,
+  unlink as fsUnlink,
   readlink,
   realpath,
   open,
@@ -561,6 +562,20 @@ async function cacheMatches(entries, directory) {
     throw error;
   }
 }
+/** SmartScreen keys off the Zone.Identifier stream Windows attaches to files that
+ * arrive from the internet. Files we verified and wrote ourselves must not
+ * carry it; an extractor or antivirus hook may have added one. */
+export async function clearMarkOfTheWeb(directory, entries, unlink = fsUnlink) {
+  for (const entry of entries) {
+    if (entry.type !== "file") continue;
+    await unlink(`${join(directory, entry.name)}:Zone.Identifier`).catch(
+      (e) => {
+        if (!["ENOENT", "EINVAL", "ENOTSUP"].includes(e.code)) throw e;
+      },
+    );
+  }
+}
+
 export async function installDesktop(manifest, options = {}) {
   const platform = options.platform || process.platform,
     arch = options.arch || process.arch;
@@ -646,6 +661,11 @@ export async function installDesktop(manifest, options = {}) {
             bundle,
           ]);
         }
+        if (
+          platform === "win32" &&
+          (process.platform === "win32" || options.unlink)
+        )
+          await clearMarkOfTheWeb(staging, entries, options.unlink);
         try {
           await rename(directory, previous);
         } catch (e) {

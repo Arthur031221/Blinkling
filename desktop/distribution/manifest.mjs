@@ -12,11 +12,12 @@ export async function buildManifest({
   version,
   directory,
   repository = REPOSITORY,
+  targets = TARGETS,
 }) {
   if (!/^\d+\.\d+\.\d+$/.test(version))
     throw new Error(`Invalid release version: ${version}`);
   const builds = [];
-  for (const target of TARGETS) {
+  for (const target of targets) {
     const name = assetName(target, version);
     let bytes;
     try {
