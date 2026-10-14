@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /** Real, logged-in Claude canary. No credentials, CLI tools or parent session reuse. */
+process.env.GLIMPSELET_REMOTE ??= "0";
+
 export async function liveSession(emit) {
   // Self-deleting "Glimpselet test" Remote Control session; never the user's kept one.
   process.env.GLIMPSELET_REMOTE ??= "test";

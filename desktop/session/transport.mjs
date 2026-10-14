@@ -174,7 +174,7 @@ export class OwnedSession extends EventEmitter {
     if (!this.disposing) this.emit("fault", error);
   }
   async send(turn, sessionId) {
-    if (!this.remote || (!this.remote.local && !this.remoteConnected))
+    if (!this.remote || !this.remoteConnected)
       throw new Error("Remote Control must connect before sending");
     const frame = `${JSON.stringify(userMessage(turn, sessionId))}\n`;
     await new Promise((resolve, reject) =>

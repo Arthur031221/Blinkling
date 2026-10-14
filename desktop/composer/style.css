@@ -81,7 +81,7 @@ a:focus-visible {
   border: 1px solid var(--gl-border);
   border-radius: 26px;
   background: var(--gl-paper);
-  transform-origin: bottom right;
+  transform-origin: var(--gl-origin, 100% 100%);
   box-shadow: 0 6px 24px #00000018;
 }
 .gl-chat-card[data-open="true"] {
@@ -209,13 +209,70 @@ a:focus-visible {
   min-width: 0;
 }
 .gl-picker {
+  position: relative;
   min-width: 0;
   max-width: 34%;
+}
+.gl-picker-trigger {
+  max-width: 100%;
   border: 0;
+  border-radius: 12px;
   background: transparent;
-  font-size: 12px;
-  padding: 5px 1px;
+  color: var(--gl-ink);
+  font-size: 13px;
+  padding: 5px 8px;
+  display: block;
+}
+.gl-picker-trigger:hover:not(:disabled),
+.gl-picker[data-open="true"] .gl-picker-trigger {
+  background: var(--gl-soft);
+}
+.gl-picker-trigger:disabled {
+  opacity: 0.6;
+}
+.gl-picker-value {
+  display: block;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gl-picker-value[data-empty="true"] {
+  color: var(--gl-muted);
+}
+.gl-picker-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  min-width: 150px;
+  max-width: 260px;
+  padding: 4px;
+  border: 1px solid var(--gl-border);
+  border-radius: 14px;
+  background: var(--gl-paper);
+  box-shadow: 0 6px 24px #00000026;
+  transform-origin: bottom left;
+  animation: gl-grow 140ms cubic-bezier(0.16, 1.18, 0.3, 1) both;
+}
+.gl-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gl-picker-option:hover,
+.gl-picker-option:focus-visible {
+  background: var(--gl-soft);
+  outline: none;
+}
+.gl-picker-option[aria-selected="true"]::after {
+  content: "✓";
+  color: #258f61;
 }
 .gl-picker-dot {
   color: var(--gl-muted);
@@ -260,7 +317,9 @@ a:focus-visible {
 }
 .gl-attachment-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   max-width: 140px;
 }
@@ -398,13 +457,22 @@ a:focus-visible {
   gap: 9px;
   max-height: 100%;
   height: 100%;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  padding: 10px;
+  scrollbar-width: none;
+  padding: 28px 10px 10px;
   opacity: 1;
   transition: opacity 420ms ease;
   overflow-anchor: none;
+  /* A soft fade replaces both the scrollbar and the hard top clip. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 26px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 26px);
+}
+.gl-bubble-deck::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .gl-bubble-deck[data-visible="false"] {
   opacity: 0;
@@ -420,6 +488,50 @@ a:focus-visible {
   border: 1px solid var(--gl-border);
   border-radius: 20px 20px 6px 20px;
   box-shadow: 0 2px 8px #00000012;
+}
+/* --gl-age (0 newest, 1 oldest) only softens the edge and lifts the shadow;
+   the text and paper stay fully opaque so older answers remain readable. */
+.gl-answer-bubble {
+  --gl-age: 0;
+  max-height: 168px;
+  overflow: hidden;
+  position: relative;
+  border-color: color-mix(
+    in srgb,
+    var(--gl-border) calc(100% - var(--gl-age) * 70%),
+    transparent
+  );
+  box-shadow: 0 calc(2px * (1 - var(--gl-age))) calc(8px * (1 - var(--gl-age)))
+    color-mix(in srgb, #000 calc(7% * (1 - var(--gl-age))), transparent);
+}
+/* The bubble itself is the scroll-free clip; a nested scrollbar inside a capped
+   bubble would be the native widget the deck already hides. */
+.gl-answer-bubble .gl-code pre {
+  max-height: none;
+  overflow: hidden;
+}
+.gl-answer-bubble[data-clipped="true"] {
+  cursor: pointer;
+  padding-bottom: 26px;
+}
+.gl-answer-bubble[data-clipped="true"]::after {
+  content: "在對話中開啟";
+  position: absolute;
+  inset: auto 0 0;
+  padding: 18px 14px 6px;
+  text-align: right;
+  font-size: 12px;
+  color: #258f61;
+  background: linear-gradient(to bottom, transparent, var(--gl-paper) 60%);
+}
+.gl-summary-tag {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.gl-system-line {
+  margin: 0;
+  color: var(--gl-muted);
 }
 .gl-answer-bubble > button {
   background: transparent;
@@ -439,9 +551,16 @@ body[data-surface="bubbles"] #card {
   display: none;
 }
 body[data-surface="bubbles"] #answers {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   position: absolute;
   inset: 10px 6px 18px;
+}
+body[data-surface="bubbles"] .gl-bubble-deck {
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }
 @keyframes gl-grow {
   from {
@@ -462,8 +581,9 @@ body[data-surface="bubbles"] #answers {
   .gl-chat-card {
     padding: 10px;
   }
-  .gl-picker {
-    font-size: 11px;
+  .gl-picker-trigger {
+    font-size: 12px;
+    padding: 5px 4px;
   }
   .gl-quick-chip {
     padding: 6px 9px;
@@ -495,10 +615,18 @@ body[data-surface="bubbles"] #answers {
   background: var(--gl-paper);
 }
 .gl-notice {
-  position: absolute;
-  bottom: 20px;
-  left: 10px;
-  right: 10px;
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.gl-chat-card > .gl-notice {
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+.gl-attachments:empty {
+  display: none;
 }
 :root[data-theme="dark"] {
   --gl-paper: #262725;

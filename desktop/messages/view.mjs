@@ -23,24 +23,49 @@ export function mountMessageBubbles(
   let wasVisible = false,
     following = true,
     scrolling = false,
+    pinned = 0,
     frame;
+  // Scroll events arrive a frame late, after streamed text may have grown the
+  // deck again; only a position we did not set ourselves is the reader's.
+  const pin = () => {
+    deck.scrollTop = deck.scrollHeight;
+    pinned = deck.scrollTop;
+  };
+  /** Age reads through the edge and shadow only; text stays fully opaque. */
   function age() {
     const bounds = deck.getBoundingClientRect();
     for (const node of nodes.values()) {
       const r = node.getBoundingClientRect();
       const distance = Math.max(0, bounds.bottom - r.bottom);
-      node.style.opacity = String(
-        scrolling
-          ? 1
-          : Math.max(0.32, 1 - (distance / Math.max(1, bounds.height)) * 0.7),
-      );
+      const aged = scrolling
+        ? 0
+        : Math.min(1, distance / Math.max(1, bounds.height));
+      node.style.setProperty("--gl-age", aged.toFixed(3));
+      const clipped =
+        node.dataset.kind !== "open-chat" &&
+        node.scrollHeight > node.clientHeight + 1;
+      if (clipped !== (node.dataset.clipped === "true")) {
+        node.dataset.clipped = String(clipped);
+        if (clipped) {
+          node.tabIndex = 0;
+          node.setAttribute("role", "button");
+          node.setAttribute("aria-label", "開啟完整內容");
+        } else {
+          node.removeAttribute("tabindex");
+          node.removeAttribute("role");
+          node.removeAttribute("aria-label");
+        }
+      }
     }
   }
   deck.addEventListener(
     "scroll",
     () => {
-      following = deck.scrollHeight - deck.clientHeight - deck.scrollTop < 30;
-      scrolling = !following;
+      if (Math.abs(deck.scrollTop - pinned) > 1.5) {
+        following = deck.scrollHeight - deck.clientHeight - deck.scrollTop < 30;
+        scrolling = !following;
+        pinned = deck.scrollTop;
+      }
       age();
     },
     { passive: true },
@@ -63,6 +88,20 @@ export function mountMessageBubbles(
         node = doc.createElement("article");
         node.className = "gl-answer-bubble";
         node.dataset.id = part.id;
+        node.addEventListener("click", (e) => {
+          if (node.dataset.clipped === "true" && !e.target.closest("a, button"))
+            openChat?.(node.dataset.messageId);
+        });
+        node.addEventListener("keydown", (e) => {
+          if (
+            node.dataset.clipped === "true" &&
+            e.target === node &&
+            (e.key === "Enter" || e.key === " ")
+          ) {
+            e.preventDefault();
+            openChat?.(node.dataset.messageId);
+          }
+        });
         nodes.set(part.id, node);
         deck.append(node);
         if (
@@ -81,6 +120,8 @@ export function mountMessageBubbles(
       if (node.dataset.signature !== signature) {
         node.replaceChildren();
         node.dataset.signature = signature;
+        node.dataset.kind = part.kind;
+        if (part.messageId) node.dataset.messageId = part.messageId;
         if (part.kind === "open-chat") {
           const button = doc.createElement("button");
           button.type = "button";
@@ -106,7 +147,7 @@ export function mountMessageBubbles(
       if (node !== cursor) deck.insertBefore(node, cursor);
       cursor = node.nextElementSibling;
     }
-    if (bottom) deck.scrollTop = deck.scrollHeight;
+    if (bottom) pin();
     const reduced = doc.defaultView.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;

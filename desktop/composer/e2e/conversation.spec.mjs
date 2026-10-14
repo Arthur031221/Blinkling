@@ -1,135 +1,7 @@
-import { test, expect, _electron as electron } from "@playwright/test";
-import { fileURLToPath } from "node:url";
-import { mkdir, writeFile } from "node:fs/promises";
+import { test, expect } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 import { png } from "./image.mjs";
-import { PNG } from "pngjs";
-const report =
-  process.env.GLIMPSELET_REPORT_DIR ??
-  fileURLToPath(
-    new URL("../../../test-results/conversation-artifacts/", import.meta.url),
-  );
-const capture = {
-  id: "capture",
-  name: "screen.png",
-  mediaType: "image/png",
-  data: png,
-};
-async function launch(scale = 1) {
-  const app = await electron.launch({
-    args: [
-      fileURLToPath(new URL("./fixture.cjs", import.meta.url)),
-      "--no-sandbox",
-      `--force-device-scale-factor=${scale}`,
-    ],
-    env: { ...process.env, GLIMPSELET_REMOTE: "0" },
-  });
-  const card = await app.firstWindow();
-  const errors = [];
-  for (const page of await app.windows())
-    page.on("pageerror", (e) => errors.push(e.message));
-  await expect(card.getByRole("textbox", { name: "輸入問題" })).toBeVisible();
-  await expect
-    .poll(() => app.evaluate(() => Boolean(globalThis.conversationTest)))
-    .toBe(true);
-  return { app, card, errors };
-}
-async function shot(app, name) {
-  await mkdir(report, { recursive: true });
-  let bytes;
-  // DOM readiness precedes the compositor's first native presentation. Wait
-  // for the actual desktop pixel; a missing/opaque underlay still fails.
-  await expect
-    .poll(async () => {
-      const data = await app.evaluate(async ({ desktopCapturer, screen }) => {
-        const d = screen.getPrimaryDisplay();
-        const sources = await desktopCapturer.getSources({
-          types: ["screen"],
-          thumbnailSize: {
-            width: Math.round(d.bounds.width * d.scaleFactor),
-            height: Math.round(d.bounds.height * d.scaleFactor),
-          },
-        });
-        const w = globalThis.conversationTest.windows.find((w) =>
-          w.isVisible(),
-        );
-        const b = w.getBounds();
-        return {
-          png: sources[0].thumbnail.toPNG().toString("base64"),
-          corner: {
-            x: Math.round((b.x + 2) * d.scaleFactor),
-            y: Math.round((b.y + 2) * d.scaleFactor),
-          },
-        };
-      });
-      bytes = Buffer.from(data.png, "base64");
-      const desktop = PNG.sync.read(bytes);
-      const offset = (data.corner.y * desktop.width + data.corner.x) * 4;
-      return [...desktop.data.subarray(offset, offset + 3)];
-    })
-    .toEqual([32, 48, 64]);
-  await writeFile(`${report}/${name}.png`, bytes);
-}
-async function bounds(page) {
-  return page.evaluate(() => {
-    const errors = [];
-    for (const n of document.querySelectorAll(
-      ".gl-chat-card,.gl-composer,.gl-composer-toolbar,.gl-quick-asks,.gl-attachment-chip,.gl-answer-bubble,.gl-markdown,.gl-icon-button,.gl-picker",
-    )) {
-      const r = n.getBoundingClientRect();
-      if (!r.width || !r.height || getComputedStyle(n).visibility === "hidden")
-        continue;
-      // Measure the pixels that can paint: long history is deliberately
-      // clipped by its scrollport, especially on a 200% desktop.
-      const visible = {
-        left: r.left,
-        top: r.top,
-        right: r.right,
-        bottom: r.bottom,
-      };
-      for (
-        let parent = n.parentElement;
-        parent;
-        parent = parent.parentElement
-      ) {
-        const style = getComputedStyle(parent);
-        if (parent === document.body || parent === document.documentElement)
-          break;
-        const p = parent.getBoundingClientRect();
-        if (style.overflowX !== "visible") {
-          visible.left = Math.max(visible.left, p.left);
-          visible.right = Math.min(visible.right, p.right);
-        }
-        if (style.overflowY !== "visible") {
-          visible.top = Math.max(visible.top, p.top);
-          visible.bottom = Math.min(visible.bottom, p.bottom);
-        }
-      }
-      if (
-        visible.right > visible.left &&
-        visible.bottom > visible.top &&
-        (visible.left < 0 ||
-          visible.top < 0 ||
-          visible.right > innerWidth + 0.5 ||
-          visible.bottom > innerHeight + 0.5)
-      )
-        errors.push({ kind: "window", tag: n.className, rect: r.toJSON() });
-      if (
-        !n.closest(".gl-chat-history,.gl-bubble-deck") &&
-        n.scrollWidth > n.clientWidth + 2
-      )
-        errors.push({
-          kind: "overflow",
-          tag: n.className,
-          scroll: n.scrollWidth,
-          width: n.clientWidth,
-        });
-    }
-    for (const img of document.images)
-      if (img.offsetWidth && (!img.complete || !img.naturalWidth))
-        errors.push({ kind: "image", src: img.alt });
-    return errors;
-  });
-}
+import { report, capture, launch, shot, bounds } from "./support.mjs";
 
 test("capture, three quick asks, image payload, streamed formatting, stop, Enter and Shift+Enter", async () => {
   const { app, card, errors } = await launch();
@@ -225,31 +97,31 @@ test("plus, paste, drop, remove, text files and acknowledged picker rejection", 
       );
     }
     await expect(card.locator(".gl-attachment-chip")).toHaveCount(3);
+    const modelPicker = card.getByRole("button", { name: /^模型/ });
+    const effortPicker = card.getByRole("button", { name: /^思考程度/ });
+    await modelPicker.click();
+    const options = card.getByRole("listbox", { name: "模型" });
+    // No blank entry and no duplicate rows.
+    await expect(options.getByRole("option")).toHaveText([
+      "Opus",
+      "Sonnet",
+      "Haiku",
+    ]);
+    await options.getByRole("option", { name: "Sonnet" }).click();
+    // The selection is only shown once Claude confirms it.
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型：Haiku");
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型：Sonnet 5.5");
+    await effortPicker.click();
     await card
-      .getByRole("combobox", { name: "模型", exact: true })
-      .selectOption("sonnet");
-    expect(
-      await card
-        .getByRole("combobox", { name: "模型", exact: true })
-        .inputValue(),
-    ).toBe("haiku");
-    await expect(
-      card.getByRole("combobox", { name: "模型", exact: true }),
-    ).toHaveValue("claude-sonnet-5-5");
-    await card.getByRole("combobox", { name: "思考程度" }).selectOption("high");
-    await expect(card.getByRole("combobox", { name: "思考程度" })).toHaveValue(
-      "high",
-    );
-    await card
-      .getByRole("combobox", { name: "模型", exact: true })
-      .selectOption("opus");
+      .getByRole("listbox", { name: "思考程度" })
+      .getByRole("option", { name: "High" })
+      .click();
+    await expect(effortPicker).toHaveAttribute("aria-label", "思考程度：High");
+    await modelPicker.click();
+    await options.getByRole("option", { name: "Opus" }).click();
     await expect(card.getByRole("alert")).toBeVisible();
-    await expect(
-      card.getByRole("combobox", { name: "模型", exact: true }),
-    ).toHaveValue("claude-sonnet-5-5");
-    await expect(card.getByRole("combobox", { name: "思考程度" })).toHaveValue(
-      "high",
-    );
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型：Sonnet 5.5");
+    await expect(effortPicker).toHaveAttribute("aria-label", "思考程度：High");
     expect(await bounds(card)).toEqual([]);
   } finally {
     await app.close();
@@ -335,8 +207,12 @@ test("bubbles stream upward, fade by height, retain wheel history, revive after 
           .locator(".gl-answer-bubble")
           .evaluateAll(
             (nodes) =>
-              Number(nodes.at(-1).style.opacity) >
-              Number(nodes[0].style.opacity),
+              Number(
+                getComputedStyle(nodes.at(-1)).getPropertyValue("--gl-age"),
+              ) <
+                Number(
+                  getComputedStyle(nodes[0]).getPropertyValue("--gl-age"),
+                ) && nodes.every((n) => getComputedStyle(n).opacity === "1"),
           ),
       )
       .toBe(true);

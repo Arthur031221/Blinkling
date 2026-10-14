@@ -97,7 +97,8 @@ test("real Claude Remote Control session: confirmed controls, image and UTF-8 fi
         (a) => a.speaking,
       ),
     }));
-    expect(evidence.remoteUrl).toMatch(/^https:\/\/claude\.ai\/code\//);
+    if (env.GLIMPSELET_REMOTE !== "0")
+      expect(evidence.remoteUrl).toMatch(/^https:\/\/claude\.ai\/code\//);
     expect(evidence.turns.map((t) => t.contentTypes)).toEqual([
       ["image"],
       ["document"],

@@ -1,4 +1,5 @@
 import { readAttachment } from "./index.mjs";
+import { createPicker } from "./picker.mjs";
 import {
   renderMarkdown,
   renderImage,
@@ -15,6 +16,14 @@ const defaultEfforts = [
   { id: "medium", label: "Medium" },
   { id: "high", label: "High" },
 ];
+
+const prettyModel = (value) =>
+  value.replace(
+    /^claude-(opus|sonnet|haiku)-(\d+)-(\d+)(?:-\d{8})?$/,
+    (_match, family, major, minor) =>
+      `${family[0].toUpperCase()}${family.slice(1)} ${major}.${minor}`,
+  );
+const prettyEffort = (value) => `${value[0].toUpperCase()}${value.slice(1)}`;
 
 export function mountComposer(
   host,
@@ -77,16 +86,30 @@ export function mountComposer(
   quick.setAttribute("aria-label", "快速提問");
   const attachments = node("div", "gl-attachments");
   attachments.setAttribute("aria-label", "附件");
+  attachments.hidden = true;
   const form = node("form", "gl-composer"),
     text = node("textarea", "gl-input");
   text.setAttribute("aria-label", "輸入問題");
   text.placeholder = "問 Blink…";
   text.rows = 2;
+  const controller = new AbortController(),
+    signal = controller.signal;
+  const model = createPicker(doc, {
+      label: "模型",
+      items: models,
+      signal,
+      onChoose: (id) => choose({ model: id, effort: effort.value }),
+    }),
+    effort = createPicker(doc, {
+      label: "思考程度",
+      items: efforts,
+      signal,
+      onChoose: (id) => choose({ model: model.value, effort: id }),
+    });
+  const listen = (n, type, fn) => n.addEventListener(type, fn, { signal });
   const toolbar = node("div", "gl-composer-toolbar"),
     add = button("加入附件", "+"),
     file = node("input"),
-    model = node("select", "gl-picker"),
-    effort = node("select", "gl-picker"),
     separator = node("span", "gl-picker-dot", "·"),
     send = button("傳送", "↑"),
     stop = button("停止回答", "■");
@@ -95,44 +118,32 @@ export function mountComposer(
   file.accept =
     "image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,.md,.txt";
   file.hidden = true;
-  model.setAttribute("aria-label", "模型");
-  effort.setAttribute("aria-label", "思考程度");
-  for (const [control, label] of [
-    [model, "模型"],
-    [effort, "思考程度"],
-  ]) {
-    const placeholder = node("option", null, label);
-    placeholder.value = "";
-    placeholder.disabled = true;
-    placeholder.hidden = true;
-    control.append(placeholder);
-  }
-  const options = (select, items) => {
-    for (const item of items) {
-      const o = node("option", null, item.label);
-      o.value = item.id;
-      select.append(o);
-    }
-  };
-  options(model, models);
-  options(effort, efforts);
-  toolbar.append(add, file, model, separator, effort, send, stop);
+  toolbar.append(
+    add,
+    file,
+    model.element,
+    separator,
+    effort.element,
+    send,
+    stop,
+  );
   form.append(attachments, text, toolbar);
   const error = node("div", "gl-composer-error");
   error.setAttribute("role", "alert");
   error.hidden = true;
-  card.append(header, history, quick, form, error);
+  // In flow between the history and the form: a notice pushes the history up
+  // rather than floating over the toolbar.
+  const notice = node("section", "gl-notice");
+  notice.hidden = true;
+  notice.setAttribute("role", "status");
+  card.append(header, history, notice, quick, form, error);
   host.append(card);
   let pinned = false,
     visible = true,
     following = true,
-    lastSelection,
     disposed = false;
   const messageNodes = new Map(),
     attachmentNodes = new Map();
-  const controller = new AbortController(),
-    signal = controller.signal;
-  const listen = (n, type, fn) => n.addEventListener(type, fn, { signal });
   const fail = (e) =>
     composer.error(
       /^[\u4e00-\u9fff]/u.test(e?.message ?? "")
@@ -248,13 +259,7 @@ export function mountComposer(
       void ingest([...e.dataTransfer.files]);
     }
   });
-  const choose = () => {
-    const wanted = { model: model.value, effort: effort.value };
-    applySelection(lastSelection);
-    composer.select(wanted).catch(() => {});
-  };
-  listen(model, "change", choose);
-  listen(effort, "change", choose);
+  const choose = (wanted) => composer.select(wanted).catch(() => {});
   listen(pin, "click", () => {
     pinned = !pinned;
     pin.setAttribute("aria-pressed", String(pinned));
@@ -270,39 +275,35 @@ export function mountComposer(
   });
   function applySelection(selection) {
     if (!selection) {
-      model.value = effort.value = "";
+      model.set("");
+      effort.set("");
       return;
     }
-    for (const [control, value] of [
-      [model, selection.model],
-      [effort, selection.effort],
-    ]) {
-      if (![...control.options].some((o) => o.value === value))
-        options(control, [
-          {
-            id: value,
-            label:
-              control === model
-                ? (models.find((m) => value === m.id)?.label ??
-                  value.replace(
-                    /^claude-(opus|sonnet|haiku)-(\d+)-(\d+)(?:-\d{8})?$/,
-                    (_match, family, major, minor) =>
-                      `${family[0].toUpperCase()}${family.slice(1)} ${major}.${minor}`,
-                  ))
-                : value,
-          },
-        ]);
-      control.value = value;
-    }
+    // A confirmed full model id names the family entry already in the list;
+    // it refines that row's label instead of adding a second row.
+    const family = selection.model.match(/^claude-(opus|sonnet|haiku)-/)?.[1];
+    if (family && model.has(family) && selection.model !== family)
+      model.set(family, prettyModel(selection.model));
+    else
+      model.set(
+        selection.model,
+        models.find((m) => m.id === selection.model)?.label ??
+          prettyModel(selection.model),
+      );
+    effort.set(
+      selection.effort,
+      efforts.find((e) => e.id === selection.effort)?.label ??
+        prettyEffort(selection.effort),
+    );
   }
   const unComposer = composer.subscribe((state) => {
     if (text.value !== state.draft) text.value = state.draft;
     hold();
-    lastSelection = state.selection;
     applySelection(state.selection);
-    model.disabled = effort.disabled =
-      state.busy || state.selecting || !state.selection;
-    model.setAttribute("aria-busy", String(state.selecting));
+    const locked = state.busy || state.selecting || !state.selection;
+    model.setDisabled(locked);
+    effort.setDisabled(locked);
+    model.trigger.setAttribute("aria-busy", String(state.selecting));
     send.hidden = state.busy;
     send.disabled =
       state.selecting || (!state.draft.trim() && !state.attachments.length);
@@ -328,6 +329,7 @@ export function mountComposer(
             : node("span", "gl-file-icon", "▤"),
           name = node("span", "gl-attachment-name", a.name),
           remove = button(`移除 ${a.name}`, "×");
+        chip.title = a.name;
         if (img) chip.append(img);
         chip.append(name, remove);
         listen(remove, "click", () => composer.remove(a.id));
@@ -384,6 +386,7 @@ export function mountComposer(
   });
   const view = {
     element: card,
+    notice,
     open(messageId) {
       visible = true;
       card.hidden = false;

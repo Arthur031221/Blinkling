@@ -1,4 +1,4 @@
-import { menuLayout, menuTransform } from "./layout.mjs";
+import { menuLayout, menuTransform, PILL } from "./layout.mjs";
 import { spring } from "../character/state.mjs";
 import { roundedRect } from "../character/silhouette.mjs";
 const definitions = [
@@ -48,6 +48,12 @@ export function mountMenu(host, onAction) {
     open = false,
     changedAt = 0;
   const values = definitions.map(() => ({ value: 0, velocity: 0 }));
+  // Width is driven here, not by a CSS transition, so the layout always knows
+  // how wide each pill actually is and can keep its row neighbour clear.
+  const widths = definitions.map(() => ({
+    value: PILL.narrow,
+    velocity: 0,
+  }));
   const buttons = definitions.map(([id, label, description, path], i) => {
     const b = document.createElement("button");
     b.type = "button";
@@ -81,10 +87,35 @@ export function mountMenu(host, onAction) {
       }
     },
     setAuto(value) {
-      buttons[4].setAttribute("aria-pressed", String(value));
+      const b = buttons[4],
+        [, label, description] = definitions[4];
+      b.setAttribute("aria-pressed", String(value));
+      b.dataset.on = String(value);
+      b.setAttribute("aria-label", value ? `${label}（已開啟）` : label);
+      b.querySelector(".action-detail span").textContent = value
+        ? "已開啟，點一下關閉"
+        : description;
     },
     frame(now, dt, area, anchor) {
-      rects = menuLayout(area, anchor, expanded);
+      for (let i = 0; i < widths.length; i++) {
+        widths[i] = spring(
+          widths[i].value,
+          i === expanded ? PILL.wide : PILL.narrow,
+          widths[i].velocity,
+          dt,
+          26,
+        );
+        widths[i].value = Math.max(
+          PILL.narrow,
+          Math.min(PILL.wide, widths[i].value),
+        );
+      }
+      rects = menuLayout(
+        area,
+        anchor,
+        expanded,
+        widths.map((w) => w.value),
+      );
       poses = [];
       buttons.forEach((b, i) => {
         const order = open ? i : 7 - i,

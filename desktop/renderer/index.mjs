@@ -25,6 +25,7 @@ const pin = document.querySelector("#pin"),
   host = document.querySelector("#blink"),
   card = document.querySelector("#chat-card");
 const permission = document.querySelector("#permission-alert");
+const autoBadge = document.querySelector("#auto-badge");
 permission.addEventListener("click", () => api.action("chat"));
 const frameTimes = [],
   workTimes = [];
@@ -234,6 +235,10 @@ if (surface === "composer") {
       state.mode === "drag";
     permission.style.left = `${Math.max(8, Math.min(innerWidth - 188, current.x - 90))}px`;
     permission.style.top = `${Math.max(8, Math.min(innerHeight - 52, current.y - 120))}px`;
+    // Auto explain stays visible on Blink itself, above the head, while on.
+    autoBadge.hidden = !shell.autoExplain;
+    autoBadge.style.left = `${Math.max(area.x + 4, Math.min(area.x + area.width - 100, current.x - 40))}px`;
+    autoBadge.style.top = `${Math.max(area.y + 4, current.y - 168)}px`;
     const polygons = [...character.polygons(), ...menu.polygons()];
     if (!permission.hidden) {
       const r = permission.getBoundingClientRect();
