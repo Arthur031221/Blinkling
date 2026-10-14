@@ -1,13 +1,34 @@
 export type PrivacyReadMode = boolean | "visible-capture";
+export type PrivacyBlockReason =
+  | "password"
+  | "uninspectable"
+  | "inspection-limit";
 
 // Keep this function self contained: Chrome serializes it for executeScript.
 // false protects automatic/full-page reads; true permits only inspectable text.
 // Visible capture may exclude an opaque embed only when it paints no pixels.
 export function hasSensitiveContent(
+  doc?: Document | null,
+  mode?: PrivacyReadMode,
+  explain?: false,
+): boolean;
+export function hasSensitiveContent(
+  doc: Document | null,
+  mode: PrivacyReadMode,
+  explain: true,
+): PrivacyBlockReason | undefined;
+export function hasSensitiveContent(
+  doc?: Document | null,
+  mode?: PrivacyReadMode,
+  explain?: boolean,
+): boolean | PrivacyBlockReason | undefined;
+export function hasSensitiveContent(
   doc: Document | null = document,
   mode: PrivacyReadMode = false,
-): boolean {
+  explain = false,
+): boolean | PrivacyBlockReason | undefined {
   doc ??= document;
+  const blocked = (reason: PrivacyBlockReason) => (explain ? reason : true);
   const manualTextOnly = mode === true;
   const contributesNoPixels = (element: Element): boolean => {
     try {
@@ -70,23 +91,28 @@ export function hasSensitiveContent(
   const roots: (Document | ShadowRoot)[] = [doc];
   const seen = new Set<Document | ShadowRoot>();
   let remaining = 50_000;
+  let uninspectable = false;
   while (roots.length) {
     const root = roots.pop()!;
     if (seen.has(root)) continue;
     seen.add(root);
     const owner = root.nodeType === 9 ? (root as Document) : root.ownerDocument;
-    if (!owner) return true;
+    if (!owner) {
+      if (!explain) return true;
+      uninspectable = true;
+      continue;
+    }
     const walker = owner.createTreeWalker(root, 1);
     let node: Node | null;
     while ((node = walker.nextNode())) {
-      if (--remaining < 0) return true;
+      if (--remaining < 0) return blocked("inspection-limit");
       const element = node as Element;
       if (
         element.matches(
           'input[type="password" i],input[autocomplete~="current-password" i],input[autocomplete~="new-password" i]',
         )
       )
-        return true;
+        return blocked("password");
       if (element.shadowRoot) roots.push(element.shadowRoot);
       if (["iframe", "frame", "object", "embed"].includes(element.localName)) {
         const excludedPixels = () =>
@@ -98,14 +124,18 @@ export function hasSensitiveContent(
           const nested = frame.contentDocument ?? frame.getSVGDocument?.();
           if (!nested) {
             if (manualTextOnly || excludedPixels()) continue;
-            return true;
+            if (!explain) return true;
+            uninspectable = true;
+            continue;
           }
           if (
             nested.readyState !== "complete" &&
             !manualTextOnly &&
             !excludedPixels()
-          )
-            return true;
+          ) {
+            if (!explain) return true;
+            uninspectable = true;
+          }
           const source = frame.getAttribute("src")?.trim().toLowerCase();
           // A navigating frame can temporarily expose its previous blank document.
           if (
@@ -113,15 +143,19 @@ export function hasSensitiveContent(
             (frame.hasAttribute("srcdoc") ||
               (source && source !== "about:blank"))
           ) {
-            if (!manualTextOnly && !excludedPixels()) return true;
+            if (!manualTextOnly && !excludedPixels()) {
+              if (!explain) return true;
+              uninspectable = true;
+            }
           }
           roots.push(nested);
         } catch {
           if (manualTextOnly || excludedPixels()) continue;
-          return true;
+          if (!explain) return true;
+          uninspectable = true;
         }
       }
     }
   }
-  return false;
+  return uninspectable ? blocked("uninspectable") : explain ? undefined : false;
 }

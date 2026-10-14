@@ -63,7 +63,7 @@
   "passive": "Automatisch erklären",
   "passivePrompt": "Beschreibe kurz die relevante Änderung auf diesem Bildschirm.",
   "passiveResumed": "Automatische Erklärung aktiv",
-  "passwordPage": "Ein Passwortfeld wurde gefunden oder ein Teil der Seite kann nicht geprüft werden. Lesen und Aufnehmen sind pausiert. Verwenden Sie Bildschirm teilen für eine manuelle Aufnahme.",
+  "passwordPage": "Der Seiteninhalt konnte nicht geprüft werden. Erlaube den Zugriff auf diese Website oder nutze Gesamten Bildschirm aufnehmen für eine manuelle Aufnahme.",
   "paused": "Automatische Erklärung pausiert",
   "pin": "Anheften",
   "pipFallback": "Das Popup bleibt möglicherweise nicht über anderen Apps. Einige Browser unterstützen Document Picture-in-Picture.",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "Seitenzugriff erlaubt.",
   "sessionInitialization": "Dieses Gespräch wurde vor dem Start abgebrochen. Wählen Sie \"Neue Sitzung\" und versuchen Sie es erneut.",
   "translationIncomplete": "Die Übersetzung ist unvollständig. Versuche es erneut oder wähle einen kürzeren Abschnitt.",
-  "passiveScreenUnverified": "Automatische Bildschirmzusammenfassungen sind pausiert. Teilen Sie diesen Browser Tab, um fortzufahren.",
+  "passiveScreenUnverified": "Die automatische Erklärung ist pausiert, da der geteilte Tab nicht geprüft werden kann. Wähle ihn erneut aus.",
   "guideFailed": "Die Anleitung konnte auf dieser Seite nicht angezeigt werden. Starte sie erneut.",
   "translationUnchanged": "Der Text hat sich nicht geändert. Prüfe die Zielsprache und versuche es erneut.",
   "askWithoutPage": "Ohne Seiteninhalt fragen",
@@ -163,5 +163,12 @@
   "moreTools": "Weitere Werkzeuge",
   "captureAccessHint": "Optional: Erlaube einmal den Zugriff auf alle Websites, damit Seitenaufnahme und Bereichsauswahl auch in neuen Tabs funktionieren.",
   "guideOverview": "Übersicht",
-  "guideTour": "Schritt für Schritt"
+  "guideTour": "Schritt für Schritt",
+  "autoExplainScreenConsent": "Die automatische Erklärung sendet Bilder dieses Bildschirms oder dieser App. Blende private Inhalte zuerst aus; Passwortfelder und ignorierte Websites können hier nicht geprüft werden.",
+  "autoExplainScreenAllow": "Für diese Freigabe erlauben",
+  "autoExplainChooseScreen": "Bildschirm auswählen",
+  "privacyPassword": "Automatische Erklärung pausiert: Diese Seite enthält ein Passwortfeld. Nutze Gesamten Bildschirm aufnehmen für eine manuelle Aufnahme.",
+  "privacyEmbedded": "Automatische Erklärung pausiert: Eingebettete Inhalte können nicht geprüft werden. Lass den Seitentext erklären oder nimm manuell auf.",
+  "autoExplainPageText": "Seitentext erklären",
+  "autoExplainManualCapture": "Manuell aufnehmen"
 }

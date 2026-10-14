@@ -63,7 +63,7 @@
   "passive": "Auto explain",
   "passivePrompt": "Briefly describe the meaningful change in this screen.",
   "passiveResumed": "Auto explain on",
-  "passwordPage": "A password field was found, or some page content cannot be checked. Reading and capture are paused. Use Share a screen for a manual capture.",
+  "passwordPage": "Page content could not be checked. Allow access to this site, or use Capture whole screen for a manual image.",
   "paused": "Auto explain paused",
   "pin": "Pin",
   "pipFallback": "The popup fallback may not stay above other apps. Document Picture-in-Picture is supported in some browsers.",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "Page access allowed.",
   "sessionInitialization": "This conversation stopped before it could start. Choose New session to try again.",
   "translationIncomplete": "The translation was incomplete. Try again or select a shorter passage.",
-  "passiveScreenUnverified": "Automatic screen summaries are paused. Share this browser tab to resume.",
+  "passiveScreenUnverified": "Auto explain is paused because the shared tab cannot be verified. Choose it again.",
   "guideFailed": "Could not draw a guide for this page. Try Guide again.",
   "translationUnchanged": "No text changed. Check the target language and try again.",
   "askWithoutPage": "Ask without page content",
@@ -163,5 +163,12 @@
   "moreTools": "More tools",
   "captureAccessHint": "Optional: allow on all sites once so page capture and area selection work on new tabs.",
   "guideOverview": "Overview",
-  "guideTour": "Step by step"
+  "guideTour": "Step by step",
+  "autoExplainScreenConsent": "Auto explain will send images of this screen or app. Hide private content first; password and ignored-site checks cannot cover it.",
+  "autoExplainScreenAllow": "Allow for this share",
+  "autoExplainChooseScreen": "Choose a screen",
+  "privacyPassword": "Auto explain paused: this page has a password field. Use Capture whole screen for a manual image.",
+  "privacyEmbedded": "Auto explain paused: embedded content cannot be checked. Explain the page text or capture manually.",
+  "autoExplainPageText": "Explain page text",
+  "autoExplainManualCapture": "Capture manually"
 }

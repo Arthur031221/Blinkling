@@ -1,5 +1,9 @@
 import { freezeSharedFrame, type SharedFrameOptions } from "./screen-frame";
-import { hasSensitiveContent, type PrivacyReadMode } from "./privacy";
+import {
+  hasSensitiveContent,
+  type PrivacyReadMode,
+  type PrivacyBlockReason,
+} from "./privacy";
 import { encodeCanvasPng } from "./png";
 import { prepareCaptureBinding, type CaptureBinding } from "./capture-binding";
 import type { PageContext } from "./page-context";
@@ -193,6 +197,41 @@ export async function isSensitivePage(
     if (error instanceof Error && error.message === "allow_site_access")
       throw error;
     return true;
+  }
+}
+
+export async function getPagePrivacyReason(
+  binding?: Pick<CaptureBinding, "tabId" | "url" | "documentId">,
+): Promise<PrivacyBlockReason | "unavailable" | undefined> {
+  try {
+    const tab = binding
+      ? await chrome.tabs.get(binding.tabId)
+      : await activeTab();
+    if (!tab.id || (binding && tab.url !== binding.url)) return "unavailable";
+    await requireSiteAccess(tab as ActiveTab);
+    const [result] = await chrome.scripting.executeScript({
+      target: {
+        tabId: tab.id,
+        ...(binding ? { documentIds: [binding.documentId] } : {}),
+      },
+      func: hasSensitiveContent,
+      args: [null, false, true],
+    });
+    if (
+      !result ||
+      result.frameId !== 0 ||
+      (binding && result.documentId !== binding.documentId)
+    )
+      return "unavailable";
+    return ["password", "uninspectable", "inspection-limit"].includes(
+      result.result as string,
+    )
+      ? (result.result as PrivacyBlockReason)
+      : result.result === undefined
+        ? undefined
+        : "unavailable";
+  } catch {
+    return "unavailable";
   }
 }
 

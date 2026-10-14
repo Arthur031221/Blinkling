@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   explicitContext: vi.fn(),
   guide: vi.fn(),
   sensitive: vi.fn(),
+  privacyReason: vi.fn(),
   capture: vi.fn(),
   startShare: vi.fn(),
   retry: vi.fn(),
@@ -73,6 +74,7 @@ vi.mock("./capture", () => ({
   getExplicitPageContext: mocks.explicitContext,
   getGuideContext: mocks.guide,
   isSensitivePage: mocks.sensitive,
+  getPagePrivacyReason: mocks.privacyReason,
   captureWeb: mocks.capture,
   startScreenShare: mocks.startShare,
   retryPendingWebCapture: mocks.retry,
@@ -279,7 +281,7 @@ function floatingWindow() {
   return { floating, close };
 }
 
-async function startSharing(surface = "monitor") {
+async function openShareBubble(surface = "monitor") {
   const { floating, close } = floatingWindow();
   const requestWindow = vi.fn().mockResolvedValue(floating);
   vi.stubGlobal("documentPictureInPicture", { requestWindow });
@@ -296,12 +298,20 @@ async function startSharing(surface = "monitor") {
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
   mocks.startShare.mockResolvedValue({ stream });
   await click(en.float);
+  return { floating, close, requestWindow, stream, track };
+}
+
+async function startSharing(surface = "monitor") {
+  const result = await openShareBubble(surface);
+  const { floating } = result;
   const auto =
     floating.document.querySelector<HTMLButtonElement>('[role="switch"]')!;
   if (auto.getAttribute("aria-checked") === "true")
     await click(en.autoExplain, floating.document);
   await click(en.autoExplain, floating.document);
-  return { floating, close, requestWindow, stream, track };
+  if (floating.document.querySelector(".screen-narration-consent"))
+    await click(en.autoExplainScreenAllow, floating.document);
+  return result;
 }
 
 const cropSource = {
@@ -427,6 +437,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ ...page, guideScope: "top-document-text" });
   mocks.sensitive.mockReset().mockResolvedValue(false);
+  mocks.privacyReason.mockReset().mockResolvedValue(undefined);
   mocks.capture.mockReset().mockResolvedValue({
     page,
     capture: { image: "data:image/png;base64,AAA=", label: "Visible" },
@@ -3187,6 +3198,309 @@ describe("floating window size persistence", () => {
 });
 
 describe("screen sharing and capture authorization in the bubble", () => {
+  it("V21-06 captures a whole screen without opting into automatic narration", async () => {
+    await start();
+    const { floating } = await openShareBubble();
+    await click(en.wholeScreen, floating.document);
+    expect(
+      floating.document
+        .querySelector('[role="switch"]')!
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(chrome.storage.local.set).not.toHaveBeenCalledWith({
+      passive: true,
+    });
+    expect(
+      floating.document.querySelector<HTMLImageElement>(".capture-chip img")!
+        .src,
+    ).toBe("data:image/png;base64,CCC=");
+    await act(async () => vi.advanceTimersByTimeAsync(6000));
+    expect(
+      floating.document.querySelector(".toolbar .status")!.textContent,
+    ).toBe(en.captureReady);
+    expect(
+      mocks.ask.mock.calls.some(([input]) => input.kind === "passive"),
+    ).toBe(false);
+  });
+
+  it("V21-07 refreshes the selected tab binding and narrates its new document without another picker", async () => {
+    await start();
+    const { floating, stream, track } = await openShareBubble("browser");
+    let handle = "initial-handle";
+    const binding = {
+      tabId: 1,
+      url: page.url,
+      origin: new URL(page.url).origin,
+      handle,
+      documentId: "initial-document",
+    };
+    Object.assign(track, {
+      getCaptureHandle: () => ({
+        handle,
+        origin: new URL(tabUrls.get(1)!).origin,
+      }),
+    });
+    mocks.startShare.mockResolvedValue({ stream, binding });
+    await click(en.autoExplain, floating.document);
+    await refresh();
+    mocks.ask.mockClear();
+    const next = {
+      ...page,
+      url: "https://next.test/article",
+      documentKey: "new-document",
+      text: "NEW_DOCUMENT_ONLY",
+    };
+    tabUrls.set(1, next.url);
+    mocks.context.mockResolvedValue(next);
+    vi.mocked(chrome.scripting.executeScript).mockImplementation(
+      async (details) => {
+        handle = String(details.args![0]);
+        return [
+          {
+            frameId: 0,
+            documentId: "new-browser-document",
+            result: { origin: new URL(next.url).origin, url: next.url },
+          },
+        ];
+      },
+    );
+    await act(async () => {
+      track.dispatchEvent(new Event("capturehandlechange"));
+      updated.emit(
+        1,
+        { status: "complete", url: next.url },
+        { id: 1, url: next.url },
+      );
+    });
+    await refresh();
+    expect(chrome.scripting.executeScript).toHaveBeenCalled();
+    const summaries = mocks.ask.mock.calls.filter(
+      ([input]) => input.kind === "passive",
+    );
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0][0].page).toMatchObject({
+      url: next.url,
+      text: "NEW_DOCUMENT_ONLY",
+    });
+    expect(summaries[0][0].image).toBeUndefined();
+    expect(mocks.startShare).toHaveBeenCalledOnce();
+  });
+
+  it("V21-07 preserves the blocklist warning when navigation invalidates the captured handle", async () => {
+    stored.blocklist = ["ignored.test"];
+    await start();
+    const { floating, stream, track } = await openShareBubble("browser");
+    const binding = {
+      tabId: 1,
+      url: page.url,
+      origin: new URL(page.url).origin,
+      handle: "initial-handle",
+      documentId: "initial-document",
+    };
+    Object.assign(track, {
+      getCaptureHandle: () => ({
+        handle: binding.handle,
+        origin: binding.origin,
+      }),
+    });
+    mocks.startShare.mockResolvedValue({ stream, binding });
+    await click(en.autoExplain, floating.document);
+    await refresh();
+    mocks.ask.mockClear();
+    Object.defineProperties(document.querySelector("video")!, {
+      videoWidth: { configurable: true, value: 640 },
+      videoHeight: { configurable: true, value: 480 },
+    });
+    tabUrls.set(1, "https://ignored.test/private");
+    Object.assign(track, { getCaptureHandle: () => null });
+    await act(async () => {
+      track.dispatchEvent(new Event("capturehandlechange"));
+      updated.emit(
+        1,
+        { status: "complete", url: tabUrls.get(1) },
+        { id: 1, url: tabUrls.get(1) },
+      );
+    });
+    await refresh();
+    await act(async () => vi.advanceTimersByTimeAsync(4000));
+    expect(
+      floating.document.querySelector(".toolbar .status")!.textContent,
+    ).toBe(en.blockedPage);
+    expect(floating.document.querySelector(".narration-recovery")).toBeNull();
+    expect(mocks.ask).not.toHaveBeenCalled();
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+  });
+
+  it.each(["monitor", "window"])(
+    "requires per-share consent before narrating a %s, then sends stable changes without unrelated page context",
+    async (surface) => {
+      await start();
+      const { floating } = await openShareBubble(surface);
+      const pixels = new Uint8ClampedArray(9 * 8 * 4);
+      const getImageData = vi.fn(() => ({ data: pixels }));
+      vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+        drawImage: vi.fn(),
+        getImageData,
+      } as unknown as CanvasRenderingContext2D);
+      Object.defineProperties(document.querySelector("video")!, {
+        videoWidth: { configurable: true, value: 640 },
+        videoHeight: { configurable: true, value: 480 },
+      });
+      mocks.sensitive.mockResolvedValue(true);
+      mocks.ask.mockClear();
+      await click(en.autoExplain, floating.document);
+      expect(
+        floating.document
+          .querySelector('[role="switch"]')!
+          .getAttribute("aria-checked"),
+      ).toBe("false");
+      expect(
+        floating.document.querySelector(".screen-narration-consent")!
+          .textContent,
+      ).toContain(en.autoExplainScreenConsent);
+      await act(async () => vi.advanceTimersByTimeAsync(6000));
+      expect(mocks.freeze).not.toHaveBeenCalled();
+      expect(mocks.ask).not.toHaveBeenCalled();
+      await click(en.autoExplainScreenAllow, floating.document);
+      await act(async () => vi.advanceTimersByTimeAsync(4000));
+      expect(mocks.ask).toHaveBeenCalledOnce();
+      expect(mocks.ask.mock.calls[0][0]).toMatchObject({
+        kind: "passive",
+        image: "data:image/png;base64,CCC=",
+      });
+      expect(mocks.ask.mock.calls[0][0].page).toBeUndefined();
+      await act(async () => vi.advanceTimersByTimeAsync(6000));
+      expect(mocks.ask).toHaveBeenCalledOnce();
+      for (let y = 0; y < 8; y++)
+        for (let x = 0; x < 9; x++) {
+          const i = (y * 9 + x) * 4;
+          pixels[i] = pixels[i + 1] = pixels[i + 2] = 255 - x * 28;
+        }
+      await act(async () => vi.advanceTimersByTimeAsync(4000));
+      expect(mocks.ask).toHaveBeenCalledTimes(2);
+      await click(en.autoExplain, floating.document);
+      await click(en.autoExplain, floating.document);
+      expect(
+        floating.document.querySelector(".screen-narration-consent"),
+      ).not.toBeNull();
+      expect(
+        floating.document
+          .querySelector('[role="switch"]')!
+          .getAttribute("aria-checked"),
+      ).toBe("false");
+      await click(en.cropCancel, floating.document);
+      expect(
+        floating.document.querySelector(".screen-narration-consent"),
+      ).toBeNull();
+    },
+  );
+
+  it.each(["off", "ended", "source changed", "bubble closed"])(
+    "discards a delayed screen narration when the share is %s",
+    async (ending) => {
+      await start();
+      const { floating, track } = await startSharing();
+      vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+        drawImage: vi.fn(),
+        getImageData: () => ({ data: new Uint8ClampedArray(9 * 8 * 4) }),
+      } as unknown as CanvasRenderingContext2D);
+      Object.defineProperties(document.querySelector("video")!, {
+        videoWidth: { configurable: true, value: 640 },
+        videoHeight: { configurable: true, value: 480 },
+      });
+      let finish!: (result: { answer: string }) => void;
+      mocks.ask.mockImplementationOnce(
+        () => new Promise((resolve) => (finish = resolve)),
+      );
+      await act(async () => vi.advanceTimersByTimeAsync(4000));
+      expect(finish).toBeTypeOf("function");
+      if (ending === "off") await click(en.autoExplain, floating.document);
+      else
+        await act(async () => {
+          if (ending === "bubble closed")
+            floating.dispatchEvent(new Event("pagehide"));
+          else {
+            if (ending === "ended") track.readyState = "ended";
+            else track.getSettings = () => ({ displaySurface: "browser" });
+            track.dispatchEvent(
+              new Event(ending === "ended" ? "ended" : "capturehandlechange"),
+            );
+          }
+        });
+      await act(async () =>
+        finish({
+          answer: JSON.stringify({
+            what: "STALE_SCREEN_REPLY",
+            points: [],
+            questions: [],
+          }),
+        }),
+      );
+      expect(
+        document.body.textContent + floating.document.body.textContent,
+      ).not.toContain("STALE_SCREEN_REPLY");
+      if (ending !== "source changed")
+        expect(chrome.storage.local.set).toHaveBeenCalledWith({
+          passive: false,
+        });
+    },
+  );
+
+  it.each(["password", "uninspectable", "unavailable"])(
+    "V21-08 explains a %s privacy pause and offers only applicable recovery actions",
+    async (reason) => {
+      stored.passive = true;
+      mocks.sensitive.mockResolvedValue(true);
+      mocks.privacyReason.mockResolvedValue(reason);
+      await start();
+      await refresh();
+      const warning =
+        reason === "password"
+          ? en.privacyPassword
+          : reason === "uninspectable"
+            ? en.privacyEmbedded
+            : en.passwordPage;
+      expect(document.querySelector(".toolbar .status")!.textContent).toBe(
+        warning,
+      );
+      expect(
+        document.querySelector(".privacy-recovery")!.textContent,
+      ).toContain(en.autoExplainManualCapture);
+      const textButton = Array.from(document.querySelectorAll("button")).find(
+        (b) => b.textContent === en.autoExplainPageText,
+      );
+      expect(Boolean(textButton)).toBe(reason === "uninspectable");
+      expect(mocks.ask).not.toHaveBeenCalled();
+      if (textButton) {
+        await act(async () => textButton.click());
+        await flush();
+        expect(mocks.ask).toHaveBeenCalledOnce();
+        expect(mocks.ask.mock.calls[0][0].page.textScope).toBe(
+          "top-document-text",
+        );
+        expect(mocks.ask.mock.calls[0][0].image).toBeUndefined();
+      }
+    },
+  );
+
+  it("V21-08 keeps explicit public-text recovery blocked on passwords and ignored sites", async () => {
+    stored.passive = true;
+    stored.blocklist = ["ignored.test"];
+    mocks.sensitive.mockResolvedValue(true);
+    mocks.privacyReason.mockResolvedValue("uninspectable");
+    await start();
+    await refresh();
+    mocks.explicitContext.mockResolvedValueOnce({ ...page, hasPassword: true });
+    await click(en.autoExplainPageText);
+    expect(mocks.ask).not.toHaveBeenCalled();
+    mocks.explicitContext.mockResolvedValueOnce({
+      ...page,
+      url: "https://ignored.test/product",
+    });
+    await click(en.autoExplainPageText);
+    expect(mocks.ask).not.toHaveBeenCalled();
+  });
+
   it("starts sharing without closing PiP or freezing or replacing an accepted capture", async () => {
     await start();
     await submitDraft("Keep this conversation");
@@ -3307,7 +3621,7 @@ describe("screen sharing and capture authorization in the bubble", () => {
 
   it("keeps a crop failure visible across background screen checks without sending unverified pixels", async () => {
     await start();
-    const { floating } = await startSharing();
+    const { floating } = await startSharing("browser");
     const video = document.querySelector("video")!;
     Object.defineProperties(video, {
       videoWidth: { configurable: true, value: 640 },

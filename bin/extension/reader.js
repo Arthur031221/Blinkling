@@ -26141,8 +26141,9 @@ function listenForShiftCrop(view, allowed, start) {
 }
 
 // extension/privacy.ts
-function hasSensitiveContent(doc = document, mode = false) {
+function hasSensitiveContent(doc = document, mode = false, explain = false) {
   doc ??= document;
+  const blocked = (reason) => explain ? reason : true;
   const manualTextOnly = mode === true;
   const contributesNoPixels = (element) => {
     try {
@@ -26186,21 +26187,26 @@ function hasSensitiveContent(doc = document, mode = false) {
   const roots = [doc];
   const seen = /* @__PURE__ */ new Set();
   let remaining = 5e4;
+  let uninspectable = false;
   while (roots.length) {
     const root = roots.pop();
     if (seen.has(root)) continue;
     seen.add(root);
     const owner = root.nodeType === 9 ? root : root.ownerDocument;
-    if (!owner) return true;
+    if (!owner) {
+      if (!explain) return true;
+      uninspectable = true;
+      continue;
+    }
     const walker = owner.createTreeWalker(root, 1);
     let node;
     while (node = walker.nextNode()) {
-      if (--remaining < 0) return true;
+      if (--remaining < 0) return blocked("inspection-limit");
       const element = node;
       if (element.matches(
         'input[type="password" i],input[autocomplete~="current-password" i],input[autocomplete~="new-password" i]'
       ))
-        return true;
+        return blocked("password");
       if (element.shadowRoot) roots.push(element.shadowRoot);
       if (["iframe", "frame", "object", "embed"].includes(element.localName)) {
         const excludedPixels = () => mode === "visible-capture" && contributesNoPixels(element);
@@ -26209,23 +26215,31 @@ function hasSensitiveContent(doc = document, mode = false) {
           const nested = frame.contentDocument ?? frame.getSVGDocument?.();
           if (!nested) {
             if (manualTextOnly || excludedPixels()) continue;
-            return true;
+            if (!explain) return true;
+            uninspectable = true;
+            continue;
           }
-          if (nested.readyState !== "complete" && !manualTextOnly && !excludedPixels())
-            return true;
+          if (nested.readyState !== "complete" && !manualTextOnly && !excludedPixels()) {
+            if (!explain) return true;
+            uninspectable = true;
+          }
           const source = frame.getAttribute("src")?.trim().toLowerCase();
           if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank")) {
-            if (!manualTextOnly && !excludedPixels()) return true;
+            if (!manualTextOnly && !excludedPixels()) {
+              if (!explain) return true;
+              uninspectable = true;
+            }
           }
           roots.push(nested);
         } catch {
           if (manualTextOnly || excludedPixels()) continue;
-          return true;
+          if (!explain) return true;
+          uninspectable = true;
         }
       }
     }
   }
-  return false;
+  return uninspectable ? blocked("uninspectable") : explain ? void 0 : false;
 }
 
 // extension/page-context.ts

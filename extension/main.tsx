@@ -44,6 +44,7 @@ import {
   getGuideContext,
   getDocumentIdentity,
   isSensitivePage,
+  getPagePrivacyReason,
   setCurrentActiveTab,
   type CaptureKind,
   type PendingWebCapture,
@@ -62,10 +63,15 @@ import {
 import { boundedHistory } from "./history";
 import { isGuideQuestion, buildPassivePrompt } from "./chat-intent";
 import { buildTranslationPrompt } from "./page-tools";
-import { differenceHash, ScreenChanges } from "./screen-change";
+import {
+  differenceHash,
+  maskNarrationBubble,
+  ScreenChanges,
+} from "./screen-change";
 import {
   inspectableCaptureUrl,
   matchesCaptureBinding,
+  prepareCaptureBinding,
   type CaptureBinding,
 } from "./capture-binding";
 import { pageRevision } from "./page-revision";
@@ -241,6 +247,8 @@ function App() {
   const [consented, setConsented] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [pipDoc, setPipDoc] = useState<Document | null>(null);
+  const pipDocRef = useRef(pipDoc);
+  pipDocRef.current = pipDoc;
   const controlledPipClose = useRef(false);
   const [fallback, setFallback] = useState(false);
   const [expanded, setExpanded] = useState(true);
@@ -367,6 +375,8 @@ function App() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [passive, setPassive] = useState(false);
   const [paused, setPaused] = useState(false);
+  const narrationActive = useRef(false);
+  narrationActive.current = passive && !paused;
   const [shiftCropEnabled, setShiftCropEnabled] = useState(true);
   const shiftCropActions = useRef({ allowed: false, start: () => {} });
   const [usage, setUsage] = useState(0);
@@ -411,6 +421,15 @@ function App() {
   const cropBusy = useRef(false);
   const [cropPending, setCropPending] = useState(false);
   const [shareStream, setShareStream] = useState<MediaStream | null>(null);
+  const [screenConsent, setScreenConsent] = useState<MediaStream | null>(null);
+  const screenConsentRef = useRef<{
+    stream: MediaStream;
+    track: MediaStreamTrack;
+    surface: "monitor" | "window";
+  } | null>(null);
+  const [narrationUnverified, setNarrationUnverified] = useState(false);
+  const [pagePrivacyReason, setPagePrivacyReason] =
+    useState<Awaited<ReturnType<typeof getPagePrivacyReason>>>();
   const [blocklist, setBlocklist] = useState("");
   const requestRef = useRef<AbortController | null>(null);
   const apiRequestRef = useRef<ReturnType<typeof askAnthropic> | null>(null);
@@ -424,6 +443,7 @@ function App() {
   const sourceEpoch = useRef(0);
   const sourceResolving = useRef(false);
   const sharedBinding = useRef<CaptureBinding | undefined>(undefined);
+  const sharedBindingNeedsRefresh = useRef(false);
   const loadPageRef = useRef<() => Promise<void>>(loadPageAndSuggestions);
   const pageRefreshTimer = useRef<number | undefined>(undefined);
   const pageRequestKey = useRef("");
@@ -695,6 +715,11 @@ function App() {
       tab: BrowserTab,
     ) => {
       if (
+        tabId === sharedBinding.current?.tabId &&
+        (change.url || change.status)
+      )
+        sharedBindingNeedsRefresh.current = true;
+      if (
         tabId === activeTabId.current &&
         (change.url || change.status === "loading")
       )
@@ -746,9 +771,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (videoRef.current && shareStream) {
+    if (videoRef.current) {
       videoRef.current.srcObject = shareStream;
-      void videoRef.current.play().catch(() => {});
+      if (shareStream) void videoRef.current.play().catch(() => {});
     }
   }, [shareStream]);
   useEffect(() => {
@@ -794,11 +819,11 @@ function App() {
       if (controlledPipClose.current) return;
       pageCaptureController.current?.abort();
       setPipDoc(null);
-      shareRef.current?.getTracks().forEach((track) => track.stop());
-      shareRef.current = null;
-      setShareStream(null);
-      if (backend === "bridge")
-        void bridge.send({ type: "share", active: false }).catch(() => {});
+      if (shareRef.current) {
+        stopSharing();
+        setPassive(false);
+        void saveSetting("passive", false);
+      }
     };
     child.addEventListener("resize", remember);
     child.addEventListener("pagehide", close, { once: true });
@@ -1324,12 +1349,20 @@ function App() {
       disposed = false;
     const sample = async () => {
       const video = videoRef.current;
+      const consent = screenConsentRef.current;
+      const desktop = Boolean(
+        consent?.stream === shareStream &&
+          consent.track === track &&
+          consent.surface === track.getSettings().displaySurface &&
+          track.readyState === "live" &&
+          !track.muted,
+      );
       if (
         running ||
         disposed ||
         !video?.videoWidth ||
         cropBusy.current ||
-        sourceResolving.current ||
+        (!desktop && sourceResolving.current) ||
         requestIdRef.current ||
         translationController.current
       )
@@ -1339,64 +1372,128 @@ function App() {
         const sourceTabId = activeTabId.current;
         const sourceVersion = pageVersion.current;
         const sourceGeneration = sourceEpoch.current;
-        if (!sourceTabId) return;
         const checkedBindingVersion = bindingVersion;
-        if (!matchesCaptureBinding(track, sharedBinding.current, sourceTabId)) {
-          if (errorStatusRevision.current !== statusRevision.current)
+        if (
+          !desktop &&
+          !matchesCaptureBinding(track, sharedBinding.current, sourceTabId)
+        ) {
+          const pageWarning =
+            pageWarningRevision.current === statusRevision.current;
+          setNarrationUnverified(!pageWarning);
+          if (
+            !pageWarning &&
+            errorStatusRevision.current !== statusRevision.current
+          )
             setStatus(t.passiveScreenUnverified);
           return;
         }
-        const frame = document.createElement("canvas");
-        const scale = Math.min(
-          1,
-          1600 / Math.max(video.videoWidth, video.videoHeight),
-        );
-        frame.width = Math.round(video.videoWidth * scale);
-        frame.height = Math.round(video.videoHeight * scale);
-        frame
-          .getContext("2d")
-          ?.drawImage(video, 0, 0, frame.width, frame.height);
-        const small = document.createElement("canvas");
-        small.width = 9;
-        small.height = 8;
-        const ctx = small.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return;
-        ctx.drawImage(frame, 0, 0, 9, 8);
-        const hash = differenceHash(ctx.getImageData(0, 0, 9, 8).data);
-        // Check the source after freezing, then send only these checked pixels.
-        const tab = await chrome.tabs.get(sourceTabId).catch(() => undefined);
-        if (!tab?.url || !inspectableCaptureUrl(tab.url) || isBlocked(tab.url))
+        if (!desktop && sharedBindingNeedsRefresh.current) {
+          schedulePageRefresh();
           return;
-        const [visibleTab] = await chrome.tabs
-          .query({ active: true, windowId: tab.windowId })
-          .catch(() => []);
-        if (
-          !visibleTab ||
-          (visibleTab.id !== sourceTabId && !isOwnExtensionUrl(visibleTab.url))
-        )
-          return;
-        if (await isSensitivePage(sharedBinding.current).catch(() => true))
-          return;
-        if (
-          disposed ||
-          sourceResolving.current ||
-          shareRef.current !== shareStream ||
-          videoRef.current !== video ||
-          sourceGeneration !== sourceEpoch.current ||
-          sourceTabId !== activeTabId.current ||
-          sourceVersion !== pageVersion.current ||
-          checkedBindingVersion !== bindingVersion ||
-          !matchesCaptureBinding(track, sharedBinding.current, sourceTabId)
-        )
-          return;
-        if (!detector.observe(hash, Date.now())) return;
-        setStatus(t.screenChangeSummary);
-        await askWith({
-          question: t.passivePrompt,
-          kind: "passive",
-          image: encodeCanvasPng(frame),
-          silent: true,
-        });
+        }
+        setNarrationUnverified(false);
+        const frame = desktop
+          ? await freezeSharedFrame(video, null)
+          : document.createElement("canvas");
+        try {
+          const scale = Math.min(
+            1,
+            1600 / Math.max(video.videoWidth, video.videoHeight),
+          );
+          if (!desktop) {
+            frame.width = Math.round(video.videoWidth * scale);
+            frame.height = Math.round(video.videoHeight * scale);
+            frame
+              .getContext("2d")
+              ?.drawImage(video, 0, 0, frame.width, frame.height);
+          }
+          const floating = pipDocRef.current?.defaultView;
+          if (desktop && consent!.surface === "monitor" && floating)
+            maskNarrationBubble(frame, floating);
+          if (desktop && Math.max(frame.width, frame.height) > 1600) {
+            const reduced = document.createElement("canvas");
+            const ratio = 1600 / Math.max(frame.width, frame.height);
+            reduced.width = Math.round(frame.width * ratio);
+            reduced.height = Math.round(frame.height * ratio);
+            reduced
+              .getContext("2d")
+              ?.drawImage(frame, 0, 0, reduced.width, reduced.height);
+            frame.width = reduced.width;
+            frame.height = reduced.height;
+            frame.getContext("2d")?.drawImage(reduced, 0, 0);
+            reduced.width = reduced.height = 0;
+          }
+          const small = document.createElement("canvas");
+          small.width = 9;
+          small.height = 8;
+          const ctx = small.getContext("2d", { willReadFrequently: true });
+          if (!ctx) return;
+          ctx.drawImage(frame, 0, 0, 9, 8);
+          const hash = differenceHash(ctx.getImageData(0, 0, 9, 8).data);
+          // Check the source after freezing, then send only these checked pixels.
+          if (!desktop) {
+            if (!sourceTabId) return;
+            const tab = await chrome.tabs
+              .get(sourceTabId)
+              .catch(() => undefined);
+            if (
+              !tab?.url ||
+              !inspectableCaptureUrl(tab.url) ||
+              isBlocked(tab.url)
+            )
+              return;
+            const [visibleTab] = await chrome.tabs
+              .query({ active: true, windowId: tab.windowId })
+              .catch(() => []);
+            if (
+              !visibleTab ||
+              (visibleTab.id !== sourceTabId &&
+                !isOwnExtensionUrl(visibleTab.url))
+            )
+              return;
+            if (
+              await isSensitivePage(sharedBinding.current).catch(() => true)
+            ) {
+              await showPagePrivacyWarning(sharedBinding.current);
+              return;
+            }
+          }
+          const isCurrent = () =>
+            !(
+              disposed ||
+              shareRef.current !== shareStream ||
+              videoRef.current !== video ||
+              checkedBindingVersion !== bindingVersion ||
+              (desktop
+                ? screenConsentRef.current !== consent ||
+                  track.readyState !== "live" ||
+                  track.muted ||
+                  track.getSettings().displaySurface !== consent!.surface
+                : sourceResolving.current ||
+                  sourceGeneration !== sourceEpoch.current ||
+                  sourceTabId !== activeTabId.current ||
+                  sourceVersion !== pageVersion.current ||
+                  !matchesCaptureBinding(
+                    track,
+                    sharedBinding.current,
+                    sourceTabId,
+                  ))
+            );
+          if (!isCurrent()) return;
+          if (!detector.observe(hash, Date.now())) return;
+          setStatus(t.screenChangeSummary);
+          await askWith({
+            question: t.passivePrompt,
+            kind: "passive",
+            image: encodeCanvasPng(frame),
+            silent: true,
+            sharedSource: desktop ? shareStream : undefined,
+            isCurrent,
+          });
+        } finally {
+          frame.width = 0;
+          frame.height = 0;
+        }
       } finally {
         running = false;
       }
@@ -1643,6 +1740,7 @@ function App() {
       pageRequestKey.current = "";
       setSuggestions([]);
       setPage(undefined);
+      setPagePrivacyReason(undefined);
       setDocumentIdentity(undefined);
       setReaderSourceUrl(undefined);
     }
@@ -1672,6 +1770,14 @@ function App() {
     try {
       const sourceTabId = activeTabId.current;
       if (!sourceTabId) return;
+      // Screen/app consent covers only the selected stream. The foreground
+      // browser tab is unrelated and must not supply its text or privacy verdict.
+      if (
+        passive &&
+        !paused &&
+        screenConsentRef.current?.stream === shareRef.current
+      )
+        return;
       const tab = await chrome.tabs.get(sourceTabId);
       if (!tab.url || isOwnExtensionUrl(tab.url)) {
         setSuggestions([]);
@@ -1683,6 +1789,25 @@ function App() {
         setDocumentIdentity(undefined);
         setPageStatus(t.blockedPage);
         return;
+      }
+      const stream = shareRef.current;
+      const track = stream?.getVideoTracks()[0];
+      if (
+        sharedBindingNeedsRefresh.current &&
+        sharedBinding.current?.tabId === sourceTabId &&
+        track?.getSettings().displaySurface === "browser"
+      ) {
+        const binding = await prepareCaptureBinding(tab);
+        if (
+          sourceTabId !== activeTabId.current ||
+          version !== pageVersion.current ||
+          stream !== shareRef.current
+        )
+          return;
+        if (binding) {
+          sharedBinding.current = binding;
+          sharedBindingNeedsRefresh.current = false;
+        }
       }
       if (
         sourceTabId !== activeTabId.current ||
@@ -1725,7 +1850,7 @@ function App() {
       if (passive && !paused) {
         if (await isSensitivePage().catch(() => true)) {
           setSuggestions([]);
-          setPageStatus(t.passwordPage);
+          await showPagePrivacyWarning();
           return;
         }
       }
@@ -1738,10 +1863,13 @@ function App() {
       setPage(next);
       if (!next || next.hasPassword || isBlocked(next.url)) {
         setSuggestions([]);
-        if (next?.hasPassword) setPageStatus(t.passwordPage);
-        else if (next && isBlocked(next.url)) setPageStatus(t.blockedPage);
+        if (next?.hasPassword) {
+          setPagePrivacyReason("password");
+          setPageStatus(t.privacyPassword);
+        } else if (next && isBlocked(next.url)) setPageStatus(t.blockedPage);
         return;
       }
+      setPagePrivacyReason(undefined);
       if (
         pageWarningRevision.current === feedbackRevision &&
         statusRevision.current === feedbackRevision
@@ -1758,7 +1886,12 @@ function App() {
       }
       if (pageRequestKey.current === key) return;
       pageRequestKey.current = key;
-      if (passive && !paused && !shareRef.current)
+      if (
+        passive &&
+        !paused &&
+        (!shareRef.current ||
+          matchesCaptureBinding(track, sharedBinding.current, sourceTabId))
+      )
         void askWith({
           question: t.passivePrompt,
           kind: "passive",
@@ -1780,8 +1913,54 @@ function App() {
         version === pageVersion.current &&
         statusRevision.current === feedbackRevision &&
         ["password_page", "blocked_page"].includes(errorCode(error))
-      )
-        reportError(error);
+      ) {
+        if (errorCode(error) === "password_page")
+          await showPagePrivacyWarning();
+        else reportError(error);
+      }
+    }
+  }
+  async function showPagePrivacyWarning(binding?: CaptureBinding) {
+    const version = pageVersion.current;
+    const source = activeTabId.current;
+    const revision = statusRevision.current;
+    const reason =
+      (await getPagePrivacyReason(binding).catch(
+        () => "unavailable" as const,
+      )) || "unavailable";
+    if (
+      version !== pageVersion.current ||
+      source !== activeTabId.current ||
+      revision !== statusRevision.current
+    )
+      return;
+    setPagePrivacyReason(reason);
+    setPage(undefined);
+    setPageStatus(
+      reason === "password"
+        ? t.privacyPassword
+        : reason === "uninspectable"
+          ? t.privacyEmbedded
+          : t.passwordPage,
+    );
+  }
+  async function explainPageText() {
+    const source = activeTabId.current;
+    const version = pageVersion.current;
+    try {
+      const next = await getExplicitPageContext();
+      if (source !== activeTabId.current || version !== pageVersion.current)
+        throw new Error("tab_changed");
+      if (!next) throw new Error("page_changed");
+      if (isBlocked(next.url)) throw new Error("blocked_page");
+      if (next.hasPassword) throw new Error("password_page");
+      await askWith({
+        question: t.pageSummary,
+        page: next,
+        includeCapture: false,
+      });
+    } catch (error) {
+      reportError(error);
     }
   }
   async function requestSiteAccess(captureAccess = false): Promise<number> {
@@ -1940,6 +2119,7 @@ function App() {
         // pixels and leaves both PiP and the last confirmed capture intact.
         const result = await startScreenShare(activeTabId.current);
         sharedBinding.current = result.binding;
+        sharedBindingNeedsRefresh.current = false;
         shareRef.current = result.stream;
         if (videoRef.current) {
           videoRef.current.srcObject = result.stream;
@@ -1953,6 +2133,10 @@ function App() {
           () => {
             if (shareRef.current !== result.stream) return;
             shareRef.current = null;
+            sharedBinding.current = undefined;
+            screenConsentRef.current = null;
+            setScreenConsent(null);
+            setNarrationUnverified(false);
             setShareStream(null);
             setLiveScreenSelected(false);
             setPassive(false);
@@ -2022,6 +2206,10 @@ function App() {
     }
   }
   function stopSharing() {
+    sharedBinding.current = undefined;
+    screenConsentRef.current = null;
+    setScreenConsent(null);
+    setNarrationUnverified(false);
     setLiveScreenSelected(false);
     shareRef.current?.getTracks().forEach((track) => track.stop());
     shareRef.current = null;
@@ -2101,7 +2289,7 @@ function App() {
         await captureAction("visible");
         return;
       }
-      if (!shareRef.current) await setPassiveMode(true);
+      if (!shareRef.current && !(await captureAction("screen"))) return;
       const stream = shareRef.current;
       const video = videoRef.current;
       if (!stream || !video) return;
@@ -2244,6 +2432,8 @@ function App() {
     includeCapture?: boolean;
     untrustedSelection?: string;
     tutorialCompletion?: TutorialPractice;
+    sharedSource?: MediaStream;
+    isCurrent?: () => boolean;
   }) {
     if (!consented) return;
     if (
@@ -2303,7 +2493,11 @@ function App() {
     const sourceTabId = activeTabId.current;
     const sourceVersion = pageVersion.current;
     const sourceGeneration = sourceEpoch.current;
-    if ((kind === "passive" || kind === "suggest") && sourceResolving.current)
+    if (
+      (kind === "passive" || kind === "suggest") &&
+      !options.sharedSource &&
+      sourceResolving.current
+    )
       return;
     if (
       (kind === "passive" || kind === "suggest") &&
@@ -2349,6 +2543,8 @@ function App() {
       if (
         requestIdRef.current === id &&
         !cancelledRequests.current.has(id) &&
+        (!options.isCurrent || options.isCurrent()) &&
+        (kind !== "passive" || narrationActive.current) &&
         !(kind === "guide" && currentPage)
       )
         setAnswer(text);
@@ -2410,7 +2606,7 @@ function App() {
           if (sensitive) {
             setSuggestions([]);
             setPage(undefined);
-            setPageStatus(t.passwordPage);
+            await showPagePrivacyWarning();
           } else setStatus(t.ready);
           return;
         }
@@ -2421,6 +2617,7 @@ function App() {
         currentPage = await getGuideContext(currentPage);
       if (requestIdRef.current !== id || cancelledRequests.current.has(id))
         return;
+      if (options.isCurrent && !options.isCurrent()) return;
       if (backend === "api") {
         const controller = new AbortController();
         requestRef.current = controller;
@@ -2499,6 +2696,8 @@ function App() {
           setSessionId(result.sessionId);
       }
       if (cancelledRequests.current.has(id)) return;
+      if (options.isCurrent && !options.isCurrent()) return;
+      if (kind === "passive" && !narrationActive.current) return;
       if (finalUsage) {
         if (backend === "api")
           finalUsage = {
@@ -2521,8 +2720,13 @@ function App() {
       if (
         options.silent &&
         (kind === "suggest" || kind === "passive") &&
-        (sourceVersion !== pageVersion.current ||
-          sourceTabId !== activeTabId.current)
+        (options.sharedSource
+          ? screenConsentRef.current?.stream !== options.sharedSource ||
+            shareRef.current !== options.sharedSource ||
+            !passive ||
+            paused
+          : sourceVersion !== pageVersion.current ||
+            sourceTabId !== activeTabId.current)
       )
         return;
       let visibleAnswer = final;
@@ -2627,6 +2831,7 @@ function App() {
       if (
         requestIdRef.current === id &&
         !cancelledRequests.current.has(id) &&
+        (!options.isCurrent || options.isCurrent()) &&
         (!options.silent || sourceVersion === pageVersion.current)
       )
         reportError(error);
@@ -2774,8 +2979,24 @@ function App() {
         // The switch owns sharing and narration together. A regular panel can
         // narrate its page; the floating bubble follows the chosen screen too.
         if (pipDoc && !shareRef.current) {
+          setPassive(false);
+          void saveSetting("passive", false);
           if (!(await captureAction("screen"))) return;
-        } else await requestSiteAccess();
+        } else if (!shareRef.current) await requestSiteAccess();
+        const stream = shareRef.current;
+        const surface = stream
+          ?.getVideoTracks()[0]
+          ?.getSettings().displaySurface;
+        if (
+          stream &&
+          (surface === "monitor" || surface === "window") &&
+          screenConsentRef.current?.stream !== stream
+        ) {
+          setPassive(false);
+          await saveSetting("passive", false);
+          setScreenConsent(stream);
+          return;
+        }
       }
       setPassive(value);
       setPaused(false);
@@ -2789,6 +3010,24 @@ function App() {
       modeChangeBusy.current = false;
       setModeChanging(false);
     }
+  }
+  async function acceptScreenNarration() {
+    const stream = screenConsent;
+    const track = stream?.getVideoTracks()[0];
+    const surface = track?.getSettings().displaySurface;
+    if (
+      !stream ||
+      shareRef.current !== stream ||
+      !track ||
+      track.readyState !== "live" ||
+      (surface !== "monitor" && surface !== "window")
+    ) {
+      setScreenConsent(null);
+      return;
+    }
+    screenConsentRef.current = { stream, track, surface };
+    setScreenConsent(null);
+    await setPassiveMode(true);
   }
   async function selectSession(id?: string) {
     try {
@@ -3594,6 +3833,62 @@ function App() {
                 <button onClick={() => void restoreText()}>{t.restore}</button>
               )}
             </div>
+            {screenConsent && (
+              <div
+                role="group"
+                aria-label={t.autoExplainScreenConsent}
+                className="screen-narration-consent"
+              >
+                <p>{t.autoExplainScreenConsent}</p>
+                <button
+                  className="primary"
+                  onClick={() => void acceptScreenNarration()}
+                >
+                  {t.autoExplainScreenAllow}
+                </button>
+                <button
+                  className="plain"
+                  onClick={() => void setPassiveMode(false)}
+                >
+                  {t.cropCancel}
+                </button>
+              </div>
+            )}
+            {narrationUnverified && passive && !paused && (
+              <div className="narration-recovery">
+                <p role="status">{t.passiveScreenUnverified}</p>
+                <button
+                  className="plain"
+                  onClick={() => {
+                    stopSharing();
+                    void setPassiveMode(true);
+                  }}
+                >
+                  {t.autoExplainChooseScreen}
+                </button>
+              </div>
+            )}
+            {pagePrivacyReason && (
+              <div className="privacy-recovery">
+                {pagePrivacyReason === "uninspectable" && (
+                  <button
+                    className="plain"
+                    onClick={() => void explainPageText()}
+                  >
+                    {t.autoExplainPageText}
+                  </button>
+                )}
+                <button
+                  className="plain"
+                  onClick={() => {
+                    if (pipDoc) void captureWholeScreen();
+                    else void openFloat();
+                  }}
+                >
+                  {t.autoExplainManualCapture}
+                </button>
+              </div>
+            )}
             {contextFailure === question.trim() && contextFailure && (
               <button
                 type="button"

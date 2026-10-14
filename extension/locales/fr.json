@@ -63,7 +63,7 @@
   "passive": "Explication automatique",
   "passivePrompt": "Décrivez brièvement le changement important à l'écran.",
   "passiveResumed": "Explication automatique active",
-  "passwordPage": "Un champ de mot de passe a été trouvé ou une partie de la page ne peut pas être vérifiée. La lecture et la capture sont en pause. Utilisez Partager un écran pour une capture manuelle.",
+  "passwordPage": "Le contenu n’a pas pu être vérifié. Autorisez l’accès à ce site ou utilisez Capturer tout l’écran pour une capture manuelle.",
   "paused": "Explication automatique en pause",
   "pin": "Épingler",
   "pipFallback": "La fenêtre contextuelle peut ne pas rester au-dessus des autres applications. Certains navigateurs prennent en charge Picture-in-Picture pour les documents.",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "Accès à la page autorisé.",
   "sessionInitialization": "Cette conversation a été interrompue avant de commencer. Choisissez « Nouvelle session » pour réessayer.",
   "translationIncomplete": "La traduction est incomplète. Réessayez ou sélectionnez un passage plus court.",
-  "passiveScreenUnverified": "Les résumés automatiques sont en pause. Partagez cet onglet pour reprendre.",
+  "passiveScreenUnverified": "L’explication automatique est en pause car l’onglet partagé ne peut pas être vérifié. Sélectionnez-le à nouveau.",
   "guideFailed": "Impossible de tracer le guide sur cette page. Relancez le guide.",
   "translationUnchanged": "Le texte n'a pas changé. Vérifiez la langue cible et réessayez.",
   "askWithoutPage": "Poser la question sans le contenu de la page",
@@ -163,5 +163,12 @@
   "moreTools": "Autres outils",
   "captureAccessHint": "Facultatif : autorisez une fois l’accès à tous les sites pour capturer des pages et sélectionner une zone dans les nouveaux onglets.",
   "guideOverview": "Vue d’ensemble",
-  "guideTour": "Pas à pas"
+  "guideTour": "Pas à pas",
+  "autoExplainScreenConsent": "L’explication automatique enverra des images de cet écran ou de cette application. Masquez d’abord les données privées ; les mots de passe et sites ignorés ne peuvent pas être vérifiés ici.",
+  "autoExplainScreenAllow": "Autoriser pour ce partage",
+  "autoExplainChooseScreen": "Choisir un écran",
+  "privacyPassword": "Explication automatique en pause : cette page contient un champ de mot de passe. Utilisez Capturer tout l’écran pour une capture manuelle.",
+  "privacyEmbedded": "Explication automatique en pause : le contenu intégré ne peut pas être vérifié. Faites expliquer le texte de la page ou capturez manuellement.",
+  "autoExplainPageText": "Expliquer le texte de la page",
+  "autoExplainManualCapture": "Capturer manuellement"
 }

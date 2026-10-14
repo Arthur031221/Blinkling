@@ -1450,7 +1450,9 @@ for (const kind of ["shadow", "frame", "opaque", "object"] as const) {
       await panel
         .getByRole("button", { name: en.wholeScreen, exact: true })
         .click();
-      await expect(panel.locator(".status")).toContainText(en.passwordPage);
+      await expect(panel.locator(".status")).toContainText(
+        kind === "opaque" ? en.privacyEmbedded : en.passwordPage,
+      );
       await expect(panel.locator(".capture-chip")).toHaveCount(0);
       expect(providerRequests).toHaveLength(0);
     });
@@ -1512,7 +1514,7 @@ test("a password appearing during region selection rejects the resulting capture
   await site.mouse.move(340, 260);
   await site.mouse.up();
   await site.keyboard.press("Enter");
-  await expect(panel.locator(".status")).toContainText(en.passwordPage);
+  await expect(panel.locator(".status")).toContainText(en.privacyPassword);
   await expect(panel.locator(".capture-chip")).toHaveCount(0);
 });
 
@@ -3423,7 +3425,7 @@ for (const backend of ["bridge", "api"] as const) {
 
 for (const ending of ["stop", "browser"] as const) {
   test(`unpaired API screen sharing starts and ends through ${ending}`, async () => {
-    await useUnpairedApi();
+    const questions = await useUnpairedApi();
     const pageErrors: string[] = [];
     panel.on("pageerror", (error) => pageErrors.push(error.message));
     await panel.evaluate(() => {
@@ -3455,16 +3457,23 @@ for (const ending of ["stop", "browser"] as const) {
               (window as Window & { shareStartBubble?: Window })
                 .shareStartBubble,
             recovery: !!document.querySelector(".capture-reopen"),
+            checked: doc
+              .querySelector('[role="switch"]')
+              ?.getAttribute("aria-checked"),
           };
         }),
       )
       .toMatchObject({
-        status: en.sharing,
+        status: en.answerReady,
         live: "live",
         thumbnail: false,
         sameBubble: true,
         recovery: false,
+        checked: "true",
       });
+    expect(
+      questions.some((question) => question.includes(en.passivePrompt)),
+    ).toBe(true);
     if (ending === "stop") await clickBubble(en.autoExplain);
     else
       await panel.evaluate(() => {

@@ -63,7 +63,7 @@
   "passive": "자동 설명",
   "passivePrompt": "화면의 의미 있는 변화를 간단히 설명해 주세요.",
   "passiveResumed": "자동 설명 켜짐",
-  "passwordPage": "비밀번호 입력란이 감지되었거나 확인할 수 없는 페이지 내용이 있습니다. 읽기와 캡처를 일시 중지했습니다. 직접 캡처하려면 화면 공유를 선택하세요.",
+  "passwordPage": "페이지 내용을 확인할 수 없습니다. 이 사이트 접근을 허용하거나 ‘전체 화면 캡처’로 직접 캡처하세요.",
   "paused": "자동 설명 일시 정지",
   "pin": "고정",
   "pipFallback": "팝업 창은 다른 앱보다 항상 위에 표시되지 않을 수 있습니다. 일부 브라우저는 문서 화면 속 화면을 지원합니다.",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "페이지 접근을 허용했습니다.",
   "sessionInitialization": "이 대화는 시작되기 전에 중단되었습니다. 새 세션를 선택하고 다시 시도하세요.",
   "translationIncomplete": "번역이 완료되지 않았습니다. 다시 시도하거나 더 짧은 문장을 선택하세요.",
-  "passiveScreenUnverified": "화면 자동 요약이 일시 중지되었습니다. 계속하려면 현재 브라우저 탭을 공유하세요.",
+  "passiveScreenUnverified": "공유 탭을 확인할 수 없어 자동 설명이 일시 중지되었습니다. 같은 탭을 다시 선택하세요.",
   "guideFailed": "이 페이지에 안내를 표시하지 못했어요. 안내를 다시 눌러 주세요.",
   "translationUnchanged": "텍스트가 바뀌지 않았습니다. 번역할 언어를 확인하고 다시 시도하세요.",
   "askWithoutPage": "페이지 내용 없이 질문",
@@ -163,5 +163,12 @@
   "moreTools": "더 많은 도구",
   "captureAccessHint": "선택 사항: 모든 사이트 접근을 한 번 허용하면 새 탭에서도 페이지 캡처와 영역 선택을 사용할 수 있습니다.",
   "guideOverview": "전체 보기",
-  "guideTour": "단계별 안내"
+  "guideTour": "단계별 안내",
+  "autoExplainScreenConsent": "자동 설명은 이 화면이나 앱의 이미지를 전송합니다. 먼저 개인 정보를 숨기세요. 비밀번호 입력란과 제외 사이트 검사는 이 화면에 적용할 수 없습니다.",
+  "autoExplainScreenAllow": "이번 공유에 허용",
+  "autoExplainChooseScreen": "공유할 화면 선택",
+  "privacyPassword": "비밀번호 입력란이 있어 자동 설명이 일시 중지되었습니다. ‘전체 화면 캡처’로 직접 캡처할 수 있습니다.",
+  "privacyEmbedded": "삽입된 콘텐츠를 확인할 수 없어 자동 설명이 일시 중지되었습니다. 페이지 텍스트를 설명하거나 직접 캡처하세요.",
+  "autoExplainPageText": "페이지 텍스트 설명",
+  "autoExplainManualCapture": "직접 캡처"
 }

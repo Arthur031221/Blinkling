@@ -15,6 +15,10 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { build } from "esbuild";
 import type { PendingWebCapture } from "../extension/capture";
+import { ExtensionBridge } from "../bridge/src/extension-bridge";
+import { ExtensionSessions } from "../bridge/src/extension-sessions";
+import { runCliProvider } from "../bridge/src/provider-cli";
+import type { ProviderRequest } from "../bridge/src/provider-request";
 import en from "../extension/locales/en.json" with { type: "json" };
 
 // XTest sends genuine desktop input, including to the native PiP window. CDP
@@ -64,6 +68,41 @@ let desktopLog: string;
 let managerLog: string;
 let authorizationServer: Server | undefined;
 let authorizationTabId: number;
+let autoBridge: ExtensionBridge | undefined;
+let autoRequests: { at: number; request: ProviderRequest }[] = [];
+let autoOrigin = "";
+let autoTabId: number;
+let narrationApp: ChildProcess | undefined;
+const nativeNarrationApp = `import ctypes, sys, select
+x = ctypes.CDLL('libX11.so.6'); P = ctypes.c_void_p; U = ctypes.c_ulong; I = ctypes.c_int
+x.XOpenDisplay.restype = P
+d = x.XOpenDisplay(None)
+if not d: raise RuntimeError('No display')
+x.XDefaultScreen.argtypes = [P]; x.XDefaultScreen.restype = I
+screen = x.XDefaultScreen(d)
+x.XRootWindow.argtypes = [P,I]; x.XRootWindow.restype = U
+root = x.XRootWindow(d,screen)
+x.XCreateSimpleWindow.argtypes = [P,U,I,I,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint,U,U]; x.XCreateSimpleWindow.restype = U
+w = x.XCreateSimpleWindow(d,root,40,100,900,600,0,0,0)
+x.XStoreName.argtypes = [P,U,ctypes.c_char_p]; x.XStoreName(d,w,b'Glimpselet narration app')
+x.XMapWindow.argtypes = [P,U]; x.XMapWindow(d,w)
+x.XCreateGC.argtypes = [P,U,U,P]; x.XCreateGC.restype = P
+gc = x.XCreateGC(d,w,0,None)
+x.XSetForeground.argtypes = [P,P,U]
+x.XFillRectangle.argtypes = [P,U,P,I,I,ctypes.c_uint,ctypes.c_uint]
+x.XFlush.argtypes = [P]
+reverse = False
+while True:
+ for i in range(16):
+  gray = (15-i if reverse else i)*17
+  x.XSetForeground(d,gc,gray*0x010101)
+  x.XFillRectangle(d,w,gc,i*57,0,57,600)
+ x.XFlush(d)
+ if select.select([sys.stdin],[],[],0.2)[0]:
+  line = sys.stdin.readline()
+  if not line: break
+  reverse = not reverse
+`;
 
 async function stopProcess(child: ChildProcess, group = false) {
   if (!child?.pid || child.exitCode !== null || child.signalCode !== null)
@@ -93,6 +132,12 @@ async function attachJson(testInfo: TestInfo, name: string, value: unknown) {
   const path = testInfo.outputPath(`${name}.json`);
   await writeFile(path, JSON.stringify(value, null, 2));
   await testInfo.attach(name, { path, contentType: "application/json" });
+}
+
+async function attachFrame(testInfo: TestInfo, name: string, frame: Buffer) {
+  const path = testInfo.outputPath(`${name}.png`);
+  await writeFile(path, frame);
+  await testInfo.attach(name, { path, contentType: "image/png" });
 }
 
 async function evaluateWithoutGesture<T>(expression: string): Promise<T> {
@@ -473,9 +518,15 @@ chrome.runtime.onMessage.addListener(message => {
       "--no-sandbox",
       "--enable-unsafe-extension-debugging",
       "--window-position=0,0",
-      "--window-size=1200,900",
+      ...(testInfo.title.includes("automatic explanation")
+        ? []
+        : ["--window-size=1200,900"]),
       `--force-device-scale-factor=${dpi}`,
-      "--auto-select-desktop-capture-source=Entire screen",
+      ...(testInfo.title.includes("automatic explanation tab")
+        ? ["--auto-select-tab-capture-source-by-title=Auto explain source"]
+        : testInfo.title.includes("automatic explanation app")
+          ? ["--auto-select-desktop-capture-source=Glimpselet narration app"]
+          : ["--auto-select-desktop-capture-source=Entire screen"]),
       "--host-resolver-rules=MAP *.glimpselet.test 127.0.0.1",
       "--no-proxy-server",
       ...(testInfo.title.includes("dedicated")
@@ -486,13 +537,79 @@ chrome.runtime.onMessage.addListener(message => {
   const worker =
     context.serviceWorkers()[0] ||
     (await context.waitForEvent("serviceworker"));
-  await worker.evaluate(() =>
-    chrome.storage.local.set({ consented: true, locale: "en" }),
+  await worker.evaluate(
+    (automatic) =>
+      chrome.storage.local.set({
+        consented: true,
+        locale: "en",
+        ...(automatic ? { blocklist: ["blocked.glimpselet.test"] } : {}),
+      }),
+    testInfo.title.includes("automatic explanation"),
   );
   panel = await context.newPage();
   await panel.goto(
     `chrome-extension://${new URL(worker.url()).host}/native-fixture.html`,
   );
+  if (testInfo.title.includes("automatic explanation")) {
+    autoRequests = [];
+    authorizationServer = createServer((request, response) => {
+      response.setHeader("Content-Type", "text/html; charset=utf-8");
+      const path = new URL(request.url || "/", "http://localhost").pathname;
+      response.end(`<!doctype html><title>Auto explain source</title>
+        <style>html{background:linear-gradient(90deg,${path === "/next" ? "#fff,#000" : "#000,#fff"});color:#f44;min-height:250vh}p{font-size:40px}</style>
+        <p>Public document ${["/next", "/cross"].includes(path) ? "NEW_DOCUMENT_ONLY" : "ORIGINAL_DOCUMENT_ONLY"}</p>
+        ${path === "/password" ? '<input type="password" value="PRIVATE_PASSWORD">' : ""}
+        ${path === "/embedded" ? `<iframe src="http://localhost:${new URL(autoOrigin).port}/opaque"></iframe>` : ""}`);
+    });
+    autoBridge = new ExtensionBridge(authorizationServer, () => autoOrigin, {
+      provider: (request) => {
+        autoRequests.push({ at: Date.now(), request });
+        return runCliProvider(request, {
+          command: process.execPath,
+          argsPrefix: [resolve("e2e-extension/mock-claude.cjs")],
+        });
+      },
+      sessions: new ExtensionSessions(directory, async () => []),
+    });
+    authorizationServer.listen(0, "127.0.0.1");
+    await once(authorizationServer, "listening");
+    const address = authorizationServer.address();
+    if (!address || typeof address === "string")
+      throw new Error("Missing auto fixture port");
+    autoOrigin = `http://127.0.0.1:${address.port}`;
+    site = await context.newPage();
+    await site.goto(`${autoOrigin}/`);
+    autoTabId = await panel.evaluate(
+      async (url) => (await chrome.tabs.query({ url }))[0].id!,
+      site.url(),
+    );
+    await panel.goto(
+      `chrome-extension://${new URL(worker.url()).host}/panel.html?sourceTab=${autoTabId}&pairPort=${address.port}&pairCode=${autoBridge.issueCode()}`,
+    );
+    await expect(panel.locator(".connection")).toHaveClass(/online/);
+    await expect(panel.locator(".suggestions button")).toHaveCount(3);
+    await nativeClick(`button[aria-label="${en.float}"]`);
+    await expect
+      .poll(() =>
+        panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),
+      )
+      .toBe(true);
+    await site.bringToFront();
+    if (testInfo.title.includes("automatic explanation app")) {
+      narrationApp = spawn("python3", ["-u", "-c", nativeNarrationApp], {
+        env: { ...process.env, DISPLAY: display },
+        stdio: ["pipe", "ignore", "pipe"],
+      });
+      await expect
+        .poll(() =>
+          execFileSync("xwininfo", ["-root", "-tree"], {
+            env: { ...process.env, DISPLAY: display },
+          }).toString(),
+        )
+        .toContain("Glimpselet narration app");
+    }
+    return;
+  }
   if (testInfo.title.includes("web authorization")) {
     authorizationServer = createServer((_request, response) => {
       response.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -980,12 +1097,20 @@ test.afterEach(async ({ browserName }, testInfo) => {
     try {
       await stopProcess(manager, true);
     } finally {
+      if (narrationApp) {
+        await stopProcess(narrationApp);
+        narrationApp = undefined;
+      }
       await stopProcess(desktop);
       await testInfo.attach("desktop-startup", {
         body: `${browserName}\n${desktopLog}\n${managerLog}`,
         contentType: "text/plain",
       });
       if (directory) await rm(directory, { recursive: true, force: true });
+      if (autoBridge) {
+        await autoBridge.close();
+        autoBridge = undefined;
+      }
       if (authorizationServer) {
         await new Promise<void>((done, reject) => {
           authorizationServer!.close((error) =>
@@ -2242,3 +2367,345 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
     );
   }
 }
+
+async function autoBubbleState() {
+  return panel.evaluate(() => {
+    const doc = window.documentPictureInPicture.window?.document;
+    const video = document.querySelector("video")!;
+    return {
+      checked: doc
+        ?.querySelector('[role="switch"]')
+        ?.getAttribute("aria-checked"),
+      consent: Boolean(doc?.querySelector(".screen-narration-consent")),
+      status: doc?.querySelector(".toolbar .status")?.textContent,
+      capture: doc?.querySelector<HTMLImageElement>(".capture-chip img")?.src,
+      track: (video.srcObject as MediaStream | null)
+        ?.getVideoTracks()[0]
+        ?.getSettings(),
+    };
+  });
+}
+
+test("automatic explanation monitor: manual intent, consent, stable changes and stopping use a real desktop share", async ({
+  browserName,
+}, testInfo) => {
+  expect(browserName).toBe("chromium");
+  autoRequests = [];
+  await nativeClick(".capture-buttons button:first-child", true);
+  await expect
+    .poll(async () => (await autoBubbleState()).capture, { timeout: 20000 })
+    .toMatch(/^data:image\/png/);
+  expect((await autoBubbleState()).checked).toBe("false");
+  expect((await autoBubbleState()).track?.displaySurface).toBe("monitor");
+  await panel.waitForTimeout(4500);
+  expect(autoRequests.filter(({ request }) => request.image)).toHaveLength(0);
+  await nativeClick('[role="switch"]', true);
+  await expect.poll(async () => (await autoBubbleState()).consent).toBe(true);
+  expect((await autoBubbleState()).checked).toBe("false");
+  await panel.waitForTimeout(4500);
+  expect(autoRequests.filter(({ request }) => request.image)).toHaveLength(0);
+  await nativeClick(".screen-narration-consent .primary", true);
+  await site.bringToFront();
+  await expect
+    .poll(() => autoRequests.filter(({ request }) => request.image).length, {
+      timeout: 20000,
+    })
+    .toBe(1);
+  expect(
+    autoRequests.find(({ request }) => request.image)!.request.page,
+  ).toBeUndefined();
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.answerReady);
+  const first = autoRequests.find(({ request }) => request.image)!;
+  await panel.waitForTimeout(5000);
+  expect(autoRequests.filter(({ request }) => request.image)).toHaveLength(1);
+  await site.evaluate(
+    () =>
+      (document.documentElement.style.background =
+        "linear-gradient(90deg,#fff,#000)"),
+  );
+  await expect
+    .poll(() => autoRequests.filter(({ request }) => request.image).length, {
+      timeout: 20000,
+    })
+    .toBe(2);
+  const second = autoRequests.filter(({ request }) => request.image)[1];
+  expect(second.at - first.at).toBeGreaterThanOrEqual(10000);
+  expect(second.request.image!.equals(first.request.image!)).toBe(false);
+  expect(second.request.page).toBeUndefined();
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.answerReady);
+  await nativeClick('[role="switch"]', true);
+  await expect
+    .poll(async () => (await autoBubbleState()).checked)
+    .toBe("false");
+  expect((await autoBubbleState()).track).toBeUndefined();
+  await site.evaluate(
+    () =>
+      (document.documentElement.style.background =
+        "linear-gradient(90deg,#000,#fff)"),
+  );
+  await panel.waitForTimeout(4500);
+  expect(autoRequests.filter(({ request }) => request.image)).toHaveLength(2);
+  await attachFrame(testInfo, "first-auto-frame", first.request.image!);
+  await attachFrame(testInfo, "changed-auto-frame", second.request.image!);
+  await attachJson(testInfo, "monitor-auto-state", {
+    state: await autoBubbleState(),
+    times: autoRequests
+      .filter(({ request }) => request.image)
+      .map(({ at }) => at),
+    pageAttached: false,
+  });
+});
+
+test("automatic explanation tab: navigation and reload rebind the same real tab without another picker", async ({
+  browserName,
+}, testInfo) => {
+  expect(browserName).toBe("chromium");
+  await nativeClick('[role="switch"]', true);
+  await expect
+    .poll(async () => (await autoBubbleState()).track?.displaySurface)
+    .toBe("browser");
+  await expect
+    .poll(
+      () =>
+        autoRequests.filter(({ request }) =>
+          request.page?.text.includes("ORIGINAL_DOCUMENT_ONLY"),
+        ).length,
+    )
+    .toBeGreaterThan(0);
+  autoRequests = [];
+  await site.goto(`${autoOrigin}/next`);
+  await expect
+    .poll(
+      () =>
+        autoRequests.filter(({ request }) =>
+          request.page?.text.includes("NEW_DOCUMENT_ONLY"),
+        ).length,
+      { timeout: 20000 },
+    )
+    .toBeGreaterThan(0);
+  expect(
+    autoRequests.filter(({ request }) =>
+      request.page?.text.includes("ORIGINAL_DOCUMENT_ONLY"),
+    ),
+  ).toHaveLength(0);
+  await site.evaluate(() => scrollTo(0, 700));
+  expect(await site.evaluate(() => scrollY)).toBeGreaterThan(0);
+  const beforeReload = autoRequests.length;
+  await site.reload();
+  await expect
+    .poll(
+      () =>
+        autoRequests
+          .slice(beforeReload)
+          .filter(({ request }) =>
+            request.page?.text.includes("NEW_DOCUMENT_ONLY"),
+          ).length,
+      { timeout: 20000 },
+    )
+    .toBeGreaterThan(0);
+  const beforeCross = autoRequests.length;
+  await site.goto(autoOrigin.replace("127.0.0.1", "localhost") + "/cross");
+  await expect
+    .poll(
+      () =>
+        autoRequests
+          .slice(beforeCross)
+          .filter(
+            ({ request }) =>
+              request.page?.url.includes("localhost") &&
+              request.page.text.includes("NEW_DOCUMENT_ONLY"),
+          ).length,
+      { timeout: 20000 },
+    )
+    .toBeGreaterThan(0);
+  const beforeBlocked = autoRequests.length;
+  await site.goto(
+    autoOrigin.replace("127.0.0.1", "blocked.glimpselet.test") + "/blocked",
+  );
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.blockedPage);
+  await panel.waitForTimeout(4500);
+  expect(autoRequests.slice(beforeBlocked)).toHaveLength(0);
+  expect((await autoBubbleState()).checked).toBe("true");
+  expect((await autoBubbleState()).consent).toBe(false);
+  expect((await autoBubbleState()).track?.displaySurface).toBe("browser");
+  await attachJson(testInfo, "tab-navigation-auto-state", {
+    state: await autoBubbleState(),
+    requests: autoRequests.map(({ request }) => ({
+      page: request.page,
+      image: Boolean(request.image),
+    })),
+  });
+});
+
+test("automatic explanation tab pixels: navigation sends only the new document's real frame", async ({
+  browserName,
+}, testInfo) => {
+  expect(browserName).toBe("chromium");
+  await nativeClick('[role="switch"]', true);
+  await expect
+    .poll(() => autoRequests.filter(({ request }) => request.image).length, {
+      timeout: 20000,
+    })
+    .toBe(1);
+  const first = autoRequests.find(({ request }) => request.image)!;
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.answerReady);
+  const beforeNavigation = autoRequests.length;
+  await site.goto(`${autoOrigin}/next`);
+  await expect
+    .poll(() => autoRequests.filter(({ request }) => request.image).length, {
+      timeout: 20000,
+    })
+    .toBe(2);
+  const second = autoRequests.filter(({ request }) => request.image)[1];
+  expect(second.at).toBeGreaterThan(first.at);
+  expect(
+    autoRequests.filter(({ request }) => request.kind === "passive").length,
+  ).toBeLessThanOrEqual(6);
+  expect(
+    autoRequests
+      .slice(beforeNavigation)
+      .some(({ request }) =>
+        request.page?.text.includes("ORIGINAL_DOCUMENT_ONLY"),
+      ),
+  ).toBe(false);
+  expect(
+    autoRequests
+      .slice(beforeNavigation)
+      .some(({ request }) => request.page?.text.includes("NEW_DOCUMENT_ONLY")),
+  ).toBe(true);
+  const luminance = async (frame: Buffer) =>
+    panel.evaluate(async (base64) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(image, 0, 0);
+      const sample = (x: number) =>
+        ctx.getImageData(
+          Math.floor(image.width * x),
+          Math.floor(image.height * 0.9),
+          1,
+          1,
+        ).data[0];
+      return [sample(0.1), sample(0.9)];
+    }, frame.toString("base64"));
+  const originalPixels = await luminance(first.request.image!);
+  const newPixels = await luminance(second.request.image!);
+  expect(originalPixels[1] - originalPixels[0]).toBeGreaterThan(150);
+  expect(newPixels[0] - newPixels[1]).toBeGreaterThan(150);
+  expect(second.request.page).toBeUndefined();
+  await attachFrame(testInfo, "tab-original-frame", first.request.image!);
+  await attachFrame(testInfo, "tab-new-document-frame", second.request.image!);
+  await attachJson(testInfo, "tab-pixel-navigation", {
+    originalPixels,
+    newPixels,
+    times: [first.at, second.at],
+  });
+});
+
+test("automatic explanation app: a real native window requires consent and narrates its own changing pixels", async ({
+  browserName,
+}, testInfo) => {
+  expect(browserName).toBe("chromium");
+  autoRequests = [];
+  await nativeClick('[role="switch"]', true);
+  await expect
+    .poll(async () => (await autoBubbleState()).track?.displaySurface)
+    .toBe("window");
+  await expect.poll(async () => (await autoBubbleState()).consent).toBe(true);
+  await panel.waitForTimeout(4500);
+  expect(autoRequests).toHaveLength(0);
+  await nativeClick(".screen-narration-consent .primary", true);
+  await expect
+    .poll(() => autoRequests.filter(({ request }) => request.image).length, {
+      timeout: 20000,
+    })
+    .toBe(1);
+  const first = autoRequests[0];
+  expect(first.request.page).toBeUndefined();
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.answerReady);
+  narrationApp!.stdin!.write("flip\n");
+  await expect
+    .poll(() => autoRequests.filter(({ request }) => request.image).length, {
+      timeout: 20000,
+    })
+    .toBe(2);
+  const second = autoRequests[1];
+  expect(second.at - first.at).toBeGreaterThanOrEqual(10000);
+  expect(second.request.image!.equals(first.request.image!)).toBe(false);
+  expect(second.request.page).toBeUndefined();
+  await attachFrame(testInfo, "native-app-first-frame", first.request.image!);
+  await attachFrame(
+    testInfo,
+    "native-app-changed-frame",
+    second.request.image!,
+  );
+  await stopProcess(narrationApp!);
+  narrationApp = undefined;
+  await expect
+    .poll(async () => (await autoBubbleState()).checked)
+    .toBe("false");
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.shareEnded);
+});
+
+test("automatic explanation tab privacy: embedded public text is explicit, passwords stay blocked and manual capture is reachable", async ({
+  browserName,
+}, testInfo) => {
+  expect(browserName).toBe("chromium");
+  await nativeClick('[role="switch"]', true);
+  await expect
+    .poll(async () => (await autoBubbleState()).track?.displaySurface)
+    .toBe("browser");
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.answerReady);
+  await site.goto(`${autoOrigin}/embedded`);
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.privacyEmbedded);
+  const beforeText = autoRequests.length;
+  await panel.waitForTimeout(4500);
+  expect(autoRequests).toHaveLength(beforeText);
+  await nativeClick(".privacy-recovery button:first-child", true);
+  await expect.poll(() => autoRequests.length).toBe(beforeText + 1);
+  expect(autoRequests[beforeText].request.page?.text).toContain(
+    "Public document",
+  );
+  expect(autoRequests[beforeText].request.image).toBeUndefined();
+  await site.goto(`${autoOrigin}/password`);
+  await expect
+    .poll(async () => (await autoBubbleState()).status)
+    .toBe(en.privacyPassword);
+  expect(
+    await panel.evaluate(
+      () =>
+        window.documentPictureInPicture.window!.document.querySelector(
+          ".privacy-recovery",
+        )!.textContent,
+    ),
+  ).not.toContain(en.autoExplainPageText);
+  const beforePassword = autoRequests.length;
+  await panel.waitForTimeout(4500);
+  expect(autoRequests).toHaveLength(beforePassword);
+  await nativeClick(".privacy-recovery button", true);
+  await expect
+    .poll(async () => (await autoBubbleState()).capture, { timeout: 20000 })
+    .toMatch(/^data:image\/png/);
+  expect(autoRequests).toHaveLength(beforePassword);
+  await attachJson(testInfo, "privacy-recovery-state", await autoBubbleState());
+});

@@ -953,3 +953,65 @@ describe("explicit guide context", () => {
     expect(chrome.tabs.captureVisibleTab).not.toHaveBeenCalled();
   });
 });
+
+describe("automatic page privacy explanations", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+  const binding = {
+    tabId: tab.id,
+    url: tab.url,
+    origin: "https://public.test",
+    handle: "bound",
+    documentId: "document-seven",
+  };
+  it.each(["password", "uninspectable", "inspection-limit", undefined])(
+    "returns the inspected document's %s reason",
+    async (reason) => {
+      const { executeScript } = setupChrome();
+      executeScript.mockResolvedValue([
+        { result: reason, frameId: 0, documentId: binding.documentId },
+      ]);
+      const { getPagePrivacyReason } = await import("./capture");
+      expect(await getPagePrivacyReason(binding)).toBe(reason);
+      expect(executeScript).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: { tabId: tab.id, documentIds: [binding.documentId] },
+          args: [null, false, true],
+        }),
+      );
+    },
+  );
+  it.each([
+    "stale document",
+    "wrong frame",
+    "missing result",
+    "failed inspection",
+    "navigated tab",
+  ])("reports unavailable for a %s", async (failure) => {
+    const { executeScript } = setupChrome();
+    if (failure === "failed inspection")
+      executeScript.mockRejectedValue(new Error("No access"));
+    else if (failure === "missing result") executeScript.mockResolvedValue([]);
+    else
+      executeScript.mockResolvedValue([
+        {
+          result: "password",
+          frameId: failure === "wrong frame" ? 1 : 0,
+          documentId:
+            failure === "stale document"
+              ? "other-document"
+              : binding.documentId,
+        },
+      ]);
+    if (failure === "navigated tab")
+      vi.mocked(chrome.tabs.get).mockResolvedValue({
+        ...tab,
+        url: "https://other.test/",
+      });
+    const { getPagePrivacyReason } = await import("./capture");
+    expect(await getPagePrivacyReason(binding)).toBe("unavailable");
+  });
+});

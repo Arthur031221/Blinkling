@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { differenceHash, hashDistance, ScreenChanges } from "./screen-change";
+import { describe, it, expect, vi } from "vitest";
+import {
+  differenceHash,
+  hashDistance,
+  maskNarrationBubble,
+  ScreenChanges,
+} from "./screen-change";
 describe("passive screen changes", () => {
   it("compares luminance rather than image bytes", () => {
     const image = new Uint8ClampedArray(9 * 8 * 4);
@@ -32,4 +37,34 @@ describe("passive screen changes", () => {
     expect(hashDistance(a, small)).toBe(4);
     expect(() => hashDistance("", a)).toThrow();
   });
+});
+
+describe("monitor narration bubble masking", () => {
+  it.each([1, 2])(
+    "masks native chrome and shadow at %sx capture resolution on an offset screen",
+    (scale) => {
+      const frame = document.createElement("canvas");
+      frame.width = 1440 * scale;
+      frame.height = 1000 * scale;
+      const fillRect = vi.fn();
+      vi.spyOn(frame, "getContext").mockReturnValue({
+        fillRect,
+      } as unknown as CanvasRenderingContext2D);
+      const floating = {
+        closed: false,
+        screenX: 1600,
+        screenY: 100,
+        outerWidth: 420,
+        outerHeight: 650,
+        screen: { width: 1440, height: 1000, left: 1440, top: 0, availTop: 30 },
+      } as unknown as Window;
+      maskNarrationBubble(frame, floating);
+      expect(fillRect).toHaveBeenCalledWith(
+        148 * scale,
+        88 * scale,
+        444 * scale,
+        674 * scale,
+      );
+    },
+  );
 });

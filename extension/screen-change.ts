@@ -1,3 +1,31 @@
+// Auto narration must not hide/reopen PiP without a gesture, or react to its own
+// replies. Mask the native bubble before both hashing and sending monitor frames.
+// A different selected monitor may lose this region too; no source identity is
+// exposed for desktop tracks. Manual captures use their separate clearance path.
+export function maskNarrationBubble(
+  frame: HTMLCanvasElement,
+  floating: Window,
+) {
+  const screen = floating.screen as Screen & {
+    left?: number;
+    top?: number;
+    availLeft?: number;
+    availTop?: number;
+  };
+  if (!screen.width || !screen.height || floating.closed) return;
+  const context = frame.getContext("2d");
+  if (!context) return;
+  const sx = frame.width / screen.width;
+  const sy = frame.height / screen.height;
+  context.fillStyle = "#808080";
+  context.fillRect(
+    (floating.screenX - (screen.left ?? screen.availLeft ?? 0) - 12) * sx,
+    (floating.screenY - (screen.top ?? screen.availTop ?? 0) - 12) * sy,
+    (floating.outerWidth + 24) * sx,
+    (floating.outerHeight + 24) * sy,
+  );
+}
+
 // A difference hash ignores small colour and brightness changes. It never leaves the browser.
 export function differenceHash(pixels: Uint8ClampedArray): string {
   if (pixels.length !== 9 * 8 * 4) throw new Error("Expected a 9 by 8 frame.");

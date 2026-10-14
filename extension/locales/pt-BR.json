@@ -63,7 +63,7 @@
   "passive": "Explicação automática",
   "passivePrompt": "Descreva brevemente a mudança relevante nesta tela.",
   "passiveResumed": "Explicação automática ativa",
-  "passwordPage": "Um campo de senha foi encontrado ou parte da página não pode ser verificada. A leitura e a captura estão pausadas. Use Compartilhar tela para uma captura manual.",
+  "passwordPage": "Não foi possível verificar o conteúdo. Permita o acesso a este site ou use Capturar a tela inteira para uma captura manual.",
   "paused": "Explicação automática pausada",
   "pin": "Fixar",
   "pipFallback": "A janela pop-up pode não ficar sempre acima dos outros aplicativos. Alguns navegadores oferecem Picture-in-Picture para documentos.",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "Acesso à página permitido.",
   "sessionInitialization": "Esta conversa foi interrompida antes de começar. Escolha «Nova sessão» para tentar novamente.",
   "translationIncomplete": "A tradução ficou incompleta. Tente novamente ou selecione um trecho mais curto.",
-  "passiveScreenUnverified": "Os resumos automáticos da tela estão pausados. Compartilhe esta aba para continuar.",
+  "passiveScreenUnverified": "A explicação automática está pausada porque a aba compartilhada não pode ser verificada. Selecione-a novamente.",
   "guideFailed": "Não foi possível desenhar o guia nesta página. Tente o Guia novamente.",
   "translationUnchanged": "O texto não mudou. Confira o idioma de destino e tente novamente.",
   "askWithoutPage": "Perguntar sem o conteúdo da página",
@@ -163,5 +163,12 @@
   "moreTools": "Mais ferramentas",
   "captureAccessHint": "Opcional: permita o acesso a todos os sites uma vez para capturar páginas e selecionar áreas em novas abas.",
   "guideOverview": "Visão geral",
-  "guideTour": "Passo a passo"
+  "guideTour": "Passo a passo",
+  "autoExplainScreenConsent": "A explicação automática enviará imagens desta tela ou aplicativo. Oculte primeiro o conteúdo privado; senhas e sites ignorados não podem ser verificados aqui.",
+  "autoExplainScreenAllow": "Permitir neste compartilhamento",
+  "autoExplainChooseScreen": "Escolher uma tela",
+  "privacyPassword": "Explicação automática pausada: esta página tem um campo de senha. Use Capturar a tela inteira para uma captura manual.",
+  "privacyEmbedded": "Explicação automática pausada: o conteúdo incorporado não pode ser verificado. Explique o texto da página ou capture manualmente.",
+  "autoExplainPageText": "Explicar o texto da página",
+  "autoExplainManualCapture": "Capturar manualmente"
 }
