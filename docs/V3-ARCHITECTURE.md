@@ -70,10 +70,18 @@ closing it restores the previous application. Pin changes visibility, not focus
 policy. Character hit regions must follow the visible animated silhouette,
 including limbs and menu bubbles, rather than its rectangular bounding box.
 Electron forwards ignored mouse movement on macOS/Windows; on Linux use global
-cursor sampling and silhouette scanlines. On X11, non-focusable windows are
+cursor sampling and silhouette scanlines. On X11 the cursor is read with
+XQueryPointer, because Electron's cached cursor point goes stale over other
+clients and left hover stuck on; Electron's value is only the fallback. On X11, non-focusable windows are
 override-redirect; a small native-XID stacking adapter raises them on root
 window events (with a 250 ms fallback), without requesting focus. This fixes
-coverage by windows opened after Blink. On macOS alone, use the Spaces API
+coverage by windows opened after Blink. The order is overlay, guides, answer
+deck, Blink; the deck sits under Blink so bubbles never cover menu pills.
+The card stays open while it has focus, a non-empty draft, a pending chip or
+an open file dialog; Esc and the close button always close it, and a refused
+leave closes it as soon as nothing holds it. A capture re-claims the keyboard
+for the card for 500 ms, because the closing selector hands it back to the
+previous window. On macOS alone, use the Spaces API
 for all-workspace/fullscreen visibility. Ordinary drawing overlays ignore all
 mouse input. Region selection is a separate temporary interactive window.
 

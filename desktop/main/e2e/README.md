@@ -25,6 +25,13 @@ proves that closing an intentional chat restores another application's native
 focus. The menu routing test injects feature handlers
 only for the services supplied by other build buckets; screen capture is real.
 
+`hover.e2e.mjs` and `card.e2e.mjs` cover pointer polling over another
+application, the wheel over the answer deck, deck bounds after a drag to each
+edge, every menu pill with bubbles present, what keeps the card open, and the
+keyboard after a capture (typed with native XTest keys). The native file
+chooser cannot be driven under Xvfb, so its test stubs the picker and
+dispatches `cancel`.
+
 `displays.sh` exercises actual RandR hotplug, cross-display drag, per-display
 restart, removal while pinned and resolution changes. Set
 `GLIMPSELET_XORG_DISPLAY` if its default `:9119` is occupied. Tests fail on an
