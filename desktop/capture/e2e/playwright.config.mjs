@@ -1,3 +1,4 @@
+import "../../shared/test-env.mjs";
 import { defineConfig } from "@playwright/test";
 import { reports } from "./support.mjs";
 // Automated runs never create Remote Control sessions.

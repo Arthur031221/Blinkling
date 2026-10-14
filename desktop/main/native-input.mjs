@@ -41,6 +41,16 @@ export async function nativeInput() {
             );
           }
           resolve({
+            /** Root pointer in physical pixels. Electron's own point is stale on
+             * X11 while the pointer is over another client's window. */
+            pointer: () =>
+              new Promise((resolve, reject) =>
+                client.QueryPointer(root, (error, result) =>
+                  error
+                    ? reject(error)
+                    : resolve({ x: result.rootX, y: result.rootY }),
+                ),
+              ),
             activate: (win) =>
               activate(win.getNativeWindowHandle().readUInt32LE()),
             setRegions(win, regions, scale = 1, managedFrame = false) {

@@ -1,0 +1,201 @@
+import { test, expect } from "@playwright/test";
+import { spawn } from "node:child_process";
+import { launch, native, moveOn, wheel, rigPoint } from "./support.mjs";
+
+/** An X client that is not Electron: the situation where the pointer query of
+ * Electron's own API used to go stale. */
+async function otherApp() {
+  const child = spawn("xmessage", [
+    "-geometry",
+    "700x500+100+100",
+    "another app",
+  ]);
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  return child;
+}
+
+for (const scale of [1, 1.5])
+  test(`H-1 hover ends over another app and the pointer is exact at ${scale * 100}%`, async () => {
+    const c = await launch(scale);
+    const { app, page } = c;
+    const other = await otherApp();
+    try {
+      await moveOn(page, scale);
+      await expect(page.locator("#blink")).toHaveAttribute(
+        "data-mode",
+        "hover",
+      );
+      const from = Date.now();
+      native(300, 300);
+      await expect
+        .poll(() => app.evaluate(() => globalThis.glimpseletTest.cursor()))
+        .toEqual({ x: Math.round(300 / scale), y: Math.round(300 / scale) });
+      await expect(page.locator("#blink")).toHaveAttribute(
+        "data-mode",
+        "peek",
+        { timeout: 2500 },
+      );
+      expect(Date.now() - from).toBeLessThan(2600);
+      await expect
+        .poll(() =>
+          app.evaluate(() => globalThis.glimpseletTest.snapshot().pinned),
+        )
+        .toBe(false);
+    } finally {
+      other.kill();
+      await c.close();
+    }
+  });
+
+test("H-1 the native wheel scrolls the bubble deck and the deck keeps working after the pointer left Blink", async () => {
+  const c = await launch();
+  const { app, page } = c;
+  const other = await otherApp();
+  try {
+    const sentences = Array.from(
+      { length: 16 },
+      (_, i) => `Sentence ${i + 1}.`,
+    );
+    await app.evaluate((_, text) => {
+      const { send } = globalThis.glimpseletTest;
+      send({ type: "delta", id: "answer", text });
+    }, sentences.join(" "));
+    const deck = async () => {
+      for (const w of await app.windows()) {
+        const el = w.locator(".gl-bubble-deck");
+        if (await el.count()) return { page: w, el };
+      }
+      return null;
+    };
+    await expect.poll(async () => !!(await deck())).toBe(true);
+    const { page: bubbles, el } = await deck();
+    await expect
+      .poll(() => bubbles.locator(".gl-answer-bubble").count())
+      .toBeGreaterThanOrEqual(16);
+    await moveOn(page);
+    const box = await el.evaluate((node) => {
+      const r = node.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    const origin = await app.evaluate(() => {
+      const b = globalThis.glimpseletTest.bubbles.getBounds();
+      return { x: b.x, y: b.y };
+    });
+    // Park the pointer on the other client first, then come back onto the deck.
+    native(300, 300);
+    await page.waitForTimeout(300);
+    const before = await el.evaluate((node) => node.scrollTop);
+    wheel(origin.x + box.x, origin.y + box.y, 8);
+    await expect
+      .poll(() => el.evaluate((node) => node.scrollTop))
+      .toBeLessThan(before);
+  } finally {
+    other.kill();
+    await c.close();
+  }
+});
+
+const edges = [
+  ["left", 38, 400],
+  ["right", 1262, 420],
+  ["top", 640, 4],
+  ["bottom", 640, 796],
+];
+for (const [edge, x, y] of edges)
+  test(`H-2 dragging Blink to the ${edge} edge moves the answer deck with the card`, async () => {
+    const c = await launch();
+    const { app, page } = c;
+    try {
+      await moveOn(page);
+      const p = await rigPoint(page);
+      native(p.x, p.y, "down");
+      native(p.x - 40, p.y - 30);
+      await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drag");
+      native(x, y);
+      await page.waitForTimeout(150);
+      native(x, y, "up");
+      await expect
+        .poll(() =>
+          app.evaluate(
+            () => globalThis.glimpseletTest.snapshot().position.edge,
+          ),
+        )
+        .toBe(edge);
+      const card = await app.evaluate(() =>
+        globalThis.glimpseletTest.cardBounds(),
+      );
+      await expect
+        .poll(() =>
+          app.evaluate(() => globalThis.glimpseletTest.bubbles.getBounds()),
+        )
+        .toEqual(card);
+    } finally {
+      await c.close();
+    }
+  });
+
+test("H-3 every menu pill is clickable while answer bubbles are on screen", async () => {
+  const c = await launch();
+  const { app, page } = c;
+  try {
+    // "chat" opens the card instead of calling a registered handler, and
+    // hides the menu while it is open, so it is clicked last.
+    const actions = (
+      await page.evaluate(() =>
+        [...document.querySelectorAll("[data-action]")].map(
+          (b) => b.dataset.action,
+        ),
+      )
+    ).sort((a, b) => (a === "chat") - (b === "chat"));
+    expect(actions).toHaveLength(8);
+    await app.evaluate((_, ids) => {
+      globalThis.pillCalls = [];
+      for (const id of ids)
+        globalThis.glimpseletTest.registerAction(id, async () => {
+          globalThis.pillCalls.push(id);
+        });
+      const text = Array.from({ length: 12 }, (_, i) => `Sentence ${i + 1}.`);
+      globalThis.glimpseletTest.send({
+        type: "delta",
+        id: "answer",
+        text: text.join(" "),
+      });
+    }, actions);
+    await expect
+      .poll(async () => {
+        for (const w of await app.windows())
+          if (await w.locator(".gl-answer-bubble").count()) return true;
+        return false;
+      })
+      .toBe(true);
+    for (const action of actions) {
+      await moveOn(page);
+      const pill = page.locator(`[data-action="${action}"]`);
+      const r = await pill.boundingBox();
+      // Hover widens the pill into a label that reaches over the deck; click
+      // the far end of that label, which is where a bubble could cover it.
+      native(r.x + r.width / 2, r.y + r.height / 2);
+      await expect
+        .poll(async () => (await pill.boundingBox()).width)
+        .toBeGreaterThan(150);
+      const wide = await pill.boundingBox();
+      native(wide.x + 24, wide.y + wide.height / 2, "click");
+      if (action === "chat")
+        await expect
+          .poll(() =>
+            app.evaluate(() => globalThis.glimpseletTest.snapshot().chatOpen),
+          )
+          .toBe(true);
+      else
+        await expect
+          .poll(() => app.evaluate(() => globalThis.pillCalls), {
+            message: `pill ${action}`,
+          })
+          .toContain(action);
+      native(20, 20);
+      await page.waitForTimeout(150);
+    }
+  } finally {
+    await c.close();
+  }
+});

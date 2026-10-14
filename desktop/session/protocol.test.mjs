@@ -180,4 +180,5 @@ test("GLIMPSELET_REMOTE selects off, the one disposable test session, or the def
   const disposable = enableRemote(undefined, "test");
   assert.equal(disposable.name, "Glimpselet test");
   assert.equal(disposable.keep_session_on_exit, false);
+  assert.throws(() => enableRemote(undefined, "off"), /disabled/);
 });

@@ -17,7 +17,7 @@
     "build:plugin": "npm run build && npm run build:extension && node scripts/build-plugin.mjs",
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "validate:plugin:claude": "claude plugin validate . --strict",
-    "test:plugin": "node --test bridge/test/*.test.mjs",
+    "test:plugin": "node --import ./desktop/shared/test-env.mjs --test bridge/test/*.test.mjs",
     "demo": "node scripts/demo.mjs",
     "test:e2e": "npm run build && npm run build:plugin && node scripts/mcp-e2e.mjs && xvfb-run -a playwright test",
     "record-demo": "node scripts/record-demo.mjs",
@@ -32,7 +32,7 @@
     "record:real-demos": "node scripts/record-real-demos.mjs",
     "desktop:start": "npm start --workspace @glimpselet/desktop",
     "desktop:build": "npm run build --workspace @glimpselet/desktop",
-    "desktop:test": "npm test --workspace @glimpselet/desktop && node --test plugin/desktop/*.test.mjs",
+    "desktop:test": "npm test --workspace @glimpselet/desktop && node --import ./desktop/shared/test-env.mjs --test plugin/desktop/*.test.mjs",
     "desktop:e2e": "npm run test:e2e --workspace @glimpselet/desktop",
     "desktop:check": "npm run desktop:test && tsc -p desktop/tsconfig.json"
   },

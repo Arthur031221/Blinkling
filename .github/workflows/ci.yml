@@ -8,6 +8,9 @@ env:
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+env:
+  # Automated runs never create Remote Control sessions in a real account.
+  GLIMPSELET_REMOTE: "0"
 jobs:
   verify:
     strategy:

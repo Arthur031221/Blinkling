@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld(
     onSurface: (listener) => subscribe("glimpselet:surface", listener),
     activity: (value) => ipcRenderer.send("glimpselet:activity", value),
     typing: (value) => ipcRenderer.send("glimpselet:typing", value),
+    hold: (value) => ipcRenderer.send("glimpselet:hold", value),
     pin: (value) =>
       ipcRenderer.invoke("glimpselet:shell", { type: "pin", value }),
     close: () => ipcRenderer.invoke("glimpselet:shell", { type: "close-chat" }),

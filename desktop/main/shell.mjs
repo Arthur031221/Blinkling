@@ -9,8 +9,10 @@ import {
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
-import { keepAbove } from "./x11-stacking.mjs";
+import { leaveCloses, noHold, validHold } from "./card-hold.mjs";
+import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
+import { cursorSource } from "./cursor.mjs";
 import { contains } from "./geometry.mjs";
 import {
   resolvePosition,
@@ -75,12 +77,19 @@ let composer = null,
   drag = null,
   pinned = false,
   chatOpen = false,
+  cardHold = noHold,
+  leaving = false,
   autoExplain = false,
   quitting = false;
 let previousCursor = "",
   previousFocused = null,
   ignoring = true;
 const input = await nativeInput();
+const cursor = cursorSource({
+  query: input?.pointer,
+  fallback: () => screen.getCursorScreenPoint(),
+  toDip: (point) => screen.screenToDipPoint(point),
+});
 const actions = new Set([
   "screen",
   "region",
@@ -197,6 +206,7 @@ async function ensureComposer() {
     broadcast();
     if (!pinned)
       blink.webContents.send("glimpselet:shell", { type: "chat-blur" });
+    leaveIfIdle();
   });
   let timer;
   const ready = new Promise((resolve, reject) => {
@@ -265,7 +275,38 @@ async function openComposer(focus = true) {
     win.webContents.send("glimpselet:surface", { type: "open" });
   } else if (!win.isVisible()) win.showInactive();
 }
+/** Blink asked to close the card because the pointer left, but something held
+ * it. Close it as soon as nothing does, without waiting for another leave. */
+function leaveIfIdle() {
+  if (
+    leaveCloses({
+      open: chatOpen,
+      pinned,
+      leaving,
+      focused: composer?.isFocused(),
+      draft: typing,
+      ...cardHold,
+    })
+  )
+    closeComposer();
+}
+/** The window that just closed (the region selector) hands the keyboard back
+ * to whatever had it, and a window manager may do so after our first request.
+ * For a short settle period, ask again whenever the card does not have it. */
+function claimKeyboard(win, until = Date.now() + 500) {
+  const retry = () => {
+    if (win.isDestroyed() || !win.isVisible() || !chatOpen) return;
+    if (!win.isFocused()) {
+      if (input) input.activate(win);
+      win.focus();
+      win.webContents.send("glimpselet:surface", { type: "open" });
+    }
+    if (Date.now() < until) setTimeout(retry, 60);
+  };
+  setTimeout(retry, 60);
+}
 function closeComposer(restore = true) {
+  leaving = false;
   const focused = composer?.isFocused();
   chatOpen = false;
   pinned = false;
@@ -303,10 +344,15 @@ function useDisplay(next) {
         : [],
       display.scaleFactor,
     );
-  composer?.setBounds(cardBounds(display, position));
-  shapeComposer();
-  bubbles?.setBounds(cardBounds(display, position));
+  placeCard();
   broadcast();
+}
+/** The card and the answer deck share one rectangle; move them together. */
+function placeCard() {
+  const bounds = cardBounds(display, position);
+  composer?.setBounds(bounds);
+  bubbles?.setBounds(bounds);
+  shapeComposer();
 }
 function displaysChanged() {
   const next = reconcileDisplay(screen.getAllDisplays(), display.id);
@@ -349,7 +395,7 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
   const fromBlink = event.sender === blink.webContents;
   if (command.type === "drag") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
-    const p = screen.getCursorScreenPoint();
+    const p = cursor.point();
     if (command.phase === "start") {
       if (
         !regions.some((r) =>
@@ -390,8 +436,7 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
       if (input) input.setRegions(blink, regions, display.scaleFactor);
       else if (process.platform === "win32") blink.setShape(regions);
       if (saved) await store.save(display.id, saved);
-      composer?.setBounds(cardBounds(display, position));
-      shapeComposer();
+      placeCard();
     }
   } else if (command.type === "pin") {
     pinned = command.value;
@@ -400,7 +445,11 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
   } else if (command.type === "close-chat") closeComposer();
   else if (command.type === "visibility") {
     if (command.value && !chatOpen) await openComposer(false);
-    else if (!command.value && !pinned && chatOpen) closeComposer();
+    else if (command.value) leaving = false;
+    else if (!command.value && !pinned && chatOpen) {
+      leaving = true;
+      leaveIfIdle();
+    }
   } else if (command.type === "activity") {
     if (fromBlink || event.sender !== composer?.webContents)
       throw new Error("Invalid composer activity");
@@ -517,6 +566,14 @@ ipcMain.on("glimpselet:typing", (event, value) => {
     return;
   typing = value;
   blink.webContents.send("glimpselet:shell", { type: "chat-activity" });
+  leaveIfIdle();
+});
+ipcMain.on("glimpselet:hold", (event, value) => {
+  const hold = validHold(value);
+  if (!trusted(event) || event.sender !== composer?.webContents || !hold)
+    return;
+  cardHold = hold;
+  leaveIfIdle();
 });
 ipcMain.on("glimpselet:activity", (event, value) => {
   if (
@@ -592,6 +649,9 @@ const visualMasks = () =>
     });
 const attachCapture = async (capture) => {
   await openComposer();
+  // Only a capture re-claims the keyboard: the selector that just closed hands
+  // it back to the previous window, but a user click elsewhere must win.
+  claimKeyboard(composer);
   composer.webContents.send("glimpselet:capture", capture);
   send({ type: "capture", capture });
 };
@@ -640,12 +700,17 @@ void features
   .resume()
   .catch(() => send({ type: "capture-status", state: "retrying" }));
 const stopStacking = await keepAbove(() =>
-  [overlay, features.overlay.window, blink, bubbles].filter(Boolean),
+  stackOrder({
+    overlay,
+    guides: features.overlay.window,
+    bubbles,
+    blink,
+  }),
 );
 const poll = setInterval(() => {
   if (blink.isDestroyed() || !blink.isVisible()) return;
 
-  const p = screen.getCursorScreenPoint();
+  const p = cursor.point();
   if (drag) {
     if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4)
       drag.active = true;
@@ -717,6 +782,9 @@ if (process.env.GLIMPSELET_E2E === "1")
       return composer;
     },
     snapshot,
+    cursor: () => cursor.point(),
+    cardBounds: () => cardBounds(display, position),
+    attachCapture,
     visualMasks,
     capture: () => captureScreen(display, windows()),
     overlay: async (drawings) => {

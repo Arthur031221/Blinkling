@@ -39,16 +39,23 @@ export function resolvePosition(display, saved) {
     ? p.edge === "left"
       ? a.x
       : a.x + a.width
-    : clamp(a.x + a.width * p.ratio, a.x + 74, a.x + a.width - 74);
+    : clamp(a.x + a.width * p.ratio, a.x + 90, a.x + a.width - 90);
   const y = vertical
     ? clamp(a.y + a.height * p.ratio, a.y + 145, a.y + a.height - 18)
     : p.edge === "top"
       ? a.y + 70
       : a.y + a.height + 55;
   const peek = { x, y };
+  // Revealing slides the character in from a side edge or down from the top;
+  // along the edge it never moves, so hovering cannot shove it sideways. The
+  // anchor also leaves room above it for the whole menu fan.
+  const rows = a.height < 610 ? 4 : 8;
   const reveal = {
-    x: clamp(x, a.x + 90, a.x + a.width - 90),
-    y: clamp(y, a.y + 150, a.y + a.height - 18),
+    x: vertical ? clamp(x, a.x + 90, a.x + a.width - 90) : x,
+    y: Math.max(
+      clamp(y, a.y + 150, a.y + a.height - 18),
+      Math.min(a.y + a.height - 18, a.y + rows * 51 + 156),
+    ),
   };
   return { ...p, peek, reveal, area: a };
 }

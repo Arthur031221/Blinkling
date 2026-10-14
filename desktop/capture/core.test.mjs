@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SurfaceGuard, cropGeometry, freezeDisplay } from "./core.mjs";
+import {
+  SurfaceGuard,
+  cropGeometry,
+  deliverCapture,
+  freezeDisplay,
+} from "./core.mjs";
 
 test("crop uses captured pixel size, including fractional scale and negative origins", () => {
   for (const scale of [1, 1.5, 2]) {
@@ -113,4 +118,45 @@ test("abort while queued never hides surfaces and destroyed surfaces are not res
   await first;
   await assert.rejects(second, { name: "AbortError" });
   assert.deepEqual(log, ["hide"]);
+});
+
+test("delivering a capture resolves with what the handler returned", async () => {
+  const seen = [];
+  await deliverCapture(async (capture) => seen.push(capture), { id: "a" }, 50);
+  assert.deepEqual(seen, [{ id: "a" }]);
+});
+
+test("a handler that throws surfaces its own error", async () => {
+  await assert.rejects(
+    deliverCapture(
+      async () => {
+        throw Error("card window is gone");
+      },
+      { id: "a" },
+      50,
+    ),
+    /card window is gone/,
+  );
+});
+
+test("a handler that never settles times out instead of hanging the caller", async () => {
+  const started = Date.now();
+  await assert.rejects(
+    deliverCapture(() => new Promise(() => {}), { id: "a" }, 40),
+    { code: "CAPTURE_DELIVERY_TIMEOUT" },
+  );
+  assert.ok(Date.now() - started < 1000);
+});
+
+test("a handler that throws synchronously is reported the same way", async () => {
+  await assert.rejects(
+    deliverCapture(
+      () => {
+        throw Error("sync failure");
+      },
+      { id: "a" },
+      50,
+    ),
+    /sync failure/,
+  );
 });

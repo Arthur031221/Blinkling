@@ -1,6 +1,30 @@
 export function aborted(signal) {
   signal?.throwIfAborted();
 }
+// Handing a finished capture to the card waits on a window that may still be
+// loading or closing. The wait is bounded so a stuck handler cannot hold the
+// caller (and everything chained behind it) forever.
+export async function deliverCapture(onCapture, capture, timeout = 15000) {
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => onCapture(capture)),
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              Object.assign(Error("Capture could not be delivered"), {
+                code: "CAPTURE_DELIVERY_TIMEOUT",
+              }),
+            ),
+          timeout,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 export function freezeDisplay(display) {
   return Object.freeze({
     id: String(display.id),

@@ -21,6 +21,7 @@ export const conversation = mountConversation({
   onPin: (value) => api.pin?.(value),
   onClose: () => api.close?.(),
   onTyping: (value) => api.typing?.(value),
+  onHold: (value) => api.hold?.(value),
   openLink: (url) => api.openLink?.(url),
 });
 const unCapture = api.onCapture?.((capture) => conversation.capture(capture));

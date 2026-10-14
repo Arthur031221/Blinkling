@@ -30,6 +30,60 @@ finally:x.XCloseDisplay(d)`,
   ]);
   return result.toString().trim();
 }
+/** Native wheel notches at a point: positive scrolls up (button 4), negative down. */
+export function wheel(x, y, notches) {
+  native(x, y);
+  execFileSync("python3", [
+    "-c",
+    `import ctypes,time
+x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6');x.XOpenDisplay.restype=ctypes.c_void_p;d=x.XOpenDisplay(None)
+assert d
+x.XFlush.argtypes=[ctypes.c_void_p];x.XCloseDisplay.argtypes=[ctypes.c_void_p]
+t.XTestFakeButtonEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+try:
+ for _ in range(${Math.abs(notches)}):
+  t.XTestFakeButtonEvent(d,${notches > 0 ? 4 : 5},1,0);t.XTestFakeButtonEvent(d,${notches > 0 ? 4 : 5},0,0);x.XFlush(d);time.sleep(.03)
+finally:x.XCloseDisplay(d)`,
+  ]);
+}
+/** Native key presses for lowercase ASCII, space and digits: whatever window X
+ * gives the keyboard focus receives them, whatever the page believes. */
+export function typeKeys(text, special = null) {
+  execFileSync("python3", [
+    "-c",
+    `import ctypes,time
+x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6');x.XOpenDisplay.restype=ctypes.c_void_p;d=x.XOpenDisplay(None)
+assert d
+x.XFlush.argtypes=[ctypes.c_void_p];x.XCloseDisplay.argtypes=[ctypes.c_void_p]
+x.XStringToKeysym.argtypes=[ctypes.c_char_p];x.XStringToKeysym.restype=ctypes.c_ulong
+x.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong];x.XKeysymToKeycode.restype=ctypes.c_ubyte
+t.XTestFakeKeyEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+try:
+ for ch in ${JSON.stringify(special ? [special] : [...text])}:
+  name=(ch if len(ch)>1 else {' ':'space'}.get(ch,ch)).encode()
+  k=x.XKeysymToKeycode(d,x.XStringToKeysym(name))
+  t.XTestFakeKeyEvent(d,k,1,0);t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.04)
+finally:x.XCloseDisplay(d)`,
+  ]);
+}
+/** Ask the window manager to activate a window, as a pager or a closing
+ * window's focus revert would. */
+export function activate(id) {
+  execFileSync("python3", [
+    "-c",
+    `import ctypes
+x=ctypes.CDLL('libX11.so.6');x.XOpenDisplay.restype=ctypes.c_void_p;d=x.XOpenDisplay(None)
+assert d
+x.XDefaultRootWindow.argtypes=[ctypes.c_void_p];x.XDefaultRootWindow.restype=ctypes.c_ulong
+x.XInternAtom.argtypes=[ctypes.c_void_p,ctypes.c_char_p,ctypes.c_int];x.XInternAtom.restype=ctypes.c_ulong
+x.XSendEvent.argtypes=[ctypes.c_void_p,ctypes.c_ulong,ctypes.c_int,ctypes.c_long,ctypes.c_void_p]
+x.XFlush.argtypes=[ctypes.c_void_p];x.XCloseDisplay.argtypes=[ctypes.c_void_p]
+class Msg(ctypes.Structure):_fields_=[('type',ctypes.c_int),('serial',ctypes.c_ulong),('send_event',ctypes.c_int),('display',ctypes.c_void_p),('window',ctypes.c_ulong),('message_type',ctypes.c_ulong),('format',ctypes.c_int),('data',ctypes.c_long*5)]
+root=x.XDefaultRootWindow(d)
+m=Msg(33,0,1,d,${id},x.XInternAtom(d,b'_NET_ACTIVE_WINDOW',0),32,(ctypes.c_long*5)(2,0,0,0,0))
+x.XSendEvent(d,root,0,(1<<20)|(1<<19),ctypes.byref(m));x.XFlush(d);x.XCloseDisplay(d)`,
+  ]);
+}
 export function activeWindow() {
   return Number(
     execFileSync("python3", [

@@ -218,3 +218,60 @@ test("global shortcut selects the whole desktop, abort restores focus and exclud
     await close();
   }
 });
+
+for (const [name, handler] of [
+  ["never settles", "() => new Promise(() => {})"],
+  ["throws", "async () => { throw Error('card window is gone'); }"],
+]) {
+  test(`H-7 capture busy clears when the card handler ${name}`, async () => {
+    const { app, close } = await launch();
+    try {
+      await app.firstWindow();
+      await background(app);
+      const outcome = await app.evaluate(async ({ screen }, source) => {
+        const capture = globalThis.glimpseletTest.features.capture;
+        capture.onCapture = (0, eval)(`(${source})`);
+        capture.deliveryTimeout = 300;
+        const id = String(screen.getPrimaryDisplay().id);
+        const error = await capture.screen(id).then(
+          () => null,
+          (e) => e.code ?? e.message,
+        );
+        const busy = capture.busy;
+        const next = await capture.screen(id).then(
+          () => "ok",
+          (e) => e.code ?? e.message,
+        );
+        return { error, busy, next, after: capture.busy };
+      }, handler);
+      expect(outcome.busy).toBe(false);
+      expect(outcome.after).toBe(false);
+      expect(outcome.error).toBe(
+        name === "throws" ? "card window is gone" : "CAPTURE_DELIVERY_TIMEOUT",
+      );
+      // The next capture is not refused with CAPTURE_BUSY.
+      expect(outcome.next).not.toBe("CAPTURE_BUSY");
+    } finally {
+      await close();
+    }
+  });
+}
+test("H-7 busy is already clear while a slow card handler is still working", async () => {
+  const { app, close } = await launch();
+  try {
+    await app.firstWindow();
+    await background(app);
+    const busyDuringDelivery = await app.evaluate(async ({ screen }) => {
+      const capture = globalThis.glimpseletTest.features.capture;
+      let seen;
+      capture.onCapture = async () => {
+        seen = capture.busy;
+      };
+      await capture.screen(String(screen.getPrimaryDisplay().id));
+      return seen;
+    });
+    expect(busyDuringDelivery).toBe(false);
+  } finally {
+    await close();
+  }
+});

@@ -7,7 +7,13 @@ import {
 } from "electron";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { SurfaceGuard, freezeDisplay, cropGeometry, aborted } from "./core.mjs";
+import {
+  SurfaceGuard,
+  aborted,
+  cropGeometry,
+  deliverCapture,
+  freezeDisplay,
+} from "./core.mjs";
 import { IntentStore, PermissionRecovery } from "./permission.mjs";
 import { selectRegion, permissionWindow, captureWindows } from "./windows.mjs";
 export { selectRegion } from "./windows.mjs";
@@ -70,11 +76,13 @@ export class DesktopCaptureService {
   constructor({
     windows = () => [],
     onCapture = () => {},
+    deliveryTimeout = 15000,
     fullPage = captureFullPage,
     permission,
     select = selectRegion,
   } = {}) {
     this.onCapture = onCapture;
+    this.deliveryTimeout = deliveryTimeout;
     this.fullPage = fullPage;
     this.select = select;
     this.guard = new SurfaceGuard(() => [...windows(), ...captureWindows()]);
@@ -149,6 +157,7 @@ export class DesktopCaptureService {
     };
     screen.on("display-metrics-changed", invalidate);
     screen.on("display-removed", invalidate);
+    let capture = null;
     try {
       const task = () =>
         this.guard.run(async () => {
@@ -178,11 +187,9 @@ export class DesktopCaptureService {
             },
           };
         }, controller.signal);
-      const capture = this.permission
+      capture = this.permission
         ? await this.permission.capture(task, this.intent, controller.signal)
         : await task();
-      if (capture && attach) await this.onCapture(capture);
-      return capture;
     } catch (error) {
       if (controller.signal.aborted) return null;
       throw error;
@@ -194,6 +201,11 @@ export class DesktopCaptureService {
       this.matchesDisplay = null;
       if (controller.signal.aborted) await this.store.clear();
     }
+    // Delivery happens after busy has cleared: a card that is slow, closing or
+    // gone must never leave later captures answering "capture in progress".
+    if (capture && attach)
+      await deliverCapture(this.onCapture, capture, this.deliveryTimeout);
+    return capture;
   }
   get busy() {
     return !!this.controller;

@@ -16,6 +16,7 @@ export function mountConversation({
   onPin,
   onClose,
   onTyping,
+  onHold,
   copy,
   openLink,
   quietMs,
@@ -32,6 +33,7 @@ export function mountConversation({
       onPin,
       onClose,
       onTyping,
+      onHold,
       copy,
       openLink,
     });

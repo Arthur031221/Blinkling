@@ -14,3 +14,10 @@ Before sharing a change, run the checks that cover it:
 Keep screen sharing explicit. An active browser share must fail closed if a capture cannot be returned. Do not add a native fallback that could bypass an opaque mask. Opaque masks belong in the outgoing image. Keep image and session data out of logs, and preserve request Origin, token and session checks.
 
 Use fixture images for demos and tests. The published static demo uses a fixture and prerecorded answer without making a provider request. Never include real keys or private screen captures in screenshots, fixtures or test output. Describe the behavior changed and the checks you ran in your contribution.
+
+## Tests and Remote Control
+
+Automated tests, e2e runs and CI set `GLIMPSELET_REMOTE=0` (see
+`desktop/shared/test-env.mjs`), so they never create Remote Control sessions in a
+real account. At most one final live check per job may use
+`GLIMPSELET_REMOTE=test`.

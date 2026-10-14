@@ -30,6 +30,7 @@ The narrow preload adapter in `renderer.mjs` expects:
 | `onSurface(listener)`                        | `{type:'hover',value}`, `{type:'open',messageId?}`, or `{type:'close'}`. Hover from Blink revives the answer deck.                                    |
 | `activity({visible,speaking})`               | Drive Blink's mouth and native answer visibility/peek policy; choose the active surface in the shell.                                                 |
 | `pin(boolean)`, `close()`, `typing(boolean)` | Shell pin/return-to-peek, native card close/focus restoration, and auto-explain typing pause.                                                         |
+| `hold({chips,dialog})`                       | Tell the shell a pending attachment chip or an open file dialog must keep the card open when the pointer leaves.                                      |
 | `openChat(messageId)`                        | Open the focusable full card at the selected answer.                                                                                                  |
 | `openLink(url)`                              | Validate the URL in main before opening it externally.                                                                                                |
 
