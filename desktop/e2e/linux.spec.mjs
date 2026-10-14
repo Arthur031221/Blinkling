@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { PNG } from "pngjs";
 import { launch, nativeClick } from "./support.mjs";
+import { native } from "../main/e2e/support.mjs";
 const pixel = (image, x, y) =>
   Array.from(
     image.data.subarray(
@@ -34,6 +35,19 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       globalThis.testBackground = bg;
       return globalThis.glimpseletTest.blink.getBounds();
     });
+    native(50, 50);
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
+    const samplePoint = () =>
+      page.evaluate(() => {
+        const r = document
+          .querySelector('rect[fill="#3ddc97"]')
+          .getBoundingClientRect();
+        return {
+          x: Math.round(r.x + r.width * 0.2),
+          y: Math.round(r.y + r.height * 0.72),
+        };
+      });
+    const sample = await samplePoint();
     const shot = async (name) => {
       await new Promise((r) => setTimeout(r, 300));
       const base64 = await app.evaluate(async ({ desktopCapturer, screen }) => {
@@ -56,12 +70,18 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
     nativeClick(50, 50);
     const alpha = await shot("alpha");
     expect(pixel(alpha, bounds.x + 5, bounds.y + 5)).toEqual([32, 64, 128]);
-    const body = pixel(alpha, bounds.x + 90, bounds.y + 100);
+    const body = pixel(alpha, bounds.x + sample.x, bounds.y + sample.y);
     [44, 126, 137].forEach((v, i) =>
       expect(Math.abs(body[i] - v)).toBeLessThanOrEqual(3),
     );
     nativeClick(bounds.x + 5, bounds.y + 5);
-    nativeClick(bounds.x + 90, bounds.y + 100);
+    // The cutout slides on hover. Click its settled visible body rather than
+    // the old peek coordinates, which correctly become click-through pixels.
+    native(bounds.x + sample.x, bounds.y + sample.y);
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
+    await page.waitForTimeout(550);
+    const revealed = await samplePoint();
+    nativeClick(bounds.x + revealed.x, bounds.y + revealed.y);
     const clicks = await app.evaluate(async () => ({
       clicks:
         await globalThis.testBackground.webContents.executeJavaScript("clicks"),
@@ -76,7 +96,9 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       globalThis.glimpseletTest.capture(),
     );
     const clean = PNG.sync.read(Buffer.from(capture.image.data, "base64"));
-    expect(pixel(clean, bounds.x + 90, bounds.y + 100)).toEqual([32, 64, 128]);
+    expect(pixel(clean, bounds.x + sample.x, bounds.y + sample.y)).toEqual([
+      32, 64, 128,
+    ]);
     await app.evaluate(() =>
       globalThis.glimpseletTest.overlay([
         { rect: { x: 400, y: 200, width: 100, height: 80 } },

@@ -79,4 +79,40 @@ export interface DesktopAPI {
   action(action: Action): Promise<{ ok: boolean; reason?: string }>;
   interactive(regions: Rect[]): void;
   onEvent(listener: (event: SessionEvent) => void): () => void;
+  shell(command: ShellCommand): Promise<ShellState>;
+  onShell(listener: (event: ShellEvent) => void): () => void;
 }
+
+/** Shell owns visibility/input only; feature code mounts into renderer slots and
+ * registers menu handlers with main/services.mjs. Coordinates remain DIP. */
+export type ShellCommand =
+  | { type: "state" }
+  | { type: "drag"; phase: "start" | "end" }
+  | { type: "pin"; value: boolean }
+  | { type: "visibility"; value: boolean }
+  | { type: "close-chat" }
+  | { type: "activity" };
+export type ShellState = {
+  display: Display;
+  position: {
+    edge: "left" | "right" | "top" | "bottom";
+    ratio: number;
+    peek: { x: number; y: number };
+    reveal: { x: number; y: number };
+    area: Rect;
+  };
+  drag: { x: number; y: number; velocity: number } | null;
+  pinned: boolean;
+  chatOpen: boolean;
+  chatFocused: boolean;
+  autoExplain: boolean;
+  theme: "light" | "dark";
+};
+export type ShellEvent =
+  | { type: "state"; state: ShellState }
+  | { type: "cursor"; point: { x: number; y: number }; hit: boolean }
+  | { type: "chat-blur" }
+  | { type: "chat-activity" }
+  | { type: "focus-composer" }
+  | { type: "view"; view: "settings" | "help" }
+  | { type: "capture"; capture: Capture };

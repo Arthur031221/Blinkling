@@ -8,7 +8,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
     expect(await page.evaluate(() => typeof window.require)).toBe("undefined");
     expect(
       await page.evaluate(() => Object.keys(window.glimpselet).sort()),
-    ).toEqual(["action", "interactive", "onEvent"]);
+    ).toEqual(["action", "interactive", "onEvent", "onShell", "shell"]);
     const state = await app.evaluate(() => {
       const w = globalThis.glimpseletTest.blink;
       return {
