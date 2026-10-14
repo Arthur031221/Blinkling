@@ -5,13 +5,25 @@ manifest embedded in this plugin. SessionStart reconnects after the first
 successful launch; neither path asks for a port, pairing code, browser extension,
 or Claude startup flag.
 
-The release bucket must populate `manifest.json` before publishing V3. The empty
-build list intentionally refuses installation: there is no published binary to
-trust yet. Each build specifies `platform` (`darwin`, `win32`, `linux`), `arch`
-(`arm64`, `x64`), GitHub release `url`, lowercase `sha256`, `archive` (`zip` or
-`tar.gz`), and relative executable `entry`. The top level specifies
-`schemaVersion: 1` and the exact desktop `version`. Commit the pinned digests in
-the plugin release and rebuild the standalone MCP bundle together.
+The release workflow pins `manifest.json` before publishing V3. A checkout keeps
+the empty build list, which intentionally refuses installation: there is no
+published binary to trust yet. Each build specifies `os` (`darwin`, `win32`,
+`linux`, Node's names), `arch` (`arm64`, `x64`), GitHub release `url`, lowercase
+`sha256`, `size` in bytes, `archive` (`zip`, `file` for a single executable such
+as the AppImage or the Windows exe, or `tar.gz`), and relative executable
+`entry`. The top level specifies `schemaVersion: 1` and the exact desktop
+`version`. The release job commits the pinned digests to the plugin and tags that
+commit, so the plugin and its assets are one release. A release URL must be on
+the Blinkling repository; the old repository address, which GitHub redirects, is
+accepted too.
+
+On Linux the launcher decides about Chromium's sandbox from kernel facts
+(`sandbox.mjs`, one pure function): it uses the setuid helper or unprivileged
+user namespaces when either works, and starts with `--no-sandbox` only when
+neither does, as on Ubuntu 24.04 with AppArmor restricting user namespaces.
+AppImages run with `APPIMAGE_EXTRACT_AND_RUN=1`, so they need no FUSE. On
+Windows the installer clears the `Zone.Identifier` stream of staged files, and
+`start.mjs --background` honors the `startWithClaudeCode` setting.
 
 Installation verifies archive bytes and executable CPU before extraction,
 rejects unsafe archive paths and links, stages in a private versioned cache,

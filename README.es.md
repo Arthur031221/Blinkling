@@ -3,9 +3,9 @@
 <p align="center"><strong>La respuesta, junto a la página.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/Arthur031221/Glimpselet/releases"><img src="https://img.shields.io/github/v/release/Arthur031221/Glimpselet" alt="Release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Arthur031221/Glimpselet" alt="License" /></a>
+  <a href="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Arthur031221/Blinkling/releases"><img src="https://img.shields.io/github/v/release/Arthur031221/Blinkling" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Arthur031221/Blinkling" alt="License" /></a>
 </p>
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
@@ -23,62 +23,24 @@ _Google Flights: una guía de la página y una pregunta sobre cómo reservar un 
 
 ## Instalación
 
-1. Instala el plugin en Claude Code:
+Necesitas Claude Code con la sesión iniciada. Después:
 
-   ```text
-   /plugin marketplace add Arthur031221/Glimpselet
-   /plugin install blinkling@blinkling
+1. Pega esta línea en una terminal y pulsa Intro:
+
+   ```sh
+   claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. Abre la guía de bienvenida:
+2. En Claude Code, ejecuta:
 
    ```text
    /blinkling:blinkling
    ```
 
-3. Activa el **modo de desarrollador** en `chrome://extensions` (o `edge://extensions`). Elige **Load unpacked** y la carpeta que abre **Show in Files / Finder**. La página de bienvenida se conecta automáticamente. Abre la burbuja.
+3. En un Mac, permite una vez la **Grabación de pantalla** para Blinkling: Ajustes del Sistema, Privacidad y seguridad.
 
 > [!NOTE]
-> En un escritorio local, **Try without installing** abre un perfil separado de Chromium. En un host remoto, ejecuta el comando SSH mostrado en el equipo del navegador. [Instalación y actualizaciones](docs/INSTALL.md).
-
-### Avanzado: cargar desde el código fuente
-
-<details>
-<summary>Código fuente y actualizaciones manuales</summary>
-
-Para ejecutar el plugin desde el código fuente, necesitas Node.js 22+ y una versión reciente de Claude Code. Si la terminal ya está en la carpeta raíz de una copia local del repositorio, omite los dos primeros comandos. Ejecuta estos comandos en la terminal:
-
-```sh
-git clone https://github.com/Arthur031221/Glimpselet.git
-cd Blinkling
-npm ci
-npm run build:plugin
-claude plugin validate .
-node -p "require('./.claude-plugin/plugin.json').version"
-node -p "require('./dist-extension/manifest.json').version"
-claude --plugin-dir "$PWD" plugin list
-claude --plugin-dir "$PWD" plugin details blinkling
-node -p "require('./bin/extension/manifest.json').version"
-claude --plugin-dir "$PWD"
-```
-
-Las dos comprobaciones de versión deben mostrar `2.1.0`. La lista de plugins debe mostrar `blinkling@inline` con la versión `2.1.0` habilitado para esta sesión. El último comando abre Claude Code. Ejecuta allí `/blinkling:blinkling` para abrir la guía de bienvenida. `--plugin-dir` carga esta copia del repositorio solo para esa sesión. Usa la opción cada vez que inicies Claude Code y reinícialo después de volver a ejecutar `npm run build:plugin`. La extensión compilada está en `dist-extension`. La guía de bienvenida la copia a la carpeta estable indicada abajo.
-
-Los detalles del plugin también deben incluir las habilidades `blinkling` e `install` y el servidor MCP `blinkling`. La extensión empaquetada está en `bin/extension` y también debe tener la versión **2.1.0**. Si Claude Code está en un equipo remoto, usa el comando SSH de la guía, descarga el ZIP de la extensión en el equipo con el navegador y carga allí la carpeta extraída.
-
-Si el navegador y Claude Code se ejecutan en el mismo equipo, la guía de bienvenida copia la extensión compilada a la carpeta estable `~/Blinkling-extension`. En Chrome o Edge, abre `chrome://extensions` o `edge://extensions`, activa **Developer mode**, elige **Load unpacked** y selecciona esa carpeta. El aviso de desarrollador seguirá visible y tendrás que actualizar la extensión manualmente cuando haya una nueva versión.
-
-Para actualizar una extensión descomprimida, cierra la burbuja anterior y vuelve a ejecutar `/blinkling:blinkling` para actualizar la carpeta estable. Pulsa Recargar en la tarjeta de la extensión. Si Claude Code es remoto, descarga el nuevo ZIP desde la guía, reemplaza los archivos extraídos en el equipo con el navegador y recarga la extensión. Al cambiar a `~/Blinkling-extension`, elimina la tarjeta anterior y carga esta carpeta una vez.
-
-Para actualizar el plugin instalado, ejecuta estos comandos y después `/reload-plugins` y `/blinkling:blinkling` en Claude Code. Comprueba **2.1.0** en la lista de plugins y la tarjeta de la extensión antes de volver a abrir la burbuja.
-
-```sh
-claude plugin marketplace update blinkling
-claude plugin update blinkling@blinkling
-claude plugin list
-```
-
-</details>
+> En Windows PowerShell 5, usa `;` en lugar de `&&`. Pasos animados para tu equipo: [guía de instalación](https://arthur031221.github.io/Blinkling/install/). Otras formas de instalar, actualizaciones y el sandbox de Linux: [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Mientras lees
 

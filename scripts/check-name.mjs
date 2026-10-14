@@ -16,6 +16,11 @@ export const ALLOWED_FILES = new Set([
   "plugin/desktop/legacy.mjs",
   "plugin/desktop/legacy.d.mts",
   "plugin/desktop/legacy.test.mjs",
+  // GitHub redirects the old repository address, so the launcher accepts it
+  // as a release origin and the tests prove it.
+  "plugin/desktop/launcher.mjs",
+  "plugin/desktop/launcher.test.mjs",
+  "plugin/desktop/install.test.mjs",
   // The standalone bundles inline legacy.mjs; it is code, not text a user sees.
   "bin/blinkling.cjs",
   "bin/launch-browser.mjs",

@@ -60,22 +60,13 @@ async function readReadmes(root) {
   );
 }
 
-function advancedSection(content) {
-  const start = content.indexOf("\n### ");
-  expect(start).toBeGreaterThan(-1);
-  const end = content.indexOf("\n## ", start + 1);
-  return content.slice(start, end === -1 ? undefined : end);
-}
-
 // Run from a checkout, without relying on a marketplace or an installed plugin.
-const sourceBootstrap = `npm ci
+const sourceBootstrap = `git clone https://github.com/Arthur031221/Blinkling.git
+cd Blinkling
+npm ci
 npm run build:plugin
 claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
-node -p "require('./dist-extension/manifest.json').version"
-claude --plugin-dir "$PWD" plugin list
-claude --plugin-dir "$PWD" plugin details blinkling
-node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"`;
 
 const automaticExplanationLabels = [
@@ -173,32 +164,23 @@ afterEach(async () => {
 });
 
 describe("distribution README sync", () => {
-  it.each(readmeFiles)(
-    "provides a complete checkout plugin bootstrap in %s",
-    async (file) => {
-      const content = await readFile(join(process.cwd(), file), "utf8");
-      const advanced = advancedSection(content);
-      expect(advanced).toContain(sourceBootstrap);
-      expect(advanced).toContain("/blinkling:blinkling");
-      expect(advanced).toContain(releaseVersion);
-      expect(advanced).toContain("~/Blinkling-extension");
-      expect(advanced).toContain("chrome://extensions");
-      expect(content.slice(0, content.indexOf("\n### "))).toContain(
-        "/plugin marketplace add Arthur031221/Glimpselet",
-      );
-      expect(content.trimEnd().split("\n").at(-1)).toBe(
-        "Assisted by Claude/Codex.",
-      );
-    },
-  );
-
-  it("provides the same checkout bootstrap in the detailed install guide", async () => {
+  it("provides the checkout bootstrap in the detailed install guide", async () => {
     const content = await readFile(
       join(process.cwd(), "docs/INSTALL.md"),
       "utf8",
     );
     expect(content).toContain(sourceBootstrap);
     expect(content).toContain(releaseVersion);
+    expect(content).toContain("/blinkling:blinkling");
+  });
+
+  it("clones into the folder the next command enters", async () => {
+    const content = await readFile(
+      join(process.cwd(), "docs/INSTALL.md"),
+      "utf8",
+    );
+    const [, repository] = content.match(/git clone \S+\/([^/\s]+)\.git/);
+    expect(content).toContain(`cd ${repository}\n`);
   });
 
   it.each(passiveLanguageChecks)(
@@ -225,7 +207,7 @@ describe("distribution README sync", () => {
     expect(await readReadmes(root)).toEqual(before);
   });
 
-  it("adds localized links, removes developer warnings, and preserves advanced source steps", async () => {
+  it("adds localized store links under the Install heading and is repeatable", async () => {
     const root = await makeCopy({
       chromeWebStoreUrl:
         "https://chromewebstore.google.com/detail/blinkling/example",
@@ -247,26 +229,6 @@ describe("distribution README sync", () => {
       expect(content).toContain(
         "microsoftedge.microsoft.com/addons/detail/blinkling/example",
       );
-      expect(content).not.toMatch(
-        new RegExp(`^[ \\t]*>.*${WARNING_MARKER.source}`, "im"),
-      );
-      const advancedStart = content.indexOf("###");
-      const advancedEnd = content.indexOf("\n## ", advancedStart);
-      const advanced = content.slice(advancedStart, advancedEnd);
-      expect(advanced).toContain(sourceBootstrap);
-      expect(advanced).toContain("~/Blinkling-extension");
-      expect(advanced).toContain("chrome://extensions");
-      expect(content.slice(0, advancedStart)).not.toContain("Load unpacked");
-      expect(content.slice(0, advancedStart)).not.toContain("37115");
-      expect(content.slice(0, advancedStart)).toContain("3.");
-      // Store users update through their browser; source loading and manual
-      // replacement belong only in Advanced after distribution is configured.
-      expect(
-        content.slice(0, advancedStart) + content.slice(advancedEnd),
-      ).not.toContain("~/Blinkling-extension");
-      expect(content.slice(advancedEnd)).not.toMatch(
-        /developer banner|Entwicklermodus-Hinweis|개발자 배너|开发者提示|開發者提示/,
-      );
       expect(content.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(
         true,
       );
@@ -287,60 +249,6 @@ describe("distribution README sync", () => {
       syncDistribution({ root, configPath: join(root, "config.json") }),
     ).rejects.toThrow("approved HTTPS store URL");
     expect(await readReadmes(root)).toEqual(before);
-  });
-});
-
-const WARNING_MARKER =
-  /(?:developer mode|entwicklermodus|mode développeur|modo de desarrollador|デベロッパーモード|개발자 모드|modo de desenvolvedor|开发者模式|開發人員模式)/i;
-
-function advancedSource(content) {
-  const start = content.search(/^### /m);
-  const following = content.slice(start).search(/\n## /);
-  return content.slice(start, following < 0 ? undefined : start + following);
-}
-
-function expectCheckoutInstructions(content) {
-  const advanced = advancedSource(content);
-  const commands = [...advanced.matchAll(/```sh\n([\s\S]*?)\n```/g)]
-    .map((match) => match[1])
-    .join("\n");
-  expect(commands).toMatch(/npm ci\s+\n?npm run build:plugin/);
-  expect(commands).toContain("claude plugin validate .");
-  expect(commands).toMatch(
-    /node -p [^\n]*\.claude-plugin\/plugin\.json[^\n]*\.version/,
-  );
-  expect(commands).toMatch(
-    /node -p [^\n]*dist-extension\/manifest\.json[^\n]*\.version/,
-  );
-  expect(commands).toContain('claude --plugin-dir "$PWD"');
-  expect(commands.indexOf("npm run build:plugin")).toBeLessThan(
-    commands.indexOf('claude --plugin-dir "$PWD"'),
-  );
-  expect(advanced).toContain("/blinkling:blinkling");
-  expect(advanced).toContain(releaseVersion);
-  expect(advanced).toContain("dist-extension");
-  expect(content.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(true);
-}
-
-describe("source checkout instructions", () => {
-  for (const file of readmeFiles) {
-    it(`${file} builds and loads its local plugin before starting Blinkling`, async () => {
-      expectCheckoutInstructions(
-        await readFile(join(process.cwd(), file), "utf8"),
-      );
-    });
-  }
-
-  it("preserves the complete checkout recipe when store links are configured", async () => {
-    const root = await makeCopy({
-      chromeWebStoreUrl:
-        "https://chromewebstore.google.com/detail/blinkling/example",
-      edgeAddonsUrl:
-        "https://microsoftedge.microsoft.com/addons/detail/blinkling/example",
-    });
-    await syncDistribution({ root, configPath: join(root, "config.json") });
-    for (const content of await readReadmes(root))
-      expectCheckoutInstructions(content);
   });
 });
 

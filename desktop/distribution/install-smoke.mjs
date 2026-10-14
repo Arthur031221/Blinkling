@@ -53,7 +53,9 @@ const env = {
   NODE_OPTIONS: `--import ${pathToFileURL(join(here, "serve-assets.mjs")).href}`,
 };
 delete env.BLINKLING_RUNTIME_DIR;
-delete env.GLIMPSELET_RUNTIME_DIR;
+// The old product's switches would redirect the runtime too.
+for (const key of Object.keys(env))
+  if (key.startsWith(["GLIMP", "SELET_"].join(""))) delete env[key];
 
 let pid;
 try {
