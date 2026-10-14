@@ -22,6 +22,8 @@ import { validCommand, validRegions } from "./ipc.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
+import { installCaptureGuide, featureActions } from "../capture/integration.mjs";
+let features;
 app.commandLine.appendSwitch("enable-transparent-visuals");
 // Absolute desktop placement needs XWayland on Linux; native Wayland forbids it.
 if (process.platform === "linux" && process.env.DISPLAY)
@@ -58,6 +60,7 @@ const actions = new Set([
   "chat",
   "settings",
   "help",
+  ...featureActions,
 ]);
 const webPreferences = {
   preload: fileURLToPath(new URL("../preload/index.cjs", import.meta.url)),
@@ -348,18 +351,21 @@ ipcMain.handle("glimpselet:action", async (event, action) => {
   }
   return dispatchAction(action, { display, windows: windows(), openComposer });
 });
-// Existing screen service is usable now; other feature buckets replace/register handlers.
-registerAction("screen", async ({ display, windows }) => {
-  const capture = await captureScreen(display, windows);
-  await openComposer();
-  composer.webContents.send("glimpselet:shell", { type: "capture", capture });
-});
 await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
 );
 blink.showInactive();
+const send = (event) => {
+  for (const win of windows()) win.webContents.send("glimpselet:event", event);
+};
+features = installCaptureGuide({blink, windows, onCapture: async (capture) => {
+  await openComposer();
+  composer.webContents.send("glimpselet:event", {type: "capture", capture});
+}, onGuide: guide => send({type: "guide", ...guide}), onState: state => send({type: "capture-status", ...state})});
+for (const action of featureActions) registerAction(action, () => features.handle(action));
+void features.resume().catch(() => send({type: "capture-status", state: "retrying"}));
 const stopStacking = await keepAbove(() =>
-  [overlay, blink, composer].filter(Boolean),
+  [overlay, features.overlay.window, blink, composer].filter(Boolean),
 );
 const poll = setInterval(() => {
   if (blink.isDestroyed() || !blink.isVisible()) return;
@@ -398,6 +404,7 @@ app.on("before-quit", () => {
   quitting = true;
 });
 app.on("will-quit", () => {
+  features.dispose();
   clearInterval(poll);
   stopStacking();
   input?.dispose();
@@ -407,6 +414,7 @@ app.on("window-all-closed", () => app.quit());
 if (process.env.GLIMPSELET_E2E === "1")
   globalThis.glimpseletTest = {
     blink,
+    features,
     get composer() {
       return composer;
     },

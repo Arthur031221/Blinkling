@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:"
+    />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>選取區域</title>
+    <link rel="stylesheet" href="selection.css" />
+  </head>
+  <body>
+    <img id="frame" alt="" /><svg id="shade" aria-hidden="true">
+      <defs>
+        <mask id="outside">
+          <rect width="100%" height="100%" fill="white" />
+          <rect id="hole" fill="black" />
+        </mask>
+      </defs>
+      <rect
+        width="100%"
+        height="100%"
+        fill="#0c0e0d"
+        fill-opacity=".52"
+        mask="url(#outside)"
+      />
+    </svg>
+    <div id="selection" hidden>
+      <i data-handle="nw"></i><i data-handle="ne"></i><i data-handle="sw"></i
+      ><i data-handle="se"></i>
+    </div>
+    <div id="hint" role="status">
+      拖曳選取 · Enter 擷取 · Esc 取消 <span id="size"></span>
+    </div>
+    <script type="module" src="selection.mjs"></script>
+  </body>
+</html>

@@ -33,10 +33,6 @@ export type Selection = {
 };
 export type SessionEvent =
   | {
-      type: "activity";
-      state: "idle" | "thinking" | "permission" | "finished" | "error";
-    }
-  | {
       type: "status";
       state: "starting" | "connected" | "retrying" | "blocked";
       detail?: string;
@@ -78,34 +74,37 @@ export type Action =
   | "auto-explain"
   | "chat"
   | "settings"
-  | "help";
-export type ShellState = {
-  displayId: string;
-  workArea: Rect;
-  edge: "left" | "right" | "top" | "bottom";
-  peek: { x: number; y: number };
-  revealed: { x: number; y: number };
-  pinned: boolean;
-  dragging: boolean;
-  chatOpen: boolean;
-};
-export type ShellCommand =
-  | { type: "state" | "drag-end" | "close-chat" }
-  | { type: "drag-start"; anchor: { x: number; y: number } }
-  | { type: "pin"; value: boolean };
-export type ShellEvent =
-  | { type: "pointer"; inside: boolean }
-  | { type: "state"; state: ShellState; rebase: boolean };
+  | "help"
+  | "guide-next"
+  | "guide-back"
+  | "guide-overview"
+  | "guide-dismiss";
+export type CaptureGuideEvent =
+  | { type: "capture"; capture: Capture }
+  | {
+      type: "capture-status";
+      state: string;
+      message?: string;
+      enabled?: boolean;
+    }
+  | {
+      type: "guide";
+      phase: "thinking" | "overview" | "step" | "dismissed" | "error";
+      bubbles?: string[];
+      index?: number;
+      total?: number;
+      canBack?: boolean;
+      canNext?: boolean;
+      message?: string;
+    };
 export interface DesktopAPI {
   shell(command: ShellCommand): Promise<ShellState>;
   onShell(listener: (event: ShellEvent) => void): () => void;
-  action(
-    action: Action,
-  ): Promise<{ ok: boolean; reason?: string; enabled?: boolean }>;
+  action(action: Action): Promise<{ ok: boolean; reason?: string }>;
   interactive(regions: Rect[]): void;
-  onEvent(listener: (event: SessionEvent) => void): () => void;
-  shell(command: ShellCommand): Promise<ShellState>;
-  onShell(listener: (event: ShellEvent) => void): () => void;
+  onEvent(
+    listener: (event: SessionEvent | CaptureGuideEvent) => void,
+  ): () => void;
 }
 
 /** Shell owns visibility/input only; feature code mounts into renderer slots and
