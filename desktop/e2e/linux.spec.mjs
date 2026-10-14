@@ -32,7 +32,10 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       );
       bg.show();
       globalThis.testBackground = bg;
-      return globalThis.glimpseletTest.blink.getBounds();
+      return {
+        ...globalThis.glimpseletTest.blink.getBounds(),
+        peek: globalThis.glimpseletTest.state().peek,
+      };
     });
     const shot = async (name) => {
       await new Promise((r) => setTimeout(r, 300));
@@ -56,12 +59,26 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
     nativeClick(50, 50);
     const alpha = await shot("alpha");
     expect(pixel(alpha, bounds.x + 5, bounds.y + 5)).toEqual([32, 64, 128]);
-    const body = pixel(alpha, bounds.x + 90, bounds.y + 100);
+    const body = pixel(
+      alpha,
+      bounds.x + bounds.peek.x - 18,
+      bounds.y + bounds.peek.y + 10,
+    );
     [44, 126, 137].forEach((v, i) =>
       expect(Math.abs(body[i] - v)).toBeLessThanOrEqual(3),
     );
     nativeClick(bounds.x + 5, bounds.y + 5);
-    nativeClick(bounds.x + 90, bounds.y + 100);
+    // Reveal first, then click the moving rig at its settled body. Native clicks
+    // still prove that the animated silhouette is interactive without focus.
+    await page.evaluate(() =>
+      window.glimpselet.shell({ type: "pin", value: true }),
+    );
+    await page.waitForTimeout(700);
+    const revealed = await page.evaluate(() => window.desktop.state().anchor);
+    nativeClick(
+      Math.round(bounds.x + revealed.x - 18),
+      Math.round(bounds.y + revealed.y + 10),
+    );
     const clicks = await app.evaluate(async () => ({
       clicks:
         await globalThis.testBackground.webContents.executeJavaScript("clicks"),
@@ -76,7 +93,13 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       globalThis.glimpseletTest.capture(),
     );
     const clean = PNG.sync.read(Buffer.from(capture.image.data, "base64"));
-    expect(pixel(clean, bounds.x + 90, bounds.y + 100)).toEqual([32, 64, 128]);
+    expect(
+      pixel(
+        clean,
+        Math.round(bounds.x + revealed.x - 18),
+        Math.round(bounds.y + revealed.y + 10),
+      ),
+    ).toEqual([32, 64, 128]);
     await app.evaluate(() =>
       globalThis.glimpseletTest.overlay([
         { rect: { x: 400, y: 200, width: 100, height: 80 } },

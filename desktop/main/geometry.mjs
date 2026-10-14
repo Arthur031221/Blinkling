@@ -16,3 +16,16 @@ export function pixelRectToDip(rect, capture) {
     height: rect.height * sy,
   };
 }
+
+export function roundedContains(rect, point, radius) {
+  if (!contains(rect, point)) return false;
+  const x = Math.max(
+    rect.x + radius,
+    Math.min(rect.x + rect.width - radius, point.x),
+  );
+  const y = Math.max(
+    rect.y + radius,
+    Math.min(rect.y + rect.height - radius, point.y),
+  );
+  return (point.x - x) ** 2 + (point.y - y) ** 2 <= radius ** 2;
+}
