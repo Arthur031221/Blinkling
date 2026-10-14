@@ -24,6 +24,7 @@ describe("passive screen changes", () => {
     expect(detector.observe(a, 2000)).toBe(true);
     expect(detector.observe(b, 4000)).toBe(false);
     expect(detector.observe(b, 6000)).toBe(false);
+    expect(detector.observe(b, 11999)).toBe(false);
     expect(detector.observe(b, 12000)).toBe(true);
     expect(detector.observe(b, 14000)).toBe(false);
   });

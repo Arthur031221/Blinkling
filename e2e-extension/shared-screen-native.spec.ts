@@ -70,6 +70,9 @@ let authorizationServer: Server | undefined;
 let authorizationTabId: number;
 let autoBridge: ExtensionBridge | undefined;
 let autoRequests: { at: number; request: ProviderRequest }[] = [];
+// Provider timestamps include encoding and bridge transport. The exact ten-second
+// detector boundary is checked in screen-change.test.ts.
+const autoRequestTimingTolerance = 100;
 let autoOrigin = "";
 let autoTabId: number;
 let narrationApp: ChildProcess | undefined;
@@ -604,7 +607,7 @@ chrome.runtime.onMessage.addListener(message => {
     });
     autoBridge = new ExtensionBridge(authorizationServer, () => autoOrigin, {
       provider: (request) => {
-        autoRequests.push({ at: Date.now(), request });
+        autoRequests.push({ at: performance.now(), request });
         return runCliProvider(request, {
           command: process.execPath,
           argsPrefix: [resolve("e2e-extension/mock-claude.cjs")],
@@ -3132,7 +3135,9 @@ test("automatic explanation monitor: manual intent, consent, stable changes and 
     })
     .toBe(2);
   const second = autoRequests.filter(({ request }) => request.image)[1];
-  expect(second.at - first.at).toBeGreaterThanOrEqual(10000);
+  expect(second.at - first.at).toBeGreaterThanOrEqual(
+    10000 - autoRequestTimingTolerance,
+  );
   expect(second.request.image!.equals(first.request.image!)).toBe(false);
   expect(second.request.page).toBeUndefined();
   await expect
@@ -3345,7 +3350,9 @@ test("automatic explanation app: a real native window requires consent and narra
     })
     .toBe(2);
   const second = autoRequests[1];
-  expect(second.at - first.at).toBeGreaterThanOrEqual(10000);
+  expect(second.at - first.at).toBeGreaterThanOrEqual(
+    10000 - autoRequestTimingTolerance,
+  );
   expect(second.request.image!.equals(first.request.image!)).toBe(false);
   expect(second.request.page).toBeUndefined();
   await attachFrame(testInfo, "native-app-first-frame", first.request.image!);
