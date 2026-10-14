@@ -172,5 +172,7 @@
   "privacyPassword": "Explicación automática en pausa: esta página tiene un campo de contraseña. Usa Capturar toda la pantalla para una captura manual.",
   "privacyEmbedded": "Explicación automática en pausa: no se puede comprobar el contenido incrustado. Explica el texto de la página o captura manualmente.",
   "autoExplainPageText": "Explicar el texto de la página",
-  "autoExplainManualCapture": "Capturar manualmente"
+  "autoExplainManualCapture": "Capturar manualmente",
+  "guideSections": "Secciones de la página",
+  "guideTask": "Tarea principal"
 }

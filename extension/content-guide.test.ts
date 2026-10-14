@@ -59,6 +59,62 @@ function openGuide(elementIds: string[]) {
 }
 
 describe("content script guide focus", () => {
+  it("groups a long page by section with task controls readily available and paragraphs expandable", async () => {
+    document.body.innerHTML = `<main><h1>Plan a trip</h1><nav>${"<button>Next slide</button>".repeat(12)}</nav>${Array.from({ length: 3 }, (_, s) => `<section><h2>Section ${s}</h2>${Array.from({ length: 20 }, (_, p) => `<p>Section ${s} paragraph ${p} explains a substantive part of the page.</p>`).join("")}</section>`).join("")}<form><button>Find flights</button></form></main>`;
+    await startContentScript();
+    const page = send<{
+      elements: Array<{ id: string; role: string; text: string }>;
+    }>("glimpselet:guide-context");
+    const elements = page.elements.filter(
+      (e) =>
+        e.role === "paragraph" ||
+        /^h2$/.test(e.role) ||
+        (e.role === "button" && e.text === "Find flights"),
+    );
+    expect(
+      send("glimpselet:guide", {
+        purpose: "Find and compare flights.",
+        steps: elements.map((e) => ({
+          elementId: e.id,
+          note: e.text,
+          ...(e.text === "Find flights"
+            ? { action: "Search for your trip" }
+            : {}),
+        })),
+      }),
+    ).toEqual({ ok: true });
+    const root = document.querySelector(
+      "[data-glimpselet-overlay]",
+    )!.shadowRoot!;
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
+      .click();
+    const sections =
+      root.querySelectorAll<HTMLDetailsElement>(".guide-section");
+    expect(sections).toHaveLength(3);
+    expect([...sections].every((s) => !s.open)).toBe(true);
+    expect(root.querySelector(".guide-task")!.textContent).toContain(
+      "Find flights",
+    );
+    expect(
+      root.querySelectorAll(".guide-overview [data-guide-index]"),
+    ).toHaveLength(elements.length);
+    sections[2].open = true;
+    const last = [
+      ...sections[2].querySelectorAll<HTMLButtonElement>("[data-guide-index]"),
+    ].at(-1)!;
+    last.click();
+    expect(root.querySelector(".guide p")!.textContent).toContain(
+      "Section 2 paragraph 19",
+    );
+    root
+      .querySelector<HTMLButtonElement>('[data-guide-control="back"]')!
+      .click();
+    expect(root.querySelector(".guide p")!.textContent).toContain(
+      "Section 2 paragraph 18",
+    );
+  });
+
   it("does not refocus an overview annotation after the page loses focus", async () => {
     const { firstId } = await setup();
     vi.spyOn(

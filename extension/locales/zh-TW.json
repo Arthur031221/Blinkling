@@ -172,5 +172,7 @@
   "privacyPassword": "這頁有密碼欄位，自動解說已暫停。可使用「截取全螢幕」手動擷取。",
   "privacyEmbedded": "無法檢查嵌入內容，自動解說已暫停。可解說頁面文字或手動擷取。",
   "autoExplainPageText": "解說頁面文字",
-  "autoExplainManualCapture": "手動擷取"
+  "autoExplainManualCapture": "手動擷取",
+  "guideSections": "頁面章節",
+  "guideTask": "主要操作"
 }

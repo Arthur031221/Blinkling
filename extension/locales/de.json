@@ -172,5 +172,7 @@
   "privacyPassword": "Automatische Erklärung pausiert: Diese Seite enthält ein Passwortfeld. Nutze Gesamten Bildschirm aufnehmen für eine manuelle Aufnahme.",
   "privacyEmbedded": "Automatische Erklärung pausiert: Eingebettete Inhalte können nicht geprüft werden. Lass den Seitentext erklären oder nimm manuell auf.",
   "autoExplainPageText": "Seitentext erklären",
-  "autoExplainManualCapture": "Manuell aufnehmen"
+  "autoExplainManualCapture": "Manuell aufnehmen",
+  "guideSections": "Seitenabschnitte",
+  "guideTask": "Hauptaufgabe"
 }

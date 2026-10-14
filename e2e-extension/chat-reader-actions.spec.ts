@@ -466,6 +466,7 @@ test("streams safe Markdown in readable narrow and wide light/dark bubbles", asy
   let markdown =
     '**Key points**\n\n- First point\n- Second point\n\n```js\nconst value = 1;\n```\n\n[Source](https://example.com)\n\n<img src="https://tracker.invalid/pixel" onerror="window.pwned=1"><script>window.pwned=1</script>[bad](javascript:alert(1)) ![image](https://tracker.invalid/image)';
   markdown += "\n\n" + "A paragraph to exercise scrolling.\n\n".repeat(30);
+  markdown += "\n\n**不確定之處：**橫幅右側文字被截斷\n\n`**注意：**文字`";
   let finish!: () => void;
   let continueStreaming!: () => void;
   responder = async (request) => {
@@ -493,7 +494,13 @@ test("streams safe Markdown in readable narrow and wide light/dark bubbles", asy
     .getByRole("textbox", { name: en.question })
     .fill("Explain this passage");
   await panel.locator(".send").click();
-  await expect(panel.locator(".answer strong")).toHaveText("Key points");
+  await expect(panel.locator(".answer strong")).toHaveText([
+    "Key points",
+    "不確定之處：",
+  ]);
+  await expect(panel.locator(".answer code").last()).toHaveText(
+    "**注意：**文字",
+  );
   await expect(panel.locator(".answer li")).toHaveCount(2);
   await expect(panel.locator(".answer pre code")).toContainText("const value");
   await expect(panel.locator(".answer a").first()).toHaveAttribute(
@@ -520,17 +527,29 @@ test("streams safe Markdown in readable narrow and wide light/dark bubbles", asy
   expect(await thread.evaluate((element) => element.scrollTop)).toBe(0);
   finish();
   await expect(panel.locator(".toolbar .status")).toHaveText("Answer ready.");
+  await expect(panel.locator(".answer strong").last()).toHaveText(
+    "不確定之處：",
+  );
+  await expect(panel.locator(".answer .markdown")).toContainText(
+    "不確定之處：橫幅右側文字被截斷",
+  );
   expect(requests.at(-1)?.image).toBeUndefined();
   for (const colorScheme of ["light", "dark"] as const) {
     await panel.emulateMedia({ colorScheme });
     for (const width of [320, 420, 520]) {
       await panel.setViewportSize({ width, height: 700 });
-      await expect(panel.locator(".answer strong")).toBeVisible();
+      await expect(panel.locator(".answer strong").first()).toBeVisible();
       expect(
         await panel.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
+      if (width === 320) {
+        await panel.locator(".answer strong").last().scrollIntoViewIfNeeded();
+        await panel.screenshot({
+          path: test.info().outputPath(`cjk-answer-${colorScheme}.png`),
+        });
+      }
     }
   }
   expect(remote).toEqual([]);

@@ -139,6 +139,98 @@ async function parseGuide(response: unknown, page: PageContext) {
   );
 }
 
+test("a large page guide exposes sections and the main task without hiding below-fold paragraphs", async () => {
+  await site.evaluate(() => {
+    document.body.innerHTML = `<main><h1>Plan your trip</h1><nav>${"<button>Next slide</button>".repeat(12)}</nav>${Array.from({ length: 3 }, (_, section) => `<section><h2>Trip section ${section}</h2>${Array.from({ length: 20 }, (_, p) => `<p>Trip section ${section}, paragraph ${p}: read the dates, prices and conditions before booking your trip.</p>`).join("")}</section>`).join("")}<form><button>Find flights</button></form></main>`;
+  });
+  const page = await sendPage<PageContext>({
+    type: "glimpselet:guide-context",
+  });
+  const targets = page.elements.filter(
+    (e) =>
+      e.role === "paragraph" ||
+      e.role === "h2" ||
+      (e.role === "button" && e.text === "Find flights"),
+  );
+  expect(targets.filter((e) => e.role === "paragraph")).toHaveLength(60);
+  const guide = await parseGuide(
+    {
+      purpose: "Compare flights and plan a trip.",
+      summary: ["Read the trip sections.", "Use Find flights to search."],
+      steps: targets.map((e) => ({
+        elementId: e.id,
+        note: e.text,
+        ...(e.text === "Find flights" ? { action: "Start your search" } : {}),
+      })),
+    },
+    page,
+  );
+  expect(guide.status).toBe("ready");
+  expect(
+    await sendPage({
+      type: "glimpselet:guide",
+      steps: guide.steps,
+      purpose: guide.status === "ready" ? guide.purpose : undefined,
+    }),
+  ).toEqual({ ok: true });
+  const callout = site.locator("[data-glimpselet-overlay] .guide");
+  const overview = site.locator("[data-glimpselet-overlay] .guide-overview");
+  await callout.getByRole("button", { name: "Overview", exact: true }).click();
+  await expect(overview.locator(".guide-section")).toHaveCount(3);
+  await expect(overview.locator("[data-guide-index]")).toHaveCount(64);
+  await expect(
+    overview
+      .locator(".guide-task")
+      .getByRole("button", { name: /Find flights/ }),
+  ).toBeVisible();
+  await expect(overview.locator(".guide-section[open]")).toHaveCount(0);
+  await site.screenshot({
+    path: test.info().outputPath("guide-overview-wide.png"),
+  });
+  await overview.locator(".guide-section summary").last().focus();
+  await site.keyboard.press("Enter");
+  const last = overview.getByRole("button", {
+    name: /Trip section 2, paragraph 19/,
+  });
+  await expect(last).toBeVisible();
+  await last.click();
+  await expect(callout.locator("p")).toContainText(
+    "Trip section 2, paragraph 19",
+  );
+  const id = targets.find((e) =>
+    e.text.startsWith("Trip section 2, paragraph 19"),
+  )!.id;
+  await expect(
+    site.locator(`[data-glimpselet-overlay] [data-guide-target="${id}"]`),
+  ).toBeVisible();
+  await callout.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(callout.locator("p")).toContainText(
+    "Trip section 2, paragraph 18",
+  );
+  await callout.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(callout.locator("p")).toContainText(
+    "Trip section 2, paragraph 19",
+  );
+  await site.setViewportSize({ width: 360, height: 640 });
+  await callout.getByRole("button", { name: "Overview", exact: true }).click();
+  await expect(overview).toBeVisible();
+  const bounds = await overview.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(360);
+  await site.screenshot({
+    path: test.info().outputPath("guide-overview-narrow.png"),
+  });
+  await overview.locator(".guide-section summary").last().click();
+  await last.click();
+  await expect(callout.locator("p")).toContainText(
+    "Trip section 2, paragraph 19",
+  );
+  await site.keyboard.press("Escape");
+  await expect(
+    site.locator("[data-glimpselet-overlay] .guide,.guide-overview,svg.draw"),
+  ).toHaveCount(0);
+});
+
 test("an unavailable target suppresses a conflicting Undo highlight", async () => {
   await site.locator("#export").evaluate((element) => element.remove());
   await site.evaluate(

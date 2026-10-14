@@ -172,5 +172,7 @@
   "privacyPassword": "Explicação automática pausada: esta página tem um campo de senha. Use Capturar a tela inteira para uma captura manual.",
   "privacyEmbedded": "Explicação automática pausada: o conteúdo incorporado não pode ser verificado. Explique o texto da página ou capture manualmente.",
   "autoExplainPageText": "Explicar o texto da página",
-  "autoExplainManualCapture": "Capturar manualmente"
+  "autoExplainManualCapture": "Capturar manualmente",
+  "guideSections": "Seções da página",
+  "guideTask": "Tarefa principal"
 }

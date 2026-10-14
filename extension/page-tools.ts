@@ -2,6 +2,34 @@ export type GuideStep = { elementId: string; note: string; action?: string };
 export const MAX_GUIDE_STEPS = 160;
 export type TranslationNode = { id: string; text: string; omit?: true };
 
+/** Older providers may omit summary; retain a few section/task takeaways only. */
+export function guideChatSummary(
+  guide: { purpose?: string; summary?: string[]; steps: GuideStep[] },
+  elements: ReadonlyArray<{ id: string; role: string }>,
+): string {
+  const roles = new Map(elements.map((e) => [e.id, e.role]));
+  const sections = guide.steps.filter((s) =>
+    /^(section|h[1-6])$/.test(roles.get(s.elementId) || ""),
+  );
+  const task = guide.steps.find((s) => s.action);
+  const fallback = [
+    ...(sections.length ? sections : guide.steps).slice(0, task ? 2 : 3),
+  ];
+  if (task && !fallback.includes(task)) fallback.push(task);
+  const summary =
+    guide.summary ??
+    fallback.map((s) => s.note + (s.action ? ` · ${s.action}` : ""));
+  return [
+    guide.purpose,
+    summary
+      .slice(0, 3)
+      .map((s) => `- ${s}`)
+      .join("\n"),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 /** Keep the model's omission contract in sync with translation validation. */
 export function buildTranslationPrompt(
   instruction: string,

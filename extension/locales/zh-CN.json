@@ -172,5 +172,7 @@
   "privacyPassword": "此页面有密码字段，自动解说已暂停。可使用“截取全屏”手动截取。",
   "privacyEmbedded": "无法检查嵌入内容，自动解说已暂停。可解说页面文字或手动截取。",
   "autoExplainPageText": "解说页面文字",
-  "autoExplainManualCapture": "手动截取"
+  "autoExplainManualCapture": "手动截取",
+  "guideSections": "页面章节",
+  "guideTask": "主要操作"
 }

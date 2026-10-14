@@ -172,5 +172,7 @@
   "privacyPassword": "パスワード欄があるため、自動解説を一時停止しました。「画面全体を撮影」で手動撮影できます。",
   "privacyEmbedded": "埋め込みコンテンツを確認できないため、自動解説を一時停止しました。ページのテキストを解説するか、手動撮影できます。",
   "autoExplainPageText": "ページのテキストを解説",
-  "autoExplainManualCapture": "手動で撮影"
+  "autoExplainManualCapture": "手動で撮影",
+  "guideSections": "ページの各セクション",
+  "guideTask": "主な操作"
 }

@@ -172,5 +172,7 @@
   "privacyPassword": "Auto explain paused: this page has a password field. Use Capture whole screen for a manual image.",
   "privacyEmbedded": "Auto explain paused: embedded content cannot be checked. Explain the page text or capture manually.",
   "autoExplainPageText": "Explain page text",
-  "autoExplainManualCapture": "Capture manually"
+  "autoExplainManualCapture": "Capture manually",
+  "guideSections": "Page sections",
+  "guideTask": "Main task"
 }

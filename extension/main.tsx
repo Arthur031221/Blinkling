@@ -62,7 +62,7 @@ import {
 } from "./screen-frame";
 import { boundedHistory } from "./history";
 import { isGuideQuestion, buildPassivePrompt } from "./chat-intent";
-import { buildTranslationPrompt } from "./page-tools";
+import { buildTranslationPrompt, guideChatSummary } from "./page-tools";
 import {
   differenceHash,
   maskNarrationBubble,
@@ -2929,17 +2929,7 @@ function App() {
             steps: [],
           });
         } else {
-          visibleAnswer = [
-            guide.purpose,
-            guide.steps
-              .map(
-                (step, index) =>
-                  `${index + 1}. ${step.note}${step.action ? `\n${step.action}` : ""}`,
-              )
-              .join("\n\n"),
-          ]
-            .filter(Boolean)
-            .join("\n\n");
+          visibleAnswer = guideChatSummary(guide, currentPage.elements);
           const result = (await sendToDocument(sourceTabId, currentPage, {
             type: "glimpselet:guide",
             steps: guide.steps,
@@ -2952,6 +2942,8 @@ function App() {
               title: t.guideAction,
               overview: t.guideOverview,
               tour: t.guideTour,
+              sections: t.guideSections,
+              task: t.guideTask,
             },
           })) as { ok?: boolean } | undefined;
           if (!result?.ok) throw new Error("guide_invalid");

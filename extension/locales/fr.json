@@ -172,5 +172,7 @@
   "privacyPassword": "Explication automatique en pause : cette page contient un champ de mot de passe. Utilisez Capturer tout l’écran pour une capture manuelle.",
   "privacyEmbedded": "Explication automatique en pause : le contenu intégré ne peut pas être vérifié. Faites expliquer le texte de la page ou capturez manuellement.",
   "autoExplainPageText": "Expliquer le texte de la page",
-  "autoExplainManualCapture": "Capturer manuellement"
+  "autoExplainManualCapture": "Capturer manuellement",
+  "guideSections": "Sections de la page",
+  "guideTask": "Tâche principale"
 }
