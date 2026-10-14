@@ -63,7 +63,7 @@
   "passive": "自動解説",
   "passivePrompt": "画面上の重要な変化を簡潔に説明してください。",
   "passiveResumed": "自動解説オン",
-  "passwordPage": "パスワード欄が見つかったか、確認できないページ内容があります。読み取りとキャプチャを停止しています。 手動でキャプチャするには、画面共有を選んでください。",
+  "passwordPage": "ページの内容を確認できません。このサイトへのアクセスを許可するか、「画面全体を撮影」で手動撮影してください。",
   "paused": "自動解説一時停止",
   "pin": "ピン留め",
   "pipFallback": "ポップアップは他のアプリより前面に固定されない場合があります。一部のブラウザーは Document Picture-in-Picture に対応しています。",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "ページへのアクセスを許可しました。",
   "sessionInitialization": "この会話は開始前に停止しました。「新しいセッション」を選んでもう一度お試しください。",
   "translationIncomplete": "翻訳が完了しませんでした。再試行するか、短い文章を選択してください。",
-  "passiveScreenUnverified": "画面の自動要約を一時停止しました。続けるには現在のブラウザータブを共有してください。",
+  "passiveScreenUnverified": "共有タブを確認できないため、自動解説を一時停止しました。同じタブを選び直してください。",
   "guideFailed": "このページにガイドを表示できませんでした。もう一度ガイドを押してください。",
   "translationUnchanged": "テキストは変わりませんでした。翻訳先の言語を確認して再試行してください。",
   "askWithoutPage": "ページの内容を含めずに質問",
@@ -165,5 +165,12 @@
   "guideOverview": "全体を見る",
   "guideTour": "順に案内",
   "screenPickerPending": "Chrome で共有する画面を選んでください。",
-  "surfaceFallback": "会話は保存されています。「フローティングパネルを開く」を押すと最前面に戻ります。"
+  "surfaceFallback": "会話は保存されています。「フローティングパネルを開く」を押すと最前面に戻ります。",
+  "autoExplainScreenConsent": "自動解説はこの画面やアプリの画像を送信します。先に個人情報を隠してください。パスワード欄や除外サイトの確認はこの画面には適用できません。",
+  "autoExplainScreenAllow": "今回の共有で許可",
+  "autoExplainChooseScreen": "共有する画面を選ぶ",
+  "privacyPassword": "パスワード欄があるため、自動解説を一時停止しました。「画面全体を撮影」で手動撮影できます。",
+  "privacyEmbedded": "埋め込みコンテンツを確認できないため、自動解説を一時停止しました。ページのテキストを解説するか、手動撮影できます。",
+  "autoExplainPageText": "ページのテキストを解説",
+  "autoExplainManualCapture": "手動で撮影"
 }

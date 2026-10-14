@@ -7,6 +7,30 @@ describe("page privacy gate", () => {
     document.body.innerHTML = "";
   });
 
+  it("V21-08 distinguishes passwords from inaccessible embedded content for recovery", () => {
+    document.body.innerHTML = '<input type="password">';
+    expect(hasSensitiveContent(document, false, true)).toBe("password");
+    document.body.innerHTML = "<p>Public product</p><iframe></iframe>";
+    Object.defineProperty(
+      document.querySelector("iframe")!,
+      "contentDocument",
+      { value: null },
+    );
+    expect(hasSensitiveContent(document, false, true)).toBe("uninspectable");
+    expect(hasSensitiveContent(document, true, true)).toBeUndefined();
+    expect(hasSensitiveContent()).toBe(true);
+  });
+
+  it("reports a known password even when an inaccessible embed appears first", () => {
+    document.body.innerHTML = '<iframe></iframe><input type="password">';
+    Object.defineProperty(
+      document.querySelector("iframe")!,
+      "contentDocument",
+      { value: null },
+    );
+    expect(hasSensitiveContent(document, false, true)).toBe("password");
+  });
+
   it.each([
     'type="password"',
     'type="PASSWORD"',

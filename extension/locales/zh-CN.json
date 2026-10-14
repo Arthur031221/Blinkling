@@ -63,7 +63,7 @@
   "passive": "自动解说",
   "passivePrompt": "简要描述屏幕上有意义的变化。",
   "passiveResumed": "自动解说开启",
-  "passwordPage": "检测到密码字段，或有无法检查的页面内容。已暂停读取与截取。 如需手动截取，请选择共享屏幕。",
+  "passwordPage": "无法检查页面内容。请允许访问此网站，或使用“截取全屏”手动截取。",
   "paused": "自动解说暂停",
   "pin": "固定",
   "pipFallback": "弹出窗口可能无法始终显示在其他应用上方。部分浏览器支持文档画中画。",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "已允许访问网页。",
   "sessionInitialization": "这段对话在开始前就停止了。请选择\"新建会话\"再试一次。",
   "translationIncomplete": "翻译未完成。请重试或选择较短的段落。",
-  "passiveScreenUnverified": "屏幕自动摘要已暂停。请共享当前浏览器标签页以继续。",
+  "passiveScreenUnverified": "无法确认共享的标签页，自动解说已暂停。请重新选择该标签页。",
   "guideFailed": "无法在此页面绘制导览，请再次点击导览。",
   "translationUnchanged": "文字没有改变。请确认目标语言后重试。",
   "askWithoutPage": "不附页面内容，直接提问",
@@ -165,5 +165,12 @@
   "guideOverview": "总览",
   "guideTour": "逐步导览",
   "screenPickerPending": "请在 Chrome 选择要截取的画面。",
-  "surfaceFallback": "对话已保留，点「打开浮动面板」即可保持置顶。"
+  "surfaceFallback": "对话已保留，点「打开浮动面板」即可保持置顶。",
+  "autoExplainScreenConsent": "自动解说会发送这个屏幕或应用的画面。请先隐藏私人内容；密码字段与忽略网站的检查无法覆盖这个画面。",
+  "autoExplainScreenAllow": "允许本次共享",
+  "autoExplainChooseScreen": "选择共享画面",
+  "privacyPassword": "此页面有密码字段，自动解说已暂停。可使用“截取全屏”手动截取。",
+  "privacyEmbedded": "无法检查嵌入内容，自动解说已暂停。可解说页面文字或手动截取。",
+  "autoExplainPageText": "解说页面文字",
+  "autoExplainManualCapture": "手动截取"
 }

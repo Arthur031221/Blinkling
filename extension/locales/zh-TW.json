@@ -63,7 +63,7 @@
   "passive": "自動解說",
   "passivePrompt": "簡短描述畫面中有意義的變化。",
   "passiveResumed": "自動解說開啟",
-  "passwordPage": "偵測到密碼欄位，或有無法檢查的頁面內容。已暫停讀取與擷取。 如需手動擷取，請選擇分享螢幕。",
+  "passwordPage": "無法檢查頁面內容。請允許存取這個網站，或使用「截取全螢幕」手動擷取。",
   "paused": "自動解說暫停",
   "pin": "釘選",
   "pipFallback": "彈出視窗可能無法保持在其他應用程式上方。部分瀏覽器支援文件畫中畫。",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "已允許存取網頁。",
   "sessionInitialization": "這段對話在開始前就停止了。請選擇「新增工作階段」再試一次。",
   "translationIncomplete": "翻譯未完成。請重試或選取較短的段落。",
-  "passiveScreenUnverified": "螢幕自動摘要已暫停。請分享目前的瀏覽器分頁以繼續。",
+  "passiveScreenUnverified": "無法確認分享的分頁，自動解說已暫停。請重新選擇該分頁。",
   "guideFailed": "無法在這個頁面畫出導覽，請再按一次導覽。",
   "translationUnchanged": "文字沒有改變。請確認目標語言後再試一次。",
   "askWithoutPage": "不附頁面內容，直接提問",
@@ -165,5 +165,12 @@
   "guideOverview": "總覽",
   "guideTour": "逐步導覽",
   "screenPickerPending": "請在 Chrome 選擇要截取的畫面。",
-  "surfaceFallback": "對話已保留，點「開啟浮動面板」即可保持置頂。"
+  "surfaceFallback": "對話已保留，點「開啟浮動面板」即可保持置頂。",
+  "autoExplainScreenConsent": "自動解說會傳送這個螢幕或應用程式的畫面。請先隱藏私人內容；密碼欄位與忽略網站的檢查無法涵蓋這個畫面。",
+  "autoExplainScreenAllow": "允許這次分享",
+  "autoExplainChooseScreen": "選擇分享畫面",
+  "privacyPassword": "這頁有密碼欄位，自動解說已暫停。可使用「截取全螢幕」手動擷取。",
+  "privacyEmbedded": "無法檢查嵌入內容，自動解說已暫停。可解說頁面文字或手動擷取。",
+  "autoExplainPageText": "解說頁面文字",
+  "autoExplainManualCapture": "手動擷取"
 }

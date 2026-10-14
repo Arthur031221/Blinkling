@@ -63,7 +63,7 @@
   "passive": "Explicar automáticamente",
   "passivePrompt": "Describe brevemente el cambio relevante en esta pantalla.",
   "passiveResumed": "Explicación automática activa",
-  "passwordPage": "Se encontró un campo de contraseña o hay contenido que no se puede comprobar. La lectura y la captura están en pausa. Usa Compartir pantalla para una captura manual.",
+  "passwordPage": "No se pudo comprobar el contenido. Permite el acceso a este sitio o usa Capturar toda la pantalla para una captura manual.",
   "paused": "Explicación automática pausada",
   "pin": "Fijar",
   "pipFallback": "La ventana emergente puede no permanecer sobre otras aplicaciones. Algunos navegadores admiten Picture-in-Picture de documentos.",
@@ -129,7 +129,7 @@
   "siteAccessGranted": "Acceso a la página permitido.",
   "sessionInitialization": "Esta conversación se detuvo antes de comenzar. Elige «Nueva sesión» para volver a intentarlo.",
   "translationIncomplete": "La traducción no se completó. Inténtalo de nuevo o selecciona un pasaje más corto.",
-  "passiveScreenUnverified": "Los resúmenes automáticos de pantalla están en pausa. Comparte esta pestaña para continuar.",
+  "passiveScreenUnverified": "La explicación automática está en pausa porque no se puede verificar la pestaña compartida. Vuelve a elegirla.",
   "guideFailed": "No se pudo dibujar la guía en esta página. Vuelve a pulsar Guía.",
   "translationUnchanged": "El texto no cambió. Comprueba el idioma de destino e inténtalo de nuevo.",
   "askWithoutPage": "Preguntar sin el contenido de la página",
@@ -165,5 +165,12 @@
   "guideOverview": "Vista general",
   "guideTour": "Paso a paso",
   "screenPickerPending": "Elige una pantalla en el selector de Chrome.",
-  "surfaceFallback": "Tu conversación se conserva. Abre el panel flotante para mantenerlo encima."
+  "surfaceFallback": "Tu conversación se conserva. Abre el panel flotante para mantenerlo encima.",
+  "autoExplainScreenConsent": "La explicación automática enviará imágenes de esta pantalla o aplicación. Oculta primero el contenido privado; no se pueden comprobar contraseñas ni sitios ignorados aquí.",
+  "autoExplainScreenAllow": "Permitir para esta sesión",
+  "autoExplainChooseScreen": "Elegir una pantalla",
+  "privacyPassword": "Explicación automática en pausa: esta página tiene un campo de contraseña. Usa Capturar toda la pantalla para una captura manual.",
+  "privacyEmbedded": "Explicación automática en pausa: no se puede comprobar el contenido incrustado. Explica el texto de la página o captura manualmente.",
+  "autoExplainPageText": "Explicar el texto de la página",
+  "autoExplainManualCapture": "Capturar manualmente"
 }
