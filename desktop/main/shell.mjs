@@ -32,6 +32,7 @@ import {
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { SessionBridge } from "../session/index.mjs";
+import { runFullPage } from "../capture/full-page.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const { startDesktopHost } = await import(
@@ -503,7 +504,7 @@ const session = new SessionBridge({
         )
       : "claude"),
 });
-session.subscribe(send);
+session.subscribe(send, { visible: true });
 const requireView = (event) => {
   if (
     !trusted(event) ||
@@ -521,8 +522,9 @@ ipcMain.handle("glimpselet:configuration", (event) => {
 });
 ipcMain.on("glimpselet:subscribe", (event) => {
   if (!trusted(event)) return;
-  const unsubscribe = session.subscribe((value) =>
-    event.sender.send("glimpselet:event", value),
+  const unsubscribe = session.subscribe(
+    (value) => event.sender.send("glimpselet:event", value),
+    { visible: true },
   );
   unsubscribe();
 });
@@ -670,13 +672,21 @@ features = installCaptureGuide({
 });
 for (const action of featureActions)
   registerAction(action, () => features.handle(action));
-registerAction("full-page", async () => {
-  const capture = await companionHost.fullPage();
-  if (capture.companionRequired) {
-    send({ type: "companion-required" });
-    bubbles.showInactive();
-  } else await attachCapture(capture);
-  return { ok: true };
+registerAction("full-page", () => {
+  // Show the pending message in the bubbles at once, even if they were hidden.
+  const status = (state) => {
+    send({ type: "capture-status", ...state });
+    if (state.message) bubbles.showInactive();
+  };
+  return runFullPage({
+    host: companionHost,
+    status,
+    attach: attachCapture,
+    companionRequired: () => {
+      send({ type: "companion-required" });
+      bubbles.showInactive();
+    },
+  });
 });
 actions.add("companion-guide");
 registerAction("companion-guide", async () => {

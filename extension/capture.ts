@@ -9,9 +9,17 @@ import { prepareCaptureBinding, type CaptureBinding } from "./capture-binding";
 import type { PageContext } from "./page-context";
 import { requestCaptureAccess } from "./capture-access";
 import { fullPageLayout } from "./full-page-layout";
+import { planTiles } from "./full-page-tiles";
 
 export type CaptureKind = "visible" | "full" | "region" | "element" | "screen";
-export type CaptureResult = { image: string; label: string };
+export type CaptureResult = {
+  image: string;
+  label: string;
+  /** Full-page captures: the page top to bottom in readable pieces; image is the first. */
+  tiles?: string[];
+  /** Full-page captures: the page was longer than the tiles can hold. */
+  truncated?: boolean;
+};
 export type CaptureProgress = { completed: number; total: number };
 export type CaptureWebOptions = {
   signal?: AbortSignal;
@@ -19,6 +27,8 @@ export type CaptureWebOptions = {
   // For a rectangle received from a content script, use the browser-provided
   // sender identity and the viewport geometry recorded when selection ended.
   selectedSource?: SelectedWebCaptureSource;
+  /** A full page as one image (the panel's single attachment) instead of tiles. */
+  single?: boolean;
 };
 export type WebCaptureGeometry = {
   width: number;
@@ -618,6 +628,7 @@ async function captureWebInternal(
       viewportHeight: document.documentElement.clientHeight,
       frameWidth: innerWidth,
       frameHeight: innerHeight,
+      devicePixelRatio,
     }),
   });
   throwIfAborted(options.signal);
@@ -626,14 +637,19 @@ async function captureWebInternal(
     throw new Error("page_too_large");
   if (metrics.viewportWidth <= 0 || metrics.viewportHeight <= 0)
     throw new Error("capture_failed");
+  const plan = planTiles(
+    metrics.width,
+    metrics.height,
+    metrics.devicePixelRatio,
+  );
   const ys = [
     ...new Set(
       Array.from(
-        { length: Math.ceil(metrics.height / metrics.viewportHeight) },
+        { length: Math.ceil(plan.capturedHeight / metrics.viewportHeight) },
         (_, i) =>
           Math.min(
             i * metrics.viewportHeight,
-            Math.max(0, metrics.height - metrics.viewportHeight),
+            Math.max(0, plan.capturedHeight - metrics.viewportHeight),
           ),
       ),
     ),
@@ -651,12 +667,7 @@ async function captureWebInternal(
     ),
   ];
   const total = xs.length * ys.length;
-  const canvas = document.createElement("canvas");
-  const scale = Math.min(1, 4096 / Math.max(metrics.width, metrics.height));
-  canvas.width = Math.round(metrics.width * scale);
-  canvas.height = Math.round(metrics.height * scale);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("capture_failed");
+  const tiles = new TileStrips(metrics.width, plan);
   let completed = 0;
   const layoutId = crypto.randomUUID();
   const documentId = original[0]?.documentId;
@@ -702,21 +713,23 @@ async function captureWebInternal(
         // otherwise its hidden fixed header would erase the first tile's header.
         const left = column ? xs[column - 1]! + metrics.viewportWidth : 0;
         const top = row ? ys[row - 1]! + metrics.viewportHeight : 0;
-        await drawFrame(
-          ctx,
-          image,
+        await tiles.draw(image, {
           x,
           y,
-          metrics.width,
-          metrics.height,
-          metrics.viewportWidth,
-          metrics.viewportHeight,
-          metrics.frameWidth,
-          metrics.frameHeight,
-          scale,
-          Math.max(0, left - x),
-          Math.max(0, top - y),
-        );
+          viewportWidth: metrics.viewportWidth,
+          viewportHeight: metrics.viewportHeight,
+          frameWidth: metrics.frameWidth,
+          frameHeight: metrics.frameHeight,
+          skipLeft: Math.max(0, left - x),
+          skipTop: Math.max(0, top - y),
+        });
+        // Rows above the next row of frames are final: encode and free them now.
+        if (column === xs.length - 1)
+          tiles.finish(
+            row === ys.length - 1
+              ? plan.capturedHeight
+              : y + metrics.viewportHeight,
+          );
         throwIfAborted(options.signal);
         completed++;
         options.onProgress?.({ completed, total });
@@ -732,17 +745,68 @@ async function captureWebInternal(
       .catch(() => {});
   }
   throwIfAborted(options.signal);
-  const image = encodeCanvasPng(canvas);
+  const pieces = tiles.pieces();
   await requireUnblockedPage(tab);
   if (await isSensitivePage()) throw new Error("password_page");
   await assertStillActive(tab);
+  if (options.single)
+    return {
+      capture: {
+        image: await joinTiles(pieces, metrics.width, plan.scale),
+        label: "Full page",
+      },
+      page,
+    };
   return {
     capture: {
-      image,
+      image: pieces[0]!,
       label: "Full page",
+      tiles: pieces,
+      ...(plan.truncated ? { truncated: true } : {}),
     },
     page,
   };
+}
+
+/** One image of all tiles, shrunk to the 4096 px long edge a single attachment allows. */
+async function joinTiles(
+  pieces: string[],
+  width: number,
+  scale: number,
+): Promise<string> {
+  if (pieces.length === 1) return pieces[0]!;
+  const images = await Promise.all(
+    pieces.map(
+      (source) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("capture_failed"));
+          img.src = source;
+        }),
+    ),
+  );
+  const fullWidth = Math.round(width * scale);
+  const fullHeight = images.reduce((total, img) => total + img.height, 0);
+  const shrink = Math.min(1, 4096 / Math.max(fullWidth, fullHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(fullWidth * shrink));
+  canvas.height = Math.max(1, Math.round(fullHeight * shrink));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("capture_failed");
+  let top = 0;
+  for (const img of images) {
+    ctx.drawImage(
+      img,
+      0,
+      Math.round(top * shrink),
+      canvas.width,
+      Math.max(1, Math.round(img.height * shrink)),
+    );
+    top += img.height;
+    img.src = "";
+  }
+  return encodeCanvasPng(canvas);
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
@@ -766,41 +830,108 @@ function waitForCaptureDelay(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-async function drawFrame(
-  ctx: CanvasRenderingContext2D,
-  source: string,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  viewportWidth: number,
-  viewportHeight: number,
-  frameWidth: number,
-  frameHeight: number,
-  scale: number,
-  skipLeft = 0,
-  skipTop = 0,
-): Promise<void> {
-  const img = new Image();
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("capture_failed"));
-    img.src = source;
-  });
-  const visibleWidth = Math.min(viewportWidth, width - x) - skipLeft;
-  const visibleHeight = Math.min(viewportHeight, height - y) - skipTop;
-  ctx.drawImage(
-    img,
-    (img.width * skipLeft) / frameWidth,
-    (img.height * skipTop) / frameHeight,
-    (img.width * visibleWidth) / frameWidth,
-    (img.height * visibleHeight) / frameHeight,
-    (x + skipLeft) * scale,
-    (y + skipTop) * scale,
-    visibleWidth * scale,
-    visibleHeight * scale,
-  );
-  img.src = "";
+type FrameGeometry = {
+  x: number;
+  y: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  frameWidth: number;
+  frameHeight: number;
+  skipLeft: number;
+  skipTop: number;
+};
+
+/** Paints scrolled frames onto horizontal strips of the page and encodes each
+ * strip as soon as no later frame can touch it, so only a couple of canvases
+ * are alive at once however long the page is. */
+class TileStrips {
+  private readonly canvases = new Map<number, HTMLCanvasElement>();
+  private readonly encoded: string[] = [];
+  private next = 0;
+  constructor(
+    private readonly width: number,
+    private readonly plan: ReturnType<typeof planTiles>,
+  ) {}
+  private stripHeight(index: number): number {
+    return Math.min(
+      this.plan.tileHeight,
+      this.plan.capturedHeight - index * this.plan.tileHeight,
+    );
+  }
+  private canvas(index: number): CanvasRenderingContext2D {
+    let canvas = this.canvases.get(index);
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(this.width * this.plan.scale));
+      canvas.height = Math.max(
+        1,
+        Math.round(this.stripHeight(index) * this.plan.scale),
+      );
+      this.canvases.set(index, canvas);
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("capture_failed");
+    return ctx;
+  }
+  async draw(source: string, frame: FrameGeometry): Promise<void> {
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("capture_failed"));
+      img.src = source;
+    });
+    const { scale, tileHeight, capturedHeight } = this.plan;
+    const visibleWidth =
+      Math.min(frame.viewportWidth, this.width - frame.x) - frame.skipLeft;
+    const top = frame.y + frame.skipTop;
+    const bottom = Math.min(frame.y + frame.viewportHeight, capturedHeight);
+    for (
+      let index = Math.floor(top / tileHeight);
+      index * tileHeight < bottom && index < this.plan.count;
+      index++
+    ) {
+      const from = Math.max(top, index * tileHeight);
+      const to = Math.min(bottom, (index + 1) * tileHeight);
+      if (to <= from) continue;
+      this.canvas(index).drawImage(
+        img,
+        (img.width * frame.skipLeft) / frame.frameWidth,
+        (img.height * (from - frame.y)) / frame.frameHeight,
+        (img.width * visibleWidth) / frame.frameWidth,
+        (img.height * (to - from)) / frame.frameHeight,
+        (frame.x + frame.skipLeft) * scale,
+        (from - index * tileHeight) * scale,
+        visibleWidth * scale,
+        (to - from) * scale,
+      );
+    }
+    img.src = "";
+  }
+  /** Everything above `row` (CSS pixels) is final. */
+  finish(row: number): void {
+    while (
+      this.next < this.plan.count &&
+      (this.next + 1) * this.plan.tileHeight <= row
+    ) {
+      const canvas = this.canvases.get(this.next);
+      if (!canvas) throw new Error("capture_failed");
+      this.encoded.push(encodeCanvasPng(canvas));
+      this.canvases.delete(this.next++);
+    }
+    if (row >= this.plan.capturedHeight) this.flush();
+  }
+  private flush(): void {
+    while (this.next < this.plan.count) {
+      const canvas = this.canvases.get(this.next);
+      if (!canvas) throw new Error("capture_failed");
+      this.encoded.push(encodeCanvasPng(canvas));
+      this.canvases.delete(this.next++);
+    }
+  }
+  pieces(): string[] {
+    this.flush();
+    return this.encoded;
+  }
 }
 
 function crop(

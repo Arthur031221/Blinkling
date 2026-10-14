@@ -15,7 +15,7 @@ export type DesktopStatus = {
 export class DesktopClient {
   constructor(endpoint: DesktopEndpoint);
   endpoint: DesktopEndpoint;
-  status(): Promise<DesktopStatus>;
+  status(timeoutMs?: number): Promise<DesktopStatus>;
   rpc(
     method: string,
     value?: Record<string, unknown>,
@@ -33,4 +33,5 @@ export class DesktopClient {
 }
 export function discoverDesktop(
   path?: string,
+  options?: { timeoutMs?: number; removeStale?: boolean },
 ): Promise<{ client: DesktopClient; status: DesktopStatus } | undefined>;

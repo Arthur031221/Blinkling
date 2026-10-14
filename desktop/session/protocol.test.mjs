@@ -195,4 +195,23 @@ test("GLIMPSELET_REMOTE selects off, the one disposable test session, or the def
   assert.equal(disposable.name, "Glimpselet test");
   assert.equal(disposable.keep_session_on_exit, false);
   assert.throws(() => enableRemote(undefined, "off"), /disabled/);
+  // End-to-end runs never touch a real account unless they ask for the test session.
+  assert.equal(remoteMode({ GLIMPSELET_E2E: "1" }), "off");
+  assert.equal(
+    remoteMode({ GLIMPSELET_E2E: "1", GLIMPSELET_REMOTE: "test" }),
+    "test",
+  );
+  assert.deepEqual(enableRemote(undefined, "on"), {
+    subtype: "remote_control",
+    enabled: true,
+    name: "Glimpselet",
+    keep_session_on_exit: true,
+  });
+  assert.deepEqual(enableRemote("cse_x", "test"), {
+    subtype: "remote_control",
+    enabled: true,
+    name: "Glimpselet test",
+    keep_session_on_exit: false,
+    reattach_session_id: "cse_x",
+  });
 });

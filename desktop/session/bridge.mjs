@@ -5,6 +5,8 @@ import { SessionStore, readTranscript, isUUID } from "./storage.mjs";
 import { chatMessage, reconcileTranscript } from "./normalize.mjs";
 import { userMessage } from "./protocol.mjs";
 
+const INTERNAL_SOURCES = new Set(["guide", "companion"]);
+
 /** Main-process adapter for shared/contracts.ts. Renderers receive normalized events only. */
 export class DesktopSessionBridge {
   constructor({
@@ -36,16 +38,47 @@ export class DesktopSessionBridge {
     this.seen = new Set();
     this.emittedMessages = new Map();
   }
-  subscribe(listener) {
-    this.listeners.add(listener);
-    listener(structuredClone(this.status));
+  /** `visible` is for chat views: turns Glimpselet runs for itself (guide
+   * analysis, browser companion requests) stay out of the bubbles and the
+   * history, while Claude Code and Remote Control keep the full transcript.
+   * Internal callers that collect their own turn subscribe unfiltered. */
+  subscribe(listener, { visible = false } = {}) {
+    const target = visible
+      ? (event) => {
+          if (!this.internalEvent(event)) listener(event);
+        }
+      : listener;
+    this.listeners.add(target);
+    target(structuredClone(this.status));
     if (this.state) {
-      if (this.state.remoteId) listener(this.identity());
-      listener({ type: "selection", applied: { ...this.state.selection } });
+      if (this.state.remoteId) target(this.identity());
+      target({ type: "selection", applied: { ...this.state.selection } });
       for (const message of this.state.messages)
-        listener(structuredClone(message));
+        target(structuredClone(message));
     }
-    return () => this.listeners.delete(listener);
+    return () => this.listeners.delete(target);
+  }
+  internalTurn(turnId) {
+    const turn = this.state?.turns.find((item) => item.turn.id === turnId);
+    return INTERNAL_SOURCES.has(turn?.turn.source);
+  }
+  /** A turn's user message and every assistant message until the next user
+   * message belong to it, so a prompt typed remotely makes the chat visible again. */
+  internalMessageIds() {
+    const ids = new Set();
+    let internal = false;
+    for (const message of this.state?.messages ?? []) {
+      if (message.role === "user") internal = this.internalTurn(message.id);
+      if (internal) ids.add(message.id);
+    }
+    return ids;
+  }
+  internalEvent(event) {
+    if (event.type === "message")
+      return this.internalMessageIds().has(event.id);
+    if (event.type === "delta") return this.internalTurn(this.active);
+    if (event.type === "done") return this.internalTurn(event.turnId);
+    return false;
   }
   emit(event) {
     if (event.type === "message") {
@@ -148,8 +181,9 @@ export class DesktopSessionBridge {
         ...this.state.selection,
       });
       if (this.closed) throw new Error("Session closed");
-      // GLIMPSELET_REMOTE=0 returns no identity: keep whatever was saved.
-      if (remote.bridge_session_id) {
+      // Without Remote Control (GLIMPSELET_REMOTE=0) there is no remote identity;
+      // an earlier one stays recorded so switching back reattaches the same session.
+      if (remote.bridge_session_id && remote.session_url) {
         if (
           this.state.remoteId &&
           remote.bridge_session_id !== this.state.remoteId

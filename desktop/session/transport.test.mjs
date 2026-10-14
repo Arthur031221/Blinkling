@@ -373,3 +373,44 @@ test("a bridge with Remote Control off connects, keeps no remote identity and le
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test("a bridge without Remote Control works and keeps any earlier remote identity untouched", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-local-session-"));
+  const create = (remote) =>
+    new DesktopSessionBridge({
+      userDataDir: cwd,
+      cwd,
+      executable: process.execPath,
+      transportFactory: () =>
+        new OwnedSession({ remote, executableArgs: [fixture] }),
+      readTranscript: async () => [],
+    });
+  let bridge = create("test");
+  try {
+    await bridge.connect();
+    const identity = bridge.identity();
+    await bridge.dispose();
+    bridge = create("off");
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    assert.deepEqual(bridge.identity(), identity);
+    const fresh = await mkdtemp(join(tmpdir(), "glimpselet-local-fresh-"));
+    await bridge.dispose();
+    bridge = new DesktopSessionBridge({
+      userDataDir: fresh,
+      cwd: fresh,
+      executable: process.execPath,
+      transportFactory: () =>
+        new OwnedSession({ remote: "off", executableArgs: [fixture] }),
+      readTranscript: async () => [],
+    });
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    assert.equal(bridge.identity().remoteId, null);
+    await bridge.dispose();
+    await rm(fresh, { recursive: true, force: true });
+  } finally {
+    await bridge.dispose();
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

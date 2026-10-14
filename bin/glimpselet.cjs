@@ -19317,7 +19317,7 @@ var runtimeDirectory = () => process.env.GLIMPSELET_RUNTIME_DIR || (0, import_no
 var endpointPath = () => (0, import_node_path2.join)(runtimeDirectory(), "desktop.json");
 
 // plugin/desktop/client.mjs
-async function discoverDesktop(path = endpointPath()) {
+async function discoverDesktop(path = endpointPath(), { timeoutMs = 5e3, removeStale = false } = {}) {
   try {
     const stat2 = await (0, import_promises2.lstat)(path);
     if (!stat2.isFile() || stat2.isSymbolicLink() || stat2.size > 4096 || process.platform !== "win32" && (stat2.uid !== process.getuid() || stat2.mode & 63))
@@ -19327,12 +19327,25 @@ async function discoverDesktop(path = endpointPath()) {
     if (url2.protocol !== "http:" || url2.hostname !== "127.0.0.1" || !url2.port || url2.pathname !== "/" || url2.username || url2.password || url2.hash || url2.search || !/^[a-f0-9]{64}$/.test(endpoint.token))
       throw new Error("Invalid desktop endpoint");
     const client = new DesktopClient(endpoint);
-    const status = await client.status();
-    return { client, status };
+    try {
+      const status = await client.status(timeoutMs);
+      return { client, status };
+    } catch (error43) {
+      if (removeStale && error43?.cause?.code === "ECONNREFUSED")
+        await removeIfSame(path, endpoint.token);
+      throw error43;
+    }
   } catch (error43) {
     if (error43.code === "ENOENT" || error43 instanceof TypeError || error43.name === "TimeoutError")
       return void 0;
     throw error43;
+  }
+}
+async function removeIfSame(path, token) {
+  try {
+    if (JSON.parse(await (0, import_promises2.readFile)(path, "utf8")).token === token)
+      await (0, import_promises2.rm)(path);
+  } catch {
   }
 }
 var DesktopClient = class {
@@ -19357,8 +19370,8 @@ var DesktopClient = class {
     }
     return response;
   }
-  async status() {
-    return (await this.request("/status")).json();
+  async status(timeoutMs = 5e3) {
+    return (await this.request("/status", { signal: AbortSignal.timeout(timeoutMs) })).json();
   }
   async rpc(method, value = {}, signal) {
     return (await this.request("/rpc", {
@@ -42704,12 +42717,24 @@ async function runApiProvider(request, fetcher = fetch) {
 var import_node_crypto7 = require("node:crypto");
 var import_node_fs2 = require("node:fs");
 var import_node_path7 = require("node:path");
-function desktopStatePresent() {
+function desktopTraces() {
   return (0, import_node_fs2.existsSync)(endpointPath()) || (0, import_node_fs2.existsSync)((0, import_node_path7.join)(runtimeDirectory(), "enabled.json"));
 }
-async function desktopConnection() {
-  const connected = await discoverDesktop();
-  if (!connected && await desktopEnabled())
+async function desktopRunning(timeoutMs = 800) {
+  return discoverDesktop(endpointPath(), { timeoutMs, removeStale: true });
+}
+async function desktopStatePresent() {
+  return Boolean(await desktopRunning().catch(() => void 0));
+}
+async function desktopConnection(graceMs = 3e3) {
+  const deadline = Date.now() + graceMs;
+  let connected = await desktopRunning();
+  if (connected || !await desktopEnabled()) return connected;
+  while (!connected && Date.now() < deadline) {
+    await new Promise((resolve6) => setTimeout(resolve6, 250));
+    connected = await desktopRunning();
+  }
+  if (!connected)
     throw new Error("Blink is reconnecting. Please try again shortly.");
   return connected;
 }
@@ -58916,7 +58941,7 @@ function fe() {
 var Cbe = I("ZodNever", (e13, t) => {
   ZE.init(e13, t), Ke.init(e13, t), e13._zod.processJSONSchema = (n, r, o) => yC(e13, n, r, o);
 });
-function rm5(e13) {
+function rm6(e13) {
   return Zb(Cbe, e13);
 }
 var Abe = I("ZodArray", (e13, t) => {
@@ -58946,7 +58971,7 @@ var _u = I("ZodObject", (e13, t) => {
 }, loose() {
   return this.clone({ ...this._zod.def, catchall: fe() });
 }, strict() {
-  return this.clone({ ...this._zod.def, catchall: rm5() });
+  return this.clone({ ...this._zod.def, catchall: rm6() });
 }, strip() {
   return this.clone({ ...this._zod.def, catchall: void 0 });
 }, extend(e13) {
@@ -58971,7 +58996,7 @@ function v(e13, t) {
   return new _u(n);
 }
 function GC(e13, t) {
-  return new _u({ type: "object", shape: e13, catchall: rm5(), ...te(t) });
+  return new _u({ type: "object", shape: e13, catchall: rm6(), ...te(t) });
 }
 function Lt(e13, t) {
   return new _u({ type: "object", shape: e13, catchall: fe(), ...te(t) });
@@ -65481,7 +65506,7 @@ var Ph = P(() => h().min(1, "Plugin name cannot be empty").refine((e13) => !e13.
 var QR = P(() => v({ name: h().min(1, "Author name cannot be empty").describe("Display name of the plugin author or organization"), email: h().optional().describe("Contact email for support or feedback"), url: h().optional().describe("Website, GitHub profile, or organization URL") }));
 var b$e = P(() => v({ $schema: h().optional().describe("JSON Schema reference for editor autocomplete/validation; ignored at load time"), name: Ph().describe("Unique identifier for the plugin, used for namespacing (prefer kebab-case)"), displayName: h().optional().describe('Human-readable name shown in UI (e.g., "GitHub Utils"). Falls back to `name` when omitted. Unlike `name`, may contain spaces and any casing; not used for namespacing or lookup.'), version: h().optional().describe("Semantic version (e.g., 1.2.3) following semver.org specification"), description: h().optional().describe("Brief, user-facing explanation of what the plugin provides"), author: QR().optional().describe("Information about the plugin creator or maintainer"), homepage: h().url().optional().describe("Plugin homepage or documentation URL"), repository: h().optional().describe("Source code repository URL"), license: h().optional().describe("SPDX license identifier (e.g., MIT, Apache-2.0)"), keywords: k(h()).optional().describe("Tags for plugin discovery and categorization"), defaultEnabled: T().optional().describe("Whether the plugin starts enabled when the user has no explicit enabled/disabled setting for it (default: true). Explicit enabledPlugins values always win, and a plugin required by an enabled dependent is enabled regardless of this value."), dependencies: k(IHe()).optional().describe(`Plugins that must be enabled for this plugin to function. Bare names (no "@marketplace") are resolved against the declaring plugin's own marketplace.`), metadata: Pe((e13) => ce(e13) ? e13 : void 0, W(h(), fe()).optional()).describe("Free-form metadata for the plugin author's own use (e.g. entitlement or catalog fields). Preserved on the parsed manifest but not read by Claude Code.") }));
 var C$e = 1;
-var bCt = P(() => v({ $schema: h().optional().catch(void 0).describe("JSON Schema reference for editor autocomplete/validation; ignored at load time"), description: h().optional().describe("Brief, user-facing explanation of what these hooks provide"), hooks: im(() => Bi()).optional().describe("The hooks provided by the plugin, in the same format as the one used for settings"), modules: k(h()).max(C$e, { message: "hooks.json `modules` names one hooks module per plugin; a second entry is refused" }).optional().describe(`The hooks module: one path, relative to this hooks.json, of a module exporting register(on). The module, and every file it imports from the plugin, is named like code (${zze}; a file named otherwise is not loaded) and is an ES module whatever its suffix. What it hooks and calls is read from its source before it loads; \`claude plugin validate\` shows the result.`), surface: rm5({ error: 'hooks.json `surface` is gone: name the module in the Client element, `Client({ module: "./board.tsx", key })`, a path relative to the file that builds it' }).optional() }).refine((e13) => e13.hooks !== void 0 || (e13.modules?.length ?? 0) > 0, { message: "hooks.json must have `hooks` (the hook matchers) or `modules` (hooks modules), or both" }));
+var bCt = P(() => v({ $schema: h().optional().catch(void 0).describe("JSON Schema reference for editor autocomplete/validation; ignored at load time"), description: h().optional().describe("Brief, user-facing explanation of what these hooks provide"), hooks: im(() => Bi()).optional().describe("The hooks provided by the plugin, in the same format as the one used for settings"), modules: k(h()).max(C$e, { message: "hooks.json `modules` names one hooks module per plugin; a second entry is refused" }).optional().describe(`The hooks module: one path, relative to this hooks.json, of a module exporting register(on). The module, and every file it imports from the plugin, is named like code (${zze}; a file named otherwise is not loaded) and is an ES module whatever its suffix. What it hooks and calls is read from its source before it loads; \`claude plugin validate\` shows the result.`), surface: rm6({ error: 'hooks.json `surface` is gone: name the module in the Client element, `Client({ module: "./board.tsx", key })`, a path relative to the file that builds it' }).optional() }).refine((e13) => e13.hooks !== void 0 || (e13.modules?.length ?? 0) > 0, { message: "hooks.json must have `hooks` (the hook matchers) or `modules` (hooks modules), or both" }));
 var A$e = P(() => v({ hooks: ne([Wi().describe("Path to file with additional hooks (in addition to those in hooks/hooks.json, if it exists), relative to the plugin root"), im(() => Bi()).describe("Additional hooks (in addition to those in hooks/hooks.json, if it exists)"), k(ne([Wi().describe("Path to file with additional hooks (in addition to those in hooks/hooks.json, if it exists), relative to the plugin root"), im(() => Bi()).describe("Additional hooks (in addition to those in hooks/hooks.json, if it exists)")]))]) }));
 var v$e = P(() => v({ source: KR().optional().describe("Path to command markdown file, relative to plugin root"), content: h().optional().describe("Inline markdown content for the command"), description: h().optional().describe("Command description override"), argumentHint: h().optional().describe('Hint for command arguments (e.g., "[file]")'), model: h().optional().describe("Default model for this command"), allowedTools: k(h()).optional().describe("Tools allowed when command runs") }).refine((e13) => e13.source && !e13.content || !e13.source && e13.content, { message: 'Command must have either "source" (file path) or "content" (inline markdown), but not both' }));
 var R$e = P(() => v({ commands: ne([KR().describe("Path to a command file or skill directory, relative to the plugin root. When set, the commands/ directory is not auto-loaded \u2014 list its files here if you want both."), k(KR().describe("Path to a command file or skill directory, relative to the plugin root. When set, the commands/ directory is not auto-loaded \u2014 list its files here if you want both.")).describe("List of command file or skill directory paths. When set, the commands/ directory is not auto-loaded."), W(h(), v$e()).describe('Object mapping of command names to their metadata and source files. Command name becomes the slash command name (e.g., "about" \u2192 "/plugin:about")')]) }));
@@ -68646,37 +68671,28 @@ var ExtensionBridge = class {
   attachChannel(channel) {
     this.channel = channel;
     channel.onReady = () => {
-      if (desktopStatePresent()) {
-        this.useDesktopSession();
-        return;
-      }
-      for (const pair of this.pairs.values()) {
-        if (pair.automatic && !pair.job) pair.live = true;
-        if (pair.client)
-          send(pair.client, {
-            type: "channel-status",
-            liveAvailable: true,
-            live: Boolean(pair.live),
-            sessionId: pair.live ? "live" : pair.thread.id
-          });
-      }
+      void this.channelChanged(true);
     };
     channel.onUnavailable = () => {
-      if (desktopStatePresent()) {
-        this.useDesktopSession();
-        return;
-      }
-      for (const pair of this.pairs.values()) {
-        if (pair.automatic) pair.live = false;
-        if (pair.client)
-          send(pair.client, {
-            type: "channel-status",
-            liveAvailable: false,
-            live: Boolean(pair.live),
-            sessionId: pair.live ? "live" : pair.thread.id
-          });
-      }
+      void this.channelChanged(false);
     };
+  }
+  /** The live channel is only reported when no running Blink owns the session. */
+  async channelChanged(ready) {
+    if (await desktopStatePresent()) {
+      this.useDesktopSession();
+      return;
+    }
+    for (const pair of this.pairs.values()) {
+      if (pair.automatic && (!ready || !pair.job)) pair.live = ready;
+      if (pair.client)
+        send(pair.client, {
+          type: "channel-status",
+          liveAvailable: ready,
+          live: Boolean(pair.live),
+          sessionId: pair.live ? "live" : pair.thread.id
+        });
+    }
   }
   sharingIntent = false;
   sharingClient;
@@ -68801,18 +68817,20 @@ var ExtensionBridge = class {
         if (previous && previous !== client)
           previous.close(4002, "Opened in another window");
         clearTimeout(timer);
-        const desktop = desktopStatePresent();
-        send(client, {
-          type: "paired",
-          token: pairToken,
-          mode: this.mode,
-          project: this.sessions.project,
-          liveAvailable: desktop || Boolean(this.channel?.ready),
-          live: desktop || Boolean(pair.live),
-          models: MODELS,
-          efforts: ["low", "medium", "high"],
-          sessionId: desktop ? "desktop" : pair.live ? "live" : pair.thread.id
-        });
+        const paired = pair;
+        void desktopStatePresent().then(
+          (desktop) => send(client, {
+            type: "paired",
+            token: pairToken,
+            mode: this.mode,
+            project: this.sessions.project,
+            liveAvailable: desktop || Boolean(this.channel?.ready),
+            live: desktop || Boolean(paired.live),
+            models: MODELS,
+            efforts: ["low", "medium", "high"],
+            sessionId: desktop ? "desktop" : paired.live ? "live" : paired.thread.id
+          })
+        );
         return;
       }
       if (pair.expires <= this.now()) {
@@ -68851,15 +68869,28 @@ var ExtensionBridge = class {
       }
       return;
     }
+    if (message.type === "full-page-progress") {
+      const pending = typeof message.id === "string" ? this.pendingPages.get(message.id) : void 0;
+      if (pending?.client === client && Number.isSafeInteger(message.completed) && Number.isSafeInteger(message.total) && message.total > 0 && message.total <= 1e4 && message.completed >= 0 && message.completed <= message.total)
+        pending.progress?.(message.completed, message.total);
+      return;
+    }
     if (message.type === "full-page-result") {
       const pending = typeof message.id === "string" ? this.pendingPages.get(message.id) : void 0;
       if (!pending || pending.client !== client) return;
       try {
-        const image2 = readPanelImage(message.image, 4096);
+        const images = Array.isArray(message.images) ? message.images : [message.image];
+        if (!images.length || images.length > 8) throw new Error("tiles");
         pending.finish({
-          image: image2.image,
-          width: image2.width,
-          height: image2.height,
+          tiles: images.map((value) => {
+            const image2 = readPanelImage(value, 4096);
+            return {
+              image: image2.image,
+              width: image2.width,
+              height: image2.height
+            };
+          }),
+          truncated: message.truncated === true,
           page: pageData(message.page)
         });
       } catch {
@@ -68883,7 +68914,7 @@ var ExtensionBridge = class {
     if (typeof message.id !== "string" || message.id.length > 100)
       throw new Error("Invalid request.");
     if (message.type === "sessions") {
-      const desktop = desktopStatePresent() ? await desktopConnection() : void 0;
+      const desktop = desktopTraces() ? await desktopConnection() : void 0;
       if (desktop) {
         send(client, {
           type: "sessions",
@@ -68908,7 +68939,7 @@ var ExtensionBridge = class {
       return;
     }
     if (message.type === "session") {
-      const desktop = await desktopConnection();
+      const desktop = desktopTraces() ? await desktopConnection() : void 0;
       if (desktop) {
         if (message.sessionId !== "desktop" && message.sessionId !== void 0)
           throw new Error("Blink uses your Glimpselet conversation.");
@@ -68989,7 +69020,7 @@ var ExtensionBridge = class {
     const job = { id: id2, controller, done };
     pair.job = job;
     try {
-      const desktop = desktopStatePresent() ? await desktopConnection() : void 0;
+      const desktop = desktopTraces() ? await desktopConnection() : void 0;
       if (controller.signal.aborted) throw cancelled();
       const conversational = message.kind === "ask" || message.kind === "guide";
       if (desktop)
@@ -69094,9 +69125,21 @@ var ExtensionBridge = class {
           sessionId: "desktop"
         });
   }
-  requestFullPage(timeoutMs = 9e4, signal) {
-    const client = [...this.pairs.values()].map((p) => p.client).find((c) => c?.readyState === import_websocket.default.OPEN);
-    if (!client || signal?.aborted) return Promise.resolve(void 0);
+  /** The paired browser, waiting a few seconds for one that is reconnecting. */
+  async openClient(graceMs, signal) {
+    const deadline = Date.now() + graceMs;
+    for (; ; ) {
+      const client = [...this.pairs.values()].map((p) => p.client).find((c) => c?.readyState === import_websocket.default.OPEN);
+      if (client || signal?.aborted || Date.now() >= deadline) return client;
+      await new Promise((resolve6) => setTimeout(resolve6, 100));
+    }
+  }
+  requestFullPage(timeoutMs = 9e4, signal, onProgress, reconnectGraceMs = 3e3) {
+    return this.openClient(reconnectGraceMs, signal).then(
+      (client) => client && !signal?.aborted ? this.requestPagesFrom(client, timeoutMs, signal, onProgress) : void 0
+    );
+  }
+  requestPagesFrom(client, timeoutMs, signal, onProgress) {
     return new Promise((resolve6) => {
       const id2 = (0, import_node_crypto9.randomUUID)();
       const finish = (value) => {
@@ -69110,7 +69153,7 @@ var ExtensionBridge = class {
         finish();
       };
       const timer = setTimeout(abort, timeoutMs);
-      this.pendingPages.set(id2, { client, finish });
+      this.pendingPages.set(id2, { client, progress: onProgress, finish });
       signal?.addEventListener("abort", abort, { once: true });
       send(client, { type: "full-page", id: id2 });
     });
@@ -69238,27 +69281,32 @@ var DesktopCompanion = class {
       throw new Error("Unknown companion request");
     const controller = new AbortController();
     res.once("close", () => controller.abort());
+    res.writeHead(200, { "Content-Type": "application/x-ndjson" });
+    const line = (value) => res.write(JSON.stringify(value) + "\n");
     const capture = await this.extension.requestFullPage(
       9e4,
-      controller.signal
+      controller.signal,
+      (completed, total) => line({ progress: { completed, total } })
     );
-    res.end(
-      JSON.stringify(
-        capture ? {
+    line(
+      capture ? {
+        capturedAt: Date.now(),
+        truncated: capture.truncated,
+        tiles: capture.tiles.map((tile, index) => ({
           id: (0, import_node_crypto10.randomUUID)(),
-          capturedAt: Date.now(),
-          pixelWidth: capture.width,
-          pixelHeight: capture.height,
+          pixelWidth: tile.width,
+          pixelHeight: tile.height,
           image: {
             id: (0, import_node_crypto10.randomUUID)(),
-            name: "Full page.png",
+            name: capture.tiles.length > 1 ? `Full page ${index + 1} of ${capture.tiles.length}.png` : "Full page.png",
             mediaType: "image/png",
-            data: capture.image.toString("base64")
-          },
-          page: capture.page
-        } : { companionRequired: true }
-      )
+            data: tile.image.toString("base64")
+          }
+        })),
+        page: capture.page
+      } : { companionRequired: true }
     );
+    res.end();
   }
   close() {
     this.closed = true;

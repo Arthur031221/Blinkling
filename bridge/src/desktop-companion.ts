@@ -82,29 +82,38 @@ export class DesktopCompanion {
       throw new Error("Unknown companion request");
     const controller = new AbortController();
     res.once("close", () => controller.abort());
+    // One JSON object per line: progress while the page is scrolled, then the result.
+    res.writeHead(200, { "Content-Type": "application/x-ndjson" });
+    const line = (value: unknown) => res.write(JSON.stringify(value) + "\n");
     const capture = await this.extension.requestFullPage(
       90_000,
       controller.signal,
+      (completed, total) => line({ progress: { completed, total } }),
     );
-    res.end(
-      JSON.stringify(
-        capture
-          ? {
+    line(
+      capture
+        ? {
+            capturedAt: Date.now(),
+            truncated: capture.truncated,
+            tiles: capture.tiles.map((tile, index) => ({
               id: randomUUID(),
-              capturedAt: Date.now(),
-              pixelWidth: capture.width,
-              pixelHeight: capture.height,
+              pixelWidth: tile.width,
+              pixelHeight: tile.height,
               image: {
                 id: randomUUID(),
-                name: "Full page.png",
+                name:
+                  capture.tiles.length > 1
+                    ? `Full page ${index + 1} of ${capture.tiles.length}.png`
+                    : "Full page.png",
                 mediaType: "image/png",
-                data: capture.image.toString("base64"),
+                data: tile.image.toString("base64"),
               },
-              page: capture.page,
-            }
-          : { companionRequired: true },
-      ),
+            })),
+            page: capture.page,
+          }
+        : { companionRequired: true },
     );
+    res.end();
   }
   close(): void {
     this.closed = true;

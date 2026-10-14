@@ -12358,6 +12358,33 @@ function listenForShiftCrop(view, allowed, start) {
   };
 }
 
+// extension/steady-presence.ts
+function steadyPresence(show, graceMs = 5e3) {
+  let timer;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = void 0;
+  };
+  return {
+    up() {
+      cancel();
+      show(true);
+    },
+    down() {
+      timer ??= setTimeout(() => {
+        timer = void 0;
+        show(false);
+      }, graceMs);
+    },
+    /** A definite answer with no grace, such as the first read at startup. */
+    set(online) {
+      cancel();
+      show(online);
+    },
+    dispose: cancel
+  };
+}
+
 // extension/bubble-window.ts
 function screenArea(floating) {
   const screen = floating.screen;
@@ -16715,6 +16742,31 @@ function fullPageLayout(mode, id) {
   }
 }
 
+// extension/full-page-tiles.ts
+var TILE_EDGE = 4096;
+var TILE_MIN_HEIGHT = 1568;
+var MAX_TILES = 8;
+function planTiles(width, height, devicePixelRatio2 = 1) {
+  const scale = Math.min(
+    Math.max(1, Math.min(2, devicePixelRatio2 || 1)),
+    TILE_EDGE / width
+  );
+  const wanted = Math.ceil(height * scale / MAX_TILES);
+  const tileHeight = Math.max(
+    1,
+    Math.floor(Math.min(TILE_EDGE, Math.max(TILE_MIN_HEIGHT, wanted)) / scale)
+  );
+  const count = Math.min(MAX_TILES, Math.ceil(height / tileHeight));
+  const capturedHeight = Math.min(height, count * tileHeight);
+  return {
+    scale,
+    tileHeight,
+    count,
+    capturedHeight,
+    truncated: capturedHeight < height
+  };
+}
+
 // extension/capture.ts
 var CaptureAuthorizationError = class extends Error {
   constructor(pending) {
@@ -17084,7 +17136,7 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
     });
     await assertStillActive(tab);
     await readWebCaptureDocument(tab, captureDocument);
-    const image2 = await crop(data, rect, captureDocument.geometry.width);
+    const image = await crop(data, rect, captureDocument.geometry.width);
     await requireUnblockedPage(tab);
     if (await isSensitivePage(captureDocument, privacyMode))
       throw new Error("password_page");
@@ -17094,7 +17146,7 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
     if (capturedPage) delete capturedPage.textScope;
     return {
       capture: {
-        image: image2,
+        image,
         label: kind === "visible" ? "Visible tab" : kind === "region" ? "Selected region" : "Selected element"
       },
       page: capturedPage
@@ -17110,7 +17162,8 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
       viewportWidth: document.documentElement.clientWidth,
       viewportHeight: document.documentElement.clientHeight,
       frameWidth: innerWidth,
-      frameHeight: innerHeight
+      frameHeight: innerHeight,
+      devicePixelRatio
     })
   });
   throwIfAborted(options.signal);
@@ -17119,13 +17172,18 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
     throw new Error("page_too_large");
   if (metrics.viewportWidth <= 0 || metrics.viewportHeight <= 0)
     throw new Error("capture_failed");
+  const plan = planTiles(
+    metrics.width,
+    metrics.height,
+    metrics.devicePixelRatio
+  );
   const ys = [
     ...new Set(
       Array.from(
-        { length: Math.ceil(metrics.height / metrics.viewportHeight) },
+        { length: Math.ceil(plan.capturedHeight / metrics.viewportHeight) },
         (_2, i) => Math.min(
           i * metrics.viewportHeight,
-          Math.max(0, metrics.height - metrics.viewportHeight)
+          Math.max(0, plan.capturedHeight - metrics.viewportHeight)
         )
       )
     )
@@ -17142,12 +17200,7 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
     )
   ];
   const total = xs.length * ys.length;
-  const canvas = document.createElement("canvas");
-  const scale = Math.min(1, 4096 / Math.max(metrics.width, metrics.height));
-  canvas.width = Math.round(metrics.width * scale);
-  canvas.height = Math.round(metrics.height * scale);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("capture_failed");
+  const tiles = new TileStrips(metrics.width, plan);
   let completed = 0;
   const layoutId = crypto.randomUUID();
   const documentId = original[0]?.documentId;
@@ -17180,7 +17233,7 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
         throwIfAborted(options.signal);
         if (await isSensitivePage()) throw new Error("password_page");
         throwIfAborted(options.signal);
-        const image2 = await captureVisibleFrame(tab, options.signal);
+        const image = await captureVisibleFrame(tab, options.signal);
         throwIfAborted(options.signal);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
@@ -17189,21 +17242,20 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
         throwIfAborted(options.signal);
         const left = column ? xs[column - 1] + metrics.viewportWidth : 0;
         const top = row ? ys[row - 1] + metrics.viewportHeight : 0;
-        await drawFrame(
-          ctx,
-          image2,
+        await tiles.draw(image, {
           x,
-          y2,
-          metrics.width,
-          metrics.height,
-          metrics.viewportWidth,
-          metrics.viewportHeight,
-          metrics.frameWidth,
-          metrics.frameHeight,
-          scale,
-          Math.max(0, left - x),
-          Math.max(0, top - y2)
-        );
+          y: y2,
+          viewportWidth: metrics.viewportWidth,
+          viewportHeight: metrics.viewportHeight,
+          frameWidth: metrics.frameWidth,
+          frameHeight: metrics.frameHeight,
+          skipLeft: Math.max(0, left - x),
+          skipTop: Math.max(0, top - y2)
+        });
+        if (column === xs.length - 1)
+          tiles.finish(
+            row === ys.length - 1 ? plan.capturedHeight : y2 + metrics.viewportHeight
+          );
         throwIfAborted(options.signal);
         completed++;
         options.onProgress?.({ completed, total });
@@ -17219,17 +17271,61 @@ async function captureWebInternal(kind, selectedRect, labels, options, pending) 
     });
   }
   throwIfAborted(options.signal);
-  const image = encodeCanvasPng(canvas);
+  const pieces = tiles.pieces();
   await requireUnblockedPage(tab);
   if (await isSensitivePage()) throw new Error("password_page");
   await assertStillActive(tab);
+  if (options.single)
+    return {
+      capture: {
+        image: await joinTiles(pieces, metrics.width, plan.scale),
+        label: "Full page"
+      },
+      page
+    };
   return {
     capture: {
-      image,
-      label: "Full page"
+      image: pieces[0],
+      label: "Full page",
+      tiles: pieces,
+      ...plan.truncated ? { truncated: true } : {}
     },
     page
   };
+}
+async function joinTiles(pieces, width, scale) {
+  if (pieces.length === 1) return pieces[0];
+  const images = await Promise.all(
+    pieces.map(
+      (source) => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("capture_failed"));
+        img.src = source;
+      })
+    )
+  );
+  const fullWidth = Math.round(width * scale);
+  const fullHeight = images.reduce((total, img) => total + img.height, 0);
+  const shrink = Math.min(1, 4096 / Math.max(fullWidth, fullHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(fullWidth * shrink));
+  canvas.height = Math.max(1, Math.round(fullHeight * shrink));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("capture_failed");
+  let top = 0;
+  for (const img of images) {
+    ctx.drawImage(
+      img,
+      0,
+      Math.round(top * shrink),
+      canvas.width,
+      Math.max(1, Math.round(img.height * shrink))
+    );
+    top += img.height;
+    img.src = "";
+  }
+  return encodeCanvasPng(canvas);
 }
 function throwIfAborted(signal) {
   if (signal?.aborted) throw new Error("capture_cancelled");
@@ -17250,28 +17346,87 @@ function waitForCaptureDelay(ms, signal) {
     signal?.addEventListener("abort", abort, { once: true });
   });
 }
-async function drawFrame(ctx, source, x, y2, width, height, viewportWidth, viewportHeight, frameWidth, frameHeight, scale, skipLeft = 0, skipTop = 0) {
-  const img = new Image();
-  await new Promise((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("capture_failed"));
-    img.src = source;
-  });
-  const visibleWidth = Math.min(viewportWidth, width - x) - skipLeft;
-  const visibleHeight = Math.min(viewportHeight, height - y2) - skipTop;
-  ctx.drawImage(
-    img,
-    img.width * skipLeft / frameWidth,
-    img.height * skipTop / frameHeight,
-    img.width * visibleWidth / frameWidth,
-    img.height * visibleHeight / frameHeight,
-    (x + skipLeft) * scale,
-    (y2 + skipTop) * scale,
-    visibleWidth * scale,
-    visibleHeight * scale
-  );
-  img.src = "";
-}
+var TileStrips = class {
+  constructor(width, plan) {
+    this.width = width;
+    this.plan = plan;
+  }
+  canvases = /* @__PURE__ */ new Map();
+  encoded = [];
+  next = 0;
+  stripHeight(index) {
+    return Math.min(
+      this.plan.tileHeight,
+      this.plan.capturedHeight - index * this.plan.tileHeight
+    );
+  }
+  canvas(index) {
+    let canvas = this.canvases.get(index);
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(this.width * this.plan.scale));
+      canvas.height = Math.max(
+        1,
+        Math.round(this.stripHeight(index) * this.plan.scale)
+      );
+      this.canvases.set(index, canvas);
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("capture_failed");
+    return ctx;
+  }
+  async draw(source, frame) {
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("capture_failed"));
+      img.src = source;
+    });
+    const { scale, tileHeight, capturedHeight } = this.plan;
+    const visibleWidth = Math.min(frame.viewportWidth, this.width - frame.x) - frame.skipLeft;
+    const top = frame.y + frame.skipTop;
+    const bottom = Math.min(frame.y + frame.viewportHeight, capturedHeight);
+    for (let index = Math.floor(top / tileHeight); index * tileHeight < bottom && index < this.plan.count; index++) {
+      const from = Math.max(top, index * tileHeight);
+      const to = Math.min(bottom, (index + 1) * tileHeight);
+      if (to <= from) continue;
+      this.canvas(index).drawImage(
+        img,
+        img.width * frame.skipLeft / frame.frameWidth,
+        img.height * (from - frame.y) / frame.frameHeight,
+        img.width * visibleWidth / frame.frameWidth,
+        img.height * (to - from) / frame.frameHeight,
+        (frame.x + frame.skipLeft) * scale,
+        (from - index * tileHeight) * scale,
+        visibleWidth * scale,
+        (to - from) * scale
+      );
+    }
+    img.src = "";
+  }
+  /** Everything above `row` (CSS pixels) is final. */
+  finish(row) {
+    while (this.next < this.plan.count && (this.next + 1) * this.plan.tileHeight <= row) {
+      const canvas = this.canvases.get(this.next);
+      if (!canvas) throw new Error("capture_failed");
+      this.encoded.push(encodeCanvasPng(canvas));
+      this.canvases.delete(this.next++);
+    }
+    if (row >= this.plan.capturedHeight) this.flush();
+  }
+  flush() {
+    while (this.next < this.plan.count) {
+      const canvas = this.canvases.get(this.next);
+      if (!canvas) throw new Error("capture_failed");
+      this.encoded.push(encodeCanvasPng(canvas));
+      this.canvases.delete(this.next++);
+    }
+  }
+  pieces() {
+    this.flush();
+    return this.encoded;
+  }
+};
 function crop(image, rect, viewportWidth) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -20166,13 +20321,14 @@ function App() {
       setConnected(Boolean(bridge.token && bridge.sessionId));
       setSessionId(bridge.sessionId);
     })();
-    const connectedHandler = () => setConnected(true);
+    const presence = steadyPresence(setConnected);
+    const connectedHandler = () => presence.up();
     const disconnectedHandler = () => {
-      setConnected(false);
+      presence.down();
       setLiveAvailable(false);
     };
     const pairedHandler = () => {
-      setConnected(true);
+      presence.up();
       setSessionId(bridge.sessionId);
       setLiveSession(bridge.live);
       setLiveAvailable(bridge.liveAvailable);
@@ -20185,7 +20341,7 @@ function App() {
     bridge.addEventListener("paired", pairedHandler);
     const refreshConnection = (message) => {
       if (message.type === "glimpselet:connection-updated")
-        void bridge.load(true).catch(() => setConnected(false));
+        void bridge.load(true).catch(() => presence.down());
     };
     chrome.runtime.onMessage.addListener(refreshConnection);
     return () => {
@@ -20193,6 +20349,7 @@ function App() {
       bridge.removeEventListener("disconnected", disconnectedHandler);
       bridge.removeEventListener("paired", pairedHandler);
       chrome.runtime.onMessage.removeListener(refreshConnection);
+      presence.dispose();
       bridge.close();
     };
   }, []);
@@ -20719,12 +20876,15 @@ ${t.selectedPassage}: ${selected}` : ""}`;
               throw new Error("capture_busy");
             pageCaptureController.current = controller;
             const result = await captureWeb("full", void 0, void 0, {
-              signal: controller.signal
+              signal: controller.signal,
+              onProgress: ({ completed, total }) => void bridge.send({ type: "full-page-progress", id, completed, total }).catch(() => {
+              })
             });
             await bridge.send({
               type: "full-page-result",
               id,
-              image: result.capture.image,
+              images: result.capture.tiles ?? [result.capture.image],
+              truncated: result.capture.truncated === true,
               page: result.page
             });
           } catch {
@@ -21442,7 +21602,9 @@ ${t.selectedPassage}: ${selected}` : ""}`;
         await captureAction(retry.kind);
         return;
       }
-      const result = await retryPendingWebCapture(retry.pending, t);
+      const result = await retryPendingWebCapture(retry.pending, t, {
+        single: true
+      });
       setCapture({
         ...result.capture,
         label: t[retry.kind === "full" ? "fullPage" : retry.kind],
@@ -21549,6 +21711,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
         if (epoch !== captureRetryEpoch.current || activeTabId.current !== tabId || (await chrome.tabs.get(tabId)).url !== source.url)
           throw new Error("tab_changed");
         const result = await captureWeb(kind, void 0, t, {
+          single: true,
           signal: controller?.signal,
           onProgress: controller ? setCaptureProgress : void 0
         });

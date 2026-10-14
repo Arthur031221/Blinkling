@@ -52,6 +52,46 @@ for (const scale of [1, 1.5, 2])
         const decoded = PNG.sync.read(Buffer.from(source.data, "base64"));
         expect([decoded.width, decoded.height]).toEqual([64, 64]);
         expect([...decoded.data.subarray(0, 4)]).toEqual([255, 0, 0, 255]);
+        // Guide and companion turns run in the same session but are internal:
+        // the renderer, and so the bubbles and chat history, never see them.
+        const raw = await app.evaluate(async () => {
+          const bridge = globalThis.sessionUnderTest;
+          const seen = [];
+          const stop = bridge.subscribe((event) => seen.push(event));
+          const ids = [
+            ["22222222-2222-4222-8222-222222222222", "guide"],
+            ["33333333-3333-4333-8333-333333333333", "companion"],
+          ];
+          for (const [id, source] of ids) {
+            await bridge.send({
+              id,
+              text: `internal ${source} prompt`,
+              source,
+              attachments: [],
+            });
+            for (let i = 0; i < 400; i++) {
+              if (seen.some((e) => e.type === "done" && e.turnId === id)) break;
+              await new Promise((resolve) => setTimeout(resolve, 25));
+            }
+          }
+          stop();
+          return seen.filter((e) => e.type === "done").map((e) => e.turnId);
+        });
+        expect(raw).toEqual(
+          expect.arrayContaining([
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+          ]),
+        );
+        const hidden = await page.evaluate(() => window.sessionEvents);
+        expect(JSON.stringify(hidden)).not.toContain("internal guide prompt");
+        expect(JSON.stringify(hidden)).not.toContain(
+          "internal companion prompt",
+        );
+        expect(hidden.filter((e) => e.type === "done")).toHaveLength(1);
+        expect(hidden.filter((e) => e.type === "delta")).toHaveLength(
+          before.filter((e) => e.type === "delta").length,
+        );
         const firstIdentity = before.find((e) => e.type === "identity");
         await app.evaluate(() =>
           globalThis.sessionUnderTest.transport.child.kill("SIGTERM"),

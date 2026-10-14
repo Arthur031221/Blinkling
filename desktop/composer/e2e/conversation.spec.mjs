@@ -257,6 +257,70 @@ test("bubbles stream upward, fade by height, retain wheel history, revive after 
   }
 });
 
+test("a full-page capture shows progress at once and its notice is replaced on success, truncation and failure", async () => {
+  const { app } = await launch();
+  try {
+    await app.evaluate(() => globalThis.conversationTest.bubbles());
+    const bubble = (await app.windows())[1];
+    const notice = bubble.locator(".gl-notice");
+    const status = (event) =>
+      app.evaluate(
+        (_electron, e) =>
+          globalThis.conversationTest.emit({ type: "capture-status", ...e }),
+        event,
+      );
+    await status({
+      state: "capturing",
+      kind: "full-page",
+      message: "整頁截圖中…",
+    });
+    await expect(notice).toHaveText("整頁截圖中…");
+    await status({
+      state: "capturing",
+      kind: "full-page",
+      message: "整頁截圖中… 3/12",
+      completed: 3,
+      total: 12,
+    });
+    await expect(notice).toHaveText("整頁截圖中… 3/12");
+    await bubble.waitForTimeout(300);
+    await shot(app, "full-page-progress");
+    await status({ state: "done", kind: "full-page" });
+    await expect(notice).toBeHidden();
+
+    await status({
+      state: "capturing",
+      kind: "full-page",
+      message: "整頁截圖中… 1/12",
+    });
+    await expect(notice).toBeVisible();
+    await status({
+      state: "done",
+      kind: "full-page",
+      message: "頁面很長，只截取了前面的部分。",
+    });
+    await expect(notice).toHaveText("頁面很長，只截取了前面的部分。");
+
+    await status({
+      state: "capturing",
+      kind: "full-page",
+      message: "整頁截圖中…",
+    });
+    await status({
+      state: "failed",
+      kind: "full-page",
+      message: "整頁截圖暫時無法完成，請再試一次。",
+    });
+    await expect(notice).toHaveText("整頁截圖暫時無法完成，請再試一次。");
+    await bubble.waitForTimeout(300);
+    await shot(app, "full-page-failed");
+    await status({ state: "done", kind: "full-page" });
+    await expect(notice).toBeHidden();
+  } finally {
+    await app.close();
+  }
+});
+
 for (const scale of [1, 1.5, 2])
   for (const theme of ["light", "dark"]) {
     test(`card, bubble bounds and streamed motion at ${scale * 100}% ${theme}, 320/420/520 DIP`, async () => {

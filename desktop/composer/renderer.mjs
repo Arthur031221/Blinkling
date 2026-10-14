@@ -1,5 +1,6 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
 import { anchorOf, growOrigin } from "./origin.mjs";
+import { captureNotice } from "../capture/full-page.mjs";
 const api = window.glimpselet;
 const configuration = await api.configuration();
 document.body.dataset.surface = configuration.surface ?? "card";
@@ -143,8 +144,10 @@ const unEvent = api.onEvent((event) => {
         button("關閉", "guide-dismiss"),
       );
   }
-  if (event.type === "capture-status" && event.message) {
-    notice.textContent = event.message;
+  const change = captureNotice(event);
+  if (change?.hidden) notice.hidden = true;
+  else if (change) {
+    notice.textContent = change.text;
     notice.hidden = false;
   }
 });

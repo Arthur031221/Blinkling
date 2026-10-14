@@ -34,11 +34,14 @@ process.env.GLIMPSELET_TEST_SESSION = "manual";
       retry: { minMs: 10, maxMs: 30 },
     });
     globalThis.sessionUnderTest = bridge;
-    bridge.subscribe((event) =>
-      globalThis.glimpseletTest.blink.webContents.send(
-        "glimpselet:event",
-        event,
-      ),
+    // Like the product shell: the renderer sees only user-visible turns.
+    bridge.subscribe(
+      (event) =>
+        globalThis.glimpseletTest.blink.webContents.send(
+          "glimpselet:event",
+          event,
+        ),
+      { visible: true },
     );
     const background = new BrowserWindow({
       x: 0,

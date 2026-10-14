@@ -632,3 +632,90 @@ test("offline turns are queued durably and automatically admitted after the conn
   );
   assert.ok(children.slice(0, 2).every((child) => child.disposed));
 });
+
+test("guide and companion turns never reach visible subscribers, live or from history", async (t) => {
+  const { bridge, children, events } = await setup(t);
+  await bridge.connect();
+  const visible = [];
+  bridge.subscribe((event) => visible.push(event), { visible: true });
+  const answers = {};
+  for (const source of ["guide", "companion", "composer", "auto-explain"]) {
+    const value = turn(source);
+    value.text = `${source} prompt`;
+    await bridge.send(value);
+    await waitFor(() => children[0].sent.some((item) => item.id === value.id));
+    children[0].emit("event", {
+      type: "stream_event",
+      event: { type: "message_start", message: { id: `answer-${value.id}` } },
+    });
+    children[0].emit("event", {
+      type: "stream_event",
+      event: {
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "text_delta", text: `${source} reply` },
+      },
+    });
+    children[0].finish(value, `${source} reply`);
+    await waitFor(() =>
+      visible
+        .concat(events)
+        .some((e) => e.type === "done" && e.turnId === value.id),
+    );
+    answers[source] = value;
+  }
+  const text = JSON.stringify(visible);
+  assert.doesNotMatch(text, /guide (prompt|reply)|companion (prompt|reply)/);
+  assert.match(text, /composer prompt/);
+  assert.match(text, /composer reply/);
+  assert.match(text, /auto-explain reply/);
+  for (const source of ["guide", "companion"])
+    assert.ok(
+      !visible.some(
+        (e) => e.type === "done" && e.turnId === answers[source].id,
+      ),
+      `${source} completion leaked`,
+    );
+  for (const source of ["composer", "auto-explain"])
+    assert.ok(
+      visible.some((e) => e.type === "done" && e.turnId === answers[source].id),
+    );
+  // The unfiltered stream still carries everything: internal callers collect their own turn.
+  assert.match(JSON.stringify(events), /guide reply/);
+  assert.match(JSON.stringify(events), /companion reply/);
+  // A later subscriber (a reopened chat) replays visible history only.
+  const history = [];
+  bridge.subscribe((event) => history.push(event), { visible: true });
+  const replay = JSON.stringify(history);
+  assert.doesNotMatch(replay, /guide|companion/);
+  assert.match(replay, /composer reply/);
+  // Remote Control still sees everything: the durable state keeps the full transcript.
+  assert.match(JSON.stringify(bridge.state.messages), /guide reply/);
+});
+
+test("a message typed remotely after an internal turn is visible again", async (t) => {
+  const { bridge, children } = await setup(t);
+  await bridge.connect();
+  const visible = [];
+  bridge.subscribe((event) => visible.push(event), { visible: true });
+  const value = turn("guide");
+  await bridge.send(value);
+  await waitFor(() => children[0].sent.length === 1);
+  children[0].finish(value, "hidden steps");
+  children[0].emit("event", {
+    type: "user",
+    uuid: "remote-human",
+    message: { content: [{ type: "text", text: "from my phone" }] },
+  });
+  children[0].emit("event", {
+    type: "assistant",
+    uuid: randomUUID(),
+    message: {
+      id: "remote-answer",
+      content: [{ type: "text", text: "phone answer" }],
+    },
+  });
+  await waitFor(() => visible.some((e) => e.id === "remote-answer"));
+  assert.ok(visible.some((e) => e.id === "remote-human"));
+  assert.doesNotMatch(JSON.stringify(visible), /hidden steps/);
+});

@@ -72,7 +72,10 @@ export function remoteMode(env = process.env) {
   if (env.GLIMPSELET_REMOTE === "0") return "off";
   if (env.GLIMPSELET_REMOTE === "test") return "test";
   // A live automated run must opt in to Remote Control explicitly.
-  if (env.GLIMPSELET_REMOTE === undefined && env.GLIMPSELET_LIVE === "1")
+  if (
+    env.GLIMPSELET_REMOTE === undefined &&
+    (env.GLIMPSELET_LIVE === "1" || env.GLIMPSELET_E2E === "1")
+  )
     return "off";
   return "on";
 }
