@@ -10,29 +10,6 @@ import { transcriptPath } from "./storage.mjs";
 const fixture = fileURLToPath(
   new URL("./e2e/fake-claude.fixture.mjs", import.meta.url),
 );
-/** Records every control request the fixture child receives. */
-async function withRequestLog(t, env) {
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-requests-"));
-  const log = join(dir, "requests.jsonl");
-  const saved = {
-    GLIMPSELET_TEST_REQUESTS: process.env.GLIMPSELET_TEST_REQUESTS,
-    GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE,
-  };
-  process.env.GLIMPSELET_TEST_REQUESTS = log;
-  if (env === undefined) delete process.env.GLIMPSELET_REMOTE;
-  else process.env.GLIMPSELET_REMOTE = env;
-  t.after(async () => {
-    for (const [key, value] of Object.entries(saved))
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    await rm(dir, { recursive: true, force: true });
-  });
-  return async () =>
-    (await readFile(log, "utf8").catch(() => ""))
-      .split("\n")
-      .filter(Boolean)
-      .map(JSON.parse);
-}
 async function setup(t) {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-transport-"));
   const child = new OwnedSession({
@@ -235,7 +212,7 @@ test("an empty session survives full adapter restart with the same UUID and remo
       cwd,
       executable: process.execPath,
       transportFactory: () =>
-        new OwnedSession({ executableArgs: [fixture], remote: "on" }),
+        new OwnedSession({ executableArgs: [fixture], remote }),
       readTranscript: async (_, id) => {
         try {
           return (

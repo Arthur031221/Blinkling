@@ -168,7 +168,7 @@ async function closedPort() {
   return port;
 }
 it("reports a running desktop only after a live status ping", async () => {
-  const app = await setup(async () => {});
+  await setup(async () => {});
   expect((await desktopRunning())?.status).toMatchObject({ pid: process.pid });
   expect(await desktopStatePresent()).toBe(true);
 });
