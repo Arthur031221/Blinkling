@@ -1,0 +1,95 @@
+:root {
+  font-family: system-ui, sans-serif;
+  --paper: #f5f5f4;
+  --ink: #0c0e0d;
+}
+html,
+body {
+  margin: 0;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+#drawings {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.outline {
+  fill: none;
+  stroke: #3ddc97;
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+.arrow {
+  stroke: #3ddc97;
+  stroke-width: 3;
+  fill: none;
+  marker-end: url(#arrow);
+}
+.label {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: min(240px, calc(100vw - 16px));
+  border: 2px solid #0c0e0d;
+  border-radius: 18px;
+  padding: 8px 12px 8px 8px;
+  color: var(--ink);
+  background: var(--paper);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.label .number {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #3ddc97;
+  color: #0c0e0d;
+  font-weight: 700;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+}
+.label .text {
+  min-width: 0;
+}
+[hidden] {
+  display: none !important;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #222723;
+    --ink: #f5f5f4;
+  }
+}
+:root[data-theme="light"] {
+  --paper: #f5f5f4;
+  --ink: #0c0e0d;
+}
+:root[data-theme="dark"] {
+  --paper: #222723;
+  --ink: #f5f5f4;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .label,
+  .outline,
+  .arrow {
+    animation: arrive 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

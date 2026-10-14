@@ -4,11 +4,16 @@ import { keepAbove } from "./x11-stacking.mjs";
 import { contains } from "./geometry.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
+import {
+  installCaptureGuide,
+  featureActions,
+} from "../capture/integration.mjs";
 
 app.commandLine.appendSwitch("enable-transparent-visuals");
 let blink;
 let poll;
 let overlay;
+let features;
 let regions = [];
 const actions = new Set([
   "screen",
@@ -19,6 +24,7 @@ const actions = new Set([
   "chat",
   "settings",
   "help",
+  ...featureActions,
 ]);
 await app.whenReady();
 const display = screen.getPrimaryDisplay();
@@ -65,7 +71,9 @@ ipcMain.on("glimpselet:regions", (event, value) => {
 ipcMain.handle("glimpselet:action", async (event, action) => {
   if (!trusted(event) || !actions.has(action))
     throw new Error("Invalid desktop action");
-  // UI builders replace these explicit pending states through the shared interfaces.
+  const result = await features?.handle(action);
+  if (result) return result;
+  // Other buckets supply conversation and companion actions.
   return { ok: false, reason: `${action}: scaffold only` };
 });
 blink.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -74,7 +82,24 @@ await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
 );
 blink.showInactive();
-const stopStacking = await keepAbove(() => [overlay, blink].filter(Boolean));
+const send = (value) => {
+  if (!blink.isDestroyed()) blink.webContents.send("glimpselet:event", value);
+};
+features = installCaptureGuide({
+  blink,
+  windows: () => [blink, overlay].filter(Boolean),
+  onCapture: (capture) => send({ type: "capture", capture }),
+  onGuide: (guide) => send({ type: "guide", ...guide }),
+  onState: (state) => send({ type: "capture-status", ...state }),
+});
+// The session owner binds its durable SessionBridge here at service composition.
+// Capture resumption runs after renderer listeners are ready, without a second gesture.
+void features
+  .resume()
+  .catch(() => send({ type: "capture-status", state: "retrying" }));
+const stopStacking = await keepAbove(() =>
+  [overlay, features.overlay.window, blink].filter(Boolean),
+);
 // Linux does not implement forwarded mousemove. Poll global cursor for hit regions.
 // The character builder supplies silhouette scanlines, including arms and animation.
 poll = setInterval(() => {
@@ -86,6 +111,7 @@ poll = setInterval(() => {
   );
 }, 16);
 app.on("will-quit", () => {
+  features.dispose();
   clearInterval(poll);
   stopStacking();
   globalShortcut.unregisterAll();
@@ -95,6 +121,7 @@ app.on("window-all-closed", () => app.quit());
 if (process.env.GLIMPSELET_E2E === "1")
   globalThis.glimpseletTest = {
     blink,
+    features,
     capture: () =>
       captureScreen(
         screen.getPrimaryDisplay(),

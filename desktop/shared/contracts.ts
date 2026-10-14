@@ -74,9 +74,33 @@ export type Action =
   | "auto-explain"
   | "chat"
   | "settings"
-  | "help";
+  | "help"
+  | "guide-next"
+  | "guide-back"
+  | "guide-overview"
+  | "guide-dismiss";
+export type CaptureGuideEvent =
+  | { type: "capture"; capture: Capture }
+  | {
+      type: "capture-status";
+      state: string;
+      message?: string;
+      enabled?: boolean;
+    }
+  | {
+      type: "guide";
+      phase: "thinking" | "overview" | "step" | "dismissed" | "error";
+      bubbles?: string[];
+      index?: number;
+      total?: number;
+      canBack?: boolean;
+      canNext?: boolean;
+      message?: string;
+    };
 export interface DesktopAPI {
   action(action: Action): Promise<{ ok: boolean; reason?: string }>;
   interactive(regions: Rect[]): void;
-  onEvent(listener: (event: SessionEvent) => void): () => void;
+  onEvent(
+    listener: (event: SessionEvent | CaptureGuideEvent) => void,
+  ): () => void;
 }
