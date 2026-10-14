@@ -3,7 +3,10 @@ import { MAX_PNG_BYTES } from "./config.js";
 import { PanelError } from "./errors.js";
 import { normalizePng, type NormalizedPng } from "./png.js";
 
-export function readPanelImage(value: unknown): NormalizedPng {
+export function readPanelImage(
+  value: unknown,
+  longEdge?: number,
+): NormalizedPng {
   if (
     typeof value !== "string" ||
     value.length > Math.ceil((MAX_PNG_BYTES * 4) / 3) + 128
@@ -19,7 +22,7 @@ export function readPanelImage(value: unknown): NormalizedPng {
   if (!encoded || encoded.length % 4 !== 0 || /[^A-Za-z0-9+/]/.test(unpadded))
     throw new PanelError("invalid_image", "Supply a valid PNG image.");
   try {
-    return normalizePng(Buffer.from(encoded, "base64"));
+    return normalizePng(Buffer.from(encoded, "base64"), longEdge);
   } catch {
     throw new PanelError(
       "invalid_image",

@@ -8,6 +8,7 @@ import { encodeCanvasPng } from "./png";
 import { prepareCaptureBinding, type CaptureBinding } from "./capture-binding";
 import type { PageContext } from "./page-context";
 import { requestCaptureAccess } from "./capture-access";
+import { fullPageLayout } from "./full-page-layout";
 
 export type CaptureKind = "visible" | "full" | "region" | "element" | "screen";
 export type CaptureResult = { image: string; label: string };
@@ -657,10 +658,21 @@ async function captureWebInternal(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("capture_failed");
   let completed = 0;
+  const layoutId = crypto.randomUUID();
+  const documentId = original[0]?.documentId;
+  const layout = (mode: "begin" | "next" | "end") =>
+    chrome.scripting.executeScript({
+      target: {
+        tabId: tab.id,
+        ...(documentId ? { documentIds: [documentId] } : {}),
+      },
+      func: fullPageLayout,
+      args: [mode, layoutId],
+    });
   options.onProgress?.({ completed, total });
   try {
-    for (const y of ys)
-      for (const x of xs) {
+    for (const [row, y] of ys.entries())
+      for (const [column, x] of xs.entries()) {
         throwIfAborted(options.signal);
         await assertStillActive(tab);
         throwIfAborted(options.signal);
@@ -671,6 +683,7 @@ async function captureWebInternal(
           args: [x, y],
         });
         throwIfAborted(options.signal);
+        await layout(completed === 0 ? "begin" : "next");
         await waitForCaptureDelay(80, options.signal);
         throwIfAborted(options.signal);
         await requireUnblockedPage(tab);
@@ -685,6 +698,10 @@ async function captureWebInternal(
         await requireUnblockedPage(tab);
         if (await isSensitivePage()) throw new Error("password_page");
         throwIfAborted(options.signal);
+        // The last viewport can overlap an earlier tile. Only paint new pixels,
+        // otherwise its hidden fixed header would erase the first tile's header.
+        const left = column ? xs[column - 1]! + metrics.viewportWidth : 0;
+        const top = row ? ys[row - 1]! + metrics.viewportHeight : 0;
         await drawFrame(
           ctx,
           image,
@@ -697,12 +714,15 @@ async function captureWebInternal(
           metrics.frameWidth,
           metrics.frameHeight,
           scale,
+          Math.max(0, left - x),
+          Math.max(0, top - y),
         );
         throwIfAborted(options.signal);
         completed++;
         options.onProgress?.({ completed, total });
       }
   } finally {
+    await layout("end").catch(() => {});
     await chrome.scripting
       .executeScript({
         target: { tabId: tab.id },
@@ -758,6 +778,8 @@ async function drawFrame(
   frameWidth: number,
   frameHeight: number,
   scale: number,
+  skipLeft = 0,
+  skipTop = 0,
 ): Promise<void> {
   const img = new Image();
   await new Promise<void>((resolve, reject) => {
@@ -765,16 +787,16 @@ async function drawFrame(
     img.onerror = () => reject(new Error("capture_failed"));
     img.src = source;
   });
-  const visibleWidth = Math.min(viewportWidth, width - x);
-  const visibleHeight = Math.min(viewportHeight, height - y);
+  const visibleWidth = Math.min(viewportWidth, width - x) - skipLeft;
+  const visibleHeight = Math.min(viewportHeight, height - y) - skipTop;
   ctx.drawImage(
     img,
-    0,
-    0,
+    (img.width * skipLeft) / frameWidth,
+    (img.height * skipTop) / frameHeight,
     (img.width * visibleWidth) / frameWidth,
     (img.height * visibleHeight) / frameHeight,
-    x * scale,
-    y * scale,
+    (x + skipLeft) * scale,
+    (y + skipTop) * scale,
     visibleWidth * scale,
     visibleHeight * scale,
   );

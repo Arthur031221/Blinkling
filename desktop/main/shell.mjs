@@ -7,7 +7,7 @@ import {
   nativeTheme,
 } from "electron";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { keepAbove } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { contains } from "./geometry.mjs";
@@ -23,7 +23,18 @@ import { dispatchAction, registerAction } from "./services.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
 import { installCaptureGuide, featureActions } from "../capture/integration.mjs";
+import { existsSync } from "node:fs";
 let features;
+const companionModule = new URL("../companion/host.mjs", import.meta.url);
+const { startDesktopHost } = await import(
+  existsSync(fileURLToPath(companionModule))
+    ? companionModule.href
+    : new URL("../../plugin/desktop/host.mjs", import.meta.url).href
+);
+if (process.env.GLIMPSELET_RUNTIME_DIR)
+  app.setPath("userData", join(resolve(process.env.GLIMPSELET_RUNTIME_DIR), "electron"));
+if (!app.requestSingleInstanceLock()) app.exit(0);
+
 app.commandLine.appendSwitch("enable-transparent-visuals");
 // Absolute desktop placement needs XWayland on Linux; native Wayland forbids it.
 if (process.platform === "linux" && process.env.DISPLAY)
@@ -364,11 +375,17 @@ features = installCaptureGuide({blink, windows, onCapture: async (capture) => {
 }, onGuide: guide => send({type: "guide", ...guide}), onState: state => send({type: "capture-status", ...state})});
 for (const action of featureActions) registerAction(action, () => features.handle(action));
 void features.resume().catch(() => send({type: "capture-status", state: "retrying"}));
+const companionHost = await startDesktopHost({
+  onOpen: () => blink.showInactive(),
+  onShutdown: () => app.quit(),
+});
+globalThis.glimpseletCompanion = companionHost;
 const stopStacking = await keepAbove(() =>
   [overlay, features.overlay.window, blink, composer].filter(Boolean),
 );
 const poll = setInterval(() => {
   if (blink.isDestroyed() || !blink.isVisible()) return;
+
   const p = screen.getCursorScreenPoint();
   if (drag) {
     if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4)
@@ -405,6 +422,7 @@ app.on("before-quit", () => {
 });
 app.on("will-quit", () => {
   features.dispose();
+  void companionHost.close();
   clearInterval(poll);
   stopStacking();
   input?.dispose();
