@@ -1206,7 +1206,7 @@ for (const permission of ["onboarding", "capture gesture"] as const) {
         ),
       )
       .toBe(permission === "onboarding");
-    await nativeClick(".consent button.primary");
+    await nativeClick(".consent button.primary:last-of-type");
     await expect
       .poll(() =>
         panel.evaluate(() => Boolean(window.documentPictureInPicture.window)),

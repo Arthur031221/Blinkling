@@ -3558,11 +3558,7 @@ function App() {
           </div>
         </div>
         <p>{t.consentText}</p>
-        <ul>
-          <li>{t.consent1}</li>
-          <li>{t.consent2}</li>
-          <li>{t.consent3}</li>
-        </ul>
+        <p>{t.consent1}</p>
         <label className="field">
           {t.language}
           <select
@@ -3584,7 +3580,10 @@ function App() {
               ))}
           </select>
         </label>
-        <button className="wide" onClick={() => void allowPageAccess(true)}>
+        <button
+          className="primary wide"
+          onClick={() => void allowPageAccess(true)}
+        >
           {t.allowAllSites}
         </button>
         <p>{t.captureAccessHint}</p>
@@ -3599,7 +3598,6 @@ function App() {
         >
           {t.consentAccept}
         </button>
-        <small>{t.consentFoot}</small>
       </main>
     );
 

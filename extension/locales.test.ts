@@ -95,6 +95,17 @@ describe("extension locale bundles", () => {
     }
   });
 
+  it("names Auto explain in concise consent in all nine languages", () => {
+    for (const [locale, bundle] of Object.entries(locales)) {
+      expect(bundle.consent1, locale).toContain(bundle.autoExplain);
+      expect(bundle.consentText, locale).not.toBe(bundle.consent1);
+      for (const removed of ["consent2", "consent3", "consentFoot"])
+        expect(Object.hasOwn(bundle, removed), `${locale}.${removed}`).toBe(
+          false,
+        );
+    }
+  });
+
   it("keeps completion feedback independent of an image attachment in every locale", () => {
     for (const [locale, bundle] of Object.entries(locales)) {
       expect(bundle.answerReady, locale).not.toMatch(

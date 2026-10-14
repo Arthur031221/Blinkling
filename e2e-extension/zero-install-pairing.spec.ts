@@ -24,6 +24,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import en from "../extension/locales/en.json" with { type: "json" };
+import { welcomeLocales } from "../bridge/src/welcome-locales";
 
 async function freePort() {
   const server = createServer();
@@ -239,8 +240,8 @@ child.on('exit', code => process.exit(code ?? 1));
       const trialWorker =
         trialContext.serviceWorkers()[0] ||
         (await trialContext.waitForEvent("serviceworker"));
-      await expect(trialWelcome.locator("#connection")).toHaveClass(
-        /connected/,
+      await expect(trialWelcome.locator("#connection")).toHaveText(
+        welcomeLocales.en.completed,
       );
       const trialStorage = await trialWorker.evaluate(() =>
         chrome.storage.session.get(["bridgeToken"]),
@@ -276,8 +277,9 @@ child.on('exit', code => process.exit(code ?? 1));
       expect(trialUrl.searchParams.get("locale")).toBe("en");
       expect(trialStorage.bridgeToken).toMatch(/^[a-f0-9]{64}$/);
       expect(trialStatus.connected).toBe(true);
+      expect(trialStatus.active).toBe(false);
       expect(sourceStatus.connected).toBe(ordinaryPaired);
-      await expect(trialWelcome.locator("#connection")).toHaveClass(
+      await expect(trialWelcome.locator("#connection")).not.toHaveClass(
         /connected/,
       );
       await expect(trialWelcome.locator("#open-bubble")).toBeEnabled();

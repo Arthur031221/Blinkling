@@ -481,6 +481,41 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
+describe("first-use consent", () => {
+  it.each([true, false])(
+    "keeps consent concise and opens the bubble with all-sites permission %s",
+    async (granted) => {
+      stored.consented = false;
+      vi.mocked(chrome.permissions.request).mockResolvedValue(granted);
+      const { floating } = floatingWindow();
+      const requestWindow = vi.fn().mockResolvedValue(floating);
+      vi.stubGlobal("documentPictureInPicture", { requestWindow });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: true, text: async () => "" }),
+      );
+      await start();
+      const consent = document.querySelector(".consent")!;
+      expect(consent.querySelectorAll("li, small")).toHaveLength(0);
+      expect(consent.textContent).toContain(en.autoExplain);
+      expect(button(en.allowAllSites).classList.contains("primary")).toBe(true);
+      await click(en.allowAllSites);
+      expect(chrome.permissions.request).toHaveBeenCalledWith({
+        origins: ["<all_urls>"],
+      });
+      expect(consent.querySelector('[role="status"]')?.textContent).toBe(
+        granted ? en.siteAccessGranted : en.siteAccess,
+      );
+      await click(en.consentAccept);
+      expect(chrome.storage.local.set).toHaveBeenCalledWith({
+        consented: true,
+      });
+      expect(requestWindow).toHaveBeenCalledOnce();
+      expect(floating.document.querySelector(".app.in-pip")).not.toBeNull();
+    },
+  );
+});
+
 describe("bubble answer rendering and feedback", () => {
   it("asks explicitly about public text excluded from automatic reads without taking a screenshot", async () => {
     mocks.sensitive.mockResolvedValue(true);
