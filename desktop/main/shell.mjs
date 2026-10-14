@@ -442,7 +442,21 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
   } else if (command.type === "pin") {
     pinned = command.value;
     if (pinned) await openComposer(false);
-    else closeComposer();
+    else {
+      // Unpinning dismisses the card, but never over an unsent draft or an
+      // open file dialog; it closes as soon as nothing holds it.
+      leaving = true;
+      if (
+        leaveCloses({
+          open: chatOpen,
+          pinned,
+          leaving,
+          draft: typing,
+          ...cardHold,
+        })
+      )
+        closeComposer();
+    }
   } else if (command.type === "close-chat") closeComposer();
   else if (command.type === "visibility") {
     if (command.value && !chatOpen) await openComposer(false);
@@ -793,6 +807,7 @@ if (process.env.GLIMPSELET_E2E === "1")
     },
     snapshot,
     cursor: () => cursor.point(),
+    pointer: cursor,
     cardBounds: () => cardBounds(display, position),
     attachCapture,
     visualMasks,

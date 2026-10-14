@@ -36,6 +36,10 @@ export function cursorSource({
       });
   };
   return {
+    /** Where the last answer came from: the native query or Electron. */
+    get source() {
+      return latest && clock() - at <= staleMs ? "x11" : "electron";
+    },
     point() {
       refresh();
       return latest && clock() - at <= staleMs ? toDip(latest) : fallback();

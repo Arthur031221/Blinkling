@@ -120,7 +120,12 @@ for (const edge of ["left", "right", "top", "bottom"])
       // Never the old fixed bottom-right corner unless Blink is really there.
       if (edge === "left") expect(origin[0]).toBeLessThan(10);
       if (edge === "right") expect(origin[0]).toBeGreaterThan(90);
-      if (edge === "top") expect(origin[1]).toBeLessThan(40);
+      // On the top edge the character is lowered to make room for the fan, so
+      // the origin is wherever Blink really is relative to the card.
+      if (edge === "top")
+        expect(origin[1] > 50).toBe(
+          geometry.anchor.y > geometry.card.y + geometry.card.height / 2,
+        );
       if (edge === "bottom") expect(origin[1]).toBe(100);
       await card.waitForTimeout(450);
       await desktopShot(c.app, `grow-origin-${edge}`);

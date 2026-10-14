@@ -79,3 +79,18 @@ test("only one query is ever in flight", async () => {
   for (let i = 0; i < 20; i++) source.point();
   assert.equal(calls, 1);
 });
+test("the source reports where the point came from", async () => {
+  let now = 0;
+  const source = cursorSource({
+    query: async () => ({ x: 1, y: 2 }),
+    fallback: () => ({ x: 0, y: 0 }),
+    clock: () => now,
+    staleMs: 250,
+  });
+  assert.equal(source.source, "electron");
+  source.point();
+  await tick();
+  assert.equal(source.source, "x11");
+  now += 400;
+  assert.equal(source.source, "electron");
+});

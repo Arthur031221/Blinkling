@@ -44,7 +44,7 @@ test("registered services receive native menu actions and auto switch reflects t
         .toBe(++count);
     }
     await expect(
-      page.getByRole("button", { name: "自動解說", exact: true }),
+      page.getByRole("button", { name: "自動解說（已開啟）", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     const actions = await app.evaluate(() => globalThis.actions);
     const displayId = await app.evaluate(
