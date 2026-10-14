@@ -31,6 +31,7 @@ import { CaptureHistory, type Capture } from "./history.js";
 import { hasFrameChanged, readPanelImage, sampleFrame } from "./panel-image.js";
 import { runProvider, type AnswerProvider } from "./provider.js";
 import { ExtensionBridge } from "./extension-bridge.js";
+import { DesktopCompanion } from "./desktop-companion.js";
 import {
   extensionFolder,
   revealExtensionFolder,
@@ -77,6 +78,7 @@ export class PanelServer {
   private server?: Server;
   private captures?: BrowserCaptures;
   private extension?: ExtensionBridge;
+  private desktopCompanion?: DesktopCompanion;
   private channel?: LiveChannel;
   private channelHintShown = false;
   attachChannel(channel: LiveChannel): void {
@@ -181,6 +183,12 @@ export class PanelServer {
       this.history.prune();
     }, 10_000);
     this.expiryTimer.unref();
+    this.desktopCompanion = new DesktopCompanion(
+      () => this.origin,
+      this.extension,
+      () => this.openExtensionGuide(),
+    );
+    this.desktopCompanion.start();
     return this;
   }
 
@@ -329,6 +337,10 @@ export class PanelServer {
       path = decodeURIComponent(new URL(req.url ?? "/", this.origin).pathname);
     } catch {
       throw new PanelError("invalid_request", "Invalid request path.");
+    }
+    if (path === "/desktop-companion") {
+      await this.desktopCompanion!.handle(req, res);
+      return;
     }
     if (path === "/install/extension.zip") {
       if (
@@ -797,6 +809,7 @@ export class PanelServer {
   }
 
   async close(): Promise<void> {
+    this.desktopCompanion?.close();
     if (
       this.trialBrowser &&
       this.trialBrowser.exitCode === null &&

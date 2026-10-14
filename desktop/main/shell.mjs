@@ -4,6 +4,22 @@ import { keepAbove } from "./x11-stacking.mjs";
 import { contains } from "./geometry.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
+
+// The plugin owns this node-only transport; release packaging copies it intact.
+const companionModule = new URL("../companion/host.mjs", import.meta.url);
+const { startDesktopHost } = await import(
+  existsSync(fileURLToPath(companionModule))
+    ? companionModule.href
+    : new URL("../../plugin/desktop/host.mjs", import.meta.url).href
+);
+if (process.env.GLIMPSELET_RUNTIME_DIR)
+  app.setPath(
+    "userData",
+    join(resolve(process.env.GLIMPSELET_RUNTIME_DIR), "electron"),
+  );
+if (!app.requestSingleInstanceLock()) app.exit(0);
 
 app.commandLine.appendSwitch("enable-transparent-visuals");
 let blink;
@@ -74,6 +90,13 @@ await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
 );
 blink.showInactive();
+const companionHost = await startDesktopHost({
+  onOpen: () => blink.showInactive(),
+  onShutdown: () => app.quit(),
+});
+// The session/capture buckets attach their public services here, without adding
+// renderer privileges or spawning a second Claude session in the companion.
+globalThis.glimpseletCompanion = companionHost;
 const stopStacking = await keepAbove(() => [overlay, blink].filter(Boolean));
 // Linux does not implement forwarded mousemove. Poll global cursor for hit regions.
 // The character builder supplies silhouette scanlines, including arms and animation.
@@ -86,6 +109,7 @@ poll = setInterval(() => {
   );
 }, 16);
 app.on("will-quit", () => {
+  void companionHost.close();
   clearInterval(poll);
   stopStacking();
   globalShortcut.unregisterAll();

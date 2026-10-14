@@ -3120,14 +3120,14 @@ var require_utils = __commonJS({
         BYTE_HEX[i] = "%" + HEX_DIGITS[i >> 4] + HEX_DIGITS[i & 15];
       }
     }
-    function percentEncodeNonAscii(cp3) {
-      if (cp3 < 2048) {
-        return BYTE_HEX[192 | cp3 >> 6] + BYTE_HEX[128 | cp3 & 63];
+    function percentEncodeNonAscii(cp4) {
+      if (cp4 < 2048) {
+        return BYTE_HEX[192 | cp4 >> 6] + BYTE_HEX[128 | cp4 & 63];
       }
-      if (cp3 < 65536) {
-        return BYTE_HEX[224 | cp3 >> 12] + BYTE_HEX[128 | cp3 >> 6 & 63] + BYTE_HEX[128 | cp3 & 63];
+      if (cp4 < 65536) {
+        return BYTE_HEX[224 | cp4 >> 12] + BYTE_HEX[128 | cp4 >> 6 & 63] + BYTE_HEX[128 | cp4 & 63];
       }
-      return BYTE_HEX[240 | cp3 >> 18] + BYTE_HEX[128 | cp3 >> 12 & 63] + BYTE_HEX[128 | cp3 >> 6 & 63] + BYTE_HEX[128 | cp3 & 63];
+      return BYTE_HEX[240 | cp4 >> 18] + BYTE_HEX[128 | cp4 >> 12 & 63] + BYTE_HEX[128 | cp4 >> 6 & 63] + BYTE_HEX[128 | cp4 & 63];
     }
     function stringArrayToHexStripped(input) {
       let acc = "";
@@ -3491,8 +3491,8 @@ var require_utils = __commonJS({
     function encodeFragment(input) {
       return encodeComponent(input, isQueryFragmentCharacter);
     }
-    function isEscapeSafe(cp3) {
-      return cp3 >= 48 && cp3 <= 57 || cp3 >= 65 && cp3 <= 90 || cp3 >= 97 && cp3 <= 122 || cp3 === 42 || cp3 === 43 || cp3 === 45 || cp3 === 46 || cp3 === 47 || cp3 === 64 || cp3 === 95;
+    function isEscapeSafe(cp4) {
+      return cp4 >= 48 && cp4 <= 57 || cp4 >= 65 && cp4 <= 90 || cp4 >= 97 && cp4 <= 122 || cp4 === 42 || cp4 === 43 || cp4 === 45 || cp4 === 46 || cp4 === 47 || cp4 === 64 || cp4 === 95;
     }
     function normalizeQueryFragmentEncoding(input) {
       let output = "";
@@ -3872,49 +3872,49 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative3, options, skipNormalization) {
+    function resolveComponent(base, relative4, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse4(serialize(base, options), options);
-        relative3 = parse4(serialize(relative3, options), options);
+        relative4 = parse4(serialize(relative4, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative3.scheme) {
-        target.scheme = relative3.scheme;
-        target.userinfo = relative3.userinfo;
-        target.host = relative3.host;
-        target.port = relative3.port;
-        target.path = removeDotSegments(relative3.path || "");
-        target.query = relative3.query;
+      if (!options.tolerant && relative4.scheme) {
+        target.scheme = relative4.scheme;
+        target.userinfo = relative4.userinfo;
+        target.host = relative4.host;
+        target.port = relative4.port;
+        target.path = removeDotSegments(relative4.path || "");
+        target.query = relative4.query;
       } else {
-        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
-          target.userinfo = relative3.userinfo;
-          target.host = relative3.host;
-          target.port = relative3.port;
-          target.path = removeDotSegments(relative3.path || "");
-          target.query = relative3.query;
+        if (relative4.userinfo !== void 0 || relative4.host !== void 0 || relative4.port !== void 0) {
+          target.userinfo = relative4.userinfo;
+          target.host = relative4.host;
+          target.port = relative4.port;
+          target.path = removeDotSegments(relative4.path || "");
+          target.query = relative4.query;
         } else {
-          if (!relative3.path) {
+          if (!relative4.path) {
             target.path = base.path;
-            if (relative3.query !== void 0) {
-              target.query = relative3.query;
+            if (relative4.query !== void 0) {
+              target.query = relative4.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative3.path[0] === "/") {
-              target.path = removeDotSegments(relative3.path);
+            if (relative4.path[0] === "/") {
+              target.path = removeDotSegments(relative4.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative3.path;
+                target.path = "/" + relative4.path;
               } else if (!base.path) {
-                target.path = relative3.path;
+                target.path = relative4.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative4.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative3.query;
+            target.query = relative4.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -3922,7 +3922,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative3.fragment;
+      target.fragment = relative4.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -17219,7 +17219,7 @@ var require_websocket = __commonJS({
     var http = require("http");
     var net = require("net");
     var tls = require("tls");
-    var { randomBytes: randomBytes7, createHash: createHash2 } = require("crypto");
+    var { randomBytes: randomBytes8, createHash: createHash4 } = require("crypto");
     var { Duplex, Readable } = require("stream");
     var { URL: URL2 } = require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -17770,7 +17770,7 @@ var require_websocket = __commonJS({
         }
       }
       const defaultPort = isSecure ? 443 : 80;
-      const key = randomBytes7(16).toString("base64");
+      const key = randomBytes8(16).toString("base64");
       const request = isSecure ? https.request : http.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
@@ -17900,8 +17900,8 @@ var require_websocket = __commonJS({
           abortHandshake(websocket, socket, "Invalid Upgrade header");
           return;
         }
-        const digest = createHash2("sha1").update(key + GUID).digest("base64");
-        if (res.headers["sec-websocket-accept"] !== digest) {
+        const digest2 = createHash4("sha1").update(key + GUID).digest("base64");
+        if (res.headers["sec-websocket-accept"] !== digest2) {
           abortHandshake(websocket, socket, "Invalid Sec-WebSocket-Accept header");
           return;
         }
@@ -18181,7 +18181,7 @@ var require_stream = __commonJS({
       };
       duplex._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open2() {
+          ws.once("open", function open3() {
             duplex._final(callback);
           });
           return;
@@ -18202,7 +18202,7 @@ var require_stream = __commonJS({
       };
       duplex._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open2() {
+          ws.once("open", function open3() {
             duplex._write(chunk, encoding, callback);
           });
           return;
@@ -18269,7 +18269,7 @@ var require_websocket_server = __commonJS({
     var EventEmitter = require("events");
     var http = require("http");
     var { Duplex } = require("stream");
-    var { createHash: createHash2 } = require("crypto");
+    var { createHash: createHash4 } = require("crypto");
     var extension2 = require_extension();
     var PerMessageDeflate2 = require_permessage_deflate();
     var subprotocol2 = require_subprotocol();
@@ -18576,12 +18576,12 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest = createHash2("sha1").update(key + GUID).digest("base64");
+        const digest2 = createHash4("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
           "Connection: Upgrade",
-          `Sec-WebSocket-Accept: ${digest}`
+          `Sec-WebSocket-Accept: ${digest2}`
         ];
         const ws = new this.options.WebSocket(null, void 0, this.options);
         if (protocols.size) {
@@ -18776,8 +18776,764 @@ Untrusted page context: ${JSON.stringify(request.page || null)}`;
   }
 };
 
+// plugin/desktop/launcher.mjs
+var import_node_crypto3 = require("node:crypto");
+var import_node_child_process2 = require("node:child_process");
+var import_promises3 = require("node:fs/promises");
+var import_node_path3 = require("node:path");
+var import_node_os3 = require("node:os");
+
+// plugin/desktop/manifest.json
+var manifest_default = {
+  schemaVersion: 1,
+  version: "3.0.0",
+  builds: []
+};
+
+// plugin/desktop/install.mjs
+var import_node_crypto2 = require("node:crypto");
+var import_node_zlib = require("node:zlib");
+var import_promises = require("node:fs/promises");
+var import_node_path = require("node:path");
+var import_node_os = require("node:os");
+var import_node_child_process = require("node:child_process");
+var import_node_util = require("node:util");
+var digest = (data) => (0, import_node_crypto2.createHash)("sha256").update(data).digest("hex");
+var MAX_DOWNLOAD = 512 * 1024 * 1024;
+var MAX_UNPACKED = 1536 * 1024 * 1024;
+var defaultInstallRoot = () => process.platform === "win32" ? (0, import_node_path.join)(
+  process.env.LOCALAPPDATA || (0, import_node_path.join)((0, import_node_os.homedir)(), "AppData", "Local"),
+  "Glimpselet"
+) : process.platform === "darwin" ? (0, import_node_path.join)(
+  (0, import_node_os.homedir)(),
+  "Library",
+  "Application Support",
+  "Glimpselet",
+  "desktop"
+) : (0, import_node_path.join)(
+  process.env.XDG_DATA_HOME || (0, import_node_path.join)((0, import_node_os.homedir)(), ".local", "share"),
+  "glimpselet",
+  "desktop"
+);
+async function privateDirectory(path) {
+  await (0, import_promises.mkdir)(path, { recursive: true, mode: 448 });
+  const stat2 = await (0, import_promises.lstat)(path);
+  if (!stat2.isDirectory() || stat2.isSymbolicLink())
+    throw new Error("Unsafe cache directory (symlink)");
+  if (process.platform !== "win32" && stat2.uid !== process.getuid())
+    throw new Error("Cache directory is owned by another user");
+  await (0, import_promises.chmod)(path, 448);
+}
+async function atomicJson(path, value) {
+  const temp = `${path}.${(0, import_node_crypto2.randomUUID)()}.tmp`;
+  try {
+    await (0, import_promises.writeFile)(temp, JSON.stringify(value), { mode: 384, flag: "wx" });
+    await (0, import_promises.rename)(temp, path);
+  } finally {
+    await (0, import_promises.rm)(temp, { force: true });
+  }
+}
+async function withLock(path, task, timeoutMs = 12e4) {
+  const owner = { pid: process.pid, token: (0, import_node_crypto2.randomUUID)() };
+  const deadline = Date.now() + timeoutMs;
+  for (; ; ) {
+    try {
+      const file2 = await (0, import_promises.open)(path, "wx", 384);
+      await file2.writeFile(JSON.stringify(owner));
+      await file2.close();
+      break;
+    } catch (error43) {
+      if (error43.code !== "EEXIST") throw error43;
+      try {
+        const stat2 = await (0, import_promises.lstat)(path);
+        if (stat2.isSymbolicLink() || !stat2.isFile())
+          throw new Error("Unsafe install lock");
+        const other = JSON.parse(await (0, import_promises.readFile)(path, "utf8"));
+        if (!Number.isSafeInteger(other.pid) || other.pid < 1)
+          throw new Error("Invalid install lock");
+        try {
+          process.kill(other.pid, 0);
+        } catch (e13) {
+          if (e13.code === "ESRCH") {
+            await withLock(
+              `${path}.recovery`,
+              async () => {
+                try {
+                  const candidate = JSON.parse(await (0, import_promises.readFile)(path, "utf8"));
+                  try {
+                    process.kill(candidate.pid, 0);
+                  } catch (probe) {
+                    if (probe.code === "ESRCH") await (0, import_promises.rm)(path);
+                  }
+                } catch (read) {
+                  if (read.code !== "ENOENT") throw read;
+                }
+              },
+              Math.max(1, deadline - Date.now())
+            );
+            continue;
+          }
+        }
+      } catch (e13) {
+        if (e13.code === "ENOENT") continue;
+        if (!(e13 instanceof SyntaxError)) throw e13;
+      }
+      if (Date.now() >= deadline)
+        throw new Error("Desktop install is still running. Try again shortly.");
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  const release = async () => {
+    try {
+      const current = JSON.parse(await (0, import_promises.readFile)(path, "utf8"));
+      if (current.token === owner.token) await (0, import_promises.rm)(path);
+    } catch (e13) {
+      if (e13.code !== "ENOENT") throw e13;
+    }
+  };
+  try {
+    return await task();
+  } finally {
+    await release();
+  }
+}
+function safePath(name) {
+  if (typeof name !== "string" || !name || name.includes("\0") || name.includes("\\") || name.includes(":"))
+    throw new Error("Unsafe archive path");
+  const parts = name.replace(/\/$/, "").split("/");
+  if ((0, import_node_path.isAbsolute)(name) || parts.some((p) => !p || p === ".."))
+    throw new Error("Unsafe archive path");
+  const path = import_node_path.posix.normalize(name).replace(/\/$/, "");
+  if (path === ".") return void 0;
+  if (path.startsWith("../")) throw new Error("Unsafe archive path");
+  return path;
+}
+function validateEntries(entries) {
+  const paths = /* @__PURE__ */ new Map();
+  for (const entry of entries) {
+    entry.name = safePath(entry.name);
+    if (!entry.name) continue;
+    if (paths.has(entry.name)) throw new Error("Duplicate archive path");
+    paths.set(entry.name, entry);
+    if (entry.type === "link") {
+      if (!entry.link || entry.link.includes("\\") || entry.link.includes(":") || entry.link.includes("\0") || import_node_path.posix.isAbsolute(entry.link))
+        throw new Error("Unsafe archive link");
+      const target = import_node_path.posix.normalize(
+        import_node_path.posix.join(import_node_path.posix.dirname(entry.name), entry.link)
+      );
+      if (target === ".." || target.startsWith("../"))
+        throw new Error("Archive link escapes installation");
+    }
+  }
+  for (const entry of paths.values()) {
+    for (let parent = import_node_path.posix.dirname(entry.name); parent !== "."; parent = import_node_path.posix.dirname(parent)) {
+      if (paths.has(parent) && paths.get(parent).type !== "directory")
+        throw new Error("Archive path traverses a file or link");
+    }
+    if (entry.type === "link") {
+      let target = import_node_path.posix.normalize(
+        import_node_path.posix.join(import_node_path.posix.dirname(entry.name), entry.link)
+      );
+      const seen = /* @__PURE__ */ new Set([entry.name]);
+      for (let depth = 0; depth < 100; depth++) {
+        const parts = target.split("/");
+        const i = parts.findIndex(
+          (_, i4) => paths.get(parts.slice(0, i4 + 1).join("/"))?.type === "link"
+        );
+        if (i < 0) break;
+        const key = parts.slice(0, i + 1).join("/");
+        if (seen.has(key)) throw new Error("Cyclic archive link");
+        seen.add(key);
+        target = import_node_path.posix.normalize(
+          import_node_path.posix.join(
+            import_node_path.posix.dirname(key),
+            paths.get(key).link,
+            ...parts.slice(i + 1)
+          )
+        );
+        if (depth === 99) throw new Error("Archive link chain too long");
+      }
+      if (!paths.has(target) && ![...paths.keys()].some((p) => p.startsWith(target + "/")))
+        throw new Error("Broken archive link");
+    }
+  }
+  return [...paths.values()];
+}
+function tarNumber(bytes) {
+  if (bytes[0] & 128) throw new Error("Unsupported archive numeric encoding");
+  const text = bytes.toString("ascii").replace(/\0.*$/s, "").trim();
+  if (text && !/^[0-7]+$/.test(text)) throw new Error("Invalid archive number");
+  const n = parseInt(text || "0", 8);
+  if (!Number.isSafeInteger(n)) throw new Error("Invalid archive size");
+  return n;
+}
+function pax(data) {
+  const fields = {};
+  for (let offset = 0; offset < data.length; ) {
+    const space = data.indexOf(32, offset);
+    const size = Number(data.subarray(offset, space).toString());
+    if (space < offset || !Number.isSafeInteger(size) || size <= space - offset + 1 || offset + size > data.length)
+      throw new Error("Invalid archive PAX record");
+    const record2 = data.subarray(space + 1, offset + size - 1).toString("utf8");
+    const equals = record2.indexOf("=");
+    fields[record2.slice(0, equals)] = record2.slice(equals + 1);
+    offset += size;
+  }
+  return fields;
+}
+function readArchive(bytes, type, { maxUnpackedBytes = MAX_UNPACKED } = {}) {
+  const entries = [];
+  let total = 0;
+  const add = (entry) => {
+    total += entry.data?.length || 0;
+    if (total > maxUnpackedBytes || entries.length >= 1e5)
+      throw new Error("Archive exceeds unpacked size limit");
+    entries.push(entry);
+  };
+  if (type === "tar.gz") {
+    const data = (0, import_node_zlib.gunzipSync)(bytes, { maxOutputLength: maxUnpackedBytes });
+    let fields = {}, global2 = {}, longName, longLink;
+    let ended = false;
+    for (let offset = 0; offset + 512 <= data.length; ) {
+      const header = data.subarray(offset, offset + 512);
+      if (header.every((b) => b === 0)) {
+        ended = true;
+        break;
+      }
+      const expected = tarNumber(header.subarray(148, 156));
+      const sum = [...header].reduce(
+        (n, b, i) => n + (i >= 148 && i < 156 ? 32 : b),
+        0
+      );
+      if (sum !== expected) throw new Error("Invalid archive header checksum");
+      const size = tarNumber(header.subarray(124, 136));
+      if (offset + 512 + size > data.length)
+        throw new Error("Truncated archive");
+      const content = data.subarray(offset + 512, offset + 512 + size);
+      const text = (start, end) => header.subarray(start, end).toString("utf8").replace(/\0.*$/s, "");
+      const type2 = text(156, 157) || "0";
+      offset += 512 + Math.ceil(size / 512) * 512;
+      if (type2 === "x") {
+        fields = pax(content);
+        continue;
+      }
+      if (type2 === "g") {
+        global2 = { ...global2, ...pax(content) };
+        continue;
+      }
+      if (type2 === "L") {
+        longName = content.toString().replace(/\0.*$/s, "");
+        continue;
+      }
+      if (type2 === "K") {
+        longLink = content.toString().replace(/\0.*$/s, "");
+        continue;
+      }
+      const attributes = { ...global2, ...fields };
+      if (attributes.size && Number(attributes.size) !== size)
+        throw new Error("Unsupported archive PAX size");
+      if (!["0", "2", "5"].includes(type2))
+        throw new Error("Unsupported archive entry type");
+      add({
+        name: attributes.path || longName || [text(345, 500), text(0, 100)].filter(Boolean).join("/"),
+        type: type2 === "2" ? "link" : type2 === "5" ? "directory" : "file",
+        mode: tarNumber(header.subarray(100, 108)) & 511,
+        link: attributes.linkpath || longLink || text(157, 257),
+        data: type2 === "0" ? content : void 0
+      });
+      fields = {};
+      longName = void 0;
+      longLink = void 0;
+    }
+    if (!ended) throw new Error("Truncated archive terminator");
+  } else if (type === "zip") {
+    let end = -1;
+    for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--)
+      if (bytes.readUInt32LE(i) === 101010256 && i + 22 + bytes.readUInt16LE(i + 20) === bytes.length) {
+        end = i;
+        break;
+      }
+    if (end < 0) throw new Error("Invalid ZIP archive");
+    const count = bytes.readUInt16LE(end + 10), directorySize = bytes.readUInt32LE(end + 12);
+    let offset = bytes.readUInt32LE(end + 16);
+    if (bytes.readUInt32LE(end + 4) !== 0 || count !== bytes.readUInt16LE(end + 8) || count === 65535 || offset + directorySize !== end)
+      throw new Error("Unsupported ZIP archive layout");
+    for (let i = 0; i < count; i++) {
+      if (offset + 46 > end || bytes.readUInt32LE(offset) !== 33639248)
+        throw new Error("Invalid ZIP directory");
+      const flags = bytes.readUInt16LE(offset + 8), method = bytes.readUInt16LE(offset + 10);
+      const packed = bytes.readUInt32LE(offset + 20), size = bytes.readUInt32LE(offset + 24);
+      const nameSize = bytes.readUInt16LE(offset + 28), extraSize = bytes.readUInt16LE(offset + 30), commentSize = bytes.readUInt16LE(offset + 32);
+      const name = bytes.subarray(offset + 46, offset + 46 + nameSize).toString("utf8");
+      const mode = bytes.readUInt32LE(offset + 38) >>> 16, local = bytes.readUInt32LE(offset + 42);
+      if (flags & 1 || ![0, 8].includes(method) || total + size > maxUnpackedBytes || local + 30 > offset || bytes.readUInt32LE(local) !== 67324752)
+        throw new Error("Invalid or oversized ZIP entry");
+      const localNameSize = bytes.readUInt16LE(local + 26), localExtraSize = bytes.readUInt16LE(local + 28);
+      if (bytes.subarray(local + 30, local + 30 + localNameSize).toString("utf8") !== name || bytes.readUInt16LE(local + 8) !== method)
+        throw new Error("Mismatched ZIP entry");
+      const start = local + 30 + localNameSize + localExtraSize;
+      if (start + packed > offset) throw new Error("Truncated ZIP entry");
+      const compressed = bytes.subarray(start, start + packed);
+      const data = method === 8 ? (0, import_node_zlib.inflateRawSync)(compressed, { maxOutputLength: Math.max(1, size) }) : compressed;
+      if (data.length !== size) throw new Error("ZIP entry size mismatch");
+      const kind = mode & 61440;
+      if (kind && ![32768, 16384, 40960].includes(kind))
+        throw new Error("Unsupported ZIP entry type");
+      add({
+        name,
+        type: kind === 40960 ? "link" : name.endsWith("/") ? "directory" : "file",
+        mode: mode & 511 || (name.endsWith("/") ? 493 : 420),
+        data,
+        link: kind === 40960 ? data.toString("utf8") : void 0
+      });
+      offset += 46 + nameSize + extraSize + commentSize;
+    }
+    if (offset !== end) throw new Error("Invalid ZIP directory length");
+  } else throw new Error("Unsupported desktop archive type");
+  return validateEntries(entries);
+}
+async function download(build, options, temporaryPath) {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    options.downloadTimeoutMs ?? 12e4
+  );
+  const limit = options.maxDownloadBytes ?? MAX_DOWNLOAD;
+  try {
+    let url2 = build.url;
+    for (let redirects = 0; redirects <= 5; redirects++) {
+      const response = await (options.fetch || fetch)(url2, {
+        redirect: "manual",
+        signal: controller.signal
+      });
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const next = new URL(response.headers.get("location") || "", url2);
+        await response.body?.cancel();
+        if (next.protocol !== "https:" || next.username || next.password || next.port || ![
+          "github.com",
+          "release-assets.githubusercontent.com",
+          "objects.githubusercontent.com"
+        ].includes(next.hostname))
+          throw new Error("Invalid release redirect origin");
+        url2 = next.href;
+        continue;
+      }
+      if (!response.ok)
+        throw new Error(`Desktop download failed (${response.status})`);
+      if (Number(response.headers.get("content-length")) > limit)
+        throw new Error("Desktop download exceeds size limit");
+      const hash2 = (0, import_node_crypto2.createHash)("sha256");
+      let size = 0;
+      if (!response.body) throw new Error("Empty desktop download");
+      const reader = response.body.getReader();
+      const file2 = await (0, import_promises.open)(temporaryPath, "wx", 384);
+      try {
+        for (; ; ) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > limit)
+            throw new Error("Desktop download exceeds size limit");
+          hash2.update(value);
+          await file2.writeFile(value);
+        }
+        if (hash2.digest("hex") !== build.sha256)
+          throw new Error("Desktop archive checksum mismatch");
+        await file2.sync();
+      } finally {
+        await file2.close();
+        await reader.cancel();
+      }
+      return;
+    }
+    throw new Error("Too many release redirects");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function verifyExecutable(entries, build) {
+  const path = safePath(build.entry);
+  const entry = entries.find((e13) => e13.name === path && e13.type === "file");
+  if (!entry)
+    throw new Error("Desktop archive is missing its executable entry");
+  const data = entry.data;
+  let matches = false;
+  if (build.platform === "linux")
+    matches = data.length >= 20 && data.subarray(0, 4).equals(Buffer.from([127, 69, 76, 70])) && data[4] === 2 && data[5] === 1 && data.readUInt16LE(18) === (build.arch === "arm64" ? 183 : 62) && Boolean(entry.mode & 73);
+  if (build.platform === "win32" && data.length >= 64 && data.toString("ascii", 0, 2) === "MZ") {
+    const pe2 = data.readUInt32LE(60);
+    matches = pe2 + 6 <= data.length && data.readUInt32LE(pe2) === 17744 && data.readUInt16LE(pe2 + 4) === (build.arch === "arm64" ? 43620 : 34404);
+  }
+  if (build.platform === "darwin" && data.length >= 8)
+    matches = data.readUInt32LE(0) === 4277009103 && data.readUInt32LE(4) === (build.arch === "arm64" ? 16777228 : 16777223) && Boolean(entry.mode & 73);
+  if (!matches)
+    throw new Error("Desktop executable platform or architecture mismatch");
+}
+async function extract(entries, directory) {
+  await privateDirectory(directory);
+  for (const entry of entries.filter((e13) => e13.type !== "link")) {
+    const path = (0, import_node_path.join)(directory, entry.name);
+    await (0, import_promises.mkdir)((0, import_node_path.dirname)(path), { recursive: true, mode: 493 });
+    if (entry.type === "directory")
+      await (0, import_promises.mkdir)(path, { recursive: true, mode: entry.mode || 493 });
+    else
+      await (0, import_promises.writeFile)(path, entry.data, {
+        flag: "wx",
+        mode: entry.mode & 511
+      });
+  }
+  for (const entry of entries.filter((e13) => e13.type === "link")) {
+    const path = (0, import_node_path.join)(directory, entry.name);
+    await (0, import_promises.mkdir)((0, import_node_path.dirname)(path), { recursive: true, mode: 493 });
+    await (0, import_promises.symlink)(entry.link, path);
+  }
+}
+async function cacheMatches(entries, directory) {
+  try {
+    if (!(await (0, import_promises.lstat)(directory)).isDirectory()) return false;
+    const expected = new Map(entries.map((e13) => [e13.name, e13]));
+    for (const entry of entries) {
+      for (let parent = (0, import_node_path.dirname)(entry.name); parent !== "."; parent = (0, import_node_path.dirname)(parent))
+        expected.set(parent, expected.get(parent) || { type: "directory" });
+    }
+    const walk = async (path = "") => {
+      for (const name of await (0, import_promises.readdir)((0, import_node_path.join)(directory, path))) {
+        const key = path ? `${path}/${name}` : name, entry = expected.get(key);
+        if (!entry) return false;
+        const stat2 = await (0, import_promises.lstat)((0, import_node_path.join)(directory, key));
+        if (entry.type === "link") {
+          if (!stat2.isSymbolicLink() || await (0, import_promises.readlink)((0, import_node_path.join)(directory, key)) !== entry.link)
+            return false;
+        } else if (entry.type === "directory") {
+          if (!stat2.isDirectory() || !await walk(key)) return false;
+        } else if (!stat2.isFile() || stat2.size !== entry.data.length || digest(await (0, import_promises.readFile)((0, import_node_path.join)(directory, key))) !== digest(entry.data) || process.platform !== "win32" && (stat2.mode & 511) !== entry.mode)
+          return false;
+        expected.delete(key);
+      }
+      return true;
+    };
+    return await walk() && expected.size === 0;
+  } catch (error43) {
+    if (error43.code === "ENOENT" || error43.code === "ENOTDIR") return false;
+    throw error43;
+  }
+}
+async function installDesktop(manifest, options = {}) {
+  const platform = options.platform || process.platform, arch = options.arch || process.arch;
+  const build = selectBuild(manifest, platform, arch);
+  if (manifest.schemaVersion !== 1 || !/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version) || !["zip", "tar.gz"].includes(build.archive) || typeof build.entry !== "string")
+    throw new Error("Invalid pinned desktop manifest");
+  safePath(build.entry);
+  const root = options.root || defaultInstallRoot();
+  await privateDirectory(root);
+  for (const folder of ["archives", "versions"])
+    await privateDirectory((0, import_node_path.join)(root, folder));
+  return withLock((0, import_node_path.join)(root, "install.lock"), async () => {
+    const archivePath = (0, import_node_path.join)(root, "archives", build.sha256);
+    let bytes;
+    try {
+      const stat2 = await (0, import_promises.lstat)(archivePath);
+      if (!stat2.isFile() || stat2.isSymbolicLink() || stat2.size > MAX_DOWNLOAD)
+        throw new Error("Unsafe cached archive");
+      bytes = await (0, import_promises.readFile)(archivePath);
+      verifyArchive(bytes, build);
+    } catch (error43) {
+      if (error43.code !== "ENOENT") await (0, import_promises.rm)(archivePath, { force: true });
+      const temp = `${archivePath}.${(0, import_node_crypto2.randomUUID)()}.tmp`;
+      try {
+        await download(build, options, temp);
+        await (0, import_promises.rename)(temp, archivePath);
+        bytes = await (0, import_promises.readFile)(archivePath);
+      } finally {
+        await (0, import_promises.rm)(temp, { force: true });
+      }
+    }
+    const entries = readArchive(bytes, build.archive, options);
+    verifyExecutable(entries, build);
+    const directory = (0, import_node_path.join)(
+      root,
+      "versions",
+      `${manifest.version}-${platform}-${arch}-${build.sha256.slice(0, 16)}`
+    );
+    if (!await cacheMatches(entries, directory)) {
+      const staging = `${directory}.${(0, import_node_crypto2.randomUUID)()}.staging`, previous = `${directory}.${(0, import_node_crypto2.randomUUID)()}.previous`;
+      try {
+        await extract(entries, staging);
+        if (platform === "darwin" && process.platform === "darwin") {
+          const appName = build.entry.split("/").findIndex((p) => p.endsWith(".app"));
+          if (appName < 0)
+            throw new Error("macOS release must contain an app bundle");
+          const bundle = (0, import_node_path.join)(
+            staging,
+            ...build.entry.split("/").slice(0, appName + 1)
+          );
+          await (0, import_node_util.promisify)(import_node_child_process.execFile)("/usr/bin/xattr", [
+            "-dr",
+            "com.apple.quarantine",
+            bundle
+          ]).catch((e13) => {
+            if (!/No such xattr|No such attribute/.test(e13.stderr || ""))
+              throw e13;
+          });
+          await (0, import_node_util.promisify)(import_node_child_process.execFile)("/usr/bin/codesign", [
+            "--verify",
+            "--deep",
+            "--strict",
+            bundle
+          ]);
+        }
+        try {
+          await (0, import_promises.rename)(directory, previous);
+        } catch (e13) {
+          if (e13.code !== "ENOENT") throw e13;
+        }
+        try {
+          await (0, import_promises.rename)(staging, directory);
+        } catch (e13) {
+          await (0, import_promises.rename)(previous, directory).catch(() => {
+          });
+          throw e13;
+        }
+        await (0, import_promises.rm)(previous, { recursive: true, force: true });
+      } finally {
+        await (0, import_promises.rm)(staging, { recursive: true, force: true });
+      }
+    }
+    const entry = await (0, import_promises.realpath)((0, import_node_path.join)(directory, build.entry));
+    const rel = (0, import_node_path.relative)(directory, entry);
+    if (rel.startsWith("..") || (0, import_node_path.isAbsolute)(rel))
+      throw new Error("Executable escapes installation");
+    return { entry, directory, root, version: manifest.version, build };
+  });
+}
+
+// plugin/desktop/client.mjs
+var import_promises2 = require("node:fs/promises");
+
+// plugin/desktop/paths.mjs
+var import_node_path2 = require("node:path");
+var import_node_os2 = require("node:os");
+var runtimeDirectory = () => process.env.GLIMPSELET_RUNTIME_DIR || (0, import_node_path2.join)((0, import_node_os2.homedir)(), ".glimpselet", "runtime");
+var endpointPath = () => (0, import_node_path2.join)(runtimeDirectory(), "desktop.json");
+
+// plugin/desktop/client.mjs
+async function discoverDesktop(path = endpointPath()) {
+  try {
+    const stat2 = await (0, import_promises2.lstat)(path);
+    if (!stat2.isFile() || stat2.isSymbolicLink() || stat2.size > 4096 || process.platform !== "win32" && (stat2.uid !== process.getuid() || stat2.mode & 63))
+      throw new Error("Unsafe desktop endpoint file");
+    const endpoint = JSON.parse(await (0, import_promises2.readFile)(path, "utf8"));
+    const url2 = new URL(endpoint.url);
+    if (url2.protocol !== "http:" || url2.hostname !== "127.0.0.1" || !url2.port || url2.pathname !== "/" || url2.username || url2.password || url2.hash || url2.search || !/^[a-f0-9]{64}$/.test(endpoint.token))
+      throw new Error("Invalid desktop endpoint");
+    const client = new DesktopClient(endpoint);
+    const status = await client.status();
+    return { client, status };
+  } catch (error43) {
+    if (error43.code === "ENOENT" || error43 instanceof TypeError || error43.name === "TimeoutError")
+      return void 0;
+    throw error43;
+  }
+}
+var DesktopClient = class {
+  constructor(endpoint) {
+    this.endpoint = endpoint;
+  }
+  async request(path, options = {}) {
+    const response = await fetch(this.endpoint.url + path, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${this.endpoint.token}`
+      },
+      signal: options.signal || AbortSignal.timeout(5e3),
+      redirect: "error"
+    });
+    if (!response.ok) {
+      const value = await response.json();
+      throw new Error(
+        value.error || `Desktop request failed (${response.status})`
+      );
+    }
+    return response;
+  }
+  async status() {
+    return (await this.request("/status")).json();
+  }
+  async rpc(method, value = {}, signal) {
+    return (await this.request("/rpc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, ...value }),
+      signal
+    })).json();
+  }
+  async events(onEvent, signal, after = 0, onReady = () => {
+  }) {
+    const response = await this.request(`/events?after=${after}`, { signal });
+    onReady();
+    const reader = response.body.getReader(), decoder = new TextDecoder();
+    let pending = "";
+    try {
+      for (; ; ) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        pending += decoder.decode(value, { stream: true });
+        if (pending.length > 24 * 1024 * 1024)
+          throw new Error("Desktop event exceeds size limit");
+        for (let index; (index = pending.indexOf("\n")) >= 0; ) {
+          const line = pending.slice(0, index);
+          pending = pending.slice(index + 1);
+          if (line) onEvent(JSON.parse(line));
+        }
+      }
+      if (!signal.aborted) throw new Error("Desktop event stream ended");
+    } finally {
+      await reader.cancel().catch(() => {
+      });
+    }
+  }
+};
+
+// plugin/desktop/launcher.mjs
+function selectBuild(manifest, platform = process.platform, arch = process.arch) {
+  if (!manifest || !Array.isArray(manifest.builds))
+    throw new Error("Invalid pinned desktop manifest");
+  const matches = manifest.builds.filter(
+    (b) => b.platform === platform && b.arch === arch
+  );
+  if (matches.length > 1) throw new Error("Duplicate desktop target");
+  const build = matches[0];
+  if (!build)
+    throw new Error(`Unsupported desktop target: ${platform}/${arch}`);
+  const url2 = new URL(build.url);
+  if (url2.protocol !== "https:" || url2.hostname !== "github.com" || url2.port || url2.username || url2.password || url2.search || url2.hash || !url2.pathname.startsWith("/Arthur031221/Glimpselet/releases/download/"))
+    throw new Error("Invalid release origin");
+  if (!/^[a-f0-9]{64}$/.test(build.sha256))
+    throw new Error("Invalid release digest");
+  return build;
+}
+function verifyArchive(bytes, build) {
+  if ((0, import_node_crypto3.createHash)("sha256").update(bytes).digest("hex") !== build.sha256)
+    throw new Error("Desktop archive checksum mismatch");
+}
+async function desktopEnabled(directory = runtimeDirectory()) {
+  try {
+    return JSON.parse(await (0, import_promises3.readFile)((0, import_node_path3.join)(directory, "enabled.json"), "utf8")).enabled === true;
+  } catch (error43) {
+    if (error43.code === "ENOENT") return false;
+    throw error43;
+  }
+}
+async function launchDesktop(options = {}) {
+  const directory = options.runtime || runtimeDirectory();
+  await privateDirectory(directory);
+  const descriptor = options.descriptor || (options.runtime ? (0, import_node_path3.join)(directory, "desktop.json") : endpointPath());
+  return withLock((0, import_node_path3.join)(directory, "launch.lock"), async () => {
+    const previous = await discoverDesktop(descriptor);
+    if (previous) {
+      await previous.client.rpc(options.background ? "reconnect" : "open");
+      await atomicJson((0, import_node_path3.join)(directory, "enabled.json"), { enabled: true });
+      return { ...previous.status, alreadyRunning: true };
+    }
+    if ((options.platform || process.platform) === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY && !options.spawn)
+      throw new Error(
+        "Blink needs a graphical desktop on this computer. Run /glimpselet:glimpse in local Claude Code."
+      );
+    const installed = await installDesktop(
+      options.manifest || manifest_default,
+      options
+    );
+    let entry = installed.entry, macPrevious;
+    if (process.platform === "darwin") {
+      const appPart = installed.build.entry.split("/").findIndex((p) => p.endsWith(".app"));
+      const source = (0, import_node_path3.join)(
+        installed.directory,
+        ...installed.build.entry.split("/").slice(0, appPart + 1)
+      );
+      const applications = (0, import_node_path3.join)((0, import_node_os3.homedir)(), "Applications");
+      await (0, import_promises3.mkdir)(applications, { recursive: true });
+      if (!(await (0, import_promises3.lstat)(applications)).isDirectory())
+        throw new Error("Applications must be a real directory");
+      const target = (0, import_node_path3.join)(applications, "Glimpselet.app"), stage = `${target}.staging`;
+      macPrevious = `${target}.previous`;
+      await (0, import_promises3.rm)(stage, { recursive: true, force: true });
+      await (0, import_promises3.cp)(source, stage, { recursive: true, dereference: false });
+      await (0, import_promises3.rm)(macPrevious, { recursive: true, force: true });
+      try {
+        await (0, import_promises3.rename)(target, macPrevious);
+      } catch (e13) {
+        if (e13.code !== "ENOENT") throw e13;
+      }
+      try {
+        await (0, import_promises3.rename)(stage, target);
+      } catch (error43) {
+        await (0, import_promises3.rename)(macPrevious, target).catch(() => {
+        });
+        throw error43;
+      }
+      entry = (0, import_node_path3.join)(
+        target,
+        ...installed.build.entry.split("/").slice(appPart + 1)
+      );
+    }
+    let child;
+    try {
+      child = (options.spawn || import_node_child_process2.spawn)(entry, options.args || [], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+        env: { ...process.env, GLIMPSELET_RUNTIME_DIR: directory }
+      });
+      let failure;
+      child.once("error", (error43) => {
+        failure = error43;
+      });
+      child.once("exit", (code, signal) => {
+        failure = new Error(`Blink exited before startup (${signal || code})`);
+      });
+      child.unref();
+      const deadline = Date.now() + (options.startTimeoutMs ?? 3e4);
+      while (Date.now() < deadline) {
+        if (failure) throw failure;
+        const running = await discoverDesktop(descriptor);
+        if (running) {
+          if (running.status.version !== installed.version)
+            throw new Error("A different Blink version is running");
+          await running.client.rpc(options.background ? "reconnect" : "open");
+          await atomicJson((0, import_node_path3.join)(directory, "enabled.json"), { enabled: true });
+          await atomicJson((0, import_node_path3.join)(installed.root, "current.json"), {
+            version: installed.version,
+            directory: installed.directory,
+            entry
+          });
+          if (macPrevious)
+            await (0, import_promises3.rm)(macPrevious, { recursive: true, force: true }).catch(
+              () => {
+              }
+            );
+          return { ...running.status, alreadyRunning: false };
+        }
+        await new Promise((resolve6) => setTimeout(resolve6, 100));
+      }
+      throw new Error(
+        "Blink did not finish starting. The previous verified build is preserved."
+      );
+    } catch (error43) {
+      child?.kill();
+      if (macPrevious) {
+        const target = (0, import_node_path3.join)((0, import_node_path3.dirname)(macPrevious), "Glimpselet.app");
+        await (0, import_promises3.rm)(target, { recursive: true, force: true });
+        await (0, import_promises3.rename)(macPrevious, target).catch(() => {
+        });
+      }
+      throw error43;
+    }
+  });
+}
+
 // bridge/src/server.ts
-var import_promises17 = require("node:fs/promises");
+var import_promises20 = require("node:fs/promises");
 
 // node_modules/zod/v3/helpers/util.js
 var util;
@@ -40422,12 +41178,12 @@ var StdioServerTransport = class {
 };
 
 // bridge/src/capture.ts
-var import_node_child_process = require("node:child_process");
-var import_node_util = require("node:util");
-var import_promises = require("node:fs/promises");
-var import_node_os = require("node:os");
-var import_node_path = require("node:path");
-var run = (0, import_node_util.promisify)(import_node_child_process.execFile);
+var import_node_child_process3 = require("node:child_process");
+var import_node_util2 = require("node:util");
+var import_promises4 = require("node:fs/promises");
+var import_node_os4 = require("node:os");
+var import_node_path4 = require("node:path");
+var run = (0, import_node_util2.promisify)(import_node_child_process3.execFile);
 async function captureRun(command, args, options) {
   options.signal?.throwIfAborted();
   let resolveResult;
@@ -40436,7 +41192,7 @@ async function captureRun(command, args, options) {
     resolveResult = resolveDone;
     rejectResult = reject;
   });
-  const child = (0, import_node_child_process.execFile)(
+  const child = (0, import_node_child_process3.execFile)(
     command,
     args,
     { ...options, encoding: "utf8", windowsHide: true },
@@ -40463,8 +41219,8 @@ async function captureRun(command, args, options) {
     options.signal?.removeEventListener("abort", forceStop);
   }
 }
-var here = (0, import_node_path.dirname)((0, import_node_path.resolve)(process.argv[1] ?? process.cwd()));
-var bundledRoot = process.env.CLAUDE_PLUGIN_ROOT ?? (0, import_node_path.resolve)(here, "..");
+var here = (0, import_node_path4.dirname)((0, import_node_path4.resolve)(process.argv[1] ?? process.cwd()));
+var bundledRoot = process.env.CLAUDE_PLUGIN_ROOT ?? (0, import_node_path4.resolve)(here, "..");
 var has = async (command) => {
   try {
     await run("which", [command], { timeout: 1500 });
@@ -40495,7 +41251,7 @@ async function createNativeAdapter() {
           maxBuffer: 1024 * 1024
         });
         return {
-          image: await (0, import_promises.readFile)(output),
+          image: await (0, import_promises4.readFile)(output),
           source: `macOS screencapture (${target})`
         };
       })
@@ -40511,7 +41267,7 @@ async function createNativeAdapter() {
       capture: async (target, signal) => {
         if (target !== "screen") throw unsupported(platform, target);
         return withOutput(async (output) => {
-          const script = (0, import_node_path.join)(bundledRoot, "native", "capture-windows.ps1");
+          const script = (0, import_node_path4.join)(bundledRoot, "native", "capture-windows.ps1");
           await captureRun(
             "powershell.exe",
             [
@@ -40528,7 +41284,7 @@ async function createNativeAdapter() {
             { timeout: 2e4, maxBuffer: 1024 * 1024, signal }
           );
           return {
-            image: await (0, import_promises.readFile)(output),
+            image: await (0, import_promises4.readFile)(output),
             source: "Windows PowerShell screen capture"
           };
         });
@@ -40574,7 +41330,7 @@ function linuxAdapter(grim, flavor) {
           { timeout: 2e4, signal }
         );
         return {
-          image: await (0, import_promises.readFile)(output),
+          image: await (0, import_promises4.readFile)(output),
           source: "grim last selected region",
           selection: lastSelection
         };
@@ -40601,14 +41357,14 @@ function linuxAdapter(grim, flavor) {
           signal
         });
         return {
-          image: await (0, import_promises.readFile)(output),
+          image: await (0, import_promises4.readFile)(output),
           source: "grim selected region",
           selection
         };
       }
       if (target !== "screen") throw unsupported("Linux Wayland", target);
       await captureRun(grim, [output], { timeout: 2e4, signal });
-      return { image: await (0, import_promises.readFile)(output), source: "grim screen" };
+      return { image: await (0, import_promises4.readFile)(output), source: "grim screen" };
     })
   };
 }
@@ -40629,16 +41385,16 @@ function linuxX11Adapter(captureBin, flavor) {
         timeout: 12e4,
         maxBuffer: 1024 * 1024
       });
-      return { image: await (0, import_promises.readFile)(output), source: `${flavor} ${target}` };
+      return { image: await (0, import_promises4.readFile)(output), source: `${flavor} ${target}` };
     })
   };
 }
 async function withOutput(fn) {
-  const directory = await (0, import_promises.mkdtemp)((0, import_node_path.join)((0, import_node_os.tmpdir)(), "glimpselet-"));
+  const directory = await (0, import_promises4.mkdtemp)((0, import_node_path4.join)((0, import_node_os4.tmpdir)(), "glimpselet-"));
   try {
-    return await fn((0, import_node_path.join)(directory, "capture.png"));
+    return await fn((0, import_node_path4.join)(directory, "capture.png"));
   } finally {
-    await (0, import_promises.rm)(directory, { recursive: true, force: true });
+    await (0, import_promises4.rm)(directory, { recursive: true, force: true });
   }
 }
 function unsupported(platform, target) {
@@ -40705,7 +41461,7 @@ var CaptureHistory = class {
 };
 
 // bridge/src/png.ts
-var import_node_crypto2 = require("node:crypto");
+var import_node_crypto4 = require("node:crypto");
 var import_pngjs = __toESM(require_png(), 1);
 function normalizePng(input, requestedLongEdge = DEFAULT_LONG_EDGE) {
   if (input.length < 33 || input.length > MAX_PNG_BYTES)
@@ -40748,7 +41504,7 @@ function normalizePng(input, requestedLongEdge = DEFAULT_LONG_EDGE) {
   const image = import_pngjs.PNG.sync.write(normalized, { colorType: 6 });
   if (image.length > MAX_PNG_BYTES)
     throw new Error("Normalized PNG exceeds the byte limit");
-  const signature = (0, import_node_crypto2.createHash)("sha256").update(normalized.data).digest("hex");
+  const signature = (0, import_node_crypto4.createHash)("sha256").update(normalized.data).digest("hex");
   return { image, width, height, signature };
 }
 
@@ -41028,15 +41784,15 @@ var welcomeLocales = {
 };
 
 // bridge/src/panel.ts
-var import_node_crypto8 = require("node:crypto");
-var import_node_child_process4 = require("node:child_process");
-var import_node_fs4 = require("node:fs");
-var import_promises16 = require("node:fs/promises");
+var import_node_crypto12 = require("node:crypto");
+var import_node_child_process6 = require("node:child_process");
+var import_node_fs5 = require("node:fs");
+var import_promises19 = require("node:fs/promises");
 var import_node_http = require("node:http");
-var import_node_path6 = require("node:path");
+var import_node_path10 = require("node:path");
 
 // bridge/src/auth.ts
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto5 = require("node:crypto");
 var OneTimeTokens = class {
   constructor(ttlMs = 6e4, now = () => Date.now()) {
     this.ttlMs = ttlMs;
@@ -41048,7 +41804,7 @@ var OneTimeTokens = class {
       if (expiry <= this.now()) this.values.delete(value);
     if (this.values.size >= 32)
       this.values.delete(this.values.keys().next().value);
-    const token = (0, import_node_crypto3.randomBytes)(32).toString("base64url");
+    const token = (0, import_node_crypto5.randomBytes)(32).toString("base64url");
     this.values.set(token, this.now() + this.ttlMs);
     return token;
   }
@@ -41063,7 +41819,7 @@ var OneTimeTokens = class {
 };
 
 // bridge/src/browser-captures.ts
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto6 = require("node:crypto");
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -41090,7 +41846,7 @@ var PanelError = class extends Error {
 var cancelled = () => new PanelError("cancelled", "The request was cancelled.", 409);
 
 // bridge/src/panel-image.ts
-function readPanelImage(value) {
+function readPanelImage(value, longEdge) {
   if (typeof value !== "string" || value.length > Math.ceil(MAX_PNG_BYTES * 4 / 3) + 128)
     throw new PanelError("image_limit", "The PNG image exceeds 8 MiB.", 413);
   const encoded = value.replace(/^data:image\/png;base64,/, "");
@@ -41098,7 +41854,7 @@ function readPanelImage(value) {
   if (!encoded || encoded.length % 4 !== 0 || /[^A-Za-z0-9+/]/.test(unpadded))
     throw new PanelError("invalid_image", "Supply a valid PNG image.");
   try {
-    return normalizePng(Buffer.from(encoded, "base64"));
+    return normalizePng(Buffer.from(encoded, "base64"), longEdge);
   } catch {
     throw new PanelError(
       "invalid_image",
@@ -41276,7 +42032,7 @@ var BrowserCaptures = class {
           429
         )
       );
-    const id2 = (0, import_node_crypto4.randomBytes)(12).toString("hex");
+    const id2 = (0, import_node_crypto6.randomBytes)(12).toString("hex");
     return new Promise((resolve6, reject) => {
       const finish = (callback) => {
         signal?.removeEventListener("abort", abort);
@@ -41372,9 +42128,9 @@ var BrowserCaptures = class {
 
 // bridge/src/floatingPreferences.ts
 var import_node_fs = require("node:fs");
-var import_promises2 = require("node:fs/promises");
-var import_node_os2 = require("node:os");
-var import_node_path2 = require("node:path");
+var import_promises5 = require("node:fs/promises");
+var import_node_os5 = require("node:os");
+var import_node_path5 = require("node:path");
 var MAX_DIMENSION = 32768;
 var MAX_POSITION = 1e6;
 var sizes = ["compact", "expanded"];
@@ -41432,8 +42188,8 @@ function normalizeFloatingGeometry(value) {
   };
 }
 function defaultFloatingPreferencesPath() {
-  const base = process.platform === "win32" ? process.env.APPDATA || (0, import_node_path2.join)((0, import_node_os2.homedir)(), "AppData", "Roaming") : process.platform === "darwin" ? (0, import_node_path2.join)((0, import_node_os2.homedir)(), "Library", "Application Support") : process.env.XDG_CONFIG_HOME || (0, import_node_path2.join)((0, import_node_os2.homedir)(), ".config");
-  return (0, import_node_path2.join)(base, "glimpselet", "floating-geometry-v1.json");
+  const base = process.platform === "win32" ? process.env.APPDATA || (0, import_node_path5.join)((0, import_node_os5.homedir)(), "AppData", "Roaming") : process.platform === "darwin" ? (0, import_node_path5.join)((0, import_node_os5.homedir)(), "Library", "Application Support") : process.env.XDG_CONFIG_HOME || (0, import_node_path5.join)((0, import_node_os5.homedir)(), ".config");
+  return (0, import_node_path5.join)(base, "glimpselet", "floating-geometry-v1.json");
 }
 var FloatingPreferences = class {
   constructor(path) {
@@ -41451,10 +42207,10 @@ var FloatingPreferences = class {
   async readFile() {
     if (!this.path) return { version: 1, dimensions: {} };
     try {
-      const beforeOpen = await (0, import_promises2.lstat)(this.path);
+      const beforeOpen = await (0, import_promises5.lstat)(this.path);
       if (beforeOpen.isSymbolicLink() || !beforeOpen.isFile())
         return { version: 1, dimensions: {} };
-      const file2 = await (0, import_promises2.open)(
+      const file2 = await (0, import_promises5.open)(
         this.path,
         import_node_fs.constants.O_RDONLY | (import_node_fs.constants.O_NOFOLLOW ?? 0)
       );
@@ -41485,21 +42241,21 @@ var FloatingPreferences = class {
   }
   async writeFile(value) {
     const target = this.path;
-    const directory = (0, import_node_path2.dirname)(target);
+    const directory = (0, import_node_path5.dirname)(target);
     let temporary;
     try {
-      await (0, import_promises2.mkdir)(directory, { recursive: true, mode: 448 });
+      await (0, import_promises5.mkdir)(directory, { recursive: true, mode: 448 });
       try {
-        const targetInfo = await (0, import_promises2.lstat)(target);
+        const targetInfo = await (0, import_promises5.lstat)(target);
         if (targetInfo.isSymbolicLink() || !targetInfo.isFile()) return false;
       } catch (error43) {
         if (error43.code !== "ENOENT") return false;
       }
-      temporary = (0, import_node_path2.join)(
+      temporary = (0, import_node_path5.join)(
         directory,
         `.floating-geometry-${process.pid}-${Math.random().toString(16).slice(2)}.tmp`
       );
-      const file2 = await (0, import_promises2.open)(temporary, "wx", 384);
+      const file2 = await (0, import_promises5.open)(temporary, "wx", 384);
       try {
         await file2.writeFile(JSON.stringify(value), "utf8");
         await file2.sync();
@@ -41507,27 +42263,27 @@ var FloatingPreferences = class {
         await file2.close();
       }
       try {
-        const targetInfo = await (0, import_promises2.lstat)(target);
+        const targetInfo = await (0, import_promises5.lstat)(target);
         if (targetInfo.isSymbolicLink() || !targetInfo.isFile()) return false;
       } catch (error43) {
         if (error43.code !== "ENOENT") return false;
       }
-      await (0, import_promises2.rename)(temporary, target);
+      await (0, import_promises5.rename)(temporary, target);
       temporary = void 0;
       return true;
     } catch {
       return false;
     } finally {
-      if (temporary) await (0, import_promises2.unlink)(temporary).catch(() => void 0);
+      if (temporary) await (0, import_promises5.unlink)(temporary).catch(() => void 0);
     }
   }
 };
 
 // bridge/src/provider-cli.ts
-var import_node_child_process2 = require("node:child_process");
-var import_promises3 = require("node:fs/promises");
-var import_node_os3 = require("node:os");
-var import_node_path3 = require("node:path");
+var import_node_child_process4 = require("node:child_process");
+var import_promises6 = require("node:fs/promises");
+var import_node_os6 = require("node:os");
+var import_node_path6 = require("node:path");
 var import_node_string_decoder = require("node:string_decoder");
 
 // bridge/src/provider-request.ts
@@ -41549,17 +42305,17 @@ Untrusted page data: ${JSON.stringify(request.page)}` : ""}`;
 // bridge/src/provider-cli.ts
 async function runCliProvider(request, options = {}) {
   if (request.signal.aborted) throw cancelled();
-  const directory = await (0, import_promises3.mkdtemp)(
-    (0, import_node_path3.join)((0, import_node_path3.resolve)(options.tempRoot ?? (0, import_node_os3.tmpdir)()), "glimpselet-")
+  const directory = await (0, import_promises6.mkdtemp)(
+    (0, import_node_path6.join)((0, import_node_path6.resolve)(options.tempRoot ?? (0, import_node_os6.tmpdir)()), "glimpselet-")
   );
   try {
-    const imagePath = (0, import_node_path3.join)(directory, "capture.png");
+    const imagePath = (0, import_node_path6.join)(directory, "capture.png");
     const permissionPath = process.platform === "win32" ? imagePath.replaceAll("\\", "/").replace(
       /^([a-z]):/i,
       (_, drive) => `/${drive.toLowerCase()}`
     ) : imagePath;
     if (request.image)
-      await (0, import_promises3.writeFile)(imagePath, request.image, { mode: 384 });
+      await (0, import_promises6.writeFile)(imagePath, request.image, { mode: 384 });
     if (request.signal.aborted) throw cancelled();
     const env = {
       ...process.env,
@@ -41606,7 +42362,7 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
       JSON.stringify({ mcpServers: {} })
     ];
     return await new Promise((resolve6, reject) => {
-      const child = (0, import_node_child_process2.spawn)(options.command ?? "claude", args, {
+      const child = (0, import_node_child_process4.spawn)(options.command ?? "claude", args, {
         cwd: request.cliSession?.project ?? directory,
         env,
         stdio: ["ignore", "pipe", "pipe"],
@@ -41804,7 +42560,7 @@ Read the screenshot at ${imagePath}.` : contextPrompt(request),
       });
     });
   } finally {
-    await (0, import_promises3.rm)(directory, { recursive: true, force: true });
+    await (0, import_promises6.rm)(directory, { recursive: true, force: true });
   }
 }
 
@@ -41944,46 +42700,150 @@ async function runApiProvider(request, fetcher = fetch) {
   }
 }
 
+// bridge/src/desktop-session.ts
+var import_node_crypto7 = require("node:crypto");
+var import_node_fs2 = require("node:fs");
+var import_node_path7 = require("node:path");
+function desktopStatePresent() {
+  return (0, import_node_fs2.existsSync)(endpointPath()) || (0, import_node_fs2.existsSync)((0, import_node_path7.join)(runtimeDirectory(), "enabled.json"));
+}
+async function desktopConnection() {
+  const connected = await discoverDesktop();
+  if (!connected && await desktopEnabled())
+    throw new Error("Blink is reconnecting. Please try again shortly.");
+  return connected;
+}
+async function desktopAnswer(client, request) {
+  if (request.signal.aborted) throw new Error("The answer stopped.");
+  const id2 = (0, import_node_crypto7.randomUUID)(), controller = new AbortController();
+  let answer = "", finalAnswer = "", admitted = false, streamError;
+  let resolveDone, rejectDone, ready;
+  const done = new Promise((resolve6, reject) => {
+    resolveDone = resolve6;
+    rejectDone = reject;
+  });
+  void done.catch(() => {
+  });
+  const connected = new Promise((resolve6) => {
+    ready = resolve6;
+  });
+  const abort = () => {
+    if (admitted) void client.rpc("stop", { turnId: id2 }).catch(() => {
+    });
+    controller.abort();
+    ready();
+    rejectDone(new Error("The answer stopped."));
+  };
+  request.signal.addEventListener("abort", abort, { once: true });
+  let started = false;
+  const events = client.events(
+    ({ event }) => {
+      if (event.type === "message" && event.role === "user" && event.id === id2)
+        started = true;
+      if (started && event.type === "delta" && typeof event.text === "string") {
+        answer += event.text;
+        request.onText(event.text);
+      }
+      if (started && event.type === "message" && event.role === "assistant" && Array.isArray(event.content)) {
+        finalAnswer = event.content.filter(
+          (b) => !!b && typeof b === "object" && b.type === "text" && typeof b.text === "string"
+        ).map((b) => b.text).join("\n");
+      }
+      if (event.type === "done" && event.turnId === id2) {
+        const text = finalAnswer || answer;
+        if (text.trim()) resolveDone({ answer: text });
+        else rejectDone(new Error("The desktop answer was empty."));
+      }
+    },
+    controller.signal,
+    0,
+    ready
+  ).catch((error43) => {
+    if (!controller.signal.aborted) {
+      streamError = error43 instanceof Error ? error43 : new Error("Blink is reconnecting.");
+      ready();
+      rejectDone(streamError);
+    }
+  });
+  try {
+    await connected;
+    if (streamError) throw streamError;
+    if (controller.signal.aborted) throw new Error("The answer stopped.");
+    admitted = true;
+    await client.rpc(
+      "send",
+      {
+        selection: { model: request.model, effort: request.effort || "medium" },
+        turn: {
+          id: id2,
+          source: "companion",
+          text: `${SYSTEM_PROMPT} Never click, type, or control another app; explain only and do not use computer control or edit tools.
+${contextPrompt(request)}`,
+          attachments: request.image ? [
+            {
+              id: (0, import_node_crypto7.randomUUID)(),
+              name: "Screenshot.png",
+              mediaType: "image/png",
+              data: request.image.toString("base64")
+            }
+          ] : []
+        }
+      },
+      request.signal
+    );
+    return await done;
+  } finally {
+    request.signal.removeEventListener("abort", abort);
+    controller.abort();
+    await events;
+  }
+}
+async function runDesktopProvider(request) {
+  const desktop = await desktopConnection();
+  if (!desktop) return void 0;
+  return desktopAnswer(desktop.client, request);
+}
+
 // bridge/src/provider.ts
-var runProvider = (request) => request.backend === "api" ? runApiProvider(request) : runCliProvider(request);
+var runProvider = async (request) => await runDesktopProvider(request) ?? (request.backend === "api" ? runApiProvider(request) : runCliProvider(request));
 
 // bridge/src/extension-bridge.ts
-var import_node_crypto6 = require("node:crypto");
+var import_node_crypto9 = require("node:crypto");
 
 // bridge/src/extension-sessions.ts
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto8 = require("node:crypto");
 
 // node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs
 var import_node_module = require("node:module");
 var import_crypto = require("crypto");
 var import_crypto2 = require("crypto");
 var import_path = require("path");
-var import_node_fs2 = require("node:fs");
+var import_node_fs3 = require("node:fs");
 var import_node_process2 = require("node:process");
 var import_fs = require("fs");
 var import_os = require("os");
 var import_path2 = require("path");
 var Ay = __toESM(require("path"), 1);
-var import_promises4 = require("fs/promises");
+var import_promises7 = require("fs/promises");
 var import_path3 = require("path");
 var import_os2 = require("os");
 var import_path4 = require("path");
 var Se = __toESM(require("fs"), 1);
-var import_promises5 = require("fs/promises");
+var import_promises8 = require("fs/promises");
 var xe = __toESM(require("path"), 1);
-var import_promises6 = require("fs/promises");
+var import_promises9 = require("fs/promises");
 var import_fs2 = require("fs");
-var import_promises7 = require("fs/promises");
+var import_promises10 = require("fs/promises");
 var import_os3 = require("os");
 var import_path5 = require("path");
-var import_promises8 = require("fs/promises");
+var import_promises11 = require("fs/promises");
 var import_os4 = require("os");
-var import_node_path4 = __toESM(require("node:path"), 1);
-var import_node_os4 = __toESM(require("node:os"), 1);
+var import_node_path8 = __toESM(require("node:path"), 1);
+var import_node_os7 = __toESM(require("node:os"), 1);
 var import_node_process3 = __toESM(require("node:process"), 1);
 var import_path6 = require("path");
 var import_fs3 = require("fs");
-var import_promises9 = require("fs/promises");
+var import_promises12 = require("fs/promises");
 var import_path7 = require("path");
 var import_child_process = require("child_process");
 var import_util6 = require("util");
@@ -41994,23 +42854,23 @@ var import_path9 = require("path");
 var import_crypto3 = require("crypto");
 var import_fs5 = require("fs");
 var import_path10 = require("path");
-var import_promises10 = require("fs/promises");
+var import_promises13 = require("fs/promises");
 var import_path11 = require("path");
 var import_path12 = require("path");
-var import_promises11 = require("fs/promises");
+var import_promises14 = require("fs/promises");
 var import_path13 = require("path");
 var import_path14 = require("path");
 var import_fs6 = require("fs");
-var import_promises12 = require("fs/promises");
+var import_promises15 = require("fs/promises");
 var import_path15 = require("path");
 var import_async_hooks = require("async_hooks");
 var import_fs7 = require("fs");
 var import_path16 = require("path");
 var import_path17 = require("path");
 var import_buffer = require("buffer");
-var import_promises13 = require("fs/promises");
+var import_promises16 = require("fs/promises");
 var import_fs8 = require("fs");
-var import_promises14 = require("fs/promises");
+var import_promises17 = require("fs/promises");
 var import_path18 = require("path");
 var import_util7 = require("util");
 var import_path19 = require("path");
@@ -45932,9 +46792,9 @@ function C4(e13) {
 }
 var qT = C4;
 var A4 = typeof global == "object" && global && global.Object === Object && global;
-var cp = A4;
+var cp2 = A4;
 var v4 = typeof self == "object" && self && self.Object === Object && self;
-var R4 = cp || v4 || Function("return this")();
+var R4 = cp2 || v4 || Function("return this")();
 var vt = R4;
 var x4 = vt.Symbol;
 var Ut = x4;
@@ -46399,7 +47259,7 @@ pr(Ep, { default: () => Dr });
 var kw = typeof Ep == "object" && Ep && !Ep.nodeType && Ep;
 var hc = kw && typeof Sp == "object" && Sp && !Sp.nodeType && Sp;
 var W9 = hc && hc.exports === kw;
-var L_ = W9 && cp.process;
+var L_ = W9 && cp2.process;
 var V9 = (function() {
   try {
     var e13 = hc && hc.require && hc.require("util").types;
@@ -46901,10 +47761,10 @@ function Jw(e13) {
 }
 function H_() {
   let e13 = "";
-  if (typeof process < "u" && typeof process.cwd === "function" && typeof import_node_fs2.realpathSync === "function") try {
+  if (typeof process < "u" && typeof process.cwd === "function" && typeof import_node_fs3.realpathSync === "function") try {
     let t = (0, import_node_process2.cwd)();
     try {
-      e13 = Jw((0, import_node_fs2.realpathSync)(t));
+      e13 = Jw((0, import_node_fs3.realpathSync)(t));
     } catch {
       e13 = Jw(t);
     }
@@ -50941,47 +51801,47 @@ var sS = { cwd() {
     it(n, o, s);
   }
 }, async stat(e13) {
-  return (0, import_promises5.stat)(e13);
+  return (0, import_promises8.stat)(e13);
 }, async lstat(e13) {
-  return (0, import_promises5.lstat)(e13);
+  return (0, import_promises8.lstat)(e13);
 }, async openDirNoFollow(e13) {
   if (process.platform === "win32") throw Error("openDirNoFollow is a POSIX-only examination probe");
-  await (await (0, import_promises5.open)(e13, Se.constants.O_DIRECTORY | Se.constants.O_NOFOLLOW)).close();
+  await (await (0, import_promises8.open)(e13, Se.constants.O_DIRECTORY | Se.constants.O_NOFOLLOW)).close();
 }, openDirNoFollowSync(e13) {
   if (process.platform === "win32") throw Error("openDirNoFollowSync is a POSIX-only examination probe");
   let t = Se.openSync(e13, Se.constants.O_DIRECTORY | Se.constants.O_NOFOLLOW);
   Se.closeSync(t);
 }, async lstatBigint(e13) {
-  return (0, import_promises5.lstat)(e13, { bigint: true });
+  return (0, import_promises8.lstat)(e13, { bigint: true });
 }, async statBigint(e13) {
-  return (0, import_promises5.stat)(e13, { bigint: true });
+  return (0, import_promises8.stat)(e13, { bigint: true });
 }, async readdir(e13) {
-  return (0, import_promises5.readdir)(e13, { withFileTypes: true });
+  return (0, import_promises8.readdir)(e13, { withFileTypes: true });
 }, async unlink(e13) {
-  return (0, import_promises5.unlink)(e13);
+  return (0, import_promises8.unlink)(e13);
 }, async rmdir(e13) {
-  return (0, import_promises5.rmdir)(e13);
+  return (0, import_promises8.rmdir)(e13);
 }, async rm(e13, t) {
-  return (0, import_promises5.rm)(e13, t);
+  return (0, import_promises8.rm)(e13, t);
 }, async mkdir(e13, t) {
   try {
-    await (0, import_promises5.mkdir)(e13, { recursive: true, ...t });
+    await (0, import_promises8.mkdir)(e13, { recursive: true, ...t });
   } catch (n) {
     if (pe(n) !== "EEXIST") throw n;
   }
 }, async readFile(e13, t) {
-  return (0, import_promises5.readFile)(e13, { encoding: t.encoding });
+  return (0, import_promises8.readFile)(e13, { encoding: t.encoding });
 }, async rename(e13, t) {
-  return (0, import_promises5.rename)(e13, t);
+  return (0, import_promises8.rename)(e13, t);
 }, async realpath(e13) {
-  return Be(await (0, import_promises5.realpath)(e13));
+  return Be(await (0, import_promises8.realpath)(e13));
 }, async readlink(e13) {
-  return (0, import_promises5.readlink)(e13);
+  return (0, import_promises8.readlink)(e13);
 }, async copyFile(e13, t) {
-  return (0, import_promises5.copyFile)(e13, t);
+  return (0, import_promises8.copyFile)(e13, t);
 }, async appendFile(e13, t, n) {
   if (n?.mode !== void 0) try {
-    let r = await (0, import_promises5.open)(e13, "ax", n.mode);
+    let r = await (0, import_promises8.open)(e13, "ax", n.mode);
     try {
       await r.appendFile(t);
     } finally {
@@ -50991,13 +51851,13 @@ var sS = { cwd() {
   } catch (r) {
     if (pe(r) !== "EEXIST") throw r;
   }
-  return (0, import_promises5.appendFile)(e13, t);
+  return (0, import_promises8.appendFile)(e13, t);
 }, async symlink(e13, t, n) {
-  return (0, import_promises5.symlink)(e13, t, n);
+  return (0, import_promises8.symlink)(e13, t, n);
 }, async link(e13, t) {
-  return (0, import_promises5.link)(e13, t);
+  return (0, import_promises8.link)(e13, t);
 }, async chmod(e13, t) {
-  return (0, import_promises5.chmod)(e13, t);
+  return (0, import_promises8.chmod)(e13, t);
 }, statSync(e13) {
   let n = [];
   try {
@@ -51150,8 +52010,8 @@ var sS = { cwd() {
 }, createWriteStream(e13) {
   return Se.createWriteStream(e13);
 }, async readFileBytes(e13, t) {
-  if (t === void 0) return (0, import_promises5.readFile)(e13);
-  let n = await (0, import_promises5.open)(e13, tS());
+  if (t === void 0) return (0, import_promises8.readFile)(e13);
+  let n = await (0, import_promises8.open)(e13, tS());
   try {
     if (!(await n.stat()).isFile()) return Buffer.alloc(0);
     return await iS(n, t, "file");
@@ -51162,9 +52022,9 @@ var sS = { cwd() {
   try {
     let n = IX();
     if (n === 0) {
-      if (!(await (0, import_promises5.lstat)(e13)).isFile()) return null;
+      if (!(await (0, import_promises8.lstat)(e13)).isFile()) return null;
     }
-    let r = await (0, import_promises5.open)(e13, Se.constants.O_RDONLY | n);
+    let r = await (0, import_promises8.open)(e13, Se.constants.O_RDONLY | n);
     try {
       let o = await r.stat();
       if (!o.isFile() || o.size > t) return null;
@@ -52132,7 +52992,7 @@ var DP = class {
     if (this.writtenBytes < 0) if (r) {
       let o = await r.stat(RS(e13));
       this.writtenBytes = o.ok && o.value.kind !== "absent" ? o.value.size : 0;
-    } else this.writtenBytes = await (0, import_promises4.stat)(e13).then((o) => o.size).catch(() => 0);
+    } else this.writtenBytes = await (0, import_promises7.stat)(e13).then((o) => o.size).catch(() => 0);
     else this.writtenBytes += t;
     if (this.writtenBytes <= n || this.rotating) return;
     this.rotating = true;
@@ -52144,10 +53004,10 @@ var DP = class {
           if (await r.delete(i, { missingOk: true }), !(await r.rename(s, i)).ok) await r.delete(s, { missingOk: true });
         }
       } else try {
-        await (0, import_promises4.rename)(e13, o);
+        await (0, import_promises7.rename)(e13, o);
       } catch (s) {
-        if (!ft(s)) await (0, import_promises4.unlink)(o).catch(() => {
-        }), await (0, import_promises4.rename)(e13, o).catch(() => (0, import_promises4.unlink)(e13).catch(() => {
+        if (!ft(s)) await (0, import_promises7.unlink)(o).catch(() => {
+        }), await (0, import_promises7.rename)(e13, o).catch(() => (0, import_promises7.unlink)(e13).catch(() => {
         }));
       }
       this.writtenBytes = 0;
@@ -52170,23 +53030,23 @@ var DP = class {
       return;
     }
     if (!this.writesFiles()) return;
-    if (r) await (0, import_promises4.mkdir)((0, import_path3.dirname)(e13.target), { recursive: true }).catch(() => {
+    if (r) await (0, import_promises7.mkdir)((0, import_path3.dirname)(e13.target), { recursive: true }).catch(() => {
     });
     let o = e13;
     try {
-      await (0, import_promises4.appendFile)(e13.target, n);
+      await (0, import_promises7.appendFile)(e13.target, n);
     } catch (s) {
       if (!_y(s)) throw s;
-      if (this.storageV5 === void 0) o = { ...e13, target: this.resolveDirToFile(e13.target) }, await (0, import_promises4.appendFile)(o.target, n);
+      if (this.storageV5 === void 0) o = { ...e13, target: this.resolveDirToFile(e13.target) }, await (0, import_promises7.appendFile)(o.target, n);
       else {
         if (this.overrideDirectory = e13.target, o = kP(t, e13.configHome, e13.target, e13.target), o.arm === "v5") {
           await this.appendV5AndMark(this.storageV5, t, n);
           return;
         }
-        await (0, import_promises4.mkdir)((0, import_path3.dirname)(o.target), { recursive: true }).catch(() => {
+        await (0, import_promises7.mkdir)((0, import_path3.dirname)(o.target), { recursive: true }).catch(() => {
         });
         try {
-          await (0, import_promises4.appendFile)(o.target, n);
+          await (0, import_promises7.appendFile)(o.target, n);
         } catch {
           return;
         }
@@ -52299,8 +53159,8 @@ var DP = class {
   async updateLatestSymlink() {
     try {
       let e13 = this.logPath(), t = (0, import_path3.join)((0, import_path3.dirname)(e13), "latest");
-      await (0, import_promises4.unlink)(t).catch(() => {
-      }), await (0, import_promises4.symlink)(e13, t);
+      await (0, import_promises7.unlink)(t).catch(() => {
+      }), await (0, import_promises7.symlink)(e13, t);
     } catch {
     }
   }
@@ -52580,20 +53440,20 @@ var dQ = "fetched-web-content";
 var pQ = "coordinator-relay";
 var fQ = [qP, uQ, iQ, aQ, sQ, lQ, cQ, VP, dQ, pQ, ja, jP, yf, BP, KP];
 var W5e = [...nQ, kS, GP, X7, ...fQ, ZP, "system-reminder", "system_reminder", "function_results", "tool_use_error", "sandbox_violations", "persisted-output", "total_tokens", "user-prompt-submit-hook"];
-var cs = import_node_os4.default.homedir();
-var MS = import_node_os4.default.tmpdir();
+var cs = import_node_os7.default.homedir();
+var MS = import_node_os7.default.tmpdir();
 var { env: Ba } = import_node_process3.default;
 var mQ = (e13) => {
-  let t = import_node_path4.default.join(cs, "Library");
-  return { data: import_node_path4.default.join(t, "Application Support", e13), config: import_node_path4.default.join(t, "Preferences", e13), cache: import_node_path4.default.join(t, "Caches", e13), log: import_node_path4.default.join(t, "Logs", e13), temp: import_node_path4.default.join(MS, e13) };
+  let t = import_node_path8.default.join(cs, "Library");
+  return { data: import_node_path8.default.join(t, "Application Support", e13), config: import_node_path8.default.join(t, "Preferences", e13), cache: import_node_path8.default.join(t, "Caches", e13), log: import_node_path8.default.join(t, "Logs", e13), temp: import_node_path8.default.join(MS, e13) };
 };
 var gQ = (e13) => {
-  let t = Ba.APPDATA || import_node_path4.default.join(cs, "AppData", "Roaming"), n = Ba.LOCALAPPDATA || import_node_path4.default.join(cs, "AppData", "Local");
-  return { data: import_node_path4.default.join(n, e13, "Data"), config: import_node_path4.default.join(t, e13, "Config"), cache: import_node_path4.default.join(n, e13, "Cache"), log: import_node_path4.default.join(n, e13, "Log"), temp: import_node_path4.default.join(MS, e13) };
+  let t = Ba.APPDATA || import_node_path8.default.join(cs, "AppData", "Roaming"), n = Ba.LOCALAPPDATA || import_node_path8.default.join(cs, "AppData", "Local");
+  return { data: import_node_path8.default.join(n, e13, "Data"), config: import_node_path8.default.join(t, e13, "Config"), cache: import_node_path8.default.join(n, e13, "Cache"), log: import_node_path8.default.join(n, e13, "Log"), temp: import_node_path8.default.join(MS, e13) };
 };
 var hQ = (e13) => {
-  let t = import_node_path4.default.basename(cs);
-  return { data: import_node_path4.default.join(Ba.XDG_DATA_HOME || import_node_path4.default.join(cs, ".local", "share"), e13), config: import_node_path4.default.join(Ba.XDG_CONFIG_HOME || import_node_path4.default.join(cs, ".config"), e13), cache: import_node_path4.default.join(Ba.XDG_CACHE_HOME || import_node_path4.default.join(cs, ".cache"), e13), log: import_node_path4.default.join(Ba.XDG_STATE_HOME || import_node_path4.default.join(cs, ".local", "state"), e13), temp: import_node_path4.default.join(MS, t, e13) };
+  let t = import_node_path8.default.basename(cs);
+  return { data: import_node_path8.default.join(Ba.XDG_DATA_HOME || import_node_path8.default.join(cs, ".local", "share"), e13), config: import_node_path8.default.join(Ba.XDG_CONFIG_HOME || import_node_path8.default.join(cs, ".config"), e13), cache: import_node_path8.default.join(Ba.XDG_CACHE_HOME || import_node_path8.default.join(cs, ".cache"), e13), log: import_node_path8.default.join(Ba.XDG_STATE_HOME || import_node_path8.default.join(cs, ".local", "state"), e13), temp: import_node_path8.default.join(MS, t, e13) };
 };
 function NS(e13, { suffix: t = "nodejs" } = {}) {
   if (typeof e13 !== "string") throw TypeError(`Expected a string, got ${typeof e13}`);
@@ -52823,7 +53683,7 @@ var tI = class {
 };
 var RQ;
 function xQ() {
-  return RQ ??= new tI({ platform: process.platform, env: process.env, readProcVersionSync: Ef, readProcVersion: () => (0, import_promises8.readFile)("/proc/version", { encoding: "utf8" }), osRelease: import_os4.release, readOsRelease: () => (0, import_promises8.readFile)("/etc/os-release", "utf8") });
+  return RQ ??= new tI({ platform: process.platform, env: process.env, readProcVersionSync: Ef, readProcVersion: () => (0, import_promises11.readFile)("/proc/version", { encoding: "utf8" }), osRelease: import_os4.release, readOsRelease: () => (0, import_promises11.readFile)("/etc/os-release", "utf8") });
 }
 function It() {
   return xQ().getPlatform();
@@ -52896,7 +53756,7 @@ var cI = ["git", "node", "npm", "npx", "yarn", "pnpm", "bun", "deno", "tsc", "py
 var HQ = 1e3;
 async function jQ(e13) {
   try {
-    return /appinstaller/i.test(await (0, import_promises7.readlink)(e13));
+    return /appinstaller/i.test(await (0, import_promises10.readlink)(e13));
   } catch {
     return false;
   }
@@ -52911,7 +53771,7 @@ async function KQ(e13, t) {
     if (!await BQ(i)) return;
     let a;
     try {
-      a = await (0, import_promises7.readdir)(i, { withFileTypes: true });
+      a = await (0, import_promises10.readdir)(i, { withFileTypes: true });
     } catch {
       return;
     }
@@ -52931,7 +53791,7 @@ async function KQ(e13, t) {
         let p = (0, import_path5.join)(i, c.name);
         if ((c.isSymbolicLink() || nI(c)) && await oS((0, import_path5.resolve)(p))) continue;
         try {
-          await (0, import_promises7.access)(p, import_fs2.constants.X_OK);
+          await (0, import_promises10.access)(p, import_fs2.constants.X_OK);
         } catch {
           continue;
         }
@@ -53064,9 +53924,9 @@ var pI = class {
   }
   async prime() {
     if (this.primedWslInteropExists !== void 0 || process.platform !== "linux") return;
-    let [e13, t, n] = await Promise.all([(0, import_promises7.access)("/proc/sys/fs/binfmt_misc/WSLInterop").then(() => true, () => false), (0, import_promises7.readFile)("/sys/hypervisor/uuid", { encoding: "utf8" }).then((r) => r.trim().toLowerCase(), () => {
+    let [e13, t, n] = await Promise.all([(0, import_promises10.access)("/proc/sys/fs/binfmt_misc/WSLInterop").then(() => true, () => false), (0, import_promises10.readFile)("/sys/hypervisor/uuid", { encoding: "utf8" }).then((r) => r.trim().toLowerCase(), () => {
       return;
-    }), (0, import_promises7.access)("/.dockerenv").then(() => true, () => false)]);
+    }), (0, import_promises10.access)("/.dockerenv").then(() => true, () => false)]);
     this.primedWslInteropExists = e13, this.primedHypervisorUuid = t ?? "", this.primedDockerenvExists = n, this.wslEnvironment = void 0, this.npmFromWindowsPath = void 0, this.deploymentEnvironment = void 0;
   }
 };
@@ -54502,9 +55362,9 @@ async function pi(e13, t) {
   if (t !== void 0 && t.hoverRestOn) return FI(t.source);
   try {
     if (AI === import_fs3.constants.O_RDONLY) {
-      if (!(await (0, import_promises9.lstat)(e13)).isFile()) return null;
+      if (!(await (0, import_promises12.lstat)(e13)).isFile()) return null;
     }
-    let n = await (0, import_promises9.open)(e13, AI);
+    let n = await (0, import_promises12.open)(e13, AI);
     try {
       let r = await n.stat();
       if (!r.isFile()) return null;
@@ -54559,7 +55419,7 @@ async function zI(e13, t, n, r, o) {
       let a = await o.realPath(e13);
       if (!a.ok || !a.value.found) return false;
       s = Be(a.value.path);
-    } else s = Be(await (0, import_promises9.realpath)(e13));
+    } else s = Be(await (0, import_promises12.realpath)(e13));
   } catch {
     return false;
   }
@@ -54600,7 +55460,7 @@ async function Eo(e13, t) {
       let n = await t.realPath(e13);
       return Be(n.ok && n.value.found ? n.value.path : e13);
     }
-    return Be(await (0, import_promises9.realpath)(e13));
+    return Be(await (0, import_promises12.realpath)(e13));
   } catch {
     return Be(e13);
   }
@@ -54621,7 +55481,7 @@ async function Za(e13, t, n, r) {
   }
   let i = Va(t), a;
   try {
-    a = await (0, import_promises9.readdir)(e13, { withFileTypes: true });
+    a = await (0, import_promises12.readdir)(e13, { withFileTypes: true });
   } catch {
     return false;
   }
@@ -54664,14 +55524,14 @@ async function zn(e13, t, n = ct()) {
   if (t !== void 0 && t.hoverRestOn) return SSe(e13, t);
   let r = qa(e13, n), o = [];
   try {
-    await (0, import_promises9.readdir)(r), o.push(r);
+    await (0, import_promises12.readdir)(r), o.push(r);
   } catch {
   }
   let s = JS(e13);
   if (s !== void 0) {
     let p = (0, import_path7.join)(n, s);
     try {
-      await (0, import_promises9.readdir)(p), o.push(p);
+      await (0, import_promises12.readdir)(p), o.push(p);
     } catch {
     }
     return o;
@@ -54680,7 +55540,7 @@ async function zn(e13, t, n = ct()) {
   if (i.length <= So) return o;
   let a = process.platform === "win32", l = (p) => a ? p.toLowerCase() : p, c = l(i.slice(0, So) + "-"), d = l(r);
   try {
-    for (let p of await (0, import_promises9.readdir)(n, { withFileTypes: true })) {
+    for (let p of await (0, import_promises12.readdir)(n, { withFileTypes: true })) {
       if (!p.isDirectory() || !l(p.name).startsWith(c)) continue;
       let f = (0, import_path7.join)(n, p.name);
       if (l(f) !== d && await Za(f, e13, a)) o.push(f);
@@ -54757,7 +55617,7 @@ async function us(e13, t, n, r, o = ct()) {
       }
     }
     try {
-      let m = await (0, import_promises9.stat)(f);
+      let m = await (0, import_promises12.stat)(f);
       if (m.size > 0) return { filePath: f, projectPath: p, fileSize: m.size };
     } catch {
     }
@@ -54803,7 +55663,7 @@ async function us(e13, t, n, r, o = ct()) {
   }
   let c;
   try {
-    c = await (0, import_promises9.readdir)(o);
+    c = await (0, import_promises12.readdir)(o);
   } catch {
     return;
   }
@@ -54948,7 +55808,7 @@ async function GI(e13, t, n) {
     }
     return kI(s), { boundaryStartOffset: s.boundaryStartOffset, postBoundaryBuf: s.out.buf.subarray(0, s.out.len), hasPreservedSegment: s.hasPreservedSegment };
   }
-  let i = Buffer.allocUnsafe(o), a = await (0, import_promises9.open)(e13, "r");
+  let i = Buffer.allocUnsafe(o), a = await (0, import_promises12.open)(e13, "r");
   try {
     let l = 0;
     while (l < t) {
@@ -58056,7 +58916,7 @@ function fe() {
 var Cbe = I("ZodNever", (e13, t) => {
   ZE.init(e13, t), Ke.init(e13, t), e13._zod.processJSONSchema = (n, r, o) => yC(e13, n, r, o);
 });
-function rm3(e13) {
+function rm5(e13) {
   return Zb(Cbe, e13);
 }
 var Abe = I("ZodArray", (e13, t) => {
@@ -58086,7 +58946,7 @@ var _u = I("ZodObject", (e13, t) => {
 }, loose() {
   return this.clone({ ...this._zod.def, catchall: fe() });
 }, strict() {
-  return this.clone({ ...this._zod.def, catchall: rm3() });
+  return this.clone({ ...this._zod.def, catchall: rm5() });
 }, strip() {
   return this.clone({ ...this._zod.def, catchall: void 0 });
 }, extend(e13) {
@@ -58111,7 +58971,7 @@ function v(e13, t) {
   return new _u(n);
 }
 function GC(e13, t) {
-  return new _u({ type: "object", shape: e13, catchall: rm3(), ...te(t) });
+  return new _u({ type: "object", shape: e13, catchall: rm5(), ...te(t) });
 }
 function Lt(e13, t) {
   return new _u({ type: "object", shape: e13, catchall: fe(), ...te(t) });
@@ -58742,7 +59602,7 @@ async function nAe(e13, t, n) {
       if (!s.found) return null;
       return Buffer.from(s.value.buffer, s.value.byteOffset, s.value.byteLength);
     }
-    return await (0, import_promises6.readFile)(e13);
+    return await (0, import_promises9.readFile)(e13);
   } catch {
     return null;
   }
@@ -59230,7 +60090,7 @@ async function AAe(e13, t) {
   }
   if (ho()) return;
   try {
-    return await (0, import_promises11.readFile)(e13, "utf8");
+    return await (0, import_promises14.readFile)(e13, "utf8");
   } catch {
     return;
   }
@@ -59280,8 +60140,8 @@ async function YN(e13, t, n, r, o) {
   if (Cr(e13, o) !== void 0) return true;
   try {
     let s = process.platform !== "win32";
-    if (!s && !(await (0, import_promises12.lstat)(e13)).isFile()) return false;
-    let i = await (0, import_promises12.open)(e13, s ? import_fs6.constants.O_RDONLY | import_fs6.constants.O_NOFOLLOW | import_fs6.constants.O_NONBLOCK : import_fs6.constants.O_RDONLY);
+    if (!s && !(await (0, import_promises15.lstat)(e13)).isFile()) return false;
+    let i = await (0, import_promises15.open)(e13, s ? import_fs6.constants.O_RDONLY | import_fs6.constants.O_NOFOLLOW | import_fs6.constants.O_NONBLOCK : import_fs6.constants.O_RDONLY);
     try {
       if (!(await i.stat()).isFile()) return false;
       let a = Buffer.allocUnsafe(VN + xu.length), l = 0, c = 0;
@@ -59347,7 +60207,7 @@ async function gm(e13, t, n, r, o, s) {
   }
   let a;
   try {
-    a = await (0, import_promises10.readdir)(e13);
+    a = await (0, import_promises13.readdir)(e13);
   } catch {
     return [];
   }
@@ -59358,7 +60218,7 @@ async function gm(e13, t, n, r, o, s) {
     let p = (0, import_path12.join)(e13, c);
     if (!t) return { sessionId: d, filePath: p, mtime: 0, projectPath: n, ownWorktrees: s };
     try {
-      let f = await (0, import_promises10.stat)(p);
+      let f = await (0, import_promises13.stat)(p);
       return { sessionId: d, filePath: p, mtime: f.mtime.getTime(), projectPath: n, ownWorktrees: s };
     } catch {
       return null;
@@ -59440,7 +60300,7 @@ async function zAe(e13, t, n, r, o) {
   if (f === null) {
     let S;
     try {
-      S = await (0, import_promises10.readdir)(r, { withFileTypes: true });
+      S = await (0, import_promises13.readdir)(r, { withFileTypes: true });
     } catch {
       return JN(a, n, r, o, void 0);
     }
@@ -59470,7 +60330,7 @@ async function $Ae(e13, t, n) {
   if (o === null) {
     let a;
     try {
-      a = await (0, import_promises10.readdir)(t, { withFileTypes: true });
+      a = await (0, import_promises13.readdir)(t, { withFileTypes: true });
     } catch {
       return [];
     }
@@ -62423,7 +63283,7 @@ async function ZB(e13, t) {
     let { resolvedPath: r, isSymlink: o } = Da(n, e13);
     if (o) q(`Reading through symlink: ${e13} -> ${r}`);
     th(await n.stat(e13), e13, t);
-    const s = st(i, await (0, import_promises13.open)(e13, tS()), 1);
+    const s = st(i, await (0, import_promises16.open)(e13, tS()), 1);
     return await LNe(s, e13, t);
   } catch (a) {
     var l = a, c = 1;
@@ -63159,7 +64019,7 @@ async function eUe(e13, { ask: t, path: n }) {
     case "realpath":
       return go(await (0, import_util7.promisify)(import_fs8.realpath.native)(n));
     case "writable":
-      return await (0, import_promises14.access)(n, import_fs8.constants.W_OK), true;
+      return await (0, import_promises17.access)(n, import_fs8.constants.W_OK), true;
   }
 }
 function* hK(e13, t, n, r) {
@@ -64621,7 +65481,7 @@ var Ph = P(() => h().min(1, "Plugin name cannot be empty").refine((e13) => !e13.
 var QR = P(() => v({ name: h().min(1, "Author name cannot be empty").describe("Display name of the plugin author or organization"), email: h().optional().describe("Contact email for support or feedback"), url: h().optional().describe("Website, GitHub profile, or organization URL") }));
 var b$e = P(() => v({ $schema: h().optional().describe("JSON Schema reference for editor autocomplete/validation; ignored at load time"), name: Ph().describe("Unique identifier for the plugin, used for namespacing (prefer kebab-case)"), displayName: h().optional().describe('Human-readable name shown in UI (e.g., "GitHub Utils"). Falls back to `name` when omitted. Unlike `name`, may contain spaces and any casing; not used for namespacing or lookup.'), version: h().optional().describe("Semantic version (e.g., 1.2.3) following semver.org specification"), description: h().optional().describe("Brief, user-facing explanation of what the plugin provides"), author: QR().optional().describe("Information about the plugin creator or maintainer"), homepage: h().url().optional().describe("Plugin homepage or documentation URL"), repository: h().optional().describe("Source code repository URL"), license: h().optional().describe("SPDX license identifier (e.g., MIT, Apache-2.0)"), keywords: k(h()).optional().describe("Tags for plugin discovery and categorization"), defaultEnabled: T().optional().describe("Whether the plugin starts enabled when the user has no explicit enabled/disabled setting for it (default: true). Explicit enabledPlugins values always win, and a plugin required by an enabled dependent is enabled regardless of this value."), dependencies: k(IHe()).optional().describe(`Plugins that must be enabled for this plugin to function. Bare names (no "@marketplace") are resolved against the declaring plugin's own marketplace.`), metadata: Pe((e13) => ce(e13) ? e13 : void 0, W(h(), fe()).optional()).describe("Free-form metadata for the plugin author's own use (e.g. entitlement or catalog fields). Preserved on the parsed manifest but not read by Claude Code.") }));
 var C$e = 1;
-var bCt = P(() => v({ $schema: h().optional().catch(void 0).describe("JSON Schema reference for editor autocomplete/validation; ignored at load time"), description: h().optional().describe("Brief, user-facing explanation of what these hooks provide"), hooks: im(() => Bi()).optional().describe("The hooks provided by the plugin, in the same format as the one used for settings"), modules: k(h()).max(C$e, { message: "hooks.json `modules` names one hooks module per plugin; a second entry is refused" }).optional().describe(`The hooks module: one path, relative to this hooks.json, of a module exporting register(on). The module, and every file it imports from the plugin, is named like code (${zze}; a file named otherwise is not loaded) and is an ES module whatever its suffix. What it hooks and calls is read from its source before it loads; \`claude plugin validate\` shows the result.`), surface: rm3({ error: 'hooks.json `surface` is gone: name the module in the Client element, `Client({ module: "./board.tsx", key })`, a path relative to the file that builds it' }).optional() }).refine((e13) => e13.hooks !== void 0 || (e13.modules?.length ?? 0) > 0, { message: "hooks.json must have `hooks` (the hook matchers) or `modules` (hooks modules), or both" }));
+var bCt = P(() => v({ $schema: h().optional().catch(void 0).describe("JSON Schema reference for editor autocomplete/validation; ignored at load time"), description: h().optional().describe("Brief, user-facing explanation of what these hooks provide"), hooks: im(() => Bi()).optional().describe("The hooks provided by the plugin, in the same format as the one used for settings"), modules: k(h()).max(C$e, { message: "hooks.json `modules` names one hooks module per plugin; a second entry is refused" }).optional().describe(`The hooks module: one path, relative to this hooks.json, of a module exporting register(on). The module, and every file it imports from the plugin, is named like code (${zze}; a file named otherwise is not loaded) and is an ES module whatever its suffix. What it hooks and calls is read from its source before it loads; \`claude plugin validate\` shows the result.`), surface: rm5({ error: 'hooks.json `surface` is gone: name the module in the Client element, `Client({ module: "./board.tsx", key })`, a path relative to the file that builds it' }).optional() }).refine((e13) => e13.hooks !== void 0 || (e13.modules?.length ?? 0) > 0, { message: "hooks.json must have `hooks` (the hook matchers) or `modules` (hooks modules), or both" }));
 var A$e = P(() => v({ hooks: ne([Wi().describe("Path to file with additional hooks (in addition to those in hooks/hooks.json, if it exists), relative to the plugin root"), im(() => Bi()).describe("Additional hooks (in addition to those in hooks/hooks.json, if it exists)"), k(ne([Wi().describe("Path to file with additional hooks (in addition to those in hooks/hooks.json, if it exists), relative to the plugin root"), im(() => Bi()).describe("Additional hooks (in addition to those in hooks/hooks.json, if it exists)")]))]) }));
 var v$e = P(() => v({ source: KR().optional().describe("Path to command markdown file, relative to plugin root"), content: h().optional().describe("Inline markdown content for the command"), description: h().optional().describe("Command description override"), argumentHint: h().optional().describe('Hint for command arguments (e.g., "[file]")'), model: h().optional().describe("Default model for this command"), allowedTools: k(h()).optional().describe("Tools allowed when command runs") }).refine((e13) => e13.source && !e13.content || !e13.source && e13.content, { message: 'Command must have either "source" (file path) or "content" (inline markdown), but not both' }));
 var R$e = P(() => v({ commands: ne([KR().describe("Path to a command file or skill directory, relative to the plugin root. When set, the commands/ directory is not auto-loaded \u2014 list its files here if you want both."), k(KR().describe("Path to a command file or skill directory, relative to the plugin root. When set, the commands/ directory is not auto-loaded \u2014 list its files here if you want both.")).describe("List of command file or skill directory paths. When set, the commands/ directory is not auto-loaded."), W(h(), v$e()).describe('Object mapping of command names to their metadata and source files. Command name becomes the slash command name (e.g., "about" \u2192 "/plugin:about")')]) }));
@@ -67646,7 +68506,7 @@ var ExtensionThread = class {
   constructor(project, source, fork = false, persisted = sessionExists) {
     this.project = project;
     this.persisted = persisted;
-    this.id = source ?? (0, import_node_crypto5.randomUUID)();
+    this.id = source ?? (0, import_node_crypto8.randomUUID)();
     this.started = !!source;
     this.forkPending = fork;
   }
@@ -67710,7 +68570,7 @@ var MODELS = [
   { id: "sonnet", modelId: "claude-sonnet-5-5", label: "Sonnet 5.5" },
   { id: "haiku", modelId: "claude-haiku-5-5", label: "Haiku 5.5" }
 ];
-var same = (a, b) => Buffer.byteLength(a) === Buffer.byteLength(b) && (0, import_node_crypto6.timingSafeEqual)(Buffer.from(a), Buffer.from(b));
+var same = (a, b) => Buffer.byteLength(a) === Buffer.byteLength(b) && (0, import_node_crypto9.timingSafeEqual)(Buffer.from(a), Buffer.from(b));
 var send = (client, value) => {
   if (client.readyState === import_websocket.default.OPEN) client.send(JSON.stringify(value));
 };
@@ -67778,6 +68638,7 @@ var ExtensionBridge = class {
   attempts = new SlidingWindowLimiter(12, 6e4);
   passive = new SlidingWindowLimiter(6, 6e4);
   pendingCaptures = /* @__PURE__ */ new Map();
+  pendingPages = /* @__PURE__ */ new Map();
   sessions;
   provider;
   now;
@@ -67785,6 +68646,10 @@ var ExtensionBridge = class {
   attachChannel(channel) {
     this.channel = channel;
     channel.onReady = () => {
+      if (desktopStatePresent()) {
+        this.useDesktopSession();
+        return;
+      }
       for (const pair of this.pairs.values()) {
         if (pair.automatic && !pair.job) pair.live = true;
         if (pair.client)
@@ -67797,6 +68662,10 @@ var ExtensionBridge = class {
       }
     };
     channel.onUnavailable = () => {
+      if (desktopStatePresent()) {
+        this.useDesktopSession();
+        return;
+      }
       for (const pair of this.pairs.values()) {
         if (pair.automatic) pair.live = false;
         if (pair.client)
@@ -67822,7 +68691,7 @@ var ExtensionBridge = class {
     this.prune();
     if (this.codes.size >= 20)
       this.codes.delete(this.codes.keys().next().value);
-    const code = (0, import_node_crypto6.randomBytes)(8).toString("hex").toUpperCase();
+    const code = (0, import_node_crypto9.randomBytes)(8).toString("hex").toUpperCase();
     this.codes.set(code, this.now() + 6e5);
     if (this.installation.size >= 20)
       this.installation.delete(this.installation.keys().next().value);
@@ -67863,6 +68732,8 @@ var ExtensionBridge = class {
       }
       if (this.sharingClient === client) this.sharingClient = void 0;
       for (const pending of this.pendingCaptures.values())
+        if (pending.client === client) pending.finish();
+      for (const pending of this.pendingPages.values())
         if (pending.client === client) pending.finish();
     });
     client.on("message", (raw) => {
@@ -67906,7 +68777,7 @@ var ExtensionBridge = class {
             return;
           }
           this.codes.delete(code);
-          pairToken = (0, import_node_crypto6.randomBytes)(32).toString("hex");
+          pairToken = (0, import_node_crypto9.randomBytes)(32).toString("hex");
           pair = {
             origin,
             automatic: true,
@@ -67930,16 +68801,17 @@ var ExtensionBridge = class {
         if (previous && previous !== client)
           previous.close(4002, "Opened in another window");
         clearTimeout(timer);
+        const desktop = desktopStatePresent();
         send(client, {
           type: "paired",
           token: pairToken,
           mode: this.mode,
           project: this.sessions.project,
-          liveAvailable: Boolean(this.channel?.ready),
-          live: Boolean(pair.live),
+          liveAvailable: desktop || Boolean(this.channel?.ready),
+          live: desktop || Boolean(pair.live),
           models: MODELS,
           efforts: ["low", "medium", "high"],
-          sessionId: pair.live ? "live" : pair.thread.id
+          sessionId: desktop ? "desktop" : pair.live ? "live" : pair.thread.id
         });
         return;
       }
@@ -67979,6 +68851,22 @@ var ExtensionBridge = class {
       }
       return;
     }
+    if (message.type === "full-page-result") {
+      const pending = typeof message.id === "string" ? this.pendingPages.get(message.id) : void 0;
+      if (!pending || pending.client !== client) return;
+      try {
+        const image2 = readPanelImage(message.image, 4096);
+        pending.finish({
+          image: image2.image,
+          width: image2.width,
+          height: image2.height,
+          page: pageData(message.page)
+        });
+      } catch {
+        pending.finish();
+      }
+      return;
+    }
     if (message.type === "cancel") {
       const acknowledged = typeof message.jobId === "string";
       const jobId = acknowledged ? message.jobId : message.id;
@@ -67995,6 +68883,22 @@ var ExtensionBridge = class {
     if (typeof message.id !== "string" || message.id.length > 100)
       throw new Error("Invalid request.");
     if (message.type === "sessions") {
+      const desktop = desktopStatePresent() ? await desktopConnection() : void 0;
+      if (desktop) {
+        send(client, {
+          type: "sessions",
+          id: message.id,
+          sessions: [
+            {
+              id: "desktop",
+              title: "Glimpselet",
+              project: this.sessions.project
+            }
+          ],
+          liveAvailable: true
+        });
+        return;
+      }
       send(client, {
         type: "sessions",
         id: message.id,
@@ -68004,6 +68908,19 @@ var ExtensionBridge = class {
       return;
     }
     if (message.type === "session") {
+      const desktop = await desktopConnection();
+      if (desktop) {
+        if (message.sessionId !== "desktop" && message.sessionId !== void 0)
+          throw new Error("Blink uses your Glimpselet conversation.");
+        send(client, {
+          type: "session",
+          id: message.id,
+          sessionId: "desktop",
+          title: "Glimpselet",
+          live: true
+        });
+        return;
+      }
       if (pair.job || pair.selecting)
         throw new Error(
           "Stop the current answer before changing the conversation."
@@ -68072,8 +68989,17 @@ var ExtensionBridge = class {
     const job = { id: id2, controller, done };
     pair.job = job;
     try {
+      const desktop = desktopStatePresent() ? await desktopConnection() : void 0;
+      if (controller.signal.aborted) throw cancelled();
       const conversational = message.kind === "ask" || message.kind === "guide";
-      if (conversational && pair.automatic) {
+      if (desktop)
+        send(client, {
+          type: "channel-status",
+          liveAvailable: true,
+          live: true,
+          sessionId: "desktop"
+        });
+      if (!desktop && conversational && pair.automatic) {
         pair.live = Boolean(this.channel?.ready);
         if (!pair.live && !pair.initialized) {
           const thread = await this.sessions.latest(pair.thread);
@@ -68089,12 +69015,12 @@ var ExtensionBridge = class {
           sessionId: pair.live ? "live" : pair.thread.id
         });
       }
-      const live = conversational && Boolean(pair.live);
-      if (conversational && !live) {
+      const live = !desktop && conversational && Boolean(pair.live);
+      if (!desktop && conversational && !live) {
         await pair.thread.reconcile();
         if (controller.signal.aborted) throw cancelled();
       }
-      const result = await (live ? this.channel.ask.bind(this.channel) : this.provider)({
+      const request = {
         image,
         page,
         question: message.question,
@@ -68109,11 +69035,14 @@ var ExtensionBridge = class {
           if (!controller.signal.aborted)
             send(client, { type: "delta", id: id2, text });
         }
-      });
+      };
+      const result = desktop ? await desktopAnswer(desktop.client, request) : await (live ? this.channel.ask.bind(this.channel) : this.provider)(
+        request
+      );
       if (controller.signal.aborted || pair.client !== client)
         throw new Error("The answer stopped. Partial text was kept.");
       if (conversational) {
-        if (!live) pair.thread.complete(result);
+        if (!live && !desktop) pair.thread.complete(result);
         pair.history.push({
           id: id2,
           at: this.now(),
@@ -68128,7 +69057,7 @@ var ExtensionBridge = class {
         id: id2,
         answer: result.answer,
         usage: result.usage,
-        sessionId: live ? "live" : pair.thread.id
+        sessionId: desktop ? "desktop" : live ? "live" : pair.thread.id
       });
     } finally {
       clearTimeout(timeout);
@@ -68141,7 +69070,7 @@ var ExtensionBridge = class {
     if (!this.sharingIntent || client?.readyState !== import_websocket.default.OPEN || signal?.aborted)
       return Promise.resolve(void 0);
     return new Promise((resolve6) => {
-      const id2 = (0, import_node_crypto6.randomUUID)();
+      const id2 = (0, import_node_crypto9.randomUUID)();
       const finish = (capture) => {
         clearTimeout(timer);
         signal?.removeEventListener("abort", abort);
@@ -68155,8 +69084,43 @@ var ExtensionBridge = class {
       send(client, { type: "capture", id: id2 });
     });
   }
+  useDesktopSession() {
+    for (const pair of this.pairs.values())
+      if (pair.client)
+        send(pair.client, {
+          type: "channel-status",
+          liveAvailable: true,
+          live: true,
+          sessionId: "desktop"
+        });
+  }
+  requestFullPage(timeoutMs = 9e4, signal) {
+    const client = [...this.pairs.values()].map((p) => p.client).find((c) => c?.readyState === import_websocket.default.OPEN);
+    if (!client || signal?.aborted) return Promise.resolve(void 0);
+    return new Promise((resolve6) => {
+      const id2 = (0, import_node_crypto9.randomUUID)();
+      const finish = (value) => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
+        this.pendingPages.delete(id2);
+        resolve6(value);
+      };
+      const abort = () => {
+        send(client, { type: "full-page-cancel", id: id2 });
+        finish();
+      };
+      const timer = setTimeout(abort, timeoutMs);
+      this.pendingPages.set(id2, { client, finish });
+      signal?.addEventListener("abort", abort, { once: true });
+      send(client, { type: "full-page", id: id2 });
+    });
+  }
   cancelCaptures() {
     for (const pending of this.pendingCaptures.values()) pending.finish();
+    for (const [id2, pending] of this.pendingPages) {
+      send(pending.client, { type: "full-page-cancel", id: id2 });
+      pending.finish();
+    }
   }
   prune() {
     for (const [code, expiry] of this.codes)
@@ -68202,21 +69166,121 @@ var ExtensionBridge = class {
   }
 };
 
+// bridge/src/desktop-companion.ts
+var import_node_crypto10 = require("node:crypto");
+var DesktopCompanion = class {
+  constructor(origin, extension2, openGuide) {
+    this.origin = origin;
+    this.extension = extension2;
+    this.openGuide = openGuide;
+  }
+  token = (0, import_node_crypto10.randomBytes)(32).toString("hex");
+  timer;
+  registered = "";
+  closed = false;
+  start() {
+    const register = async () => {
+      try {
+        const desktop = await desktopConnection();
+        if (this.closed || !desktop) return;
+        if (this.registered === desktop.client.endpoint.token) return;
+        await desktop.client.rpc("companion", {
+          url: this.origin() + "/desktop-companion",
+          token: this.token
+        });
+        this.registered = desktop.client.endpoint.token;
+        this.extension.useDesktopSession();
+      } catch {
+      }
+    };
+    void register();
+    this.timer = setInterval(() => {
+      void register();
+    }, 2e3);
+    this.timer.unref();
+  }
+  async handle(req, res) {
+    const supplied = req.headers.authorization || "", expected = `Bearer ${this.token}`;
+    if (req.headers.origin || supplied.length !== expected.length || !(0, import_node_crypto10.timingSafeEqual)(Buffer.from(supplied), Buffer.from(expected))) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Cache-Control", "no-store");
+    if (req.method === "GET") {
+      res.end(JSON.stringify({ companion: true }));
+      return;
+    }
+    if (req.method !== "POST") {
+      res.writeHead(405);
+      res.end();
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += chunk.length;
+      if (size > 1024) {
+        res.writeHead(413);
+        res.end();
+        return;
+      }
+      chunks.push(chunk);
+    }
+    const message = JSON.parse(Buffer.concat(chunks).toString());
+    if (message.method === "open-guide" && this.openGuide) {
+      await this.openGuide();
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    if (message.method !== "full-page")
+      throw new Error("Unknown companion request");
+    const controller = new AbortController();
+    res.once("close", () => controller.abort());
+    const capture = await this.extension.requestFullPage(
+      9e4,
+      controller.signal
+    );
+    res.end(
+      JSON.stringify(
+        capture ? {
+          id: (0, import_node_crypto10.randomUUID)(),
+          capturedAt: Date.now(),
+          pixelWidth: capture.width,
+          pixelHeight: capture.height,
+          image: {
+            id: (0, import_node_crypto10.randomUUID)(),
+            name: "Full page.png",
+            mediaType: "image/png",
+            data: capture.image.toString("base64")
+          },
+          page: capture.page
+        } : { companionRequired: true }
+      )
+    );
+  }
+  close() {
+    this.closed = true;
+    if (this.timer) clearInterval(this.timer);
+  }
+};
+
 // bridge/src/extension-install.ts
-var import_promises15 = require("node:fs/promises");
-var import_node_zlib = require("node:zlib");
-var import_node_os5 = require("node:os");
-var import_node_path5 = require("node:path");
-var import_node_child_process3 = require("node:child_process");
-var import_node_fs3 = require("node:fs");
+var import_promises18 = require("node:fs/promises");
+var import_node_zlib2 = require("node:zlib");
+var import_node_os8 = require("node:os");
+var import_node_path9 = require("node:path");
+var import_node_child_process5 = require("node:child_process");
+var import_node_fs4 = require("node:fs");
 var DEFAULT_DISTRIBUTION = {
   chromeWebStoreUrl: "",
   edgeAddonsUrl: ""
 };
-function loadDistributionConfig(file2 = process.env.GLIMPSELET_DISTRIBUTION_CONFIG || (0, import_node_path5.join)(process.cwd(), "config", "distribution.json")) {
+function loadDistributionConfig(file2 = process.env.GLIMPSELET_DISTRIBUTION_CONFIG || (0, import_node_path9.join)(process.cwd(), "config", "distribution.json")) {
   try {
     const value = JSON.parse(
-      (0, import_node_fs3.readFileSync)(file2, "utf8")
+      (0, import_node_fs4.readFileSync)(file2, "utf8")
     );
     return {
       chromeWebStoreUrl: typeof value.chromeWebStoreUrl === "string" ? value.chromeWebStoreUrl : "",
@@ -68231,12 +69295,12 @@ function selectedStoreUrl(config2 = DEFAULT_DISTRIBUTION, browser = "chrome") {
   const valid = browser === "edge" ? /^https:\/\/microsoftedge\.microsoft\.com\/addons\/detail\/[\w-]+(?:\/[\w-]+)?\/?$/ : /^https:\/\/chromewebstore\.google\.com\/detail\/[\w/-]+$/;
   return valid.test(value) ? value : void 0;
 }
-var extensionFolder = () => (0, import_node_path5.join)((0, import_node_os5.homedir)(), "Glimpselet-extension");
-var extensionSourceFolder = () => (0, import_node_path5.resolve)(
-  process.env.GLIMPSELET_EXTENSION_DIR || `${(0, import_node_path5.dirname)((0, import_node_path5.resolve)(process.argv[1] ?? process.cwd()))}/extension`
+var extensionFolder = () => (0, import_node_path9.join)((0, import_node_os8.homedir)(), "Glimpselet-extension");
+var extensionSourceFolder = () => (0, import_node_path9.resolve)(
+  process.env.GLIMPSELET_EXTENSION_DIR || `${(0, import_node_path9.dirname)((0, import_node_path9.resolve)(process.argv[1] ?? process.cwd()))}/extension`
 );
 var deflate = (input) => new Promise(
-  (resolveDeflate, reject) => (0, import_node_zlib.deflateRaw)(
+  (resolveDeflate, reject) => (0, import_node_zlib2.deflateRaw)(
     input,
     (error43, output) => error43 ? reject(error43) : resolveDeflate(output)
   )
@@ -68257,12 +69321,12 @@ var crc32 = (data) => {
   return (crc ^ 4294967295) >>> 0;
 };
 async function createExtensionZip(source) {
-  const root = (0, import_node_path5.resolve)(source);
+  const root = (0, import_node_path9.resolve)(source);
   const entries = [];
   const visit = async (directory) => {
-    for (const entry of await (0, import_promises15.readdir)(directory, { withFileTypes: true })) {
-      const path = (0, import_node_path5.join)(directory, entry.name);
-      const info = await (0, import_promises15.lstat)(path);
+    for (const entry of await (0, import_promises18.readdir)(directory, { withFileTypes: true })) {
+      const path = (0, import_node_path9.join)(directory, entry.name);
+      const info = await (0, import_promises18.lstat)(path);
       if (info.isSymbolicLink())
         throw new Error("Extension archives cannot contain symbolic links.");
       if (info.isDirectory()) {
@@ -68270,10 +69334,10 @@ async function createExtensionZip(source) {
         continue;
       }
       if (!info.isFile()) continue;
-      const name = (0, import_node_path5.relative)(root, path).split(import_node_path5.sep).join("/");
+      const name = (0, import_node_path9.relative)(root, path).split(import_node_path9.sep).join("/");
       if (!name || name.startsWith("/") || name.split("/").some((part) => !part || part === "." || part === "..") || name.includes("\\") || name.includes(":"))
         throw new Error("Extension archive contains an unsafe path.");
-      const data = await (0, import_promises15.readFile)(path);
+      const data = await (0, import_promises18.readFile)(path);
       entries.push({
         name,
         data,
@@ -68325,20 +69389,20 @@ async function createExtensionZip(source) {
   return Buffer.concat([...local, ...central, end]);
 }
 async function installExtension(source, destination = extensionFolder()) {
-  await (0, import_promises15.readFile)((0, import_node_path5.join)(source, "manifest.json"));
-  await (0, import_promises15.mkdir)(destination, { recursive: true, mode: 448 });
-  await (0, import_promises15.cp)(source, destination, { recursive: true, force: true });
+  await (0, import_promises18.readFile)((0, import_node_path9.join)(source, "manifest.json"));
+  await (0, import_promises18.mkdir)(destination, { recursive: true, mode: 448 });
+  await (0, import_promises18.cp)(source, destination, { recursive: true, force: true });
   return destination;
 }
 function tunnelCommand(port, env = process.env) {
   if (!env.SSH_CONNECTION) return void 0;
   const connection = env.SSH_CONNECTION.trim().split(/\s+/);
-  const host = env.GLIMPSELET_SSH_HOST || connection[2] || (0, import_node_os5.hostname)();
+  const host = env.GLIMPSELET_SSH_HOST || connection[2] || (0, import_node_os8.hostname)();
   const rawSshPort = env.GLIMPSELET_SSH_PORT || connection[3] || "22";
   if (!/^\d{1,5}$/.test(rawSshPort)) return void 0;
   const sshPort = Number(rawSshPort);
   if (sshPort < 1 || sshPort > 65535) return void 0;
-  const user = env.GLIMPSELET_SSH_USER || (0, import_node_os5.userInfo)().username;
+  const user = env.GLIMPSELET_SSH_USER || (0, import_node_os8.userInfo)().username;
   if (!/^[\w.:-]+$/.test(host) || !/^[\w.-]+$/.test(user)) return void 0;
   const address = host.includes(":") ? `[${host}]` : host;
   const portOption = sshPort === 22 ? "" : `-p ${sshPort} `;
@@ -68352,7 +69416,7 @@ function folderRevealCommand(folder, platform = process.platform) {
 function revealExtensionFolder() {
   const [command, args] = folderRevealCommand(extensionFolder());
   return new Promise(
-    (resolveReveal, reject) => (0, import_node_child_process3.execFile)(
+    (resolveReveal, reject) => (0, import_node_child_process5.execFile)(
       command,
       args,
       { timeout: 5e3, windowsHide: true },
@@ -68372,7 +69436,7 @@ function openInstallSurface(url2, folder) {
   if (storeUrl) folder = void 0;
   const ignore = () => {
   };
-  const run2 = (command, args) => (0, import_node_child_process3.execFile)(command, args, { timeout: 3e3, windowsHide: true }, ignore);
+  const run2 = (command, args) => (0, import_node_child_process5.execFile)(command, args, { timeout: 3e3, windowsHide: true }, ignore);
   if (folder) {
     if (process.platform === "darwin") run2("open", [folder]);
     else if (process.platform === "win32") run2("explorer.exe", [folder]);
@@ -68446,7 +69510,7 @@ render();window.postMessage({type:'glimpselet:hello'},location.origin);poll();
 `;
 
 // bridge/src/sessions.ts
-var import_node_crypto7 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 var SessionStore = class {
   constructor(now = () => Date.now(), ttlMs = 30 * 6e4, maximum = 8, onExpire = () => {
   }) {
@@ -68465,7 +69529,7 @@ var SessionStore = class {
         429
       );
     const session = {
-      id: (0, import_node_crypto7.randomBytes)(32).toString("base64url"),
+      id: (0, import_node_crypto11.randomBytes)(32).toString("base64url"),
       expiresAt: this.now() + this.ttlMs,
       entries: [],
       generation: 0,
@@ -68548,13 +69612,14 @@ var PanelServer = class {
     this.provider = options.provider ?? runProvider;
     const floatingGeometryPath = options.floatingGeometryPath !== void 0 ? options.floatingGeometryPath : process.env.GLIMPSELET_TEST_MODE === "1" ? null : defaultFloatingPreferencesPath();
     this.floatingPreferences = new FloatingPreferences(floatingGeometryPath);
-    this.panelDir = (0, import_node_path6.resolve)(
-      options.panelDir ?? process.env.GLIMPSELET_PANEL_DIR ?? `${(0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] ?? process.cwd()))}/panel`
+    this.panelDir = (0, import_node_path10.resolve)(
+      options.panelDir ?? process.env.GLIMPSELET_PANEL_DIR ?? `${(0, import_node_path10.dirname)((0, import_node_path10.resolve)(process.argv[1] ?? process.cwd()))}/panel`
     );
   }
   server;
   captures;
   extension;
+  desktopCompanion;
   channel;
   channelHintShown = false;
   attachChannel(channel) {
@@ -68565,8 +69630,8 @@ var PanelServer = class {
   trialBrowser;
   trialError = false;
   extensionArchive;
-  distributionFile = process.env.GLIMPSELET_DISTRIBUTION_CONFIG || (0, import_node_path6.resolve)(
-    (0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] || ".")),
+  distributionFile = process.env.GLIMPSELET_DISTRIBUTION_CONFIG || (0, import_node_path10.resolve)(
+    (0, import_node_path10.dirname)((0, import_node_path10.resolve)(process.argv[1] || ".")),
     "config/distribution.json"
   );
   port = 0;
@@ -68626,6 +69691,12 @@ var PanelServer = class {
       this.history.prune();
     }, 1e4);
     this.expiryTimer.unref();
+    this.desktopCompanion = new DesktopCompanion(
+      () => this.origin,
+      this.extension,
+      () => this.openExtensionGuide()
+    );
+    this.desktopCompanion.start();
     return this;
   }
   get origin() {
@@ -68663,8 +69734,8 @@ var PanelServer = class {
     );
     openInstallSurface(url2, storeUrl ? void 0 : folder);
     const tunnel = tunnelCommand(this.port);
-    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || (0, import_node_path6.resolve)((0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] || ".")), "..");
-    const sourceCheckout = await (0, import_promises16.stat)((0, import_node_path6.resolve)(pluginRoot, ".git")).then(() => true).catch(() => false);
+    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || (0, import_node_path10.resolve)((0, import_node_path10.dirname)((0, import_node_path10.resolve)(process.argv[1] || ".")), "..");
+    const sourceCheckout = await (0, import_promises19.stat)((0, import_node_path10.resolve)(pluginRoot, ".git")).then(() => true).catch(() => false);
     const channelCommand = sourceCheckout ? `claude --plugin-dir '${pluginRoot.replaceAll("'", "'\\''")}' --continue --dangerously-load-development-channels server:plugin:glimpselet:glimpselet` : "claude --continue --dangerously-load-development-channels plugin:glimpselet@glimpselet";
     const channelHint = !this.channel?.ready && !this.channelHintShown ? `
 
@@ -68684,7 +69755,7 @@ ${tunnel}
     if (process.env.GLIMPSELET_DISABLE_BROWSER_OPEN !== "1") {
       const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
       const args = process.platform === "win32" ? ["/c", "start", "", url2] : [url2];
-      (0, import_node_child_process4.execFile)(
+      (0, import_node_child_process6.execFile)(
         command,
         args,
         { timeout: 3e3, windowsHide: true },
@@ -68748,6 +69819,10 @@ ${tunnel}
       path = decodeURIComponent(new URL(req.url ?? "/", this.origin).pathname);
     } catch {
       throw new PanelError("invalid_request", "Invalid request path.");
+    }
+    if (path === "/desktop-companion") {
+      await this.desktopCompanion.handle(req, res);
+      return;
     }
     if (path === "/install/extension.zip") {
       if (req.method !== "GET" || req.headers.origin !== void 0 && req.headers.origin !== this.origin)
@@ -68820,18 +69895,18 @@ ${tunnel}
           409
         );
       if (!this.trialBrowser || this.trialBrowser.exitCode !== null || this.trialBrowser.signalCode !== null) {
-        const launcher = (0, import_node_path6.resolve)(
-          (0, import_node_path6.dirname)((0, import_node_path6.resolve)(process.argv[1] || ".")),
+        const launcher = (0, import_node_path10.resolve)(
+          (0, import_node_path10.dirname)((0, import_node_path10.resolve)(process.argv[1] || ".")),
           "launch-browser.mjs"
         );
-        await (0, import_promises16.stat)(launcher);
+        await (0, import_promises19.stat)(launcher);
         const trialCode = this.extension.issueCode();
         const trialUrl = new URL("/install", this.origin);
         const locale = params.get("locale");
         if (locale && Object.hasOwn(welcomeLocales, locale))
           trialUrl.searchParams.set("locale", locale);
         trialUrl.hash = `code=${trialCode}`;
-        const child = (0, import_node_child_process4.spawn)(process.execPath, [launcher], {
+        const child = (0, import_node_child_process6.spawn)(process.execPath, [launcher], {
           env: {
             ...process.env,
             GLIMPSELET_EXTENSION_DIR: extensionFolder(),
@@ -68960,15 +70035,15 @@ ${tunnel}
     }
     if (req.method !== "GET")
       throw new PanelError("not_found", "Not found.", 404);
-    const file2 = (0, import_node_path6.resolve)(
+    const file2 = (0, import_node_path10.resolve)(
       this.panelDir,
       `.${path === "/" ? "/index.html" : path}`
     );
-    const pathWithinPanel = (0, import_node_path6.relative)(this.panelDir, file2);
-    if (!pathWithinPanel || pathWithinPanel === ".." || pathWithinPanel.startsWith(`..${import_node_path6.sep}`) || (0, import_node_path6.isAbsolute)(pathWithinPanel))
+    const pathWithinPanel = (0, import_node_path10.relative)(this.panelDir, file2);
+    if (!pathWithinPanel || pathWithinPanel === ".." || pathWithinPanel.startsWith(`..${import_node_path10.sep}`) || (0, import_node_path10.isAbsolute)(pathWithinPanel))
       throw new PanelError("not_found", "Not found.", 404);
     try {
-      if (!(await (0, import_promises16.stat)(file2)).isFile()) throw new Error("Not a file");
+      if (!(await (0, import_promises19.stat)(file2)).isFile()) throw new Error("Not a file");
     } catch {
       throw new PanelError(
         "not_found",
@@ -68977,13 +70052,13 @@ ${tunnel}
       );
     }
     res.writeHead(200, {
-      "Content-Type": mime[(0, import_node_path6.extname)(file2)] ?? "application/octet-stream",
+      "Content-Type": mime[(0, import_node_path10.extname)(file2)] ?? "application/octet-stream",
       "Cache-Control": "no-cache",
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "no-referrer",
       "Content-Security-Policy": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     });
-    (0, import_node_fs4.createReadStream)(file2).on("error", () => res.destroy()).pipe(res);
+    (0, import_node_fs5.createReadStream)(file2).on("error", () => res.destroy()).pipe(res);
   }
   async ask(req, res, session, data) {
     if (session.job)
@@ -69099,7 +70174,7 @@ data: ${JSON.stringify(payload)}
           502
         );
       const entry = {
-        id: (0, import_node_crypto8.randomBytes)(12).toString("hex"),
+        id: (0, import_node_crypto12.randomBytes)(12).toString("hex"),
         at: this.now(),
         question: data.question.trim(),
         answer: result.answer,
@@ -69146,6 +70221,7 @@ data: ${JSON.stringify(payload)}
     this.history.clear();
   }
   async close() {
+    this.desktopCompanion?.close();
     if (this.trialBrowser && this.trialBrowser.exitCode === null && this.trialBrowser.signalCode === null) {
       const child = this.trialBrowser;
       await new Promise((resolveDone) => {
@@ -69286,7 +70362,7 @@ async function createGlimpselet(options = {}) {
       if (process.env.GLIMPSELET_TEST_MODE !== "1")
         throw new Error("Fixtures require GLIMPSELET_TEST_MODE=1.");
       const normalized2 = normalizePng(
-        await (0, import_promises17.readFile)(options.fixturePath),
+        await (0, import_promises20.readFile)(options.fixturePath),
         longEdge
       );
       check2();
@@ -69514,6 +70590,31 @@ async function createGlimpselet(options = {}) {
           }
         ]
       };
+    }
+  );
+  server.tool(
+    "desktop_open",
+    "Download, verify and launch Blink on the desktop, or reconnect the running instance. No browser extension is required.",
+    {},
+    async () => {
+      try {
+        await launchDesktop();
+        return {
+          content: [
+            { type: "text", text: "Blink is ready on your desktop." }
+          ]
+        };
+      } catch (error43) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: error43 instanceof Error ? error43.message : "Blink could not start."
+            }
+          ]
+        };
+      }
     }
   );
   server.tool(

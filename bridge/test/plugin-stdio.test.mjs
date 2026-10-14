@@ -127,6 +127,7 @@ test(
     assert.deepEqual(
       tools,
       [
+        "desktop_open",
         "extension_install",
         "glimpse_channel_context",
         "glimpse_channel_ready",

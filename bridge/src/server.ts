@@ -1,4 +1,5 @@
 import { LiveChannel } from "./live-channel.js";
+import { launchDesktop } from "../../plugin/desktop/launcher.mjs";
 import { readFile } from "node:fs/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -403,6 +404,34 @@ export async function createGlimpselet(options: ServerOptions = {}) {
           },
         ],
       };
+    },
+  );
+  server.tool(
+    "desktop_open",
+    "Download, verify and launch Blink on the desktop, or reconnect the running instance. No browser extension is required.",
+    {},
+    async () => {
+      try {
+        await launchDesktop();
+        return {
+          content: [
+            { type: "text" as const, text: "Blink is ready on your desktop." },
+          ],
+        };
+      } catch (error) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text:
+                error instanceof Error
+                  ? error.message
+                  : "Blink could not start.",
+            },
+          ],
+        };
+      }
     },
   );
   server.tool(

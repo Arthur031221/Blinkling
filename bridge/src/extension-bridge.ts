@@ -1,4 +1,9 @@
 import type { LiveChannel } from "./live-channel.js";
+import {
+  desktopConnection,
+  desktopAnswer,
+  desktopStatePresent,
+} from "./desktop-session.js";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
@@ -117,6 +122,18 @@ export class ExtensionBridge {
     string,
     { client: WebSocket; finish: (capture?: Capture) => void }
   >();
+  private readonly pendingPages = new Map<
+    string,
+    {
+      client: WebSocket;
+      finish: (value?: {
+        image: Buffer;
+        width: number;
+        height: number;
+        page?: Page;
+      }) => void;
+    }
+  >();
   private readonly sessions: ExtensionSessions;
   private readonly provider: AnswerProvider;
   private readonly now: () => number;
@@ -124,6 +141,10 @@ export class ExtensionBridge {
   attachChannel(channel: LiveChannel): void {
     this.channel = channel;
     channel.onReady = () => {
+      if (desktopStatePresent()) {
+        this.useDesktopSession();
+        return;
+      }
       for (const pair of this.pairs.values()) {
         if (pair.automatic && !pair.job) pair.live = true;
         if (pair.client)
@@ -136,6 +157,10 @@ export class ExtensionBridge {
       }
     };
     channel.onUnavailable = () => {
+      if (desktopStatePresent()) {
+        this.useDesktopSession();
+        return;
+      }
       for (const pair of this.pairs.values()) {
         if (pair.automatic) pair.live = false;
         if (pair.client)
@@ -232,6 +257,8 @@ export class ExtensionBridge {
       if (this.sharingClient === client) this.sharingClient = undefined;
       for (const pending of this.pendingCaptures.values())
         if (pending.client === client) pending.finish();
+      for (const pending of this.pendingPages.values())
+        if (pending.client === client) pending.finish();
     });
     client.on("message", (raw) => {
       if (pair && pair.client !== client) {
@@ -304,16 +331,17 @@ export class ExtensionBridge {
         if (previous && previous !== client)
           previous.close(4002, "Opened in another window");
         clearTimeout(timer);
+        const desktop = desktopStatePresent();
         send(client, {
           type: "paired",
           token: pairToken,
           mode: this.mode,
           project: this.sessions.project,
-          liveAvailable: Boolean(this.channel?.ready),
-          live: Boolean(pair.live),
+          liveAvailable: desktop || Boolean(this.channel?.ready),
+          live: desktop || Boolean(pair.live),
           models: MODELS,
           efforts: ["low", "medium", "high"],
-          sessionId: pair.live ? "live" : pair.thread.id,
+          sessionId: desktop ? "desktop" : pair.live ? "live" : pair.thread.id,
         });
         return;
       }
@@ -364,6 +392,25 @@ export class ExtensionBridge {
       }
       return;
     }
+    if (message.type === "full-page-result") {
+      const pending =
+        typeof message.id === "string"
+          ? this.pendingPages.get(message.id)
+          : undefined;
+      if (!pending || pending.client !== client) return;
+      try {
+        const image = readPanelImage(message.image, 4096);
+        pending.finish({
+          image: image.image,
+          width: image.width,
+          height: image.height,
+          page: pageData(message.page),
+        });
+      } catch {
+        pending.finish();
+      }
+      return;
+    }
     if (message.type === "cancel") {
       const acknowledged = typeof message.jobId === "string";
       const jobId = acknowledged ? message.jobId : message.id;
@@ -385,6 +432,24 @@ export class ExtensionBridge {
     if (typeof message.id !== "string" || message.id.length > 100)
       throw new Error("Invalid request.");
     if (message.type === "sessions") {
+      const desktop = desktopStatePresent()
+        ? await desktopConnection()
+        : undefined;
+      if (desktop) {
+        send(client, {
+          type: "sessions",
+          id: message.id,
+          sessions: [
+            {
+              id: "desktop",
+              title: "Glimpselet",
+              project: this.sessions.project,
+            },
+          ],
+          liveAvailable: true,
+        });
+        return;
+      }
       send(client, {
         type: "sessions",
         id: message.id,
@@ -394,6 +459,19 @@ export class ExtensionBridge {
       return;
     }
     if (message.type === "session") {
+      const desktop = await desktopConnection();
+      if (desktop) {
+        if (message.sessionId !== "desktop" && message.sessionId !== undefined)
+          throw new Error("Blink uses your Glimpselet conversation.");
+        send(client, {
+          type: "session",
+          id: message.id,
+          sessionId: "desktop",
+          title: "Glimpselet",
+          live: true,
+        });
+        return;
+      }
       if (pair.job || pair.selecting)
         throw new Error(
           "Stop the current answer before changing the conversation.",
@@ -486,8 +564,19 @@ export class ExtensionBridge {
     const job = { id, controller, done };
     pair.job = job;
     try {
+      const desktop = desktopStatePresent()
+        ? await desktopConnection()
+        : undefined;
+      if (controller.signal.aborted) throw cancelled();
       const conversational = message.kind === "ask" || message.kind === "guide";
-      if (conversational && pair.automatic) {
+      if (desktop)
+        send(client, {
+          type: "channel-status",
+          liveAvailable: true,
+          live: true,
+          sessionId: "desktop",
+        });
+      if (!desktop && conversational && pair.automatic) {
         pair.live = Boolean(this.channel?.ready);
         if (!pair.live && !pair.initialized) {
           const thread = await this.sessions.latest(pair.thread);
@@ -505,14 +594,12 @@ export class ExtensionBridge {
       }
       // A channel can disconnect during an answer. Keep that answer's transport
       // fixed so its reply cannot mutate the fallback transcript.
-      const live = conversational && Boolean(pair.live);
-      if (conversational && !live) {
+      const live = !desktop && conversational && Boolean(pair.live);
+      if (!desktop && conversational && !live) {
         await pair.thread.reconcile();
         if (controller.signal.aborted) throw cancelled();
       }
-      const result = await (
-        live ? this.channel!.ask.bind(this.channel) : this.provider
-      )({
+      const request: ProviderRequest = {
         image,
         page,
         question: message.question,
@@ -527,11 +614,16 @@ export class ExtensionBridge {
           if (!controller.signal.aborted)
             send(client, { type: "delta", id, text });
         },
-      });
+      };
+      const result = desktop
+        ? await desktopAnswer(desktop.client, request)
+        : await (live ? this.channel!.ask.bind(this.channel) : this.provider)(
+            request,
+          );
       if (controller.signal.aborted || pair.client !== client)
         throw new Error("The answer stopped. Partial text was kept.");
       if (conversational) {
-        if (!live) pair.thread.complete(result);
+        if (!live && !desktop) pair.thread.complete(result);
         pair.history.push({
           id,
           at: this.now(),
@@ -546,7 +638,7 @@ export class ExtensionBridge {
         id,
         answer: result.answer,
         usage: result.usage,
-        sessionId: live ? "live" : pair.thread.id,
+        sessionId: desktop ? "desktop" : live ? "live" : pair.thread.id,
       });
     } finally {
       clearTimeout(timeout);
@@ -581,8 +673,55 @@ export class ExtensionBridge {
       send(client, { type: "capture", id });
     });
   }
+  useDesktopSession(): void {
+    for (const pair of this.pairs.values())
+      if (pair.client)
+        send(pair.client, {
+          type: "channel-status",
+          liveAvailable: true,
+          live: true,
+          sessionId: "desktop",
+        });
+  }
+  requestFullPage(
+    timeoutMs = 90_000,
+    signal?: AbortSignal,
+  ): Promise<
+    { image: Buffer; width: number; height: number; page?: Page } | undefined
+  > {
+    const client = [...this.pairs.values()]
+      .map((p) => p.client)
+      .find((c) => c?.readyState === WebSocket.OPEN);
+    if (!client || signal?.aborted) return Promise.resolve(undefined);
+    return new Promise((resolve) => {
+      const id = randomUUID();
+      const finish = (value?: {
+        image: Buffer;
+        width: number;
+        height: number;
+        page?: Page;
+      }) => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
+        this.pendingPages.delete(id);
+        resolve(value);
+      };
+      const abort = () => {
+        send(client, { type: "full-page-cancel", id });
+        finish();
+      };
+      const timer = setTimeout(abort, timeoutMs);
+      this.pendingPages.set(id, { client, finish });
+      signal?.addEventListener("abort", abort, { once: true });
+      send(client, { type: "full-page", id });
+    });
+  }
   cancelCaptures(): void {
     for (const pending of this.pendingCaptures.values()) pending.finish();
+    for (const [id, pending] of this.pendingPages) {
+      send(pending.client, { type: "full-page-cancel", id });
+      pending.finish();
+    }
   }
   private prune(): void {
     for (const [code, expiry] of this.codes)
