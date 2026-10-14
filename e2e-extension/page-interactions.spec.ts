@@ -218,7 +218,9 @@ test("whole-page tours cover reading regions and task controls with a scrollable
       ),
     )
     .toBe(annotationIndex);
-  await overview.locator('[data-guide-index="14"]').click();
+  const finalParagraph = overview.locator('[data-guide-index="14"]');
+  await finalParagraph.locator("xpath=ancestor::details/summary").click();
+  await finalParagraph.click();
   await expect(guide.locator("p")).toContainText("Travel paragraph 13");
   expect(await site.evaluate(() => scrollY)).toBeGreaterThan(1300);
   await expect(guide).toContainText("15/16");
@@ -227,6 +229,7 @@ test("whole-page tours cover reading regions and task controls with a scrollable
   await guide.locator('[data-guide-control="overview"]').click();
   const current = overview.locator('[aria-current="step"]');
   await expect(current).toHaveAttribute("data-guide-index", "13");
+  await current.locator("xpath=ancestor::details/summary").click();
   await current.focus();
   await site.setViewportSize({ width: 420, height: 520 });
   await expect(current).toBeFocused();
@@ -282,6 +285,7 @@ test("responsive guide targets can collapse without losing the tour, and tall re
   const sidebar = site.locator(
     '[data-glimpselet-overlay] .guide-overview [data-guide-index="2"]',
   );
+  await sidebar.locator("xpath=ancestor::details/summary").click();
   await expect(sidebar).toBeDisabled();
   await expect(sidebar).toHaveCSS("opacity", "0.45");
   await site.setViewportSize({ width: 1280, height: 850 });

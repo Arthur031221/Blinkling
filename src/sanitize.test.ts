@@ -1,6 +1,52 @@
 import { describe, expect, it } from "vitest";
 import { safeMarkdown } from "./sanitize";
 describe("safe markdown", () => {
+  it("keeps CJK emphasis alongside links, tables and sanitized hostile markup", () => {
+    const container = document.createElement("div");
+    container.innerHTML = safeMarkdown(
+      "**注意：**文字 [**出典：**資料](https://example.com)\n\n|項目|説明|\n|---|---|\n|一|**重點：**內容|\n\n**警告：**內容<img src=x onerror=alert(1)><script>alert(2)</script>",
+    );
+    expect(container.querySelectorAll("strong")).toHaveLength(4);
+    expect(container.querySelector("a")!.getAttribute("rel")).toBe(
+      "noopener noreferrer",
+    );
+    expect(container.querySelector("td strong")!.textContent).toBe("重點：");
+    expect(container.querySelector("script,img,[onerror]")).toBeNull();
+    expect(safeMarkdown("**注意：**文字 *emphasis* **bold**")).toContain(
+      "<em>emphasis</em> <strong>bold</strong>",
+    );
+    expect(safeMarkdown("**Note:**adjacent")).not.toContain("<strong>");
+  });
+  it.each([
+    ["**不確定之處：**橫幅右側文字被截斷", "不確定之處："],
+    ["**重点：**右侧文字被截断", "重点："],
+    ["**注意：**右側の文字が切れています", "注意："],
+    ["前文**重點：**接著說明", "重點："],
+    ["**結論。**下一句", "結論。"],
+    ["**주의：**오른쪽 글자가 잘렸습니다", "주의："],
+  ])("renders punctuation-adjacent CJK bold in %s", (source, label) => {
+    const html = safeMarkdown(source);
+    expect(html).toContain(`<strong>${label}</strong>`);
+    expect(html).not.toContain("**");
+  });
+
+  it("preserves literal/code asterisks and incomplete streamed CJK emphasis", () => {
+    const source =
+      "`**注意：**文字`\n\n```text\n**注意：**文字\n```\n\n\\*\\*注意：\\*\\*文字\n\n**注意：*";
+    const container = document.createElement("div");
+    container.innerHTML = safeMarkdown(source);
+    expect(container.querySelectorAll("strong")).toHaveLength(0);
+    expect(container.querySelector("code")!.textContent).toBe("**注意：**文字");
+    expect(container.querySelector("pre code")!.textContent).toContain(
+      "**注意：**文字",
+    );
+    expect(container.textContent).toContain("**注意：**文字");
+    expect(container.textContent).toContain("**注意：*");
+    container.innerHTML = safeMarkdown("Inline <code>**注意：**文字</code>.");
+    expect(container.querySelector("code strong")).toBeNull();
+    expect(container.querySelector("code")!.textContent).toBe("**注意：**文字");
+  });
+
   it("keeps ordinary formatting and safe links", () => {
     const html = safeMarkdown("[guide](https://example.com) **clear**");
     expect(html).toContain("<strong>clear</strong>");

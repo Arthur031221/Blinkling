@@ -8,12 +8,14 @@ import { chromium } from "playwright";
 
 // Live pages and the logged-in Claude Code provider; no page or answer mocks.
 // Public test hosts are granted only in an isolated copy of the extension.
+const selectedSites = process.env.GLIMPSELET_GUIDE_SITES?.split(",");
 const checks = [
   ["google-flights", "https://www.google.com/travel/flights"],
   ["muji-shop", "https://www.muji.us/collections/stationery"],
   ["arxiv-paper", "https://arxiv.org/html/2501.12948v1"],
   ["wikipedia", "https://en.wikipedia.org/wiki/Tea"],
-];
+].filter(([name]) => !selectedSites || selectedSites.includes(name));
+assert(checks.length > 0, "No matching live guide sites selected");
 const evidence = resolve(
   process.env.GLIMPSELET_GUIDE_EVIDENCE || "test-results/guide-sites",
 );
@@ -30,6 +32,19 @@ try {
     ...checks.map(([, url]) => `${new URL(url).origin}/*`),
   );
   await writeFile(manifestPath, JSON.stringify(manifest));
+  // Resolve the original IDs independently of the current map's sampling cap.
+  // A live page can hide/remove a target while the model writes its response.
+  await build({
+    stdin: {
+      contents:
+        'import { resolveGuideTargets } from "./extension/page-context"; globalThis.glimpseletGuideCheck = () => [...resolveGuideTargets().keys()];',
+      resolveDir: resolve("."),
+      loader: "ts",
+    },
+    outfile: join(extension, "guide-check.js"),
+    bundle: true,
+    platform: "browser",
+  });
   const modulePath = join(directory, "guide-tools.mjs");
   await build({
     stdin: {
@@ -75,7 +90,7 @@ try {
       if (!tab?.id) throw new Error("Missing live-site tab");
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ["content.js"],
+        files: ["content.js", "guide-check.js"],
       });
       return tab.id;
     }, page.url());
@@ -174,6 +189,24 @@ try {
       );
     if (["arxiv-paper", "wikipedia"].includes(name))
       assert(guide.steps.length > 12, "Reading guide did not cover the page");
+    const [available] = await worker.evaluate(
+      (tabId) =>
+        chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => globalThis.glimpseletGuideCheck(),
+        }),
+      tabId,
+    );
+    const availableIds = new Set(available.result);
+    const availableSteps = guide.steps.filter((step) =>
+      availableIds.has(step.elementId),
+    );
+    const unavailableTargets = guide.steps
+      .filter((step) => !availableIds.has(step.elementId))
+      .map((step) => ({
+        elementId: step.elementId,
+        role: byId.get(step.elementId).role,
+      }));
     assert.deepEqual(
       await send({
         type: "glimpselet:guide",
@@ -192,7 +225,17 @@ try {
     await callout.locator('[data-guide-control="overview"]').click();
     const overview = page.locator("[data-glimpselet-overlay] .guide-overview");
     await overview.waitFor({ state: "visible" });
-    assert.equal(await overview.locator("li").count(), guide.steps.length);
+    assert.equal(await overview.locator("li").count(), availableSteps.length);
+    const displayedNotes = await overview
+      .locator("li button")
+      .allTextContents();
+    for (const step of availableSteps)
+      assert(
+        displayedNotes.includes(
+          step.note + (step.action ? ` · ${step.action}` : ""),
+        ),
+        `Overview omitted available target ${step.elementId}`,
+      );
     const sectionGroups = await overview.locator(".guide-section").count();
     assert(sectionGroups > 0, "Overview omitted section groups");
     assert.equal(await overview.locator(".guide-section[open]").count(), 0);
@@ -200,15 +243,21 @@ try {
     await page.screenshot({ path: join(evidence, `${name}-overview.png`) });
     const belowFoldParagraph = guide.steps.findIndex(
       (s) =>
+        availableIds.has(s.elementId) &&
         byId.get(s.elementId).role === "paragraph" &&
         byId.get(s.elementId).rect[1] > 850,
     );
     const belowFold =
       belowFoldParagraph >= 0
         ? belowFoldParagraph
-        : guide.steps.findIndex((s) => byId.get(s.elementId).rect[1] > 850);
+        : guide.steps.findIndex(
+            (s) =>
+              availableIds.has(s.elementId) &&
+              byId.get(s.elementId).rect[1] > 850,
+          );
     assert(belowFold >= 0, "Guide omitted below-fold content");
-    const target = overview.locator(`[data-guide-index="${belowFold}"]`);
+    const belowFoldIndex = availableSteps.indexOf(guide.steps[belowFold]);
+    const target = overview.locator(`[data-guide-index="${belowFoldIndex}"]`);
     const section = target.locator("xpath=ancestor::details");
     if (await section.count()) await section.locator("summary").click();
     await target.click();
@@ -243,6 +292,8 @@ try {
       title: data.title,
       mapped: data.elements.length,
       steps: guide.steps.length,
+      availableSteps: availableSteps.length,
+      unavailableTargets,
       paragraphs: paragraphIds.length,
       substantiveParagraphsOnPage: paragraphResult.result.length,
       coveredParagraphs,

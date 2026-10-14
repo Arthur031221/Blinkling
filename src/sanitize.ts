@@ -1,5 +1,32 @@
 import DOMPurify from "dompurify";
-import { marked } from "marked";
+import { Marked } from "marked";
+
+const cjk =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const punctuationAdjacentBold =
+  /^\*\*([^*`\\<>\r\n]+\p{P})\*\*(?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}])/u;
+// Extend inline tokenization only for the observed CJK label form. Code,
+// escapes, incomplete delimiters and ordinary Markdown stay with the parser.
+const markdown = new Marked({
+  extensions: [
+    {
+      name: "cjkStrong",
+      level: "inline",
+      start: (source) => source.indexOf("**"),
+      tokenizer(source) {
+        if (this.lexer.state.inRawBlock) return;
+        const match = punctuationAdjacentBold.exec(source);
+        if (!match || !cjk.test(match[1]) || /^\s/.test(match[1])) return;
+        return {
+          type: "strong",
+          raw: match[0],
+          text: match[1],
+          tokens: this.lexer.inlineTokens(match[1]),
+        };
+      },
+    },
+  ],
+});
 
 const allowedURI = /^(?:https?:\/\/|mailto:|\/\/)/i;
 
@@ -32,7 +59,7 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
 });
 
 export function safeMarkdown(source: string): string {
-  return DOMPurify.sanitize(marked.parse(source) as string, {
+  return DOMPurify.sanitize(markdown.parse(source) as string, {
     ALLOWED_TAGS: [
       "p",
       "strong",

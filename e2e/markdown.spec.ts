@@ -218,6 +218,26 @@ test("relative answer links cannot navigate away from the panel", async ({
   ).toBeEnabled();
 });
 
+test("a completed CJK response renders bold labels without changing code or unsafe markup", async ({
+  page,
+}) => {
+  await sharedStreamingPanel(page);
+  await sendAnswer(
+    page,
+    `${tableAnswer()}\n\n**不確定之處：**橫幅右側文字被截斷\n\n前文**注意：**右側の文字\n\n\`**注意：**文字\`\n\n<img src=x onerror=alert(1)><script>alert(2)</script>`,
+  );
+  const markdown = page.locator(".answer .markdown");
+  await expect(
+    markdown.locator("strong").filter({ hasText: "不確定之處：" }),
+  ).toHaveText("不確定之處：");
+  await expect(
+    markdown.locator("strong").filter({ hasText: "注意：" }),
+  ).toHaveText("注意：");
+  await expect(markdown.locator("code")).toHaveText("**注意：**文字");
+  await expect(markdown.locator("img,script,[onerror]")).toHaveCount(0);
+  await expect(markdown).toContainText("橫幅右側文字被截斷");
+});
+
 test("answer links with browser-ignored whitespace open separately", async ({
   page,
 }) => {

@@ -26624,7 +26624,7 @@ if (!contentScope.glimpseletContentReady) {
     style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;display:flex;flex-direction:column;box-sizing:border-box;width:269px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4;min-height:0;overflow:auto;overflow-wrap:anywhere}.guide nav{display:flex;flex-wrap:wrap;flex-shrink:0;justify-content:space-between;gap:6px}.guide nav button{max-width:100%;overflow-wrap:anywhere}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
     overlayRoot.append(style);
     style.textContent += `.guide button:focus-visible,.popover button:focus-visible,.cancel:focus-visible{outline:2px solid #86513d;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ink,.arrow{animation:none;stroke-dashoffset:0}}`;
-    style.textContent += `.guide-overview{position:fixed;z-index:3;right:8px;top:8px;width:300px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);display:flex;flex-direction:column;box-sizing:border-box;padding:12px;border:1px solid #d9b98b;border-radius:12px;background:#fffaf0;box-shadow:0 5px 22px #22190d30;pointer-events:auto;font:14px system-ui;color:#312922}.guide-overview header{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0}.guide-overview strong{width:100%}.guide-overview p{line-height:1.4;flex-shrink:0}.guide-overview ol{overflow:auto;min-height:0;margin:10px 0 0;padding-left:25px}.guide-overview li{padding:4px 0}.guide-overview button,.guide-annotation{font:600 12px system-ui;color:#30271d;border:0;border-radius:8px;background:#f2e8d6;padding:6px 9px;cursor:pointer}.guide-overview li button{width:100%;text-align:left;line-height:1.4;overflow-wrap:anywhere}.guide-overview [aria-current]{box-shadow:inset 3px 0 #cc704e}.guide-annotation{position:fixed;z-index:2;box-sizing:border-box;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;pointer-events:auto;box-shadow:0 2px 8px #22190d25}.guide-overview button:focus-visible,.guide-annotation:focus-visible{outline:2px solid #86513d;outline-offset:2px}.guide button:disabled,.guide-overview button:disabled{opacity:.45;cursor:default}`;
+    style.textContent += `.guide-groups{overflow:auto;min-height:0;margin-top:10px}.guide-section{border-top:1px solid #d9c6a8;padding:8px 0}.guide-section summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}.guide-section summary:focus-visible{outline:2px solid #86513d;outline-offset:2px}.guide-task h3{font-size:13px;margin:8px 0 0}.guide-overview{position:fixed;z-index:3;right:8px;top:8px;width:300px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);display:flex;flex-direction:column;box-sizing:border-box;padding:12px;border:1px solid #d9b98b;border-radius:12px;background:#fffaf0;box-shadow:0 5px 22px #22190d30;pointer-events:auto;font:14px system-ui;color:#312922}.guide-overview header{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0}.guide-overview strong{width:100%}.guide-overview p{line-height:1.4;flex-shrink:0}.guide-overview ol{overflow:auto;min-height:0;margin:10px 0 0;padding-left:25px}.guide-overview li{padding:4px 0}.guide-overview button,.guide-annotation{font:600 12px system-ui;color:#30271d;border:0;border-radius:8px;background:#f2e8d6;padding:6px 9px;cursor:pointer}.guide-overview li button{width:100%;text-align:left;line-height:1.4;overflow-wrap:anywhere}.guide-overview [aria-current]{box-shadow:inset 3px 0 #cc704e}.guide-annotation{position:fixed;z-index:2;box-sizing:border-box;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;pointer-events:auto;box-shadow:0 2px 8px #22190d25}.guide-overview button:focus-visible,.guide-annotation:focus-visible{outline:2px solid #86513d;outline-offset:2px}.guide button:disabled,.guide-overview button:disabled{opacity:.45;cursor:default}`;
     const surface = document.createElement("div");
     surface.className = "surface";
     overlayRoot.append(surface);
@@ -26935,6 +26935,36 @@ if (!contentScope.glimpseletContentReady) {
         region.setAttribute(key, String(value));
     }
     svg.append(region);
+  }, overviewGroups = function() {
+    if (!currentGuide) return [];
+    const headings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")].filter(
+      guideElementAvailable
+    );
+    const groups = /* @__PURE__ */ new Map();
+    for (const [index, step] of currentGuide.steps.entries()) {
+      const target = currentGuide.targets.get(step.elementId);
+      const task = !!step.action || /^(button|input|select|textarea|tab|menuitem|checkbox|switch|radio|combobox)$/.test(
+        target.role
+      );
+      const region = target.element.closest(
+        "section,article,main,form,[role=region],[role=main],[role=form]"
+      );
+      const heading = headings.filter(
+        (h) => (!region || region.contains(h)) && (h === target.element || !!(h.compareDocumentPosition(target.element) & Node.DOCUMENT_POSITION_FOLLOWING))
+      ).at(-1) ?? (target.role === "section" ? headings.find((h) => target.element.contains(h)) : void 0);
+      const key = task ? "task" : heading ?? region ?? document.body;
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          title: task ? currentGuide.labels.task : heading?.textContent?.trim().slice(0, 120) || currentGuide.labels.sections,
+          task,
+          indices: []
+        };
+        groups.set(key, group);
+      }
+      group.indices.push(index);
+    }
+    return [...groups.values()].sort((a, b) => Number(b.task) - Number(a.task));
   }, renderOverview = function() {
     if (!currentGuide || !overlayRoot) return;
     const hadFocus = document.hasFocus();
@@ -26982,17 +27012,33 @@ if (!contentScope.glimpseletContentReady) {
         purpose.textContent = currentGuide.purpose;
         panel.append(purpose);
       }
-      const list = document.createElement("ol");
-      for (const [index, step] of currentGuide.steps.entries()) {
-        const item = document.createElement("li");
-        const button = document.createElement("button");
-        button.dataset.guideIndex = String(index);
-        button.textContent = step.note + (step.action ? ` \xB7 ${step.action}` : "");
-        button.onclick = () => visitGuideStep(index);
-        item.append(button);
-        list.append(item);
+      const groups = document.createElement("div");
+      groups.className = "guide-groups";
+      for (const group of overviewGroups()) {
+        const container = document.createElement(
+          group.task ? "section" : "details"
+        );
+        container.className = group.task ? "guide-task" : "guide-section";
+        container.addEventListener("toggle", updateGuidePosition);
+        const title2 = document.createElement(group.task ? "h3" : "summary");
+        title2.textContent = `${group.title} \xB7 ${group.indices.length}`;
+        container.append(title2);
+        const list = document.createElement("ol");
+        for (const index of group.indices) {
+          const step = currentGuide.steps[index];
+          const item = document.createElement("li");
+          item.value = index + 1;
+          const button = document.createElement("button");
+          button.dataset.guideIndex = String(index);
+          button.textContent = step.note + (step.action ? ` \xB7 ${step.action}` : "");
+          button.onclick = () => visitGuideStep(index);
+          item.append(button);
+          list.append(item);
+        }
+        container.append(list);
+        groups.append(container);
       }
-      panel.append(list);
+      panel.append(groups);
       root.append(panel);
     }
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -27001,7 +27047,18 @@ if (!contentScope.glimpseletContentReady) {
     const occupied = [];
     const panelRect = panel.getBoundingClientRect();
     occupied.push(panelRect);
+    const visibleIndices = /* @__PURE__ */ new Set();
+    for (const group of panel.querySelectorAll(
+      ".guide-task,.guide-section"
+    )) {
+      const indices = [
+        ...group.querySelectorAll("[data-guide-index]")
+      ].map((button) => Number(button.dataset.guideIndex));
+      for (const index of group instanceof HTMLDetailsElement && !group.open ? indices.slice(0, 1) : indices)
+        visibleIndices.add(index);
+    }
     for (const [index, step] of currentGuide.steps.entries()) {
+      if (!visibleIndices.has(index)) continue;
       const point = guidePoint(step.elementId);
       if (!point || point.y >= innerHeight || point.y + point.height <= 0 || point.x >= innerWidth || point.x + point.width <= 0)
         continue;
@@ -27564,7 +27621,9 @@ if (!contentScope.glimpseletContentReady) {
               done: guideLabels.done || "Done",
               title: guideLabels.title || "Glimpselet",
               overview: guideLabels.overview || "Overview",
-              tour: guideLabels.tour || "Step by step"
+              tour: guideLabels.tour || "Step by step",
+              sections: guideLabels.sections || "Page sections",
+              task: guideLabels.task || "Main task"
             }
           };
           renderedStep = "";
