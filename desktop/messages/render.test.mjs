@@ -30,3 +30,20 @@ test("Markdown renders structure and literal code without executable model HTML"
   );
   window.close();
 });
+test("a raw interrupt marker reads as a plain 已停止 line", () => {
+  const { window } = new JSDOM();
+  for (const raw of [
+    "[Request interrupted by user]",
+    "[Request interrupted by user for tool use]",
+  ]) {
+    const root = renderMarkdown(window.document, raw);
+    assert.equal(root.textContent, "已停止");
+    assert.equal(root.querySelector(".gl-system-line").textContent, "已停止");
+  }
+  assert.equal(
+    renderMarkdown(window.document, "[Request interrupted by user] but more").textContent,
+    "[Request interrupted by user] but more",
+    "only the whole-message marker is replaced",
+  );
+  window.close();
+});

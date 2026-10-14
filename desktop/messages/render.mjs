@@ -37,6 +37,21 @@ const el = (doc, tag, cls) => {
   if (cls) n.className = cls;
   return n;
 };
+/** The runtime's raw interrupt markers are not something a person wrote. */
+const INTERRUPT = /^\s*\[Request interrupted by user(?: for tool use)?\]\s*$/;
+/** "簡答" is model-written; explain it where it appears instead of leaving a bare label. */
+function tagSummary(doc, root) {
+  const lead = root.firstElementChild?.firstElementChild;
+  if (
+    lead?.tagName !== "STRONG" ||
+    !/^簡答[：:]?$/.test(lead.textContent.trim())
+  )
+    return;
+  const tag = el(doc, "span", "gl-summary-tag");
+  tag.textContent = lead.textContent;
+  tag.title = "這是簡短回答，完整內容可在對話中查看";
+  lead.replaceWith(tag);
+}
 export function renderMarkdown(
   doc,
   source,
@@ -169,7 +184,14 @@ export function renderMarkdown(
       }
     }
   }
+  if (INTERRUPT.test(source)) {
+    const line = el(doc, "p", "gl-system-line");
+    line.textContent = "已停止";
+    root.append(line);
+    return root;
+  }
   blocks(root, markdown.lexer(source));
+  tagSummary(doc, root);
   return root;
 }
 export function renderImage(doc, image) {
