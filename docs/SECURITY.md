@@ -1,10 +1,10 @@
 # Security and privacy
 
-Glimpselet collects no telemetry. The bridge does not log page content, capture bytes, pairing tokens or API keys. The public demo uses a fixture image and recorded answers, without provider requests.
+Glimpselet collects no telemetry. The bridge does not log page content, capture bytes, pairing tokens or API keys. The prerecorded interactive chat uses a fixture image and recorded answers, without provider requests. The README and showcase GIFs record the real extension on public sites with Claude Code replies.
 
 ## Data flow
 
-After consent, bounded page text may be sent to generate suggested questions. Context excludes hidden, editable, private and password fields and does not collect form values. Questions and optional passive summaries can send relevant page text and images. Pixel captures can contain information the text filter cannot identify. Review the source before asking.
+After consent, bounded page text may be sent to generate suggested questions. Context excludes hidden, editable, private and password fields and does not collect form values. Questions and optional Auto explain summaries can send relevant page text and images. Pixel captures can contain information the text filter cannot identify. Review the source before asking.
 
 Bridge mode uses an origin bound, paired loopback WebSocket. Dedicated threads and parallel continuations run the user's CLI. An image is placed in a private temporary directory and removed after completion, timeout or cancellation. Recent sessions are listed through the official SDK. A parallel continuation resumes the exact selected UUID and writes to that conversation. Avoid running it concurrently with terminal work on the same transcript.
 
@@ -14,7 +14,9 @@ With an enabled live channel, requests are pushed into the running terminal conv
 
 Direct API mode sends requests and optional images to Anthropic using the user's key. The key is not sent to the local bridge. Provider retention and account policies apply to all provider requests.
 
-Passive mode starts off. Once enabled, changed pages can trigger summaries. Shared video requires a browser tab whose Capture Handle matches the inspected HTTP or HTTPS page before and after its privacy check. A monitor, native app, unknown capture source or unsupported page cannot trigger automatic screen requests. These sources still support manual capture and questions. Password pages and blocklisted hosts are excluded, page updates are debounced, and summaries are capped at six per rolling minute. Sensitive text is not always detectable, especially in native apps. Pause before sharing sensitive material.
+Auto explain starts off. Once enabled with consent and site access, page changes can trigger summaries without screen sharing. Shared browser video requires a Capture Handle matching the inspected HTTP or HTTPS tab before and after its privacy check. Password fields, blocklisted hosts and loading or inaccessible embedded pages pause automatic page requests. Open shadow roots and accessible embedded pages are checked; closed shadow roots cannot be inspected.
+
+Shared monitors and native app windows can trigger image explanations only after separate consent for that share. Consent is bound to the stream and track, and ends when sharing stops or the source changes. These pixels cannot be checked for password fields or blocked websites. Unknown capture sources remain paused. Monitor frames mask the floating bubble before comparison and transmission; stable changes are debounced and summaries are capped at six per rolling minute. These controls do not detect every sensitive image. Hide private content or pause Auto explain before sharing it. Manual captures and questions remain available.
 
 ## Storage
 
@@ -33,6 +35,6 @@ The bridge uses an operating system assigned loopback port. Pairing checks the l
 
 The preceding hour's cost uses reported CLI usage when available. Direct API mode estimates input and output token cost at the bundled model rates. Live channel replies have no authoritative usage report. The total is an estimate, not a spending cap. Check provider billing for actual charges.
 
-Sharing begins only after the user chooses a browser source. Closing the floating window stops its stream. Passive mode can be paused or disabled. Ending the browser session clears the API key. Browser permissions govern page access and restricted pages. The bubble cannot make its native frame transparent or click through, and native apps cannot receive DOM guides.
+Sharing begins only after the user chooses a browser source. Closing the floating window stops its stream. Auto explain can be paused or disabled with Alt+P or its control. Ending the browser session clears the API key. Browser permissions govern page access and restricted pages. The bubble cannot make its native frame transparent or click through, and native apps cannot receive DOM guides.
 
 Page content is untrusted input. Guide element IDs and translation node IDs are checked before changes are applied. No remote code is loaded. A model response is not a security boundary. Review it before acting.

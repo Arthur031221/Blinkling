@@ -5,10 +5,7 @@ await cp("dist/index.html", "dist/try.html");
 await cp("demo/index.html", "dist/index.html");
 await cp("demo/demo.css", "dist/demo.css");
 await mkdir("dist/demo-assets", { recursive: true });
-for (const name of ["floating", "guide"]) {
-  await cp(`assets/store/${name}.png`, `dist/demo-assets/${name}.png`);
-}
-for (const name of ["guide", "crop"]) {
+for (const name of ["demo", "arxiv"]) {
   await cp(`assets/${name}.gif`, `dist/demo-assets/${name}.gif`);
 }
 

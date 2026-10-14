@@ -1,31 +1,48 @@
-# Glimpselet
+<h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br />Glimpselet</h1>
 
-[English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+<p align="center"><strong>La réponse reste à côté de la page.</strong></p>
 
-Un petit chat flottant pour poser à Claude Code des questions sur la page ou l'écran affiché. Consultez et traduisez des pages web, faites-vous guider vers les commandes utiles et capturez une zone pour poser une question.
+<p align="center">
+  <a href="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Arthur031221/Glimpselet/releases"><img src="https://img.shields.io/github/v/release/Arthur031221/Glimpselet" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Arthur031221/Glimpselet" alt="License" /></a>
+</p>
 
-|           Chat flottant Glimpselet           |                 Exemple de guide sur la page                  |
-| :------------------------------------------: | :-----------------------------------------------------------: |
-| ![Chat flottant Glimpselet](assets/demo.gif) | ![Exemple de guide sur la page](assets/screenshots/guide.png) |
+[English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-Prérequis : une version récente de Claude Code, une connexion avec votre propre abonnement et un navigateur Chromium de bureau comme Chrome ou Edge.
+Un petit chat flottant Claude Code. Posez une question sur la page, capturez une zone, suivez un guide ou traduisez un passage.
 
-Glimpselet se connecte à une session Claude Code en direct vérifiée lorsqu’elle est disponible. Sinon, il reprend automatiquement la dernière conversation du projet actuel, ou en crée une si aucune n’est enregistrée. [Configuration et limites des sessions](docs/DESIGN.md#the-running-claude-code-conversation).
+> [!TIP]
+> Utilisez votre propre compte Claude Code connecté et Chrome ou Edge sur ordinateur. Claude Code ne nécessite pas de clé API.
+
+![Google Flights : un guide de la page, puis une question sur la réservation d'un aller-retour.](assets/demo.gif)
+
+_Google Flights : un guide de la page, puis une question sur la réservation d'un aller-retour._
 
 ## Installation
 
-1. Ajoutez la marketplace et installez le plugin dans Claude Code :
+1. Installez le plugin dans Claude Code :
 
    ```text
    /plugin marketplace add Arthur031221/Glimpselet
    /plugin install glimpselet@glimpselet
    ```
 
-2. Dans votre terminal, vérifiez que `claude plugin list` affiche Glimpselet **2.1.0**, puis exécutez `/glimpselet:glimpse` dans Claude Code.
+2. Ouvrez le guide de bienvenue :
 
-3. La page d’accueil comporte trois étapes : installer l’extension, se connecter automatiquement et ouvrir la bulle. Choisissez **Essayer sans installer** sur un bureau local ou chargez l’extension dans votre navigateur. Si Claude Code s’exécute sur un hôte distant, lancez la commande SSH affichée dans le terminal depuis l’ordinateur du navigateur, puis téléchargez et chargez le ZIP. La bulle affiche **Connecté à votre Claude Code**. Consultez les [détails de connexion](docs/INSTALL.md).
+   ```text
+   /glimpselet:glimpse
+   ```
+
+3. Activez le **mode développeur** dans `chrome://extensions` (ou `edge://extensions`). Choisissez **Load unpacked** et le dossier ouvert par **Show in Files / Finder**. La page de bienvenue se connecte automatiquement. Ouvrez la bulle.
+
+> [!NOTE]
+> Sur un ordinateur local, **Try without installing** ouvre un profil Chromium séparé. Pour un hôte distant, exécutez la commande SSH affichée sur l'ordinateur du navigateur. [Installation et mises à jour](docs/INSTALL.md).
 
 ### Avancé : charger depuis les sources
+
+<details>
+<summary>Code source et mises à jour manuelles</summary>
 
 Pour lancer le plugin depuis les sources, il vous faut Node.js 22+ et une version récente de Claude Code. Si votre terminal se trouve déjà à la racine d'une copie locale du dépôt, sautez les deux premières commandes. Exécutez ces commandes dans le terminal :
 
@@ -48,11 +65,9 @@ Les deux vérifications de version doivent afficher `2.1.0`. La liste des plugin
 Les détails du plugin doivent aussi inclure les compétences `glimpse` et `install` et le serveur MCP `glimpselet`. L'extension empaquetée se trouve dans `bin/extension`. Sa version doit aussi être **2.1.0**. Si Claude Code est distant, utilisez la commande SSH du guide, téléchargez le ZIP de l'extension sur l'ordinateur avec le navigateur et chargez-y le dossier extrait.
 
 Si le navigateur et Claude Code fonctionnent sur le même ordinateur, le guide de bienvenue copie l'extension compilée dans le dossier stable `~/Glimpselet-extension`. Dans Chrome ou Edge, ouvrez `chrome://extensions` ou `edge://extensions`, activez **Developer mode**, choisissez **Load unpacked** et sélectionnez ce dossier. La bannière de développement reste visible. Les mises à jour doivent être installées manuellement.
-Pour mettre à jour une extension décompressée, fermez l'ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l'extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l'extension. Pour passer à `~/Glimpselet-extension`, supprimez l’ancienne fiche et chargez ce dossier une fois.
+Pour mettre à jour une extension décompressée, fermez l'ancienne bulle et relancez `/glimpselet:glimpse` pour actualiser le dossier stable. Cliquez sur Recharger sur la fiche de l'extension. Si Claude Code est distant, téléchargez le nouveau ZIP depuis le guide, remplacez les fichiers extraits sur la machine avec le navigateur, puis rechargez l'extension. Pour passer à `~/Glimpselet-extension`, supprimez l'ancienne fiche et chargez ce dossier une fois.
 
-## Glimpselet est déjà installé ?
-
-Exécutez ces commandes dans un terminal sur la machine où fonctionne Claude Code. Actualiser le catalogue seul ne garantit pas la mise à jour du plugin installé.
+Pour mettre à jour le plugin installé, exécutez ces commandes, puis `/reload-plugins` et `/glimpselet:glimpse` dans Claude Code. Vérifiez **2.1.0** dans la liste des plugins et sur la fiche de l'extension avant de rouvrir la bulle.
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -60,45 +75,39 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-Dans votre session Claude Code, exécutez `/reload-plugins` (ou redémarrez Claude Code), puis `/glimpselet:glimpse`. La liste doit afficher `glimpselet@glimpselet` en **2.1.0** et la commande doit ouvrir le guide de bienvenue et de connexion. Vérifiez aussi **2.1.0** sur `chrome://extensions` ou `edge://extensions` sur la machine avec votre navigateur. Si le plugin affiche toujours 1.1.1, v2 peut ne pas encore être publiée dans le catalogue public. L'ancienne page de sélection d'écran n'est pas le guide v2. [Vérification de la mise à jour](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+</details>
 
-## Ce que vous pouvez faire
+## Pendant la lecture
 
-- Recevoir les réponses en streaming et poser des questions de suivi avec Opus, Sonnet ou Haiku.
-- Capturer un écran partagé en plein écran ou recadrer une zone avec la superposition de la page. Maintenez Shift et faites glisser, puis appuyez sur Enter pour capturer ou Esc pour annuler.
-- Voir des questions suggérées qui s'actualisent avec la page.
-- Activer les résumés Passive facultatifs, les mettre en pause avec Alt+P et consulter leur coût horaire.
-- Afficher un guide sur les commandes réelles de la page. Traduisez le texte sur place et utilisez Restore pour le rétablir.
-- Sélectionner du texte pour l'expliquer, le traduire ou poser une question. Vous pouvez aussi ouvrir un PDF dans le lecteur inclus et poser des questions.
+- **Capturer l'écran** ou **Choisir une zone**. Maintenez Shift et faites glisser sur une page compatible ou dans la bulle. Entrée confirme, Échap annule. La bulle disparaît pendant la capture partagée, puis revient.
+- **Guider cette page** propose une vue générale et un parcours Suivant/Précédent des zones de lecture et des commandes.
+- Sélectionnez du texte pour poser une question, expliquer ou traduire. Traduisez une page puis restaurez-la, ou ouvrez un PDF dans le lecteur intégré.
+- **Explication automatique** propose jusqu'à trois questions et résume les changements. Alt+P met en pause. Choisissez Opus, Sonnet ou Haiku pour le chat.
 
-![Guider cette page](assets/guide.gif)
+![arXiv : sélectionner un résumé, poser une question et le traduire en chinois traditionnel.](assets/arxiv.gif)
 
-![Zone sélectionnée](assets/crop.gif)
+_arXiv : sélectionner un résumé, poser une question et le traduire en chinois traditionnel._
 
-| Raccourci                            | Action                                                                                         |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Alt+Shift+G                          | Ouvrir Glimpselet et choisir **Float** pour afficher le chat flottant.                         |
-| Ctrl+Shift+S (Cmd+Shift+S sur macOS) | Recadrer la page actuelle ou l'écran partagé.                                                  |
-| Ctrl+Shift+7 (Cmd+Shift+7 sur macOS) | Recadrer depuis n'importe quelle application. Modifiable dans `chrome://extensions/shortcuts`. |
-| Maintenir Shift                      | Démarrer un recadrage dans une bulle ou une page Glimpselet.                                   |
-| Alt+P                                | Mettre en pause les résumés Passive.                                                           |
+Enregistré avec la vraie extension sur des sites en ligne et des réponses de Claude Code. Les attentes sont raccourcies. Le contenu et les réponses ne sont pas préparés.
 
-Sur macOS, Cmd+Shift+5 ouvre l'outil système de capture d'écran. Shift fonctionne sur les pages auxquelles Glimpselet a accès. Une page web ne peut pas recevoir cette touche depuis une autre application.
+## Raccourcis
 
-**Float** est la première action. L'extension demande l'accès à la page lorsque vous utilisez une fonction qui en a besoin. Aucune clé API n'est nécessaire avec votre propre session Claude Code connectée. Le mode API direct est facultatif et nécessite votre clé API.
+| Raccourci    | Action                                |
+| ------------ | ------------------------------------- |
+| Alt+Shift+G  | Ouvrir la bulle                       |
+| Ctrl+Shift+S | Recadrer dans le navigateur           |
+| Ctrl+Shift+7 | Recadrer depuis une autre application |
 
-## Sessions Claude Code
+Sur macOS, utilisez Cmd au lieu de Ctrl. Modifiez les raccourcis dans `chrome://extensions/shortcuts`. Shift fonctionne uniquement sur les pages compatibles et dans la bulle.
 
-Consultez [Sessions Claude Code](docs/DESIGN.md#the-running-claude-code-conversation) pour la commande et la configuration de l'aperçu des channels. Sans le channel, Glimpselet reprend automatiquement la dernière session du projet actuel dans un processus séparé. Il s'agit d'une continuation parallèle. N'utilisez pas cette session dans le terminal en même temps, car les accès simultanés peuvent entrer en conflit.
+## Sessions et confidentialité
 
-## Limites et confidentialité
+Glimpselet utilise un canal actif vérifié de Claude Code. Sinon, un processus séparé reprend la dernière conversation enregistrée du projet. Évitez de travailler simultanément sur ce même historique dans le terminal. [Canal et limites](docs/DESIGN.md#the-running-claude-code-conversation).
 
-Glimpselet fonctionne sur ordinateur avec Chrome, Edge et les autres navigateurs Chromium. La bannière de développement reste visible jusqu'à la distribution dans une boutique, et les mises à jour sont manuelles. Certaines pages, comme les paramètres du navigateur, les boutiques d'extensions et les pages restreintes, bloquent l'accès. Le lecteur PDF intégré à Chrome n'est pas accessible. Utilisez le lecteur Glimpselet. Les applications natives ne fournissent que des pixels, sans texte ni superposition. Shift fonctionne dans la bulle et sur les pages dont l'accès est autorisé. Dans une autre application, utilisez le raccourci global de capture. La fenêtre flottante ne permet pas de transmettre les clics.
+> [!IMPORTANT]
+> Explication automatique résume les changements **sans partage d'écran**, après consentement et autorisation du site. Les champs de mot de passe et la liste de blocage suspendent résumés et suggestions automatiques. Les résumés d'écran utilisent un onglet partagé associé au même onglet inspecté, avec les mêmes vérifications. Un écran ou une application partagés nécessitent **un consentement séparé pour chaque partage**. Les pixels ne permettent pas de vérifier mots de passe ou sites bloqués. Les sources inconnues restent en pause.
+> Les pages intégrées en chargement ou inaccessibles suspendent aussi les requêtes automatiques.
 
-Les questions suggérées automatiquement utilisent le contexte de la page uniquement avec votre consentement. Pour obtenir des résumés de pages sans partage d'écran, ouvrez une page, activez **Passive** et autorisez Glimpselet à accéder à ce site lorsque cela vous est demandé. Glimpselet inspecte le texte de la page et peut résumer les changements de contenu ou d'URL. Les champs de mot de passe et les sites bloqués dans la liste de blocage suspendent les résumés automatiques et les questions suggérées.
-
-Pendant un partage d'écran, les résumés automatiques des changements visuels exigent un onglet partagé associé au même onglet inspecté, avec l'accès à la page et les mêmes vérifications de confidentialité. Si la source est une fenêtre, l'écran entier, une application native, inconnue ou inaccessible, les résumés automatiques sont suspendus. Les questions et captures manuelles restent disponibles.
-
-[Guide d'installation](docs/INSTALL.md) | [Utilisation](docs/USAGE.md) | [Conception](docs/DESIGN.md) | [Détails sur la confidentialité](docs/SECURITY.md)
+Aucune télémétrie ni service de réponses géré par l'éditeur. Le contexte et les captures choisis vont à votre backend. Ses conditions et coûts s'appliquent. Les applications natives fournissent seulement des pixels. Les paramètres, boutiques d'extensions et pages protégées bloquent les outils. Opacité et passage des clics de la fenêtre native dépendent du navigateur. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.

@@ -9,6 +9,18 @@ Install the Glimpselet plugin with these two commands in Claude Code:
 
 Run `/glimpselet:glimpse` to connect and start. The welcome page has exactly three steps: install the extension, connect automatically, and open the bubble. The extension is copied to the stable `~/Glimpselet-extension` directory. If a desktop browser is available on the same computer, the installer opens the browser's extension page and reveals the folder.
 
+## Upgrade to 2.1.0
+
+Update both the marketplace and the installed plugin:
+
+```sh
+claude plugin marketplace update glimpselet
+claude plugin update glimpselet@glimpselet
+claude plugin list
+```
+
+Run `/reload-plugins` in Claude Code, or restart it, then run `/glimpselet:glimpse` again. Confirm the plugin list and the browser's extension card both show **2.1.0**. Reload the unpacked extension after the command refreshes `~/Glimpselet-extension`. On a remote host, download the new ZIP through the guide and replace the extracted files before reloading. Close the old bubble before updating.
+
 ## Advanced: run a source checkout
 
 To run Glimpselet from source, install Node.js 22 or newer, npm, and Claude Code on the computer that will run the bridge. Clone the repository, or skip the first two commands if your terminal is already at the root of an existing checkout:

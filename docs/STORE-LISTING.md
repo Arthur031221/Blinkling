@@ -24,19 +24,17 @@ Use this copy for Chrome Web Store and Microsoft Edge Add-ons. Neither listing h
 
 Keep a small chat beside what you're reading. Glimpselet floats above your tabs and apps, so you can ask about a page or screen without switching back to a chat tab.
 
-Capture a visible tab, a full page, one element or an area you select. For another app, start screen sharing inside the bubble and crop the frozen screen in full screen. Hold Shift to crop on a supported page or in the bubble. Shortcuts can be remapped in your browser.
+Capture whole screen or pick an area. Hold Shift and drag on a supported page or in the bubble, then press Enter to confirm or Esc to cancel. The floating bubble clears itself during shared-screen capture and returns afterwards. Use browser and global crop shortcuts, and remap them in your browser.
 
-Ask follow-up questions with streamed replies. Choose Opus, Sonnet or Haiku, copy or pin an answer, and stop a request. Suggested questions use page text after consent. Optional passive summaries can be paused at any time.
+Ask follow-up questions with streamed replies. Choose Opus, Sonnet or Haiku, copy or pin answers, and stop a request. Auto explain suggests up to three questions and summarizes changes. It starts off and can be paused with Alt+P.
 
-Guide mode draws circles and notes around real page controls. Translate page text in place and restore the original. Select text to explain, translate or ask about it. Open papers in the bundled PDF reader to select and discuss passages.
+Guide this page gives an overview and a Next/Back tour of reading regions, sections and controls. Select a passage to ask, explain or translate. Translate page text in place and restore it, or open a paper in the bundled PDF reader.
 
-Connect to the Glimpselet Claude Code plugin using your own signed-in account. Run Claude Code remotely? The welcome guide gives you an SSH tunnel command for the computer with your browser. An opt-in channel preview sends bubble questions into a running terminal conversation. Without the channel, use a dedicated conversation or a clearly labelled parallel continuation. Direct Anthropic API mode with your own key is also available.
+Connect to the Claude Code plugin using your own signed-in account. A three-step welcome guide in nine languages installs the extension, connects automatically and opens the bubble. On a local desktop, try a separate Chromium profile without installing into your regular browser. Remote hosts provide an SSH command for the browser computer. A verified opt-in channel sends questions into the running terminal conversation. Otherwise, Glimpselet continues the latest saved project conversation in a separate process. Avoid simultaneous terminal work on that transcript. Direct Anthropic API mode with your own key is also available.
 
-The Chinese and English welcome guide walks you through pairing and a practice page. On a local desktop you can also try a dedicated Chromium profile without installing into your regular browser.
+Glimpselet has no telemetry or publisher-operated answer service. Chosen context and captures go to your backend; provider usage and retention terms apply. Pairing tokens and API keys use browser session storage. After consent and site access, Auto explain can summarize page changes without screen sharing. Password fields, blocked hosts and inaccessible embedded pages pause automatic page requests. Shared browser tabs must remain bound to the inspected tab. Shared monitors and apps need separate consent for each share because their pixels cannot be checked for passwords or blocked websites. Unknown sources remain paused. Hide private content before sharing.
 
-Glimpselet has no telemetry or publisher-operated answer service. Page context and chosen captures go to your selected backend for chat and reading features. Pairing tokens and API keys use browser session storage. Your provider's usage and retention terms apply.
-
-Desktop Chromium browsers are required. Browser settings, extension stores and some managed pages block page tools. Native apps support screen captures and chat. Guides and in-place translation need a web page. PDFs use the Glimpselet reader. The floating window cannot pass clicks through.
+Desktop Chromium browsers are required. Settings, extension stores and protected pages block page tools. Native apps provide captures and chat; guides and in-place translation need a web page. PDFs use the bundled reader. Native windows cannot pass clicks through, and browser rules limit opacity and placement.
 
 ## Chrome submission notes
 
@@ -50,10 +48,12 @@ Upload `glimpselet-extension.zip` from the Edge submission kit. Use the same fou
 
 ## Reviewer instructions
 
-1. Install the ZIP in a current desktop Chrome or Edge. Use the toolbar button or Alt+Shift+G to open Glimpselet. Read the consent screen and choose **Open floating chat**. Use **Float** if the browser requires another gesture.
+1. Install the ZIP in a current desktop Chrome or Edge. Use the toolbar button or Alt+Shift+G to open Glimpselet. Choose **Open floating panel**.
 2. For real answers, either install the Claude Code plugin with the two commands in the README and run `/glimpselet:glimpse`, or choose direct API mode with your own Anthropic key. The extension cannot provide live answers without a user-supplied backend. No publisher credentials are embedded or required.
-3. Pair using the welcome guide. Open an ordinary HTTPS page and grant site access when requested. Test a suggested question, a follow-up and a selected-area crop. Use **Guide this page**, **Translate page**, **Restore**, and the text selection popover. Open a PDF through the bundled reader.
-4. In the floating window, choose **Share a screen**, pick a source, and use Crop or Shift. Verify the full screen selector, resize handles, Enter and Esc. Stop sharing afterwards. Passive summaries are optional and pause for sources that cannot be inspected as a browser tab.
+3. Connect automatically using the three-step welcome guide. Open an ordinary HTTPS page and grant site access when requested. Enable **Auto explain** and test a suggested question, a follow-up and a selected-area crop. Use **Guide this page**, **Translate page**, **Restore**, and the text selection popover. Open a PDF through the bundled reader.
+4. In the floating window, choose **Capture whole screen**, pick a source, and use **Pick an area** or Shift. Verify the full screen selector, resize handles, Enter and Esc. Stop sharing afterwards. Auto explain is optional. Verify its separate image-consent prompt for a monitor or app and stop sharing afterwards.
 5. To inspect the appearance without an answer backend, visit the website's prerecorded chat. It is labelled and makes no provider calls. Store screenshots also use local example replies and guide steps with the real extension UI.
 
 The account holder must arrange temporary reviewer backend access if the store requests it. Do not put an account password, API key or pairing token in the public listing or submission archive.
+
+For version 2.1.0, also verify the overview and reading-region tour, the minimized Blink control, remembered placement, and the separate image-consent prompt when Auto explain is enabled for a monitor or app. With Auto explain off, these sources must not trigger automatic requests.

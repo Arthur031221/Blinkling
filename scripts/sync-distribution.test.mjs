@@ -78,6 +78,29 @@ claude --plugin-dir "$PWD" plugin details glimpselet
 node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"`;
 
+const automaticExplanationLabels = [
+  "Auto explain",
+  "Automatisch erklären",
+  "Explicar automáticamente",
+  "Explication automatique",
+  "自動解説",
+  "자동 설명",
+  "Explicação automática",
+  "自动解说",
+  "自動解說",
+];
+const screenConsentChecks = [
+  /separate consent for each share/i,
+  /separate Zustimmung für jede Freigabe/i,
+  /consentimiento separado para cada sesión/i,
+  /consentement séparé pour chaque partage/i,
+  /共有ごとに個別の同意/,
+  /공유할 때마다 별도의 동의/,
+  /consentimento separado para cada compartilhamento/i,
+  /每次共享单独同意/,
+  /每次分享另外同意/,
+];
+
 const passiveLanguageChecks = [
   [
     "README.md",
@@ -137,7 +160,7 @@ const passiveLanguageChecks = [
   ],
   [
     "README.zh-TW.md",
-    /不需分享螢幕/,
+    /不需要分享螢幕/,
     /密碼/,
     /封鎖清單/,
     /分享瀏覽器分頁，並綁定到同一個已檢查的分頁/,
@@ -187,7 +210,9 @@ describe("distribution README sync", () => {
       expect(privacy).toMatch(password);
       expect(privacy).toMatch(blocklist);
       expect(privacy).toMatch(sharedTabBinding);
-      expect(privacy).toContain("Passive");
+      const index = readmeFiles.indexOf(file);
+      expect(privacy).toContain(automaticExplanationLabels[index]);
+      expect(privacy).toMatch(screenConsentChecks[index]);
     },
   );
 

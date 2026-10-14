@@ -10,9 +10,9 @@
     />
     <meta
       name="description"
-      content="Glimpselet 2: a floating Claude Code chat for the page or screen you choose to share. Capture, get a guide, translate and read PDFs."
+      content="Glimpselet 2.1: a floating Claude Code chat for the page or screen you choose to share. Capture, get a guide, translate and read PDFs."
     />
-    <title>Glimpselet 2 | Keep the answer beside the page</title>
+    <title>Glimpselet 2.1 | Keep the answer beside the page</title>
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="demo.css" />
   </head>
@@ -20,7 +20,7 @@
     <header>
       <a class="brand" href="./"
         ><img src="assets/logo.svg" width="32" height="32" alt="" />Glimpselet
-        <span>2.0</span></a
+        <span>2.1</span></a
       >
       <nav aria-label="Main">
         <a href="#install">Install</a><a href="privacy.html">Privacy</a
@@ -33,7 +33,7 @@
         <h1 id="hero-title">Keep the answer<br />beside the page.</h1>
         <p class="intro">
           A floating Claude Code chat for what you're reading. Capture an area,
-          ask a follow-up, or let a guide point to the right button.
+          ask a follow-up, or follow a guide through the page.
         </p>
         <div class="actions">
           <a class="button" href="#install">Get started</a
@@ -45,24 +45,24 @@
         <div class="screens">
           <figure>
             <img
-              src="demo-assets/floating.png"
-              width="1280"
-              height="800"
-              alt="Glimpselet's floating chat over GitHub's TypeScript repository"
+              src="demo-assets/demo.gif"
+              width="1008"
+              height="700"
+              alt="Real Glimpselet guide and booking question on Google Flights"
             />
             <figcaption>
-              The chat stays above the page while you work.
+              Google Flights: a page guide and a booking question.
             </figcaption>
           </figure>
           <figure>
             <img
-              src="demo-assets/guide.png"
-              width="1280"
-              height="800"
-              alt="A Glimpselet guide circling the Code button on GitHub"
+              src="demo-assets/arxiv.gif"
+              width="1008"
+              height="700"
+              alt="Selecting an arXiv abstract to ask and translate with Glimpselet"
             />
             <figcaption>
-              A guide draws around the page's actual controls.
+              arXiv: select an abstract, ask, then translate.
             </figcaption>
           </figure>
         </div>
@@ -81,15 +81,18 @@
             <h3>Open the welcome guide</h3>
             <pre><code>/glimpselet:glimpse</code></pre>
             <p>
-              It walks you through the browser connection in Chinese or English.
+              Three steps in nine languages: install, connect automatically and
+              open the bubble.
             </p>
           </li>
           <li>
             <h3>Choose your browser</h3>
             <p>
-              Try a dedicated Chromium window on a local desktop, or load the
-              extension in your own browser. If Claude Code is remote, run the
-              guide's SSH command on the computer with Chrome.
+              Turn on Developer mode, choose Load unpacked, and select the
+              folder opened by Show in Files / Finder. The guide connects
+              automatically. Local desktops can also try a separate Chromium
+              profile; remote hosts provide an SSH command for your browser
+              computer.
             </p>
           </li>
         </ol>
@@ -113,27 +116,13 @@
               in full screen. The capture lands in the bubble for your next
               question.
             </p>
-            <img
-              src="demo-assets/crop.gif"
-              width="960"
-              height="600"
-              loading="lazy"
-              alt="Browser recording of Shift crop landing in the floating chat"
-            />
           </article>
           <article>
             <h3>Find your way</h3>
             <p>
-              Ask where a control is. Guide mode circles real page elements and
-              adds a short note beside them.
+              Get a page overview, then follow Next and Back through reading
+              regions, sections and controls.
             </p>
-            <img
-              src="demo-assets/guide.gif"
-              width="960"
-              height="600"
-              loading="lazy"
-              alt="Browser recording of the guide over a GitHub page"
-            />
           </article>
           <article>
             <h3>Read across languages</h3>
@@ -147,14 +136,16 @@
             <h3>Keep the conversation</h3>
             <p>
               Get suggested questions and streamed follow-ups. Enable the
-              channel preview to talk to your running terminal session, or use a
-              dedicated conversation. Passive summaries are optional.
+              channel preview to talk to your running terminal session.
+              Otherwise, continue the latest saved project conversation in a
+              separate process. Auto explain is optional.
             </p>
           </article>
         </div>
         <p class="hint">
-          These recordings use the real extension on a public GitHub page with
-          local example replies. The prerecorded chat makes no provider calls.
+          These recordings use the real extension on live Google Flights and
+          arXiv pages with Claude Code replies. Waiting time is shortened. The
+          separate prerecorded chat makes no provider calls.
         </p>
       </section>
       <section class="limits" aria-labelledby="limits-title">
@@ -167,9 +158,12 @@
         </p>
         <p>
           Page context is used after consent. Suggested questions can send page
-          text automatically. Passive summaries are opt-in and pause for whole
-          screens, native windows and unknown sources. Your selected provider's
-          terms apply. <a href="privacy.html">Read what is sent and stored</a>.
+          text automatically. Auto explain pauses on password fields, blocked
+          sites and inaccessible embedded pages. Shared monitors and apps need
+          separate consent for each share because those pixels cannot be checked
+          for sensitive fields. Unknown sources remain paused. Your selected
+          provider's terms apply.
+          <a href="privacy.html">Read what is sent and stored</a>.
         </p>
       </section>
     </main>

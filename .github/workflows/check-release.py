@@ -42,14 +42,24 @@ for name, actual in {
 require((ROOT / f"docs/releases/v{version}.md").is_file(), "Missing release notes")
 require(f"## {version} - " in (ROOT / "CHANGELOG.md").read_text(), "Missing changelog entry")
 
+recordings = read_json("assets/recordings.json")
+require(recordings["version"] == version, "Demo recordings use another extension version")
+require({item["asset"] for item in recordings["recordings"]} == {"assets/demo.gif", "assets/arxiv.gif"}, "Missing real demo recording")
+for item in recordings["recordings"]:
+    data = (ROOT / item["asset"]).read_bytes()
+    require(data[:6] in [b"GIF87a", b"GIF89a"], f"Not a GIF: {item['asset']}")
+    require(sha256(data).hexdigest() == item["sha256"], f"Demo checksum mismatch: {item['asset']}")
+    require(item["url"].startswith("https://") and item["requestCount"] >= 2, f"Incomplete public-site recording: {item['asset']}")
+
 readmes = sorted(ROOT.glob("README*.md"))
 require(len(readmes) == 9, "Expected nine localized READMEs")
 for path in readmes:
     content = path.read_text()
     require(content.splitlines()[-1] == "Assisted by Claude/Codex.", f"Wrong final line: {path.name}")
     first_screen = content.split("\n## ", 1)[0]
-    for image in ["assets/demo.gif", "assets/screenshots/guide.png"]:
+    for image in ["assets/logo.svg", "assets/demo.gif"]:
         require(image in first_screen, f"Missing first-screen image: {path.name}: {image}")
+    require("assets/arxiv.gif" in content, f"Missing paper demo: {path.name}")
     for target in re.findall(r"\]\(([^\s)]+)\)", content):
         if not re.match(r"https?://|#", target):
             require((path.parent / target.split("#", 1)[0]).exists(), f"Broken README link: {path.name}: {target}")

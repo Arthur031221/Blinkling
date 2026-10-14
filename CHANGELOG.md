@@ -9,9 +9,11 @@ The floating bubble, capture flow, page guides and welcome guide now follow the 
 - Request capture access where it is needed. Clear and restore the native floating window during screen capture, keep crop gestures working across displays, and remove the manual reopen step.
 - Guide the whole page through reading regions and paragraphs, with an annotated overview and a Next/Back tour. Background guide redraws preserve the user's focus.
 - Use a three-step welcome guide in all nine languages, a visible `~/Glimpselet-extension` folder and automatic browser connection. Reuse the latest project conversation unless a live channel is available.
-- Keep the plugin, extension, bridge, installation instructions and packaged assets at version 2.1.0.
+- Support automatic explanations of shared monitors and apps after separate consent for each share. Mask the bubble in monitor frames and ignore unchanged frames. Keep password, blocked-site and embedded-page checks for browser pages.
+- Use shorter headings, lists and paragraphs for Chinese, Japanese and Korean answers. Remove the second consent screen and practice exercises from the welcome flow.
+- Rewrite all nine READMEs with three-step installation and real Google Flights and arXiv recordings. Keep the plugin, extension, bridge and packages at version 2.1.0.
 
-Native window opacity, click-through and focus remain subject to browser and operating system limits. Automatic screen summaries still pause for whole monitors, native windows and unknown sharing sources. Live terminal delivery requires the opt-in Claude Code channel; session continuation cannot inject messages into a terminal that is already running.
+Native window opacity, click-through and focus remain subject to browser and operating system limits. Unknown sharing sources remain paused. Automatic screen and app explanations require per-share consent because page privacy checks cannot inspect those pixels. If Escape prevents the native bubble from reopening, the preserved chat opens in a companion popup with a button to restore floating mode. Live terminal delivery requires the opt-in Claude Code channel; session continuation cannot inject messages into a terminal that is already running.
 
 See the [release notes](docs/releases/v2.1.0.md) and [install guide](docs/INSTALL.md).
 

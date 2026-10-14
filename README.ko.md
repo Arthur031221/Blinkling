@@ -1,31 +1,48 @@
-# Glimpselet
+<h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br />Glimpselet</h1>
 
-[English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+<p align="center"><strong>답을 읽고 있는 페이지 곁에.</strong></p>
 
-현재 보고 있는 페이지나 화면에 관해 Claude Code에 질문할 수 있는 작은 플로팅 채팅입니다. 웹 페이지를 읽고 번역하거나, 페이지의 실제 버튼을 안내받고, 화면 일부를 캡처해 질문할 수 있습니다.
+<p align="center">
+  <a href="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Arthur031221/Glimpselet/releases"><img src="https://img.shields.io/github/v/release/Arthur031221/Glimpselet" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Arthur031221/Glimpselet" alt="License" /></a>
+</p>
 
-|           Glimpselet 플로팅 채팅           |                 페이지 안내 예시                  |
-| :----------------------------------------: | :-----------------------------------------------: |
-| ![Glimpselet 플로팅 채팅](assets/demo.gif) | ![페이지 안내 예시](assets/screenshots/guide.png) |
+[English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-필요 사항: 최신 Claude Code, 본인 구독 계정 로그인, Chrome 또는 Edge 같은 데스크톱 Chromium 브라우저.
+작은 Claude Code 플로팅 채팅입니다. 페이지를 질문하고, 영역을 캡처하고, 가이드를 따라가거나 문장을 번역하세요.
 
-Glimpselet은 사용 가능한 Claude Code 실시간 세션에 연결합니다. 그렇지 않으면 현재 프로젝트의 최신 대화를 자동으로 이어가고, 저장된 대화가 없으면 새로 시작합니다. [세션 설정과 제한](docs/DESIGN.md#the-running-claude-code-conversation).
+> [!TIP]
+> 로그인한 본인 Claude Code 계정과 데스크톱 Chrome 또는 Edge를 사용합니다. Claude Code에는 API 키가 필요 없습니다.
+
+![Google Flights: 페이지 가이드를 보고 왕복 항공편 예약을 질문합니다.](assets/demo.gif)
+
+_Google Flights: 페이지 가이드를 보고 왕복 항공편 예약을 질문합니다._
 
 ## 설치
 
-1. Claude Code에 마켓플레이스를 추가하고 플러그인을 설치합니다.
+1. Claude Code에서 플러그인을 설치합니다:
 
    ```text
    /plugin marketplace add Arthur031221/Glimpselet
    /plugin install glimpselet@glimpselet
    ```
 
-2. 터미널에서 `claude plugin list`에 Glimpselet **2.1.0**이 표시되는지 확인한 후 Claude Code에서 `/glimpselet:glimpse`를 실행합니다.
+2. 시작 안내를 엽니다:
 
-3. 시작 페이지는 세 단계입니다. 확장 프로그램 설치, 자동 연결, 버블 열기. 로컬 데스크톱에서는 **설치 없이 사용해 보기**를 선택하거나 자신의 브라우저에 확장 프로그램을 로드하세요. Claude Code가 원격 호스트에서 실행된다면 브라우저가 있는 컴퓨터에서 터미널에 표시된 SSH 명령을 실행하고 ZIP을 다운로드해 로드하세요. 버블에는 **내 Claude Code에 연결됨**이 표시됩니다. [연결 안내](docs/INSTALL.md)를 참고하세요.
+   ```text
+   /glimpselet:glimpse
+   ```
+
+3. `chrome://extensions`(또는 `edge://extensions`)에서 **개발자 모드**를 켭니다. **Load unpacked**를 선택하고 **Show in Files / Finder**가 여는 폴더를 지정합니다. 시작 페이지가 자동으로 연결되면 버블을 엽니다.
+
+> [!NOTE]
+> 로컬 데스크톱에서는 **Try without installing**으로 별도 Chromium 프로필을 열 수 있습니다. 원격 호스트에서는 브라우저 컴퓨터에서 표시된 SSH 명령을 실행합니다. [설치와 업데이트](docs/INSTALL.md).
 
 ### 고급: 소스에서 불러오기
+
+<details>
+<summary>소스 실행과 수동 업데이트</summary>
 
 소스에서 플러그인을 실행하려면 Node.js 22+와 최신 Claude Code가 필요합니다. 터미널이 이미 기존 소스 저장소의 루트 폴더에 있다면 처음 두 명령은 건너뛰세요. 터미널에서 다음 명령을 실행하세요.
 
@@ -51,9 +68,7 @@ claude --plugin-dir "$PWD"
 
 압축 해제한 확장 프로그램을 업데이트할 때는 기존 버블을 닫고 `/glimpselet:glimpse`를 다시 실행해 고정 폴더를 갱신한 뒤 확장 프로그램 카드에서 새로고침을 누르세요. Claude Code가 원격 호스트에 있으면 안내에서 새 ZIP을 받아 브라우저 컴퓨터의 압축 해제한 파일을 교체하고 확장 프로그램을 새로고침하세요. `~/Glimpselet-extension`으로 옮길 때는 기존 확장 프로그램 카드를 삭제하고 이 폴더를 한 번 로드하세요.
 
-## 이미 Glimpselet을 설치했나요?
-
-Claude Code가 실행되는 컴퓨터의 터미널에서 다음 명령을 실행하세요. 마켓플레이스 목록을 새로 고치는 것만으로 설치된 플러그인의 업데이트가 보장되지는 않습니다.
+설치된 플러그인은 아래 명령으로 업데이트한 뒤 Claude Code에서 `/reload-plugins`와 `/glimpselet:glimpse`를 실행합니다. 플러그인 목록과 확장 카드가 **2.1.0**인지 확인하고 버블을 다시 여세요.
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -61,45 +76,39 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-열린 Claude Code 세션에서 `/reload-plugins`를 실행하거나 Claude Code를 다시 시작한 다음 `/glimpselet:glimpse`를 실행하세요. 목록의 `glimpselet@glimpselet`이 **2.1.0**이고 시작 및 페어링 안내가 열리는지 확인하세요. 브라우저 컴퓨터의 `chrome://extensions` 또는 `edge://extensions`에서도 Glimpselet이 **2.1.0**인지 확인하세요. 여전히 1.1.1이라면 공개 마켓플레이스에 v2가 아직 배포되지 않았을 수 있습니다. 예전 화면 선택 페이지는 v2 시작 안내가 아닙니다. [업데이트 확인](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+</details>
 
-## 할 수 있는 일
+## 읽으면서 사용하기
 
-- Opus, Sonnet, Haiku의 스트리밍 답변을 받고 후속 질문을 할 수 있습니다.
-- 공유 화면을 전체 화면 보기에서 캡처하거나 페이지 오버레이로 영역을 자를 수 있습니다. Shift를 누른 채 드래그한 다음 Enter로 캡처하고 Esc로 취소합니다.
-- 페이지가 바뀌면 함께 갱신되는 추천 질문을 볼 수 있습니다.
-- 선택 사항인 Passive 요약을 켜고 Alt+P로 일시 중지하며 시간당 비용을 확인할 수 있습니다.
-- 페이지의 실제 컨트롤 위에 안내를 표시합니다. 페이지에서 바로 번역하고 Restore로 원문을 되돌릴 수 있습니다.
-- 텍스트를 선택해 설명, 번역 또는 질문을 할 수 있습니다. 내장 리더에서 PDF를 열고 질문할 수도 있습니다.
+- **전체 화면 캡처** 또는 **영역 선택**. 지원 페이지나 버블에서 Shift를 누르고 드래그하세요. Enter는 확인, Esc는 취소입니다. 공유 화면 캡처 중 버블이 물러났다가 돌아옵니다.
+- **이 페이지 안내**는 개요와 다음/이전 탐색으로 읽기 영역과 컨트롤을 설명합니다.
+- 텍스트를 선택해 질문, 설명, 번역을 요청하세요. 페이지 내 번역은 복원할 수 있고 PDF는 내장 리더에서 엽니다.
+- **자동 설명**은 최대 세 질문을 제안하고 변화를 요약합니다. Alt+P로 일시 중지합니다. 채팅 모델은 Opus, Sonnet, Haiku 중 선택합니다.
 
-![이 페이지 안내](assets/guide.gif)
+![arXiv: 초록을 선택하고 질문한 뒤 중국어 번체로 번역합니다.](assets/arxiv.gif)
 
-![선택한 영역](assets/crop.gif)
+_arXiv: 초록을 선택하고 질문한 뒤 중국어 번체로 번역합니다._
 
-| 단축키                                | 동작                                                                                 |
-| ------------------------------------- | ------------------------------------------------------------------------------------ |
-| Alt+Shift+G                           | Glimpselet을 열고 **Float**를 선택해 플로팅 채팅을 엽니다.                           |
-| Ctrl+Shift+S(macOS에서는 Cmd+Shift+S) | 현재 페이지 또는 공유 화면을 자릅니다.                                               |
-| Ctrl+Shift+7(macOS에서는 Cmd+Shift+7) | 모든 앱에서 화면을 자릅니다. `chrome://extensions/shortcuts`에서 변경할 수 있습니다. |
-| Shift 누르기                          | Glimpselet 버블 또는 페이지에서 자르기를 시작합니다.                                 |
-| Alt+P                                 | Passive 요약을 일시 중지합니다.                                                      |
+실제 확장 프로그램과 공개 사이트, Claude Code 답변을 녹화했습니다. 대기 시간은 줄였으며 페이지 내용과 답변은 연출하지 않았습니다.
 
-macOS에서 Cmd+Shift+5는 시스템 스크린샷 도구를 엽니다. Shift는 Glimpselet에 접근을 허용한 웹페이지에서 작동합니다. 웹페이지는 다른 앱의 키 입력을 받을 수 없습니다.
+## 단축키
 
-첫 동작은 **Float**입니다. 페이지 접근이 필요한 기능을 사용할 때 확장 프로그램이 권한을 요청합니다. 본인 Claude Code 로그인 세션을 사용하면 제공자 API 키가 필요하지 않습니다. 직접 API 모드는 선택 사항이며 본인 API 키가 필요합니다.
+| 단축키       | 동작                |
+| ------------ | ------------------- |
+| Alt+Shift+G  | 버블 열기           |
+| Ctrl+Shift+S | 브라우저에서 자르기 |
+| Ctrl+Shift+7 | 다른 앱에서 자르기  |
 
-## Claude Code 세션
+macOS에서는 Ctrl 대신 Cmd를 사용합니다. `chrome://extensions/shortcuts`에서 변경하세요. Shift는 지원 페이지와 버블 안에서만 작동합니다.
 
-Channel 미리 보기 명령과 설정은 [Claude Code 세션](docs/DESIGN.md#the-running-claude-code-conversation)을 참조하세요. channel이 없으면 현재 프로젝트의 최신 세션을 별도 프로세스에서 자동으로 이어갑니다. 이는 병렬 이어쓰기입니다. 동시에 터미널에서 같은 세션을 사용하지 마세요. 동시 접근은 충돌을 일으킬 수 있습니다.
+## 세션과 개인정보
 
-## 제한 및 개인정보
+검증된 Claude Code 라이브 채널이 있으면 사용하고, 없으면 별도 프로세스에서 프로젝트의 최신 저장 대화를 이어갑니다. 같은 기록을 터미널에서 동시에 사용하지 마세요. [채널 설정과 제한](docs/DESIGN.md#the-running-claude-code-conversation).
 
-Glimpselet은 데스크톱 Chrome, Edge 및 기타 Chromium 브라우저에서 작동합니다. 스토어 배포 전까지 개발자 배너가 표시되고 업데이트는 수동입니다. 브라우저 설정, 확장 프로그램 스토어, 제한된 페이지 등 일부 페이지는 접근을 차단합니다. Chrome 내장 PDF 뷰어는 읽을 수 없으므로 Glimpselet 리더를 사용하세요. 네이티브 앱에서는 픽셀만 제공되며 페이지 텍스트나 오버레이는 사용할 수 없습니다. Shift는 버블과 접근을 허용한 페이지에서 작동합니다. 다른 앱에서는 전역 캡처 단축키를 사용하세요. 플로팅 창은 클릭을 통과시키지 않습니다.
+> [!IMPORTANT]
+> **자동 설명**은 동의와 사이트 접근 허용 후 **화면 공유 없이** 페이지 변화를 요약합니다. 비밀번호 필드와 차단 목록은 자동 요약과 질문 제안을 중지합니다. 화면 요약은 검사한 동일한 탭에 연결된 브라우저 탭 공유와 같은 검사를 사용합니다. 공유 모니터나 앱에는 **공유할 때마다 별도의 동의**가 필요합니다. 해당 픽셀의 비밀번호나 차단 사이트는 검사할 수 없습니다. 알 수 없는 공유 소스는 중지 상태를 유지합니다.
+> 로딩 중이거나 접근할 수 없는 삽입 페이지도 자동 요청을 중지합니다.
 
-자동 질문 제안은 동의한 경우에만 페이지 정보를 사용합니다. 화면 공유 없이 페이지 요약을 받으려면 페이지를 열고 **Passive**를 켠 다음 요청이 표시되면 Glimpselet의 해당 사이트 접근을 허용하세요. Glimpselet이 페이지 텍스트를 검사하고 내용이나 URL 변경을 요약할 수 있습니다. 비밀번호 필드와 차단 목록의 사이트에서는 자동 요약과 질문 제안이 일시 중지됩니다.
-
-화면을 공유하는 동안 화면 변화에 따른 자동 요약은 검사한 동일한 탭에 연결된 브라우저 탭 공유, 페이지 접근 권한, 동일한 개인정보 확인이 필요합니다. 공유 소스가 창, 전체 화면, 네이티브 앱, 알 수 없는 소스 또는 접근 불가 소스라면 자동 요약이 일시 중지됩니다. 수동 질문과 캡처는 계속 사용할 수 있습니다.
-
-[설치 안내](docs/INSTALL.md) | [사용법](docs/USAGE.md) | [설계](docs/DESIGN.md) | [개인정보 상세](docs/SECURITY.md)
+텔레메트리나 게시자가 운영하는 답변 서비스는 없습니다. 선택한 문맥과 캡처는 본인 백엔드로 전송되며 제공자의 조건과 요금이 적용됩니다. 네이티브 앱은 픽셀만 제공합니다. 브라우저 설정, 확장 스토어, 보호된 페이지에서는 페이지 도구가 차단됩니다. 네이티브 창의 불투명도와 클릭 통과는 브라우저 제약을 받습니다. [개인정보](docs/SECURITY.md) | [사용법](docs/USAGE.md) | [릴리스 노트](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.

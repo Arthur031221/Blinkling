@@ -399,7 +399,9 @@ try {
   );
   const welcome = await browserContext.newPage();
   await welcome.goto(`${origin}/install#code=${bridge.issueCode()}`);
-  await expect(welcome.locator("#connection")).toHaveClass(/connected/);
+  await expect(welcome.locator("#connection")).toContainText(
+    /Connection set up|Connected to your Claude Code/,
+  );
   await welcome.close();
   sitePage = await browserContext.newPage();
   await sitePage.goto(publicMode ? publicUrl : origin, {

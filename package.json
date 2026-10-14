@@ -28,7 +28,8 @@
     "package:stores": "npm run package:extension && python3 scripts/package-stores.py",
     "test:extension": "npm run build:plugin && bash scripts/extension-e2e.sh",
     "smoke:sites": "npm run build:extension && xvfb-run -a node scripts/smoke-sites.mjs",
-    "smoke:guide": "npm run build:extension && xvfb-run -a node scripts/smoke-guide-sites.mjs"
+    "smoke:guide": "npm run build:extension && xvfb-run -a node scripts/smoke-guide-sites.mjs",
+    "record:real-demos": "node scripts/record-real-demos.mjs"
   },
   "workspaces": [
     "bridge"

@@ -1,31 +1,48 @@
-# Glimpselet
+<h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br />Glimpselet</h1>
 
-[English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+<p align="center"><strong>Keep the answer beside the page.</strong></p>
 
-A small floating chat for asking Claude Code about the page or screen you are viewing. Read and translate web pages, get on-page guides, and capture an area to ask about it.
+<p align="center">
+  <a href="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Arthur031221/Glimpselet/releases"><img src="https://img.shields.io/github/v/release/Arthur031221/Glimpselet" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Arthur031221/Glimpselet" alt="License" /></a>
+</p>
 
-|           Glimpselet floating chat           |                 On-page guide example                  |
-| :------------------------------------------: | :----------------------------------------------------: |
-| ![Glimpselet floating chat](assets/demo.gif) | ![On-page guide example](assets/screenshots/guide.png) |
+[English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-Requirements: recent Claude Code, signed in with your own subscription account, and a desktop Chromium browser such as Chrome or Edge.
+A small floating Claude Code chat. Ask about a page, capture an area, follow a guide, or translate a passage.
 
-Glimpselet connects to a verified live Claude Code session when available. Otherwise it automatically continues the latest session in the current project, or starts one if there is no saved conversation. [Session setup and limits](docs/DESIGN.md#the-running-claude-code-conversation).
+> [!TIP]
+> Use your own signed-in Claude Code account and desktop Chrome or Edge. No API key is needed for Claude Code.
+
+![Google Flights: a page guide, then a question about booking a round trip.](assets/demo.gif)
+
+_Google Flights: a page guide, then a question about booking a round trip._
 
 ## Install
 
-1. In Claude Code, add the marketplace and install the plugin:
+1. In Claude Code, install the plugin:
 
    ```text
    /plugin marketplace add Arthur031221/Glimpselet
    /plugin install glimpselet@glimpselet
    ```
 
-2. In your terminal, check `claude plugin list` shows Glimpselet **2.1.0**, then run `/glimpselet:glimpse` in Claude Code.
+2. Open the welcome guide:
 
-3. Follow the welcome page’s three steps: install, connect automatically, and open the bubble. Choose **Try without installing** on a local desktop, or load the extension in your own browser. For a remote Claude Code host, run the SSH command printed in the terminal on the computer with your browser, then download and load the ZIP there. The bubble shows **Connected to your Claude Code**. See [connection details](docs/INSTALL.md).
+   ```text
+   /glimpselet:glimpse
+   ```
+
+3. Turn on **Developer mode** at `chrome://extensions` (or `edge://extensions`). Choose **Load unpacked** and select the folder shown by **Show in Files / Finder**. The welcome page connects automatically. Open the bubble.
+
+> [!NOTE]
+> Local desktop: **Try without installing** opens a separate Chromium profile. Remote host: run the printed SSH command on the browser computer. [Install and upgrade details](docs/INSTALL.md).
 
 ### Advanced: load from source
+
+<details>
+<summary>Source checkout and manual updates</summary>
 
 To run a checkout, install Node.js 22 or newer and a recent Claude Code on the computer that runs Claude Code. In a terminal, skip the first two commands if you are already at the root of your checkout:
 
@@ -51,9 +68,7 @@ If your browser and Claude Code run on the same computer, the welcome guide copi
 
 After upgrading an unpacked extension, close the old bubble and rerun `/glimpselet:glimpse` to refresh the stable folder. Click Reload on its card in the extensions page. If Claude Code is remote, download the new ZIP through the welcome guide, replace the extracted files on the browser computer, then reload its extension card. When moving to `~/Glimpselet-extension`, remove the old extension card and load this folder once.
 
-## Already installed Glimpselet?
-
-Run these commands in a terminal on the computer where Claude Code runs. Refreshing the marketplace alone does not guarantee the installed plugin has updated.
+For an installed plugin, run these commands, then `/reload-plugins` and `/glimpselet:glimpse` in Claude Code. Check version **2.1.0** in the plugin list and extension card before reopening the bubble.
 
 ```sh
 claude plugin marketplace update glimpselet
@@ -61,45 +76,39 @@ claude plugin update glimpselet@glimpselet
 claude plugin list
 ```
 
-In your open Claude Code session, run `/reload-plugins` (or restart Claude Code), then `/glimpselet:glimpse`. The list must show `glimpselet@glimpselet` at **2.1.0**, and the command must open the welcome and pairing guide. Check that Glimpselet also shows **2.1.0** on `chrome://extensions` or `edge://extensions` on the computer with your browser. If the plugin still shows 1.1.1, v2 may not yet be available from the public marketplace. An old screen-picker page is not the v2 welcome guide. [Upgrade verification](docs/DESIGN.md#plugin-upgrades-and-release-verification).
+</details>
 
-## What you can do
+## While you read
 
-- Stream chat replies and ask follow-up questions with Opus, Sonnet, or Haiku.
-- Capture a shared screen in the fullscreen view, or crop an area with the page overlay. Hold Shift and drag, then press Enter to capture or Esc to cancel.
-- Get suggested questions that refresh as the page changes.
-- Turn on optional Passive summaries, pause them with Alt+P, and see their cost per hour.
-- Get a guide drawn over the page's actual controls, translate text in place and choose Restore to bring it back.
-- Select text to Explain, Translate, or Ask about it, or open a PDF in the bundled reader and ask questions.
+- **Capture whole screen** or **Pick an area**. Hold Shift and drag on a supported page or in the bubble. Enter confirms, Esc cancels. The bubble clears itself during shared-screen capture and returns afterwards.
+- **Guide this page** gives a page overview and a Next/Back tour of reading regions and controls.
+- Select text to **Ask**, **Explain** or **Translate**. Translate a page in place and restore it, or open a PDF in the bundled reader.
+- **Auto explain** suggests up to three questions and summarizes changes. Alt+P pauses it. Choose Opus, Sonnet or Haiku for chat.
 
-![Guide this page](assets/guide.gif)
+![arXiv: select an abstract, ask about it, then translate it into Traditional Chinese.](assets/arxiv.gif)
 
-![Selected area](assets/crop.gif)
+_arXiv: select an abstract, ask about it, then translate it into Traditional Chinese._
 
-| Shortcut                            | Action                                                          |
-| ----------------------------------- | --------------------------------------------------------------- |
-| Alt+Shift+G                         | Open Glimpselet and choose **Float** to open the floating chat. |
-| Ctrl+Shift+S (Cmd+Shift+S on macOS) | Crop the current page or shared screen.                         |
-| Ctrl+Shift+7 (Cmd+Shift+7 on macOS) | Crop from any app. Remap in `chrome://extensions/shortcuts`.    |
-| Hold Shift                          | Start a crop in a Glimpselet bubble or page.                    |
-| Alt+P                               | Pause Passive summaries.                                        |
+Recorded with the real extension on live sites and Claude Code replies. Waiting time is shortened. No page content or answers are staged.
 
-On macOS, Cmd+Shift+5 opens the system screenshot tool. Shift works on web pages where Glimpselet has page access. A web page cannot listen for it in another app.
+## Shortcuts
 
-Float is the first action. The extension asks for page access when you use a feature that needs it. No provider API key is needed when you use your own logged-in Claude Code session. Direct API mode is optional and requires your own API key.
+| Shortcut     | Action                |
+| ------------ | --------------------- |
+| Alt+Shift+G  | Open the bubble       |
+| Ctrl+Shift+S | Crop in the browser   |
+| Ctrl+Shift+7 | Crop from another app |
 
-## Claude Code sessions
+macOS uses Cmd instead of Ctrl. Remap at `chrome://extensions/shortcuts`. Shift works only on supported pages and in the bubble.
 
-For the channel preview command and setup details, see [Claude Code sessions](docs/DESIGN.md#the-running-claude-code-conversation). Without the channel, Glimpselet automatically continues the latest session in the current project in a separate process. This is a parallel continuation. Do not use that session in the terminal at the same time because concurrent access can conflict.
+## Sessions and privacy
 
-## Limits and privacy
+Glimpselet uses a verified live Claude Code channel when available. Otherwise it continues the latest saved project conversation in a separate process. Avoid using that same transcript in the terminal concurrently. [Channel setup and limits](docs/DESIGN.md#the-running-claude-code-conversation).
 
-Glimpselet works in desktop Chrome, Edge, and other Chromium browsers. The developer banner remains until store distribution is available, and updates are manual. Some browser pages block access, including settings, extension stores, and restricted pages. Chrome's built-in PDF viewer is not accessible, so use the Glimpselet reader. Native apps provide pixels only, with no page text or overlays. Shift works in the bubble and on pages with site access. In another app, use the global crop shortcut. The floating window cannot pass clicks through.
+> [!IMPORTANT]
+> Auto explain can summarize page changes **without screen sharing** after consent and site access. Password fields and your blocklist pause automatic page summaries and suggestions. Screen summaries use a shared browser tab bound to the same inspected tab and the same checks. A shared monitor or app needs **separate consent for each share**. Its pixels cannot be checked for password fields or blocked sites. Unknown sources remain paused.
+> Loading or inaccessible embedded pages also pause automatic page requests.
 
-Automatic suggested questions use page context only with your consent. To get page summaries without screen sharing, open a page, turn on **Passive**, and allow Glimpselet access to that site when prompted. Glimpselet inspects the page text and can summarize changes to its content or URL. Password fields and blocklisted sites pause automatic summaries and suggested questions.
-
-While screen sharing, automatic screen-change summaries require a shared browser tab bound to the same inspected tab, with page access and the same privacy checks. If the shared source is a window, whole screen, native app, unknown, or inaccessible, automatic summaries pause. Manual questions and captures remain available.
-
-[Install guide](docs/INSTALL.md) | [Usage](docs/USAGE.md) | [Design](docs/DESIGN.md) | [Privacy details](docs/SECURITY.md)
+No telemetry or publisher-operated answer service. Chosen context and captures go to your backend. Provider terms and usage charges apply. Native apps provide pixels only. Browser settings, extension stores and protected pages block page tools. Native window opacity and click-through have browser limits. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.
