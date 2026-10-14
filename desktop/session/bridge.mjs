@@ -148,15 +148,18 @@ export class DesktopSessionBridge {
         ...this.state.selection,
       });
       if (this.closed) throw new Error("Session closed");
-      if (
-        this.state.remoteId &&
-        remote.bridge_session_id !== this.state.remoteId
-      )
-        throw Object.assign(new Error("Remote session identity changed"), {
-          code: "IDENTITY_CHANGED",
-        });
-      this.state.remoteId = remote.bridge_session_id;
-      this.state.url = remote.session_url;
+      // A local-only session (GLIMPSELET_REMOTE=0) must not disturb a stored remote identity.
+      if (!remote.local) {
+        if (
+          this.state.remoteId &&
+          remote.bridge_session_id !== this.state.remoteId
+        )
+          throw Object.assign(new Error("Remote session identity changed"), {
+            code: "IDENTITY_CHANGED",
+          });
+        this.state.remoteId = remote.bridge_session_id;
+        this.state.url = remote.session_url;
+      }
       this.state.started = true;
       this.state.selection = confirmedSelection(await transport.getSelection());
       await this.events;
@@ -169,7 +172,7 @@ export class DesktopSessionBridge {
       );
       for (const message of recovered) this.upsert(message);
       await this.store.save(this.state);
-      this.emit(this.identity());
+      if (this.state.remoteId) this.emit(this.identity());
       this.emit({ type: "selection", applied: { ...this.state.selection } });
       for (const message of this.state.messages) this.emit(message);
       this.emitRecoveredCompletion(previousTurns);

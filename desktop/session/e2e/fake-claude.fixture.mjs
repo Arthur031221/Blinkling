@@ -61,6 +61,12 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const frame = JSON.parse(line);
   if (frame.type === "control_request") {
     const request = frame.request;
+    // Tests ask what the app requested, e.g. whether it ever asked for Remote Control.
+    if (process.env.GLIMPSELET_TEST_REQUESTS)
+      appendFileSync(
+        process.env.GLIMPSELET_TEST_REQUESTS,
+        JSON.stringify(request) + "\n",
+      );
     let response = {};
     if (request.subtype === "initialize")
       response = {

@@ -12,7 +12,11 @@ export function launch() {
         : [fileURLToPath(new URL("..", import.meta.url))]),
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
     ],
-    env: { ...process.env, GLIMPSELET_E2E: "1" },
+    env: {
+      ...process.env,
+      GLIMPSELET_E2E: "1",
+      GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE_OBSERVER ? "test" : "0",
+    },
   });
 }
 export function nativeClick(x, y) {

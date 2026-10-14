@@ -16,6 +16,7 @@ async function setup(t) {
     controlTimeoutMs: 1500,
     connectTimeoutMs: 3000,
     executableArgs: [fixture],
+    remote: "on",
   });
   t.after(async () => {
     await child.dispose();
@@ -170,7 +171,7 @@ test("shutdown during the version probe cancels the actual probe and never launc
   const file = join(dir, "pid");
   const previous = process.env.GLIMPSELET_TEST_VERSION_PID;
   process.env.GLIMPSELET_TEST_VERSION_PID = file;
-  const child = new OwnedSession({ executableArgs: [fixture] });
+  const child = new OwnedSession({ executableArgs: [fixture], remote: "on" });
   try {
     const connecting = child.connect({
       cwd: dir,
@@ -205,12 +206,13 @@ test("shutdown during the version probe cancels the actual probe and never launc
 
 test("an empty session survives full adapter restart with the same UUID and remote identity", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-empty-session-"));
-  const createBridge = () =>
+  const createBridge = (remote = "on") =>
     new DesktopSessionBridge({
       userDataDir: cwd,
       cwd,
       executable: process.execPath,
-      transportFactory: () => new OwnedSession({ executableArgs: [fixture] }),
+      transportFactory: () =>
+        new OwnedSession({ executableArgs: [fixture], remote }),
       readTranscript: async (_, id) => {
         try {
           return (
@@ -240,8 +242,83 @@ test("an empty session survives full adapter restart with the same UUID and remo
     assert.ok(bridge.transport.child.spawnargs.includes("--session-id"));
     assert.ok(!bridge.transport.child.spawnargs.includes("--resume"));
     assert.equal(bridge.state.turns.length, 0);
+    // A later local-only run (GLIMPSELET_REMOTE=0) leaves the stored identity alone.
+    await bridge.dispose();
+    bridge = createBridge("off");
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    assert.deepEqual(bridge.identity(), identity);
   } finally {
     await bridge.dispose();
     await rm(cwd, { recursive: true, force: true });
   }
+});
+
+async function requested(t, remote, env = {}) {
+  const dir = await mkdtemp(join(tmpdir(), "glimpselet-remote-"));
+  const file = join(dir, "requests");
+  const previous = process.env.GLIMPSELET_TEST_REQUESTS;
+  process.env.GLIMPSELET_TEST_REQUESTS = file;
+  const child = new OwnedSession({
+    controlTimeoutMs: 1500,
+    connectTimeoutMs: 3000,
+    executableArgs: [fixture],
+    ...(remote ? { remote } : {}),
+  });
+  t.after(async () => {
+    await child.dispose();
+    if (previous === undefined) delete process.env.GLIMPSELET_TEST_REQUESTS;
+    else process.env.GLIMPSELET_TEST_REQUESTS = previous;
+    await rm(dir, { recursive: true, force: true });
+  });
+  const saved = {};
+  for (const [key, value] of Object.entries(env)) {
+    saved[key] = process.env[key];
+    process.env[key] = value;
+  }
+  try {
+    const result = await child.connect({
+      cwd: dir,
+      executable: process.execPath,
+      localId: randomUUID(),
+    });
+    return {
+      child,
+      result,
+      requests: (await readFile(file, "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line)),
+    };
+  } finally {
+    for (const [key, value] of Object.entries(saved))
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  }
+}
+test("GLIMPSELET_REMOTE=0 never asks for Remote Control and the session still takes turns", async (t) => {
+  const { child, result, requests } = await requested(t, null, {
+    GLIMPSELET_REMOTE: "0",
+  });
+  assert.ok(requests.some((r) => r.subtype === "initialize"));
+  assert.ok(!requests.some((r) => r.subtype === "remote_control"));
+  assert.deepEqual(result, { local: true });
+  const done = new Promise((resolve) =>
+    child.on("event", (event) => event.type === "result" && resolve(event)),
+  );
+  await child.send(
+    { id: randomUUID(), source: "composer", text: "Hi", attachments: [] },
+    undefined,
+  );
+  await done;
+});
+test("by default Remote Control is requested and kept; the live check uses a throwaway name", async (t) => {
+  const real = await requested(t, null, { GLIMPSELET_REMOTE: "" });
+  const request = real.requests.find((r) => r.subtype === "remote_control");
+  assert.equal(request.name, "Glimpselet");
+  assert.equal(request.keep_session_on_exit, true);
+  const check = await requested(t, null, { GLIMPSELET_REMOTE: "test" });
+  const throwaway = check.requests.find((r) => r.subtype === "remote_control");
+  assert.equal(throwaway.name, "Glimpselet test");
+  assert.equal(throwaway.keep_session_on_exit, false);
 });

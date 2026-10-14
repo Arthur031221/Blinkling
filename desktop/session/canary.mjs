@@ -11,6 +11,8 @@ import { DesktopSessionBridge } from "./index.mjs";
 const image =
   "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAX0lEQVR4nO3PQQ0AIBDAMMC/50MEj4ZkVbDtWX87OuBVA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA9oFUoUBf3Xr7AgAAAAASUVORK5CYII=";
 const sources = ["composer", "quick-ask", "guide", "auto-explain", "companion"];
+// Opt-in live runs use the self-deleting "Glimpselet test" Remote Control session.
+process.env.GLIMPSELET_REMOTE ??= "test";
 export async function runCanary({ reportDir, holdMs = 0, observer }) {
   await mkdir(reportDir, { recursive: true, mode: 0o700 });
   const events = [];

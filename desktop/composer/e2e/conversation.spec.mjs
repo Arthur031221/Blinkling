@@ -21,7 +21,7 @@ async function launch(scale = 1) {
       "--no-sandbox",
       `--force-device-scale-factor=${scale}`,
     ],
-    env: process.env,
+    env: { ...process.env, GLIMPSELET_REMOTE: "0" },
   });
   const card = await app.firstWindow();
   const errors = [];

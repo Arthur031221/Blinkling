@@ -11,6 +11,9 @@ jobs:
       matrix:
         node: [22, 24]
     runs-on: ubuntu-latest
+    env:
+      # Tests never create Remote Control sessions in an account's list.
+      GLIMPSELET_REMOTE: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

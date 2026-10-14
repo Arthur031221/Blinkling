@@ -66,12 +66,20 @@ export function launchArguments({
         : []),
   ];
 }
-export function enableRemote(remoteId) {
+/** GLIMPSELET_REMOTE: unset is a real user (Remote Control on, session kept).
+ * "0" never asks for Remote Control, so automated runs leave no session in the
+ * account's list. "test" is the single live check: a named session that goes away on exit. */
+export function remoteMode(env = process.env) {
+  if (env.GLIMPSELET_REMOTE === "0") return "off";
+  return env.GLIMPSELET_REMOTE === "test" ? "test" : "on";
+}
+export function enableRemote(remoteId, mode = "on") {
+  const test = mode === "test";
   return {
     subtype: "remote_control",
     enabled: true,
-    name: "Glimpselet",
-    keep_session_on_exit: true,
+    name: test ? "Glimpselet test" : "Glimpselet",
+    keep_session_on_exit: !test,
     ...(remoteId ? { reattach_session_id: remoteId } : {}),
   };
 }

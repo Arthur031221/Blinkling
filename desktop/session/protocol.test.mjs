@@ -5,6 +5,7 @@ import {
   userMessage,
   launchArguments,
   enableRemote,
+  remoteMode,
 } from "./protocol.mjs";
 test("image turns preserve image bytes and stable deduplication ID", () => {
   const value = userMessage(
@@ -96,6 +97,20 @@ test("owned session resumes exact ID without forking or requiring user flags", (
   assert.ok(!args.includes("--fork-session"));
   assert.ok(!args.includes("--remote-control"));
   assert.equal(enableRemote("remote").reattach_session_id, "remote");
+});
+
+test("GLIMPSELET_REMOTE selects off, test or the default on", () => {
+  assert.equal(remoteMode({}), "on");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "1" }), "on");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "test" }), "test");
+  assert.deepEqual(enableRemote(undefined, "test"), {
+    subtype: "remote_control",
+    enabled: true,
+    name: "Glimpselet test",
+    keep_session_on_exit: false,
+  });
+  assert.equal(enableRemote("remote").keep_session_on_exit, true);
 });
 
 test("owned sessions disable tools, inherited MCP and hooks and explicitly explain only", () => {

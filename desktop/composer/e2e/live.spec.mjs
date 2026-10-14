@@ -9,7 +9,11 @@ const report =
   );
 test("real Claude Remote Control session: confirmed controls, image and UTF-8 file turns", async () => {
   await mkdir(report, { recursive: true });
-  const env = { ...process.env, GLIMPSELET_LIVE: "1" };
+  const env = {
+    ...process.env,
+    GLIMPSELET_LIVE: "1",
+    GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "test",
+  };
   delete env.CLAUDECODE;
   const app = await electron.launch({
     args: [

@@ -7,17 +7,21 @@ import {
   ControlRequests,
   enableRemote,
   launchArguments,
+  remoteMode,
   userMessage,
 } from "./protocol.mjs";
 
-/** One owned child, with no credential access and no writes to an interactive origin. */
+/** One owned child, with no credential access and no writes to an interactive origin.
+ * `remote` overrides GLIMPSELET_REMOTE ("off", "test" or "on") for this session. */
 export class OwnedSession extends EventEmitter {
   constructor({
     controlTimeoutMs = 15000,
     connectTimeoutMs = 45000,
     executableArgs = [],
+    remote = null,
   } = {}) {
     super();
+    this.remoteOverride = remote;
     this.controlTimeoutMs = controlTimeoutMs;
     this.connectTimeoutMs = connectTimeoutMs;
     this.executableArgs = [...executableArgs];
@@ -130,7 +134,13 @@ export class OwnedSession extends EventEmitter {
     child.on("exit", () => this.fault(new Error("Claude transport exited")));
     try {
       this.initialized = await this.controls.request({ subtype: "initialize" });
-      const remote = await this.controls.request(enableRemote(remoteId));
+      const mode = this.remoteOverride ?? remoteMode();
+      if (mode === "off") {
+        // Local only: no Remote Control request, so no session in the account's list.
+        this.remote = { local: true };
+        return this.remote;
+      }
+      const remote = await this.controls.request(enableRemote(remoteId, mode));
       if (
         !/^https:\/\/claude\.ai\/code\/[a-zA-Z0-9_-]+$/.test(
           remote.session_url ?? "",
@@ -158,7 +168,7 @@ export class OwnedSession extends EventEmitter {
     if (!this.disposing) this.emit("fault", error);
   }
   async send(turn, sessionId) {
-    if (!this.remote || !this.remoteConnected)
+    if (!this.remote || (!this.remote.local && !this.remoteConnected))
       throw new Error("Remote Control must connect before sending");
     const frame = `${JSON.stringify(userMessage(turn, sessionId))}\n`;
     await new Promise((resolve, reject) =>
