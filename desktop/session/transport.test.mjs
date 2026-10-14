@@ -10,6 +10,29 @@ import { transcriptPath } from "./storage.mjs";
 const fixture = fileURLToPath(
   new URL("./e2e/fake-claude.fixture.mjs", import.meta.url),
 );
+/** Records every control request the fixture child receives. */
+async function withRequestLog(t, env) {
+  const dir = await mkdtemp(join(tmpdir(), "glimpselet-requests-"));
+  const log = join(dir, "requests.jsonl");
+  const saved = {
+    GLIMPSELET_TEST_REQUESTS: process.env.GLIMPSELET_TEST_REQUESTS,
+    GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE,
+  };
+  process.env.GLIMPSELET_TEST_REQUESTS = log;
+  if (env === undefined) delete process.env.GLIMPSELET_REMOTE;
+  else process.env.GLIMPSELET_REMOTE = env;
+  t.after(async () => {
+    for (const [key, value] of Object.entries(saved))
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    await rm(dir, { recursive: true, force: true });
+  });
+  return async () =>
+    (await readFile(log, "utf8").catch(() => ""))
+      .split("\n")
+      .filter(Boolean)
+      .map(JSON.parse);
+}
 async function setup(t) {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-transport-"));
   const child = new OwnedSession({
@@ -210,7 +233,8 @@ test("an empty session survives full adapter restart with the same UUID and remo
       userDataDir: cwd,
       cwd,
       executable: process.execPath,
-      transportFactory: () => new OwnedSession({ executableArgs: [fixture] }),
+      transportFactory: () =>
+        new OwnedSession({ executableArgs: [fixture], remote: "on" }),
       readTranscript: async (_, id) => {
         try {
           return (
@@ -240,6 +264,62 @@ test("an empty session survives full adapter restart with the same UUID and remo
     assert.ok(bridge.transport.child.spawnargs.includes("--session-id"));
     assert.ok(!bridge.transport.child.spawnargs.includes("--resume"));
     assert.equal(bridge.state.turns.length, 0);
+  } finally {
+    await bridge.dispose();
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("GLIMPSELET_REMOTE=0 never sends remote_control yet the session still takes turns", async (t) => {
+  const requests = await withRequestLog(t, "0");
+  const { child } = await setup(t);
+  const result = new Promise((resolve) =>
+    child.on("event", (event) => event.type === "result" && resolve(event)),
+  );
+  await child.send({ id: randomUUID(), text: "Hi", attachments: [] });
+  await result;
+  const subtypes = (await requests()).map((r) => r.subtype);
+  assert.ok(subtypes.includes("initialize"));
+  assert.ok(!subtypes.includes("remote_control"));
+});
+
+test("without the switch the default stays on: one persistent Glimpselet session", async (t) => {
+  const requests = await withRequestLog(t, undefined);
+  await setup(t);
+  const remote = (await requests()).filter(
+    (r) => r.subtype === "remote_control",
+  );
+  assert.equal(remote.length, 1);
+  assert.equal(remote[0].name, "Glimpselet");
+  assert.equal(remote[0].keep_session_on_exit, true);
+});
+
+test("GLIMPSELET_REMOTE=test names the session Glimpselet test and does not keep it on exit", async (t) => {
+  const requests = await withRequestLog(t, "test");
+  await setup(t);
+  const remote = (await requests()).filter(
+    (r) => r.subtype === "remote_control",
+  );
+  assert.equal(remote.length, 1);
+  assert.equal(remote[0].name, "Glimpselet test");
+  assert.equal(remote[0].keep_session_on_exit, false);
+});
+
+test("a bridge with Remote Control off connects, keeps no remote identity and survives restart", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-remote-off-"));
+  const bridge = new DesktopSessionBridge({
+    userDataDir: cwd,
+    cwd,
+    executable: process.execPath,
+    transportFactory: () =>
+      new OwnedSession({ executableArgs: [fixture], remote: "off" }),
+    readTranscript: async () => [],
+  });
+  try {
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    assert.equal(bridge.state.remoteId, null);
+    assert.equal(bridge.state.url, null);
   } finally {
     await bridge.dispose();
     await rm(cwd, { recursive: true, force: true });

@@ -21,3 +21,11 @@ Popup positions are clamped to the screen available to the opener. A popup last 
 | Windows  | `%APPDATA%/glimpselet/floating-geometry-v1.json`, or `~/AppData/Roaming/glimpselet/floating-geometry-v1.json` when unset |
 
 Passive-note requests are capped at six per rolling minute by default. Settings allow a lower cap. This is a request-rate limit. It does not predict API or account cost. The separate MCP screen watch samples at a selected interval from 5 to 60 seconds, retains changed images only, and makes no model calls.
+
+## Remote Control switch (desktop)
+
+`GLIMPSELET_REMOTE=0` makes Blink's own Claude Code session skip the Remote
+Control request, so it never appears in claude.ai/code or the Claude app. Unset
+keeps the default: every turn syncs to a session named "Glimpselet".
+`GLIMPSELET_REMOTE=test` is for automated checks only: one disposable session
+named "Glimpselet test" that Claude Code removes on exit.

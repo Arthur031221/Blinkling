@@ -7,6 +7,7 @@ import {
   ControlRequests,
   enableRemote,
   launchArguments,
+  remoteMode,
   userMessage,
 } from "./protocol.mjs";
 
@@ -16,8 +17,10 @@ export class OwnedSession extends EventEmitter {
     controlTimeoutMs = 15000,
     connectTimeoutMs = 45000,
     executableArgs = [],
+    remote,
   } = {}) {
     super();
+    this.remoteOverride = remote;
     this.controlTimeoutMs = controlTimeoutMs;
     this.connectTimeoutMs = connectTimeoutMs;
     this.executableArgs = [...executableArgs];
@@ -130,7 +133,19 @@ export class OwnedSession extends EventEmitter {
     child.on("exit", () => this.fault(new Error("Claude transport exited")));
     try {
       this.initialized = await this.controls.request({ subtype: "initialize" });
-      const remote = await this.controls.request(enableRemote(remoteId));
+      const mode = this.remoteOverride ?? remoteMode();
+      if (mode === "off") {
+        // No Remote Control request: the session only answers Blink and shows
+        // nowhere in the account's list. Keep a known remote identity untouched.
+        this.connectedResolve();
+        this.remoteConnected = true;
+        this.remote = {
+          bridge_session_id: remoteId ?? null,
+          session_url: null,
+        };
+        return this.remote;
+      }
+      const remote = await this.controls.request(enableRemote(remoteId, mode));
       if (
         !/^https:\/\/claude\.ai\/code\/[a-zA-Z0-9_-]+$/.test(
           remote.session_url ?? "",

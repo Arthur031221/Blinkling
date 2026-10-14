@@ -20,7 +20,8 @@ const capture = {
     data: bytes.toString("base64"),
   },
 };
-const transport = new OwnedSession(),
+// Guide answers need no Remote Control session; never leave one in the account.
+const transport = new OwnedSession({ remote: "off" }),
   listeners = new Set();
 let admitted;
 transport.on("fault", (error) => {

@@ -12,6 +12,9 @@ permissions:
 concurrency:
   group: release
   cancel-in-progress: false
+env:
+  # Automated runs never create Remote Control sessions in a real account.
+  GLIMPSELET_REMOTE: "0"
 jobs:
   publish:
     if: github.ref == 'refs/heads/main'

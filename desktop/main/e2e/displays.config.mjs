@@ -1,3 +1,4 @@
+import "../../shared/test-env.mjs";
 import { defineConfig } from "@playwright/test";
 import { join } from "node:path";
 import { report } from "./artifacts.mjs";

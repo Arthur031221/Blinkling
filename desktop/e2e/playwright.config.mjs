@@ -1,3 +1,4 @@
+import "../shared/test-env.mjs";
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: ".",

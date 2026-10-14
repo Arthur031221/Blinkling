@@ -97,6 +97,14 @@ it never spends Claude quota. The Electron suite uses the existing isolated
 preload, actual process loss and compositor screenshots at 100/150/200 percent
 in both themes. Test fixtures live under `e2e/`, excluded from desktop packaging.
 
+`GLIMPSELET_REMOTE=0` makes the transport skip the `remote_control` request, so
+nothing appears in the account's Remote Control list (the default, unset, stays
+on for real users). Every npm test script, Playwright config and CI workflow sets
+it. The one final live check per job (the canary, `composer/e2e/live.config.mjs`,
+or the remote observer in `e2e/integrated.spec.mjs`) uses
+`GLIMPSELET_REMOTE=test`: the session is named "Glimpselet test" and is not kept
+on exit. Never delete sessions from the account holder's own list.
+
 The opt-in canary uses six tiny paid turns: five image-bearing producer sources
 and one post-restart question. It checks live controls, automatic process-loss
 recovery and full adapter restart. An optional third CLI argument points to a

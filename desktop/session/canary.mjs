@@ -7,7 +7,7 @@ import { resolve, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
-import { DesktopSessionBridge } from "./index.mjs";
+import { DesktopSessionBridge, OwnedSession } from "./index.mjs";
 const image =
   "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAX0lEQVR4nO3PQQ0AIBDAMMC/50MEj4ZkVbDtWX87OuBVA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA9oFUoUBf3Xr7AgAAAAASUVORK5CYII=";
 const sources = ["composer", "quick-ask", "guide", "auto-explain", "companion"];
@@ -19,6 +19,9 @@ export async function runCanary({ reportDir, holdMs = 0, observer }) {
   const options = {
     userDataDir: join(reportDir, "canary-user-data"),
     cwd: reportDir,
+    // The one final Remote Control check: a disposable "Glimpselet test"
+    // session that Claude Code removes on exit.
+    transportFactory: () => new OwnedSession({ remote: "test" }),
   };
   const record = (event) => events.push(event);
   const awaitEvent = async (predicate, timeout = 90000) => {

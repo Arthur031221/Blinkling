@@ -12,7 +12,14 @@ export function launch() {
         : [fileURLToPath(new URL("..", import.meta.url))]),
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
     ],
-    env: { ...process.env, GLIMPSELET_E2E: "1" },
+    env: {
+      ...process.env,
+      GLIMPSELET_E2E: "1",
+      // The remote observer is the one final check: a disposable session.
+      ...(process.env.GLIMPSELET_REMOTE_OBSERVER
+        ? { GLIMPSELET_REMOTE: "test" }
+        : {}),
+    },
   });
 }
 export function nativeClick(x, y) {

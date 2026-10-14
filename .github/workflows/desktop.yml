@@ -2,6 +2,9 @@ name: Desktop scaffold
 on: [push, pull_request]
 permissions:
   contents: read
+env:
+  # Automated runs never create Remote Control sessions in a real account.
+  GLIMPSELET_REMOTE: "0"
 jobs:
   desktop:
     strategy:

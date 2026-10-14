@@ -35,7 +35,11 @@ async function stageRef(ref) {
 async function profile(name) {
   const cwd = join(directory, name);
   await mkdir(cwd);
-  const env = { ...process.env, CLAUDE_CONFIG_DIR: join(cwd, "claude-config") };
+  const env = {
+    ...process.env,
+    CLAUDE_CONFIG_DIR: join(cwd, "claude-config"),
+    GLIMPSELET_REMOTE: "0",
+  };
   delete env.CLAUDECODE;
   delete env.CLAUDE_CODE_SESSION_ID;
   const run = async (...args) => {
