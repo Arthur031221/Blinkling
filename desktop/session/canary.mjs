@@ -160,6 +160,9 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
+  // The one live check allowed to create a Remote Control session: named
+  // "Glimpselet test" and not kept after exit.
+  process.env.GLIMPSELET_REMOTE ??= "test";
   const reportDir = resolve(process.argv[2] ?? "canary-report");
   const observer = process.argv[3]
     ? (await import(pathToFileURL(resolve(process.argv[3])).href)).observe

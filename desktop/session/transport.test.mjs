@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { OwnedSession, DesktopSessionBridge } from "./index.mjs";
 import { transcriptPath } from "./storage.mjs";
+import { remoteMode } from "./protocol.mjs";
 const fixture = fileURLToPath(
   new URL("./e2e/fake-claude.fixture.mjs", import.meta.url),
 );
@@ -244,4 +245,73 @@ test("an empty session survives full adapter restart with the same UUID and remo
     await bridge.dispose();
     await rm(cwd, { recursive: true, force: true });
   }
+});
+
+async function remoteRequests(t, mode) {
+  const dir = await mkdtemp(join(tmpdir(), "glimpselet-remote-"));
+  const log = join(dir, "remote.log");
+  const previous = process.env.GLIMPSELET_TEST_REMOTE_LOG;
+  process.env.GLIMPSELET_TEST_REMOTE_LOG = log;
+  const child = new OwnedSession({
+    controlTimeoutMs: 1500,
+    connectTimeoutMs: 3000,
+    executableArgs: [fixture],
+    remote: mode,
+  });
+  t.after(async () => {
+    await child.dispose();
+    if (previous === undefined) delete process.env.GLIMPSELET_TEST_REMOTE_LOG;
+    else process.env.GLIMPSELET_TEST_REMOTE_LOG = previous;
+    await rm(dir, { recursive: true, force: true });
+  });
+  const remote = await child.connect({
+    cwd: dir,
+    executable: process.execPath,
+    localId: randomUUID(),
+    model: "haiku",
+    effort: "low",
+  });
+  const requests = await readFile(log, "utf8").then(
+    (text) =>
+      text
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((l) => JSON.parse(l)),
+    () => [],
+  );
+  return { child, remote, requests };
+}
+
+test("GLIMPSELET_REMOTE=0 never sends a remote_control request and still works locally", async (t) => {
+  const { child, remote, requests } = await remoteRequests(t, "off");
+  assert.deepEqual(requests, []);
+  assert.equal(remote.local, true);
+  assert.equal(remote.session_url, null);
+  const result = new Promise((resolve) =>
+    child.on("event", (event) => event.type === "result" && resolve(event)),
+  );
+  await child.send({ id: randomUUID(), text: "Hi", attachments: [] });
+  await result;
+});
+
+test("the default keeps the persistent Glimpselet session", async (t) => {
+  const { requests } = await remoteRequests(t, "on");
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].name, "Glimpselet");
+  assert.equal(requests[0].keep_session_on_exit, true);
+});
+
+test("the single live check is named Glimpselet test and leaves nothing behind", async (t) => {
+  const { requests } = await remoteRequests(t, "test");
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].name, "Glimpselet test");
+  assert.equal(requests[0].keep_session_on_exit, false);
+});
+
+test("the environment selects the mode and defaults on for real users", () => {
+  assert.equal(remoteMode({}), "on");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "1" }), "on");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "test" }), "test");
 });

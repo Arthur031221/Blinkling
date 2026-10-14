@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /** Real, logged-in Claude canary. No credentials, CLI tools or parent session reuse. */
+process.env.GLIMPSELET_REMOTE ??= "0";
+
 export async function liveSession(emit) {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-conversation-"));
   const owned = new OwnedSession();

@@ -68,6 +68,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         nestedMarker: Boolean(process.env.CLAUDECODE),
       };
     if (request.subtype === "remote_control") {
+      if (process.env.GLIMPSELET_TEST_REMOTE_LOG)
+        appendFileSync(
+          process.env.GLIMPSELET_TEST_REMOTE_LOG,
+          `${JSON.stringify(request)}\n`,
+        );
       response = {
         bridge_session_id: request.reattach_session_id ?? "cse_fixture",
         session_url: "https://claude.ai/code/session_fixture",

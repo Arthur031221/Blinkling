@@ -7,8 +7,8 @@
   "scripts": {
     "start": "electron .",
     "build": "tsc -p tsconfig.json && node distribution/build.mjs",
-    "test": "node --test */*.test.mjs",
-    "test:e2e": "playwright test -c e2e/playwright.config.mjs"
+    "test": "GLIMPSELET_REMOTE=0 node --test */*.test.mjs",
+    "test:e2e": "GLIMPSELET_REMOTE=0 playwright test -c e2e/playwright.config.mjs"
   },
   "dependencies": {
     "x11": "2.3.0"

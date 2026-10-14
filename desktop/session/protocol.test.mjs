@@ -5,6 +5,7 @@ import {
   userMessage,
   launchArguments,
   enableRemote,
+  remoteMode,
 } from "./protocol.mjs";
 test("image turns preserve image bytes and stable deduplication ID", () => {
   const value = userMessage(
@@ -160,4 +161,18 @@ test("undocumented controls require the verified CLI version", async () => {
     () => assertClaudeVersion("2.1.297 (Claude Code)"),
     /Unverified/,
   );
+});
+
+test("remote control requests keep the product name and keep flag unless testing", () => {
+  const product = enableRemote("");
+  assert.equal(product.name, "Glimpselet");
+  assert.equal(product.keep_session_on_exit, true);
+  const test = enableRemote("", "test");
+  assert.equal(test.name, "Glimpselet test");
+  assert.equal(test.keep_session_on_exit, false);
+});
+test("GLIMPSELET_REMOTE selects off, test, or the default", () => {
+  assert.equal(remoteMode({}), "on");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: " test " }), "test");
 });

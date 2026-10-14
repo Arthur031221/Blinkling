@@ -9,7 +9,13 @@ const report =
   );
 test("real Claude Remote Control session: confirmed controls, image and UTF-8 file turns", async () => {
   await mkdir(report, { recursive: true });
-  const env = { ...process.env, GLIMPSELET_LIVE: "1" };
+  // Tests never create Remote Control sessions; the single live check that does
+  // is session/canary.mjs (GLIMPSELET_REMOTE=test). Opt in here explicitly.
+  const env = {
+    ...process.env,
+    GLIMPSELET_LIVE: "1",
+    GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "0",
+  };
   delete env.CLAUDECODE;
   const app = await electron.launch({
     args: [
@@ -93,7 +99,8 @@ test("real Claude Remote Control session: confirmed controls, image and UTF-8 fi
         (a) => a.speaking,
       ),
     }));
-    expect(evidence.remoteUrl).toMatch(/^https:\/\/claude\.ai\/code\//);
+    if (env.GLIMPSELET_REMOTE !== "0")
+      expect(evidence.remoteUrl).toMatch(/^https:\/\/claude\.ai\/code\//);
     expect(evidence.turns.map((t) => t.contentTypes)).toEqual([
       ["image"],
       ["document"],

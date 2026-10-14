@@ -6,6 +6,7 @@ import { OwnedSession } from "../../session/index.mjs";
 import { collectTurn } from "../../overlay/turn.mjs";
 import { parseGuide, guidePrompt } from "../../overlay/schema.mjs";
 import { PNG } from "pngjs";
+process.env.GLIMPSELET_REMOTE ??= "0";
 const [input, output] = process.argv.slice(2);
 if (!input || !output) throw Error("Pass a local PNG and a local report path");
 const bytes = await readFile(input),

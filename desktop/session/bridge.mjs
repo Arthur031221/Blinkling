@@ -149,6 +149,7 @@ export class DesktopSessionBridge {
       });
       if (this.closed) throw new Error("Session closed");
       if (
+        !remote.local &&
         this.state.remoteId &&
         remote.bridge_session_id !== this.state.remoteId
       )

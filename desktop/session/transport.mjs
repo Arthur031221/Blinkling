@@ -7,8 +7,16 @@ import {
   ControlRequests,
   enableRemote,
   launchArguments,
+  remoteMode,
   userMessage,
 } from "./protocol.mjs";
+
+/** What connect() reports when Remote Control is switched off. */
+const localSession = Object.freeze({
+  local: true,
+  session_url: null,
+  bridge_session_id: null,
+});
 
 /** One owned child, with no credential access and no writes to an interactive origin. */
 export class OwnedSession extends EventEmitter {
@@ -16,8 +24,10 @@ export class OwnedSession extends EventEmitter {
     controlTimeoutMs = 15000,
     connectTimeoutMs = 45000,
     executableArgs = [],
+    remote = remoteMode(),
   } = {}) {
     super();
+    this.remoteMode = remote;
     this.controlTimeoutMs = controlTimeoutMs;
     this.connectTimeoutMs = connectTimeoutMs;
     this.executableArgs = [...executableArgs];
@@ -130,7 +140,15 @@ export class OwnedSession extends EventEmitter {
     child.on("exit", () => this.fault(new Error("Claude transport exited")));
     try {
       this.initialized = await this.controls.request({ subtype: "initialize" });
-      const remote = await this.controls.request(enableRemote(remoteId));
+      if (this.remoteMode === "off") {
+        // No Remote Control request: nothing is created in the account's list.
+        this.remote = localSession;
+        this.remoteConnected = true;
+        return localSession;
+      }
+      const remote = await this.controls.request(
+        enableRemote(remoteId, this.remoteMode),
+      );
       if (
         !/^https:\/\/claude\.ai\/code\/[a-zA-Z0-9_-]+$/.test(
           remote.session_url ?? "",
