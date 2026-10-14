@@ -1,165 +1,243 @@
-import { app, BrowserWindow, ipcMain, screen, globalShortcut } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  globalShortcut,
+  nativeTheme,
+} from "electron";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { keepAbove } from "./x11-stacking.mjs";
-import { contains, roundedContains } from "./geometry.mjs";
-import { PlacementStore } from "./preferences.mjs";
+import { nativeInput } from "./native-input.mjs";
+import { contains } from "./geometry.mjs";
 import {
-  defaultPlacement,
-  snapPlacement,
-  resolvePlacement,
-  visiblePlacement,
+  resolvePosition,
+  snapPosition,
+  reconcileDisplay,
+  cardBounds,
 } from "./placement.mjs";
-import { validCommand, validRegions, actionNames } from "./ipc.mjs";
+import { PositionStore } from "./preferences.mjs";
+import { validCommand, validRegions } from "./ipc.mjs";
+import { dispatchAction, registerAction } from "./services.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
-
 app.commandLine.appendSwitch("enable-transparent-visuals");
-// Native Wayland cannot position or hit-test this shell; use XWayland deliberately.
+// Absolute desktop placement needs XWayland on Linux; native Wayland forbids it.
 if (process.platform === "linux" && process.env.DISPLAY)
   app.commandLine.appendSwitch("ozone-platform", "x11");
 if (process.env.GLIMPSELET_E2E === "1" && process.env.GLIMPSELET_TEST_DATA)
   app.setPath("userData", process.env.GLIMPSELET_TEST_DATA);
 await app.whenReady();
-const preferences = new PlacementStore(
+const store = await new PositionStore(
   join(app.getPath("userData"), "blink-positions.json"),
+).load();
+let display = reconcileDisplay(
+  screen.getAllDisplays(),
+  store.lastDisplay ?? screen.getPrimaryDisplay().id,
 );
-await preferences.load();
-let quitting = false;
-app.on("before-quit", () => {
-  quitting = true;
-});
-let display = screen.getPrimaryDisplay(),
-  placement = preferences.get(display.id) ?? defaultPlacement(display),
-  pinned = false,
-  dragging = null,
-  card,
-  overlay,
+let position = resolvePosition(display, store.positions[String(display.id)]);
+let composer = null,
+  overlay = null,
   regions = [],
-  lastInside = false,
-  awaySince = 0;
-const preload = fileURLToPath(new URL("../preload/index.cjs", import.meta.url));
+  drag = null,
+  pinned = false,
+  chatOpen = false,
+  autoExplain = false,
+  quitting = false;
+let previousCursor = "",
+  previousFocused = null,
+  ignoring = true;
+const input = await nativeInput();
+const actions = new Set([
+  "screen",
+  "region",
+  "full-page",
+  "guide",
+  "auto-explain",
+  "chat",
+  "settings",
+  "help",
+]);
 const webPreferences = {
-  preload,
+  preload: fileURLToPath(new URL("../preload/index.cjs", import.meta.url)),
   sandbox: true,
   contextIsolation: true,
   nodeIntegration: false,
+  backgroundThrottling: false,
 };
-const options = {
-  transparent: true,
-  backgroundColor: "#00000000",
-  frame: false,
-  hasShadow: false,
-  alwaysOnTop: true,
-  resizable: false,
-  show: false,
-  skipTaskbar: true,
-  webPreferences,
-};
-const blink = new BrowserWindow({
-  ...options,
-  ...display.workArea,
-  focusable: false,
-});
-const owned = () => [overlay, card, blink].filter((w) => w && !w.isDestroyed());
+function windowOptions(bounds, focusable) {
+  return {
+    ...bounds,
+    transparent: true,
+    backgroundColor: "#00000000",
+    frame: false,
+    hasShadow: false,
+    alwaysOnTop: true,
+    focusable,
+    resizable: false,
+    skipTaskbar: true,
+    show: false,
+    webPreferences,
+  };
+}
 function secure(win) {
   win.setAlwaysOnTop(true, "screen-saver");
   if (process.platform === "darwin")
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  win.webContents.on("will-navigate", (e) => e.preventDefault());
+  win.webContents.on("will-navigate", (event) => event.preventDefault());
   win.webContents.session.setPermissionRequestHandler(
-    (_contents, _permission, callback) => callback(false),
+    (_wc, _permission, callback) => callback(false),
   );
 }
+const blink = new BrowserWindow(windowOptions(display.bounds, false));
 secure(blink);
 blink.setIgnoreMouseEvents(true, { forward: true });
-function snapshot() {
-  const peek = dragging?.active
-    ? dragging.point
-    : resolvePlacement(placement, display);
-  return {
-    displayId: String(display.id),
-    workArea: { ...display.workArea },
-    edge: placement.edge,
-    peek,
-    revealed: visiblePlacement(peek, display),
-    pinned,
-    dragging: Boolean(dragging?.active),
-    chatOpen: Boolean(card?.isVisible()),
-  };
+const windows = () =>
+  [composer, overlay, blink].filter((w) => w && !w.isDestroyed());
+const snapshot = () => ({
+  display: {
+    id: String(display.id),
+    bounds: display.bounds,
+    workArea: display.workArea,
+    scaleFactor: display.scaleFactor,
+  },
+  position,
+  drag: drag?.active
+    ? {
+        x: drag.anchor.x - display.bounds.x,
+        y: drag.anchor.y - display.bounds.y,
+        velocity: drag.velocity,
+      }
+    : null,
+  pinned,
+  chatOpen,
+  chatFocused: !!composer && !composer.isDestroyed() && composer.isFocused(),
+  autoExplain,
+  theme: nativeTheme.shouldUseDarkColors ? "dark" : "light",
+});
+function broadcast() {
+  if (quitting) return;
+  for (const w of windows())
+    w.webContents.send("glimpselet:shell", {
+      type: "state",
+      state: snapshot(),
+    });
 }
-function broadcast(rebase = false) {
-  const event = { type: "state", state: snapshot(), rebase };
-  for (const w of [blink, card])
-    if (w && !w.isDestroyed()) w.webContents.send("glimpselet:shell", event);
+function shapeComposer() {
+  if (!composer) return;
+  const b = composer.getBounds(),
+    rs = [];
+  const r = 26;
+  for (let y = 0; y < b.height; y++) {
+    const dy = Math.max(0, r - Math.min(y + 0.5, b.height - y - 0.5)),
+      inset = dy ? r - Math.sqrt(r * r - dy * dy) : 0;
+    const x = Math.ceil(inset);
+    rs.push({ x, y, width: b.width - 2 * x, height: 1 });
+  }
+  if (input) input.setRegions(composer, rs, display.scaleFactor);
+  else if (process.platform === "win32") composer.setShape(rs);
 }
-function trusted(event) {
-  return [blink, card].some(
-    (w) =>
-      w &&
-      !w.isDestroyed() &&
-      event.sender === w.webContents &&
-      event.senderFrame === w.webContents.mainFrame,
+async function ensureComposer() {
+  if (composer) return composer;
+  const win = new BrowserWindow(
+    windowOptions(cardBounds(display, position), true),
   );
+  composer = win;
+  secure(win);
+  win.on("close", (event) => {
+    if (!quitting) {
+      event.preventDefault();
+      closeComposer();
+    }
+  });
+  win.on("focus", broadcast);
+  win.on("blur", () => {
+    broadcast();
+    if (!pinned)
+      blink.webContents.send("glimpselet:shell", { type: "chat-blur" });
+  });
+  await win.loadFile(
+    fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
+    { query: { surface: "composer" } },
+  );
+  shapeComposer();
+  return win;
 }
-function cardBounds() {
-  const b = display.workArea,
-    p = snapshot().revealed,
-    width = Math.min(460, Math.max(240, b.width - 214)),
-    height = Math.min(540, b.height);
-  return {
-    width,
-    height,
-    x: Math.round(
-      b.x +
-        Math.max(
-          0,
-          Math.min(
-            b.width - width,
-            p.x > b.width / 2 ? p.x - width - 72 : p.x + 72,
-          ),
-        ),
-    ),
-    y: Math.round(
-      b.y + Math.max(0, Math.min(b.height - height, p.y + 80 - height)),
-    ),
-  };
+async function openComposer(focus = true) {
+  if (!composer?.isVisible() || (focus && !composer?.isFocused())) {
+    previousFocused = BrowserWindow.getFocusedWindow();
+    await input?.rememberFocus();
+  }
+  const win = await ensureComposer();
+  chatOpen = true;
+  broadcast();
+  if (focus) {
+    win.show();
+    win.focus();
+    input?.activate(win);
+    win.webContents.send("glimpselet:shell", { type: "focus-composer" });
+  } else win.showInactive();
 }
-function closeCard(force = false) {
-  if (pinned && !force) return;
-  if (card?.isVisible()) {
-    card.hide();
-    if (process.platform === "darwin") {
+function closeComposer(restore = true) {
+  const focused = composer?.isFocused();
+  chatOpen = false;
+  pinned = false;
+  composer?.hide();
+  if (restore && focused) {
+    if (previousFocused && !previousFocused.isDestroyed()) {
+      previousFocused.focus();
+      input?.activate(previousFocused);
+    } else if (input) input.restoreFocus();
+    else if (process.platform === "darwin") {
       app.hide();
       blink.showInactive();
     }
-    broadcast();
   }
-}
-async function openCard() {
-  if (!card || card.isDestroyed()) {
-    card = new BrowserWindow({ ...options, ...cardBounds(), focusable: true });
-    secure(card);
-    card.on("close", (event) => {
-      if (quitting) return;
-      event.preventDefault();
-      pinned = false;
-      closeCard(true);
-    });
-    card.on("blur", () => {
-      awaySince = Date.now();
-    });
-    await card.loadFile(
-      fileURLToPath(new URL("../renderer/card.html", import.meta.url)),
-    );
-  }
-  card.setBounds(cardBounds());
-  card.show();
-  card.focus();
-  awaySince = 0;
   broadcast();
 }
+function useDisplay(next) {
+  display = next;
+  position = resolvePosition(display, store.positions[String(display.id)]);
+  regions = [];
+  blink.setBounds(display.bounds);
+  if (input)
+    input.setRegions(
+      blink,
+      drag
+        ? [
+            {
+              x: 0,
+              y: 0,
+              width: display.bounds.width,
+              height: display.bounds.height,
+            },
+          ]
+        : [],
+      display.scaleFactor,
+    );
+  composer?.setBounds(cardBounds(display, position));
+  shapeComposer();
+  broadcast();
+}
+function displaysChanged() {
+  const next = reconcileDisplay(screen.getAllDisplays(), display.id);
+  drag = null;
+  overlay?.close();
+  overlay = null;
+  useDisplay(next);
+}
+screen.on("display-added", displaysChanged);
+screen.on("display-removed", displaysChanged);
+screen.on("display-metrics-changed", displaysChanged);
+nativeTheme.on("updated", broadcast);
+const trusted = (event) =>
+  windows().some(
+    (w) =>
+      event.sender === w.webContents &&
+      event.senderFrame === w.webContents.mainFrame,
+  );
 ipcMain.on("glimpselet:regions", (event, value) => {
   if (
     event.sender !== blink.webContents ||
@@ -168,187 +246,178 @@ ipcMain.on("glimpselet:regions", (event, value) => {
   )
     return;
   regions = value;
+  if (input) {
+    if (ignoring) blink.setIgnoreMouseEvents(false);
+    if (!drag) input.setRegions(blink, regions, display.scaleFactor);
+    ignoring = false;
+  } else if (!drag && process.platform === "win32" && regions.length)
+    blink.setShape(regions);
 });
 ipcMain.handle("glimpselet:shell", async (event, command) => {
-  if (!trusted(event) || !validCommand(command, blink.getBounds()))
+  if (!trusted(event) || !validCommand(command))
     throw new Error("Invalid shell command");
-  if (command.type === "pin") {
-    pinned = command.value;
-    awaySince = Date.now();
-    broadcast();
-  }
-  if (command.type === "close-chat") {
-    pinned = false;
-    closeCard(true);
-    broadcast();
-  }
-  if (command.type === "drag-start") {
-    if (event.sender !== blink.webContents)
-      throw new Error("Only Blink can be dragged");
-    const cursor = screen.getCursorScreenPoint();
-    const p = command.anchor;
-    dragging = {
-      start: cursor,
-      origin: { x: display.workArea.x + p.x, y: display.workArea.y + p.y },
-      point: p,
-      active: false,
-    };
-  }
-  if (command.type === "drag-end" && dragging) {
-    let save;
-    if (dragging.active) {
-      placement = snapPlacement(
-        {
-          x: display.workArea.x + dragging.point.x,
-          y: display.workArea.y + dragging.point.y,
+  const fromBlink = event.sender === blink.webContents;
+  if (command.type === "drag") {
+    if (!fromBlink) throw new Error("Invalid shell gesture");
+    const p = screen.getCursorScreenPoint();
+    if (command.phase === "start") {
+      if (
+        !regions.some((r) =>
+          contains(r, { x: p.x - display.bounds.x, y: p.y - display.bounds.y }),
+        )
+      )
+        throw new Error("Drag must start on Blink");
+      drag = {
+        active: false,
+        start: p,
+        origin: {
+          x: position.reveal.x + display.bounds.x,
+          y: position.reveal.y + display.bounds.y,
         },
-        display,
-      );
-      save = preferences.set(display.id, placement);
+        anchor: {
+          x: position.reveal.x + display.bounds.x,
+          y: position.reveal.y + display.bounds.y,
+        },
+        lastX: p.x,
+        velocity: 0,
+      };
+      // Keep the native pointer capture alive while the rig moves under it.
+      // The window remains nonfocusable; ordinary hit testing resumes on release.
+      const full = [
+        {
+          x: 0,
+          y: 0,
+          width: display.bounds.width,
+          height: display.bounds.height,
+        },
+      ];
+      if (input) input.setRegions(blink, full, display.scaleFactor);
+      else if (process.platform === "win32") blink.setShape(full);
+    } else if (drag) {
+      const saved = drag.active ? snapPosition(display, drag.anchor) : null;
+      if (saved) position = resolvePosition(display, saved);
+      drag = null;
+      if (input) input.setRegions(blink, regions, display.scaleFactor);
+      else if (process.platform === "win32") blink.setShape(regions);
+      if (saved) await store.save(display.id, saved);
+      composer?.setBounds(cardBounds(display, position));
+      shapeComposer();
     }
-    dragging = null;
-    if (card && !card.isDestroyed()) card.setBounds(cardBounds());
-    broadcast();
-    await save;
+  } else if (command.type === "pin") {
+    pinned = command.value;
+    if (pinned) await openComposer(false);
+    else closeComposer();
+  } else if (command.type === "close-chat") closeComposer();
+  else if (command.type === "visibility") {
+    if (command.value && !chatOpen) await openComposer(false);
+    else if (!command.value && !pinned && chatOpen) closeComposer();
+  } else if (command.type === "activity") {
+    if (fromBlink || event.sender !== composer?.webContents)
+      throw new Error("Invalid composer activity");
+    blink.webContents.send("glimpselet:shell", { type: "chat-activity" });
   }
+  broadcast();
   return snapshot();
 });
-// The shell owns dispatch/window policy; feature buckets register implementations.
-const handlers = new Map();
 ipcMain.handle("glimpselet:action", async (event, action) => {
-  if (!trusted(event) || !actionNames.has(action))
+  if (!trusted(event) || !actions.has(action))
     throw new Error("Invalid desktop action");
   if (action === "chat") {
-    await openCard();
+    await openComposer();
     return { ok: true };
   }
-  const handler = handlers.get(action);
-  return handler
-    ? await handler({ display, openCard, windows: owned })
-    : { ok: false, reason: `${action}: service pending` };
+  if (action === "settings" || action === "help") {
+    await openComposer();
+    composer.webContents.send("glimpselet:shell", {
+      type: "view",
+      view: action,
+    });
+    return { ok: true };
+  }
+  if (action === "auto-explain") {
+    const result = await dispatchAction(action, {
+      display,
+      windows: windows(),
+      enabled: !autoExplain,
+    });
+    if (result.ok) {
+      autoExplain = !autoExplain;
+      broadcast();
+    }
+    return result;
+  }
+  return dispatchAction(action, { display, windows: windows(), openComposer });
 });
-function switchDisplay(next, restore = true) {
-  display = next;
-  if (restore)
-    placement = preferences.get(display.id) ?? defaultPlacement(display);
-  regions = [];
-  blink.setIgnoreMouseEvents(true, { forward: true });
-  blink.setBounds(display.workArea);
-  overlay?.close();
-  overlay = undefined; // Never retain an overlay against stale display geometry.
-  if (card && !card.isDestroyed()) card.setBounds(cardBounds());
-  broadcast(true);
-}
-function reconcileDisplays() {
-  const next =
-    screen.getAllDisplays().find((d) => String(d.id) === String(display.id)) ??
-    screen.getPrimaryDisplay();
-  if (dragging) dragging = null;
-  switchDisplay(next);
-}
-screen.on("display-added", reconcileDisplays);
-screen.on("display-removed", reconcileDisplays);
-screen.on("display-metrics-changed", reconcileDisplays);
+// Existing screen service is usable now; other feature buckets replace/register handlers.
+registerAction("screen", async ({ display, windows }) => {
+  const capture = await captureScreen(display, windows);
+  await openComposer();
+  composer.webContents.send("glimpselet:shell", { type: "capture", capture });
+});
 await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
 );
 blink.showInactive();
 const stopStacking = await keepAbove(() =>
-  owned().filter((w) => !w.isFocusable()),
+  [overlay, blink, composer].filter(Boolean),
 );
 const poll = setInterval(() => {
-  if (blink.isDestroyed()) return;
-  const cursor = screen.getCursorScreenPoint();
-  if (dragging) {
-    const delta = {
-      x: cursor.x - dragging.start.x,
-      y: cursor.y - dragging.start.y,
+  if (blink.isDestroyed() || !blink.isVisible()) return;
+  const p = screen.getCursorScreenPoint();
+  if (drag) {
+    if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4)
+      drag.active = true;
+    const next = screen.getDisplayNearestPoint(p);
+    if (next.id !== display.id) useDisplay(next);
+    drag.velocity = (p.x - drag.lastX) / 0.016;
+    drag.lastX = p.x;
+    drag.anchor = {
+      x: drag.origin.x + p.x - drag.start.x,
+      y: drag.origin.y + p.y - drag.start.y,
     };
-    if (Math.hypot(delta.x, delta.y) > 5) dragging.active = true;
-    if (dragging.active) {
-      const next = screen.getDisplayNearestPoint(cursor);
-      if (String(next.id) !== String(display.id)) switchDisplay(next, false);
-      dragging.point = {
-        x: dragging.origin.x + delta.x - display.workArea.x,
-        y: dragging.origin.y + delta.y - display.workArea.y,
-      };
-      broadcast();
+    broadcast();
+  }
+  const local = { x: p.x - display.bounds.x, y: p.y - display.bounds.y };
+  const hit = regions.some((r) => contains(r, local));
+  const overCard = composer?.isVisible() && contains(composer.getBounds(), p);
+  const key = `${p.x},${p.y},${hit},${overCard},${chatOpen}`;
+  if (key !== previousCursor) {
+    previousCursor = key;
+    blink.webContents.send("glimpselet:shell", {
+      type: "cursor",
+      point: local,
+      hit: hit || !!overCard,
+    });
+    if (!input && !drag && ignoring === hit) {
+      ignoring = !hit;
+      blink.setIgnoreMouseEvents(ignoring, { forward: true });
     }
   }
-  const b = blink.getBounds(),
-    hit =
-      blink.isVisible() &&
-      regions.some((r) =>
-        contains(r, { x: cursor.x - b.x, y: cursor.y - b.y }),
-      );
-  blink.setIgnoreMouseEvents(!dragging && !hit, { forward: true });
-  if (hit !== lastInside) {
-    lastInside = hit;
-    blink.webContents.send("glimpselet:shell", {
-      type: "pointer",
-      inside: hit,
-    });
-  }
-  const cb = card?.isVisible() ? card.getBounds() : null;
-  const inCard =
-    cb &&
-    roundedContains(
-      {
-        x: cb.x + 8,
-        y: cb.y + 8,
-        width: cb.width - 16,
-        height: cb.height - 16,
-      },
-      cursor,
-      24,
-    );
-  if (cb) card.setIgnoreMouseEvents(!inCard, { forward: true });
-  if (hit || inCard || card?.isFocused() || dragging) awaySince = 0;
-  else {
-    if (!awaySince) awaySince = Date.now();
-    if (Date.now() - awaySince >= 1500) closeCard();
-  }
 }, 16);
+app.on("before-quit", () => {
+  quitting = true;
+});
 app.on("will-quit", () => {
   clearInterval(poll);
   stopStacking();
+  input?.dispose();
   globalShortcut.unregisterAll();
-  card?.destroy();
 });
 app.on("window-all-closed", () => app.quit());
-export const desktopShell = Object.freeze({
-  windows: owned,
-  display: () => display,
-  state: snapshot,
-  openCard,
-  registerAction(action, handler) {
-    if (!actionNames.has(action) || typeof handler !== "function")
-      throw new Error("Invalid action handler");
-    handlers.set(action, handler);
-    return () => {
-      if (handlers.get(action) === handler) handlers.delete(action);
-    };
-  },
-  emit(event) {
-    for (const w of [blink, card])
-      if (w && !w.isDestroyed()) w.webContents.send("glimpselet:event", event);
-  },
-});
 if (process.env.GLIMPSELET_E2E === "1")
   globalThis.glimpseletTest = {
     blink,
-    get card() {
-      return card;
+    get composer() {
+      return composer;
     },
-    state: snapshot,
-    preferences,
-    reconcileDisplays,
-    setDisplay: (next) => switchDisplay(next),
-    capture: () => captureScreen(display, owned()),
+    snapshot,
+    capture: () => captureScreen(display, windows()),
     overlay: async (drawings) => {
       overlay?.close();
       overlay = await createOverlay(display, drawings);
       return overlay.id;
     },
-    shell: desktopShell,
+    displaysChanged,
+    positionStore: store,
+    registerAction,
   };

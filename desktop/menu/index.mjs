@@ -1,136 +1,120 @@
+import { menuLayout } from "./layout.mjs";
+import { spring } from "../character/state.mjs";
+import { roundedRect } from "../character/silhouette.mjs";
 const definitions = [
   [
     "screen",
     "截取畫面",
     "擷取 Blink 所在的螢幕",
-    "M3 4h18v12H3z M8 21h8 M12 16v5",
+    "M4 7h16v11H4z M8 3v4m8-4v4M9 21h6",
   ],
   [
     "region",
     "選取區域",
-    "拖曳框選想看的範圍",
-    "M3 8V3h5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5 M8 8h8v8H8z",
+    "拖曳選取想問的範圍",
+    "M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5",
   ],
   [
     "full-page",
     "整頁截圖",
-    "擷取瀏覽器整頁內容",
-    "M6 2h12v20H6z M9 6h6 M9 10h6 M9 14h6 M9 18h4",
+    "擷取網頁從頂端到最底部",
+    "M7 3h10v18H7z M10 8h4m-4 4h4m-4 4h4",
   ],
-  [
-    "guide",
-    "導覽",
-    "看懂畫面並一步步操作",
-    "M12 3l8 4v7l-8 7-8-7V7z M12 8v5 M12 16h.01",
-  ],
+  ["guide", "導覽", "在畫面上標出重點與步驟", "M5 4l14 7-7 3-3 7z"],
   [
     "auto-explain",
     "自動解說",
-    "畫面改變時簡短說明",
-    "M9 5v14l10-7z M3 8v8 M22 8v8",
+    "畫面有大變化時簡短說明",
+    "M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2M6 18l2-2m8-8 2-2 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
   ],
-  ["chat", "對話", "打開對話與附件", "M3 4h18v13H9l-6 4z M7 8h10 M7 12h7"],
-  [
-    "settings",
-    "設定",
-    "調整 Blink 的偏好",
-    "M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M10 15v6",
-  ],
+  ["chat", "對話", "打開對話卡片繼續聊", "M4 4h16v13H9l-5 4z"],
+  ["settings", "設定", "調整 Blink 的偏好", "M4 7h16M4 17h16M9 4v6m6 4v6"],
   [
     "help",
     "說明",
-    "查看使用與安裝說明",
-    "M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 4 M12 18h.01",
+    "看看如何使用 Blink",
+    "M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3v1 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20",
   ],
 ];
 export const menuActions = Object.freeze(
-  definitions.map(([id, label, description, icon]) =>
-    Object.freeze({ id, label, description, icon }),
+  definitions.map(([id, label, description]) =>
+    Object.freeze({ id, label, description }),
   ),
 );
-export function bubbleRegions(element) {
-  const r = element.getBoundingClientRect(),
-    radius = Math.min(r.height / 2, 22),
-    rows = [];
-  for (
-    let y = Math.max(0, Math.floor(r.y));
-    y < Math.min(innerHeight, r.bottom);
-    y++
-  ) {
-    const edge = Math.max(
-      0,
-      radius - Math.min(y + 0.5 - r.y, r.bottom - y - 0.5),
-    );
-    const inset =
-      radius - Math.sqrt(Math.max(0, radius * radius - edge * edge));
-    rows.push({ x: r.x + inset, y, width: r.width - inset * 2, height: 1 });
-  }
-  return rows;
-}
 export function mountMenu(host, onAction) {
-  let opened = false,
-    active = null,
+  host.setAttribute("role", "toolbar");
+  host.setAttribute("aria-label", "Blink 動作");
+  let expanded = -1,
+    open = false,
     changedAt = 0;
-  const buttons = menuActions.map((action, index) => {
-    const button = document.createElement("button");
-    button.className = "action";
-    button.dataset.action = action.id;
-    button.setAttribute("aria-label", action.label);
-    if (action.id === "auto-explain")
-      button.setAttribute("aria-pressed", "false");
-    button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${action.icon}"/></svg><span class="caption"><strong>${action.label}</strong><span>${action.description}</span></span>`;
-    button.addEventListener("pointerenter", () => {
-      active = index;
+  const values = definitions.map(() => ({ value: 0, velocity: 0 }));
+  const buttons = definitions.map(([id, label, description, path], i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "action-bubble action";
+    b.dataset.action = id;
+    b.setAttribute("aria-label", label);
+    b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg><span class="action-detail caption"><strong>${label}</strong><span>${description}</span></span>`;
+    if (id === "auto-explain") b.setAttribute("aria-pressed", "false");
+    b.addEventListener("pointerenter", () => {
+      expanded = i;
     });
-    button.addEventListener("pointerleave", () => {
-      if (active === index) active = null;
+    b.addEventListener("pointerleave", () => {
+      if (expanded === i) expanded = -1;
     });
-    button.addEventListener("click", () => onAction(action.id));
-    host.append(button);
-    return button;
+    b.addEventListener("click", () => onAction(id));
+    host.append(b);
+    return b;
   });
+  let rects = [];
   return {
     buttons,
-    toggleAuto(value) {
+    get expanded() {
+      return expanded;
+    },
+    setOpen(value, now) {
+      if (open !== value) {
+        open = value;
+        changedAt = now;
+        expanded = -1;
+      }
+    },
+    setAuto(value) {
       buttons[4].setAttribute("aria-pressed", String(value));
     },
-    draw(now, open, anchor) {
-      if (open !== opened) {
-        opened = open;
-        changedAt = now;
-        if (!open) active = null;
-      }
-      const compact = innerHeight < 600 || anchor.y < 450;
-      buttons.forEach((button, i) => {
-        const row = compact ? Math.floor(i / 2) : i;
-        const right = Math.max(
-          Math.min(compact ? 470 : 220, innerWidth - 30),
-          Math.min(innerWidth - 30, anchor.x - 28),
-        );
-        const x = compact && i % 2 === 1 ? right - 250 : right;
-        const y = anchor.y - 100 - row * 48;
-        button.style.right = `${innerWidth - x - 22}px`;
-        button.style.top = `${Math.max(8, y - 22)}px`;
-        button.classList.toggle("expanded", active === i && open);
-        const delay = (open ? i : 7 - i) * 32,
-          elapsed = now - changedAt - delay;
-        const q = Math.max(0, Math.min(1, elapsed / 240));
-        const spring = 1 - Math.exp(-q * 7) * Math.cos(q * 10);
-        const scale = open
-          ? elapsed < 0
-            ? 0
-            : Math.min(1.07, spring)
-          : elapsed < 0
-            ? 1
-            : 1 - q;
-        button.style.transform = `scale(${Math.max(0, scale)})`;
-        button.style.opacity = String(open ? Math.min(1, q * 4) : 1 - q);
-        button.inert = scale < 0.2 || !open;
-        button.style.visibility = scale <= 0 ? "hidden" : "visible";
+    frame(now, dt, area, anchor) {
+      rects = menuLayout(area, anchor, expanded);
+      buttons.forEach((b, i) => {
+        const order = open ? i : 7 - i,
+          target =
+            now - changedAt >= order * 0.035 ? (open ? 1 : 0) : values[i].value;
+        values[i] = spring(values[i].value, target, values[i].velocity, dt, 24);
+        const q = values[i].value,
+          r = rects[i];
+        b.style.width = `${r.width}px`;
+        b.style.left = r.direction > 0 ? `${r.x}px` : "auto";
+        b.style.right =
+          r.direction < 0 ? `${innerWidth - r.x - r.width}px` : "auto";
+        b.style.top = `${r.y}px`;
+        b.style.transform = `translate(${(anchor.x - r.x - r.width / 2) * (1 - q)}px,${(anchor.y - r.y) * (1 - q)}px) scale(${Math.max(0.01, q)})`;
+        b.style.opacity = String(Math.min(1, q));
+        b.style.visibility = q > 0.015 ? "visible" : "hidden";
+        b.style.pointerEvents = q > 0.8 ? "auto" : "none";
+        b.classList.toggle("expanded", i === expanded);
+        b.classList.toggle("from-left", r.direction > 0);
       });
     },
-    regions() {
-      return buttons.filter((b) => !b.inert).flatMap(bubbleRegions);
+    polygons() {
+      return buttons
+        .filter((b, i) => values[i].value > 0.8)
+        .map((b) => {
+          const r = b.getBoundingClientRect();
+          return roundedRect(r.x, r.y, r.width, r.height, r.height / 2);
+        });
+    },
+    collapse() {
+      open = false;
+      expanded = -1;
     },
   };
 }

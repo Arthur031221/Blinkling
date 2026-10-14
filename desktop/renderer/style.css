@@ -1,18 +1,19 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, sans-serif;
-  --surface: #faf8f3;
-  --ink: #292923;
-  --muted: #65655d;
-  --line: #d8d6cc;
+  font-family: system-ui, "Noto Sans CJK TC", sans-serif;
+  --card: #faf8f4;
+  --ink: #262720;
+  --muted: #686a60;
+  --line: #dfdfd4;
+  --accent: #1f9e68;
+  --green: #3ddc97;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface: #292a25;
-    --ink: #f5f5ee;
-    --muted: #bdbdb1;
-    --line: #4d4e44;
-  }
+:root[data-theme="dark"] {
+  --card: #242720;
+  --ink: #f5f5f4;
+  --muted: #bcc2b5;
+  --line: #444b3d;
+  --accent: #3ddc97;
 }
 * {
   box-sizing: border-box;
@@ -20,174 +21,248 @@
 html,
 body {
   margin: 0;
+  width: 100%;
+  height: 100%;
   background: transparent;
   overflow: hidden;
+  user-select: none;
+}
+button,
+textarea {
+  font: inherit;
 }
 button {
   color: var(--ink);
-  font: inherit;
   cursor: pointer;
+}
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+svg {
+  display: block;
+}
+button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
 }
 #blink {
   position: absolute;
-  width: 160px;
-  height: 176px;
-  opacity: 0.4;
+  width: 148px;
+  height: 152px;
+  transform-origin: 50% 93.42%;
+  will-change: transform, opacity;
+  cursor: grab;
   touch-action: none;
-  user-select: none;
-  transform-origin: 80px 81.6px;
-  transition:
-    opacity 180ms ease-out,
-    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 #blink svg {
   width: 100%;
   height: 100%;
   overflow: visible;
 }
+#blink[data-drag="true"] {
+  cursor: grabbing;
+}
 #menu {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
-.action {
+.action-bubble {
   position: absolute;
   border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 24px;
-  width: 44px;
-  height: 44px;
-  padding: 10px;
+  height: 42px;
+  border-radius: 25px;
+  background: var(--card);
   display: flex;
   align-items: center;
-  gap: 12px;
-  pointer-events: auto;
-  transform-origin: right center;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: width 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.action svg {
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.action .caption {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  text-align: left;
-  opacity: 0;
-  transition: opacity 100ms;
-}
-.action strong {
-  font-size: 13px;
-  line-height: 16px;
-  font-weight: 600;
-}
-.action .caption span {
-  font-size: 12px;
-  line-height: 15px;
-  color: var(--muted);
-}
-.action.expanded {
-  width: 234px;
-  z-index: 3;
-}
-.action.expanded .caption {
-  opacity: 1;
-}
-.action[aria-pressed="true"] {
-  border-color: #1f9e68;
-  color: #1f9e68;
-}
-button:focus-visible {
-  outline: 2px solid #1f9e68;
-  outline-offset: -3px;
-}
-#permission-alert {
-  position: absolute;
-  width: 180px;
-  height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  background: var(--surface);
-  color: var(--ink);
-  padding: 10px 16px;
-  font-size: 14px;
-  white-space: nowrap;
-}
-#permission-alert[hidden] {
-  display: none;
-}
-#card {
-  position: absolute;
-  inset: 8px;
-  border-radius: 24px;
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transform-origin: bottom right;
-}
-.card-controls {
-  display: flex;
   justify-content: flex-end;
-  gap: 4px;
-  padding: 12px 12px 0;
+  padding: 9px;
+  gap: 12px;
+  transform-origin: center;
+  will-change: transform, opacity;
+  overflow: hidden;
+  transition: width 180ms ease;
+  border-color: color-mix(in srgb, var(--ink) 20%, transparent);
+  box-shadow: none;
 }
-.card-controls button {
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
+.action-bubble.from-left {
+  flex-direction: row-reverse;
+}
+.action-bubble svg {
+  position: absolute;
+  right: 9px;
+  top: 9px;
+}
+.action-bubble.from-left svg {
+  right: auto;
+  left: 9px;
+}
+.action-detail {
+  position: absolute;
+  left: 16px;
+  right: 48px;
+  top: 5px;
+  opacity: 0;
+  white-space: nowrap;
+  line-height: 16px;
+  font-size: 12px;
+  pointer-events: none;
+  transition: opacity 60ms;
+}
+.action-detail strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+}
+.action-detail > span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.from-left .action-detail {
+  left: 48px;
+  right: 12px;
+}
+.expanded .action-detail {
+  opacity: 1;
+  transition: opacity 100ms 150ms;
+}
+.action-bubble[aria-pressed="true"] {
+  background: var(--green);
+  color: #0c0e0d;
+}
+#pin {
+  position: absolute;
   width: 32px;
   height: 32px;
-  padding: 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 140ms;
 }
-.card-controls svg {
+#pin svg {
   width: 18px;
   height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
-#pin[aria-pressed="true"] {
-  color: #1f9e68;
-  background: #3ddc9722;
+#pin[aria-pressed="true"],
+#chat-pin[aria-pressed="true"] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--green) 20%, var(--card));
 }
-#card-content {
+#chat-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 26px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: 100% 100%;
+  animation: card-arrive 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+#chat-card[hidden] {
+  display: none;
+}
+:root[data-edge="left"] #chat-card {
+  transform-origin: 0 100%;
+}
+#chat-card header {
+  height: 56px;
+  padding: 12px 16px 8px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+#chat-card header > span {
+  font-weight: 650;
+  font-size: 15px;
+}
+#chat-card header > div {
+  display: flex;
+  gap: 4px;
+}
+#chat-card header button {
+  border: 0;
+  background: transparent;
+  border-radius: 50%;
+  padding: 6px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+}
+#chat-card header button svg {
+  width: 18px;
+  height: 18px;
+}
+#messages {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 20px;
+  padding: 0 20px 12px;
+  user-select: text;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
-#card-content:empty {
-  padding: 0;
-}
-#composer-slot {
-  margin: 12px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  min-height: 104px;
+#composer-content {
+  margin: 0 16px 16px;
   padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card) 94%, var(--ink));
+  flex-shrink: 0;
+  user-select: text;
 }
-#composer-slot textarea {
-  width: 100%;
-  min-height: 70px;
+#composer-input {
+  display: block;
   resize: none;
+  width: 100%;
   border: 0;
   background: transparent;
   color: var(--ink);
+  padding: 2px;
   outline: none;
-  font: inherit;
-  font-size: 14px;
+  line-height: 1.6;
+  min-height: 66px;
+  max-height: 150px;
+}
+#attachments {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#attachments img {
+  width: 60px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.view-help {
+  color: var(--ink);
+}
+@keyframes card-arrive {
+  from {
+    opacity: 0;
+    transform: translate(12px, 16px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
 }

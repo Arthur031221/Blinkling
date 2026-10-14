@@ -1,49 +1,40 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validCommand, validRegions } from "./ipc.mjs";
-test("IPC accepts only bounded positive geometry and narrow commands", () => {
-  const bounds = { width: 600, height: 400 };
-  assert.equal(
-    validRegions([{ x: 0, y: 0, width: 1, height: 1 }], bounds),
-    true,
-  );
-  for (const r of [
-    { x: -1, y: 0, width: 1, height: 1 },
-    { x: 0, y: 0, width: Infinity, height: 1 },
-    { x: 600, y: 0, width: 1, height: 1 },
-    { x: 0, y: 0, width: 1, height: 0 },
-  ])
-    assert.equal(validRegions([r], bounds), false);
-  assert.equal(
-    validRegions(Array(4097).fill({ x: 0, y: 0, width: 1, height: 1 }), bounds),
-    false,
-  );
-  assert.equal(validCommand({ type: "pin", value: true }), true);
+test("shell IPC admits only narrow gestures and boolean state, never arbitrary positions/files", () => {
   for (const c of [
+    { type: "state" },
+    { type: "pin", value: true },
+    { type: "visibility", value: false },
+    { type: "drag", phase: "end" },
+  ])
+    assert.equal(validCommand(c), true);
+  for (const c of [
+    { type: "exec", path: "/bin/sh" },
+    { type: "pin", value: "true" },
+    { type: "drag", phase: "start", x: 100 },
+    { type: "state", file: "/etc/passwd" },
     null,
-    "state",
-    { type: "pin", value: 1 },
-    { type: "drag-start", x: 99 },
-    { type: "exec", command: "ls" },
+    [],
   ])
     assert.equal(validCommand(c), false);
 });
-test("drag starts carry only a finite anchor inside the window margins", () => {
-  const bounds = { width: 600, height: 400 };
+test("input regions reject nonfinite, unbounded, fractional, oversized and empty rectangles", () => {
+  const b = { width: 500, height: 500 };
   assert.equal(
-    validCommand({ type: "drag-start", anchor: { x: 598, y: 300 } }, bounds),
+    validRegions([{ x: 10, y: 20, width: 30, height: 40 }], b),
     true,
   );
-  for (const anchor of [
-    null,
-    [],
-    { x: NaN, y: 0 },
-    { x: 0, y: Infinity },
-    { x: -161, y: 0 },
-    { x: 761, y: 0 },
-    { x: 0, y: 577 },
-    { x: 0, y: 0, extra: 1 },
+  for (const r of [
+    { x: NaN, y: 0, width: 1, height: 1 },
+    { x: -1, y: 0, width: 2, height: 2 },
+    { x: 0, y: 0, width: 501, height: 1 },
+    { x: 1.5, y: 0, width: 1, height: 1 },
+    { x: 0, y: 0, width: 0, height: 1 },
   ])
-    assert.equal(validCommand({ type: "drag-start", anchor }, bounds), false);
-  assert.equal(validCommand({ type: "drag-start" }, bounds), false);
+    assert.equal(validRegions([r], b), false);
+  assert.equal(
+    validRegions(Array(8193).fill({ x: 0, y: 0, width: 1, height: 1 }), b),
+    false,
+  );
 });

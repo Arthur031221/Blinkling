@@ -1,47 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PlacementStore } from "./preferences.mjs";
-test("atomic display positions survive restart, keep disconnected displays, reject corrupt input", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "blink-positions-"));
+import { PositionStore } from "./preferences.mjs";
+test("atomic serialized saves remember each display and restore last display", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "blink-position-"));
   try {
-    const file = join(dir, "placements.json");
-    const store = new PlacementStore(file);
-    await store.load();
+    const path = join(dir, "positions.json");
+    const store = await new PositionStore(path).load();
     await Promise.all([
-      store.set("left-monitor", { edge: "left", fraction: 0.3 }),
-      store.set("right-monitor", { edge: "bottom", fraction: 0.8 }),
+      store.save(1, { edge: "left", ratio: 0.3 }),
+      store.save(2, { edge: "bottom", ratio: 0.7 }),
     ]);
-    const again = new PlacementStore(file);
-    await again.load();
-    assert.deepEqual(again.get("left-monitor"), {
-      edge: "left",
-      fraction: 0.3,
+    const restored = await new PositionStore(path).load();
+    assert.deepEqual(restored.positions, {
+      1: { edge: "left", ratio: 0.3 },
+      2: { edge: "bottom", ratio: 0.7 },
     });
-    assert.deepEqual(again.get("right-monitor"), {
-      edge: "bottom",
-      fraction: 0.8,
-    });
-    await assert.rejects(again.set("oops", { edge: "middle", fraction: NaN }));
-    assert.equal(JSON.parse(await readFile(file, "utf8")).version, 1);
-    await writeFile(
-      file,
-      '{"version":1,"positions":{"bad":{"edge":"right","fraction":5}}}',
-    );
-    await again.load();
-    assert.equal(again.get("bad"), undefined);
-    for (const corrupt of [
-      "null",
-      "{not-json",
-      '{"version":2,"positions":{}}',
-    ]) {
-      await writeFile(file, corrupt);
-      await again.load();
-      assert.equal(again.get("left-monitor"), undefined);
-    }
+    assert.equal(restored.lastDisplay, "2");
+    assert.equal(JSON.parse(await readFile(path)).version, 1);
+    await writeFile(path, "broken");
+    assert.deepEqual((await new PositionStore(path).load()).positions, {});
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await rm(dir, { recursive: true });
   }
 });
