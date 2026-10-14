@@ -52,7 +52,7 @@ import {
 import "./style.css";
 import { isReaderPdfCandidate } from "./reader-url";
 import { cropSharedScreen } from "./screen-crop";
-import { nativeBubbleClearance, withScreenPicker } from "./native-bubble";
+import { nativeBubbleClearance } from "./native-bubble";
 import { requestCaptureAccess } from "./capture-access";
 import {
   freezeSharedFrame,
@@ -254,6 +254,9 @@ function App() {
   );
   const localCrop = useRef(false);
   const pageCrop = useRef(false);
+  const pageBubbleClearance = useRef<Promise<
+    ReturnType<typeof nativeBubbleClearance> | undefined
+  > | null>(null);
   const wholeCaptureBusy = useRef(false);
   const modeChangeBusy = useRef(false);
   const [screenCapturing, setScreenCapturing] = useState(false);
@@ -409,6 +412,8 @@ function App() {
   );
   const [size, setSize] = useState({ width: 420, height: 650 });
   const cropBusy = useRef(false);
+  const fallbackBubbleId = useRef<number | undefined>(undefined);
+  const fallbackGeometry = useRef<BubblePosition | null>(null);
   const [cropPending, setCropPending] = useState(false);
   const [shareStream, setShareStream] = useState<MediaStream | null>(null);
   const [blocklist, setBlocklist] = useState("");
@@ -771,6 +776,7 @@ function App() {
     if (!pipDoc) return;
     const child = pipDoc.defaultView!;
     const remember = () => {
+      if (fallbackBubbleId.current !== undefined) return;
       const nextSize = { width: child.innerWidth, height: child.innerHeight };
       if (!expandedRef.current) {
         compactViewport.current = nextSize;
@@ -792,6 +798,8 @@ function App() {
     };
     const close = () => {
       if (controlledPipClose.current) return;
+      fallbackBubbleId.current = undefined;
+      fallbackGeometry.current = null;
       pageCaptureController.current?.abort();
       setPipDoc(null);
       shareRef.current?.getTracks().forEach((track) => track.stop());
@@ -1057,6 +1065,10 @@ function App() {
         sender.tab?.id === activeTabId.current
       ) {
         pageCrop.current = value.active === true;
+        if (!localCrop.current) {
+          if (pageCrop.current) void clearPageBubble();
+          else void restorePageBubble();
+        }
         bubbleSurface.current?.setCropping(
           localCrop.current || pageCrop.current,
         );
@@ -1421,35 +1433,114 @@ function App() {
   ]);
   function frameOptions(
     video: HTMLVideoElement,
-    selection = false,
+    manual = false,
   ): SharedFrameOptions {
+    if (!manual && !needsSharedFrameClearance(video, pipDoc)) return {};
+    return { clearBubble: bubbleClearance(manual) };
+  }
+  function bubbleClearance(manual: boolean) {
     const floating = pipDoc?.defaultView;
-    if (!floating || (!selection && !needsSharedFrameClearance(video, pipDoc)))
-      return {};
+    if (!floating) return undefined;
+    const floatingBounds = {
+      left: floating.screenX,
+      top: floating.screenY,
+      width: floating.outerWidth,
+      height: floating.outerHeight,
+    };
     const floatingSize = {
       width: floating.innerWidth,
       height: floating.innerHeight,
     };
-    return {
-      clearBubble: nativeBubbleClearance(floating, {
-        close: () => {
-          controlledPipClose.current = true;
-          try {
-            flushSync(() => setPipDoc(null));
-            floating.close();
-          } finally {
-            controlledPipClose.current = false;
-          }
-        },
-        open: async () => {
+    return nativeBubbleClearance(floating, {
+      nativeWindowId: fallbackBubbleId.current,
+      allowPanelFallback: manual,
+      close: () => {
+        controlledPipClose.current = true;
+        try {
+          flushSync(() => setPipDoc(null));
+          floating.close();
+        } finally {
+          controlledPipClose.current = false;
+        }
+      },
+      open: async () => {
+        try {
           const replacement = await (
             window as WindowWithPiP
           ).documentPictureInPicture!.requestWindow(floatingSize);
+          fallbackBubbleId.current = undefined;
+          fallbackGeometry.current = null;
           await mountFloat(replacement);
           return replacement;
-        },
-      }),
-    };
+        } catch (error) {
+          if (
+            !manual ||
+            !(error instanceof DOMException) ||
+            error.name !== "NotAllowedError"
+          )
+            throw error;
+          // Escape consumes no activation. Keep the same React conversation
+          // and live stream in an ordinary extension popup until the next
+          // click can restore always-on-top PiP.
+          const native = await chrome.windows.create({
+            type: "popup",
+            url: chrome.runtime.getURL("panel.html?surfaceOnly=1"),
+            left: Math.round(floatingBounds.left),
+            top: Math.round(floatingBounds.top),
+            width: Math.round(floatingBounds.width),
+            height: Math.round(floatingBounds.height),
+            focused: false,
+          });
+          if (native?.id === undefined) throw new Error("pip_closed");
+          fallbackBubbleId.current = native.id;
+          fallbackGeometry.current = floatingBounds;
+          try {
+            const deadline = performance.now() + 2000;
+            let view: Window | undefined;
+            while (!view) {
+              view = chrome.extension.getViews({ windowId: native.id })[0];
+              if (view?.document.readyState !== "complete") view = undefined;
+              if (performance.now() >= deadline) throw new Error("pip_closed");
+              if (!view)
+                await new Promise((resolve) => window.setTimeout(resolve, 40));
+            }
+            await mountFloat(view);
+          } catch (failure) {
+            fallbackBubbleId.current = undefined;
+            fallbackGeometry.current = null;
+            await chrome.windows.remove(native.id).catch(() => {});
+            throw failure;
+          }
+          setFallback(true);
+          setStatus(t.surfaceFallback);
+          return null;
+        }
+      },
+    });
+  }
+  function clearPageBubble() {
+    if (pageBubbleClearance.current) return pageBubbleClearance.current;
+    const clearance = bubbleClearance(true);
+    pageBubbleClearance.current = (async () => {
+      try {
+        await clearance?.hide();
+        return clearance;
+      } catch (error) {
+        await clearance?.restore();
+        reportError(error);
+        return undefined;
+      }
+    })();
+    return pageBubbleClearance.current;
+  }
+  async function restorePageBubble() {
+    const pending = pageBubbleClearance.current;
+    pageBubbleClearance.current = null;
+    try {
+      await (await pending)?.restore();
+    } catch (error) {
+      reportError(error);
+    }
   }
   async function startCrop() {
     if (cropBusy.current) return;
@@ -1459,18 +1550,23 @@ function App() {
     setCropPending(true);
     try {
       if (shareRef.current && videoRef.current) {
-        const image = await cropSharedScreen(
-          videoRef.current,
-          pipDoc,
-          t,
-          frameOptions(videoRef.current, true),
-        );
+        const image = await cropSharedScreen(videoRef.current, pipDoc, t, {
+          ...frameOptions(videoRef.current, true),
+          sourceTabId: activeTabId.current,
+        });
         if (image) {
           setCapture({ image, label: t.region });
           setPage(undefined);
           setStatus(t.captureReady);
         }
-      } else await captureAction("region");
+      } else {
+        await clearPageBubble();
+        try {
+          await captureAction("region");
+        } finally {
+          await restorePageBubble();
+        }
+      }
     } catch (error) {
       reportError(error);
     } finally {
@@ -1482,7 +1578,11 @@ function App() {
   }
   async function openFloat() {
     const existing = pipDoc?.defaultView;
-    if (existing && !existing.closed) {
+    if (
+      existing &&
+      !existing.closed &&
+      fallbackBubbleId.current === undefined
+    ) {
       existing.focus();
       setStatus(t.floatingReady);
       await completeFloatTutorial();
@@ -1497,7 +1597,21 @@ function App() {
     try {
       // requestWindow must run before any await so Chrome still sees the click activation.
       const docWindow = await pip.requestWindow(size);
+      const fallbackId = fallbackBubbleId.current;
+      const geometry = fallbackGeometry.current;
+      fallbackBubbleId.current = undefined;
+      fallbackGeometry.current = null;
       await mountFloat(docWindow);
+      if (geometry)
+        await placeBubbleWindow(docWindow, geometry, () => !docWindow.closed);
+      if (fallbackId !== undefined) {
+        controlledPipClose.current = true;
+        try {
+          await chrome.windows.remove(fallbackId);
+        } finally {
+          controlledPipClose.current = false;
+        }
+      }
       return true;
     } catch {
       setFallback(true);
@@ -1942,13 +2056,40 @@ function App() {
         }
         // Keep the picker on the button's gesture. Starting a share accepts no
         // pixels and leaves both PiP and the last confirmed capture intact.
-        setStatus(t.screenPicker);
-        const sourceTabId = activeTabId.current;
-        const result = await withScreenPicker(
-          pipDoc.defaultView!,
-          sourceTabId,
-          () => startScreenShare(sourceTabId),
-        );
+        const floating = pipDoc.defaultView!;
+        const geometry = {
+          left: floating.screenX,
+          top: floating.screenY,
+          width: floating.outerWidth,
+          height: floating.outerHeight,
+        };
+        setStatus(t.screenPickerPending);
+        const area = screenArea(floating);
+        // PiP stays above Chrome's native picker. Temporarily tuck it at the
+        // display edge so it cannot cover the picker choices or Share button.
+        // Start the move without awaiting: getDisplayMedia still needs this
+        // click's activation, and the saved geometry is restored below.
+        const pickerPlacement = placeBubbleWindow(
+          floating,
+          {
+            left: area.left + area.width - geometry.width / 2,
+            top: geometry.top,
+          },
+          () => !floating.closed,
+        ).catch(() => {});
+        let result: Awaited<ReturnType<typeof startScreenShare>>;
+        try {
+          result = await startScreenShare(activeTabId.current, floating);
+        } finally {
+          await pickerPlacement;
+          // Snapshot before the picker can move PiP, including a cancelled
+          // first capture. Subsequent frame clearance then sees user bounds.
+          await placeBubbleWindow(
+            floating,
+            geometry,
+            () => !floating.closed,
+          ).catch(() => {});
+        }
         sharedBinding.current = result.binding;
         shareRef.current = result.stream;
         if (videoRef.current) {
@@ -2044,6 +2185,14 @@ function App() {
     setShowTools(false);
     expandedRef.current = !compact;
     setExpanded(!compact);
+    if (!compact && fallbackBubbleId.current !== undefined) {
+      // Blink's click supplies the fresh gesture that Escape could not. Reopen
+      // native PiP directly and restore the expanded, pre-compact geometry.
+      fallbackGeometry.current =
+        expandedPosition.current || fallbackGeometry.current;
+      void openFloat();
+      return;
+    }
     try {
       if (pipDoc?.defaultView) {
         const floating = pipDoc.defaultView;
@@ -2115,7 +2264,11 @@ function App() {
       const stream = shareRef.current;
       const video = videoRef.current;
       if (!stream || !video) return;
-      const frame = await freezeSharedFrame(video, pipDoc, frameOptions(video));
+      const frame = await freezeSharedFrame(
+        video,
+        pipDoc,
+        frameOptions(video, true),
+      );
       try {
         if (
           shareRef.current !== stream ||
@@ -3280,7 +3433,7 @@ function App() {
           >
             ⚙
           </button>
-          {!pipDoc && (
+          {(!pipDoc || fallback) && (
             <button
               className="icon"
               title={t.float}
@@ -3343,7 +3496,7 @@ function App() {
         </button>
       ) : (
         <>
-          {!pipDoc && (
+          {(!pipDoc || fallback) && (
             <section className="float-start">
               <button className="primary wide" onClick={() => void openFloat()}>
                 {t.float}
@@ -3991,4 +4144,7 @@ function Blink({ mood = "idle" }: { mood?: "idle" | "think" }) {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// A recovery popup hosts the opener's existing portal, never a second chat or
+// bridge connection. Its page carries no independent application state.
+if (new URLSearchParams(location.search).get("surfaceOnly") !== "1")
+  createRoot(document.getElementById("root")!).render(<App />);

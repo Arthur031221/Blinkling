@@ -3198,7 +3198,8 @@ describe("screen sharing and capture authorization in the bubble", () => {
       await startSharing();
 
     expect(mocks.startShare).toHaveBeenCalledOnce();
-    expect(mocks.startShare).toHaveBeenCalledWith(1);
+    expect(mocks.startShare.mock.calls[0][0]).toBe(1);
+    expect(mocks.startShare.mock.calls[0][1] === floating).toBe(true);
     expect(mocks.freeze).not.toHaveBeenCalled();
     expect(close).not.toHaveBeenCalled();
     expect(requestWindow).toHaveBeenCalledOnce();
@@ -3745,6 +3746,191 @@ describe("v2.1 bubble states", () => {
         ?.getAttribute("aria-checked"),
     ).toBe("false");
   });
+
+  it("restores the first capture's pre-picker bubble geometry on success and cancellation", async () => {
+    await start();
+    const { floating, stream } = await startSharing("browser");
+    await click(en.autoExplain, floating.document);
+    Object.defineProperties(floating, {
+      screenX: { configurable: true, value: 600 },
+      screenY: { configurable: true, value: 220 },
+      outerWidth: { configurable: true, value: 428 },
+      outerHeight: { configurable: true, value: 688 },
+    });
+    let native = {
+      id: 8,
+      alwaysOnTop: true,
+      left: 600,
+      top: 220,
+      width: 428,
+      height: 688,
+      tabs: [{ url: "about:blank", openerTabId: 2 }],
+    };
+    Object.assign(chrome.windows, { getAll: vi.fn(async () => [native]) });
+    vi.mocked(chrome.windows.update).mockImplementation(async (_id, change) => {
+      native = { ...native, ...change };
+      return native as chrome.windows.Window;
+    });
+    for (const cancel of [false, true]) {
+      if (!cancel)
+        mocks.startShare.mockImplementationOnce(async () => {
+          native = { ...native, left: 20, top: 10 };
+          return { stream };
+        });
+      else
+        mocks.startShare.mockImplementationOnce(async () => {
+          native = { ...native, left: 30, top: 40 };
+          throw new DOMException("Cancelled", "NotAllowedError");
+        });
+      await click(en.wholeScreen, floating.document);
+      expect(native).toMatchObject({
+        left: 600,
+        top: 220,
+        width: 428,
+        height: 688,
+      });
+      if (!cancel) await click(en.autoExplain, floating.document);
+    }
+  });
+
+  it("keeps the conversation and share in a recovery surface when Escape cannot reopen PiP", async () => {
+    await start();
+    const { floating, requestWindow, stream, track } = await startSharing();
+    await draft("Keep the draft after Escape", floating.document);
+    const popup = floatingWindow();
+    const next = floatingWindow();
+    let native = {
+      id: 8,
+      left: 600,
+      top: 220,
+      width: 428,
+      height: 688,
+      alwaysOnTop: true,
+      tabs: [{ url: "about:blank", openerTabId: 2 }],
+    };
+    vi.stubGlobal("navigator", { userActivation: { isActive: false } });
+    Object.assign(chrome.windows, {
+      getAll: vi.fn(async () => [native]),
+      create: vi.fn().mockResolvedValue({ id: 9 }),
+      remove: vi.fn().mockImplementation(async () => popup.close()),
+      update: vi.fn(async (_id, change) => {
+        if (change.state === "minimized")
+          throw new Error(
+            "Operation not allowed for picture-in-picture windows",
+          );
+        native = { ...native, ...change };
+        return native;
+      }),
+    });
+    views.mockReturnValue([popup.floating]);
+    requestWindow.mockRejectedValueOnce(
+      new DOMException("No activation", "NotAllowedError"),
+    );
+    mocks.crop.mockImplementationOnce(
+      async (_video, _doc, _labels, options) => {
+        await options.clearBubble.hide();
+        expect(floating.closed).toBe(true);
+        await options.clearBubble.prepareSelection();
+        expect(requestWindow).toHaveBeenCalledOnce();
+        await options.clearBubble.restore();
+        return null;
+      },
+    );
+    await click(en.region, floating.document);
+    expect(chrome.windows.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "popup",
+        url: "chrome-extension://test/panel.html?surfaceOnly=1",
+        focused: false,
+      }),
+    );
+    expect(
+      popup.floating.document.querySelector<HTMLTextAreaElement>("textarea")!
+        .value,
+    ).toBe("Keep the draft after Escape");
+    expect(document.querySelector("video")?.srcObject).toBe(stream);
+    expect(track.stop).not.toHaveBeenCalled();
+    expect(popup.floating.document.querySelector(".status")!.textContent).toBe(
+      en.surfaceFallback,
+    );
+    requestWindow.mockResolvedValueOnce(next.floating);
+    native = { ...native, id: 10 };
+    await click(en.float, popup.floating.document);
+    expect(popup.close).toHaveBeenCalledOnce();
+    expect(
+      next.floating.document.querySelector<HTMLTextAreaElement>("textarea")!
+        .value,
+    ).toBe("Keep the draft after Escape");
+    expect(document.querySelector("video")?.srcObject).toBe(stream);
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
+  it("restores native PiP with one Blink click after a compact page crop exhausts activation", async () => {
+    await start();
+    const { floating, requestWindow, stream, track } = await startSharing();
+    vi.spyOn(floating, "resizeTo").mockImplementation(() => {});
+    Object.defineProperties(floating, {
+      screenX: { configurable: true, value: 140 },
+      screenY: { configurable: true, value: 90 },
+      innerWidth: { configurable: true, value: 420 },
+      innerHeight: { configurable: true, value: 650 },
+      outerWidth: { configurable: true, value: 428 },
+      outerHeight: { configurable: true, value: 688 },
+    });
+    await draft("Keep the compact draft", floating.document);
+    await clickAccessibleIn(en.compact, floating.document);
+    const popup = floatingWindow();
+    const next = floatingWindow();
+    vi.stubGlobal("navigator", { userActivation: { isActive: false } });
+    Object.assign(chrome.windows, {
+      getAll: vi.fn().mockResolvedValue([
+        {
+          id: 8,
+          left: 600,
+          top: 220,
+          width: 248,
+          height: 110,
+          alwaysOnTop: true,
+          tabs: [{ url: "about:blank", openerTabId: 2 }],
+        },
+      ]),
+      create: vi.fn().mockResolvedValue({ id: 9 }),
+      remove: vi.fn().mockImplementation(async () => popup.close()),
+      update: vi.fn(async (_id, change) => {
+        if (change.state === "minimized")
+          throw new Error(
+            "Operation not allowed for picture-in-picture windows",
+          );
+        return change;
+      }),
+    });
+    views.mockReturnValue([popup.floating]);
+    requestWindow.mockRejectedValueOnce(
+      new DOMException("No activation", "NotAllowedError"),
+    );
+    await send({ type: "glimpselet:crop-mode", active: true });
+    await send({ type: "glimpselet:crop-mode", active: false });
+    expect(popup.floating.document.querySelector(".blink-dot")).not.toBeNull();
+    expect(floating.closed).toBe(true);
+    requestWindow.mockResolvedValueOnce(next.floating);
+    await clickAccessibleIn(en.expand, popup.floating.document);
+    expect(requestWindow).toHaveBeenCalledTimes(3);
+    expect(requestWindow).toHaveBeenLastCalledWith({ width: 420, height: 650 });
+    expect(chrome.windows.update).toHaveBeenCalledWith(8, {
+      left: 140,
+      top: 90,
+      width: 428,
+      height: 688,
+    });
+    expect(popup.close).toHaveBeenCalledOnce();
+    expect(
+      next.floating.document.querySelector<HTMLTextAreaElement>("textarea")!
+        .value,
+    ).toBe("Keep the compact draft");
+    expect(document.querySelector("video")?.srcObject).toBe(stream);
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
   it("captures the whole shared frame without reopening the picker or cropping", async () => {
     await start();
     const { floating } = await startSharing("browser");

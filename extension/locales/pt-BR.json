@@ -85,7 +85,6 @@
   "settings": "Configurações",
   "shareEnded": "O compartilhamento de tela terminou.",
   "shareNeedsFloat": "Abra o painel flutuante antes de compartilhar a tela.",
-  "screenPicker": "Escolha uma tela…",
   "sharing": "Compartilhando",
   "siteAccess": "Permita acesso do Glimpselet no aviso do navegador.",
   "siteNeedPermission": "Este site precisa de permissão antes de ser lido.",
@@ -164,5 +163,7 @@
   "moreTools": "Mais ferramentas",
   "captureAccessHint": "Opcional: permita o acesso a todos os sites uma vez para capturar páginas e selecionar áreas em novas abas.",
   "guideOverview": "Visão geral",
-  "guideTour": "Passo a passo"
+  "guideTour": "Passo a passo",
+  "screenPickerPending": "Escolha uma tela no seletor do Chrome.",
+  "surfaceFallback": "Sua conversa foi preservada. Abra o painel flutuante para mantê-lo no topo."
 }

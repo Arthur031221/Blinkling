@@ -85,7 +85,6 @@
   "settings": "Paramètres",
   "shareEnded": "Le partage d'écran est terminé.",
   "shareNeedsFloat": "Ouvrez le panneau flottant avant de partager votre écran.",
-  "screenPicker": "Choisissez un écran…",
   "sharing": "Partage actif",
   "siteAccess": "Autorisez l'accès de Glimpselet dans le navigateur.",
   "siteNeedPermission": "Une autorisation est nécessaire pour ce site.",
@@ -164,5 +163,7 @@
   "moreTools": "Autres outils",
   "captureAccessHint": "Facultatif : autorisez une fois l’accès à tous les sites pour capturer des pages et sélectionner une zone dans les nouveaux onglets.",
   "guideOverview": "Vue d’ensemble",
-  "guideTour": "Pas à pas"
+  "guideTour": "Pas à pas",
+  "screenPickerPending": "Choisissez un écran dans le sélecteur de Chrome.",
+  "surfaceFallback": "Votre conversation est conservée. Ouvrez le panneau flottant pour le garder au premier plan."
 }

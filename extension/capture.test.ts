@@ -73,6 +73,88 @@ describe("starting a shared screen without taking a snapshot", () => {
     expect(track.stop).not.toHaveBeenCalled();
   });
 
+  it("raises the picker host from a separate PiP gesture and returns to the source on cancellation", async () => {
+    const { getDisplayMedia } = setupShare();
+    const hostFocus = vi.spyOn(window, "focus").mockImplementation(() => {});
+    const initiator = { closed: false } as Window;
+    getDisplayMedia.mockRejectedValue(
+      new DOMException("Cancelled", "NotAllowedError"),
+    );
+    const { startScreenShare } = await import("./capture");
+    await expect(startScreenShare(tab.id, initiator)).rejects.toThrow(
+      "Cancelled",
+    );
+    expect(hostFocus).toHaveBeenCalledOnce();
+    expect(hostFocus.mock.invocationCallOrder[0]).toBeLessThan(
+      getDisplayMedia.mock.invocationCallOrder[0],
+    );
+    expect(chrome.tabs.update).toHaveBeenCalledWith(2, { active: true });
+    expect(chrome.windows.update).toHaveBeenCalledWith(10, { focused: true });
+    expect(
+      vi.mocked(chrome.windows.update).mock.invocationCallOrder[0],
+    ).toBeLessThan(getDisplayMedia.mock.invocationCallOrder[0]);
+    expect(chrome.windows.update).toHaveBeenCalledWith(tab.windowId, {
+      focused: true,
+    });
+  });
+
+  it.each([
+    { id: 20, focused: true },
+    { id: 20, focused: false },
+  ])(
+    "keeps an intervening foreground choice after picker cancellation: %j",
+    async (foreground) => {
+      const { getDisplayMedia } = setupShare();
+      vi.spyOn(window, "focus").mockImplementation(() => {});
+      vi.mocked(chrome.windows.getLastFocused)
+        .mockResolvedValueOnce({ id: 99, focused: true })
+        .mockResolvedValue(foreground);
+      getDisplayMedia.mockRejectedValue(
+        new DOMException("Cancelled", "NotAllowedError"),
+      );
+      const { startScreenShare } = await import("./capture");
+      await expect(startScreenShare(tab.id, {} as Window)).rejects.toThrow(
+        "Cancelled",
+      );
+      expect(chrome.windows.update).not.toHaveBeenCalledWith(tab.windowId, {
+        focused: true,
+      });
+      expect(chrome.tabs.update).not.toHaveBeenCalledWith(tab.id, {
+        active: true,
+      });
+    },
+  );
+
+  it("waits for the native picker to relinquish focus before returning to the source", async () => {
+    setupShare();
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    vi.mocked(chrome.windows.getLastFocused)
+      .mockResolvedValueOnce({ id: 99, focused: true })
+      .mockResolvedValueOnce({ id: 10, focused: false })
+      .mockResolvedValue({ id: 10, focused: true });
+    const { startScreenShare } = await import("./capture");
+    await startScreenShare(tab.id, {} as Window);
+    expect(chrome.windows.update).toHaveBeenCalledWith(tab.windowId, {
+      focused: true,
+    });
+  });
+
+  it("recognizes focus returned to the initiating PiP when getLastFocused still reports the chooser host", async () => {
+    setupShare();
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    vi.mocked(chrome.windows.getLastFocused)
+      .mockResolvedValueOnce({ id: 99, focused: true })
+      .mockResolvedValue({ id: 10, focused: false });
+    Object.assign(chrome.windows, {
+      getAll: vi.fn(async () => [{ id: 99, focused: true }]),
+    });
+    const { startScreenShare } = await import("./capture");
+    await startScreenShare(tab.id, {} as Window);
+    expect(chrome.windows.update).toHaveBeenCalledWith(tab.windowId, {
+      focused: true,
+    });
+  });
+
   it("reports picker cancellation without taking a snapshot", async () => {
     const { track, getDisplayMedia } = setupShare();
     const cancelled = new DOMException("Picker cancelled", "NotAllowedError");
@@ -137,13 +219,18 @@ function setupChrome(captureVisibleTab = vi.fn(async () => "tile-png")) {
   vi.stubGlobal("chrome", {
     runtime: { getURL: (path: string) => `chrome-extension://test/${path}` },
     tabs: {
+      getCurrent: vi.fn(async () => ({ id: 2, windowId: 10 })),
       update: vi.fn(async () => tab),
       get: vi.fn(async () => tab),
       query: vi.fn(async () => [tab]),
       sendMessage: vi.fn(async () => ({})),
       captureVisibleTab,
     },
-    windows: { update: vi.fn(async () => ({ id: tab.windowId })) },
+    windows: {
+      update: vi.fn(async () => ({ id: tab.windowId })),
+      getLastFocused: vi.fn(async () => ({ id: 10, focused: true })),
+      getAll: vi.fn(async () => []),
+    },
     permissions: { contains: vi.fn(async () => true) },
     scripting: { executeScript },
     storage: { local: { get: vi.fn(async () => ({ blocklist: [] })) } },

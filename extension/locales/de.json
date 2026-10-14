@@ -85,7 +85,6 @@
   "settings": "Einstellungen",
   "shareEnded": "Bildschirmfreigabe beendet.",
   "shareNeedsFloat": "Öffne das schwebende Panel, bevor du den Bildschirm teilst.",
-  "screenPicker": "Wähle einen Bildschirm…",
   "sharing": "Freigabe aktiv",
   "siteAccess": "Glimpselet im Browser Zugriff erlauben.",
   "siteNeedPermission": "Für diese Website ist eine Berechtigung nötig.",
@@ -164,5 +163,7 @@
   "moreTools": "Weitere Werkzeuge",
   "captureAccessHint": "Optional: Erlaube einmal den Zugriff auf alle Websites, damit Seitenaufnahme und Bereichsauswahl auch in neuen Tabs funktionieren.",
   "guideOverview": "Übersicht",
-  "guideTour": "Schritt für Schritt"
+  "guideTour": "Schritt für Schritt",
+  "screenPickerPending": "Wähle einen Bildschirm in der Chrome-Auswahl.",
+  "surfaceFallback": "Dein Gespräch bleibt erhalten. Öffne das schwebende Fenster, damit es oben bleibt."
 }

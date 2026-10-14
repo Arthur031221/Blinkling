@@ -21,6 +21,7 @@ let fullscreen: Element | null;
 let focusedWindow: number;
 let chromeMock: {
   tabs: {
+    get: ReturnType<typeof vi.fn>;
     getCurrent: ReturnType<typeof vi.fn>;
     query: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -40,6 +41,7 @@ beforeEach(() => {
   focusedWindow = 8;
   chromeMock = {
     tabs: {
+      get: vi.fn(async () => ({ id: 12, windowId: 8 })),
       getCurrent: vi.fn(async () => ({ id: 17, windowId: 4, active: false })),
       query: vi.fn(async () => [{ id: 31, windowId: 4, active: true }]),
       update: vi.fn(async (id: number) => {
@@ -145,30 +147,48 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.body.replaceChildren();
 });
 
 describe("foreground shared screen crop", () => {
-  it("removes selection before restoring a monitor bubble closed for clearance", async () => {
+  it("returns to the source page when the initiating PiP held native focus before clearance", async () => {
     const bubble = document.implementation.createHTMLDocument();
-    const view = { closed: false };
-    Object.defineProperty(bubble, "defaultView", { value: view });
+    Object.defineProperty(bubble, "defaultView", { value: { closed: false } });
+    chromeMock.windows.getLastFocused.mockResolvedValueOnce({
+      id: 90,
+      focused: true,
+      alwaysOnTop: true,
+    });
+    const options = {
+      sourceTabId: 12,
+      clearBubble: {
+        hide: vi.fn(async () => {
+          focusedWindow = native.id;
+          return true;
+        }),
+        restore: vi.fn(async () => {}),
+      },
+    };
+    vi.mocked(selectCrop).mockResolvedValue(null);
+    await cropSharedScreen(video, bubble, labels, options);
+    expect(focusedWindow).toBe(8);
+  });
+
+  it("records the foreground before clearing PiP can activate its fullscreen opener", async () => {
+    const bubble = document.implementation.createHTMLDocument();
+    Object.defineProperty(bubble, "defaultView", { value: { closed: false } });
     const clearBubble = {
       hide: vi.fn(async () => {
-        view.closed = true;
+        focusedWindow = native.id;
         return true;
       }),
-      restore: vi.fn(async () => {
-        expect(
-          document.querySelector("[data-glimpselet-frozen-crop]"),
-        ).toBeNull();
-      }),
+      restore: vi.fn(async () => {}),
     };
+    vi.mocked(selectCrop).mockResolvedValue(null);
     await cropSharedScreen(video, bubble, labels, { clearBubble });
-    expect(clearBubble.restore).toHaveBeenCalledOnce();
+    expect(focusedWindow).toBe(8);
   });
 
   it("restores the compatibility bubble after freezing but before fullscreen consumes activation", async () => {
@@ -239,7 +259,7 @@ describe("foreground shared screen crop", () => {
   });
 
   it.each(["browser", "window"])(
-    "keeps the bubble present and dimmed during a %s-source crop even when clearance hooks are supplied",
+    "clears native hit testing during a %s-source crop even though its frame excludes PiP",
     async (surface) => {
       const bubble = document.implementation.createHTMLDocument();
       bubble.body.style.opacity = "0.8";
@@ -256,7 +276,7 @@ describe("foreground shared screen crop", () => {
         value: { getVideoTracks: () => [track] },
       });
       const clearBubble = {
-        hide: vi.fn(async () => {}),
+        hide: vi.fn(async () => true),
         restore: vi.fn(async () => {}),
       };
       let selectionOpacity = "";
@@ -267,8 +287,8 @@ describe("foreground shared screen crop", () => {
       expect(
         await cropSharedScreen(video, bubble, labels, { clearBubble }),
       ).toBeNull();
-      expect(selectionOpacity).toBe("0.25");
-      expect(clearBubble.hide).not.toHaveBeenCalled();
+      expect(selectionOpacity).toBe("0");
+      expect(clearBubble.hide).toHaveBeenCalledOnce();
       expect(clearBubble.restore).toHaveBeenCalledOnce();
       expect(bubble.body.style.opacity).toBe("0.8");
     },
@@ -354,6 +374,85 @@ describe("foreground shared screen crop", () => {
 });
 
 describe("native fullscreen shared screen crop", () => {
+  it("raises the opener after freezing and before requesting DOM fullscreen", async () => {
+    const request = vi.mocked(document.documentElement.requestFullscreen);
+    request.mockImplementation(async () => {
+      events.push("dom-fullscreen");
+      expect(focusedWindow).toBe(4);
+      fullscreen = document.documentElement;
+      native = { ...native, state: "fullscreen", width: 1440, height: 1000 };
+    });
+    await cropSharedScreen(video, null, labels);
+    expect(events.indexOf("freeze")).toBeLessThan(
+      events.indexOf("window:4:focus"),
+    );
+    expect(events.indexOf("window:4:focus")).toBeLessThan(
+      events.indexOf("dom-fullscreen"),
+    );
+    expect(
+      chromeMock.windows.update.mock.calls.some(
+        ([, change]) => change.state === "fullscreen",
+      ),
+    ).toBe(false);
+  });
+
+  it("lets a successful DOM fullscreen transition settle before replacing it with native fullscreen", async () => {
+    let checks = 0;
+    chromeMock.windows.get.mockImplementation(async (id) => {
+      if (fullscreen && ++checks === 2)
+        native = { ...native, state: "fullscreen", width: 1440, height: 1000 };
+      return { ...native, id, focused: id === focusedWindow };
+    });
+    let domAtSelection = false;
+    vi.mocked(selectCrop).mockImplementation(async () => {
+      domAtSelection = Boolean(fullscreen);
+      return null;
+    });
+    await cropSharedScreen(video, null, labels);
+    expect(domAtSelection).toBe(true);
+    expect(
+      chromeMock.windows.update.mock.calls.some(
+        ([, change]) => change.state === "fullscreen",
+      ),
+    ).toBe(false);
+  });
+
+  it("cancels on the native fullscreen exit that consumes Escape without a DOM key event", async () => {
+    const listeners = new Set<(native: chrome.windows.Window) => void>();
+    const onBoundsChanged = {
+      addListener: vi.fn((listener) => listeners.add(listener)),
+      removeListener: vi.fn((listener) => listeners.delete(listener)),
+    };
+    Object.assign(chromeMock.windows, { onBoundsChanged });
+    vi.mocked(document.documentElement.requestFullscreen).mockRejectedValue(
+      new DOMException("No activation", "NotAllowedError"),
+    );
+    vi.mocked(selectCrop).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          const cancel = () => resolve(null);
+          window.addEventListener("keydown", cancel, { once: true });
+          queueMicrotask(() => {
+            for (const listener of listeners)
+              listener({ id: 4, state: "normal" });
+          });
+        }),
+    );
+    const pending = cropSharedScreen(video, null, labels);
+    // Bound the regression so the old implementation fails without hanging.
+    const result = await Promise.race([
+      pending,
+      new Promise((resolve) =>
+        setTimeout(() => resolve("still selecting"), 700),
+      ),
+    ]);
+    expect(result).toBeNull();
+    await pending;
+    expect(onBoundsChanged.removeListener).toHaveBeenCalledOnce();
+    expect(listeners.size).toBe(0);
+    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+  });
+
   it("ends an incomplete DOM fullscreen transition before requesting native fullscreen", async () => {
     const update = chromeMock.windows.update.getMockImplementation()!;
     chromeMock.windows.update.mockImplementation(async (id, change) => {
@@ -394,36 +493,6 @@ describe("native fullscreen shared screen crop", () => {
       100,
       100,
     );
-  });
-
-  it("cancels when native fullscreen consumes Escape without delivering a DOM key", async () => {
-    vi.useFakeTimers();
-    vi.mocked(document.documentElement.requestFullscreen).mockRejectedValue(
-      new DOMException("No activation", "NotAllowedError"),
-    );
-    let selecting = false;
-    vi.mocked(selectCrop).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          selecting = true;
-          window.addEventListener(
-            "keydown",
-            (event) => {
-              if (event.key === "Escape") resolve(null);
-            },
-            { once: true },
-          );
-        }),
-    );
-    const pending = cropSharedScreen(video, null, labels);
-    await vi.advanceTimersByTimeAsync(100);
-    expect(selecting).toBe(true);
-    native.state = "normal";
-    await vi.advanceTimersByTimeAsync(500);
-    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
-    await expect(pending).resolves.toBeNull();
-    expect(vi.getTimerCount()).toBe(0);
-    vi.useRealTimers();
   });
 
   it("uses native fullscreen when the DOM request rejects", async () => {

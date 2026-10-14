@@ -85,7 +85,6 @@
   "settings": "Settings",
   "shareEnded": "Screen sharing ended.",
   "shareNeedsFloat": "Open the floating panel before sharing your screen.",
-  "screenPicker": "Choose a screen in the picker…",
   "sharing": "Sharing",
   "siteAccess": "Allow Glimpselet access to this site in the browser prompt.",
   "siteNeedPermission": "This site needs permission before Glimpselet can read it.",
@@ -164,5 +163,7 @@
   "moreTools": "More tools",
   "captureAccessHint": "Optional: allow on all sites once so page capture and area selection work on new tabs.",
   "guideOverview": "Overview",
-  "guideTour": "Step by step"
+  "guideTour": "Step by step",
+  "screenPickerPending": "Choose a screen in Chrome’s picker.",
+  "surfaceFallback": "Your chat is preserved. Click Open floating bubble to keep it on top."
 }

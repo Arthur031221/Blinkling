@@ -1,5 +1,5 @@
 export type SharedFrameOptions = {
-  // Used only when a live native bubble obstructs a monitor or unknown source.
+  // Clear an obstructed monitor frame or the native selection hit rectangle.
   // Native clearance must be verified: hide returns true after confirming the
   // window is minimized, or closes the window. CSS opacity is insufficient.
   // Restore is called even if hide fails, so each hook must support rollback.
@@ -11,6 +11,9 @@ export type SharedFrameOptions = {
     relaySelection?: (host: HTMLElement, image: HTMLImageElement) => void;
   };
   signal?: AbortSignal;
+  // A tab/window frame excludes PiP pixels, but its selection surface still
+  // needs the native rectangle removed for desktop hit testing.
+  clearForSelection?: boolean;
 };
 
 function trackCanvas(track: MediaStreamTrack | undefined) {
@@ -44,7 +47,9 @@ export async function withBubbleCleared<T>(
 ): Promise<T> {
   options.signal?.throwIfAborted();
   const view = bubble?.defaultView;
-  const needsClearance = needsSharedFrameClearance(video, bubble);
+  const needsClearance =
+    needsSharedFrameClearance(video, bubble) ||
+    Boolean(options.clearForSelection && view && !view.closed);
   const clearBubble = needsClearance ? options.clearBubble : undefined;
   if (needsClearance && !clearBubble)
     throw new Error("capture_bubble_obstructed");

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { nativeBubbleClearance, withScreenPicker } from "./native-bubble";
+import { nativeBubbleClearance } from "./native-bubble";
 
 describe("native monitor clearance", () => {
   let native: chrome.windows.Window;
@@ -17,17 +17,9 @@ describe("native monitor clearance", () => {
       height: 650,
       tabs: [{ id: 19, url: "about:blank", openerTabId: 2 } as chrome.tabs.Tab],
     };
-    floating = {
-      closed: false,
-      screen: { availWidth: 1920 },
-      outerWidth: 420,
-    } as Window;
+    floating = { closed: false } as Window;
     vi.stubGlobal("chrome", {
-      tabs: {
-        getCurrent: vi.fn(async () => ({ id: 2 })),
-        query: vi.fn(async () => []),
-        update: vi.fn(async () => undefined),
-      },
+      tabs: { getCurrent: vi.fn(async () => ({ id: 2 })) },
       windows: {
         getAll: vi.fn(async () => [native]),
         get: vi.fn(async () => native),
@@ -44,66 +36,6 @@ describe("native monitor clearance", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
-
-  it("brings a separate opener forward for the picker, then returns to the working page", async () => {
-    Object.assign(chrome.tabs, {
-      get: vi.fn(async () => ({ id: 21, windowId: 4 })),
-    });
-    vi.mocked(chrome.tabs.getCurrent).mockResolvedValue({
-      id: 2,
-      windowId: 6,
-    } as chrome.tabs.Tab);
-    const openPicker = vi.fn(async () => {
-      expect(chrome.windows.update).toHaveBeenCalledWith(6, { focused: true });
-      return "stream";
-    });
-    await expect(withScreenPicker(floating, 21, openPicker)).resolves.toBe(
-      "stream",
-    );
-    expect(chrome.windows.update).toHaveBeenLastCalledWith(4, {
-      focused: true,
-    });
-  });
-
-  it.each([
-    [500, 150],
-    [920, 330],
-  ])(
-    "restores pre-picker geometry at %s,%s on success and cancellation",
-    async (left, top) => {
-      Object.assign(native, { left, top });
-      Object.assign(chrome.tabs, {
-        get: vi.fn(async () => ({ id: 21, windowId: 4 })),
-      });
-      vi.mocked(chrome.tabs.getCurrent).mockResolvedValue({
-        id: 2,
-        windowId: 6,
-      } as chrome.tabs.Tab);
-      const before = { ...native };
-      await withScreenPicker(floating, 21, async () => {
-        native = { ...native, left: 100, top: 40 };
-      });
-      expect(native).toMatchObject({
-        left: before.left,
-        top: before.top,
-        width: before.width,
-        height: before.height,
-      });
-      const cancelled = new DOMException("Cancelled", "NotAllowedError");
-      await expect(
-        withScreenPicker(floating, 21, async () => {
-          native = { ...native, left: 0, top: 0 };
-          throw cancelled;
-        }),
-      ).rejects.toBe(cancelled);
-      expect(native).toMatchObject({
-        left: before.left,
-        top: before.top,
-        width: before.width,
-        height: before.height,
-      });
-    },
-  );
 
   it("preserves native identity, bounds and initial focus without a new PiP gesture", async () => {
     const before = { ...native };
@@ -268,6 +200,19 @@ describe("native monitor clearance", () => {
     };
   }
 
+  it("leaves every native pixel and hit target clear for the whole compatibility crop", async () => {
+    vi.stubGlobal("navigator", { userActivation: { isActive: true } });
+    forbidMinimize();
+    const fallback = replacement();
+    const hook = nativeBubbleClearance(floating, fallback);
+    await hook.hide();
+    await hook.prepareSelection!();
+    expect(floating.closed).toBe(true);
+    expect(fallback.open).not.toHaveBeenCalled();
+    await hook.restore();
+    expect(fallback.open).toHaveBeenCalledOnce();
+  });
+
   it("automatically reopens with the original placement when Chrome forbids minimizing", async () => {
     vi.stubGlobal("navigator", { userActivation: { isActive: true } });
     forbidMinimize();
@@ -282,7 +227,7 @@ describe("native monitor clearance", () => {
     expect(fallback.next.document.body.style.opacity).toBe("0.75");
   });
 
-  it("reopens before fullscreen and survives cancellation after activation expires", async () => {
+  it("keeps selection clear and restores a surface after activation expires", async () => {
     const activation = { isActive: true };
     vi.stubGlobal("navigator", { userActivation: activation });
     forbidMinimize();
@@ -290,8 +235,8 @@ describe("native monitor clearance", () => {
     const hook = nativeBubbleClearance(floating, fallback);
     await hook.hide();
     await hook.prepareSelection!();
-    expect(fallback.open).toHaveBeenCalledOnce();
-    expect(fallback.next.document.body.style.opacity).toBe("0.25");
+    expect(fallback.open).not.toHaveBeenCalled();
+    expect(floating.closed).toBe(true);
     activation.isActive = false;
     await hook.restore();
     expect(fallback.open).toHaveBeenCalledOnce();

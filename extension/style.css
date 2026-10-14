@@ -82,6 +82,24 @@ select:focus-visible {
   background: transparent;
   pointer-events: none;
 }
+/* Fade the painted app, not an opaque document underneath it. Native PiP's
+   compositor is still opaque; crop clears that window through the extension. */
+html[data-bubble-surface],
+html[data-bubble-surface] body {
+  background: transparent;
+}
+.in-pip.compact .blink-dot {
+  left: 12px;
+  right: auto;
+}
+.in-pip.compact .blink-dot.peek {
+  left: calc(50% - 24px);
+  top: 50% !important;
+}
+.in-pip.compact .blink-dot.peek:hover,
+.in-pip.compact .blink-dot.peek:focus-visible {
+  left: calc(50% - 48px);
+}
 .compact .topbar,
 .compact .foot {
   display: none;

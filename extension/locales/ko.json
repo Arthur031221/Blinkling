@@ -85,7 +85,6 @@
   "settings": "설정",
   "shareEnded": "화면 공유가 끝났습니다.",
   "shareNeedsFloat": "화면을 공유하기 전에 플로팅 패널을 여세요.",
-  "screenPicker": "캡처할 화면을 선택하세요…",
   "sharing": "공유 중",
   "siteAccess": "브라우저에서 Glimpselet의 사이트 접근을 허용하세요.",
   "siteNeedPermission": "이 사이트 접근 권한이 필요합니다.",
@@ -164,5 +163,7 @@
   "moreTools": "더 많은 도구",
   "captureAccessHint": "선택 사항: 모든 사이트 접근을 한 번 허용하면 새 탭에서도 페이지 캡처와 영역 선택을 사용할 수 있습니다.",
   "guideOverview": "전체 보기",
-  "guideTour": "단계별 안내"
+  "guideTour": "단계별 안내",
+  "screenPickerPending": "Chrome에서 캡처할 화면을 선택하세요.",
+  "surfaceFallback": "대화는 유지됩니다. 떠 있는 패널 열기를 누르면 항상 위에 표시됩니다."
 }

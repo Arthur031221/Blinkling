@@ -31,6 +31,39 @@ async function clickTool(page: Page, label: string) {
   await page.getByRole("button", { name: label, exact: true }).click();
 }
 
+async function restoreFloatingBubble() {
+  await panel.waitForFunction(() => {
+    const view =
+      window.documentPictureInPicture.window ||
+      chrome.extension
+        .getViews()
+        .find((view) => view.location.search.includes("surfaceOnly=1"));
+    return view?.document.querySelector(".composer textarea");
+  });
+  if (!(await panel.evaluate(() => !!window.documentPictureInPicture.window))) {
+    const recovery = context
+      .pages()
+      .find(
+        (page) => new URL(page.url()).searchParams.get("surfaceOnly") === "1",
+      );
+    expect(
+      recovery,
+      "expired activation must retain a recovery surface",
+    ).toBeTruthy();
+    await recovery!
+      .getByRole("button", { name: en.float, exact: true })
+      .click();
+  }
+  await panel.waitForFunction(() => {
+    const doc = window.documentPictureInPicture.window?.document;
+    return (
+      doc?.querySelector(".composer textarea") &&
+      doc.body.dataset.bubbleState !== "crop" &&
+      !doc.querySelector<HTMLButtonElement>(".capture-buttons button")?.disabled
+    );
+  });
+}
+
 interface DocumentPictureInPicture {
   readonly window: Window | null;
   requestWindow(options?: { width?: number; height?: number }): Promise<Window>;
@@ -3560,10 +3593,11 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
   await expect
     .poll(() => panel.evaluate(() => innerWidth))
     .toBeGreaterThan(700);
-  const bubbleOpacity = await panel.evaluate(
-    () => window.documentPictureInPicture.window!.document.body.style.opacity,
+  const bubbleState = await panel.evaluate(
+    async () =>
+      (await chrome.windows.getAll()).find((win) => win.alwaysOnTop)?.state,
   );
-  expect(bubbleOpacity).toBe("0.25");
+  expect(bubbleState === undefined || bubbleState === "minimized").toBe(true);
   const image = await frozen.locator("img").boundingBox();
   const x = image!.x + 80,
     y = image!.y + 100;
@@ -3574,6 +3608,7 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
   await expect(frozen.locator("[data-handle]")).toHaveCount(8);
   await panel.keyboard.press("Enter");
   await expect(frozen).toHaveCount(0);
+  await restoreFloatingBubble();
   await expect
     .poll(() =>
       panel.evaluate(
@@ -3603,9 +3638,6 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
     return [img.naturalWidth, img.naturalHeight];
   });
   expect(pixels[1]).toBeGreaterThan(80);
-  await panel.bringToFront();
-  await panel.evaluate(() => document.activeElement?.blur());
-  await panel.keyboard.down("Shift");
   await panel.evaluate(() => {
     const field =
       window.documentPictureInPicture.window!.document.querySelector(
@@ -3617,11 +3649,23 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
     )!.set!.call(field, "Keep this draft while selecting");
     field.dispatchEvent(new Event("input", { bubbles: true }));
   });
+  await panel.bringToFront();
+  await panel.evaluate(() => document.activeElement?.blur());
+  await panel.keyboard.down("Shift");
   await expect(frozen.locator(".surface")).toBeVisible();
   await panel.keyboard.up("Shift");
   await expect(frozen).toBeVisible();
   await panel.keyboard.press("Escape");
   await expect(frozen).toHaveCount(0);
+  await restoreFloatingBubble();
+  expect(
+    await panel.evaluate(
+      () =>
+        window.documentPictureInPicture.window!.document.querySelector<HTMLTextAreaElement>(
+          "textarea",
+        )!.value,
+    ),
+  ).toBe("Keep this draft while selecting");
   await expect
     .poll(() =>
       panel.evaluate(
@@ -3785,6 +3829,7 @@ for (const backend of ["bridge", "api"] as const) {
     expect(nativeCrop.length).toBeGreaterThan(5_000_000);
     await panel.keyboard.press("Enter");
     await expect(frozen).toHaveCount(0);
+    await restoreFloatingBubble();
     // The native window must finish restoring before the crop becomes current.
     await expect
       .poll(() =>
@@ -5056,33 +5101,47 @@ test("native Blink minimizes at the screen edge and restores its window position
       return Math.abs(middle - target);
     })
     .toBeLessThanOrEqual(1);
-  // A page Shift crop must also release the minimized dot's explicit hit target.
+  // A page Shift crop clears the entire native dot rectangle, including its frame.
   await site.bringToFront();
   await site.keyboard.down("Shift");
-  await expect
-    .poll(() =>
-      panel.evaluate(() => {
-        const doc = window.documentPictureInPicture.window!.document;
-        const blink = doc.querySelector(".blink-dot")!;
-        return {
-          opacity: getComputedStyle(doc.body).opacity,
-          pointer: getComputedStyle(blink).pointerEvents,
-        };
-      }),
-    )
-    .toEqual({ opacity: "0.25", pointer: "none" });
-  await site.keyboard.up("Shift");
-  await site.keyboard.press("Escape");
+  await expect(site.locator("[data-glimpselet-crop] .surface")).toBeVisible();
   await expect
     .poll(() =>
       panel.evaluate(
-        () =>
-          window.documentPictureInPicture.window!.document.body.dataset
-            .bubbleState,
+        async () =>
+          (await chrome.windows.getAll()).filter(
+            (win) => win.alwaysOnTop && win.state !== "minimized",
+          ).length,
       ),
     )
-    .not.toBe("crop");
-  await clickBubble(en.expand);
+    .toBe(0);
+  await site.keyboard.up("Shift");
+  await site.keyboard.press("Escape");
+  await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+  await panel.waitForFunction(() => {
+    const view =
+      window.documentPictureInPicture.window ||
+      chrome.extension
+        .getViews()
+        .find((view) => view.location.search.includes("surfaceOnly=1"));
+    return view?.document.querySelector(".blink-dot");
+  });
+  const restoredSurface = context
+    .pages()
+    .find(
+      (page) =>
+        page.url() === "about:blank" ||
+        new URL(page.url()).searchParams.get("surfaceOnly") === "1",
+    )!;
+  const restoredBlink = restoredSurface.getByRole("button", {
+    name: en.expand,
+    exact: true,
+  });
+  // Hover reveals the tucked face. Use an interior point so the reveal does
+  // not move the circle away from Playwright's initial center target.
+  await restoredBlink.hover({ position: { x: 12, y: 24 } });
+  await restoredBlink.click({ position: { x: 12, y: 24 } });
+  await restoreFloatingBubble();
   await expect
     .poll(async () => {
       const restored = await bounds();

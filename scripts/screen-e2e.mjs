@@ -68,6 +68,33 @@ async function floatingCommand(targetId, method, params) {
     await cdp.detach();
   }
 }
+async function restoreBubble(panel) {
+  await panel.waitForFunction(() => {
+    const view =
+      window.documentPictureInPicture.window ||
+      chrome.extension
+        .getViews()
+        .find((view) => view.location.search.includes("surfaceOnly=1"));
+    return view?.document.querySelector(".composer textarea");
+  });
+  if (!(await panel.evaluate(() => !!window.documentPictureInPicture.window))) {
+    const recovery = context
+      .pages()
+      .find(
+        (page) => new URL(page.url()).searchParams.get("surfaceOnly") === "1",
+      );
+    assert.ok(recovery, "expired activation must retain a recovery surface");
+    await recovery.getByRole("button", { name: en.float, exact: true }).click();
+  }
+  await panel.waitForFunction(() => {
+    const doc = window.documentPictureInPicture.window?.document;
+    return (
+      doc?.querySelector(".composer textarea") &&
+      doc.body.dataset.bubbleState !== "crop" &&
+      !doc.querySelector(".capture-buttons button").disabled
+    );
+  });
+}
 try {
   await client.connect(transport);
   const opened = await client.callTool({ name: "panel_open", arguments: {} });
@@ -138,13 +165,12 @@ try {
     window.documentPictureInPicture?.window?.document.querySelector(".app"),
   );
   await panel.evaluate(() => {
-    const child = window.documentPictureInPicture.window;
     const media = navigator.mediaDevices;
     const original = media.getDisplayMedia.bind(media);
-    child.__testCaptureTracks = [];
+    window.__testCaptureTracks = [];
     media.getDisplayMedia = async (options) => {
       const stream = await original(options);
-      child.__testCaptureTracks.push(...stream.getTracks());
+      window.__testCaptureTracks.push(...stream.getTracks());
       return stream;
     };
   });
@@ -176,9 +202,10 @@ try {
   );
   assert.deepEqual(
     await panel.evaluate(() =>
-      window.documentPictureInPicture.window.__testCaptureTracks.map(
-        ({ kind, readyState }) => ({ kind, readyState }),
-      ),
+      window.__testCaptureTracks.map(({ kind, readyState }) => ({
+        kind,
+        readyState,
+      })),
     ),
     [{ kind: "video", readyState: "live" }],
     "native sharing must produce a real video track for the cleanup check",
@@ -210,6 +237,18 @@ try {
         ".capture-chip img",
       )?.src,
   );
+  // Video metadata and the MCP response can arrive before the asynchronous
+  // picker handoff has released the UI. CDP's DOM click does not wait for an
+  // enabled control the way a Playwright click does.
+  await panel.waitForFunction(
+    (label) =>
+      [
+        ...window.documentPictureInPicture.window.document.querySelectorAll(
+          ".capture-buttons button",
+        ),
+      ].some((button) => button.textContent === label && !button.disabled),
+    en.region,
+  );
   await floatingCommand(pipTarget.targetId, "Runtime.evaluate", {
     expression: `[...document.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(en.region)}).click()`,
     userGesture: true,
@@ -227,9 +266,10 @@ try {
   await panel.mouse.up();
   await panel.keyboard.press("Enter");
   await frozen.waitFor({ state: "detached" });
+  await restoreBubble(panel);
   await panel.waitForFunction((previous) => {
     const image =
-      window.documentPictureInPicture.window.document.querySelector(
+      window.documentPictureInPicture.window?.document.querySelector(
         ".capture-chip img",
       );
     return image?.complete && image.src !== previous;
@@ -255,11 +295,10 @@ try {
   }
   await panel.keyboard.press("Escape");
   await frozen.waitFor({ state: "detached" });
+  await restoreBubble(panel);
 
   await client.callTool({ name: "screen_clear", arguments: {} });
   await panel.evaluate(() => {
-    window.__testCaptureTracks =
-      window.documentPictureInPicture.window.__testCaptureTracks;
     window.documentPictureInPicture.window.close();
   });
   await panel.locator(".app").waitFor();

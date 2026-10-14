@@ -12403,9 +12403,9 @@ async function placeBubbleWindow(floating, destination, isCurrent) {
     )
   );
   await chrome.windows.update(native.id, {
-    // Chrome requires at least half the native rectangle on a display. Tuck
-    // the unused half away; CSS alone cannot shrink the browser's minimum.
-    left: Math.floor(area.left + area.width - Math.ceil(width / 2)),
+    // Chrome requires at least half of PiP to stay onscreen. Tuck the rest
+    // outside the work area instead of displaying its entire minimum width.
+    left: Math.floor(area.left + area.width - width / 2),
     top: Math.round(top)
   });
 }
@@ -16407,7 +16407,7 @@ function needsSharedFrameClearance(video, bubble) {
 async function withBubbleCleared(video, bubble, options, capture) {
   options.signal?.throwIfAborted();
   const view = bubble?.defaultView;
-  const needsClearance = needsSharedFrameClearance(video, bubble);
+  const needsClearance = needsSharedFrameClearance(video, bubble) || Boolean(options.clearForSelection && view && !view.closed);
   const clearBubble = needsClearance ? options.clearBubble : void 0;
   if (needsClearance && !clearBubble)
     throw new Error("capture_bubble_obstructed");
@@ -17162,26 +17162,66 @@ function crop(image, rect, viewportWidth) {
     img.src = image;
   });
 }
-async function startScreenShare(sourceTabId) {
-  const bindingPromise = (sourceTabId ? chrome.tabs.get(sourceTabId) : activeTab()).then(prepareCaptureBinding).catch(() => void 0);
+async function startScreenShare(sourceTabId, initiator = window) {
+  const sourcePromise = (sourceTabId ? chrome.tabs.get(sourceTabId) : activeTab()).catch(() => void 0);
+  const bindingPromise = sourcePromise.then((tab) => tab ? prepareCaptureBinding(tab) : void 0).catch(() => void 0);
   const Controller = window.CaptureController;
   const controller = Controller ? new Controller() : void 0;
   controller?.setFocusBehavior("no-focus-change");
-  const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: { frameRate: 2, displaySurface: "monitor" },
-    audio: false,
-    selfBrowserSurface: "exclude",
-    preferCurrentTab: false,
-    ...controller ? { controller } : {}
-  });
+  const handoff = initiator !== window;
+  const initialForeground = handoff ? chrome.windows.getLastFocused().catch(() => void 0) : void 0;
+  if (handoff) window.focus();
+  let hostWindowId;
+  let stream;
   try {
+    if (handoff) {
+      const host = await chrome.tabs.getCurrent();
+      if (host?.id !== void 0) {
+        hostWindowId = host.windowId;
+        await chrome.tabs.update(host.id, { active: true });
+        await chrome.windows.update(host.windowId, { focused: true });
+        const deadline = performance.now() + 250;
+        while (!document.hasFocus() && performance.now() < deadline)
+          await new Promise((resolve) => window.setTimeout(resolve, 20));
+      }
+    }
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 2, displaySurface: "monitor" },
+      audio: false,
+      selfBrowserSurface: "exclude",
+      preferCurrentTab: false,
+      ...controller ? { controller } : {}
+    });
     const binding = await bindingPromise;
     const track = stream.getVideoTracks()[0];
     if (!track || track.readyState === "ended") throw new Error("share_ended");
     return { stream, binding };
   } catch (error) {
-    for (const track of stream.getTracks()) track.stop();
+    for (const track of stream?.getTracks() || []) track.stop();
     throw error;
+  } finally {
+    if (handoff) {
+      const source = await sourcePromise;
+      let foreground = await chrome.windows.getLastFocused().catch(() => void 0);
+      const initial = await initialForeground;
+      const deadline = performance.now() + 400;
+      while (foreground?.id === hostWindowId && foreground?.focused === false && performance.now() < deadline) {
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+        foreground = await chrome.windows.getLastFocused().catch(() => void 0);
+        if (foreground?.focused === false)
+          foreground = (await chrome.windows.getAll().catch(() => [])).find(
+            (native) => native.focused
+          ) || foreground;
+      }
+      const restoreSource = (foreground?.focused !== false || foreground.id === hostWindowId) && (!foreground || foreground.id === hostWindowId || foreground.id === source?.windowId || foreground.id === initial?.id);
+      if (restoreSource && source?.windowId !== void 0) {
+        if (source.id !== void 0)
+          await chrome.tabs.update(source.id, { active: true }).catch(() => {
+          });
+        await chrome.windows.update(source.windowId, { focused: true }).catch(() => {
+        });
+      }
+    }
   }
 }
 
@@ -17500,35 +17540,27 @@ async function cropSharedScreen(video, bubble, labels, options = {}) {
   const tracks = video.srcObject?.getVideoTracks() || [];
   const ended = () => controller.abort(new Error("share_ended"));
   const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
-  const clearsFrame = needsSharedFrameClearance(video, bubble);
   const frameOptions = {
     ...options,
-    clearBubble: clearsFrame ? options.clearBubble : void 0,
+    clearForSelection: true,
     signal
   };
   tracks.forEach((track) => track.addEventListener("ended", ended));
   try {
+    const foreground = await chrome.windows.getLastFocused();
+    const source = foreground.alwaysOnTop && options.sourceTabId !== void 0 ? await chrome.tabs.get(options.sourceTabId).catch(() => void 0) : void 0;
+    const previousWindow = source?.windowId ?? foreground.id;
     return await withBubbleCleared(
       video,
       bubble,
       frameOptions,
-      () => cropFrozenFrame(
-        video,
-        bubble,
-        labels,
-        {
-          ...frameOptions,
-          clearBubble: options.clearBubble
-        },
-        clearsFrame
-      )
+      () => cropFrozenFrame(video, bubble, labels, frameOptions, previousWindow)
     );
   } finally {
     tracks.forEach((track) => track.removeEventListener("ended", ended));
-    if (!clearsFrame) await options.clearBubble?.restore();
   }
 }
-async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
+async function cropFrozenFrame(video, bubble, labels, options, previousWindow) {
   const doc = document;
   const oldOpacity = bubble?.body.style.opacity || "";
   if (bubble) bubble.body.style.opacity = "0";
@@ -17537,11 +17569,9 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
   let scaleChanged;
   let browserWindow;
   let previousTab;
-  let previousWindow;
   let foregroundChanged = false;
   let fullscreenStateChanged = false;
-  let fullscreenWatch;
-  let watchingFullscreen = false;
+  let stopNativeObserver;
   const wasDomFullscreen = Boolean(doc.fullscreenElement);
   const cancelSelection = () => doc.defaultView?.dispatchEvent(
     new KeyboardEvent("keydown", { key: "Escape" })
@@ -17557,7 +17587,6 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
       windowId: opener.windowId
     });
     previousTab = active?.id;
-    previousWindow = (await chrome.windows.getLastFocused()).id;
     frame = await freezeSharedFrame(video, null, { signal: options.signal });
     await options.clearBubble?.prepareSelection?.();
     options.signal?.throwIfAborted();
@@ -17571,6 +17600,7 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
     container.append(image);
     foregroundChanged = true;
     await chrome.tabs.update(opener.id, { active: true });
+    await chrome.windows.update(opener.windowId, { focused: true });
     try {
       if (!wasDomFullscreen) {
         fullscreenStateChanged = true;
@@ -17579,8 +17609,15 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
     } catch {
     }
     try {
-      const fillsScreen = (native) => native.state === "fullscreen" && (native.width || 0) >= window.screen.width && (native.height || 0) >= window.screen.height;
-      if (fillsScreen(await chrome.windows.get(opener.windowId))) {
+      const fillsScreen = (native2) => native2.state === "fullscreen" && (native2.width || 0) >= window.screen.width && (native2.height || 0) >= window.screen.height;
+      let native = await chrome.windows.get(opener.windowId);
+      const domDeadline = performance.now() + 400;
+      while (doc.fullscreenElement && !fillsScreen(native) && performance.now() < domDeadline) {
+        options.signal?.throwIfAborted();
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+        native = await chrome.windows.get(opener.windowId);
+      }
+      if (fillsScreen(native)) {
         await chrome.windows.update(opener.windowId, { focused: true });
       } else {
         if (!wasDomFullscreen && doc.fullscreenElement)
@@ -17594,8 +17631,8 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
       const deadline = performance.now() + 1500;
       while (true) {
         options.signal?.throwIfAborted();
-        const native = await chrome.windows.get(opener.windowId);
-        if (fillsScreen(native)) break;
+        const native2 = await chrome.windows.get(opener.windowId);
+        if (fillsScreen(native2)) break;
         if (performance.now() >= deadline)
           throw new Error("crop_fullscreen_denied");
         await new Promise((resolve) => window.setTimeout(resolve, 40));
@@ -17625,7 +17662,7 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
         view.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     };
     view.addEventListener("resize", scaleChanged);
-    if (bubble && !clearsFrame) bubble.body.style.opacity = ".25";
+    if (bubble && !options.clearBubble) bubble.body.style.opacity = ".25";
     await image.decode();
     options.signal?.throwIfAborted();
     doc.body.append(container);
@@ -17638,18 +17675,12 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
       labels,
       frame.width / image.getBoundingClientRect().width
     );
-    watchingFullscreen = true;
-    fullscreenWatch = window.setInterval(() => {
-      void chrome.windows.get(opener.windowId).then(
-        (native) => {
-          if (watchingFullscreen && native.state !== "fullscreen")
-            cancelSelection();
-        },
-        () => {
-          if (watchingFullscreen) cancelSelection();
-        }
-      );
-    }, 80);
+    const nativeChanged = (native) => {
+      if (native.id === browserWindow?.id && native.state && native.state !== "fullscreen")
+        cancelSelection();
+    };
+    chrome.windows.onBoundsChanged?.addListener(nativeChanged);
+    stopNativeObserver = () => chrome.windows.onBoundsChanged?.removeListener(nativeChanged);
     options.clearBubble?.relaySelection?.(host, image);
     const rect = await selection;
     options.signal?.throwIfAborted();
@@ -17675,8 +17706,7 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
       throw new Error("crop_fullscreen_denied");
     throw error;
   } finally {
-    watchingFullscreen = false;
-    window.clearInterval(fullscreenWatch);
+    stopNativeObserver?.();
     options.signal?.removeEventListener("abort", cancelSelection);
     const foreground = foregroundChanged ? await chrome.windows.getLastFocused().catch(() => void 0) : void 0;
     const restoreFocus = foreground?.focused && foreground.id !== browserWindow?.id ? foreground.id : foreground?.focused === false ? void 0 : previousWindow;
@@ -17714,210 +17744,32 @@ async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
   }
 }
 
-// extension/bubble-crop-input.ts
-function contentOrigin(view) {
-  const border = (view.outerWidth - view.innerWidth) / 2;
-  return {
-    screenX: view.screenX + border,
-    screenY: view.screenY + view.outerHeight - view.innerHeight - border
-  };
-}
-function relayBubbleCropInput(floating, host, frozenImage) {
-  const view = host.ownerDocument.defaultView;
-  const surface = host.shadowRoot.querySelector(".surface");
-  const mirror = frozenImage ? floating.document.createElement("div") : void 0;
-  const root = mirror?.attachShadow({ mode: "open" });
-  let observer;
-  const refresh = () => {
-    if (!root || !frozenImage) return;
-    const stage = floating.document.createElement("div");
-    const offset = position(contentOrigin(floating));
-    stage.style.cssText = `position:absolute;width:${view.innerWidth}px;height:${view.innerHeight}px;transform:translate(${-offset.clientX}px,${-offset.clientY}px);transform-origin:0 0;`;
-    const image = frozenImage.cloneNode();
-    const bounds = frozenImage.getBoundingClientRect();
-    image.style.position = "absolute";
-    image.style.left = `${bounds.left}px`;
-    image.style.top = `${bounds.top}px`;
-    stage.append(image);
-    for (const element of host.shadowRoot.children)
-      stage.append(element.cloneNode(true));
-    root.replaceChildren(stage);
-  };
-  const position = (event) => {
-    const origin = contentOrigin(view);
-    return {
-      clientX: event.screenX - origin.screenX,
-      clientY: event.screenY - origin.screenY
-    };
-  };
-  if (mirror) {
-    mirror.dataset.glimpseletCropMirror = "true";
-    mirror.style.cssText = "position:fixed;inset:0;overflow:hidden;z-index:2147483647;opacity:1;background:#171410;pointer-events:auto;cursor:crosshair";
-    floating.document.documentElement.append(mirror);
-    refresh();
-    observer = new MutationObserver(refresh);
-    observer.observe(host.shadowRoot, {
-      subtree: true,
-      attributes: true,
-      childList: true,
-      characterData: true
-    });
-    floating.addEventListener("resize", refresh);
-    view.addEventListener("scroll", refresh, true);
-  }
-  const target = (event) => {
-    const p = position(event);
-    return host.shadowRoot.elementFromPoint(p.clientX, p.clientY) || surface;
-  };
-  const pointer = (event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    if (event.type === "pointerdown")
-      floating.document.body.setPointerCapture(event.pointerId);
-    target(event).dispatchEvent(
-      new PointerEvent(event.type, {
-        ...position(event),
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        button: event.button,
-        buttons: event.buttons,
-        isPrimary: event.isPrimary,
-        bubbles: true,
-        composed: true,
-        cancelable: true
-      })
-    );
-    if ((event.type === "pointerup" || event.type === "pointercancel") && floating.document.body.hasPointerCapture(event.pointerId))
-      floating.document.body.releasePointerCapture(event.pointerId);
-  };
-  const click = (event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    target(event).dispatchEvent(
-      new MouseEvent("click", {
-        ...position(event),
-        bubbles: true,
-        composed: true,
-        cancelable: true
-      })
-    );
-  };
-  const key = (event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    view.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: event.key,
-        code: event.code,
-        shiftKey: event.shiftKey,
-        ctrlKey: event.ctrlKey,
-        altKey: event.altKey,
-        metaKey: event.metaKey,
-        repeat: event.repeat,
-        bubbles: true,
-        cancelable: true
-      })
-    );
-  };
-  const pointerEvents = [
-    "pointerdown",
-    "pointermove",
-    "pointerup",
-    "pointercancel"
-  ];
-  for (const type of pointerEvents)
-    floating.addEventListener(type, pointer, true);
-  floating.addEventListener("click", click, true);
-  floating.addEventListener("keydown", key, true);
-  return () => {
-    observer?.disconnect();
-    mirror?.remove();
-    floating.removeEventListener("resize", refresh);
-    view.removeEventListener("scroll", refresh, true);
-    for (const type of pointerEvents)
-      floating.removeEventListener(type, pointer, true);
-    floating.removeEventListener("click", click, true);
-    floating.removeEventListener("keydown", key, true);
-  };
-}
-
 // extension/native-bubble.ts
 var pendingClearance = /* @__PURE__ */ new WeakMap();
-async function withScreenPicker(floating, sourceTabId, pick) {
-  if (!chrome.windows.getAll) return pick();
-  const opener = await chrome.tabs.getCurrent();
-  const windows = await chrome.windows.getAll({ populate: true });
-  const original = windows.find(
-    (native) => native.alwaysOnTop && native.tabs?.some(
-      (tab) => tab.openerTabId === opener?.id && tab.url === "about:blank"
-    )
-  );
-  const source = sourceTabId === void 0 ? void 0 : await chrome.tabs.get(sourceTabId).catch(() => void 0);
-  const foreground = windows.find(
-    (native) => native.focused && !native.alwaysOnTop
-  );
-  const returnWindow = foreground?.id ?? source?.windowId;
-  const [previousTab] = opener?.windowId === void 0 ? [] : await chrome.tabs.query({ active: true, windowId: opener.windowId });
-  try {
-    if (original?.id !== void 0) {
-      const area = floating.screen;
-      await chrome.windows.update(original.id, {
-        left: Math.floor(
-          (area.availLeft || 0) + area.availWidth - Math.ceil((original.width || floating.outerWidth) / 2)
-        )
-      });
-    }
-    if (opener?.windowId !== void 0) {
-      await chrome.windows.update(opener.windowId, { focused: true });
-      if (opener.id !== void 0)
-        await chrome.tabs.update(opener.id, { active: true });
-    }
-    return await pick();
-  } finally {
-    const current = (await chrome.windows.getAll()).find(
-      (native) => native.focused && !native.alwaysOnTop
-    );
-    if (original?.id !== void 0 && !floating.closed) {
-      await chrome.windows.update(original.id, {
-        left: original.left,
-        top: original.top,
-        width: original.width,
-        height: original.height
-      }).catch(() => {
-      });
-    }
-    if (previousTab?.id !== void 0 && previousTab.id !== opener?.id)
-      await chrome.tabs.update(previousTab.id, { active: true }).catch(() => {
-      });
-    const destination = current?.id !== opener?.windowId ? current?.id ?? returnWindow : returnWindow;
-    if (destination !== void 0)
-      await chrome.windows.update(destination, { focused: true }).catch(() => {
-      });
-  }
-}
 function nativeBubbleClearance(floating, replacement) {
   let original;
   let changed = false;
   let release;
   let replace = false;
   let replacementWindow;
-  let selectionOpacity;
-  let stopSelectionRelay;
   const showReplacement = async () => {
     if (!replace || replacementWindow) return;
     const foreground = (await chrome.windows.getAll()).find((w2) => w2.focused);
-    replacementWindow = await replacement.open();
-    const opener = await chrome.tabs.getCurrent();
-    const native = (await chrome.windows.getAll({ populate: true })).find(
-      (w2) => w2.alwaysOnTop && w2.tabs?.some((tab) => tab.openerTabId === opener?.id)
-    );
-    if (native?.id === void 0) throw new Error("capture_bubble_obstructed");
-    await chrome.windows.update(native.id, {
-      left: original.left,
-      top: original.top,
-      width: original.width,
-      height: original.height
-    });
+    replacementWindow = await replacement.open() || void 0;
+    if (replacementWindow) {
+      const opener = await chrome.tabs.getCurrent();
+      const native = (await chrome.windows.getAll({ populate: true })).find(
+        (w2) => w2.alwaysOnTop && w2.tabs?.some((tab) => tab.openerTabId === opener?.id)
+      );
+      if (native?.id === void 0)
+        throw new Error("capture_bubble_obstructed");
+      await chrome.windows.update(native.id, {
+        left: original.left,
+        top: original.top,
+        width: original.width,
+        height: original.height
+      });
+    }
     if (foreground?.id !== void 0)
       await chrome.windows.update(foreground.id, { focused: true });
   };
@@ -17941,7 +17793,7 @@ function nativeBubbleClearance(floating, replacement) {
       const opener = await chrome.tabs.getCurrent();
       const windows = await chrome.windows.getAll({ populate: true });
       original = windows.find(
-        (native) => native.alwaysOnTop && native.tabs?.some(
+        (native) => replacement?.nativeWindowId !== void 0 && native.id === replacement.nativeWindowId || native.alwaysOnTop && native.tabs?.some(
           (tab) => opener?.id !== void 0 && tab.openerTabId === opener.id && tab.url === "about:blank"
         )
       );
@@ -17957,7 +17809,7 @@ function nativeBubbleClearance(floating, replacement) {
           ))
             throw error;
           changed = false;
-          if (!replacement || !navigator.userActivation.isActive)
+          if (!replacement || !navigator.userActivation.isActive && !replacement.allowPanelFallback)
             throw new Error("capture_bubble_obstructed");
           replace = true;
           replacement.close();
@@ -17969,23 +17821,11 @@ function nativeBubbleClearance(floating, replacement) {
       return true;
     },
     prepareSelection: async () => {
-      if (!replace) return;
-      await showReplacement();
-      selectionOpacity = replacementWindow.document.body.style.opacity;
-      replacementWindow.document.body.style.opacity = ".25";
-    },
-    relaySelection: (host, image) => {
-      const selectionWindow = replacementWindow || floating;
-      if (!selectionWindow.closed)
-        stopSelectionRelay = relayBubbleCropInput(selectionWindow, host, image);
     },
     restore: async () => {
       try {
-        stopSelectionRelay?.();
         if (replace) {
           await showReplacement();
-          if (selectionOpacity !== void 0 && replacementWindow && !replacementWindow.closed)
-            replacementWindow.document.body.style.opacity = selectionOpacity;
           return;
         }
         if (!changed || original?.id === void 0 || floating.closed) return;
@@ -18104,6 +17944,9 @@ var BUBBLE_OPACITY = {
   crop: "0.25"
 };
 function bindBubbleSurface(surface) {
+  const root = surface.ownerDocument.documentElement;
+  const oldSurface = root.dataset.bubbleSurface;
+  root.dataset.bubbleSurface = "true";
   let state = "idle";
   let cropping = false;
   const oldOpacity = surface.style.opacity;
@@ -18147,6 +17990,8 @@ function bindBubbleSurface(surface) {
       surface.style.opacity = oldOpacity;
       surface.style.pointerEvents = oldPointerEvents;
       delete surface.dataset.bubbleState;
+      if (oldSurface === void 0) delete root.dataset.bubbleSurface;
+      else root.dataset.bubbleSurface = oldSurface;
     }
   };
 }
@@ -18251,7 +18096,6 @@ var en_default = {
   settings: "Settings",
   shareEnded: "Screen sharing ended.",
   shareNeedsFloat: "Open the floating panel before sharing your screen.",
-  screenPicker: "Choose a screen in the picker\u2026",
   sharing: "Sharing",
   siteAccess: "Allow Glimpselet access to this site in the browser prompt.",
   siteNeedPermission: "This site needs permission before Glimpselet can read it.",
@@ -18330,7 +18174,9 @@ var en_default = {
   moreTools: "More tools",
   captureAccessHint: "Optional: allow on all sites once so page capture and area selection work on new tabs.",
   guideOverview: "Overview",
-  guideTour: "Step by step"
+  guideTour: "Step by step",
+  screenPickerPending: "Choose a screen in Chrome\u2019s picker.",
+  surfaceFallback: "Your chat is preserved. Click Open floating bubble to keep it on top."
 };
 
 // extension/locales/zh-TW.json
@@ -18421,7 +18267,6 @@ var zh_TW_default = {
   settings: "\u8A2D\u5B9A",
   shareEnded: "\u87A2\u5E55\u5206\u4EAB\u5DF2\u7D50\u675F\u3002",
   shareNeedsFloat: "\u5206\u4EAB\u87A2\u5E55\u524D\u8ACB\u5148\u958B\u555F\u6D6E\u52D5\u9762\u677F\u3002",
-  screenPicker: "\u8ACB\u9078\u64C7\u8981\u622A\u53D6\u7684\u756B\u9762\u2026",
   sharing: "\u5206\u4EAB\u4E2D",
   siteAccess: "\u8ACB\u5728\u700F\u89BD\u5668\u63D0\u793A\u4E2D\u5141\u8A31 Glimpselet \u5B58\u53D6\u6B64\u7DB2\u7AD9\u3002",
   siteNeedPermission: "\u8B80\u53D6\u6B64\u7DB2\u7AD9\u524D\u9700\u8981\u5148\u6388\u6B0A\u3002",
@@ -18500,7 +18345,9 @@ var zh_TW_default = {
   moreTools: "\u66F4\u591A\u5DE5\u5177",
   captureAccessHint: "\u9078\u7528\uFF1A\u5141\u8A31\u5B58\u53D6\u6240\u6709\u7DB2\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u5728\u65B0\u5206\u9801\u64F7\u53D6\u7DB2\u9801\u8207\u9078\u53D6\u5340\u57DF\u3002",
   guideOverview: "\u7E3D\u89BD",
-  guideTour: "\u9010\u6B65\u5C0E\u89BD"
+  guideTour: "\u9010\u6B65\u5C0E\u89BD",
+  screenPickerPending: "\u8ACB\u5728 Chrome \u9078\u64C7\u8981\u622A\u53D6\u7684\u756B\u9762\u3002",
+  surfaceFallback: "\u5C0D\u8A71\u5DF2\u4FDD\u7559\uFF0C\u9EDE\u300C\u958B\u555F\u6D6E\u52D5\u9762\u677F\u300D\u5373\u53EF\u4FDD\u6301\u7F6E\u9802\u3002"
 };
 
 // extension/locales/zh-CN.json
@@ -18591,7 +18438,6 @@ var zh_CN_default = {
   settings: "\u8BBE\u7F6E",
   shareEnded: "\u5C4F\u5E55\u5171\u4EAB\u5DF2\u7ED3\u675F\u3002",
   shareNeedsFloat: "\u5171\u4EAB\u5C4F\u5E55\u524D\u8BF7\u5148\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u3002",
-  screenPicker: "\u8BF7\u9009\u62E9\u8981\u622A\u53D6\u7684\u753B\u9762\u2026",
   sharing: "\u5171\u4EAB\u4E2D",
   siteAccess: "\u8BF7\u5728\u6D4F\u89C8\u5668\u63D0\u793A\u4E2D\u5141\u8BB8 Glimpselet \u8BBF\u95EE\u6B64\u7F51\u7AD9\u3002",
   siteNeedPermission: "\u8BFB\u53D6\u6B64\u7F51\u7AD9\u524D\u9700\u8981\u5148\u6388\u6743\u3002",
@@ -18670,7 +18516,9 @@ var zh_CN_default = {
   moreTools: "\u66F4\u591A\u5DE5\u5177",
   captureAccessHint: "\u53EF\u9009\uFF1A\u5141\u8BB8\u8BBF\u95EE\u6240\u6709\u7F51\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u5728\u65B0\u6807\u7B7E\u9875\u622A\u53D6\u7F51\u9875\u4E0E\u9009\u62E9\u533A\u57DF\u3002",
   guideOverview: "\u603B\u89C8",
-  guideTour: "\u9010\u6B65\u5BFC\u89C8"
+  guideTour: "\u9010\u6B65\u5BFC\u89C8",
+  screenPickerPending: "\u8BF7\u5728 Chrome \u9009\u62E9\u8981\u622A\u53D6\u7684\u753B\u9762\u3002",
+  surfaceFallback: "\u5BF9\u8BDD\u5DF2\u4FDD\u7559\uFF0C\u70B9\u300C\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u300D\u5373\u53EF\u4FDD\u6301\u7F6E\u9876\u3002"
 };
 
 // extension/locales/ja.json
@@ -18761,7 +18609,6 @@ var ja_default = {
   settings: "\u8A2D\u5B9A",
   shareEnded: "\u753B\u9762\u5171\u6709\u3092\u7D42\u4E86\u3057\u307E\u3057\u305F\u3002",
   shareNeedsFloat: "\u753B\u9762\u3092\u5171\u6709\u3059\u308B\u524D\u306B\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
-  screenPicker: "\u753B\u9762\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u2026",
   sharing: "\u5171\u6709\u4E2D",
   siteAccess: "\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u78BA\u8A8D\u753B\u9762\u3067\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   siteNeedPermission: "\u3053\u306E\u30B5\u30A4\u30C8\u3078\u306E\u8A31\u53EF\u304C\u5FC5\u8981\u3067\u3059\u3002",
@@ -18840,7 +18687,9 @@ var ja_default = {
   moreTools: "\u305D\u306E\u4ED6\u306E\u30C4\u30FC\u30EB",
   captureAccessHint: "\u4EFB\u610F\uFF1A\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u4E00\u5EA6\u8A31\u53EF\u3059\u308B\u3068\u3001\u65B0\u3057\u3044\u30BF\u30D6\u3067\u3082\u30DA\u30FC\u30B8\u64AE\u5F71\u3068\u7BC4\u56F2\u9078\u629E\u304C\u4F7F\u3048\u307E\u3059\u3002",
   guideOverview: "\u5168\u4F53\u3092\u898B\u308B",
-  guideTour: "\u9806\u306B\u6848\u5185"
+  guideTour: "\u9806\u306B\u6848\u5185",
+  screenPickerPending: "Chrome \u3067\u5171\u6709\u3059\u308B\u753B\u9762\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
+  surfaceFallback: "\u4F1A\u8A71\u306F\u4FDD\u5B58\u3055\u308C\u3066\u3044\u307E\u3059\u3002\u300C\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u304F\u300D\u3092\u62BC\u3059\u3068\u6700\u524D\u9762\u306B\u623B\u308A\u307E\u3059\u3002"
 };
 
 // extension/locales/ko.json
@@ -18931,7 +18780,6 @@ var ko_default = {
   settings: "\uC124\uC815",
   shareEnded: "\uD654\uBA74 \uACF5\uC720\uAC00 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.",
   shareNeedsFloat: "\uD654\uBA74\uC744 \uACF5\uC720\uD558\uAE30 \uC804\uC5D0 \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5EC\uC138\uC694.",
-  screenPicker: "\uCEA1\uCC98\uD560 \uD654\uBA74\uC744 \uC120\uD0DD\uD558\uC138\uC694\u2026",
   sharing: "\uACF5\uC720 \uC911",
   siteAccess: "\uBE0C\uB77C\uC6B0\uC800\uC5D0\uC11C Glimpselet\uC758 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD5C8\uC6A9\uD558\uC138\uC694.",
   siteNeedPermission: "\uC774 \uC0AC\uC774\uD2B8 \uC811\uADFC \uAD8C\uD55C\uC774 \uD544\uC694\uD569\uB2C8\uB2E4.",
@@ -19010,7 +18858,9 @@ var ko_default = {
   moreTools: "\uB354 \uB9CE\uC740 \uB3C4\uAD6C",
   captureAccessHint: "\uC120\uD0DD \uC0AC\uD56D: \uBAA8\uB4E0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD55C \uBC88 \uD5C8\uC6A9\uD558\uBA74 \uC0C8 \uD0ED\uC5D0\uC11C\uB3C4 \uD398\uC774\uC9C0 \uCEA1\uCC98\uC640 \uC601\uC5ED \uC120\uD0DD\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   guideOverview: "\uC804\uCCB4 \uBCF4\uAE30",
-  guideTour: "\uB2E8\uACC4\uBCC4 \uC548\uB0B4"
+  guideTour: "\uB2E8\uACC4\uBCC4 \uC548\uB0B4",
+  screenPickerPending: "Chrome\uC5D0\uC11C \uCEA1\uCC98\uD560 \uD654\uBA74\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
+  surfaceFallback: "\uB300\uD654\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4. \uB5A0 \uC788\uB294 \uD328\uB110 \uC5F4\uAE30\uB97C \uB204\uB974\uBA74 \uD56D\uC0C1 \uC704\uC5D0 \uD45C\uC2DC\uB429\uB2C8\uB2E4."
 };
 
 // extension/locales/es.json
@@ -19101,7 +18951,6 @@ var es_default = {
   settings: "Ajustes",
   shareEnded: "Se dej\xF3 de compartir la pantalla.",
   shareNeedsFloat: "Abre el panel flotante antes de compartir la pantalla.",
-  screenPicker: "Elige una pantalla\u2026",
   sharing: "Compartiendo",
   siteAccess: "Permite el acceso del sitio en el aviso del navegador.",
   siteNeedPermission: "Este sitio necesita permiso antes de leerlo.",
@@ -19180,7 +19029,9 @@ var es_default = {
   moreTools: "M\xE1s herramientas",
   captureAccessHint: "Opcional: permite el acceso a todos los sitios una vez para capturar p\xE1ginas y seleccionar \xE1reas en pesta\xF1as nuevas.",
   guideOverview: "Vista general",
-  guideTour: "Paso a paso"
+  guideTour: "Paso a paso",
+  screenPickerPending: "Elige una pantalla en el selector de Chrome.",
+  surfaceFallback: "Tu conversaci\xF3n se conserva. Abre el panel flotante para mantenerlo encima."
 };
 
 // extension/locales/fr.json
@@ -19271,7 +19122,6 @@ var fr_default = {
   settings: "Param\xE8tres",
   shareEnded: "Le partage d'\xE9cran est termin\xE9.",
   shareNeedsFloat: "Ouvrez le panneau flottant avant de partager votre \xE9cran.",
-  screenPicker: "Choisissez un \xE9cran\u2026",
   sharing: "Partage actif",
   siteAccess: "Autorisez l'acc\xE8s de Glimpselet dans le navigateur.",
   siteNeedPermission: "Une autorisation est n\xE9cessaire pour ce site.",
@@ -19350,7 +19200,9 @@ var fr_default = {
   moreTools: "Autres outils",
   captureAccessHint: "Facultatif : autorisez une fois l\u2019acc\xE8s \xE0 tous les sites pour capturer des pages et s\xE9lectionner une zone dans les nouveaux onglets.",
   guideOverview: "Vue d\u2019ensemble",
-  guideTour: "Pas \xE0 pas"
+  guideTour: "Pas \xE0 pas",
+  screenPickerPending: "Choisissez un \xE9cran dans le s\xE9lecteur de Chrome.",
+  surfaceFallback: "Votre conversation est conserv\xE9e. Ouvrez le panneau flottant pour le garder au premier plan."
 };
 
 // extension/locales/de.json
@@ -19441,7 +19293,6 @@ var de_default = {
   settings: "Einstellungen",
   shareEnded: "Bildschirmfreigabe beendet.",
   shareNeedsFloat: "\xD6ffne das schwebende Panel, bevor du den Bildschirm teilst.",
-  screenPicker: "W\xE4hle einen Bildschirm\u2026",
   sharing: "Freigabe aktiv",
   siteAccess: "Glimpselet im Browser Zugriff erlauben.",
   siteNeedPermission: "F\xFCr diese Website ist eine Berechtigung n\xF6tig.",
@@ -19520,7 +19371,9 @@ var de_default = {
   moreTools: "Weitere Werkzeuge",
   captureAccessHint: "Optional: Erlaube einmal den Zugriff auf alle Websites, damit Seitenaufnahme und Bereichsauswahl auch in neuen Tabs funktionieren.",
   guideOverview: "\xDCbersicht",
-  guideTour: "Schritt f\xFCr Schritt"
+  guideTour: "Schritt f\xFCr Schritt",
+  screenPickerPending: "W\xE4hle einen Bildschirm in der Chrome-Auswahl.",
+  surfaceFallback: "Dein Gespr\xE4ch bleibt erhalten. \xD6ffne das schwebende Fenster, damit es oben bleibt."
 };
 
 // extension/locales/pt-BR.json
@@ -19611,7 +19464,6 @@ var pt_BR_default = {
   settings: "Configura\xE7\xF5es",
   shareEnded: "O compartilhamento de tela terminou.",
   shareNeedsFloat: "Abra o painel flutuante antes de compartilhar a tela.",
-  screenPicker: "Escolha uma tela\u2026",
   sharing: "Compartilhando",
   siteAccess: "Permita acesso do Glimpselet no aviso do navegador.",
   siteNeedPermission: "Este site precisa de permiss\xE3o antes de ser lido.",
@@ -19690,7 +19542,9 @@ var pt_BR_default = {
   moreTools: "Mais ferramentas",
   captureAccessHint: "Opcional: permita o acesso a todos os sites uma vez para capturar p\xE1ginas e selecionar \xE1reas em novas abas.",
   guideOverview: "Vis\xE3o geral",
-  guideTour: "Passo a passo"
+  guideTour: "Passo a passo",
+  screenPickerPending: "Escolha uma tela no seletor do Chrome.",
+  surfaceFallback: "Sua conversa foi preservada. Abra o painel flutuante para mant\xEA-lo no topo."
 };
 
 // extension/main.tsx
@@ -19811,6 +19665,7 @@ function App() {
   );
   const localCrop = (0, import_react.useRef)(false);
   const pageCrop = (0, import_react.useRef)(false);
+  const pageBubbleClearance = (0, import_react.useRef)(null);
   const wholeCaptureBusy = (0, import_react.useRef)(false);
   const modeChangeBusy = (0, import_react.useRef)(false);
   const [screenCapturing, setScreenCapturing] = (0, import_react.useState)(false);
@@ -19938,6 +19793,8 @@ function App() {
   );
   const [size, setSize] = (0, import_react.useState)({ width: 420, height: 650 });
   const cropBusy = (0, import_react.useRef)(false);
+  const fallbackBubbleId = (0, import_react.useRef)(void 0);
+  const fallbackGeometry = (0, import_react.useRef)(null);
   const [cropPending, setCropPending] = (0, import_react.useState)(false);
   const [shareStream, setShareStream] = (0, import_react.useState)(null);
   const [blocklist, setBlocklist] = (0, import_react.useState)("");
@@ -20226,6 +20083,7 @@ function App() {
     if (!pipDoc) return;
     const child = pipDoc.defaultView;
     const remember = () => {
+      if (fallbackBubbleId.current !== void 0) return;
       const nextSize = { width: child.innerWidth, height: child.innerHeight };
       if (!expandedRef.current) {
         compactViewport.current = nextSize;
@@ -20242,6 +20100,8 @@ function App() {
     };
     const close = () => {
       if (controlledPipClose.current) return;
+      fallbackBubbleId.current = void 0;
+      fallbackGeometry.current = null;
       pageCaptureController.current?.abort();
       setPipDoc(null);
       shareRef.current?.getTracks().forEach((track) => track.stop());
@@ -20451,6 +20311,10 @@ function App() {
         void startCrop();
       if (value.type === "glimpselet:crop-mode" && sender.tab?.id === activeTabId.current) {
         pageCrop.current = value.active === true;
+        if (!localCrop.current) {
+          if (pageCrop.current) void clearPageBubble();
+          else void restorePageBubble();
+        }
         bubbleSurface.current?.setCropping(
           localCrop.current || pageCrop.current
         );
@@ -20725,32 +20589,105 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     locale,
     blocklist
   ]);
-  function frameOptions(video, selection = false) {
+  function frameOptions(video, manual = false) {
+    if (!manual && !needsSharedFrameClearance(video, pipDoc)) return {};
+    return { clearBubble: bubbleClearance(manual) };
+  }
+  function bubbleClearance(manual) {
     const floating = pipDoc?.defaultView;
-    if (!floating || !selection && !needsSharedFrameClearance(video, pipDoc))
-      return {};
+    if (!floating) return void 0;
+    const floatingBounds = {
+      left: floating.screenX,
+      top: floating.screenY,
+      width: floating.outerWidth,
+      height: floating.outerHeight
+    };
     const floatingSize = {
       width: floating.innerWidth,
       height: floating.innerHeight
     };
-    return {
-      clearBubble: nativeBubbleClearance(floating, {
-        close: () => {
-          controlledPipClose.current = true;
-          try {
-            (0, import_react_dom.flushSync)(() => setPipDoc(null));
-            floating.close();
-          } finally {
-            controlledPipClose.current = false;
-          }
-        },
-        open: async () => {
+    return nativeBubbleClearance(floating, {
+      nativeWindowId: fallbackBubbleId.current,
+      allowPanelFallback: manual,
+      close: () => {
+        controlledPipClose.current = true;
+        try {
+          (0, import_react_dom.flushSync)(() => setPipDoc(null));
+          floating.close();
+        } finally {
+          controlledPipClose.current = false;
+        }
+      },
+      open: async () => {
+        try {
           const replacement = await window.documentPictureInPicture.requestWindow(floatingSize);
+          fallbackBubbleId.current = void 0;
+          fallbackGeometry.current = null;
           await mountFloat(replacement);
           return replacement;
+        } catch (error) {
+          if (!manual || !(error instanceof DOMException) || error.name !== "NotAllowedError")
+            throw error;
+          const native = await chrome.windows.create({
+            type: "popup",
+            url: chrome.runtime.getURL("panel.html?surfaceOnly=1"),
+            left: Math.round(floatingBounds.left),
+            top: Math.round(floatingBounds.top),
+            width: Math.round(floatingBounds.width),
+            height: Math.round(floatingBounds.height),
+            focused: false
+          });
+          if (native?.id === void 0) throw new Error("pip_closed");
+          fallbackBubbleId.current = native.id;
+          fallbackGeometry.current = floatingBounds;
+          try {
+            const deadline = performance.now() + 2e3;
+            let view2;
+            while (!view2) {
+              view2 = chrome.extension.getViews({ windowId: native.id })[0];
+              if (view2?.document.readyState !== "complete") view2 = void 0;
+              if (performance.now() >= deadline) throw new Error("pip_closed");
+              if (!view2)
+                await new Promise((resolve) => window.setTimeout(resolve, 40));
+            }
+            await mountFloat(view2);
+          } catch (failure) {
+            fallbackBubbleId.current = void 0;
+            fallbackGeometry.current = null;
+            await chrome.windows.remove(native.id).catch(() => {
+            });
+            throw failure;
+          }
+          setFallback(true);
+          setStatus(t.surfaceFallback);
+          return null;
         }
-      })
-    };
+      }
+    });
+  }
+  function clearPageBubble() {
+    if (pageBubbleClearance.current) return pageBubbleClearance.current;
+    const clearance = bubbleClearance(true);
+    pageBubbleClearance.current = (async () => {
+      try {
+        await clearance?.hide();
+        return clearance;
+      } catch (error) {
+        await clearance?.restore();
+        reportError2(error);
+        return void 0;
+      }
+    })();
+    return pageBubbleClearance.current;
+  }
+  async function restorePageBubble() {
+    const pending = pageBubbleClearance.current;
+    pageBubbleClearance.current = null;
+    try {
+      await (await pending)?.restore();
+    } catch (error) {
+      reportError2(error);
+    }
   }
   async function startCrop() {
     if (cropBusy.current) return;
@@ -20760,18 +20697,23 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     setCropPending(true);
     try {
       if (shareRef.current && videoRef.current) {
-        const image = await cropSharedScreen(
-          videoRef.current,
-          pipDoc,
-          t,
-          frameOptions(videoRef.current, true)
-        );
+        const image = await cropSharedScreen(videoRef.current, pipDoc, t, {
+          ...frameOptions(videoRef.current, true),
+          sourceTabId: activeTabId.current
+        });
         if (image) {
           setCapture({ image, label: t.region });
           setPage(void 0);
           setStatus(t.captureReady);
         }
-      } else await captureAction("region");
+      } else {
+        await clearPageBubble();
+        try {
+          await captureAction("region");
+        } finally {
+          await restorePageBubble();
+        }
+      }
     } catch (error) {
       reportError2(error);
     } finally {
@@ -20783,7 +20725,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
   }
   async function openFloat() {
     const existing = pipDoc?.defaultView;
-    if (existing && !existing.closed) {
+    if (existing && !existing.closed && fallbackBubbleId.current === void 0) {
       existing.focus();
       setStatus(t.floatingReady);
       await completeFloatTutorial();
@@ -20797,7 +20739,21 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     }
     try {
       const docWindow = await pip.requestWindow(size);
+      const fallbackId = fallbackBubbleId.current;
+      const geometry = fallbackGeometry.current;
+      fallbackBubbleId.current = void 0;
+      fallbackGeometry.current = null;
       await mountFloat(docWindow);
+      if (geometry)
+        await placeBubbleWindow(docWindow, geometry, () => !docWindow.closed);
+      if (fallbackId !== void 0) {
+        controlledPipClose.current = true;
+        try {
+          await chrome.windows.remove(fallbackId);
+        } finally {
+          controlledPipClose.current = false;
+        }
+      }
       return true;
     } catch {
       setFallback(true);
@@ -21139,13 +21095,36 @@ ${t.selectedPassage}: ${selected}` : ""}`;
           setStatus(t.shareNeedsFloat);
           return;
         }
-        setStatus(t.screenPicker);
-        const sourceTabId = activeTabId.current;
-        const result = await withScreenPicker(
-          pipDoc.defaultView,
-          sourceTabId,
-          () => startScreenShare(sourceTabId)
-        );
+        const floating = pipDoc.defaultView;
+        const geometry = {
+          left: floating.screenX,
+          top: floating.screenY,
+          width: floating.outerWidth,
+          height: floating.outerHeight
+        };
+        setStatus(t.screenPickerPending);
+        const area = screenArea(floating);
+        const pickerPlacement = placeBubbleWindow(
+          floating,
+          {
+            left: area.left + area.width - geometry.width / 2,
+            top: geometry.top
+          },
+          () => !floating.closed
+        ).catch(() => {
+        });
+        let result;
+        try {
+          result = await startScreenShare(activeTabId.current, floating);
+        } finally {
+          await pickerPlacement;
+          await placeBubbleWindow(
+            floating,
+            geometry,
+            () => !floating.closed
+          ).catch(() => {
+          });
+        }
         sharedBinding.current = result.binding;
         shareRef.current = result.stream;
         if (videoRef.current) {
@@ -21235,6 +21214,11 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     setShowTools(false);
     expandedRef.current = !compact;
     setExpanded(!compact);
+    if (!compact && fallbackBubbleId.current !== void 0) {
+      fallbackGeometry.current = expandedPosition.current || fallbackGeometry.current;
+      void openFloat();
+      return;
+    }
     try {
       if (pipDoc?.defaultView) {
         const floating = pipDoc.defaultView;
@@ -21291,7 +21275,11 @@ ${t.selectedPassage}: ${selected}` : ""}`;
       const stream = shareRef.current;
       const video = videoRef.current;
       if (!stream || !video) return;
-      const frame = await freezeSharedFrame(video, pipDoc, frameOptions(video));
+      const frame = await freezeSharedFrame(
+        video,
+        pipDoc,
+        frameOptions(video, true)
+      );
       try {
         if (shareRef.current !== stream || !stream.getVideoTracks().some((track) => track.readyState === "live"))
           throw new Error("share_ended");
@@ -22230,7 +22218,7 @@ ${step.action}` : ""}`
                 children: "\u2699"
               }
             ),
-            !pipDoc && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            (!pipDoc || fallback) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
               "button",
               {
                 className: "icon",
@@ -22288,7 +22276,7 @@ ${step.action}` : ""}`
             children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, { mood: busy ? "think" : "idle" })
           }
         ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          !pipDoc && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", { className: "float-start", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "primary wide", onClick: () => void openFloat(), children: t.float }) }),
+          (!pipDoc || fallback) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", { className: "float-start", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "primary wide", onClick: () => void openFloat(), children: t.float }) }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", { className: "toolbar", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "status", role: "status", "aria-live": "polite", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: `dot ${connected ? "green" : ""}` }),
             status || (connected ? t.ready : t.pairHint)
@@ -22897,4 +22885,5 @@ function Blink({ mood = "idle" }) {
     }
   );
 }
-(0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App, {}));
+if (new URLSearchParams(location.search).get("surfaceOnly") !== "1")
+  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App, {}));

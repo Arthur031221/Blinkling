@@ -85,7 +85,6 @@
   "settings": "設定",
   "shareEnded": "画面共有を終了しました。",
   "shareNeedsFloat": "画面を共有する前にフローティングパネルを開いてください。",
-  "screenPicker": "画面を選択してください…",
   "sharing": "共有中",
   "siteAccess": "ブラウザーの確認画面でアクセスを許可してください。",
   "siteNeedPermission": "このサイトへの許可が必要です。",
@@ -164,5 +163,7 @@
   "moreTools": "その他のツール",
   "captureAccessHint": "任意：すべてのサイトへのアクセスを一度許可すると、新しいタブでもページ撮影と範囲選択が使えます。",
   "guideOverview": "全体を見る",
-  "guideTour": "順に案内"
+  "guideTour": "順に案内",
+  "screenPickerPending": "Chrome で共有する画面を選んでください。",
+  "surfaceFallback": "会話は保存されています。「フローティングパネルを開く」を押すと最前面に戻ります。"
 }

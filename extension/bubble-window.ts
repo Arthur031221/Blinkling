@@ -71,9 +71,9 @@ export async function placeBubbleWindow(
           ),
         );
   await chrome.windows.update(native.id, {
-    // Chrome requires at least half the native rectangle on a display. Tuck
-    // the unused half away; CSS alone cannot shrink the browser's minimum.
-    left: Math.floor(area.left + area.width - Math.ceil(width / 2)),
+    // Chrome requires at least half of PiP to stay onscreen. Tuck the rest
+    // outside the work area instead of displaying its entire minimum width.
+    left: Math.floor(area.left + area.width - width / 2),
     top: Math.round(top),
   });
 }
