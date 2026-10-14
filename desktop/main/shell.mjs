@@ -273,6 +273,7 @@ async function openComposer(focus = true) {
     }
     shapeComposer();
     win.webContents.send("glimpselet:surface", { type: "open" });
+    claimKeyboard(win);
   } else if (!win.isVisible()) win.showInactive();
 }
 /** Blink asked to close the card because the pointer left, but something held
@@ -289,6 +290,21 @@ function leaveIfIdle() {
     })
   )
     closeComposer();
+}
+/** The window that just closed (the region selector) hands the keyboard back
+ * to whatever had it, and a window manager may do so after our first request.
+ * For a short settle period, ask again whenever the card does not have it. */
+function claimKeyboard(win, until = Date.now() + 500) {
+  const retry = () => {
+    if (win.isDestroyed() || !win.isVisible() || !chatOpen) return;
+    if (!win.isFocused()) {
+      if (input) input.activate(win);
+      win.focus();
+      win.webContents.send("glimpselet:surface", { type: "open" });
+    }
+    if (Date.now() < until) setTimeout(retry, 60);
+  };
+  setTimeout(retry, 60);
 }
 function closeComposer(restore = true) {
   leaving = false;
@@ -767,6 +783,7 @@ if (process.env.GLIMPSELET_E2E === "1")
     snapshot,
     cursor: () => cursor.point(),
     cardBounds: () => cardBounds(display, position),
+    attachCapture,
     visualMasks,
     capture: () => captureScreen(display, windows()),
     overlay: async (drawings) => {
