@@ -1,14 +1,24 @@
 import { randomUUID } from "node:crypto";
 /** Version-scoped protocol: proved against the host's logged-in CLI 2.1.296. */
+export const compatibility = Object.freeze({
+  "2.1.296": Object.freeze({
+    remote: "remote_control",
+    effort: "apply_flag_settings",
+    canary: "2026-10-14",
+    stablePublicAPI: false,
+  }),
+});
 export const supportedClaudeVersion = "2.1.296";
 export function assertClaudeVersion(version) {
   if (version.trim().split(/\s/)[0] !== supportedClaudeVersion)
-    throw new Error(
-      "Unverified Claude Code protocol version: " + version.trim(),
+    throw Object.assign(
+      new Error("Unverified Claude Code protocol version: " + version.trim()),
+      { code: "UNSUPPORTED_CLAUDE" },
     );
 }
 export function launchArguments({
   sessionId,
+  newSessionId,
   model = "haiku",
   effort = "low",
 } = {}) {
@@ -32,7 +42,15 @@ export function launchArguments({
     "--strict-mcp-config",
     "--mcp-config",
     '{"mcpServers":{}}',
-    ...(sessionId ? ["--resume", sessionId] : []),
+    "--system-prompt",
+    "You are Blink, a concise screen companion. Explain only: never click, type, control another app, or edit files. Do not use computer-control or editing tools. Reply in the user's language. Start with a short answer, then structured key points when useful. Preserve code and markdown.",
+    "--settings",
+    '{"disableAllHooks":true}',
+    ...(sessionId
+      ? ["--resume", sessionId]
+      : newSessionId
+        ? ["--session-id", newSessionId]
+        : []),
   ];
 }
 export function enableRemote(remoteId) {
@@ -60,6 +78,15 @@ export function userMessage(turn, sessionId = "") {
             )
           )
             throw new Error("File conversion is not implemented");
+          if (
+            typeof a.data !== "string" ||
+            a.data.length > 28_000_000 ||
+            !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+              a.data,
+            ) ||
+            !a.data.length
+          )
+            throw new Error("Invalid or oversized image attachment");
           return {
             type: "image",
             source: { type: "base64", media_type: a.mediaType, data: a.data },
@@ -72,11 +99,14 @@ export function userMessage(turn, sessionId = "") {
 }
 export class ControlRequests {
   #pending = new Map();
+  #closed = false;
   constructor(write, timeoutMs = 15000) {
     this.write = write;
     this.timeoutMs = timeoutMs;
   }
   request(request) {
+    if (this.#closed)
+      return Promise.reject(new Error("Claude transport closed"));
     const requestId = randomUUID();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -106,6 +136,7 @@ export class ControlRequests {
     return true;
   }
   close() {
+    this.#closed = true;
     for (const p of this.#pending.values()) {
       clearTimeout(p.timer);
       p.reject(new Error("Claude transport closed"));
