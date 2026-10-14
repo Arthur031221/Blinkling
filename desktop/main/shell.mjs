@@ -309,10 +309,15 @@ function useDisplay(next) {
         : [],
       display.scaleFactor,
     );
-  composer?.setBounds(cardBounds(display, position));
-  shapeComposer();
-  bubbles?.setBounds(cardBounds(display, position));
+  placeCard();
   broadcast();
+}
+/** The card and the answer deck share one rectangle; move them together. */
+function placeCard() {
+  const bounds = cardBounds(display, position);
+  composer?.setBounds(bounds);
+  bubbles?.setBounds(bounds);
+  shapeComposer();
 }
 function displaysChanged() {
   const next = reconcileDisplay(screen.getAllDisplays(), display.id);
@@ -396,8 +401,7 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
       if (input) input.setRegions(blink, regions, display.scaleFactor);
       else if (process.platform === "win32") blink.setShape(regions);
       if (saved) await store.save(display.id, saved);
-      composer?.setBounds(cardBounds(display, position));
-      shapeComposer();
+      placeCard();
     }
   } else if (command.type === "pin") {
     pinned = command.value;
@@ -725,6 +729,7 @@ if (process.env.GLIMPSELET_E2E === "1")
     },
     snapshot,
     cursor: () => cursor.point(),
+    cardBounds: () => cardBounds(display, position),
     visualMasks,
     capture: () => captureScreen(display, windows()),
     overlay: async (drawings) => {

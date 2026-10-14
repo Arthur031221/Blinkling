@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { launch, native, moveOn, wheel } from "./support.mjs";
+import { launch, native, moveOn, wheel, rigPoint } from "./support.mjs";
 
 /** An X client that is not Electron: the situation where the pointer query of
  * Electron's own API used to go stale. */
@@ -94,3 +94,42 @@ test("H-1 the native wheel scrolls the bubble deck and the deck keeps working af
     await c.close();
   }
 });
+
+const edges = [
+  ["left", 38, 400],
+  ["right", 1262, 420],
+  ["top", 640, 4],
+  ["bottom", 640, 796],
+];
+for (const [edge, x, y] of edges)
+  test(`H-2 dragging Blink to the ${edge} edge moves the answer deck with the card`, async () => {
+    const c = await launch();
+    const { app, page } = c;
+    try {
+      await moveOn(page);
+      const p = await rigPoint(page);
+      native(p.x, p.y, "down");
+      native(p.x - 40, p.y - 30);
+      await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drag");
+      native(x, y);
+      await page.waitForTimeout(150);
+      native(x, y, "up");
+      await expect
+        .poll(() =>
+          app.evaluate(
+            () => globalThis.glimpseletTest.snapshot().position.edge,
+          ),
+        )
+        .toBe(edge);
+      const card = await app.evaluate(() =>
+        globalThis.glimpseletTest.cardBounds(),
+      );
+      await expect
+        .poll(() =>
+          app.evaluate(() => globalThis.glimpseletTest.bubbles.getBounds()),
+        )
+        .toEqual(card);
+    } finally {
+      await c.close();
+    }
+  });
