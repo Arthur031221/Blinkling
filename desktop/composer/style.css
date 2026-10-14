@@ -81,7 +81,7 @@ a:focus-visible {
   border: 1px solid var(--gl-border);
   border-radius: 26px;
   background: var(--gl-paper);
-  transform-origin: bottom right;
+  transform-origin: var(--gl-origin, 100% 100%);
   box-shadow: 0 6px 24px #00000018;
 }
 .gl-chat-card[data-open="true"] {
@@ -209,13 +209,70 @@ a:focus-visible {
   min-width: 0;
 }
 .gl-picker {
+  position: relative;
   min-width: 0;
   max-width: 34%;
+}
+.gl-picker-trigger {
+  max-width: 100%;
   border: 0;
+  border-radius: 12px;
   background: transparent;
-  font-size: 12px;
-  padding: 5px 1px;
+  color: var(--gl-ink);
+  font-size: 13px;
+  padding: 5px 8px;
+  display: block;
+}
+.gl-picker-trigger:hover:not(:disabled),
+.gl-picker[data-open="true"] .gl-picker-trigger {
+  background: var(--gl-soft);
+}
+.gl-picker-trigger:disabled {
+  opacity: 0.6;
+}
+.gl-picker-value {
+  display: block;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gl-picker-value[data-empty="true"] {
+  color: var(--gl-muted);
+}
+.gl-picker-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  min-width: 150px;
+  max-width: 260px;
+  padding: 4px;
+  border: 1px solid var(--gl-border);
+  border-radius: 14px;
+  background: var(--gl-paper);
+  box-shadow: 0 6px 24px #00000026;
+  transform-origin: bottom left;
+  animation: gl-grow 140ms cubic-bezier(0.16, 1.18, 0.3, 1) both;
+}
+.gl-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gl-picker-option:hover,
+.gl-picker-option:focus-visible {
+  background: var(--gl-soft);
+  outline: none;
+}
+.gl-picker-option[aria-selected="true"]::after {
+  content: "✓";
+  color: #258f61;
 }
 .gl-picker-dot {
   color: var(--gl-muted);
@@ -260,7 +317,9 @@ a:focus-visible {
 }
 .gl-attachment-name {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   max-width: 140px;
 }
@@ -487,9 +546,16 @@ body[data-surface="bubbles"] #card {
   display: none;
 }
 body[data-surface="bubbles"] #answers {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   position: absolute;
   inset: 10px 6px 18px;
+}
+body[data-surface="bubbles"] .gl-bubble-deck {
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }
 @keyframes gl-grow {
   from {
@@ -510,8 +576,9 @@ body[data-surface="bubbles"] #answers {
   .gl-chat-card {
     padding: 10px;
   }
-  .gl-picker {
-    font-size: 11px;
+  .gl-picker-trigger {
+    font-size: 12px;
+    padding: 5px 4px;
   }
   .gl-quick-chip {
     padding: 6px 9px;
@@ -543,10 +610,18 @@ body[data-surface="bubbles"] #answers {
   background: var(--gl-paper);
 }
 .gl-notice {
-  position: absolute;
-  bottom: 20px;
-  left: 10px;
-  right: 10px;
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.gl-chat-card > .gl-notice {
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+.gl-attachments:empty {
+  display: none;
 }
 :root[data-theme="dark"] {
   --gl-paper: #262725;

@@ -1,13 +1,34 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
+import { anchorOf, growOrigin } from "./origin.mjs";
 const api = window.glimpselet;
 const configuration = await api.configuration();
 document.body.dataset.surface = configuration.surface ?? "card";
 if (configuration.theme)
   document.documentElement.dataset.theme = configuration.theme;
+let shellState;
+/** The card grows out of Blink, wherever Blink currently is. */
+function placeOrigin() {
+  const card = document.querySelector(".gl-chat-card");
+  if (!card || !shellState?.position) return;
+  const r = card.getBoundingClientRect();
+  document.documentElement.style.setProperty(
+    "--gl-origin",
+    growOrigin(
+      { x: screenX + r.left, y: screenY + r.top, width: r.width, height: r.height },
+      anchorOf(shellState),
+    ),
+  );
+}
 const unShell = api.onShell?.((event) => {
-  if (event.type === "state")
-    document.documentElement.dataset.theme = event.state.theme;
+  if (event.type !== "state") return;
+  document.documentElement.dataset.theme = event.state.theme;
+  shellState = event.state;
+  placeOrigin();
 });
+api.shell?.({ type: "state" }).then((state) => {
+  shellState ??= state;
+  placeOrigin();
+}, () => {});
 export const conversation = mountConversation({
   session: sessionFromDesktopAPI(api),
   cardHost:
@@ -26,7 +47,10 @@ export const conversation = mountConversation({
 const unCapture = api.onCapture?.((capture) => conversation.capture(capture));
 const unSurface = api.onSurface?.((event) => {
   if (event.type === "hover") conversation.hover(event.value);
-  if (event.type === "open") conversation.card?.open(event.messageId);
+  if (event.type === "open") {
+    placeOrigin();
+    conversation.card?.open(event.messageId);
+  }
   if (event.type === "view" && conversation.card) {
     notice.hidden = false;
     notice.textContent =
@@ -49,12 +73,14 @@ window.addEventListener(
   { once: true },
 );
 
-const notice = document.createElement("section");
-notice.className = "gl-notice";
-notice.hidden = true;
-document
-  .querySelector(configuration.surface === "bubbles" ? "#answers" : "#card")
-  .append(notice);
+// The card owns an in-flow notice above its form; the bubble surface has no
+// toolbar, so its notice sits below the deck.
+const notice = conversation.card?.notice ?? document.createElement("section");
+if (!notice.isConnected) {
+  notice.className = "gl-notice";
+  notice.hidden = true;
+  document.querySelector("#answers").append(notice);
+}
 const guide = document.createElement("section");
 guide.className = "gl-guide";
 guide.hidden = true;
