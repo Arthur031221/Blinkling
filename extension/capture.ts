@@ -775,14 +775,18 @@ function crop(
 }
 
 /** Start sharing from the user's gesture; taking a frame is a separate action. */
-export async function startScreenShare(sourceTabId?: number): Promise<{
+export async function startScreenShare(
+  sourceTabId?: number,
+  initiator: Window = window,
+): Promise<{
   stream: MediaStream;
   binding?: CaptureBinding;
 }> {
-  const bindingPromise = (
+  const sourcePromise = (
     sourceTabId ? chrome.tabs.get(sourceTabId) : activeTab()
-  )
-    .then(prepareCaptureBinding)
+  ).catch(() => undefined);
+  const bindingPromise = sourcePromise
+    .then((tab) => (tab ? prepareCaptureBinding(tab) : undefined))
     .catch(() => undefined);
   const Controller = (
     window as unknown as {
@@ -795,21 +799,87 @@ export async function startScreenShare(sourceTabId?: number): Promise<{
   // Decide before the picker: after it returns, awaiting source metadata can
   // miss Chrome's focus-decision deadline and raise another native window.
   controller?.setFocusBehavior("no-focus-change");
-  const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: { frameRate: 2, displaySurface: "monitor" },
-    audio: false,
-    selfBrowserSurface: "exclude",
-    preferCurrentTab: false,
-    ...(controller ? { controller } : {}),
-  } as DisplayMediaStreamOptions);
+  // Keep the stream owned by the opener: closing PiP ends a stream owned by
+  // its document. Raise that host synchronously on the initiating gesture so
+  // its native picker cannot be hidden behind a different browser window.
+  const handoff = initiator !== window;
+  const initialForeground = handoff
+    ? chrome.windows.getLastFocused().catch(() => undefined)
+    : undefined;
+  if (handoff) window.focus();
+  let hostWindowId: number | undefined;
+  let stream: MediaStream | undefined;
   try {
+    if (handoff) {
+      const host = await chrome.tabs.getCurrent();
+      if (host?.id !== undefined) {
+        hostWindowId = host.windowId;
+        await chrome.tabs.update(host.id, { active: true });
+        await chrome.windows.update(host.windowId, { focused: true });
+        // window.focus() is asynchronous at the native window manager. Chrome
+        // can otherwise attach its dialog to the still-focused PiP widget.
+        const deadline = performance.now() + 250;
+        while (!document.hasFocus() && performance.now() < deadline)
+          await new Promise((resolve) => window.setTimeout(resolve, 20));
+      }
+    }
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 2, displaySurface: "monitor" },
+      audio: false,
+      selfBrowserSurface: "exclude",
+      preferCurrentTab: false,
+      ...(controller ? { controller } : {}),
+    } as DisplayMediaStreamOptions);
     const binding = await bindingPromise;
     const track = stream.getVideoTracks()[0];
     if (!track || track.readyState === "ended") throw new Error("share_ended");
     return { stream, binding };
   } catch (error) {
-    for (const track of stream.getTracks()) track.stop();
+    for (const track of stream?.getTracks() || []) track.stop();
     throw error;
+  } finally {
+    if (handoff) {
+      const source = await sourcePromise;
+      let foreground = await chrome.windows
+        .getLastFocused()
+        .catch(() => undefined);
+      const initial = await initialForeground;
+      // Dismissing Chrome's native chooser briefly leaves its host unfocused.
+      // Wait for that transition to identify a later Chrome window choice.
+      // Chrome can report no focused window until the handoff is restored.
+      const deadline = performance.now() + 400;
+      while (
+        foreground?.id === hostWindowId &&
+        foreground?.focused === false &&
+        performance.now() < deadline
+      ) {
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+        foreground = await chrome.windows
+          .getLastFocused()
+          .catch(() => undefined);
+        if (foreground?.focused === false)
+          foreground =
+            (await chrome.windows.getAll().catch(() => [])).find(
+              (native) => native.focused,
+            ) || foreground;
+      }
+      // The picker handoff may be undone, but a later user window choice must
+      // survive. An unfocused chooser host alone is not an identifiable user
+      // choice; Chrome's native dialog can produce that state after Share.
+      const restoreSource =
+        (foreground?.focused !== false || foreground.id === hostWindowId) &&
+        (!foreground ||
+          foreground.id === hostWindowId ||
+          foreground.id === source?.windowId ||
+          foreground.id === initial?.id);
+      if (restoreSource && source?.windowId !== undefined) {
+        if (source.id !== undefined)
+          await chrome.tabs.update(source.id, { active: true }).catch(() => {});
+        await chrome.windows
+          .update(source.windowId, { focused: true })
+          .catch(() => {});
+      }
+    }
   }
 }
 

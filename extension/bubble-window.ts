@@ -71,7 +71,9 @@ export async function placeBubbleWindow(
           ),
         );
   await chrome.windows.update(native.id, {
-    left: Math.round(area.left + area.width - width),
+    // Chrome requires at least half of PiP to stay onscreen. Tuck the rest
+    // outside the work area instead of displaying its entire minimum width.
+    left: Math.floor(area.left + area.width - width / 2),
     top: Math.round(top),
   });
 }

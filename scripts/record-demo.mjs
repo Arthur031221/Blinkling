@@ -232,6 +232,52 @@ async function askFromFloat(question) {
   });
 }
 
+async function restoreRecordedBubble() {
+  await appPage.waitForFunction(() => {
+    const view =
+      window.documentPictureInPicture.window ||
+      chrome.extension
+        .getViews()
+        .find((view) => view.location.search.includes("surfaceOnly=1"));
+    return view?.document.querySelector(".composer textarea");
+  });
+  if (
+    !(await appPage.evaluate(() => !!window.documentPictureInPicture.window))
+  ) {
+    const recovery = browserContext
+      .pages()
+      .find(
+        (page) => new URL(page.url()).searchParams.get("surfaceOnly") === "1",
+      );
+    if (!recovery) throw new Error("Crop did not retain its recovery surface.");
+    await recovery.getByRole("button", { name: en.float, exact: true }).click();
+  }
+  await appPage.waitForFunction(() => {
+    const doc = window.documentPictureInPicture.window?.document;
+    return (
+      doc?.querySelector(".composer textarea") &&
+      doc.body.dataset.bubbleState !== "crop"
+    );
+  });
+  // Native clearance may replace PiP. Record the current target, retaining
+  // the actual capture assertion rather than dereferencing its closed page.
+  await expect
+    .poll(async () => {
+      for (const page of browserContext.pages()) {
+        if (
+          page.url() === "about:blank" &&
+          (await page.locator(".composer textarea").count())
+        ) {
+          pipPage = page;
+          return true;
+        }
+      }
+      return false;
+    })
+    .toBe(true);
+  pipPage.setDefaultTimeout(15000);
+}
+
 await mkdir(shots, { recursive: true });
 await mkdir(store, { recursive: true });
 if (!screen) throw new Error("A display is required. Run through xvfb-run.");
@@ -646,7 +692,6 @@ try {
   console.log(
     `Opened extension ${extensionId}; Document PiP page: ${Boolean(pipPage)}.`,
   );
-  const ui = pipPage || appPage;
 
   if (!publicMode) {
     await askFromFloat("What is this notebook for?");
@@ -678,7 +723,8 @@ try {
     await keepScene(700);
     await sitePage.keyboard.press("Enter");
     await expect(cropSurface).toHaveCount(0);
-    await expect(ui.locator(".capture-chip img")).toBeVisible({
+    await restoreRecordedBubble();
+    await expect(pipPage.locator(".capture-chip img")).toBeVisible({
       timeout: 8000,
     });
     await sitePage.bringToFront();

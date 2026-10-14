@@ -1,11 +1,12 @@
 import type { SharedFrameOptions } from "./screen-frame";
-import { relayBubbleCropInput } from "./bubble-crop-input";
 
 const pendingClearance = new WeakMap<Window, Promise<void>>();
 
 export type BubbleReplacement = {
   close: () => void;
-  open: () => Promise<Window>;
+  open: () => Promise<Window | null>;
+  allowPanelFallback?: boolean;
+  nativeWindowId?: number;
 };
 
 // Chrome exposes Document PiP as an always-on-top native window. Minimizing it
@@ -20,24 +21,29 @@ export function nativeBubbleClearance(
   let release: (() => void) | undefined;
   let replace = false;
   let replacementWindow: Window | undefined;
-  let selectionOpacity: string | undefined;
-  let stopSelectionRelay: (() => void) | undefined;
   const showReplacement = async () => {
     if (!replace || replacementWindow) return;
     const foreground = (await chrome.windows.getAll()).find((w) => w.focused);
-    replacementWindow = await replacement!.open();
-    const opener = await chrome.tabs.getCurrent();
-    const native = (await chrome.windows.getAll({ populate: true })).find(
-      (w) =>
-        w.alwaysOnTop && w.tabs?.some((tab) => tab.openerTabId === opener?.id),
-    );
-    if (native?.id === undefined) throw new Error("capture_bubble_obstructed");
-    await chrome.windows.update(native.id, {
-      left: original!.left,
-      top: original!.top,
-      width: original!.width,
-      height: original!.height,
-    });
+    replacementWindow = (await replacement!.open()) || undefined;
+    // Escape does not grant activation. On Chrome versions that forbid PiP
+    // minimization the preserved opener surface is the recovery when a fresh
+    // gesture is needed. Do not obscure selection by reopening ahead of time.
+    if (replacementWindow) {
+      const opener = await chrome.tabs.getCurrent();
+      const native = (await chrome.windows.getAll({ populate: true })).find(
+        (w) =>
+          w.alwaysOnTop &&
+          w.tabs?.some((tab) => tab.openerTabId === opener?.id),
+      );
+      if (native?.id === undefined)
+        throw new Error("capture_bubble_obstructed");
+      await chrome.windows.update(native.id, {
+        left: original!.left,
+        top: original!.top,
+        width: original!.width,
+        height: original!.height,
+      });
+    }
     if (foreground?.id !== undefined)
       await chrome.windows.update(foreground.id, { focused: true });
   };
@@ -62,13 +68,15 @@ export function nativeBubbleClearance(
       const windows = await chrome.windows.getAll({ populate: true });
       original = windows.find(
         (native) =>
-          native.alwaysOnTop &&
-          native.tabs?.some(
-            (tab) =>
-              opener?.id !== undefined &&
-              tab.openerTabId === opener.id &&
-              tab.url === "about:blank",
-          ),
+          (replacement?.nativeWindowId !== undefined &&
+            native.id === replacement.nativeWindowId) ||
+          (native.alwaysOnTop &&
+            native.tabs?.some(
+              (tab) =>
+                opener?.id !== undefined &&
+                tab.openerTabId === opener.id &&
+                tab.url === "about:blank",
+            )),
       );
       if (original?.id === undefined || floating.closed)
         throw new Error("capture_bubble_obstructed");
@@ -79,7 +87,8 @@ export function nativeBubbleClearance(
           await chrome.windows.update(original.id, { state: "minimized" });
         } catch (error) {
           // New Chromium releases forbid minimizing Document PiP. Only close
-          // it when the initiating gesture can also reopen it automatically.
+          // it when it can be reopened, or a preserved ordinary surface is
+          // available if the gesture expires during manual selection.
           if (
             !String(error).includes(
               "Operation not allowed for picture-in-picture windows",
@@ -87,7 +96,11 @@ export function nativeBubbleClearance(
           )
             throw error;
           changed = false;
-          if (!replacement || !navigator.userActivation.isActive)
+          if (
+            !replacement ||
+            (!navigator.userActivation.isActive &&
+              !replacement.allowPanelFallback)
+          )
             throw new Error("capture_bubble_obstructed");
           replace = true;
           replacement.close();
@@ -100,28 +113,13 @@ export function nativeBubbleClearance(
       return true;
     },
     prepareSelection: async () => {
-      // Reopen before fullscreen consumes the gesture, rather than waiting
-      // for Escape (which does not grant activation) or a long selection.
-      if (!replace) return;
-      await showReplacement();
-      selectionOpacity = replacementWindow!.document.body.style.opacity;
-      replacementWindow!.document.body.style.opacity = ".25";
-    },
-    relaySelection: (host) => {
-      if (replacementWindow)
-        stopSelectionRelay = relayBubbleCropInput(replacementWindow, host);
+      // Keep the native rectangle absent throughout selection. DOM opacity
+      // and relaying content input cannot clear its opaque frame or title bar.
     },
     restore: async () => {
       try {
-        stopSelectionRelay?.();
         if (replace) {
           await showReplacement();
-          if (
-            selectionOpacity !== undefined &&
-            replacementWindow &&
-            !replacementWindow.closed
-          )
-            replacementWindow.document.body.style.opacity = selectionOpacity;
           return;
         }
         if (!changed || original?.id === undefined || floating.closed) return;

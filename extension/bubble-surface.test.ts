@@ -5,6 +5,17 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 describe("bubble visibility", () => {
+  it("marks the owning root for transparent product backgrounds and cleans up the marker", () => {
+    const binding = bindBubbleSurface(document.body);
+    expect(document.documentElement.dataset.bubbleSurface).toBe("true");
+    binding.dispose();
+    expect(document.documentElement.dataset.bubbleSurface).toBeUndefined();
+    document.documentElement.dataset.bubbleSurface = "previous";
+    const previous = bindBubbleSurface(document.body);
+    previous.dispose();
+    expect(document.documentElement.dataset.bubbleSurface).toBe("previous");
+    delete document.documentElement.dataset.bubbleSurface;
+  });
   it("fades to 35%, hovers at 75%, wakes on a click anywhere, then idles on exit", () => {
     const surface = document.createElement("main");
     const child = document.createElement("button");

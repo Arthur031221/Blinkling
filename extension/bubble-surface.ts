@@ -8,6 +8,9 @@ export const BUBBLE_OPACITY: Record<BubbleState, string> = {
 
 /** One owner for pointer, keyboard and crop visibility, including PiP portals. */
 export function bindBubbleSurface(surface: HTMLElement) {
+  const root = surface.ownerDocument.documentElement;
+  const oldSurface = root.dataset.bubbleSurface;
+  root.dataset.bubbleSurface = "true";
   let state: Exclude<BubbleState, "crop"> = "idle";
   let cropping = false;
   const oldOpacity = surface.style.opacity;
@@ -53,6 +56,8 @@ export function bindBubbleSurface(surface: HTMLElement) {
       surface.style.opacity = oldOpacity;
       surface.style.pointerEvents = oldPointerEvents;
       delete surface.dataset.bubbleState;
+      if (oldSurface === undefined) delete root.dataset.bubbleSurface;
+      else root.dataset.bubbleSurface = oldSurface;
     },
   };
 }

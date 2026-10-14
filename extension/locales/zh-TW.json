@@ -163,5 +163,7 @@
   "moreTools": "更多工具",
   "captureAccessHint": "選用：允許存取所有網站一次，即可在新分頁擷取網頁與選取區域。",
   "guideOverview": "總覽",
-  "guideTour": "逐步導覽"
+  "guideTour": "逐步導覽",
+  "screenPickerPending": "請在 Chrome 選擇要截取的畫面。",
+  "surfaceFallback": "對話已保留，點「開啟浮動面板」即可保持置頂。"
 }

@@ -2,7 +2,6 @@ import { imageRect, selectCrop, type CropLabels } from "./crop-selection";
 import { encodeCanvasPng } from "./png";
 import {
   freezeSharedFrame,
-  needsSharedFrameClearance,
   withBubbleCleared,
   type SharedFrameOptions,
 } from "./screen-frame";
@@ -11,7 +10,7 @@ export async function cropSharedScreen(
   video: HTMLVideoElement,
   bubble: Document | null,
   labels: CropLabels,
-  options: SharedFrameOptions = {},
+  options: SharedFrameOptions & { sourceTabId?: number } = {},
 ): Promise<string | null> {
   const controller = new AbortController();
   const tracks =
@@ -22,15 +21,23 @@ export async function cropSharedScreen(
     : controller.signal;
   const frameOptions = {
     ...options,
-    clearBubble: needsSharedFrameClearance(video, bubble)
-      ? options.clearBubble
-      : undefined,
+    clearForSelection: true,
     signal,
   };
   tracks.forEach((track) => track.addEventListener("ended", ended));
   try {
+    // Closing native PiP can activate its opener. Preserve the user's page
+    // before clearance performs that transition, rather than after hiding.
+    const foreground = await chrome.windows.getLastFocused();
+    // A real PiP click focuses its native widget. That window may be closed
+    // for clearance, so return to the page associated with the bubble instead.
+    const source =
+      foreground.alwaysOnTop && options.sourceTabId !== undefined
+        ? await chrome.tabs.get(options.sourceTabId).catch(() => undefined)
+        : undefined;
+    const previousWindow = source?.windowId ?? foreground.id;
     return await withBubbleCleared(video, bubble, frameOptions, () =>
-      cropFrozenFrame(video, bubble, labels, frameOptions),
+      cropFrozenFrame(video, bubble, labels, frameOptions, previousWindow),
     );
   } finally {
     tracks.forEach((track) => track.removeEventListener("ended", ended));
@@ -42,6 +49,7 @@ async function cropFrozenFrame(
   bubble: Document | null,
   labels: CropLabels,
   options: SharedFrameOptions,
+  previousWindow: number | undefined,
 ): Promise<string | null> {
   const doc = document;
   const oldOpacity = bubble?.body.style.opacity || "";
@@ -53,9 +61,9 @@ async function cropFrozenFrame(
     | { id: number; state: chrome.windows.Window["state"] }
     | undefined;
   let previousTab: number | undefined;
-  let previousWindow: number | undefined;
   let foregroundChanged = false;
   let fullscreenStateChanged = false;
+  let stopNativeObserver: (() => void) | undefined;
   const wasDomFullscreen = Boolean(doc.fullscreenElement);
   const cancelSelection = () =>
     doc.defaultView?.dispatchEvent(
@@ -74,7 +82,6 @@ async function cropFrozenFrame(
       windowId: opener.windowId,
     });
     previousTab = active?.id;
-    previousWindow = (await chrome.windows.getLastFocused()).id;
     frame = await freezeSharedFrame(video, null, { signal: options.signal });
     await options.clearBubble?.prepareSelection?.();
     options.signal?.throwIfAborted();
@@ -90,6 +97,7 @@ async function cropFrozenFrame(
     // Freeze first: activating the opener earlier would capture our own UI.
     foregroundChanged = true;
     await chrome.tabs.update(opener.id, { active: true });
+    await chrome.windows.update(opener.windowId, { focused: true });
     // Fullscreen belongs to the opener, never the small Document PiP window.
     try {
       if (!wasDomFullscreen) {
@@ -107,7 +115,20 @@ async function cropFrozenFrame(
         native.state === "fullscreen" &&
         (native.width || 0) >= window.screen.width &&
         (native.height || 0) >= window.screen.height;
-      if (fillsScreen(await chrome.windows.get(opener.windowId))) {
+      let native = await chrome.windows.get(opener.windowId);
+      // requestFullscreen resolves before Chrome publishes settled native
+      // bounds. Let that transition finish before attempting a second one.
+      const domDeadline = performance.now() + 400;
+      while (
+        doc.fullscreenElement &&
+        !fillsScreen(native) &&
+        performance.now() < domDeadline
+      ) {
+        options.signal?.throwIfAborted();
+        await new Promise((resolve) => window.setTimeout(resolve, 40));
+        native = await chrome.windows.get(opener.windowId);
+      }
+      if (fillsScreen(native)) {
         await chrome.windows.update(opener.windowId, { focused: true });
       } else {
         if (!wasDomFullscreen && doc.fullscreenElement)
@@ -166,6 +187,20 @@ async function cropFrozenFrame(
       labels,
       frame.width / image.getBoundingClientRect().width,
     );
+    // Chrome can consume the first Escape while exiting native fullscreen,
+    // without dispatching a DOM key or fullscreenchange event. Observe that
+    // native transition rather than requiring a second Escape.
+    const nativeChanged = (native: chrome.windows.Window) => {
+      if (
+        native.id === browserWindow?.id &&
+        native.state &&
+        native.state !== "fullscreen"
+      )
+        cancelSelection();
+    };
+    chrome.windows.onBoundsChanged?.addListener(nativeChanged);
+    stopNativeObserver = () =>
+      chrome.windows.onBoundsChanged?.removeListener(nativeChanged);
     options.clearBubble?.relaySelection?.(host);
     const rect = await selection;
     options.signal?.throwIfAborted();
@@ -196,6 +231,7 @@ async function cropFrozenFrame(
       throw new Error("crop_fullscreen_denied");
     throw error;
   } finally {
+    stopNativeObserver?.();
     options.signal?.removeEventListener("abort", cancelSelection);
     // Record focus before native restoration can activate the opener. If the
     // user moved to another Chrome window during selection, keep that window.

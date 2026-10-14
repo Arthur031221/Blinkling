@@ -50,12 +50,19 @@ describe("native Blink placement", () => {
     await placeBubbleWindow(floating, { edge: "bottom", y: 0.5 }, () => true);
     expect(update.mock.calls).toEqual([
       [3, { width: 80, height: 110 }],
-      [3, { left: 1752, top: 740 }],
+      [3, { left: 1876, top: 740 }],
     ]);
     update.mockClear();
     await placeBubbleWindow(floating, { edge: "right", y: 0.4 }, () => true);
-    expect(update).toHaveBeenLastCalledWith(3, { left: 1752, top: 315 });
+    expect(update).toHaveBeenLastCalledWith(3, { left: 1876, top: 315 });
   });
+
+  it("tucks half of Chrome's minimum rectangle off screen with Blink in the visible half", async () => {
+    const { floating, update } = fixture();
+    await placeBubbleWindow(floating, { edge: "bottom", y: 0.5 }, () => true);
+    expect(update).toHaveBeenLastCalledWith(3, { left: 1876, top: 740 });
+  });
+
   it("restores the previous position without changing another window", async () => {
     const { floating, update } = fixture();
     await placeBubbleWindow(floating, { left: 1250, top: 200 }, () => true);
@@ -68,7 +75,7 @@ describe("native Blink placement", () => {
       { edge: "right", y: 0.3960937261581421 },
       () => true,
     );
-    expect(update).toHaveBeenLastCalledWith(3, { left: 1752, top: 312 });
+    expect(update).toHaveBeenLastCalledWith(3, { left: 1876, top: 312 });
     update.mockClear();
     await placeBubbleWindow(floating, { left: 1250.4, top: 200.7 }, () => true);
     expect(update).toHaveBeenLastCalledWith(3, { left: 1250, top: 201 });

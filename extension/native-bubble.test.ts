@@ -200,6 +200,19 @@ describe("native monitor clearance", () => {
     };
   }
 
+  it("leaves every native pixel and hit target clear for the whole compatibility crop", async () => {
+    vi.stubGlobal("navigator", { userActivation: { isActive: true } });
+    forbidMinimize();
+    const fallback = replacement();
+    const hook = nativeBubbleClearance(floating, fallback);
+    await hook.hide();
+    await hook.prepareSelection!();
+    expect(floating.closed).toBe(true);
+    expect(fallback.open).not.toHaveBeenCalled();
+    await hook.restore();
+    expect(fallback.open).toHaveBeenCalledOnce();
+  });
+
   it("automatically reopens with the original placement when Chrome forbids minimizing", async () => {
     vi.stubGlobal("navigator", { userActivation: { isActive: true } });
     forbidMinimize();
@@ -214,7 +227,7 @@ describe("native monitor clearance", () => {
     expect(fallback.next.document.body.style.opacity).toBe("0.75");
   });
 
-  it("reopens before fullscreen and survives cancellation after activation expires", async () => {
+  it("keeps selection clear and restores a surface after activation expires", async () => {
     const activation = { isActive: true };
     vi.stubGlobal("navigator", { userActivation: activation });
     forbidMinimize();
@@ -222,8 +235,8 @@ describe("native monitor clearance", () => {
     const hook = nativeBubbleClearance(floating, fallback);
     await hook.hide();
     await hook.prepareSelection!();
-    expect(fallback.open).toHaveBeenCalledOnce();
-    expect(fallback.next.document.body.style.opacity).toBe("0.25");
+    expect(fallback.open).not.toHaveBeenCalled();
+    expect(floating.closed).toBe(true);
     activation.isActive = false;
     await hook.restore();
     expect(fallback.open).toHaveBeenCalledOnce();
