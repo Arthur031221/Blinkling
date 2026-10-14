@@ -1,7 +1,7 @@
 const fs = process.getBuiltinModule("node:fs");
 const args = process.argv.slice(2);
 const prompt = args[args.indexOf("-p") + 1] || "";
-const record = process.env.GLIMPSELET_MOCK_RECORD;
+const record = process.env.BLINKLING_MOCK_RECORD;
 if (record)
   fs.appendFileSync(
     record,

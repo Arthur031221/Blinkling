@@ -20,7 +20,7 @@ import en from "../extension/locales/en.json" with { type: "json" };
 // Public-site recordings use the shipped UI and the logged-in CLI provider.
 // CI's offline recording remains scripts/record-demo.mjs. Nothing here replaces
 // page content, model responses or guide steps with fixtures.
-if (!process.env.GLIMPSELET_REAL_RECORD_DISPLAY) {
+if (!process.env.BLINKLING_REAL_RECORD_DISPLAY) {
   const result = spawnSync(
     "xvfb-run",
     [
@@ -34,15 +34,15 @@ if (!process.env.GLIMPSELET_REAL_RECORD_DISPLAY) {
     ],
     {
       stdio: "inherit",
-      env: { ...process.env, GLIMPSELET_REAL_RECORD_DISPLAY: "1" },
+      env: { ...process.env, BLINKLING_REAL_RECORD_DISPLAY: "1" },
     },
   );
   process.exit(result.status ?? 1);
 }
 const extension = resolve("bin/extension");
-const temp = await mkdtemp(join(tmpdir(), "glimpselet-real-demo-"));
+const temp = await mkdtemp(join(tmpdir(), "blinkling-real-demo-"));
 const evidence = resolve(
-  process.env.GLIMPSELET_RECORD_EVIDENCE || "test-results/real-demos",
+  process.env.BLINKLING_RECORD_EVIDENCE || "test-results/real-demos",
 );
 await mkdir(evidence, { recursive: true });
 const wm = spawn("xfwm4", ["--sm-client-disable", "--compositor=off"], {
@@ -118,7 +118,7 @@ async function screenshot(name) {
 }
 try {
   context = await chromium.launchPersistentContext(join(temp, "profile"), {
-    channel: process.env.GLIMPSELET_RECORD_BROWSER || "chromium",
+    channel: process.env.BLINKLING_RECORD_BROWSER || "chromium",
     headless: false,
     viewport: null,
     ignoreDefaultArgs: ["--disable-extensions"],
@@ -297,7 +297,7 @@ t.XTestFakeButtonEvent(d,1,1,0);t.XTestFakeButtonEvent(d,1,0,0);x.XFlush(d)
         .click();
       await hold(2500);
       end();
-      const guide = site.locator("[data-glimpselet-overlay] .guide");
+      const guide = site.locator("[data-blinkling-overlay] .guide");
       await expect(guide).toBeVisible({ timeout: 180000 });
       await ready();
       const placeBesideGuide = async () => {
@@ -359,14 +359,14 @@ t.XTestFakeButtonEvent(d,1,1,0);t.XTestFakeButtonEvent(d,1,0,0);x.XFlush(d)
           document.dispatchEvent(new Event("selectionchange"));
         });
         await expect(
-          site.locator("[data-glimpselet-overlay] .popover"),
+          site.locator("[data-blinkling-overlay] .popover"),
         ).toBeVisible();
       };
       await hold();
       await select();
       await hold(1600);
       await site
-        .locator("[data-glimpselet-overlay] .popover")
+        .locator("[data-blinkling-overlay] .popover")
         .getByRole("button", { name: "Ask", exact: true })
         .click();
       await expect(bubble.locator(".composer textarea")).not.toHaveValue("");
@@ -390,7 +390,7 @@ t.XTestFakeButtonEvent(d,1,1,0);t.XTestFakeButtonEvent(d,1,0,0);x.XFlush(d)
       await select();
       await hold(1600);
       await site
-        .locator("[data-glimpselet-overlay] .popover")
+        .locator("[data-blinkling-overlay] .popover")
         .getByRole("button", { name: /^Translate(?: selected text)?$/ })
         .click();
       await hold(1800);

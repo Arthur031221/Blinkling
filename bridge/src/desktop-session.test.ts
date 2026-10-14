@@ -26,7 +26,7 @@ async function setup(
   send: (turn: Turn, emit: (event: Event) => void) => Promise<void>,
 ) {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-provider-"));
-  vi.stubEnv("GLIMPSELET_RUNTIME_DIR", directory);
+  vi.stubEnv("BLINKLING_RUNTIME_DIR", directory);
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
   const listeners = new Set<(event: Event) => void>();
   const emit = (event: Event) => {
@@ -175,7 +175,7 @@ it("reports a running desktop only after a live status ping", async () => {
 it("ignores and removes a stale endpoint left by a Blink that quit", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-stale-"));
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
-  vi.stubEnv("GLIMPSELET_RUNTIME_DIR", directory);
+  vi.stubEnv("BLINKLING_RUNTIME_DIR", directory);
   await plant(directory, await closedPort());
   expect(await desktopRunning()).toBeUndefined();
   expect(await exists(join(directory, "desktop.json"))).toBe(false);
@@ -184,14 +184,14 @@ it("ignores and removes a stale endpoint left by a Blink that quit", async () =>
 it("does not treat the enabled marker alone as a running desktop", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-enabled-"));
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
-  vi.stubEnv("GLIMPSELET_RUNTIME_DIR", directory);
+  vi.stubEnv("BLINKLING_RUNTIME_DIR", directory);
   await writeFile(join(directory, "enabled.json"), '{"enabled":true}');
   expect(await desktopStatePresent()).toBe(false);
 });
 it("gives up on an endpoint that accepts connections but never answers, without deleting it", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-hung-"));
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
-  vi.stubEnv("GLIMPSELET_RUNTIME_DIR", directory);
+  vi.stubEnv("BLINKLING_RUNTIME_DIR", directory);
   const sockets = new Set<import("node:net").Socket>();
   const server = createServer((socket) => sockets.add(socket));
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -209,7 +209,7 @@ it("a deliberate shutdown request turns the enabled marker off so the extension 
   const shutdown = vi.fn();
   const directory = await mkdtemp(join(tmpdir(), "glimpse-shutdown-"));
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
-  vi.stubEnv("GLIMPSELET_RUNTIME_DIR", directory);
+  vi.stubEnv("BLINKLING_RUNTIME_DIR", directory);
   await writeFile(join(directory, "enabled.json"), '{"enabled":true}');
   const host = await startDesktopHost({
     directory,

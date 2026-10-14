@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { png } from "./image.mjs";
 import { PNG } from "pngjs";
 export const report =
-  process.env.GLIMPSELET_REPORT_DIR ??
+  process.env.BLINKLING_REPORT_DIR ??
   fileURLToPath(
     new URL("../../../test-results/conversation-artifacts/", import.meta.url),
   );
@@ -23,7 +23,7 @@ export async function launch(scale = 1) {
     ],
     env: {
       ...process.env,
-      GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "0",
+      BLINKLING_REMOTE: process.env.BLINKLING_REMOTE ?? "0",
     },
   });
   const card = await app.firstWindow();

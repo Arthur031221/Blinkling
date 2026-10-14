@@ -1,6 +1,6 @@
 # Desktop launcher and optional browser companion
 
-`/glimpselet:glimpse` calls `desktop_open`. The launcher consumes only the release
+`/blinkling:blinkling` calls `desktop_open`. The launcher consumes only the release
 manifest embedded in this plugin. SessionStart reconnects after the first
 successful launch; neither path asks for a port, pairing code, browser extension,
 or Claude startup flag.
@@ -18,7 +18,7 @@ rejects unsafe archive paths and links, stages in a private versioned cache,
 and verifies the complete extracted inventory on reuse. Corrupted cache files
 are repaired from the verified archive. Startup promotes `current.json` only
 after authenticated discovery and preserves the earlier release on failure.
-macOS uses the stable `~/Applications/Glimpselet.app` bundle path, checks the
+macOS uses the stable `~/Applications/Blinkling.app` bundle path, checks the
 newly extracted bundle's signature, and limits quarantine handling to that
 owned bundle. Native signing, Gatekeeper, SmartScreen and permission behavior
 still require native release verification.
@@ -31,7 +31,7 @@ the lock. Browser origins and incorrect Host headers are rejected. No Claude
 credentials enter the renderer or companion protocol.
 
 The session bucket must call
-`globalThis.glimpseletCompanion.attachSession(sessionBridge)` with its one durable
+`globalThis.blinklingCompanion.attachSession(sessionBridge)` with its one durable
 public SessionBridge. The companion never spawns or resumes a Claude child.
 It subscribes before admitting a UUID turn, preserves image content, applies
 model/effort only after acknowledgement, and interrupts only its admitted turn.
@@ -39,7 +39,7 @@ Once desktop activation is saved, disconnects produce a reconnecting error
 instead of creating an independent browser AI session. Existing V2 behavior
 remains available on installations that have never activated the desktop.
 
-The capture bucket calls `globalThis.glimpseletCompanion.fullPage(signal)`.
+The capture bucket calls `globalThis.blinklingCompanion.fullPage(signal)`.
 Successful captures include PNG content, dimensions, timestamp and optional
 page context; convert them into the CaptureService's display/region snapshot.
 `{ companionRequired: true }` means the UI should offer
@@ -58,4 +58,4 @@ last tiles paint only previously uncovered pixels.
 Verify with Node 24: `npm test`, `npm run desktop:check`, `npm run build:plugin`,
 `npm run test:plugin`, plugin validation, and `npm run test:extension`.
 The new `e2e-extension/desktop-companion.spec.ts` runs real Electron and Chrome
-under Xvfb and accepts `GLIMPSELET_TEST_EXECUTABLE` for a packaged app.
+under Xvfb and accepts `BLINKLING_TEST_EXECUTABLE` for a packaged app.

@@ -25,7 +25,7 @@ const tableAnswer = (link = false) =>
 
 async function sharedStreamingPanel(page: Page) {
   await page.addInitScript(() => {
-    Object.assign(window, { __glimpseletSession: "markdown-test-session" });
+    Object.assign(window, { __blinklingSession: "markdown-test-session" });
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: {
@@ -161,8 +161,7 @@ test("Markdown tables render in answers, pins, and history without page overflow
   expect(
     await page.evaluate(
       () =>
-        (window as Window & { __glimpseletSession?: string })
-          .__glimpseletSession,
+        (window as Window & { __blinklingSession?: string }).__blinklingSession,
     ),
   ).toBe("markdown-test-session");
 

@@ -74,24 +74,24 @@ const LINK_LABELS = {
 };
 
 const STORE_PAIR_STEP = {
-  en: "Open the store link above and add Glimpselet, then return to the welcome guide to pair. If Claude Code is remote, run the guide's SSH command on the computer with your browser.",
-  de: "Öffne den Store-Link oben und füge Glimpselet hinzu. Kehre dann zur Willkommensanleitung zurück, um die Verbindung herzustellen. Läuft Claude Code auf einem entfernten Rechner, führe den SSH-Befehl der Anleitung auf dem Computer mit deinem Browser aus.",
-  es: "Abre el enlace de la tienda de arriba y añade Glimpselet. Vuelve a la guía de bienvenida para vincularlo. Si Claude Code está en un equipo remoto, ejecuta el comando SSH de la guía en el equipo con tu navegador.",
-  fr: "Ouvrez le lien de la boutique ci-dessus et ajoutez Glimpselet, puis revenez au guide de bienvenue pour l'associer. Si Claude Code est distant, exécutez la commande SSH du guide sur l'ordinateur avec votre navigateur.",
-  ja: "上のストアリンクを開いて Glimpselet を追加し、ウェルカムガイドに戻ってペアリングします。Claude Code がリモートで動いている場合は、ブラウザーのある端末でガイドの SSH コマンドを実行してください。",
-  ko: "위 스토어 링크에서 Glimpselet을 추가한 후 시작 안내로 돌아와 페어링합니다. Claude Code가 원격 호스트에서 실행 중이면 브라우저가 있는 컴퓨터에서 안내의 SSH 명령을 실행하세요.",
+  en: "Open the store link above and add Blinkling, then return to the welcome guide to pair. If Claude Code is remote, run the guide's SSH command on the computer with your browser.",
+  de: "Öffne den Store-Link oben und füge Blinkling hinzu. Kehre dann zur Willkommensanleitung zurück, um die Verbindung herzustellen. Läuft Claude Code auf einem entfernten Rechner, führe den SSH-Befehl der Anleitung auf dem Computer mit deinem Browser aus.",
+  es: "Abre el enlace de la tienda de arriba y añade Blinkling. Vuelve a la guía de bienvenida para vincularlo. Si Claude Code está en un equipo remoto, ejecuta el comando SSH de la guía en el equipo con tu navegador.",
+  fr: "Ouvrez le lien de la boutique ci-dessus et ajoutez Blinkling, puis revenez au guide de bienvenue pour l'associer. Si Claude Code est distant, exécutez la commande SSH du guide sur l'ordinateur avec votre navigateur.",
+  ja: "上のストアリンクを開いて Blinkling を追加し、ウェルカムガイドに戻ってペアリングします。Claude Code がリモートで動いている場合は、ブラウザーのある端末でガイドの SSH コマンドを実行してください。",
+  ko: "위 스토어 링크에서 Blinkling을 추가한 후 시작 안내로 돌아와 페어링합니다. Claude Code가 원격 호스트에서 실행 중이면 브라우저가 있는 컴퓨터에서 안내의 SSH 명령을 실행하세요.",
   "pt-BR":
-    "Abra o link da loja acima e adicione o Glimpselet. Volte ao guia de boas-vindas para parear. Se o Claude Code estiver em um host remoto, execute o comando SSH do guia no computador com seu navegador.",
+    "Abra o link da loja acima e adicione o Blinkling. Volte ao guia de boas-vindas para parear. Se o Claude Code estiver em um host remoto, execute o comando SSH do guia no computador com seu navegador.",
   "zh-CN":
-    "打开上方商店链接并添加 Glimpselet，再回到欢迎指南配对。如果 Claude Code 在远程主机上运行，请在浏览器所在的电脑执行指南中的 SSH 命令。",
+    "打开上方商店链接并添加 Blinkling，再回到欢迎指南配对。如果 Claude Code 在远程主机上运行，请在浏览器所在的电脑执行指南中的 SSH 命令。",
   "zh-TW":
-    "開啟上方商店連結並加入 Glimpselet，再回到歡迎指南配對。如果 Claude Code 在遠端主機執行，請在瀏覽器所在的電腦執行指南中的 SSH 指令。",
+    "開啟上方商店連結並加入 Blinkling，再回到歡迎指南配對。如果 Claude Code 在遠端主機執行，請在瀏覽器所在的電腦執行指南中的 SSH 指令。",
 };
 const UNPACKED_LIMIT =
   /developer banner|Entwicklermodus-Hinweis|Updates erfolgen manuell|bannière de développement|aviso de desarrollador|開発者向け|開發者提示|开发者提示|개발자 배너|aviso de desenvolvedor|atualizações.*manuais|mises à jour.*manuelles/i;
 
-const BLOCK_START = "<!-- glimpselet-store-install:start -->";
-const BLOCK_END = "<!-- glimpselet-store-install:end -->";
+const BLOCK_START = "<!-- blinkling-store-install:start -->";
+const BLOCK_END = "<!-- blinkling-store-install:end -->";
 const WARNING_MARKER =
   /(?:developer mode|entwicklermodus|mode développeur|modo de desarrollador|デベロッパーモード|개발자 모드|modo de desenvolvedor|开发者模式|開發人員模式)/i;
 const ALLOWED_HOSTS = {

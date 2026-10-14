@@ -14,14 +14,14 @@ import {
 import en from "../extension/locales/en.json" with { type: "json" };
 
 const here = resolve(".");
-const publicMode = process.env.GLIMPSELET_RECORD_PUBLIC === "1";
+const publicMode = process.env.BLINKLING_RECORD_PUBLIC === "1";
 const publicUrl = "https://github.com/microsoft/TypeScript";
-const browserChannel = process.env.GLIMPSELET_RECORD_BROWSER || "chromium";
-if (!process.env.GLIMPSELET_RECORD_IN_XVFB) {
+const browserChannel = process.env.BLINKLING_RECORD_BROWSER || "chromium";
+if (!process.env.BLINKLING_RECORD_IN_XVFB) {
   const childEnv = { ...process.env };
   delete childEnv.DISPLAY;
   delete childEnv.SSH_CONNECTION;
-  childEnv.GLIMPSELET_RECORD_IN_XVFB = "1";
+  childEnv.BLINKLING_RECORD_IN_XVFB = "1";
   const result = spawnSync(
     "xvfb-run",
     [
@@ -38,14 +38,14 @@ if (!process.env.GLIMPSELET_RECORD_IN_XVFB) {
 }
 
 const extension = resolve(
-  process.env.GLIMPSELET_EXTENSION_DIR || "dist-extension",
+  process.env.BLINKLING_EXTENSION_DIR || "dist-extension",
 );
 const fixtureFile = resolve("e2e-extension/fixture.html");
 const mockCli = resolve("e2e-extension/mock-claude.cjs");
 const output = resolve("assets/demo.gif");
 const shots = resolve("assets/screenshots");
 const store = resolve("assets/store");
-const temp = await mkdtemp(join(tmpdir(), "glimpselet-record-"));
+const temp = await mkdtemp(join(tmpdir(), "blinkling-record-"));
 const videoFile = join(temp, "desktop.mp4");
 const profile = join(temp, "profile");
 const screen = process.env.DISPLAY;
@@ -282,7 +282,7 @@ await mkdir(shots, { recursive: true });
 await mkdir(store, { recursive: true });
 if (!screen) throw new Error("A display is required. Run through xvfb-run.");
 if (!process.env.DISPLAY) throw new Error("Xvfb did not provide DISPLAY.");
-if (process.env.GLIMPSELET_RECORD_IN_XVFB) {
+if (process.env.BLINKLING_RECORD_IN_XVFB) {
   windowManager = spawn("xfwm4", ["--sm-client-disable", "--compositor=off"], {
     stdio: "ignore",
   });
@@ -458,10 +458,10 @@ try {
       videoFile,
     ]);
 
-  const guide = sitePage.locator("[data-glimpselet-overlay] .guide");
+  const guide = sitePage.locator("[data-blinkling-overlay] .guide");
   await appPage.locator(".composer button.send").waitFor();
   const pageContext = await worker.evaluate(
-    (tabId) => chrome.tabs.sendMessage(tabId, { type: "glimpselet:context" }),
+    (tabId) => chrome.tabs.sendMessage(tabId, { type: "blinkling:context" }),
     sourceTabId,
   );
   const exportTarget =
@@ -484,7 +484,7 @@ try {
   await worker.evaluate(
     ({ tabId, target, publicMode }) =>
       chrome.tabs.sendMessage(tabId, {
-        type: "glimpselet:guide",
+        type: "blinkling:guide",
         steps: [
           {
             elementId: target.id,
@@ -661,7 +661,7 @@ try {
     await worker.evaluate(
       ({ tabId, target }) =>
         chrome.tabs.sendMessage(tabId, {
-          type: "glimpselet:guide",
+          type: "blinkling:guide",
           steps: [
             {
               elementId: target.id,
@@ -711,7 +711,7 @@ try {
     await sitePage.keyboard.down("Shift");
     await sitePage.waitForTimeout(230);
     await sitePage.keyboard.up("Shift");
-    const cropSurface = sitePage.locator("[data-glimpselet-crop] .surface");
+    const cropSurface = sitePage.locator("[data-blinkling-crop] .surface");
     await expect(cropSurface).toBeVisible({ timeout: 8000 });
     const cropBox = await cropSurface.boundingBox();
     if (!cropBox) throw new Error("Page crop surface has no visible geometry.");
@@ -720,7 +720,7 @@ try {
     await sitePage.mouse.move(cropBox.x + 340, cropBox.y + 260, { steps: 8 });
     await sitePage.mouse.up();
     await expect(
-      sitePage.locator("[data-glimpselet-crop] [data-handle]"),
+      sitePage.locator("[data-blinkling-crop] [data-handle]"),
     ).toHaveCount(8);
     await keepScene(700);
     await sitePage.keyboard.press("Enter");
@@ -792,7 +792,7 @@ try {
     await page.setViewportSize({ width: 1200, height: 675 });
     const image = `data:image/png;base64,${(await readFile(join(store, "floating.png"))).toString("base64")}`;
     await page.setContent(
-      `<html><head><style>*{box-sizing:border-box}body{margin:0;width:1200px;height:675px;background:#f4f0e8;color:#292720;font-family:Inter,Arial,sans-serif;display:flex;align-items:center;gap:45px;padding:58px 68px}.copy{width:590px}.eyebrow{color:#805c48;text-transform:uppercase;letter-spacing:.12em;font-size:14px}h1{font:500 76px Georgia,serif;letter-spacing:-3px;margin:25px 0 14px}.tag{font-size:28px;line-height:1.35;color:#565047}.steps{display:flex;gap:10px;margin-top:30px}.steps span{border:1px solid #d8cebf;border-radius:18px;padding:9px 14px;font-size:14px}.privacy{margin-top:40px;color:#766b5e;font-size:14px}.shot{width:420px;height:525px;object-fit:cover;object-position:left top;border:1px solid #d4cab9;border-radius:18px;box-shadow:0 24px 55px #37291f2a}</style></head><body><section class="copy"><div class="eyebrow">A page and a small question</div><h1>Glimpselet</h1><div class="tag">Ask about what you see.<br>Keep the answer beside it.</div><div class="steps"><span>Share</span><span>Ask</span><span>Keep close</span></div><p class="privacy">Local bridge connection · no telemetry</p></section><img class="shot" src="${image}" alt="Captured Glimpselet extension window"></body></html>`,
+      `<html><head><style>*{box-sizing:border-box}body{margin:0;width:1200px;height:675px;background:#f4f0e8;color:#292720;font-family:Inter,Arial,sans-serif;display:flex;align-items:center;gap:45px;padding:58px 68px}.copy{width:590px}.eyebrow{color:#805c48;text-transform:uppercase;letter-spacing:.12em;font-size:14px}h1{font:500 76px Georgia,serif;letter-spacing:-3px;margin:25px 0 14px}.tag{font-size:28px;line-height:1.35;color:#565047}.steps{display:flex;gap:10px;margin-top:30px}.steps span{border:1px solid #d8cebf;border-radius:18px;padding:9px 14px;font-size:14px}.privacy{margin-top:40px;color:#766b5e;font-size:14px}.shot{width:420px;height:525px;object-fit:cover;object-position:left top;border:1px solid #d4cab9;border-radius:18px;box-shadow:0 24px 55px #37291f2a}</style></head><body><section class="copy"><div class="eyebrow">A page and a small question</div><h1>Blinkling</h1><div class="tag">Ask about what you see.<br>Keep the answer beside it.</div><div class="steps"><span>Share</span><span>Ask</span><span>Keep close</span></div><p class="privacy">Local bridge connection · no telemetry</p></section><img class="shot" src="${image}" alt="Captured Blinkling extension window"></body></html>`,
     );
     await page.screenshot({ path: resolve("assets/social-card.png") });
     await page.close();
@@ -803,7 +803,7 @@ try {
     await page.setViewportSize({ width: 440, height: 280 });
     const image = `data:image/png;base64,${(await readFile(join(store, "floating.png"))).toString("base64")}`;
     await page.setContent(
-      `<html><head><style>*{box-sizing:border-box}body{margin:0;width:440px;height:280px;overflow:hidden;background:#f4f0e8;color:#292720;font-family:Arial,sans-serif;padding:25px 24px;position:relative}.eyebrow{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#805c48}h1{font:500 36px Georgia,serif;margin:14px 0 8px}.tag{font-size:14px;line-height:1.38;color:#565047;width:200px}.shot{position:absolute;right:18px;top:26px;width:178px;height:222px;object-fit:cover;object-position:left top;border:1px solid #d4cab9;border-radius:11px;box-shadow:0 12px 24px #37291f26}.line{position:absolute;left:24px;bottom:28px;font-size:9px;color:#766b5e;letter-spacing:.04em}</style></head><body><div class="eyebrow">A browser companion</div><h1>Glimpselet</h1><div class="tag">Ask about a page.<br>Keep the answer beside it.</div><img class="shot" src="${image}" alt="Glimpselet browser screenshot"><div class="line">Your page stays in view.</div></body></html>`,
+      `<html><head><style>*{box-sizing:border-box}body{margin:0;width:440px;height:280px;overflow:hidden;background:#f4f0e8;color:#292720;font-family:Arial,sans-serif;padding:25px 24px;position:relative}.eyebrow{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#805c48}h1{font:500 36px Georgia,serif;margin:14px 0 8px}.tag{font-size:14px;line-height:1.38;color:#565047;width:200px}.shot{position:absolute;right:18px;top:26px;width:178px;height:222px;object-fit:cover;object-position:left top;border:1px solid #d4cab9;border-radius:11px;box-shadow:0 12px 24px #37291f26}.line{position:absolute;left:24px;bottom:28px;font-size:9px;color:#766b5e;letter-spacing:.04em}</style></head><body><div class="eyebrow">A browser companion</div><h1>Blinkling</h1><div class="tag">Ask about a page.<br>Keep the answer beside it.</div><img class="shot" src="${image}" alt="Blinkling browser screenshot"><div class="line">Your page stays in view.</div></body></html>`,
     );
     await page.screenshot({ path: join(store, "promo.png") });
     await page.close();

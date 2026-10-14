@@ -396,7 +396,7 @@ describe("bounded page context", () => {
 
   it("ignores hidden nodes and the extension overlay", () => {
     document.body.innerHTML =
-      "<p>Visible</p><p hidden>Hidden words</p><div data-glimpselet-overlay><p>Overlay words</p></div>";
+      "<p>Visible</p><p hidden>Hidden words</p><div data-blinkling-overlay><p>Overlay words</p></div>";
     const context = buildPageContext(document);
     expect(context.text).toContain("Visible");
     expect(context.text).not.toMatch(/Hidden|Overlay/);
@@ -411,7 +411,7 @@ describe("bounded page context", () => {
 
   it("limits PDF context to the rendered page with stable selectable text ids", () => {
     document.body.innerHTML =
-      '<button>Reader toolbar</button><section data-glimpselet-reader-page><div class="pdf-text-layer"><span role="presentation">Paper title</span><span role="presentation">Section text</span></div></section>';
+      '<button>Reader toolbar</button><section data-blinkling-reader-page><div class="pdf-text-layer"><span role="presentation">Paper title</span><span role="presentation">Section text</span></div></section>';
     const context = buildPageContext(document);
     expect(
       context.elements.every((element) => element.role === "paragraph"),

@@ -41,10 +41,10 @@ afterEach(async () => {
 async function setup(
   options: ConstructorParameters<typeof PanelServer>[1] = {},
 ) {
-  process.env.GLIMPSELET_DISABLE_BROWSER_OPEN = "1";
+  process.env.BLINKLING_DISABLE_BROWSER_OPEN = "1";
   const history = new CaptureHistory();
   const panel = await new PanelServer(history, {
-    panelDir: "/tmp/glimpselet-panel-tests",
+    panelDir: "/tmp/blinkling-panel-tests",
     ...options,
   }).start();
   panels.push(panel);
@@ -373,12 +373,12 @@ describe("PanelServer HTTP integration", () => {
 describe("PanelServer trial browser pairing", () => {
   async function fixture(now = Date.now) {
     vi.stubEnv("SSH_CONNECTION", undefined);
-    const directory = await mkdtemp(join(tmpdir(), "glimpselet-trial-pair-"));
+    const directory = await mkdtemp(join(tmpdir(), "blinkling-trial-pair-"));
     const launches = join(directory, "launches.txt");
     await writeFile(
       join(directory, "launch-browser.mjs"),
       `import { appendFileSync } from "node:fs";
-appendFileSync(${JSON.stringify(launches)}, process.env.GLIMPSELET_TRIAL_URL + "\\n");
+appendFileSync(${JSON.stringify(launches)}, process.env.BLINKLING_TRIAL_URL + "\\n");
 setInterval(() => {}, 1000);
 `,
     );
@@ -404,7 +404,7 @@ setInterval(() => {}, 1000);
     async () => {
       let now = 1000;
       const { panel, extension } = await fixture(() => now);
-      const directory = await mkdtemp(join(tmpdir(), "glimpselet-reveal-"));
+      const directory = await mkdtemp(join(tmpdir(), "blinkling-reveal-"));
       fixtureCleanup.push(() =>
         rm(directory, { recursive: true, force: true }),
       );
@@ -645,7 +645,7 @@ describe("PanelServer WebSocket capture ownership", () => {
     const { session } = await createSession(panel, token);
     const socket = new WebSocket(
       `${panel.origin.replace("http", "ws")}/api/stream`,
-      ["glimpselet", session],
+      ["blinkling", session],
       { headers: { Origin: panel.origin } },
     );
     await new Promise<void>((resolve, reject) => {

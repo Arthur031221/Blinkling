@@ -65,10 +65,10 @@ No shared contract was edited by this bucket.
 From the repository root, with Node 24 in PATH:
 
 ```sh
-export GLIMPSELET_REPORT_DIR=/home/levi/oss-engine/reports/glimpse-v3/build-2
+export BLINKLING_REPORT_DIR=/home/levi/oss-engine/reports/glimpse-v3/build-2
 npm run desktop:test
 xvfb-run -a -s '-screen 0 1920x1440x24 +extension Composite' \
-  dbus-run-session -- bash -c 'xfwm4 --compositor=on >/tmp/glimpselet-conversation-wm.log 2>&1 & wm=$!; trap "kill $wm" EXIT; sleep 2; npx playwright test -c desktop/composer/e2e/playwright.config.mjs'
+  dbus-run-session -- bash -c 'xfwm4 --compositor=on >/tmp/blinkling-conversation-wm.log 2>&1 & wm=$!; trap "kill $wm" EXIT; sleep 2; npx playwright test -c desktop/composer/e2e/playwright.config.mjs'
 ```
 
 The normal suite has zero retries and needs no Claude account. It loads the
@@ -82,5 +82,5 @@ For the explicit logged-in CLI 2.1.296 canary, replace the configuration path wi
 Control session, confirms controls, sends two one-word prompts (image and text
 file), and terminates its child. It is separate so normal unit/CI runs never
 silently consume the user's Claude quota. No API key or credential access.
-Screenshots/evidence use `GLIMPSELET_REPORT_DIR`, defaulting to the ignored
+Screenshots/evidence use `BLINKLING_REPORT_DIR`, defaulting to the ignored
 `test-results/conversation-artifacts/` directory for portable local/CI runs.

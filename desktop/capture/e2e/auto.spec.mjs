@@ -11,7 +11,7 @@ test("auto explain samples the native desktop, pauses for real input and submits
     await app.evaluate(() => {
       const listeners = new Set();
       globalThis.b3AutoTurns = [];
-      globalThis.glimpseletTest.features.setSession({
+      globalThis.blinklingTest.features.setSession({
         subscribe: (f) => {
           listeners.add(f);
           return () => listeners.delete(f);
@@ -23,25 +23,25 @@ test("auto explain samples the native desktop, pauses for real input and submits
         stop: async () => {},
       });
     });
-    await blink.evaluate(() => window.glimpselet.action("auto-explain"));
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
+    await blink.evaluate(() => window.blinkling.action("auto-explain"));
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
     expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(0);
     await new Promise((r) => setTimeout(r, 3100));
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
     await app.evaluate(() =>
       globalThis.b3Background.webContents.executeJavaScript(
         "document.body.style.background='#e9d67d'",
       ),
     );
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
     expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(0);
     // An actual native keystroke resets the OS idle clock; no screen turn follows.
     native(30, 30, [97]);
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
     expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(0);
     await new Promise((r) => setTimeout(r, 3100));
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
     expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(1);
     const turn = await app.evaluate(() => globalThis.b3AutoTurns[0]);
     expect(turn.source).toBe("auto-explain");
@@ -65,12 +65,12 @@ test("auto explain samples the native desktop, pauses for real input and submits
         "document.body.style.background='#204080'",
       ),
     );
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
-    await app.evaluate(() => globalThis.glimpseletTest.features.auto.tick());
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
     expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(1);
-    await blink.evaluate(() => window.glimpselet.action("auto-explain"));
+    await blink.evaluate(() => window.blinkling.action("auto-explain"));
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.features.auto.enabled),
+      await app.evaluate(() => globalThis.blinklingTest.features.auto.enabled),
     ).toBe(false);
   } finally {
     await close();

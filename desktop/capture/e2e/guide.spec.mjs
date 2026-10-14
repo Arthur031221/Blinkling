@@ -25,7 +25,7 @@ test("Escape while a native guide loads cannot resurrect its window", async () =
     await background(app);
     native(30, 30);
     await app.evaluate(async ({ screen }) => {
-      const f = globalThis.glimpseletTest.features;
+      const f = globalThis.blinklingTest.features;
       const capture = await f.capture.screen(
         String(screen.getPrimaryDisplay().id),
         undefined,
@@ -43,7 +43,7 @@ test("Escape while a native guide loads cannot resurrect its window", async () =
     native(30, 30, [0xff1b]);
     expect(
       await app.evaluate(
-        () => !!globalThis.glimpseletTest.features.overlay.capture,
+        () => !!globalThis.blinklingTest.features.overlay.capture,
       ),
     ).toBe(false);
     expect(
@@ -54,7 +54,7 @@ test("Escape while a native guide loads cannot resurrect its window", async () =
     ).toBe(false);
     expect(
       await app.evaluate(
-        () => !!globalThis.glimpseletTest.features.overlay.window,
+        () => !!globalThis.blinklingTest.features.overlay.window,
       ),
     ).toBe(false);
     expect(await app.evaluate(() => globalThis.b3Background.isFocused())).toBe(
@@ -72,7 +72,7 @@ for (const scale of [1, 1.5, 2])
       native(30, 30);
       const page = await nextWindow(app, () =>
         app.evaluate(async ({ screen }) => {
-          const f = globalThis.glimpseletTest.features;
+          const f = globalThis.blinklingTest.features;
           const capture = await f.capture.screen(
             String(screen.getPrimaryDisplay().id),
             undefined,
@@ -268,17 +268,17 @@ for (const scale of [1, 1.5, 2])
           await app.evaluate(() => globalThis.b3Background.isFocused()),
         ).toBe(true);
         await app.evaluate(() =>
-          globalThis.b3Overlay.webContents.send("glimpselet:overlay:step", 0),
+          globalThis.b3Overlay.webContents.send("blinkling:overlay:step", 0),
         );
         await expect(page.locator(".label").nth(0)).toBeVisible();
         await expect(page.locator(".label").nth(1)).toBeHidden();
         await app.evaluate(() =>
-          globalThis.b3Overlay.webContents.send("glimpselet:overlay:step", 1),
+          globalThis.b3Overlay.webContents.send("blinkling:overlay:step", 1),
         );
         await expect(page.locator(".label").nth(0)).toBeHidden();
         await expect(page.locator(".label").nth(1)).toBeVisible();
         await app.evaluate(() =>
-          globalThis.b3Overlay.webContents.send("glimpselet:overlay:step", -1),
+          globalThis.b3Overlay.webContents.send("blinkling:overlay:step", -1),
         );
         await expect(page.locator(".label").nth(0)).toBeVisible();
         const timing = await page.evaluate(
@@ -341,13 +341,13 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     native(30, 30);
     await blink.evaluate(() => {
       window.guides = [];
-      window.glimpselet.onEvent((e) => {
+      window.blinkling.onEvent((e) => {
         if (e.type === "guide") window.guides.push(e);
       });
     });
     await app.evaluate(() => {
       let listener;
-      const f = globalThis.glimpseletTest.features;
+      const f = globalThis.blinklingTest.features;
       const model = {
         purpose: "This report explains the screen.",
         sections: [
@@ -393,7 +393,7 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     });
     const start = () =>
       blink.evaluate(() => {
-        void window.glimpselet.action("guide");
+        void window.blinkling.action("guide");
       });
     const guidePage = await nextWindow(app, start);
     await expect(guidePage.locator("body")).toHaveAttribute(
@@ -409,15 +409,15 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).phase))
       .toBe("overview");
-    await blink.evaluate(() => window.glimpselet.action("guide-next"));
+    await blink.evaluate(() => window.blinkling.action("guide-next"));
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).index))
       .toBe(0);
-    await blink.evaluate(() => window.glimpselet.action("guide-next"));
+    await blink.evaluate(() => window.blinkling.action("guide-next"));
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).index))
       .toBe(1);
-    await blink.evaluate(() => window.glimpselet.action("guide-back"));
+    await blink.evaluate(() => window.blinkling.action("guide-back"));
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).index))
       .toBe(0);
@@ -429,9 +429,7 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     );
     await expect
       .poll(() =>
-        app.evaluate(
-          () => !!globalThis.glimpseletTest.features.overlay.capture,
-        ),
+        app.evaluate(() => !!globalThis.blinklingTest.features.overlay.capture),
       )
       .toBe(false);
     await app.evaluate(() =>
@@ -443,9 +441,7 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     native(30, 30, [0xff1b]);
     await expect
       .poll(() =>
-        app.evaluate(
-          () => !!globalThis.glimpseletTest.features.overlay.capture,
-        ),
+        app.evaluate(() => !!globalThis.blinklingTest.features.overlay.capture),
       )
       .toBe(false);
     await nextWindow(app, start);
@@ -456,9 +452,7 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     );
     await expect
       .poll(() =>
-        app.evaluate(
-          () => !!globalThis.glimpseletTest.features.overlay.capture,
-        ),
+        app.evaluate(() => !!globalThis.blinklingTest.features.overlay.capture),
       )
       .toBe(false);
   } finally {
@@ -569,7 +563,7 @@ for (const scale of [1, 1.5, 2])
       }
     });
 
-const holdMs = Number(process.env.GLIMPSELET_GUIDE_HOLD_MS ?? 60000);
+const holdMs = Number(process.env.BLINKLING_GUIDE_HOLD_MS ?? 60000);
 test("guide stays on a static screen with streaming answer bubbles until the user ends it", async () => {
   test.setTimeout(holdMs + 60000);
   const { app, close } = await launch();
@@ -579,7 +573,7 @@ test("guide stays on a static screen with streaming answer bubbles until the use
     native(30, 30);
     await app.evaluate(() => {
       let listener;
-      const f = globalThis.glimpseletTest.features;
+      const f = globalThis.blinklingTest.features;
       globalThis.b3Dismissals = [];
       f.overlay.on("dismissed", (reason) =>
         globalThis.b3Dismissals.push(reason),
@@ -636,7 +630,7 @@ test("guide stays on a static screen with streaming answer bubbles until the use
     });
     const page = await nextWindow(app, () =>
       blink.evaluate(() => {
-        void window.glimpselet.action("guide");
+        void window.blinkling.action("guide");
       }),
     );
     await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
@@ -645,7 +639,7 @@ test("guide stays on a static screen with streaming answer bubbles until the use
     while (Date.now() < end) {
       // Answer bubbles keep arriving beside Blink while the screen is static.
       await app.evaluate((_e, i) => {
-        const send = globalThis.glimpseletTest.send;
+        const send = globalThis.blinklingTest.send;
         send({
           type: "message",
           id: `stream-${i}`,
@@ -661,11 +655,11 @@ test("guide stays on a static screen with streaming answer bubbles until the use
     }
     expect(
       await app.evaluate(
-        () => !!globalThis.glimpseletTest.features.overlay.capture,
+        () => !!globalThis.blinklingTest.features.overlay.capture,
       ),
     ).toBe(true);
     await desktopShot(app, "guide-held");
-    await blink.evaluate(() => window.glimpselet.action("guide-dismiss"));
+    await blink.evaluate(() => window.blinkling.action("guide-dismiss"));
     expect(await app.evaluate(() => globalThis.b3Dismissals)).toEqual(["user"]);
   } finally {
     await close();
@@ -673,7 +667,7 @@ test("guide stays on a static screen with streaming answer bubbles until the use
 });
 async function bubbleText(app) {
   return app.evaluate(() =>
-    globalThis.glimpseletTest.bubbles.webContents.executeJavaScript(
+    globalThis.blinklingTest.bubbles.webContents.executeJavaScript(
       "document.body.innerText",
     ),
   );
@@ -708,7 +702,7 @@ const twoStepModel = {
 };
 async function scriptedSession(app, replies) {
   await app.evaluate((_electron, replies) => {
-    const { features } = globalThis.glimpseletTest;
+    const { features } = globalThis.blinklingTest;
     let listener;
     globalThis.b3Sends = 0;
     features.setSession({
@@ -734,12 +728,12 @@ test("the last step is drawn, Blink closes the tour, and every control keeps wor
     native(30, 30);
     await blink.evaluate(() => {
       window.guides = [];
-      window.glimpselet.onEvent((e) => {
+      window.blinkling.onEvent((e) => {
         if (e.type === "guide") window.guides.push(e);
       });
     });
     await app.evaluate(() => {
-      const { features } = globalThis.glimpseletTest;
+      const { features } = globalThis.blinklingTest;
       globalThis.b3Dismissals = [];
       features.overlay.on("dismissed", (reason) =>
         globalThis.b3Dismissals.push(reason),
@@ -747,11 +741,11 @@ test("the last step is drawn, Blink closes the tour, and every control keeps wor
     });
     await scriptedSession(app, [JSON.stringify(twoStepModel)]);
     const act = (name) =>
-      blink.evaluate((n) => window.glimpselet.action(n), name);
+      blink.evaluate((n) => window.blinkling.action(n), name);
     const phase = () => blink.evaluate(() => window.guides.at(-1).phase);
     const drawn = () =>
       app.evaluate(
-        () => globalThis.glimpseletTest.features.overlay.drawings?.length ?? -1,
+        () => globalThis.blinklingTest.features.overlay.drawings?.length ?? -1,
       );
     await nextWindow(app, () => act("guide"));
     await expect.poll(phase).toBe("overview");
@@ -789,7 +783,7 @@ test("a failed guide turn shows a plain error with 再試一次 that reruns the 
     native(30, 30);
     await blink.evaluate(() => {
       window.guides = [];
-      window.glimpselet.onEvent((e) => {
+      window.blinkling.onEvent((e) => {
         if (e.type === "guide") window.guides.push(e);
       });
     });
@@ -798,7 +792,7 @@ test("a failed guide turn shows a plain error with 再試一次 that reruns the 
       JSON.stringify(twoStepModel),
     ]);
     const act = (name) =>
-      blink.evaluate((n) => window.glimpselet.action(n), name);
+      blink.evaluate((n) => window.blinkling.action(n), name);
     const phase = () => blink.evaluate(() => window.guides.at(-1).phase);
     await act("guide");
     await expect.poll(phase).toBe("error");

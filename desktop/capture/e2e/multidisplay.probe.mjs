@@ -47,7 +47,7 @@ for (const scale of [1, 1.5, 2]) {
       );
       owned.showInactive();
       globalThis.b3MultiOwned = owned;
-      const f = globalThis.glimpseletTest.features;
+      const f = globalThis.blinklingTest.features;
       const original = f.capture.guard.windows;
       f.capture.guard.windows = () => [...original(), owned];
       const originalOverlay = f.overlay.windows;
@@ -68,12 +68,12 @@ for (const scale of [1, 1.5, 2]) {
     for (const [i, display] of displays.entries()) {
       await app.evaluate(
         ({ screen }, id) =>
-          globalThis.glimpseletTest.setDisplay(
+          globalThis.blinklingTest.setDisplay(
             screen.getAllDisplays().find((d) => String(d.id) === id),
           ),
         display.id,
       );
-      await blink.evaluate(() => window.glimpselet.action("screen"));
+      await blink.evaluate(() => window.blinkling.action("screen"));
       const capture = await app.evaluate(() => globalThis.b3MultiCapture);
       assert.equal(capture.display.id, display.id);
       const bytes = Buffer.from(capture.image.data, "base64"),
@@ -122,7 +122,7 @@ for (const scale of [1, 1.5, 2]) {
         pixelHeight: image.height,
       });
       const shown = await app.evaluate(async () => {
-        const f = globalThis.glimpseletTest.features;
+        const f = globalThis.blinklingTest.features;
         await f.overlay.show(globalThis.b3MultiCapture, [
           {
             rect: { x: 20, y: 20, width: 260, height: 48 },
@@ -183,7 +183,7 @@ for (const scale of [1, 1.5, 2]) {
         await expect
           .poll(() =>
             app.evaluate(
-              () => !!globalThis.glimpseletTest.features.overlay.capture,
+              () => !!globalThis.blinklingTest.features.overlay.capture,
             ),
           )
           .toBe(false);
@@ -200,7 +200,7 @@ for (const scale of [1, 1.5, 2]) {
           .toBe(display.bounds.height);
       } else
         await app.evaluate(() =>
-          globalThis.glimpseletTest.features.overlay.dismiss(),
+          globalThis.blinklingTest.features.overlay.dismiss(),
         );
     }
     await writeFile(

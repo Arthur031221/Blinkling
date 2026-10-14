@@ -14,15 +14,15 @@ async function setup(floatingGeometryPath?: string | null) {
     floatingGeometryPath === undefined ? {} : { floatingGeometryPath },
   ).start();
   panels.push(panel);
-  const previous = process.env.GLIMPSELET_DISABLE_BROWSER_OPEN;
-  process.env.GLIMPSELET_DISABLE_BROWSER_OPEN = "1";
+  const previous = process.env.BLINKLING_DISABLE_BROWSER_OPEN;
+  process.env.BLINKLING_DISABLE_BROWSER_OPEN = "1";
   let launch: string;
   try {
     launch = await panel.openUrl();
   } finally {
     if (previous === undefined)
-      delete process.env.GLIMPSELET_DISABLE_BROWSER_OPEN;
-    else process.env.GLIMPSELET_DISABLE_BROWSER_OPEN = previous;
+      delete process.env.BLINKLING_DISABLE_BROWSER_OPEN;
+    else process.env.BLINKLING_DISABLE_BROWSER_OPEN = previous;
   }
   const token = /#([A-Za-z0-9_-]+)$/.exec(launch)![1]!;
   return { panel, token };
@@ -67,7 +67,7 @@ afterEach(async () => {
 
 describe("floating geometry endpoint", () => {
   it("persists normalized geometry across panel instances and returns it in session creation", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "glimpselet-panel-"));
+    const directory = await mkdtemp(join(tmpdir(), "blinkling-panel-"));
     directories.push(directory);
     const path = join(directory, "config", "geometry.json");
     const first = await setup(path);
@@ -155,11 +155,11 @@ describe("floating geometry endpoint", () => {
   });
 
   it("disables default disk persistence in test mode", async () => {
-    const previous = process.env.GLIMPSELET_TEST_MODE;
-    process.env.GLIMPSELET_TEST_MODE = "1";
+    const previous = process.env.BLINKLING_TEST_MODE;
+    process.env.BLINKLING_TEST_MODE = "1";
     const { panel, token } = await setup();
-    if (previous === undefined) delete process.env.GLIMPSELET_TEST_MODE;
-    else process.env.GLIMPSELET_TEST_MODE = previous;
+    if (previous === undefined) delete process.env.BLINKLING_TEST_MODE;
+    else process.env.BLINKLING_TEST_MODE = previous;
     const { session } = await createSession(panel, token);
     await expect(
       (

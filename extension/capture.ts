@@ -157,7 +157,7 @@ async function requireUnblockedPage(tab: ActiveTab): Promise<void> {
 async function injectContent(tab: ActiveTab): Promise<void> {
   await requireSiteAccess(tab);
   try {
-    await chrome.tabs.sendMessage(tab.id, { type: "glimpselet:context" });
+    await chrome.tabs.sendMessage(tab.id, { type: "blinkling:context" });
   } catch {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -251,7 +251,7 @@ export async function getDocumentIdentity(): Promise<
 > {
   const tab = await activeTab();
   await requireSiteAccess(tab);
-  const identity = await sendToPage(tab, { type: "glimpselet:identity" });
+  const identity = await sendToPage(tab, { type: "blinkling:identity" });
   await assertStillActive(tab);
   return identity as Pick<PageContext, "documentKey" | "url"> & {
     translated?: boolean;
@@ -267,7 +267,7 @@ export async function getPageContext(
   // Check for password fields before requesting text from the content script.
   if (await isSensitivePage(undefined, manualTextOnly))
     throw new Error("password_page");
-  const context = await sendToPage(tab, { type: "glimpselet:context" });
+  const context = await sendToPage(tab, { type: "blinkling:context" });
   await assertStillActive(tab);
   if (await isSensitivePage(undefined, manualTextOnly))
     throw new Error("password_page");
@@ -278,18 +278,18 @@ export async function getPageContext(
 export async function getGuideContext(
   expected?: Pick<PageContext, "documentKey" | "url">,
 ): Promise<PageContext> {
-  return getScopedPageContext("glimpselet:guide-context", expected);
+  return getScopedPageContext("blinkling:guide-context", expected);
 }
 
 /** Explicit ask/translation read, with the same document and privacy protections as guides. */
 export async function getExplicitPageContext(
   expected?: Pick<PageContext, "documentKey" | "url">,
 ): Promise<PageContext> {
-  return getScopedPageContext("glimpselet:explicit-context", expected);
+  return getScopedPageContext("blinkling:explicit-context", expected);
 }
 
 async function getScopedPageContext(
-  type: "glimpselet:guide-context" | "glimpselet:explicit-context",
+  type: "blinkling:guide-context" | "blinkling:explicit-context",
   expected?: Pick<PageContext, "documentKey" | "url">,
 ): Promise<PageContext> {
   const tab = await activeTab();
@@ -313,7 +313,7 @@ async function getScopedPageContext(
       if (
         !page?.documentKey ||
         page.url !== tab.url ||
-        (type === "glimpselet:guide-context"
+        (type === "blinkling:guide-context"
           ? page.guideScope
           : page.textScope) !== "top-document-text" ||
         (bound &&
@@ -362,7 +362,7 @@ async function getScopedPageContext(
   if (
     !page?.documentKey ||
     page.url !== tab.url ||
-    (type === "glimpselet:guide-context" ? page.guideScope : page.textScope) !==
+    (type === "blinkling:guide-context" ? page.guideScope : page.textScope) !==
       "top-document-text" ||
     (expected &&
       (page.documentKey !== expected.documentKey || page.url !== expected.url))
@@ -528,7 +528,7 @@ async function captureWebInternal(
   try {
     const context = (await sendToPage(tab, {
       type:
-        kind === "full" ? "glimpselet:context" : "glimpselet:explicit-context",
+        kind === "full" ? "blinkling:context" : "blinkling:explicit-context",
     })) as (PageContext & { error?: string }) | undefined;
     if (context?.error) throw new Error(context.error);
     if (context?.hasPassword) throw new Error("password_page");
@@ -556,7 +556,7 @@ async function captureWebInternal(
     await assertStillActive(tab);
     if (captureDocument) await readWebCaptureDocument(tab, captureDocument);
     const selected = (await sendToPage(tab, {
-      type: "glimpselet:select",
+      type: "blinkling:select",
       mode: kind,
       labels: labels || {
         cancel: "Cancel",

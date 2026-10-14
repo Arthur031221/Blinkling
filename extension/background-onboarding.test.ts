@@ -40,7 +40,7 @@ describe("automatic welcome connection", () => {
     expect(
       listener(
         {
-          type: "glimpselet:pair",
+          type: "blinkling:pair",
           port: 37115,
           code: "ABCDEF0123456789",
           locale: "zh-TW",
@@ -54,13 +54,13 @@ describe("automatic welcome connection", () => {
     expect(createWindow).not.toHaveBeenCalled();
     expect(mocks.locale).not.toHaveBeenCalled();
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
-      type: "glimpselet:connection-updated",
+      type: "blinkling:connection-updated",
     });
   });
   it("opens only after the bubble action and saves its chosen language", async () => {
     const respond = vi.fn();
     listener(
-      { type: "glimpselet:open-bubble", locale: "zh-TW" },
+      { type: "blinkling:open-bubble", locale: "zh-TW" },
       sender,
       respond,
     );
@@ -75,7 +75,7 @@ describe("automatic welcome connection", () => {
     mocks.connect.mockRejectedValue(new Error("Expired"));
     const respond = vi.fn();
     listener(
-      { type: "glimpselet:pair", port: 37115, code: "ABCDEF0123456789" },
+      { type: "blinkling:pair", port: 37115, code: "ABCDEF0123456789" },
       sender,
       respond,
     );
@@ -93,7 +93,7 @@ describe("automatic welcome connection", () => {
     const respond = vi.fn();
     expect(
       listener(
-        { type: "glimpselet:pair", port: 37115, code: "ABCDEF0123456789" },
+        { type: "blinkling:pair", port: 37115, code: "ABCDEF0123456789" },
         { tab: { url } },
         respond,
       ),
@@ -111,7 +111,7 @@ describe("automatic welcome connection", () => {
     "invalid",
   ])("refuses the bubble action from %s", (url) => {
     expect(
-      listener({ type: "glimpselet:open-bubble" }, { tab: { url } }, vi.fn()),
+      listener({ type: "blinkling:open-bubble" }, { tab: { url } }, vi.fn()),
     ).toBe(false);
     expect(createWindow).not.toHaveBeenCalled();
   });

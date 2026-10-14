@@ -18,7 +18,7 @@
       guide: "Start Guide and follow its pointers to the tea buttons.",
       translate: "Translate this page in place, then restore the original.",
       selection: "Select a sentence and choose Explain, Translate, or Ask.",
-      pdf: "Open the sample PDF in the Glimpselet reader.",
+      pdf: "Open the sample PDF in the Blinkling reader.",
     },
     "zh-TW": {
       float: "開啟浮動視窗，再切換到其他視窗。",
@@ -28,7 +28,7 @@
       guide: "啟動導覽，跟著指引找到茶葉按鈕。",
       translate: "在頁面上翻譯內容，再切回原文。",
       selection: "選取一句文字，選擇解釋、翻譯或提問。",
-      pdf: "在 Glimpselet 閱讀器開啟 PDF 範例。",
+      pdf: "在 Blinkling 閱讀器開啟 PDF 範例。",
     },
   };
   let locale = "en";
@@ -39,7 +39,7 @@
     const practiceLabel = document.querySelector("[data-practice-label]");
     if (practiceLabel)
       practiceLabel.textContent =
-        locale === "zh-TW" ? "Glimpselet 練習頁面" : "Glimpselet practice page";
+        locale === "zh-TW" ? "Blinkling 練習頁面" : "Blinkling practice page";
   }
   applyLocale(new URLSearchParams(location.search).get("locale") || "en");
   let readyRequestId;
@@ -48,7 +48,7 @@
     if (!contentReady || !readyRequestId || !window.opener) return;
     window.opener.postMessage(
       {
-        type: "glimpselet:tutorial:loaded",
+        type: "blinkling:tutorial:loaded",
         version: 1,
         requestId: readyRequestId,
       },
@@ -60,7 +60,7 @@
     if (
       event.source === window &&
       event.origin === location.origin &&
-      event.data?.type === "glimpselet:tutorial:content-ready" &&
+      event.data?.type === "blinkling:tutorial:content-ready" &&
       event.data.version === 1
     ) {
       contentReady = true;
@@ -77,14 +77,14 @@
       request.requestId.length > 128
     )
       return;
-    if (request.type === "glimpselet:tutorial:probe") {
+    if (request.type === "blinkling:tutorial:probe") {
       applyLocale(request.locale);
       readyRequestId = request.requestId;
       acknowledgeLoaded();
       return;
     }
     if (
-      request?.type !== "glimpselet:tutorial-action" ||
+      request?.type !== "blinkling:tutorial-action" ||
       !contentReady ||
       request.requestId !== readyRequestId ||
       delivered.has(request.requestId) ||
@@ -108,9 +108,9 @@
     banner.append(document.createTextNode(labels[locale][request.action]));
     banner.classList.add("visible");
     window.dispatchEvent(
-      new CustomEvent("glimpselet:tutorial-action", {
+      new CustomEvent("blinkling:tutorial-action", {
         detail: {
-          type: "glimpselet:tutorial-action",
+          type: "blinkling:tutorial-action",
           version: 1,
           action: request.action,
           step: request.step,
@@ -122,7 +122,7 @@
     if (window.opener) {
       window.opener.postMessage(
         {
-          type: "glimpselet:tutorial:ready",
+          type: "blinkling:tutorial:ready",
           version: 1,
           requestId: request.requestId,
           action: request.action,

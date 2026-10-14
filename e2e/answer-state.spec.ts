@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function panel(page: Page) {
   await page.addInitScript(() => {
-    Object.assign(window, { __glimpseletSession: "answer-state-session" });
+    Object.assign(window, { __blinklingSession: "answer-state-session" });
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: {

@@ -115,7 +115,7 @@ export class OverlayService extends EventEmitter {
     if (!Number.isInteger(index) || index < -1 || index > 23)
       throw Error("Invalid guide step");
     if (this.window && !this.window.isDestroyed())
-      this.window.webContents.send("glimpselet:overlay:step", index);
+      this.window.webContents.send("blinkling:overlay:step", index);
     this.emit("step", index);
   }
   /** Reasons: user (Esc, 結束導覽, click on Blink), content-changed,
@@ -131,7 +131,7 @@ export class OverlayService extends EventEmitter {
     if (active) this.escape.unregister("Escape");
     if (window && !window.isDestroyed()) window.close();
     if (active) {
-      this.log(`[glimpselet] guide dismissed: ${reason}`);
+      this.log(`[blinkling] guide dismissed: ${reason}`);
       this.onDismiss(reason);
       this.emit("dismissed", reason);
     }

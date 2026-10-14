@@ -1,6 +1,6 @@
 // The one live Remote Control check: opt-in, paid, never run in CI or the unit suite.
 // It uses the host's logged-in Claude and a single tiny prompt. The session is named
-// "Glimpselet test" and is not kept on exit, so nothing is left in the account's list.
+// "Blinkling test" and is not kept on exit, so nothing is left in the account's list.
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,8 +8,8 @@ import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { DesktopSessionBridge } from "../index.mjs";
 
-process.env.GLIMPSELET_REMOTE = "test";
-const directory = await mkdtemp(join(tmpdir(), "glimpselet-remote-check-"));
+process.env.BLINKLING_REMOTE = "test";
+const directory = await mkdtemp(join(tmpdir(), "blinkling-remote-check-"));
 const events = [];
 const waitFor = async (predicate, timeout = 90000) => {
   const end = Date.now() + timeout;

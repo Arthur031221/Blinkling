@@ -19,7 +19,7 @@ let config = "";
 
 beforeEach(async () => {
   root = path.resolve(
-    await mkdtemp(path.join(tmpdir(), "glimpselet-session-recovery-")),
+    await mkdtemp(path.join(tmpdir(), "blinkling-session-recovery-")),
   );
   project = path.join(root, "project");
   config = path.join(root, "claude-config");

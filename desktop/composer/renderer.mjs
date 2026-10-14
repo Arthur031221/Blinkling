@@ -1,7 +1,7 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
 import { anchorOf, growOrigin } from "./origin.mjs";
 import { captureNotice } from "../capture/full-page.mjs";
-const api = window.glimpselet;
+const api = window.blinkling;
 const configuration = await api.configuration();
 document.body.dataset.surface = configuration.surface ?? "card";
 if (configuration.theme)

@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 env:
   # Automated runs never create Remote Control sessions in a real account.
-  GLIMPSELET_REMOTE: "0"
+  BLINKLING_REMOTE: "0"
 jobs:
   publish:
     if: github.ref == 'refs/heads/main'
@@ -70,11 +70,11 @@ jobs:
               if (error.status !== 404) throw error;
               release = (await github.rest.repos.createRelease({
                 ...context.repo, tag_name: tag, target_commitish: context.sha,
-                name: `Glimpselet ${tag}`, draft: true,
+                name: `Blinkling ${tag}`, draft: true,
                 body: fs.readFileSync(`docs/releases/${tag}.md`, 'utf8')
               })).data;
             }
-            const names = ['glimpselet-extension.zip', 'glimpselet-chrome-store.zip', 'glimpselet-edge-store.zip', 'SHA256SUMS'];
+            const names = ['blinkling-extension.zip', 'blinkling-chrome-store.zip', 'blinkling-edge-store.zip', 'SHA256SUMS'];
             for (const name of names) {
               const existing = release.assets.find(asset => asset.name === name);
               if (existing) await github.rest.repos.deleteReleaseAsset({...context.repo, asset_id: existing.id});

@@ -28,7 +28,7 @@ for (const scale of [1, 1.5])
       const from = Date.now();
       native(300, 300);
       await expect
-        .poll(() => app.evaluate(() => globalThis.glimpseletTest.cursor()))
+        .poll(() => app.evaluate(() => globalThis.blinklingTest.cursor()))
         .toEqual({ x: Math.round(300 / scale), y: Math.round(300 / scale) });
       await expect(page.locator("#blink")).toHaveAttribute(
         "data-mode",
@@ -38,7 +38,7 @@ for (const scale of [1, 1.5])
       expect(Date.now() - from).toBeLessThan(2600);
       await expect
         .poll(() =>
-          app.evaluate(() => globalThis.glimpseletTest.snapshot().pinned),
+          app.evaluate(() => globalThis.blinklingTest.snapshot().pinned),
         )
         .toBe(false);
     } finally {
@@ -57,7 +57,7 @@ test("H-1 the native wheel scrolls the bubble deck and the deck keeps working af
       (_, i) => `Sentence ${i + 1}.`,
     );
     await app.evaluate((_, text) => {
-      const { send } = globalThis.glimpseletTest;
+      const { send } = globalThis.blinklingTest;
       send({ type: "delta", id: "answer", text });
     }, sentences.join(" "));
     const deck = async () => {
@@ -78,7 +78,7 @@ test("H-1 the native wheel scrolls the bubble deck and the deck keeps working af
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     });
     const origin = await app.evaluate(() => {
-      const b = globalThis.glimpseletTest.bubbles.getBounds();
+      const b = globalThis.blinklingTest.bubbles.getBounds();
       return { x: b.x, y: b.y };
     });
     // Park the pointer on the other client first, then come back onto the deck.
@@ -116,17 +116,15 @@ for (const [edge, x, y] of edges)
       native(x, y, "up");
       await expect
         .poll(() =>
-          app.evaluate(
-            () => globalThis.glimpseletTest.snapshot().position.edge,
-          ),
+          app.evaluate(() => globalThis.blinklingTest.snapshot().position.edge),
         )
         .toBe(edge);
       const card = await app.evaluate(() =>
-        globalThis.glimpseletTest.cardBounds(),
+        globalThis.blinklingTest.cardBounds(),
       );
       await expect
         .poll(() =>
-          app.evaluate(() => globalThis.glimpseletTest.bubbles.getBounds()),
+          app.evaluate(() => globalThis.blinklingTest.bubbles.getBounds()),
         )
         .toEqual(card);
     } finally {
@@ -151,11 +149,11 @@ test("H-3 every menu pill is clickable while answer bubbles are on screen", asyn
     await app.evaluate((_, ids) => {
       globalThis.pillCalls = [];
       for (const id of ids)
-        globalThis.glimpseletTest.registerAction(id, async () => {
+        globalThis.blinklingTest.registerAction(id, async () => {
           globalThis.pillCalls.push(id);
         });
       const text = Array.from({ length: 12 }, (_, i) => `Sentence ${i + 1}.`);
-      globalThis.glimpseletTest.send({
+      globalThis.blinklingTest.send({
         type: "delta",
         id: "answer",
         text: text.join(" "),
@@ -183,7 +181,7 @@ test("H-3 every menu pill is clickable while answer bubbles are on screen", asyn
       if (action === "chat")
         await expect
           .poll(() =>
-            app.evaluate(() => globalThis.glimpseletTest.snapshot().chatOpen),
+            app.evaluate(() => globalThis.blinklingTest.snapshot().chatOpen),
           )
           .toBe(true);
       else

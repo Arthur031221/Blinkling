@@ -1,10 +1,10 @@
 {
-  "name": "@arthur031221/glimpselet-bridge",
+  "name": "@arthur031221/blinkling-bridge",
   "version": "2.1.0",
-  "description": "Local MCP bridge for already-redacted Glimpselet captures",
+  "description": "Local MCP bridge for already-redacted Blinkling captures",
   "type": "module",
   "bin": {
-    "glimpselet-bridge": "./dist/cli.js"
+    "blinkling-bridge": "./dist/cli.js"
   },
   "files": [
     "dist"

@@ -2,7 +2,7 @@
 
 Architecture spike and integration, 2026-10-14. Branch `v3`, based on v2.1.0 `main`.
 The controlling brief is **V3, BLINK ON THE DESKTOP**, including the five
-**I2** install additions, in the account holder's Glimpselet focus file.
+**I2** install additions, in the account holder's Blinkling focus file.
 The six builder branches are integrated. This is not a claim that every V3
 release requirement is finished. The extension remains usable. Section K was
 added after the builders started; integration preserves existing implementations
@@ -139,18 +139,18 @@ API key. Saved CLI help is in `spike/claude-help.txt` and
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Existing interactive session and plugin MCP                       | Ordinary MCP tools cannot push unsolicited user turns. Channels need startup authorization/flags for a custom channel; the plugin cannot silently retroactively grant that to the session where the slash command was typed. |
 | `--resume <origin>` from another process                          | Resuming a live origin creates competing writers; it is not safe live injection and does not by itself enable Remote Control. Do not do it.                                                                                  |
-| `claude remote-control --name Glimpselet --spawn session`         | Connected successfully, but owns its own interactive/session launch lifecycle rather than the required persistent stream-json input.                                                                                         |
-| `claude -p --remote-control Glimpselet ...`                       | A local turn completed, but this headless flag combination did not enable a remote bridge. A successful local answer is insufficient evidence of F.                                                                          |
+| `claude remote-control --name Blinkling --spawn session`          | Connected successfully, but owns its own interactive/session launch lifecycle rather than the required persistent stream-json input.                                                                                         |
+| `claude -p --remote-control Blinkling ...`                        | A local turn completed, but this headless flag combination did not enable a remote bridge. A successful local answer is insufficient evidence of F.                                                                          |
 | Persistent `-p`, stream-json in/out, SDK `remote_control` request | **Chosen and proved**. Creates a remotely visible named owned session, forwards images, accepts remote input, resumes the same remote session, and permits live model/effort controls.                                       |
 
-The plugin therefore automatically starts a **Glimpselet-owned session**. Prefer
+The plugin therefore automatically starts a **Blinkling-owned session**. Prefer
 the origin only if a future documented, already authorized live transport is
 actually available; never request a user flag or fork the active origin behind
 their back. The fallback is expressly allowed by F3.
 
 Start the owned child with `-p --input-format stream-json --output-format
 stream-json --verbose --include-partial-messages --replay-user-messages --name
-Glimpselet --model <selected> --effort <selected>`. The scaffold disables tools
+Blinkling --model <selected> --effort <selected>`. The scaffold disables tools
 and inherited MCP configuration; screen understanding does not require arbitrary
 shell execution. Clear any inherited nested-Claude marker only in the owned
 child's environment when integrating the launcher, not globally.
@@ -164,7 +164,7 @@ After `initialize`, send this newline-delimited control request:
   "request": {
     "subtype": "remote_control",
     "enabled": true,
-    "name": "Glimpselet",
+    "name": "Blinkling",
     "keep_session_on_exit": true
   }
 }
@@ -183,7 +183,7 @@ Remote URL: <https://claude.ai/code/session_01WdPooY8VrSHfCyzYHUL9de>.
 Evidence in the report (`session-evidence.json` indexes exact JSONL line numbers):
 
 - `session-metadata.json`: the remote service returns this ID with title
-  **Glimpselet** and status **active** after the owned process has exited.
+  **Blinkling** and status **active** after the owned process has exited.
 - `scaffold-session.json`: the repository transport itself reattached to that
   same session and confirmed applied Haiku/low, then disposed its child.
 
@@ -270,8 +270,8 @@ only; the release bucket expands the matrix and makes the archives.
 
 macOS: recursively ad-hoc sign on the macOS runner (`identity: '-'`), preserving
 helper/entitlement requirements, then verify with `codesign --verify --deep
---strict`. Install at the stable `~/Applications/Glimpselet.app` path with bundle
-ID `com.glimpselet.desktop`; store data separately. No Apple Developer account,
+--strict`. Install at the stable `~/Applications/Blinkling.app` path with bundle
+ID `com.blinkling.desktop`; store data separately. No Apple Developer account,
 Developer ID signature or notarization is claimed. A plugin HTTPS download and
 controlled extraction must not introduce a browser quarantine attribute. Check
 only the newly verified owned bundle for quarantine; never run blanket recursive
@@ -315,7 +315,7 @@ serialize installs, preserve the previous working version, and pass arguments
 as arrays. Launch/deduplicate by authenticated local IPC, not process-name kills.
 Register the idempotent launcher in plugin SessionStart integration so future
 Claude Code sessions reconnect automatically after the initial slash command.
-No user pairing codes. No arbitrary port input. `/glimpselet:glimpse` now invokes
+No user pairing codes. No arbitrary port input. `/blinkling:blinkling` now invokes
 the verified desktop launcher. The empty embedded release manifest fails closed
 until published V3 builds and their pinned hashes are available.
 

@@ -32,7 +32,7 @@ let now: number;
 
 test.beforeEach(async () => {
   now = Date.now();
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-onboarding-locale-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-onboarding-locale-"));
   server = createServer((request, response) => {
     const url = new URL(request.url || "/", "http://127.0.0.1");
     response.setHeader(
@@ -54,7 +54,7 @@ test.beforeEach(async () => {
       );
     } else if (url.pathname === "/install") {
       response.setHeader("Content-Type", "text/html; charset=utf-8");
-      response.end(installGuide("/tmp/glimpselet-extension"));
+      response.end(installGuide("/tmp/blinkling-extension"));
     } else if (url.pathname === "/install-guide.js") {
       response.setHeader("Content-Type", "text/javascript; charset=utf-8");
       response.end(INSTALL_GUIDE_SCRIPT);
@@ -298,9 +298,11 @@ test("completed setup survives link expiry and network errors without claiming l
 test("a forged readiness message cannot connect with an invalid capability", async () => {
   await welcome.goto(`${origin}/install?locale=en#code=0000000000000000`);
   await welcome.evaluate(() =>
-    window.postMessage({ type: "glimpselet:extension-ready" }, location.origin),
+    window.postMessage({ type: "blinkling:extension-ready" }, location.origin),
   );
-  await expect(welcome.locator("#connection")).toContainText("Run /glimpse");
+  await expect(welcome.locator("#connection")).toContainText(
+    "Run /blinkling:blinkling",
+  );
   await expect(welcome.locator("#open-bubble")).toBeDisabled();
   expect(
     await worker.evaluate(() => chrome.storage.session.get("bridgeToken")),

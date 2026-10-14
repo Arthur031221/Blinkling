@@ -14,11 +14,11 @@ const root = resolve(".");
 const { version: releaseVersion } = JSON.parse(
   await readFile(join(root, "package.json"), "utf8"),
 );
-const directory = await mkdtemp(join(tmpdir(), "glimpselet-plugin-upgrade-"));
+const directory = await mkdtemp(join(tmpdir(), "blinkling-plugin-upgrade-"));
 const stage = join(directory, "marketplace");
-const cli = process.env.GLIMPSELET_CLAUDE_CLI || "claude";
-const legacyRef = process.env.GLIMPSELET_LEGACY_REF || "a27fd993";
-const pluginId = "glimpselet@glimpselet";
+const cli = process.env.BLINKLING_CLAUDE_CLI || "claude";
+const legacyRef = process.env.BLINKLING_LEGACY_REF || "a27fd993";
+const pluginId = "blinkling@blinkling";
 
 async function stageRef(ref) {
   await rm(stage, { recursive: true, force: true });
@@ -38,7 +38,7 @@ async function profile(name) {
   const env = {
     ...process.env,
     CLAUDE_CONFIG_DIR: join(cwd, "claude-config"),
-    GLIMPSELET_REMOTE: "0",
+    BLINKLING_REMOTE: "0",
   };
   delete env.CLAUDECODE;
   delete env.CLAUDE_CODE_SESSION_ID;
@@ -76,11 +76,11 @@ async function welcome(profile, pluginPath) {
   );
   assert.equal(extension.version, releaseVersion);
   assert.deepEqual(
-    await readFile(join(pluginPath, "bin/glimpselet.cjs")),
-    await readFile(join(root, "bin/glimpselet.cjs")),
+    await readFile(join(pluginPath, "bin/blinkling.cjs")),
+    await readFile(join(root, "bin/blinkling.cjs")),
   );
   const command = await readFile(
-    join(pluginPath, "commands/glimpse.md"),
+    join(pluginPath, "commands/blinkling.md"),
     "utf8",
   );
   assert.match(command, /Call `panel_open`/);
@@ -92,17 +92,17 @@ async function welcome(profile, pluginPath) {
   );
   const env = {
     ...profile.env,
-    GLIMPSELET_DISABLE_BROWSER_OPEN: "1",
-    GLIMPSELET_TEST_MODE: "1",
-    GLIMPSELET_PORT: "0",
+    BLINKLING_DISABLE_BROWSER_OPEN: "1",
+    BLINKLING_TEST_MODE: "1",
+    BLINKLING_PORT: "0",
   };
   delete env.SSH_CONNECTION;
-  delete env.GLIMPSELET_EXTENSION_DIR;
-  delete env.GLIMPSELET_PANEL_DIR;
+  delete env.BLINKLING_EXTENSION_DIR;
+  delete env.BLINKLING_PANEL_DIR;
   const client = new Client({ name: "upgrade-verification", version: "1.0.0" });
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: ["--require", isolate, join(pluginPath, "bin/glimpselet.cjs")],
+    args: ["--require", isolate, join(pluginPath, "bin/blinkling.cjs")],
     cwd: profile.cwd,
     env,
   });
@@ -117,7 +117,7 @@ async function welcome(profile, pluginPath) {
     const origin = new URL(link[0]).origin;
     const page = await fetch(`${origin}/install`);
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Welcome to Glimpselet/);
+    assert.match(await page.text(), /Welcome to Blinkling/);
     const status = await fetch(`${origin}/install/status?code=${link[1]}`);
     assert.deepEqual(await status.json(), {
       connected: false,
@@ -126,13 +126,13 @@ async function welcome(profile, pluginPath) {
     });
     const copied = JSON.parse(
       await readFile(
-        join(profile.cwd, "Glimpselet-extension/manifest.json"),
+        join(profile.cwd, "Blinkling-extension/manifest.json"),
         "utf8",
       ),
     );
     assert.equal(copied.version, releaseVersion);
     console.log(
-      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension ${releaseVersion}; packaged /glimpse tool opened welcome/pairing`,
+      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension ${releaseVersion}; packaged /blinkling:blinkling tool opened welcome/pairing`,
     );
   } finally {
     await client.close();
@@ -153,7 +153,7 @@ try {
     recursive: true,
     force: true,
   });
-  await upgrade.run("marketplace", "update", "glimpselet");
+  await upgrade.run("marketplace", "update", "blinkling");
   await upgrade.run("update", pluginId);
   await welcome(upgrade, await installed(upgrade, releaseVersion));
   const fresh = await profile("fresh-v2");

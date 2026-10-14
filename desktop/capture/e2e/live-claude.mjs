@@ -6,8 +6,8 @@ import { OwnedSession } from "../../session/index.mjs";
 import { collectTurn } from "../../overlay/turn.mjs";
 import { parseGuide, guidePrompt } from "../../overlay/schema.mjs";
 import { PNG } from "pngjs";
-// Live runs that do ask for Remote Control use the self-deleting "Glimpselet test" session.
-process.env.GLIMPSELET_REMOTE ??= "test";
+// Live runs that do ask for Remote Control use the self-deleting "Blinkling test" session.
+process.env.BLINKLING_REMOTE ??= "test";
 const [input, output] = process.argv.slice(2);
 if (!input || !output) throw Error("Pass a local PNG and a local report path");
 const bytes = await readFile(input),

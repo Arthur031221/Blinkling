@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Glimpselet",
+  "name": "Blinkling",
   "version": "2.1.0",
   "icons": {
     "16": "icons/blink-16.png",
@@ -21,26 +21,26 @@
       "matches": [
         "http://127.0.0.1/install*",
         "http://localhost/install*",
-        "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
-        "http://localhost/assets/glimpselet-welcome-sample.html"
+        "http://127.0.0.1/assets/blinkling-welcome-sample.html",
+        "http://localhost/assets/blinkling-welcome-sample.html"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_title": "Open Glimpselet",
+    "default_title": "Open Blinkling",
     "default_icon": {
       "16": "icons/blink-16.png",
       "32": "icons/blink-32.png"
     }
   },
   "commands": {
-    "open-glimpselet": {
+    "open-blinkling": {
       "suggested_key": {
         "default": "Alt+Shift+G"
       },
-      "description": "Open Glimpselet"
+      "description": "Open Blinkling"
     },
     "pause-passive": {
       "suggested_key": {

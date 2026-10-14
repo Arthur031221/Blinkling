@@ -7,7 +7,7 @@ let installed = false;
 function initialHandlers() {
   if (installed) return;
   installed = true;
-  ipcMain.handle("glimpselet:overlay:init", (e) => {
+  ipcMain.handle("blinkling:overlay:init", (e) => {
     if (e.senderFrame !== e.sender.mainFrame || !views.has(e.sender.id))
       throw Error("Untrusted overlay");
     return views.get(e.sender.id);

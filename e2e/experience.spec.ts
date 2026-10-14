@@ -54,7 +54,7 @@ test("primary actions retain readable contrast while hovered or focused", async 
 async function sharedPanel(page: Page, streaming = false) {
   await page.addInitScript(
     ({ streaming }) => {
-      Object.assign(window, { __glimpseletSession: "test-session" });
+      Object.assign(window, { __blinklingSession: "test-session" });
       Object.defineProperty(navigator, "mediaDevices", {
         configurable: true,
         value: {
@@ -292,7 +292,7 @@ test("compact composer fits a 520 pixel tall panel at every supported width", as
   page,
 }) => {
   await page.addInitScript(() =>
-    sessionStorage.removeItem("glimpselet-settings"),
+    sessionStorage.removeItem("blinkling-settings"),
   );
   for (const width of [360, 420, 520]) {
     await page.setViewportSize({ width, height: 520 });
@@ -573,7 +573,7 @@ test("a fresh bridge session restores popup geometry and saves manual resizing",
   await expect
     .poll(() =>
       page.evaluate(() =>
-        localStorage.getItem("glimpselet-floating-geometry-v1"),
+        localStorage.getItem("blinkling-floating-geometry-v1"),
       ),
     )
     .not.toBeNull();
@@ -651,8 +651,8 @@ test("floating is available during session bootstrap and preserves saved geometr
     .poll(() =>
       page.evaluate(
         () =>
-          (window as Window & { __glimpseletSession?: string })
-            .__glimpseletSession,
+          (window as Window & { __blinklingSession?: string })
+            .__blinklingSession,
       ),
     )
     .toBe("late-session");
@@ -664,8 +664,8 @@ test("floating is available during session bootstrap and preserves saved geometr
     .poll(() =>
       page.evaluate(
         () =>
-          (window as Window & { __glimpseletSession?: string })
-            .__glimpseletSession,
+          (window as Window & { __blinklingSession?: string })
+            .__blinklingSession,
       ),
     )
     .toBe("late-session");
@@ -710,7 +710,7 @@ test("popup reopening restores resized geometry and focuses the composer", async
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const value = localStorage.getItem("glimpselet-floating-geometry-v1");
+        const value = localStorage.getItem("blinkling-floating-geometry-v1");
         return value && JSON.parse(value).dimensions.expanded.popup.width;
       }),
     )

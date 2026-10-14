@@ -12,7 +12,7 @@ import {
 } from "./protocol.mjs";
 
 /** One owned child, with no credential access and no writes to an interactive origin.
- * `remote` overrides GLIMPSELET_REMOTE ("off", "test" or "on") for this session. */
+ * `remote` overrides BLINKLING_REMOTE ("off", "test" or "on") for this session. */
 export class OwnedSession extends EventEmitter {
   constructor({
     controlTimeoutMs = 15000,

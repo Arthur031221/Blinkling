@@ -60,7 +60,7 @@ test(
   "standalone plugin serves paired extension and screen tools from outside the repository",
   { timeout: 20_000 },
   async (t) => {
-    const cwd = await mkdtemp(join(tmpdir(), "glimpselet-outside-"));
+    const cwd = await mkdtemp(join(tmpdir(), "blinkling-outside-"));
     const host = join(cwd, "host");
     const plugin = join(host, "plugin");
     await cp(resolve("bin"), join(plugin, "bin"), { recursive: true });
@@ -86,7 +86,7 @@ test(
     await chmod(fakeCli, 0o755);
     const port = await freePort();
     const client = new Client({
-      name: "glimpselet-integration",
+      name: "blinkling-integration",
       version: "1.0.0",
     });
     const sockets = [];
@@ -105,17 +105,17 @@ test(
     });
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: [join(plugin, "bin", "glimpselet.cjs")],
+      args: [join(plugin, "bin", "blinkling.cjs")],
       cwd,
       env: {
         ...process.env,
         PATH: `${bin}:${process.env.PATH}`,
         HOME: cwd,
         MOCK_ARGV_LOG: argvLog,
-        GLIMPSELET_TEST_MODE: "1",
-        GLIMPSELET_TEST_FIXTURE: fixturePath,
-        GLIMPSELET_PORT: String(port),
-        GLIMPSELET_DISABLE_BROWSER_OPEN: "1",
+        BLINKLING_TEST_MODE: "1",
+        BLINKLING_TEST_FIXTURE: fixturePath,
+        BLINKLING_PORT: String(port),
+        BLINKLING_DISABLE_BROWSER_OPEN: "1",
       },
     });
     await client.connect(transport);
@@ -129,9 +129,9 @@ test(
       [
         "desktop_open",
         "extension_install",
-        "glimpse_channel_context",
-        "glimpse_channel_ready",
-        "glimpse_channel_reply",
+        "blinkling_channel_context",
+        "blinkling_channel_ready",
+        "blinkling_channel_reply",
         "panel_open",
         "screen_capture",
         "screen_clear",
@@ -154,7 +154,7 @@ test(
     );
     assert.match(
       opened.content[0].text,
-      /claude --continue --dangerously-load-development-channels plugin:glimpselet@glimpselet/,
+      /claude --continue --dangerously-load-development-channels plugin:blinkling@blinkling/,
     );
     const reopened = await client.callTool({
       name: "extension_install",
@@ -171,7 +171,7 @@ test(
     const guide = await fetch(`${panel}/install`);
     assert.equal(guide.status, 200);
     const guideText = await guide.text();
-    assert.match(guideText, /Welcome to Glimpselet/);
+    assert.match(guideText, /Welcome to Blinkling/);
     assert.match(guideText, /\/install\/extension\.zip/);
     const download = await fetch(`${panel}/install/extension.zip?code=${code}`);
     assert.equal(download.status, 200);

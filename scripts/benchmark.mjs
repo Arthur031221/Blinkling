@@ -138,12 +138,12 @@ const escape = (value) =>
     .replaceAll(">", "&gt;");
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
-const client = new Client({ name: "glimpselet-benchmark", version: "1.0.0" });
+const client = new Client({ name: "blinkling-benchmark", version: "1.0.0" });
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: ["bin/glimpselet.cjs"],
+  args: ["bin/blinkling.cjs"],
   stderr: "pipe",
-  env: { ...process.env, GLIMPSELET_DISABLE_BROWSER_OPEN: "1" },
+  env: { ...process.env, BLINKLING_DISABLE_BROWSER_OPEN: "1" },
 });
 const results = [];
 try {
@@ -163,7 +163,7 @@ try {
   if (!session) throw new Error("Could not create benchmark session");
   for (const [title, content, question, expected] of tasks) {
     await page.setContent(
-      `<html><meta charset="utf-8"><style>body{margin:0;background:#efece6;color:#242321;font-family:Arial,sans-serif;padding:52px}h1{font-size:22px;letter-spacing:.04em;color:#82654f}pre{white-space:pre-wrap;line-height:1.7;font-size:24px;background:#fffdf9;border:1px solid #d9d2c8;border-radius:18px;padding:30px;box-shadow:0 8px 24px #352c2012}footer{font-size:13px;color:#766e63}</style><h1>${escape(title)}</h1><pre>${escape(content)}</pre><footer>Glimpselet local benchmark fixture. No real account data.</footer></html>`,
+      `<html><meta charset="utf-8"><style>body{margin:0;background:#efece6;color:#242321;font-family:Arial,sans-serif;padding:52px}h1{font-size:22px;letter-spacing:.04em;color:#82654f}pre{white-space:pre-wrap;line-height:1.7;font-size:24px;background:#fffdf9;border:1px solid #d9d2c8;border-radius:18px;padding:30px;box-shadow:0 8px 24px #352c2012}footer{font-size:13px;color:#766e63}</style><h1>${escape(title)}</h1><pre>${escape(content)}</pre><footer>Blinkling local benchmark fixture. No real account data.</footer></html>`,
     );
     const image = (await page.screenshot()).toString("base64");
     const started = performance.now();

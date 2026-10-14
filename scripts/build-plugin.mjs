@@ -20,9 +20,9 @@ const result = await build({
   platform: "node",
   target: "node22",
   format: "cjs",
-  define: { "import.meta.url": "GLIMPSELET_MODULE_URL" },
+  define: { "import.meta.url": "BLINKLING_MODULE_URL" },
   banner: {
-    js: 'const GLIMPSELET_MODULE_URL = require("node:url").pathToFileURL(__filename).href;',
+    js: 'const BLINKLING_MODULE_URL = require("node:url").pathToFileURL(__filename).href;',
   },
   write: false,
   sourcemap: false,
@@ -30,8 +30,8 @@ const result = await build({
   metafile: true,
 });
 const bundle = result.outputFiles[0].text.replace(/[\t ]+$/gm, "");
-await writeFile("bin/glimpselet.cjs", bundle, { mode: 0o755 });
-await chmod("bin/glimpselet.cjs", 0o755);
+await writeFile("bin/blinkling.cjs", bundle, { mode: 0o755 });
+await chmod("bin/blinkling.cjs", 0o755);
 await rm("bin/panel", { recursive: true, force: true });
 await cp("dist", "bin/panel", { recursive: true });
 await cp("assets/install", "bin/panel/assets/install", { recursive: true });

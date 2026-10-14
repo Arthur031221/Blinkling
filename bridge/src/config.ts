@@ -1,4 +1,4 @@
-export const PORT = Number(process.env.GLIMPSELET_PORT ?? 43827);
+export const PORT = Number(process.env.BLINKLING_PORT ?? 43827);
 export const HISTORY_LIMIT = 12;
 export const HISTORY_TTL_MS = 10 * 60_000;
 export const WATCH_LIMIT_PER_MINUTE = 6;

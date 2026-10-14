@@ -9,7 +9,7 @@ import {
 
 const directories: string[] = [];
 async function temporaryDirectory() {
-  const directory = await mkdtemp(join(tmpdir(), "glimpselet-floating-"));
+  const directory = await mkdtemp(join(tmpdir(), "blinkling-floating-"));
   directories.push(directory);
   return directory;
 }

@@ -14,18 +14,18 @@ Only geometry is saved. The file contains no questions, images, keys, session to
 
 Popup positions are clamped to the screen available to the opener. A popup last used on another monitor may reopen on the opener's screen.
 
-| Platform | Preference file                                                                                                          |
-| -------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Linux    | `$XDG_CONFIG_HOME/glimpselet/floating-geometry-v1.json`, or `~/.config/glimpselet/floating-geometry-v1.json` when unset  |
-| macOS    | `~/Library/Application Support/glimpselet/floating-geometry-v1.json`                                                     |
-| Windows  | `%APPDATA%/glimpselet/floating-geometry-v1.json`, or `~/AppData/Roaming/glimpselet/floating-geometry-v1.json` when unset |
+| Platform | Preference file                                                                                                        |
+| -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Linux    | `$XDG_CONFIG_HOME/blinkling/floating-geometry-v1.json`, or `~/.config/blinkling/floating-geometry-v1.json` when unset  |
+| macOS    | `~/Library/Application Support/blinkling/floating-geometry-v1.json`                                                    |
+| Windows  | `%APPDATA%/blinkling/floating-geometry-v1.json`, or `~/AppData/Roaming/blinkling/floating-geometry-v1.json` when unset |
 
 Passive-note requests are capped at six per rolling minute by default. Settings allow a lower cap. This is a request-rate limit. It does not predict API or account cost. The separate MCP screen watch samples at a selected interval from 5 to 60 seconds, retains changed images only, and makes no model calls.
 
 ## Remote Control switch (desktop)
 
-`GLIMPSELET_REMOTE=0` makes Blink's own Claude Code session skip the Remote
+`BLINKLING_REMOTE=0` makes Blink's own Claude Code session skip the Remote
 Control request, so it never appears in claude.ai/code or the Claude app. Unset
-keeps the default: every turn syncs to a session named "Glimpselet".
-`GLIMPSELET_REMOTE=test` is for automated checks only: one disposable session
-named "Glimpselet test" that Claude Code removes on exit.
+keeps the default: every turn syncs to a session named "Blinkling".
+`BLINKLING_REMOTE=test` is for automated checks only: one disposable session
+named "Blinkling test" that Claude Code removes on exit.

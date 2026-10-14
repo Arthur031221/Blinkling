@@ -223,7 +223,7 @@ article {
   transform: rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1))
     scale(var(--min-font-size-inv));
 }
-.pdf-text-layer [data-glimpselet-translated] {
+.pdf-text-layer [data-blinkling-translated] {
   color: #30291f;
   background: #fff;
 }
@@ -280,7 +280,7 @@ aside button {
 .pdf-page {
   flex: none;
 }
-.pdf-text-layer span[data-glimpselet-translated] {
+.pdf-text-layer span[data-blinkling-translated] {
   color: #30291f;
   background: #fff2cf;
   border-radius: 2px;

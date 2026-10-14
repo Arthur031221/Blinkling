@@ -355,7 +355,7 @@ export async function startDesktopHost({
     async openCompanionGuide() {
       if (!companion)
         throw new Error(
-          "Open /glimpselet:glimpse in Claude Code to load the optional browser helper guide.",
+          "Open /blinkling:blinkling in Claude Code to load the optional browser helper guide.",
         );
       const response = await fetch(companion.url, {
         method: "POST",

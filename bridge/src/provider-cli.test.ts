@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "glimpselet-cli-scope-"));
+  const root = await mkdtemp(join(tmpdir(), "blinkling-cli-scope-"));
   temporary.push(root);
   const project = join(root, "project");
   const capturesName =

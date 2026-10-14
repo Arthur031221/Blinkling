@@ -4,7 +4,7 @@ permissions:
   contents: read
 env:
   # Automated runs never create Remote Control sessions in anyone's account.
-  GLIMPSELET_REMOTE: "0"
+  BLINKLING_REMOTE: "0"
 jobs:
   desktop:
     strategy:

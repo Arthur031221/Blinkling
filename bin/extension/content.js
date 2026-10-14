@@ -484,7 +484,7 @@
     "EMBED"
   ]);
   var scope = globalThis;
-  var documentKeys = scope.glimpseletDocumentKeys ??= /* @__PURE__ */ new WeakMap();
+  var documentKeys = scope.blinklingDocumentKeys ??= /* @__PURE__ */ new WeakMap();
   function pageDocumentKey(doc = document) {
     let key = documentKeys.get(doc);
     if (!key) {
@@ -493,7 +493,7 @@
     }
     return key;
   }
-  var registry = scope.glimpseletElementRegistry ??= {
+  var registry = scope.blinklingElementRegistry ??= {
     ids: /* @__PURE__ */ new WeakMap(),
     nextId: 1
   };
@@ -531,7 +531,7 @@
   function isExcluded(element, includeHidden = false) {
     for (let current = element; current; current = composedParent(current)) {
       if (current.matches(
-        "[data-glimpselet-overlay], [data-private], [data-sensitive]"
+        "[data-blinkling-overlay], [data-private], [data-sensitive]"
       ) || ignoredTags.has(current.tagName.toUpperCase()))
         return true;
       const editable = current.getAttribute("contenteditable");
@@ -560,7 +560,7 @@
   function buildGuideContext(doc = document) {
     const context = buildExplicitPageContext(doc);
     delete context.textScope;
-    const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body;
+    const scope2 = doc.querySelector("[data-blinkling-reader-page]") || doc.body;
     const candidates = scope2 && !context.hasPassword ? Array.from(scope2.querySelectorAll(GUIDE_SELECTOR)).filter(
       guideElementAvailable
     ) : [];
@@ -620,12 +620,12 @@
   }
   function readPageContext(doc, explicitTextOnly) {
     const hasPassword = hasSensitiveContent(doc, explicitTextOnly);
-    const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body || doc.documentElement;
+    const scope2 = doc.querySelector("[data-blinkling-reader-page]") || doc.body || doc.documentElement;
     const elements = [];
     const selector = "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],[role=option],h1,h2,h3,h4,h5,h6";
     for (const element of Array.from(
       scope2.querySelectorAll(
-        selector + (scope2.hasAttribute("data-glimpselet-reader-page") ? ",.pdf-text-layer>span" : "")
+        selector + (scope2.hasAttribute("data-blinkling-reader-page") ? ",.pdf-text-layer>span" : "")
       )
     )) {
       if (explicitTextOnly && hasPassword) break;
@@ -825,11 +825,11 @@
 
   // extension/content.ts
   var contentScope = globalThis;
-  if (!contentScope.glimpseletContentReady) {
+  if (!contentScope.blinklingContentReady) {
     let ensureOverlay = function() {
       if (overlayRoot) return overlayRoot;
       overlayHost = document.createElement("div");
-      overlayHost.dataset.glimpseletOverlay = "true";
+      overlayHost.dataset.blinklingOverlay = "true";
       overlayHost.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
       overlayRoot = overlayHost.attachShadow({ mode: "open" });
       const style = document.createElement("style");
@@ -1375,7 +1375,7 @@
             return;
           if (contextRangeText(range) !== text) return;
           send({
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             text,
             url: location.href,
             action
@@ -1408,7 +1408,7 @@
       if (url !== lastUrl || checkContent && revision !== lastRevision) {
         lastUrl = url;
         lastRevision = revision;
-        send({ type: "glimpselet:page-changed", url, revision });
+        send({ type: "blinkling:page-changed", url, revision });
       }
     }, relevantMutation = function(record) {
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
@@ -1423,7 +1423,7 @@
       ].includes(record.attributeName ?? ""))
         return true;
       if (target.closest(
-        "[data-glimpselet-overlay], [data-glimpselet-crop], [data-private], [data-sensitive], [contenteditable]:not([contenteditable=false])"
+        "[data-blinkling-overlay], [data-blinkling-crop], [data-private], [data-sensitive], [contenteditable]:not([contenteditable=false])"
       ))
         return false;
       if (target instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(target.type))
@@ -1479,7 +1479,7 @@
               const value = result;
               if (value.rect)
                 void send({
-                  type: "glimpselet:crop-selected",
+                  type: "blinkling:crop-selected",
                   rect: value.rect,
                   url: location.href,
                   geometry: {
@@ -1512,10 +1512,10 @@
       selectionMode = mode;
       if (mode === "region") {
         const host = document.createElement("div");
-        host.dataset.glimpseletCrop = "true";
+        host.dataset.blinklingCrop = "true";
         host.style.setProperty("display", "block", "important");
         document.documentElement.append(host);
-        void send({ type: "glimpselet:crop-mode", active: true });
+        void send({ type: "blinkling:crop-mode", active: true });
         return selectCrop(
           host,
           () => new DOMRect(0, 0, innerWidth, innerHeight),
@@ -1527,7 +1527,7 @@
         ).finally(() => {
           selecting = false;
           selectionMode = void 0;
-          void send({ type: "glimpselet:crop-mode", active: false });
+          void send({ type: "blinkling:crop-mode", active: false });
         });
       }
       return new Promise((resolve) => {
@@ -1561,7 +1561,7 @@
               event.clientY
             );
             shade.style.pointerEvents = "auto";
-            if (!target || target.closest("[data-glimpselet-overlay]")) return;
+            if (!target || target.closest("[data-blinkling-overlay]")) return;
             const r = target.getBoundingClientRect();
             finish([
               Math.round(r.left),
@@ -1597,7 +1597,7 @@
       }
       return id;
     };
-    contentScope.glimpseletContentReady = true;
+    contentScope.blinklingContentReady = true;
     const originals = /* @__PURE__ */ new Map();
     const nodeIds = /* @__PURE__ */ new WeakMap();
     let nextTextId = 1;
@@ -1643,38 +1643,38 @@
       if (event.source !== window || event.origin !== location.origin || location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/install")
         return;
       const value = event.data;
-      if (value?.type === "glimpselet:hello") {
+      if (value?.type === "blinkling:hello") {
         window.postMessage(
-          { type: "glimpselet:extension-ready" },
+          { type: "blinkling:extension-ready" },
           location.origin
         );
         return;
       }
-      if (value?.type === "glimpselet:open-bubble") {
+      if (value?.type === "blinkling:open-bubble") {
         void send({
-          type: "glimpselet:open-bubble",
+          type: "blinkling:open-bubble",
           locale: isWelcomeLocale(value.locale) ? value.locale : void 0
         });
         return;
       }
-      if (!value || value.type !== "glimpselet:pair" || typeof value.code !== "string" || !/^[A-F0-9]{16}$/.test(value.code) || Number(value.port) !== Number(location.port || 80))
+      if (!value || value.type !== "blinkling:pair" || typeof value.code !== "string" || !/^[A-F0-9]{16}$/.test(value.code) || Number(value.port) !== Number(location.port || 80))
         return;
       void send({
-        type: "glimpselet:pair",
+        type: "blinkling:pair",
         port: Number(value.port),
         code: value.code,
         locale: isWelcomeLocale(value.locale) ? value.locale : void 0
       }).then(
         (result) => window.postMessage(
           {
-            type: result?.ok ? "glimpselet:paired" : "glimpselet:connection-failed"
+            type: result?.ok ? "blinkling:paired" : "blinkling:connection-failed"
           },
           location.origin
         )
       );
     });
-    window.addEventListener("glimpselet:tutorial-action", (event) => {
-      if (location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/assets/glimpselet-welcome-sample.html")
+    window.addEventListener("blinkling:tutorial-action", (event) => {
+      if (location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/assets/blinkling-welcome-sample.html")
         return;
       const value = event.detail;
       if (value?.version !== 1 || ![
@@ -1689,36 +1689,36 @@
       ].includes(value.action) || !Number.isInteger(value.step) || value.step < 1 || value.step > 8)
         return;
       void send({
-        type: "glimpselet:tutorial",
+        type: "blinkling:tutorial",
         action: value.action,
         step: value.step,
         locale: value.locale === "en" || value.locale === "zh-TW" ? value.locale : void 0
       });
     });
-    if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/assets/glimpselet-welcome-sample.html") {
+    if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/assets/blinkling-welcome-sample.html") {
       window.postMessage(
-        { type: "glimpselet:tutorial:content-ready", version: 1 },
+        { type: "blinkling:tutorial:content-ready", version: 1 },
         location.origin
       );
     }
     if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/install") {
-      window.postMessage({ type: "glimpselet:extension-ready" }, location.origin);
+      window.postMessage({ type: "blinkling:extension-ready" }, location.origin);
     }
     chrome.runtime.onMessage.addListener(
       (message, _sender, respond) => {
         if (!message || typeof message.type !== "string") return;
         if ([
-          "glimpselet:guide-context",
-          "glimpselet:explicit-context",
-          "glimpselet:guide",
-          "glimpselet:text-nodes",
-          "glimpselet:translate",
-          "glimpselet:restore"
+          "blinkling:guide-context",
+          "blinkling:explicit-context",
+          "blinkling:guide",
+          "blinkling:text-nodes",
+          "blinkling:translate",
+          "blinkling:restore"
         ].includes(message.type) && typeof message.documentKey === "string" && (message.documentKey !== pageDocumentKey() || message.url !== location.href)) {
           respond({ error: "tab_changed" });
           return;
         }
-        if (message.type === "glimpselet:tutorial-select" && location.pathname === "/assets/glimpselet-welcome-sample.html") {
+        if (message.type === "blinkling:tutorial-select" && location.pathname === "/assets/blinkling-welcome-sample.html") {
           const paragraph = document.querySelector("main p, article p, p");
           if (paragraph) {
             const range = document.createRange();
@@ -1730,35 +1730,35 @@
           respond({ ok: true });
           return;
         }
-        if (message.type === "glimpselet:tutorial-done" && location.pathname === "/assets/glimpselet-welcome-sample.html" && Number.isInteger(message.step) && Number(message.step) >= 1 && Number(message.step) <= 8) {
+        if (message.type === "blinkling:tutorial-done" && location.pathname === "/assets/blinkling-welcome-sample.html" && Number.isInteger(message.step) && Number(message.step) >= 1 && Number(message.step) <= 8) {
           window.opener?.postMessage(
-            { type: "glimpselet:tutorial:done", version: 1, step: message.step },
+            { type: "blinkling:tutorial:done", version: 1, step: message.step },
             location.origin
           );
           respond({ ok: true });
           return;
         }
-        if (message.type === "glimpselet:sensitive") {
+        if (message.type === "blinkling:sensitive") {
           respond({
             hasPassword: hasSensitiveContent()
           });
           return;
         }
-        if (message.type === "glimpselet:context") {
+        if (message.type === "blinkling:context") {
           respond(buildPageContext());
           return;
         }
-        if (message.type === "glimpselet:guide-context" || message.type === "glimpselet:explicit-context") {
+        if (message.type === "blinkling:guide-context" || message.type === "blinkling:explicit-context") {
           if (hasSensitiveContent(document, true)) {
             respond({ error: "password_page" });
             return;
           }
           respond(
-            message.type === "glimpselet:guide-context" ? buildGuideContext() : buildExplicitPageContext()
+            message.type === "blinkling:guide-context" ? buildGuideContext() : buildExplicitPageContext()
           );
           return;
         }
-        if (message.type === "glimpselet:identity") {
+        if (message.type === "blinkling:identity") {
           respond({
             documentKey: pageDocumentKey(),
             url: location.href,
@@ -1768,7 +1768,7 @@
           });
           return;
         }
-        if (message.type === "glimpselet:labels" && message.labels && typeof message.labels === "object") {
+        if (message.type === "blinkling:labels" && message.labels && typeof message.labels === "object") {
           const incoming = message.labels;
           for (const key of [
             "cropTitle",
@@ -1787,7 +1787,7 @@
           respond({ ok: true });
           return;
         }
-        if (message.type === "glimpselet:select" && (message.mode === "region" || message.mode === "element")) {
+        if (message.type === "blinkling:select" && (message.mode === "region" || message.mode === "element")) {
           const requestLabels = message.labels;
           if (requestLabels) cropLabels = { ...cropLabels, ...requestLabels };
           void select(message.mode, requestLabels?.cancel || "Cancel").then(
@@ -1795,7 +1795,7 @@
           );
           return true;
         }
-        if (message.type === "glimpselet:guide" && Array.isArray(message.steps)) {
+        if (message.type === "blinkling:guide" && Array.isArray(message.steps)) {
           if (hasSensitiveContent(document, true)) {
             closeGuide();
             respond({ error: "password_page" });
@@ -1831,7 +1831,7 @@
                 back: guideLabels.back || "Back",
                 close: guideLabels.close || "Close guide",
                 done: guideLabels.done || "Done",
-                title: guideLabels.title || "Glimpselet",
+                title: guideLabels.title || "Blinkling",
                 overview: guideLabels.overview || "Overview",
                 tour: guideLabels.tour || "Step by step",
                 sections: guideLabels.sections || "Page sections",
@@ -1847,7 +1847,7 @@
           }
           return;
         }
-        if (message.type === "glimpselet:text-nodes") {
+        if (message.type === "blinkling:text-nodes") {
           if (hasSensitiveContent(document, true)) {
             respond({ error: "password_page" });
             return;
@@ -1896,7 +1896,7 @@
           respond({ nodes, ...hasMore ? { nextCursor: index } : {} });
           return;
         }
-        if (message.type === "glimpselet:translate" && Array.isArray(message.nodes)) {
+        if (message.type === "blinkling:translate" && Array.isArray(message.nodes)) {
           if (hasSensitiveContent(document, true)) {
             respond({ error: "password_page" });
             return;
@@ -1937,7 +1937,7 @@
               original.lastWritten = entry.text;
               changed++;
               original.node.parentElement?.setAttribute(
-                "data-glimpselet-translated",
+                "data-blinkling-translated",
                 "true"
               );
             }
@@ -1946,13 +1946,13 @@
           respond({ applied, changed, skipped, rejected });
           return;
         }
-        if (message.type === "glimpselet:restore") {
+        if (message.type === "blinkling:restore") {
           let restored = 0;
           for (const [id, entry] of originals) {
             if (entry.node.isConnected && restorableTextNode(entry.node) && entry.lastWritten !== void 0 && entry.node.nodeValue === entry.lastWritten) {
               entry.node.nodeValue = entry.text;
               entry.node.parentElement?.removeAttribute(
-                "data-glimpselet-translated"
+                "data-blinkling-translated"
               );
               restored++;
             }

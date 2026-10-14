@@ -20,7 +20,7 @@ const fillDeck = (app, count = 14) =>
   app.evaluate((_electron, count) => {
     for (let i = 0; i < count; i++) {
       const text = `Answer sentence number ${i} for the deck.`;
-      globalThis.glimpseletTest.send({
+      globalThis.blinklingTest.send({
         type: "message",
         id: `deck-${i}`,
         role: "assistant",
@@ -31,13 +31,13 @@ const fillDeck = (app, count = 14) =>
   }, count);
 const composerState = (app) =>
   app.evaluate(() => {
-    const c = globalThis.glimpseletTest.composer;
+    const c = globalThis.blinklingTest.composer;
     return { visible: !!c && c.isVisible(), focused: !!c && c.isFocused() };
   });
 const nativeId = (app, name) =>
   app.evaluate(
     (_electron, name) =>
-      globalThis.glimpseletTest[name].getNativeWindowHandle().readUInt32LE(0),
+      globalThis.blinklingTest[name].getNativeWindowHandle().readUInt32LE(0),
     name,
   );
 /** Root children, bottom to top, as the X server stacks them. */
@@ -97,7 +97,7 @@ test("on X11 hover ends and the wheel scrolls the deck even when Electron's curs
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     });
     const origin = await app.evaluate(() => {
-      const b = globalThis.glimpseletTest.bubbles.getBounds();
+      const b = globalThis.blinklingTest.bubbles.getBounds();
       return { x: b.x, y: b.y };
     });
     const top = () =>
@@ -111,7 +111,7 @@ test("on X11 hover ends and the wheel scrolls the deck even when Electron's curs
     wheel(origin.x + target.x, origin.y + target.y, -4);
     await expect.poll(top).toBeLessThan(before - 20);
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.pointer.source),
+      await app.evaluate(() => globalThis.blinklingTest.pointer.source),
     ).toBe("x11");
   } finally {
     await app.close();
@@ -146,17 +146,15 @@ test("the deck follows Blink to each of the four edges", async () => {
       native([{ type: "up" }, { type: "move", x: 400, y: 700 }]);
       await expect
         .poll(() =>
-          app.evaluate(
-            () => globalThis.glimpseletTest.snapshot().position.edge,
-          ),
+          app.evaluate(() => globalThis.blinklingTest.snapshot().position.edge),
         )
         .toBe(edge);
       const { display, position } = await app.evaluate(() =>
-        globalThis.glimpseletTest.snapshot(),
+        globalThis.blinklingTest.snapshot(),
       );
       const expected = cardBounds(display, position);
       expect(
-        await app.evaluate(() => globalThis.glimpseletTest.bubbles.getBounds()),
+        await app.evaluate(() => globalThis.blinklingTest.bubbles.getBounds()),
         `deck at the ${edge} edge`,
       ).toEqual(expected);
       await shot(app, `deck-follows-${edge}`);
@@ -181,7 +179,7 @@ test("with bubbles present Blink stays above the deck and every menu pill is cli
         "settings",
         "help",
       ])
-        globalThis.glimpseletTest.registerAction(action, () => {
+        globalThis.blinklingTest.registerAction(action, () => {
           globalThis.actions.push(action);
           return { ok: true, enabled: action === "auto-explain" };
         });
@@ -189,7 +187,7 @@ test("with bubbles present Blink stays above the deck and every menu pill is cli
     await fillDeck(app, 10);
     await expect
       .poll(() =>
-        app.evaluate(() => globalThis.glimpseletTest.bubbles.isVisible()),
+        app.evaluate(() => globalThis.blinklingTest.bubbles.isVisible()),
       )
       .toBe(true);
     await reveal(page);
@@ -318,7 +316,7 @@ test("after a region capture the card and its text box have focus and typing lan
     await background(app);
     // Started in the main process and polled, so the pending call does not hold the page evaluation open.
     await app.evaluate(() => {
-      const t = globalThis.glimpseletTest;
+      const t = globalThis.blinklingTest;
       globalThis.regionCapture = t.features.capture
         .region(String(t.snapshot().display.id))
         .then((capture) => ({ done: !!capture }));
@@ -384,7 +382,7 @@ test("capture busy clears when delivery throws, hangs, or the selection never an
   const { app } = await launch();
   try {
     const outcome = await app.evaluate(async () => {
-      const t = globalThis.glimpseletTest;
+      const t = globalThis.blinklingTest;
       const service = t.features.capture;
       const id = String(t.snapshot().display.id);
       const result = {};
@@ -452,12 +450,12 @@ test("hovering on the top edge near a corner does not move Blink sideways", asyn
     native([{ type: "up" }, { type: "move", x: 600, y: 600 }]);
     await expect
       .poll(() =>
-        app.evaluate(() => globalThis.glimpseletTest.snapshot().position.edge),
+        app.evaluate(() => globalThis.blinklingTest.snapshot().position.edge),
       )
       .toMatch(/top|left/);
     await page.waitForTimeout(2200);
     const rest = await app.evaluate(
-      () => globalThis.glimpseletTest.snapshot().position,
+      () => globalThis.blinklingTest.snapshot().position,
     );
     await reveal(page);
     await page.waitForTimeout(700);

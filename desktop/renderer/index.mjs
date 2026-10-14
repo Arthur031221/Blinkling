@@ -5,7 +5,7 @@ import { scanlines, roundedRect } from "../character/silhouette.mjs";
 import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createMessageStream } from "../messages/index.mjs";
 import { createComposer } from "../composer/index.mjs";
-const api = window.glimpselet;
+const api = window.blinkling;
 const surface = new URLSearchParams(location.search).get("surface") ?? "blink";
 const state = new BlinkState();
 const activity = createActivityState();
@@ -61,7 +61,7 @@ async function action(id) {
     state.hover(false, performance.now());
   }
   window.dispatchEvent(
-    new CustomEvent("glimpselet:action-result", {
+    new CustomEvent("blinkling:action-result", {
       detail: { action: id, ...result },
     }),
   );
@@ -272,7 +272,7 @@ api.onShell((event) => {
     state.hover(event.hit, performance.now());
     if (event.hit && !before) {
       waveAt = performance.now() / 1000;
-      window.dispatchEvent(new CustomEvent("glimpselet:recall-answer"));
+      window.dispatchEvent(new CustomEvent("blinkling:recall-answer"));
     }
   }
   if (event.type === "chat-blur") state.hover(false, performance.now());
@@ -295,14 +295,14 @@ api.onShell((event) => {
         : "釘選讓對話保持開啟。拖曳 Blink 會記住每個螢幕的位置。";
   }
   window.dispatchEvent(
-    new CustomEvent("glimpselet:shell-event", { detail: event }),
+    new CustomEvent("blinkling:shell-event", { detail: event }),
   );
 });
 api.onEvent((event) => {
   activity.accept(event, performance.now());
   messages.accept(event);
   window.dispatchEvent(
-    new CustomEvent("glimpselet:session-event", { detail: event }),
+    new CustomEvent("blinkling:session-event", { detail: event }),
   );
 });
 export const desktop = {
@@ -335,11 +335,11 @@ window.desktop = desktop;
 window.addEventListener("pagehide", () => cancelAnimationFrame(frameId));
 
 // Capture owns the native selection; the conversation UI owns these attachments.
-window.glimpselet.onEvent((event) => {
+window.blinkling.onEvent((event) => {
   if (event.type === "capture") desktop.composer.attach(event.capture.image);
 });
 document.querySelector("#blink").addEventListener("pointerdown", () => {
-  void window.glimpselet.action("guide-dismiss");
+  void window.blinkling.action("guide-dismiss");
 });
 // Blink intentionally has no keyboard focus. Native pointer events carry the
 // held Shift modifier even while the underlying application keeps focus.
@@ -360,7 +360,7 @@ const selectWithShift = (event) => {
     )
   ) {
     shiftSelection = true;
-    void window.glimpselet.action("region").catch(() => {});
+    void window.blinkling.action("region").catch(() => {});
   }
 };
 for (const event of ["pointerenter", "pointermove"])

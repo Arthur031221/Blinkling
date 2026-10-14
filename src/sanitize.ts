@@ -42,7 +42,7 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   let url: URL | undefined;
   if (allowedURI.test(href)) {
     try {
-      url = new URL(href, "https://glimpselet.invalid/");
+      url = new URL(href, "https://blinkling.invalid/");
     } catch {
       // Invalid destinations remain plain text.
     }

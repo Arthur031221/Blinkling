@@ -90,7 +90,7 @@ export class PanelServer {
   private trialError = false;
   private extensionArchive?: Promise<Buffer>;
   private readonly distributionFile =
-    process.env.GLIMPSELET_DISTRIBUTION_CONFIG ||
+    process.env.BLINKLING_DISTRIBUTION_CONFIG ||
     resolve(
       dirname(resolve(process.argv[1] || ".")),
       "config/distribution.json",
@@ -119,13 +119,13 @@ export class PanelServer {
     const floatingGeometryPath =
       options.floatingGeometryPath !== undefined
         ? options.floatingGeometryPath
-        : process.env.GLIMPSELET_TEST_MODE === "1"
+        : process.env.BLINKLING_TEST_MODE === "1"
           ? null
           : defaultFloatingPreferencesPath();
     this.floatingPreferences = new FloatingPreferences(floatingGeometryPath);
     this.panelDir = resolve(
       options.panelDir ??
-        process.env.GLIMPSELET_PANEL_DIR ??
+        process.env.BLINKLING_PANEL_DIR ??
         `${dirname(resolve(process.argv[1] ?? process.cwd()))}/panel`,
     );
   }
@@ -223,7 +223,7 @@ export class PanelServer {
     } catch {
       throw new PanelError(
         "extension_missing",
-        "The extension files are missing. Update the plugin, then run /glimpselet:glimpse again.",
+        "The extension files are missing. Update the plugin, then run /blinkling:blinkling again.",
         503,
       );
     }
@@ -231,7 +231,7 @@ export class PanelServer {
     const url = `${this.origin}/install#code=${code}`;
     const storeUrl = selectedStoreUrl(
       loadDistributionConfig(this.distributionFile),
-      process.env.GLIMPSELET_BROWSER === "msedge" ? "edge" : "chrome",
+      process.env.BLINKLING_BROWSER === "msedge" ? "edge" : "chrome",
     );
     openInstallSurface(url, storeUrl ? undefined : folder);
     const tunnel = tunnelCommand(this.port);
@@ -242,8 +242,8 @@ export class PanelServer {
       .then(() => true)
       .catch(() => false);
     const channelCommand = sourceCheckout
-      ? `claude --plugin-dir '${pluginRoot.replaceAll("'", "'\\''")}' --continue --dangerously-load-development-channels server:plugin:glimpselet:glimpselet`
-      : "claude --continue --dangerously-load-development-channels plugin:glimpselet@glimpselet";
+      ? `claude --plugin-dir '${pluginRoot.replaceAll("'", "'\\''")}' --continue --dangerously-load-development-channels server:plugin:blinkling:blinklinglet`
+      : "claude --continue --dangerously-load-development-channels plugin:blinkling@blinkling";
     const channelHint =
       !this.channel?.ready && !this.channelHintShown
         ? `\n\nOptional live terminal sync: exit Claude Code first, then run this once in the same project:\n\`\`\`sh\n${channelCommand}\n\`\`\``
@@ -251,15 +251,15 @@ export class PanelServer {
     this.channelHintShown = true;
     return (
       (tunnel
-        ? `On the computer with your browser, run this tunnel, then open ${url} to get started. Glimpselet connects to your Claude Code automatically.\n\n\`\`\`sh\n${tunnel}\n\`\`\``
-        : `Open ${url} to get started. Glimpselet connects to your Claude Code automatically.`) +
+        ? `On the computer with your browser, run this tunnel, then open ${url} to get started. Blinkling connects to your Claude Code automatically.\n\n\`\`\`sh\n${tunnel}\n\`\`\``
+        : `Open ${url} to get started. Blinkling connects to your Claude Code automatically.`) +
       channelHint
     );
   }
 
   async openUrl(): Promise<string> {
     const url = `${this.origin}/#${this.tokens.issue()}`;
-    if (process.env.GLIMPSELET_DISABLE_BROWSER_OPEN !== "1") {
+    if (process.env.BLINKLING_DISABLE_BROWSER_OPEN !== "1") {
       const command =
         process.platform === "darwin"
           ? "open"
@@ -275,7 +275,7 @@ export class PanelServer {
         () => {},
       ).unref();
     }
-    return `Glimpselet panel URL, valid once for 60 seconds: ${url}`;
+    return `Blinkling panel URL, valid once for 60 seconds: ${url}`;
   }
 
   private reply(res: ServerResponse, status: number, body: unknown): void {
@@ -357,7 +357,7 @@ export class PanelServer {
       if (this.extension?.installStatus(code) === undefined)
         throw new PanelError(
           "pairing_expired",
-          "Run /glimpse again for a new setup link.",
+          "Run /blinkling:blinkling again for a new setup link.",
           401,
         );
       this.extensionArchive ??= createExtensionZip(extensionSourceFolder());
@@ -365,8 +365,7 @@ export class PanelServer {
       res.writeHead(200, {
         "Content-Type": "application/zip",
         "Content-Length": archive.length,
-        "Content-Disposition":
-          'attachment; filename="glimpselet-extension.zip"',
+        "Content-Disposition": 'attachment; filename="blinkling-extension.zip"',
         "Cache-Control": "no-store",
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
@@ -385,7 +384,7 @@ export class PanelServer {
       if (connected === undefined)
         throw new PanelError(
           "pairing_expired",
-          "Run /glimpse again for a new setup link.",
+          "Run /blinkling:blinkling again for a new setup link.",
           401,
         );
       if (path === "/install/status" && req.method === "GET") {
@@ -405,7 +404,7 @@ export class PanelServer {
       )
         throw new PanelError(
           "invalid_origin",
-          "Open the setup page to try Glimpselet.",
+          "Open the setup page to try Blinkling.",
           403,
         );
       if (path === "/install/reveal") {
@@ -444,8 +443,8 @@ export class PanelServer {
         const child = spawn(process.execPath, [launcher], {
           env: {
             ...process.env,
-            GLIMPSELET_EXTENSION_DIR: extensionFolder(),
-            GLIMPSELET_TRIAL_URL: trialUrl.toString(),
+            BLINKLING_EXTENSION_DIR: extensionFolder(),
+            BLINKLING_TRIAL_URL: trialUrl.toString(),
           },
           stdio: ["ignore", "ignore", "pipe"],
         });
@@ -501,7 +500,7 @@ export class PanelServer {
         if (typeof data.token !== "string" || !this.tokens.consume(data.token))
           throw new PanelError(
             "session_expired",
-            "This panel link expired or was already used. Run /glimpselet:glimpse again.",
+            "This panel link expired or was already used. Run /blinkling:blinkling again.",
             401,
           );
         const session = this.sessions.create();
@@ -520,14 +519,14 @@ export class PanelServer {
       if (!session)
         throw new PanelError(
           "session_expired",
-          "The panel session expired. Run /glimpselet:glimpse again.",
+          "The panel session expired. Run /blinkling:blinkling again.",
           401,
         );
       const data = await this.body(req);
       if (this.sessions.get(auth) !== session)
         throw new PanelError(
           "session_expired",
-          "The panel session expired. Run /glimpselet:glimpse again.",
+          "The panel session expired. Run /blinkling:blinkling again.",
           401,
         );
       if (path === "/api/history") {

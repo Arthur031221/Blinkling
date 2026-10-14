@@ -11,21 +11,21 @@ import en from "../extension/locales/en.json" with { type: "json" };
 
 const fixture = createServer((_, response) => {
   response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-  response.end(`<!doctype html><title>Glimpselet Screen Fixture</title>
+  response.end(`<!doctype html><title>Blinkling Screen Fixture</title>
     <style>body{margin:0;background:#faecd6;color:#241f1a;font:24px system-ui;padding:48px}h1{font-size:32px}code{display:block;padding:24px;background:#203d54;color:white}p{margin-top:32px}</style>
-    <h1>Glimpselet capture test</h1><code>GL472: 設定を保存できませんでした</code>
+    <h1>Blinkling capture test</h1><code>GL472: 設定を保存できませんでした</code>
     <p>The Japanese message says the settings could not be saved.</p>`);
 });
 await new Promise((resolveListen) =>
   fixture.listen(0, "127.0.0.1", resolveListen),
 );
 const fixtureUrl = `http://127.0.0.1:${fixture.address().port}`;
-const client = new Client({ name: "glimpselet-screen-test", version: "2.0.0" });
+const client = new Client({ name: "blinkling-screen-test", version: "2.0.0" });
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: ["bin/glimpselet.cjs"],
+  args: ["bin/blinkling.cjs"],
   stderr: "pipe",
-  env: { ...process.env, GLIMPSELET_DISABLE_BROWSER_OPEN: "1" },
+  env: { ...process.env, BLINKLING_DISABLE_BROWSER_OPEN: "1" },
 });
 let browser, context, profile;
 async function floatingCommand(targetId, method, params) {
@@ -105,7 +105,7 @@ try {
   const pairingCode = new URL(guideUrl).hash.match(/code=([A-F0-9]{16})/)?.[1];
   assert.ok(pairingCode, "the /install guide URL must carry its pairing code");
 
-  profile = await mkdtemp(join(tmpdir(), "glimpselet-screen-e2e-"));
+  profile = await mkdtemp(join(tmpdir(), "blinkling-screen-e2e-"));
   const extension = resolve("dist-extension");
   context = await chromium.launchPersistentContext(join(profile, "profile"), {
     channel: "chromium",
@@ -114,7 +114,7 @@ try {
     args: [
       `--disable-extensions-except=${extension}`,
       `--load-extension=${extension}`,
-      "--auto-select-tab-capture-source-by-title=Glimpselet Screen Fixture",
+      "--auto-select-tab-capture-source-by-title=Blinkling Screen Fixture",
       "--enable-usermedia-screen-capturing",
       "--allow-http-screen-capture",
       "--enable-unsafe-extension-debugging",
@@ -253,7 +253,7 @@ try {
     expression: `[...document.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(en.region)}).click()`,
     userGesture: true,
   });
-  const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+  const frozen = panel.locator("[data-blinkling-frozen-crop]");
   await frozen.waitFor({ state: "visible" });
   await panel.bringToFront();
   const frameBounds = await frozen.locator("img").boundingBox();

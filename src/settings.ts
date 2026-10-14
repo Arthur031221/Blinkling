@@ -33,7 +33,7 @@ const locales: Locale[] = [
 export function readSettings(): Settings {
   try {
     const raw = JSON.parse(
-      sessionStorage.getItem("glimpselet-settings") || "null",
+      sessionStorage.getItem("blinkling-settings") || "null",
     );
     if (!raw || typeof raw !== "object") return defaults;
     return {

@@ -15,7 +15,7 @@ import { discoverDesktop } from "../../plugin/desktop/client.mjs";
 
 it("authenticates reverse capture and guide RPC, with no browser required for the screen fallback", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-gateway-"));
-  vi.stubEnv("GLIMPSELET_RUNTIME_DIR", directory);
+  vi.stubEnv("BLINKLING_RUNTIME_DIR", directory);
   const host = await startDesktopHost({
     directory,
     descriptor: join(directory, "desktop.json"),
@@ -101,7 +101,7 @@ const tilePng = (width: number, height: number) => {
 
 it("carries a full page as separate tiles at their own size, with progress while the browser scrolls", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-gateway-"));
-  vi.stubEnv("GLIMPSELET_RUNTIME_DIR", directory);
+  vi.stubEnv("BLINKLING_RUNTIME_DIR", directory);
   const host = await startDesktopHost({
     directory,
     descriptor: join(directory, "desktop.json"),

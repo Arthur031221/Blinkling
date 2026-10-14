@@ -130,7 +130,7 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     native(38, 480);
     await c.page.waitForTimeout(200);
     expect(
-      (await c.app.evaluate(() => globalThis.glimpseletTest.snapshot())).drag.x,
+      (await c.app.evaluate(() => globalThis.blinklingTest.snapshot())).drag.x,
     ).toBeLessThan(160);
     await expect
       .poll(() =>
@@ -180,9 +180,7 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drop");
     await expect
       .poll(() =>
-        c.app.evaluate(
-          () => globalThis.glimpseletTest.snapshot().position.edge,
-        ),
+        c.app.evaluate(() => globalThis.blinklingTest.snapshot().position.edge),
       )
       .toBe("left");
     await c.page.waitForTimeout(850);
@@ -198,18 +196,18 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     );
     await desktopShot(c.app, "drop-left-desktop");
     const saved = await c.app.evaluate(
-      () => globalThis.glimpseletTest.snapshot().position,
+      () => globalThis.blinklingTest.snapshot().position,
     );
     await c.app.close();
     c = await launch(1, "light", directory);
     expect(
       await c.app.evaluate(
-        () => globalThis.glimpseletTest.snapshot().position.edge,
+        () => globalThis.blinklingTest.snapshot().position.edge,
       ),
     ).toBe(saved.edge);
     expect(
       await c.app.evaluate(
-        () => globalThis.glimpseletTest.snapshot().position.ratio,
+        () => globalThis.blinklingTest.snapshot().position.ratio,
       ),
     ).toBeCloseTo(saved.ratio, 6);
     await background(c.app);
@@ -217,15 +215,13 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     await c.page.locator("#pin").click();
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.glimpseletTest.snapshot().pinned),
+        c.app.evaluate(() => globalThis.blinklingTest.snapshot().pinned),
       )
       .toBe(true);
     native(30, 30);
     await c.page.waitForTimeout(1900);
     expect(
-      await c.app.evaluate(() =>
-        globalThis.glimpseletTest.composer.isVisible(),
-      ),
+      await c.app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
     ).toBe(true);
     expect(
       await c.app.evaluate(() => globalThis.shellBackground.isFocused()),
@@ -233,12 +229,12 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     const chat = c.app.windows().find((p) => p.url().includes("surface=card"));
     const inputBox = await chat.locator(".gl-input").boundingBox();
     const cardBox = await c.app.evaluate(() =>
-      globalThis.glimpseletTest.composer.getBounds(),
+      globalThis.blinklingTest.composer.getBounds(),
     );
     native(cardBox.x + inputBox.x + 20, cardBox.y + inputBox.y + 20, "click");
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.glimpseletTest.composer.isFocused()),
+        c.app.evaluate(() => globalThis.blinklingTest.composer.isFocused()),
       )
       .toBe(true);
     await desktopShot(c.app, "pinned-card-desktop");
@@ -247,9 +243,9 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
       .poll(() => c.app.evaluate(() => globalThis.shellBackground.isFocused()))
       .toBe(true);
     expect(
-      await c.app.evaluate(() => globalThis.glimpseletTest.snapshot().pinned),
+      await c.app.evaluate(() => globalThis.blinklingTest.snapshot().pinned),
     ).toBe(false);
-    await c.page.evaluate(() => window.glimpselet.action("chat"));
+    await c.page.evaluate(() => window.blinkling.action("chat"));
     const chat2 = c.app.windows().find((p) => p.url().includes("surface=card"));
     await expect(chat2.locator(".gl-input")).toBeFocused();
     const pointer = native(800, 200, "click");
@@ -261,8 +257,8 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
         {
           pointer,
           shell: await c.app.evaluate(async ({ BrowserWindow }) => ({
-            ...globalThis.glimpseletTest.snapshot(),
-            focused: globalThis.glimpseletTest.composer.isFocused(),
+            ...globalThis.blinklingTest.snapshot(),
+            focused: globalThis.blinklingTest.composer.isFocused(),
             background: globalThis.shellBackground.isFocused(),
             bounds: globalThis.shellBackground.getBounds(),
             clicks:
@@ -288,7 +284,7 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     await expect
       .poll(
         () =>
-          c.app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
+          c.app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
         { timeout: 4000 },
       )
       .toBe(false);
@@ -338,7 +334,7 @@ test("closing an intentional chat restores a separate application's native focus
     native(button.x + 21, button.y + 21, "click");
     await expect
       .poll(() =>
-        c.app.evaluate(() => !!globalThis.glimpseletTest.composer?.isVisible()),
+        c.app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible()),
       )
       .toBe(true);
     const chat = c.app.windows().find((p) => p.url().includes("surface=card"));
@@ -348,7 +344,7 @@ test("closing an intentional chat restores a separate application's native focus
         .getByRole("button", { name: "收起" })
         .boundingBox(),
       card = await c.app.evaluate(() =>
-        globalThis.glimpseletTest.composer.getBounds(),
+        globalThis.blinklingTest.composer.getBounds(),
       );
     native(
       card.x + close.x + close.width / 2,
@@ -359,7 +355,7 @@ test("closing an intentional chat restores a separate application's native focus
     await expect.poll(activeWindow).toBe(external);
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
+        c.app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
       )
       .toBe(false);
     await progress("waiting for settled peek");
@@ -441,7 +437,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
     await c.app.evaluate(() => {
       globalThis.menuCalls = [];
       for (const action of ["region", "full-page", "guide", "auto-explain"]) {
-        globalThis.glimpseletTest.registerAction(action, async (context) => {
+        globalThis.blinklingTest.registerAction(action, async (context) => {
           globalThis.menuCalls.push({
             action,
             display: String(context.display.id),
@@ -484,7 +480,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
       await expect
         .poll(() =>
           c.app.evaluate(
-            () => !!globalThis.glimpseletTest.composer?.isVisible(),
+            () => !!globalThis.blinklingTest.composer?.isVisible(),
           ),
         )
         .toBe(true);
@@ -499,7 +495,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
       await chat.keyboard.press("Escape");
       await expect
         .poll(() =>
-          c.app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
+          c.app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
         )
         .toBe(false);
     }
@@ -568,14 +564,14 @@ for (const scale of [1, 1.5, 2])
         }
         await expect(
           c.page.evaluate(() =>
-            window.glimpselet.shell({
+            window.blinkling.shell({
               type: "drag",
               phase: "start",
               path: "/bin/sh",
             }),
           ),
         ).rejects.toThrow(/Invalid shell command/);
-        await c.page.evaluate(() => window.glimpselet.action("chat"));
+        await c.page.evaluate(() => window.blinkling.action("chat"));
         const chat = c.app
           .windows()
           .find((p) => p.url().includes("surface=card"));
@@ -583,7 +579,7 @@ for (const scale of [1, 1.5, 2])
         await chat.waitForTimeout(500);
         await expect(c.page.locator(".action-bubble").first()).toBeHidden();
         const cardBounds = await c.app.evaluate(() =>
-          globalThis.glimpseletTest.composer.getBounds(),
+          globalThis.blinklingTest.composer.getBounds(),
         );
         const cardImage = await desktopShot(
           c.app,
@@ -597,7 +593,7 @@ for (const scale of [1, 1.5, 2])
           ),
         ).toEqual(theme === "light" ? [250, 248, 243] : [38, 39, 37]);
         const capture = await c.app.evaluate(() =>
-          globalThis.glimpseletTest.capture(),
+          globalThis.blinklingTest.capture(),
         );
         await writeFile(
           join(report, `clean-capture-${scale * 100}-${theme}.png`),

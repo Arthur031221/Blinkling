@@ -100,7 +100,7 @@ async function openPanel(source) {
           focused: true
         });
     }
-    await chrome.runtime.sendMessage({ type: "glimpselet:focus", sourceTab: source?.id }).catch(() => {
+    await chrome.runtime.sendMessage({ type: "blinkling:focus", sourceTab: source?.id }).catch(() => {
     });
     return;
   }
@@ -127,7 +127,7 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 chrome.commands.onCommand.addListener(async (command) => {
-  if (command === "open-glimpselet") {
+  if (command === "open-blinkling") {
     const [tab] = await chrome.tabs.query({
       active: true,
       lastFocusedWindow: true
@@ -135,24 +135,24 @@ chrome.commands.onCommand.addListener(async (command) => {
     void openPanel(tab);
   }
   if (command === "crop-screen" || command === "crop-global") {
-    chrome.runtime.sendMessage({ type: "glimpselet:command", command: "crop-screen" }).catch(() => {
+    chrome.runtime.sendMessage({ type: "blinkling:command", command: "crop-screen" }).catch(() => {
     });
   }
   if (command === "pause-passive")
-    chrome.runtime.sendMessage({ type: "glimpselet:command", command }).catch(() => {
+    chrome.runtime.sendMessage({ type: "blinkling:command", command }).catch(() => {
     });
 });
 chrome.runtime.onMessage.addListener(
   (message, sender, sendResponse) => {
-    if (message?.type === "glimpselet:open") {
+    if (message?.type === "blinkling:open") {
       void openPanel().then(() => sendResponse({ ok: true }));
       return true;
     }
-    if (message?.type === "glimpselet:inject-content" && sender.tab?.id !== void 0) {
+    if (message?.type === "blinkling:inject-content" && sender.tab?.id !== void 0) {
       void injectContent(sender.tab.id).then(() => sendResponse({ ok: true }));
       return true;
     }
-    if (message?.type === "glimpselet:open-reader" && typeof message.url === "string") {
+    if (message?.type === "blinkling:open-reader" && typeof message.url === "string") {
       const target = new URL(chrome.runtime.getURL("reader.html"));
       target.searchParams.set("url", message.url);
       void chrome.tabs.create({ url: target.toString() }).then(
@@ -161,12 +161,12 @@ chrome.runtime.onMessage.addListener(
       );
       return true;
     }
-    if (message?.type === "glimpselet:reader-permission-handoff" && sender.tab?.url?.split(/[?#]/, 1)[0] === readerUrl()) {
+    if (message?.type === "blinkling:reader-permission-handoff" && sender.tab?.url?.split(/[?#]/, 1)[0] === readerUrl()) {
       let interrupted = false;
       void (async () => {
         const panels = await chrome.tabs.query({ url: `${panelUrl()}*` });
         if (!panels.length) return false;
-        const response = await chrome.runtime.sendMessage({ type: "glimpselet:reader-permission-handoff" }).catch(() => void 0);
+        const response = await chrome.runtime.sendMessage({ type: "blinkling:reader-permission-handoff" }).catch(() => void 0);
         if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
         interrupted = response.interrupted === true;
         const panel = panels.find(
@@ -187,7 +187,7 @@ chrome.runtime.onMessage.addListener(
       );
       return true;
     }
-    if (message?.type === "glimpselet:open-bubble" && sender.tab?.url) {
+    if (message?.type === "blinkling:open-bubble" && sender.tab?.url) {
       let source;
       try {
         source = new URL(sender.tab.url);
@@ -199,7 +199,7 @@ chrome.runtime.onMessage.addListener(
       void saveWelcomeLocale(message.locale).then(() => openPanel()).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
-    if (message?.type === "glimpselet:pair" && sender.tab?.url) {
+    if (message?.type === "blinkling:pair" && sender.tab?.url) {
       let senderUrl;
       try {
         senderUrl = new URL(sender.tab.url);
@@ -215,7 +215,7 @@ chrome.runtime.onMessage.addListener(
         return false;
       }
       void connectWelcome(port, code).then(
-        () => chrome.runtime.sendMessage({ type: "glimpselet:connection-updated" }).catch(() => {
+        () => chrome.runtime.sendMessage({ type: "blinkling:connection-updated" }).catch(() => {
         })
       ).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;

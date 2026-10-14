@@ -10,11 +10,8 @@ process.env.CLAUDE_CONFIG_DIR = join(process.cwd(), ".test-claude");
 import { spawn } from "node:child_process";
 const args = process.argv.slice(2);
 if (args.includes("--version")) {
-  if (process.env.GLIMPSELET_TEST_VERSION_PID) {
-    appendFileSync(
-      process.env.GLIMPSELET_TEST_VERSION_PID,
-      String(process.pid),
-    );
+  if (process.env.BLINKLING_TEST_VERSION_PID) {
+    appendFileSync(process.env.BLINKLING_TEST_VERSION_PID, String(process.pid));
     await new Promise((resolve) => setTimeout(resolve, 10000));
   }
   process.stdout.write("2.1.296 (Claude Code)\n");
@@ -42,16 +39,13 @@ const log = (event) => {
   mkdirSync(dirname(file), { recursive: true });
   appendFileSync(file, JSON.stringify(event) + "\n");
 };
-if (process.env.GLIMPSELET_TEST_DESCENDANT) {
+if (process.env.BLINKLING_TEST_DESCENDANT) {
   const descendant = spawn(
     process.execPath,
     ["-e", "setInterval(()=>{},1000)"],
     { stdio: "ignore" },
   );
-  appendFileSync(
-    process.env.GLIMPSELET_TEST_DESCENDANT,
-    String(descendant.pid),
-  );
+  appendFileSync(process.env.BLINKLING_TEST_DESCENDANT, String(descendant.pid));
   process.once("SIGTERM", () => {
     descendant.once("exit", () => process.exit(0));
     descendant.kill("SIGTERM");
@@ -61,9 +55,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const frame = JSON.parse(line);
   if (frame.type === "control_request") {
     const request = frame.request;
-    if (process.env.GLIMPSELET_TEST_REQUESTS)
+    if (process.env.BLINKLING_TEST_REQUESTS)
       appendFileSync(
-        process.env.GLIMPSELET_TEST_REQUESTS,
+        process.env.BLINKLING_TEST_REQUESTS,
         `${JSON.stringify(request)}\n`,
       );
     let response = {};

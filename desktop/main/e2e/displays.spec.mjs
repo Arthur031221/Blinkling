@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launch, native, rigPoint, desktopShot, report } from "./support.mjs";
 const randr = (...args) => execFileSync("xrandr", args);
-const state = (c) => c.app.evaluate(() => globalThis.glimpseletTest.snapshot());
+const state = (c) => c.app.evaluate(() => globalThis.blinklingTest.snapshot());
 async function hover(c) {
   const p = await rigPoint(c.page),
     s = await state(c);
@@ -74,7 +74,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
     expect(restored.display.id).toBe(second.display.id);
     expect(restored.position.ratio).toBeCloseTo(second.position.ratio, 6);
     await c.page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: true }),
+      window.blinkling.shell({ type: "pin", value: true }),
     );
     randr("--output", "DUMMY1", "--off");
     await expect
@@ -85,7 +85,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
       6,
     );
     const card = await c.app.evaluate(() =>
-      globalThis.glimpseletTest.composer.getBounds(),
+      globalThis.blinklingTest.composer.getBounds(),
     );
     expect(card.x).toBeGreaterThanOrEqual(0);
     expect(card.x + card.width).toBeLessThanOrEqual(1280);
@@ -102,7 +102,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
       6,
     );
     await c.page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: false }),
+      window.blinkling.shell({ type: "pin", value: false }),
     );
     await hover(c);
     const bounds = await c.page.locator(".action-bubble").evaluateAll((bs) =>
@@ -119,7 +119,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
     ).toBe(true);
     await desktopShot(c.app, "resolution-recovered-menu");
     const positions = await c.app.evaluate(
-      () => globalThis.glimpseletTest.positionStore.positions,
+      () => globalThis.blinklingTest.positionStore.positions,
     );
     expect(Object.keys(positions)).toHaveLength(2);
     await writeFile(

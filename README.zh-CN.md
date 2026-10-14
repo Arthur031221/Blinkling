@@ -1,4 +1,4 @@
-<h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br />Glimpselet</h1>
+<h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br />Blinkling</h1>
 
 <p align="center"><strong>让答案留在页面旁边。</strong></p>
 
@@ -9,6 +9,8 @@
 </p>
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
+
+Formerly Glimpselet。从旧插件升级？请运行 `/plugin uninstall glimpselet@glimpselet` 与 `/plugin marketplace remove glimpselet`，再按下方步骤安装 Blinkling。
 
 一个小巧的 Claude Code 悬浮聊天窗口。询问页面、截取区域、跟随导览，或翻译一段文字。
 
@@ -25,13 +27,13 @@ _Google Flights：先看页面导览，再询问如何预订往返航班。_
 
    ```text
    /plugin marketplace add Arthur031221/Glimpselet
-   /plugin install glimpselet@glimpselet
+   /plugin install blinkling@blinkling
    ```
 
 2. 打开欢迎指南：
 
    ```text
-   /glimpselet:glimpse
+   /blinkling:blinkling
    ```
 
 3. 在 `chrome://extensions`（或 `edge://extensions`）开启**开发者模式**。选择 **Load unpacked**，并选中 **Show in Files / Finder** 打开的文件夹。欢迎页会自动连接，再打开悬浮窗口。
@@ -48,30 +50,30 @@ _Google Flights：先看页面导览，再询问如何预订往返航班。_
 
 ```sh
 git clone https://github.com/Arthur031221/Glimpselet.git
-cd Glimpselet
+cd Blinkling
 npm ci
 npm run build:plugin
 claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
 node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
-claude --plugin-dir "$PWD" plugin details glimpselet
+claude --plugin-dir "$PWD" plugin details blinkling
 node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-两条版本检查命令都应显示 `2.1.0`。插件列表应显示 `glimpselet@inline` 的版本为 `2.1.0`，并已在此会话中启用。最后一条命令会打开 Claude Code。在这个会话中运行 `/glimpselet:glimpse`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项。重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
+两条版本检查命令都应显示 `2.1.0`。插件列表应显示 `blinkling@inline` 的版本为 `2.1.0`，并已在此会话中启用。最后一条命令会打开 Claude Code。在这个会话中运行 `/blinkling:blinkling`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项。重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
 
-插件详情还应包含 `glimpse` 和 `install` 技能以及 `glimpselet` MCP 服务器。打包后的扩展位于 `bin/extension`，版本也应为 **2.1.0**。如果 Claude Code 在远程主机上运行，请使用指南中的 SSH 命令，在浏览器所在的电脑下载扩展 ZIP，并加载解压后的文件夹。
+插件详情还应包含 `blinkling` 和 `install` 技能以及 `blinkling` MCP 服务器。打包后的扩展位于 `bin/extension`，版本也应为 **2.1.0**。如果 Claude Code 在远程主机上运行，请使用指南中的 SSH 命令，在浏览器所在的电脑下载扩展 ZIP，并加载解压后的文件夹。
 
-如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/Glimpselet-extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
-更新未打包扩展时，先关闭旧浮动窗口，再运行 `/glimpselet:glimpse` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。 改用 `~/Glimpselet-extension` 时，请移除旧扩展卡片，再加载这个文件夹一次。
+如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/Blinkling-extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
+更新未打包扩展时，先关闭旧浮动窗口，再运行 `/blinkling:blinkling` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。 改用 `~/Blinkling-extension` 时，请移除旧扩展卡片，再加载这个文件夹一次。
 
-已安装的插件请执行以下命令，再在 Claude Code 执行 `/reload-plugins` 和 `/glimpselet:glimpse`。确认插件列表与扩展卡片均为 **2.1.0** 后，再重新打开悬浮窗口。
+已安装的插件请执行以下命令，再在 Claude Code 执行 `/reload-plugins` 和 `/blinkling:blinkling`。确认插件列表与扩展卡片均为 **2.1.0** 后，再重新打开悬浮窗口。
 
 ```sh
-claude plugin marketplace update glimpselet
-claude plugin update glimpselet@glimpselet
+claude plugin marketplace update blinkling
+claude plugin update blinkling@blinkling
 claude plugin list
 ```
 
@@ -102,7 +104,7 @@ macOS 用 Cmd 代替 Ctrl。在 `chrome://extensions/shortcuts` 修改快捷键�
 
 ## 会话与隐私
 
-Glimpselet 优先使用已验证的 Claude Code 实时通道，否则在独立进程中继续项目最新的已保存对话。避免在终端同时操作同一份对话记录。[通道设置与限制](docs/DESIGN.md#the-running-claude-code-conversation)。
+Blinkling 优先使用已验证的 Claude Code 实时通道，否则在独立进程中继续项目最新的已保存对话。避免在终端同时操作同一份对话记录。[通道设置与限制](docs/DESIGN.md#the-running-claude-code-conversation)。
 
 > [!IMPORTANT]
 > **自动解说**在你同意并授予网站权限后，**无需共享屏幕**即可总结页面变化。密码字段和屏蔽列表会暂停自动摘要与问题建议。屏幕摘要使用共享浏览器标签页，并绑定到同一个已检查的标签页，执行相同检查。共享显示器或应用需要**每次共享单独同意**。无法检查这些像素中的密码字段或被屏蔽网站。来源不明时保持暂停。

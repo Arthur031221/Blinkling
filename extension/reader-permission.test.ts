@@ -67,7 +67,7 @@ beforeEach(() => {
   contains.mockReset().mockResolvedValue(false);
   request.mockReset().mockResolvedValue(true);
   send.mockReset().mockImplementation(async (message) => {
-    if (message.type === "glimpselet:reader-permission-handoff") {
+    if (message.type === "blinkling:reader-permission-handoff") {
       events.push("handoff");
       handoffNotice = {
         hidden: document.querySelector<HTMLElement>("#permission-recovery")
@@ -76,7 +76,7 @@ beforeEach(() => {
       };
       return { ok: true, interrupted: true };
     }
-    if (message.type === "glimpselet:reader-resume-floating")
+    if (message.type === "blinkling:reader-resume-floating")
       events.push("resume-message");
     return { ok: true };
   });
@@ -197,7 +197,7 @@ describe("reader permission recovery", () => {
       await settle();
       expect(events.slice(-2)).toEqual(["request-window", "resume-message"]);
       expect(send).toHaveBeenCalledWith({
-        type: "glimpselet:reader-resume-floating",
+        type: "blinkling:reader-resume-floating",
       });
       expect(
         document.querySelector<HTMLElement>("#permission-recovery")?.hidden,
@@ -230,7 +230,7 @@ describe("reader permission recovery", () => {
     await settle();
     expect(requestWindow).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledWith({
-      type: "glimpselet:reader-resume-floating",
+      type: "blinkling:reader-resume-floating",
     });
     expect(
       document.querySelector<HTMLElement>("#permission-recovery")?.hidden,
@@ -255,7 +255,7 @@ describe("reader permission recovery", () => {
     );
     expect(
       send.mock.calls.some(
-        ([message]) => message.type === "glimpselet:reader-resume-floating",
+        ([message]) => message.type === "blinkling:reader-resume-floating",
       ),
     ).toBe(false);
     button.click();

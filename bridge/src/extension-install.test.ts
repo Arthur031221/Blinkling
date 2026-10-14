@@ -16,10 +16,10 @@ import {
 describe("extension distribution and first-run guide", () => {
   it("defaults to unpacked and only selects validated store URLs", () => {
     expect(distributionMode()).toBe("unpacked");
-    expect(extensionFolder().split("/").at(-1)).toBe("Glimpselet-extension");
+    expect(extensionFolder().split("/").at(-1)).toBe("Blinkling-extension");
     const config = {
       chromeWebStoreUrl:
-        "https://chromewebstore.google.com/detail/glimpselet/abcdefgh",
+        "https://chromewebstore.google.com/detail/blinkling/abcdefgh",
       edgeAddonsUrl: "",
     };
     expect(distributionMode(config)).toBe("store");
@@ -39,7 +39,7 @@ describe("extension distribution and first-run guide", () => {
         {
           chromeWebStoreUrl: "",
           edgeAddonsUrl:
-            "https://microsoftedge.microsoft.com/addons/detail/glimpselet/id",
+            "https://microsoftedge.microsoft.com/addons/detail/blinkling/id",
         },
         "edge",
       ),
@@ -69,34 +69,34 @@ describe("extension distribution and first-run guide", () => {
     expect(
       tunnelCommand(37115, {
         SSH_CONNECTION: "192.0.2.4 41000 10.0.0.3 22",
-        GLIMPSELET_SSH_USER: "reader",
+        BLINKLING_SSH_USER: "reader",
       }),
     ).toBe("ssh -N -L 37115:127.0.0.1:37115 reader@10.0.0.3");
     expect(
       tunnelCommand(37115, {
         SSH_CONNECTION: "192.0.2.4 41000 10.0.0.3 46797",
-        GLIMPSELET_SSH_USER: "reader",
+        BLINKLING_SSH_USER: "reader",
       }),
     ).toBe("ssh -N -p 46797 -L 37115:127.0.0.1:37115 reader@10.0.0.3");
     expect(
       tunnelCommand(37115, {
         SSH_CONNECTION: "192.0.2.4 41000 2001:db8::3 46797",
-        GLIMPSELET_SSH_USER: "reader",
-        GLIMPSELET_SSH_PORT: "5522",
+        BLINKLING_SSH_USER: "reader",
+        BLINKLING_SSH_PORT: "5522",
       }),
     ).toBe("ssh -N -p 5522 -L 37115:127.0.0.1:37115 reader@[2001:db8::3]");
     for (const invalid of ["0", "65536", "22;touch", "abc"]) {
       expect(
         tunnelCommand(37115, {
           SSH_CONNECTION: "1 2 host.example 46797",
-          GLIMPSELET_SSH_PORT: invalid,
+          BLINKLING_SSH_PORT: invalid,
         }),
       ).toBeUndefined();
     }
   });
 
   it("loads only store URL fields from the one distribution file", async () => {
-    const root = await mkdtemp(join(tmpdir(), "glimpselet-dist-"));
+    const root = await mkdtemp(join(tmpdir(), "blinkling-dist-"));
     try {
       const file = join(root, "distribution.json");
       await writeFile(
@@ -121,31 +121,31 @@ describe("extension distribution and first-run guide", () => {
   });
 
   it("selects the active browser store without extra installation steps", () => {
-    const previous = process.env.GLIMPSELET_BROWSER;
-    process.env.GLIMPSELET_BROWSER = "msedge";
+    const previous = process.env.BLINKLING_BROWSER;
+    process.env.BLINKLING_BROWSER = "msedge";
     try {
       const guide = installGuide("/stable/path", {
         chromeWebStoreUrl:
-          "https://chromewebstore.google.com/detail/glimpselet/id",
+          "https://chromewebstore.google.com/detail/blinkling/id",
         edgeAddonsUrl:
-          "https://microsoftedge.microsoft.com/addons/detail/glimpselet/id",
+          "https://microsoftedge.microsoft.com/addons/detail/blinkling/id",
       });
       expect(guide).toContain(
-        'href="https://microsoftedge.microsoft.com/addons/detail/glimpselet/id"',
+        'href="https://microsoftedge.microsoft.com/addons/detail/blinkling/id"',
       );
       expect(guide).not.toContain('id="manager"');
       expect(guide).not.toContain("/stable/path");
     } finally {
-      if (previous === undefined) delete process.env.GLIMPSELET_BROWSER;
-      else process.env.GLIMPSELET_BROWSER = previous;
+      if (previous === undefined) delete process.env.BLINKLING_BROWSER;
+      else process.env.BLINKLING_BROWSER = previous;
     }
   });
 
   it("copies an unpacked extension to a stable destination and rejects a missing manifest", async () => {
-    const root = await mkdtemp(join(tmpdir(), "glimpselet-install-"));
+    const root = await mkdtemp(join(tmpdir(), "blinkling-install-"));
     try {
       const source = join(root, "build");
-      const destination = join(root, ".glimpselet", "extension");
+      const destination = join(root, ".blinkling", "extension");
       await mkdir(source);
       await writeFile(join(source, "manifest.json"), '{"manifest_version":3}');
       await writeFile(join(source, "background.js"), "// fixture");

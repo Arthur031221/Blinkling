@@ -90,7 +90,7 @@ async function mockPanel(
   portrait = false,
 ) {
   await page.addInitScript(() => {
-    (window as Window & { __glimpseletSession?: string }).__glimpseletSession =
+    (window as Window & { __blinklingSession?: string }).__blinklingSession =
       "test-session";
   });
   await page.route("**/api/history", (route) =>
@@ -475,7 +475,7 @@ test("fixture uses prerecorded answer, rectangle drag, preferences and narrow da
   page,
 }) => {
   await page.addInitScript(() =>
-    sessionStorage.setItem("glimpselet-settings", "not-json"),
+    sessionStorage.setItem("blinkling-settings", "not-json"),
   );
   await page.setViewportSize({ width: 360, height: 820 });
   await page.goto("/?demo=1");
@@ -660,7 +660,7 @@ test("expired session asks for a new launch instead of reusing the one-time toke
   page,
 }) => {
   await page.addInitScript(() => {
-    (window as Window & { __glimpseletSession?: string }).__glimpseletSession =
+    (window as Window & { __blinklingSession?: string }).__blinklingSession =
       "";
   });
   let exchanges = 0;
@@ -688,7 +688,7 @@ test("session expiry stops sharing even without another API request", async ({
 }) => {
   await mockPanel(page);
   await page.addInitScript(() => {
-    (window as Window & { __glimpseletSession?: string }).__glimpseletSession =
+    (window as Window & { __blinklingSession?: string }).__blinklingSession =
       "";
   });
   await page.route("**/api/session", (route) =>
@@ -782,7 +782,7 @@ test("timeline summary posts summary mode and exports the recent notes as Markdo
   await page.getByText(/Capture notes/).click();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export notes" }).click();
-  expect((await download).suggestedFilename()).toBe("glimpselet-notes.md");
+  expect((await download).suggestedFilename()).toBe("blinkling-notes.md");
   const summaryRequest = page.waitForRequest(
     (request) =>
       request.url().endsWith("/api/ask") &&
@@ -864,7 +864,7 @@ test("responsive panel remains readable at 360, 420 and 520 pixels in light and 
         width,
       );
       await page.screenshot({
-        path: `/tmp/glimpselet-${width}-${theme}.png`,
+        path: `/tmp/blinkling-${width}-${theme}.png`,
         fullPage: true,
       });
     }

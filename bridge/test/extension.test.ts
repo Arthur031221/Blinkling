@@ -731,7 +731,7 @@ describe("extension pairing and answers", () => {
   });
 
   it("does not route to a desktop that quit: a stale endpoint file is ignored and removed", async () => {
-    const runtime = join(process.env.HOME!, ".glimpselet", "runtime");
+    const runtime = join(process.env.HOME!, ".blinkling", "runtime");
     await mkdir(runtime, { recursive: true, mode: 0o700 });
     const probe = createServer();
     await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
@@ -978,19 +978,19 @@ describe("session and installation contracts", () => {
     expect(
       tunnelCommand(37115, {
         SSH_CONNECTION: "1 2 10.0.0.3 22",
-        GLIMPSELET_SSH_USER: "reader",
+        BLINKLING_SSH_USER: "reader",
       }),
     ).toBe("ssh -N -L 37115:127.0.0.1:37115 reader@10.0.0.3");
     expect(
       tunnelCommand(37115, {
         SSH_CONNECTION: "1 2 ::1 22",
-        GLIMPSELET_SSH_USER: "reader",
+        BLINKLING_SSH_USER: "reader",
       }),
     ).toContain("reader@[::1]");
     expect(
       tunnelCommand(37115, {
         SSH_CONNECTION: "1 2 3 22",
-        GLIMPSELET_SSH_HOST: "bad host",
+        BLINKLING_SSH_HOST: "bad host",
       }),
     ).toBeUndefined();
   });

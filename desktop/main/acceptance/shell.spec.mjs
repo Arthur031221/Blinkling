@@ -19,7 +19,7 @@ test("registered services receive native menu actions and auto switch reflects t
         "settings",
         "help",
       ])
-        globalThis.glimpseletTest.registerAction(action, ({ display }) => {
+        globalThis.blinklingTest.registerAction(action, ({ display }) => {
           globalThis.actions.push({ action, displayId: String(display.id) });
           return { ok: true, enabled: action === "auto-explain" };
         });
@@ -48,7 +48,7 @@ test("registered services receive native menu actions and auto switch reflects t
     ).toHaveAttribute("aria-pressed", "true");
     const actions = await app.evaluate(() => globalThis.actions);
     const displayId = await app.evaluate(
-      () => globalThis.glimpseletTest.snapshot().display.id,
+      () => globalThis.blinklingTest.snapshot().display.id,
     );
     expect(actions.map((a) => a.action)).toEqual([
       "screen",
@@ -112,10 +112,10 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     click(b.x + active.anchor.x - 18, b.y + active.anchor.y + 10);
     await expect
       .poll(() =>
-        app.evaluate(() => globalThis.glimpseletTest.snapshot().chatOpen),
+        app.evaluate(() => globalThis.blinklingTest.snapshot().chatOpen),
       )
       .toBe(true);
-    await page.evaluate(() => window.glimpselet.shell({ type: "close-chat" }));
+    await page.evaluate(() => window.blinkling.shell({ type: "close-chat" }));
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     const hand = await page
       .locator('#blink svg circle[r="24"]')
@@ -137,7 +137,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     await page.waitForTimeout(180);
     expect(await page.locator("#blink svg").innerHTML()).not.toBe(before);
     // Empty corner of the sprite is transparent and passes a native click.
-    await page.evaluate(() => window.glimpselet.shell({ type: "close-chat" }));
+    await page.evaluate(() => window.blinkling.shell({ type: "close-chat" }));
     click(b.x + active.anchor.x - 76, b.y + active.anchor.y - 78);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     move(40, 40);
@@ -148,7 +148,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     await page.waitForTimeout(900);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
     const capture = await app.evaluate(() =>
-      globalThis.glimpseletTest.capture(),
+      globalThis.blinklingTest.capture(),
     );
     const clean = PNG.sync.read(Buffer.from(capture.image.data, "base64"));
     expect(rgb(clean, sample.x, sample.y)).toEqual([32, 64, 128]);
@@ -159,7 +159,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     await expect(
       page.evaluate(() =>
-        window.glimpselet.shell({ type: "exec", command: "whoami" }),
+        window.blinkling.shell({ type: "exec", command: "whoami" }),
       ),
     ).rejects.toThrow("Invalid shell command");
   } finally {
@@ -171,10 +171,10 @@ test("real animation frames include eye blinks, pupil looks and a talking mouth"
   try {
     await background(app);
     await page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: true }),
+      window.blinkling.shell({ type: "pin", value: true }),
     );
     await app.evaluate(() =>
-      globalThis.glimpseletTest.send({
+      globalThis.blinklingTest.send({
         type: "delta",
         id: "animation-test",
         text: "Hello",
@@ -210,7 +210,7 @@ test("real animation frames include eye blinks, pupil looks and a talking mouth"
     ).toBeGreaterThan(4);
     expect(new Set(poses.map((p) => p.mouth))).toEqual(new Set([0, 1]));
     await app.evaluate(() =>
-      globalThis.glimpseletTest.send({
+      globalThis.blinklingTest.send({
         type: "done",
         turnId: "animation-test",
       }),
@@ -238,7 +238,7 @@ for (const scale of [1, 1.5, 2])
       move(20, 20);
       const emit = (event) =>
         app.evaluate(
-          (_electron, event) => globalThis.glimpseletTest.send(event),
+          (_electron, event) => globalThis.blinklingTest.send(event),
           event,
         );
       await emit({ type: "status", state: "connected" });
@@ -310,9 +310,7 @@ for (const scale of [1, 1.5, 2])
         cardPage.getByRole("textbox", { name: "輸入問題" }),
       ).toBeVisible();
       expect(
-        await app.evaluate(() =>
-          globalThis.glimpseletTest.composer.isFocused(),
-        ),
+        await app.evaluate(() => globalThis.blinklingTest.composer.isFocused()),
       ).toBe(true);
       await expect(page.locator("#permission-alert")).toBeHidden();
       await cardPage.getByRole("button", { name: "收起" }).click();
@@ -382,7 +380,7 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
       .getAttribute("transform");
     expect(transform).toContain("0.88,1.12");
     await page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: false }),
+      window.blinkling.shell({ type: "pin", value: false }),
     );
     native([{ type: "up" }]);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drop");
@@ -391,7 +389,7 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
     expect(
       await app.evaluate(
-        () => globalThis.glimpseletTest.snapshot().position.edge,
+        () => globalThis.blinklingTest.snapshot().position.edge,
       ),
     ).toBe("left");
     const saved = JSON.parse(
@@ -401,7 +399,7 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
     // The display hotplug path runs in the real Electron shell; fake display
     // descriptors simulate removed hardware, not renderer geometry.
     await app.evaluate(() => {
-      globalThis.glimpseletTest.setDisplay({
+      globalThis.blinklingTest.setDisplay({
         id: 200,
         bounds: { x: 0, y: 0, width: 900, height: 700 },
         workArea: { x: 0, y: 0, width: 900, height: 700 },
@@ -465,7 +463,7 @@ test("native drops peek from all four edges and three corners with a visible eye
       ]);
       await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drag");
       await page.evaluate(() =>
-        window.glimpselet.shell({ type: "pin", value: false }),
+        window.blinkling.shell({ type: "pin", value: false }),
       );
       native([{ type: "up" }, { type: "move", x: 400, y: 700 }]);
       await page.waitForTimeout(900);
@@ -532,18 +530,18 @@ test("rounded card opens by intent, pin holds it, unpin dismisses and restores a
       .getByRole("textbox")
       .fill("Focus stays here while composing.");
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.composer.isFocused()),
+      await app.evaluate(() => globalThis.blinklingTest.composer.isFocused()),
     ).toBe(true);
     const pin = await cardPage
       .getByRole("button", { name: "釘選對話" })
       .boundingBox();
     const bounds = await app.evaluate(() =>
-      globalThis.glimpseletTest.composer.getBounds(),
+      globalThis.blinklingTest.composer.getBounds(),
     );
     click(bounds.x + pin.x + pin.width / 2, bounds.y + pin.y + pin.height / 2);
     await shot(app, "pinned-rounded-card");
     const cb = await app.evaluate(() =>
-      globalThis.glimpseletTest.composer.getBounds(),
+      globalThis.blinklingTest.composer.getBounds(),
     );
     const clicks = await app.evaluate(() =>
       globalThis.bg.webContents.executeJavaScript("clicks.length"),
@@ -562,27 +560,26 @@ test("rounded card opens by intent, pin holds it, unpin dismisses and restores a
     click(40, 40);
     await page.waitForTimeout(1900);
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
+      await app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
     ).toBe(true);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     await page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: false }),
+      window.blinkling.shell({ type: "pin", value: false }),
     );
     await page.waitForTimeout(1900);
     // The unsent draft keeps the unpinned card open; it dismisses once emptied.
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
+      await app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
     ).toBe(true);
     await cardPage.getByRole("textbox").fill("");
     await expect
       .poll(
-        () =>
-          app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
+        () => app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
         { timeout: 4000 },
       )
       .toBe(false);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
-    await page.evaluate(() => window.glimpselet.action("chat"));
+    await page.evaluate(() => window.blinkling.action("chat"));
     await cardPage.getByRole("button", { name: "收起" }).click();
     await page.waitForTimeout(300);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
@@ -636,7 +633,7 @@ for (const scale of [1, 1.5, 2])
           ).toBe(true);
         }
         await shot(app, `menu-${scale * 100}-${theme}`);
-        await page.evaluate(() => window.glimpselet.action("chat"));
+        await page.evaluate(() => window.blinkling.action("chat"));
         const cardPage = app
           .windows()
           .find((p) => p.url().includes("surface=card"));
@@ -697,7 +694,7 @@ for (const scale of [1, 1.5, 2])
         expect(frames.filter((t) => t > 33.4).length).toBeLessThan(3);
         move(20, 20);
         await page.evaluate(() =>
-          window.glimpselet.shell({ type: "pin", value: false }),
+          window.blinkling.shell({ type: "pin", value: false }),
         );
         await page.waitForTimeout(1520);
         const before = await page

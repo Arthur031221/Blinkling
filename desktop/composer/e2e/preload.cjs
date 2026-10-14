@@ -5,7 +5,7 @@ const subscribe = (channel, listener) => {
   return () => ipcRenderer.removeListener(channel, handler);
 };
 contextBridge.exposeInMainWorld(
-  "glimpselet",
+  "blinkling",
   Object.freeze({
     configuration: () => ipcRenderer.invoke("test:configuration"),
     sendTurn: (turn) => ipcRenderer.invoke("test:send", turn),
@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld(
     close: () => ipcRenderer.send("test:close"),
     typing: (value) => ipcRenderer.send("test:typing", value),
     openChat: (id) => ipcRenderer.send("test:open-chat", id),
-    onEvent: (fn) => subscribe("glimpselet:event", fn),
+    onEvent: (fn) => subscribe("blinkling:event", fn),
     onCapture: (fn) => subscribe("test:capture", fn),
     onSurface: (fn) => subscribe("test:surface", fn),
   }),

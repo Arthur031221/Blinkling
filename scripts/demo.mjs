@@ -33,7 +33,7 @@ const server = spawn(
   [vite, "--host", "127.0.0.1", "--port", String(port), "--strictPort"],
   {
     stdio: "ignore",
-    env: { ...process.env, GLIMPSELET_POLL_WATCH: "1" },
+    env: { ...process.env, BLINKLING_POLL_WATCH: "1" },
   },
 );
 let browser;

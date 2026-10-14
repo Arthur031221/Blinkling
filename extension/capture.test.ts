@@ -575,7 +575,7 @@ describe("web screenshot authorization", () => {
     });
     vi.mocked(chrome.tabs.sendMessage).mockImplementation(
       async (_tabId, message) =>
-        message.type === "glimpselet:select" ? { rect } : { url: tab.url },
+        message.type === "blinkling:select" ? { rect } : { url: tab.url },
     );
     return {
       ...mocks,
@@ -646,7 +646,7 @@ describe("web screenshot authorization", () => {
       expect(captureVisibleTab).toHaveBeenCalledTimes(1);
       expect(chrome.tabs.sendMessage).not.toHaveBeenCalledWith(
         tab.id,
-        expect.objectContaining({ type: "glimpselet:select" }),
+        expect.objectContaining({ type: "blinkling:select" }),
       );
       expect(chrome.permissions.contains).toHaveBeenCalledWith({
         origins: ["https://public.test/*"],
@@ -764,7 +764,7 @@ describe("web screenshot authorization", () => {
       expect(captureVisibleTab).toHaveBeenCalledTimes(2);
       expect(chrome.tabs.sendMessage).not.toHaveBeenCalledWith(
         tab.id,
-        expect.objectContaining({ type: "glimpselet:select" }),
+        expect.objectContaining({ type: "blinkling:select" }),
       );
       expect(drawImage).toHaveBeenLastCalledWith(
         expect.anything(),
@@ -817,7 +817,7 @@ describe("web screenshot authorization", () => {
       expect(captureVisibleTab).toHaveBeenCalledTimes(2);
       expect(chrome.tabs.sendMessage).not.toHaveBeenCalledWith(
         tab.id,
-        expect.objectContaining({ type: "glimpselet:select" }),
+        expect.objectContaining({ type: "blinkling:select" }),
       );
       if (kind !== "visible")
         expect(drawImage).toHaveBeenLastCalledWith(
@@ -1062,7 +1062,7 @@ describe("explicit guide context", () => {
     expect(captureVisibleTab).not.toHaveBeenCalled();
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(
       tab.id,
-      { type: "glimpselet:guide-context" },
+      { type: "blinkling:guide-context" },
       { documentId: "document-seven" },
     );
     expect(executeScript).toHaveBeenLastCalledWith(
@@ -1079,7 +1079,7 @@ describe("explicit guide context", () => {
     expect(await getPageContext(true)).toEqual(page);
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(
       tab.id,
-      { type: "glimpselet:explicit-context" },
+      { type: "blinkling:explicit-context" },
       { documentId: "document-seven" },
     );
     expect(executeScript).toHaveBeenLastCalledWith(
@@ -1118,7 +1118,7 @@ describe("explicit guide context", () => {
     expect(executeScript).not.toHaveBeenCalled();
     expect(captureVisibleTab).not.toHaveBeenCalled();
     expect(chrome.tabs.sendMessage).toHaveBeenLastCalledWith(tab.id, {
-      type: "glimpselet:guide-context",
+      type: "blinkling:guide-context",
       documentKey: page.documentKey,
       url: page.url,
     });
@@ -1180,7 +1180,7 @@ describe("explicit guide context", () => {
     if (["later-password", "reloaded", "url-changed"].includes(reason)) {
       vi.mocked(chrome.tabs.sendMessage).mockImplementation(
         async (_id, message) => {
-          if (message.type === "glimpselet:guide-context") {
+          if (message.type === "blinkling:guide-context") {
             if (reason === "later-password")
               executeScript.mockResolvedValue([
                 { result: true, documentId: "document-seven", frameId: 0 },

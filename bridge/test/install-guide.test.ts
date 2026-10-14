@@ -15,9 +15,9 @@ async function openGuide(
   store = false,
 ) {
   const dom = new JSDOM(
-    installGuide("/home/reader/Glimpselet-extension", {
+    installGuide("/home/reader/Blinkling-extension", {
       chromeWebStoreUrl: store
-        ? "https://chromewebstore.google.com/detail/glimpselet/id"
+        ? "https://chromewebstore.google.com/detail/blinkling/id"
         : "",
       edgeAddonsUrl: "",
     }),
@@ -80,12 +80,12 @@ describe("documented plugin upgrades", () => {
   ])("%s keeps installation and upgrades current", async (file) => {
     const readme = await readFile(file, "utf8");
     for (const command of [
-      "claude plugin marketplace update glimpselet",
-      "claude plugin update glimpselet@glimpselet",
+      "claude plugin marketplace update blinkling",
+      "claude plugin update blinkling@blinkling",
       "/reload-plugins",
       "claude plugin list",
       "chrome://extensions",
-      "~/Glimpselet-extension",
+      "~/Blinkling-extension",
     ])
       expect(readme).toContain(command);
   });
@@ -111,7 +111,7 @@ describe("three step welcome", () => {
       expect(document.querySelector("#connection")?.textContent).toBe(
         text.waiting,
       );
-      message("glimpselet:paired");
+      message("blinkling:paired");
       expect(document.querySelector("#connection")?.textContent).toBe(
         text.completed,
       );
@@ -129,22 +129,22 @@ describe("three step welcome", () => {
     const { document, message, post } = await openGuide();
     const open = document.querySelector<HTMLButtonElement>("#open-bubble")!;
     expect(open.disabled).toBe(true);
-    message("glimpselet:extension-ready", {
+    message("blinkling:extension-ready", {
       origin: "https://untrusted.example",
     });
-    message("glimpselet:extension-ready", { source: null });
+    message("blinkling:extension-ready", { source: null });
     expect(post).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: "glimpselet:pair" }),
+      expect.objectContaining({ type: "blinkling:pair" }),
       expect.anything(),
     );
-    message("glimpselet:extension-ready");
-    message("glimpselet:extension-ready");
+    message("blinkling:extension-ready");
+    message("blinkling:extension-ready");
     expect(
-      post.mock.calls.filter(([value]) => value.type === "glimpselet:pair"),
+      post.mock.calls.filter(([value]) => value.type === "blinkling:pair"),
     ).toHaveLength(1);
     expect(post).toHaveBeenCalledWith(
       {
-        type: "glimpselet:pair",
+        type: "blinkling:pair",
         port: 4312,
         code: "0123456789ABCDEF",
         locale: "en",
@@ -152,21 +152,21 @@ describe("three step welcome", () => {
       "http://127.0.0.1:4312",
     );
     expect(open.disabled).toBe(true);
-    message("glimpselet:paired", { source: null });
+    message("blinkling:paired", { source: null });
     expect(open.disabled).toBe(true);
-    message("glimpselet:paired");
+    message("blinkling:paired");
     expect(open.disabled).toBe(false);
     open.click();
     expect(post).toHaveBeenLastCalledWith(
-      { type: "glimpselet:open-bubble", locale: "en" },
+      { type: "blinkling:open-bubble", locale: "en" },
       "http://127.0.0.1:4312",
     );
   });
 
   it("retries a failed handshake without exposing a capability", async () => {
     const { document, message, post } = await openGuide();
-    message("glimpselet:extension-ready");
-    message("glimpselet:connection-failed");
+    message("blinkling:extension-ready");
+    message("blinkling:connection-failed");
     expect(document.querySelector("#connection")?.textContent).toBe(
       welcomeLocales.en.connectionFailed,
     );
@@ -175,7 +175,7 @@ describe("three step welcome", () => {
     ).toBe(true);
     document.querySelector<HTMLButtonElement>("#reconnect")!.click();
     expect(
-      post.mock.calls.filter(([value]) => value.type === "glimpselet:pair"),
+      post.mock.calls.filter(([value]) => value.type === "blinkling:pair"),
     ).toHaveLength(2);
   });
 
@@ -223,7 +223,7 @@ describe("three step welcome", () => {
       ).toBe(true);
       open.click();
       expect(post).toHaveBeenLastCalledWith(
-        { type: "glimpselet:open-bubble", locale },
+        { type: "blinkling:open-bubble", locale },
         "http://127.0.0.1:4312",
       );
     },
@@ -310,7 +310,7 @@ describe("three step welcome", () => {
   it("reveals the stable folder with an authenticated POST and offers manual recovery", async () => {
     const { document, fetch } = await openGuide();
     expect(document.querySelector(".path")?.textContent).toBe(
-      "/home/reader/Glimpselet-extension",
+      "/home/reader/Blinkling-extension",
     );
     fetch.mockRejectedValueOnce(new Error("No desktop"));
     document.querySelector<HTMLButtonElement>("#reveal")!.click();
@@ -348,7 +348,7 @@ describe("three step welcome", () => {
   );
 
   it("uses Edge's manager when selected", async () => {
-    vi.stubEnv("GLIMPSELET_BROWSER", "msedge");
+    vi.stubEnv("BLINKLING_BROWSER", "msedge");
     const { document } = await openGuide();
     expect(document.querySelector<HTMLInputElement>("#manager")?.value).toBe(
       "edge://extensions",

@@ -29,7 +29,7 @@ const pages = {
   // Documentation: light sidebar, headline, code block.
   docs: page(
     `<div style="position:absolute;left:0;top:0;bottom:0;width:240px;background:#f6f8fa;padding:20px;box-sizing:border-box">Getting started<br>Install<br>Usage<br>API<br>FAQ</div>
-     <div style="margin-left:280px;padding:30px 40px 0 0"><h1 style="margin:0 0 14px;font-size:30px">Install</h1>${lines(3, 80)}<pre style="background:#f3f3f3;padding:14px;margin:14px 0">npm install glimpselet\nnpm run start</pre>${lines(4, 80)}</div>`,
+     <div style="margin-left:280px;padding:30px 40px 0 0"><h1 style="margin:0 0 14px;font-size:30px">Install</h1>${lines(3, 80)}<pre style="background:#f3f3f3;padding:14px;margin:14px 0">npm install blinkling\nnpm run start</pre>${lines(4, 80)}</div>`,
   ),
 };
 const searchBox = (caretX, caret = true, clock = "12:00:01") =>
@@ -61,7 +61,7 @@ async function render(html) {
   });
   const file = path.join(
     require("node:os").tmpdir(),
-    `glimpselet-fixture-${process.pid}-${++rendered}.html`,
+    `blinkling-fixture-${process.pid}-${++rendered}.html`,
   );
   fs.writeFileSync(file, html);
   await win.loadFile(file);

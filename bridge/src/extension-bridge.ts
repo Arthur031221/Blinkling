@@ -296,7 +296,8 @@ export class ExtensionBridge {
             send(client, {
               type: "error",
               code: "pairing_expired",
-              message: "Run /glimpse to reconnect to your Claude Code.",
+              message:
+                "Run /blinkling:blinkling to reconnect to your Claude Code.",
             });
             client.close(4001, "Pair again");
             return;
@@ -467,7 +468,7 @@ export class ExtensionBridge {
           sessions: [
             {
               id: "desktop",
-              title: "Glimpselet",
+              title: "Blinkling",
               project: this.sessions.project,
             },
           ],
@@ -487,12 +488,12 @@ export class ExtensionBridge {
       const desktop = desktopTraces() ? await desktopConnection() : undefined;
       if (desktop) {
         if (message.sessionId !== "desktop" && message.sessionId !== undefined)
-          throw new Error("Blink uses your Glimpselet conversation.");
+          throw new Error("Blink uses your Blinkling conversation.");
         send(client, {
           type: "session",
           id: message.id,
           sessionId: "desktop",
-          title: "Glimpselet",
+          title: "Blinkling",
           live: true,
         });
         return;
@@ -507,7 +508,7 @@ export class ExtensionBridge {
         if (message.sessionId === "live") {
           if (!this.channel?.ready)
             throw new Error(
-              "The live session is not connected. Restart with the channel enabled, then run /glimpse.",
+              "The live session is not connected. Restart with the channel enabled, then run /blinkling:blinkling.",
             );
           pair.live = true;
         } else {
@@ -530,7 +531,7 @@ export class ExtensionBridge {
             ? "Live terminal session"
             : message.sessionId
               ? "Parallel continuation"
-              : "Glimpselet conversation",
+              : "Blinkling conversation",
           live: !!pair.live,
         });
       } finally {

@@ -11,12 +11,12 @@ import { DesktopSessionBridge, OwnedSession } from "./index.mjs";
 const image =
   "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAX0lEQVR4nO3PQQ0AIBDAMMC/50MEj4ZkVbDtWX87OuBVA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA9oFUoUBf3Xr7AgAAAAASUVORK5CYII=";
 const sources = ["composer", "quick-ask", "guide", "auto-explain", "companion"];
-// Opt-in live runs use the self-deleting "Glimpselet test" Remote Control session.
-process.env.GLIMPSELET_REMOTE ??= "test";
+// Opt-in live runs use the self-deleting "Blinkling test" Remote Control session.
+process.env.BLINKLING_REMOTE ??= "test";
 export async function runCanary({ reportDir, holdMs = 0, observer }) {
-  // The one final check per job: a disposable "Glimpselet test" session that
+  // The one final check per job: a disposable "Blinkling test" session that
   // disappears on exit. Nothing in the account holder's own list is touched.
-  process.env.GLIMPSELET_REMOTE = "test";
+  process.env.BLINKLING_REMOTE = "test";
   await mkdir(reportDir, { recursive: true, mode: 0o700 });
   const events = [];
   const turns = [];
@@ -24,7 +24,7 @@ export async function runCanary({ reportDir, holdMs = 0, observer }) {
   const options = {
     userDataDir: join(reportDir, "canary-user-data"),
     cwd: reportDir,
-    // The one final Remote Control check: a disposable "Glimpselet test"
+    // The one final Remote Control check: a disposable "Blinkling test"
     // session that Claude Code removes on exit.
     transportFactory: () => new OwnedSession({ remote: "test" }),
   };

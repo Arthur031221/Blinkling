@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "glimpselet": {
+    "blinkling": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/glimpselet.cjs"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/blinkling.cjs"]
     }
   }
 }

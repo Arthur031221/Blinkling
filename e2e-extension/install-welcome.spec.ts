@@ -22,7 +22,7 @@ let storeUrl: string;
 test.beforeEach(async () => {
   installMode = "direct";
   storeUrl = "";
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-welcome-recovery-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-welcome-recovery-"));
   server = createServer((req, res) => {
     const path = new URL(req.url || "/", "http://127.0.0.1").pathname;
     res.setHeader(
@@ -32,7 +32,7 @@ test.beforeEach(async () => {
     if (path === "/install") {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(
-        installGuide("/tmp/glimpselet-extension", {
+        installGuide("/tmp/blinkling-extension", {
           chromeWebStoreUrl: storeUrl,
           edgeAddonsUrl: "",
         }),
@@ -44,7 +44,7 @@ test.beforeEach(async () => {
       res.setHeader("Content-Type", "application/zip");
       res.setHeader(
         "Content-Disposition",
-        'attachment; filename="glimpselet-extension.zip"',
+        'attachment; filename="blinkling-extension.zip"',
       );
       void createExtensionZip(resolve("dist-extension")).then((data) =>
         res.end(data),
@@ -54,7 +54,7 @@ test.beforeEach(async () => {
       res.end(INSTALL_GUIDE_SCRIPT);
     } else if (path === "/store-listing") {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.end("<h1>Glimpselet store listing</h1>");
+      res.end("<h1>Blinkling store listing</h1>");
     } else if (path.startsWith("/assets/")) {
       res.setHeader(
         "Content-Type",
@@ -143,7 +143,7 @@ for (const mode of ["direct", "tunnel"] as const) {
       const downloadPromise = welcome.waitForEvent("download");
       await card.getByRole("link", { name: "Download extension" }).click();
       const download = await downloadPromise;
-      expect(download.suggestedFilename()).toBe("glimpselet-extension.zip");
+      expect(download.suggestedFilename()).toBe("blinkling-extension.zip");
       const data = await readFile((await download.path())!);
       expect(data.readUInt32LE(0)).toBe(0x04034b50);
       expect(data.includes(Buffer.from("manifest.json"))).toBe(true);
@@ -153,7 +153,7 @@ for (const mode of ["direct", "tunnel"] as const) {
 
 test("configured store install navigates to its listing without unpacked controls", async () => {
   storeUrl =
-    "https://chromewebstore.google.com/detail/glimpselet/abcdefghijklmnopabcdefghijklmnop";
+    "https://chromewebstore.google.com/detail/blinkling/abcdefghijklmnopabcdefghijklmnop";
   await context.route(storeUrl, (route) =>
     route.fulfill({
       status: 302,
@@ -168,7 +168,7 @@ test("configured store install navigates to its listing without unpacked control
   expect((await navigation).isNavigationRequest()).toBe(true);
   await expect(welcome).toHaveURL(`${origin}/store-listing`);
   await expect(
-    welcome.getByRole("heading", { name: "Glimpselet store listing" }),
+    welcome.getByRole("heading", { name: "Blinkling store listing" }),
   ).toBeVisible();
 });
 

@@ -5,10 +5,13 @@ import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
+import { adoptLegacyEnv } from "../plugin/desktop/legacy.mjs";
+
+adoptLegacyEnv();
 
 const runtime =
-  process.env.GLIMPSELET_RUNTIME_DIR ||
-  join(homedir(), ".glimpselet", "runtime");
+  process.env.BLINKLING_RUNTIME_DIR ||
+  join(homedir(), ".blinkling", "runtime");
 const runtimeModules = join(runtime, "node_modules");
 const playwrightVersion = "1.64.0";
 let playwrightCli;
@@ -88,14 +91,14 @@ async function main() {
   if (interrupted) return;
   if (process.env.SSH_CONNECTION) {
     throw new Error(
-      "Zero-install browser mode needs a desktop on this computer. 遠端主機沒有本機桌面，請在瀏覽器所在電腦安裝 Glimpselet，並使用列出的 SSH 轉送指令。",
+      "Zero-install browser mode needs a desktop on this computer. 遠端主機沒有本機桌面，請在瀏覽器所在電腦安裝 Blinkling，並使用列出的 SSH 轉送指令。",
     );
   }
 
-  const stableExtension = join(homedir(), "Glimpselet-extension");
+  const stableExtension = join(homedir(), "Blinkling-extension");
   const builtExtension = resolve("dist-extension");
   const extension = resolve(
-    process.env.GLIMPSELET_EXTENSION_DIR ||
+    process.env.BLINKLING_EXTENSION_DIR ||
       (existsSync(join(stableExtension, "manifest.json"))
         ? stableExtension
         : builtExtension),
@@ -109,10 +112,10 @@ async function main() {
   const { chromium } = await loadPlaywright();
   if (interrupted) return;
   let executablePath =
-    process.env.GLIMPSELET_CHROMIUM_PATH || chromium.executablePath();
+    process.env.BLINKLING_CHROMIUM_PATH || chromium.executablePath();
   if (!existsSync(executablePath)) {
     console.log(
-      "Installing Chromium in the Glimpselet runtime… 正在安裝 Chromium…",
+      "Installing Chromium in the Blinkling runtime… 正在安裝 Chromium…",
     );
     await run(process.execPath, [playwrightCli, "install", "chromium"]);
     if (interrupted) return;
@@ -120,8 +123,8 @@ async function main() {
   }
 
   const profile =
-    process.env.GLIMPSELET_PROFILE_DIR ||
-    join(homedir(), ".glimpselet", "chromium-profile");
+    process.env.BLINKLING_PROFILE_DIR ||
+    join(homedir(), ".blinkling", "chromium-profile");
   context = await chromium.launchPersistentContext(profile, {
     executablePath,
     headless: false,
@@ -137,9 +140,9 @@ async function main() {
     context.serviceWorkers()[0] ||
     (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
   const manifest = await worker.evaluate(() => chrome.runtime.getManifest());
-  if (manifest.name !== "Glimpselet")
-    throw new Error("Glimpselet did not load in the dedicated browser.");
-  console.log("Glimpselet extension loaded.");
+  if (manifest.name !== "Blinkling")
+    throw new Error("Blinkling did not load in the dedicated browser.");
+  console.log("Blinkling extension loaded.");
   let closing = false;
   const closeContext = async () => {
     if (closing) return;
@@ -154,7 +157,7 @@ async function main() {
     context.once("close", resolveClose),
   );
 
-  const trialUrl = process.env.GLIMPSELET_TRIAL_URL;
+  const trialUrl = process.env.BLINKLING_TRIAL_URL;
   if (trialUrl) {
     try {
       const page = context.pages()[0] ?? (await context.newPage());
@@ -162,12 +165,12 @@ async function main() {
       console.log(`Opened the setup guide at ${trialUrl}.`);
     } catch (error) {
       throw new Error(
-        `Could not open GLIMPSELET_TRIAL_URL: ${trialUrl}. 無法開啟指定的試用頁面. ${error.message}`,
+        `Could not open BLINKLING_TRIAL_URL: ${trialUrl}. 無法開啟指定的試用頁面. ${error.message}`,
       );
     }
   }
   console.log(
-    `Glimpselet is running in a dedicated Chromium profile at ${profile}. Close the browser window to stop it.`,
+    `Blinkling is running in a dedicated Chromium profile at ${profile}. Close the browser window to stop it.`,
   );
   await closed;
 }
@@ -175,7 +178,7 @@ async function main() {
 main().catch(async (error) => {
   await context?.close().catch(() => {});
   if (interrupted) return;
-  console.error(`Glimpselet could not start: ${error.message}`);
+  console.error(`Blinkling could not start: ${error.message}`);
   console.error("Please review the error above. 請檢查上方錯誤訊息。");
   process.exitCode = 1;
 });

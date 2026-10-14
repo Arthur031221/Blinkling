@@ -1,6 +1,6 @@
 # Store submission preparation
 
-The account holder submits Glimpselet to the Chrome Web Store and Microsoft Edge Add-ons. These are preparation files, not approved listings. Leave both URLs in [`config/distribution.json`](../config/distribution.json) empty until approval.
+The account holder submits Blinkling to the Chrome Web Store and Microsoft Edge Add-ons. These are preparation files, not approved listings. Leave both URLs in [`config/distribution.json`](../config/distribution.json) empty until approval.
 
 ## Build and upload
 
@@ -12,14 +12,14 @@ python3 .github/workflows/check-release.py
 
 The output is in `release/`:
 
-| File                          | Use                                                                                                                                              |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `glimpselet-extension.zip`    | Upload this extension package to either store. Its manifest is at the archive root. Users can also extract it and load the folder unpacked.      |
-| `glimpselet-chrome-store.zip` | Chrome submission kit: extension ZIP, listing copy, permission explanations, privacy policy and images. Extract it before filling the dashboard. |
-| `glimpselet-edge-store.zip`   | Edge submission kit with the same code and assets. Extract it before filling Partner Center.                                                     |
-| `SHA256SUMS`                  | SHA-256 checksums of all three ZIPs. Run `sha256sum -c SHA256SUMS` from `release/`.                                                              |
+| File                         | Use                                                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `blinkling-extension.zip`    | Upload this extension package to either store. Its manifest is at the archive root. Users can also extract it and load the folder unpacked.      |
+| `blinkling-chrome-store.zip` | Chrome submission kit: extension ZIP, listing copy, permission explanations, privacy policy and images. Extract it before filling the dashboard. |
+| `blinkling-edge-store.zip`   | Edge submission kit with the same code and assets. Extract it before filling Partner Center.                                                     |
+| `SHA256SUMS`                 | SHA-256 checksums of all three ZIPs. Run `sha256sum -c SHA256SUMS` from `release/`.                                                              |
 
-Upload the inner `glimpselet-extension.zip`, not the whole submission kit. The automated release check verifies versions, archive structure, bundled script paths, absence of source maps and development files, image dimensions and checksums. CI runs it on Node 22 and 24 and keeps the kits as workflow artifacts. The release workflow requires successful push CI for the exact main commit before publishing.
+Upload the inner `blinkling-extension.zip`, not the whole submission kit. The automated release check verifies versions, archive structure, bundled script paths, absence of source maps and development files, image dimensions and checksums. CI runs it on Node 22 and 24 and keeps the kits as workflow artifacts. The release workflow requires successful push CI for the exact main commit before publishing.
 
 ## Listing and images
 
@@ -39,7 +39,7 @@ All five listing images are RGB PNGs. Example responses and suggested questions 
 ```sh
 npm run build:plugin
 npm run build --workspace bridge
-GLIMPSELET_RECORD_PUBLIC=1 npm run record-demo
+BLINKLING_RECORD_PUBLIC=1 npm run record-demo
 ```
 
 The recorder requires Chromium, Xvfb, xfwm4 and ffmpeg. Edge can reuse the images, but still needs a browser-specific smoke test before submission.
@@ -54,7 +54,7 @@ These explanations match [`extension/manifest.json`](../extension/manifest.json)
 
 | Permission or origin                       | Review justification                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activeTab`                                | Temporary access to the tab the user invokes Glimpselet on, for capture and page actions.                                                                                                                                                                                                                                                                                                    |
+| `activeTab`                                | Temporary access to the tab the user invokes Blinkling on, for capture and page actions.                                                                                                                                                                                                                                                                                                     |
 | `scripting`                                | Inject the selection, guide and translation controls after the user invokes a page tool. All injected code is bundled.                                                                                                                                                                                                                                                                       |
 | `storage`                                  | Save consent, language, model, site blocklist and window size. Pairing tokens and an optional API key use session storage. Captures and chat history remain in memory.                                                                                                                                                                                                                       |
 | `tabs`                                     | Keep actions attached to the correct source tab, check URL changes to avoid capturing a different page, refresh suggestions and open the PDF reader. Tab URLs and titles provide this context. No browsing-history log is stored or sent to the publisher.                                                                                                                                   |
@@ -69,7 +69,7 @@ No remote executable code is loaded. The PDF.js reader, worker and all scripts a
 Use the following when completing each store's privacy form. A lack of publisher telemetry does not mean no data is transmitted.
 
 - **Website content:** page text, element labels, selected passages, PDF text and chosen screenshots can be processed by the selected backend. Page context can also contain a URL and title. User questions are transmitted with it.
-- **Web history / website context:** the active source tab's URL and title are used for page actions and suggestions. Glimpselet does not keep a browsing-history log. Disclose this access where the dashboard asks about visited URLs.
+- **Web history / website context:** the active source tab's URL and title are used for page actions and suggestions. Blinkling does not keep a browsing-history log. Disclose this access where the dashboard asks about visited URLs.
 - **Authentication information:** pairing tokens and an optional user-entered Anthropic API key are kept in browser session storage. The key is sent to Anthropic to authenticate direct API requests, and is not sent to the bridge or publisher.
 - Relevant page content can contain personal information. There is no separate profile, payment, location or health-data collector. Do not promise that chosen screenshots or questions cannot include sensitive data.
 - Data is used for the visible chat and reading features. It is not sold, used for advertising, or used by the publisher for unrelated purposes. There is no publisher-operated backend. Provider retention terms still apply.
@@ -80,6 +80,6 @@ The policy includes an affirmative Limited Use statement. Check that the hosted 
 
 ## After approval
 
-Fill `chromeWebStoreUrl` and/or `edgeAddonsUrl` in [`config/distribution.json`](../config/distribution.json) with the approved HTTPS listing URLs, then rebuild the plugin and demo site. That is the only distribution setting to change. The welcome page, `/glimpselet:glimpse`, all nine README install sections and the demo switch to store links. Unpacked instructions remain under Advanced. Empty URLs keep the load-unpacked flow.
+Fill `chromeWebStoreUrl` and/or `edgeAddonsUrl` in [`config/distribution.json`](../config/distribution.json) with the approved HTTPS listing URLs, then rebuild the plugin and demo site. That is the only distribution setting to change. The welcome page, `/blinkling:blinkling`, all nine README install sections and the demo switch to store links. Unpacked instructions remain under Advanced. Empty URLs keep the load-unpacked flow.
 
 Before submission, complete the real Chrome and Edge smoke tests, verify the live privacy URL, and supply reviewer access to an answer backend if requested. This preparation branch does not submit, publish, deploy or push anything.

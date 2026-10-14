@@ -8,7 +8,7 @@ import { chromium } from "playwright";
 
 // Live pages and the logged-in Claude Code provider; no page or answer mocks.
 // Public test hosts are granted only in an isolated copy of the extension.
-const selectedSites = process.env.GLIMPSELET_GUIDE_SITES?.split(",");
+const selectedSites = process.env.BLINKLING_GUIDE_SITES?.split(",");
 const checks = [
   ["google-flights", "https://www.google.com/travel/flights"],
   ["muji-shop", "https://www.muji.us/collections/stationery"],
@@ -17,10 +17,10 @@ const checks = [
 ].filter(([name]) => !selectedSites || selectedSites.includes(name));
 assert(checks.length > 0, "No matching live guide sites selected");
 const evidence = resolve(
-  process.env.GLIMPSELET_GUIDE_EVIDENCE || "test-results/guide-sites",
+  process.env.BLINKLING_GUIDE_EVIDENCE || "test-results/guide-sites",
 );
 await mkdir(evidence, { recursive: true });
-const directory = await mkdtemp(join(tmpdir(), "glimpselet-live-guide-"));
+const directory = await mkdtemp(join(tmpdir(), "blinkling-live-guide-"));
 let context;
 const results = [];
 try {
@@ -37,7 +37,7 @@ try {
   await build({
     stdin: {
       contents:
-        'import { resolveGuideTargets } from "./extension/page-context"; globalThis.glimpseletGuideCheck = () => [...resolveGuideTargets().keys()];',
+        'import { resolveGuideTargets } from "./extension/page-context"; globalThis.blinklingGuideCheck = () => [...resolveGuideTargets().keys()];',
       resolveDir: resolve("."),
       loader: "ts",
     },
@@ -99,7 +99,7 @@ try {
         ({ tabId, message }) => chrome.tabs.sendMessage(tabId, message),
         { tabId, message },
       );
-    const data = await send({ type: "glimpselet:guide-context" });
+    const data = await send({ type: "blinkling:guide-context" });
     assert(
       !data.error && !data.hasPassword,
       `Guide privacy gate: ${data.error || "sensitive page"}`,
@@ -143,12 +143,12 @@ try {
               .filter(
                 (p) =>
                   !p.closest(
-                    "nav,aside,li,[data-private],[data-sensitive],[data-glimpselet-overlay]",
+                    "nav,aside,li,[data-private],[data-sensitive],[data-blinkling-overlay]",
                   ) &&
                   p.textContent.trim().length > 40 &&
                   p.getClientRects().length > 0,
               )
-              .map((p) => globalThis.glimpseletElementRegistry.ids.get(p))
+              .map((p) => globalThis.blinklingElementRegistry.ids.get(p))
               .filter(Boolean),
         }),
       tabId,
@@ -159,7 +159,7 @@ try {
       guidedIds.has(id),
     ).length;
     // Retain the real response even if a later navigation assertion fails.
-    const currentPage = await send({ type: "glimpselet:guide-context" });
+    const currentPage = await send({ type: "blinkling:guide-context" });
     await writeFile(
       join(evidence, `${name}-attempt.json`),
       JSON.stringify(
@@ -193,7 +193,7 @@ try {
       (tabId) =>
         chrome.scripting.executeScript({
           target: { tabId },
-          func: () => globalThis.glimpseletGuideCheck(),
+          func: () => globalThis.blinklingGuideCheck(),
         }),
       tabId,
     );
@@ -209,7 +209,7 @@ try {
       }));
     assert.deepEqual(
       await send({
-        type: "glimpselet:guide",
+        type: "blinkling:guide",
         steps: guide.steps,
         purpose: guide.purpose,
         documentKey: data.documentKey,
@@ -217,13 +217,13 @@ try {
       }),
       { ok: true },
     );
-    const callout = page.locator("[data-glimpselet-overlay] .guide");
+    const callout = page.locator("[data-blinkling-overlay] .guide");
     await callout.waitFor({ state: "visible" });
     await page.screenshot({ path: join(evidence, `${name}-tour.png`) });
     await callout.locator('[data-guide-control="next"]').click();
     await callout.locator('[data-guide-control="back"]').click();
     await callout.locator('[data-guide-control="overview"]').click();
-    const overview = page.locator("[data-glimpselet-overlay] .guide-overview");
+    const overview = page.locator("[data-blinkling-overlay] .guide-overview");
     await overview.waitFor({ state: "visible" });
     assert.equal(await overview.locator("li").count(), availableSteps.length);
     const displayedNotes = await overview
@@ -268,11 +268,11 @@ try {
     await page.screenshot({ path: join(evidence, `${name}-narrow.png`) });
     await page.keyboard.press("Escape");
     assert.equal(
-      await page.locator("[data-glimpselet-overlay] .guide-overview").count(),
+      await page.locator("[data-blinkling-overlay] .guide-overview").count(),
       0,
     );
     assert.equal(
-      await page.locator("[data-glimpselet-overlay] .draw").count(),
+      await page.locator("[data-blinkling-overlay] .draw").count(),
       0,
     );
     assert.equal(

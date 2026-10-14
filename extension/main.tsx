@@ -620,7 +620,7 @@ function App() {
     bridge.addEventListener("disconnected", disconnectedHandler);
     bridge.addEventListener("paired", pairedHandler);
     const refreshConnection = (message: { type?: string }) => {
-      if (message.type === "glimpselet:connection-updated")
+      if (message.type === "blinkling:connection-updated")
         void bridge.load(true).catch(() => presence.down());
     };
     chrome.runtime.onMessage.addListener(refreshConnection);
@@ -903,7 +903,7 @@ function App() {
     ) => {
       if (!message || typeof message !== "object") return;
       const value = message as Record<string, unknown>;
-      if (value.type === "glimpselet:reader-permission-handoff") {
+      if (value.type === "blinkling:reader-permission-handoff") {
         // The background coordinates the reader's original request, including
         // minimizing the panel. Only acknowledge its forwarded handoff here.
         if (sender.tab) return;
@@ -921,7 +921,7 @@ function App() {
         respond({ ok: true, interrupted });
         return;
       }
-      if (value.type === "glimpselet:reader-resume-floating") {
+      if (value.type === "blinkling:reader-resume-floating") {
         const source = sender.tab;
         const readerUrl = chrome.runtime.getURL("reader.html");
         if (
@@ -949,7 +949,7 @@ function App() {
           .catch(() => respond({ ok: false }));
         return true;
       }
-      if (value.type === "glimpselet:focus") {
+      if (value.type === "blinkling:focus") {
         if (typeof value.sourceTab === "number") {
           if (activeTabId.current !== value.sourceTab) clearCaptureRetry();
           activeTabId.current = value.sourceTab;
@@ -962,7 +962,7 @@ function App() {
         return;
       }
       if (
-        value.type === "glimpselet:tutorial" &&
+        value.type === "blinkling:tutorial" &&
         sender.tab?.id &&
         sender.tab.url
       ) {
@@ -970,7 +970,7 @@ function App() {
         if (
           source.protocol === "http:" &&
           ["127.0.0.1", "localhost"].includes(source.hostname) &&
-          source.pathname === "/assets/glimpselet-welcome-sample.html" &&
+          source.pathname === "/assets/blinkling-welcome-sample.html" &&
           [
             "float",
             "capture",
@@ -1009,14 +1009,14 @@ function App() {
       }
       const senderTabId = sender.tab?.id;
       if (
-        value.type === "glimpselet:page-changed" &&
+        value.type === "blinkling:page-changed" &&
         senderTabId === activeTabId.current
       ) {
         if (typeof value.revision === "string" && senderTabId !== undefined)
           scheduleRevisionRefresh(senderTabId, value.revision);
         else schedulePageRefresh();
       }
-      if (value.type === "glimpselet:selection") {
+      if (value.type === "blinkling:selection") {
         const selected = String(value.text || "");
         const action = String(value.action || "ask");
         const practice = selectionPractice(senderTabId);
@@ -1090,17 +1090,14 @@ function App() {
           })();
       }
       if (
-        value.type === "glimpselet:command" &&
+        value.type === "blinkling:command" &&
         value.command === "pause-passive"
       )
         togglePause();
-      if (
-        value.type === "glimpselet:command" &&
-        value.command === "crop-screen"
-      )
+      if (value.type === "blinkling:command" && value.command === "crop-screen")
         void startCrop();
       if (
-        value.type === "glimpselet:crop-mode" &&
+        value.type === "blinkling:crop-mode" &&
         sender.tab?.id === activeTabId.current
       ) {
         pageCrop.current = value.active === true;
@@ -1113,7 +1110,7 @@ function App() {
         );
       }
       if (
-        value.type === "glimpselet:crop-selected" &&
+        value.type === "blinkling:crop-selected" &&
         sender.tab?.id === activeTabId.current &&
         sender.tab?.id !== undefined &&
         sender.frameId === 0 &&
@@ -1158,7 +1155,7 @@ function App() {
           .catch((error) => captureFailure(error, "region", source, epoch));
       }
       if (
-        value.type === "glimpselet:reader-context" &&
+        value.type === "blinkling:reader-context" &&
         value.context &&
         senderTabId !== undefined &&
         senderTabId === activeTabId.current
@@ -1167,7 +1164,7 @@ function App() {
         setPage(context);
         scheduleRevisionRefresh(senderTabId, pageRevision(context));
       }
-      if (value.type === "glimpselet:reader-action") {
+      if (value.type === "blinkling:reader-action") {
         const rawSelected = String(value.text || "");
         const action = value.action;
         const selectionOnly =
@@ -1894,7 +1891,7 @@ function App() {
       )
         return;
       await chrome.tabs.sendMessage(practice.tabId, {
-        type: "glimpselet:tutorial-done",
+        type: "blinkling:tutorial-done",
         step: practice.step,
       });
       if (tutorialRef.current === practice) setTutorial(null);
@@ -2011,7 +2008,7 @@ function App() {
       }
       await chrome.tabs
         .sendMessage(sourceTabId, {
-          type: "glimpselet:labels",
+          type: "blinkling:labels",
           labels: {
             explain: t.actionExplain,
             translate: t.selectionTranslate,
@@ -2578,18 +2575,18 @@ function App() {
       if (action === "selection") {
         await requestSiteAccess();
         await chrome.tabs.sendMessage(tabId, {
-          type: "glimpselet:tutorial-select",
+          type: "blinkling:tutorial-select",
         });
         return;
       }
       if (action === "pdf") {
         const tab = await chrome.tabs.get(tabId);
         const url = new URL(
-          "glimpselet-welcome-sample.pdf",
+          "blinkling-welcome-sample.pdf",
           tab.url!,
         ).toString();
         const result = await chrome.runtime.sendMessage({
-          type: "glimpselet:open-reader",
+          type: "blinkling:open-reader",
           url,
         });
         if (!result?.ok || !Number.isInteger(result.tabId) || result.tabId < 0)
@@ -2982,13 +2979,13 @@ function App() {
           visibleAnswer = guide.reason;
           guideReady = false;
           await sendToDocument(sourceTabId, currentPage, {
-            type: "glimpselet:guide",
+            type: "blinkling:guide",
             steps: [],
           });
         } else {
           visibleAnswer = guideChatSummary(guide, currentPage.elements);
           const result = (await sendToDocument(sourceTabId, currentPage, {
-            type: "glimpselet:guide",
+            type: "blinkling:guide",
             steps: guide.steps,
             purpose: guide.purpose,
             labels: {
@@ -3307,7 +3304,7 @@ function App() {
       for (let pageCount = 0; pageCount < 20; pageCount++) {
         if (controller.signal.aborted) throw new Error("cancelled");
         const result = (await sendToDocument(translationTabId, sourcePage, {
-          type: "glimpselet:text-nodes",
+          type: "blinkling:text-nodes",
           cursor,
         })) as { nodes?: unknown; nextCursor?: unknown; error?: unknown };
         if (result?.error === "translation_incomplete")
@@ -3426,7 +3423,7 @@ function App() {
         if (safe.length !== nodes.length)
           throw new Error("translation_incomplete");
         const result = (await sendToDocument(translationTabId, sourcePage, {
-          type: "glimpselet:translate",
+          type: "blinkling:translate",
           nodes: safe,
         })) as {
           applied?: unknown;
@@ -3480,7 +3477,7 @@ function App() {
       if (applied > 0 && tabId && translationPage) {
         try {
           const restored = (await sendToDocument(tabId, translationPage, {
-            type: "glimpselet:restore",
+            type: "blinkling:restore",
           })) as { restored?: unknown };
           forgetTranslation(translationPage.documentKey);
           setStatus(
@@ -3527,7 +3524,7 @@ function App() {
       )
         throw new Error("tab_changed");
       const result = (await sendToDocument(tabId, currentPage, {
-        type: "glimpselet:restore",
+        type: "blinkling:restore",
       })) as { restored?: number };
       forgetTranslation(currentPage.documentKey);
       setStatus(`${t.restored} ${result?.restored || 0}`);
@@ -3570,7 +3567,7 @@ function App() {
       )
         throw new Error("tab_changed");
       await chrome.runtime.sendMessage({
-        type: "glimpselet:open-reader",
+        type: "blinkling:open-reader",
         url: tab.url,
       });
     } catch (error) {
@@ -3609,7 +3606,7 @@ function App() {
         <div className="brand">
           <Blink />{" "}
           <div>
-            <span className="overline">GLIMPSELET</span>
+            <span className="overline">BLINKLING</span>
             <h1>{t.consentTitle}</h1>
           </div>
         </div>
@@ -3666,7 +3663,7 @@ function App() {
         <div className="brand">
           <Blink mood={busy ? "think" : "idle"} />
           <div className="brand-copy">
-            <strong>Glimpselet</strong>
+            <strong>Blinkling</strong>
             <span className={`connection ${connected ? "online" : "offline"}`}>
               {apiMode ? t.apiMode : connected ? t.connected : t.disconnected}
             </span>

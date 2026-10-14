@@ -20,7 +20,7 @@ type Harness = Pick<
   typeof import("../extension/api"),
   "parseGuideResult" | "parseTranslationBatch"
 >;
-type HarnessWindow = Window & { GlimpseletTest: Harness };
+type HarnessWindow = Window & { BlinklingTest: Harness };
 type FixtureWindow = Window & {
   originalFragmentNodes: Node[];
   originalFragmentValues: Array<string | null>;
@@ -46,7 +46,7 @@ let tabId: number;
 
 test.beforeAll(async () => {
   testExtension = await mkdtemp(
-    join(tmpdir(), "glimpselet-contract-extension-"),
+    join(tmpdir(), "blinkling-contract-extension-"),
   );
   await cp(resolve("dist-extension"), testExtension, { recursive: true });
   await build({
@@ -58,7 +58,7 @@ test.beforeAll(async () => {
     },
     bundle: true,
     format: "iife",
-    globalName: "GlimpseletTest",
+    globalName: "BlinklingTest",
     outfile: join(testExtension, "response-contract-harness.js"),
   });
   await writeFile(
@@ -72,7 +72,7 @@ test.afterAll(async () => {
 });
 
 test.beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-response-contracts-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-response-contracts-"));
   server = createServer((_request, response) => {
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     response.end(`<!doctype html><html><head><title>Drawing controls</title>
@@ -134,7 +134,7 @@ async function sendPage<T>(message: Record<string, unknown>): Promise<T> {
 async function parseGuide(response: unknown, page: PageContext) {
   return harness.evaluate(
     ({ text, page }) =>
-      (window as HarnessWindow).GlimpseletTest.parseGuideResult(text, page),
+      (window as HarnessWindow).BlinklingTest.parseGuideResult(text, page),
     { text: JSON.stringify(response), page },
   );
 }
@@ -144,7 +144,7 @@ test("a large page guide exposes sections and the main task without hiding below
     document.body.innerHTML = `<main><h1>Plan your trip</h1><nav>${"<button>Next slide</button>".repeat(12)}</nav>${Array.from({ length: 3 }, (_, section) => `<section><h2>Trip section ${section}</h2>${Array.from({ length: 20 }, (_, p) => `<p>Trip section ${section}, paragraph ${p}: read the dates, prices and conditions before booking your trip.</p>`).join("")}</section>`).join("")}<form><button>Find flights</button></form></main>`;
   });
   const page = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   const targets = page.elements.filter(
     (e) =>
@@ -168,13 +168,13 @@ test("a large page guide exposes sections and the main task without hiding below
   expect(guide.status).toBe("ready");
   expect(
     await sendPage({
-      type: "glimpselet:guide",
+      type: "blinkling:guide",
       steps: guide.steps,
       purpose: guide.status === "ready" ? guide.purpose : undefined,
     }),
   ).toEqual({ ok: true });
-  const callout = site.locator("[data-glimpselet-overlay] .guide");
-  const overview = site.locator("[data-glimpselet-overlay] .guide-overview");
+  const callout = site.locator("[data-blinkling-overlay] .guide");
+  const overview = site.locator("[data-blinkling-overlay] .guide-overview");
   await callout.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(overview.locator(".guide-section")).toHaveCount(3);
   await expect(overview.locator("[data-guide-index]")).toHaveCount(64);
@@ -201,7 +201,7 @@ test("a large page guide exposes sections and the main task without hiding below
     e.text.startsWith("Trip section 2, paragraph 19"),
   )!.id;
   await expect(
-    site.locator(`[data-glimpselet-overlay] [data-guide-target="${id}"]`),
+    site.locator(`[data-blinkling-overlay] [data-guide-target="${id}"]`),
   ).toBeVisible();
   await callout.getByRole("button", { name: "Back", exact: true }).click();
   await expect(callout.locator("p")).toContainText(
@@ -227,7 +227,7 @@ test("a large page guide exposes sections and the main task without hiding below
   );
   await site.keyboard.press("Escape");
   await expect(
-    site.locator("[data-glimpselet-overlay] .guide,.guide-overview,svg.draw"),
+    site.locator("[data-blinkling-overlay] .guide,.guide-overview,svg.draw"),
   ).toHaveCount(0);
 });
 
@@ -242,7 +242,7 @@ test("an unavailable target suppresses a conflicting Undo highlight", async () =
   await expect(menu).toHaveAttribute("aria-haspopup", "menu");
   expect(await menu.getAttribute("aria-label")).toBeNull();
   const page = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   const undo = page.elements.find((element) => element.text === "Undo")!;
   expect(undo).toBeDefined();
@@ -267,17 +267,17 @@ test("an unavailable target suppresses a conflicting Undo highlight", async () =
 
   expect(result).toEqual({ status: "unavailable", reason, steps: [] });
   expect(
-    await sendPage({ type: "glimpselet:guide", steps: result.steps }),
+    await sendPage({ type: "blinkling:guide", steps: result.steps }),
   ).toEqual({ ok: false });
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
-  await expect(site.locator("[data-glimpselet-overlay] svg.draw")).toHaveCount(
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-overlay] svg.draw")).toHaveCount(
     0,
   );
 });
 
 test("a known guide target draws on the actual control without a literal no-op action", async () => {
   const page = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   const target = page.elements.find(
     (element) => element.text === "Export drawing",
@@ -301,13 +301,13 @@ test("a known guide target draws on the actual control without a literal no-op a
     steps: [{ elementId: target.id, note: "Use this export control" }],
   });
   expect(
-    await sendPage({ type: "glimpselet:guide", steps: result.steps }),
+    await sendPage({ type: "blinkling:guide", steps: result.steps }),
   ).toEqual({ ok: true });
-  const guide = site.locator("[data-glimpselet-overlay] .guide");
+  const guide = site.locator("[data-blinkling-overlay] .guide");
   await expect(guide).toBeVisible();
   await expect(guide.locator("p")).toHaveText("Use this export control");
   const control = await site.locator("#export").boundingBox();
-  const ink = site.locator("[data-glimpselet-overlay] svg.draw ellipse.ink");
+  const ink = site.locator("[data-blinkling-overlay] svg.draw ellipse.ink");
   await expect(ink).toBeVisible();
   expect(Number(await ink.getAttribute("cx"))).toBeCloseTo(
     control!.x + control!.width / 2,
@@ -317,7 +317,7 @@ test("a known guide target draws on the actual control without a literal no-op a
   );
   await guide.getByRole("button", { name: "Close guide", exact: true }).click();
   await expect(guide).toHaveCount(0);
-  await expect(site.locator("[data-glimpselet-overlay] svg.draw")).toHaveCount(
+  await expect(site.locator("[data-blinkling-overlay] svg.draw")).toHaveCount(
     0,
   );
 });
@@ -328,7 +328,7 @@ test("a multiline guide callout leaves its actual export target visible", async 
       "position:fixed;left:24px;top:134px;width:207px;height:32px;margin:0;padding:0";
   });
   const page = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   const target = page.elements.find(
     (element) => element.text === "Export drawing",
@@ -347,9 +347,9 @@ test("a multiline guide callout leaves its actual export target visible", async 
     page,
   );
   expect(
-    await sendPage({ type: "glimpselet:guide", steps: result.steps }),
+    await sendPage({ type: "blinkling:guide", steps: result.steps }),
   ).toEqual({ ok: true });
-  const guide = site.locator("[data-glimpselet-overlay] .guide");
+  const guide = site.locator("[data-blinkling-overlay] .guide");
   await expect(guide).toBeVisible();
   const control = (await site.locator("#export").boundingBox())!;
   const callout = (await guide.boundingBox())!;
@@ -396,7 +396,7 @@ async function prepareFragments(): Promise<SourceNode[]> {
     }).observe(paragraph, { characterData: true, subtree: true });
   });
   const source = await sendPage<{ nodes: SourceNode[] }>({
-    type: "glimpselet:text-nodes",
+    type: "blinkling:text-nodes",
   });
   expect(source.nodes.map(({ text }) => text)).toEqual([
     "この記事は",
@@ -428,13 +428,13 @@ async function applyResponse(raw: string, source: SourceNode[]) {
     async ({ raw, source, tabId }) => {
       const nodes = (
         window as HarnessWindow
-      ).GlimpseletTest.parseTranslationBatch(
+      ).BlinklingTest.parseTranslationBatch(
         raw,
         new Map(source.map(({ id, text }) => [id, text])),
       );
       if (!nodes.length) return { accepted: false, nodes };
       const applied = await chrome.tabs.sendMessage(tabId, {
-        type: "glimpselet:translate",
+        type: "blinkling:translate",
         nodes,
       });
       return { accepted: true, nodes, applied };
@@ -501,7 +501,7 @@ test("explicit grammatical omission preserves inline nodes and exact restore", a
     lineHeight: original.lineHeight,
   });
   expect(translated.values[3]).toBe("");
-  expect(await sendPage({ type: "glimpselet:restore" })).toEqual({
+  expect(await sendPage({ type: "blinkling:restore" })).toEqual({
     restored: 5,
   });
   const restored = await fragmentSnapshot();
@@ -516,7 +516,7 @@ test("explicit grammatical omission preserves inline nodes and exact restore", a
     width: original.width,
     lineHeight: original.lineHeight,
   });
-  await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-translated]")).toHaveCount(0);
 });
 
 test("malformed translation batches fail before any content writes", async () => {
@@ -581,5 +581,5 @@ test("malformed translation batches fail before any content writes", async () =>
     });
   }
   expect(original.writes).toBe(0);
-  await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-translated]")).toHaveCount(0);
 });

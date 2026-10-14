@@ -4,7 +4,7 @@ const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage();
   await page.setContent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-180 -410 360 450" role="img" aria-label="Blink, the Glimpselet companion"></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-180 -410 360 450" role="img" aria-label="Blink, the Blinkling companion"></svg>',
   );
   await page.addScriptTag({ path: "public/assets/blink.js" });
   const logo = await page.evaluate(() => {

@@ -6,12 +6,12 @@ Run from the repository root with Node 24:
 
 ```sh
 export PATH="$HOME/.local/node24/bin:$PATH"
-export GLIMPSELET_REPORT_DIR=/tmp/glimpselet-shell-report
+export BLINKLING_REPORT_DIR=/tmp/blinkling-shell-report
 npm run desktop:check
 bash desktop/main/acceptance/linux.sh
 bash desktop/main/acceptance/multi.sh
 npm run desktop:build
-GLIMPSELET_TEST_EXECUTABLE="$PWD/release/desktop/Glimpselet-linux-x64/Glimpselet" \
+BLINKLING_TEST_EXECUTABLE="$PWD/release/desktop/Blinkling-linux-x64/Blinkling" \
   xvfb-run -a -s '-screen 0 1280x800x24 +extension Composite' \
   dbus-run-session -- bash desktop/e2e/linux.sh
 ```

@@ -81,10 +81,10 @@ const ignoredTags = new Set([
   "EMBED",
 ]);
 const scope = globalThis as typeof globalThis & {
-  glimpseletElementRegistry?: { ids: WeakMap<Element, string>; nextId: number };
-  glimpseletDocumentKeys?: WeakMap<Document, string>;
+  blinklingElementRegistry?: { ids: WeakMap<Element, string>; nextId: number };
+  blinklingDocumentKeys?: WeakMap<Document, string>;
 };
-const documentKeys = (scope.glimpseletDocumentKeys ??= new WeakMap());
+const documentKeys = (scope.blinklingDocumentKeys ??= new WeakMap());
 export function pageDocumentKey(doc: Document = document): string {
   let key = documentKeys.get(doc);
   if (!key) {
@@ -93,7 +93,7 @@ export function pageDocumentKey(doc: Document = document): string {
   }
   return key;
 }
-const registry = (scope.glimpseletElementRegistry ??= {
+const registry = (scope.blinklingElementRegistry ??= {
   ids: new WeakMap<Element, string>(),
   nextId: 1,
 });
@@ -164,7 +164,7 @@ function isExcluded(element: Element, includeHidden = false): boolean {
   ) {
     if (
       current.matches(
-        "[data-glimpselet-overlay], [data-private], [data-sensitive]",
+        "[data-blinkling-overlay], [data-private], [data-sensitive]",
       ) ||
       ignoredTags.has(current.tagName.toUpperCase())
     )
@@ -229,7 +229,7 @@ export function buildExplicitPageContext(
 export function buildGuideContext(doc: Document = document): PageContext {
   const context = buildExplicitPageContext(doc);
   delete context.textScope;
-  const scope = doc.querySelector("[data-glimpselet-reader-page]") || doc.body;
+  const scope = doc.querySelector("[data-blinkling-reader-page]") || doc.body;
   const candidates =
     scope && !context.hasPassword
       ? Array.from(scope.querySelectorAll(GUIDE_SELECTOR)).filter(
@@ -308,7 +308,7 @@ function readPageContext(
 ): PageContext {
   const hasPassword = hasSensitiveContent(doc, explicitTextOnly);
   const scope =
-    doc.querySelector("[data-glimpselet-reader-page]") ||
+    doc.querySelector("[data-blinkling-reader-page]") ||
     doc.body ||
     doc.documentElement;
   const elements: PageElement[] = [];
@@ -317,7 +317,7 @@ function readPageContext(
   for (const element of Array.from(
     scope.querySelectorAll(
       selector +
-        (scope.hasAttribute("data-glimpselet-reader-page")
+        (scope.hasAttribute("data-blinkling-reader-page")
           ? ",.pdf-text-layer>span"
           : ""),
     ),

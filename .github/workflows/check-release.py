@@ -69,7 +69,7 @@ images["promo.png"] = (440, 280)
 for name, size in images.items():
     check_png((ROOT / "assets/store" / name).read_bytes(), size, name)
 
-extension_path = ROOT / "release/glimpselet-extension.zip"
+extension_path = ROOT / "release/blinkling-extension.zip"
 with ZipFile(extension_path) as archive:
     require(archive.testzip() is None, "Corrupt extension ZIP")
     names = archive.namelist()
@@ -92,7 +92,7 @@ with ZipFile(extension_path) as archive:
     require(set(scripts) <= set(names), "A bundled entry point is missing")
 
 common = {
-    "glimpselet-extension.zip": extension_path,
+    "blinkling-extension.zip": extension_path,
     "listing.md": ROOT / "docs/STORE-LISTING.md",
     "permissions.md": ROOT / "docs/STORE.md",
     "privacy.html": ROOT / "public/privacy.html",
@@ -100,13 +100,13 @@ common = {
 }
 artifacts = [extension_path]
 for store in ["chrome", "edge"]:
-    kit = ROOT / f"release/glimpselet-{store}-store.zip"
+    kit = ROOT / f"release/blinkling-{store}-store.zip"
     with ZipFile(kit) as archive:
         require(archive.testzip() is None, f"Corrupt {store} kit")
         require(set(archive.namelist()) == set(common) and len(archive.namelist()) == len(common), f"Incomplete {store} kit")
         for name, path in common.items():
             require(archive.read(name) == path.read_bytes(), f"Stale {store} kit file: {name}")
-        with ZipFile(BytesIO(archive.read("glimpselet-extension.zip"))) as inner:
+        with ZipFile(BytesIO(archive.read("blinkling-extension.zip"))) as inner:
             require(json.loads(inner.read("manifest.json"))["version"] == version, f"Wrong nested {store} extension version")
     artifacts.append(kit)
 expected = "".join(f"{sha256(path.read_bytes()).hexdigest()}  {path.name}\n" for path in artifacts)

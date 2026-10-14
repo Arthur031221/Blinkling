@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const source = readFileSync(
-  "public/assets/glimpselet-welcome-sample.js",
+  "public/assets/blinkling-welcome-sample.js",
   "utf8",
 );
 let receive: (event: MessageEvent) => void;
@@ -45,8 +45,8 @@ const guidance = [
   ],
   [
     "pdf",
-    "Open the sample PDF in the Glimpselet reader.",
-    "在 Glimpselet 閱讀器開啟 PDF 範例。",
+    "Open the sample PDF in the Blinkling reader.",
+    "在 Blinkling 閱讀器開啟 PDF 範例。",
   ],
 ] as const;
 
@@ -54,7 +54,7 @@ beforeEach(() => {
   opener.postMessage.mockClear();
   document.documentElement.lang = "en";
   document.body.innerHTML =
-    '<div id="tour-request"></div><aside data-practice-label>Glimpselet practice page</aside>';
+    '<div id="tour-request"></div><aside data-practice-label>Blinkling practice page</aside>';
   Object.defineProperty(window, "opener", {
     configurable: true,
     value: opener,
@@ -85,7 +85,7 @@ function deliver(
 
 function contentReady() {
   deliver(
-    { type: "glimpselet:tutorial:content-ready", version: 1 },
+    { type: "blinkling:tutorial:content-ready", version: 1 },
     { source: window },
   );
 }
@@ -93,7 +93,7 @@ function contentReady() {
 function probe(locale: unknown = "en") {
   contentReady();
   deliver({
-    type: "glimpselet:tutorial:probe",
+    type: "blinkling:tutorial:probe",
     version: 1,
     requestId: "request-1",
     locale,
@@ -102,7 +102,7 @@ function probe(locale: unknown = "en") {
 
 function action(locale: unknown = "en", fields: Record<string, unknown> = {}) {
   deliver({
-    type: "glimpselet:tutorial-action",
+    type: "blinkling:tutorial-action",
     version: 1,
     requestId: "request-1",
     action: "translate",
@@ -116,29 +116,29 @@ describe("welcome sample guidance", () => {
   it("acknowledges the sample only after the content script can receive its first action", () => {
     const dispatch = vi.spyOn(window, "dispatchEvent");
     deliver({
-      type: "glimpselet:tutorial:probe",
+      type: "blinkling:tutorial:probe",
       version: 1,
       requestId: "request-1",
       locale: "zh-TW",
     });
     expect(opener.postMessage).not.toHaveBeenCalled();
     deliver(
-      { type: "glimpselet:tutorial:content-ready", version: 2 },
+      { type: "blinkling:tutorial:content-ready", version: 2 },
       { source: window },
     );
     deliver(
-      { type: "glimpselet:tutorial:content-ready", version: 1 },
+      { type: "blinkling:tutorial:content-ready", version: 1 },
       { source: null },
     );
     deliver(
-      { type: "glimpselet:tutorial:content-ready", version: 1 },
+      { type: "blinkling:tutorial:content-ready", version: 1 },
       { source: window, origin: "http://example.com" },
     );
     expect(opener.postMessage).not.toHaveBeenCalled();
     contentReady();
     expect(opener.postMessage).toHaveBeenCalledWith(
       {
-        type: "glimpselet:tutorial:loaded",
+        type: "blinkling:tutorial:loaded",
         version: 1,
         requestId: "request-1",
       },
@@ -159,7 +159,7 @@ describe("welcome sample guidance", () => {
     });
     expect(document.documentElement.lang).toBe("zh-TW");
     expect(document.querySelector("[data-practice-label]")?.textContent).toBe(
-      "Glimpselet 練習頁面",
+      "Blinkling 練習頁面",
     );
     expect(opener.postMessage).not.toHaveBeenCalled();
   });
@@ -186,13 +186,11 @@ describe("welcome sample guidance", () => {
         expect(
           document.querySelector("[data-practice-label]")?.textContent,
         ).toBe(
-          locale === "zh-TW"
-            ? "Glimpselet 練習頁面"
-            : "Glimpselet practice page",
+          locale === "zh-TW" ? "Blinkling 練習頁面" : "Blinkling practice page",
         );
         expect(dispatch).toHaveBeenCalledTimes(1);
         expect((dispatch.mock.calls[0][0] as CustomEvent).detail).toEqual({
-          type: "glimpselet:tutorial-action",
+          type: "blinkling:tutorial-action",
           version: 1,
           action: name,
           step,
@@ -201,7 +199,7 @@ describe("welcome sample guidance", () => {
         });
         expect(opener.postMessage).toHaveBeenLastCalledWith(
           {
-            type: "glimpselet:tutorial:ready",
+            type: "blinkling:tutorial:ready",
             version: 1,
             requestId: "request-1",
             action: name,
@@ -217,7 +215,7 @@ describe("welcome sample guidance", () => {
     probe("zh-TW");
     action("zh-TW");
     deliver({
-      type: "glimpselet:tutorial:probe",
+      type: "blinkling:tutorial:probe",
       version: 1,
       requestId: "request-2",
       locale: "en",
@@ -225,7 +223,7 @@ describe("welcome sample guidance", () => {
     action("en", { requestId: "request-2" });
     expect(document.documentElement.lang).toBe("en");
     expect(document.querySelector("[data-practice-label]")?.textContent).toBe(
-      "Glimpselet practice page",
+      "Blinkling practice page",
     );
     expect(document.querySelector("#tour-request")?.textContent).toBe(
       "Tour step 6: Translate this page in place, then restore the original.",
@@ -246,7 +244,7 @@ describe("welcome sample guidance", () => {
     probe("zh-TW");
     deliver(
       {
-        type: "glimpselet:tutorial-action",
+        type: "blinkling:tutorial-action",
         version: 1,
         requestId: "request-1",
         action: "translate",
@@ -257,7 +255,7 @@ describe("welcome sample guidance", () => {
     );
     deliver(
       {
-        type: "glimpselet:tutorial-action",
+        type: "blinkling:tutorial-action",
         version: 1,
         requestId: "request-1",
         action: "translate",

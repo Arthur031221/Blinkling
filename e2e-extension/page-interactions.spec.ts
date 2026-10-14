@@ -25,7 +25,7 @@ type Harness = Pick<
 > &
   Pick<typeof import("../extension/api"), "buildGuidePrompt" | "askAnthropic">;
 type HarnessWindow = Window & {
-  GlimpseletTest: Harness;
+  BlinklingTest: Harness;
   guideWaiting?: boolean;
   releaseGuide?: () => void;
 };
@@ -35,11 +35,11 @@ type SentMessage = {
   action?: string;
   rect?: number[];
 };
-type MessageLog = { glimpseletTestMessages?: SentMessage[] };
+type MessageLog = { blinklingTestMessages?: SentMessage[] };
 
 test.beforeAll(async () => {
   testExtension = await mkdtemp(
-    join(tmpdir(), "glimpselet-interaction-extension-"),
+    join(tmpdir(), "blinkling-interaction-extension-"),
   );
   await cp(resolve("dist-extension"), testExtension, { recursive: true });
   await build({
@@ -51,7 +51,7 @@ test.beforeAll(async () => {
     },
     bundle: true,
     format: "iife",
-    globalName: "GlimpseletTest",
+    globalName: "BlinklingTest",
     outfile: join(testExtension, "interaction-harness.js"),
   });
   await writeFile(
@@ -65,7 +65,7 @@ test.afterAll(async () => {
 });
 
 test.beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-page-interactions-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-page-interactions-"));
   server = createServer((request, response) => {
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     if (request.url === "/opaque") {
@@ -102,9 +102,9 @@ test.beforeEach(async () => {
   );
   await worker.evaluate(() => {
     const log = globalThis as typeof globalThis & MessageLog;
-    log.glimpseletTestMessages = [];
+    log.blinklingTestMessages = [];
     chrome.runtime.onMessage.addListener((message: SentMessage) => {
-      log.glimpseletTestMessages!.push(message);
+      log.blinklingTestMessages!.push(message);
     });
   });
   site = await context.newPage();
@@ -141,7 +141,7 @@ test("whole-page tours cover reading regions and task controls with a scrollable
   });
   await site.locator("#return").focus();
   const page = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   const paragraphs = page.elements.filter((e) => e.role === "paragraph");
   expect(paragraphs).toHaveLength(15);
@@ -163,35 +163,35 @@ test("whole-page tours cover reading regions and task controls with a scrollable
       ),
   );
   const newerMap = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   expect(
     paragraphs.some((e) => !newerMap.elements.some((n) => n.id === e.id)),
   ).toBe(true);
   expect(
     await sendPage({
-      type: "glimpselet:guide",
+      type: "blinkling:guide",
       purpose: "Compare and book a trip",
       steps,
       labels: { overview: en.guideOverview, tour: en.guideTour },
     }),
   ).toEqual({ ok: true });
-  const guide = site.locator("[data-glimpselet-overlay] .guide");
+  const guide = site.locator("[data-blinkling-overlay] .guide");
   await expect(guide.locator("p")).toContainText("Compare and book a trip");
-  await expect(site.locator("[data-glimpselet-overlay] rect.ink")).toHaveCount(
+  await expect(site.locator("[data-blinkling-overlay] rect.ink")).toHaveCount(
     1,
   );
   await guide
     .getByRole("button", { name: en.guideOverview, exact: true })
     .click();
-  const overview = site.locator("[data-glimpselet-overlay] .guide-overview");
+  const overview = site.locator("[data-blinkling-overlay] .guide-overview");
   await expect(overview.locator("li")).toHaveCount(16);
   await expect(
-    site.locator("[data-glimpselet-overlay] .guide-annotation").first(),
+    site.locator("[data-blinkling-overlay] .guide-annotation").first(),
   ).toBeVisible();
   const layout = await site.evaluate(() => {
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     const outlined = [...root.querySelectorAll("[data-guide-target]")];
     return outlined.map((e) => ({
@@ -202,7 +202,7 @@ test("whole-page tours cover reading regions and task controls with a scrollable
   });
   expect(layout.some((r) => r.id === paragraphs[0].id)).toBe(true);
   const annotation = site
-    .locator("[data-glimpselet-overlay] .guide-annotation")
+    .locator("[data-blinkling-overlay] .guide-annotation")
     .first();
   const annotationIndex = await annotation.getAttribute("data-guide-index");
   await annotation.focus();
@@ -212,7 +212,7 @@ test("whole-page tours cover reading regions and task controls with a scrollable
       site.evaluate(
         () =>
           (
-            document.querySelector("[data-glimpselet-overlay]")!.shadowRoot!
+            document.querySelector("[data-blinkling-overlay]")!.shadowRoot!
               .activeElement as HTMLElement
           )?.dataset.guideIndex,
       ),
@@ -241,7 +241,7 @@ test("whole-page tours cover reading regions and task controls with a scrollable
   ).toBe(true);
   await site.keyboard.press("Escape");
   await expect(overview).toHaveCount(0);
-  await expect(site.locator("[data-glimpselet-overlay] .draw")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-overlay] .draw")).toHaveCount(0);
   await expect(site.locator("#return")).toBeFocused();
 });
 
@@ -251,20 +251,20 @@ test("responsive guide targets can collapse without losing the tour, and tall re
       <main><p id="first">The article introduces the research problem.</p><aside><p id="sidebar">Use these links to browse the paper.</p></aside><p id="last">The final paragraph explains the results.</p></main>`;
   });
   const page = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   const regions = page.elements.filter((e) => e.role === "paragraph");
   const section = page.elements.find((e) => e.role === "section")!;
   expect(
     await sendPage({
-      type: "glimpselet:guide",
+      type: "blinkling:guide",
       steps: [
         { elementId: section.id, note: "Read the research article." },
         ...regions.map((e) => ({ elementId: e.id, note: e.text })),
       ],
     }),
   ).toEqual({ ok: true });
-  const guide = site.locator("[data-glimpselet-overlay] .guide");
+  const guide = site.locator("[data-blinkling-overlay] .guide");
   await expect(guide).toBeVisible();
   expect(
     await site.locator("main").evaluate((e) => e.getBoundingClientRect().top),
@@ -283,7 +283,7 @@ test("responsive guide targets can collapse without losing the tour, and tall re
   );
   await guide.locator('[data-guide-control="overview"]').click();
   const sidebar = site.locator(
-    '[data-glimpselet-overlay] .guide-overview [data-guide-index="2"]',
+    '[data-blinkling-overlay] .guide-overview [data-guide-index="2"]',
   );
   await sidebar.locator("xpath=ancestor::details/summary").click();
   await expect(sidebar).toBeDisabled();
@@ -304,7 +304,7 @@ async function openHarness() {
     `chrome-extension://${new URL(worker.url()).host}/interaction-harness.html`,
   );
   await harness.evaluate(
-    (id) => (window as HarnessWindow).GlimpseletTest.setCurrentActiveTab(id),
+    (id) => (window as HarnessWindow).BlinklingTest.setCurrentActiveTab(id),
     tabId,
   );
   return harness;
@@ -333,7 +333,7 @@ async function grantActiveTabCapture() {
 }
 
 async function openGuide() {
-  const page = await sendPage<PageContext>({ type: "glimpselet:context" });
+  const page = await sendPage<PageContext>({ type: "blinkling:context" });
   await site.locator("#previous").focus();
   const steps = page.elements
     .filter((element) => element.text !== "Previous focus")
@@ -341,7 +341,7 @@ async function openGuide() {
       elementId: element.id,
       note: `Step ${index + 1}`,
     }));
-  expect(await sendPage({ type: "glimpselet:guide", steps })).toEqual({
+  expect(await sendPage({ type: "blinkling:guide", steps })).toEqual({
     ok: true,
   });
 }
@@ -350,9 +350,7 @@ async function readGuideLayout(targetId: string) {
   // A scroll/resize redraw replaces the guide nodes. Read one connected layout
   // in a single browser task instead of mixing bounds from different renders.
   return site.evaluate((targetId) => {
-    const root = document.querySelector(
-      "[data-glimpselet-overlay]",
-    )?.shadowRoot;
+    const root = document.querySelector("[data-blinkling-overlay]")?.shadowRoot;
     const card = root?.querySelector<HTMLElement>(".guide");
     const note = card?.querySelector<HTMLParagraphElement>("p");
     const target = document.querySelector(targetId);
@@ -439,14 +437,14 @@ for (const hiddenBy of ["display", "offscreen"] as const) {
     await expect
       .poll(
         async () =>
-          (await sendPage<PageContext>({ type: "glimpselet:context" }))
+          (await sendPage<PageContext>({ type: "blinkling:context" }))
             .hasPassword,
       )
       .toBe(true);
     const harness = await openHarness();
     const read = () =>
       harness.evaluate(() =>
-        (window as HarnessWindow).GlimpseletTest.getPageContext(true),
+        (window as HarnessWindow).BlinklingTest.getPageContext(true),
       );
     const publicPage = await read();
     expect(publicPage).toMatchObject({
@@ -458,7 +456,7 @@ for (const hiddenBy of ["display", "offscreen"] as const) {
     expect(publicPage).not.toHaveProperty("guideScope");
     expect(JSON.stringify(publicPage)).not.toContain("EXCLUDED_EMBED_SECRET");
     const translation = await sendPage<{ nodes: Array<{ text: string }> }>({
-      type: "glimpselet:text-nodes",
+      type: "blinkling:text-nodes",
     });
     expect(translation.nodes.map((node) => node.text).join(" ")).toContain(
       "350 ml",
@@ -466,7 +464,7 @@ for (const hiddenBy of ["display", "offscreen"] as const) {
     expect(JSON.stringify(translation)).not.toContain("EXCLUDED_EMBED_SECRET");
     await expect(
       harness.evaluate(() =>
-        (window as HarnessWindow).GlimpseletTest.getPageContext(),
+        (window as HarnessWindow).BlinklingTest.getPageContext(),
       ),
     ).rejects.toThrow("password_page");
     await site.bringToFront();
@@ -478,13 +476,13 @@ for (const hiddenBy of ["display", "offscreen"] as const) {
     await site.mouse.up();
     await site.keyboard.up("Shift");
     await expect(
-      site.locator("[data-glimpselet-crop] .selection"),
+      site.locator("[data-blinkling-crop] .selection"),
     ).toBeVisible();
     await site.keyboard.press("Escape");
-    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+    await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
     await grantActiveTabCapture();
     const captured = await harness.evaluate(() =>
-      (window as HarnessWindow).GlimpseletTest.captureWeb("visible"),
+      (window as HarnessWindow).BlinklingTest.captureWeb("visible"),
     );
     expect(captured.capture.image).toMatch(/^data:image\/png;base64,/);
     const expectedPixelPage = { ...publicPage };
@@ -493,7 +491,7 @@ for (const hiddenBy of ["display", "offscreen"] as const) {
     expect(captured.page).not.toHaveProperty("textScope");
     await expect(
       harness.evaluate(() =>
-        (window as HarnessWindow).GlimpseletTest.captureWeb("full"),
+        (window as HarnessWindow).BlinklingTest.captureWeb("full"),
       ),
     ).rejects.toThrow("password_page");
 
@@ -505,16 +503,16 @@ for (const hiddenBy of ["display", "offscreen"] as const) {
     expect((await read())?.hasPassword).toBe(false);
     await expect(
       harness.evaluate(() =>
-        (window as HarnessWindow).GlimpseletTest.captureWeb("visible"),
+        (window as HarnessWindow).BlinklingTest.captureWeb("visible"),
       ),
     ).rejects.toThrow("password_page");
     expect(
-      await sendPage({ type: "glimpselet:select", mode: "region" }),
+      await sendPage({ type: "blinkling:select", mode: "region" }),
     ).toEqual({ error: "password_page" });
     await site.keyboard.down("Shift");
     await site.waitForTimeout(350);
     await site.keyboard.up("Shift");
-    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+    await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
     await site.evaluate(() =>
       document.body.insertAdjacentHTML(
         "beforeend",
@@ -522,7 +520,7 @@ for (const hiddenBy of ["display", "offscreen"] as const) {
       ),
     );
     await expect(read()).rejects.toThrow("password_page");
-    expect(await sendPage({ type: "glimpselet:text-nodes" })).toEqual({
+    expect(await sendPage({ type: "blinkling:text-nodes" })).toEqual({
       error: "password_page",
     });
     await site
@@ -547,12 +545,12 @@ test("explicit guides exclude cross-origin embeds while strict reading stays blo
   await expect
     .poll(
       async () =>
-        (await sendPage<PageContext>({ type: "glimpselet:context" }))
+        (await sendPage<PageContext>({ type: "blinkling:context" }))
           .hasPassword,
     )
     .toBe(true);
   const guide = await sendPage<PageContext>({
-    type: "glimpselet:guide-context",
+    type: "blinkling:guide-context",
   });
   expect(guide.hasPassword).toBe(false);
   expect(guide.text).toBe("Public dashboard Export");
@@ -565,22 +563,22 @@ test("explicit guides exclude cross-origin embeds while strict reading stays blo
   expect(JSON.stringify(guide)).not.toContain("UNCHECKED");
   expect(
     await sendPage({
-      type: "glimpselet:guide",
+      type: "blinkling:guide",
       documentKey: guide.documentKey,
       url: guide.url,
       steps: [{ elementId: guide.elements[1].id, note: "Export here" }],
     }),
   ).toEqual({ ok: true });
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toBeVisible();
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toBeVisible();
   await site.evaluate(() =>
     document.body.insertAdjacentHTML("beforeend", '<input type="password">'),
   );
-  expect(await sendPage({ type: "glimpselet:guide-context" })).toEqual({
+  expect(await sendPage({ type: "blinkling:guide-context" })).toEqual({
     error: "password_page",
   });
   expect(
     await sendPage({
-      type: "glimpselet:guide",
+      type: "blinkling:guide",
       steps: [{ elementId: guide.elements[1].id, note: "Export here" }],
     }),
   ).toEqual({ error: "password_page" });
@@ -597,17 +595,17 @@ test("explicit guide provider payload contains top-document text and no unchecke
   }, origin);
   const harness = await openHarness();
   const guide = await harness.evaluate(() =>
-    (window as HarnessWindow).GlimpseletTest.getGuideContext(),
+    (window as HarnessWindow).BlinklingTest.getGuideContext(),
   );
   expect(guide.text).toBe("Public dashboard Export");
   await expect(
     harness.evaluate(() =>
-      (window as HarnessWindow).GlimpseletTest.getPageContext(),
+      (window as HarnessWindow).BlinklingTest.getPageContext(),
     ),
   ).rejects.toThrow("password_page");
   await expect(
     harness.evaluate(() =>
-      (window as HarnessWindow).GlimpseletTest.captureWeb("visible"),
+      (window as HarnessWindow).BlinklingTest.captureWeb("visible"),
     ),
   ).rejects.toThrow("password_page");
   const payloads: unknown[] = [];
@@ -622,7 +620,7 @@ test("explicit guide provider payload contains top-document text and no unchecke
     },
   );
   await harness.evaluate(async (page) => {
-    const api = (window as HarnessWindow).GlimpseletTest;
+    const api = (window as HarnessWindow).BlinklingTest;
     return api.askAnthropic(
       {
         id: "explicit-guide",
@@ -646,7 +644,7 @@ test("explicit guide provider payload contains top-document text and no unchecke
   );
   await expect(
     harness.evaluate(() =>
-      (window as HarnessWindow).GlimpseletTest.getGuideContext(),
+      (window as HarnessWindow).BlinklingTest.getGuideContext(),
     ),
   ).rejects.toThrow("blocked_page");
 });
@@ -662,7 +660,7 @@ for (const change of ["password", "reload"] as const) {
         ...args: Parameters<typeof chrome.tabs.sendMessage>
       ) => {
         const result = await original(...args);
-        if (args[1]?.type === "glimpselet:guide-context") {
+        if (args[1]?.type === "blinkling:guide-context") {
           scope.guideWaiting = true;
           await held;
         }
@@ -670,7 +668,7 @@ for (const change of ["password", "reload"] as const) {
       }) as typeof chrome.tabs.sendMessage;
     });
     const read = harness.evaluate(() =>
-      (window as HarnessWindow).GlimpseletTest.getGuideContext(),
+      (window as HarnessWindow).BlinklingTest.getGuideContext(),
     );
     const rejected = expect(read).rejects.toThrow(
       change === "password" ? "password_page" : "tab_changed",
@@ -700,7 +698,7 @@ test("Escape dismisses every guide step with page handlers stopping propagation"
   for (const index of [0, 1, 2]) {
     for (const focus of ["page", "guide"]) {
       await openGuide();
-      const guide = site.locator("[data-glimpselet-overlay] .guide");
+      const guide = site.locator("[data-blinkling-overlay] .guide");
       for (let i = 0; i < index; i++)
         await guide.locator('[data-guide-control="next"]').click();
       if (focus === "page") await site.locator("#previous").focus();
@@ -708,7 +706,7 @@ test("Escape dismisses every guide step with page handlers stopping propagation"
       await site.keyboard.press("Escape");
       await expect(guide).toHaveCount(0);
       await expect(
-        site.locator("[data-glimpselet-overlay] svg.draw"),
+        site.locator("[data-blinkling-overlay] svg.draw"),
       ).toHaveCount(0);
       await expect(site.locator("#previous")).toBeFocused();
     }
@@ -718,7 +716,7 @@ test("Escape dismisses every guide step with page handlers stopping propagation"
 test("Close guide is accessible on every step and retains focus through layout changes", async () => {
   for (const index of [0, 1, 2]) {
     await openGuide();
-    const guide = site.locator("[data-glimpselet-overlay] .guide");
+    const guide = site.locator("[data-blinkling-overlay] .guide");
     for (let i = 0; i < index; i++)
       await guide.locator('[data-guide-control="next"]').click();
     const close = guide.getByRole("button", {
@@ -750,7 +748,7 @@ for (const language of ["en", "zh-TW"] as const)
             document.body.dataset.clicked = button.id;
           });
       }, height);
-      const page = await sendPage<PageContext>({ type: "glimpselet:context" });
+      const page = await sendPage<PageContext>({ type: "blinkling:context" });
       const note =
         language === "en"
           ? "Choose Export image to save your drawing. Check the background, scale, and selected elements before downloading. ".repeat(
@@ -761,7 +759,7 @@ for (const language of ["en", "zh-TW"] as const)
             );
       expect(
         await sendPage({
-          type: "glimpselet:guide",
+          type: "blinkling:guide",
           steps: page.elements
             .filter(
               (element) =>
@@ -787,7 +785,7 @@ for (const language of ["en", "zh-TW"] as const)
                 },
         }),
       ).toEqual({ ok: true });
-      const guide = site.locator("[data-glimpselet-overlay] .guide");
+      const guide = site.locator("[data-blinkling-overlay] .guide");
       const checkPlacement = async (targetId: string) => {
         const { card, passage, lineHeight, buttons } =
           await expectGuidePlacement(targetId);
@@ -871,7 +869,7 @@ for (const [language, labels, wideControls] of [
       width: 212,
       height: 32,
     });
-    const page = await sendPage<PageContext>({ type: "glimpselet:context" });
+    const page = await sendPage<PageContext>({ type: "blinkling:context" });
     const element = page.elements.find(
       (element) => element.role === "menuitem",
     );
@@ -893,7 +891,7 @@ for (const [language, labels, wideControls] of [
       .slice(0, 360);
     expect(
       await sendPage({
-        type: "glimpselet:guide",
+        type: "blinkling:guide",
         steps: [
           { elementId: element!.id, note },
           { elementId: settings!.id, note },
@@ -910,7 +908,7 @@ for (const [language, labels, wideControls] of [
     if (wideControls) {
       await site.evaluate(() => {
         const root = document.querySelector(
-          "[data-glimpselet-overlay]",
+          "[data-blinkling-overlay]",
         )!.shadowRoot!;
         const style = document.createElement("style");
         style.textContent = ".guide button{font-family:monospace}";
@@ -918,7 +916,7 @@ for (const [language, labels, wideControls] of [
         window.dispatchEvent(new Event("resize"));
       });
     }
-    const guide = site.locator("[data-glimpselet-overlay] .guide");
+    const guide = site.locator("[data-blinkling-overlay] .guide");
     const { card, passage, lineHeight, buttons, viewport } =
       await expectGuidePlacement("#export");
     expect(viewport).toEqual({ width: 320, height: 240 });
@@ -976,7 +974,7 @@ test("the first Shift drag at 100 ms crosses activation without operating the pa
   }
   await site.mouse.up();
   await site.keyboard.up("Shift");
-  const crop = site.locator("[data-glimpselet-crop]");
+  const crop = site.locator("[data-blinkling-crop]");
   await expect(crop.locator(".selection")).toBeVisible();
   await expect(
     crop.getByRole("button", { name: "Confirm", exact: true }),
@@ -1013,14 +1011,14 @@ for (const [rule, css] of [
         | Promise<{ rect?: number[]; cancelled?: boolean }>
         | undefined;
       if (mode === "region") {
-        selected = sendPage({ type: "glimpselet:select", mode: "region" });
+        selected = sendPage({ type: "blinkling:select", mode: "region" });
         // Closing a failed test's tab also closes this pending selection channel.
         void selected.catch(() => undefined);
       } else {
         await site.keyboard.down("Shift");
         await site.waitForTimeout(250);
       }
-      const crop = site.locator("[data-glimpselet-crop]");
+      const crop = site.locator("[data-blinkling-crop]");
       await expect(crop.locator(".surface")).toBeVisible();
       expect(await crop.boundingBox()).toEqual(
         await site.evaluate(() => ({
@@ -1054,14 +1052,14 @@ for (const [rule, css] of [
             worker.evaluate(() =>
               (
                 globalThis as typeof globalThis & MessageLog
-              ).glimpseletTestMessages!.filter(
-                (message) => message.type === "glimpselet:crop-selected",
+              ).blinklingTestMessages!.filter(
+                (message) => message.type === "blinkling:crop-selected",
               ),
             ),
           )
           .toEqual([
             expect.objectContaining({
-              type: "glimpselet:crop-selected",
+              type: "blinkling:crop-selected",
               rect: [500, 300, 250, 180],
             }),
           ]);
@@ -1078,7 +1076,7 @@ test("slow Shift hold, cancellation and re-entry leave one usable crop", async (
     await site.mouse.move(650, 450, { steps: 12 });
     await site.mouse.up();
     await site.keyboard.up("Shift");
-    const crop = site.locator("[data-glimpselet-crop]");
+    const crop = site.locator("[data-blinkling-crop]");
     await expect(crop).toHaveCount(1);
     await expect(
       crop.getByRole("button", { name: "Confirm", exact: true }),
@@ -1095,7 +1093,7 @@ test("Shift typing, Tab, modifier shortcuts, editable targets and disabled mode 
     await site.keyboard.press(key);
     await site.waitForTimeout(250);
     await site.keyboard.up("Shift");
-    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+    await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
   }
   await site.evaluate(() => {
     const editable = document.createElement("div");
@@ -1110,7 +1108,7 @@ test("Shift typing, Tab, modifier shortcuts, editable targets and disabled mode 
   await site.locator("#editor").click({ modifiers: ["Shift"] });
   await site.waitForTimeout(250);
   await site.keyboard.up("Shift");
-  await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
   await worker.evaluate(() =>
     chrome.storage.local.set({ shiftCropEnabled: false }),
   );
@@ -1120,7 +1118,7 @@ test("Shift typing, Tab, modifier shortcuts, editable targets and disabled mode 
   await site.mouse.click(400, 300);
   await site.waitForTimeout(250);
   await site.keyboard.up("Shift");
-  await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
 });
 
 test("selection actions keep rendered line breaks and words split across spans", async () => {
@@ -1140,7 +1138,7 @@ test("selection actions keep rendered line breaks and words split across spans",
       "instead\nrelying on transformations and ordinary inline text.",
     );
     await site
-      .locator("[data-glimpselet-overlay] .popover")
+      .locator("[data-blinkling-overlay] .popover")
       .getByRole("button", { name: action, exact: true })
       .click();
     await expect
@@ -1148,8 +1146,8 @@ test("selection actions keep rendered line breaks and words split across spans",
         async () =>
           await worker.evaluate(() => {
             return (globalThis as typeof globalThis & MessageLog)
-              .glimpseletTestMessages!.filter(
-                (message) => message.type === "glimpselet:selection",
+              .blinklingTestMessages!.filter(
+                (message) => message.type === "blinkling:selection",
               )
               .at(-1);
           }),
@@ -1205,15 +1203,15 @@ test("bundled PDF.js reader selection actions preserve the rendered multiline pa
     });
     expect(expected).toContain("instead\nrelying");
     await site
-      .locator("[data-glimpselet-overlay] .popover")
+      .locator("[data-blinkling-overlay] .popover")
       .getByRole("button", { name: action, exact: true })
       .click();
     await expect
       .poll(() =>
         worker.evaluate(() =>
           (globalThis as typeof globalThis & MessageLog)
-            .glimpseletTestMessages!.filter(
-              (message) => message.type === "glimpselet:selection",
+            .blinklingTestMessages!.filter(
+              (message) => message.type === "blinkling:selection",
             )
             .at(-1),
         ),
@@ -1260,24 +1258,24 @@ for (const kind of ["webpage", "reader"] as const) {
 
     const expected = await selectGuidePassage(kind);
     expect(expected).toContain("\n");
-    const popover = site.locator("[data-glimpselet-overlay] .popover");
+    const popover = site.locator("[data-blinkling-overlay] .popover");
     await expect(popover).toBeVisible();
     const page = await sendPage<PageContext>({
-      type: "glimpselet:guide-context",
+      type: "blinkling:guide-context",
     });
     const steps = page.elements.slice(0, 3).map((element, index) => ({
       elementId: element.id,
       note: `Guide the selected passage: step ${index + 1}`,
     }));
     expect(steps.length).toBe(3);
-    const guide = site.locator("[data-glimpselet-overlay] .guide");
+    const guide = site.locator("[data-blinkling-overlay] .guide");
     const expectSelection = async () => {
       expect(await site.evaluate(() => getSelection()!.toString().trim())).toBe(
         expected,
       );
     };
     const startGuide = async () => {
-      expect(await sendPage({ type: "glimpselet:guide", steps })).toEqual({
+      expect(await sendPage({ type: "blinkling:guide", steps })).toEqual({
         ok: true,
       });
       await expect(guide).toBeVisible();
@@ -1332,8 +1330,8 @@ for (const kind of ["webpage", "reader"] as const) {
         .poll(() =>
           worker.evaluate(() =>
             (globalThis as typeof globalThis & MessageLog)
-              .glimpseletTestMessages!.filter(
-                (message) => message.type === "glimpselet:selection",
+              .blinklingTestMessages!.filter(
+                (message) => message.type === "blinkling:selection",
               )
               .at(-1),
           ),

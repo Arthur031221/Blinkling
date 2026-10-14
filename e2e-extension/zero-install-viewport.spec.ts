@@ -219,7 +219,7 @@ for (const mode of ["zero-install", "unpacked"] as const) {
     );
     test.setTimeout(180_000);
     const directory = await mkdtemp(
-      join(tmpdir(), "glimpselet-native-viewport-"),
+      join(tmpdir(), "blinkling-native-viewport-"),
     );
     const client = new Client({
       name: "native-viewport-test",
@@ -253,16 +253,16 @@ child.on('exit', code => process.exit(code ?? 1));
       const env: NodeJS.ProcessEnv = {
         ...process.env,
         HOME: directory,
-        GLIMPSELET_PORT: String(await freePort()),
-        GLIMPSELET_DISABLE_BROWSER_OPEN: "1",
-        GLIMPSELET_RUNTIME_DIR: join(directory, "runtime"),
-        GLIMPSELET_PROFILE_DIR: join(directory, "profile"),
-        GLIMPSELET_CHROMIUM_PATH: executable,
+        BLINKLING_PORT: String(await freePort()),
+        BLINKLING_DISABLE_BROWSER_OPEN: "1",
+        BLINKLING_RUNTIME_DIR: join(directory, "runtime"),
+        BLINKLING_PROFILE_DIR: join(directory, "profile"),
+        BLINKLING_CHROMIUM_PATH: executable,
       };
       delete env.SSH_CONNECTION;
       const transport = new StdioClientTransport({
         command: process.execPath,
-        args: [join(plugin, "bin/glimpselet.cjs")],
+        args: [join(plugin, "bin/blinkling.cjs")],
         cwd: directory,
         env: Object.fromEntries(
           Object.entries(env).filter((entry) => entry[1] !== undefined),
@@ -284,7 +284,7 @@ child.on('exit', code => process.exit(code ?? 1));
         text,
       )?.[0];
       if (!url) throw new Error(`No welcome URL: ${text}`);
-      const extension = join(directory, "Glimpselet-extension");
+      const extension = join(directory, "Blinkling-extension");
       driver = await launchExtensionContext(join(directory, "driver"), {
         headless: false,
         viewport: null,

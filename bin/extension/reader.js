@@ -26286,7 +26286,7 @@ var ignoredTags = /* @__PURE__ */ new Set([
   "EMBED"
 ]);
 var scope = globalThis;
-var documentKeys = scope.glimpseletDocumentKeys ??= /* @__PURE__ */ new WeakMap();
+var documentKeys = scope.blinklingDocumentKeys ??= /* @__PURE__ */ new WeakMap();
 function pageDocumentKey(doc = document) {
   let key = documentKeys.get(doc);
   if (!key) {
@@ -26295,7 +26295,7 @@ function pageDocumentKey(doc = document) {
   }
   return key;
 }
-var registry = scope.glimpseletElementRegistry ??= {
+var registry = scope.blinklingElementRegistry ??= {
   ids: /* @__PURE__ */ new WeakMap(),
   nextId: 1
 };
@@ -26333,7 +26333,7 @@ function textForElement(element, limit = 240) {
 function isExcluded(element, includeHidden = false) {
   for (let current = element; current; current = composedParent(current)) {
     if (current.matches(
-      "[data-glimpselet-overlay], [data-private], [data-sensitive]"
+      "[data-blinkling-overlay], [data-private], [data-sensitive]"
     ) || ignoredTags.has(current.tagName.toUpperCase()))
       return true;
     const editable = current.getAttribute("contenteditable");
@@ -26362,7 +26362,7 @@ function buildExplicitPageContext(doc = document) {
 function buildGuideContext(doc = document) {
   const context = buildExplicitPageContext(doc);
   delete context.textScope;
-  const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body;
+  const scope2 = doc.querySelector("[data-blinkling-reader-page]") || doc.body;
   const candidates = scope2 && !context.hasPassword ? Array.from(scope2.querySelectorAll(GUIDE_SELECTOR)).filter(
     guideElementAvailable
   ) : [];
@@ -26422,12 +26422,12 @@ function buildGuideContext(doc = document) {
 }
 function readPageContext(doc, explicitTextOnly) {
   const hasPassword = hasSensitiveContent(doc, explicitTextOnly);
-  const scope2 = doc.querySelector("[data-glimpselet-reader-page]") || doc.body || doc.documentElement;
+  const scope2 = doc.querySelector("[data-blinkling-reader-page]") || doc.body || doc.documentElement;
   const elements = [];
   const selector = "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],[role=option],h1,h2,h3,h4,h5,h6";
   for (const element of Array.from(
     scope2.querySelectorAll(
-      selector + (scope2.hasAttribute("data-glimpselet-reader-page") ? ",.pdf-text-layer>span" : "")
+      selector + (scope2.hasAttribute("data-blinkling-reader-page") ? ",.pdf-text-layer>span" : "")
     )
   )) {
     if (explicitTextOnly && hasPassword) break;
@@ -26627,11 +26627,11 @@ function validateGuideSteps(value, knownElementIds) {
 
 // extension/content.ts
 var contentScope = globalThis;
-if (!contentScope.glimpseletContentReady) {
+if (!contentScope.blinklingContentReady) {
   let ensureOverlay = function() {
     if (overlayRoot) return overlayRoot;
     overlayHost = document.createElement("div");
-    overlayHost.dataset.glimpseletOverlay = "true";
+    overlayHost.dataset.blinklingOverlay = "true";
     overlayHost.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
     overlayRoot = overlayHost.attachShadow({ mode: "open" });
     const style = document.createElement("style");
@@ -27177,7 +27177,7 @@ if (!contentScope.glimpseletContentReady) {
           return;
         if (contextRangeText(range) !== text) return;
         send({
-          type: "glimpselet:selection",
+          type: "blinkling:selection",
           text,
           url: location.href,
           action
@@ -27210,7 +27210,7 @@ if (!contentScope.glimpseletContentReady) {
     if (url !== lastUrl || checkContent && revision !== lastRevision) {
       lastUrl = url;
       lastRevision = revision;
-      send({ type: "glimpselet:page-changed", url, revision });
+      send({ type: "blinkling:page-changed", url, revision });
     }
   }, relevantMutation = function(record) {
     const target = record.target instanceof Element ? record.target : record.target.parentElement;
@@ -27225,7 +27225,7 @@ if (!contentScope.glimpseletContentReady) {
     ].includes(record.attributeName ?? ""))
       return true;
     if (target.closest(
-      "[data-glimpselet-overlay], [data-glimpselet-crop], [data-private], [data-sensitive], [contenteditable]:not([contenteditable=false])"
+      "[data-blinkling-overlay], [data-blinkling-crop], [data-private], [data-sensitive], [contenteditable]:not([contenteditable=false])"
     ))
       return false;
     if (target instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(target.type))
@@ -27281,7 +27281,7 @@ if (!contentScope.glimpseletContentReady) {
             const value = result;
             if (value.rect)
               void send({
-                type: "glimpselet:crop-selected",
+                type: "blinkling:crop-selected",
                 rect: value.rect,
                 url: location.href,
                 geometry: {
@@ -27314,10 +27314,10 @@ if (!contentScope.glimpseletContentReady) {
     selectionMode = mode;
     if (mode === "region") {
       const host = document.createElement("div");
-      host.dataset.glimpseletCrop = "true";
+      host.dataset.blinklingCrop = "true";
       host.style.setProperty("display", "block", "important");
       document.documentElement.append(host);
-      void send({ type: "glimpselet:crop-mode", active: true });
+      void send({ type: "blinkling:crop-mode", active: true });
       return selectCrop(
         host,
         () => new DOMRect(0, 0, innerWidth, innerHeight),
@@ -27329,7 +27329,7 @@ if (!contentScope.glimpseletContentReady) {
       ).finally(() => {
         selecting = false;
         selectionMode = void 0;
-        void send({ type: "glimpselet:crop-mode", active: false });
+        void send({ type: "blinkling:crop-mode", active: false });
       });
     }
     return new Promise((resolve) => {
@@ -27363,7 +27363,7 @@ if (!contentScope.glimpseletContentReady) {
             event.clientY
           );
           shade.style.pointerEvents = "auto";
-          if (!target || target.closest("[data-glimpselet-overlay]")) return;
+          if (!target || target.closest("[data-blinkling-overlay]")) return;
           const r = target.getBoundingClientRect();
           finish([
             Math.round(r.left),
@@ -27399,7 +27399,7 @@ if (!contentScope.glimpseletContentReady) {
     }
     return id;
   };
-  contentScope.glimpseletContentReady = true;
+  contentScope.blinklingContentReady = true;
   const originals = /* @__PURE__ */ new Map();
   const nodeIds = /* @__PURE__ */ new WeakMap();
   let nextTextId = 1;
@@ -27445,38 +27445,38 @@ if (!contentScope.glimpseletContentReady) {
     if (event.source !== window || event.origin !== location.origin || location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/install")
       return;
     const value = event.data;
-    if (value?.type === "glimpselet:hello") {
+    if (value?.type === "blinkling:hello") {
       window.postMessage(
-        { type: "glimpselet:extension-ready" },
+        { type: "blinkling:extension-ready" },
         location.origin
       );
       return;
     }
-    if (value?.type === "glimpselet:open-bubble") {
+    if (value?.type === "blinkling:open-bubble") {
       void send({
-        type: "glimpselet:open-bubble",
+        type: "blinkling:open-bubble",
         locale: isWelcomeLocale(value.locale) ? value.locale : void 0
       });
       return;
     }
-    if (!value || value.type !== "glimpselet:pair" || typeof value.code !== "string" || !/^[A-F0-9]{16}$/.test(value.code) || Number(value.port) !== Number(location.port || 80))
+    if (!value || value.type !== "blinkling:pair" || typeof value.code !== "string" || !/^[A-F0-9]{16}$/.test(value.code) || Number(value.port) !== Number(location.port || 80))
       return;
     void send({
-      type: "glimpselet:pair",
+      type: "blinkling:pair",
       port: Number(value.port),
       code: value.code,
       locale: isWelcomeLocale(value.locale) ? value.locale : void 0
     }).then(
       (result) => window.postMessage(
         {
-          type: result?.ok ? "glimpselet:paired" : "glimpselet:connection-failed"
+          type: result?.ok ? "blinkling:paired" : "blinkling:connection-failed"
         },
         location.origin
       )
     );
   });
-  window.addEventListener("glimpselet:tutorial-action", (event) => {
-    if (location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/assets/glimpselet-welcome-sample.html")
+  window.addEventListener("blinkling:tutorial-action", (event) => {
+    if (location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/assets/blinkling-welcome-sample.html")
       return;
     const value = event.detail;
     if (value?.version !== 1 || ![
@@ -27491,36 +27491,36 @@ if (!contentScope.glimpseletContentReady) {
     ].includes(value.action) || !Number.isInteger(value.step) || value.step < 1 || value.step > 8)
       return;
     void send({
-      type: "glimpselet:tutorial",
+      type: "blinkling:tutorial",
       action: value.action,
       step: value.step,
       locale: value.locale === "en" || value.locale === "zh-TW" ? value.locale : void 0
     });
   });
-  if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/assets/glimpselet-welcome-sample.html") {
+  if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/assets/blinkling-welcome-sample.html") {
     window.postMessage(
-      { type: "glimpselet:tutorial:content-ready", version: 1 },
+      { type: "blinkling:tutorial:content-ready", version: 1 },
       location.origin
     );
   }
   if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/install") {
-    window.postMessage({ type: "glimpselet:extension-ready" }, location.origin);
+    window.postMessage({ type: "blinkling:extension-ready" }, location.origin);
   }
   chrome.runtime.onMessage.addListener(
     (message2, _sender, respond) => {
       if (!message2 || typeof message2.type !== "string") return;
       if ([
-        "glimpselet:guide-context",
-        "glimpselet:explicit-context",
-        "glimpselet:guide",
-        "glimpselet:text-nodes",
-        "glimpselet:translate",
-        "glimpselet:restore"
+        "blinkling:guide-context",
+        "blinkling:explicit-context",
+        "blinkling:guide",
+        "blinkling:text-nodes",
+        "blinkling:translate",
+        "blinkling:restore"
       ].includes(message2.type) && typeof message2.documentKey === "string" && (message2.documentKey !== pageDocumentKey() || message2.url !== location.href)) {
         respond({ error: "tab_changed" });
         return;
       }
-      if (message2.type === "glimpselet:tutorial-select" && location.pathname === "/assets/glimpselet-welcome-sample.html") {
+      if (message2.type === "blinkling:tutorial-select" && location.pathname === "/assets/blinkling-welcome-sample.html") {
         const paragraph = document.querySelector("main p, article p, p");
         if (paragraph) {
           const range = document.createRange();
@@ -27532,35 +27532,35 @@ if (!contentScope.glimpseletContentReady) {
         respond({ ok: true });
         return;
       }
-      if (message2.type === "glimpselet:tutorial-done" && location.pathname === "/assets/glimpselet-welcome-sample.html" && Number.isInteger(message2.step) && Number(message2.step) >= 1 && Number(message2.step) <= 8) {
+      if (message2.type === "blinkling:tutorial-done" && location.pathname === "/assets/blinkling-welcome-sample.html" && Number.isInteger(message2.step) && Number(message2.step) >= 1 && Number(message2.step) <= 8) {
         window.opener?.postMessage(
-          { type: "glimpselet:tutorial:done", version: 1, step: message2.step },
+          { type: "blinkling:tutorial:done", version: 1, step: message2.step },
           location.origin
         );
         respond({ ok: true });
         return;
       }
-      if (message2.type === "glimpselet:sensitive") {
+      if (message2.type === "blinkling:sensitive") {
         respond({
           hasPassword: hasSensitiveContent()
         });
         return;
       }
-      if (message2.type === "glimpselet:context") {
+      if (message2.type === "blinkling:context") {
         respond(buildPageContext());
         return;
       }
-      if (message2.type === "glimpselet:guide-context" || message2.type === "glimpselet:explicit-context") {
+      if (message2.type === "blinkling:guide-context" || message2.type === "blinkling:explicit-context") {
         if (hasSensitiveContent(document, true)) {
           respond({ error: "password_page" });
           return;
         }
         respond(
-          message2.type === "glimpselet:guide-context" ? buildGuideContext() : buildExplicitPageContext()
+          message2.type === "blinkling:guide-context" ? buildGuideContext() : buildExplicitPageContext()
         );
         return;
       }
-      if (message2.type === "glimpselet:identity") {
+      if (message2.type === "blinkling:identity") {
         respond({
           documentKey: pageDocumentKey(),
           url: location.href,
@@ -27570,7 +27570,7 @@ if (!contentScope.glimpseletContentReady) {
         });
         return;
       }
-      if (message2.type === "glimpselet:labels" && message2.labels && typeof message2.labels === "object") {
+      if (message2.type === "blinkling:labels" && message2.labels && typeof message2.labels === "object") {
         const incoming = message2.labels;
         for (const key of [
           "cropTitle",
@@ -27589,7 +27589,7 @@ if (!contentScope.glimpseletContentReady) {
         respond({ ok: true });
         return;
       }
-      if (message2.type === "glimpselet:select" && (message2.mode === "region" || message2.mode === "element")) {
+      if (message2.type === "blinkling:select" && (message2.mode === "region" || message2.mode === "element")) {
         const requestLabels = message2.labels;
         if (requestLabels) cropLabels = { ...cropLabels, ...requestLabels };
         void select(message2.mode, requestLabels?.cancel || "Cancel").then(
@@ -27597,7 +27597,7 @@ if (!contentScope.glimpseletContentReady) {
         );
         return true;
       }
-      if (message2.type === "glimpselet:guide" && Array.isArray(message2.steps)) {
+      if (message2.type === "blinkling:guide" && Array.isArray(message2.steps)) {
         if (hasSensitiveContent(document, true)) {
           closeGuide();
           respond({ error: "password_page" });
@@ -27633,7 +27633,7 @@ if (!contentScope.glimpseletContentReady) {
               back: guideLabels.back || "Back",
               close: guideLabels.close || "Close guide",
               done: guideLabels.done || "Done",
-              title: guideLabels.title || "Glimpselet",
+              title: guideLabels.title || "Blinkling",
               overview: guideLabels.overview || "Overview",
               tour: guideLabels.tour || "Step by step",
               sections: guideLabels.sections || "Page sections",
@@ -27649,7 +27649,7 @@ if (!contentScope.glimpseletContentReady) {
         }
         return;
       }
-      if (message2.type === "glimpselet:text-nodes") {
+      if (message2.type === "blinkling:text-nodes") {
         if (hasSensitiveContent(document, true)) {
           respond({ error: "password_page" });
           return;
@@ -27698,7 +27698,7 @@ if (!contentScope.glimpseletContentReady) {
         respond({ nodes, ...hasMore ? { nextCursor: index } : {} });
         return;
       }
-      if (message2.type === "glimpselet:translate" && Array.isArray(message2.nodes)) {
+      if (message2.type === "blinkling:translate" && Array.isArray(message2.nodes)) {
         if (hasSensitiveContent(document, true)) {
           respond({ error: "password_page" });
           return;
@@ -27739,7 +27739,7 @@ if (!contentScope.glimpseletContentReady) {
             original.lastWritten = entry.text;
             changed++;
             original.node.parentElement?.setAttribute(
-              "data-glimpselet-translated",
+              "data-blinkling-translated",
               "true"
             );
           }
@@ -27748,13 +27748,13 @@ if (!contentScope.glimpseletContentReady) {
         respond({ applied, changed, skipped, rejected });
         return;
       }
-      if (message2.type === "glimpselet:restore") {
+      if (message2.type === "blinkling:restore") {
         let restored = 0;
         for (const [id, entry] of originals) {
           if (entry.node.isConnected && restorableTextNode(entry.node) && entry.lastWritten !== void 0 && entry.node.nodeValue === entry.lastWritten) {
             entry.node.nodeValue = entry.text;
             entry.node.parentElement?.removeAttribute(
-              "data-glimpselet-translated"
+              "data-blinkling-translated"
             );
             restored++;
           }
@@ -27834,7 +27834,7 @@ var readerLocales = {
     selectionHelp: "Select a passage to translate or summarize it.",
     selectionUnavailable: "This page has no selectable text. Use Ask about page or Summarize page to ask about the page image.",
     selectionTooLong: "Select at most 5,000 characters, or use Summarize page for the whole page.",
-    title: "Glimpselet PDF Reader",
+    title: "Blinkling PDF Reader",
     openFile: "Open PDF",
     urlPlaceholder: "Paste a PDF URL",
     urlLabel: "PDF URL",
@@ -27858,9 +27858,9 @@ var readerLocales = {
     permissionDenied: "Permission was not granted for this PDF site.",
     tooLarge: "This PDF is larger than 100 MB. Choose a smaller file.",
     openFirst: "Open a PDF first.",
-    actionSent: "{action} sent to Glimpselet. Keep the floating panel open to receive it.",
+    actionSent: "{action} sent to Blinkling. Keep the floating panel open to receive it.",
     actionBusy: "Wait for the current answer, then try again.",
-    actionError: "Glimpselet could not receive this action. Open the floating panel and try again.",
+    actionError: "Blinkling could not receive this action. Open the floating panel and try again.",
     panelOpened: "Chat opened. Choose Open floating panel there to keep it above other windows.",
     panelError: "Could not open the floating panel. Try again from the extension button.",
     summarySent: "Summary",
@@ -27881,7 +27881,7 @@ var readerLocales = {
     selectionHelp: "\u9078\u53D6\u4E00\u6BB5\u6587\u5B57\u5F8C\u5373\u53EF\u7FFB\u8B6F\u6216\u6458\u8981\u3002",
     selectionUnavailable: "\u6B64\u9801\u6C92\u6709\u53EF\u9078\u53D6\u7684\u6587\u5B57\u3002\u53EF\u9078\u64C7\u300C\u8A62\u554F\u6B64\u9801\u300D\u6216\u300C\u6458\u8981\u6B64\u9801\u300D\u4F86\u8A62\u554F\u9801\u9762\u5716\u7247\u3002",
     selectionTooLong: "\u8ACB\u9078\u53D6\u4E0D\u8D85\u904E 5,000 \u500B\u5B57\u5143\uFF0C\u6216\u4F7F\u7528\u300C\u6458\u8981\u6B64\u9801\u300D\u6458\u8981\u6574\u9801\u3002",
-    title: "Glimpselet PDF \u95B1\u8B80\u5668",
+    title: "Blinkling PDF \u95B1\u8B80\u5668",
     openFile: "\u958B\u555F PDF",
     urlPlaceholder: "\u8CBC\u4E0A PDF \u7DB2\u5740",
     urlLabel: "PDF \u7DB2\u5740",
@@ -27905,9 +27905,9 @@ var readerLocales = {
     permissionDenied: "\u672A\u6388\u4E88\u6B64 PDF \u7DB2\u7AD9\u7684\u6B0A\u9650\u3002",
     tooLarge: "\u6B64 PDF \u8D85\u904E 100 MB\uFF0C\u8ACB\u9078\u64C7\u8F03\u5C0F\u7684\u6A94\u6848\u3002",
     openFirst: "\u8ACB\u5148\u958B\u555F PDF\u3002",
-    actionSent: "\u5DF2\u5C07\u300C{action}\u300D\u50B3\u9001\u81F3 Glimpselet\u3002\u8ACB\u4FDD\u6301\u6D6E\u52D5\u9762\u677F\u958B\u555F\u4EE5\u63A5\u6536\u3002",
+    actionSent: "\u5DF2\u5C07\u300C{action}\u300D\u50B3\u9001\u81F3 Blinkling\u3002\u8ACB\u4FDD\u6301\u6D6E\u52D5\u9762\u677F\u958B\u555F\u4EE5\u63A5\u6536\u3002",
     actionBusy: "\u8ACB\u7B49\u76EE\u524D\u7684\u56DE\u7B54\u5B8C\u6210\uFF0C\u518D\u8A66\u4E00\u6B21\u3002",
-    actionError: "Glimpselet \u7121\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8ACB\u958B\u555F\u6D6E\u52D5\u9762\u677F\u5F8C\u91CD\u8A66\u3002",
+    actionError: "Blinkling \u7121\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8ACB\u958B\u555F\u6D6E\u52D5\u9762\u677F\u5F8C\u91CD\u8A66\u3002",
     panelOpened: "\u5DF2\u958B\u555F\u804A\u5929\u3002\u8ACB\u5728\u804A\u5929\u4E2D\u9078\u64C7\u958B\u555F\u6D6E\u52D5\u9762\u677F\uFF0C\u8B93\u5B83\u4FDD\u6301\u5728\u5176\u4ED6\u8996\u7A97\u4E0A\u65B9\u3002",
     panelError: "\u7121\u6CD5\u958B\u555F\u6D6E\u52D5\u9762\u677F\u3002\u8ACB\u5F9E\u64F4\u5145\u529F\u80FD\u6309\u9215\u91CD\u8A66\u3002",
     summarySent: "\u6458\u8981",
@@ -27928,7 +27928,7 @@ var readerLocales = {
     selectionHelp: "\u9009\u62E9\u4E00\u6BB5\u6587\u5B57\u540E\u5373\u53EF\u7FFB\u8BD1\u6216\u603B\u7ED3\u3002",
     selectionUnavailable: "\u6B64\u9875\u6CA1\u6709\u53EF\u9009\u62E9\u7684\u6587\u5B57\u3002\u53EF\u9009\u62E9\u201C\u8BE2\u95EE\u6B64\u9875\u201D\u6216\u201C\u603B\u7ED3\u6B64\u9875\u201D\u6765\u8BE2\u95EE\u9875\u9762\u56FE\u7247\u3002",
     selectionTooLong: "\u8BF7\u9009\u53D6\u4E0D\u8D85\u8FC7 5,000 \u4E2A\u5B57\u7B26\uFF0C\u6216\u4F7F\u7528\u201C\u603B\u7ED3\u6B64\u9875\u201D\u603B\u7ED3\u6574\u9875\u3002",
-    title: "Glimpselet PDF \u9605\u8BFB\u5668",
+    title: "Blinkling PDF \u9605\u8BFB\u5668",
     openFile: "\u6253\u5F00 PDF",
     urlPlaceholder: "\u7C98\u8D34 PDF \u7F51\u5740",
     urlLabel: "PDF \u7F51\u5740",
@@ -27952,9 +27952,9 @@ var readerLocales = {
     permissionDenied: "\u672A\u83B7\u5F97\u6B64 PDF \u7F51\u7AD9\u7684\u8BBF\u95EE\u6743\u9650\u3002",
     tooLarge: "\u6B64 PDF \u8D85\u8FC7 100 MB\uFF0C\u8BF7\u9009\u62E9\u8F83\u5C0F\u7684\u6587\u4EF6\u3002",
     openFirst: "\u8BF7\u5148\u6253\u5F00 PDF\u3002",
-    actionSent: '\u5DF2\u5C06"{action}"\u53D1\u9001\u5230 Glimpselet\u3002\u8BF7\u4FDD\u6301\u6D6E\u52A8\u9762\u677F\u6253\u5F00\u4EE5\u63A5\u6536\u3002',
+    actionSent: '\u5DF2\u5C06"{action}"\u53D1\u9001\u5230 Blinkling\u3002\u8BF7\u4FDD\u6301\u6D6E\u52A8\u9762\u677F\u6253\u5F00\u4EE5\u63A5\u6536\u3002',
     actionBusy: "\u8BF7\u7B49\u5F85\u5F53\u524D\u56DE\u7B54\u5B8C\u6210\u540E\u91CD\u8BD5\u3002",
-    actionError: "Glimpselet \u65E0\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8BF7\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u540E\u91CD\u8BD5\u3002",
+    actionError: "Blinkling \u65E0\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8BF7\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u540E\u91CD\u8BD5\u3002",
     panelOpened: "\u5DF2\u6253\u5F00\u804A\u5929\u3002\u8BF7\u5728\u804A\u5929\u4E2D\u9009\u62E9\u6253\u5F00\u6D6E\u52A8\u9762\u677F\uFF0C\u8BA9\u5B83\u4FDD\u6301\u5728\u5176\u4ED6\u7A97\u53E3\u4E0A\u65B9\u3002",
     panelError: "\u65E0\u6CD5\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u3002\u8BF7\u901A\u8FC7\u6269\u5C55\u7A0B\u5E8F\u6309\u94AE\u91CD\u8BD5\u3002",
     summarySent: "\u603B\u7ED3",
@@ -27975,7 +27975,7 @@ var readerLocales = {
     selectionHelp: "\u6587\u7AE0\u3092\u9078\u629E\u3059\u308B\u3068\u7FFB\u8A33\u3084\u8981\u7D04\u304C\u3067\u304D\u307E\u3059\u3002",
     selectionUnavailable: "\u3053\u306E\u30DA\u30FC\u30B8\u306B\u306F\u9078\u629E\u3067\u304D\u308B\u30C6\u30AD\u30B9\u30C8\u304C\u3042\u308A\u307E\u305B\u3093\u3002\u300C\u3053\u306E\u30DA\u30FC\u30B8\u306B\u3064\u3044\u3066\u8CEA\u554F\u300D\u307E\u305F\u306F\u300C\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u300D\u3067\u30DA\u30FC\u30B8\u306E\u753B\u50CF\u306B\u3064\u3044\u3066\u8CEA\u554F\u3067\u304D\u307E\u3059\u3002",
     selectionTooLong: "5,000\u6587\u5B57\u4EE5\u5185\u3092\u9078\u629E\u3059\u308B\u304B\u3001\u300C\u3053\u306E\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u300D\u3067\u30DA\u30FC\u30B8\u5168\u4F53\u3092\u8981\u7D04\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    title: "Glimpselet PDF \u30EA\u30FC\u30C0\u30FC",
+    title: "Blinkling PDF \u30EA\u30FC\u30C0\u30FC",
     openFile: "PDF \u3092\u958B\u304F",
     urlPlaceholder: "PDF \u306E URL \u3092\u8CBC\u308A\u4ED8\u3051",
     urlLabel: "PDF \u306E URL",
@@ -27999,9 +27999,9 @@ var readerLocales = {
     permissionDenied: "\u3053\u306E PDF \u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u306F\u8A31\u53EF\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002",
     tooLarge: "PDF \u304C 100 MB \u3092\u8D85\u3048\u3066\u3044\u307E\u3059\u3002\u3088\u308A\u5C0F\u3055\u3044\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
     openFirst: "\u5148\u306B PDF \u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
-    actionSent: "Glimpselet \u306B\u300C{action}\u300D\u3092\u9001\u4FE1\u3057\u307E\u3057\u305F\u3002\u53D7\u4FE1\u3067\u304D\u308B\u3088\u3046\u30D1\u30CD\u30EB\u3092\u958B\u3044\u305F\u307E\u307E\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    actionSent: "Blinkling \u306B\u300C{action}\u300D\u3092\u9001\u4FE1\u3057\u307E\u3057\u305F\u3002\u53D7\u4FE1\u3067\u304D\u308B\u3088\u3046\u30D1\u30CD\u30EB\u3092\u958B\u3044\u305F\u307E\u307E\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     actionBusy: "\u73FE\u5728\u306E\u56DE\u7B54\u304C\u5B8C\u4E86\u3057\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
-    actionError: "Glimpselet \u304C\u64CD\u4F5C\u3092\u53D7\u4FE1\u3067\u304D\u307E\u305B\u3093\u3002\u30D1\u30CD\u30EB\u3092\u958B\u3044\u3066\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    actionError: "Blinkling \u304C\u64CD\u4F5C\u3092\u53D7\u4FE1\u3067\u304D\u307E\u305B\u3093\u3002\u30D1\u30CD\u30EB\u3092\u958B\u3044\u3066\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     panelOpened: "\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304D\u307E\u3057\u305F\u3002\u30C1\u30E3\u30C3\u30C8\u3067\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u304F\u3068\u3001\u4ED6\u306E\u30A6\u30A3\u30F3\u30C9\u30A6\u306E\u4E0A\u306B\u8868\u793A\u3067\u304D\u307E\u3059\u3002",
     panelError: "\u30D1\u30CD\u30EB\u3092\u958B\u3051\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u62E1\u5F35\u6A5F\u80FD\u30DC\u30BF\u30F3\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     summarySent: "\u8981\u7D04",
@@ -28022,7 +28022,7 @@ var readerLocales = {
     selectionHelp: "\uBC88\uC5ED\uD558\uAC70\uB098 \uC694\uC57D\uD560 \uBB38\uB2E8\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
     selectionUnavailable: "\uC774 \uD398\uC774\uC9C0\uC5D0\uB294 \uC120\uD0DD\uD560 \uC218 \uC788\uB294 \uD14D\uC2A4\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uD398\uC774\uC9C0 \uC9C8\uBB38\uD558\uAE30 \uB610\uB294 \uD398\uC774\uC9C0 \uC694\uC57D\uC73C\uB85C \uD398\uC774\uC9C0 \uC774\uBBF8\uC9C0\uC5D0 \uB300\uD574 \uC9C8\uBB38\uD558\uC138\uC694.",
     selectionTooLong: "5,000\uC790 \uC774\uD558\uB97C \uC120\uD0DD\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uC694\uC57D\uC73C\uB85C \uC804\uCCB4 \uD398\uC774\uC9C0\uB97C \uC694\uC57D\uD558\uC138\uC694.",
-    title: "Glimpselet PDF \uB9AC\uB354",
+    title: "Blinkling PDF \uB9AC\uB354",
     openFile: "PDF \uC5F4\uAE30",
     urlPlaceholder: "PDF URL \uBD99\uC5EC\uB123\uAE30",
     urlLabel: "PDF \uC8FC\uC18C",
@@ -28046,9 +28046,9 @@ var readerLocales = {
     permissionDenied: "\uC774 PDF \uC0AC\uC774\uD2B8\uC5D0 \uB300\uD55C \uAD8C\uD55C\uC774 \uD5C8\uC6A9\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.",
     tooLarge: "PDF\uAC00 100MB\uBCF4\uB2E4 \uD07D\uB2C8\uB2E4. \uB354 \uC791\uC740 \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
     openFirst: "\uBA3C\uC800 PDF\uB97C \uC5EC\uC138\uC694.",
-    actionSent: "Glimpselet\uC5D0 {action}\uC744(\uB97C) \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4. \uBC1B\uC73C\uB824\uBA74 \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uC5B4 \uB450\uC138\uC694.",
+    actionSent: "Blinkling\uC5D0 {action}\uC744(\uB97C) \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4. \uBC1B\uC73C\uB824\uBA74 \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uC5B4 \uB450\uC138\uC694.",
     actionBusy: "\uD604\uC7AC \uB2F5\uBCC0\uC774 \uC644\uB8CC\uB418\uBA74 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
-    actionError: "Glimpselet\uC774 \uC791\uC5C5\uC744 \uBC1B\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
+    actionError: "Blinkling\uC774 \uC791\uC5C5\uC744 \uBC1B\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
     panelOpened: "\uCC44\uD305\uC744 \uC5F4\uC5C8\uC2B5\uB2C8\uB2E4. \uCC44\uD305\uC5D0\uC11C \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uBA74 \uB2E4\uB978 \uCC3D \uC704\uC5D0 \uD45C\uC2DC\uB429\uB2C8\uB2E4.",
     panelError: "\uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8 \uBC84\uD2BC\uC5D0\uC11C \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
     summarySent: "\uC694\uC57D",
@@ -28069,7 +28069,7 @@ var readerLocales = {
     selectionHelp: "Selecciona un pasaje para traducirlo o resumirlo.",
     selectionUnavailable: "Esta p\xE1gina no tiene texto seleccionable. Usa Preguntar sobre la p\xE1gina o Resumir p\xE1gina para preguntar sobre la imagen de la p\xE1gina.",
     selectionTooLong: "Selecciona como m\xE1ximo 5.000 caracteres o usa Resumir p\xE1gina para toda la p\xE1gina.",
-    title: "Lector de PDF de Glimpselet",
+    title: "Lector de PDF de Blinkling",
     openFile: "Abrir PDF",
     urlPlaceholder: "Pega una URL de PDF",
     urlLabel: "URL del PDF",
@@ -28093,9 +28093,9 @@ var readerLocales = {
     permissionDenied: "No se concedi\xF3 permiso para este sitio PDF.",
     tooLarge: "Este PDF supera los 100 MB. Elige un archivo m\xE1s peque\xF1o.",
     openFirst: "Abre un PDF primero.",
-    actionSent: "Se envi\xF3 {action} a Glimpselet. Mant\xE9n abierto el panel flotante para recibirlo.",
+    actionSent: "Se envi\xF3 {action} a Blinkling. Mant\xE9n abierto el panel flotante para recibirlo.",
     actionBusy: "Espera a que termine la respuesta actual y vuelve a intentarlo.",
-    actionError: "Glimpselet no pudo recibir la acci\xF3n. Abre el panel flotante e int\xE9ntalo de nuevo.",
+    actionError: "Blinkling no pudo recibir la acci\xF3n. Abre el panel flotante e int\xE9ntalo de nuevo.",
     panelOpened: "Chat abierto. Elige Abrir panel flotante en el chat para mantenerlo sobre otras ventanas.",
     panelError: "No se pudo abrir el panel flotante. Int\xE9ntalo desde el bot\xF3n de la extensi\xF3n.",
     summarySent: "Resumen",
@@ -28116,7 +28116,7 @@ var readerLocales = {
     selectionHelp: "S\xE9lectionnez un passage \xE0 traduire ou \xE0 r\xE9sumer.",
     selectionUnavailable: "Cette page n'a pas de texte s\xE9lectionnable. Utilisez Poser une question sur la page ou R\xE9sumer la page pour interroger l'image de la page.",
     selectionTooLong: "S\xE9lectionnez au maximum 5\u202F000 caract\xE8res ou utilisez R\xE9sumer la page pour la page enti\xE8re.",
-    title: "Lecteur PDF Glimpselet",
+    title: "Lecteur PDF Blinkling",
     openFile: "Ouvrir un PDF",
     urlPlaceholder: "Coller l'URL d'un PDF",
     urlLabel: "URL du PDF",
@@ -28140,9 +28140,9 @@ var readerLocales = {
     permissionDenied: "L'acc\xE8s \xE0 ce site PDF n'a pas \xE9t\xE9 autoris\xE9.",
     tooLarge: "Ce PDF d\xE9passe 100 Mo. Choisissez un fichier plus petit.",
     openFirst: "Ouvrez d'abord un PDF.",
-    actionSent: "{action} envoy\xE9 \xE0 Glimpselet. Gardez le panneau flottant ouvert pour le recevoir.",
+    actionSent: "{action} envoy\xE9 \xE0 Blinkling. Gardez le panneau flottant ouvert pour le recevoir.",
     actionBusy: "Attendez la fin de la r\xE9ponse en cours, puis r\xE9essayez.",
-    actionError: "Glimpselet n'a pas re\xE7u l'action. Ouvrez le panneau flottant et r\xE9essayez.",
+    actionError: "Blinkling n'a pas re\xE7u l'action. Ouvrez le panneau flottant et r\xE9essayez.",
     panelOpened: "Chat ouvert. Choisissez Ouvrir le panneau flottant dans le chat pour le garder au-dessus des autres fen\xEAtres.",
     panelError: "Impossible d'ouvrir le panneau flottant. R\xE9essayez depuis le bouton de l'extension.",
     summarySent: "R\xE9sum\xE9",
@@ -28163,7 +28163,7 @@ var readerLocales = {
     selectionHelp: "W\xE4hle einen Abschnitt zum \xDCbersetzen oder Zusammenfassen aus.",
     selectionUnavailable: "Diese Seite hat keinen ausw\xE4hlbaren Text. Nutze Frage zur Seite oder Seite zusammenfassen, um zum Seitenbild zu fragen.",
     selectionTooLong: "W\xE4hle h\xF6chstens 5.000 Zeichen oder nutze Seite zusammenfassen f\xFCr die gesamte Seite.",
-    title: "Glimpselet PDF-Reader",
+    title: "Blinkling PDF-Reader",
     openFile: "PDF \xF6ffnen",
     urlPlaceholder: "PDF-URL einf\xFCgen",
     urlLabel: "PDF-URL",
@@ -28187,9 +28187,9 @@ var readerLocales = {
     permissionDenied: "Der Zugriff auf diese PDF-Website wurde nicht erlaubt.",
     tooLarge: "Diese PDF ist gr\xF6\xDFer als 100 MB. W\xE4hle eine kleinere Datei.",
     openFirst: "\xD6ffne zuerst eine PDF.",
-    actionSent: "{action} an Glimpselet gesendet. Lass das schwebende Panel ge\xF6ffnet, damit es die Aktion empf\xE4ngt.",
+    actionSent: "{action} an Blinkling gesendet. Lass das schwebende Panel ge\xF6ffnet, damit es die Aktion empf\xE4ngt.",
     actionBusy: "Warte, bis die aktuelle Antwort fertig ist, und versuche es erneut.",
-    actionError: "Glimpselet konnte die Aktion nicht empfangen. \xD6ffne das schwebende Panel und versuche es erneut.",
+    actionError: "Blinkling konnte die Aktion nicht empfangen. \xD6ffne das schwebende Panel und versuche es erneut.",
     panelOpened: "Chat ge\xF6ffnet. W\xE4hlen Sie dort Schwebendes Panel \xF6ffnen, damit es \xFCber anderen Fenstern bleibt.",
     panelError: "Das schwebende Panel konnte nicht ge\xF6ffnet werden. Versuche es \xFCber die Erweiterungsschaltfl\xE4che.",
     summarySent: "Zusammenfassung",
@@ -28210,7 +28210,7 @@ var readerLocales = {
     selectionHelp: "Selecione um trecho para traduzir ou resumir.",
     selectionUnavailable: "Esta p\xE1gina n\xE3o tem texto selecion\xE1vel. Use Perguntar sobre a p\xE1gina ou Resumir p\xE1gina para perguntar sobre a imagem da p\xE1gina.",
     selectionTooLong: "Selecione no m\xE1ximo 5.000 caracteres ou use Resumir p\xE1gina para a p\xE1gina inteira.",
-    title: "Leitor de PDF do Glimpselet",
+    title: "Leitor de PDF do Blinkling",
     openFile: "Abrir PDF",
     urlPlaceholder: "Cole uma URL de PDF",
     urlLabel: "URL do PDF",
@@ -28234,9 +28234,9 @@ var readerLocales = {
     permissionDenied: "A permiss\xE3o para este site de PDF n\xE3o foi concedida.",
     tooLarge: "Este PDF tem mais de 100 MB. Escolha um arquivo menor.",
     openFirst: "Abra um PDF primeiro.",
-    actionSent: "{action} enviado ao Glimpselet. Mantenha o painel flutuante aberto para receb\xEA-lo.",
+    actionSent: "{action} enviado ao Blinkling. Mantenha o painel flutuante aberto para receb\xEA-lo.",
     actionBusy: "Aguarde a resposta atual terminar e tente novamente.",
-    actionError: "O Glimpselet n\xE3o recebeu a a\xE7\xE3o. Abra o painel flutuante e tente novamente.",
+    actionError: "O Blinkling n\xE3o recebeu a a\xE7\xE3o. Abra o painel flutuante e tente novamente.",
     panelOpened: "Conversa aberta. Escolha Abrir painel flutuante na conversa para mant\xEA-lo sobre outras janelas.",
     panelError: "N\xE3o foi poss\xEDvel abrir o painel flutuante. Tente pelo bot\xE3o da extens\xE3o.",
     summarySent: "Resumo",
@@ -28313,7 +28313,7 @@ function preparePermissionOrigin(parsed) {
         (resolve) => requestAnimationFrame(() => resolve())
       );
       const response = await chrome.runtime.sendMessage({
-        type: "glimpselet:reader-permission-handoff"
+        type: "blinkling:reader-permission-handoff"
       });
       if (response?.interrupted) permissionInterrupted = true;
       else if (!permissionInterrupted) permissionRecovery.hidden = true;
@@ -28498,7 +28498,7 @@ async function renderPage(documentId = documentGeneration) {
     const viewport = page.getViewport({ scale });
     const wrapper = document.createElement("section");
     wrapper.className = "pdf-page";
-    wrapper.dataset.glimpseletReaderPage = "true";
+    wrapper.dataset.blinklingReaderPage = "true";
     wrapper.style.width = `${viewport.width}px`;
     wrapper.style.height = `${viewport.height}px`;
     wrapper.setAttribute("aria-label", message("pdfPage"));
@@ -28560,7 +28560,7 @@ async function publishContext(documentId, renderId) {
     return;
   try {
     await chrome.runtime.sendMessage({
-      type: "glimpselet:reader-context",
+      type: "blinkling:reader-context",
       context: buildPageContext()
     });
   } catch {
@@ -28609,7 +28609,7 @@ async function ask(action) {
       image = encodeCanvasPng(thumbnail);
     }
     const response = await chrome.runtime.sendMessage({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action,
       question: questions[action],
       text,
@@ -28713,7 +28713,7 @@ document.querySelectorAll("[data-action]").forEach((button) => {
   );
 });
 document.querySelector("#open-panel").addEventListener("click", () => {
-  void chrome.runtime.sendMessage({ type: "glimpselet:open" }).then((response) => {
+  void chrome.runtime.sendMessage({ type: "blinkling:open" }).then((response) => {
     if (response?.ok) setStatus("panelOpened");
     else setStatus("panelError");
   }).catch(() => setStatus("panelError"));
@@ -28731,7 +28731,7 @@ resumePanel.addEventListener("click", () => {
     try {
       opened = await pip.requestWindow(floatingSize);
       const response = await chrome.runtime.sendMessage({
-        type: "glimpselet:reader-resume-floating"
+        type: "blinkling:reader-resume-floating"
       });
       if (!response?.ok) throw new Error("reader_resume_unconfirmed");
       permissionInterrupted = false;

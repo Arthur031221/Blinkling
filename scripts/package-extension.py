@@ -5,7 +5,7 @@ import hashlib
 
 root = Path(__file__).resolve().parents[1]
 source = root / "dist-extension"
-output = root / "release" / "glimpselet-extension.zip"
+output = root / "release" / "blinkling-extension.zip"
 output.parent.mkdir(exist_ok=True)
 if not (source / "manifest.json").is_file():
     raise SystemExit("Run npm run build:extension first")

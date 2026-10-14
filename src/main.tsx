@@ -89,7 +89,7 @@ function sourceLabel(surface: string | undefined, t: Record<string, string>) {
 function App() {
   const demo =
     new URLSearchParams(location.search).has("demo") ||
-    import.meta.env.BASE_URL === "/Glimpselet/";
+    import.meta.env.BASE_URL === "/Blinkling/";
   const [settings, setSettings] = useState(readSettings);
   const [token, setToken] = useState("");
   const [session, setSession] = useState("");
@@ -226,7 +226,7 @@ function App() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem("glimpselet-settings", JSON.stringify(settings));
+      sessionStorage.setItem("blinkling-settings", JSON.stringify(settings));
     } catch {
       // The panel remains usable when browser storage is unavailable.
     }
@@ -260,8 +260,8 @@ function App() {
       );
       setToken(hash);
     }
-    const cached = (window as Window & { __glimpseletSession?: string })
-      .__glimpseletSession;
+    const cached = (window as Window & { __blinklingSession?: string })
+      .__blinklingSession;
     if (cached) setSession(cached);
     return () => {
       generation.current++;
@@ -287,8 +287,8 @@ function App() {
         setSession(value.session);
         setSessionExpiresAt(value.expiresAt || Date.now() + 1_800_000);
         (
-          window as Window & { __glimpseletSession?: string }
-        ).__glimpseletSession = value.session;
+          window as Window & { __blinklingSession?: string }
+        ).__blinklingSession = value.session;
         setToken("");
       })
       .catch((e) => setStatus(errorText(e)));
@@ -314,7 +314,7 @@ function App() {
       if (!active) return;
       const channel = new WebSocket(
         `${protocol}//${location.host}/api/stream`,
-        ["glimpselet", session],
+        ["blinkling", session],
       );
       socket.current = channel;
       channel.onopen = () => {
@@ -607,8 +607,8 @@ function App() {
       setSession("");
       setSessionExpiresAt(0);
       resetLocal();
-      delete (window as Window & { __glimpseletSession?: string })
-        .__glimpseletSession;
+      delete (window as Window & { __blinklingSession?: string })
+        .__blinklingSession;
       return t.reopen;
     }
     const codes: Record<string, string> = {
@@ -1059,7 +1059,7 @@ function App() {
           })
         : window.open(
             "",
-            "glimpselet",
+            "blinkling",
             `popup,width=${geometry.width},height=${geometry.height}${geometry.left === undefined ? "" : `,left=${geometry.left},top=${geometry.top}`}`,
           );
       if (!child) {
@@ -1070,7 +1070,7 @@ function App() {
       child.document.head
         .querySelectorAll('link[rel="stylesheet"], style')
         .forEach((sheet) => sheet.remove());
-      child.document.title = "Glimpselet";
+      child.document.title = "Blinkling";
       child.document.documentElement.lang = settings.locale;
       setPopupFallback(false);
       child.document.body.className = settings.theme;
@@ -1181,7 +1181,7 @@ function App() {
       .join("\n\n---\n\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([rows], { type: "text/markdown" }));
-    a.download = "glimpselet-notes.md";
+    a.download = "blinkling-notes.md";
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -1258,7 +1258,7 @@ function App() {
           }
         />
         <div className="brand">
-          <strong>Glimpselet</strong>
+          <strong>Blinkling</strong>
           <small>{t.tagline}</small>
         </div>
         <div className="header-actions">

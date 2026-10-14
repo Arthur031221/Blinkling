@@ -27,19 +27,19 @@ export const defaultInstallRoot = () =>
   process.platform === "win32"
     ? join(
         process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local"),
-        "Glimpselet",
+        "Blinkling",
       )
     : process.platform === "darwin"
       ? join(
           homedir(),
           "Library",
           "Application Support",
-          "Glimpselet",
+          "Blinkling",
           "desktop",
         )
       : join(
           process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"),
-          "glimpselet",
+          "blinkling",
           "desktop",
         );
 

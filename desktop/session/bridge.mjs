@@ -38,7 +38,7 @@ export class DesktopSessionBridge {
     this.seen = new Set();
     this.emittedMessages = new Map();
   }
-  /** `visible` is for chat views: turns Glimpselet runs for itself (guide
+  /** `visible` is for chat views: turns Blinkling runs for itself (guide
    * analysis, browser companion requests) stay out of the bubbles and the
    * history, while Claude Code and Remote Control keep the full transcript.
    * Internal callers that collect their own turn subscribe unfiltered. */
@@ -181,7 +181,7 @@ export class DesktopSessionBridge {
         ...this.state.selection,
       });
       if (this.closed) throw new Error("Session closed");
-      // Without Remote Control (GLIMPSELET_REMOTE=0) there is no remote identity;
+      // Without Remote Control (BLINKLING_REMOTE=0) there is no remote identity;
       // an earlier one stays recorded so switching back reattaches the same session.
       if (remote.bridge_session_id && remote.session_url) {
         if (

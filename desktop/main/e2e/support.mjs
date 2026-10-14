@@ -110,24 +110,23 @@ finally:
 }
 export async function launch(scale = 1, theme = "light", data = null) {
   await mkdir(report, { recursive: true });
-  const directory =
-    data ?? (await mkdtemp(join(tmpdir(), "glimpselet-shell-")));
+  const directory = data ?? (await mkdtemp(join(tmpdir(), "blinkling-shell-")));
   const app = await electron.launch({
     args: [
-      ...(process.env.GLIMPSELET_TEST_EXECUTABLE
+      ...(process.env.BLINKLING_TEST_EXECUTABLE
         ? []
         : [fileURLToPath(new URL("../..", import.meta.url))]),
       "--no-sandbox",
       `--force-device-scale-factor=${scale}`,
     ],
-    ...(process.env.GLIMPSELET_TEST_EXECUTABLE
-      ? { executablePath: process.env.GLIMPSELET_TEST_EXECUTABLE }
+    ...(process.env.BLINKLING_TEST_EXECUTABLE
+      ? { executablePath: process.env.BLINKLING_TEST_EXECUTABLE }
       : {}),
     env: {
       ...process.env,
-      GLIMPSELET_E2E: "1",
-      GLIMPSELET_REMOTE: "0",
-      GLIMPSELET_TEST_DATA: directory,
+      BLINKLING_E2E: "1",
+      BLINKLING_REMOTE: "0",
+      BLINKLING_TEST_DATA: directory,
     },
   });
   const page = await app.firstWindow();
@@ -140,7 +139,7 @@ export async function launch(scale = 1, theme = "light", data = null) {
     /peek|hover/,
   );
   await expect
-    .poll(() => app.evaluate(() => !!globalThis.glimpseletTest))
+    .poll(() => app.evaluate(() => !!globalThis.blinklingTest))
     .toBe(true);
   await app.evaluate(({ nativeTheme }, theme) => {
     nativeTheme.themeSource = theme;
@@ -157,7 +156,7 @@ export async function launch(scale = 1, theme = "light", data = null) {
 }
 export async function desktopShot(app, name) {
   const base64 = await app.evaluate(async ({ desktopCapturer, screen }) => {
-    const id = globalThis.glimpseletTest.snapshot().display.id;
+    const id = globalThis.blinklingTest.snapshot().display.id;
     const d = screen.getAllDisplays().find((d) => String(d.id) === id);
     const sources = await desktopCapturer.getSources({
       types: ["screen"],

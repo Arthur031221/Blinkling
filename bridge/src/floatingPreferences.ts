@@ -115,7 +115,7 @@ export function defaultFloatingPreferencesPath(): string {
       : process.platform === "darwin"
         ? join(homedir(), "Library", "Application Support")
         : process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
-  return join(base, "glimpselet", "floating-geometry-v1.json");
+  return join(base, "blinkling", "floating-geometry-v1.json");
 }
 
 export class FloatingPreferences {

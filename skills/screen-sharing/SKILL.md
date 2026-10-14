@@ -1,6 +1,6 @@
 ---
 name: screen-sharing
-description: Use Glimpselet when the user asks you to inspect, capture, explain, translate, or watch their current screen.
+description: Use Blinkling when the user asks you to inspect, capture, explain, translate, or watch their current screen.
 ---
 
 # Screen sharing
@@ -13,4 +13,4 @@ Use `screen_watch_start` and `screen_watch_stop` only when the user asks to watc
 
 Use `screen_history` to list recent capture metadata and notes, `screen_latest` to return the latest retained image, and `screen_notes` to add or read short narration notes during a watch. Use `screen_clear` to stop the watch and clear its in-memory capture history and notes. In the panel, **Clear** also aborts panel answer jobs and removes panel frames, notes, answer history and the in-memory API key.
 
-Do not invent a pairing tool or capture automatically. `/glimpselet:glimpse` calls `desktop_open` to launch Blink above the user's apps. The Chrome/Edge extension is an optional helper for full-length page capture, translation, selection and the paper reader; `extension_install` opens its separate guide. When Blink is connected, companion AI turns use Blink's Claude Code session automatically.
+Do not invent a pairing tool or capture automatically. `/blinkling:blinkling` calls `desktop_open` to launch Blink above the user's apps. The Chrome/Edge extension is an optional helper for full-length page capture, translation, selection and the paper reader; `extension_install` opens its separate guide. When Blink is connected, companion AI turns use Blink's Claude Code session automatically.

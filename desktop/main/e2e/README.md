@@ -6,12 +6,12 @@ libX11 and libXtst. The display test also needs Xorg with the dummy driver
 and xrandr. It starts a dedicated server and never changes the host displays.
 
 ```sh
-export GLIMPSELET_REPORT_DIR="$PWD/test-results/desktop-shell"
+export BLINKLING_REPORT_DIR="$PWD/test-results/desktop-shell"
 xvfb-run -a -s '-screen 0 1280x800x24 +extension Composite' \
   dbus-run-session -- bash desktop/main/e2e/linux.sh
 bash desktop/main/e2e/displays.sh
 npm run desktop:build
-export GLIMPSELET_TEST_EXECUTABLE="$PWD/release/desktop/Glimpselet-linux-x64/Glimpselet"
+export BLINKLING_TEST_EXECUTABLE="$PWD/release/desktop/Blinkling-linux-x64/Blinkling"
 xvfb-run -a -s '-screen 0 1280x800x24 +extension Composite' \
   dbus-run-session -- bash desktop/main/e2e/linux.sh
 ```
@@ -34,7 +34,7 @@ dispatches `cancel`.
 
 `displays.sh` exercises actual RandR hotplug, cross-display drag, per-display
 restart, removal while pinned and resolution changes. Set
-`GLIMPSELET_XORG_DISPLAY` if its default `:9119` is occupied. Tests fail on an
+`BLINKLING_XORG_DISPLAY` if its default `:9119` is occupied. Tests fail on an
 occupied display or dead compositor rather than silently testing another server.
 
 These tests prove Linux X11 behavior. macOS Spaces, Windows fullscreen and

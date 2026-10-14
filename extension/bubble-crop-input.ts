@@ -48,7 +48,7 @@ export function relayBubbleCropInput(
     };
   };
   if (mirror) {
-    mirror.dataset.glimpseletCropMirror = "true";
+    mirror.dataset.blinklingCropMirror = "true";
     mirror.style.cssText =
       "position:fixed;inset:0;overflow:hidden;z-index:2147483647;opacity:1;background:#171410;pointer-events:auto;cursor:crosshair";
     floating.document.documentElement.append(mirror);

@@ -24,7 +24,7 @@ export async function runCliProvider(
 ): Promise<ProviderResult> {
   if (request.signal.aborted) throw cancelled();
   const directory = await mkdtemp(
-    join(resolve(options.tempRoot ?? tmpdir()), "glimpselet-"),
+    join(resolve(options.tempRoot ?? tmpdir()), "blinkling-"),
   );
   try {
     const imagePath = join(directory, "capture.png");

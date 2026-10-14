@@ -2,10 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
-  base: process.env.PAGES === "1" ? "/Glimpselet/" : "./",
+  base: process.env.PAGES === "1" ? "/Blinkling/" : "./",
   server: {
     watch: {
-      usePolling: process.env.GLIMPSELET_POLL_WATCH === "1",
+      usePolling: process.env.BLINKLING_POLL_WATCH === "1",
       interval: 1000,
     },
   },

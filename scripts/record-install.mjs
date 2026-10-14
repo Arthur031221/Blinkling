@@ -21,7 +21,7 @@ const { version: releaseVersion } = JSON.parse(
   await readFile(join(root, "package.json"), "utf8"),
 );
 const script = fileURLToPath(import.meta.url);
-const output = "/tmp/glimpselet-v2-native-record-final";
+const output = "/tmp/blinkling-v2-native-record-final";
 const screenshotNames = [
   "01-extensions-before.png",
   "02-developer-mode.png",
@@ -29,7 +29,7 @@ const screenshotNames = [
 ];
 
 if (!process.argv.includes("--worker")) {
-  const ownedRoot = await mkdtemp("/tmp/Glimpselet-v2-native-record-owned-");
+  const ownedRoot = await mkdtemp("/tmp/Blinkling-v2-native-record-owned-");
   const home = join(ownedRoot, "home");
   const runtime = join(ownedRoot, "runtime");
   await mkdir(output, { recursive: true });
@@ -47,8 +47,8 @@ if (!process.argv.includes("--worker")) {
     PLAYWRIGHT_BROWSERS_PATH:
       process.env.PLAYWRIGHT_BROWSERS_PATH ??
       join(homedir(), ".cache", "ms-playwright"),
-    GLIMPSELET_RECORD_HOME: home,
-    GLIMPSELET_RECORD_OUTPUT: output,
+    BLINKLING_RECORD_HOME: home,
+    BLINKLING_RECORD_OUTPUT: output,
   };
   let status = 1;
   try {
@@ -84,13 +84,13 @@ if (!process.argv.includes("--worker")) {
 }
 
 async function recordNativeInstall() {
-  const home = process.env.GLIMPSELET_RECORD_HOME;
-  const evidence = process.env.GLIMPSELET_RECORD_OUTPUT;
+  const home = process.env.BLINKLING_RECORD_HOME;
+  const evidence = process.env.BLINKLING_RECORD_OUTPUT;
   assert.ok(home, "Private browser HOME was not set");
   assert.ok(evidence, "Evidence output directory was not set");
 
   const sourceExtension = join(root, "bin", "extension");
-  const stableFolder = join(home, "Glimpselet-extension");
+  const stableFolder = join(home, "Blinkling-extension");
   const profile = join(home, "chrome-profile");
   let context;
   let windowManager;
@@ -173,9 +173,9 @@ x11.XCloseDisplay(display)
     const manifest = JSON.parse(
       await readFile(join(sourceExtension, "manifest.json"), "utf8"),
     );
-    assert.equal(manifest.name, "Glimpselet");
+    assert.equal(manifest.name, "Blinkling");
     assert.equal(manifest.version, releaseVersion);
-    await mkdir(join(home, ".glimpselet"), { recursive: true });
+    await mkdir(join(home, ".blinkling"), { recursive: true });
     await cp(sourceExtension, stableFolder, { recursive: true });
     assert.ok((await stat(stableFolder)).isDirectory());
     await mkdir(join(root, "assets", "install"), { recursive: true });
@@ -283,11 +283,11 @@ x11.XCloseDisplay(display)
     }
     const card = page
       .locator("extensions-item")
-      .filter({ hasText: "Glimpselet" });
+      .filter({ hasText: "Blinkling" });
     await card.waitFor({ state: "visible", timeout: 20000 });
     const name = (await card.locator("#name").innerText()).trim();
     const version = (await card.locator("#version").innerText()).trim();
-    assert.equal(name, "Glimpselet");
+    assert.equal(name, "Blinkling");
     assert.equal(version, releaseVersion);
 
     const loaded = join(evidence, "loaded.png");

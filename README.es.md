@@ -1,4 +1,4 @@
-<h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br />Glimpselet</h1>
+<h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br />Blinkling</h1>
 
 <p align="center"><strong>La respuesta, junto a la página.</strong></p>
 
@@ -9,6 +9,8 @@
 </p>
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
+
+Formerly Glimpselet. ¿Vienes del plugin anterior? Ejecuta `/plugin uninstall glimpselet@glimpselet` y `/plugin marketplace remove glimpselet`, y luego instala Blinkling con los pasos de abajo.
 
 Un pequeño chat flotante de Claude Code. Pregunta sobre una página, captura una zona, sigue una guía o traduce un pasaje.
 
@@ -25,13 +27,13 @@ _Google Flights: una guía de la página y una pregunta sobre cómo reservar un 
 
    ```text
    /plugin marketplace add Arthur031221/Glimpselet
-   /plugin install glimpselet@glimpselet
+   /plugin install blinkling@blinkling
    ```
 
 2. Abre la guía de bienvenida:
 
    ```text
-   /glimpselet:glimpse
+   /blinkling:blinkling
    ```
 
 3. Activa el **modo de desarrollador** en `chrome://extensions` (o `edge://extensions`). Elige **Load unpacked** y la carpeta que abre **Show in Files / Finder**. La página de bienvenida se conecta automáticamente. Abre la burbuja.
@@ -48,31 +50,31 @@ Para ejecutar el plugin desde el código fuente, necesitas Node.js 22+ y una ver
 
 ```sh
 git clone https://github.com/Arthur031221/Glimpselet.git
-cd Glimpselet
+cd Blinkling
 npm ci
 npm run build:plugin
 claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
 node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
-claude --plugin-dir "$PWD" plugin details glimpselet
+claude --plugin-dir "$PWD" plugin details blinkling
 node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-Las dos comprobaciones de versión deben mostrar `2.1.0`. La lista de plugins debe mostrar `glimpselet@inline` con la versión `2.1.0` habilitado para esta sesión. El último comando abre Claude Code. Ejecuta allí `/glimpselet:glimpse` para abrir la guía de bienvenida. `--plugin-dir` carga esta copia del repositorio solo para esa sesión. Usa la opción cada vez que inicies Claude Code y reinícialo después de volver a ejecutar `npm run build:plugin`. La extensión compilada está en `dist-extension`. La guía de bienvenida la copia a la carpeta estable indicada abajo.
+Las dos comprobaciones de versión deben mostrar `2.1.0`. La lista de plugins debe mostrar `blinkling@inline` con la versión `2.1.0` habilitado para esta sesión. El último comando abre Claude Code. Ejecuta allí `/blinkling:blinkling` para abrir la guía de bienvenida. `--plugin-dir` carga esta copia del repositorio solo para esa sesión. Usa la opción cada vez que inicies Claude Code y reinícialo después de volver a ejecutar `npm run build:plugin`. La extensión compilada está en `dist-extension`. La guía de bienvenida la copia a la carpeta estable indicada abajo.
 
-Los detalles del plugin también deben incluir las habilidades `glimpse` e `install` y el servidor MCP `glimpselet`. La extensión empaquetada está en `bin/extension` y también debe tener la versión **2.1.0**. Si Claude Code está en un equipo remoto, usa el comando SSH de la guía, descarga el ZIP de la extensión en el equipo con el navegador y carga allí la carpeta extraída.
+Los detalles del plugin también deben incluir las habilidades `blinkling` e `install` y el servidor MCP `blinkling`. La extensión empaquetada está en `bin/extension` y también debe tener la versión **2.1.0**. Si Claude Code está en un equipo remoto, usa el comando SSH de la guía, descarga el ZIP de la extensión en el equipo con el navegador y carga allí la carpeta extraída.
 
-Si el navegador y Claude Code se ejecutan en el mismo equipo, la guía de bienvenida copia la extensión compilada a la carpeta estable `~/Glimpselet-extension`. En Chrome o Edge, abre `chrome://extensions` o `edge://extensions`, activa **Developer mode**, elige **Load unpacked** y selecciona esa carpeta. El aviso de desarrollador seguirá visible y tendrás que actualizar la extensión manualmente cuando haya una nueva versión.
+Si el navegador y Claude Code se ejecutan en el mismo equipo, la guía de bienvenida copia la extensión compilada a la carpeta estable `~/Blinkling-extension`. En Chrome o Edge, abre `chrome://extensions` o `edge://extensions`, activa **Developer mode**, elige **Load unpacked** y selecciona esa carpeta. El aviso de desarrollador seguirá visible y tendrás que actualizar la extensión manualmente cuando haya una nueva versión.
 
-Para actualizar una extensión descomprimida, cierra la burbuja anterior y vuelve a ejecutar `/glimpselet:glimpse` para actualizar la carpeta estable. Pulsa Recargar en la tarjeta de la extensión. Si Claude Code es remoto, descarga el nuevo ZIP desde la guía, reemplaza los archivos extraídos en el equipo con el navegador y recarga la extensión. Al cambiar a `~/Glimpselet-extension`, elimina la tarjeta anterior y carga esta carpeta una vez.
+Para actualizar una extensión descomprimida, cierra la burbuja anterior y vuelve a ejecutar `/blinkling:blinkling` para actualizar la carpeta estable. Pulsa Recargar en la tarjeta de la extensión. Si Claude Code es remoto, descarga el nuevo ZIP desde la guía, reemplaza los archivos extraídos en el equipo con el navegador y recarga la extensión. Al cambiar a `~/Blinkling-extension`, elimina la tarjeta anterior y carga esta carpeta una vez.
 
-Para actualizar el plugin instalado, ejecuta estos comandos y después `/reload-plugins` y `/glimpselet:glimpse` en Claude Code. Comprueba **2.1.0** en la lista de plugins y la tarjeta de la extensión antes de volver a abrir la burbuja.
+Para actualizar el plugin instalado, ejecuta estos comandos y después `/reload-plugins` y `/blinkling:blinkling` en Claude Code. Comprueba **2.1.0** en la lista de plugins y la tarjeta de la extensión antes de volver a abrir la burbuja.
 
 ```sh
-claude plugin marketplace update glimpselet
-claude plugin update glimpselet@glimpselet
+claude plugin marketplace update blinkling
+claude plugin update blinkling@blinkling
 claude plugin list
 ```
 
@@ -103,7 +105,7 @@ En macOS, usa Cmd en lugar de Ctrl. Configura los atajos en `chrome://extensions
 
 ## Sesiones y privacidad
 
-Glimpselet usa un canal activo verificado de Claude Code. Si no existe, continúa la última conversación guardada del proyecto en otro proceso. Evita usar ese mismo historial a la vez en el terminal. [Canal y límites](docs/DESIGN.md#the-running-claude-code-conversation).
+Blinkling usa un canal activo verificado de Claude Code. Si no existe, continúa la última conversación guardada del proyecto en otro proceso. Evita usar ese mismo historial a la vez en el terminal. [Canal y límites](docs/DESIGN.md#the-running-claude-code-conversation).
 
 > [!IMPORTANT]
 > Explicar automáticamente resume cambios **sin compartir la pantalla** tras el consentimiento y el acceso al sitio. Los campos de contraseña y la lista de bloqueo pausan resúmenes y sugerencias automáticos. Los resúmenes de pantalla usan una pestaña del navegador vinculada a la misma pestaña inspeccionada y las mismas comprobaciones. Un monitor o una aplicación compartidos necesitan **consentimiento separado para cada sesión de uso compartido**. Sus píxeles no permiten comprobar contraseñas ni sitios bloqueados. Las fuentes desconocidas siguen en pausa.

@@ -29,7 +29,7 @@ import type {
 } from "../desktop/shared/contracts";
 
 type Main = typeof globalThis & {
-  glimpseletCompanion: Awaited<ReturnType<typeof startDesktopHost>>;
+  blinklingCompanion: Awaited<ReturnType<typeof startDesktopHost>>;
   companionTurns: Turn[];
   companionSelection: Selection;
 };
@@ -38,8 +38,8 @@ const report = "/home/levi/oss-engine/reports/glimpse-v3/build-5";
 test("Electron and the optional helper share one authenticated session and stitch fixed headers once", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-companion-e2e-"));
   const runtime = join(directory, "runtime");
-  const previousRuntime = process.env.GLIMPSELET_RUNTIME_DIR;
-  process.env.GLIMPSELET_RUNTIME_DIR = runtime;
+  const previousRuntime = process.env.BLINKLING_RUNTIME_DIR;
+  process.env.BLINKLING_RUNTIME_DIR = runtime;
   let app: ElectronApplication | undefined, context: BrowserContext | undefined;
   let origin = "",
     fallbackTurns = 0;
@@ -74,7 +74,7 @@ test("Electron and the optional helper share one authenticated session and stitc
     }
     res.setHeader("Content-Type", "text/html");
     if (path === "/install") {
-      res.end(installGuide("/tmp/Glimpselet-extension"));
+      res.end(installGuide("/tmp/Blinkling-extension"));
       return;
     }
     res.end(`<!doctype html><title>Companion capture proof</title><style>
@@ -97,18 +97,18 @@ test("Electron and the optional helper share one authenticated session and stitc
   const gateway = new DesktopCompanion(() => origin, bridge);
   try {
     app = await _electron.launch({
-      ...(process.env.GLIMPSELET_TEST_EXECUTABLE
-        ? { executablePath: process.env.GLIMPSELET_TEST_EXECUTABLE }
+      ...(process.env.BLINKLING_TEST_EXECUTABLE
+        ? { executablePath: process.env.BLINKLING_TEST_EXECUTABLE }
         : {}),
       args: [
-        ...(process.env.GLIMPSELET_TEST_EXECUTABLE ? [] : [resolve("desktop")]),
+        ...(process.env.BLINKLING_TEST_EXECUTABLE ? [] : [resolve("desktop")]),
         "--no-sandbox",
       ],
       env: {
         ...process.env,
-        GLIMPSELET_E2E: "1",
-        GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "0",
-        GLIMPSELET_RUNTIME_DIR: runtime,
+        BLINKLING_E2E: "1",
+        BLINKLING_REMOTE: process.env.BLINKLING_REMOTE ?? "0",
+        BLINKLING_RUNTIME_DIR: runtime,
       },
     });
     await expect(
@@ -126,7 +126,7 @@ test("Electron and the optional helper share one authenticated session and stitc
       const emit = (event: SessionEvent) => {
         for (const listener of listeners) listener(event);
       };
-      main.glimpseletCompanion.attachSession({
+      main.blinklingCompanion.attachSession({
         subscribe: (listener) => {
           listeners.add(listener);
           return () => listeners.delete(listener);
@@ -161,7 +161,7 @@ test("Electron and the optional helper share one authenticated session and stitc
     });
     expect(
       await app.evaluate(() =>
-        (globalThis as Main).glimpseletCompanion.fullPage(),
+        (globalThis as Main).blinklingCompanion.fullPage(),
       ),
     ).toEqual({ companionRequired: true });
     server.listen(0, "127.0.0.1");
@@ -226,7 +226,7 @@ test("Electron and the optional helper share one authenticated session and stitc
       navStyle: document.querySelector("nav")!.getAttribute("style"),
     }));
     const capture = await app.evaluate(() =>
-      (globalThis as Main).glimpseletCompanion.fullPage(),
+      (globalThis as Main).blinklingCompanion.fullPage(),
     );
     expect("companionRequired" in capture).toBe(false);
     if ("companionRequired" in capture)
@@ -320,7 +320,7 @@ test("Electron and the optional helper share one authenticated session and stitc
       return document.documentElement.clientHeight + 8;
     });
     const overlapCapture = await app.evaluate(() =>
-      (globalThis as Main).glimpseletCompanion.fullPage(),
+      (globalThis as Main).blinklingCompanion.fullPage(),
     );
     if ("companionRequired" in overlapCapture)
       throw new Error("Overlapping full page capture missing");
@@ -336,8 +336,8 @@ test("Electron and the optional helper share one authenticated session and stitc
     expect(await site.locator("nav").getAttribute("style")).toBe(null);
     await mkdir(report, { recursive: true });
     const suffix =
-      (process.env.GLIMPSELET_TEST_EXECUTABLE ? "packaged-" : "") +
-      (process.env.GLIMPSELET_COMPANION_COMPOSITOR === "1"
+      (process.env.BLINKLING_TEST_EXECUTABLE ? "packaged-" : "") +
+      (process.env.BLINKLING_COMPANION_COMPOSITOR === "1"
         ? "composited"
         : "regression");
     await writeFile(
@@ -371,9 +371,8 @@ test("Electron and the optional helper share one authenticated session and stitc
       server.close(() => resolve());
       server.closeAllConnections();
     });
-    if (previousRuntime === undefined)
-      delete process.env.GLIMPSELET_RUNTIME_DIR;
-    else process.env.GLIMPSELET_RUNTIME_DIR = previousRuntime;
+    if (previousRuntime === undefined) delete process.env.BLINKLING_RUNTIME_DIR;
+    else process.env.BLINKLING_RUNTIME_DIR = previousRuntime;
     await rm(directory, { recursive: true, force: true });
   }
 });

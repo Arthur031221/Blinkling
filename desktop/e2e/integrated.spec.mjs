@@ -27,7 +27,7 @@ test("native menu capture reaches the composer and the shared answer session", a
       await bg.loadURL(
         "data:text/html," +
           encodeURIComponent(
-            '<body style="margin:0;background:#204080;color:white;font:24px system-ui"><h1 style="margin:40px">Glimpselet desktop capture</h1><div style="position:absolute;left:400px;top:200px;width:100px;height:80px;background:#ff0000"></div></body>',
+            '<body style="margin:0;background:#204080;color:white;font:24px system-ui"><h1 style="margin:40px">Blinkling desktop capture</h1><div style="position:absolute;left:400px;top:200px;width:100px;height:80px;background:#ff0000"></div></body>',
           ),
       );
       bg.show();
@@ -100,25 +100,24 @@ test("native menu capture reaches the composer and the shared answer session", a
     const question = "What color? One word.";
     await expect
       .poll(
-        () =>
-          app.evaluate(() => globalThis.glimpseletTest.session.status.state),
+        () => app.evaluate(() => globalThis.blinklingTest.session.status.state),
         { timeout: 60000 },
       )
       .toBe("connected");
     await card.getByRole("textbox", { name: "輸入問題" }).fill(question);
     await card.getByRole("textbox", { name: "輸入問題" }).press("Enter");
-    const expected = process.env.GLIMPSELET_LIVE === "1" ? /red/i : /OK\./;
+    const expected = process.env.BLINKLING_LIVE === "1" ? /red/i : /OK\./;
     await expect(
       card.locator(".gl-chat-message.gl-assistant").last(),
     ).toContainText(expected, { timeout: 60000 });
     await expect
       .poll(
-        () => app.evaluate(() => !!globalThis.glimpseletTest.session.active),
+        () => app.evaluate(() => !!globalThis.blinklingTest.session.active),
         { timeout: 60000 },
       )
       .toBe(false);
     const session = await app.evaluate(() => {
-      const s = globalThis.glimpseletTest.session;
+      const s = globalThis.blinklingTest.session;
       return {
         identity: s.identity(),
         status: s.status,
@@ -142,9 +141,9 @@ test("native menu capture reaches the composer and the shared answer session", a
       ),
     ).toBe(true);
     expect(errors).toEqual([]);
-    if (process.env.GLIMPSELET_REMOTE_OBSERVER) {
+    if (process.env.BLINKLING_REMOTE_OBSERVER) {
       const { observe, verifyAnswer } = await import(
-        pathToFileURL(process.env.GLIMPSELET_REMOTE_OBSERVER).href
+        pathToFileURL(process.env.BLINKLING_REMOTE_OBSERVER).href
       );
       const remote = await observe(session.identity, {
         question,
@@ -159,7 +158,7 @@ test("native menu capture reaches the composer and the shared answer session", a
       ).toContainText(remote.answer, { timeout: 60000 });
       await expect
         .poll(
-          () => app.evaluate(() => !!globalThis.glimpseletTest.session.active),
+          () => app.evaluate(() => !!globalThis.blinklingTest.session.active),
           { timeout: 60000 },
         )
         .toBe(false);
@@ -168,23 +167,23 @@ test("native menu capture reaches the composer and the shared answer session", a
       }
     }
     await desktopShot(app, "integrated-answer");
-    if (process.env.GLIMPSELET_LIVE_REPORT) {
-      await mkdir(process.env.GLIMPSELET_LIVE_REPORT, { recursive: true });
+    if (process.env.BLINKLING_LIVE_REPORT) {
+      await mkdir(process.env.BLINKLING_LIVE_REPORT, { recursive: true });
       await writeFile(
-        join(process.env.GLIMPSELET_LIVE_REPORT, "capture.png"),
+        join(process.env.BLINKLING_LIVE_REPORT, "capture.png"),
         bytes,
       );
       await writeFile(
-        join(process.env.GLIMPSELET_LIVE_REPORT, "result.json"),
+        join(process.env.BLINKLING_LIVE_REPORT, "result.json"),
         JSON.stringify(
           {
-            packaged: !!process.env.GLIMPSELET_TEST_EXECUTABLE,
+            packaged: !!process.env.BLINKLING_TEST_EXECUTABLE,
             question,
             identity: session.identity,
             selection: session.selection,
             imageSha256: createHash("sha256").update(bytes).digest("hex"),
             messages: await app.evaluate(
-              () => globalThis.glimpseletTest.session.state.messages,
+              () => globalThis.blinklingTest.session.state.messages,
             ),
           },
           null,

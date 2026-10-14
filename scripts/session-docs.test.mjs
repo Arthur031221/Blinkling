@@ -14,9 +14,9 @@ describe("existing terminal conversation setup", () => {
   it("identifies the existing conversation before the channel resume command", () => {
     expect(channelSetup).toBeDefined();
     expect(channelSetup).toContain("https://code.claude.com/docs/en/sessions");
-    const rename = channelSetup.indexOf("/rename glimpselet-reading");
+    const rename = channelSetup.indexOf("/rename blinkling-reading");
     const resume = channelSetup.indexOf(
-      'claude --resume "glimpselet-reading" --dangerously-load-development-channels plugin:glimpselet@glimpselet',
+      'claude --resume "blinkling-reading" --dangerously-load-development-channels plugin:blinkling@blinkling',
     );
     expect(rename).toBeGreaterThanOrEqual(0);
     expect(resume).toBeGreaterThan(rename);
@@ -53,7 +53,7 @@ describe("existing terminal conversation setup", () => {
 
   it("keeps source-loaded plugins available when the conversation restarts", () => {
     expect(channelSetup).toContain(
-      'claude --plugin-dir "/absolute/path/to/Glimpselet" --resume "glimpselet-reading" --dangerously-load-development-channels server:plugin:glimpselet:glimpselet',
+      'claude --plugin-dir "/absolute/path/to/Blinkling" --resume "blinkling-reading" --dangerously-load-development-channels server:plugin:blinkling:blinklinglet',
     );
     expect(channelSetup).toMatch(/original conversation.*?project directory/i);
     expect(channelSetup).toMatch(/(?:replace|substitute).*?absolute path/i);
@@ -61,7 +61,7 @@ describe("existing terminal conversation setup", () => {
 
   it("checks the real server and manual approvals before claiming live delivery", () => {
     expect(channelSetup).toContain("`/mcp`");
-    expect(channelSetup).toContain("`plugin:glimpselet:glimpselet`");
+    expect(channelSetup).toContain("`plugin:blinkling:blinklinglet`");
     expect(channelSetup).toMatch(/connected/i);
     expect(channelSetup).toMatch(
       /(?:MCP|server).*?consent|consent.*?(?:MCP|server)/i,

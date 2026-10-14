@@ -28,7 +28,7 @@ async function startContentScript() {
     },
   });
   vi.resetModules();
-  Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+  Reflect.deleteProperty(globalThis, "blinklingContentReady");
   await import("./content");
   onMessage = listeners[0];
 }
@@ -44,12 +44,12 @@ async function setup() {
   text = document.querySelector("p")!.firstChild as Text;
   await startContentScript();
   return send<{ nodes: Array<{ id: string; text: string }> }>(
-    "glimpselet:text-nodes",
+    "blinkling:text-nodes",
   ).nodes[0];
 }
 
 function translate(id: string, value: string) {
-  return send<{ applied: number }>("glimpselet:translate", {
+  return send<{ applied: number }>("blinkling:translate", {
     nodes: [{ id, text: value }],
   });
 }
@@ -78,7 +78,7 @@ describe("content script translation freshness", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     Reflect.deleteProperty(globalThis, "chrome");
-    Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+    Reflect.deleteProperty(globalThis, "blinklingContentReady");
   });
 
   it("applies an explicit grammatical omission without replacing inline nodes and restores exact whitespace", async () => {
@@ -91,7 +91,7 @@ describe("content script translation freshness", () => {
     const originalText = paragraph.textContent;
     await startContentScript();
     const source = send<{ nodes: Array<{ id: string; text: string }> }>(
-      "glimpselet:text-nodes",
+      "blinkling:text-nodes",
     ).nodes;
     expect(source.map((node) => node.text)).toEqual([
       "この記事は",
@@ -108,7 +108,7 @@ describe("content script translation freshness", () => {
       " or has insufficient citations.",
     ];
     expect(
-      send("glimpselet:translate", {
+      send("blinkling:translate", {
         nodes: source.map(({ id }, index) => ({
           id,
           text: translated[index],
@@ -125,11 +125,11 @@ describe("content script translation freshness", () => {
     for (const [index, fragment] of fragments.entries())
       expect(fragment.firstChild).toBe(originals[index]);
     expect(originals[2].nodeValue).toBe("");
-    expect(send("glimpselet:restore")).toEqual({ restored: 5 });
+    expect(send("blinkling:restore")).toEqual({ restored: 5 });
     expect(paragraph.textContent).toBe(originalText);
     for (const [index, fragment] of fragments.entries())
       expect(fragment.firstChild).toBe(originals[index]);
-    expect(document.querySelector("[data-glimpselet-translated]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-translated]")).toBeNull();
   });
 
   it("recollects every original source ID after an explicit omission without collecting arbitrary empty nodes", async () => {
@@ -138,10 +138,10 @@ describe("content script translation freshness", () => {
     document.querySelector("p")!.appendChild(document.createTextNode(""));
     await startContentScript();
     const source = send<{ nodes: Array<{ id: string; text: string }> }>(
-      "glimpselet:text-nodes",
+      "blinkling:text-nodes",
     ).nodes;
     expect(source.map(({ text }) => text)).toEqual(["検証可能", "な", "出典"]);
-    send("glimpselet:translate", {
+    send("blinkling:translate", {
       nodes: [
         { id: source[0].id, text: "verifiable " },
         { id: source[1].id, text: "", omit: true },
@@ -150,7 +150,7 @@ describe("content script translation freshness", () => {
     });
     expect(
       send<{ nodes: Array<{ id: string; text: string }> }>(
-        "glimpselet:text-nodes",
+        "blinkling:text-nodes",
       ).nodes,
     ).toEqual(source);
   });
@@ -167,9 +167,9 @@ describe("content script translation freshness", () => {
     const originalParagraph = paragraph.textContent;
     await startContentScript();
     const source = send<{ nodes: Array<{ id: string; text: string }> }>(
-      "glimpselet:text-nodes",
+      "blinkling:text-nodes",
     ).nodes;
-    send("glimpselet:translate", {
+    send("blinkling:translate", {
       nodes: [
         { id: source[0].id, text: "verifiable " },
         { id: source[1].id, text: "", omit: true },
@@ -178,7 +178,7 @@ describe("content script translation freshness", () => {
     });
     expect(fragments[1].nodeValue).toBe("");
     expect(
-      send("glimpselet:translate", {
+      send("blinkling:translate", {
         nodes: source.map(({ id }, index) => ({
           id,
           text: ["可验证", "的", "来源"][index],
@@ -191,7 +191,7 @@ describe("content script translation freshness", () => {
       skipped: { disconnected: 0, sourceChanged: 0, ineligible: 0 },
     });
     expect(paragraph.textContent).toBe(" \n可验证的来源\t ");
-    expect(send("glimpselet:restore")).toEqual({ restored: 3 });
+    expect(send("blinkling:restore")).toEqual({ restored: 3 });
     expect(paragraph.textContent).toBe(originalParagraph);
     expect([...paragraph.childNodes]).toEqual(children);
     expect(fragments.map((node) => node.nodeValue)).toEqual(originalText);
@@ -203,13 +203,13 @@ describe("content script translation freshness", () => {
     "does not recollect or translate a retained omitted node that becomes %s",
     async (state) => {
       const node = await setup();
-      send("glimpselet:translate", {
+      send("blinkling:translate", {
         nodes: [{ id: node.id, text: "", omit: true }],
       });
       const paragraph = document.querySelector("p")!;
       if (state === "hidden") paragraph.hidden = true;
       else paragraph.setAttribute("data-private", "");
-      expect(send("glimpselet:text-nodes")).toEqual({ nodes: [] });
+      expect(send("blinkling:text-nodes")).toEqual({ nodes: [] });
       expect(translate(node.id, "Private overwrite")).toMatchObject({
         applied: 0,
         changed: 0,
@@ -223,12 +223,12 @@ describe("content script translation freshness", () => {
     "does not overwrite or restore a site update after an omission: %j",
     async (updated) => {
       const node = await setup();
-      send("glimpselet:translate", {
+      send("blinkling:translate", {
         nodes: [{ id: node.id, text: "", omit: true }],
       });
       text.nodeValue = updated;
       expect(translate(node.id, "Stale translation").applied).toBe(0);
-      expect(send("glimpselet:restore")).toEqual({ restored: 0 });
+      expect(send("blinkling:restore")).toEqual({ restored: 0 });
       expect(text.nodeValue).toBe(updated);
     },
   );
@@ -236,8 +236,8 @@ describe("content script translation freshness", () => {
   it("leaves unchanged provider text available without a restore marker", async () => {
     const node = await setup();
     expect(translate(node.id, node.text).applied).toBe(1);
-    expect(document.querySelector("[data-glimpselet-translated]")).toBeNull();
-    expect(send<{ restored: number }>("glimpselet:restore").restored).toBe(0);
+    expect(document.querySelector("[data-blinkling-translated]")).toBeNull();
+    expect(send<{ restored: number }>("blinkling:restore").restored).toBe(0);
     expect(text.nodeValue).toBe(node.text);
   });
 
@@ -246,7 +246,7 @@ describe("content script translation freshness", () => {
     expect(translate(node.id, "Precio original").applied).toBe(1);
     expect(text.nodeValue).toBe("Precio original");
 
-    expect(send<{ restored: number }>("glimpselet:restore").restored).toBe(1);
+    expect(send<{ restored: number }>("blinkling:restore").restored).toBe(1);
     expect(text.nodeValue).toBe("Original product price");
   });
 
@@ -261,7 +261,7 @@ describe("content script translation freshness", () => {
       if (kind === "hidden") paragraph.hidden = true;
       if (kind === "display") paragraph.style.display = "none";
       if (kind === "aria") paragraph.setAttribute("aria-hidden", "true");
-      expect(send<{ restored: number }>("glimpselet:restore").restored).toBe(1);
+      expect(send<{ restored: number }>("blinkling:restore").restored).toBe(1);
       paragraph.hidden = false;
       paragraph.style.display = "";
       paragraph.removeAttribute("aria-hidden");
@@ -318,7 +318,7 @@ describe("content script translation freshness", () => {
     translate(node.id, "Precio original");
     text.nodeValue = "$19.99";
 
-    expect(send<{ restored: number }>("glimpselet:restore").restored).toBe(0);
+    expect(send<{ restored: number }>("blinkling:restore").restored).toBe(0);
     expect(text.nodeValue).toBe("$19.99");
   });
 
@@ -326,7 +326,7 @@ describe("content script translation freshness", () => {
     await setup();
     const original = "Source passage. ".repeat(800);
     text.nodeValue = original;
-    expect(send("glimpselet:text-nodes")).toEqual({
+    expect(send("blinkling:text-nodes")).toEqual({
       error: "translation_incomplete",
     });
     expect(text.nodeValue).toBe(original);
@@ -337,13 +337,13 @@ describe("content script translation freshness", () => {
     translate(first.id, "Precio original");
     text.nodeValue = "Updated product price";
     const refreshed = send<{ nodes: Array<{ id: string; text: string }> }>(
-      "glimpselet:text-nodes",
+      "blinkling:text-nodes",
     ).nodes[0];
 
     expect(refreshed.text).toBe("Updated product price");
     expect(refreshed.id).not.toBe(first.id);
     expect(translate(refreshed.id, "Prix actualisé").applied).toBe(1);
-    expect(send<{ restored: number }>("glimpselet:restore").restored).toBe(1);
+    expect(send<{ restored: number }>("blinkling:restore").restored).toBe(1);
     expect(text.nodeValue).toBe("Updated product price");
   });
 
@@ -353,7 +353,7 @@ describe("content script translation freshness", () => {
     document.querySelector("p")!.setAttribute("data-private", "");
 
     expect(translate(node.id, "Private overwrite").applied).toBe(0);
-    expect(send<{ restored: number }>("glimpselet:restore").restored).toBe(0);
+    expect(send<{ restored: number }>("blinkling:restore").restored).toBe(0);
     expect(text.nodeValue).toBe("Precio original");
   });
 
@@ -361,7 +361,7 @@ describe("content script translation freshness", () => {
     const first = await setup();
     text.nodeValue = "Current product price";
     const refreshed = send<{ nodes: Array<{ id: string; text: string }> }>(
-      "glimpselet:text-nodes",
+      "blinkling:text-nodes",
     ).nodes[0];
 
     expect(translate(first.id, "Stale translation").applied).toBe(0);
@@ -373,10 +373,10 @@ describe("content script translation freshness", () => {
   it("invalidates an old response when a restored node is collected again", async () => {
     const first = await setup();
     translate(first.id, "Precio original");
-    send("glimpselet:restore");
+    send("blinkling:restore");
     text.nodeValue = "Current product price";
     const refreshed = send<{ nodes: Array<{ id: string; text: string }> }>(
-      "glimpselet:text-nodes",
+      "blinkling:text-nodes",
     ).nodes[0];
 
     expect(refreshed.id).not.toBe(first.id);

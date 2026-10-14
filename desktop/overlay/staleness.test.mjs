@@ -86,7 +86,7 @@ test("a static screen survives many ticks and Esc logs 'user'", async () => {
   assert.deepEqual(r.logs, []);
   r.shortcuts.get("Escape")();
   assert.deepEqual(r.reasons, ["user"]);
-  assert.deepEqual(r.logs, ["[glimpselet] guide dismissed: user"]);
+  assert.deepEqual(r.logs, ["[blinkling] guide dismissed: user"]);
   r.watch.dispose();
 });
 test("the target window moving dismisses once with 'content-changed'", async () => {
@@ -100,7 +100,7 @@ test("the target window moving dismisses once with 'content-changed'", async () 
   await show(r);
   for (let i = 0; i < 4; i++) await r.watch.tick();
   assert.deepEqual(r.reasons, ["content-changed"]);
-  assert.deepEqual(r.logs, ["[glimpselet] guide dismissed: content-changed"]);
+  assert.deepEqual(r.logs, ["[blinkling] guide dismissed: content-changed"]);
   r.watch.dispose();
 });
 test("one or two failed screenshots keep the guide; three in a row dismiss with 'capture-unavailable'", async () => {
@@ -114,7 +114,7 @@ test("one or two failed screenshots keep the guide; three in a row dismiss with 
   await r.watch.tick();
   assert.deepEqual(r.reasons, ["capture-unavailable"]);
   assert.deepEqual(r.logs, [
-    "[glimpselet] guide dismissed: capture-unavailable",
+    "[blinkling] guide dismissed: capture-unavailable",
   ]);
   r.watch.dispose();
 });

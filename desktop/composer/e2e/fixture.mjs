@@ -13,9 +13,9 @@ let selection = { model: "haiku", effort: "low" },
   active,
   streamTimer;
 const emit = (event) =>
-  windows.forEach((w) => w.webContents.send("glimpselet:event", event));
+  windows.forEach((w) => w.webContents.send("blinkling:event", event));
 const live =
-  process.env.GLIMPSELET_LIVE === "1"
+  process.env.BLINKLING_LIVE === "1"
     ? await (await import("./live-session.mjs")).liveSession(emit)
     : null;
 if (live) selection = await live.select(selection);
@@ -55,7 +55,7 @@ ipcMain.handle("test:send", async (_event, turn) => {
   if (live) return live.send(turn);
   const chunks = [
     "這是 ",
-    "**Glimpselet**。",
+    "**Blinkling**。",
     "可以直接提問。\n\n",
     "- **重點**：保留畫面與問題\n",
     "- 下一步：繼續對話\n\n",

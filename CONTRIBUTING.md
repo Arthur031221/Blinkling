@@ -17,7 +17,7 @@ Use fixture images for demos and tests. The published static demo uses a fixture
 
 ## Tests and Remote Control
 
-Automated tests, e2e runs and CI set `GLIMPSELET_REMOTE=0` (see
+Automated tests, e2e runs and CI set `BLINKLING_REMOTE=0` (see
 `desktop/shared/test-env.mjs`), so they never create Remote Control sessions in a
 real account. At most one final live check per job may use
-`GLIMPSELET_REMOTE=test`.
+`BLINKLING_REMOTE=test`.

@@ -47,7 +47,7 @@ const localizedLabels = [
 let temporaryRoot;
 
 async function makeCopy(config) {
-  temporaryRoot = await mkdtemp(join(tmpdir(), "glimpselet-distribution-"));
+  temporaryRoot = await mkdtemp(join(tmpdir(), "blinkling-distribution-"));
   await writeFile(join(temporaryRoot, "config.json"), JSON.stringify(config));
   for (const file of readmeFiles)
     await copyFile(join(process.cwd(), file), join(temporaryRoot, file));
@@ -74,7 +74,7 @@ claude plugin validate .
 node -p "require('./.claude-plugin/plugin.json').version"
 node -p "require('./dist-extension/manifest.json').version"
 claude --plugin-dir "$PWD" plugin list
-claude --plugin-dir "$PWD" plugin details glimpselet
+claude --plugin-dir "$PWD" plugin details blinkling
 node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"`;
 
@@ -179,9 +179,9 @@ describe("distribution README sync", () => {
       const content = await readFile(join(process.cwd(), file), "utf8");
       const advanced = advancedSection(content);
       expect(advanced).toContain(sourceBootstrap);
-      expect(advanced).toContain("/glimpselet:glimpse");
+      expect(advanced).toContain("/blinkling:blinkling");
       expect(advanced).toContain(releaseVersion);
-      expect(advanced).toContain("~/Glimpselet-extension");
+      expect(advanced).toContain("~/Blinkling-extension");
       expect(advanced).toContain("chrome://extensions");
       expect(content.slice(0, content.indexOf("\n### "))).toContain(
         "/plugin marketplace add Arthur031221/Glimpselet",
@@ -228,9 +228,9 @@ describe("distribution README sync", () => {
   it("adds localized links, removes developer warnings, and preserves advanced source steps", async () => {
     const root = await makeCopy({
       chromeWebStoreUrl:
-        "https://chromewebstore.google.com/detail/glimpselet/example",
+        "https://chromewebstore.google.com/detail/blinkling/example",
       edgeAddonsUrl:
-        "https://microsoftedge.microsoft.com/addons/detail/glimpselet/example",
+        "https://microsoftedge.microsoft.com/addons/detail/blinkling/example",
     });
 
     await syncDistribution({ root, configPath: join(root, "config.json") });
@@ -238,14 +238,14 @@ describe("distribution README sync", () => {
 
     expect(synced).toHaveLength(9);
     for (const [index, content] of synced.entries()) {
-      expect(content).toContain("<!-- glimpselet-store-install:start -->");
+      expect(content).toContain("<!-- blinkling-store-install:start -->");
       expect(content).toContain(localizedLabels[index][0]);
       expect(content).toContain(localizedLabels[index][1]);
       expect(content).toContain(
-        "chromewebstore.google.com/detail/glimpselet/example",
+        "chromewebstore.google.com/detail/blinkling/example",
       );
       expect(content).toContain(
-        "microsoftedge.microsoft.com/addons/detail/glimpselet/example",
+        "microsoftedge.microsoft.com/addons/detail/blinkling/example",
       );
       expect(content).not.toMatch(
         new RegExp(`^[ \\t]*>.*${WARNING_MARKER.source}`, "im"),
@@ -254,7 +254,7 @@ describe("distribution README sync", () => {
       const advancedEnd = content.indexOf("\n## ", advancedStart);
       const advanced = content.slice(advancedStart, advancedEnd);
       expect(advanced).toContain(sourceBootstrap);
-      expect(advanced).toContain("~/Glimpselet-extension");
+      expect(advanced).toContain("~/Blinkling-extension");
       expect(advanced).toContain("chrome://extensions");
       expect(content.slice(0, advancedStart)).not.toContain("Load unpacked");
       expect(content.slice(0, advancedStart)).not.toContain("37115");
@@ -263,7 +263,7 @@ describe("distribution README sync", () => {
       // replacement belong only in Advanced after distribution is configured.
       expect(
         content.slice(0, advancedStart) + content.slice(advancedEnd),
-      ).not.toContain("~/Glimpselet-extension");
+      ).not.toContain("~/Blinkling-extension");
       expect(content.slice(advancedEnd)).not.toMatch(
         /developer banner|Entwicklermodus-Hinweis|개발자 배너|开发者提示|開發者提示/,
       );
@@ -316,7 +316,7 @@ function expectCheckoutInstructions(content) {
   expect(commands.indexOf("npm run build:plugin")).toBeLessThan(
     commands.indexOf('claude --plugin-dir "$PWD"'),
   );
-  expect(advanced).toContain("/glimpselet:glimpse");
+  expect(advanced).toContain("/blinkling:blinkling");
   expect(advanced).toContain(releaseVersion);
   expect(advanced).toContain("dist-extension");
   expect(content.trimEnd().endsWith("Assisted by Claude/Codex.")).toBe(true);
@@ -324,7 +324,7 @@ function expectCheckoutInstructions(content) {
 
 describe("source checkout instructions", () => {
   for (const file of readmeFiles) {
-    it(`${file} builds and loads its local plugin before starting Glimpselet`, async () => {
+    it(`${file} builds and loads its local plugin before starting Blinkling`, async () => {
       expectCheckoutInstructions(
         await readFile(join(process.cwd(), file), "utf8"),
       );
@@ -334,9 +334,9 @@ describe("source checkout instructions", () => {
   it("preserves the complete checkout recipe when store links are configured", async () => {
     const root = await makeCopy({
       chromeWebStoreUrl:
-        "https://chromewebstore.google.com/detail/glimpselet/example",
+        "https://chromewebstore.google.com/detail/blinkling/example",
       edgeAddonsUrl:
-        "https://microsoftedge.microsoft.com/addons/detail/glimpselet/example",
+        "https://microsoftedge.microsoft.com/addons/detail/blinkling/example",
     });
     await syncDistribution({ root, configPath: join(root, "config.json") });
     for (const content of await readReadmes(root))

@@ -4,7 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { PNG } from "pngjs";
 import WebSocket from "ws";
-import { createGlimpselet } from "../src/server.js";
+import { createBlinkling } from "../src/server.js";
 import { cancelled } from "../src/errors.js";
 import type { CaptureAdapter } from "../src/capture.js";
 
@@ -22,7 +22,7 @@ vi.mock("../src/capture.js", async (importOriginal) => {
   };
 });
 
-const apps: Awaited<ReturnType<typeof createGlimpselet>>[] = [];
+const apps: Awaited<ReturnType<typeof createBlinkling>>[] = [];
 const clients: Client[] = [];
 afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()));
@@ -36,7 +36,7 @@ const image = () => {
   return PNG.sync.write(png);
 };
 async function connect(adapter?: CaptureAdapter) {
-  const app = await createGlimpselet(adapter ? { adapter } : {});
+  const app = await createBlinkling(adapter ? { adapter } : {});
   apps.push(app);
   const client = new Client({ name: "capture-test", version: "1.0.0" });
   clients.push(client);
@@ -168,7 +168,7 @@ it("retains the unchanged frame rejected by the six-per-minute watch cap after i
 });
 
 it("does not substitute native capture when the shared browser surface times out", async () => {
-  process.env.GLIMPSELET_DISABLE_BROWSER_OPEN = "1";
+  process.env.BLINKLING_DISABLE_BROWSER_OPEN = "1";
   const native = vi.fn(async () => ({
     image: image(),
     source: "native test adapter",
@@ -183,7 +183,7 @@ it("does not substitute native capture when the shared browser surface times out
   const { session } = (await response.json()) as { session: string };
   const ws = new WebSocket(
     `${url.origin.replace("http", "ws")}/api/stream`,
-    ["glimpselet", session],
+    ["blinkling", session],
     { origin: url.origin },
   );
   try {
@@ -249,7 +249,7 @@ it("clear waits for native cancellation and prevents a late frame from entering 
 });
 
 it("keeps sharing intent after socket disconnect until an explicit stop", async () => {
-  process.env.GLIMPSELET_DISABLE_BROWSER_OPEN = "1";
+  process.env.BLINKLING_DISABLE_BROWSER_OPEN = "1";
   const native = vi.fn(async () => ({
     image: image(),
     source: "native test adapter",
@@ -264,7 +264,7 @@ it("keeps sharing intent after socket disconnect until an explicit stop", async 
   const { session } = (await response.json()) as { session: string };
   const socketUrl = `${url.origin.replace("http", "ws")}/api/stream`;
   const connectSocket = async () => {
-    const socket = new WebSocket(socketUrl, ["glimpselet", session], {
+    const socket = new WebSocket(socketUrl, ["blinkling", session], {
       origin: url.origin,
     });
     await new Promise<void>((resolve, reject) => {

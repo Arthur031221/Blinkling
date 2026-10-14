@@ -263,7 +263,7 @@ function linuxX11Adapter(
 }
 
 async function withOutput<T>(fn: (output: string) => Promise<T>): Promise<T> {
-  const directory = await mkdtemp(join(tmpdir(), "glimpselet-"));
+  const directory = await mkdtemp(join(tmpdir(), "blinkling-"));
   try {
     return await fn(join(directory, "capture.png"));
   } finally {

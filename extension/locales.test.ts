@@ -67,7 +67,7 @@ describe("extension locale bundles", () => {
       expect(bundle.sessionInitialization, locale).toContain(bundle.newThread);
     }
     expect(zhTW.connected).toBe("已連到你的 Claude Code");
-    expect(en.pairHint).toContain("/glimpse");
+    expect(en.pairHint).toContain("/blinkling:blinkling");
     expect(en.visible).toBe("Visible area");
     expect(en.restore).toBe("Restore original text");
     expect(en.float).toBe("Open floating panel");
@@ -135,7 +135,7 @@ describe("extension locale bundles", () => {
       ).toEqual(reasoning[locale as keyof typeof reasoning]);
       expect(text.connected, locale).toContain("Claude Code");
       expect(text.ready, locale).toBe(text.connected);
-      expect(text.bridgeLost, locale).toContain("/glimpse");
+      expect(text.bridgeLost, locale).toContain("/blinkling:blinkling");
       for (const removed of [
         "pairCode",
         "bridgeUrl",
@@ -163,15 +163,15 @@ describe("extension locale bundles", () => {
       "pt-BR": /equivalente.*última hora/,
     };
     const noAdditionalCharge = {
-      en: /not an additional charge from Glimpselet/,
-      "zh-TW": /Glimpselet 不會.*額外.*收費/,
-      "zh-CN": /Glimpselet 不会.*额外.*收费/,
-      ja: /Glimpselet.*追加料金.*請求しません/,
-      ko: /Glimpselet.*추가 요금.*청구하지 않습니다/,
-      es: /Glimpselet no.*cargo adicional/,
-      fr: /Glimpselet ne.*frais supplémentaires/,
-      de: /Glimpselet berechnet.*keine zusätzlichen Gebühren/,
-      "pt-BR": /Glimpselet não.*cobrança adicional/,
+      en: /not an additional charge from Blinkling/,
+      "zh-TW": /Blinkling 不會.*額外.*收費/,
+      "zh-CN": /Blinkling 不会.*额外.*收费/,
+      ja: /Blinkling.*追加料金.*請求しません/,
+      ko: /Blinkling.*추가 요금.*청구하지 않습니다/,
+      es: /Blinkling no.*cargo adicional/,
+      fr: /Blinkling ne.*frais supplémentaires/,
+      de: /Blinkling berechnet.*keine zusätzlichen Gebühren/,
+      "pt-BR": /Blinkling não.*cobrança adicional/,
     };
     for (const [locale, bundle] of Object.entries(locales)) {
       const text: Record<string, string> = bundle;

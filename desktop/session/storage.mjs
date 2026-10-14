@@ -78,7 +78,7 @@ export class SessionStore {
           if (error.code !== "EPERM") throw error;
         }
         throw Object.assign(
-          new Error("Glimpselet session already has a writer"),
+          new Error("Blinkling session already has a writer"),
           { code: "SESSION_LOCKED" },
         );
       }
@@ -116,12 +116,12 @@ export class SessionStore {
             !Array.isArray(message.content),
         )
       )
-        throw new Error("Invalid saved Glimpselet session");
+        throw new Error("Invalid saved Blinkling session");
       return value;
     } catch (error) {
       if (error.code === "ENOENT") return null;
       throw Object.assign(
-        new Error("Invalid saved Glimpselet session", { cause: error }),
+        new Error("Invalid saved Blinkling session", { cause: error }),
         { code: "INVALID_STATE" },
       );
     }

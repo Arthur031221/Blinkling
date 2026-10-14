@@ -6,8 +6,8 @@ import { join } from "node:path";
 const output = await packager({
   dir: fileURLToPath(new URL("..", import.meta.url)),
   out: fileURLToPath(new URL("../../release/desktop", import.meta.url)),
-  name: "Glimpselet",
-  appBundleId: "com.glimpselet.desktop",
+  name: "Blinkling",
+  appBundleId: "com.blinkling.desktop",
   appVersion: "3.0.0",
   electronVersion: "44.7.2",
   platform: process.platform,

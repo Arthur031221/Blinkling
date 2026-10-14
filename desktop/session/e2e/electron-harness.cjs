@@ -1,6 +1,6 @@
 // Test entry point. The product entry point never imports this module.
-if (process.env.GLIMPSELET_E2E !== "1") throw new Error("Test harness only");
-process.env.GLIMPSELET_TEST_SESSION = "manual";
+if (process.env.BLINKLING_E2E !== "1") throw new Error("Test harness only");
+process.env.BLINKLING_TEST_SESSION = "manual";
 (async () => {
   await import("../../main/shell.mjs");
   const { BrowserWindow } = require("electron");
@@ -37,8 +37,8 @@ process.env.GLIMPSELET_TEST_SESSION = "manual";
     // Like the product shell: the renderer sees only user-visible turns.
     bridge.subscribe(
       (event) =>
-        globalThis.glimpseletTest.blink.webContents.send(
-          "glimpselet:event",
+        globalThis.blinklingTest.blink.webContents.send(
+          "blinkling:event",
           event,
         ),
       { visible: true },

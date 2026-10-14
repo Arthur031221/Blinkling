@@ -44,7 +44,7 @@ export class BrowserCaptures {
         req.headers.host !== new URL(this.origin()).host ||
         req.headers.origin !== this.origin() ||
         req.url !== "/api/stream" ||
-        protocols[0] !== "glimpselet" ||
+        protocols[0] !== "blinkling" ||
         !session
       ) {
         socket.destroy();

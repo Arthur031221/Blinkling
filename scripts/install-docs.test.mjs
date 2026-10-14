@@ -55,7 +55,7 @@ describe("existing terminal conversation setup", () => {
       .split("## The running Claude Code conversation\n")[1]
       .split("\n## ")[0];
     const channelCommand = setup.indexOf(
-      'claude --resume "glimpselet-reading" --dangerously-load-development-channels',
+      'claude --resume "blinkling-reading" --dangerously-load-development-channels',
     );
     expect(channelCommand).toBeGreaterThan(0);
     const discovery = setup.slice(0, channelCommand);
@@ -63,9 +63,9 @@ describe("existing terminal conversation setup", () => {
     expect(discovery).toContain("/status");
     expect(discovery).toMatch(/Session ID.*UUID/s);
     expect(discovery).toContain("/exit");
-    expect(discovery).toContain("/rename glimpselet-reading");
+    expect(discovery).toContain("/rename blinkling-reading");
     expect(setup).toContain(
-      'claude --resume "glimpselet-reading" --dangerously-load-development-channels plugin:glimpselet@glimpselet',
+      'claude --resume "blinkling-reading" --dangerously-load-development-channels plugin:blinkling@blinkling',
     );
     expect(setup).toMatch(/same project directory/);
     expect(setup).toMatch(/Do not keep two interactive terminals/);
@@ -100,9 +100,9 @@ describe("installation guidance", () => {
     ]) {
       expect(shell.split("\n")).toContain(command);
     }
-    expect(source).toContain("glimpselet@inline");
+    expect(source).toContain("blinkling@inline");
     expect(source).toContain(releaseVersion);
-    expect(source).toContain("/glimpselet:glimpse");
+    expect(source).toContain("/blinkling:blinkling");
     expect(source).toContain("dist-extension");
     expect(source).toMatch(/session/i);
   });

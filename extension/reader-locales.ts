@@ -16,7 +16,7 @@ export const readerLocales = {
       "This page has no selectable text. Use Ask about page or Summarize page to ask about the page image.",
     selectionTooLong:
       "Select at most 5,000 characters, or use Summarize page for the whole page.",
-    title: "Glimpselet PDF Reader",
+    title: "Blinkling PDF Reader",
     openFile: "Open PDF",
     urlPlaceholder: "Paste a PDF URL",
     urlLabel: "PDF URL",
@@ -42,10 +42,10 @@ export const readerLocales = {
     tooLarge: "This PDF is larger than 100 MB. Choose a smaller file.",
     openFirst: "Open a PDF first.",
     actionSent:
-      "{action} sent to Glimpselet. Keep the floating panel open to receive it.",
+      "{action} sent to Blinkling. Keep the floating panel open to receive it.",
     actionBusy: "Wait for the current answer, then try again.",
     actionError:
-      "Glimpselet could not receive this action. Open the floating panel and try again.",
+      "Blinkling could not receive this action. Open the floating panel and try again.",
     panelOpened:
       "Chat opened. Choose Open floating panel there to keep it above other windows.",
     panelError:
@@ -72,7 +72,7 @@ export const readerLocales = {
     selectionUnavailable:
       "此頁沒有可選取的文字。可選擇「詢問此頁」或「摘要此頁」來詢問頁面圖片。",
     selectionTooLong: "請選取不超過 5,000 個字元，或使用「摘要此頁」摘要整頁。",
-    title: "Glimpselet PDF 閱讀器",
+    title: "Blinkling PDF 閱讀器",
     openFile: "開啟 PDF",
     urlPlaceholder: "貼上 PDF 網址",
     urlLabel: "PDF 網址",
@@ -96,9 +96,9 @@ export const readerLocales = {
     permissionDenied: "未授予此 PDF 網站的權限。",
     tooLarge: "此 PDF 超過 100 MB，請選擇較小的檔案。",
     openFirst: "請先開啟 PDF。",
-    actionSent: "已將「{action}」傳送至 Glimpselet。請保持浮動面板開啟以接收。",
+    actionSent: "已將「{action}」傳送至 Blinkling。請保持浮動面板開啟以接收。",
     actionBusy: "請等目前的回答完成，再試一次。",
-    actionError: "Glimpselet 無法接收此操作。請開啟浮動面板後重試。",
+    actionError: "Blinkling 無法接收此操作。請開啟浮動面板後重試。",
     panelOpened:
       "已開啟聊天。請在聊天中選擇開啟浮動面板，讓它保持在其他視窗上方。",
     panelError: "無法開啟浮動面板。請從擴充功能按鈕重試。",
@@ -123,7 +123,7 @@ export const readerLocales = {
     selectionUnavailable:
       "此页没有可选择的文字。可选择“询问此页”或“总结此页”来询问页面图片。",
     selectionTooLong: "请选取不超过 5,000 个字符，或使用“总结此页”总结整页。",
-    title: "Glimpselet PDF 阅读器",
+    title: "Blinkling PDF 阅读器",
     openFile: "打开 PDF",
     urlPlaceholder: "粘贴 PDF 网址",
     urlLabel: "PDF 网址",
@@ -147,9 +147,9 @@ export const readerLocales = {
     permissionDenied: "未获得此 PDF 网站的访问权限。",
     tooLarge: "此 PDF 超过 100 MB，请选择较小的文件。",
     openFirst: "请先打开 PDF。",
-    actionSent: '已将"{action}"发送到 Glimpselet。请保持浮动面板打开以接收。',
+    actionSent: '已将"{action}"发送到 Blinkling。请保持浮动面板打开以接收。',
     actionBusy: "请等待当前回答完成后重试。",
-    actionError: "Glimpselet 无法接收此操作。请打开浮动面板后重试。",
+    actionError: "Blinkling 无法接收此操作。请打开浮动面板后重试。",
     panelOpened:
       "已打开聊天。请在聊天中选择打开浮动面板，让它保持在其他窗口上方。",
     panelError: "无法打开浮动面板。请通过扩展程序按钮重试。",
@@ -177,7 +177,7 @@ export const readerLocales = {
       "このページには選択できるテキストがありません。「このページについて質問」または「ページを要約」でページの画像について質問できます。",
     selectionTooLong:
       "5,000文字以内を選択するか、「このページを要約」でページ全体を要約してください。",
-    title: "Glimpselet PDF リーダー",
+    title: "Blinkling PDF リーダー",
     openFile: "PDF を開く",
     urlPlaceholder: "PDF の URL を貼り付け",
     urlLabel: "PDF の URL",
@@ -206,10 +206,10 @@ export const readerLocales = {
       "PDF が 100 MB を超えています。より小さいファイルを選んでください。",
     openFirst: "先に PDF を開いてください。",
     actionSent:
-      "Glimpselet に「{action}」を送信しました。受信できるようパネルを開いたままにしてください。",
+      "Blinkling に「{action}」を送信しました。受信できるようパネルを開いたままにしてください。",
     actionBusy: "現在の回答が完了してから、もう一度お試しください。",
     actionError:
-      "Glimpselet が操作を受信できません。パネルを開いてから再試行してください。",
+      "Blinkling が操作を受信できません。パネルを開いてから再試行してください。",
     panelOpened:
       "チャットを開きました。チャットでフローティングパネルを開くと、他のウィンドウの上に表示できます。",
     panelError:
@@ -239,7 +239,7 @@ export const readerLocales = {
       "이 페이지에는 선택할 수 있는 텍스트가 없습니다. 페이지 질문하기 또는 페이지 요약으로 페이지 이미지에 대해 질문하세요.",
     selectionTooLong:
       "5,000자 이하를 선택하거나 페이지 요약으로 전체 페이지를 요약하세요.",
-    title: "Glimpselet PDF 리더",
+    title: "Blinkling PDF 리더",
     openFile: "PDF 열기",
     urlPlaceholder: "PDF URL 붙여넣기",
     urlLabel: "PDF 주소",
@@ -266,10 +266,10 @@ export const readerLocales = {
     tooLarge: "PDF가 100MB보다 큽니다. 더 작은 파일을 선택하세요.",
     openFirst: "먼저 PDF를 여세요.",
     actionSent:
-      "Glimpselet에 {action}을(를) 보냈습니다. 받으려면 플로팅 패널을 열어 두세요.",
+      "Blinkling에 {action}을(를) 보냈습니다. 받으려면 플로팅 패널을 열어 두세요.",
     actionBusy: "현재 답변이 완료되면 다시 시도하세요.",
     actionError:
-      "Glimpselet이 작업을 받지 못했습니다. 플로팅 패널을 열고 다시 시도하세요.",
+      "Blinkling이 작업을 받지 못했습니다. 플로팅 패널을 열고 다시 시도하세요.",
     panelOpened:
       "채팅을 열었습니다. 채팅에서 플로팅 패널을 열면 다른 창 위에 표시됩니다.",
     panelError:
@@ -299,7 +299,7 @@ export const readerLocales = {
       "Esta página no tiene texto seleccionable. Usa Preguntar sobre la página o Resumir página para preguntar sobre la imagen de la página.",
     selectionTooLong:
       "Selecciona como máximo 5.000 caracteres o usa Resumir página para toda la página.",
-    title: "Lector de PDF de Glimpselet",
+    title: "Lector de PDF de Blinkling",
     openFile: "Abrir PDF",
     urlPlaceholder: "Pega una URL de PDF",
     urlLabel: "URL del PDF",
@@ -326,11 +326,11 @@ export const readerLocales = {
     tooLarge: "Este PDF supera los 100 MB. Elige un archivo más pequeño.",
     openFirst: "Abre un PDF primero.",
     actionSent:
-      "Se envió {action} a Glimpselet. Mantén abierto el panel flotante para recibirlo.",
+      "Se envió {action} a Blinkling. Mantén abierto el panel flotante para recibirlo.",
     actionBusy:
       "Espera a que termine la respuesta actual y vuelve a intentarlo.",
     actionError:
-      "Glimpselet no pudo recibir la acción. Abre el panel flotante e inténtalo de nuevo.",
+      "Blinkling no pudo recibir la acción. Abre el panel flotante e inténtalo de nuevo.",
     panelOpened:
       "Chat abierto. Elige Abrir panel flotante en el chat para mantenerlo sobre otras ventanas.",
     panelError:
@@ -360,7 +360,7 @@ export const readerLocales = {
       "Cette page n'a pas de texte sélectionnable. Utilisez Poser une question sur la page ou Résumer la page pour interroger l'image de la page.",
     selectionTooLong:
       "Sélectionnez au maximum 5 000 caractères ou utilisez Résumer la page pour la page entière.",
-    title: "Lecteur PDF Glimpselet",
+    title: "Lecteur PDF Blinkling",
     openFile: "Ouvrir un PDF",
     urlPlaceholder: "Coller l'URL d'un PDF",
     urlLabel: "URL du PDF",
@@ -388,10 +388,10 @@ export const readerLocales = {
     tooLarge: "Ce PDF dépasse 100 Mo. Choisissez un fichier plus petit.",
     openFirst: "Ouvrez d'abord un PDF.",
     actionSent:
-      "{action} envoyé à Glimpselet. Gardez le panneau flottant ouvert pour le recevoir.",
+      "{action} envoyé à Blinkling. Gardez le panneau flottant ouvert pour le recevoir.",
     actionBusy: "Attendez la fin de la réponse en cours, puis réessayez.",
     actionError:
-      "Glimpselet n'a pas reçu l'action. Ouvrez le panneau flottant et réessayez.",
+      "Blinkling n'a pas reçu l'action. Ouvrez le panneau flottant et réessayez.",
     panelOpened:
       "Chat ouvert. Choisissez Ouvrir le panneau flottant dans le chat pour le garder au-dessus des autres fenêtres.",
     panelError:
@@ -422,7 +422,7 @@ export const readerLocales = {
       "Diese Seite hat keinen auswählbaren Text. Nutze Frage zur Seite oder Seite zusammenfassen, um zum Seitenbild zu fragen.",
     selectionTooLong:
       "Wähle höchstens 5.000 Zeichen oder nutze Seite zusammenfassen für die gesamte Seite.",
-    title: "Glimpselet PDF-Reader",
+    title: "Blinkling PDF-Reader",
     openFile: "PDF öffnen",
     urlPlaceholder: "PDF-URL einfügen",
     urlLabel: "PDF-URL",
@@ -449,11 +449,11 @@ export const readerLocales = {
     tooLarge: "Diese PDF ist größer als 100 MB. Wähle eine kleinere Datei.",
     openFirst: "Öffne zuerst eine PDF.",
     actionSent:
-      "{action} an Glimpselet gesendet. Lass das schwebende Panel geöffnet, damit es die Aktion empfängt.",
+      "{action} an Blinkling gesendet. Lass das schwebende Panel geöffnet, damit es die Aktion empfängt.",
     actionBusy:
       "Warte, bis die aktuelle Antwort fertig ist, und versuche es erneut.",
     actionError:
-      "Glimpselet konnte die Aktion nicht empfangen. Öffne das schwebende Panel und versuche es erneut.",
+      "Blinkling konnte die Aktion nicht empfangen. Öffne das schwebende Panel und versuche es erneut.",
     panelOpened:
       "Chat geöffnet. Wählen Sie dort Schwebendes Panel öffnen, damit es über anderen Fenstern bleibt.",
     panelError:
@@ -483,7 +483,7 @@ export const readerLocales = {
       "Esta página não tem texto selecionável. Use Perguntar sobre a página ou Resumir página para perguntar sobre a imagem da página.",
     selectionTooLong:
       "Selecione no máximo 5.000 caracteres ou use Resumir página para a página inteira.",
-    title: "Leitor de PDF do Glimpselet",
+    title: "Leitor de PDF do Blinkling",
     openFile: "Abrir PDF",
     urlPlaceholder: "Cole uma URL de PDF",
     urlLabel: "URL do PDF",
@@ -510,10 +510,10 @@ export const readerLocales = {
     tooLarge: "Este PDF tem mais de 100 MB. Escolha um arquivo menor.",
     openFirst: "Abra um PDF primeiro.",
     actionSent:
-      "{action} enviado ao Glimpselet. Mantenha o painel flutuante aberto para recebê-lo.",
+      "{action} enviado ao Blinkling. Mantenha o painel flutuante aberto para recebê-lo.",
     actionBusy: "Aguarde a resposta atual terminar e tente novamente.",
     actionError:
-      "O Glimpselet não recebeu a ação. Abra o painel flutuante e tente novamente.",
+      "O Blinkling não recebeu a ação. Abra o painel flutuante e tente novamente.",
     panelOpened:
       "Conversa aberta. Escolha Abrir painel flutuante na conversa para mantê-lo sobre outras janelas.",
     panelError:

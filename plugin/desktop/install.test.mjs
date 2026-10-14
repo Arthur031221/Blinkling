@@ -327,8 +327,8 @@ test("extracts native ZIP formats for both CPUs and validates safe framework lin
       }
       const entry =
         platform === "darwin"
-          ? "Glimpselet.app/Contents/MacOS/Glimpselet"
-          : "app/Glimpselet.exe";
+          ? "Blinkling.app/Contents/MacOS/Blinkling"
+          : "app/Blinkling.exe";
       const bytes = zip([
         { name: entry, data: executable },
         {

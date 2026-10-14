@@ -1,6 +1,6 @@
 # Security and privacy
 
-Glimpselet collects no telemetry. The bridge does not log page content, capture bytes, pairing tokens or API keys. The prerecorded interactive chat uses a fixture image and recorded answers, without provider requests. The README and showcase GIFs record the real extension on public sites with Claude Code replies.
+Blinkling collects no telemetry. The bridge does not log page content, capture bytes, pairing tokens or API keys. The prerecorded interactive chat uses a fixture image and recorded answers, without provider requests. The README and showcase GIFs record the real extension on public sites with Claude Code replies.
 
 ## Data flow
 

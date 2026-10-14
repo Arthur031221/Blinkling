@@ -84,7 +84,7 @@ function action(name: string) {
 function actionRequests() {
   return state.send.mock.calls
     .map(([message]) => message)
-    .filter((message) => message.type === "glimpselet:reader-action");
+    .filter((message) => message.type === "blinkling:reader-action");
 }
 let readerListeners: {
   target: EventTarget;

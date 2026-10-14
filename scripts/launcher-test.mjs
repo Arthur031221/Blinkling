@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
 
-const directory = await mkdtemp(join(tmpdir(), "glimpselet-launcher-"));
+const directory = await mkdtemp(join(tmpdir(), "blinkling-launcher-"));
 let child;
 try {
   // A copy outside the checkout proves the packaged launcher can bootstrap.
@@ -14,12 +14,12 @@ try {
   await copyFile(resolve("scripts/launch-browser.mjs"), launcher);
   const env = {
     ...process.env,
-    GLIMPSELET_RUNTIME_DIR: join(directory, "runtime"),
-    GLIMPSELET_PROFILE_DIR: join(directory, "profile"),
-    GLIMPSELET_EXTENSION_DIR: resolve("dist-extension"),
-    GLIMPSELET_CHROMIUM_PATH: chromium.executablePath(),
-    GLIMPSELET_TRIAL_URL:
-      "data:text/html,<title>Glimpselet%20pairing%20guide</title>",
+    BLINKLING_RUNTIME_DIR: join(directory, "runtime"),
+    BLINKLING_PROFILE_DIR: join(directory, "profile"),
+    BLINKLING_EXTENSION_DIR: resolve("dist-extension"),
+    BLINKLING_CHROMIUM_PATH: chromium.executablePath(),
+    BLINKLING_TRIAL_URL:
+      "data:text/html,<title>Blinkling%20pairing%20guide</title>",
   };
   delete env.SSH_CONNECTION;
   child = spawn(process.execPath, [launcher], {
@@ -34,9 +34,7 @@ try {
   });
   child.stdout.on("data", (data) => {
     output = (output + data).slice(-4000);
-    if (
-      output.includes("Glimpselet is running in a dedicated Chromium profile")
-    )
+    if (output.includes("Blinkling is running in a dedicated Chromium profile"))
       ready();
   });
   child.stderr.on("data", (data) => {
@@ -61,13 +59,13 @@ try {
   }
   assert.match(output, /Installing Playwright/);
   assert.match(output, /Opened the setup guide at data:text\/html/);
-  assert.match(output, /Glimpselet extension loaded\./);
+  assert.match(output, /Blinkling extension loaded\./);
   child.kill("SIGTERM");
   const [code, signal] = await exited;
   assert.equal(signal, null);
   assert.equal(code, 143);
   child = spawn(process.execPath, [launcher], {
-    env: { ...env, GLIMPSELET_TRIAL_URL: "http://127.0.0.1:1" },
+    env: { ...env, BLINKLING_TRIAL_URL: "http://127.0.0.1:1" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   const failed = once(child, "exit");
@@ -89,8 +87,8 @@ try {
     ]);
     assert.equal(failureCode, 1);
     assert.equal(failureSignal, null);
-    assert.match(failureOutput, /Could not open GLIMPSELET_TRIAL_URL/);
-    assert.match(failureOutput, /Glimpselet extension loaded\./);
+    assert.match(failureOutput, /Could not open BLINKLING_TRIAL_URL/);
+    assert.match(failureOutput, /Blinkling extension loaded\./);
     assert.doesNotMatch(failureOutput, /Installing Playwright/);
   } finally {
     clearTimeout(failureTimer);

@@ -1,18 +1,18 @@
 // Window surface only. The composer/message bucket owns the contents and turns.
 const pin = document.querySelector("#pin");
-let shell = await window.glimpselet.shell({ type: "state" });
+let shell = await window.blinkling.shell({ type: "state" });
 const render = () => pin.setAttribute("aria-pressed", String(shell.pinned));
 render();
 pin.addEventListener("click", async () => {
-  shell = await window.glimpselet.shell({ type: "pin", value: !shell.pinned });
+  shell = await window.blinkling.shell({ type: "pin", value: !shell.pinned });
   render();
 });
 document
   .querySelector("#close")
   .addEventListener("click", () =>
-    window.glimpselet.shell({ type: "close-chat" }),
+    window.blinkling.shell({ type: "close-chat" }),
   );
-window.glimpselet.onShell((event) => {
+window.blinkling.onShell((event) => {
   if (event.type === "state") {
     if (event.state.chatOpen && !shell.chatOpen)
       document.querySelector("#card").animate(
@@ -27,7 +27,7 @@ window.glimpselet.onShell((event) => {
   }
 });
 addEventListener("keydown", (event) => {
-  if (event.key === "Escape") window.glimpselet.shell({ type: "close-chat" });
+  if (event.key === "Escape") window.blinkling.shell({ type: "close-chat" });
 });
 // Renderer feature integration: stable slots and a typed window action/event API.
-window.dispatchEvent(new CustomEvent("glimpselet:card-ready"));
+window.dispatchEvent(new CustomEvent("blinkling:card-ready"));

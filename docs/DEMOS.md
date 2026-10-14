@@ -14,7 +14,7 @@ npm run record:real-demos
 
 The recorder uses a temporary browser profile and an isolated project conversation. It grants site access through Chrome's real permission dialog and opens the native floating window. The capture includes the real browser and extension surfaces. The normal browser profile and existing project transcripts are not used. CLI usage applies to these requests.
 
-Raw desktop recordings, screenshots, segment boundaries and provider replies are written under the ignored `test-results/real-demos` directory. `GLIMPSELET_RECORD_EVIDENCE` selects another output directory. `GLIMPSELET_RECORD_BROWSER=chrome` uses installed Chrome instead of bundled Chromium. Review the GIFs before committing them; a site redesign can require adjusting the recorder.
+Raw desktop recordings, screenshots, segment boundaries and provider replies are written under the ignored `test-results/real-demos` directory. `BLINKLING_RECORD_EVIDENCE` selects another output directory. `BLINKLING_RECORD_BROWSER=chrome` uses installed Chrome instead of bundled Chromium. Review the GIFs before committing them; a site redesign can require adjusting the recorder.
 
 `assets/recordings.json` records the extension version, public URLs, segment boundaries and checksums. It includes a hash of each raw request log, rather than publishing the log. Release checks verify both GIFs against this ledger.
 

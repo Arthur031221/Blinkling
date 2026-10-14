@@ -4,20 +4,20 @@ import { PNG } from "pngjs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-const dir = await mkdtemp(join(tmpdir(), "glimpselet-mcp-e2e-"));
+const dir = await mkdtemp(join(tmpdir(), "blinkling-mcp-e2e-"));
 const fixture = join(dir, "fixture.png");
 const png = new PNG({ width: 4, height: 3 });
 png.data.fill(255);
 await writeFile(fixture, PNG.sync.write(png));
-const client = new Client({ name: "glimpselet-e2e-client", version: "1.0.0" });
+const client = new Client({ name: "blinkling-e2e-client", version: "1.0.0" });
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: ["bin/glimpselet.cjs"],
+  args: ["bin/blinkling.cjs"],
   stderr: "pipe",
   env: {
     ...process.env,
-    GLIMPSELET_TEST_MODE: "1",
-    GLIMPSELET_TEST_FIXTURE: fixture,
+    BLINKLING_TEST_MODE: "1",
+    BLINKLING_TEST_FIXTURE: fixture,
   },
 });
 try {

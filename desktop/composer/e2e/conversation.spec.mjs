@@ -17,7 +17,7 @@ test("capture, three quick asks, image payload, streamed formatting, stop, Enter
     await card.getByRole("button", { name: "這是什麼", exact: true }).click();
     await expect(
       card.locator(".gl-chat-message.gl-assistant strong"),
-    ).toContainText(["Glimpselet", "重點"]);
+    ).toContainText(["Blinkling", "重點"]);
     await expect(card.getByRole("button", { name: "停止回答" })).toBeHidden();
     const turns = await app.evaluate(() => globalThis.conversationTest.turns);
     expect(turns).toHaveLength(1);

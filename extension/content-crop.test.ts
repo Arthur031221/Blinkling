@@ -12,7 +12,7 @@ let sendMessage: ReturnType<typeof vi.fn>;
 beforeEach(async () => {
   vi.resetModules();
   vi.useFakeTimers();
-  Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+  Reflect.deleteProperty(globalThis, "blinklingContentReady");
   for (const target of [window, document]) {
     const add = target.addEventListener.bind(target);
     vi.spyOn(target, "addEventListener").mockImplementation(
@@ -59,13 +59,13 @@ afterEach(async () => {
     target.removeEventListener(type, listener, options);
   for (const observer of observers.splice(0)) observer.disconnect();
   document
-    .querySelectorAll("[data-glimpselet-crop], [data-glimpselet-overlay]")
+    .querySelectorAll("[data-blinkling-crop], [data-blinkling-overlay]")
     .forEach((element) => element.remove());
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+  Reflect.deleteProperty(globalThis, "blinklingContentReady");
   document.body.innerHTML = "";
 });
 
@@ -85,7 +85,7 @@ function pointer(target: EventTarget, type: string, x: number, y: number) {
 async function shiftCrop() {
   window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
   await vi.advanceTimersByTimeAsync(200);
-  const host = document.querySelector<HTMLElement>("[data-glimpselet-crop]")!;
+  const host = document.querySelector<HTMLElement>("[data-blinkling-crop]")!;
   expect(host.style.getPropertyValue("display")).toBe("block");
   expect(host.style.getPropertyPriority("display")).toBe("important");
   return host.shadowRoot!.querySelector<HTMLElement>(".surface")!;
@@ -104,10 +104,10 @@ describe("Shift crop source metadata", () => {
     for (let i = 0; i < 15; i++) await Promise.resolve();
     const selections = sendMessage.mock.calls
       .map(([message]) => message)
-      .filter((message) => message.type === "glimpselet:crop-selected");
+      .filter((message) => message.type === "blinkling:crop-selected");
     expect(selections).toEqual([
       {
-        type: "glimpselet:crop-selected",
+        type: "blinkling:crop-selected",
         rect: [20, 30, 80, 60],
         url: location.href,
         geometry: {
@@ -119,7 +119,7 @@ describe("Shift crop source metadata", () => {
         },
       },
     ]);
-    expect(document.querySelector("[data-glimpselet-crop]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-crop]")).toBeNull();
   });
 
   it("does not send a selected rectangle when Shift crop is cancelled", async () => {
@@ -130,9 +130,9 @@ describe("Shift crop source metadata", () => {
     for (let i = 0; i < 15; i++) await Promise.resolve();
     expect(
       sendMessage.mock.calls.some(
-        ([message]) => message.type === "glimpselet:crop-selected",
+        ([message]) => message.type === "blinkling:crop-selected",
       ),
     ).toBe(false);
-    expect(document.querySelector("[data-glimpselet-crop]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-crop]")).toBeNull();
   });
 });

@@ -5,8 +5,7 @@ import { mkdtemp, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 export const report =
-  process.env.GLIMPSELET_REPORT_DIR ??
-  join(tmpdir(), "glimpselet-shell-report");
+  process.env.BLINKLING_REPORT_DIR ?? join(tmpdir(), "blinkling-shell-report");
 export async function launch({ scale = 1, theme = "light", data } = {}) {
   await mkdir(report, { recursive: true });
   const userData = data ?? (await mkdtemp(join(tmpdir(), "blink-e2e-")));
@@ -18,9 +17,9 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
     ],
     env: {
       ...process.env,
-      GLIMPSELET_E2E: "1",
-      GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "0",
-      GLIMPSELET_TEST_DATA: userData,
+      BLINKLING_E2E: "1",
+      BLINKLING_REMOTE: process.env.BLINKLING_REMOTE ?? "0",
+      BLINKLING_TEST_DATA: userData,
     },
   });
   await app.evaluate(({ nativeTheme }, theme) => {
@@ -30,7 +29,7 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
   page.on("pageerror", (error) => process.stderr.write(`${error.stack}\n`));
   await page.waitForFunction(() => window.desktop);
   await expect
-    .poll(() => app.evaluate(() => !!globalThis.glimpseletTest))
+    .poll(() => app.evaluate(() => !!globalThis.blinklingTest))
     .toBe(true);
   await page.emulateMedia({ colorScheme: theme });
   return { app, page, data: userData };

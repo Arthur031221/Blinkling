@@ -67,22 +67,22 @@ function readZip(archive: Buffer): Map<string, Buffer> {
 }
 
 async function setup() {
-  const root = await mkdtemp(join(tmpdir(), "glimpselet-extension-download-"));
+  const root = await mkdtemp(join(tmpdir(), "blinkling-extension-download-"));
   tempDirs.push(root);
   const source = join(root, "packaged", "extension");
   await mkdir(source, { recursive: true });
   await writeFile(
     join(source, "manifest.json"),
-    JSON.stringify({ manifest_version: 3, name: "Glimpselet fixture" }),
+    JSON.stringify({ manifest_version: 3, name: "Blinkling fixture" }),
   );
   await writeFile(
     join(source, "background.js"),
     "self.packagedBuild = 'fixture';\n",
   );
   setEnv("HOME", join(root, "home"));
-  setEnv("GLIMPSELET_EXTENSION_DIR", source);
-  setEnv("GLIMPSELET_DISABLE_BROWSER_OPEN", "1");
-  setEnv("GLIMPSELET_TEST_MODE", "1");
+  setEnv("BLINKLING_EXTENSION_DIR", source);
+  setEnv("BLINKLING_DISABLE_BROWSER_OPEN", "1");
+  setEnv("BLINKLING_TEST_MODE", "1");
   delete process.env.SSH_CONNECTION;
 
   const panel = await new PanelServer(new CaptureHistory(), {
@@ -127,7 +127,7 @@ function requestRaw(
 
 describe("local extension ZIP download", () => {
   it("archives only regular extension files and rejects symlinks", async () => {
-    const root = await mkdtemp(join(tmpdir(), "glimpselet-zip-unit-"));
+    const root = await mkdtemp(join(tmpdir(), "blinkling-zip-unit-"));
     tempDirs.push(root);
     const source = join(root, "extension");
     await mkdir(source);
@@ -158,7 +158,7 @@ describe("local extension ZIP download", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/zip");
     expect(response.headers.get("content-disposition")).toContain(
-      "glimpselet-extension.zip",
+      "blinkling-extension.zip",
     );
     const archive = Buffer.from(await response.arrayBuffer());
     const files = readZip(archive);

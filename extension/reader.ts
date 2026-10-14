@@ -80,7 +80,7 @@ function preparePermissionOrigin(parsed: URL): Promise<boolean> {
         requestAnimationFrame(() => resolve()),
       );
       const response = (await chrome.runtime.sendMessage({
-        type: "glimpselet:reader-permission-handoff",
+        type: "blinkling:reader-permission-handoff",
       })) as { ok?: boolean; interrupted?: boolean } | undefined;
       if (response?.interrupted) permissionInterrupted = true;
       else if (!permissionInterrupted) permissionRecovery.hidden = true;
@@ -309,7 +309,7 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
     const viewport = page.getViewport({ scale });
     const wrapper = document.createElement("section");
     wrapper.className = "pdf-page";
-    wrapper.dataset.glimpseletReaderPage = "true";
+    wrapper.dataset.blinklingReaderPage = "true";
     wrapper.style.width = `${viewport.width}px`;
     wrapper.style.height = `${viewport.height}px`;
     wrapper.setAttribute("aria-label", message("pdfPage"));
@@ -392,7 +392,7 @@ async function publishContext(
     return;
   try {
     await chrome.runtime.sendMessage({
-      type: "glimpselet:reader-context",
+      type: "blinkling:reader-context",
       context: buildPageContext(),
     });
   } catch {
@@ -456,7 +456,7 @@ async function ask(action: ReaderAction): Promise<void> {
       image = encodeCanvasPng(thumbnail);
     }
     const response = (await chrome.runtime.sendMessage({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action,
       question: questions[action],
       text,
@@ -588,7 +588,7 @@ document
   .querySelector<HTMLButtonElement>("#open-panel")!
   .addEventListener("click", () => {
     void chrome.runtime
-      .sendMessage({ type: "glimpselet:open" })
+      .sendMessage({ type: "blinkling:open" })
       .then((response?: { ok?: boolean }) => {
         if (response?.ok) setStatus("panelOpened");
         else setStatus("panelError");
@@ -615,7 +615,7 @@ resumePanel.addEventListener("click", () => {
     try {
       opened = await pip.requestWindow(floatingSize);
       const response = (await chrome.runtime.sendMessage({
-        type: "glimpselet:reader-resume-floating",
+        type: "blinkling:reader-resume-floating",
       })) as { ok?: boolean } | undefined;
       if (!response?.ok) throw new Error("reader_resume_unconfirmed");
       permissionInterrupted = false;

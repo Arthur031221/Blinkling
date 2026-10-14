@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 async function temp() {
-  const path = await mkdtemp(join(tmpdir(), "glimpselet-provider-test-"));
+  const path = await mkdtemp(join(tmpdir(), "blinkling-provider-test-"));
   temporary.push(path);
   return path;
 }
@@ -92,7 +92,7 @@ describe("CLI provider protocol", () => {
     expect(args[args.indexOf("--allowedTools") + 1]).toBe("");
     expect(prompt).not.toContain("capture.png");
     expect(
-      (await readdir(root)).filter((name) => name.startsWith("glimpselet-")),
+      (await readdir(root)).filter((name) => name.startsWith("blinkling-")),
     ).toHaveLength(0);
   });
 
@@ -148,7 +148,7 @@ describe("CLI provider protocol", () => {
     expect(JSON.stringify(saved)).not.toContain("must-not-forward-this-key");
     expect(JSON.stringify(saved.env)).not.toContain("parent-session-fixture");
     expect(
-      (await readdir(root)).filter((name) => name.startsWith("glimpselet-")),
+      (await readdir(root)).filter((name) => name.startsWith("blinkling-")),
     ).toHaveLength(0);
   });
 
@@ -234,7 +234,7 @@ describe("CLI provider protocol", () => {
     await expect(running).rejects.toMatchObject({ code: "cancelled" });
     await expect(readFile(imagePath)).rejects.toMatchObject({ code: "ENOENT" });
     expect(
-      (await readdir(root)).filter((name) => name.startsWith("glimpselet-")),
+      (await readdir(root)).filter((name) => name.startsWith("blinkling-")),
     ).toHaveLength(0);
   });
 });

@@ -78,7 +78,7 @@ export async function launchDesktop(options = {}) {
       !options.spawn
     )
       throw new Error(
-        "Blink needs a graphical desktop on this computer. Run /glimpselet:glimpse in local Claude Code.",
+        "Blink needs a graphical desktop on this computer. Run /blinkling:blinkling in local Claude Code.",
       );
     const installed = await installDesktop(
       options.manifest || pinnedManifest,
@@ -99,7 +99,7 @@ export async function launchDesktop(options = {}) {
       await mkdir(applications, { recursive: true });
       if (!(await lstat(applications)).isDirectory())
         throw new Error("Applications must be a real directory");
-      const target = join(applications, "Glimpselet.app"),
+      const target = join(applications, "Blinkling.app"),
         stage = `${target}.staging`;
       macPrevious = `${target}.previous`;
       await rm(stage, { recursive: true, force: true });
@@ -127,7 +127,7 @@ export async function launchDesktop(options = {}) {
         detached: true,
         stdio: "ignore",
         windowsHide: true,
-        env: { ...process.env, GLIMPSELET_RUNTIME_DIR: directory },
+        env: { ...process.env, BLINKLING_RUNTIME_DIR: directory },
       });
       let failure;
       child.once("error", (error) => {
@@ -165,7 +165,7 @@ export async function launchDesktop(options = {}) {
     } catch (error) {
       child?.kill();
       if (macPrevious) {
-        const target = join(dirname(macPrevious), "Glimpselet.app");
+        const target = join(dirname(macPrevious), "Blinkling.app");
         await rm(target, { recursive: true, force: true });
         await rename(macPrevious, target).catch(() => {});
       }

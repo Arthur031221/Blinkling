@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { mkdir, writeFile } from "node:fs/promises";
 import { png } from "./image.mjs";
 const report =
-  process.env.GLIMPSELET_REPORT_DIR ??
+  process.env.BLINKLING_REPORT_DIR ??
   fileURLToPath(
     new URL("../../../test-results/conversation-artifacts/", import.meta.url),
   );
@@ -11,8 +11,8 @@ test("real Claude Remote Control session: confirmed controls, image and UTF-8 fi
   await mkdir(report, { recursive: true });
   const env = {
     ...process.env,
-    GLIMPSELET_LIVE: "1",
-    GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "test",
+    BLINKLING_LIVE: "1",
+    BLINKLING_REMOTE: process.env.BLINKLING_REMOTE ?? "test",
   };
   delete env.CLAUDECODE;
   const app = await electron.launch({
@@ -97,7 +97,7 @@ test("real Claude Remote Control session: confirmed controls, image and UTF-8 fi
         (a) => a.speaking,
       ),
     }));
-    if (env.GLIMPSELET_REMOTE !== "0")
+    if (env.BLINKLING_REMOTE !== "0")
       expect(evidence.remoteUrl).toMatch(/^https:\/\/claude\.ai\/code\//);
     expect(evidence.turns.map((t) => t.contentTypes)).toEqual([
       ["image"],

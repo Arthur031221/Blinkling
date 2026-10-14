@@ -26,7 +26,7 @@ async function startContentScript() {
     },
   });
   vi.resetModules();
-  Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+  Reflect.deleteProperty(globalThis, "blinklingContentReady");
   await import("./content");
   onMessage = listeners[0];
 }
@@ -43,14 +43,14 @@ async function setup() {
   await startContentScript();
   const context = send<{
     elements: Array<{ id: string; text: string }>;
-  }>("glimpselet:context");
+  }>("blinkling:context");
   const byText = (text: string) =>
     context.elements.find((element) => element.text === text)!.id;
   return { firstId: byText("First target"), secondId: byText("Second target") };
 }
 
 function openGuide(elementIds: string[]) {
-  return send<{ ok: boolean }>("glimpselet:guide", {
+  return send<{ ok: boolean }>("blinkling:guide", {
     steps: elementIds.map((elementId, index) => ({
       elementId,
       note: `Step ${index + 1}`,
@@ -64,7 +64,7 @@ describe("content script guide focus", () => {
     await startContentScript();
     const page = send<{
       elements: Array<{ id: string; role: string; text: string }>;
-    }>("glimpselet:guide-context");
+    }>("blinkling:guide-context");
     const elements = page.elements.filter(
       (e) =>
         e.role === "paragraph" ||
@@ -72,7 +72,7 @@ describe("content script guide focus", () => {
         (e.role === "button" && e.text === "Find flights"),
     );
     expect(
-      send("glimpselet:guide", {
+      send("blinkling:guide", {
         purpose: "Find and compare flights.",
         steps: elements.map((e) => ({
           elementId: e.id,
@@ -84,7 +84,7 @@ describe("content script guide focus", () => {
       }),
     ).toEqual({ ok: true });
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     root
       .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
@@ -124,7 +124,7 @@ describe("content script guide focus", () => {
     const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
     openGuide([firstId]);
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     root
       .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
@@ -152,7 +152,7 @@ describe("content script guide focus", () => {
     openGuide([firstId]);
     expect(
       document
-        .querySelector("[data-glimpselet-overlay]")!
+        .querySelector("[data-blinkling-overlay]")!
         .shadowRoot!.querySelector(".guide"),
     ).not.toBeNull();
     window.dispatchEvent(new Event("scroll"));
@@ -199,14 +199,14 @@ describe("content script guide focus", () => {
       target.removeEventListener(type, listener, options);
     for (const observer of observers.splice(0)) observer.disconnect();
     document
-      .querySelectorAll("[data-glimpselet-overlay]")
+      .querySelectorAll("[data-blinkling-overlay]")
       .forEach((overlay) => overlay.remove());
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     Reflect.deleteProperty(globalThis, "chrome");
-    Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+    Reflect.deleteProperty(globalThis, "blinklingContentReady");
     document.body.innerHTML = "";
   });
 
@@ -291,7 +291,7 @@ describe("content script guide focus", () => {
       try {
         expect(openGuide([firstId])).toEqual({ ok: true });
         const callout = document
-          .querySelector("[data-glimpselet-overlay]")!
+          .querySelector("[data-blinkling-overlay]")!
           .shadowRoot!.querySelector<HTMLElement>(".guide")!;
         const bounds = callout.getBoundingClientRect();
         const [x, y, width, height] = target;
@@ -319,16 +319,16 @@ describe("content script guide focus", () => {
     document.body.append(frame);
     Object.defineProperty(frame, "contentDocument", { value: null });
     expect(
-      send<{ hasPassword: boolean }>("glimpselet:context").hasPassword,
+      send<{ hasPassword: boolean }>("blinkling:context").hasPassword,
     ).toBe(true);
     expect(
       send<{ hasPassword: boolean; guideScope: string }>(
-        "glimpselet:guide-context",
+        "blinkling:guide-context",
       ),
     ).toMatchObject({ hasPassword: false, guideScope: "top-document-text" });
     expect(openGuide([firstId])).toEqual({ ok: true });
     document.body.insertAdjacentHTML("beforeend", '<input type="password">');
-    expect(send("glimpselet:guide-context")).toEqual({
+    expect(send("blinkling:guide-context")).toEqual({
       error: "password_page",
     });
     expect(openGuide([firstId])).toEqual({ error: "password_page" });
@@ -352,7 +352,7 @@ describe("content script guide focus", () => {
       textScope: string;
       excludedEmbeds: number;
       text: string;
-    }>("glimpselet:explicit-context");
+    }>("blinkling:explicit-context");
     expect(context).toMatchObject({
       hasPassword: false,
       textScope: "top-document-text",
@@ -362,30 +362,30 @@ describe("content script guide focus", () => {
     expect(context.text).toContain("350 ml · ¥2,290");
     expect(JSON.stringify(context)).not.toContain("UNKNOWN_EMBED");
     expect(
-      send<{ hasPassword: boolean }>("glimpselet:context").hasPassword,
+      send<{ hasPassword: boolean }>("blinkling:context").hasPassword,
     ).toBe(true);
     document.body.insertAdjacentHTML(
       "beforeend",
       '<input autocomplete="current-password" hidden>',
     );
-    expect(send("glimpselet:explicit-context")).toEqual({
+    expect(send("blinkling:explicit-context")).toEqual({
       error: "password_page",
     });
   });
 
-  it.each(["glimpselet:explicit-context", "glimpselet:guide-context"])(
+  it.each(["blinkling:explicit-context", "blinkling:guide-context"])(
     "%s rejects a mismatched document key or URL before returning text",
     async (type) => {
       await setup();
       const identity = send<{ documentKey: string; url: string }>(
-        "glimpselet:identity",
+        "blinkling:identity",
       );
       expect(send(type, identity)).toMatchObject({
-        [type === "glimpselet:guide-context" ? "guideScope" : "textScope"]:
+        [type === "blinkling:guide-context" ? "guideScope" : "textScope"]:
           "top-document-text",
       });
       expect(send(type, identity)).not.toHaveProperty(
-        type === "glimpselet:guide-context" ? "textScope" : "guideScope",
+        type === "blinkling:guide-context" ? "textScope" : "guideScope",
       );
       expect(
         send(type, { ...identity, documentKey: "replaced-document" }),
@@ -400,7 +400,7 @@ describe("content script guide focus", () => {
     const { firstId } = await setup();
     expect(openGuide([firstId])).toEqual({ ok: true });
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     expect(root.querySelector(".guide")).not.toBeNull();
     expect(
@@ -409,7 +409,7 @@ describe("content script guide focus", () => {
     expect(
       root.querySelector('svg[class~="draw"] path.arrow')?.isConnected,
     ).toBe(true);
-    expect(send("glimpselet:guide", { steps: [] })).toEqual({ ok: false });
+    expect(send("blinkling:guide", { steps: [] })).toEqual({ ok: false });
     expect(root.querySelector(".guide")).toBeNull();
     expect(root.querySelector('svg[class~="draw"]')).toBeNull();
   });
@@ -417,14 +417,14 @@ describe("content script guide focus", () => {
   it("omits a literal no-op action and rejects replaced targets without leaving stale ink", async () => {
     const { firstId } = await setup();
     expect(
-      send("glimpselet:guide", {
+      send("blinkling:guide", {
         steps: [
           { elementId: firstId, note: "Use this control", action: " none " },
         ],
       }),
     ).toEqual({ ok: true });
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     expect(root.querySelector(".guide p")!.textContent).toBe(
       "Use this control",
@@ -434,7 +434,7 @@ describe("content script guide focus", () => {
     )!;
     target.replaceWith(target.cloneNode(true));
     expect(
-      send("glimpselet:guide", {
+      send("blinkling:guide", {
         steps: [{ elementId: firstId, note: "Use this old control" }],
       }),
     ).toEqual({ ok: false });
@@ -448,7 +448,7 @@ describe("content script guide focus", () => {
       const { firstId } = await setup();
       expect(openGuide([firstId])).toEqual({ ok: true });
       const root = document.querySelector(
-        "[data-glimpselet-overlay]",
+        "[data-blinkling-overlay]",
       )!.shadowRoot!;
       const target = [...document.querySelectorAll("button")].find(
         (button) => button.textContent === "First target",
@@ -474,7 +474,7 @@ describe("content script guide focus", () => {
     const { firstId, secondId } = await setup();
     expect(openGuide([firstId, secondId])).toEqual({ ok: true });
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     const target = [...document.querySelectorAll("button")].find(
       (button) => button.textContent === "Second target",
@@ -491,12 +491,12 @@ describe("content script guide focus", () => {
   it("skips collapsed responsive targets and restores their overview entries when visible", async () => {
     const { firstId, secondId } = await setup();
     const page = send<{ elements: Array<{ id: string; text: string }> }>(
-      "glimpselet:guide-context",
+      "blinkling:guide-context",
     );
     const returnId = page.elements.find((e) => e.text === "Return focus")!.id;
     openGuide([firstId, secondId, returnId]);
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     const control = (name: string) =>
       root.querySelector<HTMLButtonElement>(`[data-guide-control="${name}"]`)!;
@@ -537,7 +537,7 @@ describe("content script guide focus", () => {
     expect(openGuide([firstId, secondId]).ok).toBe(true);
 
     const host = document.querySelector<HTMLElement>(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!;
     const root = host.shadowRoot!;
     const initialInk = root.querySelector('svg[class~="draw"] ellipse.ink')!;
@@ -600,7 +600,7 @@ describe("content script guide focus", () => {
 
     expect(openGuide([firstId]).ok).toBe(true);
     const host = document.querySelector<HTMLElement>(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!;
     host
       .shadowRoot!.querySelector<HTMLButtonElement>(
@@ -618,16 +618,16 @@ describe("content script guide focus", () => {
     await startContentScript();
     const page = send<{
       elements: Array<{ id: string; role: string; text: string }>;
-    }>("glimpselet:guide-context");
+    }>("blinkling:guide-context");
     const regions = page.elements.filter((e) => e.role === "paragraph");
     expect(
-      send("glimpselet:guide", {
+      send("blinkling:guide", {
         purpose: "Understand the research",
         steps: regions.map((e) => ({ elementId: e.id, note: e.text })),
       }),
     ).toEqual({ ok: true });
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     expect(root.querySelector("rect.ink")).not.toBeNull();
     expect(root.querySelector(".guide p")!.textContent).toContain(
@@ -649,7 +649,7 @@ describe("content script guide focus", () => {
     await startContentScript();
     const page = send<{
       elements: Array<{ id: string; role: string; text: string }>;
-    }>("glimpselet:guide-context");
+    }>("blinkling:guide-context");
     const paragraphs = page.elements.filter((e) => e.role === "paragraph");
     document
       .querySelector("article")!
@@ -657,17 +657,17 @@ describe("content script guide focus", () => {
         "afterbegin",
         "<p>Late loaded article content.</p>".repeat(300),
       );
-    const newPage = send<typeof page>("glimpselet:guide-context");
+    const newPage = send<typeof page>("blinkling:guide-context");
     expect(
       paragraphs.some((e) => !newPage.elements.some((n) => n.id === e.id)),
     ).toBe(true);
     expect(
-      send("glimpselet:guide", {
+      send("blinkling:guide", {
         steps: paragraphs.map((e) => ({ elementId: e.id, note: e.text })),
       }),
     ).toEqual({ ok: true });
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     root
       .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
@@ -682,7 +682,7 @@ describe("content script guide focus", () => {
     const { firstId, secondId } = await setup();
     openGuide([firstId, secondId]);
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     root
       .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
@@ -710,7 +710,7 @@ describe("content script guide focus", () => {
     const { firstId, secondId } = await setup();
     openGuide([firstId, secondId]);
     const root = document.querySelector(
-      "[data-glimpselet-overlay]",
+      "[data-blinkling-overlay]",
     )!.shadowRoot!;
     root
       .querySelector<HTMLButtonElement>('[data-guide-control="overview"]')!
@@ -731,11 +731,11 @@ describe("content script guide focus", () => {
         document.querySelector<HTMLButtonElement>("#return-focus")!;
       returnFocus.focus();
       const context = send<{ elements: Array<{ id: string; text: string }> }>(
-        "glimpselet:context",
+        "blinkling:context",
       );
       openGuide([firstId, secondId, context.elements[0].id]);
       const root = document.querySelector(
-        "[data-glimpselet-overlay]",
+        "[data-blinkling-overlay]",
       )!.shadowRoot!;
       for (let i = 0; i < index; i++)
         root
@@ -780,7 +780,7 @@ describe("content script guide focus", () => {
       previous.focus();
       openGuide([firstId, secondId]);
       const root = document.querySelector(
-        "[data-glimpselet-overlay]",
+        "[data-blinkling-overlay]",
       )!.shadowRoot!;
       if (index)
         root
@@ -863,7 +863,7 @@ describe("selection tools during a guide", () => {
     for (const observer of observers.splice(0)) observer.disconnect();
     window.getSelection()?.removeAllRanges();
     document
-      .querySelectorAll("[data-glimpselet-overlay]")
+      .querySelectorAll("[data-blinkling-overlay]")
       .forEach((overlay) => overlay.remove());
     vi.clearAllTimers();
     vi.useRealTimers();
@@ -877,7 +877,7 @@ describe("selection tools during a guide", () => {
       );
     else Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
     Reflect.deleteProperty(globalThis, "chrome");
-    Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+    Reflect.deleteProperty(globalThis, "blinklingContentReady");
     document.body.innerHTML = "";
   });
 
@@ -885,7 +885,7 @@ describe("selection tools during a guide", () => {
     const passage = "The selected section explains attention and its weights.";
     document.body.innerHTML =
       kind === "reader"
-        ? `<main data-glimpselet-reader-page="4"><div class="pdf-text-layer"><span id="passage">${passage}</span><span>Next section</span></div></main>`
+        ? `<main data-blinkling-reader-page="4"><div class="pdf-text-layer"><span id="passage">${passage}</span><span>Next section</span></div></main>`
         : `<main><h2>Selected section</h2><p id="passage">${passage}</p><h2>Next section</h2></main>`;
     await startContentScript();
     const range = document.createRange();
@@ -897,7 +897,7 @@ describe("selection tools during a guide", () => {
     // Settle the native selectionchange tasks while keeping the 40 ms UI delay pending.
     vi.advanceTimersByTime(0);
     const context = send<{ elements: Array<{ id: string }> }>(
-      "glimpselet:guide-context",
+      "blinkling:guide-context",
     );
     return {
       passage,
@@ -908,7 +908,7 @@ describe("selection tools during a guide", () => {
   }
 
   function root() {
-    return document.querySelector("[data-glimpselet-overlay]")!.shadowRoot!;
+    return document.querySelector("[data-blinkling-overlay]")!.shadowRoot!;
   }
 
   function expectPassagePreserved(selection: Selection, range: Range) {
@@ -1000,7 +1000,7 @@ describe("selection tools during a guide", () => {
         expect(buttons).toHaveLength(3);
         buttons[index].click();
         expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith({
-          type: "glimpselet:selection",
+          type: "blinkling:selection",
           text: passage,
           url: location.href,
           action,

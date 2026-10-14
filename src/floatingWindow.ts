@@ -26,7 +26,7 @@ export type FloatingGeometry = {
 
 export type GeometryStorage = Pick<Storage, "getItem" | "setItem">;
 
-const STORAGE_KEY = "glimpselet-floating-geometry-v1";
+const STORAGE_KEY = "blinkling-floating-geometry-v1";
 const DEFAULTS: Record<FloatingSize, { width: number; height: number }> = {
   compact: { width: 420, height: 520 },
   expanded: { width: 420, height: 680 },

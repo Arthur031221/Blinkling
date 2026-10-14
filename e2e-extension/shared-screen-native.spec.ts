@@ -87,7 +87,7 @@ x.XRootWindow.argtypes = [P,I]; x.XRootWindow.restype = U
 root = x.XRootWindow(d,screen)
 x.XCreateSimpleWindow.argtypes = [P,U,I,I,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint,U,U]; x.XCreateSimpleWindow.restype = U
 w = x.XCreateSimpleWindow(d,root,40,100,900,600,0,0,0)
-x.XStoreName.argtypes = [P,U,ctypes.c_char_p]; x.XStoreName(d,w,b'Glimpselet narration app')
+x.XStoreName.argtypes = [P,U,ctypes.c_char_p]; x.XStoreName(d,w,b'Blinkling narration app')
 x.XMapWindow.argtypes = [P,U]; x.XMapWindow(d,w)
 x.XCreateGC.argtypes = [P,U,U,P]; x.XCreateGC.restype = P
 gc = x.XCreateGC(d,w,0,None)
@@ -372,7 +372,7 @@ async function nativeClick(selector: string, bubble = false) {
 
 test.beforeEach(async ({ browserName }, testInfo) => {
   expect(browserName).toBe("chromium");
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-native-screen-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-native-screen-"));
   desktop = spawn(
     "Xvfb",
     ["-displayfd", "3", "-screen", "0", "1440x1000x24", "-ac"],
@@ -533,7 +533,7 @@ window.stopShare = () => video.srcObject.getTracks().forEach(track => {
   track.stop(); track.dispatchEvent(new Event('ended'));
 });
 chrome.runtime.onMessage.addListener(message => {
-  if (message.type === 'glimpselet:command' && message.command === 'crop-screen') startCrop();
+  if (message.type === 'blinkling:command' && message.command === 'crop-screen') startCrop();
 });`,
       loader: "js",
     },
@@ -565,11 +565,9 @@ chrome.runtime.onMessage.addListener(message => {
           : testInfo.title.includes("automatic explanation tab")
             ? ["--auto-select-tab-capture-source-by-title=Auto explain source"]
             : testInfo.title.includes("automatic explanation app")
-              ? [
-                  "--auto-select-desktop-capture-source=Glimpselet narration app",
-                ]
+              ? ["--auto-select-desktop-capture-source=Blinkling narration app"]
               : ["--auto-select-desktop-capture-source=Entire screen"]),
-      "--host-resolver-rules=MAP *.glimpselet.test 127.0.0.1",
+      "--host-resolver-rules=MAP *.blinkling.test 127.0.0.1",
       "--no-proxy-server",
       ...(testInfo.title.includes("v2.1 dark") ? ["--force-dark-mode"] : []),
       ...(testInfo.title.includes("dedicated")
@@ -585,7 +583,7 @@ chrome.runtime.onMessage.addListener(message => {
       chrome.storage.local.set({
         consented: true,
         locale: "en",
-        ...(automatic ? { blocklist: ["blocked.glimpselet.test"] } : {}),
+        ...(automatic ? { blocklist: ["blocked.blinkling.test"] } : {}),
       }),
     testInfo.title.includes("automatic explanation"),
   );
@@ -650,7 +648,7 @@ chrome.runtime.onMessage.addListener(message => {
             env: { ...process.env, DISPLAY: display },
           }).toString(),
         )
-        .toContain("Glimpselet narration app");
+        .toContain("Blinkling narration app");
     }
     return;
   }
@@ -669,7 +667,7 @@ chrome.runtime.onMessage.addListener(message => {
     site = await context.newPage();
     const freshSite = testInfo.title.includes("grants once");
     await site.goto(
-      `http://${freshSite ? "capture.glimpselet.test" : "127.0.0.1"}:${address.port}/`,
+      `http://${freshSite ? "capture.blinkling.test" : "127.0.0.1"}:${address.port}/`,
     );
     authorizationTabId = await panel.evaluate(async (url) => {
       const [tab] = await chrome.tabs.query({ url });
@@ -879,7 +877,7 @@ test("native crop cancellation preserves a window brought forward during selecti
   });
   await nativeClick("#crop", true);
   await expect(
-    panel.locator("[data-glimpselet-frozen-crop] .surface"),
+    panel.locator("[data-blinkling-frozen-crop] .surface"),
   ).toBeVisible();
   const foreground = await panel.evaluate(() =>
     chrome.windows.create({
@@ -902,7 +900,7 @@ test("native crop cancellation preserves a window brought forward during selecti
   await expect
     .poll(() => panel.evaluate(() => (window as NativeFixture).failure))
     .toBe("share_ended");
-  await expect(panel.locator("[data-glimpselet-frozen-crop]")).toHaveCount(0);
+  await expect(panel.locator("[data-blinkling-frozen-crop]")).toHaveCount(0);
   await expect
     .poll(() =>
       panel.evaluate(
@@ -968,7 +966,7 @@ test("native global command crops from a non-browser app after prior activation 
     await waitForInactiveCaptureGesture();
     nativeInput("chord", "Control_L", "Shift_L", "7");
     await expect(
-      panel.locator("[data-glimpselet-frozen-crop] .surface"),
+      panel.locator("[data-blinkling-frozen-crop] .surface"),
     ).toBeVisible();
     await recordFullscreen(testInfo);
     await panel.waitForTimeout(5500);
@@ -1180,8 +1178,8 @@ for (const kind of ["region", "element"] as const) {
     );
 
     expect(result).toBe("capture_permission");
-    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
-    await expect(site.locator("[data-glimpselet-overlay] .shade")).toHaveCount(
+    await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
+    await expect(site.locator("[data-blinkling-overlay] .shade")).toHaveCount(
       0,
     );
   });
@@ -1253,18 +1251,18 @@ for (const permission of ["onboarding", "capture gesture"] as const) {
     const sourceUrl = site.url();
     site = await context.newPage();
     const freshUrl = new URL("/fresh-tab", sourceUrl);
-    freshUrl.hostname = "new.glimpselet.test";
+    freshUrl.hostname = "new.blinkling.test";
     await site.goto(freshUrl.href);
     await site.bringToFront();
     await nativeClick(
       '.capture-buttons button[title="Crop the shared screen (Ctrl+Shift+S, or Cmd+Shift+S on Mac)"]',
       true,
     );
-    await expect(site.locator("[data-glimpselet-crop] .surface")).toBeVisible();
+    await expect(site.locator("[data-blinkling-crop] .surface")).toBeVisible();
     // Real keyboard selection checks the permission on a new tab, without
     // another request or invoking the browser action to refresh activeTab.
     nativeInput("keys", "Right", "Down", "Return");
-    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+    await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
     await restoreFloatingSurface();
     await expect
       .poll(() =>
@@ -1310,7 +1308,7 @@ test("web authorization: a guide arriving on a background page preserves foregro
   }, authorizationTabId);
   const guideContext = await panel.evaluate(
     (tabId) =>
-      chrome.tabs.sendMessage(tabId, { type: "glimpselet:guide-context" }),
+      chrome.tabs.sendMessage(tabId, { type: "blinkling:guide-context" }),
     authorizationTabId,
   );
   const foreground = await panel.evaluate(() =>
@@ -1325,7 +1323,7 @@ test("web authorization: a guide arriving on a background page preserves foregro
   await panel.evaluate(
     async ({ tabId, elementId }) => {
       await chrome.tabs.sendMessage(tabId, {
-        type: "glimpselet:guide",
+        type: "blinkling:guide",
         steps: [{ elementId, note: "Export your document" }],
       });
     },
@@ -1336,7 +1334,7 @@ test("web authorization: a guide arriving on a background page preserves foregro
       ).id,
     },
   );
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toBeAttached();
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toBeAttached();
   await site.evaluate(() => {
     dispatchEvent(new Event("scroll"));
     dispatchEvent(new Event("resize"));
@@ -1449,7 +1447,7 @@ test("web authorization: a retained crop resumes after real browser activation w
     patch: [38, 199, 129, 255],
     edge: [18, 90, 156, 255],
   });
-  await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
   expect(
     await panel.evaluate(() =>
       chrome.permissions.contains({ origins: ["<all_urls>"] }),
@@ -1480,7 +1478,7 @@ for (const change of ["navigation", "same-URL reload"] as const) {
     });
 
     expect(result).toBe("tab_changed");
-    await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+    await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
   });
 }
 
@@ -1494,7 +1492,7 @@ async function recordFullscreen(testInfo: TestInfo) {
     ratio: devicePixelRatio,
     image: (() => {
       const r = document
-        .querySelector("[data-glimpselet-frozen-crop] img")!
+        .querySelector("[data-blinkling-frozen-crop] img")!
         .getBoundingClientRect();
       return [r.width, r.height];
     })(),
@@ -1556,7 +1554,7 @@ for (const dpi of ["standard DPI", "HiDPI"]) {
               };
       }, request);
       await nativeClick("#crop", true);
-      const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+      const frozen = panel.locator("[data-blinkling-frozen-crop]");
       await expect(frozen.locator(".surface")).toBeVisible();
       await expect
         .poll(() =>
@@ -1734,7 +1732,7 @@ for (const mode of [
         track: "live",
       });
     }
-    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    const frozen = panel.locator("[data-blinkling-frozen-crop]");
     await expect(frozen.locator(".surface")).toBeVisible();
     await recordFullscreen(testInfo);
     nativeInput("pointer", "60", "140", "down");
@@ -1793,7 +1791,7 @@ for (const ending of ["Escape", "share ending", "fullscreen failure"]) {
       }
     }, ending);
     await nativeClick("#crop", true);
-    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    const frozen = panel.locator("[data-blinkling-frozen-crop]");
     if (ending !== "fullscreen failure") {
       await expect(frozen.locator(".surface")).toBeVisible();
       if (ending === "Escape") nativeInput("keys", "Escape");
@@ -1826,7 +1824,7 @@ test("ordinary crop preserves an originally fullscreen opener", async () => {
   });
   await site.bringToFront();
   await nativeClick("#crop", true);
-  const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+  const frozen = panel.locator("[data-blinkling-frozen-crop]");
   await expect(frozen.locator(".surface")).toBeVisible();
   nativeInput("keys", "Escape");
   await expect(frozen).toHaveCount(0);
@@ -1855,7 +1853,7 @@ for (const trigger of ["Shift in PiP", "global shortcut"]) {
       await nativeClick("#resize", true);
       nativeInput("key-down", "Shift_L");
     } else nativeInput("chord", "Control_L", "Shift_L", "7");
-    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    const frozen = panel.locator("[data-blinkling-frozen-crop]");
     await expect(frozen.locator(".surface")).toBeVisible();
     if (trigger === "Shift in PiP") nativeInput("key-up", "Shift_L");
     expect(
@@ -1996,7 +1994,7 @@ async function assertUnobstructedFrozenPixels(path: string) {
     [800, 500],
   ];
   const captured = await evaluateWithoutGesture<number[][]>(`(() => {
-    const image = document.querySelector('[data-glimpselet-frozen-crop] img');
+    const image = document.querySelector('[data-blinkling-frozen-crop] img');
     const canvas = document.createElement('canvas');
     canvas.width = image.naturalWidth;
     canvas.height = image.naturalHeight;
@@ -2423,7 +2421,7 @@ for (const scheme of ["light", "dark"]) {
       )
       .toEqual([original.left, original.top, original.width, original.height]);
     await nativeClick('.capture-buttons button[title^="Crop"]', true);
-    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    const frozen = panel.locator("[data-blinkling-frozen-crop]");
     await expect(frozen.locator(".surface")).toBeVisible();
     await expect
       .poll(() =>
@@ -2544,7 +2542,7 @@ for (const entry of ["button DOM", "button native", "Shift native"]) {
       await nativeClick(".topbar .brand", true);
       nativeInput("key-down", "Shift_L");
     } else await nativeClick('.capture-buttons button[title^="Crop"]', true);
-    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    const frozen = panel.locator("[data-blinkling-frozen-crop]");
     await expect(frozen.locator(".surface")).toBeVisible();
     if (entry.includes("Shift")) nativeInput("key-up", "Shift_L");
     const fullscreen = await evaluateWithoutGesture(
@@ -2845,7 +2843,7 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
             '.capture-buttons button[title="Crop the shared screen (Ctrl+Shift+S, or Cmd+Shift+S on Mac)"]',
             true,
           );
-          const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+          const frozen = panel.locator("[data-blinkling-frozen-crop]");
           await expect(frozen.locator(".surface")).toBeVisible();
           nativeInput(
             "pointer",
@@ -2868,7 +2866,7 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
           await expect(frozen.locator("[data-handle]")).toHaveCount(8);
           nativeInput("keys", "Return");
           await expect(
-            panel.locator("[data-glimpselet-frozen-crop]"),
+            panel.locator("[data-blinkling-frozen-crop]"),
           ).toHaveCount(0);
           await expect
             .poll(() =>
@@ -2949,7 +2947,7 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
           }),
         );
         await expect(
-          panel.locator("[data-glimpselet-frozen-crop]"),
+          panel.locator("[data-blinkling-frozen-crop]"),
         ).toBeVisible();
         await recordFullscreen(testInfo);
         expect(
@@ -2963,9 +2961,9 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
         // activation until the preserved surface is available for recovery.
         if (!supportsMinimize) await panel.waitForTimeout(5500);
         nativeInput("key", "Escape");
-        await expect(
-          panel.locator("[data-glimpselet-frozen-crop]"),
-        ).toHaveCount(0);
+        await expect(panel.locator("[data-blinkling-frozen-crop]")).toHaveCount(
+          0,
+        );
         await restoreFloatingSurface();
         await expect
           .poll(() =>
@@ -3021,7 +3019,7 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
             true,
           );
           await expect(
-            panel.locator("[data-glimpselet-frozen-crop]"),
+            panel.locator("[data-blinkling-frozen-crop]"),
           ).toHaveCount(0);
           await expect
             .poll(() =>
@@ -3037,7 +3035,7 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
           await checkState();
           expect(await savedPreview()).toBe(acceptedImage);
           await expect(
-            panel.locator("[data-glimpselet-frozen-crop]"),
+            panel.locator("[data-blinkling-frozen-crop]"),
           ).toHaveCount(0);
           await expect
             .poll(() =>
@@ -3299,7 +3297,7 @@ test("automatic explanation tab: navigation and reload rebind the same real tab 
     .toBeGreaterThan(0);
   const beforeBlocked = autoRequests.length;
   await site.goto(
-    autoOrigin.replace("127.0.0.1", "blocked.glimpselet.test") + "/blocked",
+    autoOrigin.replace("127.0.0.1", "blocked.blinkling.test") + "/blocked",
   );
   await expect
     .poll(async () => (await autoBubbleState()).status)

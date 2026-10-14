@@ -7,7 +7,7 @@ let tutorial: (event: CustomEvent) => void;
 beforeEach(async () => {
   vi.useFakeTimers();
   vi.resetModules();
-  Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+  Reflect.deleteProperty(globalThis, "blinklingContentReady");
   history.replaceState(null, "", "/install");
   vi.stubGlobal("chrome", {
     storage: {
@@ -28,7 +28,7 @@ beforeEach(async () => {
   );
   vi.spyOn(window, "addEventListener").mockImplementation((type, listener) => {
     if (type === "message") pair = listener as (event: MessageEvent) => void;
-    if (type === "glimpselet:tutorial-action")
+    if (type === "blinkling:tutorial-action")
       tutorial = listener as (event: CustomEvent) => void;
   });
   await import("./content");
@@ -40,7 +40,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  Reflect.deleteProperty(globalThis, "glimpseletContentReady");
+  Reflect.deleteProperty(globalThis, "blinklingContentReady");
   history.replaceState(null, "", "/");
 });
 
@@ -52,7 +52,7 @@ function request(
     source: window,
     origin: location.origin,
     data: {
-      type: "glimpselet:pair",
+      type: "blinkling:pair",
       port: Number(location.port || 80),
       code: "ABCDEF0123456789",
       locale: "zh-TW",
@@ -66,16 +66,16 @@ describe("localhost onboarding locale handoff", () => {
   it("forwards the validated language with pairing and practice requests", () => {
     request();
     expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "glimpselet:pair", locale: "zh-TW" }),
+      expect.objectContaining({ type: "blinkling:pair", locale: "zh-TW" }),
     );
-    history.replaceState(null, "", "/assets/glimpselet-welcome-sample.html");
+    history.replaceState(null, "", "/assets/blinkling-welcome-sample.html");
     tutorial(
-      new CustomEvent("glimpselet:tutorial-action", {
+      new CustomEvent("blinkling:tutorial-action", {
         detail: { version: 1, action: "translate", step: 6, locale: "zh-TW" },
       }),
     );
     expect(sendMessage).toHaveBeenLastCalledWith({
-      type: "glimpselet:tutorial",
+      type: "blinkling:tutorial",
       action: "translate",
       step: 6,
       locale: "zh-TW",
@@ -98,7 +98,7 @@ describe("localhost onboarding locale handoff", () => {
   });
 
   it("retains practice version, action, step and sample-path validation", () => {
-    history.replaceState(null, "", "/assets/glimpselet-welcome-sample.html");
+    history.replaceState(null, "", "/assets/blinkling-welcome-sample.html");
     for (const invalid of [
       { version: 2 },
       { action: "unsupported" },
@@ -108,7 +108,7 @@ describe("localhost onboarding locale handoff", () => {
       { step: "6" },
     ])
       tutorial(
-        new CustomEvent("glimpselet:tutorial-action", {
+        new CustomEvent("blinkling:tutorial-action", {
           detail: {
             version: 1,
             action: "translate",
@@ -120,7 +120,7 @@ describe("localhost onboarding locale handoff", () => {
       );
     history.replaceState(null, "", "/install");
     tutorial(
-      new CustomEvent("glimpselet:tutorial-action", {
+      new CustomEvent("blinkling:tutorial-action", {
         detail: { version: 1, action: "translate", step: 6, locale: "zh-TW" },
       }),
     );

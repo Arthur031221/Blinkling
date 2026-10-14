@@ -13,17 +13,17 @@ function installHandlers() {
       throw Error("Untrusted capture UI");
     return entry;
   };
-  ipcMain.handle("glimpselet:capture-ui:init", (e) => trusted(e).initial);
-  ipcMain.handle("glimpselet:capture-ui:finish", (e, rect) => {
+  ipcMain.handle("blinkling:capture-ui:init", (e) => trusted(e).initial);
+  ipcMain.handle("blinkling:capture-ui:finish", (e, rect) => {
     const entry = trusted(e);
     if (entry.kind !== "region") throw Error("Invalid capture action");
     cropGeometry(rect, entry.initial);
     entry.resolve(rect);
   });
-  ipcMain.handle("glimpselet:capture-ui:cancel", (e) =>
+  ipcMain.handle("blinkling:capture-ui:cancel", (e) =>
     trusted(e).resolve(null),
   );
-  ipcMain.handle("glimpselet:capture-ui:settings", (e) => {
+  ipcMain.handle("blinkling:capture-ui:settings", (e) => {
     if (trusted(e).kind !== "permission") throw Error("Invalid capture action");
     return shell.openExternal(
       "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",

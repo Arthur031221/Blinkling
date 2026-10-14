@@ -203,9 +203,9 @@ async function submitDraft(value: string, scope: ParentNode = document) {
   });
   await flush();
 }
-const sampleUrl = "http://127.0.0.1/assets/glimpselet-welcome-sample.html";
+const sampleUrl = "http://127.0.0.1/assets/blinkling-welcome-sample.html";
 async function practice(action: string, step: number) {
-  await send({ type: "glimpselet:tutorial", action, step }, sampleUrl);
+  await send({ type: "blinkling:tutorial", action, step }, sampleUrl);
   const primary = [
     ...document.querySelectorAll<HTMLButtonElement>(".float-start .primary"),
   ].at(-1)!;
@@ -214,7 +214,7 @@ async function practice(action: string, step: number) {
 }
 function completions() {
   return sendToTab.mock.calls
-    .filter(([, message]) => message.type === "glimpselet:tutorial-done")
+    .filter(([, message]) => message.type === "blinkling:tutorial-done")
     .map(([tab, message]) => ({ tab, step: message.step }));
 }
 async function pendingPdfPractice() {
@@ -236,7 +236,7 @@ async function pendingPdfPractice() {
         } as chrome.tabs.Tab),
   );
   vi.mocked(chrome.runtime.sendMessage).mockImplementation(async (message) => {
-    if (message.type === "glimpselet:open-reader") {
+    if (message.type === "blinkling:open-reader") {
       const destination = new URL(chrome.runtime.getURL("reader.html"));
       destination.searchParams.set("url", message.url);
       destinationUrl = destination.toString();
@@ -354,7 +354,7 @@ async function sendCrop(
   await act(async () => {
     runtime.emit(
       {
-        type: "glimpselet:crop-selected",
+        type: "blinkling:crop-selected",
         url: page.url,
         rect: [20, 30, 80, 60],
         geometry: cropSource.geometry,
@@ -636,7 +636,7 @@ describe("bubble answer rendering and feedback", () => {
       if (action === "selection")
         await send(
           {
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             action: "ask",
             text: "The selected sample passage",
           },
@@ -679,7 +679,7 @@ describe("bubble answer rendering and feedback", () => {
       if (action === "selection") {
         await send(
           {
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             action: "ask",
             text: "The selected sample passage",
           },
@@ -733,7 +733,7 @@ describe("bubble answer rendering and feedback", () => {
       if (action === "selection")
         await send(
           {
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             action: "ask",
             text: "The selected sample passage",
           },
@@ -775,7 +775,7 @@ describe("bubble answer rendering and feedback", () => {
       if (action === "selection")
         await send(
           {
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             action: "ask",
             text: "The selected sample passage",
           },
@@ -812,7 +812,7 @@ describe("bubble answer rendering and feedback", () => {
       expect(completions()).toEqual([]);
       await send(
         {
-          type: "glimpselet:page-changed",
+          type: "blinkling:page-changed",
           revision: `sample-${action}-practice-controls-rendered`,
         },
         sampleUrl,
@@ -830,7 +830,7 @@ describe("bubble answer rendering and feedback", () => {
       expect(completions()).toEqual([{ tab: 1, step }]);
       await send(
         {
-          type: "glimpselet:page-changed",
+          type: "blinkling:page-changed",
           revision: `sample-${action}-practice-controls-rendered`,
         },
         sampleUrl,
@@ -846,7 +846,7 @@ describe("bubble answer rendering and feedback", () => {
     await start();
     await practice("selection", 7);
     await send(
-      { type: "glimpselet:selection", action: "ask", text: "tea" },
+      { type: "blinkling:selection", action: "ask", text: "tea" },
       sampleUrl,
     );
     await submitDraft("What tea shops should I visit in Kyoto?");
@@ -864,7 +864,7 @@ describe("bubble answer rendering and feedback", () => {
     await practice("selection", 7);
     await send(
       {
-        type: "glimpselet:selection",
+        type: "blinkling:selection",
         action: "ask",
         text: "The selected sample passage",
       },
@@ -897,7 +897,7 @@ describe("bubble answer rendering and feedback", () => {
     await practice("selection", 7);
     await send(
       {
-        type: "glimpselet:selection",
+        type: "blinkling:selection",
         action: "ask",
         text: "The selected sample passage",
       },
@@ -950,7 +950,7 @@ describe("bubble answer rendering and feedback", () => {
       );
       if (alreadyOpen) await clickAccessible(en.float);
       await send(
-        { type: "glimpselet:tutorial", action: "float", step: 1 },
+        { type: "blinkling:tutorial", action: "float", step: 1 },
         sampleUrl,
       );
       if (!alreadyOpen) {
@@ -979,7 +979,7 @@ describe("bubble answer rendering and feedback", () => {
       await start();
       vi.mocked(chrome.runtime.sendMessage).mockImplementation(
         async (message) => {
-          if (message.type === "glimpselet:open-reader") {
+          if (message.type === "blinkling:open-reader") {
             const destination = new URL(chrome.runtime.getURL("reader.html"));
             destination.searchParams.set(
               "url",
@@ -988,7 +988,7 @@ describe("bubble answer rendering and feedback", () => {
             const url = destination.toString();
             tabUrls.set(3, url);
             runtime.emit(
-              { type: "glimpselet:focus", sourceTab: 3 },
+              { type: "blinkling:focus", sourceTab: 3 },
               { tab: { id: 3, url } },
               vi.fn(),
             );
@@ -1000,8 +1000,8 @@ describe("bubble answer rendering and feedback", () => {
       await practice("pdf", 8);
       expect(completions()).toEqual(matchesSample ? [{ tab: 1, step: 8 }] : []);
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
-        type: "glimpselet:open-reader",
-        url: new URL("glimpselet-welcome-sample.pdf", sampleUrl).toString(),
+        type: "blinkling:open-reader",
+        url: new URL("blinkling-welcome-sample.pdf", sampleUrl).toString(),
       });
     },
   );
@@ -1026,7 +1026,7 @@ describe("bubble answer rendering and feedback", () => {
       );
       vi.mocked(chrome.runtime.sendMessage).mockImplementation(
         async (message) => {
-          if (message.type === "glimpselet:open-reader") {
+          if (message.type === "blinkling:open-reader") {
             const destination = new URL(chrome.runtime.getURL("reader.html"));
             destination.searchParams.set("url", message.url);
             destinationUrl = destination.toString();
@@ -1074,7 +1074,7 @@ describe("bubble answer rendering and feedback", () => {
       if (navigation !== "matching") {
         await act(async () => {
           runtime.emit(
-            { type: "glimpselet:focus", sourceTab: 1 },
+            { type: "blinkling:focus", sourceTab: 1 },
             { tab: { id: 1, url: sampleUrl } },
             vi.fn(),
           );
@@ -1107,7 +1107,7 @@ describe("bubble answer rendering and feedback", () => {
       });
       vi.mocked(chrome.runtime.sendMessage).mockImplementation(
         async (message) => {
-          if (message.type === "glimpselet:open-reader") {
+          if (message.type === "blinkling:open-reader") {
             const destination = new URL(chrome.runtime.getURL("reader.html"));
             destination.searchParams.set("url", message.url);
             destinationUrl = destination.toString();
@@ -1115,7 +1115,7 @@ describe("bubble answer rendering and feedback", () => {
             opened = true;
             if (initialSource === "reader") {
               runtime.emit(
-                { type: "glimpselet:focus", sourceTab: 3 },
+                { type: "blinkling:focus", sourceTab: 3 },
                 { tab: { id: 3, url: destinationUrl } },
                 vi.fn(),
               );
@@ -1131,7 +1131,7 @@ describe("bubble answer rendering and feedback", () => {
       await act(async () => {
         const sourceTab = initialSource === "sample" ? 3 : 1;
         runtime.emit(
-          { type: "glimpselet:focus", sourceTab },
+          { type: "blinkling:focus", sourceTab },
           { tab: { id: sourceTab, url: tabUrls.get(sourceTab) } },
           vi.fn(),
         );
@@ -1151,7 +1151,7 @@ describe("bubble answer rendering and feedback", () => {
     const { readerTab, destinationUrl } = await pendingPdfPractice();
     await act(async () => {
       runtime.emit(
-        { type: "glimpselet:focus", sourceTab: 1 },
+        { type: "blinkling:focus", sourceTab: 1 },
         { tab: { id: 1, url: sampleUrl } },
         vi.fn(),
       );
@@ -1281,7 +1281,7 @@ describe("bubble answer rendering and feedback", () => {
       expect(completions()).toEqual([]);
       await act(async () => {
         runtime.emit(
-          { type: "glimpselet:focus", sourceTab: 1 },
+          { type: "blinkling:focus", sourceTab: 1 },
           { tab: { id: 1, url: tabUrls.get(1) } },
           vi.fn(),
         );
@@ -1295,7 +1295,7 @@ describe("bubble answer rendering and feedback", () => {
     let finishOpen!: (result: { ok: true; tabId: number }) => void;
     let destinationUrl = "";
     vi.mocked(chrome.runtime.sendMessage).mockImplementation((message) => {
-      if (message.type === "glimpselet:open-reader") {
+      if (message.type === "blinkling:open-reader") {
         const destination = new URL(chrome.runtime.getURL("reader.html"));
         destination.searchParams.set("url", message.url);
         destinationUrl = destination.toString();
@@ -1362,7 +1362,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(completions()).toEqual([]);
     await act(async () => {
       runtime.emit(
-        { type: "glimpselet:focus", sourceTab: 1 },
+        { type: "blinkling:focus", sourceTab: 1 },
         { tab: { id: 1, url: sampleUrl } },
         vi.fn(),
       );
@@ -1396,7 +1396,7 @@ describe("bubble answer rendering and feedback", () => {
     await act(async () => {
       updated.emit(3, { url: readerTab.url, status: "complete" }, readerTab);
       runtime.emit(
-        { type: "glimpselet:focus", sourceTab: 1 },
+        { type: "blinkling:focus", sourceTab: 1 },
         { tab: { id: 1, url: sampleUrl } },
         vi.fn(),
       );
@@ -1421,7 +1421,7 @@ describe("bubble answer rendering and feedback", () => {
       if (action === "selection") {
         await send(
           {
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             action: "ask",
             text: "A passage selected before reloading",
           },
@@ -1455,7 +1455,7 @@ describe("bubble answer rendering and feedback", () => {
   );
   it("returns the exact created reader tab in the successful service-worker handoff", async () => {
     const pdfUrl = new URL(
-      "glimpselet-welcome-sample.pdf",
+      "blinkling-welcome-sample.pdf",
       sampleUrl,
     ).toString();
     const destination = new URL(chrome.runtime.getURL("reader.html"));
@@ -1477,7 +1477,7 @@ describe("bubble answer rendering and feedback", () => {
     const response = vi.fn();
     expect(
       runtime.emit(
-        { type: "glimpselet:open-reader", url: pdfUrl },
+        { type: "blinkling:open-reader", url: pdfUrl },
         { tab: { id: 1, url: sampleUrl } },
         response,
       ),
@@ -1494,7 +1494,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(completions()).toEqual([]);
     await send(
       {
-        type: "glimpselet:selection",
+        type: "blinkling:selection",
         action: "ask",
         text: "The sample passage",
       },
@@ -1519,7 +1519,7 @@ describe("bubble answer rendering and feedback", () => {
     await practice("selection", 7);
     await send(
       {
-        type: "glimpselet:selection",
+        type: "blinkling:selection",
         action: "ask",
         text: "The selected retry passage",
       },
@@ -1542,7 +1542,7 @@ describe("bubble answer rendering and feedback", () => {
       if (action === "selection")
         await send(
           {
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             action: "ask",
             text: "The passage selected before stopping",
           },
@@ -1592,7 +1592,7 @@ describe("bubble answer rendering and feedback", () => {
       if (action === "selection") {
         await send(
           {
-            type: "glimpselet:selection",
+            type: "blinkling:selection",
             action: "ask",
             text: "The selected retry passage",
           },
@@ -1614,7 +1614,7 @@ describe("bubble answer rendering and feedback", () => {
     await practice("selection", 7);
     await send(
       {
-        type: "glimpselet:selection",
+        type: "blinkling:selection",
         action: "ask",
         text: "The old selected passage",
       },
@@ -1632,7 +1632,7 @@ describe("bubble answer rendering and feedback", () => {
     });
     await flush();
     await send(
-      { type: "glimpselet:tutorial", action: "suggest", step: 3 },
+      { type: "blinkling:tutorial", action: "suggest", step: 3 },
       sampleUrl,
     );
     await act(async () => complete({ answer: "The old selection reply" }));
@@ -1659,7 +1659,7 @@ describe("bubble answer rendering and feedback", () => {
     await practice("selection", 7);
     await send(
       {
-        type: "glimpselet:selection",
+        type: "blinkling:selection",
         action: "ask",
         text: "A selected passage before switching tabs",
       },
@@ -1676,7 +1676,7 @@ describe("bubble answer rendering and feedback", () => {
       document.querySelector<HTMLButtonElement>(".composer .send")!.click();
     });
     await flush();
-    await send({ type: "glimpselet:focus", sourceTab: 3 }, sampleUrl);
+    await send({ type: "blinkling:focus", sourceTab: 3 }, sampleUrl);
     await act(async () => complete({ answer: "The old page's answer" }));
     await flush();
     expect(completions()).toEqual([]);
@@ -1684,7 +1684,7 @@ describe("bubble answer rendering and feedback", () => {
     await practice("selection", 7);
     await send(
       {
-        type: "glimpselet:selection",
+        type: "blinkling:selection",
         action: "ask",
         text: "The current sample passage",
       },
@@ -1701,7 +1701,7 @@ describe("bubble answer rendering and feedback", () => {
     await practice("selection", 7);
     const selected = "What is this page?";
     await send(
-      { type: "glimpselet:selection", action: "ask", text: selected },
+      { type: "blinkling:selection", action: "ask", text: selected },
       sampleUrl,
     );
     expect(document.querySelector("textarea")?.value).toBe(selected);
@@ -1810,7 +1810,7 @@ describe("bubble answer rendering and feedback", () => {
       document.querySelector('input[placeholder="ABCDEF0123456789"]'),
     ).toBeNull();
     await act(async () => {
-      runtime.emit({ type: "glimpselet:connection-updated" }, {}, () => {});
+      runtime.emit({ type: "blinkling:connection-updated" }, {}, () => {});
     });
     await bridgeEvent("paired");
     expect(document.querySelector(".connection")?.textContent).toBe(
@@ -1993,13 +1993,13 @@ describe("bubble answer rendering and feedback", () => {
       stored.locale = "zh-TW";
       await start();
       const labels = sendToTab.mock.calls.find(
-        ([, message]) => message.type === "glimpselet:labels",
+        ([, message]) => message.type === "blinkling:labels",
       )?.[1].labels;
       expect(labels.translate).toBe("翻譯選取的文字");
       expect(labels.translate).not.toBe(zhTW.actionTranslate);
       const selected = "トラベルタンブラー 350ml";
       await draft("Keep the question I am composing");
-      await send({ type: "glimpselet:selection", action, text: selected });
+      await send({ type: "blinkling:selection", action, text: selected });
       expect(mocks.ask).toHaveBeenCalledTimes(1);
       expect(document.querySelector("textarea")?.value).toBe(
         "Keep the question I am composing",
@@ -2023,7 +2023,7 @@ describe("bubble answer rendering and feedback", () => {
     async (action, selected, template) => {
       stored.targetLocale = "en";
       await start();
-      await send({ type: "glimpselet:selection", action, text: selected });
+      await send({ type: "blinkling:selection", action, text: selected });
       expect(mocks.ask).toHaveBeenCalledTimes(1);
       const [instructions, selectionJson] =
         mocks.ask.mock.calls[0][0].question.split(
@@ -2055,7 +2055,7 @@ describe("bubble answer rendering and feedback", () => {
     });
     mocks.context.mockResolvedValue(unsafePage);
     const response = await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "ask",
       question: "Help me understand this passage.",
       text: selected,
@@ -2087,7 +2087,7 @@ describe("bubble answer rendering and feedback", () => {
       document.querySelector(".message .question p")?.textContent,
     ).not.toMatch(/untrusted/i);
   });
-  it("explains the Claude Code usage estimate as equivalent usage with no extra Glimpselet charge", async () => {
+  it("explains the Claude Code usage estimate as equivalent usage with no extra Blinkling charge", async () => {
     await start();
     mocks.ask.mockResolvedValue({
       answer: "Answer text",
@@ -2100,7 +2100,7 @@ describe("bubble answer rendering and feedback", () => {
       "Equivalent API usage, past hour: $0.0123",
     );
     expect(document.querySelector(".usage-hint")?.textContent).toMatch(
-      /not an (?:extra|additional) (?:charge|bill).*Glimpselet|Glimpselet.*(?:does not|doesn't) charge/i,
+      /not an (?:extra|additional) (?:charge|bill).*Blinkling|Blinkling.*(?:does not|doesn't) charge/i,
     );
   });
   it("keeps the direct API estimate distinct from the Claude Code subscription explanation", async () => {
@@ -2114,7 +2114,7 @@ describe("bubble answer rendering and feedback", () => {
       en.apiUsageHint,
     );
     expect(document.querySelector(".usage-hint")?.textContent).not.toContain(
-      "additional charge from Glimpselet",
+      "additional charge from Blinkling",
     );
   });
   it("renders one localized heading per passive event and keeps two changes in history", async () => {
@@ -2161,7 +2161,7 @@ describe("bubble answer rendering and feedback", () => {
     async (action) => {
       await start();
       const response = await send({
-        type: "glimpselet:reader-action",
+        type: "blinkling:reader-action",
         action,
         text: "Selected Transformer passage",
         context: page,
@@ -2187,7 +2187,7 @@ describe("bubble answer rendering and feedback", () => {
   it("submits automatic selection actions but keeps Ask editable", async () => {
     await start();
     await send({
-      type: "glimpselet:selection",
+      type: "blinkling:selection",
       action: "explain",
       text: "Selected passage",
     });
@@ -2195,7 +2195,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(document.querySelector("textarea")?.value).toBe("");
     mocks.ask.mockClear();
     await send({
-      type: "glimpselet:selection",
+      type: "blinkling:selection",
       action: "ask",
       text: "Editable selection",
     });
@@ -2213,7 +2213,7 @@ describe("bubble answer rendering and feedback", () => {
   it("keeps the reader Ask action editable until the user sends it", async () => {
     await start();
     const response = await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "ask",
       question: "Help me understand this selected passage.",
       text: "Selected PDF passage",
@@ -2241,7 +2241,7 @@ describe("bubble answer rendering and feedback", () => {
       });
     });
     await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "summary",
       context: page,
     });
@@ -2269,7 +2269,7 @@ describe("bubble answer rendering and feedback", () => {
           }),
       );
       await send({
-        type: "glimpselet:reader-action",
+        type: "blinkling:reader-action",
         action: "translate",
         text: "Selected passage",
         context: page,
@@ -2291,13 +2291,13 @@ describe("bubble answer rendering and feedback", () => {
     await start();
     mocks.ask.mockImplementation(() => new Promise(() => {}));
     await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "summary",
       context: page,
     });
     await draft("Do not lose this draft");
     const response = await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "translate",
       text: "Another passage",
       context: page,
@@ -2312,7 +2312,7 @@ describe("bubble answer rendering and feedback", () => {
     await start();
     mocks.ask.mockRejectedValue(new Error("bridge_disconnected"));
     await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "translate",
       text: "Selected passage",
       context: page,
@@ -2327,7 +2327,7 @@ describe("bubble answer rendering and feedback", () => {
     await click(en.visible);
     expect(document.querySelector(".capture-chip img")).not.toBeNull();
     await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "summary-selection",
       text: "Transformer introduction",
       context: { ...page, text: "Transformer introduction. UNRELATED_SECTION" },
@@ -2428,7 +2428,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(chat.querySelectorAll("li")).toHaveLength(2);
     expect(chat.textContent).not.toContain("Detailed explanation");
     const overlay = sendToTab.mock.calls.find(
-      ([, m]) => m.type === "glimpselet:guide",
+      ([, m]) => m.type === "blinkling:guide",
     )![1];
     expect(overlay.steps).toHaveLength(80);
     expect(overlay.steps.at(-1).elementId).toBe("g79");
@@ -2453,7 +2453,7 @@ describe("bubble answer rendering and feedback", () => {
     });
     expect(mocks.ask.mock.calls[0][0].image).toBeUndefined();
     const overlay = sendToTab.mock.calls.find(
-      ([, message]) => message.type === "glimpselet:guide",
+      ([, message]) => message.type === "blinkling:guide",
     )?.[1];
     expect(overlay.labels).toEqual({
       next: en.next,
@@ -2478,15 +2478,15 @@ describe("bubble answer rendering and feedback", () => {
     expect(status()).toBe(en.tabChanged);
     expect(
       sendToTab.mock.calls.some(
-        ([, message]) => message.type === "glimpselet:guide",
+        ([, message]) => message.type === "blinkling:guide",
       ),
     ).toBe(false);
   });
   it("explains how to retry Guide and preserves its practice step after a capture permission error", async () => {
     await start();
     await send(
-      { type: "glimpselet:tutorial", action: "guide", step: 5 },
-      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+      { type: "blinkling:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/blinkling-welcome-sample.html",
     );
     mocks.guide.mockRejectedValue(new Error("capture_permission"));
     const guideControls = [
@@ -2504,7 +2504,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(document.querySelector(".float-start p")?.textContent).toBeDefined();
     expect(
       sendToTab.mock.calls.some(
-        ([, message]) => message.type === "glimpselet:tutorial-done",
+        ([, message]) => message.type === "blinkling:tutorial-done",
       ),
     ).toBe(false);
     mocks.guide.mockResolvedValue({ ...page, guideScope: "top-document-text" });
@@ -2512,7 +2512,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(
       sendToTab.mock.calls.some(
         ([, message]) =>
-          message.type === "glimpselet:tutorial-done" && message.step === 5,
+          message.type === "blinkling:tutorial-done" && message.step === 5,
       ),
     ).toBe(true);
     expect(document.querySelector(".capture-buttons button")?.textContent).toBe(
@@ -2529,17 +2529,17 @@ describe("bubble answer rendering and feedback", () => {
   it("keeps Guide practice open when the page rejects the guide overlay", async () => {
     await start();
     await send(
-      { type: "glimpselet:tutorial", action: "guide", step: 5 },
-      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+      { type: "blinkling:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/blinkling-welcome-sample.html",
     );
     sendToTab.mockImplementation(async (_tab, message) => ({
-      ok: message.type !== "glimpselet:guide",
+      ok: message.type !== "blinkling:guide",
     }));
     await click(en.guideAction);
     expect(status()).toBe(en.guideFailed);
     expect(
       sendToTab.mock.calls.some(
-        ([, message]) => message.type === "glimpselet:tutorial-done",
+        ([, message]) => message.type === "blinkling:tutorial-done",
       ),
     ).toBe(false);
     expect(
@@ -2549,8 +2549,8 @@ describe("bubble answer rendering and feedback", () => {
   it("offers the ordinary Guide control when practice is dismissed", async () => {
     await start();
     await send(
-      { type: "glimpselet:tutorial", action: "guide", step: 5 },
-      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+      { type: "blinkling:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/blinkling-welcome-sample.html",
     );
     await click("Skip practice step");
     expect(document.querySelector(".capture-buttons button")?.textContent).toBe(
@@ -2569,7 +2569,7 @@ describe("bubble answer rendering and feedback", () => {
       });
     });
     await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "summary",
       context: page,
     });
@@ -2612,7 +2612,7 @@ describe("bubble answer rendering and feedback", () => {
     async (image) => {
       await start();
       await send({
-        type: "glimpselet:reader-action",
+        type: "blinkling:reader-action",
         action: "summary",
         text: "PDF passage",
         question: "Explain this",
@@ -2640,9 +2640,9 @@ describe("bubble answer rendering and feedback", () => {
     });
     await start();
     expect(document.querySelector(".composer .stop")).not.toBeNull();
-    const passage = "Glimpselet PDF passage";
+    const passage = "Blinkling PDF passage";
     const response = await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "ask",
       text: passage,
       context: page,
@@ -2674,7 +2674,7 @@ describe("bubble answer rendering and feedback", () => {
       const originalStatus = status();
       for (const text of ["", " \n\t ", "x".repeat(5001)]) {
         const response = await send({
-          type: "glimpselet:reader-action",
+          type: "blinkling:reader-action",
           action,
           text,
           context: { ...page, text: "Unrelated PDF context" },
@@ -2696,7 +2696,7 @@ describe("bubble answer rendering and feedback", () => {
     await start();
     const text = "x".repeat(5000);
     const response = await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "translate",
       text,
       context: page,
@@ -2714,7 +2714,7 @@ describe("bubble answer rendering and feedback", () => {
   it("hands off and resumes the existing chat in a reader-owned PiP without losing its thread, draft or attachment", async () => {
     await start();
     await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "summary",
       context: page,
     });
@@ -2746,7 +2746,7 @@ describe("bubble answer rendering and feedback", () => {
     const handoffResponse = vi.fn();
     await act(async () =>
       runtime.emit(
-        { type: "glimpselet:reader-permission-handoff" },
+        { type: "blinkling:reader-permission-handoff" },
         {},
         handoffResponse,
       ),
@@ -2775,7 +2775,7 @@ describe("bubble answer rendering and feedback", () => {
       },
     ]);
     const response = await send(
-      { type: "glimpselet:reader-resume-floating" },
+      { type: "blinkling:reader-resume-floating" },
       readerUrl,
     );
     expect(response).toHaveBeenCalledWith({ ok: true });
@@ -2807,14 +2807,14 @@ describe("bubble answer rendering and feedback", () => {
   it("leaves reader permission coordination to the background before acknowledging", async () => {
     await start();
     const response = await send(
-      { type: "glimpselet:reader-permission-handoff" },
+      { type: "blinkling:reader-permission-handoff" },
       "chrome-extension://test/reader.html",
     );
     expect(response).not.toHaveBeenCalled();
     const forwardedResponse = vi.fn();
     await act(async () =>
       runtime.emit(
-        { type: "glimpselet:reader-permission-handoff" },
+        { type: "blinkling:reader-permission-handoff" },
         {},
         forwardedResponse,
       ),
@@ -2837,7 +2837,7 @@ describe("bubble answer rendering and feedback", () => {
         },
       ]);
       const response = await send(
-        { type: "glimpselet:reader-resume-floating" },
+        { type: "blinkling:reader-resume-floating" },
         url,
       );
       expect(response).toHaveBeenCalledWith({ ok: false });
@@ -2852,7 +2852,7 @@ describe("bubble answer rendering and feedback", () => {
       await click(en.visible);
       expect(document.querySelector(".capture-chip img")).not.toBeNull();
       await send({
-        type: "glimpselet:reader-action",
+        type: "blinkling:reader-action",
         action,
         text: "Transformer introduction",
         context: {
@@ -2886,8 +2886,8 @@ describe("bubble answer rendering and feedback", () => {
   ];
   function translationSource(nodes = inlineSources) {
     sendToTab.mockImplementation(async (_tab, message) => {
-      if (message.type === "glimpselet:text-nodes") return { nodes };
-      if (message.type === "glimpselet:translate")
+      if (message.type === "blinkling:text-nodes") return { nodes };
+      if (message.type === "blinkling:translate")
         return {
           applied: message.nodes.length,
           changed: message.nodes.length,
@@ -2918,8 +2918,8 @@ describe("bubble answer rendering and feedback", () => {
   it("shows an unavailable guide reason and clears previous highlights without completing practice", async () => {
     await start();
     await send(
-      { type: "glimpselet:tutorial", action: "guide", step: 5 },
-      "http://127.0.0.1/assets/glimpselet-welcome-sample.html",
+      { type: "blinkling:tutorial", action: "guide", step: 5 },
+      "http://127.0.0.1/assets/blinkling-welcome-sample.html",
     );
     const reason =
       "I cannot reliably identify the export menu from these controls.";
@@ -2937,11 +2937,11 @@ describe("bubble answer rendering and feedback", () => {
     expect(status()).toBe(en.answerReady);
     expect(
       sendToTab.mock.calls
-        .filter(([, message]) => message.type === "glimpselet:guide")
+        .filter(([, message]) => message.type === "blinkling:guide")
         .map(([, message]) => message),
     ).toEqual([
       {
-        type: "glimpselet:guide",
+        type: "blinkling:guide",
         steps: [],
         documentKey: page.documentKey,
         url: page.url,
@@ -2949,7 +2949,7 @@ describe("bubble answer rendering and feedback", () => {
     ]);
     expect(
       sendToTab.mock.calls.some(
-        ([, message]) => message.type === "glimpselet:tutorial-done",
+        ([, message]) => message.type === "blinkling:tutorial-done",
       ),
     ).toBe(false);
   });
@@ -2964,7 +2964,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(mocks.ask.mock.calls[0][0].question).toContain('"omit":true');
     expect(
       sendToTab.mock.calls.find(
-        ([, message]) => message.type === "glimpselet:translate",
+        ([, message]) => message.type === "blinkling:translate",
       )?.[1].nodes,
     ).toEqual([
       inlineTranslations[0],
@@ -3032,7 +3032,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(mocks.ask).not.toHaveBeenCalled();
     expect(
       sendToTab.mock.calls.some(
-        ([, message]) => message.type === "glimpselet:translate",
+        ([, message]) => message.type === "blinkling:translate",
       ),
     ).toBe(false);
   });
@@ -3078,7 +3078,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(mocks.ask).not.toHaveBeenCalled();
     expect(
       sendToTab.mock.calls.some(
-        ([, message]) => message.type === "glimpselet:translate",
+        ([, message]) => message.type === "blinkling:translate",
       ),
     ).toBe(false);
   });
@@ -3102,7 +3102,7 @@ describe("bubble answer rendering and feedback", () => {
       await click(en.translatePage);
       expect(
         sendToTab.mock.calls.some(
-          ([, message]) => message.type === "glimpselet:translate",
+          ([, message]) => message.type === "blinkling:translate",
         ),
       ).toBe(false);
       expect(status()).toBe(en.translationIncomplete);
@@ -3115,7 +3115,7 @@ describe("bubble answer rendering and feedback", () => {
       answer: JSON.stringify({ status: "unavailable", reason, steps: [] }),
     });
     const response = await send({
-      type: "glimpselet:reader-action",
+      type: "blinkling:reader-action",
       action: "guide",
       context: page,
       question: "Guide me through this PDF",
@@ -3130,7 +3130,7 @@ describe("bubble answer rendering and feedback", () => {
     expect(document.querySelector("textarea")?.value).toBe("");
     expect(
       sendToTab.mock.calls.find(
-        ([, message]) => message.type === "glimpselet:guide",
+        ([, message]) => message.type === "blinkling:guide",
       )?.[1].steps,
     ).toEqual([]);
   });
@@ -3280,7 +3280,7 @@ describe("floating window size persistence", () => {
     await click(en.compact, floating.document);
     await nativeResize(420, 180);
     await send(
-      { type: "glimpselet:tutorial", action: "float", step: 1 },
+      { type: "blinkling:tutorial", action: "float", step: 1 },
       sampleUrl,
     );
     expect(floating.document.querySelector(".app.expanded")).not.toBeNull();
@@ -3761,7 +3761,7 @@ describe("screen sharing and capture authorization in the bubble", () => {
     await start();
     const { floating } = await startSharing("window");
     await send({
-      type: "glimpselet:selection",
+      type: "blinkling:selection",
       text: "Exact selected passage",
       action: "ask",
     });
@@ -3833,9 +3833,9 @@ describe("screen sharing and capture authorization in the bubble", () => {
     expect(document.querySelector(".capture-retry")!.textContent).toContain(
       en.capturePermission,
     );
-    await send({ type: "glimpselet:focus", sourceTab: 1 });
+    await send({ type: "blinkling:focus", sourceTab: 1 });
     await send({
-      type: "glimpselet:page-changed",
+      type: "blinkling:page-changed",
       revision: "new-text-same-document",
     });
     await act(async () => activated.emit({ tabId: 1 }));
@@ -3859,7 +3859,7 @@ describe("screen sharing and capture authorization in the bubble", () => {
       mocks.capture.mockRejectedValueOnce(await captureDenied());
       await click(en[kind]);
       expect(document.querySelector(".capture-retry")).not.toBeNull();
-      await send({ type: "glimpselet:focus", sourceTab: 1 });
+      await send({ type: "blinkling:focus", sourceTab: 1 });
       await click(en.captureRetryAction);
       expect(mocks.capture).toHaveBeenCalledTimes(2);
       expect(mocks.capture.mock.calls.map((call) => call.slice(0, 2))).toEqual([
@@ -4027,17 +4027,17 @@ describe("v2.1 bubble states", () => {
     await start();
     const surface = document.querySelector<HTMLElement>(".app")!;
     surface.click();
-    await send({ type: "glimpselet:crop-mode", active: true });
+    await send({ type: "blinkling:crop-mode", active: true });
     expect(surface.style.opacity).toBe("0.25");
     await act(async () => {
       runtime.emit(
-        { type: "glimpselet:crop-mode", active: false },
+        { type: "blinkling:crop-mode", active: false },
         { tab: { id: 99 } },
         vi.fn(),
       );
     });
     expect(surface.style.opacity).toBe("0.25");
-    await send({ type: "glimpselet:crop-mode", active: false });
+    await send({ type: "blinkling:crop-mode", active: false });
     expect(surface.style.opacity).toBe("1");
   });
   it.each(["button", "Shift"])(
@@ -4349,8 +4349,8 @@ describe("v2.1 bubble states", () => {
     requestWindow.mockRejectedValueOnce(
       new DOMException("No activation", "NotAllowedError"),
     );
-    await send({ type: "glimpselet:crop-mode", active: true });
-    await send({ type: "glimpselet:crop-mode", active: false });
+    await send({ type: "blinkling:crop-mode", active: true });
+    await send({ type: "blinkling:crop-mode", active: false });
     expect(popup.floating.document.querySelector(".blink-dot")).not.toBeNull();
     expect(floating.closed).toBe(true);
     requestWindow.mockResolvedValueOnce(next.floating);

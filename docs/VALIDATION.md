@@ -38,7 +38,7 @@ Temporary credentials, sessions, profiles and processes were removed after these
 The README recording uses the public TypeScript GitHub page. Its answers are supplied by a local recording fixture, as described in [STORE.md](STORE.md). It illustrates the UI and is separate from the real answer checks above.
 
 ```sh
-GLIMPSELET_RECORD_PUBLIC=1 npm run record-demo
+BLINKLING_RECORD_PUBLIC=1 npm run record-demo
 npm run package:stores
 ```
 

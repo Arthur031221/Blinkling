@@ -3,21 +3,21 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 export function launch() {
   return electron.launch({
-    ...(process.env.GLIMPSELET_TEST_EXECUTABLE
-      ? { executablePath: process.env.GLIMPSELET_TEST_EXECUTABLE }
+    ...(process.env.BLINKLING_TEST_EXECUTABLE
+      ? { executablePath: process.env.BLINKLING_TEST_EXECUTABLE }
       : {}),
     args: [
-      ...(process.env.GLIMPSELET_TEST_EXECUTABLE
+      ...(process.env.BLINKLING_TEST_EXECUTABLE
         ? []
         : [fileURLToPath(new URL("..", import.meta.url))]),
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
     ],
     env: {
       ...process.env,
-      GLIMPSELET_E2E: "1",
+      BLINKLING_E2E: "1",
       // The remote observer is the one final check: a disposable session.
-      ...(process.env.GLIMPSELET_REMOTE_OBSERVER
-        ? { GLIMPSELET_REMOTE: "test" }
+      ...(process.env.BLINKLING_REMOTE_OBSERVER
+        ? { BLINKLING_REMOTE: "test" }
         : {}),
     },
   });

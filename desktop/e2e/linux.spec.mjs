@@ -33,7 +33,7 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       );
       bg.show();
       globalThis.testBackground = bg;
-      return globalThis.glimpseletTest.blink.getBounds();
+      return globalThis.blinklingTest.blink.getBounds();
     });
     native(50, 50);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
@@ -93,14 +93,14 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
     ]);
     expect(clicks.focus).toBe(true);
     const capture = await app.evaluate(() =>
-      globalThis.glimpseletTest.capture(),
+      globalThis.blinklingTest.capture(),
     );
     const clean = PNG.sync.read(Buffer.from(capture.image.data, "base64"));
     expect(pixel(clean, bounds.x + sample.x, bounds.y + sample.y)).toEqual([
       32, 64, 128,
     ]);
     await app.evaluate(() =>
-      globalThis.glimpseletTest.overlay([
+      globalThis.blinklingTest.overlay([
         { rect: { x: 400, y: 200, width: 100, height: 80 } },
       ]),
     );

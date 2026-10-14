@@ -86,7 +86,7 @@ async function cropFrozenFrame(
     await options.clearBubble?.prepareSelection?.();
     options.signal?.throwIfAborted();
     container = doc.createElement("div");
-    container.dataset.glimpseletFrozenCrop = "true";
+    container.dataset.blinklingFrozenCrop = "true";
     container.style.cssText =
       "position:fixed;inset:0;z-index:2147483646;background:#171410;overflow:auto";
     const image = doc.createElement("img");

@@ -37,7 +37,7 @@ const sampleFrames = (page, ms) =>
 async function placeBlink(c, edge, ratio = 0.5) {
   await c.app.evaluate(
     async ({ screen }, { edge, ratio }) => {
-      const t = globalThis.glimpseletTest,
+      const t = globalThis.blinklingTest,
         d = screen.getPrimaryDisplay();
       await t.positionStore.save(d.id, { edge, ratio });
       t.setDisplay(d);
@@ -46,7 +46,7 @@ async function placeBlink(c, edge, ratio = 0.5) {
   );
   await expect
     .poll(() =>
-      c.app.evaluate(() => globalThis.glimpseletTest.snapshot().position.edge),
+      c.app.evaluate(() => globalThis.blinklingTest.snapshot().position.edge),
     )
     .toBe(edge);
 }
@@ -59,7 +59,7 @@ for (const edge of ["left", "right", "top", "bottom"])
     try {
       await background(c.app);
       await placeBlink(c, edge);
-      await c.page.evaluate(() => window.glimpselet.action("chat"));
+      await c.page.evaluate(() => window.blinkling.action("chat"));
       await expect.poll(() => !!cardPage(c)).toBe(true);
       const card = cardPage(c);
       await expect(card.locator(".gl-chat-card")).toHaveAttribute(
@@ -79,7 +79,7 @@ for (const edge of ["left", "right", "top", "bottom"])
           ),
       );
       const geometry = await c.app.evaluate(({ screen }) => {
-        const t = globalThis.glimpseletTest,
+        const t = globalThis.blinklingTest,
           s = t.snapshot(),
           d = screen.getPrimaryDisplay();
         return {
@@ -149,7 +149,7 @@ for (const scale of [1, 1.5])
       native(20, 20);
       runs.menuClose = await closing;
       await moveOn(c.page, scale);
-      await c.page.evaluate(() => window.glimpselet.action("chat"));
+      await c.page.evaluate(() => window.blinkling.action("chat"));
       await expect.poll(() => !!cardPage(c)).toBe(true);
       runs.cardOpen = await sampleFrames(cardPage(c), 800);
       await writeFile(
@@ -180,7 +180,7 @@ for (const scale of [1, 1.5])
     try {
       await background(c.app);
       await c.app.evaluate(() =>
-        globalThis.glimpseletTest.registerAction("auto-explain", async () => ({
+        globalThis.blinklingTest.registerAction("auto-explain", async () => ({
           ok: true,
         })),
       );
@@ -201,7 +201,7 @@ for (const scale of [1, 1.5])
         expect(s.icon, s.label).toBeGreaterThanOrEqual(20);
       }
       await expect(c.page.locator("#auto-badge")).toBeHidden();
-      await c.page.evaluate(() => window.glimpselet.action("auto-explain"));
+      await c.page.evaluate(() => window.blinkling.action("auto-explain"));
       await expect(c.page.locator("#auto-badge")).toBeVisible();
       await expect(
         c.page.locator('.action-bubble[data-on="true"]'),

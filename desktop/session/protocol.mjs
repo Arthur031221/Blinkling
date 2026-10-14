@@ -45,7 +45,7 @@ export function launchArguments({
     "--include-partial-messages",
     "--replay-user-messages",
     "--name",
-    "Glimpselet",
+    "Blinkling",
     "--model",
     model,
     "--effort",
@@ -66,15 +66,15 @@ export function launchArguments({
         : []),
   ];
 }
-/** GLIMPSELET_REMOTE: unset or 1 syncs to Remote Control (the default), 0 never
- * asks for it, test asks for one disposable "Glimpselet test" session. */
+/** BLINKLING_REMOTE: unset or 1 syncs to Remote Control (the default), 0 never
+ * asks for it, test asks for one disposable "Blinkling test" session. */
 export function remoteMode(env = process.env) {
-  if (env.GLIMPSELET_REMOTE === "0") return "off";
-  if (env.GLIMPSELET_REMOTE === "test") return "test";
+  if (env.BLINKLING_REMOTE === "0") return "off";
+  if (env.BLINKLING_REMOTE === "test") return "test";
   // A live automated run must opt in to Remote Control explicitly.
   if (
-    env.GLIMPSELET_REMOTE === undefined &&
-    (env.GLIMPSELET_LIVE === "1" || env.GLIMPSELET_E2E === "1")
+    env.BLINKLING_REMOTE === undefined &&
+    (env.BLINKLING_LIVE === "1" || env.BLINKLING_E2E === "1")
   )
     return "off";
   return "on";
@@ -85,7 +85,7 @@ export function enableRemote(remoteId, mode = "on") {
   return {
     subtype: "remote_control",
     enabled: true,
-    name: test ? "Glimpselet test" : "Glimpselet",
+    name: test ? "Blinkling test" : "Blinkling",
     keep_session_on_exit: !test,
     ...(remoteId ? { reattach_session_id: remoteId } : {}),
   };

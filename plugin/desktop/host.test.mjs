@@ -32,7 +32,7 @@ test("authenticated discovery and repeated launch reach one instance without ins
     const hook = await promisify(execFile)(
       process.execPath,
       [fileURLToPath(new URL("./start.mjs", import.meta.url)), "--background"],
-      { env: { ...process.env, GLIMPSELET_RUNTIME_DIR: directory } },
+      { env: { ...process.env, BLINKLING_RUNTIME_DIR: directory } },
     );
     assert.equal(hook.stdout, "");
     assert.equal(hook.stderr, "");

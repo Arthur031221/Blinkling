@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-import { createGlimpselet } from "./server.js";
+import "./legacy-env.js";
+import { migrateLegacyData } from "../../plugin/desktop/legacy.mjs";
+import { createBlinkling } from "./server.js";
 
 async function main() {
-  const app = await createGlimpselet({
+  await migrateLegacyData().catch(() => undefined);
+  const app = await createBlinkling({
     fixturePath:
-      process.env.GLIMPSELET_TEST_MODE === "1"
-        ? process.env.GLIMPSELET_TEST_FIXTURE
+      process.env.BLINKLING_TEST_MODE === "1"
+        ? process.env.BLINKLING_TEST_FIXTURE
         : undefined,
   });
   await app.connect();
@@ -19,7 +22,7 @@ async function main() {
 
 void main().catch((error: unknown) => {
   process.stderr.write(
-    `Glimpselet startup failed: ${error instanceof Error ? error.message : String(error)}\n`,
+    `Blinkling startup failed: ${error instanceof Error ? error.message : String(error)}\n`,
   );
   process.exitCode = 1;
 });

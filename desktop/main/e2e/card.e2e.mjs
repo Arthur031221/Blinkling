@@ -12,7 +12,7 @@ import {
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
 const visible = (app) =>
-  app.evaluate(() => !!globalThis.glimpseletTest.composer?.isVisible());
+  app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible());
 const png =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
@@ -20,7 +20,7 @@ const png =
 async function hoverOpen(c) {
   await moveOn(c.page);
   await c.page.evaluate(() =>
-    window.glimpselet.shell({ type: "visibility", value: true }),
+    window.blinkling.shell({ type: "visibility", value: true }),
   );
   await expect.poll(() => visible(c.app)).toBe(true);
   await expect.poll(() => cardPage(c.app)).toBeTruthy();
@@ -121,12 +121,12 @@ test("H-4 a focused empty card stays open until Esc", async () => {
     // A real click, so the window itself takes the keyboard focus.
     const box = await card.locator(".gl-input").boundingBox();
     const bounds = await c.app.evaluate(() =>
-      globalThis.glimpseletTest.composer.getBounds(),
+      globalThis.blinklingTest.composer.getBounds(),
     );
     native(bounds.x + box.x + 20, bounds.y + box.y + 20, "click");
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.glimpseletTest.composer.isFocused()),
+        c.app.evaluate(() => globalThis.blinklingTest.composer.isFocused()),
       )
       .toBe(true);
     await leave(c);
@@ -169,12 +169,12 @@ for (const [label, setup] of [
     const cleanup = await setup();
     try {
       await c.app.evaluate(
-        (_, capture) => globalThis.glimpseletTest.attachCapture(capture),
+        (_, capture) => globalThis.blinklingTest.attachCapture(capture),
         shot,
       );
       await expect
         .poll(() =>
-          c.app.evaluate(() => globalThis.glimpseletTest.composer?.isFocused()),
+          c.app.evaluate(() => globalThis.blinklingTest.composer?.isFocused()),
         )
         .toBe(true);
       const card = cardPage(c.app);
@@ -192,7 +192,7 @@ test("H-5 after a real region capture the card, not the closed selector, has the
   const c = await launch();
   try {
     const before = new Set(c.app.windows());
-    await c.page.evaluate(() => void window.glimpselet.action("region"));
+    await c.page.evaluate(() => void window.blinkling.action("region"));
     await expect
       .poll(() =>
         c.app
@@ -219,7 +219,7 @@ test("H-5 after a real region capture the card, not the closed selector, has the
       .toBe(1);
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.glimpseletTest.composer?.isFocused()),
+        c.app.evaluate(() => globalThis.blinklingTest.composer?.isFocused()),
       )
       .toBe(true);
     await expect(cardPage(c.app).locator(".gl-input")).toBeFocused();
@@ -241,7 +241,7 @@ test("H-5 the card wins the keyboard back when the window manager hands it to an
     await expect.poll(activeWindow).toBeGreaterThan(1);
     const external = activeWindow();
     const opened = c.app.evaluate(
-      (_, capture) => globalThis.glimpseletTest.attachCapture(capture),
+      (_, capture) => globalThis.blinklingTest.attachCapture(capture),
       shot,
     );
     // The selector that just closed is gone; the WM reverts to the last window.
@@ -250,7 +250,7 @@ test("H-5 the card wins the keyboard back when the window manager hands it to an
     await opened;
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.glimpseletTest.composer?.isFocused()),
+        c.app.evaluate(() => globalThis.blinklingTest.composer?.isFocused()),
       )
       .toBe(true);
     typeKeys("recovered");

@@ -1,5 +1,5 @@
 {
-  "name": "glimpselet",
+  "name": "blinkling",
   "owner": {
     "name": "Arthur031221"
   },
@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "glimpselet",
+      "name": "blinkling",
       "source": "./",
       "description": "A local floating screen companion"
     }

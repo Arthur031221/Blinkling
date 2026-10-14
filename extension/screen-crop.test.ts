@@ -369,7 +369,7 @@ describe("foreground shared screen crop", () => {
     expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(31, {
       active: true,
     });
-    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-frozen-crop]")).toBeNull();
   });
 });
 
@@ -450,7 +450,7 @@ describe("native fullscreen shared screen crop", () => {
     await pending;
     expect(onBoundsChanged.removeListener).toHaveBeenCalledOnce();
     expect(listeners.size).toBe(0);
-    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-frozen-crop]")).toBeNull();
   });
 
   it("ends an incomplete DOM fullscreen transition before requesting native fullscreen", async () => {
@@ -535,7 +535,7 @@ describe("native fullscreen shared screen crop", () => {
     await expect(cropSharedScreen(video, null, labels)).rejects.toThrow(
       "crop_fullscreen_denied",
     );
-    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-frozen-crop]")).toBeNull();
     expect(document.exitFullscreen).toHaveBeenCalled();
     expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(31, {
       active: true,
@@ -577,7 +577,7 @@ describe("native fullscreen shared screen crop", () => {
     expect(chromeMock.windows.update).toHaveBeenCalledWith(4, {
       state: "normal",
     });
-    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-frozen-crop]")).toBeNull();
   });
 
   it("cancels a visible selector and restores the native window when sharing ends", async () => {
@@ -611,6 +611,6 @@ describe("native fullscreen shared screen crop", () => {
     expect(chromeMock.tabs.update).toHaveBeenLastCalledWith(31, {
       active: true,
     });
-    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+    expect(document.querySelector("[data-blinkling-frozen-crop]")).toBeNull();
   });
 });

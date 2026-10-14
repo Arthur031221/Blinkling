@@ -42,7 +42,7 @@ async function prepare() {
   const respond = vi.fn();
   expect(
     listener(
-      { type: "glimpselet:reader-permission-handoff" },
+      { type: "blinkling:reader-permission-handoff" },
       { tab: { id: 1, url: "chrome-extension://test/reader.html?url=paper" } },
       respond,
     ),
@@ -61,7 +61,7 @@ describe("reader permission background coordination", () => {
     const respond = vi.fn();
     expect(
       listener(
-        { type: "glimpselet:reader-permission-handoff" },
+        { type: "blinkling:reader-permission-handoff" },
         { tab: { id: 1, url } },
         respond,
       ),

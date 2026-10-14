@@ -165,13 +165,13 @@ test.beforeEach(async () => {
       command: process.execPath,
       argsPrefix: [resolve("e2e-extension/mock-claude.cjs")],
     });
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-extension-e2e-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-extension-e2e-"));
   const fixture = await readFile(resolve("e2e-extension/fixture.html"));
   server = createServer((req, res) => {
     const requestUrl = new URL(req.url || "/", "http://127.0.0.1");
     if (requestUrl.pathname === "/install") {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.end(installGuide("/tmp/glimpselet-extension-e2e"));
+      res.end(installGuide("/tmp/blinkling-extension-e2e"));
       return;
     }
     if (requestUrl.pathname === "/install-guide.js") {
@@ -201,9 +201,9 @@ test.beforeEach(async () => {
       return;
     }
     if (
-      requestUrl.pathname === "/assets/glimpselet-welcome-sample.html" ||
-      requestUrl.pathname === "/assets/glimpselet-welcome-sample.js" ||
-      requestUrl.pathname === "/assets/glimpselet-welcome-sample.pdf"
+      requestUrl.pathname === "/assets/blinkling-welcome-sample.html" ||
+      requestUrl.pathname === "/assets/blinkling-welcome-sample.js" ||
+      requestUrl.pathname === "/assets/blinkling-welcome-sample.pdf"
     ) {
       res.setHeader(
         "Content-Type",
@@ -268,7 +268,7 @@ test.beforeEach(async () => {
   if (!addr || typeof addr === "string") throw new Error("No test port");
   origin = `http://127.0.0.1:${addr.port}`;
   const extension = resolve(
-    process.env.GLIMPSELET_E2E_EXTENSION || "dist-extension",
+    process.env.BLINKLING_E2E_EXTENSION || "dist-extension",
   );
   context = await launchExtensionContext(join(directory, "profile"), {
     headless: false,
@@ -367,7 +367,7 @@ test("selection excludes private content between public endpoints and closes sta
     document.dispatchEvent(new Event("selectionchange"));
   });
   await site.waitForTimeout(150);
-  await expect(site.locator("[data-glimpselet-overlay] .popover")).toHaveCount(
+  await expect(site.locator("[data-blinkling-overlay] .popover")).toHaveCount(
     0,
   );
   expect(
@@ -383,7 +383,7 @@ test("selection excludes private content between public endpoints and closes sta
     getSelection()!.addRange(range);
     document.dispatchEvent(new Event("selectionchange"));
   });
-  const popover = site.locator("[data-glimpselet-overlay] .popover");
+  const popover = site.locator("[data-blinkling-overlay] .popover");
   await expect(popover).toBeVisible();
   await site.evaluate(() =>
     document.querySelector("#start")!.setAttribute("data-private", ""),
@@ -413,7 +413,7 @@ test("selection excludes private content between public endpoints and closes sta
     await expect(popover).toBeVisible();
     await site.evaluate((dispatch) => {
       const oldButton = document
-        .querySelector("[data-glimpselet-overlay]")!
+        .querySelector("[data-blinkling-overlay]")!
         .shadowRoot!.querySelector<HTMLButtonElement>(".popover button")!;
       const range = document.createRange();
       range.selectNodeContents(document.querySelector("div[data-private]")!);
@@ -592,7 +592,7 @@ test("selection Explain interrupts pending suggested questions", async () => {
     document.dispatchEvent(new Event("selectionchange"));
   });
   await site
-    .locator("[data-glimpselet-overlay] .popover")
+    .locator("[data-blinkling-overlay] .popover")
     .getByRole("button", { name: en.actionExplain, exact: true })
     .click();
   await expect.poll(() => cancelled).toBe(true);
@@ -633,7 +633,7 @@ for (const backend of ["bridge", "api"] as const) {
         getSelection()!.addRange(range);
         document.dispatchEvent(new Event("selectionchange"));
       }, text);
-      const popover = site.locator("[data-glimpselet-overlay] .popover");
+      const popover = site.locator("[data-blinkling-overlay] .popover");
       await expect(popover).toBeVisible();
       await popover
         .getByRole("button", {
@@ -1352,7 +1352,7 @@ test("same-URL semantic DOM changes refresh once and ignore identical re-renders
     password.value = "secret input value";
     document.body.append(password);
     const overlay = document.createElement("div");
-    overlay.dataset.glimpseletOverlay = "true";
+    overlay.dataset.blinklingOverlay = "true";
     overlay.textContent = "Overlay only";
     document.body.append(overlay);
     overlay.firstChild!.textContent = "Changed overlay only";
@@ -1370,7 +1370,7 @@ test("passive summaries refresh permitted sample page content without screen sha
       throw new Error("This page-only flow must not request screen sharing");
     };
   });
-  const sampleUrl = `${origin}/assets/glimpselet-welcome-sample.html`;
+  const sampleUrl = `${origin}/assets/blinkling-welcome-sample.html`;
   await site.goto(sampleUrl);
   await expect.poll(() => providerRequests.at(-1)?.page?.url).toBe(sampleUrl);
   await expect(panel.locator("button.stop")).toHaveCount(0);
@@ -1550,7 +1550,7 @@ for (const kind of ["shadow", "frame"] as const) {
 
 test("a password appearing during region selection rejects the resulting capture", async () => {
   await panel.getByRole("button", { name: en.region, exact: true }).click();
-  await expect(site.locator("[data-glimpselet-crop] .surface")).toBeVisible();
+  await expect(site.locator("[data-blinkling-crop] .surface")).toBeVisible();
   await site.evaluate(() => {
     const host = document.createElement("div");
     document.body.append(host);
@@ -1609,7 +1609,7 @@ test("a password appearing after context collection prevents automatic transmiss
       const result = await original(tabId, message);
       if (
         !inserted &&
-        message.type === "glimpselet:context" &&
+        message.type === "blinkling:context" &&
         ++contexts === 2
       ) {
         inserted = true;
@@ -2075,9 +2075,9 @@ for (const backend of ["bridge", "api"] as const) {
     await panel
       .getByRole("button", { name: en.guideAction, exact: true })
       .click();
-    await expect(
-      site.locator("[data-glimpselet-overlay] .guide"),
-    ).toContainText("Use the final page action.");
+    await expect(site.locator("[data-blinkling-overlay] .guide")).toContainText(
+      "Use the final page action.",
+    );
     expect(guideRequests).toHaveLength(1);
     expect(guideImages).toEqual([]);
     if (backend === "bridge") {
@@ -2546,7 +2546,9 @@ test("a paired bridge never displays an unavailable-session instruction", async 
   await panel.getByRole("button", { name: en.settings, exact: true }).click();
   await expect(panel.locator(".dialog")).toBeVisible();
   await expect(
-    panel.getByText("Run /glimpse in Claude Code to connect.", { exact: true }),
+    panel.getByText("Run /blinkling:blinkling in Claude Code to connect.", {
+      exact: true,
+    }),
   ).toHaveCount(0);
   await expect(panel.getByLabel("Connection URL", { exact: true })).toHaveCount(
     0,
@@ -2593,17 +2595,17 @@ test("remote welcome installs on the browser computer in both languages", async 
     welcome.getByRole("link", { name: "Download extension" }),
   ).toHaveAttribute("href", `/install/extension.zip?code=${installCode}`);
   await expect(welcome.locator("#install-remote")).toContainText(
-    "Downloads/Glimpselet-extension",
+    "Downloads/Blinkling-extension",
   );
   expect(await welcome.locator("body").innerText()).not.toContain(
-    "/tmp/glimpselet-extension-e2e",
+    "/tmp/blinkling-extension-e2e",
   );
   await welcome.locator("#language").selectOption("zh-TW");
   await expect(
     welcome.getByRole("link", { name: "下載擴充功能" }),
   ).toBeVisible();
   expect(await welcome.locator("body").innerText()).not.toContain(
-    "/tmp/glimpselet-extension-e2e",
+    "/tmp/blinkling-extension-e2e",
   );
 });
 
@@ -2641,16 +2643,16 @@ test("guide follows offscreen elements, translation restores and element selecti
     .locator(".composer textarea")
     .fill("show me where the export button is");
   await panel.locator(".composer button.send").click();
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toContainText(
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toContainText(
     "Export notebook",
   );
   await site
-    .locator("[data-glimpselet-overlay] .guide")
+    .locator("[data-blinkling-overlay] .guide")
     .getByRole("button", { name: en.next, exact: true })
     .click();
   await expect.poll(() => site.evaluate(() => scrollY)).toBeGreaterThan(500);
   await site.keyboard.press("Escape");
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toHaveCount(0);
   const original = await site.locator("#foreign").textContent();
   await clickTool(panel, en.translatePage);
   await expect(site.locator("#foreign")).toContainText("Translated:");
@@ -2658,7 +2660,7 @@ test("guide follows offscreen elements, translation restores and element selecti
   await expect(site.locator("#foreign")).toHaveText(original!);
   await site.evaluate(() => scrollTo(0, 0));
   await clickTool(panel, en.element);
-  await expect(site.locator("[data-glimpselet-overlay] .shade")).toBeVisible();
+  await expect(site.locator("[data-blinkling-overlay] .shade")).toBeVisible();
   const box = await site.locator("#export").boundingBox();
   await site.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
   await expect(panel.locator(".capture-chip img")).toBeVisible();
@@ -2812,7 +2814,7 @@ for (const backend of ["bridge", "api"] as const) {
           en.translationUnchanged,
         );
         await expect(site.locator("#foreign")).toHaveText(source);
-        await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(
+        await expect(site.locator("[data-blinkling-translated]")).toHaveCount(
           0,
         );
         await expect(
@@ -2856,9 +2858,9 @@ for (const backend of ["bridge", "api"] as const) {
               (paragraph) => paragraph === "Collection passage. ".repeat(145),
             ),
           ).toBe(true);
-          await expect(
-            site.locator("[data-glimpselet-translated]"),
-          ).toHaveCount(0);
+          await expect(site.locator("[data-blinkling-translated]")).toHaveCount(
+            0,
+          );
         }
         await expect(
           panel.getByRole("button", { name: en.restore, exact: true }),
@@ -2885,13 +2887,13 @@ test("translation preserves dynamic site updates and invalidates delayed node re
       element.firstChild!.nodeValue = value;
     }, value);
   const collect = async () => {
-    const result = (await send({ type: "glimpselet:text-nodes" })) as {
+    const result = (await send({ type: "blinkling:text-nodes" })) as {
       nodes: Array<{ id: string; text: string }>;
     };
     return result.nodes.find((node) => node.text.startsWith("Price $"))!;
   };
   const translate = (id: string, text: string) =>
-    send({ type: "glimpselet:translate", nodes: [{ id, text }] });
+    send({ type: "blinkling:translate", nodes: [{ id, text }] });
   await update("Price $10");
   const first = await collect();
   expect(first.text).toBe("Price $10");
@@ -2913,7 +2915,7 @@ test("translation preserves dynamic site updates and invalidates delayed node re
     skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
   });
   await update("Price $15");
-  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 0 });
+  expect(await send({ type: "blinkling:restore" })).toEqual({ restored: 0 });
   await expect(site.locator("#foreign")).toHaveText("Price $15");
   const third = await collect();
   expect(third.id).not.toBe(second.id);
@@ -2929,7 +2931,7 @@ test("translation preserves dynamic site updates and invalidates delayed node re
     rejected: 0,
     skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
   });
-  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
+  expect(await send({ type: "blinkling:restore" })).toEqual({ restored: 1 });
   await expect(site.locator("#foreign")).toHaveText("Price $15");
   const fourth = await collect();
   expect(await translate(fourth.id, "Prix 15")).toEqual({
@@ -2941,7 +2943,7 @@ test("translation preserves dynamic site updates and invalidates delayed node re
   await site.locator("#foreign").evaluate((element) => {
     element.hidden = true;
   });
-  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
+  expect(await send({ type: "blinkling:restore" })).toEqual({ restored: 1 });
   await site.locator("#foreign").evaluate((element) => {
     element.hidden = false;
   });
@@ -2953,7 +2955,7 @@ test("translation preserves dynamic site updates and invalidates delayed node re
     rejected: 0,
     skipped: { disconnected: 0, ineligible: 0, sourceChanged: 0 },
   });
-  expect(await send({ type: "glimpselet:restore" })).toEqual({ restored: 1 });
+  expect(await send({ type: "blinkling:restore" })).toEqual({ restored: 1 });
   await expect(site.locator("#foreign")).toHaveText("Price $15");
 });
 
@@ -3001,7 +3003,7 @@ test("real Document PiP renders the bubble and remains open after switching page
     };
   });
   expect(info.open).toBe(true);
-  expect(info.title).toContain("Glimpselet");
+  expect(info.title).toContain("Blinkling");
   expect(info.width).toBeGreaterThanOrEqual(320);
   expect(info.width).toBeLessThanOrEqual(520);
   await panel.evaluate(() => window.documentPictureInPicture.window!.close());
@@ -3128,7 +3130,7 @@ for (const backend of ["bridge", "api"] as const) {
           );
           chrome.runtime.onMessage.addListener = (listener) =>
             add((message, sender, respond) => {
-              if (message?.type === "glimpselet:page-changed") return;
+              if (message?.type === "blinkling:page-changed") return;
               return listener(message, sender, respond);
             });
         });
@@ -3571,7 +3573,7 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
           )?.textContent || "",
       ),
     )
-    .toContain("Glimpselet");
+    .toContain("Blinkling");
   await clickInBubble(en.autoExplain);
   await expect
     .poll(() =>
@@ -3611,7 +3613,7 @@ test("shared screen crops in the full screen opener, preserves pixels and cancel
   expect(nativeBinding.handle?.origin).toBe(origin);
   expect(nativeBinding.handle?.handle).toMatch(/^[0-9a-f-]{36}$/);
   await clickInBubble(en.region);
-  const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+  const frozen = panel.locator("[data-blinkling-frozen-crop]");
   await expect(frozen).toBeVisible();
   await expect
     .poll(() => panel.evaluate(() => innerWidth))
@@ -3791,7 +3793,7 @@ for (const backend of ["bridge", "api"] as const) {
       )
       .toBe(4096);
     await clickInBubble(en.region);
-    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    const frozen = panel.locator("[data-blinkling-frozen-crop]");
     await expect(frozen).toBeVisible();
     const nativeFrame = await frozen
       .locator("img")
@@ -3920,15 +3922,15 @@ test("Shift selects a region directly on the page with handles and Enter", async
   await site.keyboard.down("Shift");
   await site.waitForTimeout(230);
   await site.keyboard.up("Shift");
-  const overlay = site.locator("[data-glimpselet-crop] .surface");
+  const overlay = site.locator("[data-blinkling-crop] .surface");
   await expect(overlay).toBeVisible();
   await site.mouse.move(60, 80);
   await site.mouse.down();
   await site.mouse.move(340, 260);
   await site.mouse.up();
-  await expect(
-    site.locator("[data-glimpselet-crop] [data-handle]"),
-  ).toHaveCount(8);
+  await expect(site.locator("[data-blinkling-crop] [data-handle]")).toHaveCount(
+    8,
+  );
   await site.keyboard.press("Enter");
   await expect(panel.locator(".capture-chip img")).toBeVisible();
   const dimensions = await panel
@@ -3943,7 +3945,7 @@ test("Shift+Tab never starts page crop", async () => {
   await site.keyboard.press("Tab");
   await site.waitForTimeout(260);
   await site.keyboard.up("Shift");
-  await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
 });
 
 test("compacting and expanding keeps the shared video and crop available", async () => {
@@ -3985,7 +3987,7 @@ test("compacting and expanding keeps the shared video and crop available", async
     ),
   ).toBeGreaterThan(600);
   await clickInBubble(en.region);
-  const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+  const frozen = panel.locator("[data-blinkling-frozen-crop]");
   await expect(frozen).toBeVisible();
   await panel.bringToFront();
   await panel.keyboard.press("Escape");
@@ -4091,7 +4093,7 @@ for (const backend of ["bridge", "api"] as const) {
     await reader.goto(`chrome-extension://${extensionId}/reader.html`);
     await reader
       .locator("#file")
-      .setInputFiles(resolve("public/assets/glimpselet-welcome-sample.pdf"));
+      .setInputFiles(resolve("public/assets/blinkling-welcome-sample.pdf"));
     await expect(reader.locator(".pdf-page")).toBeVisible();
     const nativeLength = await reader
       .locator(".pdf-page canvas")
@@ -4173,7 +4175,7 @@ test("PDF guide takes priority over automatic page suggestions", async () => {
   await reader.goto(`chrome-extension://${extensionId}/reader.html`);
   await reader
     .locator("#file")
-    .setInputFiles(resolve("public/assets/glimpselet-welcome-sample.pdf"));
+    .setInputFiles(resolve("public/assets/blinkling-welcome-sample.pdf"));
   await expect(reader.locator(".pdf-page")).toBeVisible();
   await expect(
     panel.getByRole("button", { name: en.stop, exact: true }),
@@ -4182,9 +4184,7 @@ test("PDF guide takes priority over automatic page suggestions", async () => {
     .getByRole("button", { name: "Guide me through this section", exact: true })
     .click();
   await expect(reader.locator("#status")).toContainText("Guide request sent");
-  await expect(
-    reader.locator("[data-glimpselet-overlay] .guide"),
-  ).toBeVisible();
+  await expect(reader.locator("[data-blinkling-overlay] .guide")).toBeVisible();
   await expect(panel.locator(".status")).toHaveText(en.answerReady);
   await reader.close();
 });
@@ -4328,13 +4328,13 @@ test("bundled PDF.js reader renders the sample, exposes page context and selecte
   await reader.goto(`chrome-extension://${extensionId}/reader.html`);
   await reader
     .locator("#file")
-    .setInputFiles(resolve("public/assets/glimpselet-welcome-sample.pdf"));
+    .setInputFiles(resolve("public/assets/blinkling-welcome-sample.pdf"));
   await expect(reader.locator(".pdf-page")).toBeVisible();
   await expect(reader.locator(".pdf-text-layer span").first()).toBeVisible();
   await expect(reader.locator("#page-label")).toContainText("Page 1 of 1");
   const span = reader
     .locator(".pdf-text-layer span")
-    .filter({ hasText: /Glimpselet/i })
+    .filter({ hasText: /Blinkling/i })
     .first();
   await expect(span).toBeVisible();
   await span.evaluate((element) => {
@@ -4346,7 +4346,7 @@ test("bundled PDF.js reader renders the sample, exposes page context and selecte
   const selected = await reader.evaluate(
     () => getSelection()?.toString().trim() || "",
   );
-  expect(selected).toMatch(/Glimpselet/i);
+  expect(selected).toMatch(/Blinkling/i);
   await reader.getByRole("button", { name: "Ask about page" }).click();
   await expect(panel.locator(".composer textarea")).toHaveValue(
     new RegExp(selected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
@@ -4371,11 +4371,9 @@ test("bundled PDF.js reader renders the sample, exposes page context and selecte
       exact: true,
     })
     .click();
-  await expect(
-    reader.locator("[data-glimpselet-overlay] .guide"),
-  ).toBeVisible();
+  await expect(reader.locator("[data-blinkling-overlay] .guide")).toBeVisible();
   await reader.keyboard.press("Escape");
-  await expect(reader.locator("[data-glimpselet-overlay] .guide")).toHaveCount(
+  await expect(reader.locator("[data-blinkling-overlay] .guide")).toHaveCount(
     0,
   );
   await reader.close();
@@ -4566,11 +4564,11 @@ test("a delayed guide cannot target a reloaded document with reused element ids"
       target: { tabId: tab.id! },
       files: ["content.js"],
     });
-    await chrome.tabs.sendMessage(tab.id!, { type: "glimpselet:context" });
+    await chrome.tabs.sendMessage(tab.id!, { type: "blinkling:context" });
   }, origin);
   release();
   await expect(panel.locator(".live-answer")).toHaveCount(0);
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toHaveCount(0);
 });
 
 test("manual translation excludes opaque embeds while capture remains blocked", async () => {
@@ -4587,7 +4585,7 @@ test("manual translation excludes opaque embeds while capture remains blocked", 
         const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
         return (
           await chrome.tabs.sendMessage(tab.id!, {
-            type: "glimpselet:sensitive",
+            type: "blinkling:sensitive",
           })
         ).hasPassword;
       }, origin),
@@ -4609,7 +4607,7 @@ test("manual translation excludes opaque embeds while capture remains blocked", 
       panel.evaluate(async (tabUrl) => {
         const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
         return (
-          await chrome.tabs.sendMessage(tab.id!, { type: "glimpselet:context" })
+          await chrome.tabs.sendMessage(tab.id!, { type: "blinkling:context" })
         ).hasPassword;
       }, origin),
     )
@@ -4692,7 +4690,7 @@ test("document-bound page tools reject requests from a previous load at the same
   const source = await panel.evaluate(async (tabUrl) => {
     const [tab] = await chrome.tabs.query({ url: tabUrl + "/" });
     return await chrome.tabs.sendMessage(tab.id!, {
-      type: "glimpselet:context",
+      type: "blinkling:context",
     });
   }, origin);
   await site.reload();
@@ -4706,7 +4704,7 @@ test("document-bound page tools reject requests from a previous load at the same
       return await Promise.all(
         ["guide", "text-nodes", "translate", "restore"].map((kind) =>
           chrome.tabs.sendMessage(tab.id!, {
-            type: "glimpselet:" + kind,
+            type: "blinkling:" + kind,
             documentKey: source.documentKey,
             url: source.url,
             steps: [{ elementId: source.elements[0].id, note: "Old guide" }],
@@ -4957,7 +4955,7 @@ test("page guide requests work in Chinese", async () => {
   });
   await panel.locator(".composer textarea").fill("匯出按鈕在哪裡？");
   await panel.locator(".composer .send").click();
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toBeVisible();
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toBeVisible();
   expect(
     providerRequests.find((request) =>
       request.question.includes("Create a short, actionable guide"),
@@ -5127,7 +5125,7 @@ test("native Blink minimizes at the screen edge and restores its window position
   // A page Shift crop clears the entire native dot rectangle, including its frame.
   await site.bringToFront();
   await site.keyboard.down("Shift");
-  await expect(site.locator("[data-glimpselet-crop] .surface")).toBeVisible();
+  await expect(site.locator("[data-blinkling-crop] .surface")).toBeVisible();
   await expect
     .poll(() =>
       panel.evaluate(
@@ -5140,7 +5138,7 @@ test("native Blink minimizes at the screen edge and restores its window position
     .toBe(0);
   await site.keyboard.up("Shift");
   await site.keyboard.press("Escape");
-  await expect(site.locator("[data-glimpselet-crop]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-crop]")).toHaveCount(0);
   await panel.waitForFunction(() => {
     const view =
       window.documentPictureInPicture.window ||

@@ -5,14 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /** Real, logged-in Claude canary. No credentials, CLI tools or parent session reuse. */
-process.env.GLIMPSELET_REMOTE ??= "0";
+process.env.BLINKLING_REMOTE ??= "0";
 
 export async function liveSession(emit) {
-  // Self-deleting "Glimpselet test" Remote Control session; never the user's kept one.
-  process.env.GLIMPSELET_REMOTE ??= "test";
-  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-conversation-"));
+  // Self-deleting "Blinkling test" Remote Control session; never the user's kept one.
+  process.env.BLINKLING_REMOTE ??= "test";
+  const cwd = await mkdtemp(join(tmpdir(), "blinkling-conversation-"));
   // Automated runs never create Remote Control sessions; the final check opts in with test.
-  process.env.GLIMPSELET_REMOTE ??= "0";
+  process.env.BLINKLING_REMOTE ??= "0";
   const owned = new OwnedSession();
   let sessionId = "",
     assistantId,

@@ -11,7 +11,7 @@ const fixture = fileURLToPath(
   new URL("./e2e/fake-claude.fixture.mjs", import.meta.url),
 );
 async function setup(t) {
-  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-transport-"));
+  const cwd = await mkdtemp(join(tmpdir(), "blinkling-transport-"));
   const child = new OwnedSession({
     controlTimeoutMs: 1500,
     connectTimeoutMs: 3000,
@@ -149,10 +149,10 @@ test("only the owned child's nested marker is cleared, never the parent environm
 
 test("shutdown terminates the actual owned process tree, including descendants", async (t) => {
   const { readFile } = await import("node:fs/promises");
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-descendant-"));
+  const dir = await mkdtemp(join(tmpdir(), "blinkling-descendant-"));
   const file = join(dir, "pid");
-  const previous = process.env.GLIMPSELET_TEST_DESCENDANT;
-  process.env.GLIMPSELET_TEST_DESCENDANT = file;
+  const previous = process.env.BLINKLING_TEST_DESCENDANT;
+  process.env.BLINKLING_TEST_DESCENDANT = file;
   try {
     const { child } = await setup(t);
     const pid = Number(await readFile(file, "utf8"));
@@ -160,17 +160,17 @@ test("shutdown terminates the actual owned process tree, including descendants",
     await child.dispose();
     assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
   } finally {
-    if (previous === undefined) delete process.env.GLIMPSELET_TEST_DESCENDANT;
-    else process.env.GLIMPSELET_TEST_DESCENDANT = previous;
+    if (previous === undefined) delete process.env.BLINKLING_TEST_DESCENDANT;
+    else process.env.BLINKLING_TEST_DESCENDANT = previous;
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("shutdown during the version probe cancels the actual probe and never launches a session", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-version-"));
+  const dir = await mkdtemp(join(tmpdir(), "blinkling-version-"));
   const file = join(dir, "pid");
-  const previous = process.env.GLIMPSELET_TEST_VERSION_PID;
-  process.env.GLIMPSELET_TEST_VERSION_PID = file;
+  const previous = process.env.BLINKLING_TEST_VERSION_PID;
+  process.env.BLINKLING_TEST_VERSION_PID = file;
   const child = new OwnedSession({ executableArgs: [fixture], remote: "on" });
   try {
     const connecting = child.connect({
@@ -198,14 +198,14 @@ test("shutdown during the version probe cancels the actual probe and never launc
     await assert.rejects(child.connect({ cwd: dir }), /closed/);
   } finally {
     await child.dispose();
-    if (previous === undefined) delete process.env.GLIMPSELET_TEST_VERSION_PID;
-    else process.env.GLIMPSELET_TEST_VERSION_PID = previous;
+    if (previous === undefined) delete process.env.BLINKLING_TEST_VERSION_PID;
+    else process.env.BLINKLING_TEST_VERSION_PID = previous;
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("an empty session survives full adapter restart with the same UUID and remote identity", async () => {
-  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-empty-session-"));
+  const cwd = await mkdtemp(join(tmpdir(), "blinkling-empty-session-"));
   const createBridge = (remote = "on") =>
     new DesktopSessionBridge({
       userDataDir: cwd,
@@ -242,7 +242,7 @@ test("an empty session survives full adapter restart with the same UUID and remo
     assert.ok(bridge.transport.child.spawnargs.includes("--session-id"));
     assert.ok(!bridge.transport.child.spawnargs.includes("--resume"));
     assert.equal(bridge.state.turns.length, 0);
-    // A later local-only run (GLIMPSELET_REMOTE=0) leaves the stored identity alone.
+    // A later local-only run (BLINKLING_REMOTE=0) leaves the stored identity alone.
     await bridge.dispose();
     bridge = createBridge("off");
     await bridge.connect();
@@ -255,15 +255,15 @@ test("an empty session survives full adapter restart with the same UUID and remo
 });
 
 async function requestsFor(t, mode, env = {}) {
-  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-remote-mode-"));
+  const cwd = await mkdtemp(join(tmpdir(), "blinkling-remote-mode-"));
   const log = join(cwd, "requests.jsonl");
   const saved = {
-    log: process.env.GLIMPSELET_TEST_REQUESTS,
-    remote: process.env.GLIMPSELET_REMOTE,
+    log: process.env.BLINKLING_TEST_REQUESTS,
+    remote: process.env.BLINKLING_REMOTE,
   };
-  process.env.GLIMPSELET_TEST_REQUESTS = log;
-  if (mode === undefined) delete process.env.GLIMPSELET_REMOTE;
-  else process.env.GLIMPSELET_REMOTE = mode;
+  process.env.BLINKLING_TEST_REQUESTS = log;
+  if (mode === undefined) delete process.env.BLINKLING_REMOTE;
+  else process.env.BLINKLING_REMOTE = mode;
   const child = new OwnedSession({
     controlTimeoutMs: 1500,
     connectTimeoutMs: 3000,
@@ -273,8 +273,8 @@ async function requestsFor(t, mode, env = {}) {
   t.after(async () => {
     await child.dispose();
     for (const [key, value] of [
-      ["GLIMPSELET_TEST_REQUESTS", saved.log],
-      ["GLIMPSELET_REMOTE", saved.remote],
+      ["BLINKLING_TEST_REQUESTS", saved.log],
+      ["BLINKLING_REMOTE", saved.remote],
     ])
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
@@ -294,7 +294,7 @@ async function requestsFor(t, mode, env = {}) {
   return { child, remote, requests };
 }
 
-test("GLIMPSELET_REMOTE=0 never sends remote_control yet the session still answers turns", async (t) => {
+test("BLINKLING_REMOTE=0 never sends remote_control yet the session still answers turns", async (t) => {
   const { child, remote, requests } = await requestsFor(t, "0");
   assert.ok(!requests.some((r) => r.subtype === "remote_control"));
   assert.equal(remote.session_url, null);
@@ -310,15 +310,15 @@ test("the default keeps the named persistent Remote Control session for real use
   const { requests } = await requestsFor(t, undefined);
   const remote = requests.filter((r) => r.subtype === "remote_control");
   assert.equal(remote.length, 1);
-  assert.equal(remote[0].name, "Glimpselet");
+  assert.equal(remote[0].name, "Blinkling");
   assert.equal(remote[0].keep_session_on_exit, true);
 });
 
-test("GLIMPSELET_REMOTE=test makes one disposable session that disappears on exit", async (t) => {
+test("BLINKLING_REMOTE=test makes one disposable session that disappears on exit", async (t) => {
   const { requests } = await requestsFor(t, "test");
   const remote = requests.filter((r) => r.subtype === "remote_control");
   assert.equal(remote.length, 1);
-  assert.equal(remote[0].name, "Glimpselet test");
+  assert.equal(remote[0].name, "Blinkling test");
   assert.equal(remote[0].keep_session_on_exit, false);
 });
 
@@ -331,7 +331,7 @@ test("an explicit remote option overrides the environment", async (t) => {
 });
 
 test("a bridge with Remote Control off connects, keeps no remote identity and leaves no identity", async () => {
-  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-remote-off-"));
+  const cwd = await mkdtemp(join(tmpdir(), "blinkling-remote-off-"));
   const bridge = new DesktopSessionBridge({
     userDataDir: cwd,
     cwd,
@@ -352,7 +352,7 @@ test("a bridge with Remote Control off connects, keeps no remote identity and le
 });
 
 test("a bridge without Remote Control works and keeps any earlier remote identity untouched", async () => {
-  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-local-session-"));
+  const cwd = await mkdtemp(join(tmpdir(), "blinkling-local-session-"));
   const create = (remote) =>
     new DesktopSessionBridge({
       userDataDir: cwd,
@@ -371,7 +371,7 @@ test("a bridge without Remote Control works and keeps any earlier remote identit
     await bridge.connect();
     assert.equal(bridge.status.state, "connected");
     assert.deepEqual(bridge.identity(), identity);
-    const fresh = await mkdtemp(join(tmpdir(), "glimpselet-local-fresh-"));
+    const fresh = await mkdtemp(join(tmpdir(), "blinkling-local-fresh-"));
     await bridge.dispose();
     bridge = new DesktopSessionBridge({
       userDataDir: fresh,

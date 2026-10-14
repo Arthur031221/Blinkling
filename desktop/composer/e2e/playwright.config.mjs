@@ -1,7 +1,7 @@
 import "../../shared/test-env.mjs";
 import { defineConfig } from "@playwright/test";
 // Automated runs never create Remote Control sessions.
-process.env.GLIMPSELET_REMOTE ??= "0";
+process.env.BLINKLING_REMOTE ??= "0";
 export default defineConfig({
   testDir: ".",
   testMatch: ["conversation.spec.mjs", "visuals.spec.mjs"],

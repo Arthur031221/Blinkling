@@ -26,7 +26,7 @@ test("holding native Shift over Blink starts selection without keyboard focus", 
     );
     native(blink.x + 5, blink.y + 5, [0xffe1], { hover: true });
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.features.capture.busy),
+      await app.evaluate(() => globalThis.blinklingTest.features.capture.busy),
     ).toBe(false);
     const point = await (
       await app.firstWindow()
@@ -47,12 +47,12 @@ test("holding native Shift over Blink starts selection without keyboard focus", 
       "true",
     );
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.blink.isFocusable()),
+      await app.evaluate(() => globalThis.blinklingTest.blink.isFocusable()),
     ).toBe(false);
     native(30, 30, [0xff1b]);
     await expect
       .poll(() =>
-        app.evaluate(() => globalThis.glimpseletTest.features.capture.busy),
+        app.evaluate(() => globalThis.blinklingTest.features.capture.busy),
       )
       .toBe(false);
     await expect
@@ -72,13 +72,13 @@ for (const scale of [1, 1.5, 2])
         native(30, 30);
         await blink.evaluate(() => {
           window.captures = [];
-          window.glimpselet.onEvent((e) => {
+          window.blinkling.onEvent((e) => {
             if (e.type === "capture") window.captures.push(e.capture);
           });
         });
         const selector = await nextWindow(app, () =>
           blink.evaluate(() => {
-            void window.glimpselet.action("region");
+            void window.blinkling.action("region");
           }),
         );
         await selector.emulateMedia({ colorScheme: theme });
@@ -87,7 +87,7 @@ for (const scale of [1, 1.5, 2])
           "true",
         );
         expect(
-          await app.evaluate(() => globalThis.glimpseletTest.blink.isVisible()),
+          await app.evaluate(() => globalThis.blinklingTest.blink.isVisible()),
         ).toBe(false);
         expect(await selector.evaluate(() => typeof window.require)).toBe(
           "undefined",
@@ -142,11 +142,11 @@ for (const scale of [1, 1.5, 2])
           Buffer.from(capture.image.data, "base64"),
         );
         expect(
-          await app.evaluate(() => globalThis.glimpseletTest.blink.isVisible()),
+          await app.evaluate(() => globalThis.blinklingTest.blink.isVisible()),
         ).toBe(true);
         const cancelled = await nextWindow(app, () =>
           blink.evaluate(() => {
-            void window.glimpselet.action("region");
+            void window.blinkling.action("region");
           }),
         );
         await expect(cancelled.locator("body")).toHaveAttribute(
@@ -156,24 +156,24 @@ for (const scale of [1, 1.5, 2])
         native(50, 50, [0xff1b]);
         await expect
           .poll(() =>
-            app.evaluate(() => globalThis.glimpseletTest.features.capture.busy),
+            app.evaluate(() => globalThis.blinklingTest.features.capture.busy),
           )
           .toBe(false);
         expect(await blink.evaluate(() => window.captures.length)).toBe(1);
         expect(
-          await app.evaluate(() => globalThis.glimpseletTest.blink.isVisible()),
+          await app.evaluate(() => globalThis.blinklingTest.blink.isVisible()),
         ).toBe(true);
         await expect
           .poll(() => app.evaluate(() => globalThis.b3Background.isFocused()))
           .toBe(true);
         // All owned surfaces disappear in whole-screen pixels, including an existing drawing layer.
         await app.evaluate(() =>
-          globalThis.glimpseletTest.overlay([
+          globalThis.blinklingTest.overlay([
             { rect: { x: 240, y: 160, width: 160, height: 100 } },
           ]),
         );
         const clean = await app.evaluate(({ screen }) =>
-          globalThis.glimpseletTest.features.capture.screen(
+          globalThis.blinklingTest.features.capture.screen(
             String(screen.getPrimaryDisplay().id),
           ),
         );
@@ -204,11 +204,11 @@ test("global shortcut selects the whole desktop, abort restores focus and exclud
       1280, 800,
     ]);
     await app.evaluate(() =>
-      globalThis.glimpseletTest.features.capture.cancel(),
+      globalThis.blinklingTest.features.capture.cancel(),
     );
     await expect
       .poll(() =>
-        app.evaluate(() => globalThis.glimpseletTest.features.capture.busy),
+        app.evaluate(() => globalThis.blinklingTest.features.capture.busy),
       )
       .toBe(false);
     await expect
@@ -229,7 +229,7 @@ for (const [name, handler] of [
       await app.firstWindow();
       await background(app);
       const outcome = await app.evaluate(async ({ screen }, source) => {
-        const capture = globalThis.glimpseletTest.features.capture;
+        const capture = globalThis.blinklingTest.features.capture;
         capture.onCapture = (0, eval)(`(${source})`);
         capture.limits.delivery = 300;
         const id = String(screen.getPrimaryDisplay().id);
@@ -262,7 +262,7 @@ test("H-7 busy is already clear while a slow card handler is still working", asy
     await app.firstWindow();
     await background(app);
     const busyDuringDelivery = await app.evaluate(async ({ screen }) => {
-      const capture = globalThis.glimpseletTest.features.capture;
+      const capture = globalThis.blinklingTest.features.capture;
       let seen;
       capture.onCapture = async () => {
         seen = capture.busy;

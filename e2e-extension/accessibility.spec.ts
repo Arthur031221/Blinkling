@@ -24,14 +24,14 @@ test.beforeAll(async () => {
     },
     bundle: true,
     format: "iife",
-    globalName: "GlimpseletCrop",
+    globalName: "BlinklingCrop",
     write: false,
   });
   cropBundle = bundle.outputFiles[0].text;
 });
 
 test.beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-accessibility-e2e-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-accessibility-e2e-"));
   server = createServer((_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.end(
@@ -79,15 +79,15 @@ test("Enter cancels a crop while Cancel is focused", async () => {
   await site.addScriptTag({ content: cropBundle });
   await site.evaluate(() => {
     const host = document.createElement("div");
-    host.dataset.glimpseletCrop = "";
+    host.dataset.blinklingCrop = "";
     document.body.append(host);
     const api = (
       window as Window & {
-        GlimpseletCrop: {
+        BlinklingCrop: {
           selectCrop: (...args: unknown[]) => Promise<unknown>;
         };
       }
-    ).GlimpseletCrop;
+    ).BlinklingCrop;
     void api
       .selectCrop(host, () => new DOMRect(0, 0, 800, 600), {
         cropTitle: "Crop",
@@ -99,7 +99,7 @@ test("Enter cancels a crop while Cancel is focused", async () => {
         (window as Window & { cropResult?: unknown }).cropResult = result;
       });
   });
-  const crop = site.locator("[data-glimpselet-crop]");
+  const crop = site.locator("[data-blinkling-crop]");
   await expect(crop).toHaveCount(1);
   await site.keyboard.press("ArrowRight");
   await expect
@@ -128,15 +128,15 @@ test("Enter still confirms a crop from a selection handle", async () => {
   await site.addScriptTag({ content: cropBundle });
   await site.evaluate(() => {
     const host = document.createElement("div");
-    host.dataset.glimpseletCrop = "";
+    host.dataset.blinklingCrop = "";
     document.body.append(host);
     const api = (
       window as Window & {
-        GlimpseletCrop: {
+        BlinklingCrop: {
           selectCrop: (...args: unknown[]) => Promise<unknown>;
         };
       }
-    ).GlimpseletCrop;
+    ).BlinklingCrop;
     void api
       .selectCrop(host, () => new DOMRect(0, 0, 800, 600), {
         cropTitle: "Crop",
@@ -149,7 +149,7 @@ test("Enter still confirms a crop from a selection handle", async () => {
           result as { width: number };
       });
   });
-  const crop = site.locator("[data-glimpselet-crop]");
+  const crop = site.locator("[data-blinkling-crop]");
   await site.keyboard.press("ArrowRight");
   await crop.locator("[data-handle='nw']").focus();
   await site.keyboard.press("Enter");
@@ -302,7 +302,7 @@ for (const width of [320, 520]) {
         "Claude Code",
       );
       await expect(dialog.getByLabel(zhTW.effort)).not.toContainText("MEDIUM");
-      await expect(dialog.locator(".usage-hint")).toContainText("Glimpselet");
+      await expect(dialog.locator(".usage-hint")).toContainText("Blinkling");
       await panel.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
       await expect(panel.locator(".usage-hint")).toHaveCount(0);

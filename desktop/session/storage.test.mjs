@@ -15,7 +15,7 @@ import { SessionStore, transcriptPath } from "./storage.mjs";
 import { reconcileTranscript, chatMessage } from "./normalize.mjs";
 
 test("single-writer storage serializes atomic private writes and can reopen", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-store-"));
+  const dir = await mkdtemp(join(tmpdir(), "blinkling-store-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const a = new SessionStore(dir);
   const b = new SessionStore(dir);
@@ -35,7 +35,7 @@ test("single-writer storage serializes atomic private writes and can reopen", as
   await b.release();
 });
 test("invalid persistent state fails closed rather than opening a different paid session", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-store-"));
+  const dir = await mkdtemp(join(tmpdir(), "blinkling-store-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const store = new SessionStore(dir);
   await store.acquire();
@@ -57,7 +57,7 @@ test("invalid persistent state fails closed rather than opening a different paid
   await store.release();
 });
 test("stale writer locks recover, incomplete locks are not stolen", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-store-"));
+  const dir = await mkdtemp(join(tmpdir(), "blinkling-store-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const store = new SessionStore(dir);
   await mkdir(store.lock, { recursive: true });

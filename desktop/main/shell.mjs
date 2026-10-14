@@ -35,21 +35,27 @@ import { SessionBridge } from "../session/index.mjs";
 import { runFullPage } from "../capture/full-page.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
-const { startDesktopHost } = await import(
-  existsSync(fileURLToPath(companionModule))
-    ? companionModule.href
-    : new URL("../../plugin/desktop/host.mjs", import.meta.url).href
+const companionDirectory = existsSync(fileURLToPath(companionModule))
+  ? new URL("../companion/", import.meta.url)
+  : new URL("../../plugin/desktop/", import.meta.url);
+const { adoptLegacyEnv, migrateLegacyData } = await import(
+  new URL("legacy.mjs", companionDirectory).href
 );
-if (process.env.GLIMPSELET_RUNTIME_DIR)
+adoptLegacyEnv();
+await migrateLegacyData().catch(() => undefined);
+const { startDesktopHost } = await import(
+  new URL("host.mjs", companionDirectory).href
+);
+if (process.env.BLINKLING_RUNTIME_DIR)
   app.setPath(
     "userData",
-    join(resolve(process.env.GLIMPSELET_RUNTIME_DIR), "electron"),
+    join(resolve(process.env.BLINKLING_RUNTIME_DIR), "electron"),
   );
-if (process.env.GLIMPSELET_E2E === "1")
+if (process.env.BLINKLING_E2E === "1")
   app.setPath(
     "userData",
-    process.env.GLIMPSELET_TEST_DATA ??
-      mkdtempSync(join(tmpdir(), "glimpselet-shell-")),
+    process.env.BLINKLING_TEST_DATA ??
+      mkdtempSync(join(tmpdir(), "blinkling-shell-")),
   );
 if (!app.requestSingleInstanceLock()) app.exit(0);
 
@@ -163,7 +169,7 @@ const snapshot = () => ({
 function broadcast() {
   if (quitting) return;
   for (const w of windows())
-    w.webContents.send("glimpselet:shell", {
+    w.webContents.send("blinkling:shell", {
       type: "state",
       state: snapshot(),
     });
@@ -206,7 +212,7 @@ async function ensureComposer() {
   win.on("blur", () => {
     broadcast();
     if (!pinned)
-      blink.webContents.send("glimpselet:shell", { type: "chat-blur" });
+      blink.webContents.send("blinkling:shell", { type: "chat-blur" });
     leaveIfIdle();
   });
   let timer;
@@ -247,7 +253,7 @@ async function ensureComposer() {
     });
   return composerOpening;
 }
-ipcMain.on("glimpselet:composer-ready", (event) => {
+ipcMain.on("blinkling:composer-ready", (event) => {
   if (
     event.sender === composer?.webContents &&
     event.senderFrame === event.sender.mainFrame
@@ -262,7 +268,7 @@ async function openComposer(focus = true) {
   const win = await ensureComposer();
   chatOpen = true;
   bubbles?.hide();
-  win.webContents.send("glimpselet:surface", { type: "open" });
+  win.webContents.send("blinkling:surface", { type: "open" });
   broadcast();
   if (focus) {
     if (input) {
@@ -273,7 +279,7 @@ async function openComposer(focus = true) {
       win.focus();
     }
     shapeComposer();
-    win.webContents.send("glimpselet:surface", { type: "open" });
+    win.webContents.send("blinkling:surface", { type: "open" });
   } else if (!win.isVisible()) win.showInactive();
 }
 /** Blink asked to close the card because the pointer left, but something held
@@ -300,7 +306,7 @@ function claimKeyboard(win, until = Date.now() + 500) {
     if (!win.isFocused()) {
       if (input) input.activate(win);
       win.focus();
-      win.webContents.send("glimpselet:surface", { type: "open" });
+      win.webContents.send("blinkling:surface", { type: "open" });
     }
     if (Date.now() < until) setTimeout(retry, 60);
   };
@@ -372,7 +378,7 @@ const trusted = (event) =>
       event.sender === w.webContents &&
       event.senderFrame === w.webContents.mainFrame,
   );
-ipcMain.on("glimpselet:regions", (event, value) => {
+ipcMain.on("blinkling:regions", (event, value) => {
   if (
     event.sender !== blink.webContents ||
     !trusted(event) ||
@@ -387,7 +393,7 @@ ipcMain.on("glimpselet:regions", (event, value) => {
   } else if (!drag && process.platform === "win32" && regions.length)
     blink.setShape(regions);
 });
-ipcMain.handle("glimpselet:shell", async (event, command) => {
+ipcMain.handle("blinkling:shell", async (event, command) => {
   if (!trusted(event) || !validCommand(command, blink.getBounds()))
     throw new Error("Invalid shell command");
   if (command.type === "drag-start")
@@ -468,7 +474,7 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
   } else if (command.type === "activity") {
     if (fromBlink || event.sender !== composer?.webContents)
       throw new Error("Invalid composer activity");
-    blink.webContents.send("glimpselet:shell", { type: "chat-activity" });
+    blink.webContents.send("blinkling:shell", { type: "chat-activity" });
   }
   broadcast();
   return snapshot();
@@ -476,10 +482,10 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
 for (const view of ["settings", "help"])
   registerAction(view, async () => {
     await openComposer();
-    composer.webContents.send("glimpselet:surface", { type: "view", view });
+    composer.webContents.send("blinkling:surface", { type: "view", view });
     return { ok: true };
   });
-ipcMain.handle("glimpselet:action", async (event, action) => {
+ipcMain.handle("blinkling:action", async (event, action) => {
   if (!trusted(event) || !actions.has(action))
     throw new Error("Invalid desktop action");
   if (action === "chat") {
@@ -501,18 +507,18 @@ ipcMain.handle("glimpselet:action", async (event, action) => {
   return dispatchAction(action, { display, windows: windows(), openComposer });
 });
 const send = (event) => {
-  for (const win of windows()) win.webContents.send("glimpselet:event", event);
+  for (const win of windows()) win.webContents.send("blinkling:event", event);
 };
 const session = new SessionBridge({
   userDataDir: app.getPath("userData"),
   cwd:
-    process.env.GLIMPSELET_CWD ??
-    (process.env.GLIMPSELET_E2E === "1" && process.env.GLIMPSELET_LIVE !== "1"
+    process.env.BLINKLING_CWD ??
+    (process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"
       ? app.getPath("userData")
       : process.cwd()),
   executable:
-    process.env.GLIMPSELET_CLAUDE ??
-    (process.env.GLIMPSELET_E2E === "1" && process.env.GLIMPSELET_LIVE !== "1"
+    process.env.BLINKLING_CLAUDE ??
+    (process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"
       ? fileURLToPath(
           new URL("../session/e2e/fake-claude.fixture.mjs", import.meta.url),
         )
@@ -526,7 +532,7 @@ const requireView = (event) => {
   )
     throw new Error("Invalid conversation sender");
 };
-ipcMain.handle("glimpselet:configuration", (event) => {
+ipcMain.handle("blinkling:configuration", (event) => {
   requireView(event);
   return {
     surface: event.sender === bubbles?.webContents ? "bubbles" : "card",
@@ -534,30 +540,30 @@ ipcMain.handle("glimpselet:configuration", (event) => {
     theme: snapshot().theme,
   };
 });
-ipcMain.on("glimpselet:subscribe", (event) => {
+ipcMain.on("blinkling:subscribe", (event) => {
   if (!trusted(event)) return;
   const unsubscribe = session.subscribe(
-    (value) => event.sender.send("glimpselet:event", value),
+    (value) => event.sender.send("blinkling:event", value),
     { visible: true },
   );
   unsubscribe();
 });
-ipcMain.handle("glimpselet:send", async (event, turn) => {
+ipcMain.handle("blinkling:send", async (event, turn) => {
   requireView(event);
   if (event.sender !== composer?.webContents)
     throw new Error("Invalid composer sender");
   await session.send(turn);
   if (turn.source === "quick-ask" && !pinned) closeComposer();
 });
-ipcMain.handle("glimpselet:select", (event, selection) => {
+ipcMain.handle("blinkling:select", (event, selection) => {
   requireView(event);
   return session.select(selection);
 });
-ipcMain.handle("glimpselet:stop", (event) => {
+ipcMain.handle("blinkling:stop", (event) => {
   requireView(event);
   return session.stop();
 });
-ipcMain.handle("glimpselet:open-chat", async (event, messageId) => {
+ipcMain.handle("blinkling:open-chat", async (event, messageId) => {
   requireView(event);
   if (
     messageId !== undefined &&
@@ -565,15 +571,15 @@ ipcMain.handle("glimpselet:open-chat", async (event, messageId) => {
   )
     throw new Error("Invalid message ID");
   await openComposer();
-  composer.webContents.send("glimpselet:surface", { type: "open", messageId });
+  composer.webContents.send("blinkling:surface", { type: "open", messageId });
 });
-ipcMain.handle("glimpselet:open-link", async (event, url) => {
+ipcMain.handle("blinkling:open-link", async (event, url) => {
   requireView(event);
   if (typeof url !== "string" || url.length > 4096 || !/^https?:\/\//.test(url))
     throw new Error("Invalid link");
   await externalShell.openExternal(new URL(url).href);
 });
-ipcMain.on("glimpselet:typing", (event, value) => {
+ipcMain.on("blinkling:typing", (event, value) => {
   if (
     !trusted(event) ||
     event.sender !== composer?.webContents ||
@@ -581,17 +587,17 @@ ipcMain.on("glimpselet:typing", (event, value) => {
   )
     return;
   typing = value;
-  blink.webContents.send("glimpselet:shell", { type: "chat-activity" });
+  blink.webContents.send("blinkling:shell", { type: "chat-activity" });
   leaveIfIdle();
 });
-ipcMain.on("glimpselet:hold", (event, value) => {
+ipcMain.on("blinkling:hold", (event, value) => {
   const hold = validHold(value);
   if (!trusted(event) || event.sender !== composer?.webContents || !hold)
     return;
   cardHold = hold;
   leaveIfIdle();
 });
-ipcMain.on("glimpselet:activity", (event, value) => {
+ipcMain.on("blinkling:activity", (event, value) => {
   if (
     !trusted(event) ||
     event.sender !== bubbles?.webContents ||
@@ -602,12 +608,12 @@ ipcMain.on("glimpselet:activity", (event, value) => {
   answersVisible = value.visible;
   if (answersVisible && !chatOpen) bubbles.showInactive();
   else bubbles.hide();
-  blink.webContents.send("glimpselet:shell", {
+  blink.webContents.send("blinkling:shell", {
     type: "answer-activity",
     ...value,
   });
 });
-ipcMain.on("glimpselet:bubble-regions", (event, value) => {
+ipcMain.on("blinkling:bubble-regions", (event, value) => {
   if (
     !trusted(event) ||
     event.sender !== bubbles?.webContents ||
@@ -633,10 +639,10 @@ await bubbles.loadFile(
 );
 blink.showInactive();
 const companionHost = await startDesktopHost({
-  ...(process.env.GLIMPSELET_E2E === "1"
+  ...(process.env.BLINKLING_E2E === "1"
     ? (() => {
         const directory =
-          process.env.GLIMPSELET_RUNTIME_DIR ??
+          process.env.BLINKLING_RUNTIME_DIR ??
           join(app.getPath("userData"), "runtime");
         return { directory, descriptor: join(directory, "desktop.json") };
       })()
@@ -645,7 +651,7 @@ const companionHost = await startDesktopHost({
   onOpen: () => blink.showInactive(),
   onShutdown: () => app.quit(),
 });
-globalThis.glimpseletCompanion = companionHost;
+globalThis.blinklingCompanion = companionHost;
 const visualMasks = () =>
   windows()
     .filter((w) => w.isVisible())
@@ -668,7 +674,7 @@ const attachCapture = async (capture) => {
   // Only a capture re-claims the keyboard: the selector that just closed hands
   // it back to the previous window, but a user click elsewhere must win.
   claimKeyboard(composer);
-  composer.webContents.send("glimpselet:capture", capture);
+  composer.webContents.send("blinkling:capture", capture);
   send({ type: "capture", capture });
 };
 features = installCaptureGuide({
@@ -715,8 +721,8 @@ registerAction("companion-guide", async () => {
 });
 if (
   !(
-    process.env.GLIMPSELET_E2E === "1" &&
-    process.env.GLIMPSELET_TEST_SESSION === "manual"
+    process.env.BLINKLING_E2E === "1" &&
+    process.env.BLINKLING_TEST_SESSION === "manual"
   )
 )
   void session.connect().catch(() => {});
@@ -762,11 +768,11 @@ const poll = setInterval(() => {
   const key = `${p.x},${p.y},${hit},${overCard},${overBubbles},${chatOpen}`;
   if (key !== previousCursor) {
     previousCursor = key;
-    bubbles.webContents.send("glimpselet:surface", {
+    bubbles.webContents.send("blinkling:surface", {
       type: "hover",
       value: hit || !!overCard || overBubbles,
     });
-    blink.webContents.send("glimpselet:shell", {
+    blink.webContents.send("blinkling:shell", {
       type: "cursor",
       point: local,
       hit: hit || !!overCard || overBubbles,
@@ -795,8 +801,8 @@ app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 app.on("window-all-closed", () => app.quit());
-if (process.env.GLIMPSELET_E2E === "1")
-  globalThis.glimpseletTest = {
+if (process.env.BLINKLING_E2E === "1")
+  globalThis.blinklingTest = {
     blink,
     features,
     session,

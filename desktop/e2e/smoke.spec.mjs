@@ -7,7 +7,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
     await expect(page.getByRole("img", { name: "Blink" })).toBeVisible();
     expect(await page.evaluate(() => typeof window.require)).toBe("undefined");
     expect(
-      await page.evaluate(() => Object.keys(window.glimpselet).sort()),
+      await page.evaluate(() => Object.keys(window.blinkling).sort()),
     ).toEqual([
       "action",
       "activity",
@@ -31,10 +31,10 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
     ]);
     // The test hook is installed once startup (bubbles, companion host) finishes.
     await expect
-      .poll(() => app.evaluate(() => Boolean(globalThis.glimpseletTest)))
+      .poll(() => app.evaluate(() => Boolean(globalThis.blinklingTest)))
       .toBe(true);
     const state = await app.evaluate(() => {
-      const w = globalThis.glimpseletTest.blink;
+      const w = globalThis.blinklingTest.blink;
       return {
         top: w.isAlwaysOnTop(),
         focusable: w.isFocusable(),
@@ -48,7 +48,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
     expect(state.web.contextIsolation).toBe(true);
     expect(state.web.nodeIntegration).toBe(false);
     await expect(
-      page.evaluate(() => window.glimpselet.action("shell:exec")),
+      page.evaluate(() => window.blinkling.action("shell:exec")),
     ).rejects.toThrow(/Invalid desktop action/);
   } finally {
     await app.close();

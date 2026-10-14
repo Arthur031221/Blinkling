@@ -34,7 +34,7 @@ including cancellation or recovery of a completed/interrupted turn.
 
 ## Ownership and compatibility
 
-The adapter automatically starts a session named **Glimpselet**, with Haiku/low
+The adapter automatically starts a session named **Blinkling**, with Haiku/low
 as its initial selection. Claude Code 2.1.296 has no already-authorized way for
 this plugin to push into an interactive parent. `originSessionId` therefore
 does not resume/fork that parent or demand extra user flags. The owned child
@@ -97,12 +97,12 @@ it never spends Claude quota. The Electron suite uses the existing isolated
 preload, actual process loss and compositor screenshots at 100/150/200 percent
 in both themes. Test fixtures live under `e2e/`, excluded from desktop packaging.
 
-`GLIMPSELET_REMOTE=0` makes the transport skip the `remote_control` request, so
+`BLINKLING_REMOTE=0` makes the transport skip the `remote_control` request, so
 nothing appears in the account's Remote Control list (the default, unset, stays
 on for real users). Every npm test script, Playwright config and CI workflow sets
 it. The one final live check per job (the canary, `composer/e2e/live.config.mjs`,
 or the remote observer in `e2e/integrated.spec.mjs`) uses
-`GLIMPSELET_REMOTE=test`: the session is named "Glimpselet test" and is not kept
+`BLINKLING_REMOTE=test`: the session is named "Blinkling test" and is not kept
 on exit. Never delete sessions from the account holder's own list.
 
 The opt-in canary uses six tiny paid turns: five image-bearing producer sources
@@ -116,28 +116,28 @@ send each while the session is connected and verify its arrival in Blink.
 
 ## Remote Control switch
 
-`GLIMPSELET_REMOTE` controls the `remote_control` request:
+`BLINKLING_REMOTE` controls the `remote_control` request:
 
-- unset or `1` (default for users): the named, kept "Glimpselet" session.
+- unset or `1` (default for users): the named, kept "Blinkling" session.
 - `0`: no request at all. The owned session and its stream-json pipe work as
   usual, there is just no remote URL (`identity.remoteId` stays null and an
   earlier identity is kept for when it is switched back on).
-- `test`: the session is named "Glimpselet test" with `keep_session_on_exit`
+- `test`: the session is named "Blinkling test" with `keep_session_on_exit`
   false, so it disappears on exit.
 
-Every automated test, e2e run and tester run sets `0` (GLIMPSELET_E2E runs
+Every automated test, e2e run and tester run sets `0` (BLINKLING_E2E runs
 default to it). The canary is the one live check per job and uses `test`.
 
 Assisted by Claude/Codex.
 
-## GLIMPSELET_REMOTE
+## BLINKLING_REMOTE
 
-| Value        | Effect                                                                                                        |
-| ------------ | ------------------------------------------------------------------------------------------------------------- |
-| unset or `1` | Default for users: the session is registered in Remote Control as "Glimpselet" and is kept on exit.           |
-| `0`          | No `remote_control` request. The owned session answers locally and creates nothing in the account.            |
-| `test`       | The single disposable final check: named "Glimpselet test", `keep_session_on_exit` false, gone when it exits. |
+| Value        | Effect                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------ |
+| unset or `1` | Default for users: the session is registered in Remote Control as "Blinkling" and is kept on exit.           |
+| `0`          | No `remote_control` request. The owned session answers locally and creates nothing in the account.           |
+| `test`       | The single disposable final check: named "Blinkling test", `keep_session_on_exit` false, gone when it exits. |
 
 Every automated test, e2e run and CI job sets `0` (`desktop/test-env.mjs`, the
-Playwright configs and the workflows). `GLIMPSELET_LIVE=1` runs also default to
+Playwright configs and the workflows). `BLINKLING_LIVE=1` runs also default to
 off. Only `runCanary` forces `test`, once per job.

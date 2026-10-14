@@ -28,7 +28,7 @@ async function openPanel(source?: BrowserTab): Promise<void> {
         });
     }
     await chrome.runtime
-      .sendMessage({ type: "glimpselet:focus", sourceTab: source?.id })
+      .sendMessage({ type: "blinkling:focus", sourceTab: source?.id })
       .catch(() => {});
     return;
   }
@@ -57,7 +57,7 @@ chrome.runtime.onInstalled.addListener(() => {
     });
 });
 chrome.commands.onCommand.addListener(async (command: string) => {
-  if (command === "open-glimpselet") {
+  if (command === "open-blinkling") {
     const [tab] = await chrome.tabs.query({
       active: true,
       lastFocusedWindow: true,
@@ -66,12 +66,12 @@ chrome.commands.onCommand.addListener(async (command: string) => {
   }
   if (command === "crop-screen" || command === "crop-global") {
     chrome.runtime
-      .sendMessage({ type: "glimpselet:command", command: "crop-screen" })
+      .sendMessage({ type: "blinkling:command", command: "crop-screen" })
       .catch(() => {});
   }
   if (command === "pause-passive")
     chrome.runtime
-      .sendMessage({ type: "glimpselet:command", command })
+      .sendMessage({ type: "blinkling:command", command })
       .catch(() => {});
 });
 
@@ -81,19 +81,19 @@ chrome.runtime.onMessage.addListener(
     sender: MessageSender,
     sendResponse: (value?: unknown) => void,
   ) => {
-    if (message?.type === "glimpselet:open") {
+    if (message?.type === "blinkling:open") {
       void openPanel().then(() => sendResponse({ ok: true }));
       return true;
     }
     if (
-      message?.type === "glimpselet:inject-content" &&
+      message?.type === "blinkling:inject-content" &&
       sender.tab?.id !== undefined
     ) {
       void injectContent(sender.tab.id).then(() => sendResponse({ ok: true }));
       return true;
     }
     if (
-      message?.type === "glimpselet:open-reader" &&
+      message?.type === "blinkling:open-reader" &&
       typeof message.url === "string"
     ) {
       const target = new URL(chrome.runtime.getURL("reader.html"));
@@ -105,7 +105,7 @@ chrome.runtime.onMessage.addListener(
       return true;
     }
     if (
-      message?.type === "glimpselet:reader-permission-handoff" &&
+      message?.type === "blinkling:reader-permission-handoff" &&
       sender.tab?.url?.split(/[?#]/, 1)[0] === readerUrl()
     ) {
       let interrupted = false;
@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener(
         // before reporting readiness, so the reader cannot open a prompt while
         // an unclosed PiP window may still cover Chromium's permission UI.
         const response = (await chrome.runtime
-          .sendMessage({ type: "glimpselet:reader-permission-handoff" })
+          .sendMessage({ type: "blinkling:reader-permission-handoff" })
           .catch(() => undefined)) as
           | { ok?: boolean; interrupted?: boolean }
           | undefined;
@@ -144,7 +144,7 @@ chrome.runtime.onMessage.addListener(
         );
       return true;
     }
-    if (message?.type === "glimpselet:open-bubble" && sender.tab?.url) {
+    if (message?.type === "blinkling:open-bubble" && sender.tab?.url) {
       let source: URL;
       try {
         source = new URL(sender.tab.url);
@@ -165,7 +165,7 @@ chrome.runtime.onMessage.addListener(
         .catch(() => sendResponse({ ok: false }));
       return true;
     }
-    if (message?.type === "glimpselet:pair" && sender.tab?.url) {
+    if (message?.type === "blinkling:pair" && sender.tab?.url) {
       let senderUrl: URL;
       try {
         senderUrl = new URL(sender.tab.url);
@@ -197,7 +197,7 @@ chrome.runtime.onMessage.addListener(
       void connectWelcome(port, code)
         .then(() =>
           chrome.runtime
-            .sendMessage({ type: "glimpselet:connection-updated" })
+            .sendMessage({ type: "blinkling:connection-updated" })
             .catch(() => {}),
         )
         .then(() => sendResponse({ ok: true }))

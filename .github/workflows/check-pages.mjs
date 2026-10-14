@@ -8,7 +8,7 @@ import { resolve, extname } from "node:path";
 import { chromium, expect } from "@playwright/test";
 
 // Exercise the approved-store switch without changing the repository config.
-const fixture = await mkdtemp(resolve(tmpdir(), "glimpselet-pages-"));
+const fixture = await mkdtemp(resolve(tmpdir(), "blinkling-pages-"));
 const buildPages = resolve(".github/workflows/build-pages.mjs");
 try {
   for (const folder of ["demo", "assets"]) {
@@ -17,9 +17,9 @@ try {
   await mkdir(resolve(fixture, "dist"));
   await mkdir(resolve(fixture, "config"));
   const chrome =
-    "https://chromewebstore.google.com/detail/glimpselet/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    "https://chromewebstore.google.com/detail/blinkling/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   const edge =
-    "https://microsoftedge.microsoft.com/addons/detail/glimpselet/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    "https://microsoftedge.microsoft.com/addons/detail/blinkling/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
   for (const config of [
     { chromeWebStoreUrl: "", edgeAddonsUrl: "" },
     { chromeWebStoreUrl: chrome, edgeAddonsUrl: edge },
@@ -57,7 +57,7 @@ try {
   await rm(fixture, { recursive: true, force: true });
 }
 
-const base = "/Glimpselet/";
+const base = "/Blinkling/";
 const root = resolve("dist");
 const mime = {
   ".html": "text/html",
@@ -166,7 +166,7 @@ try {
       .click();
     await expect(
       page.getByRole("heading", {
-        name: "Glimpselet Privacy Policy",
+        name: "Blinkling Privacy Policy",
         exact: true,
       }),
     ).toBeVisible();

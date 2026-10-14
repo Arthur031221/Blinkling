@@ -87,7 +87,7 @@ test.beforeEach(async () => {
       command: process.execPath,
       argsPrefix: [resolve("e2e-extension/mock-claude.cjs")],
     });
-  directory = await mkdtemp(join(tmpdir(), "glimpselet-chat-reader-"));
+  directory = await mkdtemp(join(tmpdir(), "blinkling-chat-reader-"));
   server = createServer((req, res) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     if (url.pathname === "/paper.pdf") {
@@ -381,11 +381,11 @@ test("clears an obsolete password warning after clicking an SPA sidebar link", a
 });
 
 test("Guide practice has one keyboard-accessible action and keeps its step through permission recovery", async () => {
-  await site.goto(origin + "/assets/glimpselet-welcome-sample.html");
+  await site.goto(origin + "/assets/blinkling-welcome-sample.html");
   await activate(site);
   await site.evaluate(() =>
     window.dispatchEvent(
-      new CustomEvent("glimpselet:tutorial-action", {
+      new CustomEvent("blinkling:tutorial-action", {
         detail: { version: 1, action: "guide", step: 5 },
       }),
     ),
@@ -450,10 +450,10 @@ test("Guide practice has one keyboard-accessible action and keeps its step throu
     "try Guide again",
   );
   await expect(panel.locator(".float-start").last()).toContainText("5/8");
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toHaveCount(0);
   await activate(site);
   await guides.click();
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toBeVisible();
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toBeVisible();
   await expect(panel.locator(".float-start").last()).not.toContainText("5/8");
   await expect(
     panel
@@ -704,7 +704,7 @@ test("reader translation submits once in the target language and PDF popover Ask
     "",
   );
   await selectIntroduction(reader);
-  const popover = reader.locator("[data-glimpselet-overlay] .popover");
+  const popover = reader.locator("[data-blinkling-overlay] .popover");
   await expect(popover).toBeVisible();
   await popover.getByRole("button", { name: en.send, exact: true }).click();
   await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
@@ -971,13 +971,13 @@ for (const outcome of ["grant", "deny", "cancel"] as const) {
 
 // An opt-in smoke uses the original paper without introducing a network
 // dependency into the deterministic extension suite.
-if (process.env.GLIMPSELET_REAL_PDF) {
+if (process.env.BLINKLING_REAL_PDF) {
   test("actual arXiv PDF keeps a native selected introduction separate from Background", async () => {
     const reader = await context.newPage();
     await reader.goto(`chrome-extension://${extensionId}/reader.html`);
     await reader
       .locator("#file")
-      .setInputFiles(process.env.GLIMPSELET_REAL_PDF!);
+      .setInputFiles(process.env.BLINKLING_REAL_PDF!);
     await expect(reader.locator(".pdf-text-layer")).toContainText(
       "Attention Is All You Need",
     );
@@ -1099,10 +1099,10 @@ test("bubble displays unavailable guide text and clears an earlier highlight", a
     exact: true,
   });
   await guide.click();
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toContainText(
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toContainText(
     "Use Export",
   );
-  await expect(site.locator("[data-glimpselet-overlay] .guide p")).toHaveText(
+  await expect(site.locator("[data-blinkling-overlay] .guide p")).toHaveText(
     "Use Export",
   );
   await expect(guide).toBeEnabled();
@@ -1110,8 +1110,8 @@ test("bubble displays unavailable guide text and clears an earlier highlight", a
   await guide.click();
   await expect(panel.locator(".message .answer").last()).toContainText(reason);
   await expect(panel.locator(".toolbar .status")).toHaveText(en.answerReady);
-  await expect(site.locator("[data-glimpselet-overlay] .guide")).toHaveCount(0);
-  await expect(site.locator("[data-glimpselet-overlay] svg.draw")).toHaveCount(
+  await expect(site.locator("[data-blinkling-overlay] .guide")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-overlay] svg.draw")).toHaveCount(
     0,
   );
 });
@@ -1136,7 +1136,7 @@ test("an unavailable PDF guide is handled without restoring its instruction into
   await expect(panel.getByRole("textbox", { name: en.question })).toHaveValue(
     "",
   );
-  await expect(reader.locator("[data-glimpselet-overlay] .guide")).toHaveCount(
+  await expect(reader.locator("[data-blinkling-overlay] .guide")).toHaveCount(
     0,
   );
   expect(
@@ -1211,7 +1211,7 @@ test("bubble translates inline grammatical omission and restores the exact sourc
     ),
   ).toBe(true);
   await panel.getByRole("button", { name: en.restore, exact: true }).click();
-  await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(0);
+  await expect(site.locator("[data-blinkling-translated]")).toHaveCount(0);
   expect(
     await site.evaluate(() =>
       (window as Window & { sourceNodes: Node[] }).sourceNodes.map(
@@ -1394,6 +1394,6 @@ test("bubble rejects extra duplicate or unknown translation IDs before writing",
     await openTools(panel);
     await expect(translate).toBeEnabled();
     await expect(site.locator("#source")).toHaveText("検証可能な出典");
-    await expect(site.locator("[data-glimpselet-translated]")).toHaveCount(0);
+    await expect(site.locator("[data-blinkling-translated]")).toHaveCount(0);
   }
 });

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+Glimpselet is now called Blinkling. The mascot is still Blink.
+
+- Switch from the old plugin with `/plugin uninstall glimpselet@glimpselet` and `/plugin marketplace remove glimpselet`, then add the marketplace again and install `blinkling@blinkling`. The main command is now `/blinkling:blinkling`; the other commands keep their names.
+- The plugin, packages, binaries, app bundle and release assets use the new name. Environment switches are now `BLINKLING_*`; the old `GLIMPSELET_*` names are still read as a fallback for this release.
+- On first start, settings, saved guides, the extension folder and cached builds move quietly from the old Glimpselet folders to the Blinkling ones, once. Nothing the new version already wrote is overwritten.
+- The repository address still uses the old name until the repository is renamed.
+
 ## 2.1.0 - 2026-10-14
 
 The floating bubble, capture flow, page guides and welcome guide now follow the account holder's hands-on feedback.

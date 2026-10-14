@@ -12,10 +12,10 @@ const fixture = fileURLToPath(
 for (const scale of [1, 1.5, 2])
   for (const theme of ["light", "dark"]) {
     test(`session events cross the isolated Electron preload at ${scale * 100}% ${theme}`, async () => {
-      const dir = await mkdtemp(join(tmpdir(), "glimpselet-electron-session-"));
+      const dir = await mkdtemp(join(tmpdir(), "blinkling-electron-session-"));
       const app = await _electron.launch({
         args: [root, "--no-sandbox", `--force-device-scale-factor=${scale}`],
-        env: { ...process.env, GLIMPSELET_E2E: "1", GLIMPSELET_REMOTE: "0" },
+        env: { ...process.env, BLINKLING_E2E: "1", BLINKLING_REMOTE: "0" },
       });
       try {
         const page = await app.firstWindow();
@@ -23,9 +23,7 @@ for (const scale of [1, 1.5, 2])
         await expect(page.getByRole("img", { name: "Blink" })).toBeVisible();
         await page.evaluate(() => {
           window.sessionEvents = [];
-          window.glimpselet.onEvent((event) =>
-            window.sessionEvents.push(event),
-          );
+          window.blinkling.onEvent((event) => window.sessionEvents.push(event));
         });
         await expect
           .poll(() => app.evaluate(() => typeof globalThis.startSessionTest))
@@ -126,10 +124,10 @@ for (const scale of [1, 1.5, 2])
           )[0];
           return source.thumbnail.toPNG().toString("base64");
         });
-        if (process.env.GLIMPSELET_SESSION_REPORT_DIR)
+        if (process.env.BLINKLING_SESSION_REPORT_DIR)
           await writeFile(
             join(
-              process.env.GLIMPSELET_SESSION_REPORT_DIR,
+              process.env.BLINKLING_SESSION_REPORT_DIR,
               `session-${scale * 100}-${theme}.png`,
             ),
             Buffer.from(png, "base64"),

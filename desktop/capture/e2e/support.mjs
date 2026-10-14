@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 export const reports =
-  process.env.GLIMPSELET_REPORT_DIR ??
+  process.env.BLINKLING_REPORT_DIR ??
   fileURLToPath(
     new URL("../../../test-results/capture-guide", import.meta.url),
   );
@@ -19,11 +19,11 @@ export async function launch(scale = 1) {
       `--force-device-scale-factor=${scale}`,
       `--user-data-dir=${dir}`,
     ],
-    env: { ...process.env, GLIMPSELET_E2E: "1", GLIMPSELET_REMOTE: "0" },
+    env: { ...process.env, BLINKLING_E2E: "1", BLINKLING_REMOTE: "0" },
   });
   await app.firstWindow();
   await expect
-    .poll(() => app.evaluate(() => !!globalThis.glimpseletTest), {
+    .poll(() => app.evaluate(() => !!globalThis.blinklingTest), {
       timeout: 10000,
     })
     .toBe(true);
@@ -98,8 +98,8 @@ export async function background(app) {
       scale: d.scaleFactor,
       // The shell's transparent window spans the display. Only the native
       // character/menu input regions occupy pixels that labels must avoid.
-      blink: globalThis.glimpseletTest.blink.getBounds(),
-      blinkRegions: globalThis.glimpseletTest.visualMasks(),
+      blink: globalThis.blinklingTest.blink.getBounds(),
+      blinkRegions: globalThis.blinklingTest.visualMasks(),
     };
   });
 }

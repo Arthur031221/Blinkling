@@ -6,7 +6,7 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
   try {
     const blink = await app.firstWindow();
     await expect(blink.getByRole("img", { name: "Blink" })).toBeVisible();
-    await blink.evaluate(() => window.glimpselet.action("chat"));
+    await blink.evaluate(() => window.blinkling.action("chat"));
     let card;
     await expect
       .poll(() => {
@@ -19,7 +19,7 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
     await expect(card.getByRole("textbox", { name: "輸入問題" })).toBeVisible();
     await expect
       .poll(() =>
-        app.evaluate(() => globalThis.glimpseletTest.session.status.state),
+        app.evaluate(() => globalThis.blinklingTest.session.status.state),
       )
       .toBe("connected");
     const pdf = Buffer.from("%PDF-1.7\nfixture");
@@ -52,12 +52,10 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
       card.locator(".gl-chat-message.gl-assistant").last(),
     ).toContainText("OK.");
     await expect
-      .poll(() =>
-        app.evaluate(() => !!globalThis.glimpseletTest.session.active),
-      )
+      .poll(() => app.evaluate(() => !!globalThis.blinklingTest.session.active))
       .toBe(false);
     const messages = await app.evaluate(
-      () => globalThis.glimpseletTest.session.state.messages,
+      () => globalThis.blinklingTest.session.state.messages,
     );
     const user = messages.find((message) => message.role === "user");
     expect(user.content).toEqual([
@@ -78,7 +76,7 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
       { type: "text", text: "Explain the files." },
     ]);
     const turns = await app.evaluate(
-      () => globalThis.glimpseletTest.session.state.turns,
+      () => globalThis.blinklingTest.session.state.turns,
     );
     expect(turns).toHaveLength(1);
     expect(turns[0].state).toBe("done");

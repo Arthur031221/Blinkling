@@ -99,15 +99,15 @@ test("owned session resumes exact ID without forking or requiring user flags", (
   assert.equal(enableRemote("remote").reattach_session_id, "remote");
 });
 
-test("GLIMPSELET_REMOTE selects off, test or the default on", () => {
+test("BLINKLING_REMOTE selects off, test or the default on", () => {
   assert.equal(remoteMode({}), "on");
-  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "1" }), "on");
-  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
-  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "test" }), "test");
+  assert.equal(remoteMode({ BLINKLING_REMOTE: "1" }), "on");
+  assert.equal(remoteMode({ BLINKLING_REMOTE: "0" }), "off");
+  assert.equal(remoteMode({ BLINKLING_REMOTE: "test" }), "test");
   assert.deepEqual(enableRemote(undefined, "test"), {
     subtype: "remote_control",
     enabled: true,
-    name: "Glimpselet test",
+    name: "Blinkling test",
     keep_session_on_exit: false,
   });
   assert.equal(enableRemote("remote").keep_session_on_exit, true);
@@ -177,40 +177,40 @@ test("undocumented controls require the verified CLI version", async () => {
   );
 });
 
-test("GLIMPSELET_REMOTE selects off, the one disposable test session, or the default", () => {
+test("BLINKLING_REMOTE selects off, the one disposable test session, or the default", () => {
   assert.equal(remoteMode({}), "on");
-  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "1" }), "on");
-  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
-  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "test" }), "test");
-  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "bogus" }), "on");
-  assert.equal(remoteMode({ GLIMPSELET_LIVE: "1" }), "off");
+  assert.equal(remoteMode({ BLINKLING_REMOTE: "1" }), "on");
+  assert.equal(remoteMode({ BLINKLING_REMOTE: "0" }), "off");
+  assert.equal(remoteMode({ BLINKLING_REMOTE: "test" }), "test");
+  assert.equal(remoteMode({ BLINKLING_REMOTE: "bogus" }), "on");
+  assert.equal(remoteMode({ BLINKLING_LIVE: "1" }), "off");
   assert.equal(
-    remoteMode({ GLIMPSELET_LIVE: "1", GLIMPSELET_REMOTE: "test" }),
+    remoteMode({ BLINKLING_LIVE: "1", BLINKLING_REMOTE: "test" }),
     "test",
   );
   const real = enableRemote("cse_x");
-  assert.equal(real.name, "Glimpselet");
+  assert.equal(real.name, "Blinkling");
   assert.equal(real.keep_session_on_exit, true);
   const disposable = enableRemote(undefined, "test");
-  assert.equal(disposable.name, "Glimpselet test");
+  assert.equal(disposable.name, "Blinkling test");
   assert.equal(disposable.keep_session_on_exit, false);
   assert.throws(() => enableRemote(undefined, "off"), /disabled/);
   // End-to-end runs never touch a real account unless they ask for the test session.
-  assert.equal(remoteMode({ GLIMPSELET_E2E: "1" }), "off");
+  assert.equal(remoteMode({ BLINKLING_E2E: "1" }), "off");
   assert.equal(
-    remoteMode({ GLIMPSELET_E2E: "1", GLIMPSELET_REMOTE: "test" }),
+    remoteMode({ BLINKLING_E2E: "1", BLINKLING_REMOTE: "test" }),
     "test",
   );
   assert.deepEqual(enableRemote(undefined, "on"), {
     subtype: "remote_control",
     enabled: true,
-    name: "Glimpselet",
+    name: "Blinkling",
     keep_session_on_exit: true,
   });
   assert.deepEqual(enableRemote("cse_x", "test"), {
     subtype: "remote_control",
     enabled: true,
-    name: "Glimpselet test",
+    name: "Blinkling test",
     keep_session_on_exit: false,
     reattach_session_id: "cse_x",
   });

@@ -119,7 +119,7 @@ async function waitFor(predicate) {
   }
 }
 async function setup(t, options = {}) {
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-session-"));
+  const dir = await mkdtemp(join(tmpdir(), "blinkling-session-"));
   const children = [];
   const bridge = new DesktopSessionBridge({
     userDataDir: dir,
@@ -491,7 +491,7 @@ test("stop interrupts without waiting for picker; shutdown releases the single-w
 });
 
 test("shutdown releases the writer lock even when its final durable checkpoint fails", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "glimpselet-shutdown-failure-"));
+  const dir = await mkdtemp(join(tmpdir(), "blinkling-shutdown-failure-"));
   const child = new Transport();
   const options = {
     userDataDir: dir,

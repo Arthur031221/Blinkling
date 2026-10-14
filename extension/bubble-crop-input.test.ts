@@ -148,7 +148,7 @@ it("shows the frozen pixels and selection beneath the native fallback, then remo
   image.style.height = "750px";
   stop = relayBubbleCropInput(floating, host, image);
   const mirror = floating.document.querySelector(
-    "[data-glimpselet-crop-mirror]",
+    "[data-blinkling-crop-mirror]",
   )!;
   expect(mirror).not.toBeNull();
   expect(mirror.parentElement).toBe(floating.document.documentElement);
@@ -156,7 +156,7 @@ it("shows the frozen pixels and selection beneath the native fallback, then remo
   expect(mirror.shadowRoot!.querySelector(".surface")).not.toBeNull();
   stop();
   expect(
-    floating.document.querySelector("[data-glimpselet-crop-mirror]"),
+    floating.document.querySelector("[data-blinkling-crop-mirror]"),
   ).toBeNull();
 });
 
@@ -179,7 +179,7 @@ it("excludes the native bottom frame from the mirrored content origin", () => {
   const image = document.createElement("img");
   stop = relayBubbleCropInput(floating, host, image);
   const mirror = floating.document.querySelector(
-    "[data-glimpselet-crop-mirror]",
+    "[data-blinkling-crop-mirror]",
   )!;
   expect(
     (mirror.shadowRoot!.firstElementChild as HTMLElement).style.transform,

@@ -5,37 +5,37 @@ function subscribe(channel, listener) {
   return () => ipcRenderer.removeListener(channel, handler);
 }
 contextBridge.exposeInMainWorld(
-  "glimpselet",
+  "blinkling",
   Object.freeze({
-    action: (action) => ipcRenderer.invoke("glimpselet:action", action),
-    interactive: (regions) => ipcRenderer.send("glimpselet:regions", regions),
-    shell: (command) => ipcRenderer.invoke("glimpselet:shell", command),
-    onShell: (listener) => subscribe("glimpselet:shell", listener),
+    action: (action) => ipcRenderer.invoke("blinkling:action", action),
+    interactive: (regions) => ipcRenderer.send("blinkling:regions", regions),
+    shell: (command) => ipcRenderer.invoke("blinkling:shell", command),
+    onShell: (listener) => subscribe("blinkling:shell", listener),
     onEvent: (listener) => {
-      const remove = subscribe("glimpselet:event", listener);
-      ipcRenderer.send("glimpselet:subscribe");
+      const remove = subscribe("blinkling:event", listener);
+      ipcRenderer.send("blinkling:subscribe");
       return remove;
     },
-    configuration: () => ipcRenderer.invoke("glimpselet:configuration"),
-    sendTurn: (turn) => ipcRenderer.invoke("glimpselet:send", turn),
-    select: (selection) => ipcRenderer.invoke("glimpselet:select", selection),
-    stop: () => ipcRenderer.invoke("glimpselet:stop"),
+    configuration: () => ipcRenderer.invoke("blinkling:configuration"),
+    sendTurn: (turn) => ipcRenderer.invoke("blinkling:send", turn),
+    select: (selection) => ipcRenderer.invoke("blinkling:select", selection),
+    stop: () => ipcRenderer.invoke("blinkling:stop"),
     onCapture: (listener) => {
-      const remove = subscribe("glimpselet:capture", listener);
-      ipcRenderer.send("glimpselet:composer-ready");
+      const remove = subscribe("blinkling:capture", listener);
+      ipcRenderer.send("blinkling:composer-ready");
       return remove;
     },
-    onSurface: (listener) => subscribe("glimpselet:surface", listener),
-    activity: (value) => ipcRenderer.send("glimpselet:activity", value),
-    typing: (value) => ipcRenderer.send("glimpselet:typing", value),
-    hold: (value) => ipcRenderer.send("glimpselet:hold", value),
+    onSurface: (listener) => subscribe("blinkling:surface", listener),
+    activity: (value) => ipcRenderer.send("blinkling:activity", value),
+    typing: (value) => ipcRenderer.send("blinkling:typing", value),
+    hold: (value) => ipcRenderer.send("blinkling:hold", value),
     pin: (value) =>
-      ipcRenderer.invoke("glimpselet:shell", { type: "pin", value }),
-    close: () => ipcRenderer.invoke("glimpselet:shell", { type: "close-chat" }),
+      ipcRenderer.invoke("blinkling:shell", { type: "pin", value }),
+    close: () => ipcRenderer.invoke("blinkling:shell", { type: "close-chat" }),
     openChat: (messageId) =>
-      ipcRenderer.invoke("glimpselet:open-chat", messageId),
-    openLink: (url) => ipcRenderer.invoke("glimpselet:open-link", url),
+      ipcRenderer.invoke("blinkling:open-chat", messageId),
+    openLink: (url) => ipcRenderer.invoke("blinkling:open-link", url),
     bubbleRegions: (regions) =>
-      ipcRenderer.send("glimpselet:bubble-regions", regions),
+      ipcRenderer.send("blinkling:bubble-regions", regions),
   }),
 );
