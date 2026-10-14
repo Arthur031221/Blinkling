@@ -12,6 +12,12 @@ import {
 } from "./install.mjs";
 import { discoverDesktop } from "./client.mjs";
 import { runtimeDirectory, endpointPath } from "./paths.mjs";
+import { chooseSandbox, readSandboxFacts, sandboxArgs } from "./sandbox.mjs";
+/** GitHub redirects the old Glimpselet address to Blinkling. Both are ours. */
+const RELEASE_PATHS = [
+  "/Arthur031221/Blinkling/releases/download/",
+  "/Arthur031221/Glimpselet/releases/download/",
+];
 /** Trust only the plugin-embedded release manifest, never adjacent web checksums. */
 export function selectBuild(
   manifest,
@@ -21,7 +27,7 @@ export function selectBuild(
   if (!manifest || !Array.isArray(manifest.builds))
     throw new Error("Invalid pinned desktop manifest");
   const matches = manifest.builds.filter(
-    (b) => b.platform === platform && b.arch === arch,
+    (b) => b.os === platform && b.arch === arch,
   );
   if (matches.length > 1) throw new Error("Duplicate desktop target");
   const build = matches[0];
@@ -36,11 +42,16 @@ export function selectBuild(
     url.password ||
     url.search ||
     url.hash ||
-    !url.pathname.startsWith("/Arthur031221/Glimpselet/releases/download/")
+    !RELEASE_PATHS.some((path) => url.pathname.startsWith(path))
   )
     throw new Error("Invalid release origin");
   if (!/^[a-f0-9]{64}$/.test(build.sha256))
     throw new Error("Invalid release digest");
+  if (
+    build.size !== undefined &&
+    !(Number.isSafeInteger(build.size) && build.size > 0)
+  )
+    throw new Error("Invalid release size");
   return build;
 }
 export function verifyArchive(bytes, build) {
@@ -58,6 +69,21 @@ export async function desktopEnabled(directory = runtimeDirectory()) {
     throw error;
   }
 }
+/** Start with Claude Code is on unless the user turned it off in settings.
+ * An unreadable or unfinished settings file never switches Blink off. */
+export async function startWithClaudeCode(userData) {
+  try {
+    const settings = JSON.parse(
+      await readFile(join(userData, "settings.json"), "utf8"),
+    );
+    return settings?.startWithClaudeCode !== false;
+  } catch {
+    return true;
+  }
+}
+/** The Electron user data directory of a Blink that this plugin launched. */
+export const userDataDirectory = (runtime = runtimeDirectory()) =>
+  join(runtime, "electron");
 export async function launchDesktop(options = {}) {
   const directory = options.runtime || runtimeDirectory();
   await privateDirectory(directory);
@@ -123,12 +149,30 @@ export async function launchDesktop(options = {}) {
     }
     let child;
     try {
-      child = (options.spawn || spawn)(entry, options.args || [], {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true,
-        env: { ...process.env, BLINKLING_RUNTIME_DIR: directory },
-      });
+      const platform = options.platform || process.platform;
+      // Prefer a sandbox that works on this machine; run without one only when
+      // the kernel and the build leave no choice (stock Ubuntu 24.04).
+      const sandbox = chooseSandbox(
+        options.sandboxFacts ||
+          (await readSandboxFacts({ platform, executable: entry })),
+      );
+      child = (options.spawn || spawn)(
+        entry,
+        [...sandboxArgs(sandbox), ...(options.args || [])],
+        {
+          detached: true,
+          stdio: "ignore",
+          windowsHide: true,
+          env: {
+            ...process.env,
+            BLINKLING_RUNTIME_DIR: directory,
+            // An AppImage needs FUSE to mount itself; unpacking works anywhere.
+            ...(installed.build.archive === "file" && platform === "linux"
+              ? { APPIMAGE_EXTRACT_AND_RUN: "1" }
+              : {}),
+          },
+        },
+      );
       let failure;
       child.once("error", (error) => {
         failure = error;

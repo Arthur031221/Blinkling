@@ -400,7 +400,10 @@ async function download(build, options, temporaryPath) {
     () => controller.abort(),
     options.downloadTimeoutMs ?? 120_000,
   );
-  const limit = options.maxDownloadBytes ?? MAX_DOWNLOAD;
+  const limit = Math.min(
+    options.maxDownloadBytes ?? MAX_DOWNLOAD,
+    build.size ?? Infinity,
+  );
   try {
     let url = build.url;
     for (let redirects = 0; redirects <= 5; redirects++) {
@@ -445,6 +448,8 @@ async function download(build, options, temporaryPath) {
           hash.update(value);
           await file.writeFile(value);
         }
+        if (build.size !== undefined && size !== build.size)
+          throw new Error("Desktop download size differs from the release");
         if (hash.digest("hex") !== build.sha256)
           throw new Error("Desktop archive checksum mismatch");
         await file.sync();
@@ -466,7 +471,7 @@ function verifyExecutable(entries, build) {
     throw new Error("Desktop archive is missing its executable entry");
   const data = entry.data;
   let matches = false;
-  if (build.platform === "linux")
+  if (build.os === "linux")
     matches =
       data.length >= 20 &&
       data.subarray(0, 4).equals(Buffer.from([127, 69, 76, 70])) &&
@@ -475,7 +480,7 @@ function verifyExecutable(entries, build) {
       data.readUInt16LE(18) === (build.arch === "arm64" ? 183 : 62) &&
       Boolean(entry.mode & 0o111);
   if (
-    build.platform === "win32" &&
+    build.os === "win32" &&
     data.length >= 64 &&
     data.toString("ascii", 0, 2) === "MZ"
   ) {
@@ -485,7 +490,7 @@ function verifyExecutable(entries, build) {
       data.readUInt32LE(pe) === 0x4550 &&
       data.readUInt16LE(pe + 4) === (build.arch === "arm64" ? 0xaa64 : 0x8664);
   }
-  if (build.platform === "darwin" && data.length >= 8)
+  if (build.os === "darwin" && data.length >= 8)
     matches =
       data.readUInt32LE(0) === 0xfeedfacf &&
       data.readUInt32LE(4) ===
@@ -563,7 +568,7 @@ export async function installDesktop(manifest, options = {}) {
   if (
     manifest.schemaVersion !== 1 ||
     !/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version) ||
-    !["zip", "tar.gz"].includes(build.archive) ||
+    !["zip", "tar.gz", "file"].includes(build.archive) ||
     typeof build.entry !== "string"
   )
     throw new Error("Invalid pinned desktop manifest");
@@ -592,7 +597,18 @@ export async function installDesktop(manifest, options = {}) {
         await rm(temp, { force: true });
       }
     }
-    const entries = readArchive(bytes, build.archive, options);
+    const entries =
+      build.archive === "file"
+        ? // An AppImage or portable executable is the program itself.
+          [
+            {
+              name: safePath(build.entry),
+              type: "file",
+              data: bytes,
+              mode: 0o755,
+            },
+          ]
+        : readArchive(bytes, build.archive, options);
     verifyExecutable(entries, build);
     const directory = join(
       root,

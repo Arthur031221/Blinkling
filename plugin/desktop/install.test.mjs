@@ -62,7 +62,7 @@ const manifest = {
   version: "3.0.0",
   builds: [
     {
-      platform: "linux",
+      os: "linux",
       arch: "x64",
       url: "https://github.com/Arthur031221/Glimpselet/releases/download/v3.0.0/linux.tar.gz",
       sha256: sha(archive),
@@ -346,7 +346,7 @@ test("extracts native ZIP formats for both CPUs and validates safe framework lin
         builds: [
           {
             ...manifest.builds[0],
-            platform,
+            os: platform,
             arch,
             archive: "zip",
             entry,
@@ -452,4 +452,143 @@ test("failed desktop startup preserves the current release and terminates only i
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+const oldAddress =
+  "https://github.com/Arthur031221/Glimpselet/releases/download/v3.0.0/Blinkling-3.0.0-linux-x64.AppImage";
+const newAddress = oldAddress.replace("/Glimpselet/", "/Blinkling/");
+const storage =
+  "https://release-assets.githubusercontent.com/github-production-release-asset/1/x";
+const appImage = Buffer.concat([elf, Buffer.from("squashfs")]);
+const single = (extra = {}) => ({
+  schemaVersion: 1,
+  version: "3.0.0",
+  builds: [
+    {
+      os: "linux",
+      arch: "x64",
+      url: oldAddress,
+      sha256: sha(appImage),
+      size: appImage.length,
+      archive: "file",
+      entry: "Blinkling-3.0.0-linux-x64.AppImage",
+      ...extra,
+    },
+  ],
+});
+
+test("a single-file build such as an AppImage installs executable and follows the old address through GitHub's redirects", async () => {
+  const root = await mkdtemp(join(tmpdir(), "blinkling-file-"));
+  const requested = [];
+  try {
+    const installed = await installDesktop(single(), {
+      root,
+      platform: "linux",
+      arch: "x64",
+      fetch: async (url) => {
+        requested.push(url);
+        if (url === oldAddress)
+          return new Response(null, {
+            status: 301,
+            headers: { location: newAddress },
+          });
+        if (url === newAddress)
+          return new Response(null, {
+            status: 302,
+            headers: { location: storage },
+          });
+        return new Response(appImage, {
+          headers: { "content-length": String(appImage.length) },
+        });
+      },
+    });
+    assert.deepEqual(requested, [oldAddress, newAddress, storage]);
+    assert.deepEqual(await readFile(installed.entry), appImage);
+    assert.ok((await stat(installed.entry)).mode & 0o100, "owner can run it");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the published size is enforced and a wrong or oversized single file is refused", async () => {
+  const root = await mkdtemp(join(tmpdir(), "blinkling-size-"));
+  const options = (body) => ({
+    root,
+    platform: "linux",
+    arch: "x64",
+    fetch: async () => new Response(body),
+  });
+  try {
+    await assert.rejects(
+      installDesktop(single({ size: appImage.length - 1 }), options(appImage)),
+      /size/,
+    );
+    await assert.rejects(
+      installDesktop(
+        single({ entry: "../Blinkling.AppImage" }),
+        options(appImage),
+      ),
+      /Unsafe/,
+    );
+    const notNative = Buffer.from("#!/bin/sh\n");
+    await assert.rejects(
+      installDesktop(
+        single({ sha256: sha(notNative), size: notNative.length }),
+        options(notNative),
+      ),
+      /mismatch/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+async function spawned(sandboxFacts, build = {}) {
+  const root = await mkdtemp(join(tmpdir(), "blinkling-args-"));
+  let call;
+  const child = new EventEmitter();
+  child.unref = () => {};
+  child.kill = () => {};
+  try {
+    await launchDesktop({
+      root,
+      runtime: join(root, "runtime"),
+      platform: "linux",
+      arch: "x64",
+      manifest: single(build),
+      fetch: async () => new Response(appImage),
+      startTimeoutMs: 1,
+      sandboxFacts,
+      args: ["--hidden"],
+      spawn: (entry, args, options) => {
+        call = { entry, args, env: options.env };
+        return child;
+      },
+    }).catch(() => undefined);
+    return call;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+test("the launcher adds --no-sandbox only when the machine cannot sandbox and unpacks AppImages itself", async () => {
+  const blocked = await spawned({
+    platform: "linux",
+    userns: "apparmor",
+    helper: "none",
+  });
+  assert.deepEqual(blocked.args, ["--no-sandbox", "--hidden"]);
+  assert.equal(blocked.env.APPIMAGE_EXTRACT_AND_RUN, "1");
+  const open = await spawned({
+    platform: "linux",
+    userns: "open",
+    helper: "none",
+  });
+  assert.deepEqual(open.args, ["--hidden"]);
+  const helper = await spawned({
+    platform: "linux",
+    userns: "apparmor",
+    helper: "setuid root",
+  });
+  assert.deepEqual(helper.args, ["--hidden"]);
 });
