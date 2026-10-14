@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { reports } from "./support.mjs";
+// Automated runs never create Remote Control sessions.
+process.env.GLIMPSELET_REMOTE ??= "0";
 export default defineConfig({
   testDir: ".",
   testMatch: "*.spec.mjs",

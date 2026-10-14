@@ -13,7 +13,8 @@ process.env.GLIMPSELET_TEST_SESSION = "manual";
       userDataDir: dir,
       cwd: dir,
       executable: nodeExecutable,
-      transportFactory: () => new OwnedSession({ executableArgs: [fixture] }),
+      transportFactory: () =>
+        new OwnedSession({ executableArgs: [fixture], remote: "on" }),
       readTranscript: async (cwd, id) => {
         try {
           return (

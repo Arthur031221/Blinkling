@@ -7,6 +7,8 @@ import { join } from "node:path";
 /** Real, logged-in Claude canary. No credentials, CLI tools or parent session reuse. */
 export async function liveSession(emit) {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-conversation-"));
+  // Automated runs never create Remote Control sessions; the final check opts in with test.
+  process.env.GLIMPSELET_REMOTE ??= "0";
   const owned = new OwnedSession();
   let sessionId = "",
     assistantId,

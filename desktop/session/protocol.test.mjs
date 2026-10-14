@@ -5,6 +5,7 @@ import {
   userMessage,
   launchArguments,
   enableRemote,
+  remoteMode,
 } from "./protocol.mjs";
 test("image turns preserve image bytes and stable deduplication ID", () => {
   const value = userMessage(
@@ -160,4 +161,23 @@ test("undocumented controls require the verified CLI version", async () => {
     () => assertClaudeVersion("2.1.297 (Claude Code)"),
     /Unverified/,
   );
+});
+
+test("GLIMPSELET_REMOTE selects off, the one disposable test session, or the default", () => {
+  assert.equal(remoteMode({}), "on");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "1" }), "on");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "test" }), "test");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "bogus" }), "on");
+  assert.equal(remoteMode({ GLIMPSELET_LIVE: "1" }), "off");
+  assert.equal(
+    remoteMode({ GLIMPSELET_LIVE: "1", GLIMPSELET_REMOTE: "test" }),
+    "test",
+  );
+  const real = enableRemote("cse_x");
+  assert.equal(real.name, "Glimpselet");
+  assert.equal(real.keep_session_on_exit, true);
+  const disposable = enableRemote(undefined, "test");
+  assert.equal(disposable.name, "Glimpselet test");
+  assert.equal(disposable.keep_session_on_exit, false);
 });

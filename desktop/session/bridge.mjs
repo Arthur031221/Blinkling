@@ -148,15 +148,18 @@ export class DesktopSessionBridge {
         ...this.state.selection,
       });
       if (this.closed) throw new Error("Session closed");
-      if (
-        this.state.remoteId &&
-        remote.bridge_session_id !== this.state.remoteId
-      )
-        throw Object.assign(new Error("Remote session identity changed"), {
-          code: "IDENTITY_CHANGED",
-        });
-      this.state.remoteId = remote.bridge_session_id;
-      this.state.url = remote.session_url;
+      // GLIMPSELET_REMOTE=0 returns no identity: keep whatever was saved.
+      if (remote.bridge_session_id) {
+        if (
+          this.state.remoteId &&
+          remote.bridge_session_id !== this.state.remoteId
+        )
+          throw Object.assign(new Error("Remote session identity changed"), {
+            code: "IDENTITY_CHANGED",
+          });
+        this.state.remoteId = remote.bridge_session_id;
+        this.state.url = remote.session_url;
+      }
       this.state.started = true;
       this.state.selection = confirmedSelection(await transport.getSelection());
       await this.events;

@@ -20,6 +20,8 @@ const capture = {
     data: bytes.toString("base64"),
   },
 };
+// Automated runs never create Remote Control sessions; the final check opts in with test.
+process.env.GLIMPSELET_REMOTE ??= "0";
 const transport = new OwnedSession(),
   listeners = new Set();
 let admitted;

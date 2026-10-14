@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "build": "tsc -p tsconfig.json && node distribution/build.mjs",
-    "test": "node --test */*.test.mjs",
+    "test": "node --import ./test-env.mjs --test */*.test.mjs",
     "test:e2e": "playwright test -c e2e/playwright.config.mjs"
   },
   "dependencies": {

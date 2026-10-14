@@ -7,6 +7,7 @@ import {
   ControlRequests,
   enableRemote,
   launchArguments,
+  remoteMode,
   userMessage,
 } from "./protocol.mjs";
 
@@ -16,11 +17,13 @@ export class OwnedSession extends EventEmitter {
     controlTimeoutMs = 15000,
     connectTimeoutMs = 45000,
     executableArgs = [],
+    remote = remoteMode(),
   } = {}) {
     super();
     this.controlTimeoutMs = controlTimeoutMs;
     this.connectTimeoutMs = connectTimeoutMs;
     this.executableArgs = [...executableArgs];
+    this.remoteSetting = remote;
     this.abort = new AbortController();
   }
   async connect({
@@ -130,7 +133,15 @@ export class OwnedSession extends EventEmitter {
     child.on("exit", () => this.fault(new Error("Claude transport exited")));
     try {
       this.initialized = await this.controls.request({ subtype: "initialize" });
-      const remote = await this.controls.request(enableRemote(remoteId));
+      if (this.remoteSetting === "off") {
+        // No Remote Control request: the child answers locally and creates nothing in the account.
+        this.remote = { session_url: null, bridge_session_id: null };
+        this.remoteConnected = true;
+        return this.remote;
+      }
+      const remote = await this.controls.request(
+        enableRemote(remoteId, this.remoteSetting),
+      );
       if (
         !/^https:\/\/claude\.ai\/code\/[a-zA-Z0-9_-]+$/.test(
           remote.session_url ?? "",
