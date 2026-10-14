@@ -9,6 +9,7 @@ import {
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
+import { leaveCloses, noHold, validHold } from "./card-hold.mjs";
 import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
@@ -76,6 +77,8 @@ let composer = null,
   drag = null,
   pinned = false,
   chatOpen = false,
+  cardHold = noHold,
+  leaving = false,
   autoExplain = false,
   quitting = false;
 let previousCursor = "",
@@ -203,6 +206,7 @@ async function ensureComposer() {
     broadcast();
     if (!pinned)
       blink.webContents.send("glimpselet:shell", { type: "chat-blur" });
+    leaveIfIdle();
   });
   let timer;
   const ready = new Promise((resolve, reject) => {
@@ -271,7 +275,23 @@ async function openComposer(focus = true) {
     win.webContents.send("glimpselet:surface", { type: "open" });
   } else if (!win.isVisible()) win.showInactive();
 }
+/** Blink asked to close the card because the pointer left, but something held
+ * it. Close it as soon as nothing does, without waiting for another leave. */
+function leaveIfIdle() {
+  if (
+    leaveCloses({
+      open: chatOpen,
+      pinned,
+      leaving,
+      focused: composer?.isFocused(),
+      draft: typing,
+      ...cardHold,
+    })
+  )
+    closeComposer();
+}
 function closeComposer(restore = true) {
+  leaving = false;
   const focused = composer?.isFocused();
   chatOpen = false;
   pinned = false;
@@ -410,7 +430,11 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
   } else if (command.type === "close-chat") closeComposer();
   else if (command.type === "visibility") {
     if (command.value && !chatOpen) await openComposer(false);
-    else if (!command.value && !pinned && chatOpen) closeComposer();
+    else if (command.value) leaving = false;
+    else if (!command.value && !pinned && chatOpen) {
+      leaving = true;
+      leaveIfIdle();
+    }
   } else if (command.type === "activity") {
     if (fromBlink || event.sender !== composer?.webContents)
       throw new Error("Invalid composer activity");
@@ -527,6 +551,14 @@ ipcMain.on("glimpselet:typing", (event, value) => {
     return;
   typing = value;
   blink.webContents.send("glimpselet:shell", { type: "chat-activity" });
+  leaveIfIdle();
+});
+ipcMain.on("glimpselet:hold", (event, value) => {
+  const hold = validHold(value);
+  if (!trusted(event) || event.sender !== composer?.webContents || !hold)
+    return;
+  cardHold = hold;
+  leaveIfIdle();
 });
 ipcMain.on("glimpselet:activity", (event, value) => {
   if (

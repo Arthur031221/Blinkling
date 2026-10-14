@@ -26,6 +26,7 @@ export function mountComposer(
     onPin = () => {},
     onClose = () => {},
     onTyping = () => {},
+    onHold = () => {},
     copy,
     openLink,
   } = {},
@@ -179,8 +180,24 @@ export function mountComposer(
       fail(e);
     }
   };
-  listen(add, "click", () => file.click());
+  // Work in progress that the card must not close over: a pending chip, or a
+  // file chooser the user has not answered yet.
+  let dialogOpen = false,
+    chips = false;
+  const hold = () => onHold({ chips, dialog: dialogOpen });
+  const closeDialog = () => {
+    if (!dialogOpen) return;
+    dialogOpen = false;
+    hold();
+  };
+  listen(add, "click", () => {
+    dialogOpen = true;
+    hold();
+    file.click();
+  });
+  listen(file, "cancel", closeDialog);
   listen(file, "change", async () => {
+    closeDialog();
     await ingest([...file.files]);
     file.value = "";
   });
@@ -316,6 +333,10 @@ export function mountComposer(
         attachmentNodes.set(a.id, chip);
       }
     attachments.hidden = !state.attachments.length;
+    if (chips !== Boolean(state.attachments.length)) {
+      chips = Boolean(state.attachments.length);
+      hold();
+    }
   });
   const unMessages = store.subscribe((state) => {
     dot.dataset.state = state.status;
@@ -370,6 +391,8 @@ export function mountComposer(
           .get(messageId)
           ?.scrollIntoView({ block: "start", behavior: "smooth" });
       text.focus({ preventScroll: true });
+      // A draft left behind by Esc still counts once the card is back.
+      onTyping(Boolean(text.value));
     },
     close() {
       visible = false;
@@ -379,7 +402,7 @@ export function mountComposer(
       onClose();
     },
     quiet() {
-      if (!pinned) view.close();
+      if (!pinned && !dialogOpen && !doc.hasFocus()) view.close();
     },
     capture(capture) {
       composer.capture(capture);
