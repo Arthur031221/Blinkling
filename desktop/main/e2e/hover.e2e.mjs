@@ -133,3 +133,69 @@ for (const [edge, x, y] of edges)
       await c.close();
     }
   });
+
+test("H-3 every menu pill is clickable while answer bubbles are on screen", async () => {
+  const c = await launch();
+  const { app, page } = c;
+  try {
+    // "chat" opens the card instead of calling a registered handler, and
+    // hides the menu while it is open, so it is clicked last.
+    const actions = (
+      await page.evaluate(() =>
+        [...document.querySelectorAll("[data-action]")].map(
+          (b) => b.dataset.action,
+        ),
+      )
+    ).sort((a, b) => (a === "chat") - (b === "chat"));
+    expect(actions).toHaveLength(8);
+    await app.evaluate((_, ids) => {
+      globalThis.pillCalls = [];
+      for (const id of ids)
+        globalThis.glimpseletTest.registerAction(id, async () => {
+          globalThis.pillCalls.push(id);
+        });
+      const text = Array.from({ length: 12 }, (_, i) => `Sentence ${i + 1}.`);
+      globalThis.glimpseletTest.send({
+        type: "delta",
+        id: "answer",
+        text: text.join(" "),
+      });
+    }, actions);
+    await expect
+      .poll(async () => {
+        for (const w of await app.windows())
+          if (await w.locator(".gl-answer-bubble").count()) return true;
+        return false;
+      })
+      .toBe(true);
+    for (const action of actions) {
+      await moveOn(page);
+      const pill = page.locator(`[data-action="${action}"]`);
+      const r = await pill.boundingBox();
+      // Hover widens the pill into a label that reaches over the deck; click
+      // the far end of that label, which is where a bubble could cover it.
+      native(r.x + r.width / 2, r.y + r.height / 2);
+      await expect
+        .poll(async () => (await pill.boundingBox()).width)
+        .toBeGreaterThan(150);
+      const wide = await pill.boundingBox();
+      native(wide.x + 24, wide.y + wide.height / 2, "click");
+      if (action === "chat")
+        await expect
+          .poll(() =>
+            app.evaluate(() => globalThis.glimpseletTest.snapshot().chatOpen),
+          )
+          .toBe(true);
+      else
+        await expect
+          .poll(() => app.evaluate(() => globalThis.pillCalls), {
+            message: `pill ${action}`,
+          })
+          .toContain(action);
+      native(20, 20);
+      await page.waitForTimeout(150);
+    }
+  } finally {
+    await c.close();
+  }
+});

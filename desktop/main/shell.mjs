@@ -9,7 +9,7 @@ import {
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
-import { keepAbove } from "./x11-stacking.mjs";
+import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
 import { contains } from "./geometry.mjs";
@@ -651,7 +651,12 @@ void features
   .resume()
   .catch(() => send({ type: "capture-status", state: "retrying" }));
 const stopStacking = await keepAbove(() =>
-  [overlay, features.overlay.window, blink, bubbles].filter(Boolean),
+  stackOrder({
+    overlay,
+    guides: features.overlay.window,
+    bubbles,
+    blink,
+  }),
 );
 const poll = setInterval(() => {
   if (blink.isDestroyed() || !blink.isVisible()) return;

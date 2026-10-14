@@ -3,6 +3,11 @@ import x11 from "x11";
  * the WM path, which cannot raise them above a later mapped managed window.
  * Raise their native XIDs directly, without any focus or activation request.
  */
+/** Bottom to top. The answer deck sits under the Blink surface so a bubble can
+ * never cover a menu pill, and the guides stay beneath both. */
+export function stackOrder({ overlay, guides, bubbles, blink }) {
+  return [overlay, guides, bubbles, blink].filter(Boolean);
+}
 export async function keepAbove(windows) {
   if (process.platform !== "linux" || !process.env.DISPLAY) return () => {};
   return new Promise((resolve, reject) => {
