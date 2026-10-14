@@ -43,20 +43,46 @@ export async function nativeInput() {
           resolve({
             activate: (win) =>
               activate(win.getNativeWindowHandle().readUInt32LE()),
-            setRegions(win, regions, scale = 1) {
+            setRegions(win, regions, scale = 1, managedFrame = false) {
+              const id = win.getNativeWindowHandle().readUInt32LE();
+              const rectangles = regions.map((r) => [
+                Math.round(r.x * scale),
+                Math.round(r.y * scale),
+                Math.max(1, Math.ceil(r.width * scale)),
+                Math.max(1, Math.ceil(r.height * scale)),
+              ]);
               shape.Rectangles(
                 shape.Op.Set,
                 shape.Kind.Input,
-                win.getNativeWindowHandle().readUInt32LE(),
+                id,
                 0,
                 0,
-                regions.map((r) => [
-                  Math.round(r.x * scale),
-                  Math.round(r.y * scale),
-                  Math.max(1, Math.ceil(r.width * scale)),
-                  Math.max(1, Math.ceil(r.height * scale)),
-                ]),
+                rectangles,
               );
+              // A managed client's transparent holes also need to exclude the
+              // WM frame, whose passive click grab would otherwise activate it.
+              if (managedFrame)
+                client.QueryTree(id, (error, tree) => {
+                  if (error || win.isDestroyed() || tree.parent === root)
+                    return;
+                  client.TranslateCoordinates(
+                    id,
+                    tree.parent,
+                    0,
+                    0,
+                    (error, offset) => {
+                      if (error || win.isDestroyed()) return;
+                      shape.Rectangles(
+                        shape.Op.Set,
+                        shape.Kind.Input,
+                        tree.parent,
+                        offset.destX,
+                        offset.destY,
+                        rectangles,
+                      );
+                    },
+                  );
+                });
             },
             rememberFocus: () =>
               new Promise((resolve) =>

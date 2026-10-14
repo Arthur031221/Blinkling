@@ -24,6 +24,8 @@ let character = null,
 const pin = document.querySelector("#pin"),
   host = document.querySelector("#blink"),
   card = document.querySelector("#chat-card");
+const permission = document.querySelector("#permission-alert");
+permission.addEventListener("click", () => api.action("chat"));
 const frameTimes = [],
   workTimes = [];
 function accept(value) {
@@ -93,7 +95,10 @@ if (surface === "composer") {
       x: event.screenX,
       y: event.screenY,
       moved: false,
-      ready: api.shell({ type: "drag", phase: "start" }),
+      ready: api.shell({
+        type: "drag-start",
+        anchor: { x: current.x, y: current.y },
+      }),
     };
     host.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -173,13 +178,16 @@ if (surface === "composer") {
       ["y", "vy", adjusted.y],
       ["alpha", "va", revealed ? 1 : 0.4],
     ]) {
-      const q = spring(
-        current[key],
-        t,
-        current[vkey],
-        dt,
-        key === "alpha" ? 16 : 18,
-      );
+      const q =
+        shell.drag && key !== "alpha"
+          ? { value: t, velocity: 0 }
+          : spring(
+              current[key],
+              t,
+              current[vkey],
+              dt,
+              key === "alpha" ? 16 : 18,
+            );
       current[key] = q.value;
       current[vkey] = q.velocity;
       if (key === "alpha" && Math.abs(q.value - t) < 0.005) {
@@ -201,6 +209,7 @@ if (surface === "composer") {
       expression: session.expression,
       connection: session.connection,
       edge: shell.position.edge,
+      hanging: state.mode === "peek" && shell.position.edge === "top",
     });
     menu.setOpen(
       revealed &&
@@ -226,7 +235,17 @@ if (surface === "composer") {
     const showPin = revealed && !shell.chatOpen && state.mode !== "drag";
     pin.style.opacity = String(showPin ? 1 : 0);
     pin.style.visibility = showPin ? "visible" : "hidden";
+    permission.hidden =
+      session.expression !== "permission" ||
+      shell.chatOpen ||
+      state.mode === "drag";
+    permission.style.left = `${Math.max(8, Math.min(innerWidth - 188, current.x - 90))}px`;
+    permission.style.top = `${Math.max(8, Math.min(innerHeight - 52, current.y - 120))}px`;
     const polygons = [...character.polygons(), ...menu.polygons()];
+    if (!permission.hidden) {
+      const r = permission.getBoundingClientRect();
+      polygons.push(roundedRect(r.x, r.y, r.width, r.height, 20));
+    }
     if (showPin) {
       const r = pin.getBoundingClientRect();
       polygons.push(roundedRect(r.x, r.y, r.width, r.height, 16));
@@ -283,7 +302,7 @@ api.onShell((event) => {
 });
 api.onEvent((event) => {
   activity.accept(event, performance.now());
-  messages.append(event);
+  messages.accept(event);
   window.dispatchEvent(
     new CustomEvent("glimpselet:session-event", { detail: event }),
   );
@@ -298,6 +317,17 @@ export const desktop = {
   },
   state,
   talking: false,
+  inspect: () => ({
+    mode: state.mode,
+    anchor: current ? { x: current.x, y: current.y - 62 } : null,
+    activity: activity.read(performance.now()),
+    shell: {
+      ...shell,
+      displayId: shell.display.id,
+      workArea: shell.display.workArea,
+      edge: shell.position.edge,
+    },
+  }),
   metrics: () => ({
     frames: [...frameTimes].slice(20),
     work: [...workTimes].slice(20),
@@ -320,15 +350,16 @@ const selectWithShift = (event) => {
   if (!event.shiftKey) shiftSelection = false;
   else if (
     !shiftSelection &&
-    character
-      .regions()
-      .some(
-        (region) =>
-          event.clientX >= region.x &&
-          event.clientX < region.x + region.width &&
-          event.clientY >= region.y &&
-          event.clientY < region.y + region.height,
-      )
+    scanlines(character.polygons(), {
+      width: innerWidth,
+      height: innerHeight,
+    }).some(
+      (region) =>
+        event.clientX >= region.x &&
+        event.clientX < region.x + region.width &&
+        event.clientY >= region.y &&
+        event.clientY < region.y + region.height,
+    )
   ) {
     shiftSelection = true;
     void window.glimpselet.action("region").catch(() => {});

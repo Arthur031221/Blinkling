@@ -6,4 +6,4 @@ wm=$!
 trap 'kill "$wm" 2>/dev/null || true; wait "$wm" 2>/dev/null || true' EXIT
 sleep 2
 kill -0 "$wm"
-npm run desktop:e2e
+npm run test:e2e --workspace @glimpselet/desktop -- "$@"

@@ -153,10 +153,18 @@ export class DesktopOverlayService extends EventEmitter {
     escape = globalShortcut,
     displays = screen,
     windows = () => [],
+    masks,
   } = {}) {
     super();
     this.epoch = 0;
-    Object.assign(this, { onDismiss, create, escape, displays, windows });
+    Object.assign(this, {
+      onDismiss,
+      create,
+      escape,
+      displays,
+      windows,
+      masks,
+    });
     this.invalidate = () => {
       if (
         this.capture &&
@@ -194,17 +202,31 @@ export class DesktopOverlayService extends EventEmitter {
     const epoch = this.epoch;
     try {
       const b = capture.display.bounds;
-      const avoid = this.windows()
-        .filter((w) => w && !w.isDestroyed() && w.isVisible())
-        .map((w) => {
-          const r = w.getBounds();
-          const x = Math.max(0, r.x - b.x),
-            y = Math.max(0, r.y - b.y);
+      const occupied =
+        this.masks?.() ??
+        this.windows()
+          .filter((w) => w && !w.isDestroyed() && w.isVisible())
+          .map((w) => {
+            const r = w.getBounds();
+            const x = Math.max(0, r.x - b.x),
+              y = Math.max(0, r.y - b.y);
+            return {
+              x,
+              y,
+              width: Math.min(b.width, r.x + r.width - b.x) - x,
+              height: Math.min(b.height, r.y + r.height - b.y) - y,
+            };
+          })
+          .filter((r) => r.width > 0 && r.height > 0);
+      const avoid = occupied
+        .map((r) => {
+          const x = Math.max(0, r.x),
+            y = Math.max(0, r.y);
           return {
             x,
             y,
-            width: Math.min(b.width, r.x + r.width - b.x) - x,
-            height: Math.min(b.height, r.y + r.height - b.y) - y,
+            width: Math.min(b.width, r.x + r.width) - x,
+            height: Math.min(b.height, r.y + r.height) - y,
           };
         })
         .filter((r) => r.width > 0 && r.height > 0);

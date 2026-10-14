@@ -1,4 +1,4 @@
-import { _electron as electron } from "@playwright/test";
+import { _electron as electron, expect } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir } from "node:fs/promises";
@@ -28,6 +28,9 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
   const page = await app.firstWindow();
   page.on("pageerror", (error) => process.stderr.write(`${error.stack}\n`));
   await page.waitForFunction(() => window.desktop);
+  await expect
+    .poll(() => app.evaluate(() => !!globalThis.glimpseletTest))
+    .toBe(true);
   await page.emulateMedia({ colorScheme: theme });
   return { app, page, data: userData };
 }

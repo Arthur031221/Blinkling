@@ -266,3 +266,15 @@ button svg {
     transform: translate(0, 0) scale(1);
   }
 }
+
+#permission-alert {
+  position: absolute;
+  padding: 10px 16px;
+  border-radius: 20px;
+  background: var(--paper, #faf8f3);
+  color: var(--ink, #302f2c);
+  border: 1px solid #dedad1;
+}
+[hidden] {
+  display: none !important;
+}

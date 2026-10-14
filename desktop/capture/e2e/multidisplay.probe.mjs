@@ -67,12 +67,11 @@ for (const scale of [1, 1.5, 2]) {
     const captures = [];
     for (const [i, display] of displays.entries()) {
       await app.evaluate(
-        (_electron, b) =>
-          globalThis.glimpseletTest.blink.setPosition(
-            b.x + b.width - 180,
-            b.y + b.height - 240,
+        ({ screen }, id) =>
+          globalThis.glimpseletTest.setDisplay(
+            screen.getAllDisplays().find((d) => String(d.id) === id),
           ),
-        display.bounds,
+        display.id,
       );
       await blink.evaluate(() => window.glimpselet.action("screen"));
       const capture = await app.evaluate(() => globalThis.b3MultiCapture);

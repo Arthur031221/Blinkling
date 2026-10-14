@@ -96,7 +96,10 @@ export async function background(app) {
     return {
       bounds: d.bounds,
       scale: d.scaleFactor,
+      // The shell's transparent window spans the display. Only the native
+      // character/menu input regions occupy pixels that labels must avoid.
       blink: globalThis.glimpseletTest.blink.getBounds(),
+      blinkRegions: globalThis.glimpseletTest.visualMasks(),
     };
   });
 }

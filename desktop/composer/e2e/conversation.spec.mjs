@@ -78,11 +78,39 @@ async function bounds(page) {
       const r = n.getBoundingClientRect();
       if (!r.width || !r.height || getComputedStyle(n).visibility === "hidden")
         continue;
+      // Measure the pixels that can paint: long history is deliberately
+      // clipped by its scrollport, especially on a 200% desktop.
+      const visible = {
+        left: r.left,
+        top: r.top,
+        right: r.right,
+        bottom: r.bottom,
+      };
+      for (
+        let parent = n.parentElement;
+        parent;
+        parent = parent.parentElement
+      ) {
+        const style = getComputedStyle(parent);
+        if (parent === document.body || parent === document.documentElement)
+          break;
+        const p = parent.getBoundingClientRect();
+        if (style.overflowX !== "visible") {
+          visible.left = Math.max(visible.left, p.left);
+          visible.right = Math.min(visible.right, p.right);
+        }
+        if (style.overflowY !== "visible") {
+          visible.top = Math.max(visible.top, p.top);
+          visible.bottom = Math.min(visible.bottom, p.bottom);
+        }
+      }
       if (
-        r.left < 0 ||
-        r.top < 0 ||
-        r.right > innerWidth + 0.5 ||
-        r.bottom > innerHeight + 0.5
+        visible.right > visible.left &&
+        visible.bottom > visible.top &&
+        (visible.left < 0 ||
+          visible.top < 0 ||
+          visible.right > innerWidth + 0.5 ||
+          visible.bottom > innerHeight + 0.5)
       )
         errors.push({ kind: "window", tag: n.className, rect: r.toJSON() });
       if (
@@ -386,11 +414,13 @@ for (const scale of [1, 1.5, 2])
             ({ screen }, { width }) => {
               const w = globalThis.conversationTest.windows[0];
               const area = screen.getDisplayMatching(w.getBounds()).workArea;
-              w.setBounds({
-                ...w.getBounds(),
-                width,
-                x: area.x + area.width - width - 20,
-              });
+              // A 1280px desktop is 853⅓ DIP at 150%. Move to an integral
+              // position separately so native rounding cannot resize the client.
+              w.setPosition(
+                Math.floor(area.x + area.width - width - 20),
+                w.getBounds().y,
+              );
+              w.setContentSize(width, w.getContentSize()[1]);
             },
             { width },
           );

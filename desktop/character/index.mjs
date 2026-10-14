@@ -184,9 +184,35 @@ export function mountBlink(host) {
       { cx: x, cy: 52, rx: 19, ry: 10, fill: colors.cheek, opacity: 0.75 },
       face.node,
     );
-  const brows = el("path", {d: "M -78 -50 l38 -8 M 40 -58 l38 8", stroke: colors.ink, "stroke-width": 8, fill: "none", opacity: 0}, face.node);
-  const thoughts = [-18, 0, 18].map(x => el("circle", {cx: x, cy: -80, r: 5, fill: colors.ink, opacity: 0}, face.node));
-  const status = el("circle", {cx: -90, cy: -216, r: 10, fill: "#d99729", "data-connection": "starting"}, body);
+  const brows = el(
+    "path",
+    {
+      d: "M -78 -50 l38 -8 M 40 -58 l38 8",
+      stroke: colors.ink,
+      "stroke-width": 8,
+      fill: "none",
+      opacity: 0,
+    },
+    face.node,
+  );
+  const thoughts = [-18, 0, 18].map((x) =>
+    el(
+      "circle",
+      { cx: x, cy: -80, r: 5, fill: colors.ink, opacity: 0 },
+      face.node,
+    ),
+  );
+  const status = el(
+    "circle",
+    {
+      cx: -90,
+      cy: -216,
+      r: 10,
+      fill: "#d99729",
+      "data-connection": "starting",
+    },
+    body,
+  );
   const smile = el(
     "path",
     {
@@ -245,21 +271,51 @@ export function mountBlink(host) {
         blinkPhase < 0.14
           ? Math.max(0.08, Math.abs(blinkPhase - 0.07) / 0.07)
           : 1;
-    lift.y = breath * 3 + (expression === "finished" ? Math.sin(time * 12) * 3 : 0);
+    lift.r = hanging ? 180 : 0;
+    lift.y =
+      (hanging ? -432 : 0) +
+      breath * 3 +
+      (expression === "finished" ? Math.sin(time * 12) * 3 : 0);
     squash.sx = 1 + breath * 0.008;
     squash.sy = 1 - breath * 0.008;
     squash.r = 0;
-    face.r = Math.sin(time * 1.5) * 1.3;
+    face.r = (hanging ? -180 : 0) + Math.sin(time * 1.5) * 1.3;
     eyes.sx = 1;
     eyes.sy = blink;
     pupils.x = Math.sin(time * 0.42) * 8;
     pupils.y = (expression === "thinking" ? -14 : 0) + Math.sin(time * 0.7) * 2;
-    brows.setAttribute("opacity", expression === "permission" || expression === "error" ? 1 : 0);
-    thoughts.forEach((dot,i) => dot.setAttribute("opacity", expression === "thinking" ? 0.4 + (Math.sin(time * 5 - i * 1.2) + 1) * 0.3 : 0));
-    status.setAttribute("fill", {starting: "#d99729", connected: "#1f9e68", retrying: "#d99729", blocked: "#d84949"}[connection] ?? "#d99729");
+    brows.setAttribute(
+      "opacity",
+      expression === "permission" || expression === "error" ? 1 : 0,
+    );
+    thoughts.forEach((dot, i) =>
+      dot.setAttribute(
+        "opacity",
+        expression === "thinking"
+          ? 0.4 + (Math.sin(time * 5 - i * 1.2) + 1) * 0.3
+          : 0,
+      ),
+    );
+    status.setAttribute(
+      "fill",
+      {
+        starting: "#d99729",
+        connected: "#1f9e68",
+        retrying: "#d99729",
+        blocked: "#d84949",
+      }[connection] ?? "#d99729",
+    );
     status.dataset.connection = connection;
-    status.setAttribute("cx", (edge === "right" ? -90 : edge === "left" ? 90 : 0) * (hanging ? -1 : 1));
-    smile.setAttribute("d", expression === "error" ? "M -28 66 Q 0 42 28 66" : "M -28 50 Q 0 78 28 50");
+    status.setAttribute(
+      "cx",
+      (edge === "right" ? -90 : edge === "left" ? 90 : 0) * (hanging ? -1 : 1),
+    );
+    smile.setAttribute(
+      "d",
+      expression === "error"
+        ? "M -28 66 Q 0 42 28 66"
+        : "M -28 50 Q 0 78 28 50",
+    );
     for (const [side, s] of [
       ["L", 1],
       ["R", -1],
@@ -276,7 +332,8 @@ export function mountBlink(host) {
       arms.R.elbow.r = Math.sin(wave * 22) * 30 * q;
       pupils.x = 5;
     }
-    let open = expression === "permission" || talking && Math.sin(time * 17) > 0.1;
+    let open =
+      expression === "permission" || (talking && Math.sin(time * 17) > 0.1);
     if (mode === "drag") {
       squash.sx = 0.88;
       squash.sy = 1.12;
@@ -304,7 +361,20 @@ export function mountBlink(host) {
   pose(0);
   return {
     svg,
-    rig: {svg, root: squash, face, eyes, pupils, brows, thoughts, status, smile, mouth, arms, legs},
+    rig: {
+      svg,
+      root: squash,
+      face,
+      eyes,
+      pupils,
+      brows,
+      thoughts,
+      status,
+      smile,
+      mouth,
+      arms,
+      legs,
+    },
     pose,
     polygons: () =>
       contours

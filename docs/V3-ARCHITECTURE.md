@@ -1,10 +1,53 @@
 # V3: Blink on the desktop
 
-Architecture spike, 2026-10-14. Branch `v3`, based on v2.1.0 `main`.
+Architecture spike and integration, 2026-10-14. Branch `v3`, based on v2.1.0 `main`.
 The controlling brief is **V3, BLINK ON THE DESKTOP**, including the five
 **I2** install additions, in the account holder's Glimpselet focus file.
-This commit is a tested scaffold, not a claim that the V3 product is finished.
-Pending behaviors return explicit pending results. The extension remains usable.
+The six builder branches are integrated. This is not a claim that every V3
+release requirement is finished. The extension remains usable. Section K was
+added after the builders started; integration preserves existing implementations
+and inventories them in the report without building the remaining K features.
+
+## Integrated runtime
+
+`desktop/main/shell.mjs` composes the canonical shell, house Blink animation,
+spring menu, separate conversation card and answer bubbles, capture/guide/auto
+explain services, durable `SessionBridge`, and authenticated browser companion.
+Both shell builders' behavioral tests remain; the alternate pure shell helpers
+are retained for their baseline coverage.
+
+The composer loads `composer/index.html` in its own sandboxed window. A renderer
+readiness handshake gates the first captured attachment. Captures, composer
+turns, quick asks, guides, auto explain and browser companion turns use the same
+owned session. Session persistence, locking, outbox reconciliation, automatic
+retry, remote reattachment and event normalization now live in `desktop/session/`.
+The low-level transport remains version-specific; its compatibility check and
+live canary must pass before supporting another Claude Code release.
+
+On Linux the stacking fallback raises only nonfocusable windows. Raising the
+managed composer client repeatedly makes xfwm4 reclaim focus and violates A5;
+its own always-on-top state is handled by the window manager. Rounded composer
+input regions apply to both client and managed frame, leaving per-pixel alpha
+intact. Guide staleness and auto explain mask visible character/menu/bubble
+regions rather than the full-display transparent Blink window.
+
+Packaging copies hoisted runtime dependencies and the companion host into the
+app, and excludes test harnesses. Electron tests use private user-data/runtime
+directories and fixture Claude children; they cannot replace the production
+companion descriptor. The integration acceptance test also runs the extracted
+Linux archive with the host's real logged-in Claude, two tiny Haiku/low turns,
+native menu/area capture, visible answers and exact-image Remote Control proof.
+The observer is an external report-only test client; application code does not
+read OAuth credentials or call private service endpoints. Human phone/browser
+UI interaction remains a separate manual gate.
+
+Integration evidence and the full requirement audit are in
+`/home/levi/oss-engine/reports/glimpse-v3/integrate.md`. Release blockers still
+include the native three-step animated welcome, OS-specific install guides and
+fresh-machine action counts, signed/native macOS and Windows validation, pinned
+published binaries (the manifest is empty), the desktop guide's browser-text
+hook, and all nine V3 READMEs/GIFs with synchronized release versions. No release
+or push is performed by integration.
 
 ## Decisions
 
@@ -21,8 +64,8 @@ context-isolated, without Node or network access. Preload exposes only validated
 actions, hit regions and event subscription. File/network/child-process access
 must not be added to renderer IPC. Navigation and new windows are denied.
 
-Blink and the noninteractive drawing overlay never take focus. The composer will
-be a separate focusable rounded transparent window, opened only by user intent;
+Blink and the noninteractive drawing overlay never take focus. The composer is
+a separate focusable rounded transparent window, opened only by user intent;
 closing it restores the previous application. Pin changes visibility, not focus
 policy. Character hit regions must follow the visible animated silhouette,
 including limbs and menu bubbles, rather than its rectangular bounding box.
@@ -177,32 +220,34 @@ Use bounded exponential retry with jitter, a status dot and an outbox keyed by
 turn UUID. Reconcile transcript IDs before replay to avoid duplicate paid turns.
 Remote user events and assistant deltas feed the same normalized message store
 as desktop turns; deduplicate replayed events. Stop sends `interrupt`; exiting
-closes streams and terminates only the owned child. F4 recovery is a builder
-implementation task, not implemented by the transport scaffold.
+closes streams and terminates only the owned child. The integrated durable
+adapter implements this recovery above the low-level transport scaffold.
 
 ## Module ownership and interfaces
 
 `desktop/shared/contracts.ts` is the integration contract. Builders should agree
 on any change before changing it; the shell bucket owns edits to that file.
 
-| Module                                     | Responsibility / boundary                                                                                                                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/main/`, `preload/`, `shared/`     | Window lifecycle, geometry, validated IPC, display policy and service composition. No feature logic in preload.                                                                                   |
-| `desktop/renderer/`, `character/`, `menu/` | House Blink rig/state machine, hover/drag/pin, menu, input-region reporting. Static rig currently anchors the palette; the full house rig remains to port.                                        |
-| `desktop/messages/`, `composer/`           | Normalized conversation store, streamed sentence bubbles, structured rendering, attachments, picker and rounded card.                                                                             |
-| `desktop/capture/`                         | `CaptureService`: screen, cancellable region, optional full-page companion. Hides all owned surfaces and restores them in `finally`.                                                              |
-| `desktop/overlay/`, future `autowatch/`    | `OverlayService`: capture-coordinate drawings/steps/dismissal; low-rate screen-change policy and typing pause.                                                                                    |
-| `desktop/session/`                         | `SessionBridge`: connect, send, select, stop, subscribe, dispose. `OwnedSession` currently implements the low-level transport; normalization, persistence and the public adapter remain to build. |
-| `plugin/desktop/`                          | Platform asset selection, pinned digest verification and launcher stub. No published V3 binary is assumed.                                                                                        |
-| `bridge/`, `extension/`, existing `src/`   | Optional browser capabilities and legacy compatibility; route their AI turns through the desktop session when connected.                                                                          |
-| `desktop/distribution/`, `e2e/`            | Native package build and desktop verification.                                                                                                                                                    |
+| Module                                     | Responsibility / boundary                                                                                                                                        |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop/main/`, `preload/`, `shared/`     | Window lifecycle, geometry, validated IPC, display policy and service composition. No feature logic in preload.                                                  |
+| `desktop/renderer/`, `character/`, `menu/` | House Blink rig/state machine, hover/drag/pin, spring menu, animated silhouette input regions.                                                                   |
+| `desktop/messages/`, `composer/`           | Normalized conversation store, streamed sentence bubbles, structured rendering, attachments, picker and rounded card.                                            |
+| `desktop/capture/`                         | `CaptureService`: screen, cancellable region, optional full-page companion. Hides all owned surfaces and restores them in `finally`.                             |
+| `desktop/overlay/`, `autowatch/`           | `OverlayService`: capture-coordinate drawings/steps/dismissal; low-rate screen-change policy and typing pause.                                                   |
+| `desktop/session/`                         | Durable `SessionBridge`: connect, send, select, stop, subscribe, dispose; normalized events, persistence, locking, retry and remote resume above `OwnedSession`. |
+| `plugin/desktop/`                          | Platform asset selection, pinned digest verification, atomic installation, launcher and companion host. No published V3 binary is assumed.                       |
+| `bridge/`, `extension/`, existing `src/`   | Optional browser capabilities and legacy compatibility; route their AI turns through the desktop session when connected.                                         |
+| `desktop/distribution/`, `e2e/`            | Native package build and desktop verification.                                                                                                                   |
 
 `Turn` includes a UUID, text, attachments and source (composer, quick-ask, guide,
 auto-explain, companion). `Capture` includes an immutable display, DIP region,
 pixel dimensions, image and timestamp. `SessionEvent` separates connection
-status from user-visible assistant content. File attachments need a bounded
-conversion path; the scaffold accepts image MIME types and rejects unsupported
-files instead of pretending to send them. Guide output needs a validated schema
+status from user-visible assistant content. The integrated session uses the
+composer's bounded conversion path for images, validated PDFs and UTF-8 text,
+Markdown, CSV and JSON files. Limits are eight attachments, 20 MB each, 32 MB
+combined and 200,000 characters per text file. Unsupported files are rejected
+instead of pretending to send them. Guide output needs a validated schema
 of regions, steps, labels and arrows, never executable model-generated HTML.
 
 ## Distribution without store accounts
@@ -262,8 +307,9 @@ serialize installs, preserve the previous working version, and pass arguments
 as arrays. Launch/deduplicate by authenticated local IPC, not process-name kills.
 Register the idempotent launcher in plugin SessionStart integration so future
 Claude Code sessions reconnect automatically after the initial slash command.
-No user pairing codes. No arbitrary port input. Existing `/glimpselet:glimpse`
-continues using V2 until the new verified launcher is ready to replace it.
+No user pairing codes. No arbitrary port input. `/glimpselet:glimpse` now invokes
+the verified desktop launcher. The empty embedded release manifest fails closed
+until published V3 builds and their pinned hashes are available.
 
 I2 also requires an OS-detected/preselected installation guide showing only that
 OS's steps, a short looping animation for **every** action, minimal text and

@@ -36,7 +36,7 @@ export class BlinkState {
   drop(now) {
     this.mode = "drop";
     this.dropUntil = now + 500;
-    this.leaveAt = now + 2000;
+    this.leaveAt = now + 650;
   }
   tick(now) {
     if (this.mode === "drag") return;

@@ -1,4 +1,4 @@
-import { menuLayout } from "./layout.mjs";
+import { menuLayout, menuTransform } from "./layout.mjs";
 import { spring } from "../character/state.mjs";
 import { roundedRect } from "../character/silhouette.mjs";
 const definitions = [
@@ -67,6 +67,7 @@ export function mountMenu(host, onAction) {
     return b;
   });
   let rects = [];
+  let poses = [];
   return {
     buttons,
     get expanded() {
@@ -84,24 +85,42 @@ export function mountMenu(host, onAction) {
     },
     frame(now, dt, area, anchor) {
       rects = menuLayout(area, anchor, expanded);
+      poses = [];
       buttons.forEach((b, i) => {
         const order = open ? i : 7 - i,
           target =
             now - changedAt >= order * 0.035 ? (open ? 1 : 0) : values[i].value;
         values[i] = spring(values[i].value, target, values[i].velocity, dt, 24);
         const q = values[i].value,
-          r = rects[i];
+          r = rects[i],
+          pose = menuTransform(area, anchor, r, q);
+        poses[i] = pose;
         b.style.width = `${r.width}px`;
         b.style.left = r.direction > 0 ? `${r.x}px` : "auto";
         b.style.right =
           r.direction < 0 ? `${innerWidth - r.x - r.width}px` : "auto";
         b.style.top = `${r.y}px`;
-        b.style.transform = `translate(${(anchor.x - r.x - r.width / 2) * (1 - q)}px,${(anchor.y - r.y) * (1 - q)}px) scale(${Math.max(0.01, q)})`;
+        b.style.transform = `translate(${pose.x}px,${pose.y}px) scale(${pose.scale})`;
         b.style.opacity = String(Math.min(1, q));
         b.style.visibility = q > 0.015 ? "visible" : "hidden";
         b.style.pointerEvents = q > 0.8 ? "auto" : "none";
+        b.inert = !open || q <= 0.8;
         b.classList.toggle("expanded", i === expanded);
         b.classList.toggle("from-left", r.direction > 0);
+      });
+      // CSS width transitions paint intermediate pill widths, especially while
+      // collapsing. Bound those actual pixels too, before emitting input shapes.
+      const painted = buttons.map((b) => b.getBoundingClientRect());
+      buttons.forEach((b, i) => {
+        const r = painted[i],
+          pose = poses[i];
+        const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+        const x =
+          clamp(r.x, area.x + 8, area.x + area.width - r.width - 8) - r.x;
+        const y =
+          clamp(r.y, area.y + 8, area.y + area.height - r.height - 8) - r.y;
+        if (x || y)
+          b.style.transform = `translate(${pose.x + x}px,${pose.y + y}px) scale(${pose.scale})`;
       });
     },
     polygons() {

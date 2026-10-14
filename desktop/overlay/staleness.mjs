@@ -6,10 +6,11 @@ export class StalenessWatch {
   constructor({
     overlay,
     windows = () => [],
+    masks,
     intervalMs = 1200,
     onError = () => {},
   }) {
-    Object.assign(this, { overlay, windows, intervalMs, onError });
+    Object.assign(this, { overlay, windows, masks, intervalMs, onError });
     this.shown = () => this.start();
     this.dismissed = () => this.stop();
     overlay.on("shown", this.shown);
@@ -37,16 +38,18 @@ export class StalenessWatch {
       const masks = await win.webContents.executeJavaScript(
         "window.overlayMasks || []",
       );
-      for (const w of this.windows())
-        if (!w.isDestroyed() && w.isVisible()) {
-          const b = w.getBounds();
-          masks.push({
-            x: b.x - capture.display.bounds.x,
-            y: b.y - capture.display.bounds.y,
-            width: b.width,
-            height: b.height,
-          });
-        }
+      if (this.masks) masks.push(...this.masks());
+      else
+        for (const w of this.windows())
+          if (!w.isDestroyed() && w.isVisible()) {
+            const b = w.getBounds();
+            masks.push({
+              x: b.x - capture.display.bounds.x,
+              y: b.y - capture.display.bounds.y,
+              width: b.width,
+              height: b.height,
+            });
+          }
       const image = (
         await screenImage(capture.display, { width: 160, height: 90 })
       ).resize({ width: 160, height: 90 });

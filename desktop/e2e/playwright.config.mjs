@@ -7,8 +7,12 @@ export default defineConfig({
   outputDir: "../../test-results/desktop",
   projects: [
     { name: "smoke", testMatch: "smoke.spec.mjs" },
+    { name: "files", testMatch: "files.spec.mjs" },
     ...(process.platform === "linux"
-      ? [{ name: "linux-desktop", testMatch: "linux.spec.mjs" }]
+      ? [
+          { name: "linux-desktop", testMatch: "linux.spec.mjs" },
+          { name: "integrated", testMatch: "integrated.spec.mjs" },
+        ]
       : []),
   ],
 });

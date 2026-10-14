@@ -115,11 +115,11 @@ for (const scale of [1, 1.5, 2])
       const content = [
         { x: 24, y: 24, right: 284, bottom: 72 },
         { x: 240, y: 160, right: 400, bottom: 260 },
-        {
-          ...d.blink,
-          right: d.blink.x + d.blink.width,
-          bottom: d.blink.y + d.blink.height,
-        },
+        ...d.blinkRegions.map((r) => ({
+          ...r,
+          right: r.x + r.width,
+          bottom: r.y + r.height,
+        })),
       ];
       for (const [index, r] of layout.entries()) {
         expect(r.x).toBeGreaterThanOrEqual(0);
@@ -448,10 +448,11 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
       )
       .toBe(false);
     await nextWindow(app, start);
-    const pos = await app.evaluate(() =>
-      globalThis.glimpseletTest.blink.getBounds(),
+    const pos = await blink.locator('rect[fill="#3ddc97"]').boundingBox();
+    native(
+      Math.max(8, Math.min(1272, pos.x + pos.width * 0.35)),
+      Math.max(8, Math.min(792, pos.y + pos.height * 0.72)),
     );
-    native(pos.x + 90, pos.y + 100);
     await expect
       .poll(() =>
         app.evaluate(

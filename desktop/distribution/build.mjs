@@ -32,7 +32,13 @@ const output = await packager({
       );
     },
   ],
-  ignore: [/\/e2e($|\/)/, /\/distribution($|\/)/, /\.test\.mjs$/],
+  ignore: [
+    /\/e2e($|\/)/,
+    /\/acceptance($|\/)/,
+    /\/distribution($|\/)/,
+    /\/(\.test-claude|test-results|test)($|\/)/,
+    /\.test\.mjs$/,
+  ],
   ...(process.platform === "darwin"
     ? { osxSign: { identity: "-", type: "development" } }
     : {}),

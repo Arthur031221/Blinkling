@@ -28,8 +28,19 @@ test("holding native Shift over Blink starts selection without keyboard focus", 
     expect(
       await app.evaluate(() => globalThis.glimpseletTest.features.capture.busy),
     ).toBe(false);
+    const point = await (
+      await app.firstWindow()
+    ).evaluate(() => {
+      const r = document
+        .querySelector('rect[fill="#3ddc97"]')
+        .getBoundingClientRect();
+      return {
+        x: Math.min(innerWidth - 8, r.x + r.width * 0.35),
+        y: r.y + r.height * 0.72,
+      };
+    });
     const selector = await nextWindow(app, () =>
-      native(blink.x + 90, blink.y + 100, [0xffe1], { hover: true }),
+      native(blink.x + point.x, blink.y + point.y, [0xffe1], { hover: true }),
     );
     await expect(selector.locator("body")).toHaveAttribute(
       "data-ready",

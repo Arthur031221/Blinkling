@@ -3,6 +3,34 @@ import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import { launch, native, move, click, report } from "./support.mjs";
+async function reveal(page, scale = 1) {
+  await page.waitForFunction(() => window.desktop.inspect().anchor);
+  await page.waitForTimeout(100);
+  const point = await page.evaluate(() => {
+    const rect = document
+      .querySelector('rect[fill="#3ddc97"]')
+      .getBoundingClientRect();
+    return {
+      x: Math.max(8, Math.min(innerWidth - 8, rect.x + rect.width * 0.35)),
+      y: Math.max(8, Math.min(innerHeight - 8, rect.y + rect.height * 0.72)),
+    };
+  });
+  move(point.x * scale, point.y * scale);
+  await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
+  await page.waitForTimeout(650);
+  const active = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+  move(
+    (active.x + active.width * 0.35) * scale,
+    (active.y + active.height * 0.72) * scale,
+  );
+}
+async function clickButton(page, label, scale = 1) {
+  const button = page.getByRole("button", { name: label, exact: true });
+  await button.hover();
+  await page.waitForTimeout(250);
+  const r = await button.boundingBox();
+  click((r.x + r.width / 2) * scale, (r.y + r.height / 2) * scale);
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function background(app, fullscreen = false) {
   return app.evaluate(async ({ BrowserWindow, screen }, fullscreen) => {
@@ -65,18 +93,12 @@ test("registered services receive native menu actions and auto switch reflects t
         "settings",
         "help",
       ])
-        globalThis.glimpseletTest.shell.registerAction(
-          action,
-          ({ display }) => {
-            globalThis.actions.push({ action, displayId: String(display.id) });
-            return { ok: true, enabled: action === "auto-explain" };
-          },
-        );
+        globalThis.glimpseletTest.registerAction(action, ({ display }) => {
+          globalThis.actions.push({ action, displayId: String(display.id) });
+          return { ok: true, enabled: action === "auto-explain" };
+        });
     });
-    await page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: true }),
-    );
-    await page.waitForTimeout(650);
+    await reveal(page);
     let count = 0;
     for (const label of [
       "截取畫面",
@@ -100,7 +122,7 @@ test("registered services receive native menu actions and auto switch reflects t
     ).toHaveAttribute("aria-pressed", "true");
     const actions = await app.evaluate(() => globalThis.actions);
     const displayId = await app.evaluate(
-      () => globalThis.glimpseletTest.state().displayId,
+      () => globalThis.glimpseletTest.snapshot().display.id,
     );
     expect(actions.map((a) => a.action)).toEqual([
       "screen",
@@ -123,10 +145,10 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     const b = await background(app, true);
     move(40, 40);
     await page.waitForTimeout(1800);
-    const idle = await page.evaluate(() => window.desktop.state());
+    const idle = await page.evaluate(() => window.desktop.inspect());
     expect(idle.mode).toBe("peek");
     expect(idle.shell.pinned).toBe(false);
-    expect(idle.anchor.x).toBe(b.width);
+    expect(idle.anchor.x).toBeCloseTo(b.width, 6);
     const p = await shot(app, "idle-fullscreen");
     expect(rgb(p, 600, 600)).toEqual([32, 64, 128]);
     const sample = { x: b.x + idle.anchor.x - 18, y: b.y + idle.anchor.y + 10 };
@@ -138,7 +160,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     move(sample.x, sample.y);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     await page.waitForTimeout(550);
-    const active = await page.evaluate(() => window.desktop.state());
+    const active = await page.evaluate(() => window.desktop.inspect());
     move(b.x + active.anchor.x - 18, b.y + active.anchor.y + 10);
     await shot(app, "hover-wave");
     await page.waitForFunction(() =>
@@ -162,9 +184,12 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     const focusBefore = await app.evaluate(() => globalThis.bg.isFocused());
     expect(focusBefore).toBe(true);
     click(b.x + active.anchor.x - 18, b.y + active.anchor.y + 10);
-    expect(
-      await app.evaluate(() => globalThis.glimpseletTest.state().chatOpen),
-    ).toBe(false);
+    await expect
+      .poll(() =>
+        app.evaluate(() => globalThis.glimpseletTest.snapshot().chatOpen),
+      )
+      .toBe(true);
+    await page.evaluate(() => window.glimpselet.shell({ type: "close-chat" }));
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     const hand = await page
       .locator('#blink svg circle[r="24"]')
@@ -186,6 +211,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     await page.waitForTimeout(180);
     expect(await page.locator("#blink svg").innerHTML()).not.toBe(before);
     // Empty corner of the sprite is transparent and passes a native click.
+    await page.evaluate(() => window.glimpselet.shell({ type: "close-chat" }));
     click(b.x + active.anchor.x - 76, b.y + active.anchor.y - 78);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     move(40, 40);
@@ -222,7 +248,7 @@ test("real animation frames include eye blinks, pupil looks and a talking mouth"
       window.glimpselet.shell({ type: "pin", value: true }),
     );
     await app.evaluate(() =>
-      globalThis.glimpseletTest.shell.emit({
+      globalThis.glimpseletTest.send({
         type: "delta",
         id: "animation-test",
         text: "Hello",
@@ -258,7 +284,7 @@ test("real animation frames include eye blinks, pupil looks and a talking mouth"
     ).toBeGreaterThan(4);
     expect(new Set(poses.map((p) => p.mouth))).toEqual(new Set([0, 1]));
     await app.evaluate(() =>
-      globalThis.glimpseletTest.shell.emit({
+      globalThis.glimpseletTest.send({
         type: "done",
         turnId: "animation-test",
       }),
@@ -286,7 +312,7 @@ for (const scale of [1, 1.5, 2])
       move(20, 20);
       const emit = (event) =>
         app.evaluate(
-          (_electron, event) => globalThis.glimpseletTest.shell.emit(event),
+          (_electron, event) => globalThis.glimpseletTest.send(event),
           event,
         );
       await emit({ type: "status", state: "connected" });
@@ -350,32 +376,20 @@ for (const scale of [1, 1.5, 2])
       ).toBe(true);
       await shot(app, `permission-peek-${scale * 100}`);
       expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
-      let s = await page.evaluate(() => window.desktop.state());
-      move(
-        (s.shell.workArea.x + s.anchor.x - 18) * scale,
-        (s.shell.workArea.y + s.anchor.y + 10) * scale,
-      );
-      await expect(page.locator("#blink")).toHaveAttribute(
-        "data-mode",
-        "hover",
-      );
-      await page.waitForTimeout(650);
-      s = await page.evaluate(() => window.desktop.state());
       const opening = app.waitForEvent("window");
-      click(
-        (s.shell.workArea.x + s.anchor.x - 18) * scale,
-        (s.shell.workArea.y + s.anchor.y + 10) * scale,
-      );
+      await clickButton(page, "需要你的允許", scale);
       const cardPage = await opening;
-      await cardPage.waitForURL("**/card.html");
+      await cardPage.waitForURL("**/composer/index.html?surface=card");
       await expect(
-        cardPage.getByRole("textbox", { name: "訊息" }),
+        cardPage.getByRole("textbox", { name: "輸入問題" }),
       ).toBeVisible();
       expect(
-        await app.evaluate(() => globalThis.glimpseletTest.card.isFocused()),
+        await app.evaluate(() =>
+          globalThis.glimpseletTest.composer.isFocused(),
+        ),
       ).toBe(true);
       await expect(page.locator("#permission-alert")).toBeHidden();
-      await cardPage.getByRole("button", { name: "關閉對話" }).click();
+      await cardPage.getByRole("button", { name: "收起" }).click();
       expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     } finally {
       await app.close();
@@ -390,12 +404,16 @@ test("grabbing the peek preserves the cursor offset without a drag jump", async 
       document.querySelector("#blink").addEventListener(
         "pointerdown",
         () => {
-          window.grabAnchor = window.desktop.state().anchor;
+          window.grabAnchor = window.desktop.inspect().anchor;
         },
         { capture: true, once: true },
       );
     });
-    const start = { x: b.x + b.width - 35, y: b.y + b.height - 100 };
+    const body = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+    const start = {
+      x: b.x + Math.min(b.width - 8, body.x + body.width * 0.35),
+      y: b.y + body.y + body.height * 0.72,
+    };
     native([
       { type: "move", ...start, wait: 0.02 },
       { type: "down" },
@@ -404,7 +422,7 @@ test("grabbing the peek preserves the cursor offset without a drag jump", async 
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drag");
     const { grab, anchor } = await page.evaluate(() => ({
       grab: window.grabAnchor,
-      anchor: window.desktop.state().anchor,
+      anchor: window.desktop.inspect().anchor,
     }));
     expect(grab).toBeTruthy();
     expect(Math.abs(anchor.x - (grab.x + 850 - start.x))).toBeLessThan(4);
@@ -420,11 +438,9 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
     { app, page, data } = first;
   try {
     const b = await background(app);
-    await page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: true }),
-    );
+    await reveal(page);
     await page.waitForTimeout(700);
-    let anchor = await page.evaluate(() => window.desktop.state().anchor);
+    let anchor = await page.evaluate(() => window.desktop.inspect().anchor);
     const start = { x: b.x + anchor.x - 18, y: b.y + anchor.y + 10 };
     native([
       { type: "move", ...start },
@@ -436,7 +452,7 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
     for (const button of await page.locator("#menu button").all())
       await expect(button).toHaveCSS("visibility", "hidden");
     const transform = await page
-      .locator("#blink svg > g")
+      .locator("#blink svg > g > g")
       .getAttribute("transform");
     expect(transform).toContain("0.88,1.12");
     await page.evaluate(() =>
@@ -448,7 +464,9 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
     await page.waitForTimeout(750);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.state().edge),
+      await app.evaluate(
+        () => globalThis.glimpseletTest.snapshot().position.edge,
+      ),
     ).toBe("left");
     const saved = JSON.parse(
       await readFile(join(data, "blink-positions.json"), "utf8"),
@@ -466,28 +484,28 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
     });
     await page.waitForTimeout(500);
     expect(
-      (await page.evaluate(() => window.desktop.state().shell)).displayId,
+      (await page.evaluate(() => window.desktop.inspect().shell)).displayId,
     ).toBe("200");
     await app.evaluate(({ screen }) =>
       screen.emit("display-removed", {}, { id: 200 }),
     );
     await page.waitForTimeout(500);
     expect(
-      (await page.evaluate(() => window.desktop.state().shell)).displayId,
+      (await page.evaluate(() => window.desktop.inspect().shell)).displayId,
     ).not.toBe("200");
-    expect((await page.evaluate(() => window.desktop.state().shell)).edge).toBe(
-      "left",
-    );
+    expect(
+      (await page.evaluate(() => window.desktop.inspect().shell)).edge,
+    ).toBe("left");
   } finally {
     await app.close();
   }
   const again = await launch({ data });
   try {
     expect(
-      (await again.page.evaluate(() => window.desktop.state().shell)).edge,
+      (await again.page.evaluate(() => window.desktop.inspect().shell)).edge,
     ).toBe("left");
     expect(
-      (await again.page.evaluate(() => window.desktop.state().shell)).pinned,
+      (await again.page.evaluate(() => window.desktop.inspect().shell)).pinned,
     ).toBe(false);
   } finally {
     await again.app.close();
@@ -506,23 +524,26 @@ test("native drops peek from all four edges and three corners with a visible eye
       ["right", 1270, 10, true],
       ["bottom", 10, 790, true],
     ]) {
-      await page.evaluate(() =>
-        window.glimpselet.shell({ type: "pin", value: true }),
-      );
+      await reveal(page);
       await page.waitForTimeout(700);
-      const s = await page.evaluate(() => window.desktop.state());
+      const s = await page.evaluate(() => window.desktop.inspect());
       native([
         { type: "move", x: b.x + s.anchor.x - 18, y: b.y + s.anchor.y + 10 },
         { type: "down" },
-        { type: "move", x, y, wait: 0.2 },
+        {
+          type: "move",
+          x: Math.max(0, (edge === "top" && corner ? 74 : x) - 18),
+          y: Math.max(0, y - 52),
+          wait: 0.2,
+        },
       ]);
       await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drag");
       await page.evaluate(() =>
         window.glimpselet.shell({ type: "pin", value: false }),
       );
-      native([{ type: "up" }, { type: "move", x: 30, y: 30 }]);
+      native([{ type: "up" }, { type: "move", x: 400, y: 700 }]);
       await page.waitForTimeout(900);
-      const dropped = await page.evaluate(() => window.desktop.state());
+      const dropped = await page.evaluate(() => window.desktop.inspect());
       expect(dropped.shell.edge).toBe(edge);
       expect(dropped.mode).toBe("peek");
       await shot(app, `edge-${edge}${corner ? "-corner" : ""}`);
@@ -541,11 +562,9 @@ test("native drops peek from all four edges and three corners with a visible eye
           );
         }),
       ).toBe(true);
-      await page.evaluate(() =>
-        window.glimpselet.shell({ type: "pin", value: true }),
-      );
+      await reveal(page);
       await page.waitForTimeout(700);
-      for (const button of await page.getByRole("button").all()) {
+      for (const button of await page.locator(".action").all()) {
         await button.hover();
         await page.waitForTimeout(200);
         expect(
@@ -570,45 +589,54 @@ test("native drops peek from all four edges and three corners with a visible eye
 test("rounded card opens by intent, pin holds it, unpin dismisses and restores application focus", async () => {
   const { app, page } = await launch();
   try {
-    const b = await background(app);
+    await background(app);
     move(40, 40);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
-    move(b.x + b.width - 18, b.y + b.height - 100);
+    await reveal(page);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     await page.waitForTimeout(650);
-    const chat = await page
-      .getByRole("button", { name: "對話", exact: true })
-      .boundingBox();
     const opening = app.waitForEvent("window");
-    click(b.x + chat.x + chat.width / 2, b.y + chat.y + chat.height / 2);
+    await clickButton(page, "對話");
     const cardPage = await opening;
-    await cardPage.waitForURL("**/card.html");
-    await expect(cardPage.getByRole("textbox", { name: "訊息" })).toBeVisible();
+    await cardPage.waitForURL("**/composer/index.html?surface=card");
+    await expect(
+      cardPage.getByRole("textbox", { name: "輸入問題" }),
+    ).toBeVisible();
     await cardPage
       .getByRole("textbox")
       .fill("Focus stays here while composing.");
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.card.isFocused()),
+      await app.evaluate(() => globalThis.glimpseletTest.composer.isFocused()),
     ).toBe(true);
-    await cardPage.getByRole("button", { name: "釘選對話" }).click();
+    const pin = await cardPage
+      .getByRole("button", { name: "釘選對話" })
+      .boundingBox();
+    const bounds = await app.evaluate(() =>
+      globalThis.glimpseletTest.composer.getBounds(),
+    );
+    click(bounds.x + pin.x + pin.width / 2, bounds.y + pin.y + pin.height / 2);
     await shot(app, "pinned-rounded-card");
     const cb = await app.evaluate(() =>
-      globalThis.glimpseletTest.card.getBounds(),
+      globalThis.glimpseletTest.composer.getBounds(),
     );
     const clicks = await app.evaluate(() =>
       globalThis.bg.webContents.executeJavaScript("clicks.length"),
     );
     click(cb.x + 9, cb.y + 9);
-    expect(
-      await app.evaluate(() =>
-        globalThis.bg.webContents.executeJavaScript("clicks.length"),
-      ),
-    ).toBe(clicks + 1);
-    expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
+    await expect
+      .poll(() =>
+        app.evaluate(() =>
+          globalThis.bg.webContents.executeJavaScript("clicks.length"),
+        ),
+      )
+      .toBe(clicks + 1);
+    await expect
+      .poll(() => app.evaluate(() => globalThis.bg.isFocused()))
+      .toBe(true);
     click(40, 40);
     await page.waitForTimeout(1900);
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.card.isVisible()),
+      await app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
     ).toBe(true);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     await page.evaluate(() =>
@@ -616,11 +644,11 @@ test("rounded card opens by intent, pin holds it, unpin dismisses and restores a
     );
     await page.waitForTimeout(1900);
     expect(
-      await app.evaluate(() => globalThis.glimpseletTest.card.isVisible()),
+      await app.evaluate(() => globalThis.glimpseletTest.composer.isVisible()),
     ).toBe(false);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
     await page.evaluate(() => window.glimpselet.action("chat"));
-    await cardPage.getByRole("button", { name: "關閉對話" }).click();
+    await cardPage.getByRole("button", { name: "收起" }).click();
     await page.waitForTimeout(300);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
   } finally {
@@ -634,16 +662,14 @@ for (const scale of [1, 1.5, 2])
       try {
         await background(app);
         move(20, 20);
-        await page.evaluate(() =>
-          window.glimpselet.shell({ type: "pin", value: true }),
-        );
+        await reveal(page, scale);
         await page.waitForTimeout(750);
         expect(
           await page.evaluate(
             () => matchMedia("(prefers-color-scheme: dark)").matches,
           ),
         ).toBe(theme === "dark");
-        await expect(page.getByRole("button")).toHaveCount(8);
+        await expect(page.locator(".action")).toHaveCount(8);
         for (const label of [
           "截取畫面",
           "選取區域",
@@ -678,7 +704,7 @@ for (const scale of [1, 1.5, 2])
         await page.evaluate(() => window.glimpselet.action("chat"));
         const cardPage = app
           .windows()
-          .find((p) => p.url().endsWith("card.html"));
+          .find((p) => p.url().includes("surface=card"));
         await cardPage.emulateMedia({ colorScheme: theme });
         await cardPage.waitForTimeout(350);
         await expect
@@ -701,11 +727,9 @@ for (const scale of [1, 1.5, 2])
           }),
         ).toBe(true);
         await shot(app, `card-${scale * 100}-${theme}`);
-        await cardPage.getByRole("button", { name: "關閉對話" }).click();
+        await cardPage.getByRole("button", { name: "收起" }).click();
         // Closing clears pin; keep the menu open for its independent frame sample.
-        await page.evaluate(() =>
-          window.glimpselet.shell({ type: "pin", value: true }),
-        );
+        await reveal(page, scale);
         const frames = await page.evaluate(async () => {
           const samples = [];
           let previous = performance.now();

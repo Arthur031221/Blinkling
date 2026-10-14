@@ -58,6 +58,58 @@ test("actual child completes handshake, streams image turns, applies controls an
   await child.dispose();
   assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
 });
+test(
+  "actual child receives the composer PDF and text with the same session and turn IDs",
+  { timeout: 5000 },
+  async (t) => {
+    const { child } = await setup(t);
+    const id = randomUUID();
+    const sessionId = randomUUID();
+    const pdf = Buffer.from("%PDF-1.7\nfixture").toString("base64");
+    const text = "日本語 notes";
+    const replay = new Promise((resolve) => {
+      child.on("event", (event) => {
+        if (event.type === "user" && event.uuid === id) resolve(event);
+      });
+    });
+    await child.send(
+      {
+        id,
+        text: "Explain.",
+        attachments: [
+          {
+            id: "pdf",
+            name: "paper.pdf",
+            mediaType: "application/pdf",
+            data: pdf,
+          },
+          {
+            id: "txt",
+            name: "notes.txt",
+            mediaType: "text/plain",
+            data: Buffer.from(text).toString("base64"),
+          },
+        ],
+      },
+      sessionId,
+    );
+    const message = await replay;
+    assert.equal(message.session_id, sessionId);
+    assert.deepEqual(message.message.content, [
+      {
+        type: "document",
+        title: "paper.pdf",
+        source: { type: "base64", media_type: "application/pdf", data: pdf },
+      },
+      {
+        type: "document",
+        title: "notes.txt",
+        source: { type: "text", media_type: "text/plain", data: text },
+      },
+      { type: "text", text: "Explain." },
+    ]);
+  },
+);
 test("invalid stream frames fault and teardown rejects pending controls", async (t) => {
   const { child } = await setup(t);
   const fault = new Promise((resolve) => child.once("fault", resolve));

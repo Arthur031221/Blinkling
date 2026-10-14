@@ -230,10 +230,8 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     expect(
       await c.app.evaluate(() => globalThis.shellBackground.isFocused()),
     ).toBe(true);
-    const chat = c.app
-      .windows()
-      .find((p) => p.url().includes("surface=composer"));
-    const inputBox = await chat.locator("#composer-input").boundingBox();
+    const chat = c.app.windows().find((p) => p.url().includes("surface=card"));
+    const inputBox = await chat.locator(".gl-input").boundingBox();
     const cardBox = await c.app.evaluate(() =>
       globalThis.glimpseletTest.composer.getBounds(),
     );
@@ -244,7 +242,7 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
       )
       .toBe(true);
     await desktopShot(c.app, "pinned-card-desktop");
-    await chat.getByRole("button", { name: "關閉對話" }).click();
+    await chat.getByRole("button", { name: "收起對話" }).click();
     await expect
       .poll(() => c.app.evaluate(() => globalThis.shellBackground.isFocused()))
       .toBe(true);
@@ -252,10 +250,8 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
       await c.app.evaluate(() => globalThis.glimpseletTest.snapshot().pinned),
     ).toBe(false);
     await c.page.evaluate(() => window.glimpselet.action("chat"));
-    const chat2 = c.app
-      .windows()
-      .find((p) => p.url().includes("surface=composer"));
-    await expect(chat2.locator("#composer-input")).toBeFocused();
+    const chat2 = c.app.windows().find((p) => p.url().includes("surface=card"));
+    await expect(chat2.locator(".gl-input")).toBeFocused();
     const pointer = native(800, 200, "click");
     await c.page.waitForTimeout(2100);
     await desktopShot(c.app, "outside-card-click");
@@ -345,12 +341,12 @@ test("closing an intentional chat restores a separate application's native focus
         c.app.evaluate(() => !!globalThis.glimpseletTest.composer?.isVisible()),
       )
       .toBe(true);
-    const chat = c.app
-      .windows()
-      .find((p) => p.url().includes("surface=composer"));
-    await expect(chat.locator("#composer-input")).toBeFocused();
+    const chat = c.app.windows().find((p) => p.url().includes("surface=card"));
+    await expect(chat.locator(".gl-input")).toBeFocused();
     await expect.poll(activeWindow).not.toBe(external);
-    const close = await chat.locator("#chat-close").boundingBox(),
+    const close = await chat
+        .getByRole("button", { name: "收起" })
+        .boundingBox(),
       card = await c.app.evaluate(() =>
         globalThis.glimpseletTest.composer.getBounds(),
       );
@@ -494,12 +490,12 @@ test("native menu routing and measured stagger/reverse motion", async () => {
         .toBe(true);
       const chat = c.app
         .windows()
-        .find((p) => p.url().includes("surface=composer"));
-      await expect(chat.locator("#composer-input")).toBeFocused();
+        .find((p) => p.url().includes("surface=card"));
+      await expect(chat.locator(".gl-input")).toBeFocused();
       if (action === "settings" || action === "help")
-        await expect(chat.locator("#messages")).not.toBeEmpty();
+        await expect(chat.locator(".gl-notice")).not.toBeEmpty();
       if (action === "screen")
-        await expect(chat.locator("#attachments img")).toHaveCount(1);
+        await expect(chat.locator(".gl-attachment-chip img")).toHaveCount(1);
       await chat.keyboard.press("Escape");
       await expect
         .poll(() =>
@@ -582,8 +578,8 @@ for (const scale of [1, 1.5, 2])
         await c.page.evaluate(() => window.glimpselet.action("chat"));
         const chat = c.app
           .windows()
-          .find((p) => p.url().includes("surface=composer"));
-        await expect(chat.locator("#composer-input")).toBeFocused();
+          .find((p) => p.url().includes("surface=card"));
+        await expect(chat.locator(".gl-input")).toBeFocused();
         await chat.waitForTimeout(500);
         await expect(c.page.locator(".action-bubble").first()).toBeHidden();
         const cardBounds = await c.app.evaluate(() =>
@@ -599,7 +595,7 @@ for (const scale of [1, 1.5, 2])
             (cardBounds.x + 30) * scale,
             (cardBounds.y + 90) * scale,
           ),
-        ).toEqual(theme === "light" ? [250, 248, 244] : [36, 39, 32]);
+        ).toEqual(theme === "light" ? [250, 248, 243] : [38, 39, 37]);
         const capture = await c.app.evaluate(() =>
           globalThis.glimpseletTest.capture(),
         );

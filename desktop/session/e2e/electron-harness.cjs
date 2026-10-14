@@ -1,5 +1,6 @@
 // Test entry point. The product entry point never imports this module.
 if (process.env.GLIMPSELET_E2E !== "1") throw new Error("Test harness only");
+process.env.GLIMPSELET_TEST_SESSION = "manual";
 (async () => {
   await import("../../main/shell.mjs");
   const { BrowserWindow } = require("electron");

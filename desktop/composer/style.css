@@ -410,7 +410,8 @@ a:focus-visible {
   opacity: 0;
   pointer-events: none;
 }
-.gl-answer-bubble {
+.gl-answer-bubble,
+.gl-notice {
   flex-shrink: 0;
   min-width: 0;
   max-width: 100%;
@@ -476,4 +477,44 @@ body[data-surface="bubbles"] #answers {
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+.gl-guide {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 8px;
+  background: transparent;
+}
+.gl-guide > button,
+.gl-notice > button {
+  border: 1px solid var(--gl-border);
+  border-radius: 18px;
+  padding: 6px 10px;
+  margin: 4px;
+  background: var(--gl-paper);
+}
+.gl-notice {
+  position: absolute;
+  bottom: 20px;
+  left: 10px;
+  right: 10px;
+}
+:root[data-theme="dark"] {
+  --gl-paper: #262725;
+  --gl-ink: #eeeae0;
+  --gl-muted: #b4b0a7;
+  --gl-border: #474842;
+  --gl-input: #30312d;
+  --gl-soft: #3b3d36;
+  --gl-code: #1d211d;
+}
+:root[data-theme="light"] {
+  --gl-paper: #faf8f3;
+  --gl-ink: #302f2c;
+  --gl-muted: #6e6b65;
+  --gl-border: #dedad1;
+  --gl-input: #fffdf9;
+  --gl-soft: #eeebe3;
+  --gl-code: #eeede8;
 }

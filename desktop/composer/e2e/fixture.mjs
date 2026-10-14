@@ -96,6 +96,7 @@ for (const surface of ["card", "bubbles"]) {
     height: Math.min(680, bounds.height - 60),
     transparent: true,
     frame: false,
+    resizable: false,
     hasShadow: false,
     alwaysOnTop: true,
     show: false,

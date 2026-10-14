@@ -5,6 +5,23 @@ import { join } from "node:path";
 import { launch, native, report } from "./support.mjs";
 test("real RandR outputs: drag between displays, save both positions, remove and restore display", async () => {
   const { app, page, data } = await launch();
+  const reveal = async () => {
+    const state = await page.evaluate(() => window.desktop.inspect());
+    const body = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+    const area = state.shell.workArea;
+    native([
+      {
+        type: "move",
+        x:
+          area.x +
+          Math.max(8, Math.min(area.width - 8, body.x + body.width * 0.35)),
+        y: Math.max(8, Math.min(area.height - 8, body.y + body.height * 0.72)),
+      },
+    ]);
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
+    await page.waitForTimeout(650);
+    return page.evaluate(() => window.desktop.inspect());
+  };
   try {
     await expect
       .poll(() => app.evaluate(({ screen }) => screen.getAllDisplays().length))
@@ -30,11 +47,7 @@ test("real RandR outputs: drag between displays, save both positions, remove and
         bg.show();
       }
     });
-    await page.evaluate(() =>
-      window.glimpselet.shell({ type: "pin", value: true }),
-    );
-    await page.waitForTimeout(650);
-    let s = await page.evaluate(() => window.desktop.state());
+    let s = await reveal();
     native([
       {
         type: "move",
@@ -47,7 +60,7 @@ test("real RandR outputs: drag between displays, save both positions, remove and
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drag");
     native([{ type: "up" }]);
     await page.waitForTimeout(800);
-    s = await page.evaluate(() => window.desktop.state());
+    s = await page.evaluate(() => window.desktop.inspect());
     expect(s.shell.workArea.x).toBe(1280);
     const secondId = s.shell.displayId;
     const pixels = await app.evaluate(async ({ desktopCapturer }) => {
@@ -65,6 +78,7 @@ test("real RandR outputs: drag between displays, save both positions, remove and
         join(report, `dual-display-${image.id}.png`),
         Buffer.from(image.data, "base64"),
       );
+    s = await reveal();
     native([
       { type: "move", x: 1280 + s.anchor.x - 18, y: s.anchor.y + 10 },
       { type: "down" },
@@ -72,12 +86,13 @@ test("real RandR outputs: drag between displays, save both positions, remove and
       { type: "up" },
     ]);
     await page.waitForTimeout(800);
-    s = await page.evaluate(() => window.desktop.state());
+    s = await page.evaluate(() => window.desktop.inspect());
     expect(s.shell.workArea.x).toBe(0);
     const positions = JSON.parse(
       await readFile(join(data, "blink-positions.json"), "utf8"),
     ).positions;
     expect(Object.keys(positions)).toHaveLength(2);
+    s = await reveal();
     native([
       { type: "move", x: s.anchor.x - 18, y: s.anchor.y + 10 },
       { type: "down" },
@@ -86,13 +101,14 @@ test("real RandR outputs: drag between displays, save both positions, remove and
     ]);
     await page.waitForTimeout(800);
     expect(
-      (await page.evaluate(() => window.desktop.state().shell)).displayId,
+      (await page.evaluate(() => window.desktop.inspect().shell)).displayId,
     ).toBe(secondId);
     execFileSync("xrandr", ["--output", "DUMMY1", "--off"]);
     await expect
       .poll(
         async () =>
-          (await page.evaluate(() => window.desktop.state().shell)).workArea.x,
+          (await page.evaluate(() => window.desktop.inspect().shell)).workArea
+            .x,
       )
       .toBe(0);
     execFileSync("xrandr", [
@@ -106,7 +122,7 @@ test("real RandR outputs: drag between displays, save both positions, remove and
     await expect
       .poll(() => app.evaluate(({ screen }) => screen.getAllDisplays().length))
       .toBe(2);
-    const current = await page.evaluate(() => window.desktop.state());
+    const current = await page.evaluate(() => window.desktop.inspect());
     expect(current.shell.edge).toBe(positions[current.shell.displayId].edge);
     await writeFile(
       join(report, "multi-displays.json"),

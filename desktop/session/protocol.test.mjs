@@ -26,6 +26,70 @@ test("image turns preserve image bytes and stable deduplication ID", () => {
     /not implemented/,
   );
 });
+test("composer PDFs and UTF-8 files reach the session as document content", () => {
+  const pdf = Buffer.from("%PDF-1.7\nfixture").toString("base64");
+  const text = "日本語 **notes**\nconst value = 1;";
+  const value = userMessage({
+    id: "files",
+    text: "Explain these files.",
+    attachments: [
+      { id: "pdf", name: "paper.pdf", mediaType: "application/pdf", data: pdf },
+      {
+        id: "text",
+        name: "notes.md",
+        mediaType: "text/markdown",
+        data: Buffer.from(text).toString("base64"),
+      },
+    ],
+  });
+  assert.deepEqual(value.message.content, [
+    {
+      type: "document",
+      title: "paper.pdf",
+      source: { type: "base64", media_type: "application/pdf", data: pdf },
+    },
+    {
+      type: "document",
+      title: "notes.md",
+      source: { type: "text", media_type: "text/plain", data: text },
+    },
+    { type: "text", text: "Explain these files." },
+  ]);
+});
+test("session admission rejects invalid PDF, UTF-8, base64 and overlong text", () => {
+  const send = (mediaType, data) =>
+    userMessage({
+      id: "invalid",
+      text: "Explain.",
+      attachments: [{ id: "file", name: "file", mediaType, data }],
+    });
+  assert.throws(() => send("application/pdf", "aGVsbG8="), /Invalid PDF/);
+  assert.throws(() => send("text/plain", "//8="), /encoded data/);
+  assert.throws(() => send("image/png", "a=AA"), /無法讀取/);
+  assert.throws(
+    () =>
+      send("text/plain", Buffer.from("x".repeat(200001)).toString("base64")),
+    /200000 characters/,
+  );
+});
+test("the session enforces composer count, individual and aggregate attachment limits", () => {
+  const image = { mediaType: "image/png", data: "aGVsbG8=" };
+  const send = (attachments) =>
+    userMessage({ id: "limits", text: "", attachments });
+  assert.throws(() => send(Array(9).fill(image)), /Too many attachments/);
+  assert.throws(
+    () =>
+      send([
+        { ...image, data: Buffer.alloc(21 * 1024 * 1024).toString("base64") },
+      ]),
+    /20 MB/,
+  );
+  const large = {
+    ...image,
+    data: Buffer.alloc(17 * 1024 * 1024).toString("base64"),
+  };
+  assert.throws(() => send([large, large]), /32 MB/);
+});
 test("owned session resumes exact ID without forking or requiring user flags", () => {
   const args = launchArguments({ sessionId: "local" });
   assert.deepEqual(args.slice(-2), ["--resume", "local"]);

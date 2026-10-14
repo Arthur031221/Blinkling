@@ -1,4 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { attachmentContent } from "../composer/attachments.mjs";
+
+const attachmentTypes = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+]);
 /** Version-scoped protocol: proved against the host's logged-in CLI 2.1.296. */
 export const compatibility = Object.freeze({
   "2.1.296": Object.freeze({
@@ -63,6 +76,19 @@ export function enableRemote(remoteId) {
   };
 }
 export function userMessage(turn, sessionId = "") {
+  const attachments = turn.attachments.map((a, index) => {
+    if (!attachmentTypes.has(a?.mediaType))
+      throw new Error("File conversion is not implemented for this format");
+    // Legacy image callers predate attachment chips. Give them stable metadata,
+    // then apply the same MIME, byte and aggregate limits as the real composer.
+    if (a.mediaType.startsWith("image/"))
+      return {
+        ...a,
+        id: a.id ?? `${turn.id ?? "turn"}-image-${index}`,
+        name: a.name ?? "image",
+      };
+    return a;
+  });
   return {
     type: "user",
     uuid: turn.id,
@@ -71,27 +97,7 @@ export function userMessage(turn, sessionId = "") {
     message: {
       role: "user",
       content: [
-        ...turn.attachments.map((a) => {
-          if (
-            !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
-              a.mediaType,
-            )
-          )
-            throw new Error("File conversion is not implemented");
-          if (
-            typeof a.data !== "string" ||
-            a.data.length > 28_000_000 ||
-            !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
-              a.data,
-            ) ||
-            !a.data.length
-          )
-            throw new Error("Invalid or oversized image attachment");
-          return {
-            type: "image",
-            source: { type: "base64", media_type: a.mediaType, data: a.data },
-          };
-        }),
+        ...attachmentContent(attachments),
         { type: "text", text: turn.text },
       ],
     },

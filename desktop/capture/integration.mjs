@@ -25,6 +25,7 @@ export function installCaptureGuide({
   onGuide,
   onState = () => {},
   pageText,
+  masks,
   busy = () => false,
 }) {
   let resolveSession;
@@ -34,7 +35,7 @@ export function installCaptureGuide({
   });
   const displayId = () =>
     String(screen.getDisplayMatching(blink.getBounds()).id);
-  const overlay = new DesktopOverlayService({ windows });
+  const overlay = new DesktopOverlayService({ windows, masks });
   const capture = new DesktopCaptureService({
     windows: () => [...windows(), overlay.window].filter(Boolean),
     onCapture,
@@ -49,6 +50,7 @@ export function installCaptureGuide({
   const stale = new StalenessWatch({
     overlay,
     windows,
+    masks,
     onError: () => overlay.dismiss("capture-unavailable"),
   });
   let auto;
@@ -62,18 +64,20 @@ export function installCaptureGuide({
         const bitmap = (await screenImage(display, { width: 32, height: 18 }))
           .resize({ width: 32, height: 18 })
           .toBitmap();
-        const masks = [...windows(), overlay.window]
-          .filter((w) => w && !w.isDestroyed() && w.isVisible())
-          .map((w) => {
-            const b = w.getBounds();
-            return {
-              x: b.x - display.bounds.x,
-              y: b.y - display.bounds.y,
-              width: b.width,
-              height: b.height,
-            };
-          });
-        return maskBitmap(bitmap, 32, 18, display, masks);
+        const excluded =
+          masks?.() ??
+          [...windows(), overlay.window]
+            .filter((w) => w && !w.isDestroyed() && w.isVisible())
+            .map((w) => {
+              const b = w.getBounds();
+              return {
+                x: b.x - display.bounds.x,
+                y: b.y - display.bounds.y,
+                width: b.width,
+                height: b.height,
+              };
+            });
+        return maskBitmap(bitmap, 32, 18, display, excluded);
       },
       idleSeconds: () => powerMonitor.getSystemIdleTime(),
       busy: () => busy() || !!guide.controller || !!overlay.capture,
