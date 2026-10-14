@@ -10,5 +10,7 @@ export default defineConfig({
       "extension/**/*.test.{ts,tsx}",
       "scripts/**/*.test.mjs",
     ],
+    // Runs under node:test through `npm run check:name`.
+    exclude: ["scripts/check-name.test.mjs", "node_modules/**"],
   },
 });

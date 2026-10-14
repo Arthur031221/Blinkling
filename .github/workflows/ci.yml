@@ -4,7 +4,7 @@ permissions:
   contents: read
 env:
   # Automated runs never create Remote Control sessions in anyone's account.
-  GLIMPSELET_REMOTE: "0"
+  BLINKLING_REMOTE: "0"
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -27,6 +27,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg xvfb xfwm4 x11-utils x11-xserver-utils dbus-daemon
       - run: npm install --global @anthropic-ai/claude-code@2.1.296
+      - run: npm run check:name
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
@@ -58,7 +59,7 @@ jobs:
       - name: Save store submission kits
         uses: actions/upload-artifact@v4
         with:
-          name: glimpselet-store-kits-node-${{ matrix.node }}
+          name: blinkling-store-kits-node-${{ matrix.node }}
           path: release/
           if-no-files-found: error
       - name: Save browser failure evidence
