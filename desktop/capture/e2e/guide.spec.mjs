@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { PNG } from "pngjs";
+import { CLOSING } from "../../overlay/guide.mjs";
 import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
 import {
@@ -567,3 +568,248 @@ for (const scale of [1, 1.5, 2])
         await close();
       }
     });
+
+const holdMs = Number(process.env.GLIMPSELET_GUIDE_HOLD_MS ?? 60000);
+test("guide stays on a static screen with streaming answer bubbles until the user ends it", async () => {
+  test.setTimeout(holdMs + 60000);
+  const { app, close } = await launch();
+  try {
+    const blink = await app.firstWindow();
+    await background(app);
+    native(30, 30);
+    await app.evaluate(() => {
+      let listener;
+      const f = globalThis.glimpseletTest.features;
+      globalThis.b3Dismissals = [];
+      f.overlay.on("dismissed", (reason) =>
+        globalThis.b3Dismissals.push(reason),
+      );
+      const model = {
+        purpose: "This report explains the screen.",
+        sections: [
+          {
+            id: "page",
+            rect: { x: 0, y: 0, width: 1280, height: 800 },
+            label: "Report",
+            description: "The whole page.",
+            paragraphs: ["A report."],
+          },
+          {
+            id: "title",
+            rect: { x: 24, y: 24, width: 260, height: 48 },
+            label: "Title",
+            description: "The heading.",
+            paragraphs: [],
+          },
+          {
+            id: "results",
+            rect: { x: 240, y: 160, width: 160, height: 100 },
+            label: "Results",
+            description: "The main outcome.",
+            paragraphs: ["A red results panel."],
+          },
+        ],
+        steps: [
+          {
+            id: "one",
+            note: "Read the results.",
+            regionIds: ["results"],
+            arrows: [{ from: { x: 120, y: 120 }, to: { x: 240, y: 200 } }],
+          },
+        ],
+      };
+      f.setSession({
+        subscribe: (fn) => {
+          listener = fn;
+          return () => (listener = null);
+        },
+        send: async (turn) => {
+          listener({
+            type: "delta",
+            id: "answer",
+            text: JSON.stringify(model),
+          });
+          listener({ type: "done", turnId: turn.id });
+        },
+        stop: async () => {},
+      });
+    });
+    const page = await nextWindow(app, () =>
+      blink.evaluate(() => {
+        void window.glimpselet.action("guide");
+      }),
+    );
+    await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+    const end = Date.now() + holdMs;
+    let n = 0;
+    while (Date.now() < end) {
+      // Answer bubbles keep arriving beside Blink while the screen is static.
+      await app.evaluate((_e, i) => {
+        const send = globalThis.glimpseletTest.send;
+        send({
+          type: "message",
+          id: `stream-${i}`,
+          role: "assistant",
+          content: [{ type: "text", text: `這是第 ${i} 句說明。` }],
+        });
+      }, n++);
+      await new Promise((r) => setTimeout(r, 1500));
+      expect(
+        await app.evaluate(() => globalThis.b3Dismissals),
+        "overlay dismissed itself",
+      ).toEqual([]);
+    }
+    expect(
+      await app.evaluate(
+        () => !!globalThis.glimpseletTest.features.overlay.capture,
+      ),
+    ).toBe(true);
+    await desktopShot(app, "guide-held");
+    await blink.evaluate(() => window.glimpselet.action("guide-dismiss"));
+    expect(await app.evaluate(() => globalThis.b3Dismissals)).toEqual(["user"]);
+  } finally {
+    await close();
+  }
+});
+async function bubbleText(app) {
+  return app.evaluate(() =>
+    globalThis.glimpseletTest.bubbles.webContents.executeJavaScript(
+      "document.body.innerText",
+    ),
+  );
+}
+const twoStepModel = {
+  purpose: "This report explains the screen.",
+  sections: [
+    {
+      id: "results",
+      rect: { x: 240, y: 160, width: 160, height: 100 },
+      label: "Results",
+      description: "The main outcome.",
+      paragraphs: ["A red results panel."],
+    },
+    {
+      id: "title",
+      rect: { x: 24, y: 24, width: 260, height: 48 },
+      label: "Title",
+      description: "The heading.",
+      paragraphs: [],
+    },
+  ],
+  steps: [
+    { id: "one", note: "Read the title.", regionIds: ["title"], arrows: [] },
+    {
+      id: "two",
+      note: "Check the results.",
+      regionIds: ["results"],
+      arrows: [],
+    },
+  ],
+};
+async function scriptedSession(app, replies) {
+  await app.evaluate((_electron, replies) => {
+    const { features } = globalThis.glimpseletTest;
+    let listener;
+    globalThis.b3Sends = 0;
+    features.setSession({
+      subscribe: (fn) => {
+        listener = fn;
+        return () => (listener = null);
+      },
+      send: async (turn) => {
+        const reply =
+          replies[Math.min(globalThis.b3Sends++, replies.length - 1)];
+        listener({ type: "delta", id: "answer", text: reply });
+        listener({ type: "done", turnId: turn.id });
+      },
+      stop: async () => {},
+    });
+  }, replies);
+}
+test("the last step is drawn, Blink closes the tour, and every control keeps working", async () => {
+  const { app, close } = await launch();
+  try {
+    const blink = await app.firstWindow();
+    await background(app);
+    native(30, 30);
+    await blink.evaluate(() => {
+      window.guides = [];
+      window.glimpselet.onEvent((e) => {
+        if (e.type === "guide") window.guides.push(e);
+      });
+    });
+    await app.evaluate(() => {
+      const { features } = globalThis.glimpseletTest;
+      globalThis.b3Dismissals = [];
+      features.overlay.on("dismissed", (reason) =>
+        globalThis.b3Dismissals.push(reason),
+      );
+    });
+    await scriptedSession(app, [JSON.stringify(twoStepModel)]);
+    const act = (name) =>
+      blink.evaluate((n) => window.glimpselet.action(n), name);
+    const phase = () => blink.evaluate(() => window.guides.at(-1).phase);
+    const drawn = () =>
+      app.evaluate(
+        () => globalThis.glimpseletTest.features.overlay.drawings?.length ?? -1,
+      );
+    await nextWindow(app, () => act("guide"));
+    await expect.poll(phase).toBe("overview");
+    await act("guide-next");
+    await expect.poll(phase).toBe("step");
+    await act("guide-next");
+    await expect
+      .poll(() => blink.evaluate(() => window.guides.at(-1).index))
+      .toBe(1);
+    // The last step has its own drawing on screen.
+    await expect.poll(drawn).toBeGreaterThan(0);
+    await expect.poll(() => bubbleText(app)).toContain("Check the results.");
+    await desktopShot(app, "guide-last-step");
+    await act("guide-next");
+    await expect.poll(phase).toBe("finished");
+    await expect.poll(() => bubbleText(app)).toContain(CLOSING);
+    await desktopShot(app, "guide-finished");
+    await act("guide-back");
+    await expect
+      .poll(() => blink.evaluate(() => window.guides.at(-1).index))
+      .toBe(1);
+    await act("guide-overview");
+    await expect.poll(phase).toBe("overview");
+    await act("guide-dismiss");
+    expect(await app.evaluate(() => globalThis.b3Dismissals)).toEqual(["user"]);
+  } finally {
+    await close();
+  }
+});
+test("a failed guide turn shows a plain error with 再試一次 that reruns the guide", async () => {
+  const { app, close } = await launch();
+  try {
+    const blink = await app.firstWindow();
+    await background(app);
+    native(30, 30);
+    await blink.evaluate(() => {
+      window.guides = [];
+      window.glimpselet.onEvent((e) => {
+        if (e.type === "guide") window.guides.push(e);
+      });
+    });
+    await scriptedSession(app, [
+      "Sorry, I could not read that screen.",
+      JSON.stringify(twoStepModel),
+    ]);
+    const act = (name) =>
+      blink.evaluate((n) => window.glimpselet.action(n), name);
+    const phase = () => blink.evaluate(() => window.guides.at(-1).phase);
+    await act("guide");
+    await expect.poll(phase).toBe("error");
+    await expect.poll(() => bubbleText(app)).toContain("再試一次");
+    await desktopShot(app, "guide-error");
+    expect(await app.evaluate(() => globalThis.b3Sends)).toBe(1);
+    await nextWindow(app, () => act("guide-retry"));
+    await expect.poll(phase).toBe("overview");
+    expect(await app.evaluate(() => globalThis.b3Sends)).toBe(2);
+    await act("guide-dismiss");
+  } finally {
+    await close();
+  }
+});

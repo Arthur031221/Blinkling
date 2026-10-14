@@ -107,3 +107,15 @@ was not verified. Human browser and phone messages remain manual acceptance:
 send each while the session is connected and verify its arrival in Blink.
 
 Assisted by Claude/Codex.
+
+## GLIMPSELET_REMOTE
+
+| Value        | Effect                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------- |
+| unset or `1` | Default for users: the session is registered in Remote Control as "Glimpselet" and is kept on exit.           |
+| `0`          | No `remote_control` request. The owned session answers locally and creates nothing in the account.            |
+| `test`       | The single disposable final check: named "Glimpselet test", `keep_session_on_exit` false, gone when it exits. |
+
+Every automated test, e2e run and CI job sets `0` (`desktop/test-env.mjs`, the
+Playwright configs and the workflows). `GLIMPSELET_LIVE=1` runs also default to
+off. Only `runCanary` forces `test`, once per job.

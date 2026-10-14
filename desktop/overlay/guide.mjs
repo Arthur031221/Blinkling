@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { parseGuide, guideDrawings, guidePrompt } from "./schema.mjs";
 import { collectTurn } from "./turn.mjs";
+export const FAILURE = "導覽暫時無法完成，請再試一次。";
+export const CLOSING =
+  "導覽到這裡結束。想再看一次可以按「總覽」，也可以直接問我。";
 export class GuideController {
   constructor({
     session,
@@ -8,6 +11,7 @@ export class GuideController {
     capture,
     onGuide = () => {},
     pageText = async () => "",
+    language = () => "",
     timeoutMs,
   }) {
     Object.assign(this, {
@@ -16,6 +20,7 @@ export class GuideController {
       capture,
       onGuide,
       pageText,
+      language,
       timeoutMs,
     });
     this.dismissed = () => {
@@ -26,10 +31,11 @@ export class GuideController {
   }
   async start(displayId, existingCapture) {
     this.dismiss();
-    if (!this.session) throw Error("Claude session is starting");
+    this.lastDisplay = displayId;
     const controller = (this.controller = new AbortController());
     this.onGuide({ phase: "thinking" });
     try {
+      if (!this.session) throw Error("Claude session is starting");
       const capture =
         existingCapture ??
         (await this.capture.run("guide", displayId, controller.signal, {
@@ -40,7 +46,7 @@ export class GuideController {
         this.session,
         {
           id: randomUUID(),
-          text: guidePrompt(capture, await this.pageText()),
+          text: guidePrompt(capture, await this.pageText(), this.language()),
           attachments: [capture.image],
           source: "guide",
         },
@@ -65,8 +71,11 @@ export class GuideController {
       if (!controller.signal.aborted) {
         this.onGuide({
           phase: "error",
-          message: "導覽暫時無法完成，請再試一次。",
+          message: FAILURE,
+          bubbles: [FAILURE],
+          retry: true,
         });
+        this.failed = true;
         throw error;
       }
     } finally {
@@ -89,14 +98,41 @@ export class GuideController {
       total: this.guide.steps.length,
       bubbles: [this.guide.steps[index].note],
       canBack: index > 0,
-      canNext: index < this.guide.steps.length - 1,
+      canNext: true,
+      last: index === this.guide.steps.length - 1,
     });
   }
   next() {
-    this.step(this.index + 1);
+    if (!this.guide) return;
+    if (this.index >= this.guide.steps.length - 1) this.finish();
+    else this.step(this.index + 1);
   }
   back() {
-    this.step(Math.max(0, this.index - 1));
+    if (!this.guide) return;
+    if (this.index >= this.guide.steps.length)
+      this.step(this.guide.steps.length - 1);
+    else if (this.index > 0) this.step(this.index - 1);
+  }
+  /** The tour ran out of steps: outline everything again and say goodbye. */
+  finish() {
+    if (!this.guide || this.index >= this.guide.steps.length) return;
+    const total = this.guide.steps.length;
+    this.index = total;
+    this.overlay.step(-1);
+    this.onGuide({
+      phase: "finished",
+      index: total,
+      total,
+      bubbles: [CLOSING],
+      canBack: true,
+      canNext: false,
+    });
+  }
+  /** Reruns the failed guide on a fresh capture of the same display. */
+  retry() {
+    return this.lastDisplay === undefined
+      ? Promise.resolve()
+      : this.start(this.lastDisplay);
   }
   overview() {
     if (!this.guide) return;
@@ -114,13 +150,17 @@ export class GuideController {
         ]),
       ],
       canBack: false,
-      canNext: true,
+      canNext: this.guide.steps.length > 0,
     });
   }
   dismiss() {
     this.controller?.abort();
-    this.overlay.dismiss();
+    this.overlay.dismiss("user");
     this.guide = null;
+    if (this.failed) {
+      this.failed = false;
+      this.onGuide({ phase: "dismissed" });
+    }
   }
   dispose() {
     this.dismiss();

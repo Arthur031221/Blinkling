@@ -14,7 +14,15 @@ export function sampleBounds(rect, width, height, display) {
 }
 /** Never hide sampled region interiors: moving a small control must invalidate
  * its guide even when most of the desktop is unchanged. Alpha zero is a mask. */
-export function contentMoved(a, b, width, height, display, regions = []) {
+export function contentMoved(
+  a,
+  b,
+  width,
+  height,
+  display,
+  regions = [],
+  { screen = 0.045, region = 0.08, coverage = 0 } = {},
+) {
   function fraction(rect) {
     const { left, right, top, bottom } = sampleBounds(
       rect,
@@ -38,7 +46,9 @@ export function contentMoved(a, b, width, height, display, regions = []) {
         )
           changed++;
       }
-    return total ? changed / total : 0;
+    // Too few unmasked cells left to say anything about this region.
+    const cells = (right - left) * (bottom - top);
+    return total && total >= cells * coverage ? changed / total : 0;
   }
   return (
     fraction({
@@ -46,7 +56,7 @@ export function contentMoved(a, b, width, height, display, regions = []) {
       y: 0,
       width: display.bounds.width,
       height: display.bounds.height,
-    }) > 0.045 || regions.some((r) => fraction(r) > 0.08)
+    }) > screen || regions.some((r) => fraction(r) > region)
   );
 }
 export function maskBitmap(bitmap, width, height, display, masks) {

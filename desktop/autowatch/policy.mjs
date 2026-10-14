@@ -11,11 +11,19 @@ export function fingerprint(bitmap) {
   }
   return result;
 }
+/** Minimum time between two automatic explanations. The one place to tune it. */
+export const COOLDOWN_MS = 12000;
+/** Two white pages share most pixels, so a navigation moves the mean only a
+ * little while still changing the structure of many cells. Cursor blink, caret
+ * movement, a clock tick or a small scroll stay far below both limits. */
+const BROAD = { mean: 0.1, fraction: 0.3 };
+const STRUCTURAL = { mean: 0.02, cell: 0.06, fraction: 0.12 };
 export function difference(a, b) {
   if (!a || !b || a.length !== b.length || !a.length)
     return { substantial: true, mean: 1, fraction: 1 };
   let sum = 0,
     changed = 0,
+    shifted = 0,
     pixels = 0;
   for (let i = 0; i < a.length; i += 3) {
     if (!Number.isFinite(a[i]) || !Number.isFinite(b[i])) continue;
@@ -27,16 +35,20 @@ export function difference(a, b) {
       (3 * 255);
     sum += d;
     if (d > 0.12) changed++;
+    if (d > STRUCTURAL.cell) shifted++;
   }
   if (!pixels) return { substantial: false, mean: 0, fraction: 0 };
   return {
     mean: sum / pixels,
     fraction: changed / pixels,
-    substantial: sum / pixels > 0.1 && changed / pixels > 0.3,
+    substantial:
+      (sum / pixels > BROAD.mean && changed / pixels > BROAD.fraction) ||
+      (sum / pixels > STRUCTURAL.mean &&
+        shifted / pixels > STRUCTURAL.fraction),
   };
 }
 export class ChangePolicy {
-  constructor({ cooldownMs = 45000, settleSamples = 2 } = {}) {
+  constructor({ cooldownMs = COOLDOWN_MS, settleSamples = 2 } = {}) {
     this.cooldownMs = cooldownMs;
     this.settleSamples = settleSamples;
     this.lastSent = -Infinity;

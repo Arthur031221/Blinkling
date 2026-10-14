@@ -2,6 +2,9 @@ name: CI
 on: [push, pull_request]
 permissions:
   contents: read
+env:
+  # Automated runs never create Remote Control sessions in anyone's account.
+  GLIMPSELET_REMOTE: "0"
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

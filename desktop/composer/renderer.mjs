@@ -78,7 +78,7 @@ const unEvent = api.onEvent((event) => {
   }
   if (event.type === "guide") {
     guide.replaceChildren();
-    guide.hidden = ["dismissed", "error"].includes(event.phase);
+    guide.hidden = event.phase === "dismissed";
     notice.hidden = true;
     for (const text of event.bubbles ??
       (event.phase === "thinking" ? ["正在看這個畫面…"] : [])) {
@@ -90,9 +90,20 @@ const unEvent = api.onEvent((event) => {
     if (["overview", "step"].includes(event.phase))
       guide.append(
         button("上一步", "guide-back", event.canBack),
-        button("下一步", "guide-next", event.canNext),
+        button(event.last ? "完成" : "下一步", "guide-next", event.canNext),
         button("總覽", "guide-overview"),
         button("結束導覽", "guide-dismiss"),
+      );
+    if (event.phase === "finished")
+      guide.append(
+        button("上一步", "guide-back", event.canBack),
+        button("總覽", "guide-overview"),
+        button("結束導覽", "guide-dismiss"),
+      );
+    if (event.phase === "error")
+      guide.append(
+        button("再試一次", "guide-retry"),
+        button("關閉", "guide-dismiss"),
       );
   }
   if (event.type === "capture-status" && event.message) {

@@ -1,4 +1,10 @@
-import { screen, powerMonitor, globalShortcut } from "electron";
+import {
+  app,
+  screen,
+  powerMonitor,
+  globalShortcut,
+  nativeImage,
+} from "electron";
 import { DesktopCaptureService, screenImage } from "./index.mjs";
 import { DesktopOverlayService } from "../overlay/index.mjs";
 import { GuideController } from "../overlay/guide.mjs";
@@ -14,6 +20,7 @@ export const featureActions = new Set([
   "guide-back",
   "guide-overview",
   "guide-dismiss",
+  "guide-retry",
 ]);
 /** Shell/composer/session builders bind only these service hooks. Feature IPC is
  * kept under the shell's existing trusted action channel, never a generic API. */
@@ -46,11 +53,19 @@ export function installCaptureGuide({
     capture,
     onGuide,
     pageText,
+    language: () => app.getLocale(),
   });
   const stale = new StalenessWatch({
     overlay,
     windows,
     masks,
+    decode: (data, size) =>
+      nativeImage
+        .createFromBuffer(Buffer.from(data, "base64"))
+        .resize(size)
+        .toBitmap(),
+    grab: async (display, size) =>
+      (await screenImage(display, size)).resize(size).toBitmap(),
     onError: () => overlay.dismiss("capture-unavailable"),
   });
   let auto;
@@ -92,6 +107,8 @@ export function installCaptureGuide({
           ? "擷取正在進行。"
           : "擷取暫時無法完成，請再試一次。",
     });
+  // A failed guide already reported itself as an error bubble with a retry.
+  const startGuide = (run) => run().catch(() => {});
   const region = () => capture.region(displayId()).catch(reportError);
   const shortcut = globalShortcut.register("CommandOrControl+Shift+S", region);
   if (!shortcut) onState({ state: "shortcut-unavailable" });
@@ -124,8 +141,9 @@ export function installCaptureGuide({
       if (action === "region") await capture.region(displayId());
       if (action === "guide") {
         if (overlay.capture || guide.controller) guide.dismiss();
-        else await guide.start(displayId());
+        else await startGuide(() => guide.start(displayId()));
       }
+      if (action === "guide-retry") await startGuide(() => guide.retry());
       if (action === "auto-explain") {
         if (auto.enabled) auto.disable();
         else auto.enable();

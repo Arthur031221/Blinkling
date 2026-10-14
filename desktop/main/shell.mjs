@@ -604,8 +604,7 @@ features = installCaptureGuide({
   onCapture: attachCapture,
   onGuide: (guide) => {
     send({ type: "guide", ...guide });
-    if (!["dismissed", "error"].includes(guide.phase) && !chatOpen)
-      bubbles.showInactive();
+    if (guide.phase !== "dismissed" && !chatOpen) bubbles.showInactive();
   },
   onState: (state) => send({ type: "capture-status", ...state }),
 });

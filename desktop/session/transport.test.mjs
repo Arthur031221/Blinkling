@@ -16,6 +16,7 @@ async function setup(t) {
     controlTimeoutMs: 1500,
     connectTimeoutMs: 3000,
     executableArgs: [fixture],
+    remote: "on", // the fixture is a fake child; it can create nothing in an account
   });
   t.after(async () => {
     await child.dispose();
@@ -170,7 +171,7 @@ test("shutdown during the version probe cancels the actual probe and never launc
   const file = join(dir, "pid");
   const previous = process.env.GLIMPSELET_TEST_VERSION_PID;
   process.env.GLIMPSELET_TEST_VERSION_PID = file;
-  const child = new OwnedSession({ executableArgs: [fixture] });
+  const child = new OwnedSession({ executableArgs: [fixture], remote: "on" });
   try {
     const connecting = child.connect({
       cwd: dir,
@@ -210,7 +211,8 @@ test("an empty session survives full adapter restart with the same UUID and remo
       userDataDir: cwd,
       cwd,
       executable: process.execPath,
-      transportFactory: () => new OwnedSession({ executableArgs: [fixture] }),
+      transportFactory: () =>
+        new OwnedSession({ executableArgs: [fixture], remote: "on" }),
       readTranscript: async (_, id) => {
         try {
           return (
@@ -244,4 +246,80 @@ test("an empty session survives full adapter restart with the same UUID and remo
     await bridge.dispose();
     await rm(cwd, { recursive: true, force: true });
   }
+});
+
+async function requestsFor(t, mode, env = {}) {
+  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-remote-mode-"));
+  const log = join(cwd, "requests.jsonl");
+  const saved = {
+    log: process.env.GLIMPSELET_TEST_REQUESTS,
+    remote: process.env.GLIMPSELET_REMOTE,
+  };
+  process.env.GLIMPSELET_TEST_REQUESTS = log;
+  if (mode === undefined) delete process.env.GLIMPSELET_REMOTE;
+  else process.env.GLIMPSELET_REMOTE = mode;
+  const child = new OwnedSession({
+    controlTimeoutMs: 1500,
+    connectTimeoutMs: 3000,
+    executableArgs: [fixture],
+    ...env,
+  });
+  t.after(async () => {
+    await child.dispose();
+    for (const [key, value] of [
+      ["GLIMPSELET_TEST_REQUESTS", saved.log],
+      ["GLIMPSELET_REMOTE", saved.remote],
+    ])
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    await rm(cwd, { recursive: true, force: true });
+  });
+  const remote = await child.connect({
+    cwd,
+    executable: process.execPath,
+    localId: randomUUID(),
+    model: "haiku",
+    effort: "low",
+  });
+  const requests = (await readFile(log, "utf8"))
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse);
+  return { child, remote, requests };
+}
+
+test("GLIMPSELET_REMOTE=0 never sends remote_control yet the session still answers turns", async (t) => {
+  const { child, remote, requests } = await requestsFor(t, "0");
+  assert.ok(!requests.some((r) => r.subtype === "remote_control"));
+  assert.equal(remote.session_url, null);
+  assert.equal(remote.bridge_session_id, null);
+  const done = new Promise((resolve) =>
+    child.on("event", (e) => e.type === "result" && resolve(e)),
+  );
+  await child.send({ id: randomUUID(), text: "Hi", attachments: [] });
+  await done;
+});
+
+test("the default keeps the named persistent Remote Control session for real users", async (t) => {
+  const { requests } = await requestsFor(t, undefined);
+  const remote = requests.filter((r) => r.subtype === "remote_control");
+  assert.equal(remote.length, 1);
+  assert.equal(remote[0].name, "Glimpselet");
+  assert.equal(remote[0].keep_session_on_exit, true);
+});
+
+test("GLIMPSELET_REMOTE=test makes one disposable session that disappears on exit", async (t) => {
+  const { requests } = await requestsFor(t, "test");
+  const remote = requests.filter((r) => r.subtype === "remote_control");
+  assert.equal(remote.length, 1);
+  assert.equal(remote[0].name, "Glimpselet test");
+  assert.equal(remote[0].keep_session_on_exit, false);
+});
+
+test("an explicit remote option overrides the environment", async (t) => {
+  const { requests } = await requestsFor(t, "0", { remote: "on" });
+  assert.equal(
+    requests.filter((r) => r.subtype === "remote_control").length,
+    1,
+  );
 });
