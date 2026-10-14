@@ -30,10 +30,17 @@ async function openGuide(
   const { window } = dom;
   const fetch = vi.fn(async (input: string) => ({
     ok: true,
+    status: 200,
     json: async () =>
-      input.startsWith("/install/status") ? { connected, mode } : {},
+      input.startsWith("/install/status")
+        ? { connected, active: connected, mode }
+        : {},
   }));
-  Object.assign(window, { fetch, setTimeout: () => 0 });
+  const polls: Array<() => Promise<void>> = [];
+  Object.assign(window, {
+    fetch,
+    setTimeout: (callback: () => Promise<void>) => polls.push(callback),
+  });
   const post = vi.spyOn(window, "postMessage").mockImplementation(() => {});
   window.eval(INSTALL_GUIDE_SCRIPT);
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -46,7 +53,12 @@ async function openGuide(
         ...event,
       }),
     );
-  return { dom, window, document: window.document, fetch, post, message };
+  const poll = async () => {
+    const next = polls.shift();
+    if (!next) throw new Error("No pending status poll");
+    await next();
+  };
+  return { dom, window, document: window.document, fetch, post, message, poll };
 }
 afterEach(() => {
   for (const dom of documents.splice(0)) dom.window.close();
@@ -101,7 +113,7 @@ describe("three step welcome", () => {
       );
       message("glimpselet:paired");
       expect(document.querySelector("#connection")?.textContent).toBe(
-        text.connected,
+        text.completed,
       );
       expect(Object.keys(text).sort()).toEqual(
         Object.keys(welcomeLocales.en).sort(),
@@ -156,7 +168,7 @@ describe("three step welcome", () => {
     message("glimpselet:extension-ready");
     message("glimpselet:connection-failed");
     expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.expired,
+      welcomeLocales.en.connectionFailed,
     );
     expect(
       document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
@@ -179,6 +191,121 @@ describe("three step welcome", () => {
       document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
     ).toBe(false);
   });
+
+  it.each(Object.keys(welcomeLocales))(
+    "keeps completed %s setup truthful when the setup link expires",
+    async (locale) => {
+      const { document, fetch, poll, post } = await openGuide(
+        "direct",
+        true,
+        locale,
+      );
+      const text = welcomeLocales[locale as keyof typeof welcomeLocales];
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      });
+      await poll();
+      expect(document.querySelector("#connection")?.textContent).not.toBe(
+        text.expired,
+      );
+      expect(document.querySelector("#connection")?.textContent).toBe(
+        text.completed,
+      );
+      expect(
+        document.querySelector("#connection")?.classList.contains("connected"),
+      ).toBe(false);
+      const open = document.querySelector<HTMLButtonElement>("#open-bubble")!;
+      expect(open.disabled).toBe(false);
+      expect(
+        document.querySelector<HTMLButtonElement>("#reconnect")?.hidden,
+      ).toBe(true);
+      open.click();
+      expect(post).toHaveBeenLastCalledWith(
+        { type: "glimpselet:open-bubble", locale },
+        "http://127.0.0.1:4312",
+      );
+    },
+  );
+
+  it("expires an unpaired setup without enabling the bubble", async () => {
+    const { document, fetch, poll } = await openGuide();
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    });
+    await poll();
+    expect(document.querySelector("#connection")?.textContent).toBe(
+      welcomeLocales.en.expired,
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
+    ).toBe(true);
+  });
+
+  it("distinguishes completed pairing from an active bubble connection", async () => {
+    const { document, fetch, poll } = await openGuide("direct", true);
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ connected: true, active: false, mode: "direct" }),
+    });
+    await poll();
+    expect(document.querySelector("#connection")?.textContent).toBe(
+      welcomeLocales.en.completed,
+    );
+    expect(
+      document.querySelector("#connection")?.classList.contains("connected"),
+    ).toBe(false);
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ connected: true, active: true, mode: "direct" }),
+    });
+    await poll();
+    expect(document.querySelector("#connection")?.textContent).toBe(
+      welcomeLocales.en.connected,
+    );
+    expect(
+      document.querySelector("#connection")?.classList.contains("connected"),
+    ).toBe(true);
+  });
+
+  it.each(["http", "network", "unpaired"])(
+    "does not claim a live connection after a %s poll failure and recovers",
+    async (failure) => {
+      const { document, fetch, poll } = await openGuide(
+        "direct",
+        failure !== "unpaired",
+      );
+      if (failure === "network")
+        fetch.mockRejectedValueOnce(new Error("Offline"));
+      else
+        fetch.mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          json: async () => ({}),
+        });
+      await poll();
+      expect(document.querySelector("#connection")?.textContent).toBe(
+        welcomeLocales.en.checkFailed,
+      );
+      expect(
+        document.querySelector("#connection")?.classList.contains("connected"),
+      ).toBe(false);
+      expect(
+        document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
+      ).toBe(failure === "unpaired");
+      await poll();
+      expect(document.querySelector("#connection")?.textContent).toBe(
+        failure === "unpaired"
+          ? welcomeLocales.en.waiting
+          : welcomeLocales.en.connected,
+      );
+    },
+  );
 
   it("reveals the stable folder with an authenticated POST and offers manual recovery", async () => {
     const { document, fetch } = await openGuide();

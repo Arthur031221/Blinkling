@@ -485,6 +485,41 @@ writeFileSync(${JSON.stringify(recorded)}, JSON.stringify(process.argv.slice(2))
     return { response, body: await response.json() };
   }
 
+  it("separates completed setup from socket health without extending the setup capability", async () => {
+    let now = 1000;
+    const { panel, extension } = await fixture(() => now);
+    const code = extension.issueCode();
+    const client = await extensionClient(panel);
+    const paired = await client.pair(code);
+    expect((await status(panel, code)).body).toMatchObject({
+      connected: true,
+      active: true,
+    });
+    const closed = once(client.socket, "close");
+    client.socket.close();
+    await closed;
+    await expect
+      .poll(async () => (await status(panel, code)).body.active)
+      .toBe(false);
+    expect((await status(panel, code)).body.connected).toBe(true);
+    now += 600000;
+    expect((await status(panel, code)).response.status).toBe(401);
+    expect(
+      (await fetch(`${panel.origin}/install/extension.zip?code=${code}`))
+        .status,
+    ).toBe(401);
+    expect((await post(panel, `/install/reveal?code=${code}`, {})).status).toBe(
+      401,
+    );
+    expect((await post(panel, `/install/try?code=${code}`, {})).status).toBe(
+      401,
+    );
+    const resumed = await extensionClient(panel);
+    const response = once(resumed.socket, "message");
+    resumed.socket.send(JSON.stringify({ type: "pair", token: paired.token }));
+    expect(JSON.parse(String((await response)[0])).type).toBe("paired");
+  });
+
   for (const ordinaryPaired of [false, true]) {
     it(`launches a separately scoped one-use trial code with the ordinary browser ${ordinaryPaired ? "paired" : "unpaired"}`, async () => {
       const { panel, extension, recorded } = await fixture();

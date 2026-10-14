@@ -24,12 +24,9 @@
   "close": "关闭面板",
   "compact": "最小化",
   "connected": "已连接到你的 Claude Code",
-  "consent1": "网页文本和元素标签会自动发送给你选择的服务商，用于推荐问题。",
-  "consent2": "提问或使用网页工具时会发送图像。启用被动模式后，截取的画面和摘要会自动发送。",
-  "consent3": "画面帧保留在内存中。API 密钥和配对令牌保存在浏览器会话存储中。",
+  "consent1": "提问或开启自动解说时，会发送截取的画面。",
   "consentAccept": "打开浮动聊天",
-  "consentFoot": "在设置中选择服务提供者、管理网站访问权限或暂停被动摘要。",
-  "consentText": "为你选择的网页或屏幕打开浮动聊天窗口。你可以通过窗口控件开始共享屏幕。",
+  "consentText": "网页文字会自动发送给你选择的 AI，用来推荐问题。",
   "consentTitle": "询问你看到的内容。",
   "copied": "已复制",
   "copy": "复制",
@@ -161,7 +158,7 @@
   "wholeScreen": "截取全屏幕",
   "autoExplain": "自动解说",
   "moreTools": "更多工具",
-  "captureAccessHint": "可选：允许访问所有网站一次，即可在新标签页截取网页与选择区域。",
+  "captureAccessHint": "可选：允许跨网站截取网页与选择区域。",
   "guideOverview": "总览",
   "guideTour": "逐步导览"
 }

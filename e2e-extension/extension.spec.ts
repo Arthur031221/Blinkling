@@ -156,7 +156,13 @@ test.beforeEach(async () => {
         JSON.stringify(
           connected === undefined
             ? { error: "pairing_expired" }
-            : { connected, mode: bridge.mode },
+            : {
+                connected,
+                active: bridge.installConnectionActive(
+                  requestUrl.searchParams.get("code") || "",
+                ),
+                mode: bridge.mode,
+              },
         ),
       );
       return;
@@ -799,6 +805,9 @@ for (const startup of [false, true]) {
         res.end(
           JSON.stringify({
             connected: secondBridge.installStatus(
+              url.searchParams.get("code") || "",
+            ),
+            active: secondBridge.installConnectionActive(
               url.searchParams.get("code") || "",
             ),
             mode: secondBridge.mode,

@@ -40769,7 +40769,10 @@ var en = {
   remoteFolder: "Extract into Downloads/Glimpselet-extension on this computer.",
   waiting: "Connecting automatically\u2026",
   connected: "Connected to your Claude Code",
-  expired: "Run /glimpse again to reconnect.",
+  expired: "This setup link expired. Run /glimpse again.",
+  completed: "Connection set up. Open the bubble to continue.",
+  checkFailed: "Could not check the connection. Trying again\u2026",
+  connectionFailed: "Could not connect. Try again.",
   retry: "Reconnect",
   try: "Try without installing",
   trying: "Opening Glimpselet\u2026",
@@ -40798,7 +40801,10 @@ var welcomeLocales = {
     remoteFolder: "\u5728\u9019\u53F0\u96FB\u8166\u89E3\u58D3\u7E2E\u5230 Downloads/Glimpselet-extension\u3002",
     waiting: "\u6B63\u5728\u81EA\u52D5\u9023\u63A5\u22EF",
     connected: "\u5DF2\u9023\u5230\u4F60\u7684 Claude Code",
-    expired: "\u8ACB\u518D\u57F7\u884C /glimpse \u91CD\u65B0\u9023\u63A5\u3002",
+    expired: "\u8A2D\u5B9A\u9023\u7D50\u5DF2\u904E\u671F\uFF0C\u8ACB\u518D\u57F7\u884C /glimpse\u3002",
+    completed: "\u9023\u63A5\u5DF2\u8A2D\u5B9A\u597D\uFF0C\u8ACB\u958B\u555F\u6D6E\u52D5\u8996\u7A97\u7E7C\u7E8C\u3002",
+    checkFailed: "\u7121\u6CD5\u78BA\u8A8D\u9023\u63A5\u72C0\u614B\uFF0C\u6B63\u5728\u91CD\u8A66\u22EF",
+    connectionFailed: "\u7121\u6CD5\u9023\u63A5\uFF0C\u8ACB\u91CD\u8A66\u3002",
     retry: "\u91CD\u65B0\u9023\u63A5",
     try: "\u4E0D\u5B89\u88DD\uFF0C\u5148\u8A66\u7528",
     trying: "\u6B63\u5728\u958B\u555F Glimpselet\u22EF",
@@ -40825,7 +40831,10 @@ var welcomeLocales = {
     remoteFolder: "\u5728\u8FD9\u53F0\u7535\u8111\u89E3\u538B\u5230 Downloads/Glimpselet-extension\u3002",
     waiting: "\u6B63\u5728\u81EA\u52A8\u8FDE\u63A5\u2026",
     connected: "\u5DF2\u8FDE\u63A5\u5230\u4F60\u7684 Claude Code",
-    expired: "\u8BF7\u518D\u6B21\u8FD0\u884C /glimpse \u91CD\u65B0\u8FDE\u63A5\u3002",
+    expired: "\u8BBE\u7F6E\u94FE\u63A5\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u518D\u6B21\u8FD0\u884C /glimpse\u3002",
+    completed: "\u8FDE\u63A5\u5DF2\u8BBE\u7F6E\u597D\uFF0C\u8BF7\u6253\u5F00\u60AC\u6D6E\u7A97\u7EE7\u7EED\u3002",
+    checkFailed: "\u65E0\u6CD5\u786E\u8BA4\u8FDE\u63A5\u72B6\u6001\uFF0C\u6B63\u5728\u91CD\u8BD5\u2026",
+    connectionFailed: "\u65E0\u6CD5\u8FDE\u63A5\uFF0C\u8BF7\u91CD\u8BD5\u3002",
     retry: "\u91CD\u65B0\u8FDE\u63A5",
     try: "\u4E0D\u5B89\u88C5\uFF0C\u5148\u8BD5\u7528",
     trying: "\u6B63\u5728\u6253\u5F00 Glimpselet\u2026",
@@ -40852,7 +40861,10 @@ var welcomeLocales = {
     remoteFolder: "\u3053\u306E\u30D1\u30BD\u30B3\u30F3\u306E Downloads/Glimpselet-extension \u306B\u5C55\u958B\u3057\u307E\u3059\u3002",
     waiting: "\u81EA\u52D5\u63A5\u7D9A\u4E2D\u2026",
     connected: "\u3042\u306A\u305F\u306E Claude Code \u306B\u63A5\u7D9A\u6E08\u307F",
-    expired: "/glimpse \u3092\u3082\u3046\u4E00\u5EA6\u5B9F\u884C\u3057\u3066\u63A5\u7D9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    expired: "\u8A2D\u5B9A\u30EA\u30F3\u30AF\u306E\u671F\u9650\u304C\u5207\u308C\u307E\u3057\u305F\u3002/glimpse \u3092\u518D\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    completed: "\u63A5\u7D9A\u306E\u8A2D\u5B9A\u304C\u5B8C\u4E86\u3057\u307E\u3057\u305F\u3002\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u753B\u9762\u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
+    checkFailed: "\u63A5\u7D9A\u3092\u78BA\u8A8D\u3067\u304D\u307E\u305B\u3093\u3002\u518D\u8A66\u884C\u4E2D\u2026",
+    connectionFailed: "\u63A5\u7D9A\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     retry: "\u518D\u63A5\u7D9A",
     try: "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u305B\u305A\u306B\u8A66\u3059",
     trying: "Glimpselet \u3092\u8D77\u52D5\u4E2D\u2026",
@@ -40879,7 +40891,10 @@ var welcomeLocales = {
     remoteFolder: "\uC774 \uCEF4\uD4E8\uD130\uC758 Downloads/Glimpselet-extension\uC5D0 \uC555\uCD95\uC744 \uD478\uC138\uC694.",
     waiting: "\uC790\uB3D9\uC73C\uB85C \uC5F0\uACB0 \uC911\u2026",
     connected: "\uB0B4 Claude Code\uC5D0 \uC5F0\uACB0\uB428",
-    expired: "/glimpse\uB97C \uB2E4\uC2DC \uC2E4\uD589\uD574 \uC5F0\uACB0\uD558\uC138\uC694.",
+    expired: "\uC124\uC815 \uB9C1\uD06C\uAC00 \uB9CC\uB8CC\uB410\uC5B4\uC694. /glimpse\uB97C \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694.",
+    completed: "\uC5F0\uACB0 \uC124\uC815\uC774 \uC644\uB8CC\uB410\uC5B4\uC694. \uD50C\uB85C\uD305 \uCC3D\uC744 \uC5EC\uC138\uC694.",
+    checkFailed: "\uC5F0\uACB0\uC744 \uD655\uC778\uD560 \uC218 \uC5C6\uC5B4\uC694. \uB2E4\uC2DC \uC2DC\uB3C4 \uC911\u2026",
+    connectionFailed: "\uC5F0\uACB0\uD560 \uC218 \uC5C6\uC5B4\uC694. \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
     retry: "\uB2E4\uC2DC \uC5F0\uACB0",
     try: "\uC124\uCE58 \uC5C6\uC774 \uCCB4\uD5D8",
     trying: "Glimpselet \uC5EC\uB294 \uC911\u2026",
@@ -40906,7 +40921,10 @@ var welcomeLocales = {
     remoteFolder: "Extrae en Downloads/Glimpselet-extension en este equipo.",
     waiting: "Conectando autom\xE1ticamente\u2026",
     connected: "Conectado a tu Claude Code",
-    expired: "Ejecuta /glimpse de nuevo para conectar.",
+    expired: "El enlace de configuraci\xF3n ha caducado. Ejecuta /glimpse de nuevo.",
+    completed: "Conexi\xF3n configurada. Abre la burbuja para continuar.",
+    checkFailed: "No se pudo comprobar la conexi\xF3n. Reintentando\u2026",
+    connectionFailed: "No se pudo conectar. Int\xE9ntalo de nuevo.",
     retry: "Volver a conectar",
     try: "Probar sin instalar",
     trying: "Abriendo Glimpselet\u2026",
@@ -40933,7 +40951,10 @@ var welcomeLocales = {
     remoteFolder: "Extraire dans Downloads/Glimpselet-extension sur cet ordinateur.",
     waiting: "Connexion automatique\u2026",
     connected: "Connect\xE9 \xE0 votre Claude Code",
-    expired: "Relancez /glimpse pour vous reconnecter.",
+    expired: "Ce lien de configuration a expir\xE9. Relancez /glimpse.",
+    completed: "Connexion configur\xE9e. Ouvrez la bulle pour continuer.",
+    checkFailed: "Impossible de v\xE9rifier la connexion. Nouvel essai\u2026",
+    connectionFailed: "Impossible de se connecter. R\xE9essayez.",
     retry: "Reconnecter",
     try: "Essayer sans installer",
     trying: "Ouverture de Glimpselet\u2026",
@@ -40960,7 +40981,10 @@ var welcomeLocales = {
     remoteFolder: "Auf diesem Computer nach Downloads/Glimpselet-extension entpacken.",
     waiting: "Automatische Verbindung\u2026",
     connected: "Mit deinem Claude Code verbunden",
-    expired: "/glimpse erneut ausf\xFChren, um die Verbindung herzustellen.",
+    expired: "Dieser Einrichtungslink ist abgelaufen. F\xFChre /glimpse erneut aus.",
+    completed: "Verbindung eingerichtet. \xD6ffne die Blase, um fortzufahren.",
+    checkFailed: "Verbindung konnte nicht gepr\xFCft werden. Neuer Versuch\u2026",
+    connectionFailed: "Verbindung fehlgeschlagen. Versuche es erneut.",
     retry: "Erneut verbinden",
     try: "Ohne Installation ausprobieren",
     trying: "Glimpselet wird ge\xF6ffnet\u2026",
@@ -40987,7 +41011,10 @@ var welcomeLocales = {
     remoteFolder: "Extraia em Downloads/Glimpselet-extension neste computador.",
     waiting: "Conectando automaticamente\u2026",
     connected: "Conectado ao seu Claude Code",
-    expired: "Execute /glimpse novamente para conectar.",
+    expired: "Este link de configura\xE7\xE3o expirou. Execute /glimpse novamente.",
+    completed: "Conex\xE3o configurada. Abra a bolha para continuar.",
+    checkFailed: "N\xE3o foi poss\xEDvel verificar a conex\xE3o. Tentando novamente\u2026",
+    connectionFailed: "N\xE3o foi poss\xEDvel conectar. Tente novamente.",
     retry: "Reconectar",
     try: "Experimentar sem instalar",
     trying: "Abrindo o Glimpselet\u2026",
@@ -67809,6 +67836,14 @@ var ExtensionBridge = class {
       status.token && (this.pairs.get(status.token)?.expires ?? 0) > this.now()
     );
   }
+  /** A completed pairing can outlive its socket; setup is not live health. */
+  installConnectionActive(code) {
+    if (this.installStatus(code) !== true) return false;
+    const token = this.installation.get(code)?.token;
+    return Boolean(
+      token && this.pairs.get(token)?.client?.readyState === import_websocket.default.OPEN
+    );
+  }
   connect(client, req) {
     this.sockets.clients.add(client);
     let pair;
@@ -68393,20 +68428,20 @@ window.addEventListener('hashchange',()=>location.reload());
 const params=new URLSearchParams(location.hash.slice(1)),code=params.get('code')||'';
 const locales=Object.keys(translations),requested=new URLSearchParams(location.search).get('locale');
 let lang=locales.includes(requested)?requested:locales.find(l=>l===navigator.language)||locales.find(l=>l===navigator.language.split('-')[0])||'en';
-let connected=false,extensionReady=false,connecting=false,connectionKey='waiting',noteKey='';
+let completed=false,linkExpired=false,extensionReady=false,connecting=false,connectionKey='waiting',noteKey='';
 const language=document.querySelector('#language'),status=document.querySelector('#connection'),open=document.querySelector('#open-bubble');
-function render(){document.documentElement.lang=lang;document.title=translations[lang].title;language.value=lang;document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=translations[lang][el.dataset.i18n]);status.textContent=translations[lang][connectionKey];document.querySelector('#try-note').textContent=noteKey?translations[lang][noteKey]:''}
-function setConnected(){connected=true;connecting=false;connectionKey='connected';status.classList.add('connected');open.disabled=false;document.querySelector('#reconnect').hidden=true;render()}
-function connect(){if(connected||connecting||!extensionReady||!/^[A-F0-9]{16}$/.test(code))return;connecting=true;connectionKey='waiting';render();window.postMessage({type:'glimpselet:pair',port:Number(location.port||80),code,locale:lang},location.origin)}
+function render(){document.documentElement.lang=lang;document.title=translations[lang].title;language.value=lang;document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=translations[lang][el.dataset.i18n]);status.textContent=translations[lang][connectionKey];status.classList.toggle('connected',connectionKey==='connected');open.disabled=!completed;document.querySelector('#try-note').textContent=noteKey?translations[lang][noteKey]:''}
+function setPaired(active=false){completed=true;connecting=false;connectionKey=active?'connected':'completed';document.querySelector('#reconnect').hidden=true;render()}
+function connect(){if(completed||linkExpired||connecting||!extensionReady||!/^[A-F0-9]{16}$/.test(code))return;connecting=true;connectionKey='waiting';render();window.postMessage({type:'glimpselet:pair',port:Number(location.port||80),code,locale:lang},location.origin)}
 language.onchange=()=>{lang=language.value;render()};
-window.addEventListener('message',event=>{if(event.source!==window||event.origin!==location.origin)return;const data=event.data;if(data?.type==='glimpselet:extension-ready'){extensionReady=true;connect()}if(data?.type==='glimpselet:paired')setConnected();if(data?.type==='glimpselet:connection-failed'){connecting=false;connectionKey='expired';document.querySelector('#reconnect').hidden=false;render()}});
+window.addEventListener('message',event=>{if(event.source!==window||event.origin!==location.origin)return;const data=event.data;if(data?.type==='glimpselet:extension-ready'){extensionReady=true;connect()}if(data?.type==='glimpselet:paired')setPaired();if(data?.type==='glimpselet:connection-failed'){connecting=false;connectionKey=linkExpired?(completed?'completed':'expired'):(completed?'checkFailed':'connectionFailed');document.querySelector('#reconnect').hidden=completed||linkExpired;render()}});
 open.onclick=()=>window.postMessage({type:'glimpselet:open-bubble',locale:lang},location.origin);
 document.querySelector('#reconnect').onclick=()=>{window.postMessage({type:'glimpselet:hello'},location.origin);connect()};
 const download=document.querySelector('#download');if(download)download.href='/install/extension.zip?code='+encodeURIComponent(code);
 const copy=document.querySelector('#copy-manager');if(copy)copy.onclick=async()=>{const input=document.querySelector('#manager');try{await navigator.clipboard.writeText(input.value)}catch{input.focus();input.select();document.querySelector('#manager-note').textContent=translations[lang].copyFailed}};
 const reveal=document.querySelector('#reveal');if(reveal)reveal.onclick=async()=>{try{const result=await fetch('/install/reveal?code='+encodeURIComponent(code),{method:'POST'});if(!result.ok)throw new Error()}catch{document.querySelector('#folder-note').textContent=translations[lang].revealFailed}};
 document.querySelector('#try-zero').onclick=async()=>{const button=document.querySelector('#try-zero');button.disabled=true;noteKey='trying';render();try{const result=await fetch('/install/try?'+new URLSearchParams({code,locale:lang}),{method:'POST'});if(!result.ok)throw new Error();noteKey='tried'}catch{noteKey='tryFailed'}finally{button.disabled=false;render()}};
-async function poll(){try{const response=await fetch('/install/status?code='+encodeURIComponent(code));if(!response.ok){connectionKey='expired';render();return}const result=await response.json();if(result.connected)setConnected();if(result.mode==='tunnel'){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(local)local.hidden=true;if(remote)remote.hidden=false;document.querySelector('#try-zero').disabled=true;noteKey='remoteTry';render()}if(result.trialError){noteKey='tryFailed';render()}}catch{}setTimeout(poll,1200)}
+async function poll(){try{const response=await fetch('/install/status?code='+encodeURIComponent(code));if(response.status===401){linkExpired=true;connectionKey=completed?'completed':'expired';connecting=false;document.querySelector('#reconnect').hidden=true;render();return}if(!response.ok)throw new Error();const result=await response.json();if(result.connected)setPaired(result.active===true);else{connectionKey=completed?'completed':'waiting';render()}if(result.mode==='tunnel'){const local=document.querySelector('#install-local'),remote=document.querySelector('#install-remote');if(local)local.hidden=true;if(remote)remote.hidden=false;document.querySelector('#try-zero').disabled=true;noteKey='remoteTry';render()}if(result.trialError){noteKey='tryFailed';render()}}catch{connectionKey='checkFailed';render()}setTimeout(poll,1200)}
 render();window.postMessage({type:'glimpselet:hello'},location.origin);poll();
 `;
 
@@ -68754,6 +68789,7 @@ ${tunnel}
       if (path === "/install/status" && req.method === "GET") {
         this.reply(res, 200, {
           connected,
+          active: this.extension.installConnectionActive(code),
           mode: this.extension.mode,
           tunnelCommand: tunnelCommand(this.port),
           trialError: this.trialError

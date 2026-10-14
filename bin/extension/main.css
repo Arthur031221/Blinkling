@@ -725,11 +725,6 @@ select:focus-visible {
   line-height: 1.55;
   color: var(--muted);
 }
-.consent ul {
-  padding-left: 18px;
-  font-size: 11px;
-  line-height: 1.65;
-}
 .field {
   display: flex;
   flex-direction: column;
@@ -764,12 +759,6 @@ select:focus-visible {
 .wide {
   margin-top: 12px;
   width: 100%;
-}
-.consent small {
-  margin-top: 10px;
-  color: var(--muted);
-  text-align: center;
-  font-size: 9px;
 }
 .scrim {
   position: absolute;

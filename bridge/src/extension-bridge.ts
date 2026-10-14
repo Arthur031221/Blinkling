@@ -204,6 +204,15 @@ export class ExtensionBridge {
     );
   }
 
+  /** A completed pairing can outlive its socket; setup is not live health. */
+  installConnectionActive(code: string): boolean {
+    if (this.installStatus(code) !== true) return false;
+    const token = this.installation.get(code)?.token;
+    return Boolean(
+      token && this.pairs.get(token)?.client?.readyState === WebSocket.OPEN,
+    );
+  }
+
   private connect(client: WebSocket, req: IncomingMessage): void {
     this.sockets.clients.add(client);
     let pair: Pair | undefined;

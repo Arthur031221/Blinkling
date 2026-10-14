@@ -18061,12 +18061,9 @@ var en_default = {
   close: "Close panel",
   compact: "Minimize",
   connected: "Connected to your Claude Code",
-  consent1: "Page text and element labels are sent to your selected provider automatically to suggest questions.",
-  consent2: "Images are sent when you ask or use a page tool. Passive mode sends captures and summaries automatically when enabled.",
-  consent3: "Frames stay in memory. API keys and pairing tokens stay in browser session storage.",
-  consentAccept: "Open floating chat.",
-  consentFoot: "Use Settings to choose your provider, manage site access or pause passive summaries.",
-  consentText: "Open a floating chat for the page or screen you choose. You can start screen sharing from its controls.",
+  consent1: "Captures are sent when you ask or enable Auto explain.",
+  consentAccept: "Open floating chat",
+  consentText: "Page text is sent automatically to your chosen AI to suggest questions.",
   consentTitle: "Ask about what you see.",
   copied: "Copied",
   copy: "Copy",
@@ -18198,7 +18195,7 @@ var en_default = {
   wholeScreen: "Capture whole screen",
   autoExplain: "Auto explain",
   moreTools: "More tools",
-  captureAccessHint: "Optional: allow on all sites once so page capture and area selection work on new tabs.",
+  captureAccessHint: "Optional: enable page capture and area selection across websites.",
   guideOverview: "Overview",
   guideTour: "Step by step"
 };
@@ -18230,12 +18227,9 @@ var zh_TW_default = {
   close: "\u95DC\u9589\u9762\u677F",
   compact: "\u7E2E\u5C0F",
   connected: "\u5DF2\u9023\u5230\u4F60\u7684 Claude Code",
-  consent1: "\u7DB2\u9801\u6587\u5B57\u548C\u5143\u7D20\u6A19\u7C64\u6703\u81EA\u52D5\u50B3\u9001\u81F3\u4F60\u9078\u64C7\u7684\u4F9B\u61C9\u5546\uFF0C\u7528\u4F86\u63A8\u85A6\u554F\u984C\u3002",
-  consent2: "\u63D0\u554F\u6216\u4F7F\u7528\u7DB2\u9801\u5DE5\u5177\u6642\u6703\u50B3\u9001\u5716\u7247\u3002\u555F\u7528\u88AB\u52D5\u6A21\u5F0F\u5F8C\uFF0C\u64F7\u53D6\u756B\u9762\u548C\u6458\u8981\u6703\u81EA\u52D5\u50B3\u9001\u3002",
-  consent3: "\u756B\u9762\u5F71\u683C\u4FDD\u7559\u5728\u8A18\u61B6\u9AD4\u4E2D\u3002API \u91D1\u9470\u548C\u914D\u5C0D\u6B0A\u6756\u4FDD\u5B58\u5728\u700F\u89BD\u5668\u5DE5\u4F5C\u968E\u6BB5\u5132\u5B58\u7A7A\u9593\u3002",
+  consent1: "\u63D0\u554F\u6216\u958B\u555F\u81EA\u52D5\u89E3\u8AAA\u6642\uFF0C\u6703\u50B3\u9001\u64F7\u53D6\u756B\u9762\u3002",
   consentAccept: "\u958B\u555F\u6D6E\u52D5\u804A\u5929",
-  consentFoot: "\u5728\u8A2D\u5B9A\u4E2D\u9078\u64C7\u670D\u52D9\u63D0\u4F9B\u8005\u3001\u7BA1\u7406\u7DB2\u7AD9\u5B58\u53D6\u6B0A\u9650\u6216\u66AB\u505C\u88AB\u52D5\u6458\u8981\u3002",
-  consentText: "\u70BA\u4F60\u9078\u64C7\u7684\u7DB2\u9801\u6216\u87A2\u5E55\u958B\u555F\u6D6E\u52D5\u804A\u5929\u8996\u7A97\u3002\u4F60\u53EF\u4EE5\u900F\u904E\u8996\u7A97\u63A7\u5236\u9805\u958B\u59CB\u5206\u4EAB\u87A2\u5E55\u3002",
+  consentText: "\u7DB2\u9801\u6587\u5B57\u6703\u81EA\u52D5\u50B3\u9001\u7D66\u4F60\u9078\u64C7\u7684 AI\uFF0C\u7528\u4F86\u63A8\u85A6\u554F\u984C\u3002",
   consentTitle: "\u8A62\u554F\u4F60\u773C\u524D\u6240\u898B\u3002",
   copied: "\u5DF2\u8907\u88FD",
   copy: "\u8907\u88FD",
@@ -18367,7 +18361,7 @@ var zh_TW_default = {
   wholeScreen: "\u622A\u53D6\u5168\u87A2\u5E55",
   autoExplain: "\u81EA\u52D5\u89E3\u8AAA",
   moreTools: "\u66F4\u591A\u5DE5\u5177",
-  captureAccessHint: "\u9078\u7528\uFF1A\u5141\u8A31\u5B58\u53D6\u6240\u6709\u7DB2\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u5728\u65B0\u5206\u9801\u64F7\u53D6\u7DB2\u9801\u8207\u9078\u53D6\u5340\u57DF\u3002",
+  captureAccessHint: "\u9078\u7528\uFF1A\u5141\u8A31\u8DE8\u7DB2\u7AD9\u64F7\u53D6\u7DB2\u9801\u8207\u9078\u53D6\u5340\u57DF\u3002",
   guideOverview: "\u7E3D\u89BD",
   guideTour: "\u9010\u6B65\u5C0E\u89BD"
 };
@@ -18399,12 +18393,9 @@ var zh_CN_default = {
   close: "\u5173\u95ED\u9762\u677F",
   compact: "\u6700\u5C0F\u5316",
   connected: "\u5DF2\u8FDE\u63A5\u5230\u4F60\u7684 Claude Code",
-  consent1: "\u7F51\u9875\u6587\u672C\u548C\u5143\u7D20\u6807\u7B7E\u4F1A\u81EA\u52A8\u53D1\u9001\u7ED9\u4F60\u9009\u62E9\u7684\u670D\u52A1\u5546\uFF0C\u7528\u4E8E\u63A8\u8350\u95EE\u9898\u3002",
-  consent2: "\u63D0\u95EE\u6216\u4F7F\u7528\u7F51\u9875\u5DE5\u5177\u65F6\u4F1A\u53D1\u9001\u56FE\u50CF\u3002\u542F\u7528\u88AB\u52A8\u6A21\u5F0F\u540E\uFF0C\u622A\u53D6\u7684\u753B\u9762\u548C\u6458\u8981\u4F1A\u81EA\u52A8\u53D1\u9001\u3002",
-  consent3: "\u753B\u9762\u5E27\u4FDD\u7559\u5728\u5185\u5B58\u4E2D\u3002API \u5BC6\u94A5\u548C\u914D\u5BF9\u4EE4\u724C\u4FDD\u5B58\u5728\u6D4F\u89C8\u5668\u4F1A\u8BDD\u5B58\u50A8\u4E2D\u3002",
+  consent1: "\u63D0\u95EE\u6216\u5F00\u542F\u81EA\u52A8\u89E3\u8BF4\u65F6\uFF0C\u4F1A\u53D1\u9001\u622A\u53D6\u7684\u753B\u9762\u3002",
   consentAccept: "\u6253\u5F00\u6D6E\u52A8\u804A\u5929",
-  consentFoot: "\u5728\u8BBE\u7F6E\u4E2D\u9009\u62E9\u670D\u52A1\u63D0\u4F9B\u8005\u3001\u7BA1\u7406\u7F51\u7AD9\u8BBF\u95EE\u6743\u9650\u6216\u6682\u505C\u88AB\u52A8\u6458\u8981\u3002",
-  consentText: "\u4E3A\u4F60\u9009\u62E9\u7684\u7F51\u9875\u6216\u5C4F\u5E55\u6253\u5F00\u6D6E\u52A8\u804A\u5929\u7A97\u53E3\u3002\u4F60\u53EF\u4EE5\u901A\u8FC7\u7A97\u53E3\u63A7\u4EF6\u5F00\u59CB\u5171\u4EAB\u5C4F\u5E55\u3002",
+  consentText: "\u7F51\u9875\u6587\u5B57\u4F1A\u81EA\u52A8\u53D1\u9001\u7ED9\u4F60\u9009\u62E9\u7684 AI\uFF0C\u7528\u6765\u63A8\u8350\u95EE\u9898\u3002",
   consentTitle: "\u8BE2\u95EE\u4F60\u770B\u5230\u7684\u5185\u5BB9\u3002",
   copied: "\u5DF2\u590D\u5236",
   copy: "\u590D\u5236",
@@ -18536,7 +18527,7 @@ var zh_CN_default = {
   wholeScreen: "\u622A\u53D6\u5168\u5C4F\u5E55",
   autoExplain: "\u81EA\u52A8\u89E3\u8BF4",
   moreTools: "\u66F4\u591A\u5DE5\u5177",
-  captureAccessHint: "\u53EF\u9009\uFF1A\u5141\u8BB8\u8BBF\u95EE\u6240\u6709\u7F51\u7AD9\u4E00\u6B21\uFF0C\u5373\u53EF\u5728\u65B0\u6807\u7B7E\u9875\u622A\u53D6\u7F51\u9875\u4E0E\u9009\u62E9\u533A\u57DF\u3002",
+  captureAccessHint: "\u53EF\u9009\uFF1A\u5141\u8BB8\u8DE8\u7F51\u7AD9\u622A\u53D6\u7F51\u9875\u4E0E\u9009\u62E9\u533A\u57DF\u3002",
   guideOverview: "\u603B\u89C8",
   guideTour: "\u9010\u6B65\u5BFC\u89C8"
 };
@@ -18568,12 +18559,9 @@ var ja_default = {
   close: "\u30D1\u30CD\u30EB\u3092\u9589\u3058\u308B",
   compact: "\u6700\u5C0F\u5316",
   connected: "\u3042\u306A\u305F\u306E Claude Code \u306B\u63A5\u7D9A\u6E08\u307F",
-  consent1: "\u8CEA\u554F\u5019\u88DC\u3092\u63D0\u6848\u3059\u308B\u305F\u3081\u3001\u30DA\u30FC\u30B8\u306E\u30C6\u30AD\u30B9\u30C8\u3068\u8981\u7D20\u306E\u30E9\u30D9\u30EB\u304C\u9078\u629E\u3057\u305F\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306B\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
-  consent2: "\u8CEA\u554F\u3057\u305F\u3068\u304D\u3001\u307E\u305F\u306F\u30DA\u30FC\u30B8\u30C4\u30FC\u30EB\u3092\u4F7F\u3063\u305F\u3068\u304D\u306B\u753B\u50CF\u304C\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002\u30D1\u30C3\u30B7\u30D6\u30E2\u30FC\u30C9\u3092\u6709\u52B9\u306B\u3059\u308B\u3068\u3001\u30AD\u30E3\u30D7\u30C1\u30E3\u3068\u8981\u7D04\u304C\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u307E\u3059\u3002",
-  consent3: "\u30D5\u30EC\u30FC\u30E0\u306F\u30E1\u30E2\u30EA\u30FC\u4E0A\u306B\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002API \u30AD\u30FC\u3068\u30DA\u30A2\u30EA\u30F3\u30B0\u30C8\u30FC\u30AF\u30F3\u306F\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u30B9\u30C8\u30EC\u30FC\u30B8\u306B\u4FDD\u5B58\u3055\u308C\u307E\u3059\u3002",
+  consent1: "\u8CEA\u554F\u3059\u308B\u3068\u304D\u3084\u81EA\u52D5\u89E3\u8AAC\u3092\u30AA\u30F3\u306B\u3059\u308B\u3068\u3001\u64AE\u5F71\u3057\u305F\u753B\u50CF\u3092\u9001\u4FE1\u3057\u307E\u3059\u3002",
   consentAccept: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304F",
-  consentFoot: "\u8A2D\u5B9A\u3067\u30D7\u30ED\u30D0\u30A4\u30C0\u30FC\u306E\u9078\u629E\u3001\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u7BA1\u7406\u3001\u30D1\u30C3\u30B7\u30D6\u8981\u7D04\u306E\u4E00\u6642\u505C\u6B62\u304C\u3067\u304D\u307E\u3059\u3002",
-  consentText: "\u9078\u629E\u3057\u305F\u30DA\u30FC\u30B8\u307E\u305F\u306F\u753B\u9762\u306B\u3064\u3044\u3066\u8CEA\u554F\u3067\u304D\u308B\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304D\u307E\u3059\u3002\u753B\u9762\u5171\u6709\u306F\u30C1\u30E3\u30C3\u30C8\u306E\u64CD\u4F5C\u304B\u3089\u958B\u59CB\u3067\u304D\u307E\u3059\u3002",
+  consentText: "\u8CEA\u554F\u3092\u63D0\u6848\u3059\u308B\u305F\u3081\u3001\u30DA\u30FC\u30B8\u306E\u30C6\u30AD\u30B9\u30C8\u3092\u9078\u629E\u3057\u305F AI \u306B\u81EA\u52D5\u9001\u4FE1\u3057\u307E\u3059\u3002",
   consentTitle: "\u898B\u3048\u3066\u3044\u308B\u3082\u306E\u3092\u8CEA\u554F\u3002",
   copied: "\u30B3\u30D4\u30FC\u3057\u307E\u3057\u305F",
   copy: "\u30B3\u30D4\u30FC",
@@ -18705,7 +18693,7 @@ var ja_default = {
   wholeScreen: "\u753B\u9762\u5168\u4F53\u3092\u64AE\u5F71",
   autoExplain: "\u81EA\u52D5\u89E3\u8AAC",
   moreTools: "\u305D\u306E\u4ED6\u306E\u30C4\u30FC\u30EB",
-  captureAccessHint: "\u4EFB\u610F\uFF1A\u3059\u3079\u3066\u306E\u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u4E00\u5EA6\u8A31\u53EF\u3059\u308B\u3068\u3001\u65B0\u3057\u3044\u30BF\u30D6\u3067\u3082\u30DA\u30FC\u30B8\u64AE\u5F71\u3068\u7BC4\u56F2\u9078\u629E\u304C\u4F7F\u3048\u307E\u3059\u3002",
+  captureAccessHint: "\u4EFB\u610F\uFF1A\u5404\u30B5\u30A4\u30C8\u3067\u30DA\u30FC\u30B8\u64AE\u5F71\u3068\u7BC4\u56F2\u9078\u629E\u3092\u8A31\u53EF\u3057\u307E\u3059\u3002",
   guideOverview: "\u5168\u4F53\u3092\u898B\u308B",
   guideTour: "\u9806\u306B\u6848\u5185"
 };
@@ -18737,12 +18725,9 @@ var ko_default = {
   close: "\uD328\uB110 \uB2EB\uAE30",
   compact: "\uCD5C\uC18C\uD654",
   connected: "\uB0B4 Claude Code\uC5D0 \uC5F0\uACB0\uB428",
-  consent1: "\uC9C8\uBB38\uC744 \uC81C\uC548\uD558\uAE30 \uC704\uD574 \uD398\uC774\uC9C0 \uD14D\uC2A4\uD2B8\uC640 \uC694\uC18C \uB77C\uBCA8\uC774 \uC120\uD0DD\uD55C \uC81C\uACF5\uC5C5\uCCB4\uB85C \uC790\uB3D9 \uC804\uC1A1\uB429\uB2C8\uB2E4.",
-  consent2: "\uC9C8\uBB38\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uB3C4\uAD6C\uB97C \uC0AC\uC6A9\uD560 \uB54C \uC774\uBBF8\uC9C0\uAC00 \uC804\uC1A1\uB429\uB2C8\uB2E4. \uD328\uC2DC\uBE0C \uBAA8\uB4DC\uB97C \uCF1C\uBA74 \uCEA1\uCC98\uC640 \uC694\uC57D\uC774 \uC790\uB3D9\uC73C\uB85C \uC804\uC1A1\uB429\uB2C8\uB2E4.",
-  consent3: "\uD504\uB808\uC784\uC740 \uBA54\uBAA8\uB9AC\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4. API \uD0A4\uC640 \uD398\uC5B4\uB9C1 \uD1A0\uD070\uC740 \uBE0C\uB77C\uC6B0\uC800 \uC138\uC158 \uC800\uC7A5\uC18C\uC5D0 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
+  consent1: "\uC9C8\uBB38\uD558\uAC70\uB098 \uC790\uB3D9 \uC124\uBA85\uC744 \uCF1C\uBA74 \uCEA1\uCC98\uD55C \uD654\uBA74\uC744 \uBCF4\uB0C5\uB2C8\uB2E4.",
   consentAccept: "\uD50C\uB85C\uD305 \uCC44\uD305 \uC5F4\uAE30",
-  consentFoot: "\uC124\uC815\uC5D0\uC11C \uC81C\uACF5\uC5C5\uCCB4\uB97C \uC120\uD0DD\uD558\uACE0 \uC0AC\uC774\uD2B8 \uC811\uADFC \uAD8C\uD55C\uC744 \uAD00\uB9AC\uD558\uAC70\uB098 \uC790\uB3D9 \uC694\uC57D\uC744 \uC77C\uC2DC \uC911\uC9C0\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
-  consentText: "\uC120\uD0DD\uD55C \uD398\uC774\uC9C0\uB098 \uD654\uBA74\uC5D0 \uB300\uD55C \uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC5FD\uB2C8\uB2E4. \uD654\uBA74 \uACF5\uC720\uB294 \uCC44\uD305 \uCEE8\uD2B8\uB864\uC5D0\uC11C \uC2DC\uC791\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+  consentText: "\uC9C8\uBB38\uC744 \uC81C\uC548\uD558\uAE30 \uC704\uD574 \uD398\uC774\uC9C0 \uD14D\uC2A4\uD2B8\uB97C \uC120\uD0DD\uD55C AI\uC5D0 \uC790\uB3D9\uC73C\uB85C \uBCF4\uB0C5\uB2C8\uB2E4.",
   consentTitle: "\uBCF4\uC774\uB294 \uB0B4\uC6A9\uC744 \uC9C8\uBB38\uD558\uC138\uC694.",
   copied: "\uBCF5\uC0AC\uB428",
   copy: "\uBCF5\uC0AC",
@@ -18874,7 +18859,7 @@ var ko_default = {
   wholeScreen: "\uC804\uCCB4 \uD654\uBA74 \uCEA1\uCC98",
   autoExplain: "\uC790\uB3D9 \uC124\uBA85",
   moreTools: "\uB354 \uB9CE\uC740 \uB3C4\uAD6C",
-  captureAccessHint: "\uC120\uD0DD \uC0AC\uD56D: \uBAA8\uB4E0 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD55C \uBC88 \uD5C8\uC6A9\uD558\uBA74 \uC0C8 \uD0ED\uC5D0\uC11C\uB3C4 \uD398\uC774\uC9C0 \uCEA1\uCC98\uC640 \uC601\uC5ED \uC120\uD0DD\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+  captureAccessHint: "\uC120\uD0DD \uC0AC\uD56D: \uC5EC\uB7EC \uC0AC\uC774\uD2B8\uC5D0\uC11C \uD398\uC774\uC9C0 \uCEA1\uCC98\uC640 \uC601\uC5ED \uC120\uD0DD\uC744 \uD5C8\uC6A9\uD569\uB2C8\uB2E4.",
   guideOverview: "\uC804\uCCB4 \uBCF4\uAE30",
   guideTour: "\uB2E8\uACC4\uBCC4 \uC548\uB0B4"
 };
@@ -18906,12 +18891,9 @@ var es_default = {
   close: "Cerrar panel",
   compact: "Minimizar",
   connected: "Conectado a tu Claude Code",
-  consent1: "El texto de la p\xE1gina y las etiquetas de los elementos se env\xEDan autom\xE1ticamente al proveedor seleccionado para sugerir preguntas.",
-  consent2: "Las im\xE1genes se env\xEDan cuando haces una pregunta o usas una herramienta de la p\xE1gina. El modo pasivo env\xEDa capturas y res\xFAmenes autom\xE1ticamente cuando est\xE1 activado.",
-  consent3: "Los fotogramas permanecen en la memoria. Las claves API y los tokens de emparejamiento permanecen en el almacenamiento de sesi\xF3n del navegador.",
+  consent1: "Las capturas se env\xEDan al preguntar o activar Explicar autom\xE1ticamente.",
   consentAccept: "Abrir chat flotante.",
-  consentFoot: "Usa Configuraci\xF3n para elegir el proveedor, gestionar el acceso a los sitios o pausar los res\xFAmenes pasivos.",
-  consentText: "Abre un chat flotante para la p\xE1gina o pantalla que elijas. Puedes iniciar el uso compartido de pantalla desde sus controles.",
+  consentText: "El texto de la p\xE1gina se env\xEDa autom\xE1ticamente a la IA que elijas para sugerir preguntas.",
   consentTitle: "Pregunta sobre lo que ves.",
   copied: "Copiado",
   copy: "Copiar",
@@ -19043,7 +19025,7 @@ var es_default = {
   wholeScreen: "Capturar pantalla",
   autoExplain: "Explicar autom\xE1ticamente",
   moreTools: "M\xE1s herramientas",
-  captureAccessHint: "Opcional: permite el acceso a todos los sitios una vez para capturar p\xE1ginas y seleccionar \xE1reas en pesta\xF1as nuevas.",
+  captureAccessHint: "Opcional: permite capturar p\xE1ginas y seleccionar \xE1reas en todos los sitios.",
   guideOverview: "Vista general",
   guideTour: "Paso a paso"
 };
@@ -19075,12 +19057,9 @@ var fr_default = {
   close: "Fermer le panneau",
   compact: "R\xE9duire",
   connected: "Connect\xE9 \xE0 votre Claude Code",
-  consent1: "Le texte de la page et les libell\xE9s des \xE9l\xE9ments sont envoy\xE9s automatiquement au fournisseur choisi pour sugg\xE9rer des questions.",
-  consent2: "Les images sont envoy\xE9es lorsque vous posez une question ou utilisez un outil de la page. Le mode passif envoie automatiquement des captures et des r\xE9sum\xE9s lorsqu'il est activ\xE9.",
-  consent3: "Les images restent en m\xE9moire. Les cl\xE9s API et les jetons d'association restent dans le stockage de session du navigateur.",
+  consent1: "Les captures sont envoy\xE9es quand vous posez une question ou activez Explication automatique.",
   consentAccept: "Ouvrir le chat flottant.",
-  consentFoot: "Dans les param\xE8tres, choisissez votre fournisseur, g\xE9rez l'acc\xE8s aux sites ou mettez les r\xE9sum\xE9s passifs en pause.",
-  consentText: "Ouvrez une fen\xEAtre de chat flottante pour la page ou l'\xE9cran de votre choix. Vous pouvez lancer le partage d'\xE9cran depuis ses commandes.",
+  consentText: "Le texte de la page est envoy\xE9 automatiquement \xE0 l\u2019IA choisie pour sugg\xE9rer des questions.",
   consentTitle: "Posez une question sur ce que vous voyez.",
   copied: "Copi\xE9",
   copy: "Copier",
@@ -19212,7 +19191,7 @@ var fr_default = {
   wholeScreen: "Capturer l\u2019\xE9cran",
   autoExplain: "Explication automatique",
   moreTools: "Autres outils",
-  captureAccessHint: "Facultatif : autorisez une fois l\u2019acc\xE8s \xE0 tous les sites pour capturer des pages et s\xE9lectionner une zone dans les nouveaux onglets.",
+  captureAccessHint: "Facultatif : autorisez la capture de pages et la s\xE9lection de zones sur tous les sites.",
   guideOverview: "Vue d\u2019ensemble",
   guideTour: "Pas \xE0 pas"
 };
@@ -19244,12 +19223,9 @@ var de_default = {
   close: "Panel schlie\xDFen",
   compact: "Minimieren",
   connected: "Mit deinem Claude Code verbunden",
-  consent1: "Seitentext und Elementbeschriftungen werden automatisch an den ausgew\xE4hlten Anbieter gesendet, damit passende Fragen vorgeschlagen werden k\xF6nnen.",
-  consent2: "Bilder werden gesendet, wenn du eine Frage stellst oder ein Seitentool verwendest. Im passiven Modus werden Aufnahmen und Zusammenfassungen automatisch gesendet, wenn er aktiviert ist.",
-  consent3: "Einzelbilder bleiben im Arbeitsspeicher. API-Schl\xFCssel und Kopplungstokens bleiben im Browser-Sitzungsspeicher.",
+  consent1: "Aufnahmen werden gesendet, wenn du fragst oder Automatisch erkl\xE4ren aktivierst.",
   consentAccept: "Schwebenden Chat \xF6ffnen.",
-  consentFoot: "In den Einstellungen kannst du den Anbieter w\xE4hlen, den Websitezugriff verwalten oder passive Zusammenfassungen pausieren.",
-  consentText: "\xD6ffne einen schwebenden Chat f\xFCr die ausgew\xE4hlte Seite oder den ausgew\xE4hlten Bildschirm. Die Bildschirmfreigabe kannst du \xFCber die Bedienelemente starten.",
+  consentText: "Der Seitentext wird automatisch an deine gew\xE4hlte KI gesendet, um Fragen vorzuschlagen.",
   consentTitle: "Frage, was du siehst.",
   copied: "Kopiert",
   copy: "Kopieren",
@@ -19381,7 +19357,7 @@ var de_default = {
   wholeScreen: "Bildschirm aufnehmen",
   autoExplain: "Automatisch erkl\xE4ren",
   moreTools: "Weitere Werkzeuge",
-  captureAccessHint: "Optional: Erlaube einmal den Zugriff auf alle Websites, damit Seitenaufnahme und Bereichsauswahl auch in neuen Tabs funktionieren.",
+  captureAccessHint: "Optional: Erlaube Seitenaufnahmen und Bereichsauswahl auf allen Websites.",
   guideOverview: "\xDCbersicht",
   guideTour: "Schritt f\xFCr Schritt"
 };
@@ -19413,12 +19389,9 @@ var pt_BR_default = {
   close: "Fechar painel",
   compact: "Minimizar",
   connected: "Conectado ao seu Claude Code",
-  consent1: "O texto da p\xE1gina e os r\xF3tulos dos elementos s\xE3o enviados automaticamente ao provedor selecionado para sugerir perguntas.",
-  consent2: "As imagens s\xE3o enviadas quando voc\xEA faz uma pergunta ou usa uma ferramenta da p\xE1gina. O modo passivo envia capturas e resumos automaticamente quando est\xE1 ativado.",
-  consent3: "Os quadros ficam na mem\xF3ria. As chaves de API e os tokens de pareamento ficam no armazenamento de sess\xE3o do navegador.",
+  consent1: "As capturas s\xE3o enviadas ao perguntar ou ativar Explica\xE7\xE3o autom\xE1tica.",
   consentAccept: "Abrir chat flutuante.",
-  consentFoot: "Use as configura\xE7\xF5es para escolher seu provedor, gerenciar o acesso aos sites ou pausar os resumos passivos.",
-  consentText: "Abra um chat flutuante para a p\xE1gina ou tela que voc\xEA escolher. Voc\xEA pode iniciar o compartilhamento de tela pelos controles do chat.",
+  consentText: "O texto da p\xE1gina \xE9 enviado automaticamente \xE0 IA escolhida para sugerir perguntas.",
   consentTitle: "Pergunte sobre o que voc\xEA v\xEA.",
   copied: "Copiado",
   copy: "Copiar",
@@ -19550,7 +19523,7 @@ var pt_BR_default = {
   wholeScreen: "Capturar tela inteira",
   autoExplain: "Explica\xE7\xE3o autom\xE1tica",
   moreTools: "Mais ferramentas",
-  captureAccessHint: "Opcional: permita o acesso a todos os sites uma vez para capturar p\xE1ginas e selecionar \xE1reas em novas abas.",
+  captureAccessHint: "Opcional: permita capturas de p\xE1ginas e sele\xE7\xE3o de \xE1reas em todos os sites.",
   guideOverview: "Vis\xE3o geral",
   guideTour: "Passo a passo"
 };
@@ -21978,11 +21951,7 @@ ${step.action}` : ""}`
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.consentText }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: t.consent1 }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: t.consent2 }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: t.consent3 })
-      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.consent1 }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
         t.language,
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
@@ -22002,7 +21971,14 @@ ${step.action}` : ""}`
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "wide", onClick: () => void allowPageAccess(true), children: t.allowAllSites }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          className: "primary wide",
+          onClick: () => void allowPageAccess(true),
+          children: t.allowAllSites
+        }
+      ),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.captureAccessHint }),
       status !== t.ready && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "status", children: status }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -22016,8 +21992,7 @@ ${step.action}` : ""}`
           },
           children: t.consentAccept
         }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: t.consentFoot })
+      )
     ] });
   const view = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
     "main",

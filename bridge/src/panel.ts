@@ -379,6 +379,7 @@ export class PanelServer {
       if (path === "/install/status" && req.method === "GET") {
         this.reply(res, 200, {
           connected,
+          active: this.extension!.installConnectionActive(code),
           mode: this.extension!.mode,
           tunnelCommand: tunnelCommand(this.port),
           trialError: this.trialError,

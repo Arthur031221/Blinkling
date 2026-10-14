@@ -24,12 +24,9 @@
   "close": "Fechar painel",
   "compact": "Minimizar",
   "connected": "Conectado ao seu Claude Code",
-  "consent1": "O texto da página e os rótulos dos elementos são enviados automaticamente ao provedor selecionado para sugerir perguntas.",
-  "consent2": "As imagens são enviadas quando você faz uma pergunta ou usa uma ferramenta da página. O modo passivo envia capturas e resumos automaticamente quando está ativado.",
-  "consent3": "Os quadros ficam na memória. As chaves de API e os tokens de pareamento ficam no armazenamento de sessão do navegador.",
+  "consent1": "As capturas são enviadas ao perguntar ou ativar Explicação automática.",
   "consentAccept": "Abrir chat flutuante.",
-  "consentFoot": "Use as configurações para escolher seu provedor, gerenciar o acesso aos sites ou pausar os resumos passivos.",
-  "consentText": "Abra um chat flutuante para a página ou tela que você escolher. Você pode iniciar o compartilhamento de tela pelos controles do chat.",
+  "consentText": "O texto da página é enviado automaticamente à IA escolhida para sugerir perguntas.",
   "consentTitle": "Pergunte sobre o que você vê.",
   "copied": "Copiado",
   "copy": "Copiar",
@@ -161,7 +158,7 @@
   "wholeScreen": "Capturar tela inteira",
   "autoExplain": "Explicação automática",
   "moreTools": "Mais ferramentas",
-  "captureAccessHint": "Opcional: permita o acesso a todos os sites uma vez para capturar páginas e selecionar áreas em novas abas.",
+  "captureAccessHint": "Opcional: permita capturas de páginas e seleção de áreas em todos os sites.",
   "guideOverview": "Visão geral",
   "guideTour": "Passo a passo"
 }
