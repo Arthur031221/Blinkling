@@ -393,6 +393,7 @@ beforeEach(() => {
   vi.stubGlobal("chrome", {
     runtime: {
       getURL: (path: string) => `chrome-extension://test/${path}`,
+      getManifest: () => ({ version: "2.1.0" }),
       onMessage: runtime,
       sendMessage: vi.fn().mockResolvedValue({ ok: true }),
     },

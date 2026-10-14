@@ -15695,6 +15695,17 @@ function safeMarkdown(source) {
   });
 }
 
+// src/SparkleName.tsx
+var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+function SparkleName({ name = "Blinkling" }) {
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "sparkle-name", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "sparkle-text", children: name }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "sparkle-star", "aria-hidden": "true" }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "sparkle-star", "aria-hidden": "true" }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: "sparkle-star", "aria-hidden": "true" })
+  ] });
+}
+
 // bridge/src/answer-format.ts
 var SHORT_ANSWER_FORMAT = "For ordinary answers, use Markdown: begin with one short answer sentence, then up to three short bullet points when useful. Bold key terms. Use small headings only when they help. Keep the default answer under 80 words; give more detail only when the owner asks for it. Preserve requested JSON schemas and complete translations instead of applying this prose format.";
 
@@ -19934,7 +19945,7 @@ var pt_BR_default = {
 };
 
 // extension/main.tsx
-var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 var messages = {
   en: en_default,
   "zh-TW": zh_TW_default,
@@ -22670,22 +22681,22 @@ Reply in ${names[locale]}.`,
     }
   }
   if (!consentChecked)
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("main", { className: "loading", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "mark", children: "g" }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("main", { className: "loading", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mark", children: "g" }) });
   if (!consented)
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", { className: "consent", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "brand", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, {}),
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("main", { className: "consent", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "brand", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Blink, {}),
         " ",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "overline", children: "BLINKLING" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: t.consentTitle })
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "overline", children: "BLINKLING" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: t.consentTitle })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.consentText }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.consent1 }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.consentText }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.consent1 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "field", children: [
         t.language,
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
           "select",
           {
             value: locale,
@@ -22696,13 +22707,13 @@ Reply in ${names[locale]}.`,
               void saveSetting("locale", v2);
             },
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "en", children: "English" }),
-              supportedLocales.filter((x) => x !== "en").map((x) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: x, children: names[x] }, x))
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "en", children: "English" }),
+              supportedLocales.filter((x) => x !== "en").map((x) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: x, children: names[x] }, x))
             ]
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
         "button",
         {
           className: "primary wide",
@@ -22710,9 +22721,9 @@ Reply in ${names[locale]}.`,
           children: t.allowAllSites
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.captureAccessHint }),
-      status !== t.ready && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "status", children: status }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.captureAccessHint }),
+      status !== t.ready && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { role: "status", children: status }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
         "button",
         {
           className: "primary wide",
@@ -22725,22 +22736,22 @@ Reply in ${names[locale]}.`,
         }
       )
     ] });
-  const view = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+  const view = /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
     "main",
     {
       className: `app ${expanded ? "expanded" : "compact"} ${pipDoc ? "in-pip" : ""}`,
       lang: locale,
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { className: "topbar", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "brand", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, { mood: busy ? "think" : "idle" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "brand-copy", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Blinkling" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `connection ${connected ? "online" : "offline"}`, children: apiMode ? t.apiMode : connected ? t.connected : t.disconnected })
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("header", { className: "topbar", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "brand", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Blink, { mood: busy ? "think" : "idle" }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "brand-copy", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("strong", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(SparkleName, {}) }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: `connection ${connected ? "online" : "offline"}`, children: apiMode ? t.apiMode : connected ? t.connected : t.disconnected })
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "top-actions", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "top-actions", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 className: "icon",
@@ -22751,7 +22762,7 @@ Reply in ${names[locale]}.`,
                 children: "\u22EF"
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 className: "icon",
@@ -22761,7 +22772,7 @@ Reply in ${names[locale]}.`,
                 children: "\u2212"
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 className: "icon",
@@ -22771,7 +22782,7 @@ Reply in ${names[locale]}.`,
                 children: "\u21A9"
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 className: "icon",
@@ -22781,7 +22792,7 @@ Reply in ${names[locale]}.`,
                 children: "\u25F7"
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 className: "icon",
@@ -22791,7 +22802,7 @@ Reply in ${names[locale]}.`,
                 children: "\u2699"
               }
             ),
-            (!pipDoc || fallback) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            (!pipDoc || fallback) && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 className: "icon",
@@ -22803,7 +22814,7 @@ Reply in ${names[locale]}.`,
             )
           ] })
         ] }),
-        !expanded ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        !expanded ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "button",
           {
             className: `blink-dot ${blinkDock.edge === "right" ? "peek" : ""}`,
@@ -22846,17 +22857,17 @@ Reply in ${names[locale]}.`,
               }
               setCompact(false);
             },
-            children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, { mood: busy ? "think" : "idle" })
+            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Blink, { mood: busy ? "think" : "idle" })
           }
-        ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          (!pipDoc || fallback) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", { className: "float-start", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "primary wide", onClick: () => void openFloat(), children: t.float }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", { className: "toolbar", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "status", role: "status", "aria-live": "polite", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { className: `dot ${connected ? "green" : ""}` }),
+        ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+          (!pipDoc || fallback) && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("section", { className: "float-start", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { className: "primary wide", onClick: () => void openFloat(), children: t.float }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("section", { className: "toolbar", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "status", role: "status", "aria-live": "polite", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("i", { className: `dot ${connected ? "green" : ""}` }),
             status || (connected ? t.ready : t.pairHint)
           ] }) }),
-          tutorial && tutorial.tabId === activeTabId.current && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "float-start", children: [
-            tutorial.action === "guide" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "plain", onClick: () => setTutorial(null), children: t.skipPractice }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          tutorial && tutorial.tabId === activeTabId.current && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("section", { className: "float-start", children: [
+            tutorial.action === "guide" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { className: "plain", onClick: () => setTutorial(null), children: t.skipPractice }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 className: "primary wide",
@@ -22865,13 +22876,13 @@ Reply in ${names[locale]}.`,
                 children: tutorial.action === "float" ? t.float : tutorial.action === "capture" ? t.visible : tutorial.action === "guide" ? t.guideAction : tutorial.action === "translate" ? t.translatePage : tutorial.action === "pdf" ? t.openPdf : tutorial.action === "passive" ? t.passive : tutorial.action === "selection" ? t.selectionPractice : t.suggestionPractice
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.replayTourHint.replace("{step}", String(tutorial.step)) }),
-            tutorial.action === "guide" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.guideCapturePermission })
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.replayTourHint.replace("{step}", String(tutorial.step)) }),
+            tutorial.action === "guide" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.guideCapturePermission })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "capturebar", children: [
-            captureRetry && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "capture-retry", role: "status", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.capturePermission }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("section", { className: "capturebar", children: [
+            captureRetry && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "capture-retry", role: "status", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.capturePermission }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                 "button",
                 {
                   onClick: () => void resumeCapture(),
@@ -22880,20 +22891,20 @@ Reply in ${names[locale]}.`,
                 }
               )
             ] }),
-            captureProgress && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            captureProgress && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
               "div",
               {
                 className: "capture-progress",
                 role: "status",
                 "aria-live": "polite",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t.captureProgress.replace("{completed}", String(captureProgress.completed)).replace("{total}", String(captureProgress.total)) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => pageCaptureController.current?.abort(), children: t.cropCancel })
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: t.captureProgress.replace("{completed}", String(captureProgress.completed)).replace("{total}", String(captureProgress.total)) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => pageCaptureController.current?.abort(), children: t.cropCancel })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "capture-buttons", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "capture-buttons", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                 "button",
                 {
                   onClick: () => void captureWholeScreen(),
@@ -22901,7 +22912,7 @@ Reply in ${names[locale]}.`,
                   children: t.wholeScreen
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                 "button",
                 {
                   onClick: () => void startCrop(),
@@ -22910,7 +22921,7 @@ Reply in ${names[locale]}.`,
                   children: t.region
                 }
               ),
-              !(tutorial?.action === "guide" && tutorial.tabId === activeTabId.current) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              !(tutorial?.action === "guide" && tutorial.tabId === activeTabId.current) && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                 "button",
                 {
                   onClick: () => void guidePage(),
@@ -22919,19 +22930,19 @@ Reply in ${names[locale]}.`,
                 }
               )
             ] }),
-            capture && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "capture-chip", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: capture.image, alt: t.capturePreview }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: capture.label }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setCapture(null), "aria-label": t.remove, children: "\xD7" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "quick-actions", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            capture && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "capture-chip", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("img", { src: capture.image, alt: t.capturePreview }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: capture.label }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => setCapture(null), "aria-label": t.remove, children: "\xD7" }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "quick-actions", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                   "button",
                   {
                     onClick: () => void askWith({ question: t.explainCapture }),
                     children: t.explain
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                   "button",
                   {
                     "aria-label": t.actionTranslate,
@@ -22946,7 +22957,7 @@ Reply in ${names[locale]}.`,
                     children: t.translate
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                   "button",
                   {
                     onClick: () => void askWith({ question: t.askCapture }),
@@ -22956,7 +22967,7 @@ Reply in ${names[locale]}.`,
               ] })
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
             "section",
             {
               className: "thread",
@@ -22966,17 +22977,18 @@ Reply in ${names[locale]}.`,
                 followThread.current = element.scrollHeight - element.scrollTop - element.clientHeight < 72;
               },
               children: [
-                readerSourceUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "outline", onClick: () => void openReader(), children: t.openPdf }),
-                !entries2.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "welcome", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "welcome-orbit", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Blink, { mood: busy ? "think" : "idle" }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: t.welcome }),
-                  page?.title && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: page.title })
+                readerSourceUrl && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { className: "outline", onClick: () => void openReader(), children: t.openPdf }),
+                !entries2.length && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "welcome", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "welcome-orbit", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Blink, { mood: busy ? "think" : "idle" }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(SparkleName, {}) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "welcome-line", children: t.welcome }),
+                  page?.title && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: page.title })
                 ] }),
-                entries2.map((entry) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", { className: `message ${entry.kind}`, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "question", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: entry.kind === "passive" ? t.pageSummary : t.you }),
-                    entry.kind !== "passive" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: entry.question }),
-                    entry.image && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                entries2.map((entry) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("article", { className: `message ${entry.kind}`, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "question", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: entry.kind === "passive" ? t.pageSummary : t.you }),
+                    entry.kind !== "passive" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: entry.question }),
+                    entry.image && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "img",
                       {
                         className: "thumb",
@@ -22985,9 +22997,9 @@ Reply in ${names[locale]}.`,
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "answer", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: entry.kind === "passive" ? t.pageNote : t.blinkAnswer }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "answer", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: entry.kind === "passive" ? t.pageNote : t.blinkAnswer }),
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "div",
                       {
                         className: "markdown",
@@ -22998,9 +23010,9 @@ Reply in ${names[locale]}.`,
                         }
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "message-actions", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => void copy(entry.answer || answer), children: t.copy }),
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "message-actions", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => void copy(entry.answer || answer), children: t.copy }),
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                         "button",
                         {
                           disabled: !entry.pinned && entries2.filter((item) => item.pinned).length >= 8,
@@ -23015,12 +23027,12 @@ Reply in ${names[locale]}.`,
                     ] })
                   ] })
                 ] }, entry.id)),
-                busy && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "live-answer", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+                busy && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "live-answer", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { children: [
                   t.blinkAnswer,
                   " \xB7 ",
                   t.thinking
                 ] }) }),
-                !capture && suggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "suggestions", children: suggestions.slice(0, 3).map((s, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                !capture && suggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "suggestions", children: suggestions.slice(0, 3).map((s, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
                   "button",
                   {
                     disabled: busy || cropPending,
@@ -23028,18 +23040,18 @@ Reply in ${names[locale]}.`,
                     children: [
                       s,
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u2197" })
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: "\u2197" })
                     ]
                   },
                   i
                 )) }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { ref: endRef })
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { ref: endRef })
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "composer", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "composer-modes", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("section", { className: "composer", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "composer-modes", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
                 "button",
                 {
                   className: `auto-explain ${passive && !paused ? "selected" : ""}`,
@@ -23048,22 +23060,22 @@ Reply in ${names[locale]}.`,
                   disabled: modeChanging || screenCapturing,
                   onClick: () => void setPassiveMode(!(passive && !paused)),
                   children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "switch-track", "aria-hidden": "true" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "switch-track", "aria-hidden": "true" }),
                     t.autoExplain
                   ]
                 }
               ),
-              translated && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => void restoreText(), children: t.restore })
+              translated && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => void restoreText(), children: t.restore })
             ] }),
-            screenConsent && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            screenConsent && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
               "div",
               {
                 role: "group",
                 "aria-label": t.autoExplainScreenConsent,
                 className: "screen-narration-consent",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.autoExplainScreenConsent }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.autoExplainScreenConsent }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                     "button",
                     {
                       className: "primary",
@@ -23071,7 +23083,7 @@ Reply in ${names[locale]}.`,
                       children: t.autoExplainScreenAllow
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                     "button",
                     {
                       className: "plain",
@@ -23082,9 +23094,9 @@ Reply in ${names[locale]}.`,
                 ]
               }
             ),
-            narrationUnverified && passive && !paused && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "narration-recovery", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "status", children: t.passiveScreenUnverified }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            narrationUnverified && passive && !paused && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "narration-recovery", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { role: "status", children: t.passiveScreenUnverified }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                 "button",
                 {
                   className: "plain",
@@ -23096,8 +23108,8 @@ Reply in ${names[locale]}.`,
                 }
               )
             ] }),
-            pagePrivacyReason && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "privacy-recovery", children: [
-              pagePrivacyReason === "uninspectable" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            pagePrivacyReason && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "privacy-recovery", children: [
+              pagePrivacyReason === "uninspectable" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                 "button",
                 {
                   className: "plain",
@@ -23105,7 +23117,7 @@ Reply in ${names[locale]}.`,
                   children: t.autoExplainPageText
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                 "button",
                 {
                   className: "plain",
@@ -23117,7 +23129,7 @@ Reply in ${names[locale]}.`,
                 }
               )
             ] }),
-            contextFailure === question.trim() && contextFailure && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            contextFailure === question.trim() && contextFailure && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
                 type: "button",
@@ -23126,7 +23138,7 @@ Reply in ${names[locale]}.`,
                 children: t.askWithoutPage
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
               "form",
               {
                 onSubmit: (e) => {
@@ -23134,7 +23146,7 @@ Reply in ${names[locale]}.`,
                   void askNow();
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                     "textarea",
                     {
                       value: question,
@@ -23150,7 +23162,7 @@ Reply in ${names[locale]}.`,
                       "aria-label": t.question
                     }
                   ),
-                  busy ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
                     "button",
                     {
                       className: "stop",
@@ -23162,7 +23174,7 @@ Reply in ${names[locale]}.`,
                         t.stop
                       ]
                     }
-                  ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
                     "button",
                     {
                       className: "send",
@@ -23178,8 +23190,8 @@ Reply in ${names[locale]}.`,
             )
           ] })
         ] }),
-        showTools && expanded && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "tools-menu", "aria-label": t.moreTools, children: [
-          ["visible", "full", "element"].map((kind) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        showTools && expanded && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("section", { className: "tools-menu", "aria-label": t.moreTools, children: [
+          ["visible", "full", "element"].map((kind) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "button",
             {
               disabled: busy || Boolean(captureProgress),
@@ -23191,7 +23203,7 @@ Reply in ${names[locale]}.`,
             },
             kind
           )),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "button",
             {
               onClick: () => {
@@ -23201,7 +23213,7 @@ Reply in ${names[locale]}.`,
               children: t.translatePage
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "button",
             {
               onClick: () => {
@@ -23212,7 +23224,7 @@ Reply in ${names[locale]}.`,
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "input",
           {
             ref: fileInput,
@@ -23222,12 +23234,12 @@ Reply in ${names[locale]}.`,
             onChange: (event) => void attachImage(event.target.files?.[0])
           }
         ),
-        fallback && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "notice", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.pipUnavailable }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t.pipFallback }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "primary", onClick: () => setFallback(false), children: t.gotIt })
+        fallback && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "notice", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: t.pipUnavailable }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t.pipFallback }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { className: "primary", onClick: () => setFallback(false), children: t.gotIt })
         ] }),
-        showSettings && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        showSettings && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "div",
           {
             className: "scrim",
@@ -23235,7 +23247,7 @@ Reply in ${names[locale]}.`,
             onMouseDown: (e) => {
               if (e.target === e.currentTarget) setShowSettings(false);
             },
-            children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
               "section",
               {
                 ref: dialogRef,
@@ -23244,9 +23256,9 @@ Reply in ${names[locale]}.`,
                 "aria-modal": "true",
                 "aria-label": t.settings,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: t.settings }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("header", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { children: t.settings }),
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "button",
                       {
                         className: "icon",
@@ -23256,9 +23268,9 @@ Reply in ${names[locale]}.`,
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "field", children: [
                     t.backend,
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "select",
                       {
                         value: backend,
@@ -23283,14 +23295,14 @@ Reply in ${names[locale]}.`,
                         children: [
                           ["bridge", t.bridgeMode],
                           ["api", t.apiMode]
-                        ].map(([v2, l3]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v2, children: l3 }, v2))
+                        ].map(([v2, l3]) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: v2, children: l3 }, v2))
                       }
                     )
                   ] }),
-                  !apiMode ? !connected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.pairHint }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "field", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [
+                  !apiMode ? !connected && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "help", children: t.pairHint }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "field", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { children: [
                       t.apiKey,
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                         "input",
                         {
                           type: "password",
@@ -23301,12 +23313,12 @@ Reply in ${names[locale]}.`,
                         }
                       )
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.keySession })
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "help", children: t.keySession })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "two-fields", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "two-fields", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "field", children: [
                       t.model,
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                         "select",
                         {
                           disabled: !apiMode && liveSession && !desktopSession,
@@ -23316,13 +23328,13 @@ Reply in ${names[locale]}.`,
                             setModel(v2);
                             void saveSetting("model", v2);
                           },
-                          children: ["sonnet", "opus", "haiku"].map((v2) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v2, children: v2[0].toUpperCase() + v2.slice(1) }, v2))
+                          children: ["sonnet", "opus", "haiku"].map((v2) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: v2, children: v2[0].toUpperCase() + v2.slice(1) }, v2))
                         }
                       )
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "field", children: [
                       t.effort,
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                         "select",
                         {
                           disabled: !apiMode && liveSession && !desktopSession,
@@ -23336,12 +23348,12 @@ Reply in ${names[locale]}.`,
                             ["low", t.effortLow],
                             ["medium", t.effortMedium],
                             ["high", t.effortHigh]
-                          ].map(([v2, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v2, children: label }, v2))
+                          ].map(([v2, label]) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: v2, children: label }, v2))
                         }
                       )
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "check", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "check", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                         "input",
                         {
                           type: "checkbox",
@@ -23355,15 +23367,15 @@ Reply in ${names[locale]}.`,
                       t.shiftCrop
                     ] })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.globalCropShortcut }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "help", children: t.siteAccessHint }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "quick-actions", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => void allowPageAccess(false), children: t.allowSite }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => void allowPageAccess(true), children: t.allowAllSites })
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "help", children: t.globalCropShortcut }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "help", children: t.siteAccessHint }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "quick-actions", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => void allowPageAccess(false), children: t.allowSite }),
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => void allowPageAccess(true), children: t.allowAllSites })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "field", children: [
                     t.targetLanguage,
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "select",
                       {
                         value: targetLocale,
@@ -23372,13 +23384,13 @@ Reply in ${names[locale]}.`,
                           setTargetLocale(v2);
                           void saveSetting("targetLocale", v2);
                         },
-                        children: supportedLocales.map((x) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: x, children: names[x] }, x))
+                        children: supportedLocales.map((x) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: x, children: names[x] }, x))
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "field", children: [
                     t.blocklist,
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "textarea",
                       {
                         rows: 2,
@@ -23393,9 +23405,9 @@ Reply in ${names[locale]}.`,
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "field", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "field", children: [
                     t.language,
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "select",
                       {
                         value: locale,
@@ -23404,11 +23416,11 @@ Reply in ${names[locale]}.`,
                           setLocale(v2);
                           void saveSetting("locale", v2);
                         },
-                        children: supportedLocales.map((x) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: x, children: names[x] }, x))
+                        children: supportedLocales.map((x) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: x, children: names[x] }, x))
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                     "button",
                     {
                       className: "outline",
@@ -23417,7 +23429,7 @@ Reply in ${names[locale]}.`,
                       children: t.attach
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
                     "p",
                     {
                       className: "usage-estimate",
@@ -23429,21 +23441,28 @@ Reply in ${names[locale]}.`,
                       ]
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "usage-hint", children: apiMode ? t.apiUsageHint : t.cliUsageHint }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "privacy", children: t.privacy })
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "usage-hint", children: apiMode ? t.apiUsageHint : t.cliUsageHint }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "privacy", children: t.privacy }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "about", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(SparkleName, {}),
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { children: [
+                      "v",
+                      chrome.runtime.getManifest().version
+                    ] })
+                  ] })
                 ]
               }
             )
           }
         ),
-        showSessions && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        showSessions && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "div",
           {
             className: "scrim",
             onMouseDown: (e) => {
               if (e.target === e.currentTarget) setShowSessions(false);
             },
-            children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
               "section",
               {
                 ref: dialogRef,
@@ -23452,9 +23471,9 @@ Reply in ${names[locale]}.`,
                 "aria-modal": "true",
                 "aria-label": t.sessions,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: t.sessions }),
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("header", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { children: t.sessions }),
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "button",
                       {
                         className: "icon",
@@ -23464,33 +23483,33 @@ Reply in ${names[locale]}.`,
                       }
                     )
                   ] }),
-                  liveAvailable && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  liveAvailable && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                     "button",
                     {
                       className: "session-row",
                       onClick: () => void selectSession("live"),
-                      children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.liveSession })
+                      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: t.liveSession })
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
                     "button",
                     {
                       className: "session-row",
                       onClick: () => void selectSession(),
                       children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.newThread }),
-                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t.dedicatedThread })
+                        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: t.newThread }),
+                        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: t.dedicatedThread })
                       ]
                     }
                   ),
-                  sessions.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  sessions.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
                     "button",
                     {
                       className: "session-row",
                       onClick: () => void selectSession(s.id),
                       children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: s.title || t.untitled }),
-                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: new Date(s.updatedAt).toLocaleString(locale) })
+                        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: s.title || t.untitled }),
+                        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: new Date(s.updatedAt).toLocaleString(locale) })
                       ]
                     },
                     s.id
@@ -23503,13 +23522,13 @@ Reply in ${names[locale]}.`,
       ]
     }
   );
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
     pipDoc ? (0, import_react_dom.createPortal)(view, pipDoc.body) : view,
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", { ref: videoRef, className: "hidden-video", muted: true, playsInline: true })
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("video", { ref: videoRef, className: "hidden-video", muted: true, playsInline: true })
   ] });
 }
 function Blink({ mood = "idle" }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
     "img",
     {
       className: `blink ${mood}`,
@@ -23521,4 +23540,4 @@ function Blink({ mood = "idle" }) {
   );
 }
 if (new URLSearchParams(location.search).get("surfaceOnly") !== "1")
-  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App, {}));
+  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime2.jsx)(App, {}));

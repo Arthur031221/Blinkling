@@ -18,6 +18,7 @@ import React, {
 import { createRoot } from "react-dom/client";
 import { createPortal, flushSync } from "react-dom";
 import { safeMarkdown } from "../src/sanitize";
+import { SparkleName } from "../src/SparkleName";
 import {
   BridgeClient,
   MAX_QUESTION,
@@ -3663,7 +3664,9 @@ function App() {
         <div className="brand">
           <Blink mood={busy ? "think" : "idle"} />
           <div className="brand-copy">
-            <strong>Blinkling</strong>
+            <strong>
+              <SparkleName />
+            </strong>
             <span className={`connection ${connected ? "online" : "offline"}`}>
               {apiMode ? t.apiMode : connected ? t.connected : t.disconnected}
             </span>
@@ -3942,7 +3945,10 @@ function App() {
                 <div className="welcome-orbit">
                   <Blink mood={busy ? "think" : "idle"} />
                 </div>
-                <h2>{t.welcome}</h2>
+                <h2>
+                  <SparkleName />
+                </h2>
+                <p className="welcome-line">{t.welcome}</p>
                 {page?.title && <p>{page.title}</p>}
               </div>
             )}
@@ -4401,6 +4407,10 @@ function App() {
               {apiMode ? t.apiUsageHint : t.cliUsageHint}
             </p>
             <p className="privacy">{t.privacy}</p>
+            <div className="about">
+              <SparkleName />
+              <small>v{chrome.runtime.getManifest().version}</small>
+            </div>
           </section>
         </div>
       )}

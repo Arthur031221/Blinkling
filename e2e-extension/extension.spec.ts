@@ -4979,6 +4979,50 @@ test("full-page capture can be cancelled and restores the original scroll", asyn
   await expect(panel.locator(".capture-chip")).toHaveCount(0);
 });
 
+test("the drawn name sparkles without moving the layout and holds still under reduced motion", async () => {
+  const name = panel.locator(".brand-copy .sparkle-name");
+  await expect(name).toHaveCount(1);
+  await expect(name.locator(".sparkle-star")).toHaveCount(3);
+  await expect(panel.locator(".welcome .sparkle-name")).toHaveCount(1);
+  const header = panel.locator(".brand-copy strong");
+  const box = async () => (await header.boundingBox())!;
+  const before = await box();
+  const animations = () =>
+    name.evaluate((el) =>
+      el
+        .getAnimations({ subtree: true })
+        .filter((a) => a instanceof CSSAnimation)
+        .map((a) => a.playState),
+    );
+  expect((await animations()).length).toBe(4);
+  for (let i = 0; i < 6; i++) {
+    await panel.waitForTimeout(300);
+    expect(await box(), "the sparkle never moves the layout").toEqual(before);
+  }
+  const ink = (scheme: "light" | "dark") =>
+    panel
+      .emulateMedia({ colorScheme: scheme })
+      .then(() =>
+        name.evaluate((el) =>
+          getComputedStyle(el).getPropertyValue("--spark-base").trim(),
+        ),
+      );
+  expect(await ink("light")).toBe("#168454");
+  expect(await ink("dark")).toBe("#3ddc97");
+  await panel.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  expect(await animations()).toEqual([]);
+  const star = name.locator(".sparkle-star").first();
+  expect(await star.evaluate((el) => getComputedStyle(el).opacity)).not.toBe(
+    "0",
+  );
+  expect(await box()).toEqual(before);
+  await panel.emulateMedia({ reducedMotion: "no-preference" });
+  await panel.getByRole("button", { name: en.settings, exact: true }).click();
+  await expect(
+    panel.getByRole("dialog").locator(".about .sparkle-name"),
+  ).toHaveCount(1);
+});
+
 test("bubble fades, wakes, docks Blink and remembers its right-edge peek", async () => {
   const app = panel.locator(".app");
   const opacity = () =>

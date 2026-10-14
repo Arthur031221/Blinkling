@@ -172,6 +172,44 @@ test("configured store install navigates to its listing without unpacked control
   ).toBeVisible();
 });
 
+test("the install guide title draws the name with a sparkle in every language and never shifts", async () => {
+  await welcome.emulateMedia({ reducedMotion: "no-preference" });
+  for (const locale of [
+    "en",
+    "zh-TW",
+    "zh-CN",
+    "ja",
+    "ko",
+    "es",
+    "fr",
+    "de",
+    "pt-BR",
+  ]) {
+    await welcome.locator("#language").selectOption(locale);
+    const title = welcome.locator("h1");
+    await expect(title.locator(".sparkle-name")).toHaveCount(1);
+    await expect(title.locator(".sparkle-text")).toHaveText("Blinkling");
+    await expect(title.locator(".sparkle-star")).toHaveCount(3);
+    // The name is never translated, and the whole title reads normally.
+    expect(await title.innerText()).toContain("Blinkling");
+    expect(await welcome.title()).toContain("Blinkling");
+  }
+  const title = welcome.locator("h1");
+  const before = await title.boundingBox();
+  for (let i = 0; i < 5; i++) {
+    await welcome.waitForTimeout(250);
+    expect(await title.boundingBox()).toEqual(before);
+  }
+  await welcome.emulateMedia({ reducedMotion: "reduce" });
+  expect(
+    await title.evaluate((el) =>
+      el
+        .getAnimations({ subtree: true })
+        .filter((a) => a instanceof CSSAnimation),
+    ),
+  ).toEqual([]);
+});
+
 test("three steps and Blink fit every locale at compact widths in light and dark", async () => {
   await expect
     .poll(() =>

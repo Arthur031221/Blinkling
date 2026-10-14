@@ -10,8 +10,7 @@ import { adoptLegacyEnv } from "../plugin/desktop/legacy.mjs";
 adoptLegacyEnv();
 
 const runtime =
-  process.env.BLINKLING_RUNTIME_DIR ||
-  join(homedir(), ".blinkling", "runtime");
+  process.env.BLINKLING_RUNTIME_DIR || join(homedir(), ".blinkling", "runtime");
 const runtimeModules = join(runtime, "node_modules");
 const playwrightVersion = "1.64.0";
 let playwrightCli;

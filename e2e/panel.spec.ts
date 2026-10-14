@@ -159,6 +159,28 @@ async function mockPanel(
   );
 }
 
+test("the header and settings About draw the name with a sparkle", async ({
+  page,
+}) => {
+  await mockPanel(page);
+  await page.goto("/?demo=1");
+  const header = page.locator(".brand .sparkle-name");
+  await expect(header).toHaveCount(1);
+  await expect(header.locator(".sparkle-star")).toHaveCount(3);
+  await expect(header.locator(".sparkle-text")).toHaveText("Blinkling");
+  await page.getByRole("button", { name: "Settings" }).click();
+  const about = page.locator("dialog.settings .about .sparkle-name");
+  await expect(about).toHaveCount(1);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(
+    await about.evaluate((el) =>
+      el
+        .getAnimations({ subtree: true })
+        .filter((a) => a instanceof CSSAnimation),
+    ),
+  ).toEqual([]);
+});
+
 test("settings dialog keeps keyboard focus contained while tabbing", async ({
   page,
 }) => {

@@ -26,6 +26,7 @@ import {
 import { readAnswerStream } from "./answerStream";
 import { safeMarkdown } from "./sanitize";
 import "./style.css";
+import { SparkleName } from "./SparkleName";
 
 type Mode = "ask" | "passive" | "summary";
 type Entry = {
@@ -1258,7 +1259,9 @@ function App() {
           }
         />
         <div className="brand">
-          <strong>Blinkling</strong>
+          <strong>
+            <SparkleName />
+          </strong>
           <small>{t.tagline}</small>
         </div>
         <div className="header-actions">
@@ -1840,6 +1843,10 @@ function App() {
             </label>
             <p>{t.costNote}</p>
             <p>{t.privacyNote}</p>
+            <div className="about">
+              <SparkleName />
+              <small>{t.tagline}</small>
+            </div>
             <div className="settings-actions">
               <button onClick={() => void clearHistory()}>{t.clear}</button>
               <button onClick={() => setShowSettings(false)}>{t.done}</button>
