@@ -1,9 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTranslationPrompt,
+  guideChatSummary,
   validateGuideSteps,
   validateTranslationNodes,
 } from "./page-tools";
+
+describe("guide chat summary", () => {
+  it("keeps section and task takeaways when an older provider omits summary", () => {
+    const steps = Array.from({ length: 80 }, (_, i) => ({
+      elementId: `g${i}`,
+      note: `Note ${i}`,
+      ...(i === 79 ? { action: "Find flights" } : {}),
+    }));
+    const elements = steps.map((s, i) => ({
+      id: s.elementId,
+      role: i === 0 || i === 40 ? "h2" : i === 79 ? "button" : "paragraph",
+    }));
+    expect(guideChatSummary({ purpose: "Plan a trip.", steps }, elements)).toBe(
+      "Plan a trip.\n\n- Note 0\n- Note 40\n- Note 79 · Find flights",
+    );
+    expect(steps).toHaveLength(80);
+  });
+});
 
 // Recorded Japanese Wikipedia 湯冷まし translation (E2E2-PAGE-001).
 const recordedSource = [

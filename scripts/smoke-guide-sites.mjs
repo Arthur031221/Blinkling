@@ -10,6 +10,7 @@ import { chromium } from "playwright";
 // Public test hosts are granted only in an isolated copy of the extension.
 const checks = [
   ["google-flights", "https://www.google.com/travel/flights"],
+  ["muji-shop", "https://www.muji.us/collections/stationery"],
   ["arxiv-paper", "https://arxiv.org/html/2501.12948v1"],
   ["wikipedia", "https://en.wikipedia.org/wiki/Tea"],
 ];
@@ -113,6 +114,10 @@ try {
     const guide = parseGuideResult(answer.answer, data);
     assert.equal(guide.status, "ready", answer.answer.slice(0, 1000));
     assert(guide.purpose, "No page-purpose explanation");
+    assert(
+      guide.summary?.length > 0 && guide.summary.length <= 3,
+      "No concise section/task summary",
+    );
     const byId = new Map(data.elements.map((e) => [e.id, e]));
     const [paragraphResult] = await worker.evaluate(
       (tabId) =>
@@ -162,12 +167,12 @@ try {
       ),
       "Guide omitted sections",
     );
-    if (name === "google-flights")
+    if (["google-flights", "muji-shop"].includes(name))
       assert(
         guide.steps.some((s) => s.action),
-        "Booking guide omitted task hints",
+        "Main-task guide omitted task hints",
       );
-    if (name !== "google-flights")
+    if (["arxiv-paper", "wikipedia"].includes(name))
       assert(guide.steps.length > 12, "Reading guide did not cover the page");
     assert.deepEqual(
       await send({
@@ -188,6 +193,10 @@ try {
     const overview = page.locator("[data-glimpselet-overlay] .guide-overview");
     await overview.waitFor({ state: "visible" });
     assert.equal(await overview.locator("li").count(), guide.steps.length);
+    const sectionGroups = await overview.locator(".guide-section").count();
+    assert(sectionGroups > 0, "Overview omitted section groups");
+    assert.equal(await overview.locator(".guide-section[open]").count(), 0);
+    const visibleNotes = await overview.locator("li button:visible").count();
     await page.screenshot({ path: join(evidence, `${name}-overview.png`) });
     const belowFoldParagraph = guide.steps.findIndex(
       (s) =>
@@ -199,7 +208,10 @@ try {
         ? belowFoldParagraph
         : guide.steps.findIndex((s) => byId.get(s.elementId).rect[1] > 850);
     assert(belowFold >= 0, "Guide omitted below-fold content");
-    await overview.locator(`[data-guide-index="${belowFold}"]`).click();
+    const target = overview.locator(`[data-guide-index="${belowFold}"]`);
+    const section = target.locator("xpath=ancestor::details");
+    if (await section.count()) await section.locator("summary").click();
+    await target.click();
     await callout.waitFor({ state: "visible" });
     await page.setViewportSize({ width: 520, height: 680 });
     await callout.locator('[data-guide-control="overview"]').click();
@@ -235,6 +247,9 @@ try {
       substantiveParagraphsOnPage: paragraphResult.result.length,
       coveredParagraphs,
       purpose: guide.purpose,
+      summary: guide.summary,
+      sectionGroups,
+      visibleNotes,
       roles: [...new Set(guide.steps.map((s) => byId.get(s.elementId).role))],
       elapsedMs: Date.now() - started,
       usage: answer.usage,

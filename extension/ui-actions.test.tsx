@@ -2324,6 +2324,50 @@ describe("bubble answer rendering and feedback", () => {
     await flush();
     expect(status()).toBe(en.siteAccess);
   });
+  it("keeps a large guide concise in chat while sending every paragraph to the page", async () => {
+    await start();
+    const guidePage = {
+      ...page,
+      elements: Array.from({ length: 80 }, (_, i) => ({
+        id: `g${i}`,
+        role: "paragraph",
+        text: `Paragraph ${i}`,
+        rect: [0, i * 100, 500, 80] as [number, number, number, number],
+      })),
+    };
+    mocks.guide.mockResolvedValue({
+      ...guidePage,
+      guideScope: "top-document-text",
+    });
+    mocks.ask.mockImplementation(
+      async (_input: AskInput, delta: (text: string) => void) => {
+        const answer = JSON.stringify({
+          purpose: "Read this research paper.",
+          summary: [
+            "Methods explain the experiment.",
+            "Results compare the findings.",
+          ],
+          steps: guidePage.elements.map((e) => ({
+            elementId: e.id,
+            note: `Detailed explanation of ${e.text}`,
+          })),
+        });
+        delta(answer);
+        return { answer };
+      },
+    );
+    await click(en.guideAction);
+    const chat = document.querySelector(".markdown")!;
+    expect(chat.textContent).toContain("Read this research paper.");
+    expect(chat.querySelectorAll("li")).toHaveLength(2);
+    expect(chat.textContent).not.toContain("Detailed explanation");
+    const overlay = sendToTab.mock.calls.find(
+      ([, m]) => m.type === "glimpselet:guide",
+    )![1];
+    expect(overlay.steps).toHaveLength(80);
+    expect(overlay.steps.at(-1).elementId).toBe("g79");
+  });
+
   it("uses explicit guide text without attaching the previous screenshot or seeding automatic context", async () => {
     await start();
     await click(en.visible);
@@ -2353,6 +2397,8 @@ describe("bubble answer rendering and feedback", () => {
       title: en.guideAction,
       overview: en.guideOverview,
       tour: en.guideTour,
+      sections: en.guideSections,
+      task: en.guideTask,
     });
   });
   it("rechecks the guide document before dispatch and discards a navigation", async () => {

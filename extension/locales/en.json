@@ -163,5 +163,7 @@
   "moreTools": "More tools",
   "captureAccessHint": "Optional: allow on all sites once so page capture and area selection work on new tabs.",
   "guideOverview": "Overview",
-  "guideTour": "Step by step"
+  "guideTour": "Step by step",
+  "guideSections": "Page sections",
+  "guideTask": "Main task"
 }

@@ -75,6 +75,61 @@ const ask: AskInput = {
 };
 
 describe("extension bridge payloads", () => {
+  it("bounds summary independently of the retained guide steps and ignores malformed summary values", () => {
+    const page: PageContext = {
+      url: "https://example.test",
+      title: "Page",
+      text: "Page",
+      hasPassword: false,
+      elements: [
+        { id: "g1", role: "button", text: "Search", rect: [0, 0, 100, 30] },
+      ],
+    };
+    const steps = [{ elementId: "g1", note: "Search for a trip" }];
+    expect(
+      parseGuideResult(
+        JSON.stringify({
+          steps,
+          summary: [null, " ", "a".repeat(500), "b", "c", "d"],
+        }),
+        page,
+      ),
+    ).toMatchObject({ steps, summary: ["a".repeat(180), "b", "c"] });
+    expect(
+      parseGuideResult(JSON.stringify({ steps, summary: "invalid" }), page),
+    ).toEqual({ status: "ready", steps });
+  });
+  it("requests a concise chat summary separately from complete paragraph coverage", () => {
+    const page: PageContext = {
+      url: "https://example.test/paper",
+      title: "Paper",
+      text: "Research",
+      hasPassword: false,
+      elements: Array.from({ length: 80 }, (_, i) => ({
+        id: `g${i}`,
+        role: "paragraph",
+        text: `Passage ${i}`,
+        rect: [0, i * 100, 500, 80],
+      })),
+    };
+    expect(buildGuidePrompt("Guide this page", page, true)).toContain(
+      '"summary"',
+    );
+    const result = parseGuideResult(
+      JSON.stringify({
+        purpose: "Understand the research.",
+        summary: ["Introduction and methods.", "Results and how to read them."],
+        steps: page.elements.map((e) => ({ elementId: e.id, note: e.text })),
+      }),
+      page,
+    );
+    expect(result).toMatchObject({
+      status: "ready",
+      summary: ["Introduction and methods.", "Results and how to read them."],
+    });
+    expect(result.steps).toHaveLength(80);
+  });
+
   it("asks for purpose, sections, paragraph meaning and task instructions for a whole-page guide", () => {
     const page: PageContext = {
       url: "https://example.test",

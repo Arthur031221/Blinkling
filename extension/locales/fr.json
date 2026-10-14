@@ -163,5 +163,7 @@
   "moreTools": "Autres outils",
   "captureAccessHint": "Facultatif : autorisez une fois l’accès à tous les sites pour capturer des pages et sélectionner une zone dans les nouveaux onglets.",
   "guideOverview": "Vue d’ensemble",
-  "guideTour": "Pas à pas"
+  "guideTour": "Pas à pas",
+  "guideSections": "Sections de la page",
+  "guideTask": "Tâche principale"
 }

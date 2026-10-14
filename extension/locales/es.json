@@ -163,5 +163,7 @@
   "moreTools": "Más herramientas",
   "captureAccessHint": "Opcional: permite el acceso a todos los sitios una vez para capturar páginas y seleccionar áreas en pestañas nuevas.",
   "guideOverview": "Vista general",
-  "guideTour": "Paso a paso"
+  "guideTour": "Paso a paso",
+  "guideSections": "Secciones de la página",
+  "guideTask": "Tarea principal"
 }

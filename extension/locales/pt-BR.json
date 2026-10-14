@@ -163,5 +163,7 @@
   "moreTools": "Mais ferramentas",
   "captureAccessHint": "Opcional: permita o acesso a todos os sites uma vez para capturar páginas e selecionar áreas em novas abas.",
   "guideOverview": "Visão geral",
-  "guideTour": "Passo a passo"
+  "guideTour": "Passo a passo",
+  "guideSections": "Seções da página",
+  "guideTask": "Tarefa principal"
 }

@@ -163,5 +163,7 @@
   "moreTools": "더 많은 도구",
   "captureAccessHint": "선택 사항: 모든 사이트 접근을 한 번 허용하면 새 탭에서도 페이지 캡처와 영역 선택을 사용할 수 있습니다.",
   "guideOverview": "전체 보기",
-  "guideTour": "단계별 안내"
+  "guideTour": "단계별 안내",
+  "guideSections": "페이지 섹션",
+  "guideTask": "주요 작업"
 }
