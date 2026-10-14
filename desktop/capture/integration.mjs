@@ -1,4 +1,4 @@
-import { screen, powerMonitor, globalShortcut } from "electron";
+import { screen, powerMonitor, globalShortcut, nativeImage } from "electron";
 import { DesktopCaptureService, screenImage } from "./index.mjs";
 import { DesktopOverlayService } from "../overlay/index.mjs";
 import { GuideController } from "../overlay/guide.mjs";
@@ -51,6 +51,13 @@ export function installCaptureGuide({
     overlay,
     windows,
     masks,
+    decode: (data, size) =>
+      nativeImage
+        .createFromBuffer(Buffer.from(data, "base64"))
+        .resize(size)
+        .toBitmap(),
+    grab: async (display, size) =>
+      (await screenImage(display, size)).resize(size).toBitmap(),
     onError: () => overlay.dismiss("capture-unavailable"),
   });
   let auto;

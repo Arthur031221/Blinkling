@@ -1,7 +1,6 @@
 import { BrowserWindow, screen, globalShortcut, ipcMain } from "electron";
-import { EventEmitter } from "node:events";
 import { fileURLToPath } from "node:url";
-import { captureMatchesDisplay } from "./schema.mjs";
+import { OverlayService } from "./service.mjs";
 import { exactX11Bounds } from "./x11-bounds.mjs";
 const views = new Map();
 let installed = false;
@@ -146,142 +145,14 @@ export async function createOverlay(
     throw error;
   }
 }
-export class DesktopOverlayService extends EventEmitter {
-  constructor({
-    onDismiss = () => {},
-    create = createOverlay,
-    escape = globalShortcut,
-    displays = screen,
-    windows = () => [],
-    masks,
-  } = {}) {
-    super();
-    this.epoch = 0;
-    Object.assign(this, {
-      onDismiss,
-      create,
-      escape,
-      displays,
-      windows,
-      masks,
+/** The Electron-bound service; service.mjs holds the logic so it runs in node. */
+export class DesktopOverlayService extends OverlayService {
+  constructor(options = {}) {
+    super({
+      create: createOverlay,
+      escape: globalShortcut,
+      displays: screen,
+      ...options,
     });
-    this.invalidate = () => {
-      if (
-        this.capture &&
-        !captureMatchesDisplay(
-          this.capture,
-          this.displays
-            .getAllDisplays()
-            .find((d) => String(d.id) === this.capture.display.id),
-        )
-      )
-        this.dismiss("display-changed");
-    };
-    for (const name of [
-      "display-metrics-changed",
-      "display-removed",
-      "display-added",
-    ])
-      displays.on(name, this.invalidate);
-  }
-  async show(capture, drawings) {
-    this.dismiss("replaced");
-    if (
-      !captureMatchesDisplay(
-        capture,
-        this.displays
-          .getAllDisplays()
-          .find((d) => String(d.id) === capture.display.id),
-      )
-    )
-      throw Error("Guide capture is stale");
-    if (!this.escape.register("Escape", () => this.dismiss("escape")))
-      throw Error("Guide Escape shortcut unavailable");
-    this.capture = capture;
-    this.drawings = drawings;
-    const epoch = this.epoch;
-    try {
-      const b = capture.display.bounds;
-      const occupied =
-        this.masks?.() ??
-        this.windows()
-          .filter((w) => w && !w.isDestroyed() && w.isVisible())
-          .map((w) => {
-            const r = w.getBounds();
-            const x = Math.max(0, r.x - b.x),
-              y = Math.max(0, r.y - b.y);
-            return {
-              x,
-              y,
-              width: Math.min(b.width, r.x + r.width - b.x) - x,
-              height: Math.min(b.height, r.y + r.height - b.y) - y,
-            };
-          })
-          .filter((r) => r.width > 0 && r.height > 0);
-      const avoid = occupied
-        .map((r) => {
-          const x = Math.max(0, r.x),
-            y = Math.max(0, r.y);
-          return {
-            x,
-            y,
-            width: Math.min(b.width, r.x + r.width) - x,
-            height: Math.min(b.height, r.y + r.height) - y,
-          };
-        })
-        .filter((r) => r.width > 0 && r.height > 0);
-      const window = await this.create(capture.display, drawings, { avoid });
-      if (
-        this.epoch !== epoch ||
-        !captureMatchesDisplay(
-          capture,
-          this.displays
-            .getAllDisplays()
-            .find((d) => String(d.id) === capture.display.id),
-        )
-      ) {
-        window.close();
-        return false;
-      }
-      this.window = window;
-    } catch (error) {
-      if (this.epoch === epoch) this.dismiss("failed");
-      throw error;
-    }
-    const window = this.window;
-    window.once("closed", () => {
-      if (this.window === window) this.dismiss("closed");
-    });
-    this.emit("shown", capture);
-    return true;
-  }
-  step(index) {
-    if (!Number.isInteger(index) || index < -1 || index > 23)
-      throw Error("Invalid guide step");
-    if (this.window && !this.window.isDestroyed())
-      this.window.webContents.send("glimpselet:overlay:step", index);
-  }
-  dismiss(reason = "dismissed") {
-    this.epoch++;
-    const active = !!this.capture;
-    const window = this.window;
-    this.capture = null;
-    this.drawings = null;
-    this.window = null;
-    if (active) this.escape.unregister("Escape");
-    if (window && !window.isDestroyed()) window.close();
-    if (active) {
-      this.onDismiss(reason);
-      this.emit("dismissed", reason);
-    }
-  }
-  dispose() {
-    this.dismiss();
-    for (const name of [
-      "display-metrics-changed",
-      "display-removed",
-      "display-added",
-    ])
-      this.displays.removeListener(name, this.invalidate);
   }
 }

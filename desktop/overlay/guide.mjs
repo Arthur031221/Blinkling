@@ -119,7 +119,7 @@ export class GuideController {
   }
   dismiss() {
     this.controller?.abort();
-    this.overlay.dismiss();
+    this.overlay.dismiss("user");
     this.guide = null;
   }
   dispose() {
