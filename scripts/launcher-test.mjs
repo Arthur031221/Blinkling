@@ -11,7 +11,7 @@ let child;
 try {
   // A copy outside the checkout proves the packaged launcher can bootstrap.
   const launcher = join(directory, "launch-browser.mjs");
-  await copyFile(resolve("scripts/launch-browser.mjs"), launcher);
+  await copyFile(resolve("bin/launch-browser.mjs"), launcher);
   const env = {
     ...process.env,
     BLINKLING_RUNTIME_DIR: join(directory, "runtime"),

@@ -39,7 +39,16 @@ await rm("bin/extension", { recursive: true, force: true });
 await cp("dist-extension", "bin/extension", { recursive: true });
 await mkdir("bin/config", { recursive: true });
 await cp("config/distribution.json", "bin/config/distribution.json");
-await cp("scripts/launch-browser.mjs", "bin/launch-browser.mjs");
+// Bundled so the launcher also runs from a copy that has no checkout around it.
+await build({
+  entryPoints: ["scripts/launch-browser.mjs"],
+  outfile: "bin/launch-browser.mjs",
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
+  packages: "external",
+});
 
 const packages = new Map();
 const candidates = [

@@ -16,8 +16,9 @@ export const ALLOWED_FILES = new Set([
   "plugin/desktop/legacy.mjs",
   "plugin/desktop/legacy.d.mts",
   "plugin/desktop/legacy.test.mjs",
-  // The standalone bundle inlines legacy.mjs; it is code, not text a user sees.
+  // The standalone bundles inline legacy.mjs; it is code, not text a user sees.
   "bin/blinkling.cjs",
+  "bin/launch-browser.mjs",
   "scripts/check-name.mjs",
   "scripts/check-name.test.mjs",
 ]);
