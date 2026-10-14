@@ -33,6 +33,22 @@ test("owned session resumes exact ID without forking or requiring user flags", (
   assert.ok(!args.includes("--remote-control"));
   assert.equal(enableRemote("remote").reattach_session_id, "remote");
 });
+
+test("owned sessions disable tools, inherited MCP and hooks and explicitly explain only", () => {
+  const args = launchArguments();
+  assert.equal(args[args.indexOf("--tools") + 1], "");
+  assert.ok(args.includes("--strict-mcp-config"));
+  assert.deepEqual(JSON.parse(args[args.indexOf("--mcp-config") + 1]), {
+    mcpServers: {},
+  });
+  assert.deepEqual(JSON.parse(args[args.indexOf("--settings") + 1]), {
+    disableAllHooks: true,
+  });
+  assert.match(
+    args[args.indexOf("--system-prompt") + 1],
+    /never click, type, control another app, or edit files/,
+  );
+});
 test("out of order responses correlate, rejection propagates, shutdown rejects pending", async () => {
   const sent = [];
   const rpc = new ControlRequests((e) => sent.push(e));
