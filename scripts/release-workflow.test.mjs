@@ -12,7 +12,7 @@ describe("Remote Control stays out of automated runs", () => {
     (name) => {
       // A top-level env block applies to every job in the file.
       expect(read(name)).toMatch(
-        /^env:\n(?:  .*\n)*?  BLINKLING_REMOTE: "0"$/m,
+        /^env:\n(?: {2}.*\n)*? {2}BLINKLING_REMOTE: "0"$/m,
       );
     },
   );
@@ -29,7 +29,7 @@ describe("the release workflow", () => {
   it("can be dry-run and only publishes when it is not", () => {
     expect(release).toMatch(/dry_run:/);
     expect(release).toMatch(
-      /publish:\n(?:    .*\n)*?    if: \$\{\{ !inputs\.dry_run \}\}/,
+      /publish:\n(?: {4}.*\n)*? {4}if: \$\{\{ !inputs\.dry_run \}\}/,
     );
   });
 
