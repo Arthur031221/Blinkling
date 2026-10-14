@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 import { keepAbove } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
+import { cursorSource } from "./cursor.mjs";
 import { contains } from "./geometry.mjs";
 import {
   resolvePosition,
@@ -81,6 +82,11 @@ let previousCursor = "",
   previousFocused = null,
   ignoring = true;
 const input = await nativeInput();
+const cursor = cursorSource({
+  query: input?.pointer,
+  fallback: () => screen.getCursorScreenPoint(),
+  toDip: (point) => screen.screenToDipPoint(point),
+});
 const actions = new Set([
   "screen",
   "region",
@@ -349,7 +355,7 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
   const fromBlink = event.sender === blink.webContents;
   if (command.type === "drag") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
-    const p = screen.getCursorScreenPoint();
+    const p = cursor.point();
     if (command.phase === "start") {
       if (
         !regions.some((r) =>
@@ -646,7 +652,7 @@ const stopStacking = await keepAbove(() =>
 const poll = setInterval(() => {
   if (blink.isDestroyed() || !blink.isVisible()) return;
 
-  const p = screen.getCursorScreenPoint();
+  const p = cursor.point();
   if (drag) {
     if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4)
       drag.active = true;
@@ -718,6 +724,7 @@ if (process.env.GLIMPSELET_E2E === "1")
       return composer;
     },
     snapshot,
+    cursor: () => cursor.point(),
     visualMasks,
     capture: () => captureScreen(display, windows()),
     overlay: async (drawings) => {

@@ -30,6 +30,22 @@ finally:x.XCloseDisplay(d)`,
   ]);
   return result.toString().trim();
 }
+/** Native wheel notches at a point: positive scrolls up (button 4), negative down. */
+export function wheel(x, y, notches) {
+  native(x, y);
+  execFileSync("python3", [
+    "-c",
+    `import ctypes,time
+x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6');x.XOpenDisplay.restype=ctypes.c_void_p;d=x.XOpenDisplay(None)
+assert d
+x.XFlush.argtypes=[ctypes.c_void_p];x.XCloseDisplay.argtypes=[ctypes.c_void_p]
+t.XTestFakeButtonEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+try:
+ for _ in range(${Math.abs(notches)}):
+  t.XTestFakeButtonEvent(d,${notches > 0 ? 4 : 5},1,0);t.XTestFakeButtonEvent(d,${notches > 0 ? 4 : 5},0,0);x.XFlush(d);time.sleep(.03)
+finally:x.XCloseDisplay(d)`,
+  ]);
+}
 export function activeWindow() {
   return Number(
     execFileSync("python3", [
