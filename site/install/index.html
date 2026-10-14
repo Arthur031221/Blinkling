@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta
+      name="description"
+      content="Install Blinkling in two or three steps. Pick your computer and follow its short, animated steps."
+    />
+    <title>Install Blinkling</title>
+    <link rel="icon" href="../assets/logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="install.css" />
+    <script src="boot.js"></script>
+    <script type="module" src="install.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="../"
+        ><img
+          src="../assets/logo.svg"
+          width="28"
+          height="28"
+          alt=""
+        />Blinkling</a
+      >
+      <nav aria-label="Main">
+        <a href="../">Overview</a
+        ><a href="https://github.com/Arthur031221/Blinkling">GitHub</a>
+      </nav>
+    </header>
+    <main>
+      <h1>
+        <picture
+          ><source
+            media="(prefers-color-scheme: dark)"
+            srcset="wordmark-dark.svg" />
+          <img
+            class="wordmark"
+            src="wordmark-light.svg"
+            width="236"
+            height="64"
+            alt="Blinkling"
+        /></picture>
+        <span>Install</span>
+      </h1>
+      <p class="lead">
+        You need Claude Code, signed in. Then it is one pasted line, one
+        command, and on a Mac one permission.
+      </p>
+
+      <fieldset class="chooser" aria-describedby="chooser-hint">
+        <legend>Which computer do you have?</legend>
+        <div class="options">
+          <label
+            ><input type="radio" name="os" value="mac-arm64" /><span
+              >Mac <small>Apple silicon</small></span
+            ></label
+          >
+          <label
+            ><input type="radio" name="os" value="mac-intel" /><span
+              >Mac <small>Intel</small></span
+            ></label
+          >
+          <label
+            ><input type="radio" name="os" value="windows" /><span
+              >Windows</span
+            ></label
+          >
+          <label
+            ><input type="radio" name="os" value="linux" /><span
+              >Linux</span
+            ></label
+          >
+        </div>
+        <p id="chooser-hint" class="hint" data-hint>
+          <span data-detected>We picked this from your browser.</span>
+          <span data-for="mac-arm64 mac-intel"
+            >Not sure? Apple menu, About This Mac: “Chip” says Apple M…,
+            “Processor” says Intel.</span
+          >
+        </p>
+      </fieldset>
+
+      <p class="choose" data-choose hidden>
+        Pick your computer above to see its steps.
+      </p>
+
+      <div class="panels">
+        <section class="panel" data-panel="mac" aria-labelledby="mac-title">
+          <h2 id="mac-title" class="sr-only">Steps for a Mac</h2>
+          <ol class="steps">
+            <li class="step">
+              <div class="step-text">
+                <span class="num" aria-hidden="true">1</span>
+                <p>Paste this line into Terminal and press Return.</p>
+                <div class="command">
+                  <code data-command
+                    >claude plugin marketplace add Arthur031221/Blinkling
+                    &amp;&amp; claude plugin install blinkling@blinkling</code
+                  >
+                  <button type="button" class="copy" aria-label="Copy command">
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div
+                class="scene scene-terminal"
+                data-key="⌘V"
+                role="img"
+                aria-label="Animation: the line is pasted into Terminal and the plugin installs."
+              >
+                <div class="scene-body">
+                  <div class="window">
+                    <div class="bar"><i></i><i></i><i></i><b>Terminal</b></div>
+                    <div class="screen">
+                      <p class="line typed">
+                        <span class="prompt">$</span>
+                        <span class="text"
+                          >claude plugin marketplace add Arthur031221/Blinkling
+                          &amp;&amp; …</span
+                        ><span class="cover"></span>
+                      </p>
+                      <p class="line out out-1">Added marketplace blinkling</p>
+                      <p class="line out out-2">
+                        Installed blinkling@blinkling
+                      </p>
+                    </div>
+                  </div>
+                  <span class="key" aria-hidden="true"></span>
+                </div>
+              </div>
+            </li>
+            <li class="step">
+              <div class="step-text">
+                <span class="num" aria-hidden="true">2</span>
+                <p>In Claude Code, run this. Blink appears.</p>
+                <div class="command">
+                  <code data-command>/blinkling:blinkling</code>
+                  <button type="button" class="copy" aria-label="Copy command">
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div
+                class="scene scene-claude"
+                role="img"
+                aria-label="Animation: the command is typed in Claude Code and Blink waves hello."
+              >
+                <div class="scene-body">
+                  <div class="window">
+                    <div class="bar">
+                      <i></i><i></i><i></i><b>Claude Code</b>
+                    </div>
+                    <div class="screen">
+                      <p class="line typed">
+                        <span class="prompt">&gt;</span>
+                        <span class="text">/blinkling:blinkling</span
+                        ><span class="cover"></span>
+                      </p>
+                    </div>
+                  </div>
+                  <img class="blink" src="../assets/logo.svg" alt="" />
+                </div>
+              </div>
+            </li>
+            <li class="step">
+              <div class="step-text">
+                <span class="num" aria-hidden="true">3</span>
+                <p>
+                  Allow Screen Recording once: switch on Blinkling in System
+                  Settings, Privacy &amp; Security.
+                </p>
+              </div>
+              <div
+                class="scene scene-permission"
+                role="img"
+                aria-label="Animation: the Blinkling switch is turned on under Screen Recording."
+              >
+                <div class="scene-body">
+                  <div class="window">
+                    <div class="bar">
+                      <i></i><i></i><i></i
+                      ><b>Screen &amp; System Audio Recording</b>
+                    </div>
+                    <div class="screen settings">
+                      <div class="row">
+                        <img src="../assets/logo.svg" alt="" /><span
+                          >Blinkling</span
+                        >
+                        <span class="toggle"
+                          ><i class="track-off"></i><i class="track-on"></i
+                          ><i class="knob"></i
+                          ><svg
+                            class="cursor"
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                          >
+                            <path d="M2 1l11 7-5 1.2L5.6 14z" /></svg
+                        ></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+          </ol>
+          <section class="fallback" aria-labelledby="mac-fallback">
+            <h3 id="mac-fallback">
+              If macOS still says it cannot open Blinkling
+            </h3>
+            <div class="step-text">
+              <p>
+                Blinkling is not notarized by Apple. Normally nothing is asked.
+                If it is, open System Settings, Privacy &amp; Security and
+                choose Open Anyway.
+              </p>
+            </div>
+            <div
+              class="scene scene-gatekeeper"
+              role="img"
+              aria-label="Animation: the blocked message, then Open Anyway is clicked in Privacy and Security."
+            >
+              <div class="scene-body">
+                <div class="window dialog">
+                  <div class="screen">
+                    <p class="title">“Blinkling” can’t be opened</p>
+                    <p class="small">Apple could not check it for malware.</p>
+                    <span class="btn">Done</span>
+                  </div>
+                </div>
+                <div class="window settings-window">
+                  <div class="bar">
+                    <i></i><i></i><i></i><b>Privacy &amp; Security</b>
+                  </div>
+                  <div class="screen">
+                    <p class="small">“Blinkling” was blocked.</p>
+                    <span class="btn primary"
+                      >Open Anyway<svg
+                        class="cursor"
+                        viewBox="0 0 16 16"
+                        aria-hidden="true"
+                      >
+                        <path d="M2 1l11 7-5 1.2L5.6 14z" /></svg
+                    ></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section
+          class="panel"
+          data-panel="windows"
+          aria-labelledby="windows-title"
+        >
+          <h2 id="windows-title" class="sr-only">Steps for Windows</h2>
+          <ol class="steps">
+            <li class="step">
+              <div class="step-text">
+                <span class="num" aria-hidden="true">1</span>
+                <p>Paste this line into PowerShell and press Enter.</p>
+                <div class="command">
+                  <code data-command
+                    >claude plugin marketplace add Arthur031221/Blinkling ;
+                    claude plugin install blinkling@blinkling</code
+                  >
+                  <button type="button" class="copy" aria-label="Copy command">
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div
+                class="scene scene-terminal"
+                data-key="Ctrl V"
+                role="img"
+                aria-label="Animation: the line is pasted into PowerShell and the plugin installs."
+              >
+                <div class="scene-body">
+                  <div class="window">
+                    <div class="bar">
+                      <i></i><i></i><i></i><b>PowerShell</b>
+                    </div>
+                    <div class="screen">
+                      <p class="line typed">
+                        <span class="prompt">PS&gt;</span>
+                        <span class="text"
+                          >claude plugin marketplace add Arthur031221/Blinkling
+                          ; …</span
+                        ><span class="cover"></span>
+                      </p>
+                      <p class="line out out-1">Added marketplace blinkling</p>
+                      <p class="line out out-2">
+                        Installed blinkling@blinkling
+                      </p>
+                    </div>
+                  </div>
+                  <span class="key" aria-hidden="true"></span>
+                </div>
+              </div>
+            </li>
+            <li class="step">
+              <div class="step-text">
+                <span class="num" aria-hidden="true">2</span>
+                <p>In Claude Code, run this. Blink appears.</p>
+                <div class="command">
+                  <code data-command>/blinkling:blinkling</code>
+                  <button type="button" class="copy" aria-label="Copy command">
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div
+                class="scene scene-claude"
+                role="img"
+                aria-label="Animation: the command is typed in Claude Code and Blink waves hello."
+              >
+                <div class="scene-body">
+                  <div class="window">
+                    <div class="bar">
+                      <i></i><i></i><i></i><b>Claude Code</b>
+                    </div>
+                    <div class="screen">
+                      <p class="line typed">
+                        <span class="prompt">&gt;</span>
+                        <span class="text">/blinkling:blinkling</span
+                        ><span class="cover"></span>
+                      </p>
+                    </div>
+                  </div>
+                  <img class="blink" src="../assets/logo.svg" alt="" />
+                </div>
+              </div>
+            </li>
+          </ol>
+          <section class="fallback" aria-labelledby="windows-fallback">
+            <h3 id="windows-fallback">If Windows says it protected your PC</h3>
+            <div class="step-text">
+              <p>
+                Blinkling is not signed with a paid certificate, so SmartScreen
+                may ask. Choose More info, then Run anyway.
+              </p>
+            </div>
+            <div
+              class="scene scene-smartscreen"
+              role="img"
+              aria-label="Animation: More info is clicked, then Run anyway."
+            >
+              <div class="scene-body">
+                <div class="window dialog blue">
+                  <div class="screen">
+                    <p class="title">Windows protected your PC</p>
+                    <p class="small">
+                      Microsoft Defender SmartScreen prevented an unrecognized
+                      app from starting.
+                    </p>
+                    <span class="link"
+                      >More info<svg
+                        class="cursor"
+                        viewBox="0 0 16 16"
+                        aria-hidden="true"
+                      >
+                        <path d="M2 1l11 7-5 1.2L5.6 14z" /></svg
+                    ></span>
+                    <span class="btn primary run"
+                      >Run anyway<svg
+                        class="cursor"
+                        viewBox="0 0 16 16"
+                        aria-hidden="true"
+                      >
+                        <path d="M2 1l11 7-5 1.2L5.6 14z" /></svg
+                    ></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="panel" data-panel="linux" aria-labelledby="linux-title">
+          <h2 id="linux-title" class="sr-only">Steps for Linux</h2>
+          <ol class="steps">
+            <li class="step">
+              <div class="step-text">
+                <span class="num" aria-hidden="true">1</span>
+                <p>Paste this line into a terminal and press Enter.</p>
+                <div class="command">
+                  <code data-command
+                    >claude plugin marketplace add Arthur031221/Blinkling
+                    &amp;&amp; claude plugin install blinkling@blinkling</code
+                  >
+                  <button type="button" class="copy" aria-label="Copy command">
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div
+                class="scene scene-terminal"
+                data-key="Ctrl ⇧ V"
+                role="img"
+                aria-label="Animation: the line is pasted into a terminal and the plugin installs."
+              >
+                <div class="scene-body">
+                  <div class="window">
+                    <div class="bar"><i></i><i></i><i></i><b>Terminal</b></div>
+                    <div class="screen">
+                      <p class="line typed">
+                        <span class="prompt">$</span>
+                        <span class="text"
+                          >claude plugin marketplace add Arthur031221/Blinkling
+                          &amp;&amp; …</span
+                        ><span class="cover"></span>
+                      </p>
+                      <p class="line out out-1">Added marketplace blinkling</p>
+                      <p class="line out out-2">
+                        Installed blinkling@blinkling
+                      </p>
+                    </div>
+                  </div>
+                  <span class="key" aria-hidden="true"></span>
+                </div>
+              </div>
+            </li>
+            <li class="step">
+              <div class="step-text">
+                <span class="num" aria-hidden="true">2</span>
+                <p>In Claude Code, run this. Blink appears.</p>
+                <div class="command">
+                  <code data-command>/blinkling:blinkling</code>
+                  <button type="button" class="copy" aria-label="Copy command">
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div
+                class="scene scene-claude"
+                role="img"
+                aria-label="Animation: the command is typed in Claude Code and Blink waves hello."
+              >
+                <div class="scene-body">
+                  <div class="window">
+                    <div class="bar">
+                      <i></i><i></i><i></i><b>Claude Code</b>
+                    </div>
+                    <div class="screen">
+                      <p class="line typed">
+                        <span class="prompt">&gt;</span>
+                        <span class="text">/blinkling:blinkling</span
+                        ><span class="cover"></span>
+                      </p>
+                    </div>
+                  </div>
+                  <img class="blink" src="../assets/logo.svg" alt="" />
+                </div>
+              </div>
+            </li>
+          </ol>
+          <p class="note">
+            Blink needs a desktop session (X11 or Wayland). On Ubuntu 24.04 it
+            starts by itself.
+          </p>
+        </section>
+      </div>
+    </main>
+    <footer>
+      <p>
+        Prefer to do it by hand? Read the
+        <a
+          href="https://github.com/Arthur031221/Blinkling/blob/main/docs/INSTALL.md"
+          >manual steps</a
+        >. Blinkling runs on your computer and uses your own Claude Code.
+        <a href="../privacy.html">Privacy</a>
+      </p>
+      <p class="status" role="status" aria-live="polite" data-status></p>
+    </footer>
+  </body>
+</html>
