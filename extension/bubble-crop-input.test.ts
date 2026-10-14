@@ -83,6 +83,26 @@ it("selects pixels beneath the bubble using desktop coordinates and native point
   });
 });
 
+it("aligns native fullscreen pixels when Chrome reports frame gutters outside the display", async () => {
+  vi.stubGlobal("screenX", -4);
+  vi.stubGlobal("screenY", -4);
+  vi.stubGlobal("outerWidth", 1448);
+  vi.stubGlobal("innerWidth", 1440);
+  vi.stubGlobal("outerHeight", 1008);
+  vi.stubGlobal("innerHeight", 1000);
+  vi.stubGlobal("screen", { width: 1440, height: 1000 });
+  pointer("pointerdown", 160, 300);
+  pointer("pointermove", 240, 360);
+  pointer("pointerup", 240, 360);
+  floating.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+  await expect(result).resolves.toEqual({
+    x: 160,
+    y: 300,
+    width: 80,
+    height: 60,
+  });
+});
+
 it("routes resize handles to the selector rather than beginning another region", async () => {
   pointer("pointerdown", 160, 300);
   pointer("pointermove", 240, 360);
@@ -118,4 +138,50 @@ it("blocks bubble actions during crop, forwards Escape and removes its listeners
   stop();
   button.click();
   expect(action).toHaveBeenCalledOnce();
+});
+
+it("shows the frozen pixels and selection beneath the native fallback, then removes the mirror", () => {
+  stop();
+  const image = document.createElement("img");
+  image.src = "data:image/png;base64,eA==";
+  image.style.width = "1000px";
+  image.style.height = "750px";
+  stop = relayBubbleCropInput(floating, host, image);
+  const mirror = floating.document.querySelector(
+    "[data-glimpselet-crop-mirror]",
+  )!;
+  expect(mirror).not.toBeNull();
+  expect(mirror.parentElement).toBe(floating.document.documentElement);
+  expect(mirror.shadowRoot!.querySelector("img")!.src).toBe(image.src);
+  expect(mirror.shadowRoot!.querySelector(".surface")).not.toBeNull();
+  stop();
+  expect(
+    floating.document.querySelector("[data-glimpselet-crop-mirror]"),
+  ).toBeNull();
+});
+
+it("excludes the native bottom frame from the mirrored content origin", () => {
+  stop();
+  vi.stubGlobal("screenX", 0);
+  vi.stubGlobal("screenY", 0);
+  vi.stubGlobal("outerWidth", 1440);
+  vi.stubGlobal("innerWidth", 1440);
+  vi.stubGlobal("outerHeight", 1000);
+  vi.stubGlobal("innerHeight", 1000);
+  Object.assign(floating, {
+    screenX: 0,
+    screenY: 0,
+    outerWidth: 380,
+    innerWidth: 372,
+    outerHeight: 318,
+    innerHeight: 280,
+  });
+  const image = document.createElement("img");
+  stop = relayBubbleCropInput(floating, host, image);
+  const mirror = floating.document.querySelector(
+    "[data-glimpselet-crop-mirror]",
+  )!;
+  expect(
+    (mirror.shadowRoot!.firstElementChild as HTMLElement).style.transform,
+  ).toBe("translate(-4px,-34px)");
 });

@@ -85,6 +85,7 @@
   "settings": "Settings",
   "shareEnded": "Screen sharing ended.",
   "shareNeedsFloat": "Open the floating panel before sharing your screen.",
+  "screenPicker": "Choose a screen in the picker…",
   "sharing": "Sharing",
   "siteAccess": "Allow Glimpselet access to this site in the browser prompt.",
   "siteNeedPermission": "This site needs permission before Glimpselet can read it.",

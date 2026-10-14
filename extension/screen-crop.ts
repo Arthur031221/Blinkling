@@ -20,20 +20,31 @@ export async function cropSharedScreen(
   const signal = options.signal
     ? AbortSignal.any([options.signal, controller.signal])
     : controller.signal;
+  // Snapshot before hide can close the PiP document. Selection-only hooks
+  // clean up here; frame-clearance hooks are restored by withBubbleCleared.
+  const clearsFrame = needsSharedFrameClearance(video, bubble);
   const frameOptions = {
     ...options,
-    clearBubble: needsSharedFrameClearance(video, bubble)
-      ? options.clearBubble
-      : undefined,
+    clearBubble: clearsFrame ? options.clearBubble : undefined,
     signal,
   };
   tracks.forEach((track) => track.addEventListener("ended", ended));
   try {
     return await withBubbleCleared(video, bubble, frameOptions, () =>
-      cropFrozenFrame(video, bubble, labels, frameOptions),
+      cropFrozenFrame(
+        video,
+        bubble,
+        labels,
+        {
+          ...frameOptions,
+          clearBubble: options.clearBubble,
+        },
+        clearsFrame,
+      ),
     );
   } finally {
     tracks.forEach((track) => track.removeEventListener("ended", ended));
+    if (!clearsFrame) await options.clearBubble?.restore();
   }
 }
 
@@ -42,6 +53,7 @@ async function cropFrozenFrame(
   bubble: Document | null,
   labels: CropLabels,
   options: SharedFrameOptions,
+  clearsFrame: boolean,
 ): Promise<string | null> {
   const doc = document;
   const oldOpacity = bubble?.body.style.opacity || "";
@@ -56,6 +68,8 @@ async function cropFrozenFrame(
   let previousWindow: number | undefined;
   let foregroundChanged = false;
   let fullscreenStateChanged = false;
+  let fullscreenWatch: number | undefined;
+  let watchingFullscreen = false;
   const wasDomFullscreen = Boolean(doc.fullscreenElement);
   const cancelSelection = () =>
     doc.defaultView?.dispatchEvent(
@@ -153,7 +167,7 @@ async function cropFrozenFrame(
         view.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     };
     view.addEventListener("resize", scaleChanged);
-    if (bubble && !options.clearBubble) bubble.body.style.opacity = ".25";
+    if (bubble && !clearsFrame) bubble.body.style.opacity = ".25";
     await image.decode();
     options.signal?.throwIfAborted();
     doc.body.append(container);
@@ -166,7 +180,23 @@ async function cropFrozenFrame(
       labels,
       frame.width / image.getBoundingClientRect().width,
     );
-    options.clearBubble?.relaySelection?.(host);
+    // Native fullscreen can consume Escape before DOM keydown, without a
+    // fullscreenchange event. Keep selectCrop's existing DOM listener too.
+    watchingFullscreen = true;
+    fullscreenWatch = window.setInterval(() => {
+      void chrome.windows.get(opener.windowId!).then(
+        (native) => {
+          if (watchingFullscreen && native.state !== "fullscreen")
+            cancelSelection();
+        },
+        () => {
+          if (watchingFullscreen) cancelSelection();
+        },
+      );
+    }, 80);
+    // Browser/window sources do not require frame clearance, but the native
+    // bubble still needs an unobstructed selection surface and input relay.
+    options.clearBubble?.relaySelection?.(host, image);
     const rect = await selection;
     options.signal?.throwIfAborted();
     if (!rect) return null;
@@ -196,6 +226,8 @@ async function cropFrozenFrame(
       throw new Error("crop_fullscreen_denied");
     throw error;
   } finally {
+    watchingFullscreen = false;
+    window.clearInterval(fullscreenWatch);
     options.signal?.removeEventListener("abort", cancelSelection);
     // Record focus before native restoration can activate the opener. If the
     // user moved to another Chrome window during selection, keep that window.

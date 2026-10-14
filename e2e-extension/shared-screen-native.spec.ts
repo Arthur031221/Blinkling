@@ -10,7 +10,7 @@ import {
 import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { build } from "esbuild";
@@ -184,7 +184,8 @@ async function nativeClick(selector: string, bubble = false) {
       panel.evaluate(
         ({ bubble, selector }) => {
           const view = bubble ? window.documentPictureInPicture.window : window;
-          return Boolean(view?.document.querySelector(selector));
+          const target = view?.document.querySelector(selector);
+          return Boolean(target && !target.matches(":disabled"));
         },
         { bubble, selector },
       ),
@@ -473,9 +474,13 @@ chrome.runtime.onMessage.addListener(message => {
       "--no-sandbox",
       "--enable-unsafe-extension-debugging",
       "--window-position=0,0",
-      "--window-size=1200,900",
+      ...(testInfo.title.includes("fresh size")
+        ? []
+        : ["--window-size=1200,900"]),
       `--force-device-scale-factor=${dpi}`,
-      "--auto-select-desktop-capture-source=Entire screen",
+      ...(testInfo.title.includes("real picker")
+        ? []
+        : ["--auto-select-desktop-capture-source=Entire screen"]),
       "--host-resolver-rules=MAP *.glimpselet.test 127.0.0.1",
       "--no-proxy-server",
       ...(testInfo.title.includes("dedicated")
@@ -545,6 +550,7 @@ chrome.runtime.onMessage.addListener(message => {
       panel.evaluate(() => window.documentPictureInPicture.window!.outerWidth),
     )
     .toBe(380);
+  if (testInfo.title.includes("real picker")) return;
   await nativeClick("#share", true);
   await expect
     .poll(() =>
@@ -2242,3 +2248,739 @@ for (const mode of ["unpacked", "dedicated", "unpacked HiDPI"]) {
     );
   }
 }
+
+test("bucket 0: native fallback reveals frozen pixels and accepts a crop inside the bubble rectangle", async ({
+  browserName,
+}, testInfo) => {
+  expect(browserName).toBe("chromium");
+  await panel.evaluate(() => {
+    (window as NativeFixture).useNativeClearBubble = true;
+    const update = chrome.windows.update.bind(chrome.windows);
+    chrome.windows.update = ((id: number, change: chrome.windows.UpdateInfo) =>
+      change.state === "minimized"
+        ? Promise.reject(
+            new Error("Operation not allowed for picture-in-picture windows"),
+          )
+        : update(id, change)) as typeof chrome.windows.update;
+  });
+  await nativeClick("#crop", true);
+  const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+  await expect(frozen.locator(".surface")).toBeVisible();
+  await expect
+    .poll(() =>
+      panel.evaluate(() =>
+        Boolean(
+          window.documentPictureInPicture.window?.document.querySelector(
+            "[data-glimpselet-crop-mirror]",
+          ),
+        ),
+      ),
+    )
+    .toBe(true);
+  const point = await panel.evaluate(() => {
+    const view = window.documentPictureInPicture.window!;
+    return {
+      x: Math.round(
+        view.screenX + (view.outerWidth - view.innerWidth) / 2 + 180,
+      ),
+      y: Math.round(view.screenY + view.outerHeight - view.innerHeight + 150),
+    };
+  });
+  nativeInput("pointer", "10", "10", "move");
+  const path = testInfo.outputPath("fallback-frozen-surface.png");
+  execFileSync("ffmpeg", [
+    "-y",
+    "-loglevel",
+    "error",
+    "-f",
+    "x11grab",
+    "-video_size",
+    "1440x1000",
+    "-i",
+    display,
+    "-frames:v",
+    "1",
+    path,
+  ]);
+  await testInfo.attach("fallback-frozen-surface", {
+    path,
+    contentType: "image/png",
+  });
+  const pixel = await panel.evaluate(
+    async ({ png, point }) => {
+      const image = new Image();
+      image.src = "data:image/png;base64," + png;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(image, 0, 0);
+      return {
+        inside: [...ctx.getImageData(point.x, point.y, 1, 1).data],
+        outside: [...ctx.getImageData(500, 500, 1, 1).data],
+        // The target's white patch spans y=120..220 beneath PiP. Samples on
+        // either side establish alignment, not just a uniform blue fill.
+        patchEdges: [118, 122, 218, 222].map((y) => [
+          ...ctx.getImageData(60, y, 1, 1).data,
+        ]),
+      };
+    },
+    { png: (await readFile(path)).toString("base64"), point },
+  );
+  await attachJson(testInfo, "fallback-pixel", { point, pixel });
+  // The same blue target is visible through the frozen selector's #0005 dim.
+  for (let channel = 0; channel < 4; channel++)
+    expect(
+      Math.abs(pixel.inside[channel] - pixel.outside[channel]),
+    ).toBeLessThanOrEqual(8);
+  // Monitor video and native screenshot color conversions can round channels.
+  for (const [channel, expected] of [11, 60, 103, 255].entries())
+    expect(Math.abs(pixel.outside[channel] - expected)).toBeLessThanOrEqual(8);
+  for (const index of [0, 3])
+    for (let channel = 0; channel < 4; channel++)
+      expect(
+        Math.abs(pixel.patchEdges[index][channel] - pixel.inside[channel]),
+      ).toBeLessThanOrEqual(8);
+  // Monitor codecs can encode white at limited range; its contrast and exact
+  // edges must survive even when the resulting dimmed white is below 170.
+  for (const index of [1, 2]) {
+    for (const value of pixel.patchEdges[index].slice(0, 3))
+      expect(value).toBeGreaterThanOrEqual(140);
+    expect(pixel.patchEdges[index][3]).toBe(255);
+  }
+  nativeInput("pointer", String(point.x), String(point.y), "down");
+  nativeInput("pointer", String(point.x + 50), String(point.y + 40), "move");
+  nativeInput("pointer", String(point.x + 50), String(point.y + 40), "up");
+  await expect(frozen.locator("[data-handle]")).toHaveCount(8);
+  nativeInput("keys", "Return");
+  await expect(frozen).toHaveCount(0);
+  await expect
+    .poll(() => panel.evaluate(() => typeof (window as NativeFixture).result))
+    .toBe("string");
+  const result = await panel.evaluate(async () => {
+    const image = new Image();
+    image.src = (window as NativeFixture).result!;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(image, 0, 0);
+    return {
+      size: [image.width, image.height],
+      pixel: [...ctx.getImageData(10, 10, 1, 1).data],
+      mirror: Boolean(
+        window.documentPictureInPicture.window!.document.querySelector(
+          "[data-glimpselet-crop-mirror]",
+        ),
+      ),
+    };
+  });
+  expect(result).toEqual({
+    size: [50, 40],
+    pixel: [17, 90, 154, 255],
+    mirror: false,
+  });
+});
+
+for (const trigger of ["button", "Shift"]) {
+  test(`bucket 0: one Escape cancels ${trigger} crop through real native fullscreen`, async () => {
+    await panel.evaluate(() => {
+      (window as NativeFixture).useNativeClearBubble = true;
+      document.documentElement.requestFullscreen = async () => {
+        throw new DOMException("No activation", "NotAllowedError");
+      };
+    });
+    if (trigger === "button") await nativeClick("#crop", true);
+    else {
+      await nativeClick("#resize", true);
+      nativeInput("key-down", "Shift_L");
+    }
+    const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+    await expect(frozen.locator(".surface")).toBeVisible();
+    if (trigger === "Shift") nativeInput("key-up", "Shift_L");
+    nativeInput("keys", "Escape");
+    await expect(frozen).toHaveCount(0);
+    await expect
+      .poll(() => panel.evaluate(() => (window as NativeFixture).result))
+      .toBeNull();
+    expect(
+      await panel.evaluate(() =>
+        Boolean(
+          window.documentPictureInPicture.window!.document.querySelector(
+            "[data-glimpselet-crop-mirror]",
+          ),
+        ),
+      ),
+    ).toBe(false);
+  });
+}
+
+for (const [firstPosition, nextPosition] of [
+  [
+    [180, 120],
+    [980, 280],
+  ],
+  [
+    [980, 280],
+    [180, 120],
+  ],
+] as const)
+  test(`bucket 0: fresh size real picker preserves a separate working window on share and cancel (first ${firstPosition[0] === 180 ? "interior" : "corner"})`, async ({
+    browserName,
+  }, testInfo) => {
+    expect(browserName).toBe("chromium");
+    const worker = context.serviceWorkers()[0];
+    await panel.goto(
+      `chrome-extension://${new URL(worker.url()).host}/panel.html`,
+    );
+    await nativeClick(".float-start button");
+    await expect
+      .poll(() =>
+        panel.evaluate(() =>
+          Boolean(
+            window.documentPictureInPicture.window?.document.querySelector(
+              "textarea",
+            ),
+          ),
+        ),
+      )
+      .toBe(true);
+    const workingOpened = context.waitForEvent("page");
+    const working = await panel.evaluate(() =>
+      chrome.windows.create({
+        url: "data:text/html,<title>Working page</title><style>body{background:%23125a9c}</style><h1>Keep working here</h1>",
+        focused: true,
+      }),
+    );
+    site = await workingOpened;
+    await site.waitForLoadState();
+    const previousOpened = context.waitForEvent("page");
+    const previous = await panel.evaluate(async () => {
+      const opener = await chrome.tabs.getCurrent();
+      return chrome.tabs.create({
+        windowId: opener!.windowId,
+        active: true,
+        url: "data:text/html,<title>Previous tab</title>Restore this tab",
+      });
+    });
+    await (await previousOpened).waitForLoadState();
+    const bubbleBounds = () =>
+      panel.evaluate(async () => {
+        const native = (await chrome.windows.getAll()).find(
+          (w) => w.alwaysOnTop,
+        );
+        return {
+          left: native?.left,
+          top: native?.top,
+          width: native?.width,
+          height: native?.height,
+        };
+      });
+    await panel.evaluate(() => {
+      const input =
+        window.documentPictureInPicture.window!.document.querySelector(
+          "textarea",
+        )!;
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )!.set!.call(input, "Keep my draft");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    // Exercise the first share at each placement in separate fresh profiles,
+    // then preserve the user's subsequent move on a second, cancelled picker.
+    // No browser window size flag influences these profiles.
+    for (const [left, top, outcome] of [
+      [...firstPosition, "share"],
+      [...nextPosition, "cancel"],
+    ] as const) {
+      await panel.evaluate(
+        async ({ left, top }) => {
+          const bubble = (await chrome.windows.getAll()).find(
+            (w) => w.alwaysOnTop,
+          )!;
+          await chrome.windows.update(bubble.id!, { left, top });
+        },
+        { left, top },
+      );
+      await expect.poll(bubbleBounds).toMatchObject({ left, top });
+      const original = await bubbleBounds();
+      await site.bringToFront();
+      await nativeClick(`.capture-buttons button:first-child`, true);
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            () =>
+              window.documentPictureInPicture.window!.document.querySelector(
+                ".status",
+              )?.textContent,
+          ),
+        )
+        .toBe(en.screenPicker);
+      await expect
+        .poll(() =>
+          panel.evaluate(async () => {
+            const opener = await chrome.tabs.getCurrent();
+            return (await chrome.windows.get(opener!.windowId)).focused;
+          }),
+        )
+        .toBe(true);
+      const path = testInfo.outputPath(`real-picker-${outcome}.png`);
+      execFileSync("ffmpeg", [
+        "-y",
+        "-loglevel",
+        "error",
+        "-f",
+        "x11grab",
+        "-video_size",
+        "1440x1000",
+        "-i",
+        display,
+        "-frames:v",
+        "1",
+        path,
+      ]);
+      await testInfo.attach(`real-picker-${outcome}`, {
+        path,
+        contentType: "image/png",
+      });
+      if (outcome === "cancel") nativeInput("keys", "Escape");
+      else {
+        // Chrome's native picker starts on the tab list. Select Entire Screen,
+        // choose its sole monitor, then activate Share using genuine input.
+        nativeInput(
+          "keys",
+          "Tab",
+          "End",
+          "Tab",
+          "space",
+          "Tab",
+          "Tab",
+          "Return",
+        );
+      }
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            (pending) =>
+              window.documentPictureInPicture.window?.document.querySelector(
+                ".status",
+              )?.textContent ?? pending,
+            en.screenPicker,
+          ),
+        )
+        .not.toBe(en.screenPicker);
+      await expect.poll(bubbleBounds).toEqual(original);
+      await expect
+        .poll(() =>
+          panel.evaluate(
+            async (id) => (await chrome.windows.get(id)).focused,
+            working!.id!,
+          ),
+        )
+        .toBe(true);
+      expect(
+        await panel.evaluate(
+          async (id) => (await chrome.tabs.get(id)).active,
+          previous.id!,
+        ),
+      ).toBe(true);
+      expect(
+        await panel.evaluate(
+          () =>
+            window.documentPictureInPicture.window!.document.querySelector<HTMLTextAreaElement>(
+              "textarea",
+            )!.value,
+        ),
+      ).toBe("Keep my draft");
+      await expect
+        .poll(() =>
+          panel.evaluate(() =>
+            Boolean(
+              window.documentPictureInPicture.window!.document.querySelector(
+                ".capture-chip",
+              ),
+            ),
+          ),
+        )
+        .toBe(true);
+      if (outcome === "share") {
+        await panel.evaluate(() => {
+          const video = document.querySelector("video")!;
+          for (const track of (video.srcObject as MediaStream).getTracks()) {
+            track.stop();
+            track.dispatchEvent(new Event("ended"));
+          }
+        });
+        await expect
+          .poll(() =>
+            panel.evaluate(() =>
+              Boolean(
+                (
+                  document.querySelector("video")
+                    ?.srcObject as MediaStream | null
+                )?.active,
+              ),
+            ),
+          )
+          .toBe(false);
+      }
+    }
+    // Choose a real browser tab as well. Escape must work when Chrome consumes
+    // it for native fullscreen and when a genuine DOM fullscreen exits.
+    await nativeClick(".capture-buttons button:first-child", true);
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          (pending) =>
+            window.documentPictureInPicture.window?.document.querySelector(
+              ".status",
+            )?.textContent ?? pending,
+          en.screenPicker,
+        ),
+      )
+      .toBe(en.screenPicker);
+    // The native picker remembers its last category. Click the tab category
+    // directly rather than assuming which control receives initial Tab focus.
+    // Its dialog is centered in the opener's content area; include Chrome's
+    // native frame (and Chromium's testing banner) in desktop coordinates.
+    const pickerOrigin = await panel.evaluate(() => ({
+      centerX: window.screenX + window.outerWidth / 2,
+      contentTop: window.screenY + window.outerHeight - window.innerHeight,
+      scale: window.devicePixelRatio,
+    }));
+    const pickerClick = (offsetX: number, offsetY: number) =>
+      nativeInput(
+        "click",
+        String(
+          Math.round((pickerOrigin.centerX + offsetX) * pickerOrigin.scale),
+        ),
+        String(
+          Math.round((pickerOrigin.contentTop + offsetY) * pickerOrigin.scale),
+        ),
+      );
+    const tabPicker = testInfo.outputPath("real-picker-tab.png");
+    execFileSync("ffmpeg", [
+      "-y",
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-video_size",
+      "1440x1000",
+      "-i",
+      display,
+      "-frames:v",
+      "1",
+      tabPicker,
+    ]);
+    pickerClick(-188, 80);
+    execFileSync("ffmpeg", [
+      "-y",
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-video_size",
+      "1440x1000",
+      "-i",
+      display,
+      "-frames:v",
+      "1",
+      tabPicker,
+    ]);
+    await testInfo.attach("real-picker-tab", {
+      path: tabPicker,
+      contentType: "image/png",
+    });
+    pickerClick(-175, 180);
+    nativeInput("keys", "Return");
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (document.querySelector("video")!.srcObject as MediaStream)
+              ?.getVideoTracks()[0]
+              ?.getSettings().displaySurface,
+        ),
+      )
+      .toBe("browser");
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            window.documentPictureInPicture.window!.document.querySelector<HTMLButtonElement>(
+              ".capture-buttons button:nth-child(2)",
+            )!.disabled,
+        ),
+      )
+      .toBe(false);
+    const captureBefore = await panel.evaluate(
+      () =>
+        window.documentPictureInPicture.window!.document.querySelector<HTMLImageElement>(
+          ".capture-chip img",
+        )!.src,
+    );
+    for (const mode of ["native", "DOM"] as const) {
+      for (const trigger of ["button", "Shift"] as const) {
+        await panel.evaluate((mode) => {
+          document.documentElement.requestFullscreen =
+            mode === "native"
+              ? async () => {
+                  throw new DOMException("No activation", "NotAllowedError");
+                }
+              : HTMLElement.prototype.requestFullscreen;
+          if (mode === "DOM") {
+            const button = document.createElement("button");
+            button.id = "dom-fullscreen";
+            button.textContent = "Enter DOM fullscreen";
+            button.style.cssText =
+              "position:fixed;left:10px;top:10px;z-index:2147483647";
+            button.onclick = () =>
+              void document.documentElement.requestFullscreen();
+            document.body.append(button);
+          }
+        }, mode);
+        if (mode === "DOM") {
+          await nativeClick("#dom-fullscreen");
+          await expect
+            .poll(() =>
+              panel.evaluate(() => Boolean(document.fullscreenElement)),
+            )
+            .toBe(true);
+          await panel.evaluate(() =>
+            document.querySelector("#dom-fullscreen")!.remove(),
+          );
+        }
+        if (trigger === "button")
+          await nativeClick(".capture-buttons button:nth-child(2)", true);
+        else {
+          await nativeClick(".brand-copy strong", true);
+          nativeInput("key-down", "Shift_L");
+        }
+        const frozen = panel.locator("[data-glimpselet-frozen-crop]");
+        await expect(frozen.locator(".surface")).toBeVisible();
+        if (trigger === "Shift") nativeInput("key-up", "Shift_L");
+        const fullscreen = await panel.evaluate(async () => {
+          const opener = await chrome.tabs.getCurrent();
+          return {
+            DOM: Boolean(document.fullscreenElement),
+            native: (await chrome.windows.get(opener!.windowId)).state,
+          };
+        });
+        expect(fullscreen).toEqual({
+          DOM: mode === "DOM",
+          native: "fullscreen",
+        });
+        await attachJson(testInfo, `browser-${mode}-${trigger}`, fullscreen);
+        nativeInput("keys", "Escape");
+        await expect(frozen).toHaveCount(0);
+        await expect
+          .poll(() =>
+            panel.evaluate(
+              () =>
+                window.documentPictureInPicture.window!.document.body.dataset
+                  .bubbleState,
+            ),
+          )
+          .not.toBe("crop");
+        expect(
+          await panel.evaluate(
+            () =>
+              window.documentPictureInPicture.window!.document.querySelector<HTMLImageElement>(
+                ".capture-chip img",
+              )!.src,
+          ),
+        ).toBe(captureBefore);
+        expect(
+          await panel.evaluate(() =>
+            Boolean(
+              window.documentPictureInPicture.window!.document.querySelector(
+                "[data-glimpselet-crop-mirror]",
+              ),
+            ),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
+test("bucket 0: fresh size Blink tucks the native minimum and restores capture and draft", async ({
+  browserName,
+}, testInfo) => {
+  expect(browserName).toBe("chromium");
+  const worker = context.serviceWorkers()[0];
+  await panel.goto(
+    `chrome-extension://${new URL(worker.url()).host}/panel.html`,
+  );
+  await nativeClick(".float-start button");
+  await expect
+    .poll(() =>
+      panel.evaluate(() => {
+        const view = window.documentPictureInPicture.window;
+        return view && [view.innerWidth, view.innerHeight];
+      }),
+    )
+    .toEqual([420, 650]);
+  await expect
+    .poll(() =>
+      panel.evaluate(() =>
+        Boolean(
+          window.documentPictureInPicture.window?.document.querySelector(
+            "textarea",
+          ),
+        ),
+      ),
+    )
+    .toBe(true);
+  await panel.evaluate(() => {
+    const input =
+      window.documentPictureInPicture.window!.document.querySelector(
+        "textarea",
+      )!;
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(input, "Draft before minimizing");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await site.bringToFront();
+  await nativeClick(".capture-buttons button:first-child", true);
+  await expect
+    .poll(() =>
+      panel.evaluate(() =>
+        Boolean(
+          window.documentPictureInPicture.window?.document.querySelector(
+            ".capture-chip",
+          ),
+        ),
+      ),
+    )
+    .toBe(true);
+  const bounds = () =>
+    panel.evaluate(async () => {
+      const bubble = (await chrome.windows.getAll()).find(
+        (w) => w.alwaysOnTop,
+      )!;
+      return {
+        left: bubble.left,
+        top: bubble.top,
+        width: bubble.width,
+        height: bubble.height,
+      };
+    });
+  const original = await bounds();
+  await nativeClick(`button[aria-label="${en.compact}"]`, true);
+  await expect
+    .poll(async () => (await bounds()).height!)
+    .toBeLessThan(original.height!);
+  await expect
+    .poll(async () => {
+      const b = await bounds();
+      return b.left! + Math.ceil(b.width! / 2);
+    })
+    .toBe(1440);
+  const minimized = await bounds();
+  await attachJson(testInfo, "fresh-native-dimensions", {
+    original,
+    minimized,
+  });
+  const floating = context
+    .pages()
+    .filter((page) => page.url() === "about:blank")
+    .at(-1)!;
+  for (const colorScheme of ["light", "dark"] as const) {
+    await floating.emulateMedia({ colorScheme });
+    await expect(floating.locator(".blink-dot img")).toHaveAttribute(
+      "src",
+      /icons\/blink-128\.png$/,
+    );
+    await expect
+      .poll(() =>
+        floating
+          .locator(".blink-dot img")
+          .evaluate((image) => (image as HTMLImageElement).naturalWidth),
+      )
+      .toBe(128);
+    const path = testInfo.outputPath(`minimized-${colorScheme}.png`);
+    execFileSync("ffmpeg", [
+      "-y",
+      "-loglevel",
+      "error",
+      "-f",
+      "x11grab",
+      "-video_size",
+      "1440x1000",
+      "-i",
+      display,
+      "-frames:v",
+      "1",
+      path,
+    ]);
+    await testInfo.attach(`minimized-${colorScheme}`, {
+      path,
+      contentType: "image/png",
+    });
+  }
+  await panel.evaluate(() => window.documentPictureInPicture.window!.focus());
+  await expect
+    .poll(() =>
+      panel.evaluate(() =>
+        window.documentPictureInPicture.window!.document.hasFocus(),
+      ),
+    )
+    .toBe(true);
+  const point = await panel.evaluate(() => {
+    const view = window.documentPictureInPicture.window!;
+    const dot = view.document
+      .querySelector(".blink-dot")!
+      .getBoundingClientRect();
+    return {
+      x:
+        view.screenX +
+        (view.outerWidth - view.innerWidth) / 2 +
+        dot.x +
+        dot.width / 2,
+      y:
+        view.screenY +
+        view.outerHeight -
+        view.innerHeight +
+        dot.y +
+        dot.height / 2,
+    };
+  });
+  nativeInput(
+    "pointer",
+    String(Math.round(point.x)),
+    String(Math.round(point.y)),
+    "down",
+  );
+  await expect
+    .poll(() =>
+      floating.locator(".blink-dot").evaluate((dot) => dot.matches(":active")),
+    )
+    .toBe(true);
+  nativeInput("pointer", String(Math.round(point.x)), "400", "move");
+  nativeInput("pointer", String(Math.round(point.x)), "400", "up");
+  await expect
+    .poll(() =>
+      worker.evaluate(
+        async () =>
+          (await chrome.storage.local.get("blinkDock")).blinkDock?.edge,
+      ),
+    )
+    .toBe("right");
+  await nativeClick(".blink-dot", true);
+  await expect.poll(bounds).toEqual(original);
+  expect(
+    await panel.evaluate(() => {
+      const doc = window.documentPictureInPicture.window!.document;
+      return {
+        draft: doc.querySelector<HTMLTextAreaElement>("textarea")!.value,
+        capture: Boolean(doc.querySelector(".capture-chip")),
+      };
+    }),
+  ).toEqual({ draft: "Draft before minimizing", capture: true });
+});

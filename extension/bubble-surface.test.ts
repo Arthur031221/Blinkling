@@ -1,10 +1,28 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { bindBubbleSurface, dockBlink, readBlinkDock } from "./bubble-surface";
 
 afterEach(() => {
   document.body.innerHTML = "";
 });
 describe("bubble visibility", () => {
+  it("keeps window backgrounds clear so fading content does not paint another paper layer", () => {
+    const style = document.createElement("style");
+    style.textContent = readFileSync("extension/style.css", "utf8");
+    document.head.append(style);
+    try {
+      const rules = [...style.sheet!.cssRules] as CSSStyleRule[];
+      for (const selector of [":root", "body"]) {
+        expect(
+          rules.find((rule) => rule.selectorText === selector)!.style
+            .background,
+        ).toBe("transparent");
+      }
+    } finally {
+      style.remove();
+    }
+  });
+
   it("fades to 35%, hovers at 75%, wakes on a click anywhere, then idles on exit", () => {
     const surface = document.createElement("main");
     const child = document.createElement("button");

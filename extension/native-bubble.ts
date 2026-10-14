@@ -3,6 +3,84 @@ import { relayBubbleCropInput } from "./bubble-crop-input";
 
 const pendingClearance = new WeakMap<Window, Promise<void>>();
 
+/** Chrome's picker is tab-modal on some desktops. Raise its owner briefly,
+ * then restore the working page and the geometry from before the picker. */
+export async function withScreenPicker<T>(
+  floating: Window,
+  sourceTabId: number | undefined,
+  pick: () => Promise<T>,
+): Promise<T> {
+  if (!chrome.windows.getAll) return pick();
+  const opener = await chrome.tabs.getCurrent();
+  const windows = await chrome.windows.getAll({ populate: true });
+  const original = windows.find(
+    (native) =>
+      native.alwaysOnTop &&
+      native.tabs?.some(
+        (tab) => tab.openerTabId === opener?.id && tab.url === "about:blank",
+      ),
+  );
+  const source =
+    sourceTabId === undefined
+      ? undefined
+      : await chrome.tabs.get(sourceTabId).catch(() => undefined);
+  const foreground = windows.find(
+    (native) => native.focused && !native.alwaysOnTop,
+  );
+  const returnWindow = foreground?.id ?? source?.windowId;
+  const [previousTab] =
+    opener?.windowId === undefined
+      ? []
+      : await chrome.tabs.query({ active: true, windowId: opener.windowId });
+  try {
+    if (original?.id !== undefined) {
+      // An always-on-top bubble otherwise covers the tab-modal picker's source
+      // list. Park it at the edge while the picker owns input, then restore the
+      // exact user placement on either outcome.
+      const area = floating.screen as Screen & { availLeft?: number };
+      await chrome.windows.update(original.id, {
+        left: Math.floor(
+          (area.availLeft || 0) +
+            area.availWidth -
+            Math.ceil((original.width || floating.outerWidth) / 2),
+        ),
+      });
+    }
+    if (opener?.windowId !== undefined) {
+      await chrome.windows.update(opener.windowId, { focused: true });
+      if (opener.id !== undefined)
+        await chrome.tabs.update(opener.id, { active: true });
+    }
+    return await pick();
+  } finally {
+    const current = (await chrome.windows.getAll()).find(
+      (native) => native.focused && !native.alwaysOnTop,
+    );
+    if (original?.id !== undefined && !floating.closed) {
+      await chrome.windows
+        .update(original.id, {
+          left: original.left,
+          top: original.top,
+          width: original.width,
+          height: original.height,
+        })
+        .catch(() => {});
+    }
+    if (previousTab?.id !== undefined && previousTab.id !== opener?.id)
+      await chrome.tabs
+        .update(previousTab.id, { active: true })
+        .catch(() => {});
+    const destination =
+      current?.id !== opener?.windowId
+        ? (current?.id ?? returnWindow)
+        : returnWindow;
+    if (destination !== undefined)
+      await chrome.windows
+        .update(destination, { focused: true })
+        .catch(() => {});
+  }
+}
+
 export type BubbleReplacement = {
   close: () => void;
   open: () => Promise<Window>;
@@ -107,9 +185,10 @@ export function nativeBubbleClearance(
       selectionOpacity = replacementWindow!.document.body.style.opacity;
       replacementWindow!.document.body.style.opacity = ".25";
     },
-    relaySelection: (host) => {
-      if (replacementWindow)
-        stopSelectionRelay = relayBubbleCropInput(replacementWindow, host);
+    relaySelection: (host, image) => {
+      const selectionWindow = replacementWindow || floating;
+      if (!selectionWindow.closed)
+        stopSelectionRelay = relayBubbleCropInput(selectionWindow, host, image);
     },
     restore: async () => {
       try {

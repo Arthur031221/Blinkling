@@ -3,11 +3,12 @@ export type SharedFrameOptions = {
   // Native clearance must be verified: hide returns true after confirming the
   // window is minimized, or closes the window. CSS opacity is insufficient.
   // Restore is called even if hide fails, so each hook must support rollback.
+  // Browser/window crops can use only the selection relay, without hide.
   clearBubble?: {
     hide: () => Promise<boolean | void>;
     restore: () => Promise<void>;
     prepareSelection?: () => Promise<void>;
-    relaySelection?: (host: HTMLElement) => void;
+    relaySelection?: (host: HTMLElement, image: HTMLImageElement) => void;
   };
   signal?: AbortSignal;
 };

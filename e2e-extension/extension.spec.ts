@@ -4994,7 +4994,7 @@ test("native Blink minimizes at the screen edge and restores its window position
     .poll(async () => {
       const compact = await bounds();
       return {
-        right: compact.left! + compact.width!,
+        right: compact.left! + Math.ceil(compact.width! / 2),
         bottom: compact.top! + compact.height!,
       };
     })

@@ -145,12 +145,32 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.body.replaceChildren();
 });
 
 describe("foreground shared screen crop", () => {
+  it("removes selection before restoring a monitor bubble closed for clearance", async () => {
+    const bubble = document.implementation.createHTMLDocument();
+    const view = { closed: false };
+    Object.defineProperty(bubble, "defaultView", { value: view });
+    const clearBubble = {
+      hide: vi.fn(async () => {
+        view.closed = true;
+        return true;
+      }),
+      restore: vi.fn(async () => {
+        expect(
+          document.querySelector("[data-glimpselet-frozen-crop]"),
+        ).toBeNull();
+      }),
+    };
+    await cropSharedScreen(video, bubble, labels, { clearBubble });
+    expect(clearBubble.restore).toHaveBeenCalledOnce();
+  });
+
   it("restores the compatibility bubble after freezing but before fullscreen consumes activation", async () => {
     const bubble = document.implementation.createHTMLDocument();
     Object.defineProperty(bubble, "defaultView", { value: { closed: false } });
@@ -249,7 +269,7 @@ describe("foreground shared screen crop", () => {
       ).toBeNull();
       expect(selectionOpacity).toBe("0.25");
       expect(clearBubble.hide).not.toHaveBeenCalled();
-      expect(clearBubble.restore).not.toHaveBeenCalled();
+      expect(clearBubble.restore).toHaveBeenCalledOnce();
       expect(bubble.body.style.opacity).toBe("0.8");
     },
   );
@@ -374,6 +394,36 @@ describe("native fullscreen shared screen crop", () => {
       100,
       100,
     );
+  });
+
+  it("cancels when native fullscreen consumes Escape without delivering a DOM key", async () => {
+    vi.useFakeTimers();
+    vi.mocked(document.documentElement.requestFullscreen).mockRejectedValue(
+      new DOMException("No activation", "NotAllowedError"),
+    );
+    let selecting = false;
+    vi.mocked(selectCrop).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          selecting = true;
+          window.addEventListener(
+            "keydown",
+            (event) => {
+              if (event.key === "Escape") resolve(null);
+            },
+            { once: true },
+          );
+        }),
+    );
+    const pending = cropSharedScreen(video, null, labels);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(selecting).toBe(true);
+    native.state = "normal";
+    await vi.advanceTimersByTimeAsync(500);
+    expect(document.querySelector("[data-glimpselet-frozen-crop]")).toBeNull();
+    await expect(pending).resolves.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
   });
 
   it("uses native fullscreen when the DOM request rejects", async () => {

@@ -85,6 +85,7 @@
   "settings": "设置",
   "shareEnded": "屏幕共享已结束。",
   "shareNeedsFloat": "共享屏幕前请先打开浮动面板。",
+  "screenPicker": "请选择要截取的画面…",
   "sharing": "共享中",
   "siteAccess": "请在浏览器提示中允许 Glimpselet 访问此网站。",
   "siteNeedPermission": "读取此网站前需要先授权。",

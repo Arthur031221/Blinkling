@@ -12403,7 +12403,9 @@ async function placeBubbleWindow(floating, destination, isCurrent) {
     )
   );
   await chrome.windows.update(native.id, {
-    left: Math.round(area.left + area.width - width),
+    // Chrome requires at least half the native rectangle on a display. Tuck
+    // the unused half away; CSS alone cannot shrink the browser's minimum.
+    left: Math.floor(area.left + area.width - Math.ceil(width / 2)),
     top: Math.round(top)
   });
 }
@@ -17498,9 +17500,10 @@ async function cropSharedScreen(video, bubble, labels, options = {}) {
   const tracks = video.srcObject?.getVideoTracks() || [];
   const ended = () => controller.abort(new Error("share_ended"));
   const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
+  const clearsFrame = needsSharedFrameClearance(video, bubble);
   const frameOptions = {
     ...options,
-    clearBubble: needsSharedFrameClearance(video, bubble) ? options.clearBubble : void 0,
+    clearBubble: clearsFrame ? options.clearBubble : void 0,
     signal
   };
   tracks.forEach((track) => track.addEventListener("ended", ended));
@@ -17509,13 +17512,23 @@ async function cropSharedScreen(video, bubble, labels, options = {}) {
       video,
       bubble,
       frameOptions,
-      () => cropFrozenFrame(video, bubble, labels, frameOptions)
+      () => cropFrozenFrame(
+        video,
+        bubble,
+        labels,
+        {
+          ...frameOptions,
+          clearBubble: options.clearBubble
+        },
+        clearsFrame
+      )
     );
   } finally {
     tracks.forEach((track) => track.removeEventListener("ended", ended));
+    if (!clearsFrame) await options.clearBubble?.restore();
   }
 }
-async function cropFrozenFrame(video, bubble, labels, options) {
+async function cropFrozenFrame(video, bubble, labels, options, clearsFrame) {
   const doc = document;
   const oldOpacity = bubble?.body.style.opacity || "";
   if (bubble) bubble.body.style.opacity = "0";
@@ -17527,6 +17540,8 @@ async function cropFrozenFrame(video, bubble, labels, options) {
   let previousWindow;
   let foregroundChanged = false;
   let fullscreenStateChanged = false;
+  let fullscreenWatch;
+  let watchingFullscreen = false;
   const wasDomFullscreen = Boolean(doc.fullscreenElement);
   const cancelSelection = () => doc.defaultView?.dispatchEvent(
     new KeyboardEvent("keydown", { key: "Escape" })
@@ -17610,7 +17625,7 @@ async function cropFrozenFrame(video, bubble, labels, options) {
         view.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     };
     view.addEventListener("resize", scaleChanged);
-    if (bubble && !options.clearBubble) bubble.body.style.opacity = ".25";
+    if (bubble && !clearsFrame) bubble.body.style.opacity = ".25";
     await image.decode();
     options.signal?.throwIfAborted();
     doc.body.append(container);
@@ -17623,7 +17638,19 @@ async function cropFrozenFrame(video, bubble, labels, options) {
       labels,
       frame.width / image.getBoundingClientRect().width
     );
-    options.clearBubble?.relaySelection?.(host);
+    watchingFullscreen = true;
+    fullscreenWatch = window.setInterval(() => {
+      void chrome.windows.get(opener.windowId).then(
+        (native) => {
+          if (watchingFullscreen && native.state !== "fullscreen")
+            cancelSelection();
+        },
+        () => {
+          if (watchingFullscreen) cancelSelection();
+        }
+      );
+    }, 80);
+    options.clearBubble?.relaySelection?.(host, image);
     const rect = await selection;
     options.signal?.throwIfAborted();
     if (!rect) return null;
@@ -17648,6 +17675,8 @@ async function cropFrozenFrame(video, bubble, labels, options) {
       throw new Error("crop_fullscreen_denied");
     throw error;
   } finally {
+    watchingFullscreen = false;
+    window.clearInterval(fullscreenWatch);
     options.signal?.removeEventListener("abort", cancelSelection);
     const foreground = foregroundChanged ? await chrome.windows.getLastFocused().catch(() => void 0) : void 0;
     const restoreFocus = foreground?.focused && foreground.id !== browserWindow?.id ? foreground.id : foreground?.focused === false ? void 0 : previousWindow;
@@ -17686,13 +17715,56 @@ async function cropFrozenFrame(video, bubble, labels, options) {
 }
 
 // extension/bubble-crop-input.ts
-function relayBubbleCropInput(floating, host) {
+function contentOrigin(view) {
+  const border = (view.outerWidth - view.innerWidth) / 2;
+  return {
+    screenX: view.screenX + border,
+    screenY: view.screenY + view.outerHeight - view.innerHeight - border
+  };
+}
+function relayBubbleCropInput(floating, host, frozenImage) {
   const view = host.ownerDocument.defaultView;
   const surface = host.shadowRoot.querySelector(".surface");
-  const position = (event) => ({
-    clientX: event.screenX - view.screenX - (view.outerWidth - view.innerWidth) / 2,
-    clientY: event.screenY - view.screenY - (view.outerHeight - view.innerHeight)
-  });
+  const mirror = frozenImage ? floating.document.createElement("div") : void 0;
+  const root = mirror?.attachShadow({ mode: "open" });
+  let observer;
+  const refresh = () => {
+    if (!root || !frozenImage) return;
+    const stage = floating.document.createElement("div");
+    const offset = position(contentOrigin(floating));
+    stage.style.cssText = `position:absolute;width:${view.innerWidth}px;height:${view.innerHeight}px;transform:translate(${-offset.clientX}px,${-offset.clientY}px);transform-origin:0 0;`;
+    const image = frozenImage.cloneNode();
+    const bounds = frozenImage.getBoundingClientRect();
+    image.style.position = "absolute";
+    image.style.left = `${bounds.left}px`;
+    image.style.top = `${bounds.top}px`;
+    stage.append(image);
+    for (const element of host.shadowRoot.children)
+      stage.append(element.cloneNode(true));
+    root.replaceChildren(stage);
+  };
+  const position = (event) => {
+    const origin = contentOrigin(view);
+    return {
+      clientX: event.screenX - origin.screenX,
+      clientY: event.screenY - origin.screenY
+    };
+  };
+  if (mirror) {
+    mirror.dataset.glimpseletCropMirror = "true";
+    mirror.style.cssText = "position:fixed;inset:0;overflow:hidden;z-index:2147483647;opacity:1;background:#171410;pointer-events:auto;cursor:crosshair";
+    floating.document.documentElement.append(mirror);
+    refresh();
+    observer = new MutationObserver(refresh);
+    observer.observe(host.shadowRoot, {
+      subtree: true,
+      attributes: true,
+      childList: true,
+      characterData: true
+    });
+    floating.addEventListener("resize", refresh);
+    view.addEventListener("scroll", refresh, true);
+  }
   const target = (event) => {
     const p = position(event);
     return host.shadowRoot.elementFromPoint(p.clientX, p.clientY) || surface;
@@ -17758,6 +17830,10 @@ function relayBubbleCropInput(floating, host) {
   floating.addEventListener("click", click, true);
   floating.addEventListener("keydown", key, true);
   return () => {
+    observer?.disconnect();
+    mirror?.remove();
+    floating.removeEventListener("resize", refresh);
+    view.removeEventListener("scroll", refresh, true);
     for (const type of pointerEvents)
       floating.removeEventListener(type, pointer, true);
     floating.removeEventListener("click", click, true);
@@ -17767,6 +17843,58 @@ function relayBubbleCropInput(floating, host) {
 
 // extension/native-bubble.ts
 var pendingClearance = /* @__PURE__ */ new WeakMap();
+async function withScreenPicker(floating, sourceTabId, pick) {
+  if (!chrome.windows.getAll) return pick();
+  const opener = await chrome.tabs.getCurrent();
+  const windows = await chrome.windows.getAll({ populate: true });
+  const original = windows.find(
+    (native) => native.alwaysOnTop && native.tabs?.some(
+      (tab) => tab.openerTabId === opener?.id && tab.url === "about:blank"
+    )
+  );
+  const source = sourceTabId === void 0 ? void 0 : await chrome.tabs.get(sourceTabId).catch(() => void 0);
+  const foreground = windows.find(
+    (native) => native.focused && !native.alwaysOnTop
+  );
+  const returnWindow = foreground?.id ?? source?.windowId;
+  const [previousTab] = opener?.windowId === void 0 ? [] : await chrome.tabs.query({ active: true, windowId: opener.windowId });
+  try {
+    if (original?.id !== void 0) {
+      const area = floating.screen;
+      await chrome.windows.update(original.id, {
+        left: Math.floor(
+          (area.availLeft || 0) + area.availWidth - Math.ceil((original.width || floating.outerWidth) / 2)
+        )
+      });
+    }
+    if (opener?.windowId !== void 0) {
+      await chrome.windows.update(opener.windowId, { focused: true });
+      if (opener.id !== void 0)
+        await chrome.tabs.update(opener.id, { active: true });
+    }
+    return await pick();
+  } finally {
+    const current = (await chrome.windows.getAll()).find(
+      (native) => native.focused && !native.alwaysOnTop
+    );
+    if (original?.id !== void 0 && !floating.closed) {
+      await chrome.windows.update(original.id, {
+        left: original.left,
+        top: original.top,
+        width: original.width,
+        height: original.height
+      }).catch(() => {
+      });
+    }
+    if (previousTab?.id !== void 0 && previousTab.id !== opener?.id)
+      await chrome.tabs.update(previousTab.id, { active: true }).catch(() => {
+      });
+    const destination = current?.id !== opener?.windowId ? current?.id ?? returnWindow : returnWindow;
+    if (destination !== void 0)
+      await chrome.windows.update(destination, { focused: true }).catch(() => {
+      });
+  }
+}
 function nativeBubbleClearance(floating, replacement) {
   let original;
   let changed = false;
@@ -17846,9 +17974,10 @@ function nativeBubbleClearance(floating, replacement) {
       selectionOpacity = replacementWindow.document.body.style.opacity;
       replacementWindow.document.body.style.opacity = ".25";
     },
-    relaySelection: (host) => {
-      if (replacementWindow)
-        stopSelectionRelay = relayBubbleCropInput(replacementWindow, host);
+    relaySelection: (host, image) => {
+      const selectionWindow = replacementWindow || floating;
+      if (!selectionWindow.closed)
+        stopSelectionRelay = relayBubbleCropInput(selectionWindow, host, image);
     },
     restore: async () => {
       try {
@@ -18122,6 +18251,7 @@ var en_default = {
   settings: "Settings",
   shareEnded: "Screen sharing ended.",
   shareNeedsFloat: "Open the floating panel before sharing your screen.",
+  screenPicker: "Choose a screen in the picker\u2026",
   sharing: "Sharing",
   siteAccess: "Allow Glimpselet access to this site in the browser prompt.",
   siteNeedPermission: "This site needs permission before Glimpselet can read it.",
@@ -18291,6 +18421,7 @@ var zh_TW_default = {
   settings: "\u8A2D\u5B9A",
   shareEnded: "\u87A2\u5E55\u5206\u4EAB\u5DF2\u7D50\u675F\u3002",
   shareNeedsFloat: "\u5206\u4EAB\u87A2\u5E55\u524D\u8ACB\u5148\u958B\u555F\u6D6E\u52D5\u9762\u677F\u3002",
+  screenPicker: "\u8ACB\u9078\u64C7\u8981\u622A\u53D6\u7684\u756B\u9762\u2026",
   sharing: "\u5206\u4EAB\u4E2D",
   siteAccess: "\u8ACB\u5728\u700F\u89BD\u5668\u63D0\u793A\u4E2D\u5141\u8A31 Glimpselet \u5B58\u53D6\u6B64\u7DB2\u7AD9\u3002",
   siteNeedPermission: "\u8B80\u53D6\u6B64\u7DB2\u7AD9\u524D\u9700\u8981\u5148\u6388\u6B0A\u3002",
@@ -18460,6 +18591,7 @@ var zh_CN_default = {
   settings: "\u8BBE\u7F6E",
   shareEnded: "\u5C4F\u5E55\u5171\u4EAB\u5DF2\u7ED3\u675F\u3002",
   shareNeedsFloat: "\u5171\u4EAB\u5C4F\u5E55\u524D\u8BF7\u5148\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u3002",
+  screenPicker: "\u8BF7\u9009\u62E9\u8981\u622A\u53D6\u7684\u753B\u9762\u2026",
   sharing: "\u5171\u4EAB\u4E2D",
   siteAccess: "\u8BF7\u5728\u6D4F\u89C8\u5668\u63D0\u793A\u4E2D\u5141\u8BB8 Glimpselet \u8BBF\u95EE\u6B64\u7F51\u7AD9\u3002",
   siteNeedPermission: "\u8BFB\u53D6\u6B64\u7F51\u7AD9\u524D\u9700\u8981\u5148\u6388\u6743\u3002",
@@ -18629,6 +18761,7 @@ var ja_default = {
   settings: "\u8A2D\u5B9A",
   shareEnded: "\u753B\u9762\u5171\u6709\u3092\u7D42\u4E86\u3057\u307E\u3057\u305F\u3002",
   shareNeedsFloat: "\u753B\u9762\u3092\u5171\u6709\u3059\u308B\u524D\u306B\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
+  screenPicker: "\u753B\u9762\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u2026",
   sharing: "\u5171\u6709\u4E2D",
   siteAccess: "\u30D6\u30E9\u30A6\u30B6\u30FC\u306E\u78BA\u8A8D\u753B\u9762\u3067\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
   siteNeedPermission: "\u3053\u306E\u30B5\u30A4\u30C8\u3078\u306E\u8A31\u53EF\u304C\u5FC5\u8981\u3067\u3059\u3002",
@@ -18798,6 +18931,7 @@ var ko_default = {
   settings: "\uC124\uC815",
   shareEnded: "\uD654\uBA74 \uACF5\uC720\uAC00 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.",
   shareNeedsFloat: "\uD654\uBA74\uC744 \uACF5\uC720\uD558\uAE30 \uC804\uC5D0 \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5EC\uC138\uC694.",
+  screenPicker: "\uCEA1\uCC98\uD560 \uD654\uBA74\uC744 \uC120\uD0DD\uD558\uC138\uC694\u2026",
   sharing: "\uACF5\uC720 \uC911",
   siteAccess: "\uBE0C\uB77C\uC6B0\uC800\uC5D0\uC11C Glimpselet\uC758 \uC0AC\uC774\uD2B8 \uC811\uADFC\uC744 \uD5C8\uC6A9\uD558\uC138\uC694.",
   siteNeedPermission: "\uC774 \uC0AC\uC774\uD2B8 \uC811\uADFC \uAD8C\uD55C\uC774 \uD544\uC694\uD569\uB2C8\uB2E4.",
@@ -18967,6 +19101,7 @@ var es_default = {
   settings: "Ajustes",
   shareEnded: "Se dej\xF3 de compartir la pantalla.",
   shareNeedsFloat: "Abre el panel flotante antes de compartir la pantalla.",
+  screenPicker: "Elige una pantalla\u2026",
   sharing: "Compartiendo",
   siteAccess: "Permite el acceso del sitio en el aviso del navegador.",
   siteNeedPermission: "Este sitio necesita permiso antes de leerlo.",
@@ -19136,6 +19271,7 @@ var fr_default = {
   settings: "Param\xE8tres",
   shareEnded: "Le partage d'\xE9cran est termin\xE9.",
   shareNeedsFloat: "Ouvrez le panneau flottant avant de partager votre \xE9cran.",
+  screenPicker: "Choisissez un \xE9cran\u2026",
   sharing: "Partage actif",
   siteAccess: "Autorisez l'acc\xE8s de Glimpselet dans le navigateur.",
   siteNeedPermission: "Une autorisation est n\xE9cessaire pour ce site.",
@@ -19305,6 +19441,7 @@ var de_default = {
   settings: "Einstellungen",
   shareEnded: "Bildschirmfreigabe beendet.",
   shareNeedsFloat: "\xD6ffne das schwebende Panel, bevor du den Bildschirm teilst.",
+  screenPicker: "W\xE4hle einen Bildschirm\u2026",
   sharing: "Freigabe aktiv",
   siteAccess: "Glimpselet im Browser Zugriff erlauben.",
   siteNeedPermission: "F\xFCr diese Website ist eine Berechtigung n\xF6tig.",
@@ -19474,6 +19611,7 @@ var pt_BR_default = {
   settings: "Configura\xE7\xF5es",
   shareEnded: "O compartilhamento de tela terminou.",
   shareNeedsFloat: "Abra o painel flutuante antes de compartilhar a tela.",
+  screenPicker: "Escolha uma tela\u2026",
   sharing: "Compartilhando",
   siteAccess: "Permita acesso do Glimpselet no aviso do navegador.",
   siteNeedPermission: "Este site precisa de permiss\xE3o antes de ser lido.",
@@ -20587,9 +20725,10 @@ ${t.selectedPassage}: ${selected}` : ""}`;
     locale,
     blocklist
   ]);
-  function frameOptions(video) {
+  function frameOptions(video, selection = false) {
     const floating = pipDoc?.defaultView;
-    if (!floating || !needsSharedFrameClearance(video, pipDoc)) return {};
+    if (!floating || !selection && !needsSharedFrameClearance(video, pipDoc))
+      return {};
     const floatingSize = {
       width: floating.innerWidth,
       height: floating.innerHeight
@@ -20625,7 +20764,7 @@ ${t.selectedPassage}: ${selected}` : ""}`;
           videoRef.current,
           pipDoc,
           t,
-          frameOptions(videoRef.current)
+          frameOptions(videoRef.current, true)
         );
         if (image) {
           setCapture({ image, label: t.region });
@@ -21000,7 +21139,13 @@ ${t.selectedPassage}: ${selected}` : ""}`;
           setStatus(t.shareNeedsFloat);
           return;
         }
-        const result = await startScreenShare(activeTabId.current);
+        setStatus(t.screenPicker);
+        const sourceTabId = activeTabId.current;
+        const result = await withScreenPicker(
+          pipDoc.defaultView,
+          sourceTabId,
+          () => startScreenShare(sourceTabId)
+        );
         sharedBinding.current = result.binding;
         shareRef.current = result.stream;
         if (videoRef.current) {
@@ -22101,7 +22246,7 @@ ${step.action}` : ""}`
           "button",
           {
             className: `blink-dot ${blinkDock.edge === "right" ? "peek" : ""}`,
-            style: blinkDock.edge === "right" ? { top: `${blinkDock.y * 100}%` } : void 0,
+            style: !pipDoc && blinkDock.edge === "right" ? { top: `${blinkDock.y * 100}%` } : void 0,
             title: t.expand,
             "aria-label": t.expand,
             onPointerDown: (event) => {
@@ -22741,10 +22886,15 @@ ${step.action}` : ""}`
   ] });
 }
 function Blink({ mood = "idle" }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `blink ${mood}`, "aria-hidden": "true", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "blink-eye" }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "blink-eye" }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "blink-smile" })
-  ] });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    "img",
+    {
+      className: `blink ${mood}`,
+      src: chrome.runtime.getURL("icons/blink-128.png"),
+      alt: "",
+      "aria-hidden": "true",
+      draggable: false
+    }
+  );
 }
 (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App, {}));

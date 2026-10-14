@@ -5,7 +5,7 @@
     system-ui,
     sans-serif;
   color: var(--ink);
-  background: var(--paper);
+  background: transparent;
   --ink: #28241f;
   --muted: #71695f;
   --line: #e7dfd4;
@@ -27,7 +27,7 @@ body,
 }
 body {
   overflow: hidden;
-  background: var(--paper);
+  background: transparent;
 }
 button,
 input,
@@ -117,6 +117,13 @@ select:focus-visible {
 .blink-dot.peek:hover,
 .blink-dot.peek:focus-visible {
   right: 0;
+}
+.in-pip .blink-dot {
+  left: 12px;
+  right: auto;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
 }
 @keyframes blink-arrive {
   from {
@@ -227,34 +234,7 @@ select:focus-visible {
   position: relative;
   display: inline-block;
   flex: none;
-  border-radius: 48%;
-  background: #f2c2a6;
-  box-shadow: inset 0 -3px #d99473;
-}
-.blink:before,
-.blink:after {
-  content: "";
-  position: absolute;
-  top: 9px;
-  width: 3px;
-  height: 5px;
-  border-radius: 50%;
-  background: #8e4b36;
-}
-.blink:before {
-  left: 8px;
-}
-.blink:after {
-  right: 8px;
-}
-.blink-smile {
-  position: absolute;
-  left: 11px;
-  top: 16px;
-  width: 8px;
-  height: 4px;
-  border-bottom: 1.5px solid #8e4b36;
-  border-radius: 0 0 9px 9px;
+  object-fit: contain;
 }
 .blink.think {
   animation: bob 1s ease-in-out infinite;

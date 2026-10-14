@@ -52,7 +52,7 @@ import {
 import "./style.css";
 import { isReaderPdfCandidate } from "./reader-url";
 import { cropSharedScreen } from "./screen-crop";
-import { nativeBubbleClearance } from "./native-bubble";
+import { nativeBubbleClearance, withScreenPicker } from "./native-bubble";
 import { requestCaptureAccess } from "./capture-access";
 import {
   freezeSharedFrame,
@@ -1419,9 +1419,13 @@ function App() {
     locale,
     blocklist,
   ]);
-  function frameOptions(video: HTMLVideoElement): SharedFrameOptions {
+  function frameOptions(
+    video: HTMLVideoElement,
+    selection = false,
+  ): SharedFrameOptions {
     const floating = pipDoc?.defaultView;
-    if (!floating || !needsSharedFrameClearance(video, pipDoc)) return {};
+    if (!floating || (!selection && !needsSharedFrameClearance(video, pipDoc)))
+      return {};
     const floatingSize = {
       width: floating.innerWidth,
       height: floating.innerHeight,
@@ -1459,7 +1463,7 @@ function App() {
           videoRef.current,
           pipDoc,
           t,
-          frameOptions(videoRef.current),
+          frameOptions(videoRef.current, true),
         );
         if (image) {
           setCapture({ image, label: t.region });
@@ -1938,7 +1942,13 @@ function App() {
         }
         // Keep the picker on the button's gesture. Starting a share accepts no
         // pixels and leaves both PiP and the last confirmed capture intact.
-        const result = await startScreenShare(activeTabId.current);
+        setStatus(t.screenPicker);
+        const sourceTabId = activeTabId.current;
+        const result = await withScreenPicker(
+          pipDoc.defaultView!,
+          sourceTabId,
+          () => startScreenShare(sourceTabId),
+        );
         sharedBinding.current = result.binding;
         shareRef.current = result.stream;
         if (videoRef.current) {
@@ -3286,7 +3296,7 @@ function App() {
         <button
           className={`blink-dot ${blinkDock.edge === "right" ? "peek" : ""}`}
           style={
-            blinkDock.edge === "right"
+            !pipDoc && blinkDock.edge === "right"
               ? { top: `${blinkDock.y * 100}%` }
               : undefined
           }
@@ -3971,11 +3981,13 @@ function App() {
 
 function Blink({ mood = "idle" }: { mood?: "idle" | "think" }) {
   return (
-    <span className={`blink ${mood}`} aria-hidden="true">
-      <span className="blink-eye" />
-      <span className="blink-eye" />
-      <span className="blink-smile" />
-    </span>
+    <img
+      className={`blink ${mood}`}
+      src={chrome.runtime.getURL("icons/blink-128.png")}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
   );
 }
 
