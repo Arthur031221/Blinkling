@@ -273,7 +273,6 @@ async function openComposer(focus = true) {
     }
     shapeComposer();
     win.webContents.send("glimpselet:surface", { type: "open" });
-    claimKeyboard(win);
   } else if (!win.isVisible()) win.showInactive();
 }
 /** Blink asked to close the card because the pointer left, but something held
@@ -650,6 +649,9 @@ const visualMasks = () =>
     });
 const attachCapture = async (capture) => {
   await openComposer();
+  // Only a capture re-claims the keyboard: the selector that just closed hands
+  // it back to the previous window, but a user click elsewhere must win.
+  claimKeyboard(composer);
   composer.webContents.send("glimpselet:capture", capture);
   send({ type: "capture", capture });
 };
