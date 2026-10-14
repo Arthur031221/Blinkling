@@ -259,12 +259,15 @@ describe("starting a shared screen without taking a snapshot", () => {
   });
 });
 
-function setupChrome(captureVisibleTab = vi.fn(async () => "tile-png")) {
+function setupChrome(
+  captureVisibleTab = vi.fn(async () => "tile-png"),
+  pageMetrics: typeof metrics = metrics,
+) {
   const executeScript = vi.fn(
     async (details: { func: () => unknown; args?: unknown[] }) => {
       const source = details.func.toString();
       const result = source.includes("scrollWidth")
-        ? metrics
+        ? pageMetrics
         : source.includes("devicePixelRatio")
           ? viewportGeometry
           : details.args?.[0] === null
@@ -309,12 +312,30 @@ function setupChrome(captureVisibleTab = vi.fn(async () => "tile-png")) {
   return { executeScript, captureVisibleTab };
 }
 
+/** Chrome allows two screenshots a second, so a long page takes many real seconds. */
+async function withFakeClock<T>(run: () => Promise<T>): Promise<T> {
+  vi.useFakeTimers();
+  try {
+    let done = false;
+    const result = run().finally(() => {
+      done = true;
+    });
+    result.catch(() => {});
+    while (!done) await vi.advanceTimersByTimeAsync(100);
+    return await result;
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 describe("full-page capture progress and cancellation", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     drawImage.mockClear();
+    const { encodeCanvasPng } = await import("./png");
+    vi.mocked(encodeCanvasPng).mockImplementation(() => "stitched-png");
   });
 
   it("allows a visible capture answer only after independent pixel privacy checks", async () => {
@@ -380,6 +401,107 @@ describe("full-page capture progress and cancellation", () => {
       [{ completed: 2, total: 2 }],
     ]);
     expect(drawImage).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends a long page as readable tiles at 1x or better, not one squeezed image", async () => {
+    const long = {
+      ...metrics,
+      width: 1280,
+      height: 20_000,
+      viewportWidth: 1280,
+      viewportHeight: 800,
+      frameWidth: 1280,
+      frameHeight: 800,
+    };
+    setupChrome(undefined, long);
+    const { encodeCanvasPng } = await import("./png");
+    const sizes: string[] = [];
+    vi.mocked(encodeCanvasPng).mockImplementation((canvas) => {
+      sizes.push(`${canvas.width}x${canvas.height}`);
+      return `tile-${sizes.length}`;
+    });
+    const { captureWeb } = await import("./capture");
+    const progress = vi.fn();
+
+    const result = await withFakeClock(() =>
+      captureWeb("full", undefined, undefined, { onProgress: progress }),
+    );
+
+    expect(result.capture.tiles).toEqual(
+      Array.from({ length: 8 }, (_, i) => `tile-${i + 1}`),
+    );
+    expect(result.capture.image).toBe("tile-1");
+    expect(result.capture.truncated).toBeUndefined();
+    // Every tile keeps the page's full width at 1x; none is shrunk to fit one image.
+    expect(sizes).toEqual(Array(8).fill("1280x2500"));
+    expect(progress).toHaveBeenLastCalledWith({ completed: 25, total: 25 });
+  });
+
+  it("gives the panel one image of the whole page, within the single-attachment edge", async () => {
+    const long = {
+      ...metrics,
+      width: 1280,
+      height: 6000,
+      viewportWidth: 1280,
+      viewportHeight: 800,
+      frameWidth: 1280,
+      frameHeight: 800,
+    };
+    setupChrome(undefined, long);
+    // Four tiles of 1280x2000 once decoded: 8000 px tall, to be shrunk to fit.
+    vi.stubGlobal(
+      "Image",
+      class {
+        width = 1280;
+        height = 2000;
+        onload: (() => void) | null = null;
+        set src(value: string) {
+          if (value) queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    const { encodeCanvasPng } = await import("./png");
+    const sizes: string[] = [];
+    vi.mocked(encodeCanvasPng).mockImplementation((canvas) => {
+      sizes.push(`${canvas.width}x${canvas.height}`);
+      return `png-${sizes.length}`;
+    });
+    const { captureWeb } = await import("./capture");
+
+    const result = await withFakeClock(() =>
+      captureWeb("full", undefined, undefined, { single: true }),
+    );
+
+    expect(result.capture.tiles).toBeUndefined();
+    expect(result.capture.image).toBe(`png-${sizes.length}`);
+    // The tiles are joined into one canvas whose long edge fits 4096.
+    expect(sizes.at(-1)).toBe("655x4096");
+  });
+
+  it("keeps readable tiles and says so when the page is longer than they can hold", async () => {
+    const huge = {
+      ...metrics,
+      width: 1280,
+      height: 60_000,
+      viewportWidth: 1280,
+      viewportHeight: 1000,
+      frameWidth: 1280,
+      frameHeight: 1000,
+    };
+    setupChrome(undefined, huge);
+    const { encodeCanvasPng } = await import("./png");
+    const sizes: string[] = [];
+    vi.mocked(encodeCanvasPng).mockImplementation((canvas) => {
+      sizes.push(`${canvas.width}x${canvas.height}`);
+      return `tile-${sizes.length}`;
+    });
+    const { captureWeb } = await import("./capture");
+
+    const result = await withFakeClock(() => captureWeb("full"));
+
+    expect(result.capture.tiles).toHaveLength(8);
+    expect(result.capture.truncated).toBe(true);
+    expect(sizes).toEqual(Array(8).fill("1280x4096"));
   });
 
   it("cancels after an in-flight tile and restores the original scroll", async () => {

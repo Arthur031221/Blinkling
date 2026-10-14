@@ -21,7 +21,10 @@ export class DesktopSessionBridge implements BridgeContract {
   send(turn: Turn): Promise<void>;
   select(selection: Selection): Promise<Selection>;
   stop(): Promise<void>;
-  subscribe(listener: (event: SessionEvent) => void): () => void;
+  subscribe(
+    listener: (event: SessionEvent) => void,
+    options?: { visible?: boolean },
+  ): () => void;
   dispose(): Promise<void>;
 }
 export { DesktopSessionBridge as SessionBridge };

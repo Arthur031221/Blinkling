@@ -7,7 +7,7 @@ import { join } from "node:path";
 /** Real, logged-in Claude canary. No credentials, CLI tools or parent session reuse. */
 export async function liveSession(emit) {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-conversation-"));
-  const owned = new OwnedSession();
+  const owned = new OwnedSession({ remote: "off" });
   let sessionId = "",
     assistantId,
     turnId;

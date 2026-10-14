@@ -1,7 +1,10 @@
 import { LiveChannel } from "../src/live-channel.js";
 // @vitest-environment node
 import { createServer, type Server } from "node:http";
+import { access, mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { once } from "node:events";
+import { PNG } from "pngjs";
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExtensionBridge } from "../src/extension-bridge.js";
@@ -727,6 +730,78 @@ describe("extension pairing and answers", () => {
     expect((await a.wait("done")).answer).toBe("Reader guide");
   });
 
+  it("does not route to a desktop that quit: a stale endpoint file is ignored and removed", async () => {
+    const runtime = join(process.env.HOME!, ".glimpselet", "runtime");
+    await mkdir(runtime, { recursive: true, mode: 0o700 });
+    const probe = createServer();
+    await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
+    const port = (probe.address() as { port: number }).port;
+    await new Promise((resolve) => probe.close(resolve));
+    const descriptor = join(runtime, "desktop.json");
+    await writeFile(
+      descriptor,
+      JSON.stringify({
+        url: `http://127.0.0.1:${port}`,
+        token: "b".repeat(64),
+        pid: 1,
+        version: "3.0.0",
+      }),
+      { mode: 0o600 },
+    );
+    const requests: ProviderRequest[] = [];
+    const app = await setup(async (request) => {
+      requests.push(request);
+      return { answer: "Answered locally" };
+    });
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    const paired = await a.wait("paired");
+    expect(paired.sessionId).not.toBe("desktop");
+    a.send({ ...ask, id: "after-quit" });
+    expect((await a.wait("done")).answer).toBe("Answered locally");
+    expect(requests).toHaveLength(1);
+    await expect(access(descriptor)).rejects.toThrow();
+  });
+
+  it("waits a short while for a reconnecting browser before giving up on a full page", async () => {
+    const app = await setup(async () => ({ answer: "" }));
+    const a = await app.client();
+    a.send({ type: "pair", code: app.bridge.issueCode() });
+    const { token } = await a.wait("paired");
+    const closed = once(a.socket, "close");
+    a.socket.close();
+    await closed;
+
+    const png = new PNG({ width: 8, height: 8 });
+    png.data.fill(200);
+    const tile = PNG.sync.write(png).toString("base64");
+    // The browser comes back after a moment: the capture still happens.
+    const capture = app.bridge.requestFullPage(
+      5000,
+      undefined,
+      undefined,
+      3000,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const b = await app.client();
+    b.send({ type: "pair", token });
+    await b.wait("paired");
+    const request = await b.wait("full-page");
+    b.send({
+      type: "full-page-result",
+      id: request.id,
+      images: [tile],
+    });
+    expect((await capture)?.tiles).toHaveLength(1);
+
+    // Nobody returns: it gives up after the grace, not after the long timeout.
+    b.socket.close();
+    const started = Date.now();
+    expect(
+      await app.bridge.requestFullPage(5000, undefined, undefined, 400),
+    ).toBeUndefined();
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
   it("rejects website origins and an expired code", async () => {
     let now = Date.now();
     const app = await setup(

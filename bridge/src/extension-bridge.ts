@@ -3,6 +3,7 @@ import {
   desktopConnection,
   desktopAnswer,
   desktopStatePresent,
+  desktopTraces,
 } from "./desktop-session.js";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, Server } from "node:http";
@@ -104,6 +105,13 @@ function pageData(value: unknown): Page | undefined {
   };
 }
 
+/** A full page, top to bottom, as readable pieces. */
+export type FullPageCapture = {
+  tiles: { image: Buffer; width: number; height: number }[];
+  truncated: boolean;
+  page?: Page;
+};
+
 export class ExtensionBridge {
   private readonly sockets = new WebSocketServer({
     noServer: true,
@@ -126,12 +134,8 @@ export class ExtensionBridge {
     string,
     {
       client: WebSocket;
-      finish: (value?: {
-        image: Buffer;
-        width: number;
-        height: number;
-        page?: Page;
-      }) => void;
+      progress?: (completed: number, total: number) => void;
+      finish: (value?: FullPageCapture) => void;
     }
   >();
   private readonly sessions: ExtensionSessions;
@@ -141,37 +145,28 @@ export class ExtensionBridge {
   attachChannel(channel: LiveChannel): void {
     this.channel = channel;
     channel.onReady = () => {
-      if (desktopStatePresent()) {
-        this.useDesktopSession();
-        return;
-      }
-      for (const pair of this.pairs.values()) {
-        if (pair.automatic && !pair.job) pair.live = true;
-        if (pair.client)
-          send(pair.client, {
-            type: "channel-status",
-            liveAvailable: true,
-            live: Boolean(pair.live),
-            sessionId: pair.live ? "live" : pair.thread.id,
-          });
-      }
+      void this.channelChanged(true);
     };
     channel.onUnavailable = () => {
-      if (desktopStatePresent()) {
-        this.useDesktopSession();
-        return;
-      }
-      for (const pair of this.pairs.values()) {
-        if (pair.automatic) pair.live = false;
-        if (pair.client)
-          send(pair.client, {
-            type: "channel-status",
-            liveAvailable: false,
-            live: Boolean(pair.live),
-            sessionId: pair.live ? "live" : pair.thread.id,
-          });
-      }
+      void this.channelChanged(false);
     };
+  }
+  /** The live channel is only reported when no running Blink owns the session. */
+  private async channelChanged(ready: boolean): Promise<void> {
+    if (await desktopStatePresent()) {
+      this.useDesktopSession();
+      return;
+    }
+    for (const pair of this.pairs.values()) {
+      if (pair.automatic && (!ready || !pair.job)) pair.live = ready;
+      if (pair.client)
+        send(pair.client, {
+          type: "channel-status",
+          liveAvailable: ready,
+          live: Boolean(pair.live),
+          sessionId: pair.live ? "live" : pair.thread.id,
+        });
+    }
   }
   private sharingIntent = false;
   private sharingClient?: WebSocket;
@@ -331,18 +326,24 @@ export class ExtensionBridge {
         if (previous && previous !== client)
           previous.close(4002, "Opened in another window");
         clearTimeout(timer);
-        const desktop = desktopStatePresent();
-        send(client, {
-          type: "paired",
-          token: pairToken,
-          mode: this.mode,
-          project: this.sessions.project,
-          liveAvailable: desktop || Boolean(this.channel?.ready),
-          live: desktop || Boolean(pair.live),
-          models: MODELS,
-          efforts: ["low", "medium", "high"],
-          sessionId: desktop ? "desktop" : pair.live ? "live" : pair.thread.id,
-        });
+        const paired = pair;
+        void desktopStatePresent().then((desktop) =>
+          send(client, {
+            type: "paired",
+            token: pairToken,
+            mode: this.mode,
+            project: this.sessions.project,
+            liveAvailable: desktop || Boolean(this.channel?.ready),
+            live: desktop || Boolean(paired.live),
+            models: MODELS,
+            efforts: ["low", "medium", "high"],
+            sessionId: desktop
+              ? "desktop"
+              : paired.live
+                ? "live"
+                : paired.thread.id,
+          }),
+        );
         return;
       }
       if (pair.expires <= this.now()) {
@@ -392,6 +393,23 @@ export class ExtensionBridge {
       }
       return;
     }
+    if (message.type === "full-page-progress") {
+      const pending =
+        typeof message.id === "string"
+          ? this.pendingPages.get(message.id)
+          : undefined;
+      if (
+        pending?.client === client &&
+        Number.isSafeInteger(message.completed) &&
+        Number.isSafeInteger(message.total) &&
+        message.total > 0 &&
+        message.total <= 10_000 &&
+        message.completed >= 0 &&
+        message.completed <= message.total
+      )
+        pending.progress?.(message.completed, message.total);
+      return;
+    }
     if (message.type === "full-page-result") {
       const pending =
         typeof message.id === "string"
@@ -399,11 +417,20 @@ export class ExtensionBridge {
           : undefined;
       if (!pending || pending.client !== client) return;
       try {
-        const image = readPanelImage(message.image, 4096);
+        const images: unknown[] = Array.isArray(message.images)
+          ? message.images
+          : [message.image];
+        if (!images.length || images.length > 8) throw new Error("tiles");
         pending.finish({
-          image: image.image,
-          width: image.width,
-          height: image.height,
+          tiles: images.map((value) => {
+            const image = readPanelImage(value, 4096);
+            return {
+              image: image.image,
+              width: image.width,
+              height: image.height,
+            };
+          }),
+          truncated: message.truncated === true,
           page: pageData(message.page),
         });
       } catch {
@@ -432,9 +459,7 @@ export class ExtensionBridge {
     if (typeof message.id !== "string" || message.id.length > 100)
       throw new Error("Invalid request.");
     if (message.type === "sessions") {
-      const desktop = desktopStatePresent()
-        ? await desktopConnection()
-        : undefined;
+      const desktop = desktopTraces() ? await desktopConnection() : undefined;
       if (desktop) {
         send(client, {
           type: "sessions",
@@ -459,7 +484,7 @@ export class ExtensionBridge {
       return;
     }
     if (message.type === "session") {
-      const desktop = await desktopConnection();
+      const desktop = desktopTraces() ? await desktopConnection() : undefined;
       if (desktop) {
         if (message.sessionId !== "desktop" && message.sessionId !== undefined)
           throw new Error("Blink uses your Glimpselet conversation.");
@@ -564,9 +589,7 @@ export class ExtensionBridge {
     const job = { id, controller, done };
     pair.job = job;
     try {
-      const desktop = desktopStatePresent()
-        ? await desktopConnection()
-        : undefined;
+      const desktop = desktopTraces() ? await desktopConnection() : undefined;
       if (controller.signal.aborted) throw cancelled();
       const conversational = message.kind === "ask" || message.kind === "guide";
       if (desktop)
@@ -683,24 +706,41 @@ export class ExtensionBridge {
           sessionId: "desktop",
         });
   }
+  /** The paired browser, waiting a few seconds for one that is reconnecting. */
+  private async openClient(
+    graceMs: number,
+    signal?: AbortSignal,
+  ): Promise<WebSocket | undefined> {
+    const deadline = Date.now() + graceMs;
+    for (;;) {
+      const client = [...this.pairs.values()]
+        .map((p) => p.client)
+        .find((c) => c?.readyState === WebSocket.OPEN);
+      if (client || signal?.aborted || Date.now() >= deadline) return client;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
   requestFullPage(
     timeoutMs = 90_000,
     signal?: AbortSignal,
-  ): Promise<
-    { image: Buffer; width: number; height: number; page?: Page } | undefined
-  > {
-    const client = [...this.pairs.values()]
-      .map((p) => p.client)
-      .find((c) => c?.readyState === WebSocket.OPEN);
-    if (!client || signal?.aborted) return Promise.resolve(undefined);
+    onProgress?: (completed: number, total: number) => void,
+    reconnectGraceMs = 3000,
+  ): Promise<FullPageCapture | undefined> {
+    return this.openClient(reconnectGraceMs, signal).then((client) =>
+      client && !signal?.aborted
+        ? this.requestPagesFrom(client, timeoutMs, signal, onProgress)
+        : undefined,
+    );
+  }
+  private requestPagesFrom(
+    client: WebSocket,
+    timeoutMs: number,
+    signal?: AbortSignal,
+    onProgress?: (completed: number, total: number) => void,
+  ): Promise<FullPageCapture | undefined> {
     return new Promise((resolve) => {
       const id = randomUUID();
-      const finish = (value?: {
-        image: Buffer;
-        width: number;
-        height: number;
-        page?: Page;
-      }) => {
+      const finish = (value?: FullPageCapture) => {
         clearTimeout(timer);
         signal?.removeEventListener("abort", abort);
         this.pendingPages.delete(id);
@@ -711,7 +751,7 @@ export class ExtensionBridge {
         finish();
       };
       const timer = setTimeout(abort, timeoutMs);
-      this.pendingPages.set(id, { client, finish });
+      this.pendingPages.set(id, { client, progress: onProgress, finish });
       signal?.addEventListener("abort", abort, { once: true });
       send(client, { type: "full-page", id });
     });

@@ -20,7 +20,7 @@ const capture = {
     data: bytes.toString("base64"),
   },
 };
-const transport = new OwnedSession(),
+const transport = new OwnedSession({ remote: "off" }),
   listeners = new Set();
 let admitted;
 transport.on("fault", (error) => {

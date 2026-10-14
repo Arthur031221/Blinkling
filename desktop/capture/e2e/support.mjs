@@ -19,7 +19,11 @@ export async function launch(scale = 1) {
       `--force-device-scale-factor=${scale}`,
       `--user-data-dir=${dir}`,
     ],
-    env: { ...process.env, GLIMPSELET_E2E: "1" },
+    env: {
+      ...process.env,
+      GLIMPSELET_E2E: "1",
+      GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "0",
+    },
   });
   await app.firstWindow();
   await expect

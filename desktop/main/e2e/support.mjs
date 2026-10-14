@@ -72,6 +72,7 @@ export async function launch(scale = 1, theme = "light", data = null) {
     env: {
       ...process.env,
       GLIMPSELET_E2E: "1",
+      GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "0",
       GLIMPSELET_TEST_DATA: directory,
     },
   });

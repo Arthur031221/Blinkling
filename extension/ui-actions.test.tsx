@@ -184,6 +184,10 @@ async function bridgeEvent(name: string) {
   });
   await flush();
 }
+/** Offline is shown only after the reconnect grace has passed. */
+async function offlineAfterGrace() {
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
+}
 async function clickAccessible(name: string) {
   const target = document.querySelector<HTMLButtonElement>(
     `button[aria-label="${name}"]`,
@@ -1749,11 +1753,26 @@ describe("bubble answer rendering and feedback", () => {
     await bridgeEvent("disconnected");
     await bridgeEvent("connected");
     await bridgeEvent("disconnected");
+    await offlineAfterGrace();
     await refresh();
     expect(status()).toBe(en.bridgeLost);
     expect(document.querySelector(".connection")?.textContent).toBe(
       en.disconnected,
     );
+  });
+  it("keeps showing connected through a reconnect shorter than the grace period", async () => {
+    await start();
+    const label = () => document.querySelector(".connection")?.textContent;
+    expect(label()).toBe(en.connected);
+    await bridgeEvent("disconnected");
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(label()).toBe(en.connected);
+    await bridgeEvent("connected");
+    await offlineAfterGrace();
+    expect(label()).toBe(en.connected);
+    await bridgeEvent("disconnected");
+    await offlineAfterGrace();
+    expect(label()).toBe(en.disconnected);
   });
   it("uses the current UI language for authenticated reconnect recovery", async () => {
     stored.locale = "zh-TW";
@@ -1783,6 +1802,7 @@ describe("bubble answer rendering and feedback", () => {
   it("recovers connection through the welcome page without losing the draft", async () => {
     await start();
     await bridgeEvent("disconnected");
+    await offlineAfterGrace();
     await draft("Keep this reconnect draft");
     await clickAccessible(en.settings);
     expect(document.body.textContent).toContain(en.pairHint);

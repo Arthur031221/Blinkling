@@ -1,5 +1,6 @@
 import { isWelcomeLocale } from "./connection";
 import { listenForShiftCrop } from "./shift-crop";
+import { steadyPresence } from "./steady-presence";
 import {
   placeBubbleWindow,
   screenArea,
@@ -599,13 +600,15 @@ function App() {
       setConnected(Boolean(bridge.token && bridge.sessionId));
       setSessionId(bridge.sessionId);
     })();
-    const connectedHandler = () => setConnected(true);
+    // A short reconnect is not worth flipping the indicator for.
+    const presence = steadyPresence(setConnected);
+    const connectedHandler = () => presence.up();
     const disconnectedHandler = () => {
-      setConnected(false);
+      presence.down();
       setLiveAvailable(false);
     };
     const pairedHandler = () => {
-      setConnected(true);
+      presence.up();
       setSessionId(bridge.sessionId);
       setLiveSession(bridge.live);
       setLiveAvailable(bridge.liveAvailable);
@@ -618,7 +621,7 @@ function App() {
     bridge.addEventListener("paired", pairedHandler);
     const refreshConnection = (message: { type?: string }) => {
       if (message.type === "glimpselet:connection-updated")
-        void bridge.load(true).catch(() => setConnected(false));
+        void bridge.load(true).catch(() => presence.down());
     };
     chrome.runtime.onMessage.addListener(refreshConnection);
     return () => {
@@ -626,6 +629,7 @@ function App() {
       bridge.removeEventListener("disconnected", disconnectedHandler);
       bridge.removeEventListener("paired", pairedHandler);
       chrome.runtime.onMessage.removeListener(refreshConnection);
+      presence.dispose();
       bridge.close();
     };
   }, []);
@@ -1312,11 +1316,16 @@ function App() {
             pageCaptureController.current = controller;
             const result = await captureWeb("full", undefined, undefined, {
               signal: controller.signal,
+              onProgress: ({ completed, total }) =>
+                void bridge
+                  .send({ type: "full-page-progress", id, completed, total })
+                  .catch(() => {}),
             });
             await bridge.send({
               type: "full-page-result",
               id,
-              image: result.capture.image,
+              images: result.capture.tiles ?? [result.capture.image],
+              truncated: result.capture.truncated === true,
               page: result.page,
             });
           } catch {
@@ -2247,7 +2256,9 @@ function App() {
         await captureAction(retry.kind);
         return;
       }
-      const result = await retryPendingWebCapture(retry.pending, t);
+      const result = await retryPendingWebCapture(retry.pending, t, {
+        single: true,
+      });
       setCapture({
         ...result.capture,
         label: t[retry.kind === "full" ? "fullPage" : retry.kind],
@@ -2367,6 +2378,7 @@ function App() {
         )
           throw new Error("tab_changed");
         const result = await captureWeb(kind, undefined, t, {
+          single: true,
           signal: controller?.signal,
           onProgress: controller ? setCaptureProgress : undefined,
         });

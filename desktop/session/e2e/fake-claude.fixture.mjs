@@ -61,6 +61,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const frame = JSON.parse(line);
   if (frame.type === "control_request") {
     const request = frame.request;
+    if (process.env.GLIMPSELET_TEST_CONTROL_LOG)
+      appendFileSync(
+        process.env.GLIMPSELET_TEST_CONTROL_LOG,
+        `${JSON.stringify(request)}\n`,
+      );
     let response = {};
     if (request.subtype === "initialize")
       response = {

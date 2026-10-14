@@ -1,7 +1,13 @@
-import { readFile, lstat } from "node:fs/promises";
+import { readFile, lstat, rm } from "node:fs/promises";
 import { endpointPath } from "./paths.mjs";
 
-export async function discoverDesktop(path = endpointPath()) {
+/** `timeoutMs` bounds the liveness ping. With `removeStale`, an endpoint whose
+ * port refuses connections (Blink was killed or crashed) is deleted, unless a
+ * newer Blink has meanwhile replaced the file. */
+export async function discoverDesktop(
+  path = endpointPath(),
+  { timeoutMs = 5000, removeStale = false } = {},
+) {
   try {
     const stat = await lstat(path);
     if (
@@ -27,8 +33,14 @@ export async function discoverDesktop(path = endpointPath()) {
     )
       throw new Error("Invalid desktop endpoint");
     const client = new DesktopClient(endpoint);
-    const status = await client.status();
-    return { client, status };
+    try {
+      const status = await client.status(timeoutMs);
+      return { client, status };
+    } catch (error) {
+      if (removeStale && error?.cause?.code === "ECONNREFUSED")
+        await removeIfSame(path, endpoint.token);
+      throw error;
+    }
   } catch (error) {
     if (
       error.code === "ENOENT" ||
@@ -37,6 +49,14 @@ export async function discoverDesktop(path = endpointPath()) {
     )
       return undefined;
     throw error;
+  }
+}
+async function removeIfSame(path, token) {
+  try {
+    if (JSON.parse(await readFile(path, "utf8")).token === token)
+      await rm(path);
+  } catch {
+    /* Already gone or replaced by a newer Blink. */
   }
 }
 export class DesktopClient {
@@ -61,8 +81,10 @@ export class DesktopClient {
     }
     return response;
   }
-  async status() {
-    return (await this.request("/status")).json();
+  async status(timeoutMs = 5000) {
+    return (
+      await this.request("/status", { signal: AbortSignal.timeout(timeoutMs) })
+    ).json();
   }
   async rpc(method, value = {}, signal) {
     return (

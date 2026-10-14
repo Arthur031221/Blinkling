@@ -107,6 +107,7 @@ test("Electron and the optional helper share one authenticated session and stitc
       env: {
         ...process.env,
         GLIMPSELET_E2E: "1",
+        GLIMPSELET_REMOTE: process.env.GLIMPSELET_REMOTE ?? "0",
         GLIMPSELET_RUNTIME_DIR: runtime,
       },
     });
@@ -230,22 +231,30 @@ test("Electron and the optional helper share one authenticated session and stitc
     expect("companionRequired" in capture).toBe(false);
     if ("companionRequired" in capture)
       throw new Error("Full page capture missing");
-    expect([capture.pixelWidth, capture.pixelHeight]).toEqual([
-      metrics.width,
-      metrics.height,
-    ]);
-    const png = PNG.sync.read(Buffer.from(capture.image.data, "base64"));
-    const colorRows = (color: number[], image = png) => {
+    // A long page arrives as readable tiles at full width, not one squeezed image.
+    expect(capture.tiles.length).toBeGreaterThan(1);
+    expect(capture.truncated).toBe(false);
+    for (const tile of capture.tiles)
+      expect(tile.pixelWidth).toBe(metrics.width);
+    expect(
+      capture.tiles.reduce((total, tile) => total + tile.pixelHeight, 0),
+    ).toBe(metrics.height);
+    const pngs = capture.tiles.map((tile) =>
+      PNG.sync.read(Buffer.from(tile.image.data, "base64")),
+    );
+    const colorRows = (color: number[]) => {
       let rows = 0;
-      for (let y = 0; y < image.height; y++)
-        if (
-          color.every(
-            (value, channel) =>
-              image.data[(y * image.width + image.width - 40) * 4 + channel] ===
-              value,
+      for (const image of pngs)
+        for (let y = 0; y < image.height; y++)
+          if (
+            color.every(
+              (value, channel) =>
+                image.data[
+                  (y * image.width + image.width - 40) * 4 + channel
+                ] === value,
+            )
           )
-        )
-          rows++;
+            rows++;
       return rows;
     };
     expect(colorRows([240, 0, 160])).toBe(48);

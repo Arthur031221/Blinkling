@@ -106,4 +106,18 @@ bytes. Without an observer, the report explicitly records that server evidence
 was not verified. Human browser and phone messages remain manual acceptance:
 send each while the session is connected and verify its arrival in Blink.
 
+## Remote Control switch
+
+`GLIMPSELET_REMOTE` controls the `remote_control` request:
+
+- unset or `1` (default for users): the named, kept "Glimpselet" session.
+- `0`: no request at all. The owned session and its stream-json pipe work as
+  usual, there is just no remote URL (`identity.remoteId` stays null and an
+  earlier identity is kept for when it is switched back on).
+- `test`: the session is named "Glimpselet test" with `keep_session_on_exit`
+  false, so it disappears on exit.
+
+Every automated test, e2e run and tester run sets `0` (GLIMPSELET_E2E runs
+default to it). The canary is the one live check per job and uses `test`.
+
 Assisted by Claude/Codex.

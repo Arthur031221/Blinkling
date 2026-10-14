@@ -1137,7 +1137,10 @@ test("token reconnect clears its interrupted request error after authentication 
       }
     ).sockets.clients;
     for (const socket of sockets) socket.close(4000, "Tunnel interrupted");
-    await expect(panel.locator(".connection")).toHaveClass(/offline/);
+    // Offline shows only after the reconnect grace period.
+    await expect(panel.locator(".connection")).toHaveClass(/offline/, {
+      timeout: 10_000,
+    });
     await expect(panel.locator(".toolbar .status")).toHaveText(en.bridgeLost);
     await composer.fill("Keep this independently typed follow-up.");
     await expect.poll(() => sockets.size).toBe(0);
@@ -1258,7 +1261,9 @@ test("a second live panel keeps ownership long enough to finish its answer", asy
   const second = await opened;
   try {
     await expect(second.locator(".connection")).toHaveClass(/online/);
-    await expect(panel.locator(".connection")).not.toHaveClass(/online/);
+    await expect(panel.locator(".connection")).not.toHaveClass(/online/, {
+      timeout: 10_000,
+    });
     await expect(second.locator(".suggestions button")).toHaveCount(3);
     await second.locator(".composer textarea").fill("Finish in the new panel");
     await second.locator(".composer button.send").click();

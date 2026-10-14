@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    setupFiles: ["bridge/test/isolated-home.ts"],
     include: [
       "src/**/*.test.ts",
       "bridge/src/**/*.test.ts",

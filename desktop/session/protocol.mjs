@@ -66,12 +66,24 @@ export function launchArguments({
         : []),
   ];
 }
-export function enableRemote(remoteId) {
+/** Remote Control mode from GLIMPSELET_REMOTE.
+ * on (default, also "1"): the named, kept "Glimpselet" session users expect.
+ * off ("0"): no remote_control request at all; turns still run in the owned session.
+ * test: the one allowed live check, named "Glimpselet test" and removed on exit.
+ * End-to-end runs (GLIMPSELET_E2E=1) default to off so nothing piles up in an account. */
+export function remoteMode(env = process.env) {
+  const value = env.GLIMPSELET_REMOTE?.trim().toLowerCase();
+  if (["0", "false", "off"].includes(value)) return "off";
+  if (value === "test") return "test";
+  if (value === undefined && env.GLIMPSELET_E2E === "1") return "off";
+  return "on";
+}
+export function enableRemote(remoteId, mode = remoteMode()) {
   return {
     subtype: "remote_control",
     enabled: true,
-    name: "Glimpselet",
-    keep_session_on_exit: true,
+    name: mode === "test" ? "Glimpselet test" : "Glimpselet",
+    keep_session_on_exit: mode !== "test",
     ...(remoteId ? { reattach_session_id: remoteId } : {}),
   };
 }

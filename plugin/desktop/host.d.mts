@@ -4,6 +4,13 @@ export type CompanionCapture = Pick<
   Capture,
   "id" | "image" | "pixelWidth" | "pixelHeight" | "capturedAt"
 > & { page?: unknown };
+export type CompanionPage = CompanionCapture & {
+  /** Every tile top to bottom; the capture itself is the first. */
+  tiles: CompanionCapture[];
+  /** The page was longer than the tiles can hold. */
+  truncated: boolean;
+};
+export type FullPageProgress = { completed: number; total: number };
 export type CompanionSession = Pick<
   SessionBridge,
   "subscribe" | "select" | "send" | "stop"
@@ -21,6 +28,7 @@ export function startDesktopHost(options?: {
   openCompanionGuide: () => Promise<void>;
   fullPage: (
     signal?: AbortSignal,
-  ) => Promise<CompanionCapture | { companionRequired: true }>;
+    onProgress?: (progress: FullPageProgress) => void,
+  ) => Promise<CompanionPage | { companionRequired: true }>;
   close: () => Promise<void>;
 }>;

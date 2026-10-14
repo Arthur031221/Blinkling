@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { privateDirectory, atomicJson } from "./install.mjs";
 import { endpointPath, runtimeDirectory } from "./paths.mjs";
 
@@ -55,6 +56,46 @@ function validateTurn(turn) {
       !/^[A-Za-z0-9+/]*={0,2}$/.test(a.data)
     )
       throw new Error("Invalid companion attachment");
+}
+async function* lines(stream) {
+  const decoder = new TextDecoder();
+  let pending = "";
+  for await (const chunk of stream) {
+    pending += decoder.decode(chunk, { stream: true });
+    if (pending.length > 24 * 1024 * 1024 * 8)
+      throw new Error("Full-page capture exceeds size limit");
+    let end;
+    while ((end = pending.indexOf("\n")) >= 0) {
+      const line = pending.slice(0, end);
+      pending = pending.slice(end + 1);
+      if (line.trim()) yield line;
+    }
+  }
+  if (pending.trim()) yield pending;
+}
+function validateTiles(value) {
+  const { tiles, page } = value;
+  if (!Array.isArray(tiles) || !tiles.length || tiles.length > 8)
+    throw new Error("Invalid full-page capture");
+  for (const tile of tiles)
+    if (
+      !tile?.image ||
+      tile.image.mediaType !== "image/png" ||
+      typeof tile.image.data !== "string" ||
+      tile.image.data.length > 20 * 1024 * 1024 ||
+      !Number.isSafeInteger(tile.pixelWidth) ||
+      !Number.isSafeInteger(tile.pixelHeight) ||
+      tile.pixelWidth < 1 ||
+      tile.pixelHeight < 1
+    )
+      throw new Error("Invalid full-page capture");
+  return {
+    ...tiles[0],
+    capturedAt: value.capturedAt,
+    tiles,
+    truncated: value.truncated === true,
+    page,
+  };
 }
 /** Main-process-only adapter. The shell supplies its one durable SessionBridge.
  * No credentials, file APIs or renderer access are exposed through this transport.
@@ -160,6 +201,9 @@ export async function startDesktopHost({
           json(res, 200, { ok: true });
           return;
         case "shutdown":
+          // A deliberate quit also switches off the "keep Blink running"
+          // marker; only a crash or restart should make callers wait for a return.
+          await rm(join(directory, "enabled.json"), { force: true });
           json(res, 200, { ok: true });
           queueMicrotask(onShutdown);
           return;
@@ -326,7 +370,10 @@ export async function startDesktopHost({
       if (!response.ok)
         throw new Error("The browser helper guide could not open");
     },
-    async fullPage(signal) {
+    /** The page as tiles, top to bottom. `onProgress({completed, total})` follows
+     * the browser while it scrolls. The result is the first tile's capture with
+     * every tile in `tiles` (and `truncated` when the page was cut short). */
+    async fullPage(signal, onProgress) {
       if (!companion) return { companionRequired: true };
       try {
         const result = await fetch(companion.url, {
@@ -340,20 +387,18 @@ export async function startDesktopHost({
           signal: signal || AbortSignal.timeout(90_000),
         });
         if (!result.ok) throw new Error("Full-page companion capture failed");
-        const value = await result.json();
+        let value;
+        for await (const line of lines(result.body)) {
+          const frame = JSON.parse(line);
+          if (frame.progress) {
+            const { completed, total } = frame.progress;
+            if (Number.isSafeInteger(completed) && Number.isSafeInteger(total))
+              onProgress?.({ completed, total });
+          } else value = frame;
+        }
+        if (!value) throw new Error("Full-page companion capture failed");
         if (value.companionRequired) return value;
-        if (
-          !value.image ||
-          value.image.mediaType !== "image/png" ||
-          typeof value.image.data !== "string" ||
-          value.image.data.length > 20 * 1024 * 1024 ||
-          !Number.isSafeInteger(value.pixelWidth) ||
-          !Number.isSafeInteger(value.pixelHeight) ||
-          value.pixelWidth < 1 ||
-          value.pixelHeight < 1
-        )
-          throw new Error("Invalid full-page capture");
-        return value;
+        return validateTiles(value);
       } catch (error) {
         if (signal?.aborted) throw error;
         if (error instanceof TypeError) companion = undefined;

@@ -7,6 +7,7 @@ import {
   ControlRequests,
   enableRemote,
   launchArguments,
+  remoteMode,
   userMessage,
 } from "./protocol.mjs";
 
@@ -16,8 +17,10 @@ export class OwnedSession extends EventEmitter {
     controlTimeoutMs = 15000,
     connectTimeoutMs = 45000,
     executableArgs = [],
+    remote = remoteMode(),
   } = {}) {
     super();
+    this.remoteMode = remote;
     this.controlTimeoutMs = controlTimeoutMs;
     this.connectTimeoutMs = connectTimeoutMs;
     this.executableArgs = [...executableArgs];
@@ -130,7 +133,21 @@ export class OwnedSession extends EventEmitter {
     child.on("exit", () => this.fault(new Error("Claude transport exited")));
     try {
       this.initialized = await this.controls.request({ subtype: "initialize" });
-      const remote = await this.controls.request(enableRemote(remoteId));
+      if (this.remoteMode === "off") {
+        // Same owned session and stream-json pipe, just not listed in Remote Control.
+        this.remote = { session_url: null, bridge_session_id: null };
+        this.remoteConnected = true;
+        this.emit("event", {
+          type: "system",
+          subtype: "bridge_state",
+          state: "connected",
+          session_id: localId,
+        });
+        return this.remote;
+      }
+      const remote = await this.controls.request(
+        enableRemote(remoteId, this.remoteMode),
+      );
       if (
         !/^https:\/\/claude\.ai\/code\/[a-zA-Z0-9_-]+$/.test(
           remote.session_url ?? "",

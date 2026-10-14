@@ -10,9 +10,10 @@ import { transcriptPath } from "./storage.mjs";
 const fixture = fileURLToPath(
   new URL("./e2e/fake-claude.fixture.mjs", import.meta.url),
 );
-async function setup(t) {
+async function setup(t, remote = "test") {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-transport-"));
   const child = new OwnedSession({
+    remote,
     controlTimeoutMs: 1500,
     connectTimeoutMs: 3000,
     executableArgs: [fixture],
@@ -210,7 +211,8 @@ test("an empty session survives full adapter restart with the same UUID and remo
       userDataDir: cwd,
       cwd,
       executable: process.execPath,
-      transportFactory: () => new OwnedSession({ executableArgs: [fixture] }),
+      transportFactory: () =>
+        new OwnedSession({ remote: "test", executableArgs: [fixture] }),
       readTranscript: async (_, id) => {
         try {
           return (
@@ -240,6 +242,88 @@ test("an empty session survives full adapter restart with the same UUID and remo
     assert.ok(bridge.transport.child.spawnargs.includes("--session-id"));
     assert.ok(!bridge.transport.child.spawnargs.includes("--resume"));
     assert.equal(bridge.state.turns.length, 0);
+  } finally {
+    await bridge.dispose();
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+async function controlLog(t, remote) {
+  const log = join(
+    await mkdtemp(join(tmpdir(), "glimpselet-control-log-")),
+    "control.jsonl",
+  );
+  const previous = process.env.GLIMPSELET_TEST_CONTROL_LOG;
+  process.env.GLIMPSELET_TEST_CONTROL_LOG = log;
+  t.after(async () => {
+    if (previous === undefined) delete process.env.GLIMPSELET_TEST_CONTROL_LOG;
+    else process.env.GLIMPSELET_TEST_CONTROL_LOG = previous;
+    await rm(join(log, ".."), { recursive: true, force: true });
+  });
+  const harness = await setup(t, remote);
+  const requests = (await readFile(log, "utf8"))
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse);
+  return { ...harness, requests };
+}
+test("with Remote Control off no remote_control request is made and turns still run", async (t) => {
+  const { child, requests } = await controlLog(t, "off");
+  assert.ok(requests.some((r) => r.subtype === "initialize"));
+  assert.ok(!requests.some((r) => r.subtype === "remote_control"));
+  const done = new Promise((resolve) =>
+    child.on("event", (event) => event.type === "result" && resolve(event)),
+  );
+  await child.send({ id: randomUUID(), text: "Hi", attachments: [] }, "local");
+  await done;
+});
+test("the single enabled check uses the Glimpselet test name and does not keep the session", async (t) => {
+  const { requests } = await controlLog(t, "test");
+  const remote = requests.find((r) => r.subtype === "remote_control");
+  assert.equal(remote.name, "Glimpselet test");
+  assert.equal(remote.keep_session_on_exit, false);
+});
+test("the default for users keeps the named Glimpselet session", async (t) => {
+  const { requests } = await controlLog(t, "on");
+  const remote = requests.find((r) => r.subtype === "remote_control");
+  assert.equal(remote.name, "Glimpselet");
+  assert.equal(remote.keep_session_on_exit, true);
+});
+test("a bridge without Remote Control works and keeps any earlier remote identity untouched", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "glimpselet-local-session-"));
+  const create = (remote) =>
+    new DesktopSessionBridge({
+      userDataDir: cwd,
+      cwd,
+      executable: process.execPath,
+      transportFactory: () =>
+        new OwnedSession({ remote, executableArgs: [fixture] }),
+      readTranscript: async () => [],
+    });
+  let bridge = create("test");
+  try {
+    await bridge.connect();
+    const identity = bridge.identity();
+    await bridge.dispose();
+    bridge = create("off");
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    assert.deepEqual(bridge.identity(), identity);
+    const fresh = await mkdtemp(join(tmpdir(), "glimpselet-local-fresh-"));
+    await bridge.dispose();
+    bridge = new DesktopSessionBridge({
+      userDataDir: fresh,
+      cwd: fresh,
+      executable: process.execPath,
+      transportFactory: () =>
+        new OwnedSession({ remote: "off", executableArgs: [fixture] }),
+      readTranscript: async () => [],
+    });
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    assert.equal(bridge.identity().remoteId, null);
+    await bridge.dispose();
+    await rm(fresh, { recursive: true, force: true });
   } finally {
     await bridge.dispose();
     await rm(cwd, { recursive: true, force: true });
