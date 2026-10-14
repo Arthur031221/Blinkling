@@ -15,7 +15,7 @@ for (const scale of [1, 1.5, 2])
       const dir = await mkdtemp(join(tmpdir(), "glimpselet-electron-session-"));
       const app = await _electron.launch({
         args: [root, "--no-sandbox", `--force-device-scale-factor=${scale}`],
-        env: { ...process.env, GLIMPSELET_E2E: "1" },
+        env: { ...process.env, GLIMPSELET_E2E: "1", GLIMPSELET_REMOTE: "0" },
       });
       try {
         const page = await app.firstWindow();

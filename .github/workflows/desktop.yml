@@ -12,6 +12,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # Tests never create Remote Control sessions in an account's list.
+      GLIMPSELET_REMOTE: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

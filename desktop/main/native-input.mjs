@@ -95,7 +95,13 @@ export async function nativeInput() {
                 });
             },
             rememberFocus: () =>
-              new Promise((resolve) =>
+              new Promise((resolve) => {
+                // A silent X server must not stall opening the card.
+                const timer = setTimeout(resolve, 1000);
+                const done = () => {
+                  clearTimeout(timer);
+                  resolve();
+                };
                 client.GetProperty(
                   false,
                   root,
@@ -106,15 +112,15 @@ export async function nativeInput() {
                   (error, result) => {
                     if (!error && result.data.length >= 4) {
                       previous = result.data.readUInt32LE();
-                      resolve();
+                      done();
                     } else
                       client.GetInputFocus((error, result) => {
                         previous = error ? null : result.focus;
-                        resolve();
+                        done();
                       });
                   },
-                ),
-              ),
+                );
+              }),
             restoreFocus() {
               if (previous && previous > 1) {
                 client.SetInputFocus(previous, 1, 0);

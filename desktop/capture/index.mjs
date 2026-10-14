@@ -11,6 +11,7 @@ import {
   SurfaceGuard,
   aborted,
   cropGeometry,
+  deadline,
   deliverCapture,
   freezeDisplay,
 } from "./core.mjs";
@@ -76,13 +77,14 @@ export class DesktopCaptureService {
   constructor({
     windows = () => [],
     onCapture = () => {},
-    deliveryTimeout = 15000,
     fullPage = captureFullPage,
     permission,
     select = selectRegion,
+    limits = {},
   } = {}) {
+    // Busy must always clear: no step may hang the service for longer than this.
+    this.limits = { run: 10 * 60_000, delivery: 15_000, ...limits };
     this.onCapture = onCapture;
-    this.deliveryTimeout = deliveryTimeout;
     this.fullPage = fullPage;
     this.select = select;
     this.guard = new SurfaceGuard(() => [...windows(), ...captureWindows()]);
@@ -187,10 +189,19 @@ export class DesktopCaptureService {
             },
           };
         }, controller.signal);
-      capture = this.permission
-        ? await this.permission.capture(task, this.intent, controller.signal)
-        : await task();
+      capture = await deadline(
+        this.permission
+          ? this.permission.capture(task, this.intent, controller.signal)
+          : task(),
+        this.limits.run,
+        "CAPTURE_TIMEOUT",
+      );
     } catch (error) {
+      if (/^CAPTURE_(DELIVERY_)?TIMEOUT$/.test(error.code)) {
+        // Close any selection overlay that is still waiting, then report it.
+        controller.abort();
+        throw error;
+      }
       if (controller.signal.aborted) return null;
       throw error;
     } finally {
@@ -204,7 +215,7 @@ export class DesktopCaptureService {
     // Delivery happens after busy has cleared: a card that is slow, closing or
     // gone must never leave later captures answering "capture in progress".
     if (capture && attach)
-      await deliverCapture(this.onCapture, capture, this.deliveryTimeout);
+      await deliverCapture(this.onCapture, capture, this.limits.delivery);
     return capture;
   }
   get busy() {

@@ -11,7 +11,8 @@ import {
   userMessage,
 } from "./protocol.mjs";
 
-/** One owned child, with no credential access and no writes to an interactive origin. */
+/** One owned child, with no credential access and no writes to an interactive origin.
+ * `remote` overrides GLIMPSELET_REMOTE ("off", "test" or "on") for this session. */
 export class OwnedSession extends EventEmitter {
   constructor({
     controlTimeoutMs = 15000,
@@ -173,7 +174,7 @@ export class OwnedSession extends EventEmitter {
     if (!this.disposing) this.emit("fault", error);
   }
   async send(turn, sessionId) {
-    if (!this.remote || !this.remoteConnected)
+    if (!this.remote || (!this.remote.local && !this.remoteConnected))
       throw new Error("Remote Control must connect before sending");
     const frame = `${JSON.stringify(userMessage(turn, sessionId))}\n`;
     await new Promise((resolve, reject) =>

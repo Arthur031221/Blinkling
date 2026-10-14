@@ -172,7 +172,7 @@ export class DesktopSessionBridge {
       );
       for (const message of recovered) this.upsert(message);
       await this.store.save(this.state);
-      this.emit(this.identity());
+      if (this.state.remoteId) this.emit(this.identity());
       this.emit({ type: "selection", applied: { ...this.state.selection } });
       for (const message of this.state.messages) this.emit(message);
       this.emitRecoveredCompletion(previousTurns);

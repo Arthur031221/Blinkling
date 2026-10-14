@@ -229,7 +229,7 @@ test("shutdown during the version probe cancels the actual probe and never launc
 
 test("an empty session survives full adapter restart with the same UUID and remote identity", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "glimpselet-empty-session-"));
-  const createBridge = () =>
+  const createBridge = (remote = "on") =>
     new DesktopSessionBridge({
       userDataDir: cwd,
       cwd,
@@ -265,6 +265,12 @@ test("an empty session survives full adapter restart with the same UUID and remo
     assert.ok(bridge.transport.child.spawnargs.includes("--session-id"));
     assert.ok(!bridge.transport.child.spawnargs.includes("--resume"));
     assert.equal(bridge.state.turns.length, 0);
+    // A later local-only run (GLIMPSELET_REMOTE=0) leaves the stored identity alone.
+    await bridge.dispose();
+    bridge = createBridge("off");
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    assert.deepEqual(bridge.identity(), identity);
   } finally {
     await bridge.dispose();
     await rm(cwd, { recursive: true, force: true });

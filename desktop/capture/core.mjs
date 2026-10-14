@@ -1,29 +1,30 @@
 export function aborted(signal) {
   signal?.throwIfAborted();
 }
+/** Settle within ms or reject with {code}. A hung step must never leave the
+ * capture marked busy forever. */
+export function deadline(promise, ms, code, message = `${code}: timed out`) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(Object.assign(new Error(message), { code })),
+        ms,
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 // Handing a finished capture to the card waits on a window that may still be
 // loading or closing. The wait is bounded so a stuck handler cannot hold the
 // caller (and everything chained behind it) forever.
-export async function deliverCapture(onCapture, capture, timeout = 15000) {
-  let timer;
-  try {
-    return await Promise.race([
-      Promise.resolve().then(() => onCapture(capture)),
-      new Promise((_, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(
-              Object.assign(Error("Capture could not be delivered"), {
-                code: "CAPTURE_DELIVERY_TIMEOUT",
-              }),
-            ),
-          timeout,
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
+export function deliverCapture(onCapture, capture, timeout = 15000) {
+  return deadline(
+    Promise.resolve().then(() => onCapture(capture)),
+    timeout,
+    "CAPTURE_DELIVERY_TIMEOUT",
+    "Capture could not be delivered",
+  );
 }
 export function freezeDisplay(display) {
   return Object.freeze({

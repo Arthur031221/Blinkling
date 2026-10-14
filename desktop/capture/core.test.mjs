@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   SurfaceGuard,
   cropGeometry,
+  deadline,
   deliverCapture,
   freezeDisplay,
 } from "./core.mjs";
@@ -159,4 +160,20 @@ test("a handler that throws synchronously is reported the same way", async () =>
     ),
     /sync failure/,
   );
+});
+
+test("deadline passes a result through, and rejects with a code when the work hangs or throws", async () => {
+  assert.equal(await deadline(Promise.resolve(7), 50, "X"), 7);
+  await assert.rejects(deadline(new Promise(() => {}), 20, "CAPTURE_TIMEOUT"), {
+    code: "CAPTURE_TIMEOUT",
+  });
+  await assert.rejects(
+    deadline(Promise.reject(new Error("boom")), 50, "X"),
+    /boom/,
+  );
+});
+test("deadline does not keep the process alive after the work finishes", async () => {
+  const started = Date.now();
+  await deadline(Promise.resolve(), 60_000, "X");
+  assert.ok(Date.now() - started < 1000);
 });

@@ -29,6 +29,10 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       "stop",
       "typing",
     ]);
+    // The test hook is installed once startup (bubbles, companion host) finishes.
+    await expect
+      .poll(() => app.evaluate(() => Boolean(globalThis.glimpseletTest)))
+      .toBe(true);
     const state = await app.evaluate(() => {
       const w = globalThis.glimpseletTest.blink;
       return {

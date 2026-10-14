@@ -200,6 +200,7 @@ export function mountComposer(
     closeDialog();
     await ingest([...file.files]);
     file.value = "";
+    hold();
   });
   listen(text, "input", () => {
     composer.draft(text.value);
@@ -296,6 +297,7 @@ export function mountComposer(
   }
   const unComposer = composer.subscribe((state) => {
     if (text.value !== state.draft) text.value = state.draft;
+    hold();
     lastSelection = state.selection;
     applySelection(state.selection);
     model.disabled = effort.disabled =

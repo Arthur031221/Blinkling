@@ -231,7 +231,7 @@ for (const [name, handler] of [
       const outcome = await app.evaluate(async ({ screen }, source) => {
         const capture = globalThis.glimpseletTest.features.capture;
         capture.onCapture = (0, eval)(`(${source})`);
-        capture.deliveryTimeout = 300;
+        capture.limits.delivery = 300;
         const id = String(screen.getPrimaryDisplay().id);
         const error = await capture.screen(id).then(
           () => null,
