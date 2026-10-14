@@ -26,6 +26,7 @@ export function mountComposer(
     onPin = () => {},
     onClose = () => {},
     onTyping = () => {},
+    onHold = () => {},
     copy,
     openLink,
   } = {},
@@ -179,10 +180,40 @@ export function mountComposer(
       fail(e);
     }
   };
-  listen(add, "click", () => file.click());
+  // What keeps the card open besides focus: a draft, pending chips, the file dialog.
+  let dialog = false,
+    reported = "";
+  const hold = () => {
+    const value = {
+      draft: Boolean(text.value),
+      chips: composer.state().attachments.length,
+      dialog,
+    };
+    const key = JSON.stringify(value);
+    if (key === reported) return;
+    reported = key;
+    onHold(value);
+  };
+  const dialogClosed = () => {
+    dialog = false;
+    hold();
+  };
+  listen(add, "click", () => {
+    dialog = true;
+    hold();
+    file.click();
+  });
+  // Cancelling a native file dialog fires "cancel"; when the window comes back
+  // without either event the dialog is gone anyway.
+  listen(file, "cancel", dialogClosed);
+  listen(doc.defaultView, "focus", () => {
+    if (dialog) setTimeout(dialogClosed, 400);
+  });
   listen(file, "change", async () => {
+    dialog = false;
     await ingest([...file.files]);
     file.value = "";
+    hold();
   });
   listen(text, "input", () => {
     composer.draft(text.value);
@@ -279,6 +310,7 @@ export function mountComposer(
   }
   const unComposer = composer.subscribe((state) => {
     if (text.value !== state.draft) text.value = state.draft;
+    hold();
     lastSelection = state.selection;
     applySelection(state.selection);
     model.disabled = effort.disabled =

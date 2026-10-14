@@ -9,7 +9,9 @@ import {
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
-import { keepAbove } from "./x11-stacking.mjs";
+import { keepAbove, stackOrder } from "./x11-stacking.mjs";
+import { createPointerSource } from "./pointer.mjs";
+import { emptyHold, parseHold, closesOnLeave } from "./composer-hold.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { contains } from "./geometry.mjs";
 import {
@@ -81,6 +83,30 @@ let previousCursor = "",
   previousFocused = null,
   ignoring = true;
 const input = await nativeInput();
+// Electron's cursor point goes stale on X11 while the pointer is over another
+// client, so hover would never end. Ask the X server; fall back to Electron.
+const pointer = createPointerSource({
+  query: input?.queryPointer ?? null,
+  fallback: () => screen.getCursorScreenPoint(),
+  toDip: (point) => screen.screenToDipPoint(point),
+});
+// What the card reports it is holding, and whether a leave was refused for it.
+let hold = emptyHold(),
+  leavePending = false;
+const settleLeave = () => {
+  if (
+    !leavePending ||
+    !closesOnLeave({
+      chatOpen,
+      pinned,
+      focused: !!composer && !composer.isDestroyed() && composer.isFocused(),
+      hold,
+    })
+  )
+    return;
+  leavePending = false;
+  closeComposer();
+};
 const actions = new Set([
   "screen",
   "region",
@@ -195,8 +221,11 @@ async function ensureComposer() {
   });
   win.on("blur", () => {
     broadcast();
-    if (!pinned)
+    if (!pinned) {
       blink.webContents.send("glimpselet:shell", { type: "chat-blur" });
+      // A dialog or the hold report may land just after the blur.
+      setTimeout(settleLeave, 200);
+    }
   });
   let timer;
   const ready = new Promise((resolve, reject) => {
@@ -269,6 +298,7 @@ function closeComposer(restore = true) {
   const focused = composer?.isFocused();
   chatOpen = false;
   pinned = false;
+  leavePending = false;
   composer?.hide();
   if (answersVisible) bubbles?.showInactive();
   if (restore && focused) {
@@ -349,7 +379,7 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
   const fromBlink = event.sender === blink.webContents;
   if (command.type === "drag") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
-    const p = screen.getCursorScreenPoint();
+    const p = await pointer.read();
     if (command.phase === "start") {
       if (
         !regions.some((r) =>
@@ -391,16 +421,24 @@ ipcMain.handle("glimpselet:shell", async (event, command) => {
       else if (process.platform === "win32") blink.setShape(regions);
       if (saved) await store.save(display.id, saved);
       composer?.setBounds(cardBounds(display, position));
+      bubbles?.setBounds(cardBounds(display, position));
       shapeComposer();
     }
   } else if (command.type === "pin") {
     pinned = command.value;
     if (pinned) await openComposer(false);
-    else closeComposer();
+    else {
+      leavePending = true;
+      settleLeave();
+    }
   } else if (command.type === "close-chat") closeComposer();
   else if (command.type === "visibility") {
     if (command.value && !chatOpen) await openComposer(false);
-    else if (!command.value && !pinned && chatOpen) closeComposer();
+    else if (!command.value && !pinned && chatOpen) {
+      // Leaving never takes the card from someone who is using it.
+      leavePending = true;
+      settleLeave();
+    }
   } else if (command.type === "activity") {
     if (fromBlink || event.sender !== composer?.webContents)
       throw new Error("Invalid composer activity");
@@ -508,6 +546,13 @@ ipcMain.handle("glimpselet:open-link", async (event, url) => {
     throw new Error("Invalid link");
   await externalShell.openExternal(new URL(url).href);
 });
+ipcMain.on("glimpselet:hold", (event, value) => {
+  const next = parseHold(value);
+  if (!trusted(event) || event.sender !== composer?.webContents || !next)
+    return;
+  hold = next;
+  settleLeave();
+});
 ipcMain.on("glimpselet:typing", (event, value) => {
   if (
     !trusted(event) ||
@@ -591,6 +636,8 @@ const visualMasks = () =>
       }));
     });
 const attachCapture = async (capture) => {
+  // The chip is pending from this moment, before the card has reported it.
+  hold = { ...hold, chips: Math.max(hold.chips, 1) };
   await openComposer();
   composer.webContents.send("glimpselet:capture", capture);
   send({ type: "capture", capture });
@@ -640,13 +687,15 @@ if (
 void features
   .resume()
   .catch(() => send({ type: "capture-status", state: "retrying" }));
+// The deck sits under Blink: the menu pills must stay clickable over answers.
 const stopStacking = await keepAbove(() =>
-  [overlay, features.overlay.window, blink, bubbles].filter(Boolean),
+  stackOrder({
+    blink,
+    bubbles,
+    overlays: [overlay, features.overlay.window].filter(Boolean),
+  }),
 );
-const poll = setInterval(() => {
-  if (blink.isDestroyed() || !blink.isVisible()) return;
-
-  const p = screen.getCursorScreenPoint();
+const track = (p) => {
   if (drag) {
     if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4)
       drag.active = true;
@@ -671,6 +720,7 @@ const poll = setInterval(() => {
     );
   if (!input && process.platform !== "win32")
     bubbles.setIgnoreMouseEvents(!overBubbles, { forward: true });
+  if (hit || overCard || overBubbles) leavePending = false;
   const key = `${p.x},${p.y},${hit},${overCard},${overBubbles},${chatOpen}`;
   if (key !== previousCursor) {
     previousCursor = key;
@@ -687,6 +737,16 @@ const poll = setInterval(() => {
       ignoring = !hit;
       blink.setIgnoreMouseEvents(ignoring, { forward: true });
     }
+  }
+};
+let polling = false;
+const poll = setInterval(async () => {
+  if (polling || blink.isDestroyed() || !blink.isVisible()) return;
+  polling = true;
+  try {
+    track(await pointer.read());
+  } finally {
+    polling = false;
   }
 }, 16);
 let disposed = false;
@@ -729,4 +789,5 @@ if (process.env.GLIMPSELET_E2E === "1")
     setDisplay: useDisplay,
     positionStore: store,
     registerAction,
+    pointer,
   };

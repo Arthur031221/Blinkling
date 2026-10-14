@@ -6,6 +6,8 @@ const valid = (p) =>
   Number.isFinite(p.ratio) &&
   p.ratio >= 0 &&
   p.ratio <= 1;
+/** Distance from a screen corner, in DIP, inside which a drop rests in the corner. */
+const CORNER = 96;
 /** Saved edge/ratio is independent of scale, resolution and desktop origin. */
 export function snapPosition(display, point) {
   const a = display.workArea;
@@ -16,15 +18,18 @@ export function snapPosition(display, point) {
     ["bottom", Math.abs(point.y - a.y - a.height)],
   ];
   const edge = distances.sort((a, b) => a[1] - b[1])[0][0];
+  const along = edge === "left" || edge === "right" ? a.height : a.width;
+  const ratio = clamp(
+    (edge === "left" || edge === "right" ? point.y - a.y : point.x - a.x) /
+      along,
+    0,
+    1,
+  );
+  // A drop near a corner rests exactly in it, whichever edge was nearer.
   return {
     edge,
-    ratio: clamp(
-      edge === "left" || edge === "right"
-        ? (point.y - a.y) / a.height
-        : (point.x - a.x) / a.width,
-      0,
-      1,
-    ),
+    ratio:
+      ratio * along < CORNER ? 0 : (1 - ratio) * along < CORNER ? 1 : ratio,
   };
 }
 export function resolvePosition(display, saved) {
@@ -46,10 +51,11 @@ export function resolvePosition(display, saved) {
       ? a.y + 70
       : a.y + a.height + 55;
   const peek = { x, y };
-  const reveal = {
-    x: clamp(x, a.x + 90, a.x + a.width - 90),
-    y: clamp(y, a.y + 150, a.y + a.height - 18),
-  };
+  // Revealing only slides Blink out from its edge. Along the edge it stays put,
+  // so hovering never makes it jump sideways.
+  const reveal = vertical
+    ? { x: clamp(x, a.x + 90, a.x + a.width - 90), y }
+    : { x, y: clamp(y, a.y + 150, a.y + a.height - 18) };
   return { ...p, peek, reveal, area: a };
 }
 export function reconcileDisplay(displays, id) {
@@ -63,13 +69,15 @@ export function cardBounds(display, position) {
     x: position.reveal.x + display.bounds.x,
     y: position.reveal.y + display.bounds.y,
   };
+  // Beside Blink, away from its edge. On a top or bottom edge, or in a corner,
+  // take whichever side has room so the card never lands on top of Blink.
+  const left = anchor.x - width - 80,
+    right = anchor.x + 80;
+  const fits = (x) => x >= a.x + 12 && x + width <= a.x + a.width - 12;
+  const sides = position.edge === "left" ? [right, left] : [left, right];
   return {
     x: Math.round(
-      clamp(
-        position.edge === "left" ? anchor.x + 80 : anchor.x - width - 80,
-        a.x + 12,
-        a.x + a.width - width - 12,
-      ),
+      clamp(sides.find(fits) ?? sides[0], a.x + 12, a.x + a.width - width - 12),
     ),
     y: Math.round(
       clamp(anchor.y - height, a.y + 12, a.y + a.height - height - 12),

@@ -1,4 +1,8 @@
 import x11 from "x11";
+/** Bottom to top. Blink draws the menu pills, so it must sit above the bubble deck
+ * that grows out of the same spot, and above every overlay. */
+export const stackOrder = ({ blink, bubbles, overlays = [] }) =>
+  [...overlays, bubbles, blink].filter(Boolean);
 /** Non-focusable Linux windows are override-redirect. Electron's moveTop uses
  * the WM path, which cannot raise them above a later mapped managed window.
  * Raise their native XIDs directly, without any focus or activation request.
@@ -22,9 +26,12 @@ export async function keepAbove(windows) {
         eventMask: x11.eventMask.SubstructureNotify,
       });
       client.on("event", (event) => {
+        // Our own windows mapping (the deck appearing) must restack too; their
+        // own ConfigureNotify must not, or raising would feed itself.
+        const own = live().some((w) => id(w) === (event.wid1 ?? event.wid));
         if (
-          (event.name === "MapNotify" || event.name === "ConfigureNotify") &&
-          !live().some((w) => id(w) === (event.wid1 ?? event.wid))
+          event.name === "MapNotify" ||
+          (event.name === "ConfigureNotify" && !own)
         )
           raise();
       });

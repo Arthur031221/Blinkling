@@ -7,7 +7,13 @@ import {
 } from "electron";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { SurfaceGuard, freezeDisplay, cropGeometry, aborted } from "./core.mjs";
+import {
+  SurfaceGuard,
+  freezeDisplay,
+  cropGeometry,
+  aborted,
+  deadline,
+} from "./core.mjs";
 import { IntentStore, PermissionRecovery } from "./permission.mjs";
 import { selectRegion, permissionWindow, captureWindows } from "./windows.mjs";
 export { selectRegion } from "./windows.mjs";
@@ -73,7 +79,10 @@ export class DesktopCaptureService {
     fullPage = captureFullPage,
     permission,
     select = selectRegion,
+    limits = {},
   } = {}) {
+    // Busy must always clear: no step may hang the service for longer than this.
+    this.limits = { run: 10 * 60_000, delivery: 15_000, ...limits };
     this.onCapture = onCapture;
     this.fullPage = fullPage;
     this.select = select;
@@ -178,12 +187,26 @@ export class DesktopCaptureService {
             },
           };
         }, controller.signal);
-      const capture = this.permission
-        ? await this.permission.capture(task, this.intent, controller.signal)
-        : await task();
-      if (capture && attach) await this.onCapture(capture);
+      const capture = await deadline(
+        this.permission
+          ? this.permission.capture(task, this.intent, controller.signal)
+          : task(),
+        this.limits.run,
+        "CAPTURE_TIMEOUT",
+      );
+      if (capture && attach)
+        await deadline(
+          Promise.resolve().then(() => this.onCapture(capture)),
+          this.limits.delivery,
+          "CAPTURE_DELIVERY_TIMEOUT",
+        );
       return capture;
     } catch (error) {
+      if (/^CAPTURE_(DELIVERY_)?TIMEOUT$/.test(error.code)) {
+        // Close any selection overlay that is still waiting, then report it.
+        controller.abort();
+        throw error;
+      }
       if (controller.signal.aborted) return null;
       throw error;
     } finally {

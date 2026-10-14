@@ -41,6 +41,15 @@ export async function nativeInput() {
             );
           }
           resolve({
+            /** Root coordinates in physical pixels, straight from the X server. */
+            queryPointer: () =>
+              new Promise((resolve, reject) =>
+                client.QueryPointer(root, (error, result) =>
+                  error
+                    ? reject(error)
+                    : resolve({ x: result.rootX, y: result.rootY }),
+                ),
+              ),
             activate: (win) =>
               activate(win.getNativeWindowHandle().readUInt32LE()),
             setRegions(win, regions, scale = 1, managedFrame = false) {
@@ -85,7 +94,13 @@ export async function nativeInput() {
                 });
             },
             rememberFocus: () =>
-              new Promise((resolve) =>
+              new Promise((resolve) => {
+                // A silent X server must not stall opening the card.
+                const timer = setTimeout(resolve, 1000);
+                const done = () => {
+                  clearTimeout(timer);
+                  resolve();
+                };
                 client.GetProperty(
                   false,
                   root,
@@ -96,15 +111,15 @@ export async function nativeInput() {
                   (error, result) => {
                     if (!error && result.data.length >= 4) {
                       previous = result.data.readUInt32LE();
-                      resolve();
+                      done();
                     } else
                       client.GetInputFocus((error, result) => {
                         previous = error ? null : result.focus;
-                        resolve();
+                        done();
                       });
                   },
-                ),
-              ),
+                );
+              }),
             restoreFocus() {
               if (previous && previous > 1) {
                 client.SetInputFocus(previous, 1, 0);

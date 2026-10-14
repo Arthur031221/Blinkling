@@ -1,6 +1,20 @@
 export function aborted(signal) {
   signal?.throwIfAborted();
 }
+/** Settle within ms or reject with {code}. A hung step must never leave the
+ * capture marked busy forever. */
+export function deadline(promise, ms, code) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(Object.assign(new Error(`${code}: timed out`), { code })),
+        ms,
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 export function freezeDisplay(display) {
   return Object.freeze({
     id: String(display.id),
