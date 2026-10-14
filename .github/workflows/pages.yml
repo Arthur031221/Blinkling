@@ -9,6 +9,9 @@ permissions:
   contents: read
   pages: write
   id-token: write
+env:
+  # Automated runs never create Remote Control sessions in anyone's account.
+  BLINKLING_REMOTE: "0"
 concurrency:
   group: pages
   cancel-in-progress: false
