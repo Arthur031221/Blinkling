@@ -35,6 +35,7 @@ describe("starting a shared screen without taking a snapshot", () => {
 
   function setupShare() {
     setupChrome();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const track = { readyState: "live", stop: vi.fn() };
     const stream = {
       getVideoTracks: () => [track],
@@ -96,6 +97,62 @@ describe("starting a shared screen without taking a snapshot", () => {
     expect(chrome.windows.update).toHaveBeenCalledWith(tab.windowId, {
       focused: true,
     });
+  });
+
+  it("waits for native opener focus even when DOM focus is stale after a late PiP activation", async () => {
+    vi.useFakeTimers();
+    try {
+      const { getDisplayMedia } = setupShare();
+      vi.spyOn(window, "focus").mockImplementation(() => {});
+      let focused = 10;
+      let moved = false;
+      vi.mocked(chrome.windows.get).mockImplementation(async (id) => ({
+        id,
+        focused: focused === id,
+      }));
+      vi.mocked(chrome.windows.update).mockImplementation(async (id) => {
+        focused = id;
+        if (!moved) {
+          moved = true;
+          setTimeout(() => (focused = 99), 120);
+        }
+        return { id, focused: true };
+      });
+      const { startScreenShare } = await import("./capture");
+      const pending = startScreenShare(tab.id, {} as Window);
+      await vi.advanceTimersByTimeAsync(280);
+      expect(document.hasFocus()).toBe(true);
+      expect(getDisplayMedia).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(120);
+      await pending;
+      expect(getDisplayMedia).toHaveBeenCalledOnce();
+      expect(
+        vi.mocked(chrome.windows.update).mock.calls.filter(([id]) => id === 10),
+      ).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not open a picker on PiP when native opener focus never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const { getDisplayMedia } = setupShare();
+      vi.spyOn(window, "focus").mockImplementation(() => {});
+      vi.mocked(chrome.windows.get).mockResolvedValue({
+        id: 10,
+        focused: false,
+      });
+      const { startScreenShare } = await import("./capture");
+      const rejected = expect(
+        startScreenShare(tab.id, {} as Window),
+      ).rejects.toThrow("capture_failed");
+      await vi.advanceTimersByTimeAsync(2040);
+      await rejected;
+      expect(getDisplayMedia).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([
@@ -227,6 +284,7 @@ function setupChrome(captureVisibleTab = vi.fn(async () => "tile-png")) {
       captureVisibleTab,
     },
     windows: {
+      get: vi.fn(async (id: number) => ({ id, focused: true })),
       update: vi.fn(async () => ({ id: tab.windowId })),
       getLastFocused: vi.fn(async () => ({ id: 10, focused: true })),
       getAll: vi.fn(async () => []),

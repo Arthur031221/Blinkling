@@ -18,8 +18,12 @@ magic,size,maximum,data=ppm.split(b'\\n',3)
 width,height=map(int,size.split())
 assert magic==b'P6' and maximum==b'255' and len(data)==width*height*3
 rows=[]
-for name,colors in [('Allow',[bytes([211,227,253]),bytes([200,215,240]),bytes([0,74,119])]),('Deny',[bytes([13,80,187]),bytes([11,87,208]),bytes([175,202,247])])]:
- points={(i%width,i//width) for i in range(width*height) if data[3*i:3*i+3] in colors}
+groups=json.loads(sys.argv[2])
+bounds=json.loads(sys.argv[3])
+left,top,right,bottom=bounds or [0,0,width,height]
+for name,colors in groups:
+ colors=[bytes(color) for color in colors]
+ points={(x,y) for y in range(max(0,top),min(height,bottom)) for x in range(max(0,left),min(width,right)) if data[3*(y*width+x):3*(y*width+x)+3] in colors}
  largest=[]
  while points:
   seed=points.pop();queue=[seed];component=[seed]
@@ -36,10 +40,53 @@ for name,colors in [('Allow',[bytes([211,227,253]),bytes([200,215,240]),bytes([0
    rows.append(dict(name=name,x=x,y=y,width=w,height=h,pixels=len(largest)))
 print(json.dumps(rows))`;
 
-export function nativeControls(path: string): NativeControl[] {
+export function nativeControls(
+  path: string,
+  kind: "permission" | "picker" = "permission",
+  bounds?: [number, number, number, number],
+): NativeControl[] {
+  const groups =
+    kind === "permission"
+      ? [
+          [
+            "Allow",
+            [
+              [211, 227, 253],
+              [200, 215, 240],
+              [0, 74, 119],
+            ],
+          ],
+          [
+            "Deny",
+            [
+              [13, 80, 187],
+              [11, 87, 208],
+              [175, 202, 247],
+            ],
+          ],
+        ]
+      : [
+          [
+            "Cancel",
+            [
+              [211, 227, 253],
+              [200, 215, 240],
+              [0, 74, 119],
+            ],
+          ],
+          ["Share", [[11, 87, 208]]],
+        ];
   return JSON.parse(
-    execFileSync("python3", ["-c", nativeControlsScript, path], {
-      timeout: 15_000,
-    }).toString(),
+    execFileSync(
+      "python3",
+      [
+        "-c",
+        nativeControlsScript,
+        path,
+        JSON.stringify(groups),
+        JSON.stringify(bounds || null),
+      ],
+      { timeout: 15_000 },
+    ).toString(),
   );
 }

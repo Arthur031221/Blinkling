@@ -1908,7 +1908,11 @@ async function restoreFloatingSurface() {
   return fallback;
 }
 
-async function desktopScreenshot(testInfo: TestInfo, name: string) {
+async function desktopScreenshot(
+  testInfo: TestInfo,
+  name: string,
+  attach = true,
+) {
   const path = testInfo.outputPath(`${name}.png`);
   execFileSync(
     "ffmpeg",
@@ -1928,8 +1932,39 @@ async function desktopScreenshot(testInfo: TestInfo, name: string) {
     ],
     { timeout: 10000 },
   );
-  await testInfo.attach(name, { path, contentType: "image/png" });
+  if (attach) await testInfo.attach(name, { path, contentType: "image/png" });
   return path;
+}
+
+async function paintedPickerControls(
+  testInfo: TestInfo,
+  name: string,
+  opener: chrome.windows.Window,
+  selected = false,
+) {
+  let path = "";
+  let controls: ReturnType<typeof nativeControls> = [];
+  // The chooser must be hosted by the separate opener. Restrict discovery to
+  // that window so a chooser attached to an enlarged PiP cannot pass this test.
+  const bounds: [number, number, number, number] = [
+    opener.left!,
+    opener.top!,
+    opener.left! + opener.width!,
+    opener.top! + opener.height!,
+  ];
+  await expect
+    .poll(
+      async () => {
+        path = await desktopScreenshot(testInfo, name, false);
+        controls = nativeControls(path, "picker", bounds);
+        return controls.map((control) => control.name).sort();
+      },
+      { timeout: 15000 },
+    )
+    .toEqual(selected ? ["Cancel", "Share"] : ["Cancel"]);
+  await testInfo.attach(name, { path, contentType: "image/png" });
+  await attachJson(testInfo, `${name}-controls`, { bounds, controls });
+  return { path, controls };
 }
 
 function desktopPixel(path: string, x: number, y: number) {
@@ -2082,88 +2117,176 @@ async function prepareProductionBubble() {
   return source!.id!;
 }
 
-test("v2.1 real picker is visible from a separate opener and restores the bubble on cancel and share", async ({
-  browserName,
-}, testInfo) => {
-  expect(browserName).toBe("chromium");
-  const sourceId = await prepareProductionBubble();
-  const opener = await panel.evaluate(async () =>
-    chrome.windows.get((await chrome.tabs.getCurrent())!.windowId!),
-  );
-  const initial = await panel.evaluate(
-    async () => (await chrome.windows.getAll()).find((w) => w.alwaysOnTop)!,
-  );
-  for (const outcome of ["cancel", "share"] as const) {
-    const position =
-      outcome === "cancel"
-        ? { left: 680, top: 180 }
-        : {
-            left: 1440 - initial.width! - 12,
-            top: 1000 - initial.height! - 12,
-          };
-    await panel.evaluate(
-      async ({ id, position }) => chrome.windows.update(id!, position),
-      { id: initial.id, position },
+for (const delayedFocus of [false, true]) {
+  test(`v2.1 real picker ${delayedFocus ? "with delayed native PiP activation " : ""}is visible from a separate opener and restores the bubble on cancel and share`, async ({
+    browserName,
+  }, testInfo) => {
+    expect(browserName).toBe("chromium");
+    const sourceId = await prepareProductionBubble();
+    const opener = await panel.evaluate(async () =>
+      chrome.windows.get((await chrome.tabs.getCurrent())!.windowId!),
     );
-    await site.bringToFront();
-    await nativeClick(".capture-buttons button", true);
-    await expect
-      .poll(() =>
-        panel.evaluate(
-          async () =>
-            (await chrome.windows.getAll()).find((w) => w.alwaysOnTop)!.left,
-        ),
-      )
-      .toBe(1440 - Math.round(initial.width! / 2));
-    expect(
+    const initial = await panel.evaluate(
+      async () => (await chrome.windows.getAll()).find((w) => w.alwaysOnTop)!,
+    );
+    for (const outcome of ["cancel", "share"] as const) {
+      const position =
+        outcome === "cancel"
+          ? { left: 680, top: 180 }
+          : {
+              left: 1440 - initial.width! - 12,
+              top: 1000 - initial.height! - 12,
+            };
       await panel.evaluate(
-        () =>
-          window.documentPictureInPicture.window!.document.querySelector(
-            ".status",
-          )!.textContent,
-      ),
-    ).toContain(en.screenPickerPending);
-    await panel.waitForTimeout(400);
-    await desktopScreenshot(testInfo, `real-picker-${outcome}`);
-    if (outcome === "cancel") nativeInput("keys", "Escape");
-    else {
-      // Native Chrome dialog, measured relative to the actual default opener;
-      // no Playwright or DOM click can interact with this browser-owned UI.
-      nativeInput(
-        "click",
-        String(opener.left! + opener.width! / 2 - 135),
-        String(opener.top! + 310),
+        async ({ id, position }) => chrome.windows.update(id!, position),
+        { id: initial.id, position },
       );
-      await panel.waitForTimeout(200);
-      const selected = await desktopScreenshot(
-        testInfo,
-        "real-picker-selected",
-      );
-      const sharePoint = {
-        x: Math.round(opener.left! + opener.width! / 2 + 255),
-        y: opener.top! + 582,
-      };
-      expect(desktopPixel(selected, sharePoint.x + 20, sharePoint.y)).toEqual([
-        11, 87, 208,
-      ]);
-      nativeInput("click", String(sharePoint.x), String(sharePoint.y));
-    }
-    await expect
-      .poll(() =>
-        evaluateWithoutGesture<number>(
-          `chrome.windows.getLastFocused().then(w => w.id)`,
-        ),
-      )
-      .toBe(sourceId);
-    if (outcome === "share")
+      await site.bringToFront();
+      if (delayedFocus) {
+        await panel.evaluate(
+          ({ openerId, bubbleId }) => {
+            const fixture = window as Window & {
+              pickerNativeUpdate?: typeof chrome.windows.update;
+            };
+            const update = (fixture.pickerNativeUpdate ||=
+              chrome.windows.update.bind(chrome.windows));
+            let activated = false;
+            chrome.windows.update = ((
+              id: number,
+              change: chrome.windows.UpdateInfo,
+            ) => {
+              const result = update(id, change);
+              if (id === openerId && change.focused && !activated) {
+                activated = true;
+                // Reproduce the late native activation seen in CI after moving
+                // PiP. This uses the actual Chrome windows, not synthetic DOM focus.
+                void result.then(() =>
+                  setTimeout(() => {
+                    void update(bubbleId!, { focused: true });
+                  }, 100),
+                );
+              }
+              return result;
+            }) as typeof chrome.windows.update;
+          },
+          { openerId: opener.id, bubbleId: initial.id },
+        );
+      }
+      await nativeClick(".capture-buttons button", true);
       await expect
         .poll(() =>
-          evaluateWithoutGesture(`(() => {
+          panel.evaluate(
+            async () =>
+              (await chrome.windows.getAll()).find((w) => w.alwaysOnTop)!.left,
+          ),
+        )
+        .toBe(1440 - Math.round(initial.width! / 2));
+      expect(
+        await panel.evaluate(
+          () =>
+            window.documentPictureInPicture.window!.document.querySelector(
+              ".status",
+            )!.textContent,
+        ),
+      ).toContain(en.screenPickerPending);
+      await paintedPickerControls(testInfo, `real-picker-${outcome}`, opener);
+      if (outcome === "cancel") nativeInput("keys", "Escape");
+      else {
+        // Cancel initially has native keyboard focus. Move back to the screen
+        // tile and select it without assuming the thumbnail's screen coordinates.
+        nativeInput("chord", "Shift_L", "Tab");
+        nativeInput("keys", "space");
+        const selected = await paintedPickerControls(
+          testInfo,
+          "real-picker-selected",
+          opener,
+          true,
+        );
+        const share = selected.controls.find(
+          (control) => control.name === "Share",
+        )!;
+        const sharePoint = {
+          x: Math.round(share.x + share.width / 2),
+          y: Math.round(share.y + share.height / 2),
+        };
+        expect(
+          desktopPixel(selected.path, sharePoint.x + 20, sharePoint.y),
+        ).toEqual([11, 87, 208]);
+        nativeInput("click", String(sharePoint.x), String(sharePoint.y));
+      }
+      await expect
+        .poll(() =>
+          evaluateWithoutGesture<number>(
+            `chrome.windows.getLastFocused().then(w => w.id)`,
+          ),
+        )
+        .toBe(sourceId);
+      if (outcome === "share")
+        await expect
+          .poll(() =>
+            evaluateWithoutGesture(`(() => {
         const view = window.documentPictureInPicture.window || chrome.extension.getViews().find(view => view.location.search.includes('surfaceOnly=1'));
         return Boolean(view?.document.querySelector('.capture-chip'));
       })()`),
+          )
+          .toBe(true);
+      await restoreFloatingSurface();
+      await expect
+        .poll(() =>
+          panel.evaluate(async () => {
+            const bubble = (await chrome.windows.getAll()).find(
+              (w) => w.alwaysOnTop,
+            )!;
+            return {
+              left: bubble.left,
+              top: bubble.top,
+              width: bubble.width,
+              height: bubble.height,
+            };
+          }),
         )
-        .toBe(true);
+        .toEqual({ ...position, width: initial.width, height: initial.height });
+      const state = await panel.evaluate(() => {
+        const doc = window.documentPictureInPicture.window!.document;
+        const stream = document.querySelector("video")!
+          .srcObject as MediaStream | null;
+        return {
+          draft: doc.querySelector<HTMLTextAreaElement>("textarea")!.value,
+          history: doc
+            .querySelector(".message .answer .markdown")!
+            .textContent?.trim(),
+          attached: Boolean(doc.querySelector(".capture-chip")),
+          track: stream?.getVideoTracks()[0].readyState || null,
+        };
+      });
+      expect(state).toEqual({
+        draft: "Keep this draft",
+        history: "Native answer",
+        attached: outcome === "share",
+        track: outcome === "share" ? "live" : null,
+      });
+    }
+    // A later user move is the geometry for subsequent captures, not the first
+    // picker's position. The accepted attachment and exact live track survive.
+    await panel.evaluate(async () => {
+      const bubble = (await chrome.windows.getAll()).find(
+        (w) => w.alwaysOnTop,
+      )!;
+      await chrome.windows.update(bubble.id!, { left: 450, top: 170 });
+      (window as Window & { savedTrack: MediaStreamTrack }).savedTrack = (
+        document.querySelector("video")!.srcObject as MediaStream
+      ).getVideoTracks()[0];
+    });
+    await nativeClick(".capture-buttons button", true);
+    await expect
+      .poll(() =>
+        evaluateWithoutGesture(`(() => {
+    const view = window.documentPictureInPicture.window || chrome.extension.getViews().find(view => view.location.search.includes('surfaceOnly=1'));
+    const button = view?.document.querySelector('.capture-buttons button');
+    return Boolean(button && !button.disabled);
+  })()`),
+      )
+      .toBe(true);
     await restoreFloatingSurface();
     await expect
       .poll(() =>
@@ -2171,80 +2294,26 @@ test("v2.1 real picker is visible from a separate opener and restores the bubble
           const bubble = (await chrome.windows.getAll()).find(
             (w) => w.alwaysOnTop,
           )!;
-          return {
-            left: bubble.left,
-            top: bubble.top,
-            width: bubble.width,
-            height: bubble.height,
-          };
+          return [bubble.left, bubble.top];
         }),
       )
-      .toEqual({ ...position, width: initial.width, height: initial.height });
-    const state = await panel.evaluate(() => {
-      const doc = window.documentPictureInPicture.window!.document;
-      const stream = document.querySelector("video")!
-        .srcObject as MediaStream | null;
-      return {
-        draft: doc.querySelector<HTMLTextAreaElement>("textarea")!.value,
-        history: doc
-          .querySelector(".message .answer .markdown")!
-          .textContent?.trim(),
-        attached: Boolean(doc.querySelector(".capture-chip")),
-        track: stream?.getVideoTracks()[0].readyState || null,
-      };
-    });
-    expect(state).toEqual({
-      draft: "Keep this draft",
-      history: "Native answer",
-      attached: outcome === "share",
-      track: outcome === "share" ? "live" : null,
-    });
-  }
-  // A later user move is the geometry for subsequent captures, not the first
-  // picker's position. The accepted attachment and exact live track survive.
-  await panel.evaluate(async () => {
-    const bubble = (await chrome.windows.getAll()).find((w) => w.alwaysOnTop)!;
-    await chrome.windows.update(bubble.id!, { left: 450, top: 170 });
-    (window as Window & { savedTrack: MediaStreamTrack }).savedTrack = (
-      document.querySelector("video")!.srcObject as MediaStream
-    ).getVideoTracks()[0];
+      .toEqual([450, 170]);
+    expect(
+      await panel.evaluate(
+        () =>
+          (
+            document.querySelector("video")!.srcObject as MediaStream
+          ).getVideoTracks()[0] ===
+          (window as Window & { savedTrack: MediaStreamTrack }).savedTrack,
+      ),
+    ).toBe(true);
+    await attachJson(
+      testInfo,
+      "real-picker-final-windows",
+      await panel.evaluate(() => chrome.windows.getAll()),
+    );
   });
-  await nativeClick(".capture-buttons button", true);
-  await expect
-    .poll(() =>
-      evaluateWithoutGesture(`(() => {
-    const view = window.documentPictureInPicture.window || chrome.extension.getViews().find(view => view.location.search.includes('surfaceOnly=1'));
-    const button = view?.document.querySelector('.capture-buttons button');
-    return Boolean(button && !button.disabled);
-  })()`),
-    )
-    .toBe(true);
-  await restoreFloatingSurface();
-  await expect
-    .poll(() =>
-      panel.evaluate(async () => {
-        const bubble = (await chrome.windows.getAll()).find(
-          (w) => w.alwaysOnTop,
-        )!;
-        return [bubble.left, bubble.top];
-      }),
-    )
-    .toEqual([450, 170]);
-  expect(
-    await panel.evaluate(
-      () =>
-        (
-          document.querySelector("video")!.srcObject as MediaStream
-        ).getVideoTracks()[0] ===
-        (window as Window & { savedTrack: MediaStreamTrack }).savedTrack,
-    ),
-  ).toBe(true);
-  await attachJson(
-    testInfo,
-    "real-picker-final-windows",
-    await panel.evaluate(() => chrome.windows.getAll()),
-  );
-});
+}
 
 for (const scheme of ["light", "dark"]) {
   test(`v2.1 ${scheme} native surface reduces Blink obstruction and clears all crop pixels and input`, async ({

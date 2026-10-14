@@ -855,11 +855,21 @@ export async function startScreenShare(
         hostWindowId = host.windowId;
         await chrome.tabs.update(host.id, { active: true });
         await chrome.windows.update(host.windowId, { focused: true });
-        // window.focus() is asynchronous at the native window manager. Chrome
-        // can otherwise attach its dialog to the still-focused PiP widget.
-        const deadline = performance.now() + 250;
-        while (!document.hasFocus() && performance.now() < deadline)
-          await new Promise((resolve) => window.setTimeout(resolve, 20));
+        // Moving PiP can activate its native widget after windows.update has
+        // acknowledged the move. DOM focus alone can still report the opener
+        // during that transition. Wait for both kinds of focus to settle before
+        // Chrome chooses the native widget that will own its screen picker.
+        const deadline = performance.now() + 2000;
+        let stableSince = performance.now();
+        for (;;) {
+          const native = await chrome.windows.get(host.windowId);
+          if (!native.focused || !document.hasFocus()) {
+            stableSince = performance.now();
+            await chrome.windows.update(host.windowId, { focused: true });
+          } else if (performance.now() - stableSince >= 200) break;
+          if (performance.now() >= deadline) throw new Error("capture_failed");
+          await new Promise((resolve) => window.setTimeout(resolve, 40));
+        }
       }
     }
     stream = await navigator.mediaDevices.getDisplayMedia({
