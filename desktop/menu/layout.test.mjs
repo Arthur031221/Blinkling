@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { menuLayout, menuTransform } from "./layout.mjs";
+import { resolvePosition } from "../main/placement.mjs";
 const overlap = (a, b) =>
   a.x < b.x + b.width &&
   b.x < a.x + a.width &&
@@ -69,3 +70,66 @@ for (const scale of [1, 1.5, 2])
         }
       }
     });
+
+const CLEAR = 12;
+const inside = (r, area) =>
+  r.x >= area.x + 8 - 1e-8 &&
+  r.y >= area.y + 8 - 1e-8 &&
+  r.x + r.width <= area.x + area.width - 8 + 1e-8 &&
+  r.y + r.height <= area.y + area.height - 8 + 1e-8;
+const apart = (a, b) =>
+  a.x + a.width + CLEAR <= b.x + 1e-8 ||
+  b.x + b.width + CLEAR <= a.x + 1e-8 ||
+  a.y + a.height <= b.y + 1e-8 ||
+  b.y + b.height <= a.y + 1e-8;
+const displays = [
+  [1280, 720],
+  [1280, 680],
+  [1280, 800],
+];
+const edges = ["left", "right", "top", "bottom"];
+
+// Real anchors come from Blink's own placement on each edge, then the fan is
+// asked for every pill expanded, and for every width a pill passes through on
+// the way (the pill springs between narrow and wide while neighbours settle).
+for (const [w, h] of displays)
+  for (const scale of [1, 1.5, 2])
+    test(`the fan never overlaps itself or leaves the work area on ${w}x${h} at ${scale * 100}%, all four edges`, () => {
+      const display = {
+        bounds: { x: 0, y: 0, width: w / scale, height: (h + 40) / scale },
+        workArea: { x: 0, y: 0, width: w / scale, height: h / scale },
+      };
+      for (const edge of edges)
+        for (const ratio of [0, 0.25, 0.5, 0.75, 1]) {
+          const { reveal, area } = resolvePosition(display, { edge, ratio });
+          for (const anchor of [reveal, { x: reveal.x + 3.3, y: reveal.y - 2.1 }])
+            for (let expanded = -1; expanded < 8; expanded++)
+              for (const wide of [42, 70, 117, 180, 252]) {
+                const widths = Array.from({ length: 8 }, (_, i) =>
+                  i === expanded ? wide : 42,
+                );
+                // A neighbour that is itself mid-transition.
+                for (const other of [42, 150]) {
+                  const mixed = widths.map((v, i) => (i === (expanded + 4) % 8 && expanded >= 0 ? other : v));
+                  const rs = menuLayout(area, anchor, expanded, mixed);
+                  rs.forEach((r, i) => {
+                    assert.ok(inside(r, area), `${edge} ${ratio} pill ${i} leaves the area (${JSON.stringify(r)})`);
+                    for (let j = i + 1; j < rs.length; j++)
+                      assert.ok(
+                        apart(r, rs[j]),
+                        `${edge} ${ratio} expanded ${expanded} width ${wide}/${other}: ${i} meets ${j}`,
+                      );
+                  });
+                }
+              }
+        }
+    });
+
+test("a collapsing pill keeps its neighbour clear at the width it has now", () => {
+  const area = { x: 0, y: 0, width: 640, height: 340 };
+  const anchor = { x: 90, y: 330 };
+  const widths = [150, 42, 42, 42, 42, 42, 42, 42];
+  const rs = menuLayout(area, anchor, -1, widths);
+  assert.equal(rs[0].width, 150);
+  assert.ok(apart(rs[0], rs[4]), "the row neighbour waits for the pill to finish shrinking");
+});

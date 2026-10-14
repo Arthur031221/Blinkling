@@ -1,6 +1,11 @@
+export const PILL = Object.freeze({ narrow: 42, wide: 252, height: 42 });
+const CLEAR = 12;
+
 /** Fan stays above the character. On short HiDPI displays use two branches.
- * Widening a pill moves its row neighbor aside, preserving empty input gaps. */
-export function menuLayout(area, anchor, expanded = -1) {
+ * Pills in one row never overlap: whichever is narrower steps aside for the
+ * wider one at its *current* width, so a pill still growing or shrinking
+ * (`widths`, one per pill) cannot run over its neighbour. */
+export function menuLayout(area, anchor, expanded = -1, widths = null) {
   const columns = area.height < 610 ? 2 : 1,
     rows = 8 / columns,
     gap = 51;
@@ -16,27 +21,38 @@ export function menuLayout(area, anchor, expanded = -1) {
     area.y + rows * gap + 14,
     Math.min(area.y + area.height - 150, anchor.y - 142),
   );
+  const lo = area.x + 8,
+    hi = area.x + area.width - 8;
+  const fit = (left, width) => Math.max(lo, Math.min(hi - width, left));
   const result = [];
   for (let i = 0; i < 8; i++) {
     const row = i % rows,
       col = Math.floor(i / rows);
-    let x = baseX + direction * (col * 58 + Math.sin(row * 0.55) * 12),
+    const x = baseX + direction * (col * 58 + Math.sin(row * 0.55) * 12),
       y = bottom - row * gap;
-    if (
-      expanded >= 0 &&
-      i !== expanded &&
-      row === expanded % rows &&
-      columns === 2
-    )
-      x = baseX + direction * (expanded >= rows ? -58 : 320);
-    const width = i === expanded ? 252 : 42;
-    let left = direction < 0 ? x - width + 21 : x - 21;
-    left = Math.max(
-      area.x + 8,
-      Math.min(area.x + area.width - width - 8, left),
+    const width = Math.max(
+      PILL.narrow,
+      Math.min(PILL.wide, widths?.[i] ?? (i === expanded ? PILL.wide : PILL.narrow)),
     );
-    result.push({ x: left, y: y - 21, width, height: 42, direction });
+    const left = fit(direction < 0 ? x - width + 21 : x - 21, width);
+    result.push({ x: left, y: y - 21, width, height: PILL.height, direction });
   }
+  if (columns === 2)
+    for (let row = 0; row < rows; row++) {
+      const inner = result[row],
+        outer = result[row + rows];
+      if (inner.x < outer.x + outer.width + CLEAR && outer.x < inner.x + inner.width + CLEAR) {
+        // Keep the wider pill (the one being read) and move the other beside it,
+        // preferring the side it started on.
+        const [keep, move] = inner.width >= outer.width ? [inner, outer] : [outer, inner];
+        const natural = move === outer ? direction : -direction;
+        const after = keep.x + keep.width + CLEAR,
+          before = keep.x - CLEAR - move.width;
+        const fits = (left) => left >= lo && left + move.width <= hi;
+        const options = natural > 0 ? [after, before] : [before, after];
+        move.x = options.find(fits) ?? fit(options[0], move.width);
+      }
+    }
   return result;
 }
 

@@ -88,7 +88,6 @@ button svg {
   transform-origin: center;
   will-change: transform, opacity;
   overflow: hidden;
-  transition: width 180ms ease;
   border-color: color-mix(in srgb, var(--ink) 20%, transparent);
   box-shadow: none;
 }
@@ -97,34 +96,36 @@ button svg {
 }
 .action-bubble svg {
   position: absolute;
-  right: 9px;
-  top: 9px;
+  right: 8px;
+  top: 8px;
+  width: 26px;
+  height: 26px;
 }
 .action-bubble.from-left svg {
   right: auto;
-  left: 9px;
+  left: 8px;
 }
 .action-detail {
   position: absolute;
   left: 16px;
   right: 48px;
-  top: 5px;
+  top: 3px;
   opacity: 0;
   white-space: nowrap;
-  line-height: 16px;
-  font-size: 12px;
+  line-height: 17px;
+  font-size: 13px;
   pointer-events: none;
   transition: opacity 60ms;
 }
 .action-detail strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
 }
 .action-detail > span {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 .from-left .action-detail {
   left: 48px;
@@ -137,6 +138,53 @@ button svg {
 .action-bubble[aria-pressed="true"] {
   background: var(--green);
   color: #0c0e0d;
+}
+.action-bubble[aria-pressed="true"] .action-detail > span {
+  color: #0c0e0d;
+}
+/* A check on the icon corner says "on" even while the pill is collapsed. */
+.action-bubble[data-on="true"]::after {
+  content: "✓";
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  background: #0c0e0d;
+  color: var(--green);
+}
+.action-bubble.from-left[data-on="true"]::after {
+  right: auto;
+  left: 4px;
+}
+#auto-badge {
+  position: absolute;
+  padding: 3px 10px 3px 8px;
+  border-radius: 14px;
+  background: var(--green);
+  color: #0c0e0d;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 18px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px #00000030;
+}
+#auto-badge::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #0c0e0d;
+  vertical-align: 1px;
 }
 #pin {
   position: absolute;
