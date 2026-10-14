@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { AutoWatch } from "./index.mjs";
 test("permission recovery resumes exactly one automatic explanation after typing stops", async () => {
   let idle = 0,
@@ -158,5 +159,59 @@ test("a turn finishing while switched off releases admission on the next enable"
   } finally {
     watch.dispose();
     assert.equal(done, null);
+  }
+});
+
+test("A-1: AutoWatch explains a navigation between two white pages within one interval plus settle", async () => {
+  const pages = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/white-pages.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  let current = "article";
+  const turns = [];
+  const watch = new AutoWatch({
+    session: { subscribe: () => () => {}, send: async (t) => turns.push(t) },
+    capture: { screen: async () => ({ image: { data: "pixels" } }) },
+    displayId: () => "1",
+    sample: async () => Buffer.from(pages[current], "base64"),
+    idleSeconds: () => 10,
+  });
+  try {
+    watch.enable();
+    await watch.tick();
+    current = "listing";
+    await watch.tick();
+    assert.equal(turns.length, 0);
+    await watch.tick();
+    assert.equal(turns.length, 1);
+  } finally {
+    watch.dispose();
+  }
+});
+test("A-1: a blinking caret and a ticking clock never start an explanation", async () => {
+  const pages = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/white-pages.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const noise = ["textPage", "caretMoved", "caretOff", "clockTick"];
+  let n = 0;
+  const turns = [];
+  const watch = new AutoWatch({
+    session: { subscribe: () => () => {}, send: async (t) => turns.push(t) },
+    capture: { screen: async () => ({ image: { data: "pixels" } }) },
+    displayId: () => "1",
+    sample: async () => Buffer.from(pages[noise[n++ % noise.length]], "base64"),
+    idleSeconds: () => 10,
+  });
+  try {
+    watch.enable();
+    for (let i = 0; i < 12; i++) await watch.tick();
+    assert.equal(turns.length, 0);
+  } finally {
+    watch.dispose();
   }
 });
