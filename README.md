@@ -36,7 +36,7 @@ You need Claude Code, signed in. Then:
    /blinkling:blinkling
    ```
 
-3. On a Mac, allow **Screen Recording** for Blinkling once: System Settings, Privacy & Security.
+3. On a Mac, allow **Screen Recording** for Blinkling once: System Settings, Privacy & Security. macOS also asks for **Accessibility** once, so the Ctrl key can start a pick; allow it in the same place.
 
 > [!NOTE]
 > In Windows PowerShell 5, use `;` instead of `&&`. Animated steps for your computer: [install guide](https://arthur031221.github.io/Blinkling/install/). Other ways to install, updates and the Linux sandbox: [docs/INSTALL.md](docs/INSTALL.md).

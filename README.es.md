@@ -36,7 +36,7 @@ Necesitas Claude Code con la sesión iniciada. Después:
    /blinkling:blinkling
    ```
 
-3. En un Mac, permite una vez la **Grabación de pantalla** para Blinkling: Ajustes del Sistema, Privacidad y seguridad.
+3. En un Mac, permite una vez la **Grabación de pantalla** para Blinkling: Ajustes del Sistema, Privacidad y seguridad. macOS también pide **Accesibilidad** una vez, para que la tecla Ctrl pueda iniciar una selección; permítela en el mismo sitio.
 
 > [!NOTE]
 > En Windows PowerShell 5, usa `;` en lugar de `&&`. Pasos animados para tu equipo: [guía de instalación](https://arthur031221.github.io/Blinkling/install/). Otras formas de instalar, actualizaciones y el sandbox de Linux: [docs/INSTALL.md](docs/INSTALL.md).

@@ -18,7 +18,7 @@ There is an [install guide with animated steps](https://arthur031221.github.io/B
    /blinkling:blinkling
    ```
 
-3. On a Mac, allow **Screen Recording** for Blinkling once: System Settings, Privacy & Security.
+3. On a Mac, allow **Screen Recording** for Blinkling once: System Settings, Privacy & Security. macOS also asks for **Accessibility** once, so the Ctrl key can start a pick; allow it in the same place. Blinkling starts listening for the key as soon as you allow it, with no restart.
 
 The first run downloads the desktop app for your computer from this repository's GitHub release, checks it against the SHA-256 hash pinned in the plugin, and starts it. Nothing else is asked. After that, Blinkling starts with Claude Code unless you turn that off in its settings.
 

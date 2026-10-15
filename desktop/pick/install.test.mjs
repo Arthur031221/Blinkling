@@ -449,3 +449,58 @@ test("MV-2: pick and privacy test hooks both hang on blinklingTest, in either in
     else process.env.BLINKLING_E2E = before;
   }
 });
+
+test("on macOS a refused key hook asks for Accessibility once and starts by itself after it is allowed", async () => {
+  let allowed = false;
+  let starts = 0;
+  const asked = [];
+  const s = setup({
+    load: async () => ({
+      uIOhook: {
+        on() {},
+        removeAllListeners() {},
+        start() {
+          starts++;
+          if (!allowed)
+            throw new Error("Failed to enable access for assistive devices.");
+        },
+        stop() {},
+      },
+    }),
+  });
+  s.electron.systemPreferences = {
+    isTrustedAccessibilityClient: (ask) => {
+      asked.push(ask);
+      return allowed;
+    },
+  };
+  s.shell.platform = "darwin";
+  const pick = await s.install();
+  assert.equal(pick.started, false);
+  assert.deepEqual(asked, [false, true]);
+  const poll = async () => {
+    const next = s.timers.filter((t) => t.ms === 2000).at(-1);
+    await next.fn();
+  };
+  await poll();
+  assert.equal(pick.started, false, "still waiting while the switch is off");
+  allowed = true;
+  await poll();
+  assert.equal(pick.started, true);
+  assert.equal(starts, 2);
+  pick.dispose();
+});
+
+test("a key hook that cannot start off macOS is not retried and raises no prompt", async () => {
+  const s = setup({
+    load: async () => {
+      throw new Error("no input access");
+    },
+  });
+  s.shell.platform = "linux";
+  await s.install();
+  assert.equal(
+    s.timers.some((t) => t.ms === 2000),
+    false,
+  );
+});

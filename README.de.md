@@ -36,7 +36,7 @@ Du brauchst Claude Code, angemeldet. Dann:
    /blinkling:blinkling
    ```
 
-3. Erlaube auf dem Mac einmalig **Bildschirmaufnahme** für Blinkling: Systemeinstellungen, Datenschutz & Sicherheit.
+3. Erlaube auf dem Mac einmalig **Bildschirmaufnahme** für Blinkling: Systemeinstellungen, Datenschutz & Sicherheit. macOS fragt außerdem einmal nach **Bedienungshilfen**, damit die Strg-Taste eine Auswahl starten kann; erlaube es an derselben Stelle.
 
 > [!NOTE]
 > In Windows PowerShell 5 nimm `;` statt `&&`. Animierte Schritte für deinen Rechner: [Installationsanleitung](https://arthur031221.github.io/Blinkling/install/). Weitere Wege, Updates und die Linux-Sandbox: [docs/INSTALL.md](docs/INSTALL.md).

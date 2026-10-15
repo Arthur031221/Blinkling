@@ -46,6 +46,7 @@ const layerOptions = (options) => ({
 });
 
 const PICK_KEY_NAMES = ["control", "option"];
+const RETRY_MS = 2000;
 
 function pickKeySetting(file, env) {
   const fromEnv = env.BLINKLING_PICK_KEY;
@@ -258,8 +259,35 @@ export async function installPick({
   const started =
     env.BLINKLING_PICK_KEYS === "0" ? { ok: false } : await source.start();
 
+  // macOS only lets an app listen for keys once Accessibility is allowed. The
+  // first refusal raises the system's own prompt (it lists the app and opens the
+  // switch), then the hook is retried until the user has flipped it, so the pick
+  // key works without a restart.
+  let retry = null;
+  let disposed = false;
+  const trusted = (ask) =>
+    systemPreferences?.isTrustedAccessibilityClient?.(ask);
+  if (
+    !started.ok &&
+    env.BLINKLING_PICK_KEYS !== "0" &&
+    (shell.platform ?? process.platform) === "darwin" &&
+    trusted(false) === false
+  ) {
+    trusted(true);
+    const setTimer = timers.setTimer ?? setTimeout;
+    const poll = () => {
+      retry = setTimer(async () => {
+        if (disposed) return;
+        if (trusted(false) !== true || !(await source.start()).ok) poll();
+      }, RETRY_MS);
+    };
+    poll();
+  }
+
   const api = {
-    started: started.ok,
+    get started() {
+      return source.started();
+    },
     /** Everything that is taken goes this way: an array of Taken (a pick) or a
      * capture from the region selector, the full-page grab or the hotkey. */
     deliver: (input) => controller.deliver(input),
@@ -291,6 +319,8 @@ export async function installPick({
     /** The same pieces, for tests that drive the flow without native input. */
     test: { keys, controller, layer, mini, grouper, once, miniWindow },
     dispose() {
+      disposed = true;
+      if (retry !== null) (timers.clearTimer ?? clearTimeout)(retry);
       source.stop();
       keys.dispose();
       mini.dispose();

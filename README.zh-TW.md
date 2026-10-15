@@ -36,7 +36,7 @@ Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。
    /blinkling:blinkling
    ```
 
-3. 在 Mac 上，一次性允許 Blinkling 使用**螢幕錄製**：系統設定，隱私權與安全性。
+3. 在 Mac 上，一次性允許 Blinkling 使用**螢幕錄製**：系統設定，隱私權與安全性。 macOS 還會詢問一次**輔助使用**，這樣按住 Ctrl 才能開始選取；在同一處允許即可。
 
 > [!NOTE]
 > 在 Windows PowerShell 5 中，用 `;` 取代 `&&`。適合你電腦的動畫步驟：[安裝指南](https://arthur031221.github.io/Blinkling/install/)。其他安裝方式、更新與 Linux 沙盒：[docs/INSTALL.md](docs/INSTALL.md)。

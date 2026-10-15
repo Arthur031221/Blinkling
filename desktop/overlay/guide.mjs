@@ -7,26 +7,31 @@ import {
   stepNumbers,
 } from "./schema.mjs";
 import { collectTurn } from "./turn.mjs";
-export const FAILURE = "導覽暫時無法完成";
-/** The one sentence a failure bubble shows: what went wrong, in plain words. */
-export function failureMessage(error, stage) {
+import { guideStrings } from "./strings.mjs";
+import { pickLocale } from "../shared/i18n.mjs";
+const FULL_WIDTH = new Set(["zh-TW", "zh-CN", "ja"]);
+/** The one sentence a failure bubble shows: what went wrong, in plain words and
+ * in the user's language (`locale` is a tag or a locale list). */
+export function failureMessage(error, stage, locale) {
+  const t = guideStrings(locale);
   const detail = String(error?.message ?? error ?? "")
     .replace(/\s+/g, " ")
     .slice(0, 80);
   let reason;
-  if (stage === "session") reason = "Claude 還在啟動，請稍等幾秒再試";
-  else if (stage === "capture") reason = "沒辦法擷取這個螢幕的畫面";
-  else if (stage === "draw") reason = "畫面上沒有可以標示的區塊";
-  else if (/timed out/i.test(detail)) reason = "Claude 太久沒有回覆";
+  if (stage === "session") reason = t("session");
+  else if (stage === "capture") reason = t("capture");
+  else if (stage === "draw") reason = t("draw");
+  else if (/timed out/i.test(detail)) reason = t("timeout");
   else if (error instanceof GuideError)
-    reason = /no usable step/.test(detail)
-      ? "Claude 的回覆裡沒有可以照著走的步驟"
-      : "Claude 的回覆不是我能讀的格式";
-  else reason = `Claude 回報了問題（${detail || "原因不明"}）`;
-  return `${FAILURE}：${reason}。`;
+    reason = /no usable step/.test(detail) ? t("noSteps") : t("unreadable");
+  else reason = t("reported", { detail: detail || t("unknown") });
+  const [colon, stop] = FULL_WIDTH.has(pickLocale(locale))
+    ? ["：", "。"]
+    : [": ", "."];
+  return `${t("failure")}${colon}${reason}${stop}`;
 }
-export const CLOSING =
-  "導覽到這裡結束。想再看一次可以按「總覽」，也可以直接問我。";
+/** The goodbye bubble when the tour runs out of steps. */
+export const closingMessage = (locale) => guideStrings(locale)("closing");
 export class GuideController {
   constructor({
     session,
@@ -114,7 +119,7 @@ export class GuideController {
     }
   }
   fail(error, stage) {
-    const message = failureMessage(error, stage);
+    const message = failureMessage(error, stage, this.language());
     this.onGuide({ phase: "error", message, bubbles: [message], retry: true });
     this.failed = true;
   }
@@ -168,7 +173,7 @@ export class GuideController {
       phase: "finished",
       index: total,
       total,
-      bubbles: [CLOSING],
+      bubbles: [closingMessage(this.language())],
       canBack: true,
       canNext: false,
     });

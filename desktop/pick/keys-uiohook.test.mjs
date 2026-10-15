@@ -59,3 +59,24 @@ test("a native module that will not load is reported, not thrown", async () => {
   assert.equal(result.ok, false);
   assert.deepEqual(errors, ["no uiohook"]);
 });
+
+test("a refused start leaves no listeners, so the retry does not deliver every event twice", async () => {
+  const events = [];
+  const uIOhook = fakeHook();
+  let refuse = true;
+  uIOhook.start = () => {
+    if (refuse) throw new Error("access for assistive devices");
+    uIOhook.started++;
+  };
+  const source = createKeySource({
+    load: async () => ({ uIOhook }),
+    handle: (e) => events.push(e),
+    onError: () => {},
+  });
+  assert.equal((await source.start()).ok, false);
+  assert.equal(uIOhook.listenerCount("keydown"), 0);
+  refuse = false;
+  assert.deepEqual(await source.start(), { ok: true });
+  uIOhook.emit("keydown", { keycode: 29 });
+  assert.equal(events.length, 1);
+});

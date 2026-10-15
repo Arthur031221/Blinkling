@@ -15,7 +15,13 @@ export function createKeySource({ load, handle, onError = () => {} }) {
         const { uIOhook } = await load();
         for (const type of FORWARDED)
           uIOhook.on(type, (event) => handle({ type, code: event.keycode }));
-        uIOhook.start();
+        try {
+          uIOhook.start();
+        } catch (error) {
+          // A refused start must not leave listeners behind for the retry.
+          for (const type of FORWARDED) uIOhook.removeAllListeners(type);
+          throw error;
+        }
         hook = uIOhook;
         return { ok: true };
       } catch (error) {

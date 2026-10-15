@@ -36,7 +36,7 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
    /blinkling:blinkling
    ```
 
-3. Mac에서는 Blinkling의 **화면 기록**을 한 번 허용하세요: 시스템 설정, 개인정보 보호 및 보안.
+3. Mac에서는 Blinkling의 **화면 기록**을 한 번 허용하세요: 시스템 설정, 개인정보 보호 및 보안. macOS는 Ctrl 키로 선택을 시작할 수 있도록 **손쉬운 사용**도 한 번 요청합니다. 같은 곳에서 허용하세요.
 
 > [!NOTE]
 > Windows PowerShell 5에서는 `&&` 대신 `;`을 사용하세요. 내 컴퓨터용 애니메이션 단계: [설치 안내](https://arthur031221.github.io/Blinkling/install/). 다른 설치 방법, 업데이트, Linux 샌드박스: [docs/INSTALL.md](docs/INSTALL.md).

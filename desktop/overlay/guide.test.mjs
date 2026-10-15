@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { readFile } from "node:fs/promises";
-import { GuideController } from "./guide.mjs";
+import { GuideController, closingMessage } from "./guide.mjs";
+import { STRINGS } from "./strings.mjs";
 import { collectTurn } from "./turn.mjs";
 const guide = {
   purpose: "Report overview.",
@@ -147,6 +148,7 @@ function rig(replies, options = {}) {
     },
     onGuide: (e) => events.push(e),
     onEnd: (e) => ended.push(e),
+    language: () => "zh-TW",
     ...options,
   });
   return { controller, events, turns, pointing, overlay, ended, captures };
@@ -461,4 +463,29 @@ test("clicking a mark focuses the first step that is about it", async () => {
   r.controller.focusMark(9);
   assert.equal(r.events.at(-1).index, 1, "an unknown mark changes nothing");
   r.controller.dispose();
+});
+
+test("failure and closing bubbles speak the user's language, not Chinese for everyone", async () => {
+  const en = rig([new Error("network down")], { language: () => "en-US" });
+  await assert.rejects(en.controller.start("1"));
+  assert.match(
+    en.events.at(-1).message,
+    /^The guide could not finish: Claude reported a problem \(network down\)\.$/,
+  );
+  const de = rig([JSON.stringify(guide)], { language: () => "de" });
+  await de.controller.start("1");
+  de.controller.finish();
+  const finished = de.events.at(-1);
+  assert.equal(finished.phase, "finished");
+  assert.equal(finished.bubbles[0], closingMessage("de"));
+  assert.match(finished.bubbles[0], /Übersicht/);
+});
+
+test("every locale has every guide sentence, with Blinkling kept as written", () => {
+  const keys = Object.keys(STRINGS.en);
+  for (const [locale, table] of Object.entries(STRINGS)) {
+    assert.deepEqual(Object.keys(table), keys, locale);
+    for (const text of Object.values(table))
+      assert.doesNotMatch(text, /布林克林|ブリンクリング/, locale);
+  }
 });

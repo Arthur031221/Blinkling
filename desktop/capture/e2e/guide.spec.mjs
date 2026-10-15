@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { PNG } from "pngjs";
-import { CLOSING } from "../../overlay/guide.mjs";
+import { closingMessage } from "../../overlay/guide.mjs";
+
+const CLOSING = closingMessage("en");
 import { fileURLToPath } from "node:url";
 import { readFile, writeFile } from "node:fs/promises";
 import {
@@ -797,7 +799,9 @@ test("a failed guide turn names its reason and offers a retry that reruns the gu
     // The failure bubble names its reason in one sentence, with a way to retry.
     await expect
       .poll(() => bubbleText(app))
-      .toContain("導覽暫時無法完成：Claude 的回覆不是我能讀的格式。");
+      .toContain(
+        "The guide could not finish: Claude's reply was not in a format Blinkling can read.",
+      );
     await expect.poll(() => bubbleText(app)).toContain("Try again");
     await desktopShot(app, "guide-error");
     expect(await app.evaluate(() => globalThis.b3Sends)).toBe(1);
@@ -836,7 +840,9 @@ test("the recorded haiku reply at low effort draws as numbered marks", async () 
       () => globalThis.blinklingTest.features.overlay.drawings?.length ?? -1,
     );
     expect(marks).toBeGreaterThanOrEqual(4);
-    await expect.poll(() => bubbleText(app)).not.toContain("導覽暫時無法完成");
+    await expect
+      .poll(() => bubbleText(app))
+      .not.toContain("The guide could not finish");
     await desktopShot(app, "guide-haiku");
     await act("guide-dismiss");
   } finally {

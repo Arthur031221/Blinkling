@@ -36,7 +36,7 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
    /blinkling:blinkling
    ```
 
-3. Mac では、Blinkling の**画面収録**を一度だけ許可します：システム設定、プライバシーとセキュリティ。
+3. Mac では、Blinkling の**画面収録**を一度だけ許可します：システム設定、プライバシーとセキュリティ。 macOS は Ctrl キーで選択を始められるよう、**アクセシビリティ**も一度だけ尋ねます。同じ場所で許可してください。
 
 > [!NOTE]
 > Windows PowerShell 5 では `&&` の代わりに `;` を使います。お使いのコンピューター向けのアニメーション付き手順：[インストールガイド](https://arthur031221.github.io/Blinkling/install/)。その他の方法、更新、Linux のサンドボックス：[docs/INSTALL.md](docs/INSTALL.md)。
