@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import {
   ChangePolicy,
   COOLDOWN_MS,
+  DETECTION_BUDGET_MS,
+  MIN_INTERVAL_MS,
   fingerprint,
   difference,
 } from "./policy.mjs";
@@ -107,4 +109,65 @@ test("A-1: a navigation soon after an explanation is not held back for 45 s", ()
 test("A-1: the cooldown is one short constant that the default policy uses", () => {
   assert.ok(COOLDOWN_MS >= INTERVAL && COOLDOWN_MS <= 15000);
   assert.equal(new ChangePolicy().cooldownMs, COOLDOWN_MS);
+});
+// PV-4: scroll-aware change detection. Fixture frames are real renders of a long
+// document (dense text), prose with ragged lines, and a sparse page, each at
+// several scroll offsets (see fixtures/record.cjs).
+const families = [
+  ["docSection1", "docNudge", ["docSection2", "docSection3", "docSection4"]],
+  ["proseTop", "proseNudge", ["proseNext"]],
+  ["sparseTop", "sparseNudge", ["sparseNext"]],
+];
+test("PV-4: a small scroll of a dense, prose or sparse page is not a change", () => {
+  for (const [top, nudge] of families)
+    assert.equal(
+      difference(page(top), page(nudge)).substantial,
+      false,
+      `${top}→${nudge}`,
+    );
+});
+test("PV-4: moving to another section of a document is a change in both directions", () => {
+  for (const [top, , next] of families)
+    for (const n of next) {
+      assert.equal(
+        difference(page(top), page(n)).substantial,
+        true,
+        `${top}→${n}`,
+      );
+      assert.equal(
+        difference(page(n), page(top)).substantial,
+        true,
+        `${n}→${top}`,
+      );
+    }
+  assert.equal(
+    difference(page("docSection2"), page("docSection3")).substantial,
+    true,
+  );
+});
+test("PV-4: a nudge never fires, and the section reached after it does within the budget", () => {
+  const p = new ChangePolicy({ cooldownMs: 0 });
+  const idle = { idleSeconds: 10 };
+  let now = 0;
+  p.observe(page("docSection1"), { now, ...idle });
+  for (let i = 0; i < 4; i++) {
+    now += MIN_INTERVAL_MS;
+    assert.equal(p.observe(page("docNudge"), { now, ...idle }), false);
+  }
+  const start = now;
+  let fired = null;
+  while (fired === null && now - start < DETECTION_BUDGET_MS) {
+    now += MIN_INTERVAL_MS;
+    if (p.observe(page("docSection2"), { now, ...idle })) fired = now - start;
+  }
+  assert.ok(fired !== null && fired <= DETECTION_BUDGET_MS, `fired ${fired}`);
+});
+test("PV-4: the detection budget is one short constant at the sampling floor", () => {
+  assert.ok(DETECTION_BUDGET_MS <= 10000);
+  assert.ok(MIN_INTERVAL_MS === 3000);
+  const p = new ChangePolicy();
+  assert.ok(
+    (p.settleSamples + 1) * MIN_INTERVAL_MS <= DETECTION_BUDGET_MS,
+    "baseline + settle samples at the floor interval fit the budget",
+  );
 });

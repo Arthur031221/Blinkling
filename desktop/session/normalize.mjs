@@ -68,3 +68,46 @@ export function reconcileTranscript(records, state) {
   }
   return messages;
 }
+
+const LIMIT_TEXT =
+  /usage limit reached|hit your (?:usage )?limit|reached your (?:usage )?limit/i;
+const toMs = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n < 1e12 ? Math.round(n * 1000) : Math.round(n);
+};
+function eventText(event) {
+  if (typeof event.result === "string") return event.result;
+  const content = event.message?.content;
+  if (typeof content === "string") return content;
+  return Array.isArray(content)
+    ? content
+        .map((block) => (block.type === "text" ? block.text : ""))
+        .join(" ")
+    : "";
+}
+/** Claude Code signals the plan limit three ways: a `rate_limit_event` whose
+ * status is "rejected" (reset time in epoch seconds), an assistant API-error
+ * message with `error: "rate_limit"`, and an error result that quotes the limit,
+ * sometimes as "usage limit reached|<epoch seconds>". Returns `{ resetAt }`
+ * (epoch milliseconds, null when the stream did not say) or null. */
+export function usageLimit(event) {
+  if (event.type === "rate_limit_event") {
+    const info = event.rate_limit_info ?? {};
+    return info.status === "rejected" ? { resetAt: toMs(info.resetsAt) } : null;
+  }
+  const text = eventText(event);
+  const limited =
+    event.error === "rate_limit" ||
+    ((event.is_error || event.isApiErrorMessage) && LIMIT_TEXT.test(text));
+  if (!limited) return null;
+  return { resetAt: toMs(/limit reached\|(\d{9,13})/i.exec(text)?.[1]) };
+}
+/** True for the stream's confirmation that requests are being accepted again. */
+export function limitCleared(event) {
+  return (
+    (event.type === "rate_limit_event" &&
+      ["allowed", "allowed_warning"].includes(event.rate_limit_info?.status)) ||
+    (event.type === "result" && !event.is_error)
+  );
+}

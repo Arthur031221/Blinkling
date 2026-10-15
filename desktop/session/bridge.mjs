@@ -1,8 +1,13 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { OwnedSession } from "./transport.mjs";
 import { SessionStore, readTranscript, isUUID } from "./storage.mjs";
-import { chatMessage, reconcileTranscript } from "./normalize.mjs";
+import {
+  chatMessage,
+  limitCleared,
+  reconcileTranscript,
+  usageLimit,
+} from "./normalize.mjs";
 import { userMessage } from "./protocol.mjs";
 
 const INTERNAL_SOURCES = new Set(["guide", "companion"]);
@@ -54,7 +59,7 @@ export class DesktopSessionBridge {
       if (this.state.remoteId) target(this.identity());
       target({ type: "selection", applied: { ...this.state.selection } });
       for (const message of this.state.messages)
-        target(structuredClone(message));
+        if (message.content.length) target(structuredClone(message));
     }
     return () => this.listeners.delete(target);
   }
@@ -140,8 +145,7 @@ export class DesktopSessionBridge {
         this.setStatus("blocked", error.code ?? "saved-state");
         throw error;
       }
-      this.setStatus("retrying");
-      this.scheduleReconnect();
+      this.transportFailed(error);
     }
   }
   async openTransport() {
@@ -205,6 +209,11 @@ export class DesktopSessionBridge {
         this.state,
       );
       for (const message of recovered) this.upsert(message);
+      // Records that only ever held an id (nothing is kept on disk) and that the
+      // transcript no longer has are not messages.
+      this.state.messages = this.state.messages.filter(
+        (message) => message.content.length,
+      );
       await this.store.save(this.state);
       if (this.state.remoteId) this.emit(this.identity());
       this.emit({ type: "selection", applied: { ...this.state.selection } });
@@ -214,6 +223,7 @@ export class DesktopSessionBridge {
       this.attempt = 0;
       initializing = false;
       for (const event of buffered) await this.handle(event);
+      this.missing = false;
       this.setStatus("connected");
       this.notifyIdle();
       await this.pump();
@@ -241,11 +251,11 @@ export class DesktopSessionBridge {
       const copy = structuredClone(turn);
       const prior = this.state.turns.find((item) => item.turn.id === copy.id);
       if (prior) {
-        if (JSON.stringify(prior.turn) !== JSON.stringify(copy))
+        if (prior.digest && prior.digest !== digest(copy))
           throw new Error("Turn ID has different content");
         return;
       }
-      const item = { turn: copy, state: "queued" };
+      const item = { turn: copy, state: "queued", digest: digest(copy) };
       const message = chatMessage(userMessage(copy));
       this.state.turns.push(item);
       this.upsert(message);
@@ -295,6 +305,9 @@ export class DesktopSessionBridge {
       this.fail();
     } finally {
       this.pumping = false;
+      // Nothing is kept after sending: a dispatched turn never replays, so its
+      // pixels and text leave memory now. The digest still deduplicates the UUID.
+      if (item.state !== "queued") item.turn = forget(item.turn);
     }
   }
   async handle(event) {
@@ -317,7 +330,12 @@ export class DesktopSessionBridge {
       }
       return;
     }
-    const message = chatMessage(event);
+    const limit = usageLimit(event);
+    if (limit) this.noteLimit(limit);
+    else if (limitCleared(event)) this.limit = undefined;
+    // The API's own "you've hit your limit" text is not an answer to show.
+    const message =
+      limit && event.type === "assistant" ? null : chatMessage(event);
     if (message) {
       this.upsert(message, true);
       if (message.role === "user") {
@@ -403,8 +421,9 @@ export class DesktopSessionBridge {
     const index = this.state.messages.findIndex(
       (item) => item.id === message.id,
     );
-    if (index < 0) this.state.messages.push(structuredClone(message));
-    else this.state.messages[index] = structuredClone(message);
+    const kept = scrubbed(message);
+    if (index < 0) this.state.messages.push(kept);
+    else this.state.messages[index] = kept;
     if (emit) this.emit(message);
   }
   select(selection) {
@@ -489,6 +508,31 @@ export class DesktopSessionBridge {
       this.notifyIdle();
     }
   }
+  /** One usage-limit episode is one event, however many signals the stream
+   * sends for it. It is neither an error nor a reason to reconnect. */
+  noteLimit({ resetAt }) {
+    if (
+      this.limit &&
+      !(resetAt && this.limit.resetAt && resetAt !== this.limit.resetAt)
+    ) {
+      this.limit.resetAt ??= null;
+      return;
+    }
+    this.limit = { resetAt };
+    this.emit({ type: "usage-limit", resetAt });
+  }
+  /** A missing Claude is something to install, not a fault: say so once and
+   * keep looking, so the next launch after installing needs no restart. */
+  transportFailed(error) {
+    if (isMissing(error)) {
+      if (!this.missing) {
+        this.missing = true;
+        this.emit({ type: "claude-missing" });
+      }
+      this.setStatus("retrying", "claude-missing");
+    } else this.setStatus("retrying");
+    this.scheduleReconnect();
+  }
   fail(detail) {
     if (this.closed) return;
     this.ready = false;
@@ -529,10 +573,7 @@ export class DesktopSessionBridge {
     } catch (error) {
       if (!this.closed) {
         if (isFatal(error)) this.setStatus("blocked", error.code);
-        else {
-          this.setStatus("retrying");
-          this.scheduleReconnect();
-        }
+        else this.transportFailed(error);
       }
     }
   }
@@ -626,14 +667,29 @@ function validateTurn(turn) {
 }
 function isFatal(error) {
   return (
-    [
-      "UNSUPPORTED_CLAUDE",
-      "SESSION_LOCKED",
-      "IDENTITY_CHANGED",
-      "ENOENT",
-    ].includes(error.code) ||
+    ["UNSUPPORTED_CLAUDE", "SESSION_LOCKED", "IDENTITY_CHANGED"].includes(
+      error.code,
+    ) ||
     /Invalid saved|Invalid model|Invalid session writer/.test(error.message)
   );
+}
+
+function isMissing(error) {
+  return (
+    error.code === "ENOENT" &&
+    /^spawn/.test(error.syscall ?? error.message ?? "")
+  );
+}
+const digest = (turn) =>
+  createHash("sha256").update(JSON.stringify(turn)).digest("hex");
+function forget(turn) {
+  return { id: turn.id, source: turn.source, text: "", attachments: [] };
+}
+/** The stored copy of a message never holds pixels; subscribers saw them live. */
+function scrubbed(message) {
+  const copy = structuredClone(message);
+  copy.content = copy.content.filter((block) => block.type !== "image");
+  return copy;
 }
 
 function modelMatches(requested, actual) {

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -105,11 +105,10 @@ test("streamed tokens reach subscribers without a full image/history disk rewrit
     () => events.filter((event) => event.type === "delta").length === 100,
   );
   assert.ok(writes < 5, `a 100-token burst caused ${writes} snapshots`);
+  // The answer is checkpointed by id only (PV-2); the text lives in the transcript.
+  assert.equal(bridge.state.messages[0].content[0].text, "x".repeat(100));
   await bridge.dispose();
-  assert.equal(
-    (await bridge.store.load()).messages[0].content[0].text,
-    "x".repeat(100),
-  );
+  assert.equal((await bridge.store.load()).messages[0].id, "streamed");
 });
 async function waitFor(predicate) {
   const end = Date.now() + 2500;
@@ -718,4 +717,318 @@ test("a message typed remotely after an internal turn is visible again", async (
   await waitFor(() => visible.some((e) => e.id === "remote-answer"));
   assert.ok(visible.some((e) => e.id === "remote-human"));
   assert.doesNotMatch(JSON.stringify(visible), /hidden steps/);
+});
+
+// PV-2: nothing is kept after sending. Claude's own transcript is the only record.
+async function files(dir) {
+  const found = [];
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...(await files(path)));
+    else found.push(path);
+  }
+  return found;
+}
+const secretImage = Buffer.from("PICKED-PIXELS-" + "x".repeat(64));
+const secretTurn = (source = "composer") => ({
+  id: randomUUID(),
+  text: "the picked sentence about quarterly numbers",
+  source,
+  attachments: [
+    {
+      id: "image",
+      name: "capture.png",
+      mediaType: "image/png",
+      data: secretImage.toString("base64"),
+    },
+  ],
+});
+async function leaks(dirs, turn) {
+  const needles = [
+    secretImage.toString("base64"),
+    secretImage.toString("latin1"),
+    turn.text,
+  ];
+  const found = [];
+  for (const dir of dirs)
+    for (const file of await files(dir)) {
+      if (file.endsWith(".lock") || file.includes("/.X11-unix/")) continue;
+      const bytes = await readFile(file).catch(() => Buffer.alloc(0));
+      const text = bytes.toString("latin1");
+      if (needles.some((needle) => text.includes(needle))) found.push(file);
+    }
+  return found;
+}
+test("PV-2: after sending, state.json holds ids only and no file under userData or tmp holds the pixels or the picked text", async (t) => {
+  // A private temp root, so the scan sees everything this run could have written.
+  const outer = tmpdir();
+  const root = await mkdtemp(join(outer, "blinkling-nocopy-"));
+  process.env.TMPDIR = root;
+  const { bridge, children, dir } = await setup(t);
+  t.after(async () => {
+    process.env.TMPDIR = outer;
+    await rm(root, { recursive: true, force: true });
+  });
+  await bridge.connect();
+  const value = secretTurn();
+  await bridge.send(value);
+  await waitFor(() => children[0].sent.length === 1);
+  assert.equal(
+    children[0].sent[0].attachments[0].data,
+    value.attachments[0].data,
+  );
+  children[0].finish(value, "An answer about the numbers");
+  await waitFor(() => bridge.state.turns[0].state === "done");
+  await bridge.stop().catch(() => {});
+  const saved = JSON.parse(
+    await readFile(join(dir, "session/state.json"), "utf8"),
+  );
+  assert.equal(saved.turns[0].turn.id, value.id);
+  assert.deepEqual(saved.turns[0].turn.attachments ?? [], []);
+  assert.ok(!JSON.stringify(saved).includes("quarterly"));
+  assert.ok(!JSON.stringify(saved).includes("An answer"));
+  assert.deepEqual(await leaks([dir, root], value), []);
+  assert.deepEqual(bridge.state.turns[0].turn.attachments, []);
+});
+test("PV-2: the in-memory copy is dropped once the turn is dispatched, yet the same UUID is still deduplicated", async (t) => {
+  const { bridge, children } = await setup(t);
+  await bridge.connect();
+  const value = secretTurn("auto-explain");
+  await bridge.send(value);
+  await waitFor(() => children[0].sent.length === 1);
+  assert.deepEqual(bridge.state.turns[0].turn.attachments, []);
+  assert.equal(bridge.state.turns[0].turn.text, "");
+  await bridge.send(value);
+  await assert.rejects(
+    bridge.send({ ...value, text: "different" }),
+    /different content/,
+  );
+  assert.equal(children[0].sent.length, 1);
+});
+test("PV-2: a turn that was only queued is persisted without its pixels and is cancelled, not sent blind, after a restart", async (t) => {
+  let attempts = 0;
+  const { bridge, children, dir } = await setup(t, {
+    transportFactory: () => {
+      const child = new Transport();
+      const connect = child.connect.bind(child);
+      child.connect = async (options) => {
+        if (attempts++ < 50) throw new Error("offline");
+        return connect(options);
+      };
+      children.push(child);
+      return child;
+    },
+  });
+  await bridge.connect();
+  const value = secretTurn();
+  await bridge.send(value);
+  const raw = await readFile(join(dir, "session/state.json"), "utf8");
+  assert.ok(!raw.includes(value.attachments[0].data));
+  assert.ok(!raw.includes("quarterly"));
+  await bridge.dispose();
+  const child = new Transport();
+  const replacement = new DesktopSessionBridge({
+    userDataDir: dir,
+    cwd: dir,
+    transportFactory: () => child,
+    readTranscript: async () => [],
+  });
+  try {
+    await replacement.connect();
+    await waitFor(() => replacement.state.turns[0]?.state === "cancelled");
+    assert.equal(child.sent.length, 0);
+  } finally {
+    await replacement.dispose();
+  }
+});
+test("PV-2: a typed turn without pixels survives a restart while it waits in the outbox", async (t) => {
+  let attempts = 0;
+  const { bridge, children, dir } = await setup(t, {
+    transportFactory: () => {
+      const child = new Transport();
+      const connect = child.connect.bind(child);
+      child.connect = async (options) => {
+        if (attempts++ < 50) throw new Error("offline");
+        return connect(options);
+      };
+      children.push(child);
+      return child;
+    },
+  });
+  await bridge.connect();
+  const typed = {
+    id: randomUUID(),
+    text: "typed while offline",
+    source: "composer",
+    attachments: [],
+  };
+  await bridge.send(typed);
+  await bridge.dispose();
+  const child = new Transport();
+  const replacement = new DesktopSessionBridge({
+    userDataDir: dir,
+    cwd: dir,
+    transportFactory: () => child,
+    readTranscript: async () => [],
+  });
+  try {
+    await replacement.connect();
+    await waitFor(() => child.sent.length === 1);
+    assert.equal(child.sent[0].text, "typed while offline");
+  } finally {
+    await replacement.dispose();
+  }
+});
+
+// PV-3: the usage limit is one calm event, never an error or a reconnect.
+const limitSignals = (resetsAt) => [
+  {
+    type: "rate_limit_event",
+    uuid: randomUUID(),
+    rate_limit_info: {
+      status: "rejected",
+      resetsAt,
+      rateLimitType: "five_hour",
+    },
+  },
+  {
+    type: "assistant",
+    uuid: randomUUID(),
+    error: "rate_limit",
+    isApiErrorMessage: true,
+    message: {
+      id: "limit-message",
+      content: [{ type: "text", text: "You've hit your limit · resets 3pm" }],
+    },
+  },
+  {
+    type: "result",
+    uuid: randomUUID(),
+    subtype: "success",
+    is_error: true,
+    result: "You've hit your limit · resets 3pm",
+  },
+];
+test("PV-3: a rejected rate limit becomes exactly one usage-limit event with the reset time and no error state", async (t) => {
+  const { bridge, children, events } = await setup(t);
+  await bridge.connect();
+  const value = turn("auto-explain");
+  await bridge.send(value);
+  await waitFor(() => children[0].sent.length === 1);
+  const resetsAt = Math.floor(Date.now() / 1000) + 3600;
+  children[0].emit("event", {
+    type: "user",
+    uuid: value.id,
+    message: { content: [{ type: "text", text: value.text }] },
+  });
+  for (const signal of limitSignals(resetsAt))
+    children[0].emit("event", signal);
+  await waitFor(() => events.some((e) => e.type === "done"));
+  const limits = events.filter((e) => e.type === "usage-limit");
+  assert.deepEqual(limits, [{ type: "usage-limit", resetAt: resetsAt * 1000 }]);
+  assert.ok(
+    !events.some((e) => e.type === "message" && e.id === "limit-message"),
+  );
+  assert.ok(
+    !events.some(
+      (e) => e.type === "status" && ["retrying", "blocked"].includes(e.state),
+    ),
+  );
+  assert.equal(children.length, 1);
+  assert.equal(bridge.state.turns[0].state, "done");
+});
+test("PV-3: a limit text without a reset time still produces one event, and a new episode produces another", async (t) => {
+  const { bridge, children, events } = await setup(t);
+  await bridge.connect();
+  children[0].emit("event", {
+    type: "result",
+    uuid: randomUUID(),
+    subtype: "success",
+    is_error: true,
+    result: "Claude usage limit reached|1893456000",
+  });
+  children[0].emit("event", {
+    type: "result",
+    uuid: randomUUID(),
+    subtype: "success",
+    is_error: true,
+    result: "Claude usage limit reached|1893456000",
+  });
+  await waitFor(() => events.some((e) => e.type === "usage-limit"));
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(
+    events.filter((e) => e.type === "usage-limit"),
+    [{ type: "usage-limit", resetAt: 1893456000 * 1000 }],
+  );
+  children[0].emit("event", {
+    type: "rate_limit_event",
+    uuid: randomUUID(),
+    rate_limit_info: { status: "allowed" },
+  });
+  children[0].emit("event", {
+    type: "rate_limit_event",
+    uuid: randomUUID(),
+    rate_limit_info: { status: "rejected", resetsAt: 1893459600 },
+  });
+  await waitFor(
+    () => events.filter((e) => e.type === "usage-limit").length === 2,
+  );
+});
+test("PV-3: allowed and warning rate-limit events are not a limit", async (t) => {
+  const { bridge, children, events } = await setup(t);
+  await bridge.connect();
+  for (const status of ["allowed", "allowed_warning"])
+    children[0].emit("event", {
+      type: "rate_limit_event",
+      uuid: randomUUID(),
+      rate_limit_info: { status, resetsAt: 1893456000 },
+    });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(!events.some((e) => e.type === "usage-limit"));
+});
+
+// PV-5: a missing Claude is a calm notice that keeps retrying, never a fatal error.
+test("PV-5: a missing claude executable reports claude-missing once and keeps retrying instead of blocking", async (t) => {
+  let attempts = 0;
+  const { bridge, children, events } = await setup(t, {
+    transportFactory: () => {
+      const child = new Transport();
+      const connect = child.connect.bind(child);
+      child.connect = async (options) => {
+        if (attempts++ < 3)
+          throw Object.assign(new Error("spawn claude ENOENT"), {
+            code: "ENOENT",
+          });
+        return connect(options);
+      };
+      children.push(child);
+      return child;
+    },
+  });
+  await bridge.connect();
+  await waitFor(() =>
+    events.some((e) => e.type === "status" && e.state === "connected"),
+  );
+  assert.equal(events.filter((e) => e.type === "claude-missing").length, 1);
+  assert.ok(!events.some((e) => e.type === "status" && e.state === "blocked"));
+  assert.ok(
+    events.some(
+      (e) =>
+        e.type === "status" &&
+        e.state === "retrying" &&
+        e.detail === "claude-missing",
+    ),
+  );
+  assert.ok(attempts >= 4);
+});
+test("PV-5: the real transport reports a missing executable the same way", async (t) => {
+  const { bridge, events } = await setup(t, {
+    executable: "/nonexistent/path/to/claude",
+    transportFactory: undefined,
+  });
+  await bridge.connect();
+  await waitFor(() => events.some((e) => e.type === "claude-missing"));
+  assert.ok(!events.some((e) => e.type === "status" && e.state === "blocked"));
+  assert.equal(bridge.status.detail, "claude-missing");
 });
