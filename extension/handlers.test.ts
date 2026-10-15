@@ -38,6 +38,10 @@ function setup(url = "https://example.test/", over: object = {}) {
             secure: true,
           },
         ],
+        selection: {
+          text: "Chosen words",
+          rect: { x: 5, y: 6, width: 70, height: 16 },
+        },
         title: "T",
         url,
         innerWidth: 984,
@@ -83,6 +87,7 @@ describe("helper handlers", () => {
             page: unknown;
             frame: unknown;
             elements: { secure: boolean }[];
+            selection?: unknown;
           };
         }
       | undefined = await createHandlers(helper).handle(
@@ -103,6 +108,10 @@ describe("helper handlers", () => {
       zoom: 1,
     });
     expect(reply.result.elements[0].secure).toBe(true);
+    expect(reply.result.selection).toEqual({
+      text: "Chosen words",
+      rect: { x: 5, y: 6, width: 70, height: 16 },
+    });
     // The point is handed to the page in viewport CSS pixels.
     expect(sendMessage).toHaveBeenCalledWith(4, {
       type: "blinkling:elements",

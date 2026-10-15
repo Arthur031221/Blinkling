@@ -147,6 +147,11 @@ it("returns null without a helper and the structure with one, clearing secure fi
         result: {
           page,
           frame,
+          selection: {
+            text: "Chosen words",
+            rect: { x: 5, y: 6, width: 70, height: 16 },
+            extra: "dropped",
+          },
           elements: [
             element(),
             element({
@@ -168,6 +173,10 @@ it("returns null without a helper and the structure with one, clearing secure fi
   expect(requests).toEqual([{ x: 640, y: 360 }]);
   expect(result?.page).toEqual(page);
   expect(result?.frame).toEqual(frame);
+  expect(result?.selection).toEqual({
+    text: "Chosen words",
+    rect: { x: 5, y: 6, width: 70, height: 16 },
+  });
   const secret = result!.elements.find((e) => e.id === "pw")!;
   expect(secret).toMatchObject({ secure: true, name: "", text: "" });
   expect(secret.content).toBeUndefined();

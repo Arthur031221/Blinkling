@@ -27,6 +27,11 @@ export type CollectedElement = {
 };
 export type CollectedPage = {
   elements: CollectedElement[];
+  /** What the user has selected on the page, never from a secure or private region. */
+  selection?: {
+    text: string;
+    rect: { x: number; y: number; width: number; height: number };
+  };
   viewport: { width: number; height: number };
   /** Same-origin frames and open shadow roots are read; the rest are counted. */
   skippedFrames: number;
@@ -434,5 +439,34 @@ export function collectElements(
       }
     }
   }
-  return { elements: ordered, viewport, skippedFrames };
+  const selection = readSelection(view);
+  return {
+    elements: ordered,
+    viewport,
+    skippedFrames,
+    ...(selection ? { selection } : {}),
+  };
+}
+
+function readSelection(view: Window): CollectedPage["selection"] | undefined {
+  const selection = view.getSelection?.();
+  if (!selection || selection.rangeCount === 0) return undefined;
+  const text = selection.toString().trim();
+  if (!text) return undefined;
+  const range = selection.getRangeAt(0);
+  const anchor = range.commonAncestorContainer;
+  const host = anchor instanceof Element ? anchor : anchor.parentElement;
+  if (!host || isExcluded(host) || host.closest("input, textarea"))
+    return undefined;
+  const box = range.getBoundingClientRect();
+  if (!box || box.width <= 0 || box.height <= 0) return undefined;
+  return {
+    text: text.slice(0, MAX_CONTENT),
+    rect: {
+      x: Math.round(box.x * 10) / 10,
+      y: Math.round(box.y * 10) / 10,
+      width: Math.round(box.width * 10) / 10,
+      height: Math.round(box.height * 10) / 10,
+    },
+  };
 }

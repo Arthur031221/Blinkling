@@ -136,6 +136,43 @@ describe("page element collector", () => {
     expect(math.content?.mathml).toContain("<math");
   });
 
+  it("reports the selected text with its rectangle, and nothing selected as no selection", () => {
+    document.body.innerHTML = `<p id="p" data-rect="10,10,300,40">Read this sentence. Then more.</p>`;
+    expect(collectElements().selection).toBeUndefined();
+    const range = document.createRange();
+    const text = document.getElementById("p")!.firstChild!;
+    range.setStart(text, 0);
+    range.setEnd(text, 19);
+    Object.assign(range, {
+      getBoundingClientRect: () => ({ x: 10, y: 10, width: 150, height: 20 }),
+    });
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    vi.spyOn(selection, "getRangeAt").mockReturnValue(range);
+    vi.spyOn(selection, "toString").mockReturnValue("Read this sentence.");
+    Object.defineProperty(selection, "rangeCount", { value: 1 });
+    vi.spyOn(window, "getSelection").mockReturnValue(selection);
+    expect(collectElements().selection).toEqual({
+      text: "Read this sentence.",
+      rect: { x: 10, y: 10, width: 150, height: 20 },
+    });
+  });
+
+  it("never reports a selection inside a secure or private region", () => {
+    document.body.innerHTML = `<div data-private><p id="p" data-rect="0,0,300,40">my account number</p></div>`;
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById("p")!);
+    Object.assign(range, {
+      getBoundingClientRect: () => ({ x: 0, y: 0, width: 100, height: 20 }),
+    });
+    const selection = window.getSelection()!;
+    vi.spyOn(selection, "getRangeAt").mockReturnValue(range);
+    vi.spyOn(selection, "toString").mockReturnValue("my account number");
+    Object.defineProperty(selection, "rangeCount", { value: 1 });
+    vi.spyOn(window, "getSelection").mockReturnValue(selection);
+    expect(collectElements().selection).toBeUndefined();
+  });
+
   it("skips hidden, empty and off-screen elements and the Blink overlay", () => {
     document.body.innerHTML = `
       <p data-rect="0,0,100,20">shown</p>
