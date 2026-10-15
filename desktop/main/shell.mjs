@@ -971,6 +971,7 @@ if (process.env.BLINKLING_E2E === "1")
       return composer;
     },
     snapshot,
+    locator,
     cursor: () => cursor.point(),
     pointer: cursor,
     cardBounds: () => cardBounds(display, position),
