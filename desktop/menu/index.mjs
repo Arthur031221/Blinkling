@@ -28,10 +28,19 @@ const STAGGER = duration.fast / 1000 / PILL.count;
 const LABEL_GAP = 8;
 // Below this distance from its target a spring has visibly stopped.
 const SETTLED = 0.002;
-export function mountMenu(host, onAction, { text = menuText() } = {}) {
+/** `firstUse`: the first time the fan opens it names all four bubbles, so no
+ * one has to hover to learn them. `onLabelsShown` fires once, when they are
+ * all on screen; the names then stay until that fan closes. */
+export function mountMenu(
+  host,
+  onAction,
+  { text = menuText(), firstUse = false, onLabelsShown = () => {} } = {},
+) {
   host.setAttribute("role", "toolbar");
   host.setAttribute("aria-label", text("toolbar"));
   let expanded = -1,
+    intro = firstUse,
+    introduced = false,
     open = false,
     changedAt = 0,
     steps = STAGGER;
@@ -116,6 +125,17 @@ export function mountMenu(host, onAction, { text = menuText() } = {}) {
         rects = menuLayout(area, anchor);
         stand = { area, anchor: { ...anchor } };
       }
+      // The intro ends with the fan that carried it, never in the middle of one.
+      if (introduced && !open && values.every((v) => v.value === 0)) {
+        intro = introduced = false;
+        host.classList.remove("intro");
+      }
+      const naming = intro && open;
+      if (naming && !introduced && values.every((v) => v.value > 0.8)) {
+        introduced = true;
+        onLabelsShown();
+      }
+      host.classList.toggle("intro", intro);
       const wasMoving = values.some((v) => v.value > 0.001 && v.value < 0.999);
       painted = [];
       buttons.forEach((b, i) => {
@@ -146,7 +166,7 @@ export function mountMenu(host, onAction, { text = menuText() } = {}) {
         b.style.visibility = q > 0.015 ? "visible" : "hidden";
         b.style.pointerEvents = q > 0.8 ? "auto" : "none";
         b.inert = !open || q <= 0.8;
-        b.classList.toggle("expanded", i === expanded);
+        b.classList.toggle("expanded", i === expanded || naming);
         b.classList.toggle("flip", r.direction < 0);
       });
       if (wasMoving || open)
@@ -158,7 +178,7 @@ export function mountMenu(host, onAction, { text = menuText() } = {}) {
         if (values[i].value <= 0.8) return;
         const r = rects[i];
         shapes.push(roundedRect(r.x, r.y, r.width, r.height, r.height / 2));
-        if (i !== expanded) return;
+        if (i !== expanded && !(intro && open)) return;
         const label = b.querySelector(".action-label"),
           w = label.offsetWidth,
           h = label.offsetHeight;

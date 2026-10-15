@@ -28,6 +28,7 @@ export function createMiniController({
 }) {
   let model = null;
   let hideTimer = null;
+  let reopening = false;
   let height = 140;
   let thumbs = new Map();
   const send = (channel, value) => {
@@ -77,7 +78,11 @@ export function createMiniController({
       if (!model && !win.isDestroyed()) win.hide();
     }, duration.base);
     setLayer("mini", null);
-    if (closing) host.closed?.(reason);
+    if (closing) {
+      host.closed?.(reason);
+      // Replacing the contents of an open composer leaves it open.
+      if (!reopening) host.changed?.(false);
+    }
     // Escape, a send and a discard hand the keyboard back to the previous app;
     // growing into the full composer hands it to the composer instead.
     if (reason !== "grew") focus.restore();
@@ -107,7 +112,10 @@ export function createMiniController({
     },
     /** entries: [{id, kind, attachment, taken?, thumb?}] */
     async open(entries) {
+      const wasOpen = !!model;
+      reopening = wasOpen;
       if (model) model.dispose();
+      reopening = false;
       clearTimer(hideTimer);
       hideTimer = null;
       thumbs = new Map(
@@ -130,6 +138,7 @@ export function createMiniController({
       win.focus();
       claimKeyboard();
       send("blinkling:mini-open", {});
+      if (!wasOpen) host.changed?.(true);
     },
     escape: () => model?.escape(),
     dispose() {

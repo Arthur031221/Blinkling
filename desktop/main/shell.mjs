@@ -42,6 +42,9 @@ import { tmpdir } from "node:os";
 import { SessionBridge } from "../session/index.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
+import { createOnce, fileStore } from "../pick/once.mjs";
+import { installSettings } from "../settings/install.mjs";
+import { installWelcome } from "../welcome/install.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
@@ -94,6 +97,7 @@ let composer = null,
   drag = null,
   pinned = false,
   chatOpen = false,
+  miniOpen = false,
   cardHold = noHold,
   leaving = false,
   autoExplain = false,
@@ -101,6 +105,10 @@ let composer = null,
 let previousCursor = "",
   previousFocused = null,
   ignoring = true;
+// Hints shown exactly once, remembered across restarts (N2.1 first-use labels).
+const uiOnce = createOnce(
+  fileStore(join(app.getPath("userData"), "ui-once.json")),
+);
 const input = await nativeInput();
 const cursor = cursorSource({
   query: input?.pointer,
@@ -156,6 +164,13 @@ secure(blink);
 blink.setIgnoreMouseEvents(true, { forward: true });
 const windows = () =>
   [composer, bubbles, overlay, blink].filter((w) => w && !w.isDestroyed());
+// Settings and the welcome are Blinkling's own windows too: kept out of captures
+// and masked while visible, but without the privileges of the Blink windows.
+const extraWindows = [];
+const surfaces = () => [
+  ...windows(),
+  ...extraWindows.filter((w) => !w.isDestroyed()),
+];
 const snapshot = () => ({
   display: {
     id: String(display.id),
@@ -173,6 +188,8 @@ const snapshot = () => ({
     : null,
   pinned,
   chatOpen,
+  miniOpen,
+  fanLabelsSeen: uiOnce.seen("fan-labels"),
   chatFocused: !!composer && !composer.isDestroyed() && composer.isFocused(),
   autoExplain,
   theme: nativeTheme.shouldUseDarkColors ? "dark" : "light",
@@ -545,6 +562,9 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       leaving = true;
       leaveIfIdle();
     }
+  } else if (command.type === "fan-labels-seen") {
+    if (!fromBlink) throw new Error("Invalid fan label report");
+    uiOnce.take("fan-labels");
   } else if (command.type === "activity") {
     if (fromBlink || event.sender !== composer?.webContents)
       throw new Error("Invalid composer activity");
@@ -553,22 +573,13 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
   broadcast();
   return snapshot();
 });
-// Until the settings window lands, Settings opens the card on its settings view.
-registerAction("settings", async () => {
-  await openComposer();
-  composer.webContents.send("blinkling:surface", {
-    type: "view",
-    view: "settings",
-  });
-  return { ok: true };
-});
 ipcMain.handle("blinkling:action", async (event, action) => {
   if (!trusted(event) || !actions.has(action))
     throw new Error("Invalid desktop action");
   if (action === "auto-explain") {
     const result = await dispatchAction(action, {
       display,
-      windows: windows(),
+      windows: surfaces(),
       enabled: !autoExplain,
     });
     if (result.ok) {
@@ -577,7 +588,7 @@ ipcMain.handle("blinkling:action", async (event, action) => {
     }
     return result;
   }
-  return dispatchAction(action, { display, windows: windows(), openComposer });
+  return dispatchAction(action, { display, windows: surfaces(), openComposer });
 });
 const send = (event) => {
   for (const win of windows()) win.webContents.send("blinkling:event", event);
@@ -740,7 +751,7 @@ const companionHost = await startDesktopHost({
 });
 globalThis.blinklingCompanion = companionHost;
 const visualMasks = () =>
-  windows()
+  surfaces()
     .filter((w) => w.isVisible())
     .flatMap((w) => {
       const b = w.getBounds();
@@ -761,7 +772,7 @@ const visualMasks = () =>
 const attachCapture = async (taken) => pick.deliver(taken);
 features = installCaptureGuide({
   blink,
-  windows,
+  windows: surfaces,
   session,
   masks: visualMasks,
   busy: () => typing || !!session.active,
@@ -783,7 +794,7 @@ features = installCaptureGuide({
 for (const action of featureActions)
   registerAction(action, () => features.handle(action));
 actions.add("companion-guide");
-registerAction("companion-guide", async () => {
+async function openCompanionGuide() {
   try {
     await companionHost.openCompanionGuide();
   } catch {
@@ -792,8 +803,10 @@ registerAction("companion-guide", async () => {
     );
   }
   return { ok: true };
-});
-const { systemPreferences, nativeImage, dialog } = await import("electron");
+}
+registerAction("companion-guide", openCompanionGuide);
+const { systemPreferences, nativeImage, dialog, desktopCapturer } =
+  await import("electron");
 const pick = await installPick({
   electron: {
     BrowserWindow,
@@ -808,7 +821,7 @@ const pick = await installPick({
     locales: app.getPreferredSystemLanguages(),
     windowOptions,
     secure,
-    windows,
+    windows: surfaces,
     input,
     cursor: () => cursor.point(),
     blinkPoint: () => ({
@@ -820,13 +833,17 @@ const pick = await installPick({
     captureScreen,
     newChat: () => tellDeck({ type: "new-chat" }),
     caught: () => blink.webContents.send("blinkling:catch"),
+    miniChanged: (open) => {
+      miniOpen = open;
+      broadcast();
+    },
     autoExplain: {
       get: () => autoExplain,
       set: async (enabled) => {
         if (enabled === autoExplain) return;
         const result = await dispatchAction("auto-explain", {
           display,
-          windows: windows(),
+          windows: surfaces(),
           enabled,
         });
         if (result.ok) {
@@ -846,6 +863,49 @@ const pick = await installPick({
       },
     },
   },
+});
+// Settings and the welcome are two hidden windows made now and reused (N6.4).
+// Settings opens from the menu bubble; the welcome opens on the first start and
+// from Settings.
+const secondary = {
+  userDataDir: app.getPath("userData"),
+  // The app locale (which --lang sets) leads, so these windows speak the
+  // language the fan's own bubbles already use.
+  locales: [app.getLocale(), ...app.getPreferredSystemLanguages()],
+  windowOptions,
+  secure,
+  input,
+  workArea: () => display.workArea,
+  openExternal: (url) => externalShell.openExternal(url),
+};
+const welcome = installWelcome({
+  electron: { BrowserWindow, ipcMain, systemPreferences, desktopCapturer },
+  shell: secondary,
+  pickKey: { get: () => pick.pickKey() },
+});
+const settings = installSettings({
+  electron: { BrowserWindow, ipcMain },
+  shell: { ...secondary, version: app.getVersion() },
+  hotkey: {
+    get: () => features.hotkey,
+    set: (accelerator) => features.setHotkey(accelerator),
+  },
+  pickKey: {
+    get: () => pick.pickKey(),
+    set: (name) => pick.setPickKey(name),
+  },
+  host: {
+    welcome: () => {
+      settings.close();
+      void welcome.open();
+    },
+    guide: () => void openCompanionGuide(),
+  },
+});
+extraWindows.push(welcome.test.win, settings.test.win);
+registerAction("settings", async () => {
+  await settings.open();
+  return { ok: true };
 });
 const privacy = installPrivacy({
   session,
@@ -868,6 +928,12 @@ if (
   )
 )
   void session.connect().catch(() => {});
+// The first start opens the welcome; end-to-end runs skip it unless asked.
+if (
+  process.env.BLINKLING_E2E !== "1" ||
+  process.env.BLINKLING_WELCOME === "1"
+)
+  void welcome.openFirstTime();
 void features
   .resume()
   .catch(() => send({ type: "capture-status", state: "retrying" }));
@@ -944,6 +1010,8 @@ app.on("will-quit", () => {
   stopStacking();
   input?.dispose();
   pick.dispose();
+  settings.dispose();
+  welcome.dispose();
   globalShortcut.unregisterAll();
 });
 app.on("window-all-closed", () => app.quit());
@@ -964,7 +1032,7 @@ if (process.env.BLINKLING_E2E === "1")
     attachCapture,
     openComposer,
     visualMasks,
-    capture: () => captureScreen(display, windows()),
+    capture: () => captureScreen(display, surfaces()),
     overlay: async (drawings) => {
       overlay?.close();
       overlay = await createOverlay(display, drawings);
@@ -974,6 +1042,9 @@ if (process.env.BLINKLING_E2E === "1")
     setDisplay: useDisplay,
     positionStore: store,
     registerAction,
+    settings,
+    welcome,
+    uiOnce,
   };
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'"
+    />
+    <title>Blinkling</title>
+    <link rel="stylesheet" href="../shared/look.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main id="settings" class="settings-card" role="dialog" aria-labelledby="settings-title">
+      <header class="settings-head">
+        <h1 id="settings-title"></h1>
+        <button type="button" id="settings-close" class="settings-x"></button>
+      </header>
+
+      <section class="settings-row" id="row-hotkey">
+        <div class="settings-text">
+          <h2 data-text="hotkey"></h2>
+          <p data-text="hotkeyHint"></p>
+        </div>
+        <div class="settings-control">
+          <kbd id="hotkey-label"></kbd>
+          <button type="button" id="hotkey-change"></button>
+        </div>
+        <p class="settings-note" id="hotkey-note" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="settings-row" id="row-pick" hidden>
+        <div class="settings-text">
+          <h2 data-text="pickKey"></h2>
+          <p data-text="pickKeyHint"></p>
+        </div>
+        <div class="settings-control" role="radiogroup">
+          <button type="button" role="radio" data-pick="control"></button>
+          <button type="button" role="radio" data-pick="option"></button>
+        </div>
+      </section>
+
+      <section class="settings-row" id="row-start">
+        <div class="settings-text">
+          <h2 data-text="startWithClaude"></h2>
+          <p data-text="startWithClaudeHint"></p>
+        </div>
+        <div class="settings-control">
+          <button type="button" role="switch" id="start-switch" class="settings-switch"></button>
+        </div>
+      </section>
+
+      <section class="settings-help">
+        <h2 data-text="help"></h2>
+        <div class="settings-actions">
+          <button type="button" data-help="welcome" data-text="helpWelcome"></button>
+          <button type="button" data-help="guide" data-text="helpGuide"></button>
+        </div>
+        <div class="settings-about" aria-labelledby="about-title">
+          <h3 id="about-title" data-text="helpAbout"></h3>
+          <div data-wordmark></div>
+          <p data-safety></p>
+          <p id="about-version" class="settings-version"></p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./renderer.mjs"></script>
+  </body>
+</html>

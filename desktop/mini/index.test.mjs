@@ -33,6 +33,7 @@ function setup() {
     sends: [],
     opened: [],
     closed: [],
+    changes: [],
   };
   const controller = createMiniController({
     win,
@@ -49,6 +50,7 @@ function setup() {
       send: async (turn) => void log.sends.push(turn),
       openComposer: (seed) => void log.opened.push(seed),
       closed: (reason) => void log.closed.push(reason),
+      changed: (open) => void log.changes.push(open),
     },
     autoExplain: () => false,
     setTimer: (fn, ms) => (timers.push({ fn, ms }), timers.length),
@@ -73,6 +75,16 @@ test("opening shows the view, places the window beside Blink and takes the keybo
   assert.ok(sent.some(([c]) => c === "blinkling:mini-open"));
   assert.equal(topLayer(), "mini");
   setLayer("mini", null);
+});
+
+test("the host hears when the mini composer opens and when it closes (the fan stays shut meanwhile)", async () => {
+  const { controller, fire, log } = setup();
+  await controller.open(entries());
+  assert.deepEqual(log.changes, [true]);
+  await controller.open(entries());
+  assert.deepEqual(log.changes, [true], "reopening while open is not a change");
+  fire("blinkling:mini-escape");
+  assert.deepEqual(log.changes, [true, false]);
 });
 
 test("Enter sends the default ask, closes, and returns the keyboard", async () => {

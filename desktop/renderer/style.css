@@ -116,6 +116,12 @@ button svg {
   right: calc(100% + 8px);
   transform-origin: 100% 50%;
 }
+.intro .action-label {
+  white-space: nowrap;
+}
+.intro .action-label span {
+  display: none;
+}
 .action-label strong {
   font-size: var(--type-m);
 }

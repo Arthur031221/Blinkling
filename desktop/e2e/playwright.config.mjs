@@ -15,6 +15,7 @@ export default defineConfig({
       ? [
           { name: "linux-desktop", testMatch: "linux.spec.mjs" },
           { name: "integrated", testMatch: "integrated.spec.mjs" },
+          { name: "menu-windows", testMatch: "menu-windows.spec.mjs" },
         ]
       : []),
   ],

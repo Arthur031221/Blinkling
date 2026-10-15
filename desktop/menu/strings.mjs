@@ -11,7 +11,7 @@ export const strings = {
     autoExplainHint: "Briefly explain big changes on screen",
     autoExplainOn: "On, click to turn off",
     settings: "Settings",
-    settingsHint: "Hotkey, pick key, welcome and About",
+    settingsHint: "Hotkey, start with Claude Code, welcome tour and About",
   },
   "zh-TW": {
     toolbar: "Blink 動作",
@@ -23,7 +23,7 @@ export const strings = {
     autoExplainHint: "畫面有大變化時簡短說明",
     autoExplainOn: "已開啟，點一下關閉",
     settings: "設定",
-    settingsHint: "快速鍵、選取鍵、歡迎導覽與關於",
+    settingsHint: "快速鍵、隨 Claude Code 啟動、歡迎導覽與關於",
   },
   "zh-CN": {
     toolbar: "Blink 动作",
@@ -35,7 +35,7 @@ export const strings = {
     autoExplainHint: "屏幕有大变化时简短说明",
     autoExplainOn: "已开启，点一下关闭",
     settings: "设置",
-    settingsHint: "快捷键、选取键、欢迎导览与关于",
+    settingsHint: "快捷键、随 Claude Code 启动、欢迎导览与关于",
   },
   ja: {
     toolbar: "Blink の操作",
@@ -47,7 +47,7 @@ export const strings = {
     autoExplainHint: "画面が大きく変わったときに短く説明します",
     autoExplainOn: "オン、クリックでオフ",
     settings: "設定",
-    settingsHint: "ホットキー、選択キー、ようこそ、情報",
+    settingsHint: "ホットキー、Claude Code と一緒に起動、ようこそ、情報",
   },
   ko: {
     toolbar: "Blink 동작",
@@ -59,7 +59,7 @@ export const strings = {
     autoExplainHint: "화면이 크게 바뀌면 짧게 설명합니다",
     autoExplainOn: "켜짐, 클릭하면 끕니다",
     settings: "설정",
-    settingsHint: "단축키, 선택 키, 환영 화면, 정보",
+    settingsHint: "단축키, Claude Code와 함께 시작, 환영 화면, 정보",
   },
   de: {
     toolbar: "Blink-Aktionen",
@@ -72,7 +72,7 @@ export const strings = {
     autoExplainHint: "Große Änderungen auf dem Bildschirm kurz erklären",
     autoExplainOn: "An, zum Ausschalten klicken",
     settings: "Einstellungen",
-    settingsHint: "Kurzbefehl, Auswahltaste, Willkommen und Info",
+    settingsHint: "Kurzbefehl, Start mit Claude Code, Willkommen und Info",
   },
   es: {
     toolbar: "Acciones de Blink",
@@ -85,7 +85,7 @@ export const strings = {
     autoExplainHint: "Explica brevemente los cambios grandes de la pantalla",
     autoExplainOn: "Activado, haz clic para apagarlo",
     settings: "Ajustes",
-    settingsHint: "Atajo, tecla de selección, bienvenida y Acerca de",
+    settingsHint: "Atajo, inicio con Claude Code, bienvenida y Acerca de",
   },
   fr: {
     toolbar: "Actions de Blink",
@@ -98,7 +98,7 @@ export const strings = {
     autoExplainHint: "Explique brièvement les grands changements à l’écran",
     autoExplainOn: "Activé, cliquez pour désactiver",
     settings: "Réglages",
-    settingsHint: "Raccourci, touche de sélection, bienvenue et À propos",
+    settingsHint: "Raccourci, démarrage avec Claude Code, bienvenue et À propos",
   },
   "pt-BR": {
     toolbar: "Ações do Blink",
@@ -111,7 +111,7 @@ export const strings = {
     autoExplainHint: "Explica rapidamente grandes mudanças na tela",
     autoExplainOn: "Ligado, clique para desligar",
     settings: "Ajustes",
-    settingsHint: "Atalho, tecla de seleção, boas-vindas e Sobre",
+    settingsHint: "Atalho, iniciar com o Claude Code, boas-vindas e Sobre",
   },
 };
 const system = () => [

@@ -258,3 +258,46 @@ test("a fan closed by picking Blink up shrinks together, so no bubble crosses an
   assert.equal(worst(true), 0);
   assert.ok(worst(false) > 0, "the staggered close is the one that crosses");
 });
+
+test("first use: the open fan names all four bubbles, reports it once and keeps them until it closes", () => {
+  const seen = [];
+  const { menu } = mount({ firstUse: true, onLabelsShown: () => seen.push(1) });
+  const names = () => menu.buttons.map((b) => b.classList.contains("expanded"));
+  menu.frame(0, 1 / 60, area, anchor);
+  assert.deepEqual(names(), [false, false, false, false]);
+  assert.equal(seen.length, 0, "a closed fan has shown nothing");
+  run(menu, 1, true);
+  assert.deepEqual(names(), [true, true, true, true]);
+  assert.equal(seen.length, 1);
+  run(menu, 1, true);
+  assert.equal(seen.length, 1, "reported once, not per frame");
+  assert.equal(menu.polygons().length, 8, "bubbles and their labels take the pointer");
+  menu.setOpen(false, 1);
+  for (let t = 1; t < 3; t += 1 / 60) menu.frame(t, 1 / 60, area, anchor);
+  assert.deepEqual(names(), [false, false, false, false]);
+  run(menu, 1, true);
+  assert.deepEqual(names(), [false, false, false, false], "the next opening is the quiet one");
+  assert.equal(seen.length, 1);
+});
+
+test("after the first use the fan labels only the bubble under the pointer", () => {
+  const seen = [];
+  const { menu } = mount({ firstUse: false, onLabelsShown: () => seen.push(1) });
+  run(menu, 1, true);
+  assert.deepEqual(menu.buttons.map((b) => b.classList.contains("expanded")), [false, false, false, false]);
+  assert.equal(seen.length, 0);
+});
+
+test("first-use labels are one line, so four of them never meet", () => {
+  assert.match(rules(".intro .action-label"), /white-space:\s*nowrap/);
+  assert.match(rules(".intro .action-label span"), /display:\s*none/);
+});
+
+test("the first-use labels reach every locale at the same size as a hovered one", () => {
+  for (const locale of LOCALES) {
+    const { menu } = mount({ text: menuText(locale), firstUse: true });
+    assert.equal(menu.buttons.length, 4);
+    for (const b of menu.buttons)
+      assert.ok(b.querySelector(".action-label strong").textContent.length > 0, locale);
+  }
+});

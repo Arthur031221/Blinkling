@@ -6,6 +6,7 @@ const types = new Set([
   "click",
   "close-chat",
   "activity",
+  "fan-labels-seen",
 ]);
 export function validCommand(command, bounds) {
   if (command?.type === "drag-end") return Object.keys(command).length === 1;
