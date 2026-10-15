@@ -1,0 +1,14 @@
+Blinkling
+Copyright (c) the Blinkling authors. Licensed under the license in LICENSE.
+
+Third-party notices
+
+Wordmark lettering
+  The Blinkling wordmark is set in DynaPuff, converted to outlines.
+  DynaPuff is Copyright 2021 The DynaPuff Project Authors
+  (https://github.com/googlefonts/dynapuff), licensed under the SIL Open Font
+  License, Version 1.1. The font file and the license text are kept in
+  assets/brand/ (DynaPuff-OFL.txt). The font is used only to generate the
+  wordmark; it is not shipped inside the app or the extension.
+
+Bundled npm packages are listed with their licenses in bin/THIRD_PARTY_LICENSES.
