@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { TARGETS, assetName } from "./targets.mjs";
 import { packagePlan } from "./package.mjs";
 
@@ -48,8 +49,11 @@ test("mac is zipped with ditto so symlinks and the signature survive", () => {
   });
   assert.equal(plan.tool, "ditto");
   assert.deepEqual(plan.args.slice(0, 3), ["-c", "-k", "--keepParent"]);
-  assert.equal(plan.args.at(-1), "/o/Blinkling-3.0.0-mac-arm64.zip");
-  assert.equal(plan.args.at(-2), "/p/Blinkling-darwin-arm64/Blinkling.app");
+  assert.equal(plan.args.at(-1), join("/o", "Blinkling-3.0.0-mac-arm64.zip"));
+  assert.equal(
+    plan.args.at(-2),
+    join("/p/Blinkling-darwin-arm64", "Blinkling.app"),
+  );
 });
 
 test("the AppImage launches the binary the packager produced", () => {
