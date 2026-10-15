@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "../../main/e2e/exec.mjs";
 import { launch, poll, input, shot, frameStats } from "./support.mjs";
 
 export const SCALE = Number(process.env.PICK_SCALE ?? 1);

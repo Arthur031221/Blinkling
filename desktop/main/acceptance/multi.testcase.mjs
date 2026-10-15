@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "../../main/e2e/exec.mjs";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { launch, native, report } from "./support.mjs";

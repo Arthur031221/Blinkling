@@ -1,5 +1,5 @@
 import { _electron as electron } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "../../main/e2e/exec.mjs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFileSync } from "node:fs";

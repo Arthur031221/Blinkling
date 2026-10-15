@@ -1,7 +1,7 @@
 // Run on a real two-output RandR server with a compositor; deliberately fails
 // on a single-display Xvfb instead of substituting mock display coordinates.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "../../main/e2e/exec.mjs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";

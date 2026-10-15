@@ -1,7 +1,7 @@
 import { _electron as electron } from "@playwright/test";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "../main/e2e/exec.mjs";
 export function launch() {
   return electron.launch({
     ...(process.env.BLINKLING_TEST_EXECUTABLE

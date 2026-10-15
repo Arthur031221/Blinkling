@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "./exec.mjs";
 import { PNG } from "pngjs";
 import { report } from "./artifacts.mjs";
 export { report };

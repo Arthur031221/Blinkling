@@ -1,6 +1,6 @@
 import { _electron as electron, expect } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
+import { execFileSync } from "../e2e/exec.mjs";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
