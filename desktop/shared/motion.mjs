@@ -23,8 +23,12 @@ export const timing = Object.freeze({
 /** Custom properties for renderers; inject once into :root. */
 export const cssVariables = () =>
   [
-    ...Object.entries(duration).map(([name, ms]) => `--motion-${name}: ${ms}ms;`),
-    ...Object.entries(easing).map(([name, curve]) => `--ease-${name}: ${curve};`),
+    ...Object.entries(duration).map(
+      ([name, ms]) => `--motion-${name}: ${ms}ms;`,
+    ),
+    ...Object.entries(easing).map(
+      ([name, curve]) => `--ease-${name}: ${curve};`,
+    ),
   ].join(" ");
 
 /** Frame log for the end-to-end gate (N6.8). Animated surfaces call the

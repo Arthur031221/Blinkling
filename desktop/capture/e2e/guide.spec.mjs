@@ -16,9 +16,6 @@ const overlayPath = fileURLToPath(
   new URL("../../overlay/index.mjs", import.meta.url),
 );
 const windowPath = fileURLToPath(new URL("../windows.mjs", import.meta.url));
-const permissionPath = fileURLToPath(
-  new URL("../permission.mjs", import.meta.url),
-);
 test("Escape while a native guide loads cannot resurrect its window", async () => {
   const { app, close } = await launch();
   try {
@@ -467,19 +464,14 @@ for (const scale of [1, 1.5, 2])
         await app.firstWindow();
         await background(app);
         const page = await nextWindow(app, () =>
-          app.evaluate(
-            async ({ screen }, { path, labelsPath }) => {
-              const { createCaptureWindow } = await globalThis.b3Import(path);
-              const { permissionLabels } =
-                await globalThis.b3Import(labelsPath);
-              globalThis.b3Permission = await createCaptureWindow(
-                "permission",
-                screen.getPrimaryDisplay(),
-                { labels: permissionLabels("14.6") },
-              );
-            },
-            { path: windowPath, labelsPath: permissionPath },
-          ),
+          app.evaluate(async ({ screen }, path) => {
+            const { createPermissionWindow } = await globalThis.b3Import(path);
+            // Linux reports a kernel version; show the macOS 14 pane.
+            process.getSystemVersion = () => "14.6";
+            globalThis.b3Permission = await createPermissionWindow(
+              screen.getPrimaryDisplay(),
+            );
+          }, windowPath),
         );
         await page.emulateMedia({ colorScheme: theme });
         await expect(page.locator("h1")).toHaveText(
@@ -518,7 +510,7 @@ for (const scale of [1, 1.5, 2])
           animations: "allow",
         });
         const animation = await page.locator(".switch").evaluate((el) =>
-          el.getAnimations().map((a) => ({
+          el.getAnimations({ subtree: true }).map((a) => ({
             duration: a.effect.getTiming().duration,
             iterations: a.effect.getTiming().iterations,
           })),
@@ -536,7 +528,7 @@ for (const scale of [1, 1.5, 2])
               function frame(t) {
                 if (previous !== undefined) frames.push(t - previous);
                 previous = t;
-                states.add(getComputedStyle(el).backgroundColor);
+                states.add(getComputedStyle(el.querySelector("i")).transform);
                 if (performance.now() - start >= 4100) resolve();
                 else requestAnimationFrame(frame);
               }

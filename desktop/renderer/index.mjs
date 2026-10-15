@@ -341,30 +341,3 @@ window.blinkling.onEvent((event) => {
 document.querySelector("#blink").addEventListener("pointerdown", () => {
   void window.blinkling.action("guide-dismiss");
 });
-// Blink intentionally has no keyboard focus. Native pointer events carry the
-// held Shift modifier even while the underlying application keeps focus.
-let shiftSelection = false;
-const selectWithShift = (event) => {
-  if (!event.shiftKey) shiftSelection = false;
-  else if (
-    !shiftSelection &&
-    scanlines(character.polygons(), {
-      width: innerWidth,
-      height: innerHeight,
-    }).some(
-      (region) =>
-        event.clientX >= region.x &&
-        event.clientX < region.x + region.width &&
-        event.clientY >= region.y &&
-        event.clientY < region.y + region.height,
-    )
-  ) {
-    shiftSelection = true;
-    void window.blinkling.action("region").catch(() => {});
-  }
-};
-for (const event of ["pointerenter", "pointermove"])
-  document.querySelector("#blink").addEventListener(event, selectWithShift);
-document.querySelector("#blink").addEventListener("pointerleave", () => {
-  shiftSelection = false;
-});

@@ -1,6 +1,5 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
 import { anchorOf, growOrigin } from "./origin.mjs";
-import { captureNotice } from "../capture/full-page.mjs";
 import { pickLocale, translator } from "../shared/i18n.mjs";
 import { cssVariables } from "../shared/motion.mjs";
 import { strings } from "./strings.mjs";
@@ -124,14 +123,6 @@ const button = (label, action, enabled = true) => {
   return b;
 };
 const unEvent = api.onEvent((event) => {
-  if (event.type === "companion-required") {
-    notice.replaceChildren(
-      tr("companion-required"),
-      button(tr("companion-guide"), "companion-guide"),
-      button(tr("capture-screen"), "screen"),
-    );
-    notice.hidden = false;
-  }
   if (event.type === "guide") {
     guide.replaceChildren();
     guide.hidden = event.phase === "dismissed";
@@ -165,12 +156,6 @@ const unEvent = api.onEvent((event) => {
         button(tr("guide-retry"), "guide-retry"),
         button(tr("guide-close"), "guide-dismiss"),
       );
-  }
-  const change = captureNotice(event);
-  if (change?.hidden) notice.hidden = true;
-  else if (change) {
-    notice.textContent = change.text;
-    notice.hidden = false;
   }
 });
 let cleanShapes;

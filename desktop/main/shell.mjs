@@ -39,7 +39,7 @@ import {
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { SessionBridge } from "../session/index.mjs";
-import { runFullPage } from "../capture/full-page.mjs";
+import { companionConnected } from "../capture/companion.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -105,9 +105,6 @@ const cursor = cursorSource({
   toDip: (point) => screen.screenToDipPoint(point),
 });
 const actions = new Set([
-  "screen",
-  "region",
-  "full-page",
   "guide",
   "auto-explain",
   "chat",
@@ -746,25 +743,11 @@ features = installCaptureGuide({
     if (guide.phase !== "dismissed" && !chatOpen) bubbles.showInactive();
   },
   onState: (state) => send({ type: "capture-status", ...state }),
+  fullPage: (signal, progress) => companionHost.fullPage(signal, progress),
+  companion: () => companionConnected(companionHost),
 });
 for (const action of featureActions)
   registerAction(action, () => features.handle(action));
-registerAction("full-page", () => {
-  // Show the pending message in the bubbles at once, even if they were hidden.
-  const status = (state) => {
-    send({ type: "capture-status", ...state });
-    if (state.message) bubbles.showInactive();
-  };
-  return runFullPage({
-    host: companionHost,
-    status,
-    attach: attachCapture,
-    companionRequired: () => {
-      send({ type: "companion-required" });
-      bubbles.showInactive();
-    },
-  });
-});
 actions.add("companion-guide");
 registerAction("companion-guide", async () => {
   try {

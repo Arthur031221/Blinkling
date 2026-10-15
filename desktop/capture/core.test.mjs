@@ -2,11 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   SurfaceGuard,
+  fadeScript,
+  fadeDuration,
   cropGeometry,
   deadline,
   deliverCapture,
   freezeDisplay,
 } from "./core.mjs";
+import { duration } from "../shared/motion.mjs";
 
 test("crop uses captured pixel size, including fractional scale and negative origins", () => {
   for (const scale of [1, 1.5, 2]) {
@@ -57,17 +60,23 @@ test("crop uses captured pixel size, including fractional scale and negative ori
   assert.ok(Object.isFrozen(frozen.bounds));
 });
 
-test("surface guard serializes captures and restores on failures without revealing hidden windows", async () => {
+const quickly = { settle: async () => {} };
+
+test("surface guard serializes captures and fades surfaces back in after failures, never hiding them", async () => {
   const log = [];
   const window = (name, visible = true) => ({
     isDestroyed: () => false,
     isVisible: () => visible,
     hide: () => log.push(`hide ${name}`),
     showInactive: () => log.push(`show ${name}`),
+    name,
   });
   const guard = new SurfaceGuard(
     () => [window("Blink"), window("chat"), window("hidden", false)],
-    async () => {},
+    {
+      ...quickly,
+      fade: async (w, to) => log.push(`fade ${to} ${w.name}`),
+    },
   );
   const a = guard.run(async () => {
     log.push("capture 1");
@@ -80,20 +89,20 @@ test("surface guard serializes captures and restores on failures without reveali
   assert.equal(await b, "ok");
   await assert.rejects(a, /portal cancelled/);
   assert.deepEqual(log, [
-    "hide Blink",
-    "hide chat",
+    "fade 0 Blink",
+    "fade 0 chat",
     "capture 1",
-    "show Blink",
-    "show chat",
-    "hide Blink",
-    "hide chat",
+    "fade 1 Blink",
+    "fade 1 chat",
+    "fade 0 Blink",
+    "fade 0 chat",
     "capture 2",
-    "show Blink",
-    "show chat",
+    "fade 1 Blink",
+    "fade 1 chat",
   ]);
 });
 
-test("abort while queued never hides surfaces and destroyed surfaces are not restored", async () => {
+test("abort while queued never fades surfaces and destroyed surfaces are not restored", async () => {
   const controller = new AbortController();
   const log = [];
   let destroyed = false;
@@ -102,11 +111,9 @@ test("abort while queued never hides surfaces and destroyed surfaces are not res
       {
         isDestroyed: () => destroyed,
         isVisible: () => true,
-        hide: () => log.push("hide"),
-        showInactive: () => log.push("show"),
       },
     ],
-    async () => {},
+    { ...quickly, fade: async (w, to) => log.push(`fade ${to}`) },
   );
   const first = guard.run(async () => {
     controller.abort();
@@ -118,7 +125,42 @@ test("abort while queued never hides surfaces and destroyed surfaces are not res
   );
   await first;
   await assert.rejects(second, { name: "AbortError" });
-  assert.deepEqual(log, ["hide"]);
+  assert.deepEqual(log, ["fade 0"]);
+});
+
+test("a surface that fails to fade out does not fail the capture, and fades in anyway", async () => {
+  const log = [];
+  const guard = new SurfaceGuard(
+    () => [{ isDestroyed: () => false, isVisible: () => true }],
+    {
+      ...quickly,
+      fade: async (w, to) => {
+        log.push(`fade ${to}`);
+        if (to === 0) throw Error("page is gone");
+      },
+    },
+  );
+  assert.equal(await guard.run(async () => "taken"), "taken");
+  assert.deepEqual(log, ["fade 0", "fade 1"]);
+});
+
+test("fading is a renderer opacity animation: tokens, one named animation, reversible, reduced motion instant", () => {
+  const script = fadeScript(0, {
+    duration: 120,
+    easing: "ease",
+    reduced: false,
+  });
+  assert.match(script, /opacity/);
+  assert.match(script, /playbackRate/);
+  assert.doesNotMatch(script, /\b(width|height|top|left|display)\s*:/);
+  const reduced = fadeScript(1, {
+    duration: 120,
+    easing: "ease",
+    reduced: true,
+  });
+  assert.match(reduced, /\b0\b/);
+  assert.equal(fadeDuration(false), duration.fast);
+  assert.equal(fadeDuration(true), 0);
 });
 
 test("delivering a capture resolves with what the handler returned", async () => {

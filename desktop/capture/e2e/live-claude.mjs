@@ -1,13 +1,13 @@
 // Explicit opt-in canary. Uses only the host's logged-in CLI, Haiku/low,
 // disabled tools, one tiny screenshot, and two short turns. Never run in CI.
+import "../../shared/test-env.mjs";
 import { readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { OwnedSession } from "../../session/index.mjs";
 import { collectTurn } from "../../overlay/turn.mjs";
 import { parseGuide, guidePrompt } from "../../overlay/schema.mjs";
 import { PNG } from "pngjs";
-// Live runs that do ask for Remote Control use the self-deleting "Blinkling test" session.
-process.env.BLINKLING_REMOTE ??= "test";
+// Remote Control stays off unless BLINKLING_REMOTE is set explicitly.
 const [input, output] = process.argv.slice(2);
 if (!input || !output) throw Error("Pass a local PNG and a local report path");
 const bytes = await readFile(input),

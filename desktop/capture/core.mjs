@@ -1,3 +1,4 @@
+import { duration, easing } from "../shared/motion.mjs";
 export function aborted(signal) {
   signal?.throwIfAborted();
 }
@@ -60,15 +61,75 @@ export function cropGeometry(rect, capture) {
       Math.min(capture.pixelHeight, Math.ceil((rect.y + rect.height) * sy)) - y,
   };
 }
-/** Includes temporary windows supplied by feature services. A failed capture must
- * release the queue, and neither cancellation nor restore may activate Blink. */
+export const fadeDuration = (reduced) => (reduced ? 0 : duration.fast);
+
+/** Runs in the surface's own page. One named animation on the root goes from
+ * opacity 1 to 0; playing it backwards fades in from wherever it stopped, so a
+ * capture that starts during a fade-in reverses it instead of jumping. Resolves
+ * once the target opacity is on screen. */
+export function fadeScript(to, { duration: ms, easing: curve, reduced }) {
+  return `(() => {
+  const root = document.documentElement;
+  const name = "blinkling-surface-fade";
+  const reduced =
+    ${reduced ? "true" : "false"} ||
+    matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let fade = root.getAnimations().find((a) => a.id === name);
+  if (!fade && ${to} === 1) return Promise.resolve();
+  if (!fade) {
+    fade = root.animate([{ opacity: 1 }, { opacity: 0 }], {
+      id: name,
+      duration: ${ms},
+      easing: ${JSON.stringify(curve)},
+      fill: "both",
+    });
+    fade.pause();
+    fade.currentTime = 0;
+  }
+  if (reduced) {
+    fade.playbackRate = 1;
+    if (${to} === 0) fade.finish();
+    else fade.cancel();
+    return Promise.resolve();
+  }
+  fade.playbackRate = ${to} === 0 ? 1 : -1;
+  fade.play();
+  return fade.finished.then(
+    () => {
+      if (${to} === 1) fade.cancel();
+    },
+    () => {},
+  );
+})()`;
+}
+
+/** Fades one own window's page to opacity 0 or 1. The window itself is never
+ * hidden, moved or re-shown, so nothing pops and nothing is re-activated. */
+export function fadeWindow(win, to, reduced = false) {
+  const script = fadeScript(to, {
+    duration: fadeDuration(reduced),
+    easing: easing.standard,
+    reduced,
+  });
+  return win.webContents.executeJavaScript(script, false);
+}
+const frames = (count) =>
+  new Promise((resolve) => setTimeout(resolve, count * 17));
+/** Includes temporary windows supplied by feature services. A failed capture
+ * must release the queue, and neither cancellation nor restore may activate
+ * Blink. Surfaces fade out before the screen is read and back in after. */
 export class SurfaceGuard {
   #tail = Promise.resolve();
   constructor(
     windows,
-    settle = () => new Promise((resolve) => setTimeout(resolve, 120)),
+    {
+      fade = (win, to) => fadeWindow(win, to),
+      // The fade has finished; let the compositor present the last frame.
+      settle = () => frames(3),
+    } = {},
   ) {
     this.windows = windows;
+    this.fade = fade;
     this.settle = settle;
   }
   run(task, signal) {
@@ -77,13 +138,19 @@ export class SurfaceGuard {
       const visible = this.windows().filter(
         (w) => !w.isDestroyed() && w.isVisible(),
       );
+      const fadeAll = (to) =>
+        Promise.all(
+          visible
+            .filter((w) => !w.isDestroyed())
+            .map((w) => Promise.resolve(this.fade(w, to)).catch(() => {})),
+        );
       try {
-        for (const w of visible) w.hide();
+        await fadeAll(0);
         await this.settle();
         aborted(signal);
         return await task();
       } finally {
-        for (const w of visible) if (!w.isDestroyed()) w.showInactive();
+        await fadeAll(1);
       }
     });
     this.#tail = result.catch(() => {});

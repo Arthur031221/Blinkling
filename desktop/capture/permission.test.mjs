@@ -9,7 +9,7 @@ import {
   permissionLabels,
 } from "./permission.mjs";
 const intent = () => ({
-  kind: "region",
+  kind: "capture",
   displayId: "2",
   createdAt: Date.now(),
   restarts: 0,
@@ -74,7 +74,7 @@ test("upgrade consent invalidation retains intent and restarts at most once acro
       code: "CAPTURE_RESTARTING",
     });
     const resumed = await store.read();
-    assert.equal(resumed.kind, "region");
+    assert.equal(resumed.kind, "capture");
     assert.equal(resumed.restarts, 1);
     const second = new PermissionRecovery(deps);
     await assert.rejects(second.capture(unavailable, resumed), {
@@ -125,7 +125,7 @@ test("a fresh macOS grant restarts before stale black thumbnails and resumes the
     { code: "CAPTURE_RESTARTING" },
   );
   assert.equal(captures, 0);
-  assert.equal(saved.kind, "region");
+  assert.equal(saved.kind, "capture");
   assert.equal(saved.restarts, 1);
   assert.equal(
     await new PermissionRecovery(deps).capture(async () => {
@@ -137,4 +137,18 @@ test("a fresh macOS grant restarts before stale black thumbnails and resumes the
   assert.equal(restarts, 1);
   assert.equal(captures, 1);
   assert.equal(saved, null);
+});
+
+test("a pending selection saved by an older version still resumes as a capture", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "intent-"));
+  try {
+    const path = join(dir, "intent.json");
+    const store = new IntentStore(path);
+    await store.write({ ...intent(), kind: "region" });
+    assert.equal((await store.read()).kind, "capture");
+    await store.write({ ...intent(), kind: "page" });
+    assert.equal(await store.read(), null);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

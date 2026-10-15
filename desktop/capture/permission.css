@@ -1,9 +1,5 @@
 :root {
   font-family: system-ui, sans-serif;
-  color-scheme: light dark;
-  --paper: #f5f5f4;
-  --ink: #0c0e0d;
-  --panel: #e7e7e5;
 }
 * {
   box-sizing: border-box;
@@ -11,13 +7,14 @@
 body {
   margin: 0;
   padding: 12px;
+  overflow: hidden;
   background: transparent;
-  color: var(--ink);
+  color: var(--text);
 }
 main {
-  background: var(--paper);
-  border: 2px solid var(--ink);
-  border-radius: 26px;
+  background: var(--surface);
+  border: 2px solid var(--text);
+  border-radius: var(--radius-l);
   padding: 18px;
   height: calc(100vh - 24px);
   display: flex;
@@ -33,38 +30,39 @@ main {
 p {
   margin: 0;
   text-align: center;
-  font-size: 15px;
+  font-size: var(--type-m);
   line-height: 1.6;
+  text-wrap: balance;
 }
 .settings-demo {
   width: 100%;
   flex: 1;
-  min-height: 145px;
+  min-height: 125px;
   display: grid;
   grid-template-columns: minmax(95px, 0.8fr) minmax(0, 2fr);
-  border: 1px solid #8888;
-  border-radius: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
   overflow: hidden;
-  background: var(--panel);
+  background: var(--surface-2);
 }
 .sidebar {
   display: flex;
   flex-direction: column;
   padding: 16px 10px;
   gap: 18px;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .sidebar span {
-  border-radius: 6px;
-  background: #3ddc9755;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--green) 33%, transparent);
   padding: 7px;
 }
 .pane {
-  background: var(--paper);
+  background: var(--surface);
   padding: 16px 12px;
 }
 h1 {
-  font-size: 14px;
+  font-size: var(--type-s);
   line-height: 1.5;
   margin: 0 0 20px;
   overflow-wrap: anywhere;
@@ -74,26 +72,35 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--type-s);
 }
 .app-icon {
   display: grid;
   place-items: center;
   width: 28px;
   height: 28px;
-  background: #3ddc97;
-  color: #0c0e0d;
-  border-radius: 9px;
+  background: var(--green);
+  color: var(--text-on-green);
+  border-radius: var(--radius-m);
   flex-shrink: 0;
 }
+/* The resting frame is the switch ON: reduced motion holds exactly this. */
 .switch {
   margin-left: auto;
-  border-radius: 12px;
+  border-radius: var(--radius-m);
   width: 36px;
   height: 22px;
-  background: #aaa;
+  background: var(--green);
   position: relative;
   flex-shrink: 0;
+}
+.switch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--line);
+  opacity: 0;
 }
 .switch i {
   position: absolute;
@@ -103,13 +110,16 @@ h1 {
   height: 16px;
   border-radius: 50%;
   background: #fff;
+  transform: translateX(14px);
 }
 .checkbox {
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   width: 22px;
 }
 .checkbox i {
   border-radius: 2px;
+  transform: none;
+  opacity: 1;
 }
 .pointer {
   position: absolute;
@@ -117,59 +127,53 @@ h1 {
   top: 36px;
   width: 22px;
   height: 26px;
+  transform: translateY(-21px);
 }
 .buttons {
   display: flex;
   gap: 12px;
 }
 button {
-  border: 1px solid #0c0e0d;
-  border-radius: 20px;
+  border: 1px solid var(--text);
+  border-radius: var(--radius-pill);
   padding: 10px 18px;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--type-s);
   cursor: pointer;
-  color: #0c0e0d;
-  background: #3ddc97;
+  color: var(--text-on-green);
+  background: var(--green);
 }
 #cancel {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--text);
   border-color: currentColor;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #222723;
-    --ink: #f5f5f4;
-    --panel: #151b17;
-  }
-}
 @media (prefers-reduced-motion: no-preference) {
-  .switch {
-    animation: on 4s infinite;
+  .switch::before {
+    animation: off calc(var(--motion-slow) * 12.5) infinite;
   }
   .switch i {
-    animation: slide 4s infinite;
+    animation: slide calc(var(--motion-slow) * 12.5) infinite;
   }
   .checkbox i {
-    animation: check 4s infinite;
+    animation: check calc(var(--motion-slow) * 12.5) infinite;
   }
   .pointer {
-    animation: point 4s infinite;
+    animation: point calc(var(--motion-slow) * 12.5) infinite;
   }
   .blink {
-    animation: hello 4s infinite;
+    animation: hello calc(var(--motion-slow) * 12.5) infinite;
   }
-  @keyframes on {
+  @keyframes off {
     0%,
     25%,
     95%,
     100% {
-      background: #999;
+      opacity: 1;
     }
     35%,
     85% {
-      background: #3ddc97;
+      opacity: 0;
     }
   }
   @keyframes slide {
@@ -177,11 +181,11 @@ button {
     25%,
     95%,
     100% {
-      translate: 0;
+      transform: translateX(0);
     }
     35%,
     85% {
-      translate: 14px;
+      transform: translateX(14px);
     }
   }
   @keyframes check {
@@ -199,32 +203,32 @@ button {
   @keyframes point {
     0%,
     100% {
-      translate: 0 8px;
+      transform: translateY(8px) scale(1);
     }
     25%,
     50% {
-      translate: 0 -21px;
+      transform: translateY(-21px) scale(1);
     }
     35% {
-      scale: 0.88;
+      transform: translateY(-21px) scale(0.88);
     }
     40%,
     85% {
-      scale: 1;
+      transform: translateY(-21px) scale(1);
     }
   }
   @keyframes hello {
     0%,
     100% {
-      rotate: 0;
+      transform: rotate(0);
     }
     15%,
     35% {
-      rotate: -5deg;
+      transform: rotate(-5deg);
     }
     25%,
     45% {
-      rotate: 5deg;
+      transform: rotate(5deg);
     }
   }
 }

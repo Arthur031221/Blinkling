@@ -39,11 +39,11 @@ for (const scale of [1, 1.5, 2]) {
         width: 100,
         height: 80,
         frame: false,
-        backgroundColor: "#ffff00",
+        transparent: true,
         show: false,
       });
       await owned.loadURL(
-        "data:text/html,<body style='background:yellow'>Owned composer</body>",
+        "data:text/html,<body style='margin:0'><div style='height:100vh;background:yellow'>Owned composer</div></body>",
       );
       owned.showInactive();
       globalThis.b3MultiOwned = owned;
@@ -73,8 +73,55 @@ for (const scale of [1, 1.5, 2]) {
           ),
         display.id,
       );
-      await blink.evaluate(() => window.blinkling.action("screen"));
+      await app.evaluate(() => {
+        globalThis.b3MultiCapture = undefined;
+      });
+      // One pooled overlay per display, hidden until a capture asks for it.
+      assert.deepEqual(
+        await app.evaluate(() =>
+          globalThis.blinklingTest.features.capture.overlays.windows.map((w) =>
+            w.isVisible(),
+          ),
+        ),
+        [false, false],
+      );
+      await blink.evaluate(() => void window.blinkling.action("capture"));
+      // Enter with nothing picked takes the whole screen of Blink's display.
+      await expect
+        .poll(
+          () =>
+            app.evaluate(
+              () =>
+                globalThis.blinklingTest.features.capture.overlays.windows.filter(
+                  (w) => w.isVisible(),
+                ).length,
+            ),
+          { timeout: 10000 },
+        )
+        .toBe(1);
+      let overlay;
+      await expect
+        .poll(async () => {
+          // The pooled page that sits on the visible overlay window.
+          const x = await app.evaluate(
+            () =>
+              globalThis.blinklingTest.features.capture.overlays.windows
+                .find((w) => w.isVisible())
+                ?.getBounds().x,
+          );
+          for (const page of app
+            .windows()
+            .filter((p) => /\/capture\/selection\.html$/.test(p.url())))
+            if ((await page.evaluate(() => screenX)) === x) overlay = page;
+          return !!overlay;
+        })
+        .toBe(true);
+      await overlay.keyboard.press("Enter");
+      await expect
+        .poll(() => app.evaluate(() => !!globalThis.b3MultiCapture))
+        .toBe(true);
       const capture = await app.evaluate(() => globalThis.b3MultiCapture);
+      assert.equal(capture.kind, "screen");
       assert.equal(capture.display.id, display.id);
       const bytes = Buffer.from(capture.image.data, "base64"),
         image = PNG.sync.read(bytes);
@@ -121,7 +168,7 @@ for (const scale of [1, 1.5, 2]) {
         pixelWidth: image.width,
         pixelHeight: image.height,
       });
-      const shown = await app.evaluate(async () => {
+      const opened = await app.evaluate(async () => {
         const f = globalThis.blinklingTest.features;
         await f.overlay.show(globalThis.b3MultiCapture, [
           {
@@ -146,7 +193,7 @@ for (const scale of [1, 1.5, 2]) {
           native: f.overlay.window.getNativeWindowHandle().readUInt32LE(0),
         };
       });
-      console.log({ scale, display, shown });
+      console.log({ scale, display, shown: opened });
       assert.deepEqual(await nativeBounds(app, "b3MultiOverlay"), {
         x: i * 800,
         y: 0,
