@@ -38,6 +38,18 @@ const overlaysVisible = (app) =>
       w.isVisible(),
     ),
   );
+// Every capture the service delivers, with its image, as `globalThis.images`.
+const collectImages = (app) =>
+  app.evaluate(() => {
+    globalThis.images = [];
+    globalThis.blinklingTest.features.capture.onCapture = async (taken) =>
+      void globalThis.images.push({
+        kind: taken.kind,
+        region: taken.region,
+        image: taken.image,
+      });
+  });
+const imageCount = (app) => app.evaluate(() => globalThis.images.length);
 const A = {
   x: 80,
   y: 330,
@@ -471,12 +483,7 @@ for (const scale of [1, 1.5, 2])
         const blink = await app.firstWindow();
         const d = await background(app);
         native(30, 30);
-        await blink.evaluate(() => {
-          window.captures = [];
-          window.blinkling.onEvent((e) => {
-            if (e.type === "capture") window.captures.push(e.capture);
-          });
-        });
+        await collectImages(app);
         const selector = await openOverlay(app, blink);
         await selector.emulateMedia({ colorScheme: theme });
         expect(await selector.evaluate(() => typeof window.require)).toBe(
@@ -515,10 +522,9 @@ for (const scale of [1, 1.5, 2])
         }
         await desktopShot(app, `selection-${scale}-${theme}`);
         await selector.mouse.up();
-        await expect
-          .poll(() => blink.evaluate(() => window.captures.length))
-          .toBe(1);
-        const capture = await blink.evaluate(() => window.captures[0]);
+        await expect.poll(() => imageCount(app)).toBe(1);
+        const capture = await app.evaluate(() => globalThis.images[0]);
+        expect(capture.kind).toBe("area");
         expect(capture.region).toEqual({
           x: 240,
           y: 160,
@@ -558,6 +564,54 @@ for (const scale of [1, 1.5, 2])
         expect(pixel(image, 240 * sx, 160 * sy)).toEqual([232, 73, 73]);
       });
     });
+
+for (const scale of [1, 2])
+  test(`a window click delivers only that window's pixels at ${scale}`, async () => {
+    await withApp(scale, async ({ app, dir }) => {
+      const blink = await app.firstWindow();
+      await background(app);
+      await collectImages(app);
+      const windows = await twoWindows(app, dir);
+      try {
+        // The fixture windows sit at native pixels; the overlay speaks DIPs.
+        for (const [index, win] of [A, B].entries()) {
+          const dip = {
+            x: win.x / scale,
+            y: win.y / scale,
+            width: win.width / scale,
+            height: win.height / scale,
+          };
+          native(win.x + win.width / 2, win.y + win.height / 2);
+          const page = await openOverlay(app, blink);
+          await page.mouse.move(dip.x + dip.width / 2, dip.y + dip.height / 2);
+          await expect(page.locator(".win.on")).toHaveCount(1);
+          await desktopShot(app, `window-click-${scale}-${index}`);
+          await page.mouse.down();
+          await page.mouse.up();
+          await expect.poll(() => imageCount(app)).toBe(index + 1);
+          const got = await app.evaluate(
+            (_e, i) => globalThis.images[i],
+            index,
+          );
+          expect(got.kind).toBe("window");
+          expect(got.region).toEqual(dip);
+          const png = PNG.sync.read(Buffer.from(got.image.data, "base64"));
+          expect(png.width).toBe(Math.round(dip.width * scale));
+          expect(png.height).toBe(Math.round(dip.height * scale));
+          // The pixels are the picked window's own colour, not the screen behind it.
+          const own = win.color.match(/\w\w/g).map((h) => parseInt(h, 16));
+          expect(pixel(png, png.width / 2, png.height / 2)).toEqual(own);
+          await writeFile(
+            `${reports}/window-cropped-${scale}-${index}.png`,
+            Buffer.from(got.image.data, "base64"),
+          );
+          await idle(app);
+        }
+      } finally {
+        windows.close();
+      }
+    });
+  });
 
 for (const scale of [1, 2])
   for (const theme of ["light", "dark"])

@@ -248,6 +248,31 @@ test("picks within 60 s share a chat, a later one starts a new chat", async () =
   assert.equal(log.newChats, 2);
 });
 
+test("window captures within 60 s share a chat, a later one starts a new chat", async () => {
+  const { controller, log, tick } = setup();
+  const capture = (id) => ({
+    id,
+    kind: "window",
+    display: DISPLAY,
+    region: { x: 40, y: 165, width: 210, height: 150 },
+    pixelWidth: 420,
+    pixelHeight: 300,
+    image: { id, name: "Window.png", mediaType: "image/png", data: PNG },
+  });
+  await controller.deliver(capture("w1"));
+  assert.equal(log.newChats, 1, "the first capture starts a chat");
+  tick(59_000);
+  await controller.deliver(capture("w2"));
+  assert.equal(log.newChats, 1, "59 s later it joins the same chat");
+  tick(59_000);
+  await controller.deliver(capture("w3"));
+  assert.equal(log.newChats, 1, "the window slides with every capture");
+  tick(61_000);
+  await controller.deliver(capture("w4"));
+  assert.equal(log.newChats, 2, "61 s later it starts a new chat");
+  assert.equal(log.flights.length, 4);
+});
+
 test("a capture from the overlay or a hotkey goes through the same flight and mini composer", async () => {
   const { controller, log } = setup();
   await controller.deliver({
