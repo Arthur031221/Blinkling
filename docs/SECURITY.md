@@ -18,6 +18,20 @@ Auto explain starts off. Once enabled with consent and site access, page changes
 
 Shared monitors and native app windows can trigger image explanations only after separate consent for that share. Consent is bound to the stream and track, and ends when sharing stops or the source changes. These pixels cannot be checked for password fields or blocked websites. Unknown capture sources remain paused. Monitor frames mask the floating bubble before comparison and transmission; stable changes are debounced and summaries are capped at six per rolling minute. These controls do not detect every sensitive image. Hide private content or pause Auto explain before sharing it. Manual captures and questions remain available.
 
+## Desktop app: what is never captured, and what is kept
+
+Blinkling's desktop app looks at the screen only when you ask (a screenshot, a region, a guide) or while Auto explain is on. Blink checks what has focus first. All of these block capture and sending, and Blink shows a lock face instead:
+
+- A password or other secure text field.
+- A password manager window: 1Password, Bitwarden, KeePassXC, LastPass, Dashlane, Keeper, Proton Pass and Apple Passwords.
+- A private window: Chrome Incognito, Edge InPrivate, Firefox and Safari private windows, and a Blinkling companion tab that reports itself as incognito.
+
+A blocked capture is never taken: pixels are not read, not sampled for Auto explain, and nothing is sent. If the desktop cannot tell what has focus, Auto explain stays locked and only a capture you ask for goes ahead. The lock lifts by itself a moment after the field is left. The check cannot see inside a window it does not know is private, so hide sensitive content before asking.
+
+Nothing is kept after sending. Blinkling holds a capture in memory only until it has been handed to Claude Code, then drops it. No image, picked text, or answer is written to the app's data folder or the temporary folder, and the saved session state holds only turn and message ids, so a turn waiting offline keeps its typed text and nothing else. Chat history shown after a restart is read back from Claude Code's own transcript, which Claude Code owns and Blinkling does not copy.
+
+When Claude's usage limit is reached, Blinkling says so once with the reset time, pauses Auto explain, and resumes it after the reset. A missing Claude Code is one install hint, not an error.
+
 ## Storage
 
 | Location                 | Data                                                                                                                                                           |

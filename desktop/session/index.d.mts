@@ -18,15 +18,32 @@ export type SessionOptions = {
 export class DesktopSessionBridge implements BridgeContract {
   constructor(options: SessionOptions);
   connect(originSessionId?: string): Promise<void>;
+  /** Rejects with `code: "SEND_BLOCKED"` when a `beforeSend` hook vetoes the turn. */
   send(turn: Turn): Promise<void>;
+  /** Runs before a turn is queued or persisted. Return `false` or `{ ok: false, reason }`
+   * to veto it; a hook that throws vetoes too. Returns an unsubscribe function. */
+  beforeSend(
+    hook: (
+      turn: Turn,
+    ) =>
+      | boolean
+      | { ok: boolean; reason?: string }
+      | Promise<boolean | { ok: boolean; reason?: string }>,
+  ): () => void;
   select(selection: Selection): Promise<Selection>;
   stop(): Promise<void>;
+  /** Besides the shared contract events: `{ type: "usage-limit", resetAt }` (epoch ms,
+   * null when unknown), once per limit episode, and `{ type: "claude-missing" }`. */
   subscribe(
-    listener: (event: SessionEvent) => void,
+    listener: (
+      event: SessionEvent | UsageLimitEvent | ClaudeMissingEvent,
+    ) => void,
     options?: { visible?: boolean },
   ): () => void;
   dispose(): Promise<void>;
 }
+export type UsageLimitEvent = { type: "usage-limit"; resetAt: number | null };
+export type ClaudeMissingEvent = { type: "claude-missing" };
 export { DesktopSessionBridge as SessionBridge };
 export class OwnedSession extends EventEmitter {
   constructor(options?: {

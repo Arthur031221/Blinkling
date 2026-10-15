@@ -24,6 +24,7 @@ export function installPrivacy({
   locator = stub,
   send,
   languages = [],
+  renderer = () => {},
   now = Date.now,
 }) {
   const locale = pickLocale(languages);
@@ -33,10 +34,13 @@ export function installPrivacy({
     focus: () => (override === undefined ? locator.focus() : override),
   };
   let missing = false,
+    watching = false,
     episode = 0,
     toldLock = false,
     limitUntil = null;
   const said = (id, text) => send({ type: "blink-say", id, text });
+  let limitText = null,
+    limitId = null;
   const guard = createGuard({
     locator: source,
     onChange: ({ lock }) => {
@@ -81,7 +85,6 @@ export function installPrivacy({
         if (on !== watching) send({ type: "watching", on: (watching = on) });
       },
     };
-  let watching = false;
 
   const unhook = session?.beforeSend?.(async (turn) => {
     if (!carriesScreen(turn)) return { ok: true };
@@ -105,12 +108,12 @@ export function installPrivacy({
       const active = limitUntil !== null && now() < limitUntil;
       if (active && (resetAt === null || resetAt === limitUntil)) return;
       limitUntil = resetAt ?? now() + LIMIT_FALLBACK_MS;
-      said(
-        `usage-limit-${limitUntil}`,
+      limitId = `usage-limit-${limitUntil}`;
+      limitText =
         resetAt === null
           ? t("usageLimitUnknown")
-          : t("usageLimit", { time: clock(resetAt) }),
-      );
+          : t("usageLimit", { time: clock(resetAt) });
+      said(limitId, limitText);
       features?.auto?.pause?.(resetAt);
     } else if (event.type === "claude-missing") {
       if (!missing) said("claude-missing", t("claudeMissing"));
@@ -120,25 +123,63 @@ export function installPrivacy({
     }
   });
 
-  const hooks = globalThis.blinklingTest
-    ? (globalThis.blinklingTest.privacy = {
-        guard,
-        focus: (value) => (override = value === null ? undefined : value),
-      })
-    : null;
+  // A window that loads after the event still hears what is true now. The ids
+  // are stable, so a renderer that already showed a bubble does not repeat it.
+  const unrenderer = renderer(() => {
+    if (guard.locked) send({ type: "guard", lock: true });
+    if (watching) send({ type: "watching", on: true });
+    if (missing) said("claude-missing", t("claudeMissing"));
+    if (limitUntil !== null && now() < limitUntil) said(limitId, limitText);
+  });
+
+  const hooks = {
+    guard,
+    focus: (value) => (override = value === null ? undefined : value),
+  };
+  // The shell assigns `blinklingTest` after this runs; the hook joins whichever
+  // object is assigned, so the shell's test literal needs no change.
+  const release = exposeTestHooks(hooks);
 
   return {
     guard,
     dispose() {
       unhook?.();
       unsubscribe?.();
+      try {
+        unrenderer?.();
+      } catch {
+        // The window may already be gone at quit; there is nothing to release.
+      }
       guard.dispose();
       for (const [name, { own, fn }] of Object.entries(originals))
         if (own) capture[name] = fn;
         else delete capture[name];
       if (capture) delete capture.privacy;
-      if (hooks && globalThis.blinklingTest?.privacy === hooks)
-        delete globalThis.blinklingTest.privacy;
+      release();
     },
+  };
+}
+
+/** Test-only: `globalThis.blinklingTest.privacy`, present under E2E alone. */
+function exposeTestHooks(hooks) {
+  const present = () => globalThis.blinklingTest;
+  if (present()) {
+    present().privacy = hooks;
+    return () => {
+      if (present()?.privacy === hooks) delete present().privacy;
+    };
+  }
+  if (process.env.BLINKLING_E2E !== "1") return () => {};
+  let held;
+  Object.defineProperty(globalThis, "blinklingTest", {
+    configurable: true,
+    get: () => held,
+    set(value) {
+      held = value;
+      if (value && typeof value === "object") value.privacy = hooks;
+    },
+  });
+  return () => {
+    if (held?.privacy === hooks) delete held.privacy;
   };
 }

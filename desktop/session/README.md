@@ -82,6 +82,26 @@ values restore the last confirmed selection. Stop interrupts immediately without
 waiting behind a picker. Disposal rejects pending controls and terminates the
 owned child and descendants, including a version probe interrupted by shutdown.
 
+## Nothing is kept, the usage limit, a missing Claude
+
+Blinkling keeps no copy of what it sends (PV-2). `state.json` holds ids and
+states only. A turn that is still queued keeps its typed text so it can go out
+after a restart; a queued turn that carried pixels is marked `redacted` and is
+cancelled on load. A dispatched turn is replaced in memory by an empty one as
+soon as it has been written to Claude, and stored messages never carry content:
+history is rebuilt from Claude's own transcript.
+
+`beforeSend(hook)` lets the privacy layer veto a turn before it is queued or
+persisted; `send` then rejects with `code: "SEND_BLOCKED"`.
+
+The plan's usage limit (a `rate_limit_event` with status `rejected`, an
+assistant `rate_limit` error, or an error result quoting the limit) emits one
+`{ type: "usage-limit", resetAt }` per episode (`resetAt` in epoch milliseconds,
+`null` if unknown). The connection stays up: no `blocked` or `retrying` status.
+A missing `claude` executable is status `retrying` with detail `claude-missing`,
+one `{ type: "claude-missing" }` event, and a backoff retry that connects as soon
+as it is installed.
+
 ## Verification
 
 ```sh

@@ -32,6 +32,7 @@ import {
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { SessionBridge } from "../session/index.mjs";
+import { installPrivacy } from "../privacy/index.mjs";
 import { runFullPage } from "../capture/full-page.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
@@ -719,6 +720,20 @@ registerAction("companion-guide", async () => {
   }
   return { ok: true };
 });
+const privacy = installPrivacy({
+  session,
+  features,
+  send,
+  languages: app.getPreferredSystemLanguages(),
+  renderer: (listener) => {
+    blink.webContents.on("did-finish-load", listener);
+    return () => {
+      if (!blink.isDestroyed())
+        blink.webContents.off("did-finish-load", listener);
+    };
+  },
+});
+app.once("will-quit", () => privacy.dispose());
 if (
   !(
     process.env.BLINKLING_E2E === "1" &&

@@ -219,3 +219,63 @@ test("the test hook exposes the guard and a focus override only under blinklingT
     delete globalThis.blinklingTest;
   }
 });
+test("under E2E the hook joins a blinklingTest object assigned after the install", async () => {
+  const before = process.env.BLINKLING_E2E;
+  process.env.BLINKLING_E2E = "1";
+  try {
+    const r = rig();
+    globalThis.blinklingTest = { other: 1 };
+    assert.equal(typeof globalThis.blinklingTest.privacy.focus, "function");
+    assert.equal(globalThis.blinklingTest.other, 1);
+    r.privacy.dispose();
+    assert.equal(globalThis.blinklingTest.privacy, undefined);
+  } finally {
+    delete globalThis.blinklingTest;
+    if (before === undefined) delete process.env.BLINKLING_E2E;
+    else process.env.BLINKLING_E2E = before;
+  }
+});
+test("a renderer that loads late hears what is still true: the lock, watching, a missing Claude and a standing limit", async () => {
+  let load;
+  const r = rig({
+    renderer: (listener) => ((load = listener), () => (load = null)),
+  });
+  r.focus.value = secure;
+  r.privacy.guard.allowed({ automatic: true });
+  r.features.capture.privacy.report({ enabled: true, state: "watching" });
+  r.emit({ type: "claude-missing" });
+  r.emit({ type: "usage-limit", resetAt: 5_000_000 });
+  r.sent.length = 0;
+  load();
+  assert.deepEqual(r.sent.map((e) => e.type).sort(), [
+    "blink-say",
+    "blink-say",
+    "guard",
+    "watching",
+  ]);
+  assert.deepEqual(
+    r.sent.find((e) => e.type === "guard"),
+    { type: "guard", lock: true },
+  );
+  const ids = r.sent.filter((e) => e.type === "blink-say").map((e) => e.id);
+  assert.ok(ids.includes("claude-missing"));
+  r.emit({ type: "status", state: "connected" });
+  r.focus.value = chrome();
+  r.privacy.guard.allowed();
+  r.sent.length = 0;
+  load();
+  assert.deepEqual(
+    r.sent.map((e) => e.type),
+    ["watching", "blink-say"],
+  );
+  r.privacy.dispose();
+  assert.equal(load, null, "the renderer listener is released");
+});
+test("dispose survives a renderer that is already gone", () => {
+  const r = rig({
+    renderer: () => () => {
+      throw new Error("Object has been destroyed");
+    },
+  });
+  assert.doesNotThrow(() => r.privacy.dispose());
+});
