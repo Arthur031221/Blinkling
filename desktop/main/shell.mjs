@@ -33,6 +33,7 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { SessionBridge } from "../session/index.mjs";
 import { runFullPage } from "../capture/full-page.mjs";
+import { installPick } from "../pick/install.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -669,14 +670,9 @@ const visualMasks = () =>
         y: r.y + b.y - display.bounds.y,
       }));
     });
-const attachCapture = async (capture) => {
-  await openComposer();
-  // Only a capture re-claims the keyboard: the selector that just closed hands
-  // it back to the previous window, but a user click elsewhere must win.
-  claimKeyboard(composer);
-  composer.webContents.send("blinkling:capture", capture);
-  send({ type: "capture", capture });
-};
+// Every capture, from the region selector, the hotkey or a pick, flies into
+// Blink and opens the mini composer.
+const attachCapture = async (taken) => pick.deliver(taken);
 features = installCaptureGuide({
   blink,
   windows,
@@ -718,6 +714,52 @@ registerAction("companion-guide", async () => {
     );
   }
   return { ok: true };
+});
+const { systemPreferences, nativeImage, dialog } = await import("electron");
+const pick = await installPick({
+  electron: { BrowserWindow, screen, ipcMain, nativeImage, systemPreferences, dialog },
+  shell: {
+    userDataDir: app.getPath("userData"),
+    locales: app.getPreferredSystemLanguages(),
+    windowOptions,
+    secure,
+    windows,
+    input,
+    cursor: () => cursor.point(),
+    blinkPoint: () => ({
+      x: position.reveal.x + display.bounds.x,
+      y: position.reveal.y + display.bounds.y,
+    }),
+    workArea: () => display.workArea,
+    session,
+    captureScreen,
+    newChat: () => session.newChat?.(),
+    autoExplain: {
+      get: () => autoExplain,
+      set: async (enabled) => {
+        if (enabled === autoExplain) return;
+        const result = await dispatchAction("auto-explain", {
+          display,
+          windows: windows(),
+          enabled,
+        });
+        if (result.ok) {
+          autoExplain = enabled;
+          broadcast();
+        }
+      },
+    },
+    composer: {
+      open: () => openComposer(),
+      attach: async (attachment) => {
+        await openComposer();
+        claimKeyboard(composer);
+        const capture = { image: attachment };
+        composer.webContents.send("blinkling:capture", capture);
+        send({ type: "capture", capture });
+      },
+    },
+  },
 });
 if (
   !(
