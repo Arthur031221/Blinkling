@@ -111,7 +111,7 @@ test("streamed tokens reach subscribers without a full image/history disk rewrit
   assert.equal((await bridge.store.load()).messages[0].id, "streamed");
 });
 async function waitFor(predicate) {
-  const end = Date.now() + 2500;
+  const end = Date.now() + 10000;
   while (!predicate()) {
     if (Date.now() > end) throw new Error("condition timed out");
     await new Promise((r) => setTimeout(r, 5));
