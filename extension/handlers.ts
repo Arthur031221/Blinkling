@@ -91,6 +91,7 @@ export function createHandlers(helper: HandlerHelper): HelperHandlers & {
         },
         frame,
         elements: page.elements,
+        ...(page.selection ? { selection: page.selection } : {}),
       },
     };
   }

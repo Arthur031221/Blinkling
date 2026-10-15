@@ -41,6 +41,8 @@ export type ElementsResult = {
     zoom: number;
   };
   elements: HelperElement[];
+  /** The text the user has selected on the page, if any. */
+  selection?: { text: string; rect: HelperElement["rect"] };
 };
 /** A full page, top to bottom, as readable pieces. */
 export type FullPageCapture = {
@@ -118,6 +120,20 @@ export function readElements(value: unknown): ElementsResult | null {
     }
     elements.push(element);
   }
+  const picked = raw.selection as Record<string, unknown> | undefined;
+  const selected = picked?.rect as Record<string, unknown> | undefined;
+  const selection =
+    picked && selected && typeof picked.text === "string" && picked.text
+      ? {
+          text: text(picked.text, 4000),
+          rect: {
+            x: finite(selected.x),
+            y: finite(selected.y),
+            width: finite(selected.width),
+            height: finite(selected.height),
+          },
+        }
+      : undefined;
   return {
     page: {
       url: text(page.url, 4000),
@@ -132,6 +148,7 @@ export function readElements(value: unknown): ElementsResult | null {
       zoom: finite(frame.zoom, 1) || 1,
     },
     elements,
+    ...(selection ? { selection } : {}),
   };
 }
 
