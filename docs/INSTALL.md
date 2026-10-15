@@ -53,7 +53,7 @@ node -p "require('./.claude-plugin/plugin.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-The version check must print **3.0.1**. In the session that the last command opens, run `/blinkling:blinkling`. The `--plugin-dir` flag loads your checkout for that session, so use it each time you start Claude Code from source, and restart the session after rebuilding.
+The version check must print **3.1.0**. In the session that the last command opens, run `/blinkling:blinkling`. The `--plugin-dir` flag loads your checkout for that session, so use it each time you start Claude Code from source, and restart the session after rebuilding.
 
 A checkout has no pinned release until the release workflow commits one. Until then `plugin/desktop/manifest.json` lists no builds, and `/blinkling:blinkling` says so instead of downloading anything.
 

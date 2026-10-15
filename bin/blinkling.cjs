@@ -43404,7 +43404,7 @@ async function createBlinkling(options = {}) {
   const helper = await new HelperServer({
     onClear: () => onClear()
   }).start();
-  const server = new McpServer({ name: "blinkling", version: "3.0.1" });
+  const server = new McpServer({ name: "blinkling", version: "3.1.0" });
   let watchTimer;
   let watching = false, inCapture = false;
   const watchLimiter = new SlidingWindowLimiter(WATCH_LIMIT_PER_MINUTE, 6e4);

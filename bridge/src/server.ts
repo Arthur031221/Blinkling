@@ -37,7 +37,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
   const helper = await new HelperServer({
     onClear: () => onClear(),
   }).start();
-  const server = new McpServer({ name: "blinkling", version: "3.0.1" });
+  const server = new McpServer({ name: "blinkling", version: "3.1.0" });
   let watchTimer: NodeJS.Timeout | undefined;
   let watching = false,
     inCapture = false;
