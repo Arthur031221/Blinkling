@@ -23,8 +23,8 @@ function initialHandlers() {
       entry.win.emit("mark-click", n);
   });
 }
-export function validateDrawing(d, bounds, i) {
-  const r = d?.rect;
+/** A rectangle inside the display, copied. Avoid areas use it without a mark number. */
+function validateRect(r, bounds) {
   if (
     !r ||
     !["x", "y", "width", "height"].every((k) => Number.isFinite(r[k])) ||
@@ -36,6 +36,10 @@ export function validateDrawing(d, bounds, i) {
     r.y + r.height > bounds.height
   )
     throw Error("Invalid drawing");
+  return { x: r.x, y: r.y, width: r.width, height: r.height };
+}
+export function validateDrawing(d, bounds, i) {
+  const rect = validateRect(d?.rect, bounds);
   if (
     d.label !== undefined &&
     (typeof d.label !== "string" || d.label.length > 80)
@@ -59,7 +63,7 @@ export function validateDrawing(d, bounds, i) {
     throw Error("Invalid drawing lines");
   return {
     id: String(d.id ?? i),
-    rect: { ...r },
+    rect,
     label: d.label ?? "",
     number: n,
     kind: d.kind ?? "outline",
@@ -81,9 +85,7 @@ function viewFor(display, drawings, { theme = "system", avoid = [] }, seq) {
     height: display.bounds.height,
     drawings: drawings.map((d, i) => validateDrawing(d, display.bounds, i)),
     theme,
-    avoid: avoid.map(
-      (rect, i) => validateDrawing({ rect }, display.bounds, i).rect,
-    ),
+    avoid: avoid.map((rect) => validateRect(rect, display.bounds)),
   };
 }
 function sameBounds(a, b) {
