@@ -1,0 +1,158 @@
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  cursor: none;
+  user-select: none;
+  font: var(--type-s) system-ui, sans-serif;
+}
+#stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+#stage[data-active="false"] .box,
+#stage[data-active="false"] #badge {
+  visibility: hidden;
+}
+.box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  transform-origin: 0 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.box svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.box rect {
+  fill: color-mix(in srgb, var(--green) 12%, transparent);
+  stroke: var(--green);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+#stage[data-locked="true"] .box rect {
+  fill: color-mix(in srgb, var(--warn) 12%, transparent);
+  stroke: var(--warn);
+  stroke-dasharray: 6 4;
+}
+#area rect {
+  stroke-dasharray: none;
+}
+#effects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.wipe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.wipe > * {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+.wipe svg {
+  overflow: visible;
+}
+.wipe path {
+  fill: none;
+  stroke: var(--green);
+  stroke-opacity: 0.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.wipe[data-role="stroke"][data-effect="crayon-lines"] path {
+  stroke-opacity: 0.42;
+}
+.wipe .sweep {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--green) 24%, transparent)
+  );
+  border-bottom: 2px solid var(--green);
+}
+.wipe .tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green);
+  color: var(--text-on-green);
+  border-radius: var(--radius-s);
+  font-size: var(--type-xs);
+}
+.thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 50%;
+  border-radius: var(--radius-s);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  opacity: 0;
+}
+#badge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+#badge .mark {
+  position: absolute;
+  inset: 0;
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  fill: var(--surface);
+  stroke: var(--green);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  filter: drop-shadow(0 1px 2px #00000040);
+}
+#badge[data-mode="crayon"] .crayon,
+#badge[data-mode="crosshair"] .crosshair,
+#badge[data-mode="lock"] .lock {
+  opacity: 1;
+}
+#badge .crosshair {
+  fill: none;
+}
+#badge .lock {
+  stroke: var(--warn);
+}
+#note {
+  position: absolute;
+  left: 28px;
+  top: 2px;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: var(--type-xs);
+}
+.play {
+  position: absolute;
+  inset: 0;
+}

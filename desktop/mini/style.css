@@ -1,0 +1,148 @@
+html,
+body {
+  margin: 0;
+  background: transparent;
+  font: var(--type-s) system-ui, sans-serif;
+  color: var(--text);
+  overflow: hidden;
+}
+body {
+  padding: 12px;
+}
+#mini {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 336px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow);
+  opacity: 0;
+}
+#mini[data-open="true"] {
+  opacity: 1;
+}
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+ul:empty,
+[hidden] {
+  display: none;
+}
+#pause {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  opacity: 0.7;
+  font: inherit;
+  font-size: var(--type-xs);
+  padding: 2px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+#pause:hover,
+#pause:focus-visible {
+  opacity: 1;
+}
+.pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 2px 4px 2px 2px;
+  font-size: var(--type-xs);
+}
+.pick img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: var(--radius-pill);
+}
+.pick .label {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick button,
+.offer button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  padding: 2px 6px;
+}
+.offer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--type-xs);
+  background: var(--surface-2);
+  border-radius: var(--radius-s);
+  padding: 4px 6px;
+}
+.offer .label {
+  flex: 1;
+}
+.offer .go {
+  background: var(--green);
+  color: var(--text-on-green);
+}
+#chips {
+  display: flex;
+  gap: 6px;
+}
+#chips button {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-pill);
+  padding: 6px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+#chips button[data-highlighted="true"] {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--text-on-green);
+}
+#chips button:focus-visible,
+#line:focus-visible,
+.pick button:focus-visible,
+.offer button:focus-visible,
+#pause:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+#line {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  padding: 7px 12px;
+  font: inherit;
+}
+#error {
+  margin: 0;
+  color: var(--warn);
+  font-size: var(--type-xs);
+}

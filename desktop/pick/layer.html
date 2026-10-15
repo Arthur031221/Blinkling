@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:"
+    />
+    <title>Blinkling pick</title>
+    <link rel="stylesheet" href="../shared/look.css" />
+    <link rel="stylesheet" href="./layer.css" />
+  </head>
+  <body>
+    <div id="stage" data-active="false">
+      <div id="area" class="box" hidden><svg viewBox="0 0 1 1" preserveAspectRatio="none"><rect x="0" y="0" width="1" height="1" /></svg></div>
+      <div id="outline" class="box"><svg viewBox="0 0 1 1" preserveAspectRatio="none"><rect x="0" y="0" width="1" height="1" /></svg></div>
+      <div id="effects"></div>
+      <div id="badge" data-mode="crayon">
+        <svg class="mark crayon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21 L5 14 L16 3 L21 8 L10 19 Z M5 14 L10 19" /></svg>
+        <svg class="mark crosshair" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 V9 M12 15 V22 M2 12 H9 M15 12 H22" /></svg>
+        <svg class="mark lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11 V8 A5 5 0 0 1 17 8 V11 M5 11 H19 V21 H5 Z" /></svg>
+        <span id="note" hidden></span>
+      </div>
+    </div>
+    <script type="module" src="./layer-renderer.mjs"></script>
+  </body>
+</html>
