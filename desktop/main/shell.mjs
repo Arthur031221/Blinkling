@@ -56,7 +56,7 @@ import { createSettingsStore } from "../settings/store.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
 import { systemLocale } from "../shared/i18n.mjs";
 import { createGuideOffer, SAVE_ACTION } from "../guides/offer.mjs";
-import { armQuitWatchdog } from "./quit.mjs";
+import { armHardQuitDeadline, armQuitWatchdog } from "./quit.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -123,6 +123,18 @@ let composer = null,
 let previousCursor = "",
   previousFocused = null,
   ignoring = true;
+// A quit asked for while Blink is still starting would otherwise be held back
+// by the windows' close handlers, which only let go once `quitting` is set, and
+// nothing would end it. This listener exists from the start; the fuller one
+// near the end of the file disposes what has been built by then.
+app.on("before-quit", () => {
+  if (quitting) return;
+  quitting = true;
+  armQuitWatchdog(() => app.exit(0));
+  // Quitting a moment after launch has stalled the main thread inside a native
+  // call, where no timer runs; the deadline on a worker thread still does.
+  armHardQuitDeadline();
+});
 // Hints shown exactly once, remembered across restarts (N2.1 first-use labels).
 const uiOnce = createOnce(
   fileStore(join(app.getPath("userData"), "ui-once.json")),
@@ -776,7 +788,10 @@ ipcMain.on("blinkling:hold", (event, value) => {
   leaveIfIdle();
 });
 ipcMain.on("blinkling:activity", (event, value) => {
+  // The answer window reports as it is torn down at quit; showing it again
+  // while it closes stalls the quit natively.
   if (
+    quitting ||
     !trusted(event) ||
     event.sender !== bubbles?.webContents ||
     typeof value?.visible !== "boolean" ||
@@ -1178,13 +1193,10 @@ const poll = setInterval(() => {
 }, timing.cursorPoll);
 let disposed = false;
 app.on("before-quit", (event) => {
-  quitting = true;
   if (disposed) return;
   event.preventDefault();
-  // Disposal may hang on a stuck session or helper, and the quit that follows
-  // it can stall too, so the deadline runs from the first request until the
-  // process is gone and is never cancelled.
-  armQuitWatchdog(() => app.exit(0));
+  // The watchdog armed at the first request covers a stuck session or helper
+  // here and a quit that stalls after disposal.
   features.dispose();
   Promise.allSettled([
     session.dispose(),
