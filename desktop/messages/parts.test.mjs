@@ -82,7 +82,7 @@ test("block quotes split per sentence and keep their quote marker", () => {
   assert.deepEqual(texts("> one. two."), ["> one.", "> two."]);
 });
 
-test("code blocks, lists and headings stay whole", () => {
+test("code blocks and headings stay whole, list items split by sentence", () => {
   const parts = bubbleParts(
     "# Title. More.\n\n- a. b.\n- c. d.\n\n```js\nlet a = 1. 2;\n```",
     true,
@@ -91,8 +91,10 @@ test("code blocks, lists and headings stay whole", () => {
     parts.map((p) => [p.kind, p.markdown]),
     [
       ["heading", "# Title. More."],
-      ["point", "a. b."],
-      ["point", "c. d."],
+      ["point", "a."],
+      ["point", "b."],
+      ["point", "c."],
+      ["point", "d."],
       ["code", "```js\nlet a = 1. 2;\n```"],
     ],
   );
@@ -119,4 +121,65 @@ test("a reference marker with punctuation inside stays in its sentence", () => {
       "Then wait [[2:box:1.5,2,3,4|here]].",
     ],
   );
+});
+
+const sentencesOf = (source) =>
+  bubbleParts(source, true).map((p) => p.markdown);
+
+test("a list item with several sentences becomes one bubble per sentence", () => {
+  assert.deepEqual(
+    sentencesOf("- First point here. It has two sentences.\n- Second point."),
+    ["First point here.", "It has two sentences.", "Second point."],
+  );
+  assert.deepEqual(
+    sentencesOf("1. 第一點很重要。它有兩句。\n2. 第二點！還有嗎？"),
+    ["第一點很重要。", "它有兩句。", "第二點！", "還有嗎？"],
+  );
+  assert.deepEqual(sentencesOf("- 一つ目です。二つ目です。"), [
+    "一つ目です。",
+    "二つ目です。",
+  ]);
+});
+
+test("only the first sentence of a list item carries its marker", () => {
+  const parts = bubbleParts("1. One. Two.\n2. Three.", true);
+  assert.deepEqual(
+    parts.map((p) => [p.kind, p.marker]),
+    [
+      ["point", "1."],
+      ["point", ""],
+      ["point", "2."],
+    ],
+  );
+});
+
+test("nested list items are bubbles of their own, one sentence each", () => {
+  assert.deepEqual(
+    sentencesOf("- Outer one. Outer two.\n  - Inner one. Inner two."),
+    ["Outer one.", "Outer two.", "Inner one.", "Inner two."],
+  );
+});
+
+test("code spans, abbreviations and versions never split a sentence", () => {
+  assert.deepEqual(
+    sentencesOf(
+      "- Run `npm test. now` first. Then ship v1.2 to Dr. Smith, e.g. today.",
+    ),
+    ["Run `npm test. now` first.", "Then ship v1.2 to Dr. Smith, e.g. today."],
+  );
+  assert.deepEqual(
+    sentencesOf("請執行 `a。b` 指令。接著重新整理 example.com。"),
+    ["請執行 `a。b` 指令。", "接著重新整理 example.com。"],
+  );
+});
+
+test("a full stop inside Japanese brackets does not end the sentence", () => {
+  assert.deepEqual(
+    sentencesOf("詳細は「ドキュメント。」を参照してください！次へ進みます。"),
+    ["詳細は「ドキュメント。」を参照してください！", "次へ進みます。"],
+  );
+  assert.deepEqual(sentencesOf("彼は『終わり！』と言った。それから去った。"), [
+    "彼は『終わり！』と言った。",
+    "それから去った。",
+  ]);
 });
