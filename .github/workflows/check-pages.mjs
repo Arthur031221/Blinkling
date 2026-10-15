@@ -213,7 +213,7 @@ try {
     });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await expect(
-      page.getByRole("heading", { name: "Keep the answer beside the page." }),
+      page.getByRole("heading", { name: "Hold Ctrl. Click. Ask." }),
     ).toBeVisible();
     for (const image of await page.locator("img").all()) {
       await image.scrollIntoViewIfNeeded();

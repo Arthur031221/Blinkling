@@ -44,12 +44,20 @@ require(f"## {version} - " in (ROOT / "CHANGELOG.md").read_text(), "Missing chan
 
 recordings = read_json("assets/recordings.json")
 require(recordings["version"] == version, "Demo recordings use another extension version")
-require("assets/demo.gif" in {item["asset"] for item in recordings["recordings"]}, "Missing real demo recording")
-for item in recordings["recordings"]:
+assets = {item["asset"] for item in recordings["recordings"]}
+require({"assets/pick.gif", "assets/ask.gif"} <= assets, "Missing real pick or ask recording")
+for item in recordings["recordings"] + recordings.get("stills", []):
     data = (ROOT / item["asset"]).read_bytes()
-    require(data[:6] in [b"GIF87a", b"GIF89a"], f"Not a GIF: {item['asset']}")
-    require(sha256(data).hexdigest() == item["sha256"], f"Demo checksum mismatch: {item['asset']}")
-    require(item["url"].startswith("https://") and item["requestCount"] >= 2, f"Incomplete public-site recording: {item['asset']}")
+    if item["asset"].endswith(".gif"):
+        require(data[:6] in [b"GIF87a", b"GIF89a"], f"Not a GIF: {item['asset']}")
+        require(sha256(data).hexdigest() == item["sha256"], f"Demo checksum mismatch: {item['asset']}")
+        require(item["url"].startswith("https://") and item["turns"] >= 1, f"Incomplete public-page recording: {item['asset']}")
+    events = (ROOT / item["events"]).read_bytes()
+    require(sha256(events).hexdigest() == item["eventsSha256"], f"Recording log mismatch: {item['events']}")
+    names = [event["name"] for event in json.loads(events)]
+    require(names[0] == "start" and names[-1] == "end", f"Recording log is incomplete: {item['events']}")
+    if item["asset"].endswith(".gif"):
+        require("answer" in names, f"Recording never reached an answer: {item['asset']}")
 
 readmes = sorted(ROOT.glob("README*.md"))
 require(len(readmes) == 9, "Expected nine localized READMEs")
@@ -57,13 +65,13 @@ for path in readmes:
     content = path.read_text()
     require(content.splitlines()[-1] == "Assisted by Claude/Codex.", f"Wrong final line: {path.name}")
     first_screen = content.split("\n## ", 1)[0]
-    for image in ["assets/logo.svg", "assets/demo.gif"]:
+    for image in ["assets/logo.svg", "assets/pick.gif"]:
         require(image in first_screen, f"Missing first-screen image: {path.name}: {image}")
     for target in re.findall(r"\]\(([^\s)]+)\)", content):
         if not re.match(r"https?://|#", target):
             require((path.parent / target.split("#", 1)[0]).exists(), f"Broken README link: {path.name}: {target}")
 
-images = {f"{name}.png": (1280, 800) for name in ["floating", "guide", "crop", "translation"]}
+images = {f"{name}.png": (1280, 800) for name in ["pick", "answer", "ask", "area"]}
 images["promo.png"] = (440, 280)
 for name, size in images.items():
     check_png((ROOT / "assets/store" / name).read_bytes(), size, name)
