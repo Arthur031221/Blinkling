@@ -19,47 +19,60 @@ body {
   height: 100%;
   overflow: hidden;
 }
-.outline {
-  fill: none;
-  stroke: #3ddc97;
-  stroke-width: 4;
-  stroke-linejoin: round;
+#stage {
+  position: fixed;
+  inset: 0;
+  opacity: 1;
+  transition: opacity var(--motion-slow) var(--ease-standard);
 }
-.arrow {
+#stage.faded {
+  opacity: 0;
+}
+#stage.faded .badge {
+  pointer-events: none;
+}
+.mark .stroke {
+  fill: none;
   stroke: #3ddc97;
   stroke-width: 3;
-  fill: none;
-  marker-end: url(#arrow);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mark .stroke.fill {
+  fill: rgba(61, 220, 151, 0.18);
+}
+.mark {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #0c0e0d;
+  border-radius: 50%;
+  background: #3ddc97;
+  color: #0c0e0d;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: auto;
+  cursor: pointer;
 }
 .label {
   position: absolute;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
   box-sizing: border-box;
   max-width: min(240px, calc(100vw - 16px));
   border: 2px solid #0c0e0d;
   border-radius: 18px;
-  padding: 8px 12px 8px 8px;
+  padding: 8px 12px;
   color: var(--ink);
   background: var(--paper);
   font-size: 13px;
   line-height: 1.45;
   overflow-wrap: anywhere;
-}
-.label .number {
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #3ddc97;
-  color: #0c0e0d;
-  font-weight: 700;
-  width: 23px;
-  height: 23px;
-  flex: 0 0 23px;
-}
-.label .text {
-  min-width: 0;
 }
 [hidden] {
   display: none !important;
@@ -77,19 +90,4 @@ body {
 :root[data-theme="dark"] {
   --paper: #222723;
   --ink: #f5f5f4;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .label,
-  .outline,
-  .arrow {
-    animation: arrive 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-  @keyframes arrive {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
 }
