@@ -1,5 +1,5 @@
 import { placeCallouts } from "./layout.mjs";
-import { cssVariables } from "../shared/motion.mjs";
+import { cssVariables, frameLog } from "../shared/motion.mjs";
 
 document.documentElement.style.cssText += cssVariables();
 const ns = "http://www.w3.org/2000/svg",
@@ -110,7 +110,38 @@ function step(index) {
   }
   document.body.dataset.step = index;
 }
+// N6.8: the marks fade in on a step; every frame of that arrival is logged with
+// the box the visible marks span. A step swap logs one frame without a box, so
+// the gate does not mistake a swap for a jump.
+const logFrame = frameLog();
+let arriving = false;
+function arrive() {
+  logFrame("pointing", null);
+  if (arriving) return;
+  arriving = true;
+  const frame = () => {
+    const shown = items
+      .flatMap((item) => [item.outline, item.label])
+      .filter((el) => el && !el.hidden && el.style.display !== "none")
+      .map((el) => el.getBoundingClientRect());
+    const left = Math.min(...shown.map((r) => r.left)),
+      top = Math.min(...shown.map((r) => r.top));
+    logFrame(
+      "pointing",
+      shown.length && {
+        x: left,
+        y: top,
+        width: Math.max(...shown.map((r) => r.right)) - left,
+        height: Math.max(...shown.map((r) => r.bottom)) - top,
+      },
+    );
+    arriving = document.getAnimations().some((a) => a.playState === "running");
+    if (arriving) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
 window.overlayMasks = masks;
-window.guideOverlay.onStep(step);
+window.guideOverlay.onStep((index) => (step(index), arrive()));
 step(initial.step);
+arrive();
 document.body.dataset.ready = "true";

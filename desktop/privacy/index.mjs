@@ -170,12 +170,16 @@ function exposeTestHooks(hooks) {
     };
   }
   if (process.env.BLINKLING_E2E !== "1") return () => {};
-  let held;
+  // Another module may have claimed the same property first (the pick does);
+  // keep its accessor working instead of replacing it.
+  const before = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  let held = before?.get?.call(globalThis);
   Object.defineProperty(globalThis, "blinklingTest", {
     configurable: true,
     get: () => held,
     set(value) {
       held = value;
+      before?.set?.call(globalThis, value);
       if (value && typeof value === "object") value.privacy = hooks;
     },
   });
