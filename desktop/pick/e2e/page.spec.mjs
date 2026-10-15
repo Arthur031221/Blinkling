@@ -292,12 +292,19 @@ test("M4 N1.1 Ctrl+click on an image: loop effect, flight into Blink, image chip
     expect(flight.to.x).toBeLessThanOrEqual(blink.x + blink.width + 60);
     expect(flight.to.y).toBeGreaterThanOrEqual(blink.y - 60);
     expect(flight.to.y).toBeLessThanOrEqual(blink.y + blink.height + 60);
-    const layerFrames = (await frames(app)).filter(
-      (f) => f.surface === "flight",
+    // The mini composer is already open while the picture is still flying, so
+    // wait for the flight to land before looking at where it ended.
+    const lastFlightFrame = async () =>
+      (await frames(app)).filter((f) => f.surface === "flight").at(-1)?.box;
+    const landed = (box) =>
+      box &&
+      near(box.x + box.width / 2, flight.to.x, 24) &&
+      near(box.y + box.height / 2, flight.to.y, 24);
+    await poll(
+      async () => landed(await lastFlightFrame()),
+      3000,
+      "the flight to land on Blink",
     );
-    const last = layerFrames.at(-1).box;
-    expect(near(last.x + last.width / 2, flight.to.x, 24)).toBe(true);
-    expect(near(last.y + last.height / 2, flight.to.y, 24)).toBe(true);
 
     await pause(500);
     const mini = JSON.parse(
@@ -487,6 +494,57 @@ test("MP-5 the mini composer is shown within 200 ms of the pick key coming up", 
     const took = (await shown) - releasedAt;
     console.log(`SCALE ${SCALE}: mini visible ${took} ms after release`);
     expect(took).toBeLessThanOrEqual(200);
+  } finally {
+    await app.close();
+  }
+});
+
+test("MP-6 MP-7 in the dark the mini composer is dark from its first frame, and a long wrapped message shows no native scrollbar", async () => {
+  const app = await start();
+  try {
+    await app.evaluate(({ nativeTheme }) => {
+      nativeTheme.themeSource = "dark";
+    });
+    const p = await domRect(app, "#photo");
+    await hold(app, { x: p.x + 40, y: p.y + 40 });
+    click();
+    await waitFor(app, "taken");
+    release();
+    await poll(() => miniOpen(app), 6000, "the mini composer");
+    const look = await miniEval(
+      app,
+      `(() => {
+        const color = (e, p) => getComputedStyle(e)[p];
+        const card = document.querySelector(".mini-card");
+        const entry = document.querySelector(".mini-entry");
+        const input = document.querySelector(".mini-input");
+        input.value = "word ".repeat(50);
+        input.dispatchEvent(new Event("input"));
+        return {
+          theme: document.documentElement.dataset.theme,
+          card: color(card, "backgroundColor"),
+          entry: entry && color(entry, "backgroundColor"),
+          input: color(input, "backgroundColor"),
+          scrolls: input.scrollHeight > input.clientHeight,
+          bar: input.offsetWidth - input.clientWidth - 2,
+        };
+      })()`,
+    );
+    // The picture fills the chip in once the grab lands.
+    await poll(
+      () => miniEval(app, `Boolean(document.querySelector("img.mini-thumb"))`),
+      6000,
+      "the thumbnail",
+    );
+    await pause(300);
+    await screen(app, "08-mini-dark");
+    console.log(`SCALE ${SCALE}: mini ${JSON.stringify(look)}`);
+    expect(look.theme).toBe("dark");
+    expect(look.card).toBe("rgb(12, 14, 13)");
+    expect(look.entry).toBe("rgb(34, 39, 35)");
+    expect(look.input).toBe("rgb(34, 39, 35)");
+    expect(look.scrolls).toBe(true);
+    expect(look.bar).toBe(0);
   } finally {
     await app.close();
   }

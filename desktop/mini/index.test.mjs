@@ -38,6 +38,7 @@ function setup(options = {}) {
     win,
     ipc: { on: (channel, fn) => handlers.set(channel, fn) },
     locale: "zh-TW",
+    theme: () => options.theme ?? "light",
     focus: {
       remember: options.remember ?? (async () => void log.remembered++),
       activate: () => void log.activated++,
@@ -259,4 +260,17 @@ test("it says whether it sits over any of the given rectangles", async () => {
     false,
   );
   setLayer("mini", null);
+});
+
+test("the window is told the shell's theme with every open, since its own media query does not follow it", async () => {
+  const { controller, sent } = setup({ theme: "dark" });
+  await controller.open([
+    {
+      id: "a",
+      kind: "text",
+      attachment: { ...image, mediaType: "text/plain" },
+    },
+  ]);
+  const init = sent.find(([channel]) => channel === "blinkling:mini-init");
+  assert.equal(init[1].theme, "dark");
 });

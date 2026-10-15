@@ -16,6 +16,7 @@ export function createMiniController({
   win,
   ipc,
   locale,
+  theme = () => "light",
   focus,
   workArea,
   blinkPoint,
@@ -142,7 +143,7 @@ export function createMiniController({
       setLayer("mini", () => model?.escape());
       // The window answers first; the previous app is remembered right after,
       // before the keyboard moves, which is the only order that matters.
-      send("blinkling:mini-init", { locale });
+      send("blinkling:mini-init", { locale, theme: theme() });
       refresh();
       place();
       win.showInactive();

@@ -81,6 +81,7 @@ export async function installPick({
     ipcMain,
     nativeImage,
     systemPreferences,
+    nativeTheme,
     dialog,
   } = electron;
   const env = shell.env ?? process.env;
@@ -170,6 +171,8 @@ export async function installPick({
     win: miniWindow,
     ipc: ipcMain,
     locale,
+    // The window's own media query does not always follow the system theme.
+    theme: () => (nativeTheme?.shouldUseDarkColors ? "dark" : "light"),
     focus: {
       remember: async () => {
         await shell.input?.rememberFocus();
