@@ -84,9 +84,8 @@ export async function installPick({
     dialog,
   } = electron;
   const env = shell.env ?? process.env;
-  const locale = pickLocale(
-    [env.BLINKLING_LOCALE, ...(shell.locales ?? [])].filter(Boolean),
-  );
+  // The shell resolves the system language once; the variable is for a bare run.
+  const locale = pickLocale(shell.locale ?? env.BLINKLING_LOCALE);
   const timers = setTimer ? { setTimer, clearTimer } : {};
 
   const once = createOnce(fileStore(join(shell.userDataDir, "pick-once.json")));

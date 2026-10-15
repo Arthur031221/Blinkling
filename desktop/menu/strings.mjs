@@ -1,4 +1,4 @@
-import { pickLocale, translator } from "../shared/i18n.mjs";
+import { documentLocale, translator } from "../shared/i18n.mjs";
 /** Menu text for the four bubbles (N2.1), one table per locale. */
 export const strings = {
   en: {
@@ -114,9 +114,5 @@ export const strings = {
     settingsHint: "Atalho, tecla de seleção, boas-vindas e Sobre",
   },
 };
-const system = () => [
-  ...(globalThis.navigator?.languages ?? []),
-  globalThis.navigator?.language,
-];
-export const menuText = (locale = pickLocale(system())) =>
+export const menuText = (locale = documentLocale(globalThis.document)) =>
   translator(strings, locale);

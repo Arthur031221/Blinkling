@@ -5,7 +5,7 @@ import {
   familyOf,
   modelLabel,
 } from "./models.mjs";
-import { pickLocale, translator } from "../shared/i18n.mjs";
+import { documentLocale, translator } from "../shared/i18n.mjs";
 import { strings } from "./strings.mjs";
 import { createPicker } from "./picker.mjs";
 import {
@@ -38,7 +38,7 @@ export function mountComposer(
     onHold = () => {},
     copy,
     openLink,
-    locale = pickLocale(host.ownerDocument.defaultView?.navigator?.languages),
+    locale = documentLocale(host.ownerDocument),
   } = {},
 ) {
   const doc = host.ownerDocument;

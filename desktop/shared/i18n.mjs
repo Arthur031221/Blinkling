@@ -1,5 +1,7 @@
 /** Language follows the system (N3.10). Every desktop module keeps its own
- * strings.mjs: one table per locale, English as the fallback. */
+ * strings.mjs: one table per locale, English as the fallback. This file is the
+ * only place that asks the system which language that is: main resolves it once
+ * with systemLocale() and hands the answer to every window. */
 export const LOCALES = Object.freeze([
   "en",
   "zh-TW",
@@ -35,4 +37,42 @@ export function translator(table, locale) {
     if (text === undefined) throw new Error(`Missing string: ${key}`);
     return text.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ""));
   };
+}
+
+let resolved;
+
+/** The one language every surface speaks, a locale this app ships (a BCP47
+ * tag). Main resolves it once: BLINKLING_LOCALE, then an explicit --lang (a
+ * launch override; Chromium's locale is that switch), then the user's ordered
+ * language list, then Chromium's own locale. Later calls get the same answer. */
+export function systemLocale({ app, env = process.env } = {}) {
+  if (resolved) return resolved;
+  const forced = env.BLINKLING_LOCALE;
+  const switched = app?.commandLine?.hasSwitch?.("lang");
+  const languages = forced
+    ? [forced]
+    : switched
+      ? [app.getLocale?.()]
+      : [...(app?.getPreferredSystemLanguages?.() ?? []), app?.getLocale?.()];
+  resolved = pickLocale(languages);
+  return resolved;
+}
+
+/** Forget the resolved locale. For tests; the app resolves once per run. */
+export function resetSystemLocale() {
+  resolved = undefined;
+}
+
+/** A renderer keeps the locale main sent it on its root element. Not `lang`:
+ * the HTML files declare their own. */
+export function setDocumentLocale(doc, locale) {
+  if (doc?.documentElement && LOCALES.includes(locale))
+    doc.documentElement.dataset.locale = locale;
+}
+
+/** The locale of a window: what main sent, else the window's own languages. */
+export function documentLocale(doc) {
+  const sent = doc?.documentElement?.dataset?.locale;
+  if (LOCALES.includes(sent)) return sent;
+  return pickLocale(doc?.defaultView?.navigator?.languages ?? []);
 }

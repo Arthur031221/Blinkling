@@ -4,13 +4,9 @@ import { aborted, deadline, fadeWindow } from "./core.mjs";
 import { validateChoice } from "./choice.mjs";
 import { permissionLabels } from "./permission.mjs";
 import { captureText, textTable } from "./strings.mjs";
-import { pickLocale } from "../shared/i18n.mjs";
+import { systemLocale } from "../shared/i18n.mjs";
 import { setLayer, escape } from "../shared/escape.mjs";
 
-export const systemLanguages = () => [
-  ...app.getPreferredSystemLanguages(),
-  app.getLocale(),
-];
 const registry = new Map();
 let installed = false;
 function installHandlers() {
@@ -147,7 +143,7 @@ export class CaptureOverlays {
       session: null,
       ready: null,
       initial: () => {
-        const locale = pickLocale(systemLanguages());
+        const locale = systemLocale({ app });
         return { locale, text: textTable(locale) };
       },
     };
@@ -268,7 +264,7 @@ export async function createPermissionWindow(
       onCancel();
     }
   };
-  const locale = pickLocale(systemLanguages());
+  const locale = systemLocale({ app });
   registry.set(win.webContents.id, {
     kind: "permission",
     win,

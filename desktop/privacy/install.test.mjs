@@ -235,6 +235,31 @@ test("under E2E the hook joins a blinklingTest object assigned after the install
     else process.env.BLINKLING_E2E = before;
   }
 });
+test("under E2E the hook keeps another module's hook on the same pending blinklingTest", async () => {
+  const before = process.env.BLINKLING_E2E;
+  process.env.BLINKLING_E2E = "1";
+  let other;
+  try {
+    // The pick installs first and waits for the shell's object the same way.
+    Object.defineProperty(globalThis, "blinklingTest", {
+      configurable: true,
+      get: () => other,
+      set(value) {
+        other = value;
+        if (value && typeof value === "object") value.pick = "pick hook";
+      },
+    });
+    rig();
+    globalThis.blinklingTest = { shell: 1 };
+    assert.equal(typeof globalThis.blinklingTest.privacy.focus, "function");
+    assert.equal(globalThis.blinklingTest.pick, "pick hook");
+    assert.equal(globalThis.blinklingTest.shell, 1);
+  } finally {
+    delete globalThis.blinklingTest;
+    if (before === undefined) delete process.env.BLINKLING_E2E;
+    else process.env.BLINKLING_E2E = before;
+  }
+});
 test("a renderer that loads late hears what is still true: the lock, watching, a missing Claude and a standing limit", async () => {
   let load;
   const r = rig({

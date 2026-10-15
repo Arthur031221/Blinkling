@@ -9,14 +9,17 @@ import { createRest } from "../menu/rest.mjs";
 import { createGesture } from "./gesture.mjs";
 import { applyText, windowText } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
+import { setDocumentLocale } from "../shared/i18n.mjs";
 const api = window.blinkling;
 document.documentElement.style.cssText += cssVariables();
+let shell = await api.shell({ type: "state" });
+// Main sends the one system locale with the state; every string below follows it.
+setDocumentLocale(document, shell.locale);
 const text = windowText();
 applyText(document, text);
 const logFrame = frameLog();
 const state = new BlinkState();
 const activity = createActivityState();
-let shell = await api.shell({ type: "state" });
 const composer = createComposer(),
   messages = createMessageStream();
 let character = null,

@@ -7,7 +7,7 @@ import {
   nativeImage,
 } from "electron";
 import { DesktopCaptureService, screenImage } from "./index.mjs";
-import { systemLanguages } from "./windows.mjs";
+import { systemLocale } from "../shared/i18n.mjs";
 import { captureText } from "./strings.mjs";
 import { HotkeyRegistry, HotkeyStore, DEFAULT_HOTKEY } from "./hotkey.mjs";
 import { DesktopOverlayService } from "../overlay/index.mjs";
@@ -68,7 +68,7 @@ export function installCaptureGuide({
     capture,
     onGuide,
     pageText,
-    language: () => app.getLocale(),
+    language: () => systemLocale({ app }),
   });
   const stale = new StalenessWatch({
     overlay,
@@ -115,7 +115,7 @@ export function installCaptureGuide({
     });
   auto = makeAuto(session);
   const reportError = (error) => {
-    const t = captureText(systemLanguages());
+    const t = captureText(systemLocale({ app }));
     onState({
       state: "error",
       message: t(error.code === "CAPTURE_BUSY" ? "busy" : "failed"),
