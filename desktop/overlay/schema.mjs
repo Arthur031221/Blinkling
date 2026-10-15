@@ -77,9 +77,23 @@ export class GuideError extends Error {
     this.code = "GUIDE_UNUSABLE";
   }
 }
+// Small models slip in a dangling quote after a comma ("height":720,"}) or
+// leave a comma before a closing brace. Only replies the strict scan could not
+// read are repaired, so valid JSON is never touched.
+const repairReply = (raw) =>
+  raw.replace(/,\s*"(?=\s*[}\]])/g, "").replace(/,(?=\s*[}\]])/g, "");
 // Finds the first balanced {...} that parses to an object with sections or
 // steps. Prose, fences and stray braces around it are ignored.
 function guideObject(raw) {
+  try {
+    return scanGuide(raw);
+  } catch (error) {
+    const repaired = repairReply(raw);
+    if (repaired === raw) throw error;
+    return scanGuide(repaired);
+  }
+}
+function scanGuide(raw) {
   let attempts = 0;
   for (
     let start = raw.indexOf("{");
