@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readerLocales } from "./reader-locales";
-import {
-  parseReaderPdfUrl,
-  readerUrlOriginPattern,
-  isReaderPdfCandidate,
-} from "./reader-url";
+import { parseReaderPdfUrl, isReaderPdfCandidate } from "./reader-url";
 
-describe("reader PDF URL permissions", () => {
+describe("reader PDF URLs", () => {
   it.each([
     "https://arxiv.org/pdf/1706.03762",
     "https://arxiv.org/pdf/1706.03762v7?download=true",
@@ -24,15 +20,12 @@ describe("reader PDF URL permissions", () => {
     expect(isReaderPdfCandidate(url)).toBe(false);
   });
 
-  it("accepts HTTP(S) URLs and requests access only for their origin", () => {
+  it("accepts HTTP(S) URLs", () => {
     const parsed = parseReaderPdfUrl(
       "https://docs.example.test:8443/a/file.pdf",
     );
 
     expect(parsed?.href).toBe("https://docs.example.test:8443/a/file.pdf");
-    expect(readerUrlOriginPattern(parsed!)).toBe(
-      "https://docs.example.test:8443/*",
-    );
   });
 
   it.each([
@@ -45,15 +38,13 @@ describe("reader PDF URL permissions", () => {
     expect(parseReaderPdfUrl(value)).toBeUndefined();
   });
 
-  it("provides actionable permission text in all nine reader locales", () => {
-    const permissionMessages = Object.values(readerLocales).map(
-      (strings) => strings.permissionRequired,
-    );
-
-    expect(permissionMessages).toHaveLength(9);
-    expect(permissionMessages.every((message) => message.length > 0)).toBe(
-      true,
-    );
-    expect(new Set(permissionMessages).size).toBe(9);
+  it("has the same reader strings in all nine locales", () => {
+    const locales = Object.values(readerLocales);
+    expect(locales).toHaveLength(9);
+    const keys = Object.keys(readerLocales.en).sort();
+    for (const strings of locales) {
+      expect(Object.keys(strings).sort()).toEqual(keys);
+      expect(Object.values(strings).every((text) => text.trim())).toBe(true);
+    }
   });
 });

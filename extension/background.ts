@@ -1,209 +1,84 @@
-import { connectWelcome, saveWelcomeLocale } from "./connection";
-const panelUrl = () => chrome.runtime.getURL("panel.html");
-const readerUrl = () => chrome.runtime.getURL("reader.html");
-type BrowserTab = { id?: number; url?: string; windowId?: number };
-type MessageSender = { tab?: { id?: number; url?: string; windowId?: number } };
-async function injectContent(tabId: number): Promise<void> {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["content.js"],
-    });
-  } catch {
-    /* restricted browser pages stay capture-only */
-  }
+import { createHandlers } from "./handlers";
+import { HelperClient, storedSecret, storeSecret } from "./helper-client";
+import { readablePage, targetTab } from "./targets";
+import { trustSender } from "./trust";
+
+/**
+ * The companion's service worker. It keeps one authenticated link to the
+ * Blinkling bridge, answers the bridge's requests about the page the user is
+ * looking at and tells the popup what is connected.
+ */
+const handlers = createHandlers({
+  call: (message, timeoutMs) => client.call(message, timeoutMs),
+});
+const client: HelperClient = new HelperClient(handlers);
+
+const SECRET = /^[0-9a-f]{64}$/;
+const SELF = chrome.runtime.getURL("");
+
+async function status() {
+  const target = await targetTab().catch(() => undefined);
+  const connected = client.connected;
+  return {
+    trusted: Boolean(await storedSecret()),
+    connected,
+    blink: connected ? await client.blinkRunning() : undefined,
+    pageReadable: Boolean(target && readablePage(target.tab.url)),
+  };
 }
-async function openPanel(source?: BrowserTab): Promise<void> {
-  const [existing] = await chrome.tabs.query({ url: `${panelUrl()}*` });
-  if (existing?.id !== undefined) {
-    if (source?.id !== undefined) await injectContent(source.id);
-    if (existing.windowId !== undefined) {
-      const owner = await chrome.windows
-        .get(existing.windowId)
-        .catch(() => undefined);
-      if (owner?.state === "minimized")
-        await chrome.windows.update(existing.windowId, {
-          state: "normal",
-          focused: true,
-        });
+
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (message?.type === "blinkling:trust") {
+    if (
+      typeof message.secret !== "string" ||
+      !SECRET.test(message.secret) ||
+      !trustSender(sender, Number(message.port), chrome.runtime.id)
+    ) {
+      respond({ ok: false });
+      return;
     }
-    await chrome.runtime
-      .sendMessage({ type: "blinkling:focus", sourceTab: source?.id })
-      .catch(() => {});
-    return;
+    void storeSecret(message.secret)
+      .then(() => client.reconnect())
+      .then(() => respond({ ok: client.connected }))
+      .catch(() => respond({ ok: false }));
+    return true;
   }
-  const target = new URL(panelUrl());
-  if (source?.id !== undefined) {
-    target.searchParams.set("sourceTab", String(source.id));
-    await injectContent(source.id);
+  // The popup is the only page of ours that asks for these.
+  if (!sender.url?.startsWith(SELF)) return;
+  if (message?.type === "blinkling:status") {
+    void status().then(respond);
+    return true;
   }
-  await chrome.windows.create({
-    url: target.toString(),
-    type: "popup",
-    width: 420,
-    height: 620,
-    focused: true,
-  });
-}
-chrome.action.onClicked.addListener((tab: BrowserTab) => {
-  void openPanel(tab);
-});
-chrome.runtime.onInstalled.addListener(() => {
-  void chrome.tabs
-    .query({ url: ["http://127.0.0.1/install*", "http://localhost/install*"] })
-    .then((tabs: BrowserTab[]) => {
-      for (const tab of tabs)
-        if (tab.id !== undefined) void injectContent(tab.id);
-    });
-});
-chrome.commands.onCommand.addListener(async (command: string) => {
-  if (command === "open-blinkling") {
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      lastFocusedWindow: true,
-    });
-    void openPanel(tab);
+  if (message?.type === "blinkling:wake") {
+    void client
+      .call({ type: "wake" }, 15_000)
+      .then((reply) => respond({ ok: reply?.ok === true }));
+    return true;
   }
-  if (command === "crop-screen" || command === "crop-global") {
-    chrome.runtime
-      .sendMessage({ type: "blinkling:command", command: "crop-screen" })
-      .catch(() => {});
-  }
-  if (command === "pause-passive")
-    chrome.runtime
-      .sendMessage({ type: "blinkling:command", command })
-      .catch(() => {});
 });
 
-chrome.runtime.onMessage.addListener(
-  (
-    message: { type?: string; url?: string },
-    sender: MessageSender,
-    sendResponse: (value?: unknown) => void,
-  ) => {
-    if (message?.type === "blinkling:open") {
-      void openPanel().then(() => sendResponse({ ok: true }));
-      return true;
-    }
-    if (
-      message?.type === "blinkling:inject-content" &&
-      sender.tab?.id !== undefined
-    ) {
-      void injectContent(sender.tab.id).then(() => sendResponse({ ok: true }));
-      return true;
-    }
-    if (
-      message?.type === "blinkling:open-reader" &&
-      typeof message.url === "string"
-    ) {
-      const target = new URL(chrome.runtime.getURL("reader.html"));
-      target.searchParams.set("url", message.url);
-      void chrome.tabs.create({ url: target.toString() }).then(
-        (tab) => sendResponse({ ok: true, tabId: tab.id }),
-        () => sendResponse({ ok: false }),
-      );
-      return true;
-    }
-    if (
-      message?.type === "blinkling:reader-permission-handoff" &&
-      sender.tab?.url?.split(/[?#]/, 1)[0] === readerUrl()
-    ) {
-      let interrupted = false;
-      void (async () => {
-        const panels = await chrome.tabs.query({ url: `${panelUrl()}*` });
-        if (!panels.length) return false;
-        // The panel owns any document PiP window. Require its acknowledgement
-        // before reporting readiness, so the reader cannot open a prompt while
-        // an unclosed PiP window may still cover Chromium's permission UI.
-        const response = (await chrome.runtime
-          .sendMessage({ type: "blinkling:reader-permission-handoff" })
-          .catch(() => undefined)) as
-          | { ok?: boolean; interrupted?: boolean }
-          | undefined;
-        if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
-        interrupted = response.interrupted === true;
-        const panel = panels.find(
-          (tab: BrowserTab) => tab.windowId !== undefined,
-        );
-        if (panel?.windowId !== undefined) {
-          const owner = await chrome.windows
-            .get(panel.windowId)
-            .catch(() => undefined);
-          if (owner?.type === "popup" && owner.state !== "minimized") {
-            await chrome.windows.update(panel.windowId, { state: "minimized" });
-            interrupted = true;
-          }
-        }
-        return interrupted;
-      })()
-        .then((interrupted) => sendResponse({ ok: true, interrupted }))
-        .catch(() =>
-          sendResponse(
-            interrupted ? { ok: false, interrupted } : { ok: false },
-          ),
-        );
-      return true;
-    }
-    if (message?.type === "blinkling:open-bubble" && sender.tab?.url) {
-      let source: URL;
-      try {
-        source = new URL(sender.tab.url);
-      } catch {
-        return false;
-      }
-      if (
-        source.protocol !== "http:" ||
-        !["127.0.0.1", "localhost"].includes(source.hostname) ||
-        source.username !== "" ||
-        source.password !== "" ||
-        source.pathname !== "/install"
-      )
-        return false;
-      void saveWelcomeLocale((message as { locale?: unknown }).locale)
-        .then(() => openPanel())
-        .then(() => sendResponse({ ok: true }))
-        .catch(() => sendResponse({ ok: false }));
-      return true;
-    }
-    if (message?.type === "blinkling:pair" && sender.tab?.url) {
-      let senderUrl: URL;
-      try {
-        senderUrl = new URL(sender.tab.url);
-      } catch {
-        sendResponse({ ok: false, error: "invalid_pair_request" });
-        return false;
-      }
-      const port = Number((message as { port?: unknown }).port);
-      const code = (message as { code?: unknown }).code;
-      const validHost =
-        (senderUrl.hostname === "localhost" ||
-          senderUrl.hostname === "127.0.0.1") &&
-        senderUrl.protocol === "http:" &&
-        senderUrl.username === "" &&
-        senderUrl.password === "";
-      if (
-        !validHost ||
-        senderUrl.pathname !== "/install" ||
-        port !== Number(senderUrl.port || 80) ||
-        !Number.isInteger(port) ||
-        port < 1 ||
-        port > 65535 ||
-        typeof code !== "string" ||
-        !/^[A-F0-9]{16}$/.test(code)
-      ) {
-        sendResponse({ ok: false, error: "invalid_pair_request" });
-        return false;
-      }
-      void connectWelcome(port, code)
-        .then(() =>
-          chrome.runtime
-            .sendMessage({ type: "blinkling:connection-updated" })
-            .catch(() => {}),
-        )
-        .then(() => sendResponse({ ok: true }))
-        .catch(() => sendResponse({ ok: false }));
-      return true;
-    }
-    return false;
-  },
-);
+// The service worker is stopped when idle; these bring the link back.
+const wake = () => void client.wake();
+chrome.runtime.onStartup.addListener(wake);
+chrome.runtime.onInstalled.addListener(wake);
+chrome.alarms.create("blinkling:link", { periodInMinutes: 0.5 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "blinkling:link") wake();
+});
+
+// Tell the bridge when the page under Blink may have changed.
+let lastNotice = 0;
+const changed = () => {
+  const now = Date.now();
+  if (now - lastNotice < 400) return;
+  lastNotice = now;
+  client.post({ type: "page-changed" });
+};
+chrome.tabs.onActivated.addListener(changed);
+chrome.tabs.onUpdated.addListener((_id, info) => {
+  if (info.status === "complete" || info.url) changed();
+});
+chrome.windows.onFocusChanged.addListener(changed);
+chrome.windows.onBoundsChanged?.addListener(changed);
+
+wake();

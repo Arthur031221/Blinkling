@@ -25,13 +25,12 @@ afterEach(async () => {
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "blinkling-cli-scope-"));
   temporary.push(root);
-  const project = join(root, "project");
   const capturesName =
     process.platform === "win32"
       ? "captures [private]"
       : "captures [private] *?";
   const captures = join(root, capturesName);
-  await Promise.all([mkdir(project), mkdir(captures)]);
+  await mkdir(captures);
   const record = join(root, "record.json");
   const command = join(root, "cli.cjs");
   await writeFile(
@@ -50,7 +49,7 @@ async function fixture() {
       fs.writeSync(1, JSON.stringify({ type: 'result', result: 'Viewed.' }) + '\\n');
     `,
   );
-  return { root, project, captures, record, command };
+  return { root, captures, record, command };
 }
 
 function request(overrides: Partial<ProviderRequest> = {}): ProviderRequest {
@@ -58,36 +57,27 @@ function request(overrides: Partial<ProviderRequest> = {}): ProviderRequest {
     image: Buffer.from("private screenshot"),
     question: "What is visible?",
     model: "haiku",
-    backend: "cli",
-    kind: "ask",
-    context: [],
     signal: new AbortController().signal,
     onText: () => {},
     ...overrides,
   };
 }
 
-const id = "8c8ea6e1-19bd-4fe0-a796-9ae78c2a09df";
-
 describe("CLI screenshot working directory and permissions", () => {
-  it.each([
-    ["new project session", false, false],
-    ["resumed project session", true, false],
-    ["forked project session", true, true],
-  ])("scopes an external screenshot for a %s", async (_name, resume, fork) => {
-    const { root, project, captures, record, command } = await fixture();
-    await runCliProvider(
-      request({ cliSession: { id, project, resume, fork } }),
-      { command: process.execPath, argsPrefix: [command], tempRoot: captures },
-    );
+  it("scopes an external screenshot to its own private directory", async () => {
+    const { root, captures, record, command } = await fixture();
+    await runCliProvider(request(), {
+      command: process.execPath,
+      argsPrefix: [command],
+      tempRoot: captures,
+    });
     const saved = JSON.parse(await readFile(record, "utf8"));
     const value = (flag: string) => saved.args[saved.args.indexOf(flag) + 1];
     expect(value("--system-prompt")).toContain("one short answer sentence");
     expect(value("--system-prompt")).toContain(
       "Preserve requested JSON schemas",
     );
-    expect(saved.cwd).toBe(project);
-    expect(dirname(saved.image)).not.toBe(project);
+    expect(saved.cwd).toBe(dirname(saved.image));
     expect(value("--add-dir")).toBe(dirname(saved.image));
     expect(
       saved.args.filter((arg: string) => arg === "--add-dir"),
@@ -115,9 +105,7 @@ describe("CLI screenshot working directory and permissions", () => {
     expect(JSON.parse(value("--mcp-config"))).toEqual({ mcpServers: {} });
     expect(saved.args).not.toContain("--dangerously-skip-permissions");
     expect(saved.args).not.toContain("--continue");
-    expect(saved.args).not.toContain("--no-session-persistence");
-    expect(value(resume ? "--resume" : "--session-id")).toBe(id);
-    expect(saved.args.includes("--fork-session")).toBe(fork);
+    expect(saved.args).toContain("--no-session-persistence");
     expect(saved.contents).toBe("private screenshot");
     if (process.platform !== "win32") {
       expect(saved.directoryMode).toBe(0o700);
@@ -143,18 +131,17 @@ describe("CLI screenshot working directory and permissions", () => {
     expect(await readdir(captures)).toEqual([]);
   });
 
-  it("does not add directories or image permissions for a text-only resumed session", async () => {
-    const { project, captures, record, command } = await fixture();
-    await runCliProvider(
-      request({ image: undefined, cliSession: { id, project, resume: true } }),
-      { command: process.execPath, argsPrefix: [command], tempRoot: captures },
-    );
-    const { args, cwd, image } = JSON.parse(await readFile(record, "utf8"));
-    expect(cwd).toBe(project);
+  it("does not add directories or image permissions for a text-only request", async () => {
+    const { captures, record, command } = await fixture();
+    await runCliProvider(request({ image: undefined }), {
+      command: process.execPath,
+      argsPrefix: [command],
+      tempRoot: captures,
+    });
+    const { args, image } = JSON.parse(await readFile(record, "utf8"));
     expect(args).not.toContain("--add-dir");
     expect(args[args.indexOf("--tools") + 1]).toBe("");
     expect(args[args.indexOf("--allowedTools") + 1]).toBe("");
-    expect(args[args.indexOf("--resume") + 1]).toBe(id);
     expect(args).toContain("--restricted");
     expect(args).toContain("--safe-mode");
     expect(image).toBeUndefined();

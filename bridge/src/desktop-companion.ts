@@ -1,10 +1,11 @@
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { desktopConnection } from "./desktop-session.js";
-import type { ExtensionBridge } from "./extension-bridge.js";
+import type { HelperBridge } from "./helper-bridge.js";
 
-/** Authenticated reverse RPC: Blink requests browser-only captures through the
- * already paired optional helper. Browsers cannot call this endpoint directly.
+/** Authenticated reverse RPC: Blink asks the optional browser helper for page
+ * structure, a full-length capture, in-place translation and the PDF reader.
+ * Browsers cannot call this endpoint directly.
  */
 export class DesktopCompanion {
   private token = randomBytes(32).toString("hex");
@@ -13,7 +14,7 @@ export class DesktopCompanion {
   private closed = false;
   constructor(
     private readonly origin: () => string,
-    private readonly extension: ExtensionBridge,
+    private readonly extension: HelperBridge,
     private readonly openGuide?: () => Promise<unknown>,
   ) {}
   start(): void {
@@ -27,7 +28,6 @@ export class DesktopCompanion {
           token: this.token,
         });
         this.registered = desktop.client.endpoint.token;
-        this.extension.useDesktopSession();
       } catch {
         /* Retry quietly after startup, restart or transient disconnect. */
       }
@@ -76,6 +76,40 @@ export class DesktopCompanion {
     if (message.method === "open-guide" && this.openGuide) {
       await this.openGuide();
       res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    if (message.method === "elements") {
+      const point = message.point;
+      const valid =
+        point &&
+        Number.isFinite(point.x) &&
+        Number.isFinite(point.y) &&
+        Math.abs(point.x) < 1e6 &&
+        Math.abs(point.y) < 1e6;
+      const controller = new AbortController();
+      res.once("close", () => controller.abort());
+      const result = await this.extension.elements(
+        valid ? { x: point.x, y: point.y } : undefined,
+        controller.signal,
+      );
+      res.end(JSON.stringify({ result }));
+      return;
+    }
+    if (message.method === "translate-page") {
+      const controller = new AbortController();
+      res.once("close", () => controller.abort());
+      res.end(
+        JSON.stringify({
+          ok: await this.extension.translatePage(
+            message.on !== false,
+            controller.signal,
+          ),
+        }),
+      );
+      return;
+    }
+    if (message.method === "open-pdf-reader") {
+      res.end(JSON.stringify({ ok: await this.extension.openPdfReader() }));
       return;
     }
     if (message.method !== "full-page")

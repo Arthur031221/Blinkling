@@ -349,6 +349,28 @@ export async function startDesktopHost({
     server.close();
     throw error;
   }
+  /** One authenticated call to the bridge's companion endpoint; undefined when
+   * there is no helper or the call failed. */
+  async function callCompanion(body, signal, timeoutMs) {
+    if (!companion) return undefined;
+    try {
+      const response = await fetch(companion.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${companion.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        redirect: "error",
+        signal: signal ?? AbortSignal.timeout(timeoutMs),
+      });
+      if (!response.ok) return undefined;
+      return await response.json();
+    } catch (error) {
+      if (error instanceof TypeError && !signal?.aborted) companion = undefined;
+      return undefined;
+    }
+  }
   return {
     address,
     attachSession: attach,
@@ -369,6 +391,35 @@ export async function startDesktopHost({
       });
       if (!response.ok)
         throw new Error("The browser helper guide could not open");
+    },
+    /** Page structure from the optional browser helper, or null when there is
+     * no helper, no Chrome or Edge window under `point` (screen DIP), or the page
+     * is restricted. Secure fields come back with no name or text. */
+    async elements({ point, signal } = {}) {
+      const value = await callCompanion(
+        { method: "elements", point },
+        signal,
+        8000,
+      );
+      return value?.result ?? null;
+    },
+    /** Translates the current page in place, or restores it with `on: false`. */
+    async translatePage({ on = true, signal } = {}) {
+      const value = await callCompanion(
+        { method: "translate-page", on: on !== false },
+        signal,
+        31 * 60_000,
+      );
+      return { ok: value?.ok === true };
+    },
+    /** Opens the current browser PDF in the extension's reader. */
+    async openPdfReader({ signal } = {}) {
+      const value = await callCompanion(
+        { method: "open-pdf-reader" },
+        signal,
+        10_000,
+      );
+      return { ok: value?.ok === true };
     },
     /** The page as tiles, top to bottom. `onProgress({completed, total})` follows
      * the browser while it scrolls. The result is the first tile's capture with

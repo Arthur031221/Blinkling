@@ -8,12 +8,8 @@ import {
 import { welcomeLocales } from "../src/welcome-locales.js";
 
 const documents: JSDOM[] = [];
-async function openGuide(
-  mode = "direct",
-  connected = false,
-  locale = "en",
-  store = false,
-) {
+const secret = "9".repeat(64);
+async function openGuide(connected = false, locale = "en", store = false) {
   const dom = new JSDOM(
     installGuide("/home/reader/Blinkling-extension", {
       chromeWebStoreUrl: store
@@ -22,7 +18,7 @@ async function openGuide(
       edgeAddonsUrl: "",
     }),
     {
-      url: `http://127.0.0.1:4312/install?locale=${locale}#code=0123456789ABCDEF`,
+      url: `http://127.0.0.1:43827/install?locale=${locale}#code=0123456789ABCDEF`,
       runScripts: "outside-only",
     },
   );
@@ -33,8 +29,10 @@ async function openGuide(
     status: 200,
     json: async () =>
       input.startsWith("/install/status")
-        ? { connected, active: connected, mode }
-        : {},
+        ? { connected }
+        : input === "/install/trust"
+          ? { secret, port: 43827 }
+          : {},
   }));
   const polls: Array<() => Promise<void>> = [];
   Object.assign(window, {
@@ -44,13 +42,12 @@ async function openGuide(
   const post = vi.spyOn(window, "postMessage").mockImplementation(() => {});
   window.eval(INSTALL_GUIDE_SCRIPT);
   await new Promise((resolve) => setTimeout(resolve, 0));
-  const message = (type: string, event: Record<string, unknown> = {}) =>
+  const message = (type: string) =>
     window.dispatchEvent(
       new window.MessageEvent("message", {
         origin: window.location.origin,
         source: window,
         data: { type },
-        ...event,
       }),
     );
   const poll = async () => {
@@ -58,7 +55,17 @@ async function openGuide(
     if (!next) throw new Error("No pending status poll");
     await next();
   };
-  return { dom, window, document: window.document, fetch, post, message, poll };
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  return {
+    dom,
+    window,
+    document: window.document,
+    fetch,
+    post,
+    message,
+    poll,
+    settle,
+  };
 }
 afterEach(() => {
   for (const dom of documents.splice(0)) dom.window.close();
@@ -91,27 +98,26 @@ describe("documented plugin upgrades", () => {
   });
 });
 
-describe("three step welcome", () => {
+describe("two step companion setup", () => {
   it.each(Object.keys(welcomeLocales))(
     "renders complete %s instructions and connection feedback",
     async (locale) => {
-      const { document, message } = await openGuide("direct", false, locale);
+      const { document, message } = await openGuide(false, locale);
       const text = welcomeLocales[locale as keyof typeof welcomeLocales];
       expect(document.documentElement.lang).toBe(locale);
       expect(
         [...document.querySelectorAll("section h2 [data-i18n]")].map(
           (el) => el.textContent,
         ),
-      ).toEqual([text.install, text.connect, text.open]);
-      expect(document.querySelectorAll("section")).toHaveLength(3);
+      ).toEqual([text.install, text.connect]);
+      expect(document.querySelectorAll("section")).toHaveLength(2);
       expect(document.querySelector(".blink")?.getAttribute("alt")).toBe(
         "Blink",
       );
-      expect(document.querySelector("#try-zero")?.textContent).toBe(text.try);
       expect(document.querySelector("#connection")?.textContent).toBe(
         text.waiting,
       );
-      message("blinkling:paired");
+      message("blinkling:trusted");
       expect(document.querySelector("#connection")?.textContent).toBe(
         text.completed,
       );
@@ -120,190 +126,106 @@ describe("three step welcome", () => {
       );
       expect(Object.values(text).every((value) => value.trim())).toBe(true);
       expect(document.body.textContent).not.toMatch(
-        /0123456789ABCDEF|4312|Pairing code|practice|exercise|eight/i,
+        /0123456789ABCDEF|43827|Pairing code|code/i,
       );
     },
   );
 
-  it("authenticates when the extension becomes ready, then opens only on the third step", async () => {
-    const { document, message, post } = await openGuide();
-    const open = document.querySelector<HTMLButtonElement>("#open-bubble")!;
-    expect(open.disabled).toBe(true);
-    message("blinkling:extension-ready", {
-      origin: "https://untrusted.example",
+  it("redeems the link code from the URL fragment once the extension answers, and hands the secret only to the page's own origin", async () => {
+    const { fetch, message, post, settle } = await openGuide();
+    expect(fetch).not.toHaveBeenCalledWith("/install/trust", expect.anything());
+    message("blinkling:extension-ready");
+    await settle();
+    expect(fetch).toHaveBeenCalledWith("/install/trust", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: "0123456789ABCDEF" }),
     });
-    message("blinkling:extension-ready", { source: null });
-    expect(post).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: "blinkling:pair" }),
-      expect.anything(),
-    );
-    message("blinkling:extension-ready");
-    message("blinkling:extension-ready");
-    expect(
-      post.mock.calls.filter(([value]) => value.type === "blinkling:pair"),
-    ).toHaveLength(1);
     expect(post).toHaveBeenCalledWith(
-      {
-        type: "blinkling:pair",
-        port: 4312,
-        code: "0123456789ABCDEF",
-        locale: "en",
-      },
-      "http://127.0.0.1:4312",
+      { type: "blinkling:trust", secret, port: 43827 },
+      "http://127.0.0.1:43827",
     );
-    expect(open.disabled).toBe(true);
-    message("blinkling:paired", { source: null });
-    expect(open.disabled).toBe(true);
-    message("blinkling:paired");
-    expect(open.disabled).toBe(false);
-    open.click();
-    expect(post).toHaveBeenLastCalledWith(
-      { type: "blinkling:open-bubble", locale: "en" },
-      "http://127.0.0.1:4312",
-    );
+    message("blinkling:extension-ready");
+    await settle();
+    expect(
+      fetch.mock.calls.filter(([url]) => url === "/install/trust"),
+    ).toHaveLength(1);
   });
 
-  it("retries a failed handshake without exposing a capability", async () => {
-    const { document, message, post } = await openGuide();
+  it("never asks for or shows a code", async () => {
+    const { document } = await openGuide();
+    expect(document.querySelector("input[type=text]:not(#manager)")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/pair|paste.*code/i);
+  });
+
+  it("shows a retry when the handshake fails and tries again", async () => {
+    const { document, message, post, settle } = await openGuide();
     message("blinkling:extension-ready");
-    message("blinkling:connection-failed");
+    await settle();
+    message("blinkling:trust-failed");
     expect(document.querySelector("#connection")?.textContent).toBe(
       welcomeLocales.en.connectionFailed,
     );
     expect(
-      document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-    ).toBe(true);
+      document.querySelector<HTMLButtonElement>("#reconnect")?.hidden,
+    ).toBe(false);
     document.querySelector<HTMLButtonElement>("#reconnect")!.click();
     expect(
-      post.mock.calls.filter(([value]) => value.type === "blinkling:pair"),
+      post.mock.calls.filter(([value]) => value.type === "blinkling:hello"),
     ).toHaveLength(2);
   });
 
+  it("says the link expired when the bridge refuses the code", async () => {
+    const { document, fetch, message, settle } = await openGuide();
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    });
+    message("blinkling:extension-ready");
+    await settle();
+    expect(document.querySelector("#connection")?.textContent).toBe(
+      welcomeLocales.en.expired,
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>("#reconnect")?.hidden,
+    ).toBe(true);
+  });
+
   it("preserves connected status when changing language", async () => {
-    const { document } = await openGuide("direct", true);
+    const { document, poll } = await openGuide(true);
+    await poll();
     const language = document.querySelector<HTMLSelectElement>("#language")!;
     language.value = "zh-TW";
     language.dispatchEvent(new document.defaultView!.Event("change"));
     expect(document.querySelector("#connection")?.textContent).toBe(
-      "已連到你的 Claude Code",
+      welcomeLocales["zh-TW"].connected,
     );
-    expect(
-      document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-    ).toBe(false);
   });
 
   it.each(Object.keys(welcomeLocales))(
     "keeps completed %s setup truthful when the setup link expires",
     async (locale) => {
-      const { document, fetch, poll, post } = await openGuide(
-        "direct",
-        true,
+      const { document, fetch, message, poll, settle } = await openGuide(
+        false,
         locale,
       );
       const text = welcomeLocales[locale as keyof typeof welcomeLocales];
+      message("blinkling:extension-ready");
+      await settle();
+      message("blinkling:trusted");
       fetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
         json: async () => ({}),
       });
       await poll();
-      expect(document.querySelector("#connection")?.textContent).not.toBe(
-        text.expired,
-      );
       expect(document.querySelector("#connection")?.textContent).toBe(
         text.completed,
       );
       expect(
         document.querySelector("#connection")?.classList.contains("connected"),
       ).toBe(false);
-      const open = document.querySelector<HTMLButtonElement>("#open-bubble")!;
-      expect(open.disabled).toBe(false);
-      expect(
-        document.querySelector<HTMLButtonElement>("#reconnect")?.hidden,
-      ).toBe(true);
-      open.click();
-      expect(post).toHaveBeenLastCalledWith(
-        { type: "blinkling:open-bubble", locale },
-        "http://127.0.0.1:4312",
-      );
-    },
-  );
-
-  it("expires an unpaired setup without enabling the bubble", async () => {
-    const { document, fetch, poll } = await openGuide();
-    fetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      json: async () => ({}),
-    });
-    await poll();
-    expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.expired,
-    );
-    expect(
-      document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-    ).toBe(true);
-  });
-
-  it("distinguishes completed pairing from an active bubble connection", async () => {
-    const { document, fetch, poll } = await openGuide("direct", true);
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ connected: true, active: false, mode: "direct" }),
-    });
-    await poll();
-    expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.completed,
-    );
-    expect(
-      document.querySelector("#connection")?.classList.contains("connected"),
-    ).toBe(false);
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ connected: true, active: true, mode: "direct" }),
-    });
-    await poll();
-    expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.connected,
-    );
-    expect(
-      document.querySelector("#connection")?.classList.contains("connected"),
-    ).toBe(true);
-  });
-
-  it.each(["http", "network", "unpaired"])(
-    "does not claim a live connection after a %s poll failure and recovers",
-    async (failure) => {
-      const { document, fetch, poll } = await openGuide(
-        "direct",
-        failure !== "unpaired",
-      );
-      if (failure === "network")
-        fetch.mockRejectedValueOnce(new Error("Offline"));
-      else
-        fetch.mockResolvedValueOnce({
-          ok: false,
-          status: 503,
-          json: async () => ({}),
-        });
-      await poll();
-      expect(document.querySelector("#connection")?.textContent).toBe(
-        welcomeLocales.en.checkFailed,
-      );
-      expect(
-        document.querySelector("#connection")?.classList.contains("connected"),
-      ).toBe(false);
-      expect(
-        document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-      ).toBe(failure === "unpaired");
-      await poll();
-      expect(document.querySelector("#connection")?.textContent).toBe(
-        failure === "unpaired"
-          ? welcomeLocales.en.waiting
-          : welcomeLocales.en.connected,
-      );
     },
   );
 
@@ -324,28 +246,25 @@ describe("three step welcome", () => {
     );
   });
 
-  it.each(["direct", "tunnel"])(
-    "copies the browser manager address in %s mode and selects it if clipboard is denied",
-    async (mode) => {
-      const { document, window } = await openGuide(mode);
-      const writeText = vi.fn().mockResolvedValue(undefined);
-      Object.defineProperty(window.navigator, "clipboard", {
-        value: { writeText },
-      });
-      document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
-      await Promise.resolve();
-      expect(writeText).toHaveBeenCalledWith("chrome://extensions");
-      writeText.mockRejectedValueOnce(new Error("Denied"));
-      document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      const input = document.querySelector<HTMLInputElement>("#manager")!;
-      expect(document.activeElement).toBe(input);
-      expect([input.selectionStart, input.selectionEnd]).toEqual([
-        0,
-        input.value.length,
-      ]);
-    },
-  );
+  it("copies the browser manager address and selects it if clipboard is denied", async () => {
+    const { document, window } = await openGuide();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: { writeText },
+    });
+    document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith("chrome://extensions");
+    writeText.mockRejectedValueOnce(new Error("Denied"));
+    document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const input = document.querySelector<HTMLInputElement>("#manager")!;
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([
+      0,
+      input.value.length,
+    ]);
+  });
 
   it("uses Edge's manager when selected", async () => {
     vi.stubEnv("BLINKLING_BROWSER", "msedge");
@@ -355,50 +274,19 @@ describe("three step welcome", () => {
     );
   });
 
-  it("starts a trial in the chosen language and keeps failures retryable", async () => {
-    const { document, fetch } = await openGuide("direct", false, "ja");
-    const button = document.querySelector<HTMLButtonElement>("#try-zero")!;
-    button.click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(fetch).toHaveBeenCalledWith(
-      "/install/try?code=0123456789ABCDEF&locale=ja",
-      { method: "POST" },
-    );
-    expect(document.querySelector("#try-note")?.textContent).toBe(
-      welcomeLocales.ja.tried,
-    );
-    fetch.mockRejectedValueOnce(new Error("No browser"));
-    button.click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(document.querySelector("#try-note")?.textContent).toBe(
-      welcomeLocales.ja.tryFailed,
-    );
-    expect(button.disabled).toBe(false);
-  });
-
-  it("shows a download for remote installs, hides the server path and disables a remote trial", async () => {
-    const { document } = await openGuide("tunnel");
-    expect(document.querySelector<HTMLElement>("#install-local")?.hidden).toBe(
-      true,
-    );
-    expect(document.querySelector<HTMLElement>("#install-remote")?.hidden).toBe(
-      false,
-    );
-    expect(document.querySelector("#download")?.getAttribute("href")).toBe(
-      "/install/extension.zip?code=0123456789ABCDEF",
-    );
-    expect(
-      document.querySelector<HTMLButtonElement>("#try-zero")?.disabled,
-    ).toBe(true);
-    expect(document.querySelector("#tunnel-command")).toBeNull();
+  it("offers no trial, download or remote install", async () => {
+    const { document } = await openGuide();
+    expect(document.querySelector("#try-zero")).toBeNull();
+    expect(document.querySelector("#download")).toBeNull();
+    expect(document.querySelector("#open-bubble")).toBeNull();
   });
 
   it("uses a configured store without adding steps or showing a source folder", async () => {
-    const { document } = await openGuide("direct", false, "en", true);
+    const { document } = await openGuide(false, "en", true);
     expect(document.querySelector("#installation a")?.textContent).toBe(
       welcomeLocales.en.store,
     );
     expect(document.querySelector("#manager")).toBeNull();
-    expect(document.querySelectorAll("section")).toHaveLength(3);
+    expect(document.querySelectorAll("section")).toHaveLength(2);
   });
 });

@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "Blinkling"
+  },
+  "extDescription": {
+    "message": "Blink 的桌面小幫手：讓 Blink 知道你正在看的頁面內容。"
+  },
+  "actionTitle": {
+    "message": "Blinkling 狀態"
+  }
+}

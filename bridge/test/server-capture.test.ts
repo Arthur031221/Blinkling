@@ -3,7 +3,6 @@ import { afterEach, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { PNG } from "pngjs";
-import WebSocket from "ws";
 import { createBlinkling } from "../src/server.js";
 import { cancelled } from "../src/errors.js";
 import type { CaptureAdapter } from "../src/capture.js";
@@ -167,53 +166,6 @@ it("retains the unchanged frame rejected by the six-per-minute watch cap after i
   nowSpy.mockRestore();
 });
 
-it("does not substitute native capture when the shared browser surface times out", async () => {
-  process.env.BLINKLING_DISABLE_BROWSER_OPEN = "1";
-  const native = vi.fn(async () => ({
-    image: image(),
-    source: "native test adapter",
-  }));
-  const { app, client } = await connect({ supported, capture: native });
-  const url = new URL((await app.panel.openUrl()).match(/http:\/\/[^ ]+$/)![0]);
-  const response = await fetch(`${url.origin}/api/session`, {
-    method: "POST",
-    headers: { Origin: url.origin, "Content-Type": "application/json" },
-    body: JSON.stringify({ token: url.hash.slice(1) }),
-  });
-  const { session } = (await response.json()) as { session: string };
-  const ws = new WebSocket(
-    `${url.origin.replace("http", "ws")}/api/stream`,
-    ["blinkling", session],
-    { origin: url.origin },
-  );
-  try {
-    await new Promise<void>((resolve, reject) => {
-      ws.once("open", resolve);
-      ws.once("error", reject);
-    });
-    ws.send(JSON.stringify({ type: "share", active: true }));
-    await vi.waitFor(() => expect(app.panel.isSharing).toBe(true));
-    const result = await client.callTool({
-      name: "screen_capture",
-      arguments: { target: "screen" },
-    });
-    expect(result.isError).toBe(true);
-    expect(JSON.stringify(result)).toContain("did not reply");
-    expect(native).not.toHaveBeenCalled();
-    expect(app.history.all()).toHaveLength(0);
-    ws.send(JSON.stringify({ type: "share", active: false }));
-    await vi.waitFor(() => expect(app.panel.isSharing).toBe(false));
-    const fallback = await client.callTool({
-      name: "screen_capture",
-      arguments: { target: "screen" },
-    });
-    expect(fallback.isError).toBeFalsy();
-    expect(native).toHaveBeenCalledOnce();
-  } finally {
-    ws.terminate();
-  }
-}, 6000);
-
 it("clear waits for native cancellation and prevents a late frame from entering history", async () => {
   let captureSignal: AbortSignal | undefined;
   let nativeExited = false;
@@ -247,60 +199,6 @@ it("clear waits for native cancellation and prevents a late frame from entering 
   expect((await capture).isError).toBe(true);
   expect(app.history.all()).toHaveLength(0);
 });
-
-it("keeps sharing intent after socket disconnect until an explicit stop", async () => {
-  process.env.BLINKLING_DISABLE_BROWSER_OPEN = "1";
-  const native = vi.fn(async () => ({
-    image: image(),
-    source: "native test adapter",
-  }));
-  const { app, client } = await connect({ supported, capture: native });
-  const url = new URL((await app.panel.openUrl()).match(/http:\/\/[^ ]+$/)![0]);
-  const response = await fetch(`${url.origin}/api/session`, {
-    method: "POST",
-    headers: { Origin: url.origin, "Content-Type": "application/json" },
-    body: JSON.stringify({ token: url.hash.slice(1) }),
-  });
-  const { session } = (await response.json()) as { session: string };
-  const socketUrl = `${url.origin.replace("http", "ws")}/api/stream`;
-  const connectSocket = async () => {
-    const socket = new WebSocket(socketUrl, ["blinkling", session], {
-      origin: url.origin,
-    });
-    await new Promise<void>((resolve, reject) => {
-      socket.once("open", resolve);
-      socket.once("error", reject);
-    });
-    return socket;
-  };
-  const first = await connectSocket();
-  first.send(JSON.stringify({ type: "share", active: true }));
-  await vi.waitFor(() => expect(app.panel.isSharing).toBe(true));
-  const closed = new Promise<void>((resolve) =>
-    first.once("close", () => resolve()),
-  );
-  first.terminate();
-  await closed;
-
-  const blocked = await client.callTool({
-    name: "screen_capture",
-    arguments: { target: "screen" },
-  });
-  expect(blocked.isError).toBe(true);
-  expect(native).not.toHaveBeenCalled();
-  expect(app.history.all()).toHaveLength(0);
-
-  const second = await connectSocket();
-  second.send(JSON.stringify({ type: "share", active: false }));
-  await vi.waitFor(() => expect(app.panel.isSharing).toBe(false));
-  const fallback = await client.callTool({
-    name: "screen_capture",
-    arguments: { target: "screen" },
-  });
-  expect(fallback.isError).toBeFalsy();
-  expect(native).toHaveBeenCalledOnce();
-  second.terminate();
-}, 6000);
 
 it("passes MCP cancellation to native capture and rejects its late image", async () => {
   let nativeSignal: AbortSignal | undefined;

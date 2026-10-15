@@ -1,38 +1,49 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeCanvasPng, MAX_PNG_LENGTH } from "./png";
 
+const prefix = "data:image/png;base64,";
+
+class FakeCanvas {
+  static draws = vi.fn();
+  static encoded: (canvas: FakeCanvas) => number = () => 5;
+  constructor(
+    public width: number,
+    public height: number,
+  ) {}
+  getContext() {
+    return { drawImage: FakeCanvas.draws };
+  }
+  async convertToBlob() {
+    const bytes = new Uint8Array(FakeCanvas.encoded(this));
+    return { arrayBuffer: async () => bytes.buffer };
+  }
+}
+
 describe("capture PNG budget", () => {
-  const prefix = "data:image/png;base64,";
-  let source: HTMLCanvasElement;
-  let draw: ReturnType<typeof vi.fn>;
-  let encode: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
-    source = document.createElement("canvas");
-    source.width = 4096;
-    source.height = 2160;
-    draw = vi.fn();
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-      drawImage: draw,
-    } as unknown as CanvasRenderingContext2D);
-    encode = vi
-      .spyOn(HTMLCanvasElement.prototype, "toDataURL")
-      .mockReturnValue(prefix + "aGVsbG8=");
+    FakeCanvas.draws = vi.fn();
+    FakeCanvas.encoded = () => 5;
+    vi.stubGlobal("OffscreenCanvas", FakeCanvas);
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.unstubAllGlobals());
+  const canvas = (width: number, height: number) =>
+    new FakeCanvas(width, height) as unknown as OffscreenCanvas;
 
-  it("preserves native dimensions when the PNG fits", () => {
-    expect(encodeCanvasPng(source)).toBe(prefix + "aGVsbG8=");
-    expect(source.width).toBe(4096);
-    expect(source.height).toBe(2160);
-    expect(draw).not.toHaveBeenCalled();
-    expect(encode).toHaveBeenCalledOnce();
+  it("keeps native dimensions when the PNG fits", async () => {
+    const source = canvas(4096, 2160);
+    const image = await encodeCanvasPng(source);
+    expect(image.startsWith(prefix)).toBe(true);
+    expect(atob(image.slice(prefix.length))).toHaveLength(5);
+    expect(FakeCanvas.draws).not.toHaveBeenCalled();
   });
 
-  it("accepts the exact transport boundary", () => {
-    const boundary = prefix + "a".repeat(MAX_PNG_LENGTH - prefix.length);
-    encode.mockReturnValue(boundary);
-    expect(encodeCanvasPng(source)).toBe(boundary);
-    expect(draw).not.toHaveBeenCalled();
+  it("accepts the exact transport boundary", async () => {
+    // base64 expands three bytes to four characters.
+    const bytes = Math.floor((MAX_PNG_LENGTH - prefix.length) / 4) * 3;
+    FakeCanvas.encoded = () => bytes;
+    const image = await encodeCanvasPng(canvas(4096, 2160));
+    expect(image.length).toBeLessThanOrEqual(MAX_PNG_LENGTH);
+    expect(FakeCanvas.draws).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -40,71 +51,29 @@ describe("capture PNG budget", () => {
     [8000, 6000],
     [10000, 20],
   ])(
-    "bounds a compressible %s by %s PNG for both transports",
-    (width, height) => {
-      source.width = width;
-      source.height = height;
-      encodeCanvasPng(source);
-      expect(draw).toHaveBeenCalledOnce();
-      const [, , , outputWidth, outputHeight] = draw.mock.calls[0];
+    "bounds a compressible %s by %s PNG for the transport",
+    async (width, height) => {
+      await encodeCanvasPng(canvas(width, height));
+      expect(FakeCanvas.draws).toHaveBeenCalledOnce();
+      const [, , , outputWidth, outputHeight] = FakeCanvas.draws.mock.calls[0];
       expect(outputWidth).toBeLessThanOrEqual(8000);
       expect(outputHeight).toBeLessThanOrEqual(8000);
       expect(outputWidth * outputHeight).toBeLessThanOrEqual(40_000_000);
-      expect([source.width, source.height]).toEqual([width, height]);
     },
   );
 
-  it("preserves a fitting PNG at the exact dimension and pixel boundaries", () => {
-    source.width = 8000;
-    source.height = 5000;
-    encodeCanvasPng(source);
-    expect(draw).not.toHaveBeenCalled();
+  it("resamples the original again when the encoding is still too large", async () => {
+    FakeCanvas.encoded = (c) => (c.width > 3000 ? 4_000_000 : 100);
+    const image = await encodeCanvasPng(canvas(4096, 2160));
+    expect(image.startsWith(prefix)).toBe(true);
+    expect(FakeCanvas.draws.mock.calls.length).toBeGreaterThan(0);
+    for (const call of FakeCanvas.draws.mock.calls)
+      expect(call[0]).toMatchObject({ width: 4096, height: 2160 });
   });
 
-  it("reduces repeated oversized encodings from the original pixels", () => {
-    const tooLarge = prefix + "a".repeat(MAX_PNG_LENGTH);
-    encode.mockReturnValueOnce(tooLarge).mockReturnValueOnce(tooLarge);
-    const result = encodeCanvasPng(source);
-    expect(result.length).toBeLessThanOrEqual(MAX_PNG_LENGTH);
-    expect(draw).toHaveBeenCalledTimes(2);
-    for (const args of draw.mock.calls) expect(args[0]).toBe(source);
-    const first = draw.mock.calls[0],
-      last = draw.mock.calls[1];
-    expect(first[3]).toBeLessThan(source.width);
-    expect(last[3]).toBeLessThan(first[3]);
-    expect(last[3] / last[4]).toBeCloseTo(source.width / source.height, 2);
-    expect([source.width, source.height]).toEqual([4096, 2160]);
-  });
-
-  it.each([
-    [0, 20],
-    [20, 0],
-    [10000, 10000],
-  ])(
-    "rejects an invalid or excessive %s by %s source before encoding",
-    (width, height) => {
-      source.width = width;
-      source.height = height;
-      expect(() => encodeCanvasPng(source)).toThrow("image_limit");
-      expect(encode).not.toHaveBeenCalled();
-    },
-  );
-
-  it("rejects an invalid PNG encoding", () => {
-    encode.mockReturnValue("data:,");
-    expect(() => encodeCanvasPng(source)).toThrow("image_decode");
-  });
-
-  it("fails instead of looping when even one pixel exceeds the budget", () => {
-    source.width = source.height = 1;
-    encode.mockReturnValue(prefix + "a".repeat(MAX_PNG_LENGTH));
-    expect(() => encodeCanvasPng(source)).toThrow("image_limit");
-    expect(encode).toHaveBeenCalledOnce();
-  });
-
-  it("reports an unavailable fallback drawing context", () => {
-    encode.mockReturnValueOnce(prefix + "a".repeat(MAX_PNG_LENGTH));
-    vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(null);
-    expect(() => encodeCanvasPng(source)).toThrow("image_decode");
+  it("refuses an image it cannot shrink and an empty one", async () => {
+    FakeCanvas.encoded = () => 6_000_000;
+    await expect(encodeCanvasPng(canvas(8, 8))).rejects.toThrow("image_limit");
+    await expect(encodeCanvasPng(canvas(0, 8))).rejects.toThrow("image_limit");
   });
 });

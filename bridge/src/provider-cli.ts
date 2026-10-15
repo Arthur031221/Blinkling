@@ -67,15 +67,7 @@ export async function runCliProvider(
       "stream-json",
       "--verbose",
       "--include-partial-messages",
-      ...(request.cliSession
-        ? request.cliSession.resume
-          ? [
-              "--resume",
-              request.cliSession.id,
-              ...(request.cliSession.fork ? ["--fork-session"] : []),
-            ]
-          : ["--session-id", request.cliSession.id]
-        : ["--no-session-persistence"]),
+      "--no-session-persistence",
       ...(request.effort ? ["--effort", request.effort] : []),
       "--restricted",
       "--safe-mode",
@@ -95,7 +87,7 @@ export async function runCliProvider(
     ];
     return await new Promise<ProviderResult>((resolve, reject) => {
       const child = spawn(options.command ?? "claude", args, {
-        cwd: request.cliSession?.project ?? directory,
+        cwd: directory,
         env,
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
@@ -262,21 +254,6 @@ export async function runCliProvider(
         if (buffer.trim()) consume(buffer);
         if (request.signal.aborted) return reject(cancelled());
         if (failure) return reject(failure);
-        if (
-          code !== 0 &&
-          request.cliSession &&
-          !request.cliSession.resume &&
-          stderr.includes(
-            `Session ID ${request.cliSession.id} is already in use.`,
-          )
-        )
-          return reject(
-            new PanelError(
-              "session_initialization",
-              "This conversation stopped before it could start. Choose New session to try again.",
-              409,
-            ),
-          );
         if (code !== 0 || !result || !answer.trim())
           return reject(
             new PanelError(
@@ -292,10 +269,6 @@ export async function runCliProvider(
             : undefined;
         resolve({
           answer,
-          sessionId:
-            typeof result.session_id === "string"
-              ? result.session_id
-              : undefined,
           usage: {
             inputTokens: finite(usage?.input_tokens),
             outputTokens: finite(usage?.output_tokens),
