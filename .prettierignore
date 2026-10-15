@@ -9,3 +9,7 @@ bin
 assets/downloads
 coverage
 public/assets/blink.js
+
+# The wordmark files are written by assets/brand/kit.py and must stay
+# byte-identical to it (npm run check:brand), so Prettier never rewrites them.
+assets/brand

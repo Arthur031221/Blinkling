@@ -5,7 +5,7 @@ import { WORDMARK_CSS, wordmarkSvg } from "../../assets/brand/wordmark.mjs";
 await rm("dist", { recursive: true, force: true });
 await mkdir("dist/assets", { recursive: true });
 await cp("public/privacy.html", "dist/privacy.html");
-for (const name of ["Inter.ttf", "Fraunces.ttf", "logo.svg"]) {
+for (const name of ["Inter.ttf", "logo.svg"]) {
   await cp(`public/assets/${name}`, `dist/assets/${name}`);
 }
 // The showcase header draws the name with the shared Wordmark component: its

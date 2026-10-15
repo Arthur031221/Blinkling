@@ -2,7 +2,8 @@
 // Keeps the name drawn one way. It fails when
 //  - a file in assets/brand differs from what kit.py makes of wordmark-parts.json,
 //  - a second drawing of the name exists: an SVG that spells it as text, or a
-//    CSS sparkle class, or one of the old wordmark files or generators,
+//    CSS sparkle class, or one of the old wordmark files or generators, or a
+//    page that loads a font face other than the interface face,
 //  - a README header does not use the wordmark files.
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
@@ -33,6 +34,30 @@ const SPARKLE =
 const TEXT_FILE = /\.(?:css|html|svg|mjs|cjs|js|ts|tsx|md)$/;
 const SVG_TEXT_NAME = new RegExp(`<text\\b[^>]*>[^<]*${NAME}`, "i");
 
+/** The only face a page may load. The name is outlines from the kit, so no page
+ * needs a display face, and loading one is how a second drawing starts. */
+const UI_FACES = new Set(["inter"]);
+const FONT_FILE = /\.(?:css|html|svg|mjs|cjs|js|ts|tsx)$/;
+const FONT_FACE_BLOCK = /@font-face\s*\{[^}]*?font-family\s*:\s*([^;}]+)/gi;
+const FONT_FACE_SCRIPT = /new\s+FontFace\(\s*(["'`])([^"'`]+)\1/g;
+const DISPLAY_FAMILY = /font-family\s*:[^;}]*?\b(Fraunces|DynaPuff)\b/gi;
+const FONT_HOST =
+  /(?:fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit\.net|fonts\.bunny\.net)/gi;
+
+/** The faces a text file loads that are not the interface face. */
+function strayFaces(text) {
+  const found = new Set();
+  const add = (name) => {
+    const face = name.trim().replace(/^["'`]|["'`]$/g, "");
+    if (face && !UI_FACES.has(face.toLowerCase())) found.add(face);
+  };
+  for (const m of text.matchAll(FONT_FACE_BLOCK)) add(m[1]);
+  for (const m of text.matchAll(FONT_FACE_SCRIPT)) add(m[2]);
+  for (const m of text.matchAll(DISPLAY_FAMILY)) add(m[1]);
+  for (const m of text.matchAll(FONT_HOST)) add(m[0].toLowerCase());
+  return [...found];
+}
+
 const inside = (file) => file === KIT || file.startsWith(`${KIT}/`);
 const skipped = (file) =>
   file.startsWith("bin/") ||
@@ -56,6 +81,14 @@ export function findSecondDrawings(files) {
     }
     if (!file.endsWith(".md") && SPARKLE.test(text)) {
       problems.push(`${file}: a sparkle class or copy of the sparkle name`);
+    }
+    if (FONT_FILE.test(file)) {
+      const faces = strayFaces(text);
+      if (faces.length) {
+        problems.push(
+          `${file}: loads a font face other than Inter (${faces.join(", ")}); the name is drawn only by ${KIT}`,
+        );
+      }
     }
   }
   return problems;
@@ -93,12 +126,50 @@ if mean >= 1.0:
     print(f"mean channel difference {mean:.2f}"); sys.exit(1)
 `;
 
+/** Import name in Python -> the name to pip install. */
+const PYTHON_MODULES = {
+  fontTools: "fonttools",
+  uharfbuzz: "uharfbuzz",
+  cairosvg: "cairosvg",
+};
+const PIP_LINE = "pip install fonttools uharfbuzz cairosvg";
+
+/** The pip names of the modules `python` cannot import (cairosvg also fails
+ * when the cairo library is missing). A Python that does not start throws. */
+export function missingModules(python, modules = Object.keys(PYTHON_MODULES)) {
+  const probe = [
+    "import sys",
+    "for m in sys.argv[1:]:",
+    "    try: __import__(m)",
+    "    except Exception: print(m)",
+  ].join("\n");
+  const out = execFileSync(python, ["-I", "-c", probe, ...modules], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((name) => PYTHON_MODULES[name] ?? name);
+}
+
+/** One line saying why kit.py cannot run here, or "" when it can. */
+export function toolchainProblem(python = pythonCommand()) {
+  try {
+    const missing = missingModules(python);
+    return missing.length
+      ? `Cannot check the kit: Python modules not installed: ${missing.join(", ")}. Run: python3 -m ${PIP_LINE}`
+      : "";
+  } catch {
+    return `Cannot check the kit: Python 3 was not found (${python}). Install it, then: python3 -m ${PIP_LINE}, or set BLINKLING_BRAND_PYTHON`;
+  }
+}
+
+const pythonCommand = () => process.env.BLINKLING_BRAND_PYTHON || "python3";
+
 /** Regenerates the kit into a temp folder with kit.py and compares it with the
  * committed files. */
-export function checkKit({
-  root = ".",
-  python = process.env.BLINKLING_BRAND_PYTHON || "python3",
-} = {}) {
+export function checkKit({ root = ".", python = pythonCommand() } = {}) {
   const problems = [];
   const out = mkdtempSync(join(tmpdir(), "blinkling-brand-"));
   try {
@@ -112,9 +183,7 @@ export function checkKit({
         .trim()
         .split("\n")
         .pop();
-      return [
-        `${KIT}/kit.py did not run (${detail}). It needs: pip install fonttools uharfbuzz cairosvg`,
-      ];
+      return [`${KIT}/kit.py did not run (${detail}). It needs: ${PIP_LINE}`];
     }
     const made = new Set(readdirSync(out));
     const kept = readdirSync(join(root, KIT)).filter((f) => KIT_FILE.test(f));
@@ -184,6 +253,11 @@ export function checkBrand({ root = ".", python } = {}) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  const missing = toolchainProblem();
+  if (missing) {
+    console.error(missing);
+    process.exit(1);
+  }
   const problems = checkBrand();
   if (problems.length) {
     console.error(`The wordmark must come from ${KIT}/ only (docs/BRAND.md):`);
