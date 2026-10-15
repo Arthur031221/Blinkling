@@ -1,12 +1,15 @@
 const { contextBridge, ipcRenderer } = require("electron");
+const subscribe = (channel) => (listener) => {
+  const handle = (_e, value) => listener(value);
+  ipcRenderer.on(channel, handle);
+  return () => ipcRenderer.removeListener(channel, handle);
+};
 contextBridge.exposeInMainWorld(
   "guideOverlay",
   Object.freeze({
     init: () => ipcRenderer.invoke("blinkling:overlay:init"),
-    onStep: (listener) => {
-      const handle = (_e, value) => listener(value);
-      ipcRenderer.on("blinkling:overlay:step", handle);
-      return () => ipcRenderer.removeListener("blinkling:overlay:step", handle);
-    },
+    onDraw: subscribe("blinkling:overlay:draw"),
+    onCommand: subscribe("blinkling:overlay:command"),
+    markClick: (n) => ipcRenderer.send("blinkling:overlay:mark-click", n),
   }),
 );

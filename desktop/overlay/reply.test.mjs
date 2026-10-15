@@ -1,11 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  parseGuide,
-  guideDrawings,
-  guidePrompt,
-  GuideError,
-} from "./schema.mjs";
+import { parseGuide, guidePrompt, GuideError } from "./schema.mjs";
+import { drawGuide } from "./test-draw.mjs";
 const capture = (
   scale = 1,
   region = { x: 0, y: 0, width: 800, height: 600 },
@@ -111,7 +107,7 @@ test("a region that only slightly leaves the capture is clamped, not dropped", (
     height: 40,
   });
 });
-test("one invalid step is dropped; arrows and unknown region ids are pruned", () => {
+test("one invalid step is dropped and unknown region ids are pruned; a stray arrow is ignored", () => {
   const g = model();
   g.steps[1].note = "";
   g.steps[2].regionIds = ["ghost", "export"];
@@ -122,12 +118,24 @@ test("one invalid step is dropped; arrows and unknown region ids are pruned", ()
     ["s1", "s3"],
   );
   assert.deepEqual(parsed.steps[1].regionIds, ["export"]);
-  assert.equal(parsed.steps[0].arrows.length, 1);
+  assert.equal(
+    "arrows" in parsed.steps[0],
+    false,
+    "the guide draws marks, not arrows",
+  );
 });
 test("a missing or unusable purpose falls back to the first step instead of failing", () => {
   const g = model();
   delete g.purpose;
   assert.equal(parseGuide(json(g), capture()).purpose, "先看標題。");
+});
+test("the guide title comes from the reply, or from the purpose", () => {
+  const g = model();
+  assert.equal(
+    parseGuide(json({ ...g, title: "讀懂銷售報告" }), capture()).title,
+    "讀懂銷售報告",
+  );
+  assert.equal(parseGuide(json(g), capture()).title, "這是一份銷售報告。");
 });
 test("only a reply with no usable step fails, with a GuideError", () => {
   for (const bad of [
@@ -157,7 +165,7 @@ test("only a reply with no usable step fails, with a GuideError", () => {
     );
   }
 });
-test("boxes stay within 8 px of the target at 100/125/150/200% and with the window off the origin", () => {
+test("boxes stay within 8 px of the target at 100/125/150/200% and with the window off the origin", async () => {
   const target = { x: 40, y: 120, width: 400, height: 300 }; // DIP inside the region
   for (const scale of [1, 1.25, 1.5, 2])
     for (const region of [
@@ -177,7 +185,7 @@ test("boxes stay within 8 px of the target at 100/125/150/200% and with the wind
         width: px(target.width, "x"),
         height: px(target.height, "y"),
       };
-      const box = guideDrawings(parseGuide(json(g), c), c)[1].rect;
+      const box = (await drawGuide(parseGuide(json(g), c), c))[1].rect;
       const want = {
         x: region.x + target.x,
         y: region.y + target.y,
@@ -189,14 +197,9 @@ test("boxes stay within 8 px of the target at 100/125/150/200% and with the wind
           Math.abs((box[k] - want[k]) * scale) <= 8,
           `${scale} ${JSON.stringify(region)} ${k}`,
         );
-      for (const a of guideDrawings(parseGuide(json(g), c), c).flatMap(
-        (d) => d.arrows,
-      )) {
-        assert.ok(a.from.x >= 0 && a.to.y <= 600 + region.y);
-      }
     }
 });
-test("a region reaching the far edge of a fractional display never exceeds its bounds", () => {
+test("a region reaching the far edge of a fractional display never exceeds its bounds", async () => {
   const c = capture(1.5, { x: 0, y: 0, width: 853, height: 480 });
   const g = model();
   g.sections[0].rect = {
@@ -205,7 +208,7 @@ test("a region reaching the far edge of a fractional display never exceeds its b
     width: c.pixelWidth,
     height: c.pixelHeight,
   };
-  const [d] = guideDrawings(parseGuide(json(g), c), c);
+  const [d] = await drawGuide(parseGuide(json(g), c), c);
   assert.ok(d.rect.x + d.rect.width <= 853 && d.rect.y + d.rect.height <= 480);
 });
 test("the prompt pins the reply language to the user's, including proper Traditional Chinese", () => {
@@ -226,9 +229,9 @@ test("the prompt pins the reply language to the user's, including proper Traditi
     /language of the text visible on the screen/i,
   );
 });
-test("labels in the recorded zh-TW reply are carried through to the drawings unchanged", () => {
+test("labels in the recorded zh-TW reply are carried through to the drawings unchanged", async () => {
   const c = capture();
-  const drawings = guideDrawings(parseGuide(json(model()), c), c);
+  const drawings = await drawGuide(parseGuide(json(model()), c), c);
   assert.deepEqual(
     drawings.map((d) => d.label),
     ["標題", "數據表", "匯出"],

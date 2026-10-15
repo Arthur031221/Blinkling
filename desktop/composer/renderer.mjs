@@ -8,6 +8,7 @@ import {
 import { cssVariables } from "../shared/motion.mjs";
 import { strings } from "./strings.mjs";
 import { followShellTheme } from "./theme.mjs";
+import { mountGuidePanel } from "./guide-panel.mjs";
 const api = window.blinkling;
 // The motion tokens reach the stylesheet as custom properties (CSSOM, so the
 // page's CSP stays free of inline styles).
@@ -128,64 +129,30 @@ const guide = document.createElement("section");
 guide.className = "gl-guide";
 guide.hidden = true;
 document.querySelector("#answers").append(guide);
-const button = (label, action, enabled = true) => {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = label;
-  b.disabled = !enabled;
-  b.addEventListener("click", () => api.action(action).catch(() => {}));
-  return b;
-};
+const guidePanel = mountGuidePanel({
+  host: guide,
+  tr,
+  onAction: (action) => api.action(action).catch(() => {}),
+});
 const unEvent = api.onEvent((event) => {
-  if (event.type === "guide") {
-    guide.replaceChildren();
-    guide.hidden = event.phase === "dismissed";
-    notice.hidden = true;
-    conversation.store.dismiss(FAILURE_ID);
-    // A failed guide is one more bubble on the deck, so it settles and fades
-    // with the rest instead of staying on the page (N6.6).
-    if (event.phase === "error" && configuration.surface === "bubbles") {
-      guide.hidden = true;
-      conversation.store.fail({
-        id: FAILURE_ID,
-        text: event.bubbles?.[0] ?? event.message ?? "",
-        actions: [
-          { id: "guide-retry", label: tr("guide-retry") },
-          { id: "guide-dismiss", label: tr("guide-close") },
-        ],
-      });
-      return;
-    }
-    for (const text of event.bubbles ??
-      (event.phase === "thinking" ? [tr("guide-thinking")] : [])) {
-      const bubble = document.createElement("p");
-      bubble.className = "gl-answer-bubble";
-      bubble.textContent = text;
-      guide.append(bubble);
-    }
-    if (["overview", "step"].includes(event.phase))
-      guide.append(
-        button(tr("guide-back"), "guide-back", event.canBack),
-        button(
-          tr(event.last ? "guide-done" : "guide-next"),
-          "guide-next",
-          event.canNext,
-        ),
-        button(tr("guide-overview"), "guide-overview"),
-        button(tr("guide-dismiss"), "guide-dismiss"),
-      );
-    if (event.phase === "finished")
-      guide.append(
-        button(tr("guide-back"), "guide-back", event.canBack),
-        button(tr("guide-overview"), "guide-overview"),
-        button(tr("guide-dismiss"), "guide-dismiss"),
-      );
-    if (event.phase === "error")
-      guide.append(
-        button(tr("guide-retry"), "guide-retry"),
-        button(tr("guide-close"), "guide-dismiss"),
-      );
+  if (event.type !== "guide") return;
+  notice.hidden = true;
+  conversation.store.dismiss(FAILURE_ID);
+  // A failed guide is one more bubble on the deck, so it settles and fades
+  // with the rest instead of staying on the page (N6.6).
+  if (event.phase === "error" && configuration.surface === "bubbles") {
+    guidePanel.update({ phase: "dismissed" });
+    conversation.store.fail({
+      id: FAILURE_ID,
+      text: event.bubbles?.[0] ?? event.message ?? "",
+      actions: [
+        { id: "guide-retry", label: tr("guide-retry") },
+        { id: "guide-dismiss", label: tr("guide-close") },
+      ],
+    });
+    return;
   }
+  guidePanel.update(event);
 });
 let cleanShapes;
 if (configuration.surface === "bubbles") {
@@ -206,7 +173,11 @@ if (configuration.surface === "bubbles") {
     // scrolling; the notice and the guide are plain elements.
     const regions = [
       ...(conversation.bubbles?.regions() ?? []),
-      ...[...document.querySelectorAll(".gl-notice, .gl-guide > button")]
+      ...[
+        ...document.querySelectorAll(
+          ".gl-notice, .gl-guide > button, .gl-guide > .gl-answer-bubble",
+        ),
+      ]
         .filter((n) => n.getClientRects().length)
         .map((n) => box(n.getBoundingClientRect()))
         .filter((r) => r.width && r.height),
@@ -221,9 +192,12 @@ if (configuration.surface === "bubbles") {
     attributes: true,
   });
   addEventListener("resize", shapes);
+  // A guide bubble grows in with a transform; measure it again once it is full size.
+  guide.addEventListener("animationend", shapes);
   document.querySelector("#answers").addEventListener("scroll", shapes, true);
   cleanShapes = () => {
     observer.disconnect();
+    guide.removeEventListener("animationend", shapes);
     removeEventListener("resize", shapes);
     document
       .querySelector("#answers")

@@ -1,9 +1,11 @@
 import { EventEmitter } from "node:events";
 import { captureMatchesDisplay } from "./schema.mjs";
+const COMMANDS = ["pulse", "focus", "fade", "revive"];
 export class OverlayService extends EventEmitter {
   constructor({
     onDismiss = () => {},
     create,
+    release = (window) => window.close(),
     escape,
     displays,
     windows = () => [],
@@ -15,6 +17,7 @@ export class OverlayService extends EventEmitter {
     Object.assign(this, {
       onDismiss,
       create,
+      release,
       escape,
       displays,
       windows,
@@ -51,7 +54,10 @@ export class OverlayService extends EventEmitter {
       )
     )
       throw Error("Guide capture is stale");
-    if (!this.escape.register("Escape", () => this.dismiss("user")))
+    if (
+      this.escape &&
+      !this.escape.register("Escape", () => this.dismiss("user"))
+    )
       throw Error("Guide Escape shortcut unavailable");
     this.capture = capture;
     this.drawings = drawings;
@@ -96,7 +102,7 @@ export class OverlayService extends EventEmitter {
             .find((d) => String(d.id) === capture.display.id),
         )
       ) {
-        window.close();
+        this.release(window);
         return false;
       }
       this.window = window;
@@ -105,9 +111,14 @@ export class OverlayService extends EventEmitter {
       throw error;
     }
     const window = this.window;
-    window.once("closed", () => {
+    this.closed = () => {
       if (this.window === window) this.dismiss("closed");
-    });
+    };
+    window.once("closed", this.closed);
+    this.markClick = (n) => {
+      if (this.window === window) this.emit("mark-click", n);
+    };
+    window.on("mark-click", this.markClick);
     this.emit("shown", capture);
     return true;
   }
@@ -117,6 +128,18 @@ export class OverlayService extends EventEmitter {
     if (this.window && !this.window.isDestroyed())
       this.window.webContents.send("blinkling:overlay:step", index);
     this.emit("step", index);
+  }
+  /** pulse, focus, fade and revive drive the marks that are already drawn. */
+  command(name, arg) {
+    if (!COMMANDS.includes(name))
+      throw Error(`Unknown overlay command ${name}`);
+    if (this.window && !this.window.isDestroyed())
+      this.window.webContents.send("blinkling:overlay:command", { name, arg });
+  }
+  /** The window is click-through; it takes the mouse only over a badge. */
+  setInteractive(on) {
+    if (this.window && !this.window.isDestroyed())
+      this.window.setIgnoreMouseEvents(!on, { forward: true });
   }
   /** Reasons: user (Esc, 結束導覽, click on Blink), content-changed,
    * capture-unavailable, display-changed, replaced, failed, closed. Each
@@ -128,8 +151,12 @@ export class OverlayService extends EventEmitter {
     this.capture = null;
     this.drawings = null;
     this.window = null;
-    if (active) this.escape.unregister("Escape");
-    if (window && !window.isDestroyed()) window.close();
+    if (active) this.escape?.unregister("Escape");
+    if (window && !window.isDestroyed()) {
+      window.removeListener("mark-click", this.markClick);
+      window.removeListener("closed", this.closed);
+      this.release(window);
+    }
     if (active) {
       this.log(`[blinkling] guide dismissed: ${reason}`);
       this.onDismiss(reason);

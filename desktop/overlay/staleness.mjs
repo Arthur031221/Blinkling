@@ -41,6 +41,7 @@ export class StalenessWatch {
   start() {
     this.stop();
     const capture = this.overlay.capture;
+    if (!capture?.image) return;
     this.failures = 0;
     this.detector = new DriftDetector({
       display: capture.display,

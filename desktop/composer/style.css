@@ -539,6 +539,19 @@ body[data-surface="bubbles"] #card {
   padding: 8px;
   background: transparent;
 }
+/* The pill is its text plus its padding, never the width of the window, and
+   grows in with transform and opacity only. */
+.gl-guide > .gl-answer-bubble {
+  width: fit-content;
+  margin: 0 0 8px;
+  animation: gl-guide-in var(--motion-base) var(--ease-enter);
+}
+@keyframes gl-guide-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
 .gl-guide > button,
 .gl-notice > button {
   border: 1px solid var(--gl-border);
