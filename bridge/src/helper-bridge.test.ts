@@ -174,6 +174,31 @@ it("returns null without a helper and the structure with one, clearing secure fi
   expect(JSON.stringify(result)).not.toContain("hunter2");
 });
 
+it("keeps the tag a helper reports and drops a tag that is not a tag name", async () => {
+  const { bridge, helper } = await setup();
+  const socket = await helper();
+  socket.on("message", (raw) => {
+    const message = JSON.parse(String(raw));
+    if (message.type !== "elements") return;
+    socket.send(
+      JSON.stringify({
+        type: "elements-result",
+        id: message.id,
+        result: {
+          page,
+          frame,
+          elements: [
+            element({ id: "a", tag: "canvas" }),
+            element({ id: "b", tag: "<script>alert(1)</script>" }),
+          ],
+        },
+      }),
+    );
+  });
+  const result = await bridge.elements({ x: 1, y: 1 });
+  expect(result?.elements.map((e) => e.tag)).toEqual(["canvas", ""]);
+});
+
 it("treats a restricted page as null and does not ask again within the cache window", async () => {
   let now = 10_000;
   const { bridge, helper } = await setup({ now: () => now });

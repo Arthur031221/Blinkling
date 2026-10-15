@@ -16,6 +16,7 @@ export type HelperPage = {
 export type HelperElement = {
   id: string;
   kind: string;
+  tag: string;
   rect: { x: number; y: number; width: number; height: number };
   role: string;
   name: string;
@@ -91,6 +92,10 @@ export function readElements(value: unknown): ElementsResult | null {
     const element: HelperElement = {
       id: text(e.id, 100),
       kind: text(e.kind, 40),
+      tag:
+        typeof e.tag === "string" && /^[a-z][a-z0-9-]{0,31}$/.test(e.tag)
+          ? e.tag
+          : "",
       rect: {
         x: finite(rect.x),
         y: finite(rect.y),
