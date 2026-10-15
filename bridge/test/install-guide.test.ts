@@ -77,17 +77,18 @@ describe("documented plugin upgrades", () => {
     "README.fr.md",
     "README.de.md",
     "README.pt-BR.md",
-  ])("%s keeps installation and upgrades current", async (file) => {
-    const readme = await readFile(file, "utf8");
+  ])("%s links the install guide that keeps upgrades current", async (file) => {
+    expect(await readFile(file, "utf8")).toContain("docs/INSTALL.md");
+  });
+
+  it("documents the upgrade commands in the install guide", async () => {
+    const guide = await readFile("docs/INSTALL.md", "utf8");
     for (const command of [
       "claude plugin marketplace update blinkling",
       "claude plugin update blinkling@blinkling",
       "/reload-plugins",
-      "claude plugin list",
-      "chrome://extensions",
-      "~/Blinkling-extension",
     ])
-      expect(readme).toContain(command);
+      expect(guide).toContain(command);
   });
 });
 

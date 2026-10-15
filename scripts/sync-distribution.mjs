@@ -73,27 +73,8 @@ const LINK_LABELS = {
   },
 };
 
-const STORE_PAIR_STEP = {
-  en: "Open the store link above and add Blinkling, then return to the welcome guide to pair. If Claude Code is remote, run the guide's SSH command on the computer with your browser.",
-  de: "Öffne den Store-Link oben und füge Blinkling hinzu. Kehre dann zur Willkommensanleitung zurück, um die Verbindung herzustellen. Läuft Claude Code auf einem entfernten Rechner, führe den SSH-Befehl der Anleitung auf dem Computer mit deinem Browser aus.",
-  es: "Abre el enlace de la tienda de arriba y añade Blinkling. Vuelve a la guía de bienvenida para vincularlo. Si Claude Code está en un equipo remoto, ejecuta el comando SSH de la guía en el equipo con tu navegador.",
-  fr: "Ouvrez le lien de la boutique ci-dessus et ajoutez Blinkling, puis revenez au guide de bienvenue pour l'associer. Si Claude Code est distant, exécutez la commande SSH du guide sur l'ordinateur avec votre navigateur.",
-  ja: "上のストアリンクを開いて Blinkling を追加し、ウェルカムガイドに戻ってペアリングします。Claude Code がリモートで動いている場合は、ブラウザーのある端末でガイドの SSH コマンドを実行してください。",
-  ko: "위 스토어 링크에서 Blinkling을 추가한 후 시작 안내로 돌아와 페어링합니다. Claude Code가 원격 호스트에서 실행 중이면 브라우저가 있는 컴퓨터에서 안내의 SSH 명령을 실행하세요.",
-  "pt-BR":
-    "Abra o link da loja acima e adicione o Blinkling. Volte ao guia de boas-vindas para parear. Se o Claude Code estiver em um host remoto, execute o comando SSH do guia no computador com seu navegador.",
-  "zh-CN":
-    "打开上方商店链接并添加 Blinkling，再回到欢迎指南配对。如果 Claude Code 在远程主机上运行，请在浏览器所在的电脑执行指南中的 SSH 命令。",
-  "zh-TW":
-    "開啟上方商店連結並加入 Blinkling，再回到歡迎指南配對。如果 Claude Code 在遠端主機執行，請在瀏覽器所在的電腦執行指南中的 SSH 指令。",
-};
-const UNPACKED_LIMIT =
-  /developer banner|Entwicklermodus-Hinweis|Updates erfolgen manuell|bannière de développement|aviso de desarrollador|開発者向け|開發者提示|开发者提示|개발자 배너|aviso de desenvolvedor|atualizações.*manuais|mises à jour.*manuelles/i;
-
 const BLOCK_START = "<!-- blinkling-store-install:start -->";
 const BLOCK_END = "<!-- blinkling-store-install:end -->";
-const WARNING_MARKER =
-  /(?:developer mode|entwicklermodus|mode développeur|modo de desarrollador|デベロッパーモード|개발자 모드|modo de desenvolvedor|开发者模式|開發人員模式)/i;
 const ALLOWED_HOSTS = {
   chromeWebStoreUrl: new Set([
     "chromewebstore.google.com",
@@ -135,17 +116,7 @@ function updateReadme(source, locale, config) {
   const block = links.length
     ? `${BLOCK_START}\n${links.map((link) => `- ${link}`).join("\n")}\n${BLOCK_END}`
     : "";
-  if (
-    block &&
-    source.includes(block) &&
-    !source
-      .split(/(?<=\n)/)
-      .some(
-        (line) => line.trimStart().startsWith(">") && WARNING_MARKER.test(line),
-      )
-  ) {
-    return source;
-  }
+  if (block && source.includes(block)) return source;
   let content = source.replace(
     new RegExp(`${BLOCK_START}[\\s\\S]*?${BLOCK_END}`, "g"),
     "",
@@ -162,42 +133,6 @@ function updateReadme(source, locale, config) {
       .slice(afterHeading)
       .replace(/^(?:\r?\n)+/, "");
     content = `${content.slice(0, afterHeading)}\n\n${block}\n\n${followingContent}`;
-    // Keep the developer instructions only in the Advanced source section.
-    content = content.replace(
-      /^3\.[\s\S]*?(?=^###\s)/m,
-      `3. ${STORE_PAIR_STEP[locale]}\n\n`,
-    );
-    const advanced = /^###\s.+$/m.exec(content);
-    if (!advanced)
-      throw new Error(`Could not find the ${locale} Advanced heading`);
-    const followingSection = /^##\s.+$/m.exec(
-      content.slice(advanced.index + advanced[0].length),
-    );
-    const end = followingSection
-      ? advanced.index + advanced[0].length + followingSection.index
-      : content.length;
-    const removeLimits = (text) =>
-      text
-        .split(/(?<=[.!?。])\s+(?=\S)|(?<=。)(?=\S)/)
-        .filter((sentence) => !UNPACKED_LIMIT.test(sentence))
-        .join(" ");
-    // Limits are prose paragraphs; preserve Markdown newlines around them.
-    const strip = (text) =>
-      text
-        .split("\n")
-        .map((line) => (UNPACKED_LIMIT.test(line) ? removeLimits(line) : line))
-        .join("\n");
-    content =
-      strip(content.slice(0, advanced.index)) +
-      content.slice(advanced.index, end) +
-      strip(content.slice(end));
-    content = content
-      .split(/(?<=\n)/)
-      .filter(
-        (line) =>
-          !(line.trimStart().startsWith(">") && WARNING_MARKER.test(line)),
-      )
-      .join("");
   }
   return content;
 }

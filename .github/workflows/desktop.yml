@@ -40,5 +40,5 @@ jobs:
         with:
           name: desktop-failures-${{ matrix.os }}
           path: test-results/desktop/
-# Release builder adds x64/arm64 matrix, archives, pinned SHA256 manifest and
-# macOS upgrade/permission tests. No publishing from this scaffold workflow.
+# Packaging, the install smoke per OS and publishing live in release.yml, which
+# can be dry-run from any branch.

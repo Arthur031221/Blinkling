@@ -9,6 +9,12 @@ for (const name of ["demo", "arxiv"]) {
   await cp(`assets/${name}.gif`, `dist/demo-assets/${name}.gif`);
 }
 
+// The install guide, with the animated wordmark it shows as its title.
+await cp("site/install", "dist/install", { recursive: true });
+for (const name of ["wordmark-light", "wordmark-dark"]) {
+  await cp(`assets/${name}.svg`, `dist/install/${name}.svg`);
+}
+
 // The same approved store URLs switch the site and plugin installation flows.
 const distribution = JSON.parse(
   await readFile("config/distribution.json", "utf8"),
@@ -42,5 +48,5 @@ if (links.length) {
   );
 }
 console.log(
-  "Built the v2 Pages showcase, prerecorded chat and privacy policy.",
+  "Built the Pages showcase, install guide, prerecorded chat and privacy policy.",
 );

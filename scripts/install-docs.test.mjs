@@ -6,45 +6,6 @@ const { version: releaseVersion } = JSON.parse(
   await readFile(join(process.cwd(), "package.json"), "utf8"),
 );
 
-async function readConnectionGuide() {
-  const install = await readFile(
-    join(process.cwd(), "docs/INSTALL.md"),
-    "utf8",
-  );
-  return install
-    .split("## Connect the browser and host\n")[1]
-    .split("\n## ")[0];
-}
-
-describe("installation connection guidance", () => {
-  it("keeps an SSH-paired remote Claude Code login usable without a local CLI or API key", async () => {
-    const guide = await readConnectionGuide();
-    const remoteLogin = guide
-      .split("\n\n")
-      .find((paragraph) => /remote Claude Code login/i.test(paragraph));
-
-    expect(remoteLogin).toBeDefined();
-    expect(remoteLogin).toMatch(/SSH/i);
-    expect(remoteLogin).toMatch(/no local Claude Code installation/i);
-    expect(remoteLogin).toMatch(/browser computer/i);
-    expect(remoteLogin).toMatch(/no API key/i);
-    expect(guide).toContain("ssh -N -L 37115:127.0.0.1:37115 user@remote-host");
-  });
-
-  it("offers direct API mode for no usable host or an explicit choice", async () => {
-    const guide = await readConnectionGuide();
-    const directApi = guide
-      .split("\n\n")
-      .find((paragraph) => /direct API mode/i.test(paragraph));
-
-    expect(directApi).toMatch(/no usable Claude Code host/i);
-    expect(directApi).toMatch(/choose it explicitly/i);
-    expect(guide).not.toContain(
-      "When the browser computer has no local CLI, choose direct API mode",
-    );
-  });
-});
-
 describe("existing terminal conversation setup", () => {
   it("discovers and closes the exact conversation before enabling its channel", async () => {
     const design = await readFile(
@@ -77,14 +38,11 @@ describe("existing terminal conversation setup", () => {
 });
 
 const install = await readFile("docs/INSTALL.md", "utf8");
-const connection = install
-  .split("## Connect the browser and host\n")[1]
-  ?.split("\n## ")[0];
 
 describe("installation guidance", () => {
   it("provides a checkout build, version check, and session-local plugin launch", () => {
     const source = install
-      .split("## Advanced: run a source checkout\n")[1]
+      .split("## Run a source checkout\n")[1]
       ?.split("\n## ")[0];
     expect(source).toBeDefined();
     const shell = [...source.matchAll(/```sh\n([\s\S]*?)\n```/g)]
@@ -94,37 +52,35 @@ describe("installation guidance", () => {
       "npm ci",
       "npm run build:plugin",
       "claude plugin validate .",
-      'claude --plugin-dir "$PWD" plugin list',
-      "node -p \"require('./dist-extension/manifest.json').version\"",
+      "node -p \"require('./.claude-plugin/plugin.json').version\"",
       'claude --plugin-dir "$PWD"',
     ]) {
       expect(shell.split("\n")).toContain(command);
     }
-    expect(source).toContain("blinkling@inline");
     expect(source).toContain(releaseVersion);
     expect(source).toContain("/blinkling:blinkling");
-    expect(source).toContain("dist-extension");
     expect(source).toMatch(/session/i);
   });
 
-  it("lets a browser use the paired remote Claude Code login without a local CLI or API key", () => {
-    expect(connection).toBeDefined();
-    expect(connection).toMatch(/remote Claude Code login.*SSH tunnel/i);
-    expect(connection).toMatch(
-      /do not need to install Claude Code on the browser computer/i,
-    );
-    expect(connection).toMatch(/do not need an Anthropic API key/i);
-    expect(connection).not.toMatch(
-      /When the browser computer has no local CLI, choose direct API mode/i,
+  it("states the Linux sandbox fallback in one line", () => {
+    const linux = install.split("## Linux\n")[1]?.split("\n## ")[0];
+    expect(linux).toMatch(/user namespaces/i);
+    expect(linux).toMatch(
+      /without the sandbox only when no working one exists/,
     );
   });
 
-  it("offers API mode only when a Claude Code host is unavailable or the user chooses it", () => {
-    const apiAdvice = connection
-      ?.split("\n\n")
-      .find((paragraph) => paragraph.includes("direct API mode"));
-    expect(apiAdvice).toMatch(/no usable Claude Code host/i);
-    expect(apiAdvice).toMatch(/choose/i);
-    expect(apiAdvice).toContain("chrome.storage.session");
+  it("no longer describes the removed v2 install flows", () => {
+    for (const gone of [
+      "SSH",
+      "ssh -L",
+      "Developer mode",
+      "Load unpacked",
+      "Zero-install",
+      "API key",
+      "pairing code",
+      "2.1.0",
+    ])
+      expect(install).not.toContain(gone);
   });
 });

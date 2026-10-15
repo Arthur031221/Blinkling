@@ -3,7 +3,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Install Node
 node -e 'if (+process.versions.node.split(".")[0] < 22) process.exit(1)'
 if ($LASTEXITCODE -ne 0) { throw 'Node.js 22 or newer is required.' }
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) { throw 'Install the coding assistant CLI first.' }
-$source = if ($env:BLINKLING_MARKETPLACE) { $env:BLINKLING_MARKETPLACE } else { 'Arthur031221/Glimpselet' }
+$source = if ($env:BLINKLING_MARKETPLACE) { $env:BLINKLING_MARKETPLACE } else { 'Arthur031221/Blinkling' }
 claude plugin marketplace add $source
 if ($LASTEXITCODE -ne 0) { throw 'Marketplace registration failed.' }
 claude plugin install blinkling@blinkling

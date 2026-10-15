@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 - 2026-10-15
+
+Blink is now a desktop companion. This release is about getting it installed.
+
+- Release builds: `Blinkling-<version>-mac-arm64.zip`, `mac-x64.zip`, `win-x64.exe` and `linux-x64.AppImage`, with `SHA256SUMS`. The workflow publishes them and pins them, by digest and size, in `plugin/desktop/manifest.json`. A dry run builds and installs every build on its own system without publishing.
+- The launcher accepts the Blinkling and the old Glimpselet repository addresses, follows GitHub's redirects only to GitHub hosts, and checks the downloaded size as well as the SHA-256.
+- Linux: the Chromium sandbox is chosen from what the kernel offers. On Ubuntu 24.04 with restricted user namespaces Blink starts without the sandbox instead of aborting.
+- Windows installs remove any `Zone.Identifier` stream from the extracted program.
+- `startWithClaudeCode=false` now keeps `start.mjs --background` from opening Blink.
+- The plugin and packages report 3.0.0, and both install scripts read one default repository.
 
 Glimpselet is now called Blinkling. The mascot is still Blink.
 

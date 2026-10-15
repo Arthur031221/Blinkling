@@ -1,17 +1,20 @@
 import { packager } from "@electron/packager";
 import { fileURLToPath } from "node:url";
 import { copyDependencies } from "./dependencies.mjs";
-import { cp } from "node:fs/promises";
+import { cp, readFile } from "node:fs/promises";
 import { join } from "node:path";
+const { version } = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
+);
 const output = await packager({
   dir: fileURLToPath(new URL("..", import.meta.url)),
   out: fileURLToPath(new URL("../../release/desktop", import.meta.url)),
   name: "Blinkling",
   appBundleId: "com.blinkling.desktop",
-  appVersion: "3.0.0",
+  appVersion: version,
   electronVersion: "44.7.2",
   platform: process.platform,
-  arch: process.arch,
+  arch: process.env.BLINKLING_TARGET_ARCH || process.arch,
   overwrite: true,
   prune: true,
   asar: true,

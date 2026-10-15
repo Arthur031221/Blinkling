@@ -6,6 +6,11 @@ on:
         description: Package version to release
         required: true
         type: string
+      dry_run:
+        description: Build, install and check every asset without publishing
+        required: true
+        default: true
+        type: boolean
 permissions:
   contents: write
   actions: read
@@ -16,17 +21,17 @@ env:
   # Automated runs never create Remote Control sessions in a real account.
   BLINKLING_REMOTE: "0"
 jobs:
-  publish:
-    if: github.ref == 'refs/heads/main'
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
-      - name: Require passing CI and matching version
+      - name: Require a matching version and, for a real release, passing CI on main
         uses: actions/github-script@v9
         env:
           RELEASE_VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
         with:
           script: |
             const fs = require('node:fs');
@@ -35,6 +40,8 @@ jobs:
             if (!/^\d+\.\d+\.\d+$/.test(version) || pkg.version !== version) {
               throw new Error('Release version must match package.json');
             }
+            if (process.env.DRY_RUN === 'true') return;
+            if (context.ref !== 'refs/heads/main') throw new Error('Publish from main');
             const {data} = await github.rest.actions.listWorkflowRuns({
               ...context.repo, workflow_id: 'ci.yml', head_sha: context.sha,
               branch: 'main', status: 'completed'
@@ -42,26 +49,116 @@ jobs:
             if (!data.workflow_runs.some(run => run.conclusion === 'success' && run.event === 'push')) {
               throw new Error('Main must pass CI before publishing');
             }
+  desktop:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, target: linux-x64 }
+          - { runner: macos-14, target: mac-arm64, arch: arm64 }
+          - { runner: macos-15-intel, target: mac-x64, arch: x64 }
+          - { runner: windows-latest, target: win-x64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build the asset
+        env:
+          BLINKLING_TARGET_ARCH: ${{ matrix.arch }}
+        run: npm run desktop:package
+      - name: Install it in a clean HOME and check /status
+        if: runner.os != 'Linux'
+        run: node desktop/distribution/install-smoke.mjs "${{ inputs.version }}" release/assets
+      - name: Install it in a clean HOME and check /status (Ubuntu 24.04, user namespaces restricted)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+          xvfb-run -a node desktop/distribution/install-smoke.mjs "${{ inputs.version }}" release/assets
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asset-${{ matrix.target }}
+          path: release/assets/*
+          if-no-files-found: error
+  manifest:
+    needs: desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: asset-*
+          path: release/desktop-assets
+          merge-multiple: true
+      - name: Pin the four builds and write SHA256SUMS
+        run: node desktop/distribution/manifest.mjs "${{ inputs.version }}" release/desktop-assets release/desktop-assets/manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-release
+          path: release/desktop-assets/*
+          if-no-files-found: error
+  publish:
+    needs: manifest
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run package:stores
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-release
+          path: release/desktop-assets
+      - name: Commit the pinned manifest
+        id: pin
+        run: |
+          cp release/desktop-assets/manifest.json plugin/desktop/manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugin/desktop/manifest.json
+          git commit -m "Pin the desktop builds for v${{ inputs.version }}"
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - run: python3 .github/workflows/check-release.py
+      - name: Combine the extension and desktop assets
+        run: |
+          cp release/desktop-assets/Blinkling-* release/
+          cat release/desktop-assets/SHA256SUMS >> release/SHA256SUMS
       - name: Upload assets and publish
         uses: actions/github-script@v9
         env:
           RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_SHA: ${{ steps.pin.outputs.sha }}
         with:
           script: |
             const fs = require('node:fs');
             const version = process.env.RELEASE_VERSION;
+            const sha = process.env.RELEASE_SHA;
             const tag = `v${version}`;
             let release;
             try {
               const ref = await github.rest.git.getRef({...context.repo, ref: `tags/${tag}`});
-              if (ref.data.object.sha !== context.sha) throw new Error('Release tag belongs to another commit');
+              if (ref.data.object.sha !== sha) throw new Error('Release tag belongs to another commit');
             } catch (error) { if (error.status !== 404) throw error; }
             try {
               release = (await github.rest.repos.getReleaseByTag({...context.repo, tag})).data;
@@ -69,19 +166,25 @@ jobs:
             } catch (error) {
               if (error.status !== 404) throw error;
               release = (await github.rest.repos.createRelease({
-                ...context.repo, tag_name: tag, target_commitish: context.sha,
+                ...context.repo, tag_name: tag, target_commitish: sha,
                 name: `Blinkling ${tag}`, draft: true,
                 body: fs.readFileSync(`docs/releases/${tag}.md`, 'utf8')
               })).data;
             }
-            const names = ['blinkling-extension.zip', 'blinkling-chrome-store.zip', 'blinkling-edge-store.zip', 'SHA256SUMS'];
+            const names = [
+              'blinkling-extension.zip', 'blinkling-chrome-store.zip', 'blinkling-edge-store.zip',
+              `Blinkling-${version}-mac-arm64.zip`, `Blinkling-${version}-mac-x64.zip`,
+              `Blinkling-${version}-win-x64.exe`, `Blinkling-${version}-linux-x64.AppImage`,
+              'SHA256SUMS'
+            ];
+            const types = {zip: 'application/zip', exe: 'application/vnd.microsoft.portable-executable'};
             for (const name of names) {
               const existing = release.assets.find(asset => asset.name === name);
               if (existing) await github.rest.repos.deleteReleaseAsset({...context.repo, asset_id: existing.id});
               const data = fs.readFileSync(`release/${name}`);
               await github.rest.repos.uploadReleaseAsset({
                 ...context.repo, release_id: release.id, name, data,
-                headers: {'content-type': name.endsWith('.zip') ? 'application/zip' : 'text/plain'}
+                headers: {'content-type': types[name.split('.').pop()] || (name === 'SHA256SUMS' ? 'text/plain' : 'application/octet-stream')}
               });
             }
             await github.rest.repos.updateRelease({...context.repo, release_id: release.id, draft: false});

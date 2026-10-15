@@ -3,9 +3,9 @@
 <p align="center"><strong>让答案留在页面旁边。</strong></p>
 
 <p align="center">
-  <a href="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/Arthur031221/Glimpselet/releases"><img src="https://img.shields.io/github/v/release/Arthur031221/Glimpselet" alt="Release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Arthur031221/Glimpselet" alt="License" /></a>
+  <a href="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Arthur031221/Blinkling/releases"><img src="https://img.shields.io/github/v/release/Arthur031221/Blinkling" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Arthur031221/Blinkling" alt="License" /></a>
 </p>
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
@@ -23,61 +23,24 @@ _Google Flights：先看页面导览，再询问如何预订往返航班。_
 
 ## 安装
 
-1. 在 Claude Code 中安装插件：
+需要已登录的 Claude Code。然后：
 
-   ```text
-   /plugin marketplace add Arthur031221/Glimpselet
-   /plugin install blinkling@blinkling
+1. 把下面这一行粘贴到终端并按回车：
+
+   ```sh
+   claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. 打开欢迎指南：
+2. 在 Claude Code 中运行：
 
    ```text
    /blinkling:blinkling
    ```
 
-3. 在 `chrome://extensions`（或 `edge://extensions`）开启**开发者模式**。选择 **Load unpacked**，并选中 **Show in Files / Finder** 打开的文件夹。欢迎页会自动连接，再打开悬浮窗口。
+3. 在 Mac 上，一次性允许 Blinkling 使用**屏幕录制**：系统设置，隐私与安全性。
 
 > [!NOTE]
-> 本机可用 **Try without installing** 打开独立 Chromium 配置文件。远程主机请在浏览器所在电脑执行显示的 SSH 命令。[安装与更新](docs/INSTALL.md)。
-
-### 高级：从源代码加载
-
-<details>
-<summary>从源码启动与手动更新</summary>
-
-从源代码运行插件需要 Node.js 22+ 和较新的 Claude Code。如果终端已经位于现有源代码仓库的根目录，请跳过前两条命令。请在终端执行以下命令：
-
-```sh
-git clone https://github.com/Arthur031221/Glimpselet.git
-cd Blinkling
-npm ci
-npm run build:plugin
-claude plugin validate .
-node -p "require('./.claude-plugin/plugin.json').version"
-node -p "require('./dist-extension/manifest.json').version"
-claude --plugin-dir "$PWD" plugin list
-claude --plugin-dir "$PWD" plugin details blinkling
-node -p "require('./bin/extension/manifest.json').version"
-claude --plugin-dir "$PWD"
-```
-
-两条版本检查命令都应显示 `2.1.0`。插件列表应显示 `blinkling@inline` 的版本为 `2.1.0`，并已在此会话中启用。最后一条命令会打开 Claude Code。在这个会话中运行 `/blinkling:blinkling`，即可打开欢迎指南。`--plugin-dir` 只在当前会话加载这份源代码中的插件。每次启动时都要加上这个选项。重新执行 `npm run build:plugin` 构建后，请重启 Claude Code。构建好的扩展位于 `dist-extension`，欢迎指南会将它复制到下方的固定目录。
-
-插件详情还应包含 `blinkling` 和 `install` 技能以及 `blinkling` MCP 服务器。打包后的扩展位于 `bin/extension`，版本也应为 **2.1.0**。如果 Claude Code 在远程主机上运行，请使用指南中的 SSH 命令，在浏览器所在的电脑下载扩展 ZIP，并加载解压后的文件夹。
-
-如果浏览器和 Claude Code 在同一台电脑上运行，欢迎指南会把构建好的扩展复制到固定目录 `~/Blinkling-extension`。在 Chrome 或 Edge 中打开 `chrome://extensions` 或 `edge://extensions`，开启 **Developer mode**，选择 **Load unpacked**，然后选中该目录。开发者提示会一直显示。新版本需要手动更新。
-更新未打包扩展时，先关闭旧浮动窗口，再运行 `/blinkling:blinkling` 刷新固定目录，然后在扩展页面的卡片点击"重新加载"。如果 Claude Code 在远程主机，请通过欢迎指南下载新版 ZIP，在浏览器所在电脑替换解压后的文件，再重新加载扩展。 改用 `~/Blinkling-extension` 时，请移除旧扩展卡片，再加载这个文件夹一次。
-
-已安装的插件请执行以下命令，再在 Claude Code 执行 `/reload-plugins` 和 `/blinkling:blinkling`。确认插件列表与扩展卡片均为 **2.1.0** 后，再重新打开悬浮窗口。
-
-```sh
-claude plugin marketplace update blinkling
-claude plugin update blinkling@blinkling
-claude plugin list
-```
-
-</details>
+> 在 Windows PowerShell 5 中，用 `;` 代替 `&&`。适合你电脑的动画步骤：[安装指南](https://arthur031221.github.io/Blinkling/install/)。其他安装方式、更新和 Linux 沙盒：[docs/INSTALL.md](docs/INSTALL.md)。
 
 ## 边读边用
 

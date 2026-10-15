@@ -111,4 +111,25 @@ for store in ["chrome", "edge"]:
     artifacts.append(kit)
 expected = "".join(f"{sha256(path.read_bytes()).hexdigest()}  {path.name}\n" for path in artifacts)
 require((ROOT / "release/SHA256SUMS").read_text() == expected, "Release checksums do not match")
+desktop = ROOT / "release/desktop-assets"
+if desktop.is_dir():
+    pinned = read_json("plugin/desktop/manifest.json")
+    require(pinned["schemaVersion"] == 1 and pinned["version"] == version, "Plugin manifest pins another version")
+    names = {
+        ("darwin", "arm64"): f"Blinkling-{version}-mac-arm64.zip",
+        ("darwin", "x64"): f"Blinkling-{version}-mac-x64.zip",
+        ("win32", "x64"): f"Blinkling-{version}-win-x64.exe",
+        ("linux", "x64"): f"Blinkling-{version}-linux-x64.AppImage",
+    }
+    require(len(pinned["builds"]) == len(names), "Plugin manifest must pin exactly the four desktop builds")
+    sums = {}
+    for build in pinned["builds"]:
+        name = names[(build["os"], build["arch"])]
+        data = (desktop / name).read_bytes()
+        require(sha256(data).hexdigest() == build["sha256"], f"Manifest digest differs from {name}")
+        require(len(data) == build["size"], f"Manifest size differs from {name}")
+        require(build["url"] == f"https://github.com/Arthur031221/Blinkling/releases/download/v{version}/{name}", f"Wrong download address for {name}")
+        sums[name] = build["sha256"]
+    listed = dict(line.split("  ", 1)[::-1] for line in (desktop / "SHA256SUMS").read_text().splitlines())
+    require(listed == sums, "Desktop SHA256SUMS differs from the manifest")
 print(f"Release {version}: versions, nine READMEs, listing images and all three ZIPs passed.")
