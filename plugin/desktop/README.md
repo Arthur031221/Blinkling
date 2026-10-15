@@ -5,9 +5,9 @@ manifest embedded in this plugin. SessionStart reconnects after the first
 successful launch; neither path asks for a port, pairing code, browser extension,
 or Claude startup flag.
 
-The release workflow pins `manifest.json` before publishing V3. A checkout keeps
-the empty build list, which intentionally refuses installation: there is no
-published binary to trust yet. Each build specifies `os` (`darwin`, `win32`,
+The release workflow pins `manifest.json` to the published assets. If the build
+list is ever empty, the launcher refuses to install rather than trust an unknown
+binary. Each build specifies `os` (`darwin`, `win32`,
 `linux`, Node's names), `arch` (`arm64`, `x64`), GitHub release `url`, lowercase
 `sha256`, `size` in bytes, `archive` (`zip`, `file` for a single executable such
 as the AppImage or the Windows exe, or `tar.gz`), and relative executable
