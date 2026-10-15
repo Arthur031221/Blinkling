@@ -56,17 +56,18 @@ export function createMiniController({
 
   let placed = null;
   let picks = [];
+  // Where Blink is while it is carried: the box goes with it, not to where it will land.
+  let carried = null;
+  const blinkAt = () => carried ?? blinkPoint();
 
-  /** The box opens on the display of the pick, away from what was picked and from
-   * Blink; a Blink click has no pick, so it is beside Blink on Blink's display. */
+  /** The box is anchored to Blink's mouth, on Blink's display, and moves aside
+   * from what was picked only by changing sides. */
   function place() {
     const taken = picks.map((e) => e.taken).filter(Boolean);
-    const display = taken.find((t) => t.display)?.display;
-    const area = display ? (display.workArea ?? display.bounds) : workArea();
     placed = placeMini({
-      blink: blinkPoint(),
+      blink: blinkAt(),
       size: { width: MINI_WIDTH + 32, height },
-      workArea: area,
+      workArea: workArea(),
       avoid: taken.map((t) => t.bounds).filter(Boolean),
     });
     win.setBounds(placed);
@@ -74,7 +75,7 @@ export function createMiniController({
 
   /** Where the box grows from: Blink's body, relative to the box. */
   function origin() {
-    const body = blinkBody(blinkPoint());
+    const body = blinkBody(blinkAt());
     return {
       x: Math.round(body.x + body.width / 2 - placed.x),
       y: Math.round(body.y + body.height / 2 - placed.y),
@@ -240,6 +241,12 @@ export function createMiniController({
       win.focus();
       claimKeyboard();
       if (!wasOpen) host.changed?.(true);
+    },
+    /** Blink moved (`point`: its feet while it is carried, none once it rests):
+     * the box goes with it. */
+    follow(point = null) {
+      carried = point;
+      if (model) place();
     },
     /** Whether the box sits over any of these screen rectangles. */
     covers(rects) {

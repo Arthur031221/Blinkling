@@ -447,6 +447,7 @@ function useDisplay(next) {
       display.scaleFactor,
     );
   placeCard();
+  followBlink();
   if (moved) tellDeck({ type: "display" }); // answers stay on the display they were said on
   tellMenu();
   broadcast();
@@ -454,6 +455,8 @@ function useDisplay(next) {
 /** The card and the answer deck share one rectangle; move them together.
  * Called on every move of Blink, on drop and on every display change. */
 let placedAt = "";
+// The quick box goes with Blink too; it exists once the pick feature is up.
+let followBlink = () => {};
 function placeCard(at = position) {
   const bounds = cardBounds(display, at);
   const key = JSON.stringify(bounds);
@@ -548,6 +551,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       else if (process.platform === "win32") blink.setShape(regions);
       if (saved) await store.save(display.id, saved);
       placeCard();
+      followBlink();
       if (carried) tellDeck({ type: "drag", value: false });
     }
   } else if (command.type === "pin") {
@@ -1007,6 +1011,7 @@ const pick = await installPick({
     },
   },
 });
+followBlink = (point) => pick.followBlink(point);
 // Privacy looks through whichever locator pick has now, so one that plugs in
 // later is used by both; its verdicts come back to pick as the open guard.
 const pickLocator = {
@@ -1126,8 +1131,10 @@ const poll = setInterval(() => {
       x: drag.origin.x + p.x - drag.start.x,
       y: drag.origin.y + p.y - drag.start.y,
     };
-    if (drag.active)
+    if (drag.active) {
       placeCard(resolvePosition(display, snapPosition(display, drag.anchor)));
+      followBlink(drag.anchor);
+    }
     broadcast();
   }
   const local = { x: p.x - display.bounds.x, y: p.y - display.bounds.y };

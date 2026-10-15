@@ -11,6 +11,7 @@ import {
   moveOn,
   rigPoint,
   background,
+  miniBounds,
   miniFocused,
   miniPage,
 } from "./support.mjs";
@@ -213,6 +214,42 @@ test("the mini composer has the add button, model, effort and permission lists, 
     await mini.locator(".mini-input").focus();
     await mini.keyboard.press("Escape");
     await expect.poll(() => miniFocused(c.app)).toBe(false);
+  } finally {
+    await c.close();
+  }
+});
+
+test("the mini composer stays at Blink's mouth when Blink moves", async () => {
+  const c = await launch();
+  try {
+    await background(c.app);
+    await place(c, "right", 0.8);
+    await c.page.waitForTimeout(400);
+    await moveOn(c.page);
+    const p = await rigPoint(c.page);
+    native(p.x, p.y, "down");
+    native(p.x, p.y, "up");
+    await expect.poll(() => miniFocused(c.app)).toBe(true);
+    // The mouth sits 78 px below the top of Blink's box; the box rises from 40 px under it.
+    const bottomWanted = () =>
+      c.app.evaluate(() => {
+        const s = globalThis.blinklingTest.snapshot();
+        return Math.round(
+          s.position.reveal.y + s.display.bounds.y - 142 + 78 + 40,
+        );
+      });
+    const bottom = async () => {
+      const b = await miniBounds(c.app);
+      return b.y + b.height;
+    };
+    await expect.poll(bottom).toBe(await bottomWanted());
+    const low = await bottom();
+    await place(c, "right", 0.5);
+    await expect.poll(bottom).not.toBe(low);
+    await expect.poll(bottom).toBe(await bottomWanted());
+    const b = await miniBounds(c.app);
+    const rig = await rigPoint(c.page);
+    expect(b.x + b.width).toBeLessThanOrEqual(rig.x);
   } finally {
     await c.close();
   }

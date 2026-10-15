@@ -294,6 +294,8 @@ export async function installPick({
      * capture from the region selector, the full-page grab or the hotkey. */
     deliver: (input) => controller.deliver(input),
     openMini: (entries) => mini.open(entries),
+    /** Blink moved: an open mini composer goes with it (`point` while carried). */
+    followBlink: (point) => mini.follow(point),
     setPickKey(name) {
       if (!PICK_KEY_NAMES.includes(name)) return false;
       pickKey = name;

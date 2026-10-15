@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { placeMini, MINI_WIDTH } from "./placement.mjs";
+import { MOUTH, MOUTH_DROP } from "../main/placement.mjs";
 
 const work = { x: 0, y: 0, width: 1280, height: 800 };
 const size = { width: MINI_WIDTH, height: 140 };
@@ -10,11 +11,32 @@ const inside = (b) =>
   b.x + b.width <= work.x + work.width &&
   b.y + b.height <= work.y + work.height;
 
-test("Blink on the right edge puts the mini box to its left, centred on Blink", () => {
-  const b = placeMini({ blink: { x: 1280, y: 400 }, size, workArea: work });
+test("Blink on the right edge puts the mini box to its left, rising from the mouth", () => {
+  const blink = { x: 1280, y: 400 };
+  const b = placeMini({ blink, size, workArea: work });
   assert.ok(b.x + b.width < 1280);
-  assert.equal(Math.round(b.y + b.height / 2), 400);
+  const mouth = bodyOf(blink).y + MOUTH.y;
+  assert.equal(b.y + b.height, mouth + MOUTH_DROP);
+  assert.ok(b.y < mouth && mouth < b.y + b.height);
   assert.ok(inside(b));
+});
+
+test("the box follows Blink: the same call at a new place moves the box with it", () => {
+  const a = placeMini({ blink: { x: 1280, y: 300 }, size, workArea: work });
+  const b = placeMini({ blink: { x: 1280, y: 600 }, size, workArea: work });
+  assert.equal(b.y - a.y, 300);
+  assert.equal(b.x, a.x);
+});
+
+test("a taller box keeps the mouth the same distance above its bottom edge", () => {
+  const blink = { x: 1280, y: 500 };
+  const short = placeMini({ blink, size, workArea: work });
+  const tall = placeMini({
+    blink,
+    size: { width: MINI_WIDTH, height: 300 },
+    workArea: work,
+  });
+  assert.equal(short.y + short.height, tall.y + tall.height);
 });
 
 test("Blink on the left edge puts it to the right", () => {

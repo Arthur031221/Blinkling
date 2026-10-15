@@ -1,6 +1,19 @@
 import { menuLayout } from "../menu/layout.mjs";
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const CHARACTER = Object.freeze({ width: 148, height: 152, foot: 142 });
+/** Blink's mouth inside its box, from the top left. */
+export const MOUTH = Object.freeze({ x: 74, y: 78 });
+/** How far below the mouth a panel's bottom edge sits: panels rise from it. */
+export const MOUTH_DROP = 40;
+/** Where a panel of this height starts so that it is anchored to the mouth of
+ * the Blink in `box`, kept inside `area` less `margin`. */
+export function anchoredTop(box, height, area, margin = 0) {
+  const lo = area.y + margin,
+    hi = area.y + area.height - margin - height;
+  return Math.round(
+    Math.max(lo, Math.min(hi, box.y + MOUTH.y + MOUTH_DROP - height)),
+  );
+}
 const valid = (p) =>
   p &&
   ["left", "right", "top", "bottom"].includes(p.edge) &&
@@ -102,9 +115,7 @@ export function cardBounds(display, position) {
     x: position.reveal.x + display.bounds.x,
     y: position.reveal.y + display.bounds.y,
   };
-  const y = Math.round(
-    clamp(anchor.y - height, a.y + 12, a.y + a.height - height - 12),
-  );
+  const y = anchoredTop(blink, height, a, 12);
   // Beside Blink, away from its edge. On a top or bottom edge, or in a corner,
   // take whichever side has room so the card never lands on top of Blink.
   const room = {

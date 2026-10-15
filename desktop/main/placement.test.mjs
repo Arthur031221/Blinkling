@@ -5,6 +5,8 @@ import {
   resolvePosition,
   reconcileDisplay,
   cardBounds,
+  MOUTH,
+  MOUTH_DROP,
 } from "./placement.mjs";
 import { menuLayout, menuTransform } from "../menu/layout.mjs";
 const display = {
@@ -216,6 +218,18 @@ test("the card takes the side of Blink that has room, whatever the edge", () => 
   assert.ok(
     cardBounds(screen, topRight).x < topRight.reveal.x + screen.bounds.x,
   );
+});
+test("the card rises from Blink's mouth and moves with Blink along its edge", () => {
+  const screen = panels["100%"];
+  const at = (ratio) => resolvePosition(screen, { edge: "right", ratio });
+  const mouthOf = (p) =>
+    p.reveal.y + screen.bounds.y - 142 + MOUTH.y + MOUTH_DROP;
+  const a = at(0.85),
+    b = at(0.95);
+  const card = (p) => cardBounds(screen, p);
+  assert.equal(card(a).y + card(a).height, Math.round(mouthOf(a)));
+  assert.equal(card(b).y + card(b).height, Math.round(mouthOf(b)));
+  assert.ok(card(b).y > card(a).y, "a lower Blink brings the card lower");
 });
 for (const [name, d] of Object.entries({
   "a narrow display right of the primary (the seam)": {

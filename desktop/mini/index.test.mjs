@@ -86,6 +86,28 @@ test("opening shows the view, places the window beside Blink and takes the keybo
   setLayer("mini", null);
 });
 
+test("the box follows Blink while it is carried and settles where Blink lands", async () => {
+  const options = { blinkOn: { point: { x: 1280, y: 300 } } };
+  const { controller, state, sent } = setup(options);
+  await controller.open(entries());
+  const rest = { ...state.bounds };
+  controller.follow({ x: 1280, y: 500 });
+  assert.equal(state.bounds.y - rest.y, 200);
+  assert.equal(state.bounds.x, rest.x);
+  options.blinkOn.point = { x: 1280, y: 600 };
+  controller.follow();
+  assert.equal(state.bounds.y - rest.y, 300, "released: at the resting place");
+  const opens = sent.filter(([c]) => c === "blinkling:mini-open");
+  assert.equal(opens.length, 1, "following does not replay the opening");
+  controller.escape();
+});
+
+test("following with the box closed does nothing", () => {
+  const { controller, state } = setup();
+  controller.follow({ x: 10, y: 10 });
+  assert.equal(state.bounds, null);
+});
+
 test("the host hears when the mini composer opens and when it closes (the fan stays shut meanwhile)", async () => {
   const { controller, fire, log } = setup();
   await controller.open(entries());
@@ -232,15 +254,15 @@ const hits = (a, b) =>
   a.y < b.y + b.height &&
   b.y < a.y + a.height;
 
-test("a pick on a different display than Blink's opens on the pick's display, clear of the pick", async () => {
+test("a pick on a different display than Blink's still opens beside Blink, on Blink's display", async () => {
   const { controller, state } = setup({
     blinkOn: { point: { x: 3100, y: 500 }, workArea: second.workArea },
   });
   const picked = { x: 300, y: 200, width: 400, height: 260 };
   await controller.open(pickedOn(first, picked));
   const box = state.bounds;
-  assert.ok(box.x + box.width <= first.workArea.width, "on the pick's display");
-  assert.equal(hits(box, picked), false, "not over the pick");
+  const area = second.workArea;
+  assert.ok(box.x >= area.x && box.x + box.width <= area.x + area.width);
   setLayer("mini", null);
 });
 

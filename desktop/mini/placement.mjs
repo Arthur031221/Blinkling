@@ -1,4 +1,4 @@
-import { CHARACTER } from "../main/placement.mjs";
+import { CHARACTER, anchoredTop } from "../main/placement.mjs";
 
 /** Width of the mini composer, in DIP. Its height follows its content. */
 export const MINI_WIDTH = 360;
@@ -18,10 +18,13 @@ export const blinkBody = (point) => ({
   height: CHARACTER.height,
 });
 
-/** Where the mini box goes. It stays as near Blink as it can and never covers
- * Blink's body (the send button is in its corner) or anything in `avoid`, which
- * is what was picked (N6.5: move aside, never cover the picked thing). Always
- * inside the work area. If nothing is clear it covers as little as possible.
+/** Where the mini box goes. It is anchored to Blink's mouth: beside Blink, rising
+ * from just under the mouth, on whichever side has more room unless that side
+ * would cover something in `avoid` (N6.5: move aside, never cover the picked
+ * thing). It never covers Blink's body (the send button is in its corner) and
+ * stays inside the work area. Only on a display too narrow for either side does
+ * it go above or below Blink, and only when the picked thing fills every
+ * place near Blink does it go beside the pick.
  *
  * blink: Blink's feet. When it is outside `workArea` it stands on another
  * display, so the box is drawn towards the nearest point and its body is no
@@ -41,21 +44,28 @@ export function placeMini({ blink, size, workArea, avoid = [] }) {
     y: clamp(blink.y, workArea.y, bottom),
   };
   const body = blinkBody(anchor);
-  const centre = { x: body.x + body.width / 2, y: body.y + body.height / 2 };
+  const centre = body.x + body.width / 2;
   const obstacles = [...(here ? [body] : []), ...avoid];
 
-  // Beside Blink (the roomier side first), above, below; then the same around each pick.
-  const candidates = [];
-  for (const r of [body, ...avoid]) {
-    const x = centre.x - width / 2;
-    const y = anchor.y - height / 2;
-    const left = { x: r.x - GAP - width, y };
-    const rightOf = { x: r.x + r.width + GAP, y };
-    const roomier = centre.x - workArea.x >= right - centre.x;
+  const y = anchoredTop(body, height, workArea);
+  const left = { x: body.x - GAP - width, y };
+  const rightOf = { x: body.x + body.width + GAP, y };
+  const roomier = centre - workArea.x >= right - centre;
+  const x = centre - width / 2;
+  const candidates = [
+    ...(roomier ? [left, rightOf] : [rightOf, left]),
+    { x, y: body.y - GAP - height },
+    { x, y: body.y + body.height + GAP },
+  ];
+  // Only when everything near Blink is covered does the box leave its mouth,
+  // for the room around what was picked.
+  for (const r of avoid) {
+    const cx = r.x + r.width / 2 - width / 2;
     candidates.push(
-      ...(roomier ? [left, rightOf] : [rightOf, left]),
-      { x, y: r.y - GAP - height },
-      { x, y: r.y + r.height + GAP },
+      { x: r.x - GAP - width, y },
+      { x: r.x + r.width + GAP, y },
+      { x: cx, y: r.y - GAP - height },
+      { x: cx, y: r.y + r.height + GAP },
     );
   }
   let best = null;

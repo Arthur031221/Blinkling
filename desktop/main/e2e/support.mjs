@@ -269,6 +269,12 @@ export const openCard = (page) =>
   );
 export const miniPage = (app) =>
   app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
+export const miniBounds = (app) =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((w) => /\/mini\/index\.html$/.test(w.webContents.getURL()))
+      ?.getBounds(),
+  );
 /** The mini composer is on screen and holds the keyboard. */
 export const miniFocused = (app) =>
   app.evaluate(({ BrowserWindow }) => {
