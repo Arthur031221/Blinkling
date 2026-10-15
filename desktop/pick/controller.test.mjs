@@ -24,7 +24,7 @@ function setup(options = {}) {
     layer,
     settle: async () => {},
     grab: options.grab ?? (async () => (log.grabs++, { image: { data: PNG }, pixelWidth: 1280, pixelHeight: 800, region: DISPLAY.bounds })),
-    crop: (capture, bounds) => ({ data: PNG, dataUrl: `data:image/png;base64,${PNG}`, width: bounds.width, height: bounds.height }),
+    crop: options.crop ?? ((capture, bounds) => ({ data: PNG, dataUrl: `data:image/png;base64,${PNG}`, width: bounds.width, height: bounds.height })),
     grouper: createGrouper({ clock: () => clock, uuid: (() => { let n = 0; return () => `chat-${++n}`; })() }),
     newChat: async () => void log.newChats++,
     blinkPoint: () => ({ x: 1280, y: 400 }),
@@ -186,4 +186,14 @@ test("a failed screen grab still delivers the text that was picked, and drops wh
   const [entries] = failing.log.opened;
   assert.deepEqual(entries.map((e) => e.kind), ["text"]);
   assert.equal(failing.log.errors.length, 1);
+});
+
+test("on a second display the crop is taken relative to that display, not the desktop", async () => {
+  const crops = [];
+  const second = { id: "2", bounds: { x: 1280, y: 0, width: 1920, height: 1080 }, scaleFactor: 1 };
+  const { controller } = setup({ crop: (shot, rect) => (crops.push(rect), { data: PNG, dataUrl: "d", width: rect.width, height: rect.height }) });
+  await controller.deliver([
+    { source: "pick", display: second, kind: "image", bounds: { x: 1380, y: 120, width: 200, height: 100 } },
+  ]);
+  assert.deepEqual(crops, [{ x: 100, y: 120, width: 200, height: 100 }]);
 });

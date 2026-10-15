@@ -131,10 +131,11 @@ export function createPickController({
     }
   }
 
-  const thumbnail = (shot, bounds) => {
+  /** The grab covers one display, so a pick is cut out relative to that display. */
+  const thumbnail = (shot, { bounds, display }) => {
     if (!shot) return null;
     try {
-      const local = { ...bounds, x: bounds.x - shot.region.x, y: bounds.y - shot.region.y };
+      const local = { ...bounds, x: bounds.x - display.bounds.x, y: bounds.y - display.bounds.y };
       return crop(shot, local);
     } catch (error) {
       onError(error);
@@ -175,7 +176,7 @@ export function createPickController({
     } finally {
       release();
     }
-    const pictures = takens.map((t) => thumbnail(shot, t.bounds));
+    const pictures = takens.map((t) => thumbnail(shot, t));
     const entries = [];
     const flightItems = [];
     takens.forEach((taken, i) => {
