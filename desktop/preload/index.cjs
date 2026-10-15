@@ -37,5 +37,7 @@ contextBridge.exposeInMainWorld(
     openLink: (url) => ipcRenderer.invoke("blinkling:open-link", url),
     bubbleRegions: (regions) =>
       ipcRenderer.send("blinkling:bubble-regions", regions),
+    bubbleHover: (value) => ipcRenderer.send("blinkling:bubble-hover", value),
+    onMarkClick: (listener) => subscribe("blinkling:mark-click", listener),
   }),
 );

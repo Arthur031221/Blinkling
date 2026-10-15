@@ -201,19 +201,17 @@ test("bubbles stream upward, fade by height, retain wheel history, revive after 
     await expect(
       bubble.getByRole("button", { name: "在對話中開啟" }),
     ).toBeVisible();
+    // Older bubbles fade by opacity alone, in order of their distance (BD-3).
     await expect
       .poll(() =>
-        bubble
-          .locator(".gl-answer-bubble")
-          .evaluateAll(
-            (nodes) =>
-              Number(
-                getComputedStyle(nodes.at(-1)).getPropertyValue("--gl-age"),
-              ) <
-                Number(
-                  getComputedStyle(nodes[0]).getPropertyValue("--gl-age"),
-                ) && nodes.every((n) => getComputedStyle(n).opacity === "1"),
-          ),
+        bubble.locator(".gl-answer-bubble").evaluateAll((nodes) => {
+          const opacity = nodes.map((n) => Number(getComputedStyle(n).opacity));
+          return (
+            opacity.at(-1) === 1 &&
+            opacity[0] < 1 &&
+            opacity.every((o, i) => i === 0 || o >= opacity[i - 1])
+          );
+        }),
       )
       .toBe(true);
     await bubble.locator(".gl-bubble-deck").hover();

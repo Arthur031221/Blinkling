@@ -19,6 +19,7 @@ export async function launch(scale = 1) {
     args: [
       fileURLToPath(new URL("./fixture.cjs", import.meta.url)),
       "--no-sandbox",
+      "--lang=zh-TW", // the specs read the zh-TW strings
       `--force-device-scale-factor=${scale}`,
     ],
     env: {

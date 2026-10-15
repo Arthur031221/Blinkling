@@ -20,7 +20,7 @@ async function reveal(app, bubble) {
   );
 }
 
-test("older bubbles stay fully opaque; the deck has no native scrollbar and still scrolls", async () => {
+test("older bubbles fade by opacity alone; the deck has no native scrollbar and still scrolls", async () => {
   const { app } = await launch();
   try {
     const bubble = await showBubbles(app);
@@ -33,26 +33,32 @@ test("older bubbles stay fully opaque; the deck has no native scrollbar and stil
       const bubbles = [...n.querySelectorAll(".gl-answer-bubble")];
       const style = getComputedStyle(n);
       return {
-        ages: bubbles.map((b) =>
-          Number(getComputedStyle(b).getPropertyValue("--gl-age")),
-        ),
         scrollbarWidth: style.scrollbarWidth,
         gutter: n.offsetWidth - n.clientWidth,
         mask: style.maskImage || style.webkitMaskImage,
         overflows: n.scrollHeight > n.clientHeight,
       };
     });
-    // Entry animations may still be fading in; at rest nothing is translucent.
+    // Entry animations may still be running; at rest only the bubbles fade,
+    // by distance from the newest, and what is inside a bubble stays solid.
     await expect
       .poll(() =>
-        deck.evaluate((n) =>
-          [...n.querySelectorAll(".gl-answer-bubble, .gl-answer-bubble *")]
-            .map((x) => getComputedStyle(x).opacity)
-            .filter((o) => o !== "1"),
-        ),
+        deck.evaluate((n) => {
+          const opacity = [...n.querySelectorAll(".gl-answer-bubble")].map(
+            (x) => Number(getComputedStyle(x).opacity),
+          );
+          const inner = [...n.querySelectorAll(".gl-answer-bubble *")].some(
+            (x) => getComputedStyle(x).opacity !== "1",
+          );
+          return (
+            !inner &&
+            opacity.at(-1) === 1 &&
+            opacity.some((o) => o < 1) &&
+            opacity.every((o, i) => i === 0 || o >= opacity[i - 1])
+          );
+        }),
       )
-      .toEqual([]);
-    expect(probe.ages[0]).toBeGreaterThan(probe.ages.at(-1));
+      .toBe(true);
     expect(probe.scrollbarWidth).toBe("none");
     expect(probe.gutter).toBe(0);
     expect(probe.mask).not.toBe("none");

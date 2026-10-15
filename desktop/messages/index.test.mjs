@@ -128,3 +128,169 @@ test("leaving Blink does not fade a hovered answer surface", () => {
   assert.equal(tasks.size, 1);
   s.dispose();
 });
+
+function fakeTimers() {
+  let clock = 0,
+    next = 0;
+  const tasks = new Map();
+  return {
+    now: () => clock,
+    schedule: (fn, ms) => {
+      const id = next++;
+      tasks.set(id, { at: clock + ms, fn });
+      return id;
+    },
+    cancel: (id) => tasks.delete(id),
+    advance(ms) {
+      const end = clock + ms;
+      for (;;) {
+        const due = [...tasks]
+          .filter(([, t]) => t.at <= end)
+          .sort((a, b) => a[1].at - b[1].at)[0];
+        if (!due) break;
+        tasks.delete(due[0]);
+        clock = due[1].at;
+        due[1].fn();
+      }
+      clock = end;
+    },
+  };
+}
+const say = (id, text) => ({
+  type: "message",
+  id,
+  role: "assistant",
+  content: [{ type: "text", text }],
+});
+
+test("the first sentence is a bubble as soon as it streams, before the rest exists", () => {
+  const s = createMessageStream();
+  s.accept({ type: "delta", id: "a", text: "This is a GitHub" });
+  assert.deepEqual(
+    s.bubbles().map((b) => [b.markdown, b.complete]),
+    [["This is a GitHub", false]],
+  );
+  s.accept({ type: "delta", id: "a", text: " page. It shows" });
+  assert.deepEqual(
+    s.bubbles().map((b) => [b.markdown, b.complete]),
+    [
+      ["This is a GitHub page.", true],
+      ["It shows", false],
+    ],
+  );
+  assert.equal(s.state().visible, true);
+});
+
+test("an answer fades 8 s after the turn is done and a new answer shows alone", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.accept({ type: "delta", id: "a", text: "First answer." });
+  s.accept({ type: "done", turnId: "t1" });
+  t.advance(7999);
+  assert.equal(s.state().visible, true);
+  t.advance(1);
+  assert.equal(s.state().visible, false);
+  assert.deepEqual(s.bubbles(), []);
+  s.accept({ type: "delta", id: "b", text: "Second answer." });
+  assert.deepEqual(
+    s.bubbles().map((b) => b.markdown),
+    ["Second answer."],
+    "an old answer does not come back with the new one",
+  );
+  assert.equal(s.snapshot().length, 2, "history stays in the chat");
+});
+
+test("hover revives only the last answer, and it fades again", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  for (const [id, turn] of [
+    ["a", "t1"],
+    ["b", "t2"],
+  ]) {
+    s.accept({
+      type: "message",
+      id: `u-${id}`,
+      role: "user",
+      content: [{ type: "text", text: "q" }],
+    });
+    s.accept({ type: "delta", id, text: `Answer ${id}.` });
+    s.accept({ type: "done", turnId: turn });
+  }
+  t.advance(8000);
+  assert.equal(s.state().visible, false);
+  s.hover(true);
+  assert.equal(s.state().visible, true);
+  assert.deepEqual(
+    s.bubbles().map((b) => b.markdown),
+    ["Answer b."],
+  );
+  s.hover(false);
+  t.advance(8000);
+  assert.equal(s.state().visible, false);
+});
+
+test("hover is idempotent: repeating it neither notifies nor re-shows", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.accept({ type: "delta", id: "a", text: "Hi." });
+  s.accept({ type: "done", turnId: "t1" });
+  let calls = 0;
+  s.subscribe(() => calls++);
+  const before = calls;
+  for (let i = 0; i < 20; i++) s.hover(true, "bubbles");
+  assert.equal(calls, before);
+  s.hover(false, "bubbles");
+  assert.equal(calls, before);
+});
+
+test("replayed history is not an answer: it neither shows nor revives", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.accept({ ...say("old", "Yesterday's answer."), replay: true });
+  s.accept({ type: "done", turnId: "t0", replay: true });
+  assert.equal(s.state().visible, false);
+  assert.deepEqual(s.bubbles(), []);
+  s.hover(true);
+  assert.equal(s.state().visible, false);
+  assert.equal(s.snapshot().length, 1, "the chat still has it");
+  s.accept(say("new", "Today."));
+  assert.deepEqual(
+    s.bubbles().map((b) => b.markdown),
+    ["Today."],
+  );
+});
+
+test("a blink-say line is one plain bubble, not split into sentences", () => {
+  const s = createMessageStream();
+  s.accept({ type: "blink-say", id: "s1", text: "Hi. I am here! Really." });
+  assert.deepEqual(
+    s.bubbles().map((b) => [b.kind, b.markdown]),
+    [["say", "Hi. I am here! Really."]],
+  );
+  assert.equal(s.state().visible, true);
+});
+
+test("leaving the display drops the answer and hover elsewhere shows nothing", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.accept({ type: "delta", id: "a", text: "Here." });
+  s.accept({ type: "done", turnId: "t1" });
+  s.leaveDisplay();
+  assert.equal(s.state().visible, false);
+  s.hover(true);
+  assert.equal(s.state().visible, false);
+  assert.deepEqual(s.bubbles(), []);
+});
+
+test("pinning keeps the answer", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.accept({ type: "delta", id: "a", text: "Keep." });
+  s.accept({ type: "done", turnId: "t1" });
+  s.pin(true);
+  t.advance(60_000);
+  assert.equal(s.state().visible, true);
+  s.pin(false);
+  t.advance(8000);
+  assert.equal(s.state().visible, false);
+});

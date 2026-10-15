@@ -40,6 +40,7 @@ api.shell?.({ type: "state" }).then(
   },
   () => {},
 );
+let shapeHook;
 export const conversation = mountConversation({
   session: sessionFromDesktopAPI(api),
   cardHost:
@@ -55,10 +56,18 @@ export const conversation = mountConversation({
   onTyping: (value) => api.typing?.(value),
   onHold: (value) => api.hold?.(value),
   openLink: (url) => api.openLink?.(url),
+  onShape: () => shapeHook?.(),
+  onReference: ({ ref }) => api.bubbleHover?.({ ref }),
 });
+const unMark = api.onMarkClick?.(({ ref }) =>
+  conversation.bubbles?.reveal(ref),
+);
 const unCapture = api.onCapture?.((capture) => conversation.capture(capture));
 const unSurface = api.onSurface?.((event) => {
   if (event.type === "hover") conversation.hover(event.value);
+  if (event.type === "pin") conversation.store.pin(event.value);
+  if (event.type === "display") conversation.store.leaveDisplay();
+  if (event.type === "menu") conversation.bubbles?.avoid(event.rect);
   if (event.type === "open") {
     conversation.card?.open(event.messageId);
     placeOrigin();
@@ -76,6 +85,7 @@ window.addEventListener(
   "pagehide",
   () => {
     unCapture?.();
+    unMark?.();
     unSurface?.();
     unShell?.();
     unEvent?.();
@@ -153,36 +163,31 @@ const unEvent = api.onEvent((event) => {
 });
 let cleanShapes;
 if (configuration.surface === "bubbles") {
+  const box = (r) => ({
+    x: Math.max(0, Math.ceil(r.x)),
+    y: Math.max(0, Math.ceil(r.y)),
+    width: Math.max(
+      0,
+      Math.min(innerWidth, Math.floor(r.right)) - Math.max(0, Math.ceil(r.x)),
+    ),
+    height: Math.max(
+      0,
+      Math.min(innerHeight, Math.floor(r.bottom)) - Math.max(0, Math.ceil(r.y)),
+    ),
+  });
   const shapes = () => {
+    // The deck knows which of its bubbles are in view and whether it is
+    // scrolling; the notice and the guide are plain elements.
     const regions = [
-      ...document.querySelectorAll(
-        ".gl-answer-bubble, .gl-notice, .gl-guide > button",
-      ),
-    ]
-      .filter(
-        (n) =>
-          n.getClientRects().length &&
-          (!n.closest(".gl-bubble-deck") ||
-            n.closest(".gl-bubble-deck").dataset.visible === "true"),
-      )
-      .map((n) => n.getBoundingClientRect())
-      .map((r) => ({
-        x: Math.max(0, Math.ceil(r.x)),
-        y: Math.max(0, Math.ceil(r.y)),
-        width: Math.max(
-          0,
-          Math.min(innerWidth, Math.floor(r.right)) -
-            Math.max(0, Math.ceil(r.x)),
-        ),
-        height: Math.max(
-          0,
-          Math.min(innerHeight, Math.floor(r.bottom)) -
-            Math.max(0, Math.ceil(r.y)),
-        ),
-      }))
-      .filter((r) => r.width && r.height);
+      ...(conversation.bubbles?.regions() ?? []),
+      ...[...document.querySelectorAll(".gl-notice, .gl-guide > button")]
+        .filter((n) => n.getClientRects().length)
+        .map((n) => box(n.getBoundingClientRect()))
+        .filter((r) => r.width && r.height),
+    ];
     api.bubbleRegions?.(regions);
   };
+  shapeHook = shapes;
   const observer = new MutationObserver(shapes);
   observer.observe(document.querySelector("#answers"), {
     subtree: true,

@@ -331,7 +331,30 @@ function closeComposer(restore = true) {
   }
   broadcast();
 }
+/** What the answer deck needs to know that only the shell sees. */
+const tellDeck = (message) => {
+  if (bubbles && !bubbles.isDestroyed())
+    bubbles.webContents.send("blinkling:surface", message);
+};
+/** The fan menu (if the shell reports one) in the deck window's own space. */
+function tellMenu() {
+  const menu = snapshot().menu ?? null;
+  const at = bubbles?.getBounds();
+  tellDeck({
+    type: "menu",
+    rect:
+      menu && at
+        ? {
+            x: menu.x + display.bounds.x - at.x,
+            y: menu.y + display.bounds.y - at.y,
+            width: menu.width,
+            height: menu.height,
+          }
+        : null,
+  });
+}
 function useDisplay(next) {
+  const moved = display?.id !== next.id;
   display = next;
   position = resolvePosition(display, store.positions[String(display.id)]);
   regions = [];
@@ -352,6 +375,8 @@ function useDisplay(next) {
       display.scaleFactor,
     );
   placeCard();
+  if (moved) tellDeck({ type: "display" }); // answers stay on the display they were said on
+  tellMenu();
   broadcast();
 }
 /** The card and the answer deck share one rectangle; move them together. */
@@ -447,6 +472,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     }
   } else if (command.type === "pin") {
     pinned = command.value;
+    tellDeck({ type: "pin", value: pinned });
     if (pinned) await openComposer(false);
     else {
       // Unpinning dismisses the card, but never over an unsent draft or an
@@ -542,8 +568,9 @@ ipcMain.handle("blinkling:configuration", (event) => {
 });
 ipcMain.on("blinkling:subscribe", (event) => {
   if (!trusted(event)) return;
+  // Only history is replayed here; the renderer must not treat it as new.
   const unsubscribe = session.subscribe(
-    (value) => event.sender.send("blinkling:event", value),
+    (value) => event.sender.send("blinkling:event", { ...value, replay: true }),
     { visible: true },
   );
   unsubscribe();
@@ -623,6 +650,16 @@ ipcMain.on("blinkling:bubble-regions", (event, value) => {
   bubbleRegions = value;
   if (input) input.setRegions(bubbles, value, display.scaleFactor);
   else if (process.platform === "win32") bubbles.setShape(value);
+});
+ipcMain.on("blinkling:bubble-hover", (event, value) => {
+  const ref = value?.ref;
+  if (
+    !trusted(event) ||
+    event.sender !== bubbles?.webContents ||
+    !(ref === null || (typeof ref === "string" && ref.length <= 200))
+  )
+    return;
+  blink.webContents.send("blinkling:shell", { type: "bubble-hover", ref });
 });
 bubbles = new BrowserWindow(
   windowOptions(cardBounds(display, position), false),
@@ -828,3 +865,17 @@ if (process.env.BLINKLING_E2E === "1")
     positionStore: store,
     registerAction,
   };
+/** Deck hooks live under blinklingTest.deck so the literal above stays shared. */
+function installDeckTest() {
+  if (process.env.BLINKLING_E2E !== "1") return;
+  globalThis.blinklingTest.deck = {
+    markClick: (ref) =>
+      bubbles.webContents.send("blinkling:mark-click", { ref }),
+    hovered: [],
+    menu: (rect) => tellDeck({ type: "menu", rect }),
+  };
+  ipcMain.on("blinkling:bubble-hover", (_event, value) =>
+    globalThis.blinklingTest.deck.hovered.push(value?.ref ?? null),
+  );
+}
+installDeckTest();

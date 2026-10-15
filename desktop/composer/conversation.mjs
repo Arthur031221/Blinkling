@@ -20,6 +20,8 @@ export function mountConversation({
   copy,
   openLink,
   quietMs,
+  onShape,
+  onReference,
 } = {}) {
   const store = createMessageStream({ quietMs });
   const composer = createComposer({ session, selection });
@@ -43,6 +45,8 @@ export function mountConversation({
       store,
       copy,
       openLink,
+      onShape,
+      onReference,
       openChat: (id) => (onOpenChat ? onOpenChat(id) : card?.open(id)),
     });
   let lastVisible = false;

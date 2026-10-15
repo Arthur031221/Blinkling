@@ -1,9 +1,13 @@
 export { bubbleParts } from "./parts.mjs";
 import { bubbleParts } from "./parts.mjs";
+import { createCalm } from "./calm.mjs";
 
-/** One normalized store for desktop turns, remote messages and replay. */
+/** One normalized store for desktop turns, remote messages and replay. The
+ * answer deck shows what arrived since the last fade; calm.mjs owns the one
+ * timer that decides when that is (N6.6). */
 export function createMessageStream({
-  quietMs = 6500,
+  settleMs,
+  quietMs, // the composer's older name for settleMs
   maxPeekParts = 7,
   now = Date.now,
   schedule = setTimeout,
@@ -11,17 +15,39 @@ export function createMessageStream({
 } = {}) {
   const messages = new Map(),
     listeners = new Set(),
-    hoverSources = new Set();
+    hoverSources = new Set(),
+    calm = createCalm({
+      settleMs: settleMs ?? quietMs,
+      now,
+      setTimer: (run, ms) => {
+        const id = schedule(() => {
+          cancel(id); // a fired timer is released like any other
+          run();
+        }, ms);
+        id?.unref?.();
+        return () => cancel(id);
+      },
+    });
   let speaking = false,
     visible = false,
-    timer,
-    status = "starting",
-    activity = now();
+    floor = 0, // messages before this index belong to an answer that already faded
+    status = "starting";
   const snapshot = () => structuredClone([...messages.values()]);
   const bubbles = () =>
     [...messages.values()]
+      .slice(floor)
       .filter((m) => m.role === "assistant")
       .flatMap((m) => {
+        if (m.plain)
+          return [
+            {
+              kind: "say",
+              markdown: m.text,
+              complete: true,
+              id: `${m.id}:0`,
+              messageId: m.id,
+            },
+          ];
         const parts = bubbleParts(m.text, m.complete).map((p, i) => ({
           ...p,
           id: `${m.id}:${i}`,
@@ -54,29 +80,30 @@ export function createMessageStream({
   const notify = () => {
     for (const listener of listeners) listener(state());
   };
-  const clearTimer = () => {
-    if (timer !== undefined) cancel(timer);
-    timer = undefined;
+  /** The timer waits while Blink speaks or any surface is under the pointer. */
+  const holding = () => calm.hold(speaking || hoverSources.size > 0);
+  /** The last answer: everything after the last user message, or the one
+   * plain line Blink said. */
+  const lastAnswer = () => {
+    const all = [...messages.values()];
+    let start = all.length;
+    while (start > 0 && all[start - 1].role === "assistant") {
+      start--;
+      if (all[start].plain) return start === all.length - 1 ? start : start + 1;
+    }
+    return start;
   };
-  const quiet = () => {
-    clearTimer();
-    if (hoverSources.size || speaking || !visible) return;
-    timer = schedule(() => {
-      cancel(timer);
-      timer = undefined;
-      if (!hoverSources.size && !speaking && now() - activity >= quietMs) {
-        visible = false;
-        notify();
-      }
-    }, quietMs);
-    timer?.unref?.();
-  };
-  const touch = () => {
-    activity = now();
+  calm.on("fade", () => {
+    visible = false;
+    floor = messages.size;
+    notify();
+  });
+  calm.on("revive", () => {
+    floor = lastAnswer();
     visible = true;
-    clearTimer();
-  };
-  const upsert = (message) => {
+    notify();
+  });
+  const upsert = (message, { live = true } = {}) => {
     if (!message?.id || !["user", "assistant"].includes(message.role)) return;
     const old = messages.get(message.id);
     const content = Array.isArray(message.content)
@@ -91,17 +118,24 @@ export function createMessageStream({
         .map((b) => b.text)
         .join("\n\n"),
       complete: message.complete ?? true,
+      ...(message.plain ? { plain: true } : {}),
     });
+    if (!live) {
+      floor = messages.size;
+      return;
+    }
     if (
       message.role === "assistant" &&
       (!old || old.text !== messages.get(message.id).text)
-    )
-      touch();
+    ) {
+      visible = true;
+      calm.settle(message.id);
+    }
   };
   return {
     append(message) {
       upsert(message);
-      quiet();
+      holding();
       notify();
     },
     snapshot,
@@ -114,6 +148,7 @@ export function createMessageStream({
         typeof event.id === "string" &&
         typeof event.text === "string"
       ) {
+        if (event.replay) return;
         const old = messages.get(event.id);
         if (old?.complete) return; // Replayed deltas after the canonical message are stale.
         const text = (old?.text ?? "") + event.text;
@@ -125,24 +160,40 @@ export function createMessageStream({
           complete: false,
         });
         speaking = true;
-        touch();
-      } else if (event.type === "message") upsert(event);
+        visible = true;
+        calm.settle(event.id);
+      } else if (event.type === "message")
+        upsert(event, { live: !event.replay });
+      else if (event.type === "blink-say" && typeof event.text === "string")
+        upsert({
+          id: event.id ?? `say:${messages.size}`,
+          role: "assistant",
+          content: [{ type: "text", text: event.text }],
+          plain: true,
+        });
       else if (event.type === "done") {
         for (const m of messages.values())
           if (m.role === "assistant") m.complete = true;
         speaking = false;
-        activity = now();
+        if (calm.turnId !== undefined) calm.settle(event.turnId ?? calm.turnId);
       } else return;
-      quiet();
+      holding();
       notify();
     },
+    /** Idempotent: the shell repeats it with every pointer move. Entering
+     * brings the last answer back; leaving hands the timer back to calm. */
     hover(value, source = "blink") {
+      const had = hoverSources.has(source);
       if (value) hoverSources.add(source);
       else hoverSources.delete(source);
-      if (hoverSources.size && messages.size) touch();
-      else activity = now();
-      quiet();
-      notify();
+      if (Boolean(value) === had) return;
+      holding();
+      if (value && source !== "bubbles") calm.hover();
+    },
+    pin: (on) => calm.pin(on),
+    /** Blink moved to another display; its answers stay behind. */
+    leaveDisplay() {
+      calm.leave();
     },
     subscribe(listener) {
       listeners.add(listener);
@@ -150,7 +201,7 @@ export function createMessageStream({
       return () => listeners.delete(listener);
     },
     dispose() {
-      clearTimer();
+      calm.dispose();
       listeners.clear();
     },
   };

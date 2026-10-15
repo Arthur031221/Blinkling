@@ -106,38 +106,32 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       process.stdout.write("not-json\n");
       return;
     }
-    active = setTimeout(() => {
-      const id = `msg_${randomUUID()}`;
-      send({
-        type: "stream_event",
-        uuid: randomUUID(),
-        event: { type: "message_start", message: { id } },
-      });
-      send({
-        type: "stream_event",
-        uuid: randomUUID(),
-        event: {
-          type: "content_block_start",
-          index: 0,
-          content_block: { type: "text", text: "" },
-        },
-      });
+    // "slow:" streams a few sentences over about 1.2 s, so a test can tell the
+    // moment the first sentence arrives from the moment the answer ends.
+    const slow = frame.message.content.at(-1).text?.startsWith("slow:");
+    const pieces = slow
+      ? ["First sentence. ", "Second one ", "is longer. ", "And a third."]
+      : ["OK."];
+    const id = `msg_${randomUUID()}`;
+    const delta = (text) =>
       send({
         type: "stream_event",
         uuid: randomUUID(),
         event: {
           type: "content_block_delta",
           index: 0,
-          delta: { type: "text_delta", text: "OK." },
+          delta: { type: "text_delta", text },
         },
       });
+    const finish = () => {
+      const text = pieces.join("");
       const result = {
         type: "assistant",
         uuid: randomUUID(),
         parentUuid: frame.uuid,
         message: {
           id,
-          content: [{ type: "text", text: "OK." }],
+          content: [{ type: "text", text }],
           stop_reason: "end_turn",
         },
       };
@@ -145,6 +139,28 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       send(result);
       send({ type: "result", uuid: randomUUID(), subtype: "success" });
       active = undefined;
-    }, 25);
+    };
+    const step = (index) => {
+      if (index === 0) {
+        send({
+          type: "stream_event",
+          uuid: randomUUID(),
+          event: { type: "message_start", message: { id } },
+        });
+        send({
+          type: "stream_event",
+          uuid: randomUUID(),
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: { type: "text", text: "" },
+          },
+        });
+      }
+      if (index === pieces.length) return finish();
+      delta(pieces[index]);
+      active = setTimeout(() => step(index + 1), slow ? 400 : 0);
+    };
+    active = setTimeout(() => step(0), 25);
   }
 });
