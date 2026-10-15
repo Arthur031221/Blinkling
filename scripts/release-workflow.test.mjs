@@ -64,6 +64,26 @@ describe("the release workflow", () => {
     expect(upload).toBeGreaterThan(pin);
   });
 
+  it("rebuilds the bundled launcher after pinning and commits it with the manifest", () => {
+    const pin = release.indexOf("Commit the pinned manifest");
+    const rebuild = release.indexOf("node scripts/build-plugin.mjs", pin);
+    const add = release.indexOf("git add -A bin plugin/desktop/manifest.json", pin);
+    const commit = release.indexOf("git commit", pin);
+    expect(rebuild).toBeGreaterThan(pin);
+    expect(add).toBeGreaterThan(rebuild);
+    expect(commit).toBeGreaterThan(add);
+  });
+
+  it("checks on every run, dry or not, that the bundle resolves linux/x64", () => {
+    const manifestJob = release.slice(
+      release.indexOf("  manifest:"),
+      release.indexOf("  publish:"),
+    );
+    expect(manifestJob).toContain("node scripts/build-plugin.mjs");
+    expect(manifestJob).toContain("bundle_manifest.py");
+    expect(manifestJob).toContain("desktop/distribution/bundled.mjs");
+  });
+
   it("takes the release notes from docs/releases", () => {
     expect(release).toContain("docs/releases/${tag}.md");
   });

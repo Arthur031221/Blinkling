@@ -8,6 +8,8 @@ import re
 import struct
 from zipfile import ZipFile
 
+from bundle_manifest import check_bundle_manifest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -131,4 +133,5 @@ if desktop.is_dir():
         sums[name] = build["sha256"]
     listed = dict(line.split("  ", 1)[::-1] for line in (desktop / "SHA256SUMS").read_text().splitlines())
     require(listed == sums, "Desktop SHA256SUMS differs from the manifest")
-print(f"Release {version}: versions, nine READMEs, listing images and all three ZIPs passed.")
+check_bundle_manifest(ROOT / "bin/blinkling.cjs", ROOT / "plugin/desktop/manifest.json")
+print(f"Release {version}: versions, nine READMEs, listing images, all three ZIPs and the bundled launcher passed.")
