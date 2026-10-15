@@ -107,7 +107,13 @@ body.dragging #selection {
   position: fixed;
   top: var(--radius-l);
   left: 50%;
+  /* Its own content width, measured by layout before the first paint; left at
+     50% alone it would only get half of the display and wrap. */
+  width: max-content;
   max-width: calc(100% - 2 * var(--radius-l));
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   padding: var(--radius-s) var(--radius-m);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
