@@ -2,7 +2,12 @@
 
 ## 3.0.0 - 2026-10-15
 
-Blink is now a desktop companion. This release is about getting it installed.
+Blink is now a desktop companion: a small character in the corner of your screen. Hold Ctrl and click a thing, or hold Ctrl and drag an area, and ask Claude Code about it. This release also makes it easy to install.
+
+- The whole product is one gesture. Ctrl and click picks a thing, Ctrl and drag takes an area, and what you took flies into a mini composer with three quick asks. Answers arrive in bubbles beside Blink, and clicking Blink reopens the last conversation. The welcome has three steps.
+- The menu keeps the capture overlay, guide, auto explain (off until you turn it on) and settings. The Chrome and Edge companion stays optional.
+- Removed from v2: the Picture-in-Picture chat window, the passive summary card, suggested questions, the select-to-ask popover, SSH remote mode, pairing codes, API key mode, the zero-install browser window, "Try without installing", the hands-on tour and the browser panel. Blink uses the Claude Code already signed in on the same computer. `docs/FEATURES.md` lists every feature and its tier.
+- The nine READMEs, the install guide and the showcase page are rewritten for 3.0. Their recordings (`assets/pick.gif`, `assets/ask.gif`) and store images show the real desktop app on a web page, made by `assets/record/record.sh` and checked by `check-release.py`.
 
 - Release builds: `Blinkling-<version>-mac-arm64.zip`, `mac-x64.zip`, `win-x64.exe` and `linux-x64.AppImage`, with `SHA256SUMS`. The workflow publishes them and pins them, by digest and size, in `plugin/desktop/manifest.json`. A dry run builds and installs every build on its own system without publishing.
 - The launcher accepts the Blinkling and the old Glimpselet repository addresses, follows GitHub's redirects only to GitHub hosts, and checks the downloaded size as well as the SHA-256.
@@ -16,7 +21,7 @@ Glimpselet is now called Blinkling. The mascot is still Blink.
 - Switch from the old plugin with `/plugin uninstall glimpselet@glimpselet` and `/plugin marketplace remove glimpselet`, then add the marketplace again and install `blinkling@blinkling`. The main command is now `/blinkling:blinkling`; the other commands keep their names.
 - The plugin, packages, binaries, app bundle and release assets use the new name. Environment switches are now `BLINKLING_*`; the old `GLIMPSELET_*` names are still read as a fallback for this release.
 - On first start, settings, saved guides, the extension folder and cached builds move quietly from the old Glimpselet folders to the Blinkling ones, once. Nothing the new version already wrote is overwritten.
-- The repository address still uses the old name until the repository is renamed.
+- The repository address is now github.com/Arthur031221/Blinkling. The launcher also accepts the old address, which GitHub redirects.
 
 ## 2.1.0 - 2026-10-14
 

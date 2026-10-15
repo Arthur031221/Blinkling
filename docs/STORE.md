@@ -23,9 +23,9 @@ Upload the inner `blinkling-extension.zip`, not the whole submission kit. The au
 
 ## Listing and images
 
-Use [`STORE-LISTING.md`](STORE-LISTING.md) for listing text and reviewer instructions. Category: Productivity. Support: [issue tracker](https://github.com/Arthur031221/Glimpselet/issues). Website: [demo](https://arthur031221.github.io/Glimpselet/). Privacy: [policy](https://arthur031221.github.io/Glimpselet/privacy.html).
+Use [`STORE-LISTING.md`](STORE-LISTING.md) for listing text and reviewer instructions. Category: Productivity. Support: [issue tracker](https://github.com/Arthur031221/Blinkling/issues). Website: [demo](https://arthur031221.github.io/Blinkling/). Privacy: [policy](https://arthur031221.github.io/Blinkling/privacy.html).
 
-The store images in `assets/store/` and the recordings on the website were made for the previous floating chat and have to be recaptured with Blink and the companion popup before submission. Chrome accepts up to five screenshots at 1280×800 and Edge up to six; the small promotional tile is 440×280 and the store icon is `extension/icons/blink-128.png`. The sizes follow the official [Chrome image guidance](https://developer.chrome.com/docs/webstore/images) and [Edge publishing guide](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension).
+The store images in `assets/store/` are real screenshots of the Blinkling desktop app on a web page (`pick`, `answer`, `ask` and `area`), recorded by `assets/record/record.sh` and listed with their checksums in `assets/recordings.json`. A shot of the companion popup is still to be added by hand. Chrome accepts up to five screenshots at 1280×800 and Edge up to six; the small promotional tile is 440×280 and the store icon is `extension/icons/blink-128.png`. The sizes follow the official [Chrome image guidance](https://developer.chrome.com/docs/webstore/images) and [Edge publishing guide](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension).
 
 ## Single purpose and permissions
 

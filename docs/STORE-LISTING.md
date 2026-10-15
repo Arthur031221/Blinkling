@@ -12,11 +12,11 @@ Use this copy for Chrome Web Store and Microsoft Edge Add-ons. Neither listing h
 
 **Language:** English
 
-**Website:** https://arthur031221.github.io/Glimpselet/
+**Website:** https://arthur031221.github.io/Blinkling/
 
-**Privacy policy:** https://arthur031221.github.io/Glimpselet/privacy.html
+**Privacy policy:** https://arthur031221.github.io/Blinkling/privacy.html
 
-**Support:** https://github.com/Arthur031221/Glimpselet/issues
+**Support:** https://github.com/Arthur031221/Blinkling/issues
 
 **Single purpose:** Give the Blinkling desktop app the structure, full-length capture, translation and PDF text of the browser page the user points at.
 
