@@ -258,3 +258,45 @@ test("a fan closed by picking Blink up shrinks together, so no bubble crosses an
   assert.equal(worst(true), 0);
   assert.ok(worst(false) > 0, "the staggered close is the one that crosses");
 });
+
+// N6.2 / NM-3: a pointer jump onto Blink plus a click opens and closes the fan
+// inside one rest delay. Every bubble that is moving turns around at once,
+// from where it is, instead of finishing the old trip and flying back.
+test("reversing mid-way turns every moving bubble around from where it is", () => {
+  const opacities = (menu) => menu.buttons.map((b) => Number(b.style.opacity));
+  for (const [from, to] of [
+    [true, false],
+    [false, true],
+  ]) {
+    const { menu } = mount();
+    if (!from) run(menu, 1, true);
+    let t = 0;
+    menu.setOpen(from, t);
+    for (let i = 0; i < 9; i++, t += 1 / 60)
+      menu.frame(t, 1 / 60, area, anchor);
+    const turning = opacities(menu);
+    assert.ok(
+      turning.some((v) => v > 0.05 && v < 0.95),
+      "mid-way",
+    );
+    menu.setOpen(to, t);
+    const sign = to ? 1 : -1;
+    const samples = [];
+    for (let i = 0; i < 12; i++, t += 1 / 60) {
+      menu.frame(t, 1 / 60, area, anchor);
+      samples.push(opacities(menu));
+    }
+    turning.forEach((start, i) => {
+      if (start <= 0.05 || start >= 0.95) return;
+      // The first frames may still coast on momentum, but within a tenth of a
+      // second the bubble has crossed back past where it was turned.
+      const late = samples[samples.length - 1][i];
+      assert.ok(
+        sign * (late - start) > 0,
+        `bubble ${i} still on its old trip: ${start} -> ${late}`,
+      );
+      const coast = Math.max(...samples.map((s) => sign * (start - s[i])));
+      assert.ok(coast < 0.06, `bubble ${i} coasted ${coast} the wrong way`);
+    });
+  }
+});
