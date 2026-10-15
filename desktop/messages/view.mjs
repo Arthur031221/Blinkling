@@ -23,6 +23,7 @@ export function mountMessageBubbles(
   {
     store,
     openChat,
+    onAction = () => {},
     onActivity = () => {},
     onReference = () => {},
     onShape = () => {},
@@ -134,6 +135,7 @@ export function mountMessageBubbles(
       else node.style.opacity = opacity.toFixed(3);
       const clipped =
         node.dataset.kind !== "open-chat" &&
+        node.dataset.kind !== "offer" &&
         node.scrollHeight > node.clientHeight + 1;
       if (clipped !== (node.dataset.clipped === "true")) {
         node.dataset.clipped = String(clipped);
@@ -241,6 +243,12 @@ export function mountMessageBubbles(
       button.type = "button";
       button.textContent = tr("openChat");
       button.addEventListener("click", () => openChat?.(part.messageId));
+      node.append(button);
+    } else if (part.kind === "offer") {
+      const button = doc.createElement("button");
+      button.type = "button";
+      button.textContent = part.label;
+      button.addEventListener("click", () => onAction(part.action));
       node.append(button);
     } else if (part.kind === "image") {
       const image = renderImage(doc, part.image, tr);

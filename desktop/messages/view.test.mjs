@@ -17,7 +17,13 @@ const rule = (selector) =>
   )?.[1] ?? "";
 
 /** jsdom has no layout: give the deck and its bubbles a deterministic one. */
-function setup({ openChat, locale = "zh-TW", onShape, onReference } = {}) {
+function setup({
+  openChat,
+  onAction,
+  locale = "zh-TW",
+  onShape,
+  onReference,
+} = {}) {
   const clock = { now: 100_000 };
   const { window } = new JSDOM("<body><div id='host'></div></body>", {
     pretendToBeVisual: true,
@@ -36,6 +42,7 @@ function setup({ openChat, locale = "zh-TW", onShape, onReference } = {}) {
   const view = mountMessageBubbles(window.document.querySelector("#host"), {
     store,
     openChat,
+    onAction,
     onShape,
     onReference,
     t: translatorFor(window.document, locale),
@@ -250,6 +257,31 @@ test("a long answer caps its bubble height and offers 在對話中開啟", async
   );
   const cap = rule(".gl-answer-bubble").match(/max-height:\s*(\d+)px/);
   assert.ok(cap && Number(cap[1]) <= 200, "bubble height has a fixed cap");
+  t.dispose();
+});
+
+test("an offer bubble is a quiet button that runs its action, in the bubble look", () => {
+  const ran = [];
+  const t = setup({ onAction: (a) => ran.push(a) });
+  t.store.accept({
+    type: "blink-offer",
+    id: "o",
+    label: "儲存導覽",
+    action: "save-guide",
+  });
+  const bubble = t.deck.querySelector(".gl-answer-bubble");
+  assert.equal(bubble.dataset.kind, "offer");
+  const button = bubble.querySelector("button");
+  assert.equal(button.textContent, "儲存導覽");
+  button.click();
+  assert.deepEqual(ran, ["save-guide"]);
+  bubble.click();
+  assert.deepEqual(ran, ["save-guide"], "only the button acts");
+  assert.equal(
+    t.deck.querySelectorAll(".gl-answer-bubble").length,
+    1,
+    "one bubble",
+  );
   t.dispose();
 });
 

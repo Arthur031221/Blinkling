@@ -43,6 +43,7 @@ import { SessionBridge } from "../session/index.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
+import { createGuideOffer, SAVE_ACTION } from "../guides/offer.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -793,6 +794,20 @@ registerAction("companion-guide", async () => {
   }
   return { ok: true };
 });
+// The end of a guide offers one 儲存導覽 bubble (m-pointing calls offerSave);
+// clicking it writes Documents/Blinkling Guides and reveals the folder.
+const revealedGuides = [];
+const guideOffer = createGuideOffer({
+  send,
+  languages: app.getPreferredSystemLanguages(),
+  // The e2e run must not open a file manager; it records the folder instead.
+  ...(process.env.BLINKLING_E2E === "1"
+    ? { reveal: (folder) => revealedGuides.push(folder) }
+    : {}),
+});
+actions.add(SAVE_ACTION);
+registerAction(SAVE_ACTION, () => guideOffer.save());
+app.once("will-quit", () => guideOffer.dispose());
 const { systemPreferences, nativeImage, dialog } = await import("electron");
 const pick = await installPick({
   electron: {
@@ -954,6 +969,8 @@ if (process.env.BLINKLING_E2E === "1")
     session,
     bubbles,
     send,
+    guideOffer,
+    revealedGuides,
     get composer() {
       return composer;
     },

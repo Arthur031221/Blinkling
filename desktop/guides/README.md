@@ -45,7 +45,17 @@ Image links in `guide.md` are relative, so the folder can be moved or shared.
 - A reveal that fails leaves the saved guide in place and returns
   `revealed: false`.
 
-The save bubble itself (and its click) belongs to the pointing layer, which
-owns the guide overlay; it calls `saveGuide` with the pointing engine's
-annotated screenshots and takes its label, confirmation and error text from
-`strings.mjs` (nine locales).
+## The offer
+
+`createGuideOffer({ send, languages })` in `offer.mjs` is the bubble. The
+pointing layer calls `offerSave(result)` once when a guide ends, with
+`{ title, steps, explanation, shots }`; that shows one 儲存導覽 bubble (a
+`blink-offer` event with id `guide-save`) and writes nothing. The click runs
+the `save-guide` action, which calls `save()`: it writes the guide, reveals the
+folder and turns the same bubble into the confirmation. A failed save keeps the
+guide and relabels the bubble so the user can retry; a double click saves once.
+Offering again replaces the pending guide, so there is never more than one
+bubble. There is no replay and no list of saved guides (N3.9).
+
+Label, confirmation and error text come from `strings.mjs` (nine locales). The
+end-to-end check is `e2e/run.sh` (temp HOME, `BLINKLING_REMOTE=0`).

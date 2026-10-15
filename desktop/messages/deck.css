@@ -84,6 +84,8 @@ body[data-surface="bubbles"] #answers {
   border: 0;
   padding: 0;
   color: var(--green);
+  font: inherit;
+  cursor: pointer;
 }
 .gl-point {
   display: flex;

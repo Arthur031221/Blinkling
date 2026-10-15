@@ -63,6 +63,7 @@ export const conversation = mountConversation({
   bubbleHost: document.querySelector("#answers"),
   ...configuration,
   onOpenChat: (id) => api.openChat?.(id),
+  onAction: (action) => api.action?.(action),
   onActivity: (activity) => api.activity?.(activity),
   onPin: (value) => api.pin?.(value),
   onClose: () => api.close?.(),
