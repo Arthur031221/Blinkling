@@ -1,7 +1,7 @@
 // The drawn name used on the install guide: the same band of light and stars
 // as the panel and the popup, so the CSS block is kept identical (a test checks).
 export const SPARKLE_CSS = `
-/* sparkle:start — the drawn name; keep this block identical in src/style.css, extension/style.css and bridge/src/sparkle.ts */
+/* sparkle:start — the drawn name; keep this block identical in extension/popup.css and bridge/src/sparkle.ts */
 .sparkle-name {
   --spark-base: var(--sparkle-ink, #168454);
   position: relative;

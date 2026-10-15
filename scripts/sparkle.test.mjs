@@ -9,11 +9,10 @@ const block = (text) =>
   text.match(/\/\* sparkle:start.*?\/\* sparkle:end \*\//s)?.[0] ?? "";
 
 describe("the sparkle on the drawn name", () => {
-  const panel = block(read("src/style.css"));
+  const panel = block(read("extension/popup.css"));
 
-  it("is one stylesheet block in the panel, the popup and the install guide", () => {
+  it("is one stylesheet block in the popup and the install guide", () => {
     expect(panel).toContain(".sparkle-name");
-    expect(block(read("extension/style.css"))).toBe(panel);
     expect(block(SPARKLE_CSS)).toBe(panel);
     expect(installGuide("/tmp/Blinkling-extension")).toContain(panel);
   });
@@ -61,9 +60,9 @@ describe("the sparkle on the drawn name", () => {
   });
 
   it("is used for the drawn name only, never for a mention in running text", () => {
-    const uses = (path) => (read(path).match(/<SparkleName\b/g) ?? []).length;
-    expect(uses("src/main.tsx")).toBe(2);
-    expect(uses("extension/main.tsx")).toBe(3);
+    const drawn = (path) =>
+      (read(path).match(/className = "sparkle-name"/g) ?? []).length;
+    expect(drawn("extension/popup.ts")).toBe(1);
   });
 
   describe("the README wordmark", () => {

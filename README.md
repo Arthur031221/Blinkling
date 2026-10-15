@@ -41,35 +41,28 @@ You need Claude Code, signed in. Then:
 
 ## While you read
 
-- **Capture whole screen** or **Pick an area**. Hold Shift and drag on a supported page or in the bubble. Enter confirms, Esc cancels. The bubble clears itself during shared-screen capture and returns afterwards.
-- **Guide this page** gives a page overview and a Next/Back tour of reading regions and controls.
-- Select text to **Ask**, **Explain** or **Translate**. Translate a page in place and restore it, or open a PDF in the bundled reader.
-- **Auto explain** suggests up to three questions and summarizes changes. Alt+P pauses it. Choose Opus, Sonnet or Haiku for chat.
-
-![arXiv: select an abstract, ask about it, then translate it into Traditional Chinese.](assets/arxiv.gif)
-
-_arXiv: select an abstract, ask about it, then translate it into Traditional Chinese._
-
-Recorded with the real extension on live sites and Claude Code replies. Waiting time is shortened. No page content or answers are staged.
+- **Hold Ctrl and click** a paragraph, button or picture on your screen: Blink takes it and asks Claude Code about it. **Hold Ctrl and drag** to take an area instead.
+- A small composer opens with three quick asks. Enter sends the highlighted one. Click Blink any time to pick the conversation up again.
+- Answers arrive as bubbles that point at what they talk about. Blink's menu has capture, guide, auto explain (off until you turn it on) and settings.
+- The optional browser helper for Chrome or Edge adds the page's own structure, so Blink knows which paragraph or button you pointed at, plus full-length page capture, translating the page in place and a reader for PDFs. Its toolbar button shows whether it is connected and wakes Blink. Without it Blink still works on every window.
 
 ## Shortcuts
 
-| Shortcut     | Action                |
-| ------------ | --------------------- |
-| Alt+Shift+G  | Open the bubble       |
-| Ctrl+Shift+S | Crop in the browser   |
-| Ctrl+Shift+7 | Crop from another app |
+| Shortcut           | Action                              |
+| ------------------ | ----------------------------------- |
+| Ctrl + click       | Ask about what is under the pointer |
+| Ctrl + drag        | Take an area                        |
+| Hotkey in Settings | Open the capture overlay            |
 
-macOS uses Cmd instead of Ctrl. Remap at `chrome://extensions/shortcuts`. Shift works only on supported pages and in the bubble.
+Pick the keys in Settings.
 
 ## Sessions and privacy
 
-Blinkling uses a verified live Claude Code channel when available. Otherwise it continues the latest saved project conversation in a separate process. Avoid using that same transcript in the terminal concurrently. [Channel setup and limits](docs/DESIGN.md#the-running-claude-code-conversation).
+Blink sends what you picked to your own signed-in Claude Code and shows the answer beside the thing it is about. Avoid using the same conversation in a terminal at the same time.
 
 > [!IMPORTANT]
-> Auto explain can summarize page changes **without screen sharing** after consent and site access. Password fields and your blocklist pause automatic page summaries and suggestions. Screen summaries use a shared browser tab bound to the same inspected tab and the same checks. A shared monitor or app needs **separate consent for each share**. Its pixels cannot be checked for password fields or blocked sites. Unknown sources remain paused.
-> Loading or inaccessible embedded pages also pause automatic page requests.
+> The browser helper reads a page only when you point at it. Password and payment fields are never read, and it talks only to Blinkling on your own computer. Auto explain is off until you turn it on.
 
-No telemetry or publisher-operated answer service. Chosen context and captures go to your backend. Provider terms and usage charges apply. Native apps provide pixels only. Browser settings, extension stores and protected pages block page tools. Native window opacity and click-through have browser limits. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v2.1.0.md)
+No telemetry or publisher-operated answer service. What you pick goes to your Claude Code; provider terms and usage charges apply. Browser settings, extension stores and the browser's own PDF viewer are protected pages: Blink answers from the screen there. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.

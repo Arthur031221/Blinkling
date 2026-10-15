@@ -41,35 +41,28 @@ Você precisa do Claude Code com a sessão iniciada. Depois:
 
 ## Enquanto você lê
 
-- **Capturar tela inteira** ou **Escolher área**. Segure Shift e arraste em uma página compatível ou na bolha. Enter confirma e Esc cancela. A bolha sai do caminho durante a captura compartilhada e volta depois.
-- **Guiar esta página** oferece uma visão geral e um percurso Próximo/Voltar por áreas de leitura e controles.
-- Selecione texto para perguntar, explicar ou traduzir. Traduza uma página e restaure o original, ou abra um PDF no leitor integrado.
-- **Explicação automática** sugere até três perguntas e resume mudanças. Alt+P pausa. Escolha Opus, Sonnet ou Haiku para o chat.
-
-![arXiv: selecionar um resumo, perguntar sobre ele e traduzir para chinês tradicional.](assets/arxiv.gif)
-
-_arXiv: selecionar um resumo, perguntar sobre ele e traduzir para chinês tradicional._
-
-Gravado com a extensão real em sites ao vivo e respostas do Claude Code. As esperas foram encurtadas. Conteúdo e respostas não foram preparados.
+- **Segure Ctrl e clique** em um parágrafo, botão ou imagem da tela: o Blink o pega e pergunta ao Claude Code. **Segure Ctrl e arraste** para pegar uma área.
+- Um pequeno campo se abre com três perguntas rápidas. Enter envia a destacada. Clique no Blink quando quiser para retomar a conversa.
+- As respostas chegam em balões que apontam para o assunto delas. O menu do Blink tem captura, guia, Explicação automática (desligada até você ligar) e configurações.
+- O assistente opcional para Chrome ou Edge traz a estrutura da própria página, para o Blink saber qual parágrafo ou botão você apontou, além de captura da página inteira, tradução da página no lugar e um leitor de PDF. O botão da barra de ferramentas mostra se ele está conectado e acorda o Blink. Sem ele, o Blink continua funcionando em todas as janelas.
 
 ## Atalhos
 
-| Atalho       | Ação                         |
-| ------------ | ---------------------------- |
-| Alt+Shift+G  | Abrir a bolha                |
-| Ctrl+Shift+S | Recortar no navegador        |
-| Ctrl+Shift+7 | Recortar de outro aplicativo |
+| Atalho                   | Ação                                      |
+| ------------------------ | ----------------------------------------- |
+| Ctrl + clique            | Perguntar sobre o que está sob o ponteiro |
+| Ctrl + arrastar          | Pegar uma área                            |
+| Atalho nas Configurações | Abrir a sobreposição de captura           |
 
-No macOS, use Cmd em vez de Ctrl. Remapeie em `chrome://extensions/shortcuts`. Shift funciona apenas em páginas compatíveis e na bolha.
+Escolha as teclas nas Configurações.
 
 ## Sessões e privacidade
 
-O Blinkling usa um canal ativo verificado do Claude Code. Caso contrário, continua a última conversa salva do projeto em outro processo. Evite usar o mesmo histórico simultaneamente no terminal. [Canal e limites](docs/DESIGN.md#the-running-claude-code-conversation).
+O Blink envia o que você escolheu ao seu próprio Claude Code com sessão iniciada e mostra a resposta ao lado do assunto. Evite usar a mesma conversa em um terminal ao mesmo tempo.
 
 > [!IMPORTANT]
-> Explicação automática resume mudanças **sem compartilhar a tela** após consentimento e acesso ao site. Campos de senha e a lista de bloqueio pausam resumos e sugestões automáticos. Resumos de tela usam uma guia compartilhada vinculada à mesma guia inspecionada, com as mesmas verificações. Um monitor ou aplicativo compartilhado precisa de **consentimento separado para cada compartilhamento**. Seus pixels não permitem verificar senhas ou sites bloqueados. Fontes desconhecidas continuam pausadas.
-> Páginas incorporadas carregando ou inacessíveis também pausam solicitações automáticas.
+> O assistente do navegador só lê uma página quando você a aponta. Ele nunca lê campos de senha ou de pagamento e só se comunica com o Blinkling no seu próprio computador. Explicação automática fica desligada até você ligar.
 
-Sem telemetria nem serviço de respostas do editor. Contexto e capturas escolhidos vão ao seu backend. Os termos e custos dele se aplicam. Aplicativos nativos fornecem apenas pixels. Configurações, lojas de extensões e páginas protegidas bloqueiam ferramentas. Opacidade e passagem de cliques da janela nativa dependem do navegador. [Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v2.1.0.md)
+Sem telemetria nem serviço de respostas operado pelo editor. O que você escolhe vai para o seu Claude Code; valem os termos e os custos de uso do provedor. As configurações do navegador, as lojas de extensões e o visualizador de PDF do próprio navegador são páginas protegidas: ali o Blink responde a partir da tela. [Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.

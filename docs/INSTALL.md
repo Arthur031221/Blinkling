@@ -60,3 +60,35 @@ A checkout has no pinned release until the release workflow commits one. Until t
 ## Limits
 
 Blinkling works with desktop Claude Code on macOS, Windows and Linux. It does not run on a computer without a screen. If Claude Code is missing on the computer, Blinkling tells you how to install it. Browser settings pages, other apps' secure fields and password managers are never read.
+
+## The browser helper (optional)
+
+Run `/blinkling:blinkling` to start Blink on your desktop. Blink works on any window by itself. The browser helper is optional: it adds the page's own structure, full-length page capture, page translation and the paper reader in Chrome or Edge. To add it, run `/blinkling:install`. The helper is copied to the stable `~/Blinkling-extension` directory and a setup page opens in your browser.
+
+## Load the unpacked extension
+
+Choose `~/Blinkling-extension` in desktop Chrome or Edge:
+
+1. Open `chrome://extensions` or `edge://extensions` and turn on **Developer mode**.
+2. Choose **Load unpacked**.
+3. Select `~/Blinkling-extension`.
+
+Browsers require a user to confirm an unpacked extension this way. Silent installation is available only through managed enterprise policy. The Developer mode banner remains visible, and updates require running the install command again and reloading the extension until a store listing is available.
+
+If an older card loads another source folder, remove that card and load `~/Blinkling-extension` once. Browser cards keep their original source path; Reload cannot move an installation. Later updates refresh the visible folder and need only Reload.
+
+`config/distribution.json` selects the install flow. Leave both URLs empty to show the unpacked instructions. After store approval, fill `chromeWebStoreUrl` and/or `edgeAddonsUrl` with the approved listing URL. The guide then shows the matching one-click store link in the install step. `BLINKLING_DISTRIBUTION_CONFIG` can point to the JSON file when Blinkling runs outside the repository checkout. The installer accepts only HTTPS listing URL patterns for the named stores.
+
+## Connect the browser and host
+
+The helper connects to Blink on the same computer by itself. Nobody types or sees a code or a port. When the setup page says it is connected, you are done. The toolbar button opens a small popup that says whether the helper is connected, what is missing, and has a **Wake Blink** button that starts the desktop app.
+
+The setup page carries a one-time link code in its URL fragment, which keeps it out of HTTP request logs and visible page text. The helper's content script hands it to the extension, which trades it for a local secret held in `chrome.storage.local`. After that, the helper and the bridge prove to each other that they hold the secret before any page data moves. The bridge listens on `127.0.0.1` only. Status is checked at `GET /install/status?code=...`.
+
+Blinkling and the helper run on the same computer. Claude Code on a remote host is not supported.
+
+## Browser and page limits
+
+Use desktop Chrome or Edge. Firefox and Safari are unsupported. Browser extensions cannot run on browser settings, the extension store, some built-in pages, or pages blocked by browser or organization policy. Blink still answers about those windows from the screen alone. The built-in PDF viewer cannot be inspected as an ordinary page; when you point at it, Blink opens the paper in the helper's own reader. Cross-origin frames inside a page are skipped. Password and payment fields are blanked before anything leaves the page.
+
+The setup page and the helper's popup follow the browser's language in nine languages: English, 繁體中文, 简体中文, 日本語, 한국어, Español, Français, Deutsch and Português (Brasil).

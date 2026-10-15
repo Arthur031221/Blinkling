@@ -12,10 +12,9 @@ import { installCommand } from "../../scripts/install-command.mjs";
 const fixture = await mkdtemp(resolve(tmpdir(), "blinkling-pages-"));
 const buildPages = resolve(".github/workflows/build-pages.mjs");
 try {
-  for (const folder of ["demo", "assets", "site"]) {
+  for (const folder of ["demo", "assets", "site", "public"]) {
     await cp(folder, resolve(fixture, folder), { recursive: true });
   }
-  await mkdir(resolve(fixture, "dist"));
   await mkdir(resolve(fixture, "config"));
   const chrome =
     "https://chromewebstore.google.com/detail/blinkling/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -25,7 +24,6 @@ try {
     { chromeWebStoreUrl: "", edgeAddonsUrl: "" },
     { chromeWebStoreUrl: chrome, edgeAddonsUrl: edge },
   ]) {
-    await writeFile(resolve(fixture, "dist/index.html"), "<p>Chat fixture</p>");
     await writeFile(
       resolve(fixture, "config/distribution.json"),
       JSON.stringify(config),
@@ -41,10 +39,6 @@ try {
       assert.ok(html.includes(`href="${edge}"`));
       assert.ok(!html.includes("Updates are manual."));
     }
-    assert.equal(
-      await readFile(resolve(fixture, "dist/try.html"), "utf8"),
-      "<p>Chat fixture</p>",
-    );
   }
   await writeFile(
     resolve(fixture, "config/distribution.json"),
@@ -279,25 +273,12 @@ try {
       false,
       `Policy overflows at ${width}px`,
     );
-    await page.goto(`${origin}${base}try.html?demo=1`, {
-      waitUntil: "networkidle",
-    });
-    await expect(
-      page.getByRole("img", { name: "Labeled static demo fixture" }),
-    ).toBeVisible();
-    await page
-      .getByRole("textbox")
-      .fill("Which control saves these preferences?");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    await expect(page.locator(".answer .markdown")).toContainText(
-      "This prerecorded answer makes no provider call",
-    );
     assert.deepEqual(failures, [], `Pages errors at ${width}px ${colorScheme}`);
     await page.close();
   }
   await checkInstallGuide(browser);
   console.log(
-    "Pages passed: subpath assets and links, desktop/mobile light and dark, privacy policy, prerecorded chat and install guide.",
+    "Pages passed: subpath assets and links, desktop/mobile light and dark, privacy policy and install guide.",
   );
 } finally {
   await browser?.close();

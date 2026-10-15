@@ -1,7 +1,12 @@
-import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
-// Preserve the interactive fixture and put the v2 showcase at the Pages root.
-await cp("dist/index.html", "dist/try.html");
+// The Pages site is static: the showcase, the privacy policy and their assets.
+await rm("dist", { recursive: true, force: true });
+await mkdir("dist/assets", { recursive: true });
+await cp("public/privacy.html", "dist/privacy.html");
+for (const name of ["Inter.ttf", "Fraunces.ttf", "logo.svg"]) {
+  await cp(`public/assets/${name}`, `dist/assets/${name}`);
+}
 await cp("demo/index.html", "dist/index.html");
 await cp("demo/demo.css", "dist/demo.css");
 await mkdir("dist/demo-assets", { recursive: true });
@@ -43,10 +48,8 @@ if (links.length) {
     "dist/index.html",
     html.replace(
       /Store listings are not available yet\.[\s\S]*?Updates are manual\./,
-      `Install from ${links.join(" or ")}, then return to the welcome guide to pair.`,
+      `Install from ${links.join(" or ")}, then run /blinkling:blinkling.`,
     ),
   );
 }
-console.log(
-  "Built the Pages showcase, install guide, prerecorded chat and privacy policy.",
-);
+console.log("Built the Pages showcase, install guide and privacy policy.");

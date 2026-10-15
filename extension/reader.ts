@@ -1,21 +1,19 @@
 import * as pdfjs from "pdfjs-dist";
-import "./content";
-import { buildPageContext } from "./page-context";
-import { encodeCanvasPng } from "./png";
-import { parseReaderPdfUrl, readerUrlOriginPattern } from "./reader-url";
-import { prepareReaderPermissionHandoff } from "./permission-handoff";
+import { parseReaderPdfUrl } from "./reader-url";
 import {
   formatReaderText,
   readerLocales,
   type ReaderLocale,
   type ReaderStrings,
 } from "./reader-locales";
+import { pickLocale } from "./strings";
 import type {
   PDFDocumentLoadingTask,
   PDFDocumentProxy,
   RenderTask,
 } from "pdfjs-dist/types/src/display/api";
 
+/** A plain PDF reader for the page Blink was woken on: render, text layer, page turns. */
 pdfjs.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("pdf.worker.js");
 const fileInput = document.querySelector<HTMLInputElement>("#file")!;
 const urlInput = document.querySelector<HTMLInputElement>("#pdf-url")!;
@@ -23,20 +21,14 @@ const urlForm = document.querySelector<HTMLFormElement>("#url-form")!;
 const pageElement = document.querySelector<HTMLElement>("#page")!;
 const pageLabel = document.querySelector<HTMLElement>("#page-label")!;
 const status = document.querySelector<HTMLElement>("#status")!;
-const permissionRecovery = document.querySelector<HTMLElement>(
-  "#permission-recovery",
-)!;
-const permissionNote = document.querySelector<HTMLElement>("#permission-note")!;
-const resumePanel = document.querySelector<HTMLButtonElement>("#resume-panel")!;
 document.documentElement.classList.add("locale-loading");
-let locale: ReaderLocale = "en";
-let t: ReaderStrings = readerLocales.en;
+const locale: ReaderLocale = pickLocale(
+  chrome.i18n.getUILanguage(),
+) as ReaderLocale;
+const t: ReaderStrings = readerLocales[locale];
 let pdf: PDFDocumentProxy | undefined;
 let loadingTask: PDFDocumentLoadingTask | undefined;
 let pageNumber = 1;
-let pageText = "";
-let passageSelection = "";
-let pageReady = false;
 let pageTitle = "PDF document";
 let documentGeneration = 0;
 let renderGeneration = 0;
@@ -46,62 +38,6 @@ let activeTextLayer: InstanceType<typeof pdfjs.TextLayer> | undefined;
 let resizeFrame = 0;
 let currentStatusKey: keyof ReaderStrings = "choose";
 let currentStatusValues: Record<string, string | number> = {};
-const preparedPermissionOrigins = new Set<string>();
-const permissionPreparations = new Map<string, Promise<boolean>>();
-let permissionInterrupted = false;
-let floatingSize = { width: 420, height: 650 };
-
-function permissionNotice(key: "permissionNotice" | "permissionPaused"): void {
-  permissionNote.dataset.readerLabel = key;
-  permissionNote.textContent = message(key);
-  permissionRecovery.hidden = false;
-  // The URL form stays visible while a paper is scrolled. Keep its permission
-  // explanation and recovery action within reach too.
-  permissionRecovery.scrollIntoView({ block: "nearest" });
-}
-function finishPermissionPrompt(): void {
-  if (!permissionInterrupted) return;
-  permissionNotice("permissionPaused");
-  resumePanel.hidden = false;
-}
-
-function preparePermissionOrigin(parsed: URL): Promise<boolean> {
-  const origin = readerUrlOriginPattern(parsed);
-  const current = permissionPreparations.get(origin);
-  if (current) return current;
-  const preparation: Promise<boolean> = prepareReaderPermissionHandoff(
-    [origin],
-    (details) => chrome.permissions.contains(details),
-    async () => {
-      permissionNotice("permissionNotice");
-      resumePanel.hidden = true;
-      // Paint the explanation before the handoff closes the floating window.
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
-      const response = (await chrome.runtime.sendMessage({
-        type: "blinkling:reader-permission-handoff",
-      })) as { ok?: boolean; interrupted?: boolean } | undefined;
-      if (response?.interrupted) permissionInterrupted = true;
-      else if (!permissionInterrupted) permissionRecovery.hidden = true;
-      return response;
-    },
-  )
-    .then((result) => {
-      preparedPermissionOrigins.add(origin);
-      if (result === "prepared" && permissionInterrupted)
-        resumePanel.hidden = false;
-      return result === "granted";
-    })
-    .catch(() => {
-      finishPermissionPrompt();
-      if (permissionPreparations.get(origin) === preparation)
-        permissionPreparations.delete(origin);
-      return false;
-    });
-  permissionPreparations.set(origin, preparation);
-  return preparation;
-}
 
 function message(
   key: keyof ReaderStrings,
@@ -153,43 +89,6 @@ function applyLocale(): void {
   }
   document.documentElement.classList.remove("locale-loading");
 }
-async function initializeLocale(): Promise<void> {
-  try {
-    const stored = await chrome.storage.local.get(["locale", "pipSize"]);
-    const candidate = stored.locale;
-    if (typeof candidate === "string" && candidate in readerLocales)
-      locale = candidate as ReaderLocale;
-    const size = stored.pipSize as
-      | { width?: number; height?: number }
-      | undefined;
-    if (
-      size &&
-      Number.isFinite(size.width) &&
-      Number.isFinite(size.height) &&
-      size.width! > 0 &&
-      size.height! > 0
-    )
-      floatingSize = { width: size.width!, height: size.height! };
-  } catch {
-    /* The reader remains localized in English when extension storage is unavailable. */
-  }
-  t = readerLocales[locale];
-  applyLocale();
-}
-chrome.storage.onChanged.addListener(
-  (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
-    const candidate = changes.locale?.newValue;
-    if (
-      areaName === "local" &&
-      typeof candidate === "string" &&
-      candidate in readerLocales
-    ) {
-      locale = candidate as ReaderLocale;
-      t = readerLocales[locale];
-      applyLocale();
-    }
-  },
-);
 function stopRendering(): void {
   renderGeneration++;
   activeRender?.cancel();
@@ -197,47 +96,6 @@ function stopRendering(): void {
   activeTextLayer?.cancel();
   activeTextLayer = undefined;
 }
-function updateSelectionButton(): void {
-  document
-    .querySelectorAll<HTMLButtonElement>(
-      '[data-action="translate"], [data-action="summary-selection"]',
-    )
-    .forEach((button) => {
-      button.disabled = !pageReady || !passageSelection;
-    });
-  const help = document.querySelector<HTMLElement>("#selection-help")!;
-  const helpKey = pageText.trim() ? "selectionHelp" : "selectionUnavailable";
-  help.dataset.readerLabel = helpKey;
-  help.textContent = message(helpKey);
-  help.hidden = !pageReady || !!passageSelection;
-}
-function clearSelection(): void {
-  passageSelection = "";
-  pageReady = false;
-  const selection = getSelection();
-  if (selection?.anchorNode && pageElement.contains(selection.anchorNode))
-    selection.removeAllRanges();
-  updateSelectionButton();
-}
-function rememberSelection(): void {
-  const selection = getSelection();
-  const layer = pageElement.querySelector(".pdf-text-layer");
-  if (
-    selection &&
-    !selection.isCollapsed &&
-    layer?.contains(selection.anchorNode) &&
-    layer.contains(selection.focusNode)
-  )
-    passageSelection = selection.toString().trim();
-  else if (!document.activeElement?.closest("[data-action]"))
-    passageSelection = "";
-  updateSelectionButton();
-}
-document.addEventListener("selectionchange", rememberSelection);
-pageElement.addEventListener("pointerdown", () => {
-  passageSelection = "";
-  updateSelectionButton();
-});
 async function loadDocument(
   source: string | Uint8Array,
   title: string,
@@ -249,8 +107,6 @@ async function loadDocument(
   const oldTask = loadingTask;
   loadingTask = undefined;
   pdf = undefined;
-  clearSelection();
-  pageText = "";
   pageElement.replaceChildren();
   if (oldTask) void oldTask.destroy().catch(() => {});
   setStatus("loading");
@@ -292,7 +148,6 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
   const doc = pdf;
   if (!doc || documentId !== documentGeneration) return;
   const number = pageNumber;
-  clearSelection();
   const renderId = ++renderGeneration;
   activeRender?.cancel();
   activeRender = undefined;
@@ -309,7 +164,6 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
     const viewport = page.getViewport({ scale });
     const wrapper = document.createElement("section");
     wrapper.className = "pdf-page";
-    wrapper.dataset.blinklingReaderPage = "true";
     wrapper.style.width = `${viewport.width}px`;
     wrapper.style.height = `${viewport.height}px`;
     wrapper.setAttribute("aria-label", message("pdfPage"));
@@ -357,19 +211,11 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
     )
       return;
     pageElement.replaceChildren(wrapper);
-    pageReady = true;
-    pageText = text.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .slice(0, 24_000);
-    updateSelectionButton();
     document.title = `${pageTitle} · ${message("pageLabel", { page: number, total: doc.numPages })}`;
     pageLabel.textContent = message("pageLabel", {
       page: number,
       total: doc.numPages,
     });
-    await publishContext(documentId, renderId);
   } catch {
     if (renderId === renderGeneration && documentId === documentGeneration)
       setStatus("openError");
@@ -380,170 +226,26 @@ async function renderPage(documentId = documentGeneration): Promise<void> {
     }
   }
 }
-async function publishContext(
-  documentId: number,
-  renderId: number,
-): Promise<void> {
-  if (
-    !pdf ||
-    documentId !== documentGeneration ||
-    renderId !== renderGeneration
-  )
-    return;
-  try {
-    await chrome.runtime.sendMessage({
-      type: "blinkling:reader-context",
-      context: buildPageContext(),
-    });
-  } catch {
-    /* Opening the floating panel will publish the context on its next action. */
-  }
-}
-function selectedText(): string {
-  rememberSelection();
-  return passageSelection;
-}
-type ReaderAction =
-  | "ask"
-  | "translate"
-  | "summary"
-  | "summary-selection"
-  | "guide";
-async function ask(action: ReaderAction): Promise<void> {
-  if (!pdf) {
-    setStatus("openFirst");
-    return;
-  }
-  if (!pageReady) {
-    setStatus("loading");
-    return;
-  }
-  const selected = selectedText();
-  const selectionOnly =
-    action === "translate" || action === "summary-selection";
-  if (selectionOnly && !selected) {
-    setStatus(pageText.trim() ? "selectFirst" : "selectionUnavailable");
-    return;
-  }
-  if (action !== "summary" && selected.length > 5000) {
-    setStatus("selectionTooLong");
-    return;
-  }
-  const text =
-    action === "summary" ? "" : selectionOnly ? selected : selected || pageText;
-  const questions = {
-    ask: selected
-      ? "Help me understand this selected passage."
-      : "Explain what this PDF page says and its key points.",
-    translate: "Translate this selected passage into my target language.",
-    summary: "Summarize this PDF page.",
-    "summary-selection": "Summarize only this selected PDF passage.",
-    guide: selected
-      ? "Guide me through this selected passage, explaining its steps in order."
-      : "Guide me through this PDF page, explaining its key steps in order.",
-  };
-  try {
-    const canvas = pageElement.querySelector("canvas");
-    let image: string | undefined;
-    if (canvas && !selectionOnly) {
-      const thumbnail = document.createElement("canvas");
-      const scale = Math.min(1, 1600 / Math.max(canvas.width, canvas.height));
-      thumbnail.width = Math.round(canvas.width * scale);
-      thumbnail.height = Math.round(canvas.height * scale);
-      thumbnail
-        .getContext("2d")
-        ?.drawImage(canvas, 0, 0, thumbnail.width, thumbnail.height);
-      image = encodeCanvasPng(thumbnail);
-    }
-    const response = (await chrome.runtime.sendMessage({
-      type: "blinkling:reader-action",
-      action,
-      question: questions[action],
-      text,
-      page: pageNumber,
-      context: buildPageContext(),
-      image,
-    })) as { ok?: boolean; error?: string } | undefined;
-    if (!response?.ok) {
-      setStatus(
-        response?.error === "busy"
-          ? "actionBusy"
-          : response?.error === "selection_limit"
-            ? "selectionTooLong"
-            : "actionError",
-      );
-      return;
-    }
-    if (action === "ask") {
-      setStatus("questionReady");
-      return;
-    }
-    const statusKey =
-      action === "summary" || action === "summary-selection"
-        ? "summarySent"
-        : action === "translate"
-          ? "translationSent"
-          : action === "guide"
-            ? "guideSent"
-            : "questionSent";
-    setStatus("actionSent", { action: message(statusKey) });
-  } catch {
-    setStatus("actionError");
-  }
-}
-urlForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const intent = ++sourceIntent;
-  const value = urlInput.value.trim();
+
+function openUrl(value: string, intent: number): void {
   const parsed = parseReaderPdfUrl(value);
   if (!parsed) {
     setStatus("badUrl");
     return;
   }
-  const origin = readerUrlOriginPattern(parsed);
-  if (!preparedPermissionOrigins.has(origin)) {
-    setStatus("permissionRequired");
-    void preparePermissionOrigin(parsed);
-    return;
-  }
-  // Keep this call in the submit gesture so Chrome can show its permission prompt.
-  let permissionRequest: Promise<boolean>;
-  resumePanel.hidden = true;
+  const leaf =
+    parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
+  let title = leaf;
   try {
-    permissionRequest = chrome.permissions.request({
-      origins: [readerUrlOriginPattern(parsed)],
-    });
+    title = decodeURIComponent(leaf);
   } catch {
-    finishPermissionPrompt();
-    setStatus("permissionDenied");
-    return;
+    /* Keep the URL-encoded name. */
   }
-  void permissionRequest
-    .then((granted: boolean) => {
-      finishPermissionPrompt();
-      if (intent !== sourceIntent) return;
-      if (!granted) {
-        setStatus("permissionDenied");
-        return;
-      }
-      const leaf =
-        parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
-      let title = leaf;
-      try {
-        title = decodeURIComponent(leaf);
-      } catch {
-        /* Keep the URL-encoded name. */
-      }
-      void loadDocument(parsed.href, title, intent);
-    })
-    .catch(() => {
-      finishPermissionPrompt();
-      if (intent === sourceIntent) setStatus("permissionDenied");
-    });
-});
-urlInput.addEventListener("input", () => {
-  const parsed = parseReaderPdfUrl(urlInput.value.trim());
-  if (parsed) void preparePermissionOrigin(parsed);
+  void loadDocument(parsed.href, title, intent);
+}
+urlForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  openUrl(urlInput.value.trim(), ++sourceIntent);
 });
 fileInput.addEventListener("change", () => {
   const intent = ++sourceIntent;
@@ -576,100 +278,15 @@ document
       void renderPage();
     }
   });
-document
-  .querySelectorAll<HTMLButtonElement>("[data-action]")
-  .forEach((button) => {
-    button.addEventListener(
-      "click",
-      () => void ask(button.dataset.action as ReaderAction),
-    );
-  });
-document
-  .querySelector<HTMLButtonElement>("#open-panel")!
-  .addEventListener("click", () => {
-    void chrome.runtime
-      .sendMessage({ type: "blinkling:open" })
-      .then((response?: { ok?: boolean }) => {
-        if (response?.ok) setStatus("panelOpened");
-        else setStatus("panelError");
-      })
-      .catch(() => setStatus("panelError"));
-  });
-resumePanel.addEventListener("click", () => {
-  if (resumePanel.disabled) return;
-  const pip = (
-    window as Window & {
-      documentPictureInPicture?: {
-        requestWindow(size: { width: number; height: number }): Promise<Window>;
-      };
-    }
-  ).documentPictureInPicture;
-  if (!pip) {
-    setStatus("resumeError");
-    return;
-  }
-  resumePanel.disabled = true;
-  let opened: Window | undefined;
-  // The reader owns this gesture. Messaging another window cannot transfer it.
-  void (async () => {
-    try {
-      opened = await pip.requestWindow(floatingSize);
-      const response = (await chrome.runtime.sendMessage({
-        type: "blinkling:reader-resume-floating",
-      })) as { ok?: boolean } | undefined;
-      if (!response?.ok) throw new Error("reader_resume_unconfirmed");
-      permissionInterrupted = false;
-      permissionRecovery.hidden = true;
-      preparedPermissionOrigins.clear();
-      permissionPreparations.clear();
-      setStatus("floatingResumed");
-    } catch {
-      opened?.close();
-      setStatus("resumeError");
-    } finally {
-      resumePanel.disabled = false;
-    }
-  })();
-});
 window.addEventListener("resize", () => {
   if (!pdf) return;
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => void renderPage());
 });
 
-void initializeLocale().then(() => {
-  const initialUrl = new URL(location.href).searchParams.get("url");
-  if (initialUrl) {
-    urlInput.value = initialUrl;
-    const intent = sourceIntent;
-    const parsed = parseReaderPdfUrl(initialUrl.trim());
-    if (!parsed) {
-      setStatus("badUrl");
-      return;
-    }
-    void preparePermissionOrigin(parsed)
-      .then((granted: boolean) => {
-        if (
-          intent !== sourceIntent ||
-          urlInput.value.trim() !== initialUrl.trim()
-        )
-          return;
-        if (!granted) {
-          setStatus("permissionRequired");
-          return;
-        }
-        const leaf =
-          parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
-        let title = leaf;
-        try {
-          title = decodeURIComponent(leaf);
-        } catch {
-          /* Keep the URL-encoded name. */
-        }
-        void loadDocument(parsed.href, title, intent);
-      })
-      .catch(() => {
-        if (intent === sourceIntent) setStatus("permissionRequired");
-      });
-  }
-});
+applyLocale();
+const initialUrl = new URL(location.href).searchParams.get("url");
+if (initialUrl) {
+  urlInput.value = initialUrl;
+  openUrl(initialUrl.trim(), sourceIntent);
+}

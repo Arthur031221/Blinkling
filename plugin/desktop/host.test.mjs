@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { request as httpRequest } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import { startDesktopHost } from "./host.mjs";
 import { discoverDesktop, DesktopClient } from "./client.mjs";
 import { launchDesktop } from "./launcher.mjs";
@@ -316,6 +316,158 @@ test("selection acknowledgement serializes admission and cancellation before ack
     assert.equal(stopped, 1);
   } finally {
     release();
+    await host.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+async function withCompanion(handler, run) {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-host-elements-"));
+  const descriptor = join(directory, "desktop.json");
+  const token = "b".repeat(64);
+  const calls = [];
+  const companion = createServer(async (req, res) => {
+    if (req.headers.authorization !== `Bearer ${token}`) {
+      res.writeHead(403).end();
+      return;
+    }
+    if (req.method === "GET") {
+      res.end(JSON.stringify({ companion: true }));
+      return;
+    }
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const message = JSON.parse(body);
+    calls.push(message);
+    res.end(JSON.stringify(handler(message)));
+  });
+  await new Promise((resolve) => companion.listen(0, "127.0.0.1", resolve));
+  const host = await startDesktopHost({ directory, descriptor });
+  try {
+    const client = (await discoverDesktop(descriptor)).client;
+    await client.rpc("companion", {
+      url: `http://127.0.0.1:${companion.address().port}/desktop-companion`,
+      token,
+    });
+    await run({ host, calls });
+  } finally {
+    await host.close();
+    companion.closeAllConnections();
+    await new Promise((resolve) => companion.close(resolve));
+    await rm(directory, { recursive: true });
+  }
+}
+
+test("elements, translatePage and openPdfReader are null or not-ok without a companion", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-host-nocompanion-"));
+  const host = await startDesktopHost({
+    directory,
+    descriptor: join(directory, "desktop.json"),
+  });
+  try {
+    assert.equal(await host.elements({ point: { x: 10, y: 10 } }), null);
+    assert.deepEqual(await host.translatePage({ on: true }), { ok: false });
+    assert.deepEqual(await host.openPdfReader(), { ok: false });
+  } finally {
+    await host.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("elements asks the companion for the structure under a screen point and passes it through", async () => {
+  const structure = {
+    page: {
+      url: "https://example.test/",
+      title: "Form",
+      tabId: 4,
+      incognito: false,
+    },
+    frame: { screenX: 100, screenY: 80, devicePixelRatio: 2, zoom: 1.25 },
+    elements: [
+      {
+        id: "e1",
+        kind: "heading",
+        rect: { x: 8, y: 8, width: 200, height: 30 },
+        role: "heading",
+        name: "Sign in",
+        text: "Sign in",
+        parentId: null,
+        secure: false,
+      },
+      {
+        id: "e2",
+        kind: "input",
+        rect: { x: 8, y: 50, width: 200, height: 30 },
+        role: "textbox",
+        name: "",
+        text: "",
+        parentId: "e1",
+        secure: true,
+      },
+    ],
+  };
+  await withCompanion(
+    (message) => (message.method === "elements" ? { result: structure } : {}),
+    async ({ host, calls }) => {
+      const result = await host.elements({ point: { x: 320, y: 240 } });
+      assert.deepEqual(result, structure);
+      assert.deepEqual(calls, [
+        { method: "elements", point: { x: 320, y: 240 } },
+      ]);
+      assert.equal(result.elements[1].secure, true);
+      assert.equal(result.elements[1].text, "");
+    },
+  );
+});
+
+test("elements is null for a restricted page or a window the helper does not own", async () => {
+  await withCompanion(
+    () => ({ result: null }),
+    async ({ host }) => {
+      assert.equal(await host.elements({ point: { x: 1, y: 1 } }), null);
+    },
+  );
+});
+
+test("translatePage and openPdfReader return the helper's answer", async () => {
+  await withCompanion(
+    (message) => ({ ok: message.method === "open-pdf-reader" || message.on }),
+    async ({ host, calls }) => {
+      assert.deepEqual(await host.translatePage({ on: true }), { ok: true });
+      assert.deepEqual(await host.translatePage({ on: false }), { ok: false });
+      assert.deepEqual(await host.openPdfReader(), { ok: true });
+      assert.deepEqual(
+        calls.map((call) => [call.method, call.on]),
+        [
+          ["translate-page", true],
+          ["translate-page", false],
+          ["open-pdf-reader", undefined],
+        ],
+      );
+    },
+  );
+});
+
+test("a vanished companion is forgotten and its calls fall back quietly", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-host-gone-"));
+  const descriptor = join(directory, "desktop.json");
+  const token = "c".repeat(64);
+  const companion = createServer((req, res) =>
+    res.end(JSON.stringify({ companion: true })),
+  );
+  await new Promise((resolve) => companion.listen(0, "127.0.0.1", resolve));
+  const host = await startDesktopHost({ directory, descriptor });
+  try {
+    const client = (await discoverDesktop(descriptor)).client;
+    await client.rpc("companion", {
+      url: `http://127.0.0.1:${companion.address().port}/desktop-companion`,
+      token,
+    });
+    companion.closeAllConnections();
+    await new Promise((resolve) => companion.close(resolve));
+    assert.equal(await host.elements({ point: { x: 1, y: 1 } }), null);
+    assert.deepEqual(await host.fullPage(), { companionRequired: true });
+  } finally {
     await host.close();
     await rm(directory, { recursive: true });
   }

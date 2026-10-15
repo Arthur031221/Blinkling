@@ -41,35 +41,28 @@ Du brauchst Claude Code, angemeldet. Dann:
 
 ## Beim Lesen
 
-- **Bildschirm aufnehmen** oder **Bereich wählen**. Halte Shift und ziehe auf einer unterstützten Seite oder in der Bubble. Enter bestätigt, Esc bricht ab. Bei Bildschirmaufnahmen verschwindet die Bubble und kehrt anschließend zurück.
-- **Diese Seite erklären** zeigt eine Übersicht und führt mit Weiter/Zurück durch Lesebereiche und Bedienelemente.
-- Markiere Text zum Fragen, Erklären oder Übersetzen. Übersetze eine Seite mit Wiederherstellung oder öffne ein PDF im integrierten Reader.
-- **Automatisch erklären** schlägt bis zu drei Fragen vor und fasst Änderungen zusammen. Alt+P pausiert. Wähle Opus, Sonnet oder Haiku für den Chat.
-
-![arXiv: Abstract markieren, eine Frage stellen und ins traditionelle Chinesisch übersetzen.](assets/arxiv.gif)
-
-_arXiv: Abstract markieren, eine Frage stellen und ins traditionelle Chinesisch übersetzen._
-
-Mit der echten Erweiterung auf Live-Websites und Antworten von Claude Code aufgenommen. Wartezeiten sind gekürzt. Seiteninhalte und Antworten sind unverändert.
+- **Halte Strg gedrückt und klicke** auf einen Absatz, eine Schaltfläche oder ein Bild auf dem Bildschirm: Blink nimmt es auf und fragt Claude Code dazu. **Halte Strg und ziehe**, um stattdessen einen Bereich aufzunehmen.
+- Ein kleines Eingabefeld öffnet sich mit drei Schnellfragen. Enter sendet die markierte. Klicke jederzeit auf Blink, um das Gespräch fortzusetzen.
+- Antworten erscheinen als Blasen, die auf das zeigen, worüber sie sprechen. Das Menü von Blink bietet Aufnahme, Führung, Automatisch erklären (aus, bis du sie einschaltest) und Einstellungen.
+- Der optionale Browser-Helfer für Chrome oder Edge liefert die eigene Struktur der Seite, damit Blink weiß, auf welchen Absatz oder welche Schaltfläche du gezeigt hast, dazu eine Aufnahme der ganzen Seite, Übersetzung der Seite an Ort und Stelle und einen PDF-Reader. Seine Symbolleistenschaltfläche zeigt, ob er verbunden ist, und weckt Blink. Ohne ihn funktioniert Blink weiterhin in jedem Fenster.
 
 ## Tastenkürzel
 
-| Tastenkürzel | Aktion                            |
-| ------------ | --------------------------------- |
-| Alt+Shift+G  | Bubble öffnen                     |
-| Ctrl+Shift+S | Im Browser zuschneiden            |
-| Ctrl+Shift+7 | Aus einer anderen App zuschneiden |
+| Tastenkürzel                      | Aktion                                      |
+| --------------------------------- | ------------------------------------------- |
+| Strg + Klick                      | Nach dem fragen, was unter dem Zeiger liegt |
+| Strg + Ziehen                     | Einen Bereich aufnehmen                     |
+| Tastenkürzel in den Einstellungen | Aufnahme-Overlay öffnen                     |
 
-Auf macOS ersetzt Cmd die Ctrl-Taste. Anpassen unter `chrome://extensions/shortcuts`. Shift funktioniert nur auf unterstützten Seiten und in der Bubble.
+Die Tasten wählst du in den Einstellungen.
 
 ## Sitzungen und Datenschutz
 
-Blinkling nutzt einen bestätigten Live-Kanal von Claude Code, sonst setzt ein separater Prozess das neueste gespeicherte Projektgespräch fort. Arbeite nicht gleichzeitig im Terminal an demselben Verlauf. [Kanal und Grenzen](docs/DESIGN.md#the-running-claude-code-conversation).
+Blink sendet, was du ausgewählt hast, an dein eigenes angemeldetes Claude Code und zeigt die Antwort neben dem Gegenstand, um den es geht. Verwende dasselbe Gespräch nicht gleichzeitig in einem Terminal.
 
 > [!IMPORTANT]
-> Automatisch erklären fasst Seitenänderungen **ohne Bildschirmfreigabe** nach Zustimmung und Seitenfreigabe zusammen. Passwortfelder und die Sperrliste pausieren automatische Seitenzusammenfassungen und Vorschläge. Bildschirmzusammenfassungen verwenden einen geteilten Browser-Tab, der mit demselben geprüften Tab verbunden ist, und dieselben Prüfungen. Ein geteilter Monitor oder eine App braucht **eine separate Zustimmung für jede Freigabe**. Passwortfelder und gesperrte Websites lassen sich in diesen Pixeln nicht prüfen. Unbekannte Quellen bleiben pausiert.
-> Ladende oder unzugängliche eingebettete Seiten pausieren automatische Seitenanfragen ebenfalls.
+> Der Browser-Helfer liest eine Seite nur, wenn du darauf zeigst. Passwort- und Zahlungsfelder werden nie gelesen, und er spricht nur mit Blinkling auf deinem eigenen Rechner. Automatisch erklären bleibt aus, bis du es einschaltest.
 
-Keine Telemetrie und kein Antwortdienst des Herausgebers. Gewählter Kontext und Aufnahmen gehen an dein Backend. Dessen Bedingungen und Nutzungskosten gelten. Native Apps liefern nur Pixel. Browsereinstellungen, Erweiterungsstores und geschützte Seiten sperren Seitenwerkzeuge. Das native Fenster hat Browsergrenzen für Transparenz und Klickdurchleitung. [Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v2.1.0.md)
+Keine Telemetrie und kein vom Herausgeber betriebener Antwortdienst. Was du auswählst, geht an dein Claude Code; es gelten die Bedingungen und Nutzungsgebühren des Anbieters. Browsereinstellungen, Erweiterungsshops und der eingebaute PDF-Viewer des Browsers sind geschützte Seiten: Dort antwortet Blink anhand des Bildschirms. [Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.
