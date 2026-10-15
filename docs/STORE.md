@@ -23,23 +23,9 @@ Upload the inner `blinkling-extension.zip`, not the whole submission kit. The au
 
 ## Listing and images
 
-Use [`STORE-LISTING.md`](STORE-LISTING.md) for listing text and reviewer instructions. Category: Productivity. Support: [issue tracker](https://github.com/Arthur031221/Glimpselet/issues). Website: [demo](https://arthur031221.github.io/Glimpselet/). Privacy: [policy](https://arthur031221.github.io/Glimpselet/privacy.html).
+Use [`STORE-LISTING.md`](STORE-LISTING.md) for listing text and reviewer instructions. Category: Productivity. Support: [issue tracker](https://github.com/Arthur031221/Blinkling/issues). Website: [demo](https://arthur031221.github.io/Blinkling/). Privacy: [policy](https://arthur031221.github.io/Blinkling/privacy.html).
 
-The v2 screenshots showed the floating chat panel and were deleted. `assets/store/promo.png` is the only image in the repository; the screenshots are a ship step and the kit carries whichever of them exist. Chrome accepts up to five screenshots at 1280×800 and Edge up to six; the small promotional tile is 440×280 and the store icon is `extension/icons/blink-128.png`. The sizes follow the official [Chrome image guidance](https://developer.chrome.com/docs/webstore/images) and [Edge publishing guide](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension).
-
-## Screenshots to capture
-
-Capture each from the running desktop app on a real display, 1280×800, with Blink in its corner and a harmless page or window behind it. `.github/workflows/check-release.py` checks the size of each file once it exists.
-
-| File                          | Shows                                                                                |
-| ----------------------------- | ------------------------------------------------------------------------------------ |
-| `assets/store/blink.png`      | Blink resting in the corner of a desktop.                                            |
-| `assets/store/ctrl-click.png` | A thing under the pointer outlined, with the mini composer and its three quick asks. |
-| `assets/store/ctrl-drag.png`  | An area being taken with Ctrl and drag.                                              |
-| `assets/store/answer.png`     | An answer bubble pointing at what it talks about.                                    |
-| `assets/store/menu.png`       | The four menu bubbles open beside Blink.                                             |
-
-For Edge, add the companion status popup as a sixth image, `assets/store/popup.png`.
+The store images in `assets/store/` are real screenshots of the Blinkling desktop app on a web page (`pick`, `answer`, `ask` and `area`), recorded by `assets/record/record.sh` and listed with their checksums in `assets/recordings.json`. A shot of the companion popup is still to be added by hand. Chrome accepts up to five screenshots at 1280×800 and Edge up to six; the small promotional tile is 440×280 and the store icon is `extension/icons/blink-128.png`. The sizes follow the official [Chrome image guidance](https://developer.chrome.com/docs/webstore/images) and [Edge publishing guide](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension).
 
 ## Single purpose and permissions
 

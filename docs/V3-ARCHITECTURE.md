@@ -54,7 +54,7 @@ or push is performed by integration.
 Use Electron 44.7.2 and Node 24. Electron supplies transparent frameless windows,
 OS screen capture, global shortcuts, isolated preload IPC, and Playwright testing
 on all three target operating systems. The existing web stack can stay in use.
-A browser PiP window cannot provide the required cutout. A different native shell
+A browser window cannot provide the required cutout. A different native shell
 would require new capture, hit-testing and automation integrations without
 removing macOS permission or Wayland restrictions.
 
@@ -131,8 +131,7 @@ fullscreen, or a physical mixed-DPI monitor arrangement. Those are release gates
 
 ## Claude Code 2.1.296: actual Remote Control path
 
-The host's logged-in `claude` was used with tiny Haiku/low prompts, no separate
-API key. Saved CLI help is in `spike/claude-help.txt` and
+The host's logged-in `claude` was used with tiny Haiku/low prompts. Saved CLI help is in `spike/claude-help.txt` and
 `spike/remote-control-help.txt`. Findings:
 
 | Path                                                              | Result and decision                                                                                                                                                                                                          |
@@ -224,7 +223,7 @@ Do not hard-code the illustrative model labels from the brief as available IDs.
 Recovery must persist `{localId, remoteId, url, selection, lastEventId}` atomically
 in the OS user-data directory. Maintain one writer with a lock. Resume the local
 ID and reattach the remote ID; never create a new session for every screenshot.
-Use bounded exponential retry with jitter, a status dot and an outbox keyed by
+Use bounded exponential retry with jitter, a status face and an outbox keyed by
 turn UUID. Reconcile transcript IDs before replay to avoid duplicate paid turns.
 Remote user events and assistant deltas feed the same normalized message store
 as desktop turns; deduplicate replayed events. Stop sends `interrupt`; exiting
@@ -421,8 +420,8 @@ show the accurate one-action fallback where supported, with an animation.
 Linux: install under XDG data/cache paths, check graphical session availability,
 launch without sudo. Native Wayland needs portal consent and does not universally
 allow absolute window positioning/global hit-testing; test XWayland compatibility
-and native sessions separately before claiming support. Do not silently capture
-a remote SSH host when the user means their local desktop.
+and native sessions separately before claiming support. Blinkling captures the
+computer it runs on, never a remote host.
 
 The launcher contract is a versioned plugin-embedded manifest with OS, arch,
 asset URL, SHA-256, archive type and entry point. Pin the manifest to the plugin
@@ -436,7 +435,7 @@ serialize installs, preserve the previous working version, and pass arguments
 as arrays. Launch/deduplicate by authenticated local IPC, not process-name kills.
 Register the idempotent launcher in plugin SessionStart integration so future
 Claude Code sessions reconnect automatically after the initial slash command.
-No user pairing codes. No arbitrary port input. `/blinkling:blinkling` now invokes
+Nobody types a code or a port. `/blinkling:blinkling` now invokes
 the verified desktop launcher. The empty embedded release manifest fails closed
 until published V3 builds and their pinned hashes are available.
 

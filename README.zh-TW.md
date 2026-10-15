@@ -12,11 +12,13 @@
 
 Formerly Glimpselet。從舊外掛升級？請執行 `/plugin uninstall glimpselet@glimpselet` 與 `/plugin marketplace remove glimpselet`，再照下方步驟安裝 Blinkling。
 
-Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。按住 **Ctrl**（macOS 為 Control）點一下想問的東西，或拖曳框出一個區域。內容會飛進 Blink，你開口問，答案以對話泡泡回來，並指出它說的是哪裡。
+Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。按住 **Ctrl**（macOS 為 Control）點一下想問的東西，或拖曳框出一個區域。內容會飛進 Blink，你開口問，答案以對話泡泡出現在 Blink 旁邊。
 
 > **設計上就安全：** Blinkling 只看和解說，絕不替你點擊、打字或操作任何程式。
 
 使用這台電腦上你已登入的 Claude Code。
+
+![按住 Ctrl，在網頁上點一個段落。它會飛進 Blink，你提問，答案出現在 Blink 旁邊。](assets/pick.gif)
 
 ## 安裝
 
@@ -41,9 +43,14 @@ Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。
 
 ## 邊讀邊用
 
-- **按住 Ctrl 並點一下**螢幕上的段落、按鈕或圖片：Blink 會取下它，向 Claude Code 提問。**按住 Ctrl 並拖曳**則改為取一個區域。
-- 會跳出一個小輸入框，附三個快速提問，按 Enter 送出反白的那一個。隨時點 Blink 就能接續對話。
-- 答案以氣泡呈現，並指向它所談論的東西。Blink 的選單有截圖、導覽、自動解說（預設關閉）與設定。
+- **按住 Ctrl 並點一下**段落、按鈕或圖片，Blink 就會取下它。
+- **按住 Ctrl 並拖曳**則改為取一個區域。
+- 會跳出一個小輸入框，附三個快速提問，按 Enter 送出反白的那一個。
+- 隨時點 Blink 就能對話。答案以氣泡出現在 Blink 旁邊。
+
+![點 Blink，輸入問題，答案以氣泡回來。](assets/ask.gif)
+
+- Blink 的選單有截圖、導覽、自動解說（預設關閉）與設定。
 - 選用的 Chrome／Edge 瀏覽器小幫手會提供網頁本身的結構，讓 Blink 知道你指的是哪一段或哪個按鈕，另有整頁截圖、原地翻譯網頁與 PDF 閱讀器。工具列按鈕會顯示是否已連線，並可喚醒 Blink。沒有它，Blink 在每個視窗仍可使用。
 
 ## 快捷鍵
@@ -58,11 +65,11 @@ Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。
 
 ## 對話與隱私
 
-Blink 會把你選取的內容送給你自己已登入的 Claude Code，並把答案顯示在相關事物旁邊。請避免同時在終端機使用同一個對話。
+Blink 會把你選取的內容送給你自己已登入的 Claude Code，並把答案以氣泡顯示在 Blink 旁邊。請避免同時在終端機使用同一個對話。
 
 > [!IMPORTANT]
 > 瀏覽器小幫手只在你指向網頁時讀取該頁。密碼與付款欄位一律不讀取，且只與你電腦上的 Blinkling 通訊。自動解說在你開啟前保持關閉。
 
-沒有遙測，也沒有發行者經營的回答服務。你選取的內容會送到你的 Claude Code；適用供應商條款與用量費用。瀏覽器設定、擴充功能商店與瀏覽器內建的 PDF 檢視器屬受保護頁面：在那裡 Blink 只依螢幕畫面回答。 [隱私](docs/SECURITY.md) | [使用說明](docs/USAGE.md) | [版本說明](docs/releases/v2.1.0.md)
+沒有遙測，也沒有發行者經營的回答服務。你選取的內容會送到你的 Claude Code；適用供應商條款與用量費用。瀏覽器設定、擴充功能商店與瀏覽器內建的 PDF 檢視器屬受保護頁面：在那裡 Blink 只依螢幕畫面回答。 [隱私](docs/SECURITY.md) | [使用說明](docs/USAGE.md) | [版本說明](docs/releases/v3.0.0.md)
 
 Assisted by Claude/Codex.

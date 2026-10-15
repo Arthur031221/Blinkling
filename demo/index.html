@@ -10,9 +10,9 @@
     />
     <meta
       name="description"
-      content="Blinkling puts Blink, a small companion, on your desktop. Hold Ctrl and click or drag on anything to ask Claude Code about it."
+      content="Blinkling 3.0: Blink sits in the corner of your desktop. Hold Ctrl and click anything to ask Claude Code about it. It looks and explains, and never clicks."
     />
-    <title>Blinkling | Blink waits in the corner of your screen</title>
+    <title>Blinkling 3.0 | Hold Ctrl, click, ask</title>
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="wordmark.css" />
     <link rel="stylesheet" href="demo.css" />
@@ -35,40 +35,41 @@
     <main>
       <section class="hero" aria-labelledby="hero-title">
         <p class="eyebrow">Your screen. A small question.</p>
-        <h1 id="hero-title">Blink waits in the corner<br />of your screen.</h1>
+        <h1 id="hero-title">Hold Ctrl.<br />Click. Ask.</h1>
         <p class="intro">
-          Hold Ctrl and click anything to ask about it. Answers come back from
-          Blink, pointing at what they talk about.
+          Blink lives in the corner of your desktop. Hold Ctrl and click
+          anything on your screen, or drag to take an area, and Blink asks your
+          Claude Code about it. Blinkling looks and explains. It never clicks,
+          types or controls your apps.
         </p>
         <div class="actions">
           <a class="button" href="#install">Get started</a>
         </div>
         <p class="hint">
-          Windows, macOS and Linux. Your Claude Code login. No publisher server.
+          Mac, Windows or Linux. Your Claude Code login. No publisher server.
         </p>
-        <div class="features">
-          <article>
-            <h3>Ctrl and click</h3>
-            <p>
-              Hold Ctrl and click a thing: a button, a paragraph, a window. The
-              mini composer opens with three quick asks, and Enter sends the
-              highlighted one.
-            </p>
-          </article>
-          <article>
-            <h3>Ctrl and drag</h3>
-            <p>
-              Keep Ctrl down and drag past a few pixels to take an area instead.
-              The capture flies into the composer for your question.
-            </p>
-          </article>
-          <article>
-            <h3>Click Blink to talk</h3>
-            <p>
-              Click Blink to pick up the last conversation. Scroll back through
-              earlier answers with the wheel.
-            </p>
-          </article>
+        <div class="screens">
+          <figure>
+            <img
+              src="demo-assets/pick.gif"
+              width="800"
+              height="500"
+              alt="Real Blinkling: Ctrl and click on an arXiv page, the pick flies into Blink, a small composer opens and the answer arrives in bubbles"
+            />
+            <figcaption>
+              Ctrl and click a paragraph. Press Enter. The answer appears beside
+              Blink.
+            </figcaption>
+          </figure>
+          <figure>
+            <img
+              src="demo-assets/ask.gif"
+              width="800"
+              height="500"
+              alt="Clicking Blink and asking a question in the chat on an arXiv page"
+            />
+            <figcaption>Click Blink and ask in your own words.</figcaption>
+          </figure>
         </div>
       </section>
       <section id="install" aria-labelledby="install-title">
@@ -100,45 +101,58 @@
           animated steps.
         </p>
       </section>
-      <section class="secondary" aria-labelledby="more-title">
-        <p class="eyebrow">When you need more</p>
-        <h2 id="more-title">Quiet extras.</h2>
+      <section aria-labelledby="features-title">
+        <p class="eyebrow">While you read</p>
+        <h2 id="features-title">Pick, ask, read the answer.</h2>
         <div class="features">
           <article>
-            <h3>The menu</h3>
+            <h3>Ctrl and click</h3>
             <p>
-              Hover Blink for capture, a numbered guide through what is on
-              screen, and auto explain, which is off until you turn it on.
+              Hold Ctrl and click a paragraph, a button or a picture. It flies
+              into Blink and a small composer opens with three quick asks. Enter
+              sends the highlighted one.
             </p>
           </article>
           <article>
-            <h3>Hotkey and full composer</h3>
+            <h3>Ctrl and drag</h3>
             <p>
-              A global hotkey opens the capture overlay. Long messages grow into
-              the full composer, where you can choose the model and effort.
+              Hold Ctrl and drag to take an area instead, anywhere on the
+              screen, in any app.
             </p>
           </article>
           <article>
-            <h3>With the browser companion</h3>
+            <h3>Answers beside the thing</h3>
             <p>
-              Translate a web page in place, open PDFs in a reader, and capture
-              a whole page. Without the companion, these simply stay out of the
-              way.
+              Answers arrive as bubbles from Blink and point at what they talk
+              about. Click Blink at any time to pick the conversation up again.
             </p>
           </article>
           <article>
-            <h3>Inside Claude Code</h3>
+            <h3>An optional browser helper</h3>
             <p>
-              Blink starts with your Claude Code session. Slash commands and
-              screen tools let Claude look at the screen when you ask.
+              The Chrome or Edge helper tells Blink which paragraph or button
+              you pointed at, and adds full-length page capture, in-place
+              translation and a reader for PDFs. Blink works without it.
             </p>
           </article>
         </div>
-        <p class="limits">
-          Nothing leaves your computer until you ask a question. Pixels and text
-          you pick are sent through your Claude Code login, and your selected
-          provider's terms apply. Password fields and blocked sites pause auto
-          explain.
+        <p class="hint">
+          These recordings come from the real app on a real arXiv page, with
+          replies from Claude Code. Waiting time is cut.
+        </p>
+      </section>
+      <section class="limits" aria-labelledby="limits-title">
+        <h2 id="limits-title">A few limits, up front.</h2>
+        <p>
+          On a Mac, Blinkling needs Screen Recording once. Browser settings,
+          extension stores and the browser's own PDF viewer are protected pages:
+          Blink answers from the screen there. Auto explain is off until you
+          turn it on.
+        </p>
+        <p>
+          What you pick goes to your own Claude Code. Password and payment
+          fields are never read, and Blink pauses while a password manager or a
+          private window has focus. Your selected provider's terms apply.
           <a href="privacy.html">Read what is sent and stored</a>.
         </p>
       </section>

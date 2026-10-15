@@ -25,5 +25,5 @@ Questions to a model are never asked in these tests; the host and the bridge are
 
 - Run `/blinkling:install` in a real Chrome and Edge and check the popup reads connected.
 - Try the companion on macOS and Windows; the checks here ran on Linux.
-- Capture the store screenshots listed in `docs/STORE.md` from the desktop app; the v2 images were deleted.
+- Check the store images and website recordings against the released build.
 - Have the account holder submit the extension to the stores; neither store has approved it.
