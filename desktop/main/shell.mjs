@@ -31,7 +31,9 @@ import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
 import { createEscapeKeys } from "./escape-keys.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
-import { captureScreen } from "../capture/index.mjs";
+import { captureScreen, screenImage, windowsOn } from "../capture/index.mjs";
+import { createLocator } from "../locator/index.mjs";
+import { createCaptureAccess } from "../locator/access.mjs";
 import { createOverlay } from "../overlay/index.mjs";
 import {
   installCaptureGuide,
@@ -794,6 +796,14 @@ registerAction("companion-guide", async () => {
   return { ok: true };
 });
 const { systemPreferences, nativeImage, dialog } = await import("electron");
+// One locator for the whole shell: pick, capture and pointing read the same
+// cache, so a second look at a window costs nothing.
+const locator = createLocator({
+  companion: () => companionConnected(companionHost),
+  host: companionHost,
+  platform: process.platform,
+  capture: createCaptureAccess({ screen, windowsOn, grab: screenImage }),
+});
 const pick = await installPick({
   electron: {
     BrowserWindow,
@@ -818,6 +828,7 @@ const pick = await installPick({
     workArea: () => display.workArea,
     session,
     captureScreen,
+    locator,
     newChat: () => tellDeck({ type: "new-chat" }),
     caught: () => blink.webContents.send("blinkling:catch"),
     autoExplain: {
@@ -934,7 +945,11 @@ app.on("before-quit", (event) => {
   if (disposed) return;
   event.preventDefault();
   features.dispose();
-  Promise.allSettled([session.dispose(), companionHost.close()]).finally(() => {
+  Promise.allSettled([
+    session.dispose(),
+    companionHost.close(),
+    locator.close(),
+  ]).finally(() => {
     disposed = true;
     app.quit();
   });
