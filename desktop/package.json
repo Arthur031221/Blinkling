@@ -1,6 +1,9 @@
 {
   "name": "@blinkling/desktop",
   "version": "3.0.0",
+  "description": "Blink, the Blinkling desktop companion that watches your screen and talks to Claude Code",
+  "author": "Arthur031221",
+  "desktopName": "blinkling.desktop",
   "private": true,
   "type": "module",
   "main": "main/index.cjs",

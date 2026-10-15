@@ -1,10 +1,15 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TARGETS, assetName, packagedDirectory } from "./targets.mjs";
 
 const BUILDER = "electron-builder@26.17.0";
+const APP = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+);
+const ICON = fileURLToPath(new URL("./icon.png", import.meta.url));
 
 /** What turns an unpacked app into the release asset for one target. Pure so
  * the names and formats can be tested without building anything. */
@@ -37,13 +42,23 @@ export function packagePlan({ target, version, packaged, output }) {
       productName: "Blinkling",
       artifactName: asset,
       directories: { output },
-      extraMetadata: { version },
+      // electron-builder reads its metadata from the working directory's
+      // package.json, not the prepackaged app's, so the app's own fields are
+      // handed over explicitly.
+      extraMetadata: {
+        version,
+        description: APP.description,
+        author: APP.author,
+        desktopName: APP.desktopName,
+      },
       ...(linux
         ? {
             linux: {
               target: "AppImage",
               category: "Utility",
               executableName: "Blinkling",
+              icon: ICON,
+              description: APP.description,
             },
           }
         : { win: { target: "portable" } }),

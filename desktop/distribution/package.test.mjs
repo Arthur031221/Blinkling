@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 import { TARGETS, assetName } from "./targets.mjs";
 import { packagePlan } from "./package.mjs";
 
@@ -66,4 +67,43 @@ test("the AppImage launches the binary the packager produced", () => {
     output: "/o",
   });
   assert.equal(plan.config.linux.executableName, "Blinkling");
+});
+
+test("the AppImage carries the Blink icon, the desktop name, a description and an author", async () => {
+  const plan = packagePlan({
+    target: target("linux", "x64"),
+    version: "3.0.0",
+    packaged: "/p",
+    output: "/o",
+  });
+  const { linux } = plan.config;
+  // electron-builder reads these from the package.json inside the prepackaged
+  // app, so extraMetadata cannot supply them.
+  const app = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(app.desktopName, "blinkling.desktop");
+  assert.match(app.description, /Blink/);
+  assert.ok(app.author);
+  assert.equal(linux.description, app.description);
+  for (const key of ["description", "author", "desktopName"])
+    assert.equal(plan.config.extraMetadata[key], app[key], key);
+  // electron-builder rejects Linux icons under 256px, so the icon is checked
+  // as a real square PNG at least that large, not just as a path.
+  assert.ok(isAbsolute(linux.icon), linux.icon);
+  const png = await readFile(linux.icon);
+  assert.equal(png.subarray(1, 4).toString(), "PNG");
+  const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)];
+  assert.equal(width, height);
+  assert.ok(width >= 256, `${width}px`);
+});
+
+test("the other platforms keep their plain config", () => {
+  const plan = packagePlan({
+    target: target("win32", "x64"),
+    version: "3.0.0",
+    packaged: "/p",
+    output: "/o",
+  });
+  assert.equal(plan.config.linux, undefined);
 });
