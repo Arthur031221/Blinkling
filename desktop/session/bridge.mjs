@@ -33,6 +33,7 @@ export class DesktopSessionBridge {
     this.read = read;
     this.retry = { minMs: 500, maxMs: 30000, ...retry };
     this.listeners = new Set();
+    this.hooks = new Set();
     this.idleWaiters = new Set();
     this.operations = Promise.resolve();
     this.events = Promise.resolve();
@@ -245,7 +246,30 @@ export class DesktopSessionBridge {
     this.operations = run.catch(() => {});
     return run;
   }
-  send(turn) {
+  /** Registers a veto over every turn, before it is queued or written. The hook
+   * gets a copy and answers `false`, `{ ok: false, reason }` or nothing; a hook
+   * that throws blocks too, because an unknown state must not leak a capture. */
+  beforeSend(hook) {
+    this.hooks.add(hook);
+    return () => this.hooks.delete(hook);
+  }
+  async admit(turn) {
+    for (const hook of this.hooks) {
+      let verdict;
+      try {
+        verdict = await hook(structuredClone(turn));
+      } catch {
+        verdict = { ok: false, reason: "error" };
+      }
+      if (verdict === false || verdict?.ok === false)
+        throw Object.assign(new Error("This turn was blocked before sending"), {
+          code: "SEND_BLOCKED",
+          reason: verdict?.reason,
+        });
+    }
+  }
+  async send(turn) {
+    await this.admit(turn);
     return this.enqueue(async () => {
       validateTurn(turn);
       const copy = structuredClone(turn);

@@ -1032,3 +1032,56 @@ test("PV-5: the real transport reports a missing executable the same way", async
   assert.ok(!events.some((e) => e.type === "status" && e.state === "blocked"));
   assert.equal(bridge.status.detail, "claude-missing");
 });
+
+// PV-1: a beforeSend hook can veto a turn before anything is queued or written.
+test("PV-1: beforeSend hooks can veto a turn before it is queued, persisted or sent", async (t) => {
+  const { bridge, children, dir } = await setup(t);
+  await bridge.connect();
+  const seen = [];
+  const off = bridge.beforeSend(async (value) => {
+    seen.push(value.id);
+    return value.text.includes("blocked")
+      ? { ok: false, reason: "secure" }
+      : { ok: true };
+  });
+  const veto = { ...turn(), text: "blocked by the hook" };
+  await assert.rejects(bridge.send(veto), {
+    code: "SEND_BLOCKED",
+    reason: "secure",
+  });
+  assert.equal(bridge.state.turns.length, 0);
+  assert.equal(bridge.state.messages.length, 0);
+  assert.equal(children[0].sent.length, 0);
+  const raw = await readFile(join(dir, "session/state.json"), "utf8");
+  assert.ok(!raw.includes(veto.id));
+  const fine = turn();
+  await bridge.send(fine);
+  await waitFor(() => children[0].sent.length === 1);
+  off();
+  await bridge.send({ ...turn(), text: "blocked but the hook is gone" });
+  await waitFor(
+    () => children[0].sent.length === 2 || bridge.state.turns.length === 2,
+  );
+  assert.equal(seen.length, 2);
+});
+test("PV-1: a hook that throws blocks the turn, and a hook cannot mutate it", async (t) => {
+  const { bridge, children } = await setup(t);
+  await bridge.connect();
+  bridge.beforeSend(() => {
+    throw new Error("locator failed");
+  });
+  await assert.rejects(bridge.send(turn()), { code: "SEND_BLOCKED" });
+  assert.equal(children[0].sent.length, 0);
+  const { bridge: other, children: kids } = await setup(t);
+  await other.connect();
+  other.beforeSend((value) => {
+    value.attachments.length = 0;
+    value.text = "tampered";
+    return true;
+  });
+  const original = turn();
+  await other.send(original);
+  await waitFor(() => kids[0].sent.length === 1);
+  assert.equal(kids[0].sent[0].text, "What?");
+  assert.equal(kids[0].sent[0].attachments.length, 1);
+});
