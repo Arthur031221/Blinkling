@@ -149,18 +149,19 @@ test("native drag squishes, snaps and persists; pin/click focus is intentional a
     const held = await c.page.evaluate(async () => {
       const { desktop } = await import("./index.mjs");
       const matrix = desktop.character.body.parentElement.getScreenCTM(),
-        tongue = document.querySelector('path[fill="#ff8fb1"]'),
-        point = new DOMPoint(0, 79).matrixTransform(tongue.getScreenCTM());
+        { sweat, brows } = desktop.character.rig;
       return {
         ratio: Math.hypot(matrix.a, matrix.b) / Math.hypot(matrix.c, matrix.d),
-        tongue: { x: point.x, y: point.y },
+        sweat: Number(sweat.getAttribute("opacity")),
+        brows: brows.getAttribute("opacity"),
       };
     });
-    expect(held.ratio).toBeCloseTo(0.88 / 1.12, 2);
-    const heldImage = await desktopShot(c.app, "drag-desktop");
-    expect(pixel(heldImage, held.tongue.x, held.tongue.y)).toEqual([
-      255, 143, 177,
-    ]);
+    // Held, Blink is scared and keeps its shape: it is not stretched tall.
+    expect(held.ratio).toBeGreaterThan(0.94);
+    expect(held.ratio).toBeLessThan(1.08);
+    expect(held.sweat).toBeGreaterThan(0);
+    expect(held.brows).toBe("1");
+    await desktopShot(c.app, "drag-desktop");
     await c.page.evaluate(() => {
       window.dropSamples = [];
       const started = performance.now();

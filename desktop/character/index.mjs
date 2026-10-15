@@ -1,5 +1,7 @@
 import { capsule, roundedRect, transformPolygon } from "./silhouette.mjs";
 const NS = "http://www.w3.org/2000/svg";
+/** How long a dizzy Blink sways before it recovers, in seconds. */
+export const DIZZY_FOR = 2.6;
 export const colors = Object.freeze({
   ink: "#0c0e0d",
   green: "#3ddc97",
@@ -178,12 +180,13 @@ export function mountBlink(host) {
     el("circle", { cx: x, cy: 6, r: 16, fill: colors.ink }, pupils.node);
     el("circle", { cx: x + 6, cy: 0, r: 5, fill: colors.bone }, pupils.node);
   }
-  for (const x of [-86, 86])
+  const cheeks = [-86, 86].map((x) =>
     el(
       "ellipse",
       { cx: x, cy: 52, rx: 19, ry: 10, fill: colors.cheek, opacity: 0.75 },
       face.node,
-    );
+    ),
+  );
   const brows = el(
     "path",
     {
@@ -264,6 +267,60 @@ export function mountBlink(host) {
     body,
   );
   status.style.fill = "var(--warn)";
+  // A sweat drop for a held Blink, spiral eyes and orbiting stars for a dizzy
+  // one, and a heart for a pat on the head. All hidden until a pose asks.
+  const sweat = el(
+    "path",
+    {
+      d: "M 0 -22 Q 16 2 0 14 Q -16 2 0 -22 Z",
+      fill: "#9fd8ff",
+      stroke: colors.ink,
+      "stroke-width": 5,
+      opacity: 0,
+    },
+    face.node,
+  );
+  const spirals = [-50, 50].map((x) =>
+    el(
+      "path",
+      {
+        d: "M 0 -4 a4 4 0 1 1 -4 4 a10 10 0 1 1 10 10 a17 17 0 1 1 -17 -17 a24 24 0 1 1 24 24",
+        transform: `translate(${x},0)`,
+        fill: "none",
+        stroke: colors.ink,
+        "stroke-width": 5,
+        "stroke-linecap": "round",
+        opacity: 0,
+      },
+      face.node,
+    ),
+  );
+  const stars = [0, 1, 2].map(() =>
+    el(
+      "path",
+      {
+        d: "M 0 -14 L 4 -4 L 14 -4 L 6 3 L 9 13 L 0 7 L -9 13 L -6 3 L -14 -4 L -4 -4 Z",
+        fill: "#ffd84a",
+        stroke: colors.ink,
+        "stroke-width": 4,
+        "stroke-linejoin": "round",
+        opacity: 0,
+      },
+      face.node,
+    ),
+  );
+  const heart = el(
+    "path",
+    {
+      d: "M 0 12 C -22 -4 -16 -22 0 -12 C 16 -22 22 -4 0 12 Z",
+      fill: colors.cheek,
+      stroke: colors.ink,
+      "stroke-width": 4,
+      "stroke-linejoin": "round",
+      opacity: 0,
+    },
+    face.node,
+  );
   const smile = el(
     "path",
     {
@@ -342,6 +399,8 @@ export function mountBlink(host) {
       dot = null,
       edge = "right",
       hanging = false,
+      dizzyAt = -100,
+      touch = null,
     } = {},
   ) {
     const look = LOOKS[faceName] ?? LOOKS.idle;
@@ -406,17 +465,129 @@ export function mountBlink(host) {
     let open =
       look.mouth === "open" ||
       (look.mouth === "talk" && Math.sin(time * 17) > 0.1);
+    let nervous = 0;
     if (mode === "drag") {
-      squash.sx = 0.88;
-      squash.sy = 1.12;
-      squash.r = Math.max(-14, Math.min(14, -velocity * 0.04));
-      eyes.sx = 1.15;
-      eyes.sy = 1.15;
-      arms.L.shoulder.r = 156;
-      arms.R.shoulder.r = -156;
-      legs.L.knee.r = -18;
-      legs.R.knee.r = 18;
-      open = true;
+      // Held by the scruff: it does not stretch into a box. It trembles, its
+      // eyes go wide, a sweat drop slides down and its legs dangle and kick.
+      nervous = 1;
+      const shake = Math.sin(time * 26);
+      squash.sx = 1.02 + shake * 0.015;
+      squash.sy = 0.99 - shake * 0.015;
+      squash.r =
+        Math.max(-14, Math.min(14, -velocity * 0.04)) +
+        Math.sin(time * 15) * 4.5;
+      eyes.sx = 1.12;
+      eyes.sy = 1.2;
+      pupils.x *= 0.3;
+      pupils.y = -4;
+      brows.setAttribute("d", BROWS.worried);
+      brows.setAttribute("opacity", 1);
+      arms.L.shoulder.r = 150 + Math.sin(time * 19) * 5;
+      arms.R.shoulder.r = -150 - Math.sin(time * 19 + 1) * 5;
+      legs.L.hip.r = Math.sin(time * 9) * 12;
+      legs.R.hip.r = -Math.sin(time * 9 + 1) * 12;
+      legs.L.knee.r = -18 + Math.sin(time * 9) * 10;
+      legs.R.knee.r = 18 - Math.sin(time * 9 + 1) * 10;
+      smile.setAttribute(
+        "d",
+        `M -26 62 Q -13 ${52 + shake * 3} 0 62 Q 13 ${72 - shake * 3} 26 62`,
+      );
+      open = false;
+    }
+    const slide = (time * 0.9) % 1;
+    sweat.setAttribute("opacity", nervous ? 1 - slide * slide : 0);
+    sweat.setAttribute(
+      "transform",
+      `translate(${hanging ? -92 : 92},${-56 + slide * 70}) scale(${1 - slide * 0.25})`,
+    );
+    // Dizzy after a spin: spiral eyes, stars on a ring and a sway that fades.
+    const dizzy = time - dizzyAt;
+    const dizzyOn = !nervous && dizzy >= 0 && dizzy < DIZZY_FOR;
+    if (dizzyOn) {
+      const fade = Math.min(1, (DIZZY_FOR - dizzy) / 0.6);
+      squash.r = Math.sin(dizzy * 5.5) * 9 * fade;
+      lift.y += Math.abs(Math.sin(dizzy * 5.5)) * 4;
+      squash.sx = 1 + Math.sin(dizzy * 11) * 0.02 * fade;
+      eyes.sy = 0.001;
+      pupils.x = 0;
+      arms.L.shoulder.r = 40 + Math.sin(dizzy * 5.5) * 14;
+      arms.R.shoulder.r = -40 + Math.sin(dizzy * 5.5) * 14;
+      legs.L.hip.r = Math.sin(dizzy * 5.5) * 6;
+      legs.R.hip.r = Math.sin(dizzy * 5.5 + 3) * 6;
+      smile.setAttribute("d", "M -22 60 Q -10 50 0 60 Q 10 70 22 60");
+      stars.forEach((star, i) => {
+        const a = dizzy * 4.2 + (i * Math.PI * 2) / 3;
+        star.setAttribute(
+          "transform",
+          `translate(${Math.cos(a) * 82},${-104 + Math.sin(a) * 18}) scale(${0.8 + Math.sin(a) * 0.2})`,
+        );
+        star.setAttribute("opacity", fade);
+      });
+      spirals.forEach((sp, i) => {
+        sp.setAttribute(
+          "transform",
+          `translate(${i ? 50 : -50},0) rotate(${(i ? -1 : 1) * dizzy * 360})`,
+        );
+        sp.setAttribute("opacity", fade);
+      });
+    } else {
+      stars.forEach((star) => star.setAttribute("opacity", 0));
+      spirals.forEach((sp) => sp.setAttribute("opacity", 0));
+    }
+    // Touch reactions, one per part. A held or dizzy Blink keeps its own pose.
+    cheeks.forEach((c) => {
+      c.setAttribute("opacity", 0.75);
+      c.removeAttribute("transform");
+    });
+    heart.setAttribute("opacity", 0);
+    if (!nervous && !dizzyOn && touch) {
+      const t = Math.sin(time * 18);
+      if (touch.part === "head") {
+        // A pat: eyes squint shut, a heart floats up, the head leans in.
+        eyes.sy = 0.12;
+        face.r += Math.sin(time * 5) * 3;
+        squash.sy -= 0.03;
+        heart.setAttribute("opacity", 1);
+        heart.setAttribute(
+          "transform",
+          `translate(0,${-96 - ((time * 40) % 24)}) scale(${0.9 + t * 0.05})`,
+        );
+        open = false;
+      } else if (touch.part === "cheek") {
+        // Blushing: the cheeks swell and glow and Blink looks away shyly.
+        cheeks.forEach((c, i) => {
+          c.setAttribute("opacity", 1);
+          c.setAttribute(
+            "transform",
+            `translate(${i ? 86 : -86},52) scale(1.35) translate(${i ? -86 : 86},-52)`,
+          );
+        });
+        eyes.sy = Math.min(eyes.sy, 0.5);
+        squash.sx += 0.03 + t * 0.01;
+        squash.sy -= 0.03;
+        pupils.x = touch.side * 8;
+      } else if (touch.part === "belly") {
+        // Ticklish: a giggle jiggle with the mouth open.
+        squash.sx += t * 0.05;
+        squash.sy -= t * 0.05;
+        squash.r = t * 3;
+        eyes.sy = Math.min(eyes.sy, 0.35);
+        open = true;
+      } else if (touch.part === "hand") {
+        // The touched hand shakes in greeting.
+        const arm = touch.side < 0 ? arms.L : arms.R;
+        arm.shoulder.r = touch.side * -(70 + Math.sin(time * 20) * 14);
+        arm.elbow.r = Math.sin(time * 22) * 24;
+        pupils.x = touch.side * 10;
+      } else if (touch.part === "foot") {
+        // Ticklish feet: a hop and a kick of the touched leg.
+        const leg = touch.side < 0 ? legs.L : legs.R;
+        lift.y -= Math.abs(Math.sin(time * 9)) * 14;
+        leg.hip.r = touch.side * Math.sin(time * 18) * 22;
+        leg.knee.r = Math.sin(time * 18) * 18;
+        eyes.sy = Math.min(eyes.sy, 0.5);
+        open = true;
+      }
     }
     const drop = time - dropAt;
     if (drop >= 0 && drop < 0.5) {
@@ -449,6 +620,11 @@ export function mountBlink(host) {
       eyes,
       pupils,
       brows,
+      cheeks,
+      sweat,
+      spirals,
+      stars,
+      heart,
       thoughts,
       marks,
       status,

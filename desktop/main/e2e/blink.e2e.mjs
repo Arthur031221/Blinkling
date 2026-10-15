@@ -147,6 +147,118 @@ test("the fan opens after a 300 ms rest, not on a pass-by or a wake", async () =
   }
 });
 
+test("touching Blink's head or belly gets its own reaction, and leaving ends it", async () => {
+  const c = await launch();
+  try {
+    await background(c.app);
+    native(20, 20);
+    await c.page.waitForTimeout(600);
+    // Reveal Blink first: a peeking Blink is mostly off screen.
+    await moveOn(c.page);
+    const spot = (fx, fy) =>
+      c.page.evaluate(
+        ([fx, fy]) => {
+          const r = document
+            .querySelector('rect[fill="#3ddc97"]')
+            .getBoundingClientRect();
+          return { x: r.x + r.width * fx, y: r.y + r.height * fy };
+        },
+        [fx, fy],
+      );
+    const rig = (read) =>
+      c.page.evaluate(
+        (read) =>
+          new Function("r", `return ${read}`)(window.desktop.character.rig),
+        read,
+      );
+    const head = await spot(0.5, 0.3);
+    native(head.x, head.y);
+    await expect.poll(() => rig('r.heart.getAttribute("opacity")')).toBe("1");
+    const belly = await spot(0.5, 0.92);
+    native(belly.x, belly.y);
+    await expect.poll(() => rig('r.heart.getAttribute("opacity")')).toBe("0");
+    await expect.poll(() => rig('r.mouth.getAttribute("opacity")')).toBe("1");
+    native(20, 20);
+    await expect.poll(() => rig('r.mouth.getAttribute("opacity")')).toBe("0");
+  } finally {
+    await c.close();
+  }
+});
+
+test("a held Blink is nervous, and two circles in the air leave it dizzy", async () => {
+  const c = await launch();
+  try {
+    await background(c.app);
+    await moveOn(c.page);
+    const p = await rigPoint(c.page);
+    const rig = (read) =>
+      c.page.evaluate(
+        (read) =>
+          new Function("r", `return ${read}`)(window.desktop.character.rig),
+        read,
+      );
+    native(p.x, p.y, "down");
+    native(p.x + 40, p.y + 10);
+    await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drag");
+    expect(
+      Number(await rig('r.sweat.getAttribute("opacity")')),
+    ).toBeGreaterThan(0);
+    // Each native move takes longer than a real hand, so the three circles are
+    // fed to the detector in one go instead of being drawn with the mouse.
+    await c.page.evaluate(() => {
+      const spin = window.desktop.spin;
+      const now = performance.now();
+      spin.reset();
+      for (let i = 0; i <= 90; i++) {
+        const a = (i / 30) * Math.PI * 2;
+        spin.add(
+          { x: 400 + Math.cos(a) * 90, y: 400 + Math.sin(a) * 90 },
+          now + i * 20,
+        );
+      }
+    });
+    native(p.x + 40, p.y + 10, "up");
+    await expect
+      .poll(() => rig('r.spirals[0].getAttribute("opacity")'))
+      .toBe("1");
+    // Then it recovers.
+    await expect
+      .poll(() => rig('r.spirals[0].getAttribute("opacity")'), {
+        timeout: 6000,
+      })
+      .toBe("0");
+  } finally {
+    await c.close();
+  }
+});
+
+test("after a quiet minute Blink thinks out loud in a bubble that never takes a click", async () => {
+  const c = await launch();
+  try {
+    await background(c.app);
+    native(20, 20);
+    await c.page.waitForTimeout(600);
+    const bubble = c.page.locator("#grumble");
+    await expect(bubble).toHaveAttribute("data-shown", "false");
+    // Jump the grumbler's clock past the quiet minute instead of waiting it out.
+    await c.page.evaluate(() =>
+      window.desktop.grumbler.tick(performance.now() + 120_000, false),
+    );
+    await expect(bubble).toHaveAttribute("data-shown", "true");
+    await expect(bubble).not.toHaveText("");
+    await expect(bubble).toHaveCSS("pointer-events", "none");
+    await expect(bubble).toHaveAttribute("aria-hidden", "true");
+    const box = await bubble.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    // Work in the session sends the thought away.
+    await emit(c, { type: "activity", state: "thinking" });
+    await expect(bubble).toHaveAttribute("data-shown", "false");
+  } finally {
+    await c.close();
+  }
+});
+
 test("a click on Blink opens the focused mini composer; a drag past 4 px does not", async () => {
   const c = await launch();
   try {
@@ -230,12 +342,12 @@ test("the mini composer stays at Blink's mouth when Blink moves", async () => {
     native(p.x, p.y, "down");
     native(p.x, p.y, "up");
     await expect.poll(() => miniFocused(c.app)).toBe(true);
-    // The mouth sits 78 px below the top of Blink's box; the box rises from 40 px under it.
+    // The mouth sits 91 px below the top of Blink's box; the box rises from 40 px under it.
     const bottomWanted = () =>
       c.app.evaluate(() => {
         const s = globalThis.blinklingTest.snapshot();
         return Math.round(
-          s.position.reveal.y + s.display.bounds.y - 142 + 78 + 40,
+          s.position.reveal.y + s.display.bounds.y - 142 + 91 + 40,
         );
       });
     const bottom = async () => {

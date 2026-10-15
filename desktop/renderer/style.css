@@ -56,6 +56,8 @@ button svg {
   width: 100%;
   height: 100%;
   overflow: visible;
+  transform: scale(var(--blink-scale, 1));
+  transform-origin: 50% 93.42%;
 }
 #blink[data-drag="true"] {
   cursor: grabbing;
@@ -154,6 +156,70 @@ button svg {
   height: 8px;
   border-radius: var(--radius-pill);
   background: var(--text-on-green);
+}
+/* Blink's idle thought: a cloud with two dots trailing down to its head. It
+ * never takes a click, and only opacity and transform change. */
+#grumble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 220px;
+  padding: 10px 16px;
+  border-radius: 24px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-size: var(--type-s);
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+#grumble[data-shown="true"] {
+  opacity: 1;
+  transition: opacity var(--motion-base) var(--ease-enter);
+}
+#grumble[data-shown="false"] {
+  transition: opacity var(--motion-base) var(--ease-exit);
+}
+#grumble::before,
+#grumble::after {
+  content: "";
+  position: absolute;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+#grumble::before {
+  width: 12px;
+  height: 12px;
+  bottom: -16px;
+}
+#grumble::after {
+  width: 7px;
+  height: 7px;
+  bottom: -27px;
+}
+#grumble[data-side="left"]::before {
+  left: 18px;
+}
+#grumble[data-side="left"]::after {
+  left: 12px;
+}
+#grumble[data-side="right"]::before {
+  right: 18px;
+}
+#grumble[data-side="right"]::after {
+  right: 12px;
+}
+#grumble[data-edge="top"]::before {
+  bottom: auto;
+  top: -16px;
+}
+#grumble[data-edge="top"]::after {
+  bottom: auto;
+  top: -27px;
 }
 #permission-alert {
   position: absolute;

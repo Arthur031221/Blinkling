@@ -1,8 +1,13 @@
 import { menuLayout } from "../menu/layout.mjs";
+import { BLINK_SCALE } from "../character/size.mjs";
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const CHARACTER = Object.freeze({ width: 148, height: 152, foot: 142 });
-/** Blink's mouth inside its box, from the top left. */
-export const MOUTH = Object.freeze({ x: 74, y: 78 });
+/** Blink's mouth inside its box, from the top left: it is 64 px above the feet
+ * at full size, and the drawing is scaled around the feet. */
+export const MOUTH = Object.freeze({
+  x: CHARACTER.width / 2,
+  y: Math.round(CHARACTER.foot - (CHARACTER.foot - 78) * BLINK_SCALE),
+});
 /** How far below the mouth a panel's bottom edge sits: panels rise from it. */
 export const MOUTH_DROP = 40;
 /** Where a panel of this height starts so that it is anchored to the mouth of

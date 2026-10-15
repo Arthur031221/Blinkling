@@ -8,11 +8,19 @@ import { createComposer } from "../composer/index.mjs";
 import { createRest } from "../menu/rest.mjs";
 import { fanWanted } from "../menu/gate.mjs";
 import { createGesture } from "./gesture.mjs";
-import { applyText, windowText } from "./strings.mjs";
+import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
 import { setDocumentLocale } from "../shared/i18n.mjs";
+import { BLINK_SCALE } from "../character/size.mjs";
+import { createGrumbler } from "../character/grumble.mjs";
+import { createSpinDetector } from "../character/spin.mjs";
+import { touchPart, sideOf } from "../character/touch.mjs";
 const api = window.blinkling;
 document.documentElement.style.cssText += cssVariables();
+document.documentElement.style.setProperty(
+  "--blink-scale",
+  String(BLINK_SCALE),
+);
 let shell = await api.shell({ type: "state" });
 // Main sends the one system locale with the state; every string below follows it.
 setDocumentLocale(document, shell.locale);
@@ -21,6 +29,12 @@ applyText(document, text);
 const logFrame = frameLog();
 const state = new BlinkState();
 const activity = createActivityState();
+const grumbler = createGrumbler({ count: GRUMBLES });
+const spin = createSpinDetector();
+const grumble = document.querySelector("#grumble");
+// Where Blink was last carried round in circles: set on a drop that left it dizzy.
+let dizzyAt = -100,
+  grumbling = null;
 const composer = createComposer(),
   messages = createMessageStream();
 let character = null,
@@ -35,6 +49,28 @@ let character = null,
   pointer = null,
   dragPointer = null,
   dragStarting = false;
+/** Put the thought bubble above Blink's head, leaning toward the screen's
+ * inside; a Blink hanging from the top edge gets it below. */
+function placeGrumble(node, feet, position) {
+  const width = node.offsetWidth,
+    height = node.offsetHeight;
+  const inward = feet.x < innerWidth / 2;
+  const x = Math.max(
+    8,
+    Math.min(innerWidth - width - 8, inward ? feet.x - 8 : feet.x - width + 8),
+  );
+  const top = position.edge === "top";
+  const y = Math.max(
+    8,
+    Math.min(
+      innerHeight - height - 8,
+      top ? feet.y + 14 : feet.y - 112 - height,
+    ),
+  );
+  node.style.transform = `translate(${x}px,${y}px)`;
+  node.dataset.side = inward ? "left" : "right";
+  node.dataset.edge = top ? "top" : "bottom";
+}
 /** Is the pointer on Blink? Blink slides out from under a pointer resting on
  * its peeking edge, so the ground it covers between peek and reveal counts
  * too; a pointer over the card or the deck never does. */
@@ -144,6 +180,9 @@ async function action(id) {
       if (!dragStarting)
         accept(await api.shell({ type: "drag", phase: "end" }));
       dropAt = performance.now() / 1000;
+      if (spin.dizzy) dizzyAt = dropAt;
+      spin.reset();
+      grumbler.touch(performance.now());
       state.drop(performance.now());
     } else {
       await api.shell({ type: "drag", phase: "end" });
@@ -209,7 +248,20 @@ async function action(id) {
     host.dataset.mode = state.mode;
     const session = activity.read(now);
     host.dataset.expression = session.expression;
+    // Held and swung round in circles twice, Blink is dizzy once it is let go.
+    if (shell.drag) spin.add({ x: shell.drag.x, y: shell.drag.y }, now);
+    const touched =
+      pointer?.point &&
+      pointer.blink &&
+      state.mode !== "drag" &&
+      state.mode !== "peek"
+        ? touchPart(pointer.point, current)
+        : null;
     character.pose(now / 1000, {
+      touch: touched
+        ? { part: touched, side: sideOf(pointer.point, current) }
+        : null,
+      dizzyAt,
       mode: state.mode,
       waveAt,
       dropAt,
@@ -222,6 +274,23 @@ async function action(id) {
       edge: shell.position.edge,
       hanging: state.mode === "peek" && shell.position.edge === "top",
     });
+    // Idle for a minute, Blink thinks out loud. Anything that keeps it busy
+    // or any use of the app starts the quiet again.
+    const busy =
+      session.expression !== "idle" ||
+      shell.chatOpen ||
+      shell.miniOpen ||
+      !!shell.drag ||
+      touched !== null ||
+      state.mode !== "peek" ||
+      menu.open;
+    const line = grumbler.tick(now, busy);
+    if (line !== grumbling) {
+      grumbling = line;
+      if (line !== null) grumble.textContent = text(`grumble${line + 1}`);
+      grumble.dataset.shown = String(line !== null);
+    }
+    if (line !== null) placeGrumble(grumble, current, shell.position);
     // The fan opens only after the pointer has rested on Blink; once open it
     // stays while Blink stays revealed, so crossing the gaps between bubbles
     // does not close it. A wake without the pointer never opens it (N2.1).
@@ -286,6 +355,7 @@ api.onShell((event) => {
 });
 api.onEvent((event) => {
   activity.accept(event, performance.now());
+  grumbler.touch(performance.now());
   messages.accept(event);
   window.dispatchEvent(
     new CustomEvent("blinkling:session-event", { detail: event }),
@@ -296,6 +366,8 @@ export const desktop = {
   menuActions,
   messages,
   composer,
+  grumbler,
+  spin,
   get shell() {
     return shell;
   },
