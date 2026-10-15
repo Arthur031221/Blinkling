@@ -6,7 +6,7 @@ import { pickLocale, translator } from "../shared/i18n.mjs";
 export const strings = {
   en: {
     title: "Capture",
-    hint: "Drag to select · Click a window · Enter for the whole screen · Esc to cancel",
+    hint: "Drag to select · Click a window · Enter: screen · Esc: cancel",
     pageChip: "Full page",
     busy: "A capture is already in progress.",
     failed: "The capture could not be completed. Please try again.",
@@ -26,7 +26,7 @@ export const strings = {
   },
   "zh-TW": {
     title: "截圖",
-    hint: "拖曳選取 · 點選視窗 · Enter 擷取整個螢幕 · Esc 取消",
+    hint: "拖曳選取 · 點選視窗 · Enter 全螢幕 · Esc 取消",
     pageChip: "整頁",
     busy: "擷取正在進行。",
     failed: "擷取暫時無法完成，請再試一次。",
@@ -45,7 +45,7 @@ export const strings = {
   },
   "zh-CN": {
     title: "截图",
-    hint: "拖动选取 · 点击窗口 · 按 Enter 截取整个屏幕 · 按 Esc 取消",
+    hint: "拖动选取 · 点击窗口 · Enter 全屏 · Esc 取消",
     pageChip: "整页",
     busy: "正在截取中。",
     failed: "暂时无法完成截取，请再试一次。",
@@ -64,7 +64,7 @@ export const strings = {
   },
   ja: {
     title: "キャプチャ",
-    hint: "ドラッグで範囲選択 · クリックでウインドウ · Enter で画面全体 · Esc で取消",
+    hint: "ドラッグで範囲選択 · ウインドウをクリック · Enter 全画面 · Esc 取消",
     pageChip: "ページ全体",
     busy: "キャプチャ中です。",
     failed: "キャプチャを完了できませんでした。もう一度お試しください。",
@@ -84,7 +84,7 @@ export const strings = {
   },
   ko: {
     title: "캡처",
-    hint: "드래그로 영역 선택 · 클릭으로 창 선택 · Enter로 전체 화면 · Esc로 취소",
+    hint: "드래그로 영역 선택 · 클릭으로 창 선택 · Enter 전체 화면 · Esc 취소",
     pageChip: "전체 페이지",
     busy: "캡처가 이미 진행 중입니다.",
     failed: "캡처를 완료하지 못했습니다. 다시 시도해 주세요.",
@@ -104,7 +104,7 @@ export const strings = {
   },
   de: {
     title: "Aufnahme",
-    hint: "Ziehen für einen Bereich · Fenster anklicken · Eingabe für den ganzen Bildschirm · Esc bricht ab",
+    hint: "Ziehen: Bereich · Klick: Fenster · Eingabe: Bildschirm · Esc: Abbruch",
     pageChip: "Ganze Seite",
     busy: "Es läuft bereits eine Aufnahme.",
     failed:
@@ -125,7 +125,7 @@ export const strings = {
   },
   es: {
     title: "Captura",
-    hint: "Arrastra para elegir · Clic en una ventana · Intro para toda la pantalla · Esc para cancelar",
+    hint: "Arrastra para elegir · Clic en ventana · Intro: pantalla · Esc: cancelar",
     pageChip: "Página completa",
     busy: "Ya hay una captura en curso.",
     failed: "No se pudo completar la captura. Inténtalo de nuevo.",
@@ -145,7 +145,7 @@ export const strings = {
   },
   fr: {
     title: "Capture",
-    hint: "Glisser pour choisir · Cliquer sur une fenêtre · Entrée pour tout l'écran · Échap pour annuler",
+    hint: "Glisser pour choisir · Clic sur une fenêtre · Entrée : écran · Échap : annuler",
     pageChip: "Page entière",
     busy: "Une capture est déjà en cours.",
     failed: "La capture n'a pas pu aboutir. Réessayez.",
@@ -165,7 +165,7 @@ export const strings = {
   },
   "pt-BR": {
     title: "Captura",
-    hint: "Arraste para selecionar · Clique em uma janela · Enter para a tela inteira · Esc para cancelar",
+    hint: "Arraste para selecionar · Clique em uma janela · Enter: tela · Esc: cancelar",
     pageChip: "Página inteira",
     busy: "Já há uma captura em andamento.",
     failed: "Não foi possível concluir a captura. Tente de novo.",
