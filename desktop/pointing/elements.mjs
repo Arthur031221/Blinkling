@@ -22,12 +22,17 @@ export function elementsForPrompt(elements, { limit = 60, width = 70 } = {}) {
   return lines;
 }
 
+const OPEN = "<pointing-elements>";
+const CLOSE = "</pointing-elements>";
+const BLOCK = /\s*<pointing-elements>[\s\S]*?<\/pointing-elements>/g;
+
 /** The block appended to a screen question. The reference syntax is the one
  * the bubbles already render as numbered badges (messages/render.mjs). */
 export function pointingInstructions(lines) {
   if (!lines.length) return "";
   return [
     "",
+    OPEN,
     "Elements on the screen, one per line as `id kind name`:",
     ...lines,
     "",
@@ -38,5 +43,21 @@ export function pointingInstructions(lines) {
       "|the label]]. Use only ids from the list.",
     "If nothing in the list fits, you may use a pixel box of the screenshot:",
     "[[n:box:x,y,width,height|label]]. Do not mention this syntax to the user.",
+    CLOSE,
   ].join("\n");
+}
+
+/** The user's own bubble shows what they typed, not the instructions that
+ * rode along with it. */
+export function hidePointing(event) {
+  if (event?.type !== "message" || event.role !== "user") return event;
+  if (!Array.isArray(event.content)) return event;
+  return {
+    ...event,
+    content: event.content.map((block) =>
+      block?.type === "text" && block.text.includes(OPEN)
+        ? { ...block, text: block.text.replace(BLOCK, "") }
+        : block,
+    ),
+  };
 }

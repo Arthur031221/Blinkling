@@ -438,3 +438,27 @@ test("the prompt pins the reply language to the user's", async () => {
   await r.controller.start("1");
   assert.match(r.turns[0].text, /Traditional Chinese/);
 });
+test("clicking a mark focuses the first step that is about it", async () => {
+  const two = {
+    ...guide,
+    sections: [
+      guide.sections[0],
+      { ...guide.sections[0], id: "b", label: "Table" },
+    ],
+    steps: [
+      { id: "one", note: "First.", regionIds: ["a"] },
+      { id: "two", note: "Second.", regionIds: ["b"] },
+    ],
+  };
+  const r = rig([JSON.stringify(two)]);
+  r.controller.focusMark(2);
+  assert.equal(r.events.length, 0, "no guide yet, nothing to focus");
+  await r.controller.start("1");
+  r.controller.focusMark(2);
+  assert.equal(r.events.at(-1).phase, "step");
+  assert.equal(r.events.at(-1).index, 1);
+  assert.deepEqual(r.pointing.focused.at(-1), [2]);
+  r.controller.focusMark(9);
+  assert.equal(r.events.at(-1).index, 1, "an unknown mark changes nothing");
+  r.controller.dispose();
+});

@@ -149,6 +149,14 @@ export class GuideController {
       this.step(this.guide.steps.length - 1);
     else if (this.index > 0) this.step(this.index - 1);
   }
+  /** A click on mark `n` shows the first step that is about it. */
+  focusMark(n) {
+    if (!this.guide) return;
+    const index = this.guide.steps.findIndex((_, i) =>
+      stepNumbers(this.guide, i).includes(n),
+    );
+    if (index >= 0) this.step(index);
+  }
   /** The tour ran out of steps: show every mark again, say goodbye, and hand
    * the saver what it needs once. */
   finish() {

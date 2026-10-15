@@ -7,6 +7,7 @@ import {
   nativeTheme,
   shell as externalShell,
 } from "electron";
+import { EventEmitter } from "node:events";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 import {
@@ -30,6 +31,8 @@ import {
 import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
 import { createEscapeKeys } from "./escape-keys.mjs";
+import { hidePointing } from "../pointing/elements.mjs";
+import { createAnswerPointing } from "../pointing/answers.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
@@ -580,7 +583,8 @@ ipcMain.handle("blinkling:action", async (event, action) => {
   return dispatchAction(action, { display, windows: windows(), openComposer });
 });
 const send = (event) => {
-  for (const win of windows()) win.webContents.send("blinkling:event", event);
+  const shown = hidePointing(event);
+  for (const win of windows()) win.webContents.send("blinkling:event", shown);
 };
 const session = new SessionBridge({
   userDataDir: app.getPath("userData"),
@@ -598,6 +602,49 @@ const session = new SessionBridge({
       : "claude"),
 });
 session.subscribe(send, { visible: true });
+// The window locator lands from another bucket; until then nothing is
+// found, and answers still draw marks for the boxes they name. Whatever is
+// plugged in serves pointing and the pick layer alike.
+let locatorImpl = { elements: async () => [], windowAt: () => null };
+const locator = new Proxy(
+  {},
+  {
+    get: (_, name) =>
+      typeof locatorImpl[name] === "function"
+        ? locatorImpl[name].bind(locatorImpl)
+        : undefined,
+  },
+);
+// The bubbles window's settle timer, as events the marks listen to (N6.6).
+const bubblesBus = new EventEmitter();
+// The finished guide `{title, steps, explanation, shots}` for the saver.
+const guideEvents = new EventEmitter();
+const blinkPoint = () => ({
+  x: position.reveal.x + display.bounds.x,
+  y: position.reveal.y + display.bounds.y,
+});
+// A question about the screen carries the element list; its answer's
+// `[[n:id|label]]` references are drawn as marks (M3).
+const answers = createAnswerPointing({
+  pointing: {
+    clear: (reason) => features?.pointing.clear(reason),
+    instructions: (window) => features.pointing.instructions(window),
+    show: (refs, options) => features.pointing.show(refs, options),
+  },
+  display: () => display,
+  window: async () => (await locator.windowAt?.(blinkPoint())) ?? null,
+});
+session.subscribe(
+  (event) =>
+    answers
+      .event(event)
+      .then((drawn) => {
+        if (drawn)
+          escapeKeys.set("marks", () => features.pointing.clear("esc"));
+      })
+      .catch(() => {}),
+  { visible: false },
+);
 const requireView = (event) => {
   if (
     !trusted(event) ||
@@ -617,7 +664,11 @@ ipcMain.on("blinkling:subscribe", (event) => {
   if (!trusted(event)) return;
   // Only history is replayed here; the renderer must not treat it as new.
   const unsubscribe = session.subscribe(
-    (value) => event.sender.send("blinkling:event", { ...value, replay: true }),
+    (value) =>
+      event.sender.send("blinkling:event", {
+        ...hidePointing(value),
+        replay: true,
+      }),
     { visible: true },
   );
   unsubscribe();
@@ -628,7 +679,7 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
     throw new Error("Invalid composer sender");
   // Blink shows its thinking face the moment a message goes out (N4).
   send({ type: "sending" });
-  await session.send(turn);
+  await session.send(await answers.ask(turn));
   if (sendCloses({ pinned, pointer: cardHold.pointer, source: turn.source }))
     closeComposer();
 });
@@ -682,6 +733,8 @@ ipcMain.on("blinkling:activity", (event, value) => {
     typeof value?.speaking !== "boolean"
   )
     return;
+  if (value.visible !== answersVisible)
+    bubblesBus.emit(value.visible ? "revive" : "fade");
   answersVisible = value.visible;
   if (answersVisible && !chatOpen) bubbles.showInactive();
   else bubbles.hide();
@@ -710,6 +763,7 @@ ipcMain.on("blinkling:bubble-hover", (event, value) => {
   )
     return;
   blink.webContents.send("blinkling:shell", { type: "bubble-hover", ref });
+  features?.pointing.pulse(features.pointing.numberOf(ref));
 });
 bubbles = new BrowserWindow(
   windowOptions(cardBounds(display, position), false),
@@ -756,6 +810,17 @@ const visualMasks = () =>
         y: r.y + b.y - display.bounds.y,
       }));
     });
+// The guide's overlay has no focused window, so Left and Right are global
+// keys that exist only while a guide is up.
+let arrowsOn = false;
+function guideArrows(wanted) {
+  if (wanted === arrowsOn) return;
+  arrowsOn = wanted;
+  const keys = { Left: "guide-back", Right: "guide-next" };
+  for (const [key, action] of Object.entries(keys))
+    if (wanted) globalShortcut.register(key, () => features.handle(action));
+    else globalShortcut.unregister(key);
+}
 // Every capture, from the region selector, the hotkey or a pick, flies into
 // Blink and opens the mini composer.
 const attachCapture = async (taken) => pick.deliver(taken);
@@ -766,8 +831,13 @@ features = installCaptureGuide({
   masks: visualMasks,
   busy: () => typing || !!session.active,
   onCapture: attachCapture,
+  locator,
+  bubbles: bubblesBus,
+  cursor: () => cursor.point(),
+  onEnd: (finished) => guideEvents.emit("end", finished),
   onGuide: (guide) => {
     send({ type: "guide", ...guide });
+    guideArrows(["step", "overview", "finished"].includes(guide.phase));
     escapeKeys.set(
       "guide",
       guide.phase === "dismissed"
@@ -782,6 +852,17 @@ features = installCaptureGuide({
 });
 for (const action of featureActions)
   registerAction(action, () => features.handle(action));
+// Marks are click-through, so a click on one arrives from the overlay through
+// pointing. In a guide it focuses that step; on an answer it scrolls the
+// bubbles to the bubble that cites it.
+features.overlay.on("dismissed", () => escapeKeys.set("marks", null));
+features.pointing.onMarkClick((n) => {
+  if (features.guide.guide) features.guide.focusMark(n);
+  else {
+    const ref = answers.refOf(n);
+    if (ref) bubbles?.webContents.send("blinkling:mark-click", { ref });
+  }
+});
 actions.add("companion-guide");
 registerAction("companion-guide", async () => {
   try {
@@ -805,16 +886,14 @@ const pick = await installPick({
   },
   shell: {
     userDataDir: app.getPath("userData"),
+    locator,
     locales: app.getPreferredSystemLanguages(),
     windowOptions,
     secure,
     windows,
     input,
     cursor: () => cursor.point(),
-    blinkPoint: () => ({
-      x: position.reveal.x + display.bounds.x,
-      y: position.reveal.y + display.bounds.y,
-    }),
+    blinkPoint,
     workArea: () => display.workArea,
     session,
     captureScreen,
@@ -974,6 +1053,8 @@ if (process.env.BLINKLING_E2E === "1")
     setDisplay: useDisplay,
     positionStore: store,
     registerAction,
+    guideEvents,
+    locator: { set: (next) => (locatorImpl = next) },
   };
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {

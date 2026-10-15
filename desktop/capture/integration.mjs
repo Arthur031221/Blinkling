@@ -12,6 +12,7 @@ import { captureText } from "./strings.mjs";
 import { HotkeyRegistry, HotkeyStore, DEFAULT_HOTKEY } from "./hotkey.mjs";
 import { DesktopOverlayService } from "../overlay/index.mjs";
 import { GuideController } from "../overlay/guide.mjs";
+import { createPointing } from "../pointing/index.mjs";
 import { StalenessWatch } from "../overlay/staleness.mjs";
 import { maskBitmap } from "../overlay/change.mjs";
 import { AutoWatch } from "../autowatch/index.mjs";
@@ -27,6 +28,9 @@ export const featureActions = new Set([
 ]);
 /** Shell/composer/session builders bind only these service hooks. Feature IPC is
  * kept under the shell's existing trusted action channel, never a generic API.
+ * `locator` finds the elements marks point at and `bubbles` emits the settle
+ * timer's `fade` and `revive` (see pointing/index.mjs); `onEnd` gets the
+ * finished guide for the saver.
  * `onCapture(taken)` gets `taken.kind` (screen, area, window, page) and
  * `taken.source` (capture, hotkey, page). `fullPage(signal, progress)` and
  * `companion()` come from the browser companion's host. `guard` says whether a
@@ -37,6 +41,10 @@ export function installCaptureGuide({
   session,
   onCapture,
   onGuide,
+  onEnd,
+  locator = { elements: () => [], windowAt: () => null },
+  bubbles,
+  cursor,
   onState = () => {},
   pageText,
   masks,
@@ -53,7 +61,9 @@ export function installCaptureGuide({
   });
   const displayId = () =>
     String(screen.getDisplayMatching(blink.getBounds()).id);
-  const overlay = new DesktopOverlayService({ windows, masks });
+  // Esc belongs to the shell's layer stack (N5.3), not to the overlay.
+  const overlay = new DesktopOverlayService({ windows, masks, escape: null });
+  const pointing = createPointing({ locator, overlay, bubbles, cursor });
   const capture = new DesktopCaptureService({
     windows: () => [...windows(), overlay.window].filter(Boolean),
     onCapture,
@@ -66,7 +76,9 @@ export function installCaptureGuide({
     session,
     overlay,
     capture,
+    pointing,
     onGuide,
+    onEnd,
     pageText,
     language: () => app.getLocale(),
   });
@@ -140,6 +152,7 @@ export function installCaptureGuide({
   return {
     capture,
     overlay,
+    pointing,
     ready: Promise.all([overlaysReady, hotkeyStarted]).then(() => {}),
     get hotkey() {
       return hotkey.current;
@@ -193,6 +206,7 @@ export function installCaptureGuide({
     dispose() {
       capture.dispose();
       guide.dispose();
+      pointing.clear("dispose");
       auto.dispose();
       stale.dispose();
       overlay.dispose();

@@ -1,7 +1,11 @@
 import "../shared/test-env.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { elementsForPrompt, pointingInstructions } from "./elements.mjs";
+import {
+  elementsForPrompt,
+  hidePointing,
+  pointingInstructions,
+} from "./elements.mjs";
 import { samplePage } from "../pick/test/locator-stub.mjs";
 
 test("the prompt lists id, kind and name for what can be pointed at", () => {
@@ -55,4 +59,24 @@ test("the instructions teach the badge syntax only when there is something to po
   assert.match(text, /a:1:1 control Save/);
   assert.match(text, /\[\[1:a:1:1\|/);
   assert.match(text, /\[\[n:box:x,y,width,height\|label\]\]/);
+});
+
+test("the instructions never show in the user's own message", () => {
+  const block = pointingInstructions(["a:1:1 control Save"]);
+  const event = {
+    type: "message",
+    id: "u1",
+    role: "user",
+    content: [
+      { type: "image", data: "x" },
+      { type: "text", text: `What is this?${block}` },
+    ],
+  };
+  const shown = hidePointing(event);
+  assert.deepEqual(shown.content[1], { type: "text", text: "What is this?" });
+  assert.equal(shown.content[0], event.content[0]);
+  assert.match(event.content[1].text, /a:1:1 control Save/, "input untouched");
+  const reply = { type: "message", role: "assistant", content: event.content };
+  assert.equal(hidePointing(reply), reply);
+  assert.equal(hidePointing({ type: "done" }).type, "done");
 });
