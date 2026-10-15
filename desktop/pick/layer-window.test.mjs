@@ -160,6 +160,64 @@ test("a flight runs click-through on the display of the first thumbnail and ends
   assert.deepEqual(win.calls.at(-1), ["hide"]);
 });
 
+test("a pick that starts while a flight is still landing keeps its layer: the flight's end must not hide it", async () => {
+  const { log, layers, ready, pointer } = fakes([d1]);
+  const win = log.windows[0];
+  const from = (sender, payload) =>
+    log.handlers["blinkling:pick-pointer"]({ sender }, payload);
+  ready(win);
+  const flying = layers.flight(
+    [{ id: "a", bounds: { x: 10, y: 10, width: 10, height: 10 } }],
+    { x: 100, y: 100 },
+  );
+  const token = win.sent.at(-1)[1].value.token;
+  layers.show(d1, { x: 50, y: 50 });
+  log.handlers["blinkling:pick-flight-done"](
+    { sender: win.webContents },
+    token,
+  );
+  await flying;
+  assert.notDeepEqual(win.calls.at(-1), ["hide"], "still shown");
+  from(win.webContents, { type: "down", x: 50, y: 50 });
+  assert.deepEqual(
+    pointer,
+    [{ type: "down", x: 50, y: 50 }],
+    "still takes the pointer",
+  );
+  layers.hide();
+  assert.deepEqual(win.calls.at(-1), ["hide"], "the next hide still works");
+});
+
+test("a flight that starts after a new pick took the layer flies over it and leaves it live", async () => {
+  const { log, layers, ready, pointer } = fakes([d1]);
+  const win = log.windows[0];
+  const from = (sender, payload) =>
+    log.handlers["blinkling:pick-pointer"]({ sender }, payload);
+  ready(win);
+  layers.show(d1, { x: 50, y: 50 });
+  const flying = layers.flight(
+    [{ id: "a", bounds: { x: 10, y: 10, width: 10, height: 10 } }],
+    { x: 100, y: 100 },
+  );
+  const message = win.sent.at(-1)[1];
+  assert.equal(message.channel, "flight");
+  assert.deepEqual(
+    win.calls.filter(([c]) => c === "ignore").at(-1),
+    ["ignore", false],
+    "still takes the pointer",
+  );
+  log.handlers["blinkling:pick-flight-done"](
+    { sender: win.webContents },
+    message.value.token,
+  );
+  await flying;
+  assert.notDeepEqual(win.calls.at(-1), ["hide"]);
+  from(win.webContents, { type: "up", x: 5, y: 6 });
+  assert.deepEqual(pointer, [{ type: "up", x: 5, y: 6 }]);
+  layers.hide();
+  assert.deepEqual(win.calls.at(-1), ["hide"]);
+});
+
 test("a flight that never reports back is cut off", async () => {
   const { log, layers, ready } = fakes([d1]);
   ready(log.windows[0]);
