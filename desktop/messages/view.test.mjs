@@ -260,6 +260,31 @@ test("a long answer caps its bubble height and offers 在對話中開啟", async
   t.dispose();
 });
 
+test("an offer bubble is a quiet button that runs its action, in the bubble look", () => {
+  const ran = [];
+  const t = setup({ onAction: (a) => ran.push(a) });
+  t.store.accept({
+    type: "blink-offer",
+    id: "o",
+    label: "儲存導覽",
+    action: "save-guide",
+  });
+  const bubble = t.deck.querySelector(".gl-answer-bubble");
+  assert.equal(bubble.dataset.kind, "offer");
+  const button = bubble.querySelector("button");
+  assert.equal(button.textContent, "儲存導覽");
+  button.click();
+  assert.deepEqual(ran, ["save-guide"]);
+  bubble.click();
+  assert.deepEqual(ran, ["save-guide"], "only the button acts");
+  assert.equal(
+    t.deck.querySelectorAll(".gl-answer-bubble").length,
+    1,
+    "one bubble",
+  );
+  t.dispose();
+});
+
 test("a short bubble is never marked clipped", async () => {
   const t = setup();
   t.say("a", "很短。");

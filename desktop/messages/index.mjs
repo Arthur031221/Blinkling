@@ -49,6 +49,16 @@ export function createMessageStream({
               actions: structuredClone(m.failure.actions),
             },
           ];
+        if (m.offer)
+          return [
+            {
+              kind: "offer",
+              label: m.offer.label,
+              action: m.offer.action,
+              id: `${m.id}:0`,
+              messageId: m.id,
+            },
+          ];
         if (m.plain)
           return [
             {
@@ -131,6 +141,7 @@ export function createMessageStream({
       complete: message.complete ?? true,
       ...(message.plain ? { plain: true } : {}),
       ...(message.failure ? { failure: message.failure } : {}),
+      ...(message.offer ? { offer: message.offer } : {}),
     });
     if (!live) {
       floor = messages.size;
@@ -214,6 +225,20 @@ export function createMessageStream({
           role: "assistant",
           content: [{ type: "text", text: event.text }],
           plain: true,
+        });
+      else if (
+        event.type === "blink-offer" &&
+        typeof event.label === "string" &&
+        event.label &&
+        typeof event.action === "string" &&
+        event.action
+      )
+        upsert({
+          id: event.id ?? `offer:${messages.size}`,
+          role: "assistant",
+          content: [{ type: "text", text: event.label }],
+          plain: true,
+          offer: { label: event.label, action: event.action },
         });
       else if (event.type === "done") {
         for (const m of messages.values())

@@ -271,6 +271,34 @@ test("a blink-say line is one plain bubble, not split into sentences", () => {
   assert.equal(s.state().visible, true);
 });
 
+test("a blink-offer is one plain bubble that carries its action", () => {
+  const s = createMessageStream();
+  s.accept({
+    type: "blink-offer",
+    id: "o1",
+    label: "儲存導覽",
+    action: "save-guide",
+  });
+  assert.deepEqual(
+    s.bubbles().map((b) => [b.kind, b.label, b.action]),
+    [["offer", "儲存導覽", "save-guide"]],
+  );
+  assert.equal(s.state().visible, true);
+  s.accept({ type: "blink-say", id: "o1", text: "導覽已儲存" });
+  assert.deepEqual(
+    s.bubbles().map((b) => [b.kind, b.markdown]),
+    [["say", "導覽已儲存"]],
+    "a later line with the same id replaces the offer",
+  );
+});
+
+test("a blink-offer without a label or an action is ignored", () => {
+  const s = createMessageStream();
+  s.accept({ type: "blink-offer", id: "o1", label: "x" });
+  s.accept({ type: "blink-offer", id: "o2", action: "save-guide" });
+  assert.deepEqual(s.bubbles(), []);
+});
+
 test("leaving the display drops the answer and hover elsewhere shows nothing", () => {
   const t = fakeTimers();
   const s = createMessageStream(t);
