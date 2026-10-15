@@ -95,6 +95,14 @@ test("at start one hidden layer per display and the hidden mini window exist, an
   assert.deepEqual(s.hooks.map(([t]) => t).sort(), ["keydown", "keyup", "mousedown", "wheel"]);
 });
 
+test("the layer windows load their own preload, the mini window its own, neither the shell's", async () => {
+  const s = setup();
+  await s.install();
+  const [layer, mini] = s.log.windows;
+  assert.equal(layer.options.webPreferences.preload.endsWith("pick/layer-preload.cjs"), true);
+  assert.equal(mini.options.webPreferences.preload.endsWith("mini/preload.cjs"), true);
+});
+
 test("a native input module that cannot start loses the pick key, not the app", async () => {
   const s = setup({ load: async () => { throw new Error("no input access"); } });
   const pick = await s.install();

@@ -31,8 +31,18 @@ let drag = null;
 let lock = null; // { plan, start }
 let running = false;
 let last = 0;
+let painted = null; // the client box the canvas was last drawn into
+// A crayon stroke is 10 px wide and wobbles a few px off its element, the lock is 18 px across.
+const REACH = 24;
 
 const toClient = (r) => ({ x: r.x - origin.x, y: r.y - origin.y, width: r.width, height: r.height });
+const grow = (r, by) => ({ x: r.x - by, y: r.y - by, width: r.width + 2 * by, height: r.height + 2 * by });
+const union = (a, b) => {
+  if (!a || !b) return a ?? b;
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, width: Math.max(a.x + a.width, b.x + b.width) - x, height: Math.max(a.y + a.height, b.y + b.height) - y };
+};
 const toClientPoint = (p) => ({ x: p.x - origin.x, y: p.y - origin.y });
 
 function readColors() {
@@ -52,6 +62,7 @@ function resize() {
   dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(window.innerWidth * dpr);
   canvas.height = Math.round(window.innerHeight * dpr);
+  painted = null;
   wake();
 }
 window.addEventListener("resize", resize);
@@ -163,8 +174,20 @@ function frame(now) {
   glide.opacityVelocity = settled(nextOpacity, opacityGoal) ? 0 : nextOpacity.velocity;
   if (glide.opacity !== opacityGoal) busy = true;
 
+  // Only what was drawn, and what is about to be, is wiped: a full-screen clear is the
+  // dearest thing a frame does on a dense display.
+  let box = null;
+  if (glide.opacity > 0.01) box = union(box, grow({ x: glide.value[0], y: glide.value[1], width: glide.value[2], height: glide.value[3] }, REACH));
+  for (const item of items) box = union(box, grow(toClient(item.bounds), REACH));
+  if (drag) box = union(box, grow(toClient(drag), REACH));
+  if (lock) {
+    const at = toClientPoint(lock.plan.at);
+    box = union(box, grow({ x: at.x, y: at.y, width: 0, height: 0 }, REACH));
+  }
+  const wipe = union(painted, box);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  if (wipe) ctx.clearRect(wipe.x, wipe.y, wipe.width, wipe.height);
+  painted = box;
 
   if (glide.opacity > 0.01) {
     const [x, y, w, h] = glide.value;
@@ -222,6 +245,7 @@ function clearAll() {
   hint.classList.remove("is-shown");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  painted = null;
 }
 
 const stagger = Math.round(duration.fast / 8);
@@ -237,15 +261,19 @@ function fly({ items: picked, to, token }) {
     el.className = "pick-flight";
     el.style.width = `${size.width}px`;
     el.style.height = `${size.height}px`;
+    let decoded = Promise.resolve();
     if (item.dataUrl) {
       const img = document.createElement("img");
       img.src = item.dataUrl;
       img.alt = "";
       el.append(img);
+      decoded = img.decode().catch(() => {});
     }
+    el.style.opacity = "0";
     flights.append(el);
     return {
       el,
+      decoded,
       size,
       path: flightPath({ from: bounds, to: target }),
       spring: { value: 0, velocity: 0 },
@@ -253,10 +281,13 @@ function fly({ items: picked, to, token }) {
       done: false,
     };
   });
-  let began = performance.now();
-  let previous = began;
+  // The clock starts on the first frame drawn, after the pictures are decoded, so
+  // neither work in setting up nor in decoding eats into the first steps of the flight.
+  let began = null;
+  let previous = null;
   const step = (now) => {
-    const dt = Math.min(0.05, (now - previous) / 1000);
+    began ??= now;
+    const dt = previous === null ? 0 : Math.min(0.05, (now - previous) / 1000);
     previous = now;
     let pending = false;
     things.forEach((thing, index) => {
@@ -283,7 +314,7 @@ function fly({ items: picked, to, token }) {
     if (pending) requestAnimationFrame(step);
     else api.flightDone(token);
   };
-  requestAnimationFrame(step);
+  void Promise.all(things.map((thing) => thing.decoded)).then(() => requestAnimationFrame(step));
 }
 
 api.onInit((init) => {

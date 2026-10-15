@@ -32,7 +32,7 @@ export function createMini({
 
   // Offers are decided once, when the mini opens: the PDF one is shown a single time.
   const offers = [];
-  const page = entries.find((e) => e.taken?.kind === "page" && e.taken.browser);
+  const page = entries.find((e) => e.taken?.kind === "page" && e.taken.browser && (e.taken.text ?? "").trim());
   if (page && host.translatePage) offers.push({ id: "translate-page", entryId: page.id });
   const blank = entries.find(
     (e) => e.taken?.window?.pdf && !(e.taken.text ?? "").trim() && e.taken.kind !== "text",

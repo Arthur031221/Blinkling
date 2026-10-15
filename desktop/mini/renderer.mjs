@@ -1,7 +1,7 @@
 import { mountMini } from "./view.mjs";
 import { t as translateMini } from "./strings.mjs";
 import { t as translatePick } from "../pick/strings.mjs";
-import { cssVariables, frameLog } from "../shared/motion.mjs";
+import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
 
 const api = window.miniAPI;
 const log = frameLog();
@@ -19,7 +19,8 @@ function watchFrames(card) {
   let running = true;
   const stop = () => (running = false);
   card.addEventListener("transitionend", stop, { once: true });
-  setTimeout(stop, 600);
+  // A safety stop in case the transition never ends (reduced motion): twice the slowest token.
+  setTimeout(stop, duration.slow * 2);
   const frame = () => {
     log("mini-composer", card.getBoundingClientRect());
     if (running) requestAnimationFrame(frame);

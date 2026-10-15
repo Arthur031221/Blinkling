@@ -191,6 +191,13 @@ test("no translate offer without a host that can translate pages, or off a brows
   assert.deepEqual(other.mini.view().offers, []);
 });
 
+test("a page with no text has nothing to translate, so only the PDF reader is offered", () => {
+  const taken = { kind: "page", browser: true, text: "  ", window: { pdf: true } };
+  const once = { take: () => true, seen: () => false };
+  const { mini } = make({ once, entries: [entry("p1", "page", { attachment: image, taken })] });
+  assert.deepEqual(mini.view().offers.map((o) => o.id), ["pdf-reader"]);
+});
+
 test("a PDF viewer pick with no text offers the PDF reader once", async () => {
   const taken = { kind: "window", window: { pdf: true } };
   const seen = new Set();

@@ -86,6 +86,21 @@ test("dragging past 6 px takes an area", async () => {
   assert.deepEqual(taken.bounds, { x: 10, y: 20, width: 190, height: 130 });
 });
 
+test("while an area is dragged the hover outline goes away, so the rubber band is the only box", async () => {
+  const { controller, log } = setup();
+  await controller.raise();
+  assert.ok(log.sent.filter(([c]) => c === "outline").at(-1)[1].rect, "hovering outlines what is under the cursor");
+  await controller.input({ type: "down", x: 10, y: 20 });
+  await controller.input({ type: "move", x: 200, y: 150 });
+  const outlines = log.sent.filter(([c]) => c === "outline");
+  assert.equal(outlines.at(-1)[1].rect, null);
+  const before = log.sent.length;
+  await controller.input({ type: "move", x: 210, y: 160 });
+  assert.equal(log.sent.slice(before).filter(([c]) => c === "outline").length, 0, "cleared once, not on every move");
+  await controller.input({ type: "up", x: 210, y: 160 });
+  assert.equal(log.sent.filter(([c]) => c === "outline").at(-1)[1].rect, null, "the old outline does not come back under the area");
+});
+
 test("a drag shorter than 6 px is a click", async () => {
   const { controller, log } = setup();
   await controller.raise();
@@ -108,6 +123,9 @@ test("release delivers: layer clears, the screen is grabbed once, thumbnails fly
   const [entries] = log.opened;
   assert.equal(entries.length, 2);
   assert.equal(entries[0].attachment.mediaType, "image/png");
+  assert.equal(entries[0].thumb, log.flights[0].items[0].dataUrl, "the image chip shows the picture that flew");
+  assert.match(entries[0].thumb, /^data:image\/png;base64,/);
+  assert.equal(entries[1].thumb, undefined, "a table is text, it has no picture");
   assert.equal(entries[1].kind, "table");
   assert.equal(entries[1].attachment.mediaType, "text/plain");
   assert.equal(Buffer.from(entries[1].attachment.data, "base64").toString().split("\n")[0], "| Item | Price |");
@@ -175,6 +193,7 @@ test("a capture from the overlay or a hotkey goes through the same flight and mi
   assert.deepEqual(log.flights[0].items[0].bounds, { x: 10, y: 20, width: 300, height: 200 });
   assert.equal(log.opened[0][0].attachment.data, PNG);
   assert.equal(log.opened[0][0].kind, "area");
+  assert.equal(log.opened[0][0].thumb, `data:image/png;base64,${PNG}`);
 });
 
 test("a failed screen grab still delivers the text that was picked, and drops what has no pixels", async () => {

@@ -32,6 +32,12 @@ export const windowLocator = Object.freeze({
 });
 export const openGuard = Object.freeze({ allowed: () => true });
 
+/** The layer page talks to the main process through its own small preload, not the shell's. */
+const layerOptions = (options) => ({
+  ...options,
+  webPreferences: { ...options.webPreferences, preload: here("layer-preload.cjs") },
+});
+
 const PICK_KEY_NAMES = ["control", "option"];
 
 function pickKeySetting(file, env) {
@@ -69,7 +75,7 @@ export async function installPick({ electron, shell, loadKeys = loadUiohook, set
     BrowserWindow,
     screen,
     ipcMain,
-    options: shell.windowOptions({ x: 0, y: 0, width: 1, height: 1 }, false),
+    options: layerOptions(shell.windowOptions({ x: 0, y: 0, width: 1, height: 1 }, false)),
     page: here("layer.html"),
     secure: (win) => {
       win.webContents.setBackgroundThrottling?.(false);

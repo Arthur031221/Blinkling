@@ -25,7 +25,7 @@ export function createPickController({
   reduced = () => false,
   onError = () => {},
 }) {
-  let state = null; // { display, picker, gesture, hovering, queued }
+  let state = null; // { display, picker, gesture, hovering, queued, dragging }
   let grabbing = Promise.resolve();
 
   const displayAt = (point) =>
@@ -96,6 +96,7 @@ export function createPickController({
       gesture: createGesture({ bounds: display.bounds }),
       hovering: false,
       queued: null,
+      dragging: false,
     };
     layer.show(display, point);
     badge();
@@ -110,6 +111,9 @@ export function createPickController({
       case "move": {
         const g = current.gesture.move(point);
         if (g.phase === "dragging") {
+          // The rubber band is the only box while an area is dragged.
+          if (!current.dragging) send("outline", { rect: null, kind: null, lock: false });
+          current.dragging = true;
           send("drag", { rect: g.rect });
           badge();
         } else await hover(point);
@@ -120,6 +124,7 @@ export function createPickController({
         break;
       case "up": {
         const result = current.gesture.up(point);
+        current.dragging = false;
         send("drag", { rect: null });
         badge();
         if (!result) break;
@@ -149,7 +154,7 @@ export function createPickController({
     if (taken.text)
       return { id: globalThis.crypto.randomUUID(), kind: taken.kind, taken, attachment: textAttachment(taken.text, names[taken.kind]) };
     if (!picture) return null;
-    return { id: globalThis.crypto.randomUUID(), kind: taken.kind, taken, attachment: imageAttachment(picture) };
+    return { id: globalThis.crypto.randomUUID(), kind: taken.kind, taken, attachment: imageAttachment(picture), thumb: picture.dataUrl };
   }
 
   async function finish(entries, flightItems) {
@@ -190,14 +195,16 @@ export function createPickController({
 
   async function deliverCapture(capture) {
     const { image } = capture;
+    const dataUrl = `data:${image.mediaType};base64,${image.data}`;
     const entry = {
       id: image.id ?? globalThis.crypto.randomUUID(),
       kind: "area",
       taken: { source: "capture", display: capture.display, kind: "area", bounds: capture.region },
       attachment: image,
+      thumb: dataUrl,
     };
     await finish([entry], [
-      { id: entry.id, kind: "area", bounds: capture.region, dataUrl: `data:${image.mediaType};base64,${image.data}` },
+      { id: entry.id, kind: "area", bounds: capture.region, dataUrl },
     ]);
   }
 
