@@ -19,6 +19,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The Electron binary is fetched here, not inside the first test's timeout.
+      - name: Fetch the Electron binary
+        run: node node_modules/electron/install.js
       - run: npm run desktop:check
       - name: Install Linux compositor
         if: runner.os == 'Linux'
@@ -29,6 +32,9 @@ jobs:
       - name: Native desktop smoke
         if: runner.os != 'Linux'
         run: npm run desktop:e2e
+        env:
+          # Playwright prints the app's own output, so a hang on a runner is visible.
+          DEBUG: pw:browser
       - run: npm run desktop:build
       - uses: actions/upload-artifact@v4
         with:
