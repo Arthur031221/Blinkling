@@ -1,0 +1,42 @@
+/** What the model is told about the screen so it can point at things (M3). */
+const SKIP = new Set(["page", "window", "titlebar", "section"]);
+const flat = (text) =>
+  String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+const clip = (text, max) =>
+  text.length > max ? `${text.slice(0, max - 1)}…` : text;
+
+/** One `'<id> <kind> <name/text>'` line per element worth pointing at: visible,
+ * not a secure field, not a container. Capped so a busy page stays a small
+ * prompt; the first `limit` elements in the locator's reading order win. */
+export function elementsForPrompt(elements, { limit = 60, width = 70 } = {}) {
+  const lines = [];
+  for (const el of elements ?? []) {
+    if (lines.length >= limit) break;
+    if (!el?.id || !el.kind || SKIP.has(el.kind) || el.secure) continue;
+    if (!(el.bounds?.width > 0) || !(el.bounds?.height > 0)) continue;
+    const label = clip(flat(el.name || el.text), width);
+    lines.push(`${el.id} ${el.kind}${label ? ` ${label}` : ""}`);
+  }
+  return lines;
+}
+
+/** The block appended to a screen question. The reference syntax is the one
+ * the bubbles already render as numbered badges (messages/render.mjs). */
+export function pointingInstructions(lines) {
+  if (!lines.length) return "";
+  return [
+    "",
+    "Elements on the screen, one per line as `id kind name`:",
+    ...lines,
+    "",
+    "When your answer refers to one of these, write [[n:id|short label]] right",
+    "after the words, numbering from 1 in the order you mention them, e.g.",
+    "[[1:" +
+      lines[0].split(" ")[0] +
+      "|the label]]. Use only ids from the list.",
+    "If nothing in the list fits, you may use a pixel box of the screenshot:",
+    "[[n:box:x,y,width,height|label]]. Do not mention this syntax to the user.",
+  ].join("\n");
+}
