@@ -64,7 +64,12 @@ try {
     stdio: ["ignore", "inherit", "inherit"],
   });
   const code = await new Promise((done) => start.once("exit", done));
-  if (code !== 0) throw new Error(`start.mjs exited with ${code}`);
+  if (code !== 0) {
+    const log = join(home, ".blinkling", "runtime", "blinkling.log");
+    const printed = await readFile(log, "utf8").catch(() => "(no log)");
+    console.error(`--- what Blink printed while starting ---\n${printed}`);
+    throw new Error(`start.mjs exited with ${code}`);
+  }
 
   Object.assign(process.env, {
     HOME: home,

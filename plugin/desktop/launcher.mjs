@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
+import { openSync, closeSync } from "node:fs";
 import { readFile, cp, rename, rm, mkdir, lstat } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
@@ -151,8 +152,11 @@ export async function launchDesktop(options = {}) {
         ...installed.build.entry.split("/").slice(appPart + 1),
       );
     }
-    let child;
+    let child, log;
     try {
+      // What Blink prints while starting goes to a private file next to the
+      // runtime descriptor, so a start that never answers can be explained.
+      log = openSync(join(directory, "blinkling.log"), "w", 0o600);
       const platform = options.platform || process.platform;
       // Prefer a sandbox that works on this machine; run without one only when
       // the kernel and the build leave no choice (stock Ubuntu 24.04).
@@ -165,7 +169,7 @@ export async function launchDesktop(options = {}) {
         [...sandboxArgs(sandbox), ...(options.args || [])],
         {
           detached: true,
-          stdio: "ignore",
+          stdio: ["ignore", log, log],
           windowsHide: true,
           env: {
             ...process.env,
@@ -185,6 +189,8 @@ export async function launchDesktop(options = {}) {
         failure = new Error(`Blink exited before startup (${signal || code})`);
       });
       child.unref();
+      closeSync(log);
+      log = undefined;
       const deadline = Date.now() + (options.startTimeoutMs ?? 30_000);
       while (Date.now() < deadline) {
         if (failure) throw failure;
@@ -211,6 +217,7 @@ export async function launchDesktop(options = {}) {
         "Blink did not finish starting. The previous verified build is preserved.",
       );
     } catch (error) {
+      if (log !== undefined) closeSync(log);
       child?.kill();
       if (macPrevious) {
         const target = join(dirname(macPrevious), "Blinkling.app");

@@ -18778,6 +18778,7 @@ adoptLegacyEnv();
 // plugin/desktop/launcher.mjs
 var import_node_crypto2 = require("node:crypto");
 var import_node_child_process2 = require("node:child_process");
+var import_node_fs = require("node:fs");
 var import_promises5 = require("node:fs/promises");
 var import_node_path5 = require("node:path");
 var import_node_os4 = require("node:os");
@@ -19577,8 +19578,9 @@ async function launchDesktop(options = {}) {
         ...installed.build.entry.split("/").slice(appPart + 1)
       );
     }
-    let child;
+    let child, log;
     try {
+      log = (0, import_node_fs.openSync)((0, import_node_path5.join)(directory, "blinkling.log"), "w", 384);
       const platform = options.platform || process.platform;
       const sandbox = chooseSandbox(
         options.sandboxFacts || await readSandboxFacts({ platform, executable: entry })
@@ -19588,7 +19590,7 @@ async function launchDesktop(options = {}) {
         [...sandboxArgs(sandbox), ...options.args || []],
         {
           detached: true,
-          stdio: "ignore",
+          stdio: ["ignore", log, log],
           windowsHide: true,
           env: {
             ...process.env,
@@ -19606,6 +19608,8 @@ async function launchDesktop(options = {}) {
         failure = new Error(`Blink exited before startup (${signal || code})`);
       });
       child.unref();
+      (0, import_node_fs.closeSync)(log);
+      log = void 0;
       const deadline = Date.now() + (options.startTimeoutMs ?? 3e4);
       while (Date.now() < deadline) {
         if (failure) throw failure;
@@ -19633,6 +19637,7 @@ async function launchDesktop(options = {}) {
         "Blink did not finish starting. The previous verified build is preserved."
       );
     } catch (error43) {
+      if (log !== void 0) (0, import_node_fs.closeSync)(log);
       child?.kill();
       if (macPrevious) {
         const target = (0, import_node_path5.join)((0, import_node_path5.dirname)(macPrevious), "Blinkling.app");
@@ -41622,7 +41627,7 @@ function normalizePng(input, requestedLongEdge = DEFAULT_LONG_EDGE) {
 }
 
 // bridge/src/helper-server.ts
-var import_node_fs3 = require("node:fs");
+var import_node_fs4 = require("node:fs");
 var import_promises9 = require("node:fs/promises");
 var import_node_http = require("node:http");
 var import_node_path10 = require("node:path");
@@ -42192,7 +42197,7 @@ var import_promises7 = require("node:fs/promises");
 var import_node_os6 = require("node:os");
 var import_node_path7 = require("node:path");
 var import_node_child_process4 = require("node:child_process");
-var import_node_fs = require("node:fs");
+var import_node_fs2 = require("node:fs");
 var DEFAULT_DISTRIBUTION = {
   chromeWebStoreUrl: "",
   edgeAddonsUrl: ""
@@ -42200,7 +42205,7 @@ var DEFAULT_DISTRIBUTION = {
 function loadDistributionConfig(file2 = process.env.BLINKLING_DISTRIBUTION_CONFIG || (0, import_node_path7.join)(process.cwd(), "config", "distribution.json")) {
   try {
     const value = JSON.parse(
-      (0, import_node_fs.readFileSync)(file2, "utf8")
+      (0, import_node_fs2.readFileSync)(file2, "utf8")
     );
     return {
       chromeWebStoreUrl: typeof value.chromeWebStoreUrl === "string" ? value.chromeWebStoreUrl : "",
@@ -42949,7 +42954,7 @@ var HelperBridge = class {
 
 // bridge/src/helper-trust.ts
 var import_node_crypto6 = require("node:crypto");
-var import_node_fs2 = require("node:fs");
+var import_node_fs3 = require("node:fs");
 var import_node_path9 = require("node:path");
 var CODE_LIFETIME_MS = 30 * 6e4;
 var SECRET = /^[0-9a-f]{64}$/;
@@ -42966,7 +42971,7 @@ var HelperTrust = class {
     if (this.value) return this.value;
     if (this.file) {
       try {
-        const stored = JSON.parse((0, import_node_fs2.readFileSync)(this.file, "utf8")).secret;
+        const stored = JSON.parse((0, import_node_fs3.readFileSync)(this.file, "utf8")).secret;
         if (typeof stored === "string" && SECRET.test(stored))
           return this.value = stored;
       } catch {
@@ -42974,11 +42979,11 @@ var HelperTrust = class {
     }
     this.value = (0, import_node_crypto6.randomBytes)(32).toString("hex");
     if (this.file) {
-      (0, import_node_fs2.mkdirSync)((0, import_node_path9.dirname)(this.file), { recursive: true, mode: 448 });
-      (0, import_node_fs2.writeFileSync)(this.file, JSON.stringify({ secret: this.value }), {
+      (0, import_node_fs3.mkdirSync)((0, import_node_path9.dirname)(this.file), { recursive: true, mode: 448 });
+      (0, import_node_fs3.writeFileSync)(this.file, JSON.stringify({ secret: this.value }), {
         mode: 384
       });
-      (0, import_node_fs2.chmodSync)(this.file, 384);
+      (0, import_node_fs3.chmodSync)(this.file, 384);
     }
     return this.value;
   }
@@ -43256,7 +43261,7 @@ var HelperServer = class {
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "no-referrer"
     });
-    (0, import_node_fs3.createReadStream)(file2).on("error", () => res.destroy()).pipe(res);
+    (0, import_node_fs4.createReadStream)(file2).on("error", () => res.destroy()).pipe(res);
   }
   requireCode(code) {
     if (!this.trust.codeKnown(code))
