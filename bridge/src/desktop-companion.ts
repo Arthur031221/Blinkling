@@ -22,7 +22,13 @@ export class DesktopCompanion {
       try {
         const desktop = await desktopConnection();
         if (this.closed || !desktop) return;
-        if (this.registered === desktop.client.endpoint.token) return;
+        // The desktop forgets the companion after a refused call, so a token
+        // it has been told about is only current while its status says so.
+        if (
+          this.registered === desktop.client.endpoint.token &&
+          desktop.status?.companion === true
+        )
+          return;
         await desktop.client.rpc("companion", {
           url: this.origin() + "/desktop-companion",
           token: this.token,
