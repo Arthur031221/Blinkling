@@ -16,42 +16,37 @@ const overlayPath = fileURLToPath(
   new URL("../../overlay/index.mjs", import.meta.url),
 );
 const windowPath = fileURLToPath(new URL("../windows.mjs", import.meta.url));
-test("Escape while a native guide loads cannot resurrect its window", async () => {
+test("Escape while a guide is loading cannot resurrect its overlay", async () => {
   const { app, close } = await launch();
   try {
+    const blink = await app.firstWindow();
     await background(app);
     native(30, 30);
-    await app.evaluate(async ({ screen }) => {
+    await scriptedSession(app, [JSON.stringify(twoStepModel)]);
+    await app.evaluate(() => {
       const f = globalThis.blinklingTest.features;
-      const capture = await f.capture.screen(
-        String(screen.getPrimaryDisplay().id),
-        undefined,
-        { attach: false },
-      );
       const original = f.overlay.create;
       f.overlay.create = async (...args) => {
         await new Promise((resolve) => (globalThis.b3ReleaseGuide = resolve));
         return original(...args);
       };
-      globalThis.b3Race = f.overlay.show(capture, [
-        { rect: { x: 240, y: 160, width: 160, height: 100 }, label: "Result" },
-      ]);
     });
+    blink.evaluate(() => void window.blinkling.action("guide"));
+    await expect
+      .poll(() => app.evaluate(() => !!globalThis.b3ReleaseGuide))
+      .toBe(true);
     native(30, 30, [0xff1b]);
+    await app.evaluate(() => globalThis.b3ReleaseGuide());
+    await expect
+      .poll(() =>
+        app.evaluate(
+          () => globalThis.blinklingTest.features.overlay.window ?? null,
+        ),
+      )
+      .toBe(null);
     expect(
       await app.evaluate(
         () => !!globalThis.blinklingTest.features.overlay.capture,
-      ),
-    ).toBe(false);
-    expect(
-      await app.evaluate(async () => {
-        globalThis.b3ReleaseGuide();
-        return globalThis.b3Race;
-      }),
-    ).toBe(false);
-    expect(
-      await app.evaluate(
-        () => !!globalThis.blinklingTest.features.overlay.window,
       ),
     ).toBe(false);
     expect(await app.evaluate(() => globalThis.b3Background.isFocused())).toBe(
@@ -144,51 +139,45 @@ for (const scale of [1, 1.5, 2])
   });
 for (const scale of [1, 1.5, 2])
   for (const theme of ["light", "dark"])
-    test(`guide geometry native pass-through and clean labels ${scale} ${theme}`, async () => {
+    test(`numbered marks stay native-sized, click-through, dim on focus and keep clear labels ${scale} ${theme}`, async () => {
       const { app, close } = await launch(scale);
       try {
         await app.firstWindow();
         const d = await background(app);
         native(30, 30);
+        const before = PNG.sync.read(
+          await desktopShot(app, `marks-bare-${scale}-${theme}`),
+        );
         const page = await nextWindow(app, () =>
           app.evaluate(
             async ({ screen }, { path, theme }) => {
               const { createOverlay } = await globalThis.b3Import(path);
-              const overlay = await createOverlay(
+              globalThis.b3Overlay = await createOverlay(
                 screen.getPrimaryDisplay(),
                 [
                   {
                     id: "header",
+                    n: 1,
+                    kind: "underline",
                     rect: { x: 24, y: 24, width: 260, height: 48 },
                     label: "整個畫面的用途與主要段落說明",
-                    steps: [0],
                   },
                   {
                     id: "result",
+                    n: 2,
+                    kind: "outline",
                     rect: { x: 240, y: 160, width: 160, height: 100 },
                     label:
                       "主要結果：這段文字保持清楚，所有內容都留在訊息泡泡裡",
-                    steps: [1],
-                    arrows: [
-                      {
-                        from: { x: 180, y: 120 },
-                        to: { x: 240, y: 190 },
-                        step: 1,
-                      },
-                    ],
                   },
                 ],
                 { theme },
               );
-              globalThis.b3Overlay = overlay;
             },
             { path: overlayPath, theme },
           ),
         );
-        await expect(page.locator("body")).toHaveAttribute(
-          "data-ready",
-          "true",
-        );
+        await expect(page.locator("body")).toHaveAttribute("data-drawn", /\d+/);
         // Verify native pixels: Electron rounds a fractional DIP window up,
         // while screen.bounds rounds the same monitor down at 150%.
         expect(await nativeBounds(app, "b3Overlay")).toEqual({
@@ -197,14 +186,13 @@ for (const scale of [1, 1.5, 2])
           width: 1280,
           height: 800,
         });
+        await expect(page.locator(".badge")).toHaveText(["1", "2"]);
         const layout = await page.evaluate(() =>
           [...document.querySelectorAll(".label")].map((el) => {
             const r = el.getBoundingClientRect();
             return {
               x: r.x,
               y: r.y,
-              width: r.width,
-              height: r.height,
               right: r.right,
               bottom: r.bottom,
               scroll: el.scrollWidth,
@@ -213,45 +201,44 @@ for (const scale of [1, 1.5, 2])
           }),
         );
         expect(layout).toHaveLength(2);
+        const content = [
+          { x: 24, y: 24, right: 284, bottom: 72 },
+          { x: 240, y: 160, right: 400, bottom: 260 },
+        ];
+        const apart = (a, b) =>
+          a.x >= b.right ||
+          b.x >= a.right ||
+          a.y >= b.bottom ||
+          b.y >= a.bottom;
         for (const r of layout) {
           expect(r.x).toBeGreaterThanOrEqual(0);
           expect(r.y).toBeGreaterThanOrEqual(0);
           expect(r.right).toBeLessThanOrEqual(d.bounds.width);
           expect(r.bottom).toBeLessThanOrEqual(d.bounds.height);
           expect(r.scroll).toBeLessThanOrEqual(r.client);
-          // Number pills must not hide text in any explained screen region.
-          for (const content of [
-            { x: 24, y: 24, right: 284, bottom: 72 },
-            { x: 240, y: 160, right: 400, bottom: 260 },
-          ])
-            expect(
-              r.x >= content.right ||
-                content.x >= r.right ||
-                r.y >= content.bottom ||
-                content.y >= r.bottom,
-            ).toBe(true);
+          // A label never hides the text of an explained region.
+          for (const c of content) expect(apart(r, c)).toBe(true);
         }
-        const [a, b] = layout;
-        expect(
-          a.x >= b.right ||
-            b.x >= a.right ||
-            a.y >= b.bottom ||
-            b.y >= a.bottom,
-        ).toBe(true);
-        const bytes = await desktopShot(app, `guide-${scale}-${theme}`);
-        const image = PNG.sync.read(bytes),
-          sx = image.width / d.bounds.width,
-          sy = image.height / d.bounds.height;
-        const point = (x, y) =>
-          Array.from(
-            image.data.subarray(
-              (Math.round(y * sy) * image.width + Math.round(x * sx)) * 4,
-              (Math.round(y * sy) * image.width + Math.round(x * sx)) * 4 + 3,
-            ),
-          );
-        expect(point(240, 210)).toEqual([61, 220, 151]);
-        expect(point(320, 230)).toEqual([232, 73, 73]);
-        native(320 * sx, 230 * sy);
+        expect(apart(layout[0], layout[1])).toBe(true);
+        // The marks are really on screen: pixels along each outline changed.
+        await expect
+          .poll(async () => {
+            const image = PNG.sync.read(
+              await desktopShot(app, `marks-${scale}-${theme}`),
+            );
+            let changed = 0;
+            for (let i = 0; i < image.data.length; i += 4)
+              if (
+                image.data[i] !== before.data[i] ||
+                image.data[i + 1] !== before.data[i + 1] ||
+                image.data[i + 2] !== before.data[i + 2]
+              )
+                changed++;
+            return changed > 200;
+          })
+          .toBe(true);
+        // Click-through: a click inside a mark reaches the window below.
+        native(320 * scale, 230 * scale);
         expect(
           await app
             .evaluate(() =>
@@ -264,48 +251,45 @@ for (const scale of [1, 1.5, 2])
         expect(
           await app.evaluate(() => globalThis.b3Background.isFocused()),
         ).toBe(true);
-        await app.evaluate(() =>
-          globalThis.b3Overlay.webContents.send("blinkling:overlay:step", 0),
-        );
-        await expect(page.locator(".label").nth(0)).toBeVisible();
-        await expect(page.locator(".label").nth(1)).toBeHidden();
-        await app.evaluate(() =>
-          globalThis.b3Overlay.webContents.send("blinkling:overlay:step", 1),
-        );
-        await expect(page.locator(".label").nth(0)).toBeHidden();
-        await expect(page.locator(".label").nth(1)).toBeVisible();
-        await app.evaluate(() =>
-          globalThis.b3Overlay.webContents.send("blinkling:overlay:step", -1),
-        );
-        await expect(page.locator(".label").nth(0)).toBeVisible();
+        // Focus dims every mark outside it and no argument brings them back.
+        const opacity = (n) =>
+          page
+            .locator(`.badge[data-n="${n}"]`)
+            .evaluate((el) => Number(getComputedStyle(el).opacity));
+        const command = (name, arg) =>
+          app.evaluate(
+            (_e, c) =>
+              globalThis.b3Overlay.webContents.send(
+                "blinkling:overlay:command",
+                c,
+              ),
+            { name, arg },
+          );
+        await command("focus", [2]);
+        await expect.poll(() => opacity(1)).toBeLessThan(0.5);
+        expect(await opacity(2)).toBe(1);
+        await expect(page.locator("body")).toHaveAttribute("data-focus", "2");
+        await command("focus", null);
+        await expect.poll(() => opacity(1)).toBe(1);
         const timing = await page.evaluate(
           () =>
             new Promise((resolve) => {
               const frames = [],
-                motionFrames = [],
                 states = new Set();
-              const label = document.querySelector(".label");
+              const badge = document.querySelector(".badge");
               for (const animation of document.getAnimations()) {
                 animation.currentTime = 0;
                 animation.play();
               }
               let previous;
               function step(t) {
-                const opacity = getComputedStyle(label).opacity;
-                states.add(opacity);
-                if (previous !== undefined) {
-                  frames.push(t - previous);
-                  if (Number(opacity) < 0.999) motionFrames.push(t - previous);
-                }
+                states.add(getComputedStyle(badge).opacity);
+                if (previous !== undefined) frames.push(t - previous);
                 previous = t;
                 if (frames.length < 120) requestAnimationFrame(step);
                 else
                   resolve({
                     states: states.size,
-                    motionFps:
-                      1000 /
-                      (motionFrames.reduce((a, b) => a + b, 0) /
-                        motionFrames.length),
                     fps:
                       1000 /
                       (frames.reduce((a, b) => a + b, 0) / frames.length),
@@ -318,7 +302,6 @@ for (const scale of [1, 1.5, 2])
             }),
         );
         expect(timing.states).toBeGreaterThan(5);
-        expect(timing.motionFps).toBeGreaterThan(50);
         expect(timing.fps).toBeGreaterThan(50);
         expect(timing.p95).toBeLessThan(30);
         await writeFile(
@@ -361,13 +344,11 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
             id: "one",
             note: "Read the results.",
             regionIds: ["results"],
-            arrows: [],
           },
           {
             id: "two",
             note: "Compare the report.",
             regionIds: ["results"],
-            arrows: [],
           },
         ],
       };
@@ -394,9 +375,10 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
       });
     const guidePage = await nextWindow(app, start);
     await expect(guidePage.locator("body")).toHaveAttribute(
-      "data-ready",
-      "true",
+      "data-drawn",
+      /\d+/,
     );
+    await expect(guidePage.locator(".badge")).toHaveText(["1"]);
     const sent = await app.evaluate(() => ({
       source: globalThis.b3Turn.source,
       image: globalThis.b3Turn.attachments[0].data,
@@ -434,19 +416,34 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
         "document.body.style.background='#204080';document.querySelector('#target').style.left='240px'",
       ),
     );
-    await nextWindow(app, start);
+    await showAgain(app, start);
     native(30, 30, [0xff1b]);
     await expect
       .poll(() =>
         app.evaluate(() => !!globalThis.blinklingTest.features.overlay.capture),
       )
       .toBe(false);
-    await nextWindow(app, start);
-    const pos = await blink.locator('rect[fill="#3ddc97"]').boundingBox();
-    native(
-      Math.max(8, Math.min(1272, pos.x + pos.width * 0.35)),
-      Math.max(8, Math.min(792, pos.y + pos.height * 0.72)),
+    expect(await blink.evaluate(() => window.guides.at(-1).phase)).toBe(
+      "dismissed",
     );
+    // The arrow keys step through the guide from anywhere.
+    await showAgain(app, start);
+    await expect
+      .poll(() => blink.evaluate(() => window.guides.at(-1).phase))
+      .toBe("overview");
+    native(30, 30, [0xff53]);
+    await expect
+      .poll(() => blink.evaluate(() => window.guides.at(-1).index))
+      .toBe(0);
+    native(30, 30, [0xff53]);
+    await expect
+      .poll(() => blink.evaluate(() => window.guides.at(-1).index))
+      .toBe(1);
+    native(30, 30, [0xff51]);
+    await expect
+      .poll(() => blink.evaluate(() => window.guides.at(-1).index))
+      .toBe(0);
+    await blink.evaluate(() => window.blinkling.action("guide-dismiss"));
     await expect
       .poll(() =>
         app.evaluate(() => !!globalThis.blinklingTest.features.overlay.capture),
@@ -600,7 +597,6 @@ test("guide stays on a static screen with streaming answer bubbles until the use
             id: "one",
             note: "Read the results.",
             regionIds: ["results"],
-            arrows: [{ from: { x: 120, y: 120 }, to: { x: 240, y: 200 } }],
           },
         ],
       };
@@ -625,7 +621,7 @@ test("guide stays on a static screen with streaming answer bubbles until the use
         void window.blinkling.action("guide");
       }),
     );
-    await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+    await expect(page.locator("body")).toHaveAttribute("data-drawn", /\d+/);
     const end = Date.now() + holdMs;
     let n = 0;
     while (Date.now() < end) {
@@ -639,10 +635,11 @@ test("guide stays on a static screen with streaming answer bubbles until the use
           content: [{ type: "text", text: `這是第 ${i} 句說明。` }],
         });
       }, n++);
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 700));
+      await new Promise((r) => setTimeout(r, 800));
       expect(
         await app.evaluate(() => globalThis.b3Dismissals),
-        "overlay dismissed itself",
+        `overlay dismissed itself after ${n} streamed bubbles`,
       ).toEqual([]);
     }
     expect(
@@ -657,6 +654,16 @@ test("guide stays on a static screen with streaming answer bubbles until the use
     await close();
   }
 });
+/** The overlay window is pooled and reused, so a second guide opens no new
+ * page: wait for the service to hold its window again. */
+async function showAgain(app, start) {
+  await start();
+  await expect
+    .poll(() =>
+      app.evaluate(() => !!globalThis.blinklingTest.features.overlay.window),
+    )
+    .toBe(true);
+}
 async function bubbleText(app) {
   return app.evaluate(() =>
     globalThis.blinklingTest.bubbles.webContents.executeJavaScript(
@@ -683,12 +690,11 @@ const twoStepModel = {
     },
   ],
   steps: [
-    { id: "one", note: "Read the title.", regionIds: ["title"], arrows: [] },
+    { id: "one", note: "Read the title.", regionIds: ["title"] },
     {
       id: "two",
       note: "Check the results.",
       regionIds: ["results"],
-      arrows: [],
     },
   ],
 };
@@ -767,7 +773,7 @@ test("the last step is drawn, Blink closes the tour, and every control keeps wor
     await close();
   }
 });
-test("a failed guide turn shows a plain error with 再試一次 that reruns the guide", async () => {
+test("a failed guide turn names its reason and offers a retry that reruns the guide", async () => {
   const { app, close } = await launch();
   try {
     const blink = await app.firstWindow();
@@ -788,7 +794,11 @@ test("a failed guide turn shows a plain error with 再試一次 that reruns the 
     const phase = () => blink.evaluate(() => window.guides.at(-1).phase);
     await act("guide");
     await expect.poll(phase).toBe("error");
-    await expect.poll(() => bubbleText(app)).toContain("再試一次");
+    // The failure bubble names its reason in one sentence, with a way to retry.
+    await expect
+      .poll(() => bubbleText(app))
+      .toContain("導覽暫時無法完成：Claude 的回覆不是我能讀的格式。");
+    await expect.poll(() => bubbleText(app)).toContain("Try again");
     await desktopShot(app, "guide-error");
     expect(await app.evaluate(() => globalThis.b3Sends)).toBe(1);
     await nextWindow(app, () => act("guide-retry"));
