@@ -23,6 +23,12 @@ import {
 import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
+import { routeClick } from "./click.mjs";
+import {
+  escape as escapeLayer,
+  setLayer,
+  topLayer,
+} from "../shared/escape.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
 import {
@@ -72,6 +78,7 @@ let display = reconcileDisplay(
   store.lastDisplay ?? screen.getPrimaryDisplay().id,
 );
 let position = resolvePosition(display, store.positions[String(display.id)]);
+let permissionPending = false;
 let composer = null,
   composerOpening = null,
   composerReady = null,
@@ -98,6 +105,7 @@ const cursor = cursorSource({
   toDip: (point) => screen.screenToDipPoint(point),
 });
 const actions = new Set([
+  "capture",
   "screen",
   "region",
   "full-page",
@@ -118,6 +126,7 @@ const webPreferences = {
 function windowOptions(bounds, focusable) {
   return {
     ...bounds,
+    title: "Blinkling",
     transparent: true,
     backgroundColor: "#00000000",
     frame: false,
@@ -131,6 +140,8 @@ function windowOptions(bounds, focusable) {
   };
 }
 function secure(win) {
+  // Every window is called Blinkling, whatever page it loads (N3.9).
+  win.on("page-title-updated", (event) => event.preventDefault());
   win.setAlwaysOnTop(true, "screen-saver");
   if (process.platform === "darwin")
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -445,6 +456,11 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       if (saved) await store.save(display.id, saved);
       placeCard();
     }
+  } else if (command.type === "click") {
+    if (!fromBlink) throw new Error("Invalid shell gesture");
+    // "mini" is the small composer; until it has its own window it is the card.
+    routeClick({ permission: permissionPending });
+    await openComposer(true);
   } else if (command.type === "pin") {
     pinned = command.value;
     if (pinned) await openComposer(false);
@@ -492,6 +508,7 @@ ipcMain.handle("blinkling:action", async (event, action) => {
     await openComposer();
     return { ok: true };
   }
+  if (action === "capture") action = "region";
   if (action === "auto-explain") {
     const result = await dispatchAction(action, {
       display,
@@ -507,6 +524,8 @@ ipcMain.handle("blinkling:action", async (event, action) => {
   return dispatchAction(action, { display, windows: windows(), openComposer });
 });
 const send = (event) => {
+  if (event.type === "activity")
+    permissionPending = event.state === "permission";
   for (const win of windows()) win.webContents.send("blinkling:event", event);
 };
 const session = new SessionBridge({
@@ -552,6 +571,8 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
   requireView(event);
   if (event.sender !== composer?.webContents)
     throw new Error("Invalid composer sender");
+  // Blink thinks at once; the session echo only confirms it (N4.3).
+  send({ type: "sending" });
   await session.send(turn);
   if (turn.source === "quick-ask" && !pinned) closeComposer();
 });
@@ -737,8 +758,42 @@ const stopStacking = await keepAbove(() =>
     blink,
   }),
 );
+/** Esc closes only the topmost layer (N5.3). The key is grabbed globally only
+ * while something is open, so Esc is never taken from other applications. */
+let escapeGrabbed = false;
+function syncLayers() {
+  const guide = features.overlay.window;
+  setLayer("mini", chatOpen && !pinned ? () => void closeComposer() : null);
+  setLayer(
+    "guide",
+    guide && !guide.isDestroyed() && guide.isVisible()
+      ? () => void features.handle("guide-dismiss")
+      : null,
+  );
+  setLayer(
+    "marks",
+    overlay
+      ? () => {
+          overlay.close();
+          overlay = null;
+        }
+      : null,
+  );
+  const wanted = topLayer() !== null;
+  if (wanted === escapeGrabbed) return;
+  if (wanted)
+    escapeGrabbed = globalShortcut.register("Escape", () => {
+      escapeLayer();
+      syncLayers();
+    });
+  else {
+    globalShortcut.unregister("Escape");
+    escapeGrabbed = false;
+  }
+}
 const poll = setInterval(() => {
   if (blink.isDestroyed() || !blink.isVisible()) return;
+  syncLayers();
 
   const p = cursor.point();
   if (drag) {
@@ -827,4 +882,15 @@ if (process.env.BLINKLING_E2E === "1")
     setDisplay: useDisplay,
     positionStore: store,
     registerAction,
+  };
+if (globalThis.blinklingTest)
+  globalThis.blinklingTest.menuFaces = {
+    escape: () => escapeLayer(),
+    topLayer: () => (syncLayers(), topLayer()),
+    titles: () => windows().map((w) => w.getTitle()),
+    openComposer,
+    placeCard,
+    get escapeGrabbed() {
+      return escapeGrabbed;
+    },
   };

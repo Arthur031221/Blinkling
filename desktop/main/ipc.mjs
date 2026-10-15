@@ -3,6 +3,7 @@ const types = new Set([
   "drag",
   "pin",
   "visibility",
+  "click",
   "close-chat",
   "activity",
 ]);
@@ -65,6 +66,7 @@ export function validRegions(value, bounds) {
 }
 
 export const actionNames = new Set([
+  "capture",
   "screen",
   "region",
   "full-page",

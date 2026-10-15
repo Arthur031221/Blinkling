@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { menuLayout, menuTransform } from "./layout.mjs";
+import { COUNT, menuLayout, menuTransform } from "./layout.mjs";
 import { resolvePosition } from "../main/placement.mjs";
 const overlap = (a, b) =>
   a.x < b.x + b.width &&
@@ -21,7 +21,7 @@ test("opening, closing and widened pills stay inside every display during spring
     for (const x of [0, area.width / 2, area.width])
       for (const y of [0, area.height / 2, area.height]) {
         const anchor = { x, y };
-        for (let expanded = -1; expanded < 8; expanded++)
+        for (let expanded = -1; expanded < COUNT; expanded++)
           for (const rect of menuLayout(area, anchor, expanded))
             for (const value of [0, 0.2, 0.8, 1, 1.05, 1.2]) {
               const pose = menuTransform(area, anchor, rect, value);
@@ -45,15 +45,15 @@ test("opening, closing and widened pills stay inside every display during spring
 });
 for (const scale of [1, 1.5, 2])
   for (const edge of ["left", "right"])
-    test(`all eight pills fit without overlap at ${scale * 100}%, ${edge} edge`, () => {
+    test(`all four pills fit without overlap at ${scale * 100}%, ${edge} edge`, () => {
       const area = { x: 0, y: 0, width: 1280 / scale, height: 800 / scale };
       const anchor = {
         x: edge === "left" ? 90 : area.width - 90,
         y: area.height - 18,
       };
-      for (let expanded = -1; expanded < 8; expanded++) {
+      for (let expanded = -1; expanded < COUNT; expanded++) {
         const rs = menuLayout(area, anchor, expanded);
-        assert.equal(rs.length, 8);
+        assert.equal(rs.length, COUNT);
         for (const [r, i] of rs.map((r, i) => [r, i])) {
           assert.ok(
             r.x >= 0 &&
@@ -86,6 +86,7 @@ const displays = [
   [1280, 720],
   [1280, 680],
   [1280, 800],
+  [1366, 900], // 683x450 logical at 200 percent
 ];
 const edges = ["left", "right", "top", "bottom"];
 
@@ -106,15 +107,15 @@ for (const [w, h] of displays)
             reveal,
             { x: reveal.x + 3.3, y: reveal.y - 2.1 },
           ])
-            for (let expanded = -1; expanded < 8; expanded++)
+            for (let expanded = -1; expanded < COUNT; expanded++)
               for (const wide of [42, 70, 117, 180, 252]) {
-                const widths = Array.from({ length: 8 }, (_, i) =>
+                const widths = Array.from({ length: COUNT }, (_, i) =>
                   i === expanded ? wide : 42,
                 );
                 // A neighbour that is itself mid-transition.
                 for (const other of [42, 150]) {
                   const mixed = widths.map((v, i) =>
-                    i === (expanded + 4) % 8 && expanded >= 0 ? other : v,
+                    i === (expanded + 2) % COUNT && expanded >= 0 ? other : v,
                   );
                   const rs = menuLayout(area, anchor, expanded, mixed);
                   rs.forEach((r, i) => {
@@ -133,14 +134,47 @@ for (const [w, h] of displays)
         }
     });
 
+test("the fan has exactly four pills", () => {
+  assert.equal(COUNT, 4);
+  assert.equal(
+    menuLayout({ x: 0, y: 0, width: 640, height: 600 }, { x: 600, y: 500 })
+      .length,
+    4,
+  );
+});
+
 test("a collapsing pill keeps its neighbour clear at the width it has now", () => {
-  const area = { x: 0, y: 0, width: 640, height: 340 };
-  const anchor = { x: 90, y: 330 };
-  const widths = [150, 42, 42, 42, 42, 42, 42, 42];
+  // Too short for one column on either side of Blink, so pills pair up.
+  const area = { x: 0, y: 0, width: 640, height: 300 };
+  const anchor = { x: 90, y: 290 };
+  const widths = [150, 42, 42, 42];
   const rs = menuLayout(area, anchor, -1, widths);
   assert.equal(rs[0].width, 150);
+  assert.equal(rs[0].y, rs[2].y, "the pair shares a row");
   assert.ok(
-    apart(rs[0], rs[4]),
+    apart(rs[0], rs[2]),
     "the row neighbour waits for the pill to finish shrinking",
   );
+});
+
+test("on the top edge the fan falls below Blink instead of rising off screen", () => {
+  const display = {
+    bounds: { x: 0, y: 0, width: 1280, height: 800 },
+    workArea: { x: 0, y: 0, width: 1280, height: 800 },
+  };
+  const { reveal, area } = resolvePosition(display, {
+    edge: "top",
+    ratio: 0.5,
+  });
+  const rs = menuLayout(area, reveal);
+  for (const r of rs)
+    assert.ok(r.y > reveal.y, "every pill is below the anchor");
+  assert.ok(rs[0].y < rs[3].y, "the first pill is nearest Blink");
+});
+
+test("on a bottom or side edge the fan rises above Blink", () => {
+  const area = { x: 0, y: 0, width: 1280, height: 800 };
+  const rs = menuLayout(area, { x: 1190, y: 700 });
+  for (const r of rs) assert.ok(r.y + r.height <= 700 - 100);
+  assert.ok(rs[0].y > rs[3].y, "the first pill is nearest Blink");
 });

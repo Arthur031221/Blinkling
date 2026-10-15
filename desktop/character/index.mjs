@@ -1,4 +1,6 @@
 import { capsule, roundedRect, transformPolygon } from "./silhouette.mjs";
+import { spring } from "./state.mjs";
+import { springs } from "../shared/motion.mjs";
 const NS = "http://www.w3.org/2000/svg";
 export const colors = Object.freeze({
   ink: "#0c0e0d",
@@ -202,16 +204,45 @@ export function mountBlink(host) {
       face.node,
     ),
   );
+  // The connection dot exists only for trouble (N3.11): it is hidden while
+  // connected, so a permanent dot never becomes noise.
   const status = el(
     "circle",
     {
-      cx: -90,
-      cy: -216,
-      r: 10,
-      fill: "#d99729",
+      cx: -100,
+      cy: -104,
+      r: 14,
+      style: "fill: var(--warn)",
+      stroke: colors.ink,
+      "stroke-width": 6,
+      opacity: 0,
       "data-connection": "starting",
     },
     body,
+  );
+  // The state badge sits on the visible shoulder, so a state reads at the peek.
+  const badge = joint(body, -70, -352);
+  const badgeDisc = el(
+    "circle",
+    { r: 34, stroke: colors.ink, "stroke-width": 7, fill: colors.bone },
+    badge.node,
+  );
+  const badgeGlyph = el(
+    "path",
+    {
+      d: "",
+      fill: "none",
+      stroke: colors.ink,
+      "stroke-width": 6,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    },
+    badge.node,
+  );
+  const badgeDot = el(
+    "circle",
+    { r: 3.6, fill: colors.ink, opacity: 0 },
+    badge.node,
   );
   const smile = el(
     "path",
@@ -244,6 +275,7 @@ export function mountBlink(host) {
   arm("R");
   const all = [
     lift,
+    badge,
     squash,
     face,
     eyes,
@@ -251,6 +283,20 @@ export function mountBlink(host) {
     ...Object.values(legs).flatMap((l) => [l.hip, l.knee]),
     ...Object.values(arms).flatMap((a) => [a.shoulder, a.elbow]),
   ];
+  // Glyphs in a 60-unit box around the badge centre, one per face that needs a mark.
+  const glyphs = {
+    lock: "M -13 -2 H 13 V 20 H -13 Z M -8 -2 V -10 A 8 8 0 0 1 8 -10 V -2",
+    permission: "M -9 -12 A 9 9 0 1 1 5 -4 Q 0 0 0 7",
+    "usage-limit":
+      "M -11 -19 H 11 M -11 19 H 11 M -9 -19 C -9 -2 9 -2 9 19 M 9 -19 C 9 -2 -9 -2 -9 19",
+    error: "M 0 -18 V 4",
+    watching: "M -19 0 Q 0 -17 19 0 Q 0 17 -19 0 Z",
+  };
+  // Marks that ask for attention are amber; the quiet ones stay bone.
+  const amber = new Set(["permission", "usage-limit", "error"]);
+  let badgeFace = "idle",
+    badgeScale = { value: 0, velocity: 0 },
+    lastTime = 0;
   function pose(
     time,
     {
@@ -260,6 +306,9 @@ export function mountBlink(host) {
       talking = false,
       velocity = 0,
       expression = "idle",
+      face: faceName = expression,
+      peek = 0,
+      catchAt = -100,
       connection = "starting",
       edge = "right",
       hanging = false,
@@ -280,41 +329,66 @@ export function mountBlink(host) {
     squash.sy = 1 - breath * 0.008;
     squash.r = 0;
     face.r = (hanging ? -180 : 0) + Math.sin(time * 1.5) * 1.3;
-    eyes.sx = 1;
-    eyes.sy = blink;
-    pupils.x = Math.sin(time * 0.42) * 8;
-    pupils.y = (expression === "thinking" ? -14 : 0) + Math.sin(time * 0.7) * 2;
+    // Half of Blink is off screen at the peek: slide the face onto the visible
+    // half and shrink it a little so both eyes and the state read there.
+    const inward = edge === "right" ? -1 : edge === "left" ? 1 : 0,
+      shrink = 1 - 0.2 * peek;
+    // Which side of Blink stays on screen; the mark and dot go there.
+    const side = (inward || -1) * (hanging ? -1 : 1);
+    face.x = inward * 62 * peek;
+    face.sx = shrink;
+    face.sy = shrink;
+    // Eyes per face: sealed for the lock, heavy for the usage limit, wide and
+    // scanning while watching, looking up while thinking.
+    eyes.sx = faceName === "watching" ? 1.1 : 1;
+    eyes.sy =
+      faceName === "lock"
+        ? 0.1
+        : blink *
+          (faceName === "usage-limit"
+            ? 0.5
+            : faceName === "watching"
+              ? 1.15
+              : 1);
+    pupils.x =
+      faceName === "watching"
+        ? Math.sin(time * 1.7) * 14
+        : Math.sin(time * 0.42) * 8;
+    pupils.y =
+      (faceName === "thinking" ? -14 : faceName === "usage-limit" ? 10 : 0) +
+      Math.sin(time * 0.7) * 2;
     brows.setAttribute(
       "opacity",
-      expression === "permission" || expression === "error" ? 1 : 0,
+      faceName === "permission" || faceName === "error" ? 1 : 0,
     );
     thoughts.forEach((dot, i) =>
       dot.setAttribute(
         "opacity",
-        expression === "thinking"
+        faceName === "thinking"
           ? 0.4 + (Math.sin(time * 5 - i * 1.2) + 1) * 0.3
           : 0,
       ),
     );
+    // Reconnecting pulses, disconnected holds; connected shows nothing.
     status.setAttribute(
-      "fill",
-      {
-        starting: "#d99729",
-        connected: "#1f9e68",
-        retrying: "#d99729",
-        blocked: "#d84949",
-      }[connection] ?? "#d99729",
+      "opacity",
+      connection === "retrying"
+        ? 0.55 + (Math.sin(time * 5) + 1) * 0.225
+        : connection === "blocked"
+          ? 1
+          : 0,
     );
     status.dataset.connection = connection;
-    status.setAttribute(
-      "cx",
-      (edge === "right" ? -90 : edge === "left" ? 90 : 0) * (hanging ? -1 : 1),
-    );
+    status.setAttribute("cx", 100 * side);
     smile.setAttribute(
       "d",
-      expression === "error"
+      faceName === "error"
         ? "M -28 66 Q 0 42 28 66"
-        : "M -28 50 Q 0 78 28 50",
+        : faceName === "lock"
+          ? "M -18 58 H 18"
+          : faceName === "usage-limit"
+            ? "M -24 60 Q -12 52 0 60 T 24 60"
+            : "M -28 50 Q 0 78 28 50",
     );
     for (const [side, s] of [
       ["L", 1],
@@ -332,8 +406,13 @@ export function mountBlink(host) {
       arms.R.elbow.r = Math.sin(wave * 22) * 30 * q;
       pupils.x = 5;
     }
+    const catching = time - catchAt;
     let open =
-      expression === "permission" || (talking && Math.sin(time * 17) > 0.1);
+      faceName === "permission" ||
+      (faceName === "talking" && talking && Math.sin(time * 17) > 0.1) ||
+      (catching >= 0 && catching < 0.5);
+    if (catching >= 0 && catching < 0.5)
+      lift.y -= Math.sin((catching / 0.5) * Math.PI) * 18;
     if (mode === "drag") {
       squash.sx = 0.88;
       squash.sy = 1.12;
@@ -353,6 +432,30 @@ export function mountBlink(host) {
       squash.sx += q * 0.18;
       squash.sy -= q * 0.18;
     }
+    // The badge pops in and out on the crisp spring, and reverses from where it is.
+    if (faceName !== badgeFace && glyphs[faceName]) {
+      badgeFace = faceName;
+      badgeGlyph.setAttribute("d", glyphs[faceName]);
+      badgeDisc.style.fill = amber.has(faceName) ? "var(--warn)" : colors.bone;
+      badgeDot.setAttribute("opacity", faceName === "error" ? 1 : 0);
+      badgeDot.setAttribute("cy", 16);
+    }
+    const dt = Math.min(0.05, Math.max(0, time - lastTime));
+    lastTime = time;
+    badgeScale = spring(
+      badgeScale.value,
+      glyphs[faceName] ? 1 : 0,
+      badgeScale.velocity,
+      dt,
+      springs.crisp,
+    );
+    badge.x = 70 * side;
+    badge.sx = badge.sy = Math.max(0, badgeScale.value);
+    badge.r = hanging ? 180 : 0;
+    badge.node.setAttribute(
+      "opacity",
+      Math.min(1, Math.max(0, badgeScale.value)),
+    );
     smile.setAttribute("opacity", open ? 0 : 1);
     mouth.setAttribute("opacity", open ? 1 : 0);
     all.forEach((j) => j.apply());
@@ -370,6 +473,7 @@ export function mountBlink(host) {
       brows,
       thoughts,
       status,
+      badge,
       smile,
       mouth,
       arms,

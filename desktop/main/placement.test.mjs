@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  CHARACTER,
   snapPosition,
   resolvePosition,
   reconcileDisplay,
@@ -128,13 +129,21 @@ test("reveal never moves a top or bottom resting character sideways", () => {
       assert.equal(p.reveal.x, p.peek.x, `${edge} ${ratio}`);
     }
 });
-test("revealed anchor leaves room for the whole fan above it", () => {
-  const p = resolvePosition(display, { edge: "top", ratio: 0.5 });
-  const rows = p.area.height < 610 ? 4 : 8;
-  assert.ok(
-    p.reveal.y >=
-      Math.min(p.area.y + p.area.height - 18, p.area.y + rows * 51 + 156),
-  );
+test("hovering the top edge slides Blink a bounded distance, never down the screen", () => {
+  for (const height of [450, 800, 1080]) {
+    const screen = {
+      id: 1,
+      bounds: { x: 0, y: 0, width: 1366, height },
+      workArea: { x: 0, y: 0, width: 1366, height },
+      scaleFactor: 1,
+    };
+    const p = resolvePosition(screen, { edge: "top", ratio: 0.5 });
+    assert.ok(
+      p.reveal.y - p.peek.y <= 100,
+      `slide ${p.reveal.y - p.peek.y} at ${height}`,
+    );
+    assert.ok(p.reveal.y - CHARACTER.foot >= p.area.y, "body stays on screen");
+  }
 });
 const panels = {
   "100%": {

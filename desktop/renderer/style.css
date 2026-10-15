@@ -1,19 +1,7 @@
 :root {
-  color-scheme: light dark;
   font-family: system-ui, "Noto Sans CJK TC", sans-serif;
-  --card: #faf8f4;
-  --ink: #262720;
-  --muted: #686a60;
-  --line: #dfdfd4;
-  --accent: #1f9e68;
-  --green: #3ddc97;
-}
-:root[data-theme="dark"] {
-  --card: #242720;
-  --ink: #f5f5f4;
-  --muted: #bcc2b5;
-  --line: #444b3d;
-  --accent: #3ddc97;
+  font-size: var(--type-m);
+  color: var(--text);
 }
 * {
   box-sizing: border-box;
@@ -27,16 +15,13 @@ body {
   overflow: hidden;
   user-select: none;
 }
-button,
-textarea {
-  font: inherit;
-}
 button {
-  color: var(--ink);
+  font: inherit;
+  color: var(--text);
   cursor: pointer;
 }
 button:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--green);
   outline-offset: 2px;
 }
 svg {
@@ -74,25 +59,20 @@ button svg {
   inset: 0;
   pointer-events: none;
 }
+/* Pills are placed and sized from script and moved with transform and opacity
+   only; the label fades in on the expanded one. */
 .action-bubble {
   position: absolute;
-  border: 1px solid var(--line);
+  left: 0;
+  top: 0;
   height: 42px;
-  border-radius: 25px;
-  background: var(--card);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 9px;
-  gap: 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
   transform-origin: center;
   will-change: transform, opacity;
   overflow: hidden;
-  border-color: color-mix(in srgb, var(--ink) 20%, transparent);
-  box-shadow: none;
-}
-.action-bubble.from-left {
-  flex-direction: row-reverse;
 }
 .action-bubble svg {
   position: absolute;
@@ -112,20 +92,21 @@ button svg {
   top: 3px;
   opacity: 0;
   white-space: nowrap;
+  text-align: start;
   line-height: 17px;
-  font-size: 13px;
+  font-size: var(--type-s);
   pointer-events: none;
-  transition: opacity 60ms;
+  transition: opacity var(--motion-fast) var(--ease-standard);
 }
 .action-detail strong {
   display: block;
-  font-size: 14px;
+  font-size: var(--type-s);
   font-weight: 650;
 }
 .action-detail > span {
   display: block;
-  color: var(--muted);
-  font-size: 13px;
+  color: color-mix(in srgb, var(--text) 65%, var(--surface));
+  font-size: var(--type-s);
 }
 .from-left .action-detail {
   left: 48px;
@@ -133,14 +114,13 @@ button svg {
 }
 .expanded .action-detail {
   opacity: 1;
-  transition: opacity 100ms 150ms;
 }
-.action-bubble[aria-pressed="true"] {
+.action-bubble[data-on="true"] {
   background: var(--green);
-  color: #0c0e0d;
+  color: var(--text-on-green);
 }
-.action-bubble[aria-pressed="true"] .action-detail > span {
-  color: #0c0e0d;
+.action-bubble[data-on="true"] .action-detail > span {
+  color: var(--text-on-green);
 }
 /* A check on the icon corner says "on" even while the pill is collapsed. */
 .action-bubble[data-on="true"]::after {
@@ -153,175 +133,33 @@ button svg {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: var(--type-xs);
   font-weight: 800;
   line-height: 1;
-  background: #0c0e0d;
+  background: var(--text-on-green);
   color: var(--green);
 }
 .action-bubble.from-left[data-on="true"]::after {
   right: auto;
   left: 4px;
 }
-#auto-badge {
-  position: absolute;
-  padding: 3px 10px 3px 8px;
-  border-radius: 14px;
-  background: var(--green);
-  color: #0c0e0d;
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 18px;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 2px 8px #00000030;
-}
-#auto-badge::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: #0c0e0d;
-  vertical-align: 1px;
-}
-#pin {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--card);
-  border: 1px solid var(--line);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 140ms;
-}
-#pin svg {
-  width: 18px;
-  height: 18px;
-}
-#pin[aria-pressed="true"],
-#chat-pin[aria-pressed="true"] {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--green) 20%, var(--card));
-}
-#chat-card {
-  position: absolute;
-  inset: 0;
-  border-radius: 26px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transform-origin: 100% 100%;
-  animation: card-arrive 300ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-#chat-card[hidden] {
-  display: none;
-}
-:root[data-edge="left"] #chat-card {
-  transform-origin: 0 100%;
-}
-#chat-card header {
-  height: 56px;
-  padding: 12px 16px 8px 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-#chat-card header > span {
-  font-weight: 650;
-  font-size: 15px;
-}
-#chat-card header > div {
-  display: flex;
-  gap: 4px;
-}
-#chat-card header button {
-  border: 0;
-  background: transparent;
-  border-radius: 50%;
-  padding: 6px;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-}
-#chat-card header button svg {
-  width: 18px;
-  height: 18px;
-}
-#messages {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 0 20px 12px;
-  user-select: text;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
-}
-#composer-content {
-  margin: 0 16px 16px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--card) 94%, var(--ink));
-  flex-shrink: 0;
-  user-select: text;
-}
-#composer-input {
-  display: block;
-  resize: none;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  padding: 2px;
-  outline: none;
-  line-height: 1.6;
-  min-height: 66px;
-  max-height: 150px;
-}
-#attachments {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-#attachments img {
-  width: 60px;
-  height: 44px;
-  object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 8px;
-}
-.view-help {
-  color: var(--ink);
-}
-@keyframes card-arrive {
-  from {
-    opacity: 0;
-    transform: translate(12px, 16px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0, 0) scale(1);
-  }
-}
-
-#permission-alert {
+#permission-alert,
+#hint {
   position: absolute;
   padding: 10px 16px;
-  border-radius: 20px;
-  background: var(--paper, #faf8f3);
-  color: var(--ink, #302f2c);
-  border: 1px solid #dedad1;
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-size: var(--type-s);
+  white-space: nowrap;
+}
+#permission-alert {
+  border-color: var(--warn);
+}
+#hint {
+  pointer-events: none;
 }
 [hidden] {
   display: none !important;

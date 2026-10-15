@@ -1,14 +1,16 @@
 export const PILL = Object.freeze({ narrow: 42, wide: 252, height: 42 });
 const CLEAR = 12;
 
-/** Fan stays above the character. On short HiDPI displays use two branches.
- * Pills in one row never overlap: whichever is narrower steps aside for the
- * wider one at its *current* width, so a pill still growing or shrinking
- * (`widths`, one per pill) cannot run over its neighbour. */
+export const COUNT = 4;
+const GAP = 51;
+
+/** Fan rises from the character. When there is no room above (Blink on the top
+ * edge, or high on a short display) it falls below instead, and only when
+ * neither side can hold one column does it use two. Pills in one row never
+ * overlap: whichever is narrower steps aside for the wider one at its *current*
+ * width, so a pill still growing or shrinking (`widths`, one per pill) cannot
+ * run over its neighbour. */
 export function menuLayout(area, anchor, expanded = -1, widths = null) {
-  const columns = area.height < 610 ? 2 : 1,
-    rows = 8 / columns,
-    gap = 51;
   // Spring motion can settle either side of the midpoint by a tiny fraction.
   // Use pixel precision so an idle fan cannot flip sides on successive frames.
   const direction =
@@ -17,19 +19,44 @@ export function menuLayout(area, anchor, expanded = -1, widths = null) {
     area.x + 32,
     Math.min(area.x + area.width - 32, anchor.x + direction * 26),
   );
-  const bottom = Math.max(
-    area.y + rows * gap + 14,
-    Math.min(area.y + area.height - 150, anchor.y - 142),
-  );
+  const top = area.y + 8,
+    bottomEdge = area.y + area.height - 8;
+  const options = [];
+  for (const columns of [1, 2]) {
+    const rows = COUNT / columns,
+      span = (rows - 1) * GAP + PILL.height;
+    options.push(
+      { columns, rows, up: true, start: anchor.y - 142, span },
+      { columns, rows, up: false, start: anchor.y + 40, span },
+    );
+  }
+  const room = (o) =>
+    o.up ? o.start + PILL.height / 2 - top : bottomEdge - (o.start - 21);
+  const place =
+    options.find((o) => room(o) >= o.span) ??
+    options.reduce((best, o) =>
+      room(o) - o.span > room(best) - best.span ? o : best,
+    );
+  const { columns, rows, up } = place;
+  // The first row's centre; with too little room the column is pulled inside.
+  const first = up
+    ? Math.max(
+        top + (rows - 1) * GAP + 21,
+        Math.min(bottomEdge - 21, place.start),
+      )
+    : Math.min(
+        bottomEdge - (rows - 1) * GAP - 21,
+        Math.max(top + 21, place.start),
+      );
   const lo = area.x + 8,
     hi = area.x + area.width - 8;
   const fit = (left, width) => Math.max(lo, Math.min(hi - width, left));
   const result = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < COUNT; i++) {
     const row = i % rows,
       col = Math.floor(i / rows);
     const x = baseX + direction * (col * 58 + Math.sin(row * 0.55) * 12),
-      y = bottom - row * gap;
+      y = first + (up ? -row : row) * GAP;
     const width = Math.max(
       PILL.narrow,
       Math.min(
@@ -56,8 +83,8 @@ export function menuLayout(area, anchor, expanded = -1, widths = null) {
         const after = keep.x + keep.width + CLEAR,
           before = keep.x - CLEAR - move.width;
         const fits = (left) => left >= lo && left + move.width <= hi;
-        const options = natural > 0 ? [after, before] : [before, after];
-        move.x = options.find(fits) ?? fit(options[0], move.width);
+        const choices = natural > 0 ? [after, before] : [before, after];
+        move.x = choices.find(fits) ?? fit(choices[0], move.width);
       }
     }
   return result;
