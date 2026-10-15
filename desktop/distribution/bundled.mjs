@@ -19,9 +19,7 @@ export function embeddedManifest(bundleText) {
 /** What the launcher would download on each shipped target, from the bundle alone. */
 export function resolveBundled(bundleText) {
   const manifest = embeddedManifest(bundleText);
-  return TARGETS.map((target) =>
-    selectBuild(manifest, target.os, target.arch),
-  );
+  return TARGETS.map((target) => selectBuild(manifest, target.os, target.arch));
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {

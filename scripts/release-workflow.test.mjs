@@ -67,7 +67,10 @@ describe("the release workflow", () => {
   it("rebuilds the bundled launcher after pinning and commits it with the manifest", () => {
     const pin = release.indexOf("Commit the pinned manifest");
     const rebuild = release.indexOf("node scripts/build-plugin.mjs", pin);
-    const add = release.indexOf("git add -A bin plugin/desktop/manifest.json", pin);
+    const add = release.indexOf(
+      "git add -A bin plugin/desktop/manifest.json",
+      pin,
+    );
     const commit = release.indexOf("git commit", pin);
     expect(rebuild).toBeGreaterThan(pin);
     expect(add).toBeGreaterThan(rebuild);

@@ -40,7 +40,10 @@ test("a bundle with the pinned builds resolves every shipped target", () => {
 
 test("a stale bundle with the empty manifest is rejected as unsupported", () => {
   const stale = bundleWith({ schemaVersion: 1, version: "3.0.0", builds: [] });
-  assert.throws(() => resolveBundled(stale), /Unsupported desktop target: darwin\/arm64/);
+  assert.throws(
+    () => resolveBundled(stale),
+    /Unsupported desktop target: darwin\/arm64/,
+  );
 });
 
 test("a bundle without the embedded manifest is rejected", () => {
@@ -49,7 +52,9 @@ test("a bundle without the embedded manifest is rejected", () => {
 
 test("the shipped bundle embeds exactly plugin/desktop/manifest.json", async () => {
   const bundle = await readFile(join(here, "../../bin/blinkling.cjs"), "utf8");
-  const file = JSON.parse(await readFile(join(here, "../../plugin/desktop/manifest.json"), "utf8"));
+  const file = JSON.parse(
+    await readFile(join(here, "../../plugin/desktop/manifest.json"), "utf8"),
+  );
   assert.deepEqual(embeddedManifest(bundle), file);
 });
 
@@ -59,12 +64,22 @@ test("check-release rejects a bundle that embeds another manifest than the pinne
     const manifestPath = join(dir, "manifest.json");
     const bundlePath = join(dir, "blinkling.cjs");
     await writeFile(manifestPath, JSON.stringify(pinned()));
-    await writeFile(bundlePath, bundleWith({ schemaVersion: 1, version: "3.0.0", builds: [] }));
-    const stale = spawnSync("python3", [checker, bundlePath, manifestPath], { encoding: "utf8" });
+    await writeFile(
+      bundlePath,
+      bundleWith({ schemaVersion: 1, version: "3.0.0", builds: [] }),
+    );
+    const stale = spawnSync("python3", [checker, bundlePath, manifestPath], {
+      encoding: "utf8",
+    });
     assert.notEqual(stale.status, 0);
-    assert.match(stale.stderr, /stale desktop manifest: 0 builds against 4 pinned/);
+    assert.match(
+      stale.stderr,
+      /stale desktop manifest: 0 builds against 4 pinned/,
+    );
     await writeFile(bundlePath, bundleWith(pinned()));
-    const fresh = execFileSync("python3", [checker, bundlePath, manifestPath], { encoding: "utf8" });
+    const fresh = execFileSync("python3", [checker, bundlePath, manifestPath], {
+      encoding: "utf8",
+    });
     assert.match(fresh, /embeds the pinned desktop manifest/);
   } finally {
     await rm(dir, { recursive: true, force: true });
