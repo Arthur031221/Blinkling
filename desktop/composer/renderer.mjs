@@ -4,6 +4,7 @@ import { pickLocale, translator } from "../shared/i18n.mjs";
 import { cssVariables } from "../shared/motion.mjs";
 import { strings } from "./strings.mjs";
 import { followShellTheme } from "./theme.mjs";
+import { mountGuidePanel } from "./guide-panel.mjs";
 const api = window.blinkling;
 const locale = pickLocale(navigator.languages);
 const tr = translator(strings, locale);
@@ -115,49 +116,15 @@ const guide = document.createElement("section");
 guide.className = "gl-guide";
 guide.hidden = true;
 document.querySelector("#answers").append(guide);
-const button = (label, action, enabled = true) => {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = label;
-  b.disabled = !enabled;
-  b.addEventListener("click", () => api.action(action).catch(() => {}));
-  return b;
-};
+const guidePanel = mountGuidePanel({
+  host: guide,
+  tr,
+  onAction: (action) => api.action(action).catch(() => {}),
+});
 const unEvent = api.onEvent((event) => {
-  if (event.type === "guide") {
-    guide.replaceChildren();
-    guide.hidden = event.phase === "dismissed";
-    notice.hidden = true;
-    for (const text of event.bubbles ??
-      (event.phase === "thinking" ? [tr("guide-thinking")] : [])) {
-      const bubble = document.createElement("p");
-      bubble.className = "gl-answer-bubble";
-      bubble.textContent = text;
-      guide.append(bubble);
-    }
-    if (["overview", "step"].includes(event.phase))
-      guide.append(
-        button(tr("guide-back"), "guide-back", event.canBack),
-        button(
-          tr(event.last ? "guide-done" : "guide-next"),
-          "guide-next",
-          event.canNext,
-        ),
-        button(tr("guide-overview"), "guide-overview"),
-        button(tr("guide-dismiss"), "guide-dismiss"),
-      );
-    if (event.phase === "finished")
-      guide.append(
-        button(tr("guide-back"), "guide-back", event.canBack),
-        button(tr("guide-overview"), "guide-overview"),
-        button(tr("guide-dismiss"), "guide-dismiss"),
-      );
-    if (event.phase === "error")
-      guide.append(
-        button(tr("guide-retry"), "guide-retry"),
-        button(tr("guide-close"), "guide-dismiss"),
-      );
-  }
+  if (event.type !== "guide") return;
+  notice.hidden = true;
+  guidePanel.update(event);
 });
 let cleanShapes;
 if (configuration.surface === "bubbles") {
