@@ -344,8 +344,9 @@ no elements from such windows.
 **Cache.** Elements are cached per window: fresh for 1.5 s, then served
 stale for up to 30 s while a refresh runs behind the hover (stale while
 revalidate). An entry is dropped when the window's bounds or title change,
-when the window leaves the list, or on `locator.invalidate()`, which the pick
-layer calls on scroll and click. A hover answer is served from the cache in
+when the window leaves the list, or on `locator.invalidate()`. The pick layer (m-pick) is to call `invalidate()` on
+scroll and click; until it does, a scroll shows up through the
+stale-while-revalidate refresh. A hover answer is served from the cache in
 under a millisecond; a cold lookup is bounded to 40 ms per source before it
 falls through, which keeps the hover budget of 50 ms (p95 about 1 ms on a
 real browser page and 0.2 ms on a real PDF viewer in the e2e).
