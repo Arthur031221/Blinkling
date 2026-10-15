@@ -60,6 +60,22 @@ test("systemLocale falls back to Chromium's locale when the list is empty", () =
   assert.equal(systemLocale({ app, env: {} }), "ja");
 });
 
+test("the language chosen in settings wins over the computer's, and the environment over both", () => {
+  const app = fakeApp({ preferred: ["zh-TW"], locale: "zh-TW" });
+  assert.equal(systemLocale({ app, env: {}, chosen: "de" }), "de");
+  resetSystemLocale();
+  assert.equal(
+    systemLocale({ app, env: { BLINKLING_LOCALE: "ja" }, chosen: "de" }),
+    "ja",
+  );
+  resetSystemLocale();
+  // "system" and anything unknown leave the computer's language in charge.
+  for (const chosen of ["system", "xx", undefined]) {
+    resetSystemLocale();
+    assert.equal(systemLocale({ app, env: {}, chosen }), "zh-TW");
+  }
+});
+
 test("an explicit --lang wins over the user's list", () => {
   // On Linux the list still comes from the environment next to the switch.
   const app = fakeApp({

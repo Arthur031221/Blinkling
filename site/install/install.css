@@ -92,6 +92,31 @@ button:focus-visible,
 nav a {
   color: var(--muted);
 }
+nav {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.language {
+  display: none;
+}
+.js .language {
+  display: block;
+}
+.language select {
+  padding: 6px 28px 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--card);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.language select:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
 main {
   padding: 40px 0 24px;
 }

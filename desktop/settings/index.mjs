@@ -1,13 +1,15 @@
 import { duration } from "../shared/motion.mjs";
+import { LANGUAGE_NAMES, LOCALES } from "../shared/i18n.mjs";
 
-export const SETTINGS_SIZE = Object.freeze({ width: 440, height: 560 });
+export const SETTINGS_SIZE = Object.freeze({ width: 440, height: 640 });
 const PICK_KEYS = Object.freeze(["control", "option"]);
 const HELP = new Set(["welcome", "guide"]);
 
 /** The settings window: one hidden window made at start and reused (N6.4).
  * win: {webContents, isDestroyed, isVisible, isFocused, setBounds, showInactive,
  *   hide, focus}; ipc: {on, handle}; store: settings store; hotkey: {get, set};
- * pickKey: {get, set} (used on macOS only); host: {welcome, guide};
+ * pickKey: {get, set} (used on macOS only); host: {welcome, guide,
+ *   languageChanged}, where languageChanged restarts Blink in the new language;
  * focus: {remember, activate, restore}. */
 export function createSettingsController({
   win,
@@ -42,6 +44,8 @@ export function createSettingsController({
     pickKey: mac ? pickKey.get() : null,
     pickKeys: mac ? [...PICK_KEYS] : null,
     startWithClaudeCode: store.get().startWithClaudeCode,
+    language: store.get().language,
+    languages: LOCALES.map((code) => ({ code, name: LANGUAGE_NAMES[code] })),
   });
 
   const place = () => {
@@ -77,6 +81,14 @@ export function createSettingsController({
       }
       if (key === "startWithClaudeCode") {
         store.set({ startWithClaudeCode: value });
+        return { ok: true, state: view() };
+      }
+      if (key === "language") {
+        const before = store.get().language;
+        store.set({ language: value });
+        // Every window speaks the language it started with, so a new one
+        // takes a restart; the answer goes out first.
+        if (value !== before) setTimer(() => host.languageChanged?.(), 0);
         return { ok: true, state: view() };
       }
     } catch {

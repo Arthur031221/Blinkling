@@ -11,7 +11,10 @@ const home = () => mkdtemp(join(tmpdir(), "blinkling-settings-"));
 test("start with Claude Code is on until the user turns it off", async () => {
   const dir = await home();
   const store = createSettingsStore(join(dir, "settings.json"));
-  assert.deepEqual(store.get(), { startWithClaudeCode: true });
+  assert.deepEqual(store.get(), {
+    startWithClaudeCode: true,
+    language: "system",
+  });
 });
 
 test("a change is written where the launcher reads it", async () => {
@@ -23,7 +26,11 @@ test("a change is written where the launcher reads it", async () => {
   store.set({ startWithClaudeCode: true });
   assert.equal(await startWithClaudeCode(dir), true);
   const saved = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
-  assert.deepEqual(saved, { schemaVersion: 1, startWithClaudeCode: true });
+  assert.deepEqual(saved, {
+    schemaVersion: 1,
+    startWithClaudeCode: true,
+    language: "system",
+  });
 });
 
 test("the choice survives a restart", async () => {
@@ -76,4 +83,18 @@ test("a write that fails keeps the setting in memory and reports it", async () =
   store.set({ startWithClaudeCode: false });
   assert.equal(store.get().startWithClaudeCode, false);
   assert.equal(errors.length, 1);
+});
+
+test("the language is the computer's or one of the nine shipped", async () => {
+  const dir = await home();
+  const file = join(dir, "settings.json");
+  const store = createSettingsStore(file);
+  for (const language of ["ja", "pt-BR", "system"]) {
+    store.set({ language });
+    assert.equal(createSettingsStore(file).get().language, language);
+  }
+  for (const language of ["xx", "", "EN", 3, null])
+    assert.throws(() => store.set({ language }), /language/, String(language));
+  await writeFile(file, '{"language":"klingon"}');
+  assert.equal(createSettingsStore(file).get().language, "system");
 });

@@ -8,6 +8,14 @@ import {
   groupOf,
   parseOsParam,
 } from "../site/install/os.mjs";
+import {
+  LANGUAGE_NAMES,
+  LOCALES,
+  TEXT,
+  chooseLocale,
+  pickLocale,
+  translator,
+} from "../site/install/strings.mjs";
 
 const UA = {
   mac: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
@@ -127,5 +135,88 @@ describe("the commands on the page", () => {
   it("have at most two copy buttons per computer", () => {
     for (const name of ["mac", "windows", "linux"])
       expect(commands(name).length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("the page in nine languages", () => {
+  const html = readFileSync("site/install/index.html", "utf8");
+  const plain = (text) =>
+    text
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/\s+/g, " ")
+      .trim();
+  const marked = [
+    ...html.matchAll(/data-i18n="(\w+)"[^>]*>([\s\S]*?)<\/\w+\s*>/g),
+  ].map(([, key, inner]) => [key, plain(inner)]);
+
+  it("has a table for each locale with the same keys as English", () => {
+    expect(Object.keys(TEXT)).toEqual([...LOCALES]);
+    for (const locale of LOCALES)
+      expect(Object.keys(TEXT[locale]).sort()).toEqual(
+        Object.keys(TEXT.en).sort(),
+      );
+  });
+
+  it("keeps English in the markup, word for word, so the page reads before the script runs", () => {
+    expect(marked.length).toBeGreaterThan(30);
+    for (const [key, text] of marked) expect(text, key).toBe(TEXT.en[key]);
+  });
+
+  it("uses only keys the table has, for text and labels", () => {
+    const keys = [...html.matchAll(/data-i18n(?:-label)?="(\w+)"/g)].map(
+      (match) => match[1],
+    );
+    for (const key of keys) expect(TEXT.en, key).toHaveProperty(key);
+  });
+
+  it("labels each animation in the page language too", () => {
+    const labels = [
+      ...html.matchAll(/data-i18n-label="(\w+)"\s+aria-label="([^"]*)"/g),
+    ];
+    expect(labels.length).toBeGreaterThanOrEqual(7);
+    for (const [, key, text] of labels) expect(TEXT.en[key], key).toBe(text);
+  });
+
+  it("offers every locale in the picker, each in its own words", () => {
+    const options = [...html.matchAll(/<option value="([^"]+)">([^<]+)</g)];
+    expect(options.map((match) => match[1])).toEqual([...LOCALES]);
+    for (const [, code, name] of options)
+      expect(name).toBe(LANGUAGE_NAMES[code]);
+  });
+
+  it("leaves no translation empty or punctuated with a semicolon or dash", () => {
+    for (const locale of LOCALES)
+      for (const [key, text] of Object.entries(TEXT[locale])) {
+        expect(text.trim(), `${locale} ${key}`).not.toBe("");
+        expect(text, `${locale} ${key}`).not.toMatch(/[;—–]/);
+      }
+  });
+
+  it("falls back to English for a missing locale and throws for an unknown key", () => {
+    expect(translator("xx")("copy")).toBe("Copy");
+    expect(translator("ja")("copy")).toBe("コピー");
+    expect(() => translator("en")("nope")).toThrow();
+  });
+
+  it("picks the first language it speaks from the browser list", () => {
+    expect(pickLocale(["fr-CA", "en"])).toBe("fr");
+    expect(pickLocale(["zh-Hant-TW"])).toBe("zh-TW");
+    expect(pickLocale(["zh-HK"])).toBe("zh-TW");
+    expect(pickLocale(["zh-CN"])).toBe("zh-CN");
+    expect(pickLocale(["pt-PT"])).toBe("pt-BR");
+    expect(pickLocale(["xx", "ko-KR"])).toBe("ko");
+    expect(pickLocale([])).toBe("en");
+  });
+
+  it("lets the link, then the saved choice, then the browser decide", () => {
+    const languages = ["de-DE"];
+    expect(chooseLocale({ languages })).toBe("de");
+    expect(chooseLocale({ languages, saved: "ja" })).toBe("ja");
+    expect(chooseLocale({ languages, saved: "ja", search: "?lang=es" })).toBe(
+      "es",
+    );
+    expect(chooseLocale({ languages, search: "?lang=klingon" })).toBe("de");
+    expect(chooseLocale({ languages, saved: "klingon" })).toBe("de");
   });
 });

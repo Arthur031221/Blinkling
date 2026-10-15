@@ -1,9 +1,19 @@
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-const DEFAULTS = Object.freeze({ startWithClaudeCode: true });
+import { LOCALES } from "../shared/i18n.mjs";
+
+// `language` is "system" (follow the computer) or one of the shipped locales.
+const DEFAULTS = Object.freeze({
+  startWithClaudeCode: true,
+  language: "system",
+});
 const isBoolean = (value) => typeof value === "boolean";
-const CHECKS = Object.freeze({ startWithClaudeCode: isBoolean });
+const isLanguage = (value) => value === "system" || LOCALES.includes(value);
+const CHECKS = Object.freeze({
+  startWithClaudeCode: isBoolean,
+  language: isLanguage,
+});
 
 function load(file) {
   try {

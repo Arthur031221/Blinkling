@@ -19,6 +19,7 @@ const change = $("#hotkey-change");
 const note = $("#hotkey-note");
 const start = $("#start-switch");
 const pickRow = $("#row-pick");
+const language = $("#language-select");
 
 let t = settingsText("en");
 let state = null;
@@ -63,6 +64,10 @@ function render() {
   pickRow
     .querySelector("[role=radiogroup]")
     .setAttribute("aria-label", t("pickKey"));
+  language.addEventListener("change", async () => {
+    await apply("language", language.value);
+    render();
+  });
   for (const button of pickRow.querySelectorAll("[data-pick]")) {
     const name = button.dataset.pick;
     button.textContent = t(
@@ -70,6 +75,18 @@ function render() {
     );
     button.setAttribute("aria-checked", String(state.pickKey === name));
   }
+  language.setAttribute("aria-label", t("language"));
+  language.replaceChildren(
+    ...[{ code: "system", name: t("languageSystem") }, ...state.languages].map(
+      ({ code, name }) => {
+        const option = document.createElement("option");
+        option.value = code;
+        option.textContent = name;
+        option.selected = code === state.language;
+        return option;
+      },
+    ),
+  );
   $("#about-version").textContent = t("version", { version: state.version });
   $("[data-safety]").textContent = (safety[state.locale] ?? safety.en).safety;
 }

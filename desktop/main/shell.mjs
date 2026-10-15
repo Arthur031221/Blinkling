@@ -51,6 +51,7 @@ import { installPick } from "../pick/install.mjs";
 import { createOnce, fileStore } from "../pick/once.mjs";
 import { installSettings } from "../settings/install.mjs";
 import { installWelcome } from "../welcome/install.mjs";
+import { createSettingsStore } from "../settings/store.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
 import { systemLocale } from "../shared/i18n.mjs";
 import { createGuideOffer, SAVE_ACTION } from "../guides/offer.mjs";
@@ -87,7 +88,12 @@ if (process.platform === "linux" && process.env.DISPLAY)
   app.commandLine.appendSwitch("ozone-platform", "x11");
 await app.whenReady();
 // Every surface speaks this one language, resolved here and sent out (N3.10).
-const locale = systemLocale({ app });
+const locale = systemLocale({
+  app,
+  chosen: createSettingsStore(
+    join(app.getPath("userData"), "settings.json"),
+  ).get().language,
+});
 const store = await new PositionStore(
   join(app.getPath("userData"), "blink-positions.json"),
 ).load();
@@ -1042,6 +1048,11 @@ const settings = installSettings({
       void welcome.open();
     },
     guide: () => void openCompanionGuide(),
+    // The language is read at start, so a new one restarts Blink.
+    languageChanged: () => {
+      app.relaunch();
+      app.quit();
+    },
   },
 });
 extraWindows.push(welcome.test.win, settings.test.win);

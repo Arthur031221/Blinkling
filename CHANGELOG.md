@@ -6,6 +6,7 @@
 - macOS: Blink no longer hangs on quit when an input method such as Zhuyin is active. The native key hook is left for the exit to release.
 - Close joins the menu as a fifth bubble and always quits. If shutdown stalls, the app exits after three seconds. A display too short for the fifth bubble keeps the four that matter.
 - Opening Blinkling again while it runs brings the running one forward, and replaces one that no longer answers. Blink quits when the session that started it ends.
+- Language picker. Settings has a Language row with the system default and all nine languages, each in its own words. Choosing one restarts Blink so every window speaks it, and it ranks above the system language. The install page has the same picker, saved in the browser, with the page text, the copy buttons and the animation labels in all nine languages.
 
 ## 3.0.1 - 2026-10-15
 

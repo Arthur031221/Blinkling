@@ -106,6 +106,21 @@ button:focus-visible {
   color: var(--warn);
   opacity: 1;
 }
+select {
+  font: inherit;
+  font-size: var(--type-s);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  max-width: 180px;
+  cursor: pointer;
+}
+select:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
 kbd {
   font: inherit;
   font-size: var(--type-s);

@@ -33,6 +33,7 @@ async function setup({
     pickKeys: [],
     welcome: 0,
     guide: 0,
+    restarts: 0,
     restored: 0,
     remembered: 0,
   };
@@ -72,6 +73,7 @@ async function setup({
     host: {
       welcome: () => void log.welcome++,
       guide: () => void log.guide++,
+      languageChanged: () => void log.restarts++,
     },
     focus: {
       remember: async () => void log.remembered++,
@@ -156,6 +158,43 @@ test("a new hotkey is registered and shown; a clash says why and keeps the old k
     value: "F",
   });
   assert.equal(invalid.reason, "invalid");
+});
+
+test("the language row lists the nine languages and a change restarts Blink once", async () => {
+  const { ask, timers, dir, log } = await setup();
+  const view = await ask("blinkling:settings-ready");
+  assert.equal(view.language, "system");
+  assert.deepEqual(
+    view.languages.map((l) => l.code),
+    ["en", "zh-TW", "zh-CN", "ja", "ko", "de", "es", "fr", "pt-BR"],
+  );
+  assert.equal(view.languages.find((l) => l.code === "ja").name, "日本語");
+  const same = await ask("blinkling:settings-set", {
+    key: "language",
+    value: "system",
+  });
+  assert.equal(same.ok, true);
+  assert.equal(timers.length, 0, "no restart when nothing changed");
+  const changed = await ask("blinkling:settings-set", {
+    key: "language",
+    value: "de",
+  });
+  assert.equal(changed.state.language, "de");
+  assert.equal(timers.length, 1);
+  assert.equal(log.restarts, 0, "the answer goes out before the restart");
+  timers[0].fn();
+  assert.equal(log.restarts, 1);
+  const refused = await ask("blinkling:settings-set", {
+    key: "language",
+    value: "tlh",
+  });
+  assert.equal(refused.ok, false);
+  const saved = JSON.parse(
+    await (
+      await import("node:fs/promises")
+    ).readFile(join(dir, "settings.json"), "utf8"),
+  );
+  assert.equal(saved.language, "de");
 });
 
 test("start with Claude Code is stored for the launcher", async () => {

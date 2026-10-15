@@ -14,6 +14,19 @@ export const LOCALES = Object.freeze([
   "pt-BR",
 ]);
 
+/** Each language in its own words, for a picker. Never translated. */
+export const LANGUAGE_NAMES = Object.freeze({
+  en: "English",
+  "zh-TW": "繁體中文",
+  "zh-CN": "简体中文",
+  ja: "日本語",
+  ko: "한국어",
+  de: "Deutsch",
+  es: "Español",
+  fr: "Français",
+  "pt-BR": "Português (Brasil)",
+});
+
 export function pickLocale(preferred = []) {
   for (const raw of [preferred].flat()) {
     const tag = String(raw || "").replace(/_/g, "-");
@@ -42,12 +55,13 @@ export function translator(table, locale) {
 let resolved;
 
 /** The one language every surface speaks, a locale this app ships (a BCP47
- * tag). Main resolves it once: BLINKLING_LOCALE, then an explicit --lang (a
- * launch override; Chromium's locale is that switch), then the user's ordered
- * language list, then Chromium's own locale. Later calls get the same answer. */
-export function systemLocale({ app, env = process.env } = {}) {
+ * tag). Main resolves it once: BLINKLING_LOCALE, then the language the user
+ * chose in settings (`chosen`), then an explicit --lang (a launch override;
+ * Chromium's locale is that switch), then the user's ordered language list,
+ * then Chromium's own locale. Later calls get the same answer. */
+export function systemLocale({ app, env = process.env, chosen } = {}) {
   if (resolved) return resolved;
-  const forced = env.BLINKLING_LOCALE;
+  const forced = env.BLINKLING_LOCALE || (LOCALES.includes(chosen) && chosen);
   const switched = app?.commandLine?.hasSwitch?.("lang");
   const languages = forced
     ? [forced]
