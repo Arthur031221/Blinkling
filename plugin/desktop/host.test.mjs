@@ -420,6 +420,20 @@ test("elements asks the companion for the structure under a screen point and pas
   );
 });
 
+test("elements passes fresh through so a click is never answered from a cache", async () => {
+  await withCompanion(
+    (message) => (message.method === "elements" ? { result: null } : {}),
+    async ({ host, calls }) => {
+      await host.elements({ point: { x: 1, y: 2 }, fresh: true });
+      await host.elements({ point: { x: 1, y: 2 } });
+      assert.deepEqual(calls, [
+        { method: "elements", point: { x: 1, y: 2 }, fresh: true },
+        { method: "elements", point: { x: 1, y: 2 } },
+      ]);
+    },
+  );
+});
+
 test("elements is null for a restricted page or a window the helper does not own", async () => {
   await withCompanion(
     () => ({ result: null }),

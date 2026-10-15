@@ -195,6 +195,32 @@ it("treats a restricted page as null and does not ask again within the cache win
   expect(asked).toBe(2);
 });
 
+it("a fresh read skips the cache", async () => {
+  const { bridge, helper } = await setup();
+  const socket = await helper();
+  let asked = 0;
+  socket.on("message", (raw) => {
+    const message = JSON.parse(String(raw));
+    if (message.type !== "elements") return;
+    asked++;
+    socket.send(
+      JSON.stringify({
+        type: "elements-result",
+        id: message.id,
+        result: { page, frame, elements: [element()] },
+      }),
+    );
+  });
+  await bridge.elements({ x: 1, y: 1 });
+  await bridge.elements({ x: 1, y: 1 });
+  expect(asked).toBe(1);
+  await bridge.elements({ x: 1, y: 1 }, undefined, { fresh: true });
+  expect(asked).toBe(2);
+  // and the fresh answer is what the next ordinary read sees
+  await bridge.elements({ x: 1, y: 1 });
+  expect(asked).toBe(2);
+});
+
 it("a page change clears the cache", async () => {
   const { bridge, helper } = await setup();
   const socket = await helper();

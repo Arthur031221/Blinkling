@@ -360,15 +360,21 @@ export class HelperBridge {
     return true;
   }
 
-  /** Page structure under a screen point, or null when there is no helper or no page. */
+  /** Page structure under a screen point, or null when there is no helper or no
+   * page. `fresh` skips the short cache, for the read a click depends on. */
   async elements(
     point?: { x: number; y: number },
     signal?: AbortSignal,
+    options: { fresh?: boolean } = {},
   ): Promise<ElementsResult | null> {
     const key = point
       ? `${Math.round(point.x / 16)},${Math.round(point.y / 16)}`
       : "";
-    if (this.cache?.key === key && this.now() - this.cache.at < CACHE_MS)
+    if (
+      !options.fresh &&
+      this.cache?.key === key &&
+      this.now() - this.cache.at < CACHE_MS
+    )
       return this.cache.value;
     const reply = await this.request({ type: "elements", point }, 4000, signal);
     const value =
