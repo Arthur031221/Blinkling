@@ -26,8 +26,12 @@ if (!version || !assets) {
   process.exit(2);
 }
 
-// macOS keeps its temp directory behind a /var symlink; the app must see the real path.
-const root = await realpath(await mkdtemp(join(tmpdir(), "blinkling-smoke-")));
+// A person's HOME is never under the system temp directory, and the macOS
+// sandbox does not let Blink's helper processes read an app kept there, so the
+// clean HOME goes in the runner's work area when there is one.
+const root = await realpath(
+  await mkdtemp(join(process.env.RUNNER_TEMP || tmpdir(), "blinkling-smoke-")),
+);
 const home = join(root, "home");
 const plugin = join(root, "plugin");
 await mkdir(home);
