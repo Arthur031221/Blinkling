@@ -178,8 +178,8 @@ test("per platform locations use the right bases", () => {
   assert.ok(
     mac.some(
       ([from, to]) =>
-        from === "/h/Library/Application Support/Glimpselet" &&
-        to === "/h/Library/Application Support/Blinkling",
+        from === join("/h", "Library", "Application Support", "Glimpselet") &&
+        to === join("/h", "Library", "Application Support", "Blinkling"),
     ),
   );
   const win = legacyLocations({
@@ -187,10 +187,11 @@ test("per platform locations use the right bases", () => {
     platform: "win32",
     env: { APPDATA: "C:/r", LOCALAPPDATA: "C:/l" },
   });
-  assert.ok(win.some(([from]) => from === "C:/r/Glimpselet"));
+  assert.ok(win.some(([from]) => from === join("C:/r", "Glimpselet")));
   assert.ok(
     win.some(
-      ([from, to]) => from === "C:/l/Glimpselet" && to === "C:/l/Blinkling",
+      ([from, to]) =>
+        from === join("C:/l", "Glimpselet") && to === join("C:/l", "Blinkling"),
     ),
   );
   const xdg = legacyLocations({
@@ -199,9 +200,15 @@ test("per platform locations use the right bases", () => {
     env: { XDG_CONFIG_HOME: "/c", XDG_DATA_HOME: "/d" },
   });
   assert.ok(
-    xdg.some(([from, to]) => from === "/c/Glimpselet" && to === "/c/Blinkling"),
+    xdg.some(
+      ([from, to]) =>
+        from === join("/c", "Glimpselet") && to === join("/c", "Blinkling"),
+    ),
   );
   assert.ok(
-    xdg.some(([from, to]) => from === "/d/glimpselet" && to === "/d/blinkling"),
+    xdg.some(
+      ([from, to]) =>
+        from === join("/d", "glimpselet") && to === join("/d", "blinkling"),
+    ),
   );
 });

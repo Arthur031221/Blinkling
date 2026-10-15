@@ -126,25 +126,32 @@ test("facts come from the kernel switches and the helper next to the executable"
   }
 });
 
-test("a setuid helper owned by this user is not a working sandbox", async () => {
-  const { root, executable, sys } = await fixture(
-    { "kernel.apparmor_restrict_unprivileged_userns": 1 },
-    0o4755,
-  );
-  try {
-    const facts = await readSandboxFacts({
-      platform: "linux",
-      executable,
-      sys,
-    });
-    assert.equal(
-      facts.helper,
-      process.getuid() === 0 ? "setuid root" : "setuid but owned by a user",
+// Windows has no setuid bit to set, so this one can only run where file modes exist.
+test(
+  "a setuid helper owned by this user is not a working sandbox",
+  {
+    skip: process.platform === "win32" && "Windows files have no setuid bit",
+  },
+  async () => {
+    const { root, executable, sys } = await fixture(
+      { "kernel.apparmor_restrict_unprivileged_userns": 1 },
+      0o4755,
     );
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
+    try {
+      const facts = await readSandboxFacts({
+        platform: "linux",
+        executable,
+        sys,
+      });
+      assert.equal(
+        facts.helper,
+        process.getuid() === 0 ? "setuid root" : "setuid but owned by a user",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 test("other systems need no facts", async () => {
   assert.deepEqual(await readSandboxFacts({ platform: "darwin" }), {

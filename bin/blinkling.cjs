@@ -19326,7 +19326,7 @@ async function installDesktop(manifest, options = {}) {
       }
     }
     const entry = await (0, import_promises2.realpath)((0, import_node_path2.join)(directory, build.entry));
-    const rel = (0, import_node_path2.relative)(directory, entry);
+    const rel = (0, import_node_path2.relative)(await (0, import_promises2.realpath)(directory), entry);
     if (rel.startsWith("..") || (0, import_node_path2.isAbsolute)(rel))
       throw new Error("Executable escapes installation");
     return { entry, directory, root, version: manifest.version, build };

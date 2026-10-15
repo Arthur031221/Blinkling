@@ -504,7 +504,9 @@ test("a single-file build such as an AppImage installs executable and follows th
     });
     assert.deepEqual(requested, [oldAddress, newAddress, storage]);
     assert.deepEqual(await readFile(installed.entry), appImage);
-    assert.ok((await stat(installed.entry)).mode & 0o100, "owner can run it");
+    // Windows files have no execute bit; the extension decides there.
+    if (process.platform !== "win32")
+      assert.ok((await stat(installed.entry)).mode & 0o100, "owner can run it");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
