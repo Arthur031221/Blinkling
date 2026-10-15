@@ -1,4 +1,5 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { WORDMARK_CSS, wordmarkSvg } from "../../assets/brand/wordmark.mjs";
 
 // The Pages site is static: the showcase, the privacy policy and their assets.
 await rm("dist", { recursive: true, force: true });
@@ -7,17 +8,28 @@ await cp("public/privacy.html", "dist/privacy.html");
 for (const name of ["Inter.ttf", "Fraunces.ttf", "logo.svg"]) {
   await cp(`public/assets/${name}`, `dist/assets/${name}`);
 }
-await cp("demo/index.html", "dist/index.html");
+// The showcase header draws the name with the shared Wordmark component: its
+// inline SVG replaces the placeholder and its stylesheet is a file, because the
+// page allows no inline styles.
+const showcase = await readFile("demo/index.html", "utf8");
+if (!showcase.includes("<!--wordmark-->")) {
+  throw new Error("demo/index.html lost its <!--wordmark--> placeholder");
+}
+await writeFile(
+  "dist/index.html",
+  showcase.replace("<!--wordmark-->", wordmarkSvg({ id: "showcase" })),
+);
+await writeFile("dist/wordmark.css", `${WORDMARK_CSS}\n`);
 await cp("demo/demo.css", "dist/demo.css");
 await mkdir("dist/demo-assets", { recursive: true });
 for (const name of ["demo", "arxiv"]) {
   await cp(`assets/${name}.gif`, `dist/demo-assets/${name}.gif`);
 }
 
-// The install guide, with the animated wordmark it shows as its title.
+// The install guide, with the animated wordmark files it shows as its title.
 await cp("site/install", "dist/install", { recursive: true });
 for (const name of ["wordmark-light", "wordmark-dark"]) {
-  await cp(`assets/${name}.svg`, `dist/install/${name}.svg`);
+  await cp(`assets/brand/${name}.svg`, `dist/install/${name}.svg`);
 }
 
 // The same approved store URLs switch the site and plugin installation flows.

@@ -59,17 +59,7 @@ a:focus-visible {
   gap: 10px;
   color: var(--ink);
   text-decoration: none;
-  font:
-    24px Fraunces,
-    serif;
-}
-.brand span {
-  font:
-    12px Inter,
-    sans-serif;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 3px 7px;
+  --wordmark-height: 28px;
 }
 nav,
 footer {
