@@ -18,6 +18,19 @@ export const timing = Object.freeze({
   thinkingFace: 100,
   settle: 8000,
   sameChat: 60000,
+  // Not motion: waits and polls that used to be bare numbers beside the code.
+  frame: 17,
+  cursorPoll: 16,
+  stackingPoll: 250,
+  layoutPoll: 10,
+  permissionSettle: 800,
+  focusProbe: 1000,
+  guideResize: 2000,
+  guideLayout: 3000,
+  killGrace: 3000,
+  checkpoint: 100,
+  canaryPoll: 50,
+  composerStartup: 10000,
 });
 
 /** Custom properties for renderers; inject once into :root. */

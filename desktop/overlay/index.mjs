@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import { BrowserWindow, screen, globalShortcut, ipcMain } from "electron";
 import { fileURLToPath } from "node:url";
 import { OverlayService } from "./service.mjs";

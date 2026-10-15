@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import { readFile, writeFile, mkdir, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -70,7 +71,7 @@ export class PermissionRecovery {
     restartAfterGrant = false,
     wait = (signal) =>
       new Promise((resolve, reject) => {
-        const timer = setTimeout(done, 800);
+        const timer = setTimeout(done, timing.permissionSettle);
         function done() {
           signal?.removeEventListener("abort", abort);
           resolve();

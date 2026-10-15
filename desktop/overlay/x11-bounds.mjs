@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import x11 from "x11";
 /** Chromium constrains override-redirect windows to one pixel below a display
  * at 100%. Configure the existing XID directly, as the shell already does for
@@ -68,7 +69,7 @@ export function exactX11Bounds(win, bounds, displayId) {
     });
     const timer = setTimeout(
       () => finish(Error("Native guide resize timed out")),
-      2000,
+      timing.guideResize,
     );
     const finish = (error) => {
       if (settled) return;

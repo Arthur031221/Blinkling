@@ -35,6 +35,8 @@ export function mountMenu(host, onAction, { text = menuText() } = {}) {
     open = false,
     changedAt = 0,
     steps = STAGGER;
+  // When each bubble may start its trip, in seconds after the change.
+  let waits = [];
   const log = frameLog();
   const values = definitions.map(() => ({ value: 0, velocity: 0 }));
   const labels = [];
@@ -99,6 +101,13 @@ export function mountMenu(host, onAction, { text = menuText() } = {}) {
         changedAt = now;
         expanded = -1;
         steps = together ? 0 : STAGGER;
+        // A bubble that is moving turns around at once with the momentum it
+        // has (N6.2); only the ones standing still wait for their turn.
+        waits = buttons.map((_, i) =>
+          values[i].value > SETTLED && values[i].value < 1 - SETTLED
+            ? 0
+            : (open ? i : buttons.length - 1 - i) * steps,
+        );
       }
     },
     setAuto(value) {
@@ -119,9 +128,8 @@ export function mountMenu(host, onAction, { text = menuText() } = {}) {
       const wasMoving = values.some((v) => v.value > 0.001 && v.value < 0.999);
       painted = [];
       buttons.forEach((b, i) => {
-        const order = open ? i : buttons.length - 1 - i,
-          target =
-            now - changedAt >= order * steps ? (open ? 1 : 0) : values[i].value;
+        const target =
+          now - changedAt >= (waits[i] ?? 0) ? (open ? 1 : 0) : values[i].value;
         values[i] = spring(
           values[i].value,
           target,

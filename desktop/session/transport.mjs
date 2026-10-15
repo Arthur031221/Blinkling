@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import { promisify } from "node:util";
 import { spawn, execFile } from "node:child_process";
 import { createInterface } from "node:readline";
@@ -236,7 +237,7 @@ export class OwnedSession extends EventEmitter {
         await Promise.race([
           exited,
           new Promise((resolve) => {
-            timer = setTimeout(resolve, 3000);
+            timer = setTimeout(resolve, timing.killGrace);
           }),
         ]);
         clearTimeout(timer);

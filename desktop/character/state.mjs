@@ -1,3 +1,4 @@
+import { springs } from "../shared/motion.mjs";
 /** Clock injected by the caller: timers cannot race drag, pin or a renewed hover. */
 export class BlinkState {
   mode = "peek";
@@ -49,7 +50,13 @@ export class BlinkState {
   }
 }
 /** Stable critically damped spring; caps dt after sleep to avoid explosive motion. */
-export function spring(current, target, velocity, dt, frequency = 18) {
+export function spring(
+  current,
+  target,
+  velocity,
+  dt,
+  frequency = springs.crisp,
+) {
   const d = Math.min(dt, 0.05),
     f = 1 + 2 * d * frequency,
     oo = frequency * frequency,

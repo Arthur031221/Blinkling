@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import x11 from "x11";
 /** Bottom to top. The answer deck sits under the Blink surface so a bubble can
  * never cover a menu pill, and the guides stay beneath both. */
@@ -33,7 +34,7 @@ export async function keepAbove(windows) {
           raise();
       });
       // Catch compositor restacks that do not produce a root child event.
-      const timer = setInterval(raise, 250);
+      const timer = setInterval(raise, timing.stackingPoll);
       raise();
       resolve(() => {
         closed = true;

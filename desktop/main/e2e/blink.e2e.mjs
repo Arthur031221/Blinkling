@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
@@ -13,6 +14,14 @@ import {
   miniFocused,
   miniPage,
 } from "./support.mjs";
+import { recordFrames, verdict } from "../../e2e/frames.mjs";
+import { input, poll } from "../../pick/e2e/support.mjs";
+import {
+  openFixture,
+  record,
+  domRect,
+  log as pickLog,
+} from "../../pick/e2e/harness.mjs";
 
 const hooks = (app) =>
   app.evaluate(() => Object.keys(globalThis.blinklingTest.nBlinkMenuFaces));
@@ -493,27 +502,293 @@ for (const scale of [1, 2])
       }
     });
 
-test("the fan logs its frames and they never skip a beat", async () => {
+// N6.8: the frames of every moving surface, at 100 and 200 percent. The surface
+// logs its own box on each frame it draws (shared/motion.mjs frameLog); the gate
+// fails on a slow 95th percentile, any long frame, or a box that jumps.
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+for (const scale of [1, 2]) {
+  test(`the motion gate at ${scale * 100}%: peek, fan, pick effects, flight, mini composer and pointing keep their frames`, async () => {
+    const c = await launch(scale);
+    const seen = {};
+    const gate = async (name, surfaces, action) => {
+      const result = await recordFrames(c.app, action);
+      seen[name] = result.surfaces;
+      for (const surface of surfaces)
+        expect(
+          result.surfaces[surface]?.frames ?? 0,
+          `${name}: frames of ${surface}`,
+        ).toBeGreaterThan(5);
+      expect(verdict(result), name).toEqual([]);
+    };
+    try {
+      await background(c.app);
+      native(20, 20);
+      await c.page.waitForTimeout(600);
+      await gate("peek", ["peek"], async () => {
+        await moveOn(c.page, scale);
+        native(20, 20);
+        await c.page.waitForTimeout(900);
+      });
+      await gate("fan", ["fan"], async () => {
+        const p = await rigPoint(c.page);
+        native(p.x * scale, p.y * scale);
+        await c.page.waitForTimeout(1500);
+        native(20, 20);
+        await c.page.waitForTimeout(900);
+      });
+      await gate("mini composer", ["mini-composer"], async () => {
+        const p = await rigPoint(c.page);
+        native(p.x * scale, p.y * scale);
+        await c.page.waitForTimeout(550);
+        native(p.x * scale, p.y * scale, "down");
+        native(p.x * scale, p.y * scale, "up");
+        await expect.poll(() => miniFocused(c.app)).toBe(true);
+        await c.page.waitForTimeout(600);
+        await miniPage(c.app).keyboard.press("Escape");
+        await expect.poll(() => miniFocused(c.app)).toBe(false);
+        await c.page.waitForTimeout(400);
+        native(20, 20);
+      });
+      // One arrival is only about fifteen frames, and a 95th percentile of that
+      // few is just its slowest frame: step through three marks in one overlay.
+      await gate("pointing", ["pointing"], async () => {
+        const id = await c.app.evaluate(
+          (_electron, rects) => {
+            return globalThis.blinklingTest.overlay(
+              rects.map((rect, i) => ({ rect, steps: [i] })),
+            );
+          },
+          [
+            { x: 400, y: 200, width: 100, height: 80 },
+            { x: 250, y: 120, width: 100, height: 80 },
+            { x: 100, y: 220, width: 100, height: 80 },
+          ],
+        );
+        for (const index of [0, 1, 2]) {
+          await c.app.evaluate(
+            ({ BrowserWindow }, [windowId, step]) =>
+              BrowserWindow.fromId(windowId).webContents.send(
+                "blinkling:overlay:step",
+                step,
+              ),
+            [id, index],
+          );
+          await c.page.waitForTimeout(1000);
+        }
+      });
+      // The pick: a Ctrl+click on an image loops the outline, flies it into
+      // Blink, and opens the mini composer with it.
+      const display = await c.app.evaluate(
+        () => globalThis.blinklingTest.snapshot().display.bounds,
+      );
+      // Both test hooks share one property; neither may displace the other.
+      expect(
+        await c.app.evaluate(() =>
+          ["pick", "privacy"].filter((k) => globalThis.blinklingTest[k]),
+        ),
+      ).toEqual(["pick", "privacy"]);
+      await openFixture(c.app, {
+        x: 20,
+        y: 20,
+        width: Math.min(640, display.width - 140),
+        height: Math.min(620, display.height - 40),
+      });
+      await record(c.app);
+      const photo = await domRect(c.app, "#photo");
+      await gate(
+        "pick effects and flight",
+        ["pick-effect", "flight", "mini-composer"],
+        async () => {
+          input([
+            [
+              "move",
+              Math.round((photo.x + 30) * scale),
+              Math.round((photo.y + 30) * scale),
+            ],
+            ["down", "ctrl"],
+          ]);
+          await poll(
+            async () =>
+              (await pickLog(c.app)).layer.some((m) => m.channel === "outline"),
+            4000,
+            "the first outline",
+          );
+          await pause(150);
+          input([["press"], ["release"]]);
+          await pause(600);
+          input([["up", "ctrl"]]);
+          await poll(
+            async () => (await pickLog(c.app)).flights.length > 0,
+            4000,
+            "the flight",
+          );
+          await expect
+            .poll(() => miniFocused(c.app), { timeout: 5000 })
+            .toBe(true);
+          await pause(600);
+        },
+      );
+      await writeFile(
+        join(report, `blink-frames-${scale * 100}.json`),
+        JSON.stringify(seen, null, 2),
+      );
+    } finally {
+      input([["release"], ["up", "ctrl"]]);
+      await c.close();
+    }
+  });
+}
+
+// N6.2 / NM-3: the pointer jumps onto Blink and away again (or clicks) while the
+// fan is still opening. Every bubble in flight turns around from where it is:
+// its opacity rises, peaks short of fully open, and only falls afterwards.
+// A process that already holds the X connection and fires its pointer events
+// the moment it is told to, so the interrupt lands within a few milliseconds
+// instead of after a Python start-up (the fan opens in about 300 ms).
+function armPointer(events) {
+  const lines = events.map(([op, a = 0, b = 0]) =>
+    op === "move"
+      ? `t.XTestFakeMotionEvent(d,-1,X+${a},Y+${b},0)`
+      : `t.XTestFakeButtonEvent(d,1,${op === "down" ? 1 : 0},0)`,
+  );
+  const child = spawn(
+    "python3",
+    [
+      "-I",
+      "-c",
+      `import ctypes,sys,time
+x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6');x.XOpenDisplay.restype=ctypes.c_void_p;d=x.XOpenDisplay(None)
+x.XFlush.argtypes=[ctypes.c_void_p]
+t.XTestFakeMotionEvent.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_ulong]
+t.XTestFakeButtonEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
+print('ready',flush=True)
+X,Y=map(round,map(float,sys.stdin.readline().split()))
+${lines.map((l) => `${l};x.XFlush(d);time.sleep(.04)`).join("\n")}
+x.XFlush(d);time.sleep(.1)`,
+    ],
+    { stdio: ["pipe", "pipe", "inherit"] },
+  );
+  const done = new Promise((resolve) => child.on("close", resolve));
+  const ready = new Promise((resolve) => child.stdout.once("data", resolve));
+  return {
+    ready,
+    fire: async (x, y) => {
+      child.stdin.write(`${x} ${y}\n`);
+      await done;
+    },
+  };
+}
+
+async function traceFan(page) {
+  await page.evaluate(() => {
+    const bubbles = [...document.querySelectorAll("[data-action]")];
+    const trace = (window.__fanTrace = {
+      samples: [],
+      seen: false,
+      stop: false,
+    });
+    const frame = () => {
+      const opacities = bubbles.map((b) => Number(getComputedStyle(b).opacity));
+      trace.samples.push(opacities);
+      if (!trace.seen && Math.max(...opacities) > 0.05) {
+        trace.seen = true;
+        // Where Blink stands now that it is revealed.
+        const r = document
+          .querySelector('rect[fill="#3ddc97"]')
+          .getBoundingClientRect();
+        trace.stand = {
+          x: r.x + r.width * (r.x < 0 ? 0.8 : 0.2),
+          y: r.y + r.height * 0.72,
+        };
+      }
+      if (!trace.stop) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+const finishTrace = (page) =>
+  page.evaluate(() => {
+    window.__fanTrace.stop = true;
+    return window.__fanTrace.samples;
+  });
+
+// A click closes the fan only after its IPC round trip (release, drag end,
+// click, mini window), by when the fan has finished opening; the grab starts
+// closing it inside the renderer, so it is the interrupt that lands mid-open.
+test("the fan reverses from where it is when the pointer grabs Blink mid-open", async () => {
   const c = await launch();
   try {
     await background(c.app);
     native(20, 20);
     await c.page.waitForTimeout(600);
-    await moveOn(c.page);
-    await c.page.waitForTimeout(600);
-    native(20, 20);
-    await c.page.waitForTimeout(900);
-    const log = await c.page.evaluate(() => globalThis.__blinklingFrames);
-    const fan = log.filter((f) => f.surface === "fan" && f.box);
-    expect(fan.length).toBeGreaterThan(10);
-    const gaps = fan.slice(1).map((f, i) => f.t - fan[i].t);
-    // Gaps inside one open or close are frames; the long one is the pause
-    // between them.
-    expect(gaps.filter((g) => g < 1000).every((g) => g <= 50)).toBe(true);
-    await writeFile(
-      join(report, "blink-fan-frames.json"),
-      JSON.stringify(fan, null, 2),
-    );
+    let peaks = [];
+    // The pointer is native input, so the moment it lands is only known to
+    // within a frame or two; try again if the fan had already finished.
+    for (let attempt = 0; attempt < 4 && !peaks.length; attempt++) {
+      await expect
+        .poll(() =>
+          c.page.evaluate(() =>
+            [...document.querySelectorAll("[data-action]")].every(
+              (b) => Number(getComputedStyle(b).opacity) < 0.02,
+            ),
+          ),
+        )
+        .toBe(true);
+      const interrupter = armPointer([
+        ["move"],
+        ["down"],
+        ["move", 30, -10],
+        ["up", 30, -10],
+      ]);
+      await interrupter.ready;
+      const p = await rigPoint(c.page);
+      await traceFan(c.page);
+      native(p.x, p.y);
+      await c.page.waitForFunction(() => window.__fanTrace.seen, null, {
+        polling: "raf",
+      });
+      const stand = await c.page.evaluate(() => window.__fanTrace.stand);
+      await interrupter.fire(stand.x, stand.y);
+      await c.page.waitForTimeout(900);
+      const samples = await finishTrace(c.page);
+      const bubbles = samples[0].map((_, i) => samples.map((s) => s[i]));
+      // The first wave of each bubble: from when it appears until it is gone
+      // again. What happens after that (Blink dropped, the pointer resting
+      // on it) is a new opening and not part of this one.
+      const waves = bubbles.map((v) => {
+        const start = v.findIndex((x) => x > 0.05);
+        const end = v.findIndex((x, i) => i > start && x < 0.02);
+        return {
+          wave: start < 0 ? [] : v.slice(start, end < 0 ? v.length : end + 1),
+          start,
+          end,
+        };
+      });
+      // A bubble still waiting out its stagger when the grab closed the fan
+      // never appeared; one that rises after the first bubble is gone again
+      // belongs to the opening that follows the drop.
+      const closedAt = Math.min(
+        ...waves.filter((w) => w.end > 0).map((w) => w.end),
+        Infinity,
+      );
+      // A bubble that never reached open was turned around in flight.
+      peaks = waves.filter(
+        ({ wave, start }) =>
+          wave.length && start < closedAt && Math.max(...wave) < 0.95,
+      );
+      for (const { wave, end } of peaks) {
+        const after = wave.slice(wave.indexOf(Math.max(...wave)));
+        expect(
+          after.every((x, i) => i === 0 || x <= after[i - 1] + 0.02),
+          "falls once it has turned, with no second wave",
+        ).toBe(true);
+        expect(end, "and is closed again").toBeGreaterThan(0);
+      }
+      native(20, 20);
+      await c.page.waitForTimeout(700);
+    }
+    expect(peaks.length, "a bubble was caught in flight").toBeGreaterThan(0);
   } finally {
     await c.close();
   }

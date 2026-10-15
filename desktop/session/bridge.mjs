@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { OwnedSession } from "./transport.mjs";
@@ -438,7 +439,7 @@ export class DesktopSessionBridge {
       this.events = this.events
         .then(() => this.store.save(this.state))
         .catch(() => this.fail("persistence"));
-    }, 100);
+    }, timing.checkpoint);
   }
   upsert(message, emit = false) {
     if (!message) return;

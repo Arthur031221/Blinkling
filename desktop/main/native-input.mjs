@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import x11 from "x11";
 /** X11 input-only shape: transparent pixels do not intercept clicks, and the
  * compositor still receives the uncut alpha antialiasing of the SVG. */
@@ -97,7 +98,7 @@ export async function nativeInput() {
             rememberFocus: () =>
               new Promise((resolve) => {
                 // A silent X server must not stall opening the card.
-                const timer = setTimeout(resolve, 1000);
+                const timer = setTimeout(resolve, timing.focusProbe);
                 const done = () => {
                   clearTimeout(timer);
                   resolve();
