@@ -1,71 +1,110 @@
-import { translator } from "../shared/i18n.mjs";
+import { pickLocale, translator } from "../shared/i18n.mjs";
 
-/** Words written into a saved guide, and the label of the bubble that offers
- * the save. "Blinkling" and "Blink" are never translated. */
-export const guideStrings = {
+/** Words the saved guide and its save bubble use. `{name}` slots are filled by
+ * the translator. "Blinkling" and "Blink" are never translated. */
+export const STRINGS = Object.freeze({
   en: {
-    saveBubble: "Save guide",
+    save: "Save guide",
+    saved: "Guide saved",
+    saveFailed: "Could not save the guide",
     untitled: "Guide",
+    explanation: "About this screen",
     steps: "Steps",
+    screens: "Screens",
     screenAlt: "Screen {n}",
     stepAlt: "Step {n}",
   },
   "zh-TW": {
-    saveBubble: "儲存導覽",
+    save: "儲存導覽",
+    saved: "導覽已儲存",
+    saveFailed: "無法儲存導覽",
     untitled: "導覽",
+    explanation: "這個畫面是什麼",
     steps: "步驟",
+    screens: "畫面",
     screenAlt: "畫面 {n}",
     stepAlt: "步驟 {n}",
   },
   "zh-CN": {
-    saveBubble: "保存导览",
+    save: "保存导览",
+    saved: "导览已保存",
+    saveFailed: "无法保存导览",
     untitled: "导览",
+    explanation: "这个画面是什么",
     steps: "步骤",
+    screens: "画面",
     screenAlt: "画面 {n}",
     stepAlt: "步骤 {n}",
   },
   ja: {
-    saveBubble: "ガイドを保存",
+    save: "ガイドを保存",
+    saved: "ガイドを保存しました",
+    saveFailed: "ガイドを保存できませんでした",
     untitled: "ガイド",
+    explanation: "この画面について",
     steps: "手順",
+    screens: "画面",
     screenAlt: "画面 {n}",
     stepAlt: "手順 {n}",
   },
   ko: {
-    saveBubble: "가이드 저장",
+    save: "가이드 저장",
+    saved: "가이드를 저장했어요",
+    saveFailed: "가이드를 저장하지 못했어요",
     untitled: "가이드",
+    explanation: "이 화면에 대해",
     steps: "단계",
+    screens: "화면",
     screenAlt: "화면 {n}",
     stepAlt: "단계 {n}",
   },
   de: {
-    saveBubble: "Anleitung speichern",
+    save: "Anleitung speichern",
+    saved: "Anleitung gespeichert",
+    saveFailed: "Die Anleitung konnte nicht gespeichert werden",
     untitled: "Anleitung",
+    explanation: "Worum es auf diesem Bildschirm geht",
     steps: "Schritte",
+    screens: "Bildschirme",
     screenAlt: "Bildschirm {n}",
     stepAlt: "Schritt {n}",
   },
   es: {
-    saveBubble: "Guardar guía",
+    save: "Guardar guía",
+    saved: "Guía guardada",
+    saveFailed: "No se pudo guardar la guía",
     untitled: "Guía",
+    explanation: "Sobre esta pantalla",
     steps: "Pasos",
+    screens: "Pantallas",
     screenAlt: "Pantalla {n}",
     stepAlt: "Paso {n}",
   },
   fr: {
-    saveBubble: "Enregistrer le guide",
+    save: "Enregistrer le guide",
+    saved: "Guide enregistré",
+    saveFailed: "Impossible d’enregistrer le guide",
     untitled: "Guide",
+    explanation: "À propos de cet écran",
     steps: "Étapes",
+    screens: "Écrans",
     screenAlt: "Écran {n}",
     stepAlt: "Étape {n}",
   },
   "pt-BR": {
-    saveBubble: "Salvar guia",
+    save: "Salvar guia",
+    saved: "Guia salvo",
+    saveFailed: "Não foi possível salvar o guia",
     untitled: "Guia",
+    explanation: "Sobre esta tela",
     steps: "Passos",
+    screens: "Telas",
     screenAlt: "Tela {n}",
     stepAlt: "Passo {n}",
   },
-};
+});
 
-export const guideText = (locale) => translator(guideStrings, locale);
+/** t(key, vars) for the locale a guide or the system asks for. */
+export function guideStrings(preferred) {
+  return translator(STRINGS, pickLocale(preferred));
+}

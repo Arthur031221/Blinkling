@@ -1,171 +1,168 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import fsp from "node:fs/promises";
 import { join } from "node:path";
-import { pickLocale } from "../shared/i18n.mjs";
-import { guideText } from "./strings.mjs";
+import { guideStrings } from "./strings.mjs";
 
-/** Save a guide (K4, narrowed by N2.4): a Markdown file and the annotated
- * screenshots under Documents/Blinkling Guides. Local only. Nothing about the
- * guide is kept for replay and no list of saved guides exists: the folder on
- * disk is the whole record. */
-const FOLDER = "Blinkling Guides";
-const MAX_NAME = 60;
+/** Saves a finished guide as plain files in the user's Documents. Local only:
+ * no network, no replay data, no index of saved guides (N2.4). */
+export const GUIDES_DIR = "Blinkling Guides";
+
+const MAX_TITLE_CHARS = 60;
+// 255 bytes is the common folder-name limit; leave room for the date stamp
+// and a " (n)" suffix.
+const MAX_TITLE_BYTES = 200;
+const MAX_COPIES = 1000;
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
-const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
-/** One safe folder level: no separators or characters Windows refuses, no
- * control characters, no leading or trailing dots or spaces, no reserved
- * Windows device name, at most MAX_NAME whole characters. */
-export function safeFolderName(title, fallback) {
-  const clean = (text) =>
-    text
-      .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]/g, " ")
-      .replace(/\s+/g, " ")
-      .replace(/^[\s.]+|[\s.]+$/g, "");
-  let name = clean(typeof title === "string" ? title : "");
-  name = clean([...name].slice(0, MAX_NAME).join(""));
-  if (!name) return fallback;
-  return RESERVED.test(name.split(".")[0].trim()) ? `_${name}` : name;
+const oneLine = (text) =>
+  String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+const trimEnd = (text) => text.replace(/[. ]+$/, "");
+
+/** A title that is safe as one folder name on macOS, Windows and Linux. */
+export function safeTitle(title) {
+  const words = String(title ?? "")
+    .normalize("NFC")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f\\/:*?"<>|]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word && !/^\.+$/.test(word));
+  let name = trimEnd(words.join(" "));
+  const kept = [];
+  let bytes = 0;
+  for (const char of name) {
+    bytes += Buffer.byteLength(char);
+    if (kept.length >= MAX_TITLE_CHARS || bytes > MAX_TITLE_BYTES) break;
+    kept.push(char);
+  }
+  name = trimEnd(kept.join(""));
+  return RESERVED.test(name) ? `_${name}` : name;
 }
 
-const pad = (n) => String(n).padStart(2, "0");
-function stamp(time) {
-  const d = new Date(time);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}.${pad(d.getMinutes())}`;
+const two = (n) => String(n).padStart(2, "0");
+
+/** "2026-10-15 09.05 <title>" in local time; dots, since ":" is not allowed. */
+export function folderName(title, date, fallback) {
+  const stamp = `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}.${two(date.getMinutes())}`;
+  return `${stamp} ${safeTitle(title) || fallback}`;
 }
 
-function decodePng(shot, index) {
-  if (!shot || typeof shot.data !== "string")
-    throw new TypeError(`Screenshot ${index + 1} has no image data`);
-  const bytes = Buffer.from(
-    shot.data.replace(/^data:image\/png;base64,/i, ""),
-    "base64",
-  );
-  if (
-    bytes.length < 33 ||
-    !bytes.subarray(0, 8).equals(PNG_SIGNATURE) ||
-    bytes.toString("latin1", 12, 16) !== "IHDR"
-  )
-    throw new TypeError(`Screenshot ${index + 1} is not a PNG image`);
+function decodePng(data, index) {
+  const base64 = String(data ?? "")
+    .replace(/^data:image\/png;base64,/i, "")
+    .replace(/\s+/g, "");
+  const bytes = /^[A-Za-z0-9+/]+={0,2}$/.test(base64)
+    ? Buffer.from(base64, "base64")
+    : Buffer.alloc(0);
+  if (!bytes.subarray(0, 8).equals(PNG_SIGNATURE))
+    throw new Error(`Screenshot ${index + 1} is not a base64 PNG`);
   return bytes;
 }
 
-/** Number the steps in order, keeping the guide's own `n` when it is a
- * positive whole number nobody used yet. */
-function numberSteps(steps) {
-  const used = new Set();
-  let next = 1;
-  return steps.map((step) => {
-    let n = step?.n;
-    if (!Number.isInteger(n) || n < 1 || used.has(n)) {
-      while (used.has(next)) next++;
-      n = next;
-    }
-    used.add(n);
+/** Each screenshot is named for its step when it belongs to one and no other
+ * screenshot already claimed that step; otherwise screen-<i>. */
+function plan(guide, images) {
+  const stepNumbers = (guide.steps ?? []).map((step, i) =>
+    Number.isInteger(step?.n) && step.n > 0 ? step.n : i + 1,
+  );
+  const taken = new Set();
+  return images.map((bytes, i) => {
+    const step = guide.screenshots[i].step;
+    const forStep = stepNumbers.includes(step) && !taken.has(step);
+    if (forStep) taken.add(step);
     return {
-      n,
-      title: String(step?.title ?? "")
-        .replace(/\s+/g, " ")
-        .trim(),
-      text: String(step?.text ?? "").trim(),
+      bytes,
+      step: forStep ? step : null,
+      file: forStep ? `step-${step}.png` : `screen-${i + 1}.png`,
+      n: forStep ? step : i + 1,
     };
   });
 }
 
-/** Decide every image's file name before anything is written. A screenshot
- * that names one of the steps goes beside it as step-<n>.png, the rest are
- * whole-screen overviews, screen-<i>.png. */
-function planImages(screenshots, steps) {
-  const stepNumbers = new Set(steps.map((s) => s.n));
-  const taken = new Set();
-  let screens = 0;
-  return screenshots.map((shot, index) => {
-    const bytes = decodePng(shot, index);
-    if (stepNumbers.has(shot.step) && !taken.has(shot.step)) {
-      taken.add(shot.step);
-      return { bytes, step: shot.step, file: `step-${shot.step}.png` };
-    }
-    screens++;
-    return { bytes, screen: screens, file: `screen-${screens}.png` };
-  });
-}
-
-function render(guide, steps, images, title, t) {
-  const lines = [`# ${title}`, ""];
+function markdown(guide, files, t) {
+  const alt = (key, n) => t(key, { n }).replace(/[[\]]/g, "");
+  const image = (file, step) =>
+    `![${alt(step ? "stepAlt" : "screenAlt", file.n)}](${file.file})`;
+  const out = [`# ${oneLine(guide.title) || t("untitled")}`];
   const explanation = String(guide.explanation ?? "").trim();
-  if (explanation) lines.push(explanation, "");
-  for (const image of images.filter((i) => i.screen))
-    lines.push(`![${t("screenAlt", { n: image.screen })}](${image.file})`, "");
-  if (steps.length) lines.push(`## ${t("steps")}`, "");
-  for (const step of steps) {
-    lines.push(`### ${step.n}. ${step.title}`.trimEnd(), "");
-    if (step.text) lines.push(step.text, "");
-    const image = images.find((i) => i.step === step.n);
-    if (image)
-      lines.push(`![${t("stepAlt", { n: step.n })}](${image.file})`, "");
+  if (explanation) out.push(`## ${t("explanation")}\n\n${explanation}`);
+  const screens = files.filter((file) => file.step === null);
+  if (screens.length)
+    out.push(
+      `## ${t("screens")}\n\n${screens.map((file) => image(file, false)).join("\n\n")}`,
+    );
+  const steps = guide.steps ?? [];
+  if (steps.length) {
+    const lines = steps.map((step, i) => {
+      const n = Number.isInteger(step?.n) && step.n > 0 ? step.n : i + 1;
+      const indent = " ".repeat(String(n).length + 2);
+      const title = oneLine(step?.title);
+      const text = String(step?.text ?? "").trim();
+      const body = [title ? `**${title}**` : "", ...(text ? [text] : [])].join(
+        title && text ? "\n" : "",
+      );
+      const file = files.find((f) => f.step === n);
+      const parts = [`${n}. ${body.replace(/\n/g, `\n${indent}`)}`];
+      if (file) parts.push(`${indent}${image(file, true)}`);
+      return parts.join("\n\n");
+    });
+    out.push(`## ${t("steps")}\n\n${lines.join("\n\n")}`);
   }
-  return lines.join("\n");
+  return `${out.join("\n\n")}\n`;
 }
 
-/** A folder only this call created, never one that already exists. */
-async function createFolder(root, name) {
-  await mkdir(root, { recursive: true });
-  for (let attempt = 1; attempt < 1000; attempt++) {
-    const folder = join(root, attempt === 1 ? name : `${name} (${attempt})`);
+async function makeFolder(parent, base) {
+  await fsp.mkdir(parent, { recursive: true });
+  for (let copy = 1; copy <= MAX_COPIES; copy++) {
+    const folder = join(parent, copy === 1 ? base : `${base} (${copy})`);
     try {
-      await mkdir(folder);
+      await fsp.mkdir(folder);
       return folder;
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
     }
   }
-  throw new Error("Could not find a free folder name for the guide");
+  throw new Error(`Too many guides named ${base}`);
 }
 
-export async function saveGuide(
-  guide,
-  { documents, reveal, now = Date.now } = {},
-) {
-  if (!guide || typeof guide !== "object")
-    throw new TypeError("A guide is required");
-  if (guide.steps !== undefined && !Array.isArray(guide.steps))
-    throw new TypeError("steps must be a list");
-  if (guide.screenshots !== undefined && !Array.isArray(guide.screenshots))
-    throw new TypeError("screenshots must be a list");
-
-  const t = guideText(pickLocale([guide.language]));
-  const title =
-    String(guide.title ?? "")
-      .replace(/\s+/g, " ")
-      .trim() || t("untitled");
-  const steps = numberSteps(guide.steps ?? []);
-  const images = planImages(guide.screenshots ?? [], steps);
-  const markdown = render(guide, steps, images, title, t);
-
-  if (documents === undefined || reveal === undefined) {
-    const { app, shell } = await import("electron");
-    documents ??= app.getPath("documents");
-    reveal ??= (folder) => shell.showItemInFolder(folder);
-  }
-  const folder = await createFolder(
-    join(documents, FOLDER),
-    `${stamp(now())} ${safeFolderName(guide.title, t("untitled"))}`,
+/** guide = { title, explanation, language, steps: [{ n, title, text }],
+ * screenshots: [{ data, width, height, step? }] }, where data is a base64 PNG
+ * already annotated by the pointing engine. Resolves { folder, markdown,
+ * revealed }. */
+export async function saveGuide(guide, options = {}) {
+  const {
+    now = Date.now,
+    documents = (await import("electron")).app.getPath("documents"),
+    reveal = (await import("electron")).shell.showItemInFolder,
+  } = options;
+  const t = guideStrings(guide.language ? [guide.language] : []);
+  // Decode everything first so a bad screenshot creates nothing.
+  const files = plan(
+    guide,
+    (guide.screenshots ?? []).map((shot, i) => decodePng(shot?.data, i)),
+  );
+  const text = markdown(guide, files, t);
+  const folder = await makeFolder(
+    join(documents, GUIDES_DIR),
+    folderName(guide.title, new Date(now()), t("untitled")),
   );
   try {
-    await Promise.all([
-      writeFile(join(folder, "guide.md"), markdown, "utf8"),
-      ...images.map((i) => writeFile(join(folder, i.file), i.bytes)),
-    ]);
+    for (const file of files)
+      await fsp.writeFile(join(folder, file.file), file.bytes);
+    // Last, so a guide.md on disk means the images beside it are complete.
+    await fsp.writeFile(join(folder, "guide.md"), text);
   } catch (error) {
-    await rm(folder, { recursive: true, force: true });
+    await fsp.rm(folder, { recursive: true, force: true });
     throw error;
   }
   let revealed = true;
   try {
     await reveal(folder);
   } catch {
-    revealed = false; // the guide is saved either way
+    revealed = false;
   }
   return { folder, markdown: join(folder, "guide.md"), revealed };
 }
