@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-15T00:00:00.000Z",
+  "recordedAt": "2026-10-15T21:02:15.000Z",
   "version": "3.0.1",
   "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
@@ -11,23 +11,20 @@
       "asset": "assets/pick.gif",
       "scene": "pick",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "7da4d075415351fc116fcfe194985b06a3b54fd81d17bd4b560883ee6dee8bdd",
-      "segments": [
-        [1, 10],
-        [12, 24]
-      ],
+      "sha256": "d4f8af6965bd0d0c7941531091ddba86050146b6323974d1c77646ae76518af0",
+      "segments": [[1, 22]],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "668e41c0ebf49bbd5ca4bc8ec320ced698ea37d8802e84c681e0c38b7e04ae84",
+      "eventsSha256": "ed3a8fa01878ee4baa3d536df200f5e613319569c4c9ff39684610758bbd13e6",
       "turns": 1
     },
     {
       "asset": "assets/ask.gif",
       "scene": "ask",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "f909c9a4d2611293e790cb9125d718eff84b1b5dbc074f1e278bf8606a838e97",
-      "segments": [[1.5, 24]],
+      "sha256": "1694fe5a6f9df3a70ba12abca2f134f34ee62eebaf68c1796af2e7aab72776e2",
+      "segments": [[1.5, 26]],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "19890bcfce045dbc74062bee71338e634f96ec0b921425250e773168b460e636",
+      "eventsSha256": "0fe999147d62bca9b0ae2c1bce776fce174e2deccca49fccadce5795736bd06e",
       "turns": 1
     }
   ],
@@ -36,7 +33,7 @@
       "asset": "assets/store/area.png",
       "scene": "area",
       "events": "assets/record/events/area.events.json",
-      "eventsSha256": "b26b3de6ea94be7ff5e03a3f668e9651d86c49b4ef791a757d49554900fc6a2b"
+      "eventsSha256": "ddb9882ba79d1bbbcacbc00228eb91b028afc123509d640616790f86bf7c7b81"
     }
   ]
 }

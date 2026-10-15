@@ -33,7 +33,7 @@ body {
 }
 .mark .stroke {
   fill: none;
-  stroke: #3ddc97;
+  stroke: #43d896;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -54,7 +54,7 @@ body {
   height: 24px;
   border: 2px solid #0c0e0d;
   border-radius: 50%;
-  background: #3ddc97;
+  background: #43d896;
   color: #0c0e0d;
   font-size: 12px;
   font-weight: 700;

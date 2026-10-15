@@ -19,6 +19,25 @@ const mark = (name, extra = {}) => {
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Screen position of a button in one of the app's windows. */
+async function chipPoint(app, text) {
+  for (const page of app.windows()) {
+    const button = page.getByRole("button", { name: text }).first();
+    if (!(await button.isVisible().catch(() => false))) continue;
+    const box = await button.boundingBox({ timeout: 2000 }).catch(() => null);
+    if (!box) continue;
+    const origin = await page.evaluate(() => ({
+      x: window.screenX,
+      y: window.screenY,
+    }));
+    return {
+      x: Math.round(origin.x + box.x + box.width / 2),
+      y: Math.round(origin.y + box.y + box.height / 2),
+    };
+  }
+  throw new Error(`no ${text} button`);
+}
+
 const PAGE = "https://arxiv.org/abs/2501.12948";
 
 const home = mkdtempSync(join(tmpdir(), "blinkling-rec-"));
@@ -85,12 +104,12 @@ mark("start");
 
 const scenes = {
   async pick() {
-    input([["move", 500, 300]]);
+    input([["move", 500, 207]]);
     await wait(1200);
     mark("ctrl-down");
     input([["down", "ctrl"]]);
     await wait(600);
-    input([["move", 520, 330]]);
+    input([["move", 520, 209]]);
     await wait(1200);
     mark("click");
     input([["press"], ["release"]]);
@@ -98,7 +117,9 @@ const scenes = {
     input([["up", "ctrl"]]);
     await wait(4000);
     mark("composer");
-    input([["move", 860, 748]]);
+    // The quick box offers "What is this?" as a chip; click it where it is.
+    const chip = await chipPoint(app, "What is this");
+    input([["move", chip.x, chip.y]]);
     await wait(800);
     mark("ask");
     input([["press"], ["release"]]);

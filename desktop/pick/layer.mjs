@@ -581,7 +581,19 @@ api.onMessage(({ channel, value }) => {
       break;
     case "hint":
       hint.textContent = value.text;
-      hint.style.transform = `translate3d(${Math.round(cursor.x + 20)}px, ${Math.round(cursor.y + 28)}px, 0)`;
+      // Beside the cursor, but never off the screen: near the right or bottom
+      // edge it slides left or goes above the cursor.
+      hint.style.transform = "none";
+      hint.style.transform = `translate3d(${Math.round(
+        Math.max(
+          8,
+          Math.min(cursor.x + 20, window.innerWidth - hint.offsetWidth - 8),
+        ),
+      )}px, ${Math.round(
+        cursor.y + 28 + hint.offsetHeight > window.innerHeight - 8
+          ? cursor.y - 20 - hint.offsetHeight
+          : cursor.y + 28,
+      )}px, 0)`;
       hint.classList.add("is-shown");
       break;
     case "clear":

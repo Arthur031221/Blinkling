@@ -146,6 +146,29 @@ test("M4 the layer rises one frame after the 250 ms threshold, not before, with 
   }
 });
 
+test("M7 the hint stays on the screen next to the right edge", async () => {
+  const app = await start();
+  try {
+    const p = await domRect(app, "#photo");
+    const edge = await app.evaluate(
+      ({ screen }) => screen.getPrimaryDisplay().bounds.width,
+    );
+    await hold(app, { x: edge - 20, y: p.y + 40 });
+    await waitFor(app, "hint");
+    const rect = await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((w) => w.webContents.getURL().includes("layer.html"))
+        .webContents.executeJavaScript(
+          "(() => { const r = document.querySelector('.pick-hint').getBoundingClientRect(); return { right: r.right, width: innerWidth }; })()",
+        ),
+    );
+    expect(rect.right).toBeLessThanOrEqual(rect.width);
+    release();
+  } finally {
+    await app.close();
+  }
+});
+
 test("M7 the first hold says to click once, near the cursor, and never again", async () => {
   const app = await start();
   try {
