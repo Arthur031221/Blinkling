@@ -47,11 +47,11 @@ function forget(win, id) {
  * for this sequence number; an error or the limit is reported by name. */
 function drawn(win, seq) {
   return win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>reject(Error("Overlay layout timed out")),3000);
+    const timer=setTimeout(()=>reject(Error("Overlay layout timed out")),${timing.guideLayout});
     function check(){
       if(document.body.dataset.error){clearTimeout(timer);reject(Error(document.body.dataset.error));}
       else if(document.body.dataset.drawn==="${seq}"){clearTimeout(timer);resolve();}
-      else setTimeout(check,10);
+      else setTimeout(check,${timing.layoutPoll});
     }check();
   })`);
 }
