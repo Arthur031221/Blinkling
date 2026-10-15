@@ -58,7 +58,7 @@ function pickKeySetting(file, env) {
  * electron: {BrowserWindow, screen, ipcMain, nativeImage, systemPreferences?, dialog?}
  * shell: {userDataDir, windowOptions(bounds, focusable), secure(win), windows(),
  *   input, blinkPoint(), workArea(), session, autoExplain:{get, set},
- *   composer:{open, attach}, captureScreen(display, windows), newChat?,
+ *   composer:{open, attach}, captureScreen(display, windows), newChat?, caught? (Blink bounces when the flight lands),
  *   locator?, guard?, env?, platform?} */
 export async function installPick({ electron, shell, loadKeys = loadUiohook, setTimer, clearTimer, now, onError = () => {} }) {
   const { BrowserWindow, screen, ipcMain, nativeImage, systemPreferences, dialog } = electron;
@@ -170,6 +170,7 @@ export async function installPick({ electron, shell, loadKeys = loadUiohook, set
     crop: cropper,
     grouper,
     newChat: () => shell.newChat?.(),
+    caught: () => shell.caught?.(),
     blinkPoint: shell.blinkPoint,
     mini,
     reduced: () => systemPreferences?.getAnimationSettings?.().prefersReducedMotion === true,

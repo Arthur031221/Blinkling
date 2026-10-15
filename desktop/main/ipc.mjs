@@ -3,6 +3,7 @@ const types = new Set([
   "drag",
   "pin",
   "visibility",
+  "click",
   "close-chat",
   "activity",
 ]);
@@ -41,6 +42,11 @@ export function validCommand(command, bounds) {
       typeof command.value === "boolean" &&
       Object.keys(command).every((k) => ["type", "value"].includes(k))
     );
+  if (command.type === "click")
+    return (
+      typeof command.permission === "boolean" &&
+      Object.keys(command).every((k) => ["type", "permission"].includes(k))
+    );
   return Object.keys(command).length === 1;
 }
 export function validRegions(value, bounds) {
@@ -63,12 +69,3 @@ export function validRegions(value, bounds) {
     )
   );
 }
-
-export const actionNames = new Set([
-  "capture",
-  "guide",
-  "auto-explain",
-  "chat",
-  "settings",
-  "help",
-]);

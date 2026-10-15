@@ -117,7 +117,7 @@ test("real alpha, silhouette click-through, hover wave, delayed retreat and full
   }
 });
 
-test("native drag squishes, snaps and persists; pin/chat focus is intentional and restored", async () => {
+test("native drag squishes, snaps and persists; pin/click focus is intentional and restored", async () => {
   const directory = await mkdtemp(join(tmpdir(), "blink-persist-"));
   let c = await launch(1, "light", directory);
   try {
@@ -212,7 +212,11 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     ).toBeCloseTo(saved.ratio, 6);
     await background(c.app);
     await moveOn(c.page);
-    await c.page.locator("#pin").click();
+    // The pin beside Blink is gone (N3); pinning lives in the full composer and
+    // reaches the shell as the same command.
+    await c.page.evaluate(() =>
+      window.blinkling.shell({ type: "pin", value: true }),
+    );
     await expect
       .poll(() =>
         c.app.evaluate(() => globalThis.blinklingTest.snapshot().pinned),
@@ -245,7 +249,9 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     expect(
       await c.app.evaluate(() => globalThis.blinklingTest.snapshot().pinned),
     ).toBe(false);
-    await c.page.evaluate(() => window.blinkling.action("chat"));
+    await c.page.evaluate(() =>
+      window.blinkling.shell({ type: "click", permission: false }),
+    );
     const chat2 = c.app.windows().find((p) => p.url().includes("surface=card"));
     await expect(chat2.locator(".gl-input")).toBeFocused();
     // The card holds on to the keyboard for its first moments (the window
@@ -332,9 +338,9 @@ test("closing an intentional chat restores a separate application's native focus
     await progress("hovering Blink without focus");
     await moveOn(c.page);
     expect(activeWindow()).toBe(external);
-    const button = await c.page.locator('[data-action="chat"]').boundingBox();
+    const blink = await rigPoint(c.page);
     await progress("opening intentional chat");
-    native(button.x + 21, button.y + 21, "click");
+    native(blink.x, blink.y, "click");
     await expect
       .poll(() =>
         c.app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible()),
@@ -414,11 +420,11 @@ test("native menu routing and measured stagger/reverse motion", async () => {
     await c.page.waitForTimeout(1900);
     const opened = await c.page.evaluate(() => window.fanSamples);
     const firstAbove = Array.from(
-      { length: 8 },
+      { length: 4 },
       (_, i) => opened.find((s) => s.opacity[i] > 0.2)?.time,
     );
     expect(firstAbove.every(Number.isFinite)).toBe(true);
-    for (let i = 1; i < 8; i++)
+    for (let i = 1; i < 4; i++)
       expect(firstAbove[i] - firstAbove[i - 1]).toBeGreaterThan(15);
     await c.page.evaluate(() => {
       window.fanSamples = [];
@@ -428,10 +434,10 @@ test("native menu routing and measured stagger/reverse motion", async () => {
     await c.page.waitForTimeout(2400);
     const closed = await c.page.evaluate(() => window.fanSamples);
     const firstBelow = Array.from(
-      { length: 8 },
+      { length: 4 },
       (_, i) => closed.find((s) => s.opacity[i] < 0.8)?.time,
     );
-    for (let i = 1; i < 8; i++)
+    for (let i = 1; i < 4; i++)
       expect(firstBelow[i - 1] - firstBelow[i]).toBeGreaterThan(15);
     await writeFile(
       join(report, "fan-motion.json"),
@@ -439,7 +445,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
     );
     await c.app.evaluate(() => {
       globalThis.menuCalls = [];
-      for (const action of ["region", "full-page", "guide", "auto-explain"]) {
+      for (const action of ["capture", "guide", "auto-explain"]) {
         globalThis.blinklingTest.registerAction(action, async (context) => {
           globalThis.menuCalls.push({
             action,
@@ -450,13 +456,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
         });
       }
     });
-    for (const action of [
-      "region",
-      "full-page",
-      "guide",
-      "auto-explain",
-      "auto-explain",
-    ]) {
+    for (const action of ["capture", "guide", "auto-explain", "auto-explain"]) {
       await moveOn(c.page);
       const b = c.page.locator(`[data-action="${action}"]`),
         r = await b.boundingBox();
@@ -465,8 +465,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
     }
     const calls = await c.app.evaluate(() => globalThis.menuCalls);
     expect(calls.map((c) => c.action)).toEqual([
-      "region",
-      "full-page",
+      "capture",
       "guide",
       "auto-explain",
       "auto-explain",
@@ -475,8 +474,8 @@ test("native menu routing and measured stagger/reverse motion", async () => {
     expect(calls.slice(-2).map((c) => c.enabled)).toEqual([true, false]);
     await expect(
       c.page.locator('[data-action="auto-explain"]'),
-    ).toHaveAttribute("aria-pressed", "false");
-    for (const action of ["chat", "settings", "help", "screen"]) {
+    ).toHaveAttribute("aria-checked", "false");
+    for (const action of ["settings"]) {
       await moveOn(c.page);
       const r = await c.page.locator(`[data-action="${action}"]`).boundingBox();
       native(r.x + r.width / 2, r.y + r.height / 2, "click");
@@ -491,10 +490,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
         .windows()
         .find((p) => p.url().includes("surface=card"));
       await expect(chat.locator(".gl-input")).toBeFocused();
-      if (action === "settings" || action === "help")
-        await expect(chat.locator(".gl-notice")).toBeHidden();
-      if (action === "screen")
-        await expect(chat.locator(".gl-attachment-chip img")).toHaveCount(1);
+      await expect(chat.locator(".gl-notice")).toBeHidden();
       await chat.keyboard.press("Escape");
       await expect
         .poll(() =>
@@ -513,16 +509,17 @@ test("native menu routing and measured stagger/reverse motion", async () => {
 
 for (const scale of [1, 1.5, 2])
   for (const theme of ["light", "dark"])
-    test(`eight real Electron menu pills, ${scale * 100}% ${theme}`, async () => {
+    test(`four real Electron menu bubbles, ${scale * 100}% ${theme}`, async () => {
       const c = await launch(scale, theme);
       try {
         await background(c.app);
         native(20, 20);
         await moveOn(c.page, scale);
         const buttons = c.page.locator(".action-bubble");
-        await expect(buttons).toHaveCount(8);
+        await expect(buttons).toHaveCount(4);
+        await expect(c.page.locator("#pin")).toHaveCount(0);
         await desktopShot(c.app, `menu-${scale * 100}-${theme}`);
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 4; i++) {
           const b = buttons.nth(i),
             box = await b.boundingBox();
           native(
@@ -534,7 +531,7 @@ for (const scale of [1, 1.5, 2])
           const layout = await c.page.evaluate(() =>
             Array.from(document.querySelectorAll(".action-bubble")).map((b) => {
               const r = b.getBoundingClientRect(),
-                s = b.querySelector(".action-detail");
+                s = b.querySelector(".action-label");
               return {
                 x: r.x,
                 y: r.y,
@@ -552,8 +549,8 @@ for (const scale of [1, 1.5, 2])
           );
           expect(layout.every((r) => r.inside)).toBe(true);
           expect(layout[i].textFits).toBe(true);
-          for (let a = 0; a < 8; a++)
-            for (let b = a + 1; b < 8; b++) {
+          for (let a = 0; a < 4; a++)
+            for (let b = a + 1; b < 4; b++) {
               const x = layout[a],
                 y = layout[b];
               expect(
@@ -574,7 +571,9 @@ for (const scale of [1, 1.5, 2])
             }),
           ),
         ).rejects.toThrow(/Invalid shell command/);
-        await c.page.evaluate(() => window.blinkling.action("chat"));
+        await c.page.evaluate(() =>
+          window.blinkling.shell({ type: "click", permission: false }),
+        );
         const chat = c.app
           .windows()
           .find((p) => p.url().includes("surface=card"));

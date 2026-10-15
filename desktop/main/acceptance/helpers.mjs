@@ -31,6 +31,14 @@ export async function clickButton(page, label, scale = 1) {
   const r = await button.boundingBox();
   click((r.x + r.width / 2) * scale, (r.y + r.height / 2) * scale);
 }
+/** A real click on Blink's body: the one gesture that opens the composer (N5.1). */
+export async function clickBlink(page, scale = 1) {
+  const r = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+  click((r.x + r.width * 0.35) * scale, (r.y + r.height * 0.72) * scale);
+}
+/** The bubble for an action, whatever language the system speaks. */
+export const bubble = (page, action) =>
+  page.locator(`[data-action="${action}"]`);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export async function background(app, fullscreen = false) {
   return app.evaluate(async ({ BrowserWindow, screen }, fullscreen) => {

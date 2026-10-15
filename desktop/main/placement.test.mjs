@@ -128,13 +128,13 @@ test("reveal never moves a top or bottom resting character sideways", () => {
       assert.equal(p.reveal.x, p.peek.x, `${edge} ${ratio}`);
     }
 });
-test("revealed anchor leaves room for the whole fan above it", () => {
-  const p = resolvePosition(display, { edge: "top", ratio: 0.5 });
-  const rows = p.area.height < 610 ? 4 : 8;
-  assert.ok(
-    p.reveal.y >=
-      Math.min(p.area.y + p.area.height - 18, p.area.y + rows * 51 + 156),
-  );
+test("revealing is a short hop on every edge, never a long slide", () => {
+  for (const edge of ["left", "right", "top", "bottom"])
+    for (const ratio of [0.1, 0.5, 0.9]) {
+      const p = resolvePosition(display, { edge, ratio });
+      const hop = Math.hypot(p.reveal.x - p.peek.x, p.reveal.y - p.peek.y);
+      assert.ok(hop <= 90, `${edge} ${ratio} hop ${hop}`);
+    }
 });
 const panels = {
   "100%": {

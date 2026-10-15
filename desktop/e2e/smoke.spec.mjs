@@ -18,6 +18,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       "hold",
       "interactive",
       "onCapture",
+      "onCatch",
       "onEvent",
       "onMarkClick",
       "onShell",

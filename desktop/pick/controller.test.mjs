@@ -8,14 +8,14 @@ import { createLocatorStub, DISPLAY } from "./test/locator-stub.mjs";
 const PNG = "iVBORw0KGgo=";
 
 function setup(options = {}) {
-  const log = { shown: [], hidden: 0, sent: [], flights: [], opened: [], grabs: 0, newChats: 0, errors: [] };
+  const log = { shown: [], hidden: 0, sent: [], flights: [], caught: 0, order: [], opened: [], grabs: 0, newChats: 0, errors: [] };
   let clock = 1_000_000;
   const stub = createLocatorStub(options.stub);
   const layer = {
     show: (display, cursor) => void log.shown.push({ display, cursor }),
     hide: () => void log.hidden++,
     send: (channel, value) => void log.sent.push([channel, value]),
-    flight: async (items, to) => void log.flights.push({ items, to }),
+    flight: async (items, to) => void (log.flights.push({ items, to }), log.order.push("flight")),
   };
   const controller = createPickController({
     displays: () => [DISPLAY],
@@ -27,8 +27,9 @@ function setup(options = {}) {
     crop: options.crop ?? ((capture, bounds) => ({ data: PNG, dataUrl: `data:image/png;base64,${PNG}`, width: bounds.width, height: bounds.height })),
     grouper: createGrouper({ clock: () => clock, uuid: (() => { let n = 0; return () => `chat-${++n}`; })() }),
     newChat: async () => void log.newChats++,
+    caught: () => void (log.caught++, log.order.push("caught")),
     blinkPoint: () => ({ x: 1280, y: 400 }),
-    mini: { open: async (entries) => void log.opened.push(entries) },
+    mini: { open: async (entries) => void (log.opened.push(entries), log.order.push("mini")) },
     reduced: () => false,
     onError: (e) => log.errors.push(e),
   });
@@ -215,4 +216,18 @@ test("on a second display the crop is taken relative to that display, not the de
     { source: "pick", display: second, kind: "image", bounds: { x: 1380, y: 120, width: 200, height: 100 } },
   ]);
   assert.deepEqual(crops, [{ x: 100, y: 120, width: 200, height: 100 }]);
+});
+
+test("Blink is told the moment the flight lands, before the mini composer opens", async () => {
+  const { controller, log } = setup();
+  await controller.deliver({
+    id: "c2",
+    display: DISPLAY,
+    region: { x: 10, y: 20, width: 300, height: 200 },
+    pixelWidth: 300,
+    pixelHeight: 200,
+    image: { id: "img", name: "Selection.png", mediaType: "image/png", data: PNG },
+  });
+  assert.equal(log.caught, 1);
+  assert.deepEqual(log.order, ["flight", "caught", "mini"]);
 });

@@ -6,7 +6,9 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
   try {
     const blink = await app.firstWindow();
     await expect(blink.getByRole("img", { name: "Blink" })).toBeVisible();
-    await blink.evaluate(() => window.blinkling.action("chat"));
+    await blink.evaluate(() =>
+      window.blinkling.shell({ type: "click", permission: false }),
+    );
     let card;
     await expect
       .poll(() => {

@@ -29,6 +29,7 @@ import {
 } from "./placement.mjs";
 import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
+import { createEscapeKeys } from "./escape-keys.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
 import { captureScreen } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
@@ -106,14 +107,15 @@ const cursor = cursorSource({
   fallback: () => screen.getCursorScreenPoint(),
   toDip: (point) => screen.screenToDipPoint(point),
 });
+// The menu has four bubbles (N2.1); the capture, guide and auto explain
+// buttons reach the feature actions behind them.
 const actions = new Set([
   "guide",
   "auto-explain",
-  "chat",
   "settings",
-  "help",
   ...featureActions,
 ]);
+const escapeKeys = createEscapeKeys({ shortcuts: globalShortcut });
 const webPreferences = {
   preload: fileURLToPath(new URL("../preload/index.cjs", import.meta.url)),
   sandbox: true,
@@ -124,6 +126,7 @@ const webPreferences = {
 function windowOptions(bounds, focusable) {
   return {
     ...bounds,
+    title: "Blinkling",
     transparent: true,
     backgroundColor: "#00000000",
     frame: false,
@@ -137,6 +140,8 @@ function windowOptions(bounds, focusable) {
   };
 }
 function secure(win) {
+  // Every window is "Blinkling", whatever its page calls itself (L1).
+  win.on("page-title-updated", (event) => event.preventDefault());
   win.setAlwaysOnTop(true, "screen-saver");
   if (process.platform === "darwin")
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -205,6 +210,13 @@ async function ensureComposer() {
   );
   composer = win;
   secure(win);
+  // Esc in the focused card closes the top layer, which is the card itself
+  // unless the capture overlay sits above it.
+  win.webContents.on("before-input-event", (event, key) => {
+    if (key.type !== "keyDown" || key.key !== "Escape") return;
+    event.preventDefault();
+    escapeKeys.press();
+  });
   win.on("close", (event) => {
     if (!quitting) {
       event.preventDefault();
@@ -277,6 +289,7 @@ async function openComposer({ focus = true, seed } = {}) {
   }
   const win = await ensureComposer();
   chatOpen = true;
+  escapeKeys.set("mini", closeComposer);
   bubbles?.hide();
   win.webContents.send("blinkling:surface", {
     type: "open",
@@ -296,6 +309,10 @@ async function openComposer({ focus = true, seed } = {}) {
     claimKeyboard(win, 250);
   } else if (!win.isVisible()) win.showInactive();
 }
+/** Click on Blink (N5.1): the mini composer on the last conversation, with
+ * nothing attached. At a permission request the full card opens instead. */
+const openMini = () => pick.openMini([]);
+const openChat = () => openComposer(true);
 /** Blink asked to close the card because the pointer left, but something held
  * it. Close it as soon as nothing does, without waiting for another leave. */
 function leaveIfIdle() {
@@ -335,6 +352,7 @@ function closeComposer(restore = true) {
   const focused = composer?.isFocused();
   chatOpen = false;
   pinned = false;
+  escapeKeys.set("mini", null);
   composer?.hide();
   if (answersVisible) bubbles?.showInactive();
   if (restore && focused) {
@@ -397,9 +415,14 @@ function useDisplay(next) {
   tellMenu();
   broadcast();
 }
-/** The card and the answer deck share one rectangle; move them together. */
-function placeCard() {
-  const bounds = cardBounds(display, position);
+/** The card and the answer deck share one rectangle; move them together.
+ * Called on every move of Blink, on drop and on every display change. */
+let placedAt = "";
+function placeCard(at = position) {
+  const bounds = cardBounds(display, at);
+  const key = JSON.stringify(bounds);
+  if (key === placedAt) return;
+  placedAt = key;
   composer?.setBounds(bounds);
   bubbles?.setBounds(bounds);
   shapeComposer();
@@ -508,9 +531,16 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
         closeComposer();
     }
   } else if (command.type === "close-chat") closeComposer();
-  else if (command.type === "visibility") {
-    if (command.value && !chatOpen) await openComposer({ focus: false });
-    else if (command.value) leaving = false;
+  else if (command.type === "click") {
+    if (!fromBlink) throw new Error("Invalid shell gesture");
+    // A click is never a drag (the renderer's gesture decides). It opens the
+    // mini composer on the last conversation, or the chat when Blink is
+    // waiting for permission, and takes the keyboard (N5.1).
+    if (command.permission) await openChat();
+    else await openMini();
+  } else if (command.type === "visibility") {
+    // Hovering Blink never opens the card; it only cancels a pending leave.
+    if (command.value) leaving = false;
     else if (!command.value && !pinned && chatOpen) {
       leaving = true;
       leaveIfIdle();
@@ -523,19 +553,18 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
   broadcast();
   return snapshot();
 });
-for (const view of ["settings", "help"])
-  registerAction(view, async () => {
-    await openComposer();
-    composer.webContents.send("blinkling:surface", { type: "view", view });
-    return { ok: true };
+// Until the settings window lands, Settings opens the card on its settings view.
+registerAction("settings", async () => {
+  await openComposer();
+  composer.webContents.send("blinkling:surface", {
+    type: "view",
+    view: "settings",
   });
+  return { ok: true };
+});
 ipcMain.handle("blinkling:action", async (event, action) => {
   if (!trusted(event) || !actions.has(action))
     throw new Error("Invalid desktop action");
-  if (action === "chat") {
-    await openComposer();
-    return { ok: true };
-  }
   if (action === "auto-explain") {
     const result = await dispatchAction(action, {
       display,
@@ -597,6 +626,8 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
   requireView(event);
   if (event.sender !== composer?.webContents)
     throw new Error("Invalid composer sender");
+  // Blink shows its thinking face the moment a message goes out (N4).
+  send({ type: "sending" });
   await session.send(turn);
   if (sendCloses({ pinned, pointer: cardHold.pointer, source: turn.source }))
     closeComposer();
@@ -737,6 +768,12 @@ features = installCaptureGuide({
   onCapture: attachCapture,
   onGuide: (guide) => {
     send({ type: "guide", ...guide });
+    escapeKeys.set(
+      "guide",
+      guide.phase === "dismissed"
+        ? null
+        : () => features.handle("guide-dismiss"),
+    );
     if (guide.phase !== "dismissed" && !chatOpen) bubbles.showInactive();
   },
   onState: (state) => send({ type: "capture-status", ...state }),
@@ -758,7 +795,14 @@ registerAction("companion-guide", async () => {
 });
 const { systemPreferences, nativeImage, dialog } = await import("electron");
 const pick = await installPick({
-  electron: { BrowserWindow, screen, ipcMain, nativeImage, systemPreferences, dialog },
+  electron: {
+    BrowserWindow,
+    screen,
+    ipcMain,
+    nativeImage,
+    systemPreferences,
+    dialog,
+  },
   shell: {
     userDataDir: app.getPath("userData"),
     locales: app.getPreferredSystemLanguages(),
@@ -775,6 +819,7 @@ const pick = await installPick({
     session,
     captureScreen,
     newChat: () => tellDeck({ type: "new-chat" }),
+    caught: () => blink.webContents.send("blinkling:catch"),
     autoExplain: {
       get: () => autoExplain,
       set: async (enabled) => {
@@ -849,6 +894,8 @@ const poll = setInterval(() => {
       x: drag.origin.x + p.x - drag.start.x,
       y: drag.origin.y + p.y - drag.start.y,
     };
+    if (drag.active)
+      placeCard(resolvePosition(display, snapPosition(display, drag.anchor)));
     broadcast();
   }
   const local = { x: p.x - display.bounds.x, y: p.y - display.bounds.y };
@@ -873,6 +920,7 @@ const poll = setInterval(() => {
       type: "cursor",
       point: local,
       hit: hit || !!overCard || overBubbles,
+      blink: hit,
     });
     if (!input && !drag && ignoring === hit) {
       ignoring = !hit;
@@ -926,6 +974,12 @@ if (process.env.BLINKLING_E2E === "1")
     setDisplay: useDisplay,
     positionStore: store,
     registerAction,
+  };
+if (globalThis.blinklingTest)
+  globalThis.blinklingTest.nBlinkMenuFaces = {
+    escapeKeys,
+    openCard: (focus = false) => openComposer(focus),
+    titles: () => BrowserWindow.getAllWindows().map((w) => w.getTitle()),
   };
 /** Deck hooks live under blinklingTest.deck so the literal above stays shared. */
 function installDeckTest() {

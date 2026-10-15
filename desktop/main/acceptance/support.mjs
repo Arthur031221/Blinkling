@@ -19,7 +19,7 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
     env: {
       ...process.env,
       BLINKLING_E2E: "1",
-      BLINKLING_REMOTE: process.env.BLINKLING_REMOTE ?? "0",
+      BLINKLING_REMOTE: "0",
       BLINKLING_TEST_DATA: userData,
     },
   });

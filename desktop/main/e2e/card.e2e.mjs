@@ -16,11 +16,12 @@ const visible = (app) =>
 const png =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-/** Open the card the way hovering Blink does: visible, but not focused. */
+/** Open the card visible but not focused, the state a pointer-leave rule
+ * applies to. Hovering no longer opens it (N5), so open it from the main side. */
 async function hoverOpen(c) {
   await moveOn(c.page);
-  await c.page.evaluate(() =>
-    window.blinkling.shell({ type: "visibility", value: true }),
+  await c.app.evaluate(() =>
+    globalThis.blinklingTest.nBlinkMenuFaces.openCard(false),
   );
   await expect.poll(() => visible(c.app)).toBe(true);
   await expect.poll(() => cardPage(c.app)).toBeTruthy();

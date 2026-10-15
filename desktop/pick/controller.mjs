@@ -20,6 +20,7 @@ export function createPickController({
   crop,
   grouper,
   newChat,
+  caught = () => {},
   blinkPoint,
   mini,
   reduced = () => false,
@@ -162,6 +163,7 @@ export function createPickController({
     if (group.fresh) await newChat?.();
     try {
       await layer.flight(flightItems, blinkPoint());
+      caught();
     } catch (error) {
       onError(error);
     }

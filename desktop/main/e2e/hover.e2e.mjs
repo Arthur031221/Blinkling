@@ -132,20 +132,16 @@ for (const [edge, x, y] of edges)
     }
   });
 
-test("H-3 every menu pill is clickable while answer bubbles are on screen", async () => {
+test("H-3 every menu bubble is clickable while answer bubbles are on screen", async () => {
   const c = await launch();
   const { app, page } = c;
   try {
-    // "chat" opens the card instead of calling a registered handler, and
-    // hides the menu while it is open, so it is clicked last.
-    const actions = (
-      await page.evaluate(() =>
-        [...document.querySelectorAll("[data-action]")].map(
-          (b) => b.dataset.action,
-        ),
-      )
-    ).sort((a, b) => (a === "chat") - (b === "chat"));
-    expect(actions).toHaveLength(8);
+    const actions = await page.evaluate(() =>
+      [...document.querySelectorAll("[data-action]")].map(
+        (b) => b.dataset.action,
+      ),
+    );
+    expect(actions).toEqual(["capture", "guide", "auto-explain", "settings"]);
     await app.evaluate((_, ids) => {
       globalThis.pillCalls = [];
       for (const id of ids)
@@ -169,27 +165,16 @@ test("H-3 every menu pill is clickable while answer bubbles are on screen", asyn
     for (const action of actions) {
       await moveOn(page);
       const pill = page.locator(`[data-action="${action}"]`);
-      const r = await pill.boundingBox();
-      // Hover widens the pill into a label that reaches over the deck; click
-      // the far end of that label, which is where a bubble could cover it.
-      native(r.x + r.width / 2, r.y + r.height / 2);
       await expect
-        .poll(async () => (await pill.boundingBox()).width)
-        .toBeGreaterThan(150);
-      const wide = await pill.boundingBox();
-      native(wide.x + 24, wide.y + wide.height / 2, "click");
-      if (action === "chat")
-        await expect
-          .poll(() =>
-            app.evaluate(() => globalThis.blinklingTest.snapshot().chatOpen),
-          )
-          .toBe(true);
-      else
-        await expect
-          .poll(() => app.evaluate(() => globalThis.pillCalls), {
-            message: `pill ${action}`,
-          })
-          .toContain(action);
+        .poll(() => pill.evaluate((el) => Number(getComputedStyle(el).opacity)))
+        .toBeGreaterThan(0.95);
+      const r = await pill.boundingBox();
+      native(r.x + r.width / 2, r.y + r.height / 2, "click");
+      await expect
+        .poll(() => app.evaluate(() => globalThis.pillCalls), {
+          message: `bubble ${action}`,
+        })
+        .toContain(action);
       native(20, 20);
       await page.waitForTimeout(150);
     }

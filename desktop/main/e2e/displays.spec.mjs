@@ -111,7 +111,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
         return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
       }),
     );
-    expect(bounds).toHaveLength(8);
+    expect(bounds).toHaveLength(4);
     expect(
       bounds.every(
         (r) => r.x >= 0 && r.y >= 0 && r.right <= 800 && r.bottom <= 600,
