@@ -147,6 +147,30 @@ test("pixel boxes of a capture are converted to the screen before they are drawn
   });
 });
 
+test("a box that overshoots the display is trimmed to it, and one wholly off it is skipped", async () => {
+  const capture = {
+    display: { id: "1", bounds: DISPLAY.bounds, scaleFactor: 1 },
+    region: { x: 0, y: 0, width: 1280, height: 800 },
+    pixelWidth: 1280,
+    pixelHeight: 800,
+    image: { data: "x" },
+  };
+  const { overlay, pointing } = rig({
+    locator: createPointingLocator({ snaps: false }),
+  });
+  await pointing.show(
+    [
+      { n: 1, rect: { x: 1200, y: 700, width: 200, height: 200 }, label: "a" },
+      { n: 2, rect: { x: 1300, y: 10, width: 50, height: 50 }, label: "b" },
+    ],
+    { displayId: "1", capture },
+  );
+  assert.deepEqual(
+    overlay.shown[0].drawings.map((d) => [d.n, d.rect]),
+    [[1, { x: 1200, y: 700, width: 80, height: 100 }]],
+  );
+});
+
 test("pulse, focus and clear go to the overlay; clear says why", async () => {
   const { overlay, pointing } = rig();
   pointing.pulse(1);

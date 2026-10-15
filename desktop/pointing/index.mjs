@@ -18,6 +18,15 @@ const relative = (r, origin) => ({
   height: r.height,
 });
 
+/** The part of `rect` on a display of `size`, or null when none of it is. */
+function trim(rect, size) {
+  const x = Math.max(0, rect.x),
+    y = Math.max(0, rect.y);
+  const width = Math.min(size.width, rect.x + rect.width) - x,
+    height = Math.min(size.height, rect.y + rect.height) - y;
+  return width > 0 && height > 0 ? { x, y, width, height } : null;
+}
+
 /** Draws numbered marks on the screen for the things an answer or a guide
  * names (M3, N2.3). One engine, so an answer and a guide look the same:
  * same kinds, numbering, snapping and labels.
@@ -82,11 +91,13 @@ export function createPointing({
       if (ctx.display && ctx.display.id !== display.id) return null;
       ctx.display ??= display;
       const origin = display.bounds;
+      const rect = trim(relative(el.bounds, origin), origin);
+      if (!rect) return null;
       return {
         ...base,
         id: el.id,
         elementId: el.id,
-        rect: relative(el.bounds, origin),
+        rect,
         kind: ref.kind ?? markKind(el),
         seed: seedOf(`${el.id}${ref.label ?? ""}`),
         lines: (el.lines ?? []).map((l) => relative(l, origin)),
@@ -107,6 +118,8 @@ export function createPointing({
         element = hit.element ?? null;
       }
     }
+    rect = trim(rect, display.bounds);
+    if (!rect) return null;
     return {
       ...base,
       id: element?.id ?? `box:${ref.n}`,
