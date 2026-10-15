@@ -394,7 +394,35 @@
         }
       }
     }
-    return { elements: ordered, viewport, skippedFrames };
+    const selection = readSelection(view);
+    return {
+      elements: ordered,
+      viewport,
+      skippedFrames,
+      ...selection ? { selection } : {}
+    };
+  }
+  function readSelection(view) {
+    const selection = view.getSelection?.();
+    if (!selection || selection.rangeCount === 0) return void 0;
+    const text = selection.toString().trim();
+    if (!text) return void 0;
+    const range = selection.getRangeAt(0);
+    const anchor = range.commonAncestorContainer;
+    const host = anchor instanceof Element ? anchor : anchor.parentElement;
+    if (!host || isExcluded(host) || host.closest("input, textarea"))
+      return void 0;
+    const box = range.getBoundingClientRect();
+    if (!box || box.width <= 0 || box.height <= 0) return void 0;
+    return {
+      text: text.slice(0, MAX_CONTENT),
+      rect: {
+        x: Math.round(box.x * 10) / 10,
+        y: Math.round(box.y * 10) / 10,
+        width: Math.round(box.width * 10) / 10,
+        height: Math.round(box.height * 10) / 10
+      }
+    };
   }
 
   // extension/privacy.ts

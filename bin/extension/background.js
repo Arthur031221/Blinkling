@@ -629,7 +629,8 @@ function createHandlers(helper) {
           incognito: target.tab.incognito === true
         },
         frame,
-        elements: page.elements
+        elements: page.elements,
+        ...page.selection ? { selection: page.selection } : {}
       }
     };
   }

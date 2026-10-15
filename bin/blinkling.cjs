@@ -41655,7 +41655,8 @@ var DesktopCompanion = class {
       try {
         const desktop = await desktopConnection();
         if (this.closed || !desktop) return;
-        if (this.registered === desktop.client.endpoint.token) return;
+        if (this.registered === desktop.client.endpoint.token && desktop.status?.companion === true)
+          return;
         await desktop.client.rpc("companion", {
           url: this.origin() + "/desktop-companion",
           token: this.token
@@ -41712,7 +41713,8 @@ var DesktopCompanion = class {
       res.once("close", () => controller2.abort());
       const result = await this.extension.elements(
         valid ? { x: point.x, y: point.y } : void 0,
-        controller2.signal
+        controller2.signal,
+        { fresh: message.fresh === true }
       );
       res.end(JSON.stringify({ result }));
       return;
@@ -42658,6 +42660,17 @@ function readElements(value) {
     }
     elements.push(element);
   }
+  const picked = raw.selection;
+  const selected = picked?.rect;
+  const selection = picked && selected && typeof picked.text === "string" && picked.text ? {
+    text: text(picked.text, 4e3),
+    rect: {
+      x: finite(selected.x),
+      y: finite(selected.y),
+      width: finite(selected.width),
+      height: finite(selected.height)
+    }
+  } : void 0;
   return {
     page: {
       url: text(page.url, 4e3),
@@ -42671,7 +42684,8 @@ function readElements(value) {
       devicePixelRatio: finite(frame.devicePixelRatio, 1) || 1,
       zoom: finite(frame.zoom, 1) || 1
     },
-    elements
+    elements,
+    ...selection ? { selection } : {}
   };
 }
 var HelperBridge = class {
@@ -42859,10 +42873,11 @@ var HelperBridge = class {
     }
     return true;
   }
-  /** Page structure under a screen point, or null when there is no helper or no page. */
-  async elements(point, signal) {
+  /** Page structure under a screen point, or null when there is no helper or no
+   * page. `fresh` skips the short cache, for the read a click depends on. */
+  async elements(point, signal, options = {}) {
     const key = point ? `${Math.round(point.x / 16)},${Math.round(point.y / 16)}` : "";
-    if (this.cache?.key === key && this.now() - this.cache.at < CACHE_MS)
+    if (!options.fresh && this.cache?.key === key && this.now() - this.cache.at < CACHE_MS)
       return this.cache.value;
     const reply = await this.request({ type: "elements", point }, 4e3, signal);
     const value = reply?.ok === false ? null : readElements(reply?.result ?? null);
