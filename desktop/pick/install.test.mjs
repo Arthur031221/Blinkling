@@ -23,6 +23,7 @@ function setup(options = {}) {
     handlers: {},
     timers: [],
     turns: [],
+    picking: [],
     newChats: 0,
     attached: [],
     opened: 0,
@@ -91,6 +92,7 @@ function setup(options = {}) {
     input: null,
     cursor: () => ({ x: 20, y: 20 }),
     blinkPoint: () => ({ x: 1280, y: 400 }),
+    picking: (on) => void log.picking.push(on),
     workArea: () => d1.bounds,
     session: { send: async (turn) => void log.turns.push(turn) },
     autoExplain: { get: () => false, set: async () => {} },
@@ -503,4 +505,15 @@ test("a key hook that cannot start off macOS is not retried and raises no prompt
     s.timers.some((t) => t.ms === 2000),
     false,
   );
+});
+
+test("the shell hears when picking starts and ends, so Blink can watch the cursor", async () => {
+  const s = setup();
+  const pick = await s.install();
+  await hold(s, pick);
+  assert.deepEqual(s.log.picking, [true]);
+  pick.test.keys.handle({ type: "keyup", code: KEYCODES.ctrl });
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(s.log.picking, [true, false]);
+  pick.dispose();
 });

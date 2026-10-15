@@ -57,6 +57,7 @@ api.onInit(({ locale, theme }) => {
       submit: () => api.submit(),
       chip: (id) => api.chip(id),
       remove: (id) => api.remove(id),
+      openImage: (id) => api.openImage(id),
       offer: (id) => api.offer(id),
       escape: () => api.escape(),
       select: (wanted) => api.select(wanted),

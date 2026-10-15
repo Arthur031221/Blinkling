@@ -35,6 +35,7 @@ function setup(options = {}) {
     closed: [],
     changes: [],
     selected: [],
+    images: [],
   };
   const controller = createMiniController({
     win,
@@ -54,6 +55,7 @@ function setup(options = {}) {
       openComposer: (seed) => void log.opened.push(seed),
       closed: (reason) => void log.closed.push(reason),
       changed: (open) => void log.changes.push(open),
+      openImage: async (attachment) => void log.images.push(attachment),
       selection: () => options.selection ?? null,
       select: async (next) => {
         log.selected.push(next);
@@ -410,5 +412,77 @@ test("a preview that is not a small image data URL is dropped", async () => {
     });
   }
   assert.ok(viewOf(sent).entries.every((e) => e.thumb === undefined));
+  setLayer("mini", null);
+});
+
+const nextPick = () => [
+  {
+    id: "i2",
+    kind: "image",
+    attachment: { ...image, id: "b", data: "BBBB" },
+    thumb: "data:image/png;base64,QQ==",
+    taken: { kind: "image" },
+  },
+];
+test("picks made while the box is open join its chips and keep the typed text", async () => {
+  const { controller, sent, fire, log } = setup();
+  await controller.open(entries());
+  fire("blinkling:mini-input", "what is this");
+  await controller.open(nextPick());
+  const view = viewOf(sent);
+  assert.deepEqual(
+    view.entries.map((e) => e.id),
+    ["i1", "i2"],
+  );
+  assert.equal(view.text, "what is this");
+  assert.equal(view.entries[1].thumb, "data:image/png;base64,QQ==");
+  assert.deepEqual(
+    controller.entries().map((e) => e.id),
+    ["i1", "i2"],
+  );
+  // Joining is not closing: the host never hears the box shut and open again.
+  assert.deepEqual(log.changes, [true]);
+  setLayer("mini", null);
+});
+
+test("a box that was closed starts over with only the new picks", async () => {
+  const { controller, sent, fire } = setup();
+  await controller.open(entries());
+  fire("blinkling:mini-escape");
+  await controller.open(nextPick());
+  assert.deepEqual(
+    viewOf(sent).entries.map((e) => e.id),
+    ["i2"],
+  );
+  assert.equal(viewOf(sent).text, "");
+  setLayer("mini", null);
+});
+
+test("joining past the attachment limit keeps the newest", async () => {
+  const { controller, sent } = setup();
+  const many = (from, n) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `p${from + i}`,
+      kind: "image",
+      attachment: { ...image, id: `p${from + i}` },
+      taken: { kind: "image" },
+    }));
+  await controller.open(many(0, 6));
+  await controller.open(many(6, 6));
+  const ids = viewOf(sent).entries.map((e) => e.id);
+  assert.ok(ids.length <= 10, `${ids.length} chips`);
+  assert.equal(ids.at(-1), "p11");
+  setLayer("mini", null);
+});
+
+test("a thumbnail click hands that picture to the host to open in full", async () => {
+  const { controller, fire, log } = setup();
+  await controller.open(entries());
+  fire("blinkling:mini-open-image", "i1");
+  await Promise.resolve();
+  assert.deepEqual(log.images, [image]);
+  fire("blinkling:mini-open-image", "nope");
+  await Promise.resolve();
+  assert.equal(log.images.length, 1);
   setLayer("mini", null);
 });

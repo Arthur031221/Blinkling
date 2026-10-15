@@ -24,18 +24,20 @@ const isFile = (e) => e.kind === "file";
  * entries: [{id, kind, attachment, taken?, thumb?, pending?}] one per chip. A
  *   pending entry is a pick whose pixels are still being taken: it shows at once,
  *   `fill` completes it, `remove` drops it, and a send waits for either.
+ * text: what was already typed when more picks join an open box.
  * host: send(turn), openComposer(seed), close(reason) and optionally
  *   pauseAuto/resumeAuto, translatePage, openPdfReader. */
 export function createMini({
   locale,
   entries,
+  text: startText = "",
   host,
   autoExplain = () => false,
   once,
   uuid = randomUUID,
 }) {
   let list = [...entries];
-  let text = "";
+  let text = startText;
   let closed = false;
   const paused = autoExplain();
   if (paused) host.pauseAuto?.();
@@ -106,6 +108,8 @@ export function createMini({
   }
 
   return {
+    /** What the box holds now, so more picks can join it instead of replacing it. */
+    snapshot: () => ({ entries: list, text }),
     view() {
       const model = ask();
       return {

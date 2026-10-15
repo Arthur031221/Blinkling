@@ -28,6 +28,7 @@ import {
   snapPosition,
   reconcileDisplay,
   cardBounds,
+  mouthOf,
 } from "./placement.mjs";
 import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
@@ -665,6 +666,12 @@ const blinkPoint = () => ({
   x: position.reveal.x + display.bounds.x,
   y: position.reveal.y + display.bounds.y,
 });
+const mouthPoint = () => mouthOf(blinkPoint());
+/** While the pick layer is up Blink's eyes follow the cursor. */
+const tellPicking = (on) => {
+  if (!blink.isDestroyed())
+    blink.webContents.send("blinkling:shell", { type: "picking", on });
+};
 // A question about the screen carries the element list; its answer's
 // `[[n:id|label]]` references are drawn as marks (M3).
 const answers = createAnswerPointing({
@@ -975,11 +982,13 @@ const pick = await installPick({
     input,
     cursor: () => cursor.point(),
     blinkPoint,
+    mouthPoint,
     workArea: () => display.workArea,
     session,
     captureScreen,
     newChat: () => tellDeck({ type: "new-chat" }),
     caught: () => blink.webContents.send("blinkling:catch"),
+    picking: tellPicking,
     miniChanged: (open) => {
       miniOpen = open;
       broadcast();
@@ -1199,6 +1208,7 @@ if (process.env.BLINKLING_E2E === "1")
   Object.assign(globalThis.blinklingTest, {
     features,
     session,
+    picking: tellPicking,
     bubbles,
     send,
     guideOffer,

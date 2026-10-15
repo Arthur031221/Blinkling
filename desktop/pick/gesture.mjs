@@ -9,6 +9,13 @@ export const rectBetween = (a, b) => ({
   height: Math.abs(a.y - b.y),
 });
 
+/** The auto box on its way to the dragged rectangle: [x, y, width, height] at `t`
+ * (0 is the box, 1 is the rectangle, exactly). */
+export const morphBox = (from, rect, t) =>
+  [rect.x, rect.y, rect.width, rect.height].map(
+    (goal, i) => from[i] + (goal - from[i]) * Math.min(1, Math.max(0, t)),
+  );
+
 /** Click or drag, decided by distance from the press point. */
 export function createGesture({ threshold = DRAG_THRESHOLD, bounds } = {}) {
   let start = null,

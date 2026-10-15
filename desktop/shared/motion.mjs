@@ -17,6 +17,9 @@ export const timing = Object.freeze({
   menuRest: 300,
   thinkingFace: 100,
   settle: 8000,
+  spotLap: 1800,
+  // The genie into Blink's mouth: long enough to read as being sucked in.
+  genie: 640,
   sameChat: 60000,
   // Not motion: waits and polls that used to be bare numbers beside the code.
   frame: 17,

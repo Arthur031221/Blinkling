@@ -130,8 +130,15 @@ export function mountMini(root, { t, tp, tc, on }) {
       if (entry.pending) {
         chip.append(el("span", "mini-thumb mini-thumb-pending"));
       } else if (entry.thumb) {
-        const img = el("img", "mini-thumb", { alt: "", src: entry.thumb });
-        chip.append(img);
+        // The thumbnail opens the whole picture.
+        const open = el("button", "mini-open", {
+          type: "button",
+          title: t("mini.open-image"),
+          "aria-label": t("mini.open-image"),
+        });
+        open.append(el("img", "mini-thumb", { alt: "", src: entry.thumb }));
+        open.addEventListener("click", () => on.openImage(entry.id));
+        chip.append(open);
       }
       const name = el("span", "mini-entry-label");
       name.textContent = label;
@@ -211,7 +218,9 @@ export function mountMini(root, { t, tp, tc, on }) {
           return button;
         }),
       );
-      if (input.value !== view.text && view.text === "") input.value = "";
+      // Text typed before more picks joined the box comes back with the new page.
+      if (input.value !== view.text && (view.text === "" || input.value === ""))
+        input.value = view.text;
     },
   };
 }

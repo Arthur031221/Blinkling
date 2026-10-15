@@ -1,5 +1,5 @@
 /** The cursor shows one badge (N3.1): the green crayon while the pick key is
- * held, turning into a crosshair with a dashed rectangle once a drag starts.
+ * held, turning into a crosshair with a rectangle once a drag starts.
  * Shift is not a mode, so it is not an input here. */
 export function badgeFor({ raised, dragging }) {
   if (!raised) return "none";

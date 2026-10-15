@@ -25,3 +25,14 @@ export function partAt(unit) {
 export const touchPart = (point, feet) => partAt(toUnits(point, feet));
 /** Which side a point is on, for the hands: the left one is -1. */
 export const sideOf = (point, feet) => (point.x < feet.x ? -1 : 1);
+
+/** Where Blink looks to follow a point: each axis from -1 to 1, measured from the
+ * eyes, which sit at about y = -205 in drawing units. A point a few faces away
+ * already means all the way to that side. */
+const EYES_AT = -205;
+const REACH = 320;
+export function gazeAt(point, feet) {
+  const unit = toUnits(point, feet);
+  const clamp = (n) => Math.max(-1, Math.min(1, n));
+  return { x: clamp(unit.x / REACH), y: clamp((unit.y - EYES_AT) / REACH) };
+}

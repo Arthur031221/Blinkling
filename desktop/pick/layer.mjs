@@ -3,13 +3,21 @@ import {
   easing,
   springs,
   duration,
+  timing,
   frameLog,
 } from "../shared/motion.mjs";
 import { stepSpring, settled } from "./spring.mjs";
-import { cubicBezier, flightPath, flightAt, thumbnailSize } from "./flight.mjs";
+import {
+  cubicBezier,
+  flightPath,
+  genieColumns,
+  genieSize,
+  startAngle,
+  turnedSize,
+} from "./flight.mjs";
 import { badgeOffset } from "./badge.mjs";
-import { rectBetween } from "./gesture.mjs";
-import { partial, strokeProgress, effectDone } from "./draw.mjs";
+import { rectBetween, morphBox } from "./gesture.mjs";
+import { partial, strokeProgress, effectDone, spotTrail } from "./draw.mjs";
 
 const api = window.pickLayerAPI;
 const log = frameLog();
@@ -23,7 +31,8 @@ const canvas = document.getElementById("fx");
 const ctx = canvas.getContext("2d");
 const badge = document.getElementById("badge");
 const hint = document.getElementById("hint");
-const flights = document.getElementById("flights");
+const genieCanvas = document.getElementById("genie");
+const genie = genieCanvas.getContext("2d");
 const ease = cubicBezier(easing.standard);
 const reduceQuery = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -40,12 +49,13 @@ let glide = {
   opacityVelocity: 0,
 };
 let drag = null; // { rect, from } the area being dragged
+let morph = null; // { from, start } the auto box turning into the band
 let pointerLive = false; // this window saw the pointer since the drag began
 let lock = null; // { plan, start }
 let running = false;
 let last = 0;
 let painted = null; // the client box the canvas was last drawn into
-// A crayon stroke is 10 px wide and wobbles a few px off its element, the lock is 18 px across.
+// A highlighter stroke is up to a dozen px wide and wobbles a few px off its element, the lock is 18 px across.
 const REACH = 24;
 
 const toClient = (r) => ({
@@ -78,6 +88,7 @@ function readColors() {
   colors = {
     green: style.getPropertyValue("--green").trim(),
     warn: style.getPropertyValue("--warn").trim(),
+    surface: style.getPropertyValue("--surface").trim(),
     radius: parseFloat(style.getPropertyValue("--radius-s")) || 0,
   };
 }
@@ -157,14 +168,35 @@ function drawStroke(stroke, progress, bounds) {
     ctx.fillRect(b.x, b.y, b.width, y - b.y);
     return;
   }
-  const crayon = stroke.role === "crayon";
-  ctx.globalAlpha = crayon ? 0.4 : 0.9;
-  ctx.lineWidth = crayon ? 10 : 2.5;
+  const marker = stroke.role === "highlight";
+  ctx.globalAlpha = marker ? 0.38 : 0.9;
+  ctx.lineWidth = marker ? stroke.thickness : 2.5;
   ctx.strokeStyle = colors.green;
-  ctx.lineCap = "round";
+  // A highlighter has a flat chisel tip; the pens round off.
+  ctx.lineCap = marker ? "butt" : "round";
   ctx.lineJoin = "round";
   pathOf(partial(shape, progress));
   ctx.stroke();
+}
+
+const spotWorthy = (plan) =>
+  plan.effect === "outline" && plan.strokes.some((s) => s.role === "outline");
+
+function drawSpot({ trail }) {
+  ctx.lineCap = "round";
+  ctx.fillStyle = colors.green;
+  for (const [i, p] of trail.entries()) {
+    ctx.globalAlpha = p.fade;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4 - (3 * i) / trail.length, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const head = trail[0];
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(head.x, head.y, 1.8, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawLock(plan, elapsed) {
@@ -193,10 +225,28 @@ function frame(now) {
   let busy = false;
 
   // The hover outline glides to where the controller says it is.
-  const target = outline?.rect ? toClient(outline.rect) : null;
+  // While the button is down the same box is the rubber band: the auto box morphs
+  // into the dragged rectangle and nothing stays behind.
+  const target = drag
+    ? toClient(dragRect())
+    : outline?.rect
+      ? toClient(outline.rect)
+      : null;
+  let banded = false;
   if (target) {
     const goal = [target.x, target.y, target.width, target.height];
-    if (reduced || glide.opacity < 0.02) glide.value = goal.slice();
+    if (morph) {
+      const t = reduced ? 1 : Math.min(1, (now - morph.start) / duration.fast);
+      const e = ease(t);
+      glide.value = morphBox(morph.from, target, e);
+      glide.velocity = [0, 0, 0, 0];
+      if (t >= 1) morph = null;
+      else busy = true;
+    } else if (drag) {
+      glide.value = goal.slice();
+      glide.velocity = [0, 0, 0, 0];
+      banded = true;
+    } else if (reduced || glide.opacity < 0.02) glide.value = goal.slice();
     else
       for (let i = 0; i < 4; i++) {
         const next = stepSpring(
@@ -277,20 +327,24 @@ function frame(now) {
     if (!effectDone(item.plan, elapsed)) {
       busy = true;
       log("pick-effect", toClient(item.bounds));
+    } else if (!reduced && spotWorthy(item.plan)) {
+      // A rectangle stays picked: a bright spot keeps running round its border.
+      const border = item.plan.strokes.find((s) => s.role === "outline");
+      const spot = spotTrail(
+        border.points.map(toClientPoint),
+        elapsed - item.plan.total,
+        { period: timing.spotLap },
+      );
+      drawSpot(spot);
+      busy = true;
+      log("pick-spot", { x: spot.head.x, y: spot.head.y, width: 0, height: 0 });
     }
   }
 
-  if (drag) {
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = colors.green;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([6, 4]);
+  if (banded) {
     // The band follows this window's own pointer; the controller's rect is a
     // round trip behind it and only stands in until the pointer moves here.
-    const r = toClient(dragRect());
-    ctx.strokeRect(r.x, r.y, r.width, r.height);
-    ctx.setLineDash([]);
-    log("pick-band", r);
+    log("pick-band", target);
     log("pick-pointer", { ...cursor, width: 0, height: 0 });
   }
 
@@ -318,6 +372,7 @@ function clearAll() {
   items = [];
   outline = null;
   drag = null;
+  morph = null;
   lock = null;
   glide = {
     value: [0, 0, 0, 0],
@@ -334,69 +389,140 @@ function clearAll() {
 
 const stagger = Math.round(duration.fast / 8);
 
-/** Thumbnails of what was taken fly to Blink along a lifted arc, driven by a
- * critically damped spring so the motion can be interrupted at any frame. */
+/** Thumbnails of what was taken are sucked into Blink's mouth along a lifted arc,
+ * like a macOS genie, over `timing.genie` on the standard curve. */
 function fly({ items: picked, to, token }) {
   const target = toClientPoint(to);
   const things = picked.map((item, index) => {
     const bounds = toClient(item.bounds);
-    const size = thumbnailSize(bounds);
-    const el = document.createElement("div");
-    el.className = "pick-flight";
-    el.style.width = `${size.width}px`;
-    el.style.height = `${size.height}px`;
+    const size = genieSize(bounds);
+    const path = flightPath({ from: bounds, to: target });
+    const angle = startAngle(path);
+    const turned = turnedSize(size, angle);
+    // The picture turned so the path leaves along +x: its columns are cut across the way it travels.
+    const sheet = document.createElement("canvas");
+    sheet.width = Math.max(1, Math.round(turned.width));
+    sheet.height = Math.max(1, Math.round(turned.height));
+    const paint = sheet.getContext("2d");
+    paint.translate(sheet.width / 2, sheet.height / 2);
+    paint.rotate(-angle);
+    const draw = (img) => {
+      paint.clearRect(
+        -sheet.width,
+        -sheet.height,
+        2 * sheet.width,
+        2 * sheet.height,
+      );
+      paint.fillStyle = colors.surface;
+      paint.fillRect(
+        -size.width / 2,
+        -size.height / 2,
+        size.width,
+        size.height,
+      );
+      if (img)
+        paint.drawImage(
+          img,
+          -size.width / 2,
+          -size.height / 2,
+          size.width,
+          size.height,
+        );
+      paint.strokeStyle = colors.green;
+      paint.lineWidth = 2;
+      paint.strokeRect(
+        -size.width / 2,
+        -size.height / 2,
+        size.width,
+        size.height,
+      );
+    };
+    draw(null);
     let decoded = Promise.resolve();
     if (item.dataUrl) {
-      const img = document.createElement("img");
+      const img = new Image();
       img.src = item.dataUrl;
-      img.alt = "";
-      el.append(img);
-      decoded = img.decode().catch(() => {});
+      decoded = img
+        .decode()
+        .then(() => draw(img))
+        .catch(() => {});
     }
-    el.style.opacity = "0";
-    flights.append(el);
     return {
-      el,
+      sheet,
       decoded,
-      size,
-      path: flightPath({ from: bounds, to: target }),
-      spring: { value: 0, velocity: 0 },
+      turned: { width: sheet.width, height: sheet.height },
+      path,
       delay: index * stagger,
       done: false,
     };
   });
+  genieCanvas.width = canvas.width;
+  genieCanvas.height = canvas.height;
   // The clock starts on the first frame drawn, after the pictures are decoded, so
   // neither work in setting up nor in decoding eats into the first steps of the flight.
   let began = null;
-  let previous = null;
   const step = (now) => {
     began ??= now;
-    const dt = previous === null ? 0 : Math.min(0.05, (now - previous) / 1000);
-    previous = now;
     let pending = false;
+    genie.setTransform(dpr, 0, 0, dpr, 0, 0);
+    genie.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    let box = null;
     things.forEach((thing, index) => {
       if (thing.done) return;
       if (now - began < thing.delay) {
         pending = true;
-        thing.el.style.opacity = "0";
         return;
       }
-      thing.spring = reduceQuery.matches
-        ? { value: 1, velocity: 0 }
-        : stepSpring(thing.spring, 1, springs.crisp, dt);
-      const finished = settled(thing.spring, 1);
-      const p = finished ? 1 : thing.spring.value;
-      const at = flightAt(thing.path, p);
-      thing.el.style.opacity = String(at.opacity);
-      thing.el.style.transform = `translate3d(${at.x - thing.size.width / 2}px, ${at.y - thing.size.height / 2}px, 0) scale(${at.scale})`;
-      if (index === 0) log("flight", thing.el.getBoundingClientRect());
-      if (finished) {
-        thing.done = true;
-        thing.el.remove();
-      } else pending = true;
+      const run = reduceQuery.matches
+        ? 1
+        : Math.min(1, (now - began - thing.delay) / timing.genie);
+      const finished = run >= 1;
+      const p = finished ? 1 : ease(run);
+      const columns = genieColumns(thing.path, thing.turned, p);
+      for (const c of columns) {
+        if (c.alpha <= 0.01) continue;
+        genie.save();
+        genie.globalAlpha = c.alpha;
+        genie.translate(c.x, c.y);
+        genie.rotate(c.angle);
+        genie.drawImage(
+          thing.sheet,
+          c.index * c.sourceWidth,
+          0,
+          c.sourceWidth,
+          thing.sheet.height,
+          -c.length / 2,
+          -c.height / 2,
+          c.length,
+          c.height,
+        );
+        genie.restore();
+      }
+      if (index === 0) {
+        // The log wants a box: where the picture is now, its middle and its mean
+        // size, which moves smoothly even while the ends stretch apart.
+        const mean = (values) =>
+          values.reduce((a, b) => a + b, 0) / values.length;
+        const reach =
+          mean(columns.map((c) => Math.hypot(c.length, c.height))) / 2;
+        const cx = mean(columns.map((c) => c.x)),
+          cy = mean(columns.map((c) => c.y));
+        box = {
+          x: cx - reach,
+          y: cy - reach,
+          width: 2 * reach,
+          height: 2 * reach,
+        };
+      }
+      if (finished) thing.done = true;
+      else pending = true;
     });
+    if (box) log("flight", box);
     if (pending) requestAnimationFrame(step);
-    else api.flightDone(token);
+    else {
+      genie.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      api.flightDone(token);
+    }
   };
   void Promise.all(things.map((thing) => thing.decoded)).then(() =>
     requestAnimationFrame(step),
@@ -425,8 +551,15 @@ api.onMessage(({ channel, value }) => {
       wake();
       break;
     case "drag":
-      if (!drag) pointerLive = false;
+      if (!drag) {
+        pointerLive = false;
+        morph =
+          value.rect && glide.opacity > 0.02
+            ? { from: glide.value.slice(), start: performance.now() }
+            : null;
+      }
       drag = value.rect ? value : null;
+      if (!drag) morph = null;
       wake();
       break;
     case "taken": {

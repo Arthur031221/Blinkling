@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLayers } from "./layer-window.mjs";
@@ -87,6 +88,7 @@ export async function installPick({
     systemPreferences,
     nativeTheme,
     dialog,
+    shell: osShell,
   } = electron;
   const env = shell.env ?? process.env;
   // The shell resolves the system language once; the variable is for a bare run.
@@ -118,8 +120,14 @@ export async function installPick({
   });
   // The first hold teaches the gesture once, near the cursor, then never again.
   const show = layer.show;
+  const hide = layer.hide;
+  layer.hide = () => {
+    hide();
+    shell.picking?.(false);
+  };
   layer.show = (display, cursor) => {
     show(display, cursor);
+    shell.picking?.(true);
     const text = hint.onRaise();
     if (text) layer.send("hint", { text });
   };
@@ -170,6 +178,24 @@ export async function installPick({
       }
     : undefined;
 
+  /** A chip's thumbnail opens the whole picture in the system's image viewer. */
+  const openImage = osShell?.openPath
+    ? async (attachment) => {
+        const ext = { "image/jpeg": "jpg", "image/webp": "webp" }[
+          attachment.mediaType
+        ];
+        const file = join(
+          mkdtempSync(join(tmpdir(), "blink-image-")),
+          `Image.${ext ?? "png"}`,
+        );
+        writeFileSync(file, Buffer.from(attachment.data, "base64"), {
+          mode: 0o600,
+        });
+        const failed = await osShell.openPath(file);
+        if (failed) onError(new Error(failed));
+      }
+    : undefined;
+
   const mini = createMiniController({
     win: miniWindow,
     ipc: ipcMain,
@@ -203,13 +229,15 @@ export async function installPick({
       resumeAuto: () => void shell.autoExplain.set(true),
       translatePage,
       openPdfReader,
+      openImage,
     },
     ...timers,
   });
   const openMini = mini.open;
   mini.open = (entries) => {
-    lastEntries = entries;
-    return openMini(entries);
+    const opened = openMini(entries);
+    lastEntries = mini.entries();
+    return opened;
   };
 
   const grouper = createGrouper(now ? { clock: now } : {});
@@ -231,10 +259,12 @@ export async function installPick({
         ...(mini.covers(rects) ? [miniWindow] : []),
       ]),
     crop: cropper,
+    pickedWhileHeld: hint.onPick,
     grouper,
     newChat: () => shell.newChat?.(),
     caught: () => shell.caught?.(),
-    blinkPoint: shell.blinkPoint,
+    // The pictures are drawn into Blink's mouth, not onto its feet.
+    mouthPoint: shell.mouthPoint ?? shell.blinkPoint,
     mini,
     reduced: () =>
       systemPreferences?.getAnimationSettings?.().prefersReducedMotion === true,

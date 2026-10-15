@@ -26,7 +26,8 @@ export function createPickController({
   grouper,
   newChat,
   caught = () => {},
-  blinkPoint,
+  pickedWhileHeld = () => null,
+  mouthPoint,
   mini,
   reduced = () => false,
   onError = () => {},
@@ -92,6 +93,8 @@ export function createPickController({
       return;
     }
     const { taken } = result.item;
+    const said = pickedWhileHeld();
+    if (said) send("hint", { text: said });
     const index = state.picker.items().findIndex((i) => i.taken === taken);
     send("taken", {
       index,
@@ -200,7 +203,7 @@ export function createPickController({
     const group = grouper.join();
     if (group.fresh) await newChat?.();
     try {
-      await layer.flight(flightItems, blinkPoint());
+      await layer.flight(flightItems, mouthPoint());
       caught();
     } catch (error) {
       onError(error);
@@ -262,7 +265,7 @@ export function createPickController({
     try {
       await fresh;
       if (flightItems.length) {
-        await layer.flight(flightItems, blinkPoint());
+        await layer.flight(flightItems, mouthPoint());
         caught();
       }
     } catch (error) {

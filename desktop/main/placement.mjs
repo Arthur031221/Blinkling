@@ -8,6 +8,11 @@ export const MOUTH = Object.freeze({
   x: CHARACTER.width / 2,
   y: Math.round(CHARACTER.foot - (CHARACTER.foot - 78) * BLINK_SCALE),
 });
+/** Where Blink's mouth is on the screen when its feet stand at `feet`. */
+export const mouthOf = (feet) => ({
+  x: feet.x + MOUTH.x - CHARACTER.width / 2,
+  y: feet.y + MOUTH.y - CHARACTER.foot,
+});
 /** How far below the mouth a panel's bottom edge sits: panels rise from it. */
 export const MOUTH_DROP = 40;
 /** Where a panel of this height starts so that it is anchored to the mouth of

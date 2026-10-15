@@ -17,24 +17,12 @@ body.is-crosshair {
   width: 100%;
   height: 100%;
 }
-.pick-flight {
+#genie {
   position: fixed;
-  left: 0;
-  top: 0;
-  margin: 0;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--green);
-  border-radius: var(--radius-s);
-  box-shadow: var(--shadow);
-  will-change: transform, opacity;
-  pointer-events: none;
-}
-.pick-flight img {
-  display: block;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  pointer-events: none;
 }
 .pick-badge,
 .pick-hint {

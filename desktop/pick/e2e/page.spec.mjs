@@ -175,7 +175,7 @@ test("M7 the first hold says to click once, near the cursor, and never again", a
   }
 });
 
-test("M4 N1.3 Ctrl+click on text takes the sentence: outline, a crayon stroke per line, a text chip", async () => {
+test("M4 N1.3 Ctrl+click on text takes the sentence: outline, a highlighter stroke per line, a text chip", async () => {
   const app = await start();
   try {
     const dom = await domSentence(app);
@@ -207,9 +207,9 @@ test("M4 N1.3 Ctrl+click on text takes the sentence: outline, a crayon stroke pe
     const data = await waitFor(app, "taken");
     const taken = sent(data, "taken")[0];
     expect(taken.kind).toBe("text");
-    expect(taken.effect.effect).toBe("crayon-lines");
-    const crayons = taken.effect.strokes.filter((s) => s.role === "crayon");
-    expect(crayons.length, "one crayon stroke per rendered line").toBe(
+    expect(taken.effect.effect).toBe("highlighter");
+    const crayons = taken.effect.strokes.filter((s) => s.role === "highlight");
+    expect(crayons.length, "one highlighter stroke per rendered line").toBe(
       dom.lines.length,
     );
     expect(sameRect(taken.bounds, dom.bounds, 2)).toBe(true);
@@ -220,7 +220,7 @@ test("M4 N1.3 Ctrl+click on text takes the sentence: outline, a crayon stroke pe
       .slice(before);
     const span = run.at(-1).t - run[0].t;
     console.log(
-      `SCALE ${SCALE}: crayon effect ran ${span.toFixed(0)} ms over ${run.length} frames`,
+      `SCALE ${SCALE}: highlighter effect ran ${span.toFixed(0)} ms over ${run.length} frames`,
     );
     expect(span).toBeLessThanOrEqual(450 + 20);
     await screen(app, "04-text-taken");

@@ -1,15 +1,4 @@
-const MAX_THUMBNAIL = 96;
 const MIN_THUMBNAIL = 20;
-const END_SCALE = 0.3;
-
-/** Thumbnail size: the element's aspect ratio inside a 96 DIP box. */
-export function thumbnailSize(bounds) {
-  const k = Math.min(1, MAX_THUMBNAIL / Math.max(bounds.width, bounds.height));
-  return {
-    width: Math.max(MIN_THUMBNAIL, Math.round(bounds.width * k)),
-    height: Math.max(MIN_THUMBNAIL, Math.round(bounds.height * k)),
-  };
-}
 
 /** The arc from the picked element to Blink: a quadratic curve whose control
  * point sits above the chord, so the thumbnail lifts off and drops in. */
@@ -36,15 +25,82 @@ export function flightPath({ from, to }) {
   };
 }
 
-/** Position and scale at progress p (0 to 1) along the path. */
-export function flightAt({ start, control, end }, p) {
-  const u = 1 - p;
+const LEAD = 0.7;
+const SLIVER = 0.04;
+const GENIE_MAX = 360;
+
+/** The size a pick starts at when it is sucked in: its own, down to a cap. */
+export function genieSize(bounds) {
+  const k = Math.min(1, GENIE_MAX / Math.max(bounds.width, bounds.height, 1));
   return {
-    x: u * u * start.x + 2 * u * p * control.x + p * p * end.x,
-    y: u * u * start.y + 2 * u * p * control.y + p * p * end.y,
-    scale: 1 - (1 - END_SCALE) * p,
-    opacity: p > 0.9 ? 1 - (p - 0.9) * 5 : 1,
+    width: Math.max(MIN_THUMBNAIL, Math.round(bounds.width * k)),
+    height: Math.max(MIN_THUMBNAIL, Math.round(bounds.height * k)),
   };
+}
+
+/** The direction the path leaves in, in radians. */
+export const startAngle = ({ start, control }) =>
+  Math.atan2(control.y - start.y, control.x - start.x);
+
+/** The size of the picture once it is turned so the path leaves along +x. */
+export function turnedSize({ width, height }, angle) {
+  const c = Math.abs(Math.cos(angle)),
+    s = Math.abs(Math.sin(angle));
+  return { width: width * c + height * s, height: width * s + height * c };
+}
+
+/** Position and direction at progress q (0 to 1) along the path. */
+export const pathAt = ({ start, control, end }, q) => {
+  const u = 1 - q;
+  return {
+    x: u * u * start.x + 2 * u * q * control.x + q * q * end.x,
+    y: u * u * start.y + 2 * u * q * control.y + q * q * end.y,
+    angle: Math.atan2(
+      2 * u * (control.y - start.y) + 2 * q * (end.y - control.y),
+      2 * u * (control.x - start.x) + 2 * q * (end.x - control.x),
+    ),
+  };
+};
+
+/** A macOS genie: the picture is cut into columns across the way it travels, and
+ * the end nearest the mouth is pulled in first. The columns behind trail along
+ * the same curve, stretched so no gap shows, and every column narrows to a sliver
+ * as it reaches the mouth, so the picture pours into it.
+ *
+ * `turned` is the picture turned to leave along +x (see turnedSize); a column is
+ * drawn from the source slice `[index * width, 0, width, turned.height]` into a
+ * box `length` long and `height` high, centred on (x, y), rotated by `angle`.
+ * Progress 0 is the picture at rest; 1 has every column at the mouth. */
+export function genieColumns(path, turned, p, { count = 16 } = {}) {
+  const width = turned.width / count;
+  const columns = Array.from({ length: count }, (_, index) => {
+    const along = (index + 0.5) / count;
+    // The leading end starts first; the trailing end is the last to arrive.
+    const q = Math.min(1, Math.max(0, p * (1 + LEAD) - LEAD * (1 - along)));
+    const at = pathAt(path, q);
+    const spread = (along - 0.5) * turned.width * (1 - q);
+    return {
+      index,
+      x: at.x + Math.cos(at.angle) * spread,
+      y: at.y + Math.sin(at.angle) * spread,
+      angle: at.angle,
+      sourceWidth: width,
+      height: turned.height * (1 - (1 - SLIVER) * q ** 1.2),
+      alpha: p > 0.9 ? Math.max(0, 1 - (p - 0.9) * 10) : 1,
+      length: width,
+    };
+  });
+  // Close any gap the stretch opens between neighbours.
+  columns.forEach((c, i) => {
+    const next = columns[Math.min(i + 1, count - 1)];
+    const prev = columns[Math.max(i - 1, 0)];
+    const gap = i < count - 1 ? [c, next] : [prev, c];
+    c.length = Math.max(
+      width,
+      Math.hypot(gap[1].x - gap[0].x, gap[1].y - gap[0].y) + 1.5,
+    );
+  });
+  return columns;
 }
 
 /** A CSS cubic-bezier token as a function of progress. */

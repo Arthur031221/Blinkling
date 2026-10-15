@@ -5,7 +5,7 @@ export const EFFECT_MAX = duration.slow + duration.fast;
 
 /** Which effect each kind of taken thing gets (M4). */
 export const EFFECT_FOR = Object.freeze({
-  text: "crayon-lines",
+  text: "highlighter",
   image: "loop",
   table: "outline-sweep",
   code: "brackets",
@@ -21,7 +21,10 @@ export const EFFECT_FOR = Object.freeze({
 });
 
 const LINE_HEIGHT = 20;
-const LINE_GAP = 40;
+const LINE_GAP = 30;
+// A highlighter rides low on the line, just under the baseline, and is a little more than a third of its height.
+const MARKER_DROP = 0.82;
+const MARKER_THICK = 0.42;
 const PAD = 4;
 const WOBBLE = 1.6;
 
@@ -135,7 +138,7 @@ function corners(b, rand) {
   ].map((c) => ({ role: "corner", points: path(c, rand, 0.6) }));
 }
 
-function crayonLines(b, lines, rand) {
+function highlighter(b, lines, rand) {
   const rows = lines.length
     ? lines
     : Array.from(
@@ -151,17 +154,17 @@ function crayonLines(b, lines, rand) {
   // Gaps shrink for long texts so the cap holds and no line is skipped.
   const gap =
     n > 1 ? Math.min(LINE_GAP, (EFFECT_MAX - duration.fast) / (n - 1)) : 0;
-  const stroke = Math.min(duration.base, EFFECT_MAX - gap * (n - 1));
+  const stroke = Math.min(duration.fast, EFFECT_MAX - gap * (n - 1));
   return rows.map((row, i) => {
-    const y = row.y + row.height / 2;
-    const a = { x: row.x - 2, y: y + (rand() - 0.5) * 2 };
-    const z = { x: row.x + row.width + 2, y: y + (rand() - 0.5) * 2 };
+    const y = row.y + row.height * MARKER_DROP;
+    const a = { x: row.x - 2, y: y + (rand() - 0.5) * 0.8 };
+    const z = { x: row.x + row.width + 2, y: y + (rand() - 0.5) * 0.8 };
     return {
-      role: "crayon",
-      points: line(a, z, rand, Math.min(WOBBLE, row.height / 2)),
+      role: "highlight",
+      points: line(a, z, rand, 0.4),
       at: Math.round(i * gap),
       duration: Math.round(stroke),
-      thickness: Math.max(4, Math.round(row.height * 0.8)),
+      thickness: Math.max(4, Math.round(row.height * MARKER_THICK)),
     };
   });
 }
@@ -210,8 +213,8 @@ export function effectPlan({ kind, bounds, lines = [], reduced = false }) {
   const rand = random(seedOf(kind, bounds));
   let strokes;
   switch (effect) {
-    case "crayon-lines":
-      strokes = crayonLines(bounds, lines, rand);
+    case "highlighter":
+      strokes = highlighter(bounds, lines, rand);
       break;
     case "loop":
       strokes = [

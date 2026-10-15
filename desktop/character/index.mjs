@@ -2,6 +2,8 @@ import { capsule, roundedRect, transformPolygon } from "./silhouette.mjs";
 const NS = "http://www.w3.org/2000/svg";
 /** How long a dizzy Blink sways before it recovers, in seconds. */
 export const DIZZY_FOR = 2.6;
+/** How long Blink's reaction to catching a pick lasts, in seconds. */
+export const CATCH_FOR = 1.1;
 export const colors = Object.freeze({
   ink: "#0c0e0d",
   green: "#3ddc97",
@@ -401,6 +403,7 @@ export function mountBlink(host) {
       hanging = false,
       dizzyAt = -100,
       touch = null,
+      gaze = null,
     } = {},
   ) {
     const look = LOOKS[faceName] ?? LOOKS.idle;
@@ -425,6 +428,13 @@ export function mountBlink(host) {
       ? Math.sin(time * 2.2) * look.scan
       : Math.sin(time * 0.42) * 8;
     pupils.y = (look.look ?? 0) + Math.sin(time * 0.7) * 2;
+    if (gaze && mode !== "drag") {
+      // Picking: the eyes widen a little and the pupils follow the cursor.
+      eyes.sx = 1.06;
+      eyes.sy *= 1.08;
+      pupils.x = gaze.x * 9;
+      pupils.y = gaze.y * 7;
+    }
     brows.setAttribute("d", BROWS[look.brows] ?? BROWS.worried);
     brows.setAttribute("opacity", look.brows ? 1 : 0);
     thoughts.forEach((dot, i) =>
@@ -596,14 +606,34 @@ export function mountBlink(host) {
       squash.sx += q * 0.18;
       squash.sy -= q * 0.18;
     }
-    // Catching what the user took: a hop and an open mouth to swallow it.
+    // Catching what the user took: a wide gulp, then a few happy chews, a hop
+    // each time, and a satisfied puff at the end.
+    mouth.removeAttribute("transform");
     const caught = time - catchAt;
-    if (caught >= 0 && caught < 0.6) {
-      const q = Math.sin(caught * 18) * Math.exp(-caught * 6);
-      lift.y -= Math.abs(q) * 26;
-      squash.sx += q * 0.12;
-      squash.sy -= q * 0.12;
-      open = true;
+    if (caught >= 0 && caught < CATCH_FOR) {
+      const settle = Math.exp(-caught * 2.2);
+      const hop = Math.abs(Math.sin(caught * 14)) * settle;
+      lift.y -= hop * 34;
+      const gulp = Math.max(0, 1 - caught / 0.22);
+      const chew = caught < 0.22 ? 0 : Math.sin((caught - 0.22) * 26) * settle;
+      // The mouth gapes wide at the catch, then works back and forth.
+      const wide = 1.15 + gulp * 0.5 + chew * 0.25;
+      mouth.setAttribute(
+        "transform",
+        `translate(0,48) scale(${1 + gulp * 0.3},${wide}) translate(0,-48)`,
+      );
+      squash.sx += (gulp * 0.1 - chew * 0.06) * settle;
+      squash.sy += (gulp * -0.04 + chew * 0.06) * settle;
+      eyes.sy = Math.min(eyes.sy, 0.4 + gulp * 0.7);
+      face.y += gulp * 3;
+      cheeks.forEach((c, i) => {
+        c.setAttribute("opacity", 1);
+        c.setAttribute(
+          "transform",
+          `translate(${i ? 86 : -86},52) scale(${1.2 + Math.max(0, chew) * 0.25}) translate(${i ? -86 : 86},-52)`,
+        );
+      });
+      open = gulp > 0 || chew > -0.2;
     }
     smile.setAttribute("opacity", open ? 0 : 1);
     mouth.setAttribute("opacity", open ? 1 : 0);

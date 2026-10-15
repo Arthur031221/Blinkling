@@ -17,6 +17,8 @@ export const strings = {
     "pdf.offer":
       "This PDF has no text I can pick. Open it in the Blinkling PDF reader to select text?",
     "hint.pick": "Click once to ask about this",
+    "hint.several":
+      "Keep holding the key to pick more, let go to send them all",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -33,6 +35,7 @@ export const strings = {
     "pdf.offer":
       "這份 PDF 沒有可選取的文字。要用 Blinkling 的 PDF 閱讀器開啟並選取文字嗎？",
     "hint.pick": "點一下就能詢問這個",
+    "hint.several": "繼續按住按鍵可再選取更多，放開就會一起送出",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -49,6 +52,7 @@ export const strings = {
     "pdf.offer":
       "这份 PDF 没有可选取的文字。要用 Blinkling 的 PDF 阅读器打开并选取文字吗？",
     "hint.pick": "点一下就能询问这个",
+    "hint.several": "继续按住按键可再选取更多，松开就会一起发送",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -65,6 +69,8 @@ export const strings = {
     "pdf.offer":
       "この PDF には選択できるテキストがありません。Blinkling の PDF リーダーで開いてテキストを選択しますか？",
     "hint.pick": "クリックするとこれについて質問できます",
+    "hint.several":
+      "キーを押したままにすると続けて選べます。離すとまとめて送られます",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -81,6 +87,8 @@ export const strings = {
     "pdf.offer":
       "이 PDF에는 선택할 수 있는 텍스트가 없습니다. Blinkling PDF 리더로 열어 텍스트를 선택할까요?",
     "hint.pick": "한 번 클릭하면 이것에 대해 물어볼 수 있어요",
+    "hint.several":
+      "키를 계속 누르고 있으면 더 고를 수 있고, 놓으면 한꺼번에 보내져요",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -97,6 +105,8 @@ export const strings = {
     "pdf.offer":
       "Dieses PDF enthält keinen auswählbaren Text. Im Blinkling-PDF-Reader öffnen, um Text auszuwählen?",
     "hint.pick": "Einmal klicken, um dazu zu fragen",
+    "hint.several":
+      "Taste gedrückt halten, um mehr auszuwählen, loslassen sendet alles",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -113,6 +123,8 @@ export const strings = {
     "pdf.offer":
       "Este PDF no tiene texto seleccionable. ¿Abrirlo en el lector de PDF de Blinkling para seleccionar texto?",
     "hint.pick": "Haz clic una vez para preguntar sobre esto",
+    "hint.several":
+      "Mantén la tecla para elegir más y suéltala para enviarlo todo",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -129,6 +141,8 @@ export const strings = {
     "pdf.offer":
       "Ce PDF n’a pas de texte sélectionnable. L’ouvrir dans le lecteur PDF de Blinkling pour sélectionner du texte ?",
     "hint.pick": "Cliquez une fois pour poser une question",
+    "hint.several":
+      "Gardez la touche enfoncée pour en choisir d'autres, relâchez pour tout envoyer",
     "key.control": "Control",
     "key.option": "Option",
   },
@@ -145,6 +159,8 @@ export const strings = {
     "pdf.offer":
       "Este PDF não tem texto selecionável. Abrir no leitor de PDF do Blinkling para selecionar texto?",
     "hint.pick": "Clique uma vez para perguntar sobre isto",
+    "hint.several":
+      "Segure a tecla para escolher mais e solte para enviar tudo",
     "key.control": "Control",
     "key.option": "Option",
   },

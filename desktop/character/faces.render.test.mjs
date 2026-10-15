@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
-import { mountBlink, DIZZY_FOR } from "./index.mjs";
+import { mountBlink, DIZZY_FOR, CATCH_FOR } from "./index.mjs";
 import { FACES } from "./face.mjs";
 
 function rig() {
@@ -58,6 +58,44 @@ test("a catch bounces Blink and opens its mouth, then settles", () => {
   assert.equal(rest, "0");
   blink.pose(7, { face: "idle", catchAt: 5 });
   assert.equal(blink.rig.mouth.getAttribute("opacity"), "0");
+  assert.equal(blink.rig.mouth.getAttribute("transform"), null);
+});
+
+test("a catch is a big reaction: a wide gulp, chewing that fades, puffed cheeks and a high hop", () => {
+  const blink = rig();
+  blink.pose(5.05, { face: "idle", catchAt: 5 });
+  const gape = (at) =>
+    Number(
+      /scale\(([\d.]+),([\d.]+)\)/.exec(
+        (blink.pose(at, { face: "idle", catchAt: 5 }),
+        blink.rig.mouth.getAttribute("transform")),
+      )[2],
+    );
+  assert.ok(gape(5.05) > 1.5, "gapes wide when it catches");
+  const chews = [];
+  for (let t = 5.3; t < 5 + CATCH_FOR * 0.7; t += 0.02) chews.push(gape(t));
+  assert.ok(
+    Math.max(...chews) - Math.min(...chews) > 0.1,
+    "the mouth works back and forth",
+  );
+  blink.pose(5.1, { face: "idle", catchAt: 5 });
+  assert.ok(blink.rig.cheeks[0].getAttribute("transform").includes("scale(1."));
+  let top = 0;
+  for (let t = 5; t < 5 + CATCH_FOR; t += 0.01) {
+    blink.pose(t, { face: "idle", catchAt: 5 });
+    top = Math.max(
+      top,
+      -Number(
+        /translate\(0,(-?[\d.]+)\)/.exec(
+          blink.rig.root.node.parentNode.getAttribute("transform"),
+        )[1],
+      ),
+    );
+  }
+  assert.ok(top > 20, `hop ${top}`);
+  blink.pose(5 + CATCH_FOR + 0.1, { face: "idle", catchAt: 5 });
+  assert.equal(blink.rig.mouth.getAttribute("opacity"), "0");
+  assert.equal(blink.rig.cheeks[0].getAttribute("transform"), null);
 });
 
 test("a held Blink is nervous, not stretched: it trembles, sweats and keeps its shape", () => {
@@ -117,4 +155,36 @@ test("a held Blink ignores a touch", () => {
   a.pose(T, { mode: "drag" });
   b.pose(T, { mode: "drag", touch: { part: "head", side: 1 } });
   assert.equal(look(a), look(b));
+});
+
+test("while picking, Blink's pupils follow the cursor and its eyes widen, and it stops when picking ends", () => {
+  const plain = rig();
+  const left = rig();
+  const right = rig();
+  const below = rig();
+  plain.pose(T, {});
+  left.pose(T, { gaze: { x: -1, y: 0 } });
+  right.pose(T, { gaze: { x: 1, y: 0 } });
+  below.pose(T, { gaze: { x: 0, y: 1 } });
+  assert.ok(left.rig.pupils.x < -5, "looks left");
+  assert.ok(right.rig.pupils.x > 5, "looks right");
+  assert.ok(below.rig.pupils.y > 4, "looks down");
+  assert.ok(left.rig.eyes.sx > plain.rig.eyes.sx, "eyes widen");
+  left.pose(T, { gaze: null });
+  assert.equal(look(left), look(plain));
+});
+
+test("a held, dizzy or touched Blink is not pulled to the cursor", () => {
+  const gaze = { x: 1, y: 1 };
+  const held = rig();
+  const heldPlain = rig();
+  held.pose(T, { mode: "drag", gaze });
+  heldPlain.pose(T, { mode: "drag" });
+  assert.equal(look(held), look(heldPlain));
+  const dizzy = rig();
+  dizzy.pose(10.5, { dizzyAt: 10, gaze });
+  assert.equal(dizzy.rig.pupils.x, 0);
+  const touched = rig();
+  touched.pose(T, { touch: { part: "cheek", side: -1 }, gaze });
+  assert.equal(touched.rig.pupils.x, -8);
 });

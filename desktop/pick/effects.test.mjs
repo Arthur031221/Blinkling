@@ -38,7 +38,7 @@ test("every effect finishes within about 450 ms, and the cap is made of tokens",
   }
 });
 
-test("text gets one crayon stroke per line, left to right, a few tens of ms apart", () => {
+test("text gets one highlighter stroke per line, left to right, low on the line and quick", () => {
   const lines = [0, 1, 2].map((i) => ({
     x: 100,
     y: 100 + i * 20,
@@ -46,8 +46,8 @@ test("text gets one crayon stroke per line, left to right, a few tens of ms apar
     height: 20,
   }));
   const plan = effectPlan({ kind: "text", bounds, lines });
-  assert.equal(plan.effect, "crayon-lines");
-  const crayons = plan.strokes.filter((s) => s.role === "crayon");
+  assert.equal(plan.effect, "highlighter");
+  const crayons = plan.strokes.filter((s) => s.role === "highlight");
   assert.equal(crayons.length, 3);
   for (let i = 0; i < 3; i++) {
     const s = crayons[i];
@@ -55,8 +55,13 @@ test("text gets one crayon stroke per line, left to right, a few tens of ms apar
     assert.ok(xs[0] < xs[xs.length - 1], "left to right");
     assert.ok(Math.min(...xs) >= lines[i].x - 6);
     assert.ok(Math.max(...xs) <= lines[i].x + lines[i].width + 6);
-    for (const p of s.points)
-      assert.ok(Math.abs(p.y - (lines[i].y + 10)) <= lines[i].height / 2 + 2);
+    // Under the middle of the line, where the baseline is, and never above it.
+    for (const p of s.points) {
+      assert.ok(p.y > lines[i].y + 10, `below the middle: ${p.y}`);
+      assert.ok(p.y <= lines[i].y + lines[i].height, "inside the line box");
+    }
+    assert.ok(s.duration <= 120, "a quick stroke");
+    assert.ok(s.thickness < lines[i].height / 2, "thinner than half the line");
   }
   const gaps = [crayons[1].at - crayons[0].at, crayons[2].at - crayons[1].at];
   for (const gap of gaps) assert.ok(gap >= 20 && gap <= 60, `gap ${gap}`);
@@ -74,13 +79,13 @@ test("many lines are compressed to fit the cap, never skipped", () => {
     bounds: { x: 0, y: 0, width: 400, height: 800 },
     lines,
   });
-  assert.equal(plan.strokes.filter((s) => s.role === "crayon").length, 40);
+  assert.equal(plan.strokes.filter((s) => s.role === "highlight").length, 40);
   assert.ok(plan.total <= 450);
 });
 
 test("text without line geometry gets lines from the bounds height", () => {
   const plan = effectPlan({ kind: "text", bounds, lines: [] });
-  assert.ok(plan.strokes.filter((s) => s.role === "crayon").length >= 5);
+  assert.ok(plan.strokes.filter((s) => s.role === "highlight").length >= 5);
 });
 
 test("a hand-drawn edge is deterministic for the same bounds", () => {

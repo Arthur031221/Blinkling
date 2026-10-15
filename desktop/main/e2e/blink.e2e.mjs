@@ -185,6 +185,33 @@ test("touching Blink's head or belly gets its own reaction, and leaving ends it"
   }
 });
 
+test("while picking, Blink's eyes follow the cursor, and they let go when picking ends", async () => {
+  const c = await launch();
+  try {
+    await background(c.app);
+    native(20, 20);
+    await c.page.waitForTimeout(600);
+    await moveOn(c.page);
+    const pupilX = () =>
+      c.page.evaluate(() => window.desktop.character.rig.pupils.x);
+    await c.app.evaluate(() => globalThis.blinklingTest.picking(true));
+    const pupilY = () =>
+      c.page.evaluate(() => window.desktop.character.rig.pupils.y);
+    // Blink stands at the right edge: the pointer far to its left, then far above it.
+    native(20, 400);
+    await expect.poll(pupilX).toBeLessThan(-4);
+    native(1100, 10);
+    await expect.poll(pupilY).toBeLessThan(-4);
+    const wide = () =>
+      c.page.evaluate(() => window.desktop.character.rig.eyes.sx);
+    expect(await wide()).toBeGreaterThan(1);
+    await c.app.evaluate(() => globalThis.blinklingTest.picking(false));
+    await expect.poll(wide).toBe(1);
+  } finally {
+    await c.close();
+  }
+});
+
 test("a held Blink is nervous, and two circles in the air leave it dizzy", async () => {
   const c = await launch();
   try {

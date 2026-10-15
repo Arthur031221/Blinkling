@@ -269,3 +269,32 @@ test("an open list makes room below the toolbar and gives it back when it closes
   mini.fitList();
   assert.equal(toolbar.style.marginBottom, "");
 });
+
+test("a thumbnail is a button that opens the whole picture", () => {
+  const { mini, doc, calls } = setup();
+  mini.update(
+    view({ entries: [{ ...image, thumb: "data:image/png;base64,AA" }] }),
+  );
+  const button = doc.querySelector("button.mini-open");
+  assert.ok(button.querySelector("img.mini-thumb"));
+  assert.equal(
+    button.getAttribute("aria-label"),
+    t("zh-TW")("mini.open-image"),
+  );
+  button.click();
+  assert.deepEqual(calls.at(-1), ["openImage", "i1"]);
+});
+
+test("text typed before more picks joined the box is put back, and typing is never overwritten", () => {
+  const { mini, doc } = setup();
+  mini.update(view());
+  mini.update(view({ text: "what is this" }));
+  assert.equal(
+    doc.querySelector("textarea, input.mini-input, .mini-input").value,
+    "what is this",
+  );
+  const input = doc.querySelector(".mini-input");
+  input.value = "what is this, and that";
+  mini.update(view({ text: "what is this" }));
+  assert.equal(input.value, "what is this, and that");
+});

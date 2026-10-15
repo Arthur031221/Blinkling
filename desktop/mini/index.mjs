@@ -2,7 +2,7 @@ import { createMini } from "./model.mjs";
 import { placeMini, blinkBody, MINI_WIDTH } from "./placement.mjs";
 import { duration } from "../shared/motion.mjs";
 import { setLayer } from "../shared/escape.mjs";
-import { validateAttachment } from "../composer/index.mjs";
+import { validateAttachment, attachmentLimits } from "../composer/index.mjs";
 import { efforts, permissionModes } from "../composer/models.mjs";
 
 const FOCUS_RETRY = 60;
@@ -187,6 +187,13 @@ export function createMiniController({
     "blinkling:mini-submit": () => model?.submit({}).catch(() => {}),
     "blinkling:mini-chip": (id) => model?.chip(id).catch(() => {}),
     "blinkling:mini-remove": (id) => (model?.remove(id), refresh()),
+    "blinkling:mini-open-image": (id) => {
+      const entry = model?.snapshot().entries.find((e) => e.id === id);
+      if (entry?.attachment?.mediaType?.startsWith("image/"))
+        void Promise.resolve(host.openImage?.(entry.attachment)).catch(
+          () => {},
+        );
+    },
     "blinkling:mini-offer": (id) => model?.offer(id).catch(() => {}),
     "blinkling:mini-attach": attach,
     "blinkling:mini-select": (next) => void select(next),
@@ -206,22 +213,35 @@ export function createMiniController({
     get isOpen() {
       return !!model;
     },
+    /** The chips the open box holds, oldest first. */
+    entries: () => model?.snapshot().entries ?? [],
     /** entries: [{id, kind, attachment, taken?, thumb?, pending?}] */
-    async open(entries) {
+    async open(added) {
       const wasOpen = !!model;
+      // Picks made while the box is open join it: earlier chips and the typed
+      // text stay, the newest picks win when the limit is reached.
+      const prior = model ? model.snapshot() : { entries: [], text: "" };
+      const entries = [...prior.entries, ...added].slice(
+        -attachmentLimits.count,
+      );
       reopening = wasOpen;
       if (model) model.dispose();
       reopening = false;
       clearTimer(hideTimer);
       hideTimer = null;
       notice = "";
+      const kept = wasOpen ? thumbs : new Map();
       thumbs = new Map(
-        entries.filter((e) => e.thumb).map((e) => [e.id, e.thumb]),
+        [
+          ...kept,
+          ...added.filter((e) => e.thumb).map((e) => [e.id, e.thumb]),
+        ].filter(([id]) => entries.some((e) => e.id === id)),
       );
       picks = entries;
       model = createMini({
         locale,
         entries,
+        text: prior.text,
         once,
         autoExplain,
         host: { ...host, close },

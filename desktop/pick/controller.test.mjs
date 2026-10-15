@@ -71,13 +71,14 @@ function setup(options = {}) {
     }),
     newChat: async () => void log.newChats++,
     caught: () => void (log.caught++, log.order.push("caught")),
-    blinkPoint: () => ({ x: 1280, y: 400 }),
+    mouthPoint: () => ({ x: 1280, y: 400 }),
     mini: {
       open: async (entries) =>
         void (log.opened.push(entries), log.order.push("mini")),
       fill: (entry) => void (log.filled.push(entry), log.order.push("fill")),
       drop: (id) => void (log.dropped.push(id), log.order.push("drop")),
     },
+    pickedWhileHeld: options.pickedWhileHeld,
     reduced: () => false,
     onError: (e) => log.errors.push(e),
   });
@@ -387,4 +388,38 @@ test("Blink is told the moment the flight lands, before the mini composer opens"
   });
   assert.equal(log.caught, 1);
   assert.deepEqual(log.order, ["flight", "caught", "mini"]);
+});
+
+test("the key stays held after a capture: hovering and dragging keep working and each pick is announced", async () => {
+  const { controller, log } = setup();
+  await controller.raise();
+  await pickAt(controller, local(200, 280));
+  assert.equal(controller.isRaised(), true, "still raised after a pick");
+  const outlines = log.sent.filter(([c]) => c === "outline").length;
+  await controller.input({ type: "move", ...local(200, 280) });
+  assert.ok(
+    log.sent.filter(([c]) => c === "outline").length > outlines,
+    "auto detect still outlines",
+  );
+  await controller.input({ type: "down", x: 10, y: 20 });
+  await controller.input({ type: "move", x: 12, y: 22 });
+  await controller.input({ type: "move", x: 200, y: 150 });
+  assert.ok(log.sent.some(([c, v]) => c === "drag" && v.rect));
+  await controller.input({ type: "up", x: 200, y: 150 });
+  assert.equal(log.sent.filter(([c]) => c === "taken").length, 2);
+  assert.equal(log.hidden, 0, "nothing is delivered before release");
+  assert.equal(log.flights.length, 0);
+  await controller.drop("release");
+  assert.equal(log.flights.length, 1, "one flight for all captures");
+  assert.equal(log.flights[0].items.length, 2);
+});
+
+test("a pick made while the key is held can say that more can follow", async () => {
+  const lines = ["Keep holding"];
+  const { controller, log } = setup({ pickedWhileHeld: () => lines.shift() });
+  await controller.raise();
+  await pickAt(controller, local(200, 280));
+  await pickAt(controller, local(200, 280));
+  const hints = log.sent.filter(([c]) => c === "hint").map(([, v]) => v.text);
+  assert.deepEqual(hints, ["Keep holding"]);
 });

@@ -19,6 +19,19 @@ test("the first time the layer rises there is a hint, and never again", () => {
   assert.equal(hint.onRaise(), null);
 });
 
+test("the first pick made while the key is held says more can follow, and never again", () => {
+  const store = memory();
+  const hint = createPickHint({ once: createOnce(store), t: t("en") });
+  assert.equal(hint.onPick(), t("en")("hint.several"));
+  assert.equal(hint.onPick(), null);
+  assert.equal(
+    createPickHint({ once: createOnce(store), t: t("en") }).onPick(),
+    null,
+    "not after a restart either",
+  );
+  assert.equal(hint.onRaise(), t("en")("hint.pick"), "the two are separate");
+});
+
 test("it stays gone after a restart", () => {
   const store = memory();
   createPickHint({ once: createOnce(store), t: t("en") }).onRaise();

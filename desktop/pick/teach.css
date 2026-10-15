@@ -64,7 +64,7 @@
   top: 96px;
   width: 180px;
   height: 64px;
-  border: 2px dashed var(--green);
+  border: 2px solid var(--green);
   border-radius: var(--radius-s);
   opacity: 0;
   transform-origin: 0 0;

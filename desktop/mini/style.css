@@ -75,6 +75,18 @@ body {
   object-fit: cover;
   border-radius: var(--radius-s);
 }
+.mini-open {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: var(--radius-s);
+  cursor: zoom-in;
+}
+.mini-open:hover,
+.mini-open:focus-visible {
+  opacity: 0.8;
+}
 .mini-thumb-pending {
   display: inline-block;
   background: var(--line);

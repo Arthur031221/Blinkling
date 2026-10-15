@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGesture, DRAG_THRESHOLD, rectBetween } from "./gesture.mjs";
+import {
+  createGesture,
+  DRAG_THRESHOLD,
+  morphBox,
+  rectBetween,
+} from "./gesture.mjs";
 
 test("drag threshold is about 6 px", () => assert.equal(DRAG_THRESHOLD, 6));
 
@@ -75,4 +80,13 @@ test("rectBetween normalizes any two corners", () => {
     width: 20,
     height: 30,
   });
+});
+
+test("morphBox runs from the auto box to the dragged rectangle and lands exactly", () => {
+  const from = [10, 20, 100, 40];
+  const rect = { x: 50, y: 60, width: 200, height: 10 };
+  assert.deepEqual(morphBox(from, rect, 0), from);
+  assert.deepEqual(morphBox(from, rect, 1), [50, 60, 200, 10]);
+  assert.deepEqual(morphBox(from, rect, 0.5), [30, 40, 150, 25]);
+  assert.deepEqual(morphBox(from, rect, 3), [50, 60, 200, 10]);
 });

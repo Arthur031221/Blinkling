@@ -6,6 +6,7 @@ import {
   reconcileDisplay,
   cardBounds,
   MOUTH,
+  mouthOf,
   MOUTH_DROP,
 } from "./placement.mjs";
 import { menuLayout, menuTransform } from "../menu/layout.mjs";
@@ -285,3 +286,11 @@ for (const [name, d] of Object.entries({
         assert.ok(card.height >= 200, `${edge} ${ratio} stays usable`);
       }
   });
+
+test("the mouth is straight above the feet, where the drawing puts it", () => {
+  const mouth = mouthOf({ x: 600, y: 700 });
+  assert.equal(mouth.x, 600);
+  assert.equal(mouth.y, 700 - (142 - MOUTH.y));
+  // Smaller than full size, so closer to the feet than the 64 px of the full drawing.
+  assert.ok(700 - mouth.y < 64);
+});

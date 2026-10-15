@@ -1,14 +1,17 @@
-/** Teach it once (M7). Two pieces: the one-time hint bubble the first time the
- * pick layer rises, and the welcome's looping animation of the crayon pick and
- * the flight into Blink. The welcome window mounts the animation; this module
+/** Teach it once (M7). Two pieces: the one-time hint bubbles, and the welcome's
+ * looping animation of the highlighter and rectangle picks and the flight into
+ * Blink. The welcome window mounts the animation; this module
  * owns what it shows. */
 
-/** The first hold of the pick key shows one small bubble near the cursor; after
- * that the hint is never produced again, across restarts. */
+/** The first hold of the pick key shows one small bubble near the cursor, and the
+ * first pick made while the key is still held says that more can follow. After
+ * that neither hint is produced again, across restarts. */
 export function createPickHint({ once, t }) {
   return {
     /** The hint text on the first call, null on every later one. */
     onRaise: () => (once.take("pick-hint") ? t("hint.pick") : null),
+    /** What to say once a pick lands while the key is held, once ever. */
+    onPick: () => (once.take("pick-several") ? t("hint.several") : null),
   };
 }
 
@@ -19,9 +22,9 @@ const el = (doc, tag, className, text) => {
   return node;
 };
 
-/** The looping welcome animation: Ctrl and click a line of text (a crayon stroke
- * draws, a thumbnail flies into Blink), then Ctrl and drag an area (a dashed
- * rectangle grows, the flight again). All motion is CSS on transform and opacity
+/** The looping welcome animation: Ctrl and click a line of text (a highlighter stroke
+ * draws, a thumbnail flies into Blink), then Ctrl and drag an area (a rectangle
+ * grows, the flight again). All motion is CSS on transform and opacity
  * in teach.css, timed from the shared tokens, and it stands still under reduced
  * motion. `keyName` is "Control", "Ctrl" or "Option". */
 export function mountPickAnimation(root, { keyName, dragLabel }) {

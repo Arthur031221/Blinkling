@@ -5,6 +5,8 @@ import {
   partial,
   polylineLength,
   effectDone,
+  pointAlong,
+  spotTrail,
 } from "./draw.mjs";
 
 const line = [
@@ -53,4 +55,47 @@ test("partial draws up to a share of the length and ends mid segment", () => {
 test("an effect is done when its total has passed", () => {
   assert.equal(effectDone({ total: 320 }, 319), false);
   assert.equal(effectDone({ total: 320 }, 320), true);
+});
+
+const square = [
+  { x: 0, y: 0 },
+  { x: 10, y: 0 },
+  { x: 10, y: 10 },
+  { x: 0, y: 10 },
+  { x: 0, y: 0 },
+];
+
+test("pointAlong walks a polyline by share of its length", () => {
+  assert.deepEqual(pointAlong(square, 0), { x: 0, y: 0 });
+  assert.deepEqual(pointAlong(square, 0.125), { x: 5, y: 0 });
+  assert.deepEqual(pointAlong(square, 0.5), { x: 10, y: 10 });
+  assert.deepEqual(pointAlong(square, 2), { x: 0, y: 0 });
+});
+
+test("the spot runs clockwise round a border and wraps after one lap", () => {
+  const at = (ms) => {
+    const { x, y } = spotTrail(square, ms, { period: 1000 }).head;
+    return { x, y };
+  };
+  assert.deepEqual(at(125), { x: 5, y: 0 });
+  // Clockwise on screen: along the top to the right, then down the right side.
+  assert.ok(at(250).x > at(125).x);
+  assert.ok(at(375).y > 0 && at(375).x === 10);
+  assert.deepEqual(at(1125), at(125));
+  assert.equal(spotTrail(square, -1, { period: 1000 }), null);
+});
+
+test("the spot's tail trails behind the head and fades", () => {
+  const { head, trail } = spotTrail(square, 250, {
+    period: 1000,
+    tail: 0.1,
+    steps: 4,
+  });
+  assert.equal(trail.length, 5);
+  assert.deepEqual(trail[0], head);
+  assert.ok(trail[1].x < head.x, "behind the head on the top edge");
+  for (let i = 1; i < trail.length; i++)
+    assert.ok(trail[i].fade < trail[i - 1].fade);
+  const wrapped = spotTrail(square, 20, { period: 1000, tail: 0.1 });
+  assert.ok(wrapped.trail.every((p) => Number.isFinite(p.x + p.y)));
 });

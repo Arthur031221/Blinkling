@@ -14,7 +14,7 @@ import { setDocumentLocale } from "../shared/i18n.mjs";
 import { BLINK_SCALE } from "../character/size.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
 import { createSpinDetector } from "../character/spin.mjs";
-import { touchPart, sideOf } from "../character/touch.mjs";
+import { touchPart, sideOf, gazeAt } from "../character/touch.mjs";
 const api = window.blinkling;
 document.documentElement.style.cssText += cssVariables();
 document.documentElement.style.setProperty(
@@ -47,6 +47,7 @@ let character = null,
   catchAt = -100,
   pointerOver = false,
   pointer = null,
+  picking = false,
   dragPointer = null,
   dragStarting = false;
 /** Put the thought bubble above Blink's head, leaning toward the screen's
@@ -258,6 +259,7 @@ async function action(id) {
         ? touchPart(pointer.point, current)
         : null;
     character.pose(now / 1000, {
+      gaze: picking && pointer?.point ? gazeAt(pointer.point, current) : null,
       touch: touched
         ? { part: touched, side: sideOf(pointer.point, current) }
         : null,
@@ -337,6 +339,7 @@ api.onShell((event) => {
       state.drop(performance.now());
     }
   }
+  if (event.type === "picking") picking = event.on === true;
   if (event.type === "cursor") {
     const before = state.over;
     pointer = { point: event.point, hit: event.hit, blink: event.blink };
