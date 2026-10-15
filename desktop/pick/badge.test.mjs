@@ -16,8 +16,14 @@ test("no key, no badge", () => {
 });
 
 test("Shift is not a mode: there is no Shift badge", () => {
-  assert.equal(badgeFor({ raised: false, dragging: false, shift: true }), "none");
-  assert.equal(badgeFor({ raised: true, dragging: false, shift: true }), "crayon");
+  assert.equal(
+    badgeFor({ raised: false, dragging: false, shift: true }),
+    "none",
+  );
+  assert.equal(
+    badgeFor({ raised: true, dragging: false, shift: true }),
+    "crayon",
+  );
 });
 
 test("the badge sits beside the cursor and flips at the screen edge", () => {

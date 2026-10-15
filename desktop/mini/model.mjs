@@ -32,10 +32,19 @@ export function createMini({
 
   // Offers are decided once, when the mini opens: the PDF one is shown a single time.
   const offers = [];
-  const page = entries.find((e) => e.taken?.kind === "page" && e.taken.browser && (e.taken.text ?? "").trim());
-  if (page && host.translatePage) offers.push({ id: "translate-page", entryId: page.id });
+  const page = entries.find(
+    (e) =>
+      e.taken?.kind === "page" &&
+      e.taken.browser &&
+      (e.taken.text ?? "").trim(),
+  );
+  if (page && host.translatePage)
+    offers.push({ id: "translate-page", entryId: page.id });
   const blank = entries.find(
-    (e) => e.taken?.window?.pdf && !(e.taken.text ?? "").trim() && e.taken.kind !== "text",
+    (e) =>
+      e.taken?.window?.pdf &&
+      !(e.taken.text ?? "").trim() &&
+      e.taken.kind !== "text",
   );
   if (blank && host.openPdfReader && once?.take("pdf-reader-offer"))
     offers.push({ id: "pdf-reader", entryId: blank.id });
@@ -55,7 +64,12 @@ export function createMini({
   }
 
   async function sendTurn(message, source) {
-    const turn = { id: uuid(), text: message, attachments: attachments(), source };
+    const turn = {
+      id: uuid(),
+      text: message,
+      attachments: attachments(),
+      source,
+    };
     await host.send(turn);
     close("sent");
     return { type: "sent", turn };
@@ -75,7 +89,9 @@ export function createMini({
           type: isImage(e) ? "image" : "text",
           kind: e.kind,
           thumb: e.thumb,
-          ...(isImage(e) ? {} : chipText(e.taken?.text ?? decode(e.attachment))),
+          ...(isImage(e)
+            ? {}
+            : chipText(e.taken?.text ?? decode(e.attachment))),
           tag: e.taken?.tag ?? null,
         })),
         chips: model.chips,
@@ -89,7 +105,8 @@ export function createMini({
     setText(value) {
       if (closed) return;
       text = value;
-      if (text.length > LONG_CHARS || text.split("\n").length >= LONG_LINES) grow();
+      if (text.length > LONG_CHARS || text.split("\n").length >= LONG_LINES)
+        grow();
     },
     remove(id) {
       list = list.filter((e) => e.id !== id);
@@ -103,7 +120,10 @@ export function createMini({
       if (text.trim()) return sendTurn(text, "composer");
       const model = ask();
       if (!model.defaultId) return { type: "empty" };
-      return sendTurn(model.chips.find((c) => c.id === model.defaultId).prompt, "quick-ask");
+      return sendTurn(
+        model.chips.find((c) => c.id === model.defaultId).prompt,
+        "quick-ask",
+      );
     },
     async chip(id) {
       if (closed) return { type: "closed" };

@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "Blinkling"
+  },
+  "extDescription": {
+    "message": "デスクトップの Blink のためのコンパニオン。今見ているページの内容を Blink に伝えます。"
+  },
+  "actionTitle": {
+    "message": "Blinkling の状態"
+  }
+}

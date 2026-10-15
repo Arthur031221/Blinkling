@@ -11,5 +11,9 @@ export function stepSpring({ value, velocity }, target, frequency, dt) {
 }
 
 /** Within half a percent of the travel and nearly still (per second). */
-export const settled = ({ value, velocity }, target, epsilon = 0.005, rest = 0.1) =>
-  Math.abs(value - target) < epsilon && Math.abs(velocity) < rest;
+export const settled = (
+  { value, velocity },
+  target,
+  epsilon = 0.005,
+  rest = 0.1,
+) => Math.abs(value - target) < epsilon && Math.abs(velocity) < rest;

@@ -78,7 +78,8 @@ test("a critically damped spring settles without overshoot, in under 450 ms", ()
 
 test("a spring can be reversed from where it is now", () => {
   let state = { value: 0, velocity: 0 };
-  for (let i = 0; i < 6; i++) state = stepSpring(state, 1, springs.crisp, 1 / 60);
+  for (let i = 0; i < 6; i++)
+    state = stepSpring(state, 1, springs.crisp, 1 / 60);
   const mid = state.value;
   assert.ok(mid > 0.1 && mid < 0.99);
   const next = stepSpring(state, 0, springs.crisp, 1 / 60);

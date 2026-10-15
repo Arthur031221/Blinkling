@@ -3,7 +3,9 @@ body {
   margin: 0;
   background: transparent;
   color: var(--text);
-  font: var(--type-m) / 1.4 system-ui, sans-serif;
+  font:
+    var(--type-m) / 1.4 system-ui,
+    sans-serif;
   overflow: hidden;
 }
 body {

@@ -37,7 +37,6 @@ export function createPickKeys({
     activeKey = null;
   const codes = () => PICK_KEYS[pickKey()] ?? PICK_KEYS.control;
   const pickHeld = () => [...down].some((c) => codes().has(c));
-  const otherHeld = () => [...down].some((c) => !codes().has(c));
   const disarm = () => {
     if (timer !== null) clearTimer(timer);
     timer = null;

@@ -13,13 +13,28 @@ const win = (id, destroyed = false) => ({
 const fake = () => {
   const raised = [];
   let ready;
-  const client = { RaiseWindow: (id) => raised.push(id), on() {}, terminate() { this.ended = true; } };
-  return { raised, client, connect: (cb) => ((ready = cb), client), open: (error) => ready(error) };
+  const client = {
+    RaiseWindow: (id) => raised.push(id),
+    on() {},
+    terminate() {
+      this.ended = true;
+    },
+  };
+  return {
+    raised,
+    client,
+    connect: (cb) => ((ready = cb), client),
+    open: (error) => ready(error),
+  };
 };
 
 test("raising puts each live window on top of the X stack, in order", () => {
   const x = fake();
-  const r = createRaiser({ platform: "linux", display: ":1", connect: x.connect });
+  const r = createRaiser({
+    platform: "linux",
+    display: ":1",
+    connect: x.connect,
+  });
   x.open(null);
   r.raise([win(10), win(11, true), win(12)]);
   assert.deepEqual(x.raised, [10, 12]);
@@ -27,7 +42,11 @@ test("raising puts each live window on top of the X stack, in order", () => {
 
 test("nothing is raised before the connection is up or after it fails", () => {
   const x = fake();
-  const r = createRaiser({ platform: "linux", display: ":1", connect: x.connect });
+  const r = createRaiser({
+    platform: "linux",
+    display: ":1",
+    connect: x.connect,
+  });
   r.raise([win(1)]);
   x.open(new Error("no display"));
   r.raise([win(1)]);
@@ -36,13 +55,21 @@ test("nothing is raised before the connection is up or after it fails", () => {
 
 test("off Linux, or without a display, the raiser does nothing and never connects", () => {
   const never = () => assert.fail("connected");
-  createRaiser({ platform: "darwin", display: ":1", connect: never }).raise([win(1)]);
-  createRaiser({ platform: "linux", display: "", connect: never }).raise([win(1)]);
+  createRaiser({ platform: "darwin", display: ":1", connect: never }).raise([
+    win(1),
+  ]);
+  createRaiser({ platform: "linux", display: "", connect: never }).raise([
+    win(1),
+  ]);
 });
 
 test("dispose closes the connection and stops raising", () => {
   const x = fake();
-  const r = createRaiser({ platform: "linux", display: ":1", connect: x.connect });
+  const r = createRaiser({
+    platform: "linux",
+    display: ":1",
+    connect: x.connect,
+  });
   x.open(null);
   r.dispose();
   r.raise([win(3)]);

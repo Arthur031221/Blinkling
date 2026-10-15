@@ -21,7 +21,10 @@ export function flightPath({ from, to }) {
   // The perpendicular that points up on screen.
   let nx = dy / length,
     ny = -dx / length;
-  if (ny > 0) (nx = -nx), (ny = -ny);
+  if (ny > 0) {
+    nx = -nx;
+    ny = -ny;
+  }
   const lift = Math.min(160, Math.max(48, length * 0.3));
   return {
     start,
@@ -46,10 +49,14 @@ export function flightAt({ start, control, end }, p) {
 
 /** A CSS cubic-bezier token as a function of progress. */
 export function cubicBezier(curve) {
-  const match = /^cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)$/.exec(curve);
+  const match =
+    /^cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)$/.exec(
+      curve,
+    );
   if (!match) throw new Error(`Not a cubic-bezier: ${curve}`);
   const [x1, y1, x2, y2] = match.slice(1).map(Number);
-  const axis = (a, b, t) => 3 * a * (1 - t) ** 2 * t + 3 * b * (1 - t) * t * t + t ** 3;
+  const axis = (a, b, t) =>
+    3 * a * (1 - t) ** 2 * t + 3 * b * (1 - t) * t * t + t ** 3;
   const slope = (a, b, t) =>
     3 * a * (1 - t) ** 2 + 6 * (b - a) * (1 - t) * t + 3 * (1 - b) * t * t;
   return (x) => {

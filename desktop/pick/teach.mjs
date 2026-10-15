@@ -30,7 +30,8 @@ export function mountPickAnimation(root, { keyName, dragLabel }) {
   demo.setAttribute("aria-hidden", "true");
 
   const page = el(doc, "div", "demo-page");
-  for (let i = 0; i < 4; i++) page.append(el(doc, "span", `demo-line demo-line-${i + 1}`));
+  for (let i = 0; i < 4; i++)
+    page.append(el(doc, "span", `demo-line demo-line-${i + 1}`));
   page.append(el(doc, "span", "demo-picture"));
 
   const blink = el(doc, "span", "demo-blink");

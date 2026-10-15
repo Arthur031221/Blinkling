@@ -11,7 +11,12 @@ contextBridge.exposeInMainWorld("pickLayerAPI", {
     return () => ipcRenderer.removeListener("blinkling:pick-message", handler);
   },
   pointer: (type, x, y) =>
-    ipcRenderer.send("blinkling:pick-pointer", { type: String(type), x: Number(x), y: Number(y) }),
-  flightDone: (token) => ipcRenderer.send("blinkling:pick-flight-done", String(token)),
+    ipcRenderer.send("blinkling:pick-pointer", {
+      type: String(type),
+      x: Number(x),
+      y: Number(y),
+    }),
+  flightDone: (token) =>
+    ipcRenderer.send("blinkling:pick-flight-done", String(token)),
   ready: () => ipcRenderer.send("blinkling:pick-ready"),
 });

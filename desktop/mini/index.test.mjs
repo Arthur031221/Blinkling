@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { createMiniController } from "./index.mjs";
 import { topLayer, setLayer, escape } from "../shared/escape.mjs";
 
-const image = { id: "a", name: "Selection.png", mediaType: "image/png", data: "AAAA" };
+const image = {
+  id: "a",
+  name: "Selection.png",
+  mediaType: "image/png",
+  data: "AAAA",
+};
 
 function setup() {
   const sent = [];
@@ -21,7 +26,14 @@ function setup() {
     focus: () => (state.focused = true),
     setBounds: (b) => (state.bounds = b),
   };
-  const log = { remembered: 0, restored: 0, activated: 0, sends: [], opened: [], closed: [] };
+  const log = {
+    remembered: 0,
+    restored: 0,
+    activated: 0,
+    sends: [],
+    opened: [],
+    closed: [],
+  };
   const controller = createMiniController({
     win,
     ipc: { on: (channel, fn) => handlers.set(channel, fn) },
@@ -42,10 +54,13 @@ function setup() {
     setTimer: (fn, ms) => (timers.push({ fn, ms }), timers.length),
     clearTimer: () => {},
   });
-  const fire = (channel, value, sender = wc) => handlers.get(channel)({ sender }, value);
+  const fire = (channel, value, sender = wc) =>
+    handlers.get(channel)({ sender }, value);
   return { controller, sent, state, log, fire, timers, wc };
 }
-const entries = () => [{ id: "i1", kind: "image", attachment: image, taken: { kind: "image" } }];
+const entries = () => [
+  { id: "i1", kind: "image", attachment: image, taken: { kind: "image" } },
+];
 
 test("opening shows the view, places the window beside Blink and takes the keyboard", async () => {
   const { controller, sent, state, log } = setup();

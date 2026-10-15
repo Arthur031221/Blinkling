@@ -12,15 +12,24 @@ export function createCropper({ nativeImage }) {
   return function crop(capture, rect) {
     let image = decoded.get(capture);
     if (!image) {
-      image = nativeImage.createFromBuffer(Buffer.from(capture.image.data, "base64"));
+      image = nativeImage.createFromBuffer(
+        Buffer.from(capture.image.data, "base64"),
+      );
       decoded.set(capture, image);
     }
     const piece = image.crop(cropGeometry(rect, capture));
     const size = piece.getSize();
-    const scale = Math.min(1, THUMBNAIL_PIXELS / Math.max(size.width, size.height));
-    const small = scale < 1
-      ? piece.resize({ width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)) })
-      : piece;
+    const scale = Math.min(
+      1,
+      THUMBNAIL_PIXELS / Math.max(size.width, size.height),
+    );
+    const small =
+      scale < 1
+        ? piece.resize({
+            width: Math.max(1, Math.round(size.width * scale)),
+            height: Math.max(1, Math.round(size.height * scale)),
+          })
+        : piece;
     return {
       data: piece.toPNG().toString("base64"),
       width: size.width,

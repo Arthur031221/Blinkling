@@ -14,7 +14,10 @@ function fakeHook() {
 test("native key, mouse and wheel events become pick key events", async () => {
   const events = [];
   const uIOhook = fakeHook();
-  const source = createKeySource({ load: async () => ({ uIOhook }), handle: (e) => events.push(e) });
+  const source = createKeySource({
+    load: async () => ({ uIOhook }),
+    handle: (e) => events.push(e),
+  });
   assert.deepEqual(await source.start(), { ok: true });
   uIOhook.emit("keydown", { keycode: 29 });
   uIOhook.emit("wheel", { keycode: undefined });
@@ -30,7 +33,10 @@ test("native key, mouse and wheel events become pick key events", async () => {
 
 test("starting twice listens once, and stop releases the hook", async () => {
   const uIOhook = fakeHook();
-  const source = createKeySource({ load: async () => ({ uIOhook }), handle: () => {} });
+  const source = createKeySource({
+    load: async () => ({ uIOhook }),
+    handle: () => {},
+  });
   await source.start();
   await source.start();
   assert.equal(uIOhook.started, 1);

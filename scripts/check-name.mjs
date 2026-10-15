@@ -23,6 +23,9 @@ export const ALLOWED_FILES = new Set([
   "plugin/desktop/install.test.mjs",
   // The standalone bundles inline legacy.mjs; it is code, not text a user sees.
   "bin/blinkling.cjs",
+  // The Remote Control switch still honours the old GLIMPSELET_REMOTE name.
+  "desktop/session/protocol.mjs",
+  "desktop/session/protocol.test.mjs",
   "scripts/check-name.mjs",
   "scripts/check-name.test.mjs",
 ]);

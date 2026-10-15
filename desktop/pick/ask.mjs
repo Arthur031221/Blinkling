@@ -34,8 +34,13 @@ export function detectLanguage(text = "") {
     bestScore = 0;
   for (const [language, re] of Object.entries(WORDS)) {
     // The Latin pattern is stateful; a fresh match each time keeps it pure.
-    const score = count(text, new RegExp(re.source, re.flags)) + (diacritics[language] ?? 0);
-    if (score > bestScore) (best = language), (bestScore = score);
+    const score =
+      count(text, new RegExp(re.source, re.flags)) +
+      (diacritics[language] ?? 0);
+    if (score > bestScore) {
+      best = language;
+      bestScore = score;
+    }
   }
   return bestScore >= 2 ? best : null;
 }
@@ -50,16 +55,21 @@ export function chipLabels(locale) {
 /** The quick-ask chips for a pick and the one Enter sends (M5, N2.9). There is
  * no placeholder sentence: the highlighted chip says what Enter will do. */
 export function askModel({ items, locale }) {
-  if (!items?.length) return { chips: [], defaultId: null, placeholder: undefined };
+  if (!items?.length)
+    return { chips: [], defaultId: null, placeholder: undefined };
   const text = t(locale);
   const mine = baseLanguage(locale);
-  const texts = items.filter((i) => typeof i.text === "string" && i.text.trim());
+  const texts = items.filter(
+    (i) => typeof i.text === "string" && i.text.trim(),
+  );
   const foreign = texts.some((i) => {
     const language = detectLanguage(i.text);
     return language !== null && language !== mine;
   });
   const long = items.some(
-    (i) => (i.kind === "section" || i.kind === "page") && (i.text ?? "").length >= LONG_TEXT,
+    (i) =>
+      (i.kind === "section" || i.kind === "page") &&
+      (i.text ?? "").length >= LONG_TEXT,
   );
   const defaultId = foreign ? "translate" : long ? "keypoints" : "what";
   return {

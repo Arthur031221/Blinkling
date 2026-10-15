@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tableMarkdown, textAttachment, imageAttachment, MAX_TEXT, chipText } from "./taken.mjs";
+import {
+  tableMarkdown,
+  textAttachment,
+  imageAttachment,
+  MAX_TEXT,
+  chipText,
+} from "./taken.mjs";
 
 test("Markdown tables escape pipes and fill ragged rows", () => {
   assert.equal(
@@ -30,7 +36,9 @@ test("image attachments keep their PNG data", () => {
 });
 
 test("the text chip shows the first words and the length", () => {
-  const c = chipText("Blink looks at your screen and explains what it sees to you quietly.");
+  const c = chipText(
+    "Blink looks at your screen and explains what it sees to you quietly.",
+  );
   assert.match(c.preview, /^Blink looks at your screen/);
   assert.ok(c.preview.length <= 32);
   assert.equal(c.length, 68);

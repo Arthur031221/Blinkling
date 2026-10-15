@@ -12,6 +12,10 @@ const exempt = (file) =>
   file === "CHANGELOG.md" ||
   file === "docs/FEATURES.md" ||
   file === "scripts/features.test.mjs" ||
+  // Tests that prove a removed flow is gone have to name it.
+  file === "scripts/install-docs.test.mjs" ||
+  file === "scripts/readme-install.test.mjs" ||
+  file === "scripts/readme-first-screen.test.mjs" ||
   file === "package-lock.json" ||
   file.startsWith("bin/") ||
   file.startsWith("assets/") ||

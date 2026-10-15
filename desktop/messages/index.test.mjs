@@ -304,7 +304,11 @@ test("a new chat empties the deck and nothing of the old chat comes back", () =>
   assert.equal(s.state().visible, false);
   assert.deepEqual(s.bubbles(), []);
   s.hover(true);
-  assert.equal(s.state().visible, false, "hovering Blink has nothing to bring back");
+  assert.equal(
+    s.state().visible,
+    false,
+    "hovering Blink has nothing to bring back",
+  );
   s.accept({ type: "delta", id: "b", text: "Second chat answer." });
   assert.equal(s.bubbles().length, 1);
   s.dispose();

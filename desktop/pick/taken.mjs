@@ -1,7 +1,10 @@
 /** Largest text sent as one attachment. The composer caps whole turns lower. */
 export const MAX_TEXT = 200000;
 
-const cell = (value) => String(value ?? "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+const cell = (value) =>
+  String(value ?? "")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, " ");
 
 /** Rows of cells as a Markdown table; the first row is the header. */
 export function tableMarkdown(rows) {
@@ -27,7 +30,10 @@ export function textAttachment(text, name = "Selection.txt") {
   };
 }
 
-export function imageAttachment({ data, width, height }, name = "Selection.png") {
+export function imageAttachment(
+  { data, width, height },
+  name = "Selection.png",
+) {
   return {
     id: globalThis.crypto.randomUUID(),
     name,

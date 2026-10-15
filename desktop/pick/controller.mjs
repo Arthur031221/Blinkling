@@ -3,7 +3,12 @@ import { effectPlan, lockPlan } from "./effects.mjs";
 import { badgeFor } from "./badge.mjs";
 import { textAttachment, imageAttachment } from "./taken.mjs";
 
-const names = { table: "Table.txt", code: "Code.txt", section: "Section.txt", page: "Page.txt" };
+const names = {
+  table: "Table.txt",
+  code: "Code.txt",
+  section: "Section.txt",
+  page: "Page.txt",
+};
 
 /** Electron-free orchestration of one pick: key raise → hover outline → click or
  * drag → effect → release → one screen grab, thumbnails fly to Blink, the mini
@@ -32,7 +37,12 @@ export function createPickController({
   const displayAt = (point) =>
     displays().find((d) => {
       const b = d.bounds;
-      return point.x >= b.x && point.y >= b.y && point.x < b.x + b.width && point.y < b.y + b.height;
+      return (
+        point.x >= b.x &&
+        point.y >= b.y &&
+        point.x < b.x + b.width &&
+        point.y < b.y + b.height
+      );
     }) ?? displays()[0];
 
   function send(channel, value) {
@@ -64,7 +74,12 @@ export function createPickController({
 
   function badge() {
     if (!state) return;
-    send("badge", { name: badgeFor({ raised: true, dragging: state.gesture.state().phase === "dragging" }) });
+    send("badge", {
+      name: badgeFor({
+        raised: true,
+        dragging: state.gesture.state().phase === "dragging",
+      }),
+    });
   }
 
   function announce(result, point) {
@@ -83,7 +98,12 @@ export function createPickController({
       grew: result.grew,
       kind: taken.kind,
       bounds: taken.bounds,
-      effect: effectPlan({ kind: taken.kind, bounds: taken.bounds, lines: taken.lines ?? [], reduced: reduced() }),
+      effect: effectPlan({
+        kind: taken.kind,
+        bounds: taken.bounds,
+        lines: taken.lines ?? [],
+        reduced: reduced(),
+      }),
     });
   }
 
@@ -113,7 +133,8 @@ export function createPickController({
         const g = current.gesture.move(point);
         if (g.phase === "dragging") {
           // The rubber band is the only box while an area is dragged.
-          if (!current.dragging) send("outline", { rect: null, kind: null, lock: false });
+          if (!current.dragging)
+            send("outline", { rect: null, kind: null, lock: false });
           current.dragging = true;
           send("drag", { rect: g.rect });
           badge();
@@ -130,7 +151,9 @@ export function createPickController({
         badge();
         if (!result) break;
         const picked =
-          result.type === "area" ? await current.picker.area(result.rect) : await current.picker.click(result.point);
+          result.type === "area"
+            ? await current.picker.area(result.rect)
+            : await current.picker.click(result.point);
         if (state === current) announce(picked, point);
         break;
       }
@@ -141,7 +164,11 @@ export function createPickController({
   const thumbnail = (shot, { bounds, display }) => {
     if (!shot) return null;
     try {
-      const local = { ...bounds, x: bounds.x - display.bounds.x, y: bounds.y - display.bounds.y };
+      const local = {
+        ...bounds,
+        x: bounds.x - display.bounds.x,
+        y: bounds.y - display.bounds.y,
+      };
       return crop(shot, local);
     } catch (error) {
       onError(error);
@@ -153,9 +180,20 @@ export function createPickController({
    * table), the cropped pixels otherwise. */
   function entryFor(taken, picture) {
     if (taken.text)
-      return { id: globalThis.crypto.randomUUID(), kind: taken.kind, taken, attachment: textAttachment(taken.text, names[taken.kind]) };
+      return {
+        id: globalThis.crypto.randomUUID(),
+        kind: taken.kind,
+        taken,
+        attachment: textAttachment(taken.text, names[taken.kind]),
+      };
     if (!picture) return null;
-    return { id: globalThis.crypto.randomUUID(), kind: taken.kind, taken, attachment: imageAttachment(picture), thumb: picture.dataUrl };
+    return {
+      id: globalThis.crypto.randomUUID(),
+      kind: taken.kind,
+      taken,
+      attachment: imageAttachment(picture),
+      thumb: picture.dataUrl,
+    };
   }
 
   async function finish(entries, flightItems) {
@@ -190,7 +228,12 @@ export function createPickController({
       const entry = entryFor(taken, pictures[i]);
       if (!entry) return;
       entries.push(entry);
-      flightItems.push({ id: entry.id, kind: taken.kind, bounds: taken.bounds, dataUrl: pictures[i]?.dataUrl ?? null });
+      flightItems.push({
+        id: entry.id,
+        kind: taken.kind,
+        bounds: taken.bounds,
+        dataUrl: pictures[i]?.dataUrl ?? null,
+      });
     });
     if (entries.length) await finish(entries, flightItems);
   }
@@ -201,13 +244,19 @@ export function createPickController({
     const entry = {
       id: image.id ?? globalThis.crypto.randomUUID(),
       kind: "area",
-      taken: { source: "capture", display: capture.display, kind: "area", bounds: capture.region },
+      taken: {
+        source: "capture",
+        display: capture.display,
+        kind: "area",
+        bounds: capture.region,
+      },
       attachment: image,
       thumb: dataUrl,
     };
-    await finish([entry], [
-      { id: entry.id, kind: "area", bounds: capture.region, dataUrl },
-    ]);
+    await finish(
+      [entry],
+      [{ id: entry.id, kind: "area", bounds: capture.region, dataUrl }],
+    );
   }
 
   return {
@@ -230,7 +279,8 @@ export function createPickController({
     },
     /** Picks (an array of Taken) and legacy captures (overlay, hotkey) take the
      * same road: flight into Blink, then the mini composer. */
-    deliver: (input) => (Array.isArray(input) ? deliverTaken(input) : deliverCapture(input)),
+    deliver: (input) =>
+      Array.isArray(input) ? deliverTaken(input) : deliverCapture(input),
     isRaised: () => state !== null,
   };
 }

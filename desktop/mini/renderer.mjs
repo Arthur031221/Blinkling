@@ -7,7 +7,8 @@ const api = window.miniAPI;
 const log = frameLog();
 for (const declaration of cssVariables().split(";")) {
   const [name, value] = declaration.split(/:(.+)/);
-  if (name?.trim()) document.documentElement.style.setProperty(name.trim(), value.trim());
+  if (name?.trim())
+    document.documentElement.style.setProperty(name.trim(), value.trim());
 }
 
 let mini = null;

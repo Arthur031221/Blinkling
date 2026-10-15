@@ -1,3 +1,6 @@
+/* Playwright reads the fixtures of a test from a destructured first argument,
+ * so tests that need none still write `{}`. */
+/* eslint-disable no-empty-pattern */
 import {
   test,
   expect,
@@ -201,7 +204,7 @@ test("a password manager in front blocks capture and sending", async ({}, t) => 
 
 test("the usage limit is one bubble with the reset time, auto explain pauses, and nothing turns into an error", async () => {
   const resetsAt = Math.floor(Date.now() / 1000) + 3 * 60 * 60;
-  const { app, blink, events, close } = await launch({
+  const { app, events, close } = await launch({
     BLINKLING_TEST_LIMIT_RESET: String(resetsAt),
   });
   try {

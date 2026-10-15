@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createPicker } from "./picker.mjs";
 import {
-  createLocatorStub, samplePage, element, DISPLAY, WINDOW,
+  createLocatorStub,
+  samplePage,
+  element,
+  DISPLAY,
+  WINDOW,
 } from "./test/locator-stub.mjs";
 
 const allowed = { allowed: () => true };
@@ -34,7 +38,12 @@ test("clicking text takes the sentence under the cursor when the locator can rea
   assert.equal(r.type, "taken");
   assert.equal(r.item.taken.kind, "text");
   assert.equal(r.item.taken.text, "Blink looks at your screen.");
-  assert.deepEqual(r.item.taken.bounds, { x: 140, y: 150, width: 330, height: 20 });
+  assert.deepEqual(r.item.taken.bounds, {
+    x: 140,
+    y: 150,
+    width: 330,
+    height: 20,
+  });
   assert.equal(r.item.taken.source, "pick");
   assert.equal(r.item.taken.display, DISPLAY);
 });
@@ -42,7 +51,10 @@ test("clicking text takes the sentence under the cursor when the locator can rea
 test("without sentence geometry a click takes the whole paragraph", async () => {
   const p = make({ stub: { sentences: false } });
   const r = await p.click(inPara);
-  assert.equal(r.item.taken.text, "Blink looks at your screen. It never clicks anything.");
+  assert.equal(
+    r.item.taken.text,
+    "Blink looks at your screen. It never clicks anything.",
+  );
   assert.deepEqual(r.item.taken.lines.length, 2);
 });
 
@@ -75,7 +87,12 @@ test("clicking another element adds it to the same pick, up to six, the seventh 
   const elements = samplePage();
   for (let i = 0; i < 6; i++)
     elements.push(
-      element(`btn-${i}`, "control", { x: 700, y: 120 + i * 40, width: 60, height: 30 }, { parentId: "page", name: `B${i}` }),
+      element(
+        `btn-${i}`,
+        "control",
+        { x: 700, y: 120 + i * 40, width: 60, height: 30 },
+        { parentId: "page", name: `B${i}` },
+      ),
     );
   const p = make({ stub: { elements } });
   await p.click({ x: 200, y: 280 }); // image
@@ -104,14 +121,24 @@ test("a click inside the app's own selection takes exactly the selection", async
 });
 
 test("a click outside the selection ignores it", async () => {
-  const selection = { text: "x", bounds: { x: 300, y: 170, width: 90, height: 20 }, lines: [] };
+  const selection = {
+    text: "x",
+    bounds: { x: 300, y: 170, width: 90, height: 20 },
+    lines: [],
+  };
   const p = make({ stub: { selection } });
   const r = await p.click({ x: 200, y: 280 });
   assert.equal(r.item.taken.kind, "image");
 });
 
 test("an empty area takes the whole window", async () => {
-  const p = make({ stub: { elements: [element("only", "image", { x: 140, y: 230, width: 50, height: 50 })] } });
+  const p = make({
+    stub: {
+      elements: [
+        element("only", "image", { x: 140, y: 230, width: 50, height: 50 }),
+      ],
+    },
+  });
   const r = await p.click({ x: 900, y: 600 });
   assert.equal(r.item.taken.kind, "window");
   assert.deepEqual(r.item.taken.bounds, WINDOW.bounds);
@@ -143,8 +170,18 @@ test("a secure field shows the lock and takes nothing", async () => {
 
 test("a secure parent hides everything below it", async () => {
   const elements = [
-    element("form", "section", { x: 0, y: 0, width: 500, height: 500 }, { secure: true }),
-    element("label", "text", { x: 10, y: 10, width: 100, height: 20 }, { parentId: "form", text: "visible?" }),
+    element(
+      "form",
+      "section",
+      { x: 0, y: 0, width: 500, height: 500 },
+      { secure: true },
+    ),
+    element(
+      "label",
+      "text",
+      { x: 10, y: 10, width: 100, height: 20 },
+      { parentId: "form", text: "visible?" },
+    ),
   ];
   const p = make({ stub: { elements } });
   assert.equal((await p.click({ x: 20, y: 20 })).type, "lock");
@@ -168,7 +205,10 @@ test("content is real: tables as Markdown, code as code", async () => {
   const p = make();
   const table = (await p.click({ x: 400, y: 280 })).item.taken;
   assert.equal(table.kind, "table");
-  assert.equal(table.text, "| Item | Price |\n| --- | --- |\n| Tea | 3 |\n| Cake | 5 |");
+  assert.equal(
+    table.text,
+    "| Item | Price |\n| --- | --- |\n| Tea | 3 |\n| Cake | 5 |",
+  );
   const code = (await p.click({ x: 160, y: 430 })).item.taken;
   assert.equal(code.kind, "code");
   assert.equal(code.text, "```js\nconst a = 1;\nconsole.log(a);\n```");
@@ -176,7 +216,12 @@ test("content is real: tables as Markdown, code as code", async () => {
 
 test("formulas travel as LaTeX when the page gives it", async () => {
   const elements = [
-    element("f", "formula", { x: 0, y: 0, width: 100, height: 30 }, { content: { latex: "E=mc^2" } }),
+    element(
+      "f",
+      "formula",
+      { x: 0, y: 0, width: 100, height: 30 },
+      { content: { latex: "E=mc^2" } },
+    ),
   ];
   const p = make({ stub: { elements } });
   assert.equal((await p.click({ x: 5, y: 5 })).item.taken.text, "$$E=mc^2$$");
@@ -193,7 +238,12 @@ test("an area from a drag is one taken area with no element", async () => {
   const p = make();
   const r = await p.area({ x: 10, y: 20, width: 300, height: 200 });
   assert.equal(r.item.taken.kind, "area");
-  assert.deepEqual(r.item.taken.bounds, { x: 10, y: 20, width: 300, height: 200 });
+  assert.deepEqual(r.item.taken.bounds, {
+    x: 10,
+    y: 20,
+    width: 300,
+    height: 200,
+  });
   assert.equal(r.item.taken.elementId, undefined);
 });
 
@@ -205,8 +255,15 @@ test("an area over secure content is refused with the lock", async () => {
 
 test("an area counts toward the six", async () => {
   const p = make();
-  for (let i = 0; i < 6; i++) assert.equal((await p.area({ x: i, y: 0, width: 50, height: 50 })).type, "taken");
-  assert.equal((await p.area({ x: 99, y: 0, width: 50, height: 50 })).reason, "limit");
+  for (let i = 0; i < 6; i++)
+    assert.equal(
+      (await p.area({ x: i, y: 0, width: 50, height: 50 })).type,
+      "taken",
+    );
+  assert.equal(
+    (await p.area({ x: 99, y: 0, width: 50, height: 50 })).reason,
+    "limit",
+  );
 });
 
 test("drain hands the items over and empties the pick", async () => {
@@ -214,13 +271,21 @@ test("drain hands the items over and empties the pick", async () => {
   await p.click({ x: 200, y: 280 });
   await p.click({ x: 400, y: 280 });
   const taken = p.drain();
-  assert.deepEqual(taken.map((t) => t.kind), ["image", "table"]);
+  assert.deepEqual(
+    taken.map((t) => t.kind),
+    ["image", "table"],
+  );
   assert.equal(p.items().length, 0);
 });
 
 test("a page-level pick on a browser is flagged for the translate offer", async () => {
   const elements = [
-    element("pg", "page", { x: 0, y: 0, width: 500, height: 500 }, { text: "Hello", window: { ...WINDOW, browser: true } }),
+    element(
+      "pg",
+      "page",
+      { x: 0, y: 0, width: 500, height: 500 },
+      { text: "Hello", window: { ...WINDOW, browser: true } },
+    ),
   ];
   const p = make({ stub: { elements } });
   const t = (await p.click({ x: 5, y: 5 })).item.taken;

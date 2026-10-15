@@ -3,7 +3,11 @@
  * layers are made once at start, so each raise puts them back on top. */
 import x11 from "x11";
 
-export function createRaiser({ platform = process.platform, display = process.env.DISPLAY, connect = x11.createClient } = {}) {
+export function createRaiser({
+  platform = process.platform,
+  display = process.env.DISPLAY,
+  connect = x11.createClient,
+} = {}) {
   if (platform !== "linux" || !display) return { raise() {}, dispose() {} };
   let client = null;
   let ready = false;

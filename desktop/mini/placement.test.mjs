@@ -5,7 +5,10 @@ import { placeMini, MINI_WIDTH } from "./placement.mjs";
 const work = { x: 0, y: 0, width: 1280, height: 800 };
 const size = { width: MINI_WIDTH, height: 140 };
 const inside = (b) =>
-  b.x >= work.x && b.y >= work.y && b.x + b.width <= work.x + work.width && b.y + b.height <= work.y + work.height;
+  b.x >= work.x &&
+  b.y >= work.y &&
+  b.x + b.width <= work.x + work.width &&
+  b.y + b.height <= work.y + work.height;
 
 test("Blink on the right edge puts the mini box to its left, centred on Blink", () => {
   const b = placeMini({ blink: { x: 1280, y: 400 }, size, workArea: work });
@@ -21,8 +24,17 @@ test("Blink on the left edge puts it to the right", () => {
 });
 
 test("near a corner it stays on screen", () => {
-  for (const blink of [{ x: 1280, y: 5 }, { x: 1280, y: 795 }, { x: 0, y: 0 }, { x: 640, y: 800 }, { x: 640, y: 0 }]) {
-    assert.ok(inside(placeMini({ blink, size, workArea: work })), JSON.stringify(blink));
+  for (const blink of [
+    { x: 1280, y: 5 },
+    { x: 1280, y: 795 },
+    { x: 0, y: 0 },
+    { x: 640, y: 800 },
+    { x: 640, y: 0 },
+  ]) {
+    assert.ok(
+      inside(placeMini({ blink, size, workArea: work })),
+      JSON.stringify(blink),
+    );
   }
 });
 
@@ -32,6 +44,10 @@ test("on a bottom edge it goes above Blink", () => {
 });
 
 test("a window taller than the work area is clamped to it", () => {
-  const b = placeMini({ blink: { x: 640, y: 400 }, size: { width: MINI_WIDTH, height: 2000 }, workArea: work });
+  const b = placeMini({
+    blink: { x: 640, y: 400 },
+    size: { width: MINI_WIDTH, height: 2000 },
+    workArea: work,
+  });
   assert.equal(b.height, work.height);
 });

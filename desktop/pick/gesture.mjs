@@ -34,7 +34,10 @@ export function createGesture({ threshold = DRAG_THRESHOLD, bounds } = {}) {
     move(p) {
       if (phase === "idle") return state();
       end = clamp(p);
-      if (phase === "pressed" && Math.hypot(end.x - start.x, end.y - start.y) > threshold)
+      if (
+        phase === "pressed" &&
+        Math.hypot(end.x - start.x, end.y - start.y) > threshold
+      )
         phase = "dragging";
       return state();
     },
@@ -46,7 +49,9 @@ export function createGesture({ threshold = DRAG_THRESHOLD, bounds } = {}) {
           ? (() => {
               const rect = rectOf(start, end);
               // Dragging back onto the press point cancels; anything else is an area.
-              return rect.width > 0 || rect.height > 0 ? { type: "area", rect } : null;
+              return rect.width > 0 || rect.height > 0
+                ? { type: "area", rect }
+                : null;
             })()
           : { type: "click", point: start };
       phase = "idle";

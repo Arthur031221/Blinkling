@@ -22,7 +22,11 @@ export async function launch({ scale = 1, env = {} } = {}) {
       ...env,
     },
   });
-  await poll(() => app.evaluate(() => Boolean(globalThis.blinklingTest?.pick)), 20000, "pick hook");
+  await poll(
+    () => app.evaluate(() => Boolean(globalThis.blinklingTest?.pick)),
+    20000,
+    "pick hook",
+  );
   return app;
 }
 
@@ -36,7 +40,16 @@ export async function poll(fn, timeout = 10000, label = "condition") {
   }
 }
 
-const KEYS = { ctrl: "Control_L", shift: "Shift_L", esc: "Escape", enter: "Return", c: "c", v: "v", tab: "Tab", alt: "Alt_L" };
+const KEYS = {
+  ctrl: "Control_L",
+  shift: "Shift_L",
+  esc: "Escape",
+  enter: "Return",
+  c: "c",
+  v: "v",
+  tab: "Tab",
+  alt: "Alt_L",
+};
 
 /** Real X input through XTest, in physical pixels. Returns the epoch ms at which
  * each key went down. A step is one of
@@ -45,16 +58,26 @@ const KEYS = { ctrl: "Control_L", shift: "Shift_L", esc: "Escape", enter: "Retur
 export function input(steps) {
   const lines = steps.map(([op, a, b, c, d, e]) => {
     switch (op) {
-      case "down": return `key(${JSON.stringify(KEYS[a] ?? a)}, 1); print(time.time() * 1000)`;
-      case "up": return `key(${JSON.stringify(KEYS[a] ?? a)}, 0)`;
-      case "key": return `key(${JSON.stringify(KEYS[a] ?? a)}, 1); key(${JSON.stringify(KEYS[a] ?? a)}, 0)`;
-      case "move": return `move(${a}, ${b})`;
-      case "press": return "button(1, 1)";
-      case "release": return "button(1, 0)";
-      case "wheel": return `button(${a > 0 ? 4 : 5}, 1); button(${a > 0 ? 4 : 5}, 0); flush()`;
-      case "wait": return `time.sleep(${a / 1000})`;
-      case "drag": return `drag(${a}, ${b}, ${c}, ${d}, ${e})`;
-      default: throw new Error(`Unknown input step ${op}`);
+      case "down":
+        return `key(${JSON.stringify(KEYS[a] ?? a)}, 1); print(time.time() * 1000)`;
+      case "up":
+        return `key(${JSON.stringify(KEYS[a] ?? a)}, 0)`;
+      case "key":
+        return `key(${JSON.stringify(KEYS[a] ?? a)}, 1); key(${JSON.stringify(KEYS[a] ?? a)}, 0)`;
+      case "move":
+        return `move(${a}, ${b})`;
+      case "press":
+        return "button(1, 1)";
+      case "release":
+        return "button(1, 0)";
+      case "wheel":
+        return `button(${a > 0 ? 4 : 5}, 1); button(${a > 0 ? 4 : 5}, 0); flush()`;
+      case "wait":
+        return `time.sleep(${a / 1000})`;
+      case "drag":
+        return `drag(${a}, ${b}, ${c}, ${d}, ${e})`;
+      default:
+        throw new Error(`Unknown input step ${op}`);
     }
   });
   const script = `import ctypes, time
@@ -101,7 +124,10 @@ export async function shot(app, file) {
     const { size, scaleFactor } = screen.getPrimaryDisplay();
     const [source] = await desktopCapturer.getSources({
       types: ["screen"],
-      thumbnailSize: { width: Math.round(size.width * scaleFactor), height: Math.round(size.height * scaleFactor) },
+      thumbnailSize: {
+        width: Math.round(size.width * scaleFactor),
+        height: Math.round(size.height * scaleFactor),
+      },
     });
     return source.thumbnail.toPNG().toString("base64");
   });
@@ -112,7 +138,9 @@ export async function shot(app, file) {
 /** Frame statistics for the end-to-end gate: gaps between frames of each run of
  * one animated surface, and any jump of the box between frames. */
 export function frameStats(frames, surface) {
-  const mine = frames.filter((f) => f.surface === surface).sort((a, b) => a.t - b.t);
+  const mine = frames
+    .filter((f) => f.surface === surface)
+    .sort((a, b) => a.t - b.t);
   const gaps = [];
   let jumps = 0;
   for (let i = 1; i < mine.length; i++) {
@@ -120,7 +148,8 @@ export function frameStats(frames, surface) {
     // A new run starts after a pause that is not a dropped frame.
     if (gap > 250) continue;
     gaps.push(gap);
-    const a = mine[i - 1].box, b = mine[i].box;
+    const a = mine[i - 1].box,
+      b = mine[i].box;
     if (a && b && Math.hypot(b.x - a.x, b.y - a.y) > 160) jumps++;
   }
   gaps.sort((p, q) => p - q);

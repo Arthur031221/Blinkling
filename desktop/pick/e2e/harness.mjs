@@ -12,7 +12,10 @@ export { launch, poll, input, shot, frameStats };
 const fixture = fileURLToPath(new URL("./fixtures/page.html", import.meta.url));
 // The locator module has a single export; evaluating it in the app avoids any
 // dependence on dynamic import inside Playwright's evaluate.
-const locatorSource = readFileSync(new URL("./dom-locator.mjs", import.meta.url), "utf8").replaceAll("export ", "");
+const locatorSource = readFileSync(
+  new URL("./dom-locator.mjs", import.meta.url),
+  "utf8",
+).replaceAll("export ", "");
 
 /** The shell's windows are override-redirect; under xfwm4 a managed window made
  * after them sits above them, which a real desktop with the shell's windows
@@ -36,56 +39,90 @@ export async function stack(app) {
 }
 
 /** Opens the page fixture in a real Chromium window and plugs the DOM locator in. */
-export function openFixture(app, bounds = { x: 80, y: 60, width: 640, height: 620 }) {
-  return app.evaluate(
-    async ({ BrowserWindow, screen }, { fixture, locatorSource, bounds }) => {
-      const win = new BrowserWindow({ ...bounds, frame: false, show: false, webPreferences: { sandbox: true } });
-      await win.loadFile(fixture);
-      win.show();
-      const make = new Function(`${locatorSource}; return createDomLocator;`)();
-      const locator = make({ win, display: screen.getPrimaryDisplay() });
-      globalThis.__fixture = win;
-      globalThis.blinklingTest.pick.setLocator(locator);
-      return win.getContentBounds();
-    },
-    { fixture, locatorSource, bounds },
-  ).then(async (content) => (await stack(app), content));
+export function openFixture(
+  app,
+  bounds = { x: 80, y: 60, width: 640, height: 620 },
+) {
+  return app
+    .evaluate(
+      async ({ BrowserWindow, screen }, { fixture, locatorSource, bounds }) => {
+        const win = new BrowserWindow({
+          ...bounds,
+          frame: false,
+          show: false,
+          webPreferences: { sandbox: true },
+        });
+        await win.loadFile(fixture);
+        win.show();
+        const make = new Function(
+          `${locatorSource}; return createDomLocator;`,
+        )();
+        const locator = make({ win, display: screen.getPrimaryDisplay() });
+        globalThis.__fixture = win;
+        globalThis.blinklingTest.pick.setLocator(locator);
+        return win.getContentBounds();
+      },
+      { fixture, locatorSource, bounds },
+    )
+    .then(async (content) => (await stack(app), content));
 }
 
 /** Records what the pick sends to its layer and to the session. */
 export function record(app) {
-  return app.evaluate(({ BrowserWindow }) => {
+  return app.evaluate(() => {
     const pick = globalThis.blinklingTest.pick;
     const layer = pick.test.layer;
-    const log = (globalThis.__pickLog = { layer: [], flights: [], turns: [], raises: [], shows: [] });
+    const log = (globalThis.__pickLog = {
+      layer: [],
+      flights: [],
+      turns: [],
+      raises: [],
+      shows: [],
+    });
     const send = layer.send;
-    layer.send = (channel, value) => (log.layer.push({ t: performance.now(), channel, value }), send(channel, value));
+    layer.send = (channel, value) => (
+      log.layer.push({ t: performance.now(), channel, value }),
+      send(channel, value)
+    );
     const flight = layer.flight;
-    layer.flight = (items, to) => (log.flights.push({ t: performance.now(), items, to }), flight(items, to));
+    layer.flight = (items, to) => (
+      log.flights.push({ t: performance.now(), items, to }),
+      flight(items, to)
+    );
     const show = layer.show;
-    layer.show = (display, cursor) => (log.shows.push(Date.now()), show(display, cursor));
+    layer.show = (display, cursor) => (
+      log.shows.push(Date.now()),
+      show(display, cursor)
+    );
     const raise = pick.test.controller.raise;
     pick.test.controller.raise = () => (log.raises.push(Date.now()), raise());
-    globalThis.blinklingTest.session.send = async (turn) => void log.turns.push(turn);
+    globalThis.blinklingTest.session.send = async (turn) =>
+      void log.turns.push(turn);
     return true;
   });
 }
 
-export const log = (app) => app.evaluate(() => JSON.parse(JSON.stringify(globalThis.__pickLog)));
+export const log = (app) =>
+  app.evaluate(() => JSON.parse(JSON.stringify(globalThis.__pickLog)));
 
 /** Every frame logged by the layer windows and the mini composer. */
 export function frames(app) {
   return app.evaluate(async ({ BrowserWindow }) => {
     const all = [];
     for (const w of BrowserWindow.getAllWindows())
-      if (!w.isDestroyed()) all.push(...((await w.webContents.executeJavaScript("window.__blinklingFrames ?? []").catch(() => [])) ?? []));
+      if (!w.isDestroyed())
+        all.push(
+          ...((await w.webContents
+            .executeJavaScript("window.__blinklingFrames ?? []")
+            .catch(() => [])) ?? []),
+        );
     return all;
   });
 }
 
 /** The DOM's own answer for an element, in screen DIP. */
 export function domRect(app, selector) {
-  return app.evaluate(async ({}, selector) => {
+  return app.evaluate(async (_electron, selector) => {
     const win = globalThis.__fixture;
     const r = await win.webContents.executeJavaScript(
       `(() => { const b = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: b.left, y: b.top, width: b.width, height: b.height }; })()`,
@@ -95,19 +132,35 @@ export function domRect(app, selector) {
   }, selector);
 }
 
-export const raised = (app) => app.evaluate(() => globalThis.blinklingTest.pick.test.controller.isRaised());
-export const miniOpen = (app) => app.evaluate(() => globalThis.blinklingTest.pick.test.mini.isOpen);
+export const raised = (app) =>
+  app.evaluate(() => globalThis.blinklingTest.pick.test.controller.isRaised());
+export const miniOpen = (app) =>
+  app.evaluate(() => globalThis.blinklingTest.pick.test.mini.isOpen);
 export const miniEval = (app, code) =>
-  app.evaluate(({}, code) => globalThis.blinklingTest.pick.test.miniWindow.webContents.executeJavaScript(code), code);
+  app.evaluate(
+    (_electron, code) =>
+      globalThis.blinklingTest.pick.test.miniWindow.webContents.executeJavaScript(
+        code,
+      ),
+    code,
+  );
 export const near = (a, b, d = 2) => Math.abs(a - b) <= d;
 export const sameRect = (a, b, d = 2) =>
-  near(a.x, b.x, d) && near(a.y, b.y, d) && near(a.width, b.width, d) && near(a.height, b.height, d);
+  near(a.x, b.x, d) &&
+  near(a.y, b.y, d) &&
+  near(a.width, b.width, d) &&
+  near(a.height, b.height, d);
 
 /** Runs code in the fixture page. */
 export const pageEval = (app, code) =>
-  app.evaluate(({}, code) => globalThis.__fixture.webContents.executeJavaScript(code), code);
+  app.evaluate(
+    (_electron, code) =>
+      globalThis.__fixture.webContents.executeJavaScript(code),
+    code,
+  );
 
-const SENTENCE = "The second sentence of this paragraph is long enough that it wraps onto a further line of text.";
+const SENTENCE =
+  "The second sentence of this paragraph is long enough that it wraps onto a further line of text.";
 
 /** The DOM's own answer for the second sentence of the paragraph, independent of
  * the locator under test: one rect per rendered line (screen DIP), their union,
@@ -154,29 +207,54 @@ export async function domSentence(app) {
 }
 
 /** The layer messages of one channel, in order. */
-export const sent = (data, channel) => data.layer.filter((m) => m.channel === channel).map((m) => m.value);
+export const sent = (data, channel) =>
+  data.layer.filter((m) => m.channel === channel).map((m) => m.value);
 
 /** Prints a page to a PDF with Chromium and opens it in a real window, so the
  * browser's own PDF viewer shows it. The PDF locator stands in for the window
  * locator service. `html` is the page that becomes the PDF. */
-export async function openPdf(app, html, bounds = { x: 80, y: 60, width: 640, height: 620 }) {
+export async function openPdf(
+  app,
+  html,
+  bounds = { x: 80, y: 60, width: 640, height: 620 },
+) {
   const base64 = await app.evaluate(async ({ BrowserWindow }, html) => {
-    const maker = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
-    await maker.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    const maker = new BrowserWindow({
+      show: false,
+      webPreferences: { sandbox: true },
+    });
+    await maker.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+    );
     const data = await maker.webContents.printToPDF({});
     maker.destroy();
     return data.toString("base64");
   }, html);
-  const file = join(mkdtempSync(join(tmpdir(), "pick-e2e-pdf-")), "document.pdf");
+  const file = join(
+    mkdtempSync(join(tmpdir(), "pick-e2e-pdf-")),
+    "document.pdf",
+  );
   writeFileSync(file, Buffer.from(base64, "base64"));
   await app.evaluate(
-    async ({ BrowserWindow, screen, clipboard }, { file, bounds, locatorSource }) => {
-      const win = new BrowserWindow({ ...bounds, frame: false, show: false, webPreferences: { sandbox: true, plugins: true } });
+    async (
+      { BrowserWindow, screen, clipboard },
+      { file, bounds, locatorSource },
+    ) => {
+      const win = new BrowserWindow({
+        ...bounds,
+        frame: false,
+        show: false,
+        webPreferences: { sandbox: true, plugins: true },
+      });
       await win.loadURL(`file://${file}`);
       win.show();
       const make = new Function(`${locatorSource}; return createPdfLocator;`)();
       globalThis.__fixture = win;
-      const locator = make({ win, display: screen.getPrimaryDisplay(), clipboard });
+      const locator = make({
+        win,
+        display: screen.getPrimaryDisplay(),
+        clipboard,
+      });
       globalThis.__locator = locator;
       globalThis.blinklingTest.pick.setLocator(locator);
     },

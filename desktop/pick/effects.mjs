@@ -56,7 +56,9 @@ function line(a, b, rand, amp = WOBBLE) {
   for (let i = 1; i < steps; i++) {
     const f = i / steps;
     const w = (rand() - 0.5) * 2 * amp;
-    out.push(point(a.x + (b.x - a.x) * f + nx * w, a.y + (b.y - a.y) * f + ny * w));
+    out.push(
+      point(a.x + (b.x - a.x) * f + nx * w, a.y + (b.y - a.y) * f + ny * w),
+    );
   }
   out.push(point(b.x, b.y));
   return out;
@@ -92,7 +94,8 @@ function loop(b, rand, pad = 8) {
     cy = b.y + b.height / 2;
   const rx = b.width / 2 + pad,
     ry = b.height / 2 + pad;
-  const circumference = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+  const circumference =
+    Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
   const steps = Math.min(96, Math.max(24, Math.ceil(circumference / 16)));
   const start = -Math.PI / 2 - 0.4;
   const overshoot = Math.min(0.1, 6 / Math.max(rx, ry));
@@ -101,8 +104,14 @@ function loop(b, rand, pad = 8) {
   for (let i = 0; i <= steps; i++) {
     const f = i / steps;
     const angle = start + sweep * f;
-    const radial = 1 + (rand() - 0.5) * 0.02 + (i === steps ? 3 / Math.max(rx, ry) : 0);
-    out.push(point(cx + Math.cos(angle) * rx * radial, cy + Math.sin(angle) * ry * radial));
+    const radial =
+      1 + (rand() - 0.5) * 0.02 + (i === steps ? 3 / Math.max(rx, ry) : 0);
+    out.push(
+      point(
+        cx + Math.cos(angle) * rx * radial,
+        cy + Math.sin(angle) * ry * radial,
+      ),
+    );
   }
   return out;
 }
@@ -129,15 +138,19 @@ function corners(b, rand) {
 function crayonLines(b, lines, rand) {
   const rows = lines.length
     ? lines
-    : Array.from({ length: Math.max(1, Math.round(b.height / LINE_HEIGHT)) }, (_, i) => ({
-        x: b.x,
-        y: b.y + i * LINE_HEIGHT,
-        width: b.width,
-        height: LINE_HEIGHT,
-      }));
+    : Array.from(
+        { length: Math.max(1, Math.round(b.height / LINE_HEIGHT)) },
+        (_, i) => ({
+          x: b.x,
+          y: b.y + i * LINE_HEIGHT,
+          width: b.width,
+          height: LINE_HEIGHT,
+        }),
+      );
   const n = rows.length;
   // Gaps shrink for long texts so the cap holds and no line is skipped.
-  const gap = n > 1 ? Math.min(LINE_GAP, (EFFECT_MAX - duration.fast) / (n - 1)) : 0;
+  const gap =
+    n > 1 ? Math.min(LINE_GAP, (EFFECT_MAX - duration.fast) / (n - 1)) : 0;
   const stroke = Math.min(duration.base, EFFECT_MAX - gap * (n - 1));
   return rows.map((row, i) => {
     const y = row.y + row.height / 2;
@@ -170,7 +183,9 @@ function bracket(side, b, rand) {
   );
   // The serifs reach inward only as far as the element's own edge.
   return points.map((p) =>
-    side === "left" ? point(Math.min(p.x, b.x + 2), p.y) : point(Math.max(p.x, b.x + b.width - 2), p.y),
+    side === "left"
+      ? point(Math.min(p.x, b.x + 2), p.y)
+      : point(Math.max(p.x, b.x + b.width - 2), p.y),
   );
 }
 
@@ -180,7 +195,9 @@ function wave(b, rand) {
   const phase = rand() * Math.PI;
   const out = [];
   for (let i = 0; i <= steps; i++)
-    out.push(point(b.x + (b.width * i) / steps, y + Math.sin(phase + i * 1.2) * 2));
+    out.push(
+      point(b.x + (b.width * i) / steps, y + Math.sin(phase + i * 1.2) * 2),
+    );
   return out;
 }
 
@@ -197,14 +214,33 @@ export function effectPlan({ kind, bounds, lines = [], reduced = false }) {
       strokes = crayonLines(bounds, lines, rand);
       break;
     case "loop":
-      strokes = [{ role: "loop", points: loop(bounds, rand), at: 0, duration: duration.slow }];
+      strokes = [
+        {
+          role: "loop",
+          points: loop(bounds, rand),
+          at: 0,
+          duration: duration.slow,
+        },
+      ];
       break;
     case "circle":
-      strokes = [{ role: "circle", points: loop(bounds, rand), at: 0, duration: duration.slow }];
+      strokes = [
+        {
+          role: "circle",
+          points: loop(bounds, rand),
+          at: 0,
+          duration: duration.slow,
+        },
+      ];
       break;
     case "outline-sweep":
       strokes = [
-        { role: "outline", points: path(rectCorners(bounds), rand), at: 0, duration: duration.base },
+        {
+          role: "outline",
+          points: path(rectCorners(bounds), rand),
+          at: 0,
+          duration: duration.base,
+        },
         {
           role: "sweep",
           direction: "down",
@@ -229,8 +265,18 @@ export function effectPlan({ kind, bounds, lines = [], reduced = false }) {
       break;
     case "wave":
       strokes = [
-        { role: "outline", points: path(rectCorners(bounds), rand), at: 0, duration: duration.base },
-        { role: "wave", points: wave(bounds, rand), at: duration.fast, duration: duration.base },
+        {
+          role: "outline",
+          points: path(rectCorners(bounds), rand),
+          at: 0,
+          duration: duration.base,
+        },
+        {
+          role: "wave",
+          points: wave(bounds, rand),
+          at: duration.fast,
+          duration: duration.base,
+        },
       ];
       break;
     case "corners":
@@ -241,20 +287,53 @@ export function effectPlan({ kind, bounds, lines = [], reduced = false }) {
       }));
       break;
     case "bracket":
-      strokes = [{ role: "bracket", points: bracket("left", bounds, rand), at: 0, duration: duration.slow }];
+      strokes = [
+        {
+          role: "bracket",
+          points: bracket("left", bounds, rand),
+          at: 0,
+          duration: duration.slow,
+        },
+      ];
       break;
     default:
-      strokes = [{ role: "outline", points: path(rectCorners(bounds), rand), at: 0, duration: duration.slow }];
+      strokes = [
+        {
+          role: "outline",
+          points: path(rectCorners(bounds), rand),
+          at: 0,
+          duration: duration.slow,
+        },
+      ];
   }
   if (reduced) {
     strokes = strokes.map((s) => ({ ...s, at: 0, duration: duration.fast }));
-    return { effect, strokes, total: duration.fast, tag: kind === "video" ? "frame" : null, reduced: true };
+    return {
+      effect,
+      strokes,
+      total: duration.fast,
+      tag: kind === "video" ? "frame" : null,
+      reduced: true,
+    };
   }
   const total = Math.max(...strokes.map((s) => s.at + s.duration));
-  return { effect, strokes, total, tag: kind === "video" ? "frame" : null, reduced: false };
+  return {
+    effect,
+    strokes,
+    total,
+    tag: kind === "video" ? "frame" : null,
+    reduced: false,
+  };
 }
 
 /** A secure element or a blocked app: a small lock, nothing taken (N1.2). */
 export function lockPlan(at) {
-  return { effect: "lock", at, taken: false, strokes: [], total: duration.base, reduced: false };
+  return {
+    effect: "lock",
+    at,
+    taken: false,
+    strokes: [],
+    total: duration.base,
+    reduced: false,
+  };
 }

@@ -1,26 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "Blinkling",
-  "version": "2.1.0",
+  "name": "__MSG_extName__",
+  "version": "3.0.0",
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
+  "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/blink-16.png",
     "32": "icons/blink-32.png",
     "48": "icons/blink-48.png",
     "128": "icons/blink-128.png"
   },
-  "description": "A small floating assistant for the page or screen you choose to share.",
   "permissions": [
-    "activeTab",
+    "alarms",
     "scripting",
-    "storage",
-    "tabs"
+    "storage"
   ],
   "host_permissions": [
-    "http://127.0.0.1/*",
-    "http://localhost/*"
-  ],
-  "optional_host_permissions": [
-    "https://api.anthropic.com/*",
     "<all_urls>"
   ],
   "background": {
@@ -31,50 +27,20 @@
     {
       "matches": [
         "http://127.0.0.1/install*",
-        "http://localhost/install*",
-        "http://127.0.0.1/assets/blinkling-welcome-sample.html",
-        "http://localhost/assets/blinkling-welcome-sample.html"
+        "http://localhost/install*"
       ],
       "js": [
-        "content.js"
+        "install.js"
       ],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_title": "Open Blinkling",
+    "default_title": "__MSG_actionTitle__",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/blink-16.png",
       "32": "icons/blink-32.png"
-    }
-  },
-  "commands": {
-    "open-blinkling": {
-      "suggested_key": {
-        "default": "Alt+Shift+G"
-      },
-      "description": "Open Blinkling"
-    },
-    "pause-passive": {
-      "suggested_key": {
-        "default": "Alt+P"
-      },
-      "description": "Pause passive reading"
-    },
-    "crop-screen": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Crop the shared screen or current page"
-    },
-    "crop-global": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+7",
-        "mac": "Command+Shift+7"
-      },
-      "description": "Crop from any app. Remap in browser shortcut settings.",
-      "global": true
     }
   },
   "content_security_policy": {

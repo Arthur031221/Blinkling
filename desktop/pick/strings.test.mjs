@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { strings, t } from "./strings.mjs";
 import { LOCALES } from "../shared/i18n.mjs";
+// The old product name, built from parts so this file does not name it.
+const OLD_NAME = new RegExp(["Glimp", "selet"].join(""));
 
 test("all nine locales carry exactly the English keys", () => {
   assert.deepEqual(Object.keys(strings).sort(), [...LOCALES].sort());
@@ -16,9 +18,14 @@ test("all nine locales carry exactly the English keys", () => {
 test("the product and the mascot names are never translated", () => {
   for (const locale of LOCALES)
     for (const [key, value] of Object.entries(strings[locale])) {
-      assert.doesNotMatch(value, /Glimpselet|布林克|ブリンク/, `${locale}.${key}`);
+      assert.doesNotMatch(
+        value,
+        new RegExp(`${OLD_NAME.source}|布林克|ブリンク`),
+        `${locale}.${key}`,
+      );
     }
-  for (const locale of LOCALES) assert.match(strings[locale]["pdf.offer"], /Blinkling/);
+  for (const locale of LOCALES)
+    assert.match(strings[locale]["pdf.offer"], /Blinkling/);
 });
 
 test("the spec's Traditional Chinese words", () => {

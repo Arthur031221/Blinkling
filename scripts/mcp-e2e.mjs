@@ -16,6 +16,7 @@ const transport = new StdioClientTransport({
   stderr: "pipe",
   env: {
     ...process.env,
+    BLINKLING_REMOTE: "0",
     BLINKLING_TEST_MODE: "1",
     BLINKLING_TEST_FIXTURE: fixture,
   },

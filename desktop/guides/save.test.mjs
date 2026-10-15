@@ -463,7 +463,8 @@ test("saving needs no network and writes no replay data or list of guides", asyn
     const files = [];
     const walk = (dir) => {
       for (const e of readdirSync(dir, { withFileTypes: true }))
-        e.isDirectory() ? walk(join(dir, e.name)) : files.push(e.name);
+        if (e.isDirectory()) walk(join(dir, e.name));
+        else files.push(e.name);
     };
     walk(s.documents);
     assert.ok(files.length >= 3);

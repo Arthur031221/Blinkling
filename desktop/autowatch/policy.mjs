@@ -57,7 +57,10 @@ export function scrollShift(a, b) {
   for (let s = -SCROLL.maxShift; s <= SCROLL.maxShift; s++) {
     if (!s) continue;
     const r = residual(a, b, s);
-    if (r < best) ((best = r), (at = s));
+    if (r < best) {
+      best = r;
+      at = s;
+    }
   }
   return at && best <= SCROLL.residual && best <= unshifted * SCROLL.ratio
     ? at

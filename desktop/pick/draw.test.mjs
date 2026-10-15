@@ -1,8 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { strokeProgress, partial, polylineLength, effectDone } from "./draw.mjs";
+import {
+  strokeProgress,
+  partial,
+  polylineLength,
+  effectDone,
+} from "./draw.mjs";
 
-const line = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
+const line = [
+  { x: 0, y: 0 },
+  { x: 10, y: 0 },
+  { x: 10, y: 10 },
+];
 
 test("a stroke waits for its start, runs for its duration, then stays done", () => {
   const stroke = { at: 100, duration: 200 };
@@ -28,8 +37,15 @@ test("a zero duration stroke is all there from its start", () => {
 
 test("partial draws up to a share of the length and ends mid segment", () => {
   assert.equal(polylineLength(line), 20);
-  assert.deepEqual(partial(line, 0.25), [{ x: 0, y: 0 }, { x: 5, y: 0 }]);
-  assert.deepEqual(partial(line, 0.75), [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 5 }]);
+  assert.deepEqual(partial(line, 0.25), [
+    { x: 0, y: 0 },
+    { x: 5, y: 0 },
+  ]);
+  assert.deepEqual(partial(line, 0.75), [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 5 },
+  ]);
   assert.deepEqual(partial(line, 1), line);
   assert.deepEqual(partial(line, 0), []);
 });

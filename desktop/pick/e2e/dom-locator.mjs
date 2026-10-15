@@ -115,11 +115,18 @@ export function createDomLocator({ win, display, title = "Pick fixture" }) {
   const wc = win.webContents;
   const ready = wc.executeJavaScript(PAGE);
   const run = async (call) => (await ready, wc.executeJavaScript(call));
-  const windowInfo = () => ({ id: `w${win.id}`, title, bounds: win.getContentBounds(), browser: true });
+  const windowInfo = () => ({
+    id: `w${win.id}`,
+    title,
+    bounds: win.getContentBounds(),
+    browser: true,
+  });
   const origin = () => win.getContentBounds();
   const toScreen = (r) => {
     const o = origin();
-    return r && { x: r.x + o.x, y: r.y + o.y, width: r.width, height: r.height };
+    return (
+      r && { x: r.x + o.x, y: r.y + o.y, width: r.width, height: r.height }
+    );
   };
   const fromScreen = (p) => ({ x: p.x - origin().x, y: p.y - origin().y });
   const lift = (d) =>
@@ -130,7 +137,8 @@ export function createDomLocator({ win, display, title = "Pick fixture" }) {
       window: windowInfo(),
       display,
     };
-  const inside = (r, p) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height;
+  const inside = (r, p) =>
+    p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height;
   const calls = { locate: 0 };
   const byId = new Map();
   const remember = (d) => (d && byId.set(d.id, d), d);
@@ -151,16 +159,32 @@ export function createDomLocator({ win, display, title = "Pick fixture" }) {
     async selectionAt(point) {
       const c = fromScreen(point);
       const s = await run(`window.__pick.selection(${c.x}, ${c.y})`);
-      return s && { text: s.text, bounds: toScreen(s.bounds), lines: s.lines.map(toScreen) };
+      return (
+        s && {
+          text: s.text,
+          bounds: toScreen(s.bounds),
+          lines: s.lines.map(toScreen),
+        }
+      );
     },
     async sentenceAt(el, point) {
       const c = fromScreen(point);
-      const s = await run(`window.__pick.sentenceAt(${JSON.stringify(el.id)}, ${c.x}, ${c.y})`);
-      return s && { text: s.text, bounds: toScreen(s.bounds), lines: s.lines.map(toScreen) };
+      const s = await run(
+        `window.__pick.sentenceAt(${JSON.stringify(el.id)}, ${c.x}, ${c.y})`,
+      );
+      return (
+        s && {
+          text: s.text,
+          bounds: toScreen(s.bounds),
+          lines: s.lines.map(toScreen),
+        }
+      );
     },
     async textIn(rect) {
       const o = origin();
-      return run(`window.__pick.textIn(${JSON.stringify({ ...rect, x: rect.x - o.x, y: rect.y - o.y })})`);
+      return run(
+        `window.__pick.textIn(${JSON.stringify({ ...rect, x: rect.x - o.x, y: rect.y - o.y })})`,
+      );
     },
     async focus() {
       return { secure: await run("window.__pick.secureFocus()") };
@@ -176,15 +200,24 @@ export function createDomLocator({ win, display, title = "Pick fixture" }) {
  * nothing selected has no text. */
 export function createPdfLocator({ win, display, clipboard }) {
   const wc = win.webContents;
-  const info = () => ({ id: `w${win.id}`, title: "PDF", bounds: win.getContentBounds(), browser: true, pdf: true });
-  const inside = (r, p) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height;
+  const info = () => ({
+    id: `w${win.id}`,
+    title: "PDF",
+    bounds: win.getContentBounds(),
+    browser: true,
+    pdf: true,
+  });
+  const inside = (r, p) =>
+    p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height;
   return {
     async locate(point) {
       const bounds = win.getContentBounds();
       if (!inside(bounds, point)) return null;
       return { id: "pdf-page", kind: "page", bounds, window: info(), display };
     },
-    async parent() { return null; },
+    async parent() {
+      return null;
+    },
     async selectionAt(point) {
       if (!inside(win.getContentBounds(), point)) return null;
       // The clipboard calls are asynchronous in this Electron.
@@ -196,11 +229,23 @@ export function createPdfLocator({ win, display, clipboard }) {
       if (before) await clipboard.writeText(before);
       else await clipboard.clear();
       return text.trim()
-        ? { text: text.trim(), bounds: { x: point.x - 40, y: point.y - 10, width: 80, height: 20 }, lines: [{ x: point.x - 40, y: point.y - 10, width: 80, height: 20 }] }
+        ? {
+            text: text.trim(),
+            bounds: { x: point.x - 40, y: point.y - 10, width: 80, height: 20 },
+            lines: [
+              { x: point.x - 40, y: point.y - 10, width: 80, height: 20 },
+            ],
+          }
         : null;
     },
-    async textIn() { return ""; },
-    async focus() { return { secure: false }; },
-    async windowAt(point) { return inside(win.getContentBounds(), point) ? info() : null; },
+    async textIn() {
+      return "";
+    },
+    async focus() {
+      return { secure: false };
+    },
+    async windowAt(point) {
+      return inside(win.getContentBounds(), point) ? info() : null;
+    },
   };
 }

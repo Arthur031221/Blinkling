@@ -17,11 +17,17 @@ export function mountMini(root, { t, tp, on }) {
     "aria-label": t("mini.input"),
     spellcheck: "false",
   });
-  const send = el("button", "mini-send", { type: "button", "aria-label": t("mini.send") });
+  const send = el("button", "mini-send", {
+    type: "button",
+    "aria-label": t("mini.send"),
+  });
   send.textContent = "↵";
   const row = el("div", "mini-row");
   row.append(input, send);
-  const quick = el("div", "mini-quick", { role: "group", "aria-label": t("mini.quick") });
+  const quick = el("div", "mini-quick", {
+    role: "group",
+    "aria-label": t("mini.quick"),
+  });
   const offers = el("div", "mini-offers");
   card.append(pause, entries, row, quick, offers);
   root.replaceChildren(card);
@@ -45,7 +51,9 @@ export function mountMini(root, { t, tp, on }) {
   });
 
   function entryChip(entry) {
-    const chip = el("span", `mini-entry mini-entry-${entry.type}`, { "data-id": entry.id });
+    const chip = el("span", `mini-entry mini-entry-${entry.type}`, {
+      "data-id": entry.id,
+    });
     const label = entry.type === "image" ? t("mini.image") : t("mini.text");
     if (entry.type === "image") {
       if (entry.thumb) {
@@ -86,11 +94,15 @@ export function mountMini(root, { t, tp, on }) {
       quick.hidden = view.chips.length === 0;
       quick.replaceChildren(
         ...view.chips.map((chip) => {
-          const button = el("button", `mini-chip${chip.highlighted ? " is-default" : ""}`, {
-            type: "button",
-            "data-id": chip.id,
-            "aria-pressed": String(chip.highlighted),
-          });
+          const button = el(
+            "button",
+            `mini-chip${chip.highlighted ? " is-default" : ""}`,
+            {
+              type: "button",
+              "data-id": chip.id,
+              "aria-pressed": String(chip.highlighted),
+            },
+          );
           button.textContent = chip.label;
           button.addEventListener("click", () => on.chip(chip.id));
           return button;
@@ -99,8 +111,14 @@ export function mountMini(root, { t, tp, on }) {
       offers.hidden = view.offers.length === 0;
       offers.replaceChildren(
         ...view.offers.map((offer) => {
-          const button = el("button", "mini-offer", { type: "button", "data-id": offer.id });
-          button.textContent = offer.id === "translate-page" ? tp("translate.page") : tp("pdf.offer");
+          const button = el("button", "mini-offer", {
+            type: "button",
+            "data-id": offer.id,
+          });
+          button.textContent =
+            offer.id === "translate-page"
+              ? tp("translate.page")
+              : tp("pdf.offer");
           button.addEventListener("click", () => on.offer(offer.id));
           return button;
         }),

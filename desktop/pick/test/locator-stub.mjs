@@ -23,9 +23,14 @@ export function element(id, kind, bounds, extra = {}) {
 /** A small page: title bar, a section holding a paragraph with two sentences,
  * an image, a table, a code block and a password field. */
 export function samplePage() {
-  const page = element("page", "page", { x: 100, y: 90, width: 900, height: 610 }, {
-    name: "Example page",
-  });
+  const page = element(
+    "page",
+    "page",
+    { x: 100, y: 90, width: 900, height: 610 },
+    {
+      name: "Example page",
+    },
+  );
   const section = element(
     "section-1",
     "section",
@@ -84,7 +89,9 @@ export function samplePage() {
     { x: 140, y: 410, width: 420, height: 80 },
     {
       parentId: "page",
-      content: { code: { language: "js", text: "const a = 1;\nconsole.log(a);" } },
+      content: {
+        code: { language: "js", text: "const a = 1;\nconsole.log(a);" },
+      },
     },
   );
   const password = element(
@@ -136,7 +143,10 @@ export function createLocatorStub({
     },
     /** The window under a point, for clicks that land on no element. */
     async windowAt(point) {
-      return elements.find((e) => e.window && inside(e.window.bounds, point))?.window ?? null;
+      return (
+        elements.find((e) => e.window && inside(e.window.bounds, point))
+          ?.window ?? null
+      );
     },
   };
   if (sentences)

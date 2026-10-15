@@ -13,7 +13,8 @@ export function createKeySource({ load, handle, onError = () => {} }) {
       if (hook) return { ok: true };
       try {
         const { uIOhook } = await load();
-        for (const type of FORWARDED) uIOhook.on(type, (event) => handle({ type, code: event.keycode }));
+        for (const type of FORWARDED)
+          uIOhook.on(type, (event) => handle({ type, code: event.keycode }));
         uIOhook.start();
         hook = uIOhook;
         return { ok: true };

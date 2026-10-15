@@ -3608,15 +3608,15 @@ var AnnotationEditorUIManager = class _AnnotationEditorUIManager {
       }
     }
   }
-  showAllEditors(type, visible2, updateButton = false) {
+  showAllEditors(type, visible, updateButton = false) {
     for (const editor of this.#allEditors.values()) {
       if (editor.editorType === type) {
-        editor.show(visible2);
+        editor.show(visible);
       }
     }
     const state = this.#showAllStates?.get(AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL) ?? true;
-    if (state !== visible2) {
-      this.#dispatchUpdateUI([[AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL, visible2]]);
+    if (state !== visible) {
+      this.#dispatchUpdateUI([[AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL, visible]]);
     }
   }
   enableWaiting(mustWait = false) {
@@ -6086,10 +6086,10 @@ var AnnotationEditor = class _AnnotationEditor {
       right
     } = this.getClientDimensions();
     const {
-      innerHeight: innerHeight2,
+      innerHeight,
       innerWidth: innerWidth2
     } = window;
-    return left < innerWidth2 && right > 0 && top < innerHeight2 && bottom > 0;
+    return left < innerWidth2 && right > 0 && top < innerHeight && bottom > 0;
   }
   #addFocusListeners() {
     if (this.#focusAC || !this.div) {
@@ -6466,9 +6466,9 @@ var AnnotationEditor = class _AnnotationEditor {
       }
     });
   }
-  show(visible2 = this._isVisible) {
-    this.div.classList.toggle("hidden", !visible2);
-    this._isVisible = visible2;
+  show(visible = this._isVisible) {
+    this.div.classList.toggle("hidden", !visible);
+    this._isVisible = visible;
   }
   enable() {
     if (this.div) {
@@ -12189,12 +12189,12 @@ var OptionalContentGroup = class {
     }
     return true;
   }
-  _setVisible(internal, visible2, userSet = false) {
+  _setVisible(internal, visible, userSet = false) {
     if (internal !== INTERNAL) {
       unreachable("Internal method `_setVisible` called.");
     }
     this.#userSet = userSet;
-    this.#visible = visible2;
+    this.#visible = visible;
   }
 };
 var OptionalContentConfig = class {
@@ -12333,13 +12333,13 @@ var OptionalContentConfig = class {
     warn(`Unknown group type ${group.type}.`);
     return true;
   }
-  setVisibility(id, visible2 = true, preserveRB = true) {
+  setVisibility(id, visible = true, preserveRB = true) {
     const group = this.#groups.get(id);
     if (!group) {
       warn(`Optional content group not found: ${id}`);
       return;
     }
-    if (preserveRB && visible2 && group.rbGroups.length) {
+    if (preserveRB && visible && group.rbGroups.length) {
       for (const rbGroup of group.rbGroups) {
         for (const otherId of rbGroup) {
           if (otherId !== id) {
@@ -12348,7 +12348,7 @@ var OptionalContentConfig = class {
         }
       }
     }
-    group._setVisible(INTERNAL, !!visible2, true);
+    group._setVisible(INTERNAL, !!visible, true);
     this.#cachedGetHash = null;
   }
   setOCGState({
@@ -21291,17 +21291,17 @@ var HighlightEditor = class _HighlightEditor extends AnnotationEditor {
   get _mustFixPosition() {
     return !this.#isFreeHighlight;
   }
-  show(visible2 = this._isVisible) {
-    super.show(visible2);
+  show(visible = this._isVisible) {
+    super.show(visible);
     if (this.parent) {
       this.parent.drawLayer.updateProperties(this.#id, {
         rootClass: {
-          hidden: !visible2
+          hidden: !visible
         }
       });
       this.parent.drawLayer.updateProperties(this.#outlineId, {
         rootClass: {
-          hidden: !visible2
+          hidden: !visible
         }
       });
     }
@@ -25801,2002 +25801,6 @@ globalThis.pdfjsLib = {
   XfaLayer
 };
 
-// extension/connection.ts
-var welcomeLocaleNames = {
-  en: "English",
-  "zh-TW": "\u7E41\u9AD4\u4E2D\u6587",
-  "zh-CN": "\u7B80\u4F53\u4E2D\u6587",
-  ja: "\u65E5\u672C\u8A9E",
-  ko: "\uD55C\uAD6D\uC5B4",
-  es: "Espa\xF1ol",
-  fr: "Fran\xE7ais",
-  de: "Deutsch",
-  "pt-BR": "Portugu\xEAs"
-};
-var isWelcomeLocale = (value) => typeof value === "string" && Object.hasOwn(welcomeLocaleNames, value);
-
-// extension/crop-selection.ts
-function selectionRect(start, end, width, height) {
-  const clamp = (v, max) => Math.max(0, Math.min(max, v));
-  const x1 = clamp(start.x, width), x2 = clamp(end.x, width);
-  const y1 = clamp(start.y, height), y2 = clamp(end.y, height);
-  return {
-    x: Math.min(x1, x2),
-    y: Math.min(y1, y2),
-    width: Math.abs(x2 - x1),
-    height: Math.abs(y2 - y1)
-  };
-}
-function selectCrop(host, bounds, labels, pixelScale = 1, initialPointer) {
-  const doc = host.ownerDocument, view = doc.defaultView;
-  const root = host.attachShadow({ mode: "open" });
-  const style = doc.createElement("style");
-  style.textContent = `:host{position:fixed;inset:0;z-index:2147483647;pointer-events:auto;font:14px system-ui;color:#fff}.surface{position:fixed;inset:0;cursor:crosshair;touch-action:none;background:#0005}.selection{position:fixed;border:2px solid #f4bb62;box-shadow:0 0 0 9999px #0008;cursor:move;box-sizing:border-box}.handle{position:absolute;width:12px;height:12px;padding:0;background:#fffaf0;border:2px solid #a75f40;box-sizing:border-box;transform:translate(-50%,-50%);border-radius:2px}.handle:focus-visible{outline:2px solid #f4bb62;outline-offset:3px}.readout{position:absolute;top:-30px;left:0;background:#201b17;padding:4px 7px;border-radius:5px;white-space:nowrap}.tools{position:fixed;top:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:10px 14px;background:#30271deb;border-radius:12px;box-shadow:0 3px 18px #0004;max-width:calc(100vw - 32px);cursor:default}.tools span{max-width:50vw}.tools button{font:600 13px system-ui;border:0;border-radius:7px;padding:8px;background:#f5dfbf;color:#30271d;cursor:pointer}.tools button:disabled{opacity:.5}.tools button:focus-visible{outline:2px solid #f4bb62;outline-offset:3px}`;
-  root.append(style);
-  const surface = doc.createElement("div");
-  surface.className = "surface";
-  surface.setAttribute("role", "dialog");
-  surface.setAttribute("aria-label", labels.cropTitle);
-  surface.setAttribute("aria-modal", "true");
-  const box = doc.createElement("div");
-  box.className = "selection";
-  box.hidden = true;
-  const readout = doc.createElement("output");
-  readout.className = "readout";
-  readout.setAttribute("aria-live", "polite");
-  const previousFocus = doc.activeElement;
-  box.append(readout);
-  for (const [name, left, top] of [
-    ["nw", 0, 0],
-    ["n", 50, 0],
-    ["ne", 100, 0],
-    ["e", 100, 50],
-    ["se", 100, 100],
-    ["s", 50, 100],
-    ["sw", 0, 100],
-    ["w", 0, 50]
-  ]) {
-    const handle = doc.createElement("button");
-    handle.type = "button";
-    handle.setAttribute("aria-label", `${labels.cropTitle}: ${name}`);
-    handle.className = "handle";
-    handle.dataset.handle = name;
-    handle.style.cssText = `left:${left}%;top:${top}%;cursor:${name}-resize`;
-    box.append(handle);
-  }
-  const tools = doc.createElement("div");
-  tools.className = "tools";
-  const hint = doc.createElement("span");
-  hint.textContent = labels.cropHint;
-  const confirm = doc.createElement("button");
-  confirm.textContent = labels.cropConfirm;
-  confirm.disabled = true;
-  const cancel = doc.createElement("button");
-  cancel.textContent = labels.cropCancel;
-  tools.append(hint, confirm, cancel);
-  surface.append(box, tools);
-  root.append(surface);
-  let rect = null;
-  let drag = null;
-  const point = (event) => {
-    const r = bounds();
-    return { x: event.clientX - r.left, y: event.clientY - r.top };
-  };
-  const render = () => {
-    if (!rect) return;
-    const r = bounds();
-    box.hidden = false;
-    surface.style.background = "transparent";
-    box.style.left = `${r.left + rect.x}px`;
-    box.style.top = `${r.top + rect.y}px`;
-    box.style.width = `${rect.width}px`;
-    box.style.height = `${rect.height}px`;
-    readout.textContent = `${Math.round(rect.width * pixelScale)} \xD7 ${Math.round(rect.height * pixelScale)} px`;
-    confirm.disabled = rect.width < 2 || rect.height < 2;
-  };
-  return new Promise((resolve) => {
-    let finished = false;
-    const finish = (value) => {
-      if (finished) return;
-      finished = true;
-      view.removeEventListener("keydown", key, true);
-      view.removeEventListener("resize", resize);
-      view.removeEventListener("scroll", render, true);
-      view.removeEventListener("pagehide", cancelCrop);
-      view.removeEventListener("pointerdown", down, true);
-      view.removeEventListener("pointermove", move, true);
-      view.removeEventListener("pointerup", up, true);
-      view.removeEventListener("pointercancel", pointerCancel, true);
-      if (drag && surface.hasPointerCapture?.(drag.pointerId))
-        surface.releasePointerCapture(drag.pointerId);
-      drag = null;
-      doc.removeEventListener("fullscreenchange", fullscreenChanged);
-      host.remove();
-      previousFocus?.focus();
-      resolve(value);
-    };
-    const cancelCrop = () => finish(null);
-    const initiallyFullscreen = Boolean(doc.fullscreenElement);
-    const fullscreenChanged = () => {
-      if (initiallyFullscreen && !doc.fullscreenElement) finish(null);
-    };
-    doc.addEventListener("fullscreenchange", fullscreenChanged);
-    const key = (event) => {
-      if (event.key === "Tab") {
-        event.preventDefault();
-        const buttons = [
-          ...root.querySelectorAll("button:not(:disabled)")
-        ].filter((button) => !button.closest("[hidden]"));
-        const index = buttons.indexOf(root.activeElement);
-        buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus();
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        finish(null);
-      }
-      if (event.key === "Enter" && cancel === root.activeElement) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        finish(null);
-      } else if (event.key === "Enter" && rect && !confirm.disabled) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        finish(rect);
-      }
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-        event.preventDefault();
-        const r = bounds(), step = event.shiftKey ? 10 : 1;
-        const creatingSelection = !rect;
-        if (!rect)
-          rect = {
-            x: Math.round(r.width / 4),
-            y: Math.round(r.height / 4),
-            width: Math.round(r.width / 2),
-            height: Math.round(r.height / 2)
-          };
-        if (event.ctrlKey || event.metaKey) {
-          rect.width = Math.max(
-            2,
-            Math.min(
-              r.width - rect.x,
-              rect.width + (event.key === "ArrowRight" ? step : event.key === "ArrowLeft" ? -step : 0)
-            )
-          );
-          rect.height = Math.max(
-            2,
-            Math.min(
-              r.height - rect.y,
-              rect.height + (event.key === "ArrowDown" ? step : event.key === "ArrowUp" ? -step : 0)
-            )
-          );
-          render();
-          if (creatingSelection) confirm.focus({ preventScroll: true });
-          return;
-        }
-        rect = {
-          ...rect,
-          x: Math.max(
-            0,
-            Math.min(
-              r.width - rect.width,
-              rect.x + (event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0)
-            )
-          ),
-          y: Math.max(
-            0,
-            Math.min(
-              r.height - rect.height,
-              rect.y + (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0)
-            )
-          )
-        };
-        render();
-        if (creatingSelection) confirm.focus({ preventScroll: true });
-      }
-    };
-    const resize = () => {
-      if (rect) {
-        const r = bounds();
-        rect = selectionRect(
-          { x: rect.x, y: rect.y },
-          { x: rect.x + rect.width, y: rect.y + rect.height },
-          r.width,
-          r.height
-        );
-        render();
-      }
-    };
-    const beginDrag = (event, seeded = false) => {
-      if (event.button !== 0 || drag) return;
-      const target = event.composedPath()[0] || event.target;
-      if (!seeded && target.closest(".tools")) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (event.isTrusted) surface.setPointerCapture?.(event.pointerId);
-      drag = {
-        pointerId: event.pointerId,
-        start: point(event),
-        origin: rect ? { ...rect } : null,
-        handle: !seeded && target.dataset.handle || (target === box || target === readout ? "move" : "new")
-      };
-      if (drag.handle === "new") {
-        rect = { ...drag.start, width: 0, height: 0 };
-        render();
-      }
-    };
-    const down = (event) => {
-      if (event.composedPath().includes(surface)) beginDrag(event);
-    };
-    const move = (event) => {
-      if (!drag || event.pointerId !== drag.pointerId) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const p = point(event), r = bounds(), o = drag.origin;
-      if (drag.handle === "move" && o)
-        rect = {
-          ...o,
-          x: Math.max(0, Math.min(r.width - o.width, o.x + p.x - drag.start.x)),
-          y: Math.max(
-            0,
-            Math.min(r.height - o.height, o.y + p.y - drag.start.y)
-          )
-        };
-      else if (drag.handle === "new" || !o)
-        rect = selectionRect(drag.start, p, r.width, r.height);
-      else {
-        const h = drag.handle;
-        rect = selectionRect(
-          { x: h.includes("w") ? p.x : o.x, y: h.includes("n") ? p.y : o.y },
-          {
-            x: h.includes("e") ? p.x : o.x + o.width,
-            y: h.includes("s") ? p.y : o.y + o.height
-          },
-          r.width,
-          r.height
-        );
-      }
-      render();
-    };
-    const up = (event) => {
-      if (!drag || event.pointerId !== drag.pointerId) return;
-      move(event);
-      if (surface.hasPointerCapture?.(drag.pointerId))
-        surface.releasePointerCapture(drag.pointerId);
-      drag = null;
-      if (rect && !confirm.disabled) confirm.focus({ preventScroll: true });
-    };
-    const pointerCancel = (event) => {
-      if (!drag || event.pointerId !== drag.pointerId) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      drag = null;
-      finish(null);
-    };
-    confirm.onclick = () => {
-      if (rect && !confirm.disabled) finish(rect);
-    };
-    cancel.onclick = cancelCrop;
-    view.addEventListener("keydown", key, true);
-    view.addEventListener("resize", resize);
-    view.addEventListener("scroll", render, true);
-    view.addEventListener("pagehide", cancelCrop, { once: true });
-    view.addEventListener("pointerdown", down, true);
-    view.addEventListener("pointermove", move, true);
-    view.addEventListener("pointerup", up, true);
-    view.addEventListener("pointercancel", pointerCancel, true);
-    cancel.focus({ preventScroll: true });
-    if (initialPointer) beginDrag(initialPointer, true);
-  });
-}
-
-// extension/shift-crop.ts
-function listenForShiftCrop(view, allowed, start) {
-  let timer;
-  const clear = () => {
-    view.clearTimeout(timer);
-    timer = void 0;
-  };
-  const editable = (event) => event.composedPath().some(
-    (target) => target?.closest?.(
-      "input,textarea,select,[contenteditable]:not([contenteditable='false']),[role='textbox']"
-    )
-  );
-  const down = (event) => {
-    if (event.key !== "Shift") {
-      clear();
-      return;
-    }
-    if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || editable(event) || !allowed())
-      return;
-    clear();
-    timer = view.setTimeout(() => {
-      timer = void 0;
-      if (allowed()) start();
-    }, 200);
-  };
-  const up = (event) => {
-    if (event.key === "Shift") clear();
-  };
-  const pointerDown = (event) => {
-    const pending = timer !== void 0;
-    clear();
-    if (!pending || !event.shiftKey || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey || editable(event) || !allowed())
-      return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    start(event);
-  };
-  view.addEventListener("keydown", down, true);
-  view.addEventListener("keyup", up, true);
-  view.addEventListener("blur", clear);
-  view.addEventListener("pointerdown", pointerDown, true);
-  return () => {
-    clear();
-    view.removeEventListener("keydown", down, true);
-    view.removeEventListener("keyup", up, true);
-    view.removeEventListener("blur", clear);
-    view.removeEventListener("pointerdown", pointerDown, true);
-  };
-}
-
-// extension/privacy.ts
-function hasSensitiveContent(doc = document, mode = false, explain = false) {
-  doc ??= document;
-  const blocked = (reason) => explain ? reason : true;
-  const manualTextOnly = mode === true;
-  const contributesNoPixels = (element) => {
-    try {
-      const owner = element.ownerDocument;
-      const view = owner.defaultView;
-      if (!view) return false;
-      const ownStyle = view.getComputedStyle(element);
-      if (element.localName !== "object" && ["hidden", "collapse"].includes(ownStyle.visibility))
-        return true;
-      const ancestors = /* @__PURE__ */ new Set();
-      let expandedPaint = false;
-      let current = element;
-      while (current) {
-        if (ancestors.has(current)) return false;
-        ancestors.add(current);
-        const style = current.ownerDocument.defaultView?.getComputedStyle(current);
-        if (!style) return false;
-        if (style.display === "none" || style.opacity === "0") return true;
-        if (style.filter && style.filter !== "none") expandedPaint = true;
-        const root = current.getRootNode();
-        current = current.assignedSlot || current.parentElement || (root.nodeType === 11 ? root.host : null) || current.ownerDocument.defaultView?.frameElement || null;
-      }
-      if (element.localName === "object" || expandedPaint) return false;
-      const rects = Array.from(element.getClientRects());
-      if (!rects.length || view.innerWidth <= 0 || view.innerHeight <= 0)
-        return false;
-      return rects.every(
-        (rect) => [
-          rect.left,
-          rect.top,
-          rect.right,
-          rect.bottom,
-          rect.width,
-          rect.height
-        ].every(Number.isFinite) && (rect.width === 0 || rect.height === 0 || rect.right <= 0 || rect.bottom <= 0 || rect.left >= view.innerWidth || rect.top >= view.innerHeight)
-      );
-    } catch {
-      return false;
-    }
-  };
-  const roots = [doc];
-  const seen = /* @__PURE__ */ new Set();
-  let remaining = 5e4;
-  let uninspectable = false;
-  while (roots.length) {
-    const root = roots.pop();
-    if (seen.has(root)) continue;
-    seen.add(root);
-    const owner = root.nodeType === 9 ? root : root.ownerDocument;
-    if (!owner) {
-      if (!explain) return true;
-      uninspectable = true;
-      continue;
-    }
-    const walker = owner.createTreeWalker(root, 1);
-    let node;
-    while (node = walker.nextNode()) {
-      if (--remaining < 0) return blocked("inspection-limit");
-      const element = node;
-      if (element.matches(
-        'input[type="password" i],input[autocomplete~="current-password" i],input[autocomplete~="new-password" i]'
-      ))
-        return blocked("password");
-      if (element.shadowRoot) roots.push(element.shadowRoot);
-      if (["iframe", "frame", "object", "embed"].includes(element.localName)) {
-        const excludedPixels = () => mode === "visible-capture" && contributesNoPixels(element);
-        try {
-          const frame = element;
-          const nested = frame.contentDocument ?? frame.getSVGDocument?.();
-          if (!nested) {
-            if (manualTextOnly || excludedPixels()) continue;
-            if (!explain) return true;
-            uninspectable = true;
-            continue;
-          }
-          if (nested.readyState !== "complete" && !manualTextOnly && !excludedPixels()) {
-            if (!explain) return true;
-            uninspectable = true;
-          }
-          const source = frame.getAttribute("src")?.trim().toLowerCase();
-          if (nested.URL === "about:blank" && (frame.hasAttribute("srcdoc") || source && source !== "about:blank")) {
-            if (!manualTextOnly && !excludedPixels()) {
-              if (!explain) return true;
-              uninspectable = true;
-            }
-          }
-          roots.push(nested);
-        } catch {
-          if (manualTextOnly || excludedPixels()) continue;
-          if (!explain) return true;
-          uninspectable = true;
-        }
-      }
-    }
-  }
-  return uninspectable ? blocked("uninspectable") : explain ? void 0 : false;
-}
-
-// extension/page-context.ts
-var MAX_GUIDE_ELEMENTS = 160;
-var GUIDE_SELECTOR = "main,article,section,form,[role=main],[role=region],[role=form],h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],.pdf-text-layer>span";
-function resolveGuideTargets(doc = document) {
-  const targets = /* @__PURE__ */ new Map();
-  for (const element of doc.querySelectorAll(GUIDE_SELECTOR)) {
-    const id = registry.ids.get(element);
-    if (id && guideElementAvailable(element))
-      targets.set(id, { element, role: guideRole(element) });
-  }
-  return targets;
-}
-function guideRole(element) {
-  return element.matches(
-    "main,article,section,form,[role=main],[role=region],[role=form]"
-  ) ? "section" : element.matches("p,li,dt,dd,blockquote,.pdf-text-layer>span") ? "paragraph" : element.getAttribute("role") || element.tagName.toLowerCase();
-}
-function guideElementSafe(element) {
-  return element.isConnected && !isExcluded(element, true) && !isChoiceContent(element) && !hasSensitiveAncestor(element);
-}
-function guideElementAvailable(element) {
-  return guideElementSafe(element) && visible(element) && !!textForElement(element);
-}
-var privateSelector = [
-  "input[type=password]",
-  "[contenteditable=true]",
-  "[data-private]",
-  "[data-sensitive]",
-  "[autocomplete=cc-number]",
-  "[autocomplete=cc-csc]"
-].join(",");
-var ignoredTags = /* @__PURE__ */ new Set([
-  "SCRIPT",
-  "STYLE",
-  "NOSCRIPT",
-  "TEMPLATE",
-  "SVG",
-  "CANVAS",
-  "IFRAME",
-  "FRAME",
-  "OBJECT",
-  "EMBED"
-]);
-var scope = globalThis;
-var documentKeys = scope.blinklingDocumentKeys ??= /* @__PURE__ */ new WeakMap();
-function pageDocumentKey(doc = document) {
-  let key = documentKeys.get(doc);
-  if (!key) {
-    key = crypto.randomUUID();
-    documentKeys.set(doc, key);
-  }
-  return key;
-}
-var registry = scope.blinklingElementRegistry ??= {
-  ids: /* @__PURE__ */ new WeakMap(),
-  nextId: 1
-};
-function stableElementId(element) {
-  let id = registry.ids.get(element);
-  if (!id) {
-    id = `g${registry.nextId++}`;
-    registry.ids.set(element, id);
-  }
-  return id;
-}
-function textForElement(element, limit = 240) {
-  if (isExcluded(element) || isChoiceContent(element) || hasSensitiveAncestor(element))
-    return "";
-  if (isFormControl(element) || element.getAttribute("role")?.toLowerCase() === "combobox")
-    return fieldLabel(element, limit);
-  const walker = element.ownerDocument.createTreeWalker(
-    element,
-    NodeFilter.SHOW_TEXT
-  );
-  const pieces = [];
-  let node;
-  while (node = walker.nextNode()) {
-    if (contextTextNode(node)) pieces.push(node.nodeValue || "");
-    if (pieces.join(" ").length >= limit) break;
-  }
-  const text = (element.getAttribute("aria-label") || element.getAttribute("title") || pieces.join(" ")).replace(/\s+/g, " ").trim();
-  if (text) return text.slice(0, limit);
-  if (element.matches("button,[role=button]") && /^(?:menu|true)$/i.test(element.getAttribute("aria-haspopup") || "")) {
-    const expanded = element.getAttribute("aria-expanded");
-    return ("Menu" + (expanded === "true" ? " (expanded)" : expanded === "false" ? " (collapsed)" : "")).slice(0, limit);
-  }
-  return "";
-}
-function isExcluded(element, includeHidden = false) {
-  for (let current = element; current; current = composedParent(current)) {
-    if (current.matches(
-      "[data-blinkling-overlay], [data-private], [data-sensitive]"
-    ) || ignoredTags.has(current.tagName.toUpperCase()))
-      return true;
-    const editable = current.getAttribute("contenteditable");
-    if (editable !== null && editable.toLowerCase() !== "false") return true;
-  }
-  if (element.tagName === "OPTION" || element.tagName === "OPTGROUP" || element.getAttribute("role")?.toLowerCase() === "option")
-    return true;
-  if (element instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(element.type))
-    return true;
-  return !includeHidden && (element.getAttribute("aria-hidden") === "true" || element.hasAttribute("hidden")) || element.getAttribute("type") === "password";
-}
-function visible(element) {
-  for (let current = element; current; current = composedParent(current)) {
-    const style = current.ownerDocument.defaultView?.getComputedStyle(current);
-    if (!style || style.display === "none" || style.visibility === "hidden" || style.opacity === "0" || current.hasAttribute("hidden") || current.getAttribute("aria-hidden") === "true")
-      return false;
-  }
-  return true;
-}
-function buildPageContext(doc = document, explicitTextOnly = false) {
-  return readPageContext(doc, explicitTextOnly);
-}
-function buildExplicitPageContext(doc = document) {
-  return buildPageContext(doc, true);
-}
-function buildGuideContext(doc = document) {
-  const context = buildExplicitPageContext(doc);
-  delete context.textScope;
-  const scope2 = doc.querySelector("[data-blinkling-reader-page]") || doc.body;
-  const candidates = scope2 && !context.hasPassword ? Array.from(scope2.querySelectorAll(GUIDE_SELECTOR)).filter(
-    guideElementAvailable
-  ) : [];
-  const groups = [
-    candidates.filter(
-      (element) => element.matches(
-        "main,article,section,form,[role=main],[role=region],[role=form],h1,h2,h3,h4,h5,h6"
-      )
-    ),
-    candidates.filter(
-      (element) => element.matches("p,li,dt,dd,blockquote,.pdf-text-layer>span")
-    ),
-    candidates.filter(
-      (element) => element.matches(
-        "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox]"
-      )
-    )
-  ];
-  const selected = /* @__PURE__ */ new Set();
-  const budgets = [40, 80, 40];
-  let spare = budgets.reduce(
-    (sum, budget, i) => sum + Math.max(0, budget - groups[i].length),
-    0
-  );
-  for (const [i, group] of groups.entries()) {
-    const count = Math.min(group.length, budgets[i] + spare);
-    spare -= Math.max(0, count - budgets[i]);
-    const tiers = i === 1 ? [
-      group.filter((element) => !element.matches("li")),
-      group.filter((element) => element.matches("li"))
-    ] : [group];
-    let remaining = count;
-    for (const tier of tiers) {
-      const take = Math.min(remaining, tier.length);
-      for (let n = 0; n < take; n++)
-        selected.add(
-          tier[take === 1 ? 0 : Math.round(n * (tier.length - 1) / (take - 1))]
-        );
-      remaining -= take;
-    }
-  }
-  const elements = candidates.filter((element) => selected.has(element)).slice(0, MAX_GUIDE_ELEMENTS).map((element) => {
-    const rect = element.getBoundingClientRect();
-    return {
-      id: stableElementId(element),
-      role: guideRole(element),
-      text: textForElement(element, 500),
-      rect: [
-        Math.round(rect.left + doc.defaultView.scrollX),
-        Math.round(rect.top + doc.defaultView.scrollY),
-        Math.round(rect.width),
-        Math.round(rect.height)
-      ]
-    };
-  });
-  return { ...context, elements, guideScope: "top-document-text" };
-}
-function readPageContext(doc, explicitTextOnly) {
-  const hasPassword = hasSensitiveContent(doc, explicitTextOnly);
-  const scope2 = doc.querySelector("[data-blinkling-reader-page]") || doc.body || doc.documentElement;
-  const elements = [];
-  const selector = "a,button,input,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=checkbox],[role=switch],[role=radio],[role=combobox],[role=option],h1,h2,h3,h4,h5,h6";
-  for (const element of Array.from(
-    scope2.querySelectorAll(
-      selector + (scope2.hasAttribute("data-blinkling-reader-page") ? ",.pdf-text-layer>span" : "")
-    )
-  )) {
-    if (explicitTextOnly && hasPassword) break;
-    if (elements.length >= 120) break;
-    if (isExcluded(element) || isChoiceContent(element) || hasSensitiveAncestor(element) || !visible(element))
-      continue;
-    const text = textForElement(element);
-    if (!text && !/^input$/i.test(element.tagName)) continue;
-    const rect = element.getBoundingClientRect();
-    elements.push({
-      id: stableElementId(element),
-      role: element.matches(".pdf-text-layer>span") ? "paragraph" : element.getAttribute("role") || element.tagName.toLowerCase(),
-      text,
-      rect: [
-        Math.round(rect.left + doc.defaultView.scrollX),
-        Math.round(rect.top + doc.defaultView.scrollY),
-        Math.round(rect.width),
-        Math.round(rect.height)
-      ]
-    });
-  }
-  const chunks = [];
-  let length = 0;
-  const walker = doc.createTreeWalker(scope2, NodeFilter.SHOW_TEXT);
-  let node;
-  while (!(explicitTextOnly && hasPassword) && (node = walker.nextNode()) && length < 24e3) {
-    if (!contextTextNode(node)) continue;
-    const value = (node.nodeValue || "").replace(/\s+/g, " ").trim();
-    if (!value) continue;
-    const piece = value.slice(0, 24e3 - length);
-    chunks.push(piece);
-    length += piece.length + 1;
-  }
-  return {
-    documentKey: pageDocumentKey(doc),
-    url: doc.location.href,
-    title: doc.title.slice(0, 500),
-    text: chunks.join(" ").slice(0, 24e3),
-    elements,
-    hasPassword,
-    ...explicitTextOnly ? {
-      textScope: "top-document-text",
-      excludedEmbeds: doc.querySelectorAll("iframe,frame,object,embed").length
-    } : {}
-  };
-}
-function contextTextNode(node, allowEmpty = false) {
-  const parent = composedTextParent(node);
-  return !!(parent && (node.nodeValue?.trim() || allowEmpty && node.nodeValue === "") && restorableTextNode(node) && visible(parent));
-}
-function contextRangeText(range) {
-  const root = range.commonAncestorContainer;
-  if (!root.isConnected) return "";
-  const text = range.toString().trim();
-  if (!text || text.length > 5e3) return "";
-  const safe = (node) => {
-    if (!range.intersectsNode(node)) return true;
-    const start = node === range.startContainer ? range.startOffset : 0;
-    const end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
-    return !node.nodeValue.slice(start, end).trim() || contextTextNode(node);
-  };
-  const doc = root.nodeType === Node.DOCUMENT_NODE ? root : root.ownerDocument;
-  if (root.nodeType === Node.TEXT_NODE) {
-    if (!safe(root)) return "";
-  } else {
-    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let node;
-    while (node = walker.nextNode()) if (!safe(node)) return "";
-  }
-  const selection = doc.defaultView?.getSelection();
-  const selected = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null;
-  let rendered;
-  if (selected && selected.startContainer === range.startContainer && selected.startOffset === range.startOffset && selected.endContainer === range.endContainer && selected.endOffset === range.endOffset)
-    rendered = selection.toString().trim();
-  else {
-    const walker = doc.createTreeWalker(
-      root,
-      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT
-    );
-    const pieces = [];
-    let node;
-    while (node = walker.nextNode()) {
-      if (!range.intersectsNode(node)) continue;
-      if (node.nodeType === Node.TEXT_NODE) {
-        const start = node === range.startContainer ? range.startOffset : 0;
-        const end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
-        pieces.push(node.nodeValue.slice(start, end));
-      } else if (node.localName === "br") pieces.push("\n");
-    }
-    rendered = root.nodeType === Node.TEXT_NODE ? text : pieces.join("").trim();
-  }
-  return rendered.length <= 5e3 ? rendered : "";
-}
-function restorableTextNode(node) {
-  const parent = composedTextParent(node);
-  return !!(parent && !hasSensitiveAncestor(parent) && !isExcluded(parent, true) && !isChoiceContent(parent) && !isFormControl(parent) && parent.getAttribute("role")?.toLowerCase() !== "combobox");
-}
-function isFormControl(element) {
-  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
-}
-function isChoiceContent(element) {
-  for (let current = element; current; current = composedParent(current)) {
-    if (current.matches('option, optgroup, [role="option"]') || current !== element && current.matches("select, textarea") || current !== element && current.getAttribute("role")?.toLowerCase() === "combobox")
-      return true;
-  }
-  return false;
-}
-function fieldLabel(element, limit) {
-  const explicit = element.getAttribute("aria-label") || element.getAttribute("title");
-  if (explicit) return explicit.replace(/\s+/g, " ").trim().slice(0, limit);
-  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
-    const labels = Array.from(element.labels || []).map((label) => textForLabel(label)).filter(Boolean);
-    if (labels.length) return labels.join(" ").slice(0, limit);
-  }
-  return "";
-}
-function textForLabel(label) {
-  const walker = label.ownerDocument.createTreeWalker(
-    label,
-    NodeFilter.SHOW_TEXT
-  );
-  const pieces = [];
-  let node;
-  while (node = walker.nextNode()) {
-    if (contextTextNode(node)) pieces.push(node.nodeValue || "");
-  }
-  return pieces.join(" ").replace(/\s+/g, " ").trim();
-}
-function hasSensitiveAncestor(element) {
-  for (let current = element; current; current = composedParent(current)) {
-    if (current.matches(privateSelector)) return true;
-    const label = current.getAttribute("aria-label")?.toLowerCase() || "";
-    if (label.includes("password") || label.includes("credit card"))
-      return true;
-  }
-  return false;
-}
-function composedParent(element) {
-  return element.assignedSlot || element.parentElement || element.getRootNode().host || null;
-}
-function composedTextParent(node) {
-  return node.assignedSlot || node.parentElement || node.getRootNode().host || null;
-}
-
-// extension/page-revision.ts
-function pageRevision(context) {
-  const elements = context.elements.slice(0, 120).map((element) => [
-    normalize(element.role, 64),
-    normalize(element.text, 240)
-  ]);
-  const source = JSON.stringify([
-    normalize(context.url, 2048),
-    normalize(context.title, 500),
-    normalize(context.text, 24e3),
-    context.hasPassword,
-    elements
-  ]);
-  let first = 2166136261;
-  let second = 2654435769;
-  for (let i = 0; i < source.length; i++) {
-    const code = source.charCodeAt(i);
-    first = Math.imul(first ^ code, 16777619);
-    second = Math.imul(second ^ code, 2246822507);
-  }
-  return `v1-${(first >>> 0).toString(16).padStart(8, "0")}${(second >>> 0).toString(16).padStart(8, "0")}`;
-}
-function normalize(value, limit) {
-  return value.replace(/\s+/g, " ").trim().slice(0, limit);
-}
-
-// extension/page-tools.ts
-var MAX_GUIDE_STEPS = 160;
-function validateGuideSteps(value, knownElementIds) {
-  if (!value || typeof value !== "object" || !Array.isArray(value.steps))
-    return [];
-  const seen = /* @__PURE__ */ new Set();
-  const steps = [];
-  for (const item of value.steps.slice(
-    0,
-    MAX_GUIDE_STEPS
-  )) {
-    if (!item || typeof item !== "object") continue;
-    const step = item;
-    if (typeof step.elementId !== "string" || !knownElementIds.has(step.elementId) || seen.has(step.elementId))
-      continue;
-    if (typeof step.note !== "string" || !step.note.trim()) continue;
-    seen.add(step.elementId);
-    const action = typeof step.action === "string" ? step.action.trim().slice(0, 120) : "";
-    steps.push({
-      elementId: step.elementId,
-      note: step.note.trim().slice(0, 360),
-      ...action && !/^(?:none|null|n\/?a|no[ -]?op)$/i.test(action) ? { action } : {}
-    });
-  }
-  return steps;
-}
-
-// extension/content.ts
-var contentScope = globalThis;
-if (!contentScope.blinklingContentReady) {
-  let ensureOverlay = function() {
-    if (overlayRoot) return overlayRoot;
-    overlayHost = document.createElement("div");
-    overlayHost.dataset.blinklingOverlay = "true";
-    overlayHost.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none";
-    overlayRoot = overlayHost.attachShadow({ mode: "open" });
-    const style = document.createElement("style");
-    style.textContent = `:host{all:initial}.surface{position:fixed;inset:0;pointer-events:none;font:14px system-ui,sans-serif;color:#312922}.shade{position:fixed;inset:0;background:#20181012;pointer-events:auto;cursor:crosshair}.draw{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;overflow:visible}.popover{position:fixed;z-index:4;display:flex;gap:4px;padding:5px;background:#fffaf0;border:1px solid #d9c6a8;border-radius:12px;box-shadow:0 5px 20px #22190d30;pointer-events:auto}.popover button,.guide button,.cancel{border:0;border-radius:8px;padding:6px 9px;background:#f2e8d6;color:#30271d;font:600 12px system-ui;cursor:pointer}.cancel{position:fixed;top:12px;right:12px;pointer-events:auto}.guide{position:fixed;display:flex;flex-direction:column;box-sizing:border-box;width:269px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);padding:10px 12px;background:#fffaf0;border:1px solid #d9b98b;border-radius:12px;box-shadow:0 5px 22px #22190d30;pointer-events:auto}.guide p{margin:0 0 8px;line-height:1.4;min-height:0;overflow:auto;overflow-wrap:anywhere}.guide nav{display:flex;flex-wrap:wrap;flex-shrink:0;justify-content:space-between;gap:6px}.guide nav button{max-width:100%;overflow-wrap:anywhere}.ink{fill:none;stroke:#cc704e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw .65s ease-out forwards;filter:drop-shadow(0 1px 0 #fff)}.arrow{stroke:#cc704e;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;stroke-dashoffset:800;animation:draw .55s .16s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}`;
-    overlayRoot.append(style);
-    style.textContent += `.guide button:focus-visible,.popover button:focus-visible,.cancel:focus-visible{outline:2px solid #86513d;outline-offset:2px}@media(prefers-reduced-motion:reduce){.ink,.arrow{animation:none;stroke-dashoffset:0}}`;
-    style.textContent += `.guide-groups{overflow:auto;min-height:0;margin-top:10px}.guide-section{border-top:1px solid #d9c6a8;padding:8px 0}.guide-section summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}.guide-section summary:focus-visible{outline:2px solid #86513d;outline-offset:2px}.guide-task h3{font-size:13px;margin:8px 0 0}.guide-overview{position:fixed;z-index:3;right:8px;top:8px;width:300px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);display:flex;flex-direction:column;box-sizing:border-box;padding:12px;border:1px solid #d9b98b;border-radius:12px;background:#fffaf0;box-shadow:0 5px 22px #22190d30;pointer-events:auto;font:14px system-ui;color:#312922}.guide-overview header{display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0}.guide-overview strong{width:100%}.guide-overview p{line-height:1.4;flex-shrink:0}.guide-overview ol{overflow:auto;min-height:0;margin:10px 0 0;padding-left:25px}.guide-overview li{padding:4px 0}.guide-overview button,.guide-annotation{font:600 12px system-ui;color:#30271d;border:0;border-radius:8px;background:#f2e8d6;padding:6px 9px;cursor:pointer}.guide-overview li button{width:100%;text-align:left;line-height:1.4;overflow-wrap:anywhere}.guide-overview [aria-current]{box-shadow:inset 3px 0 #cc704e}.guide-annotation{position:fixed;z-index:2;box-sizing:border-box;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;pointer-events:auto;box-shadow:0 2px 8px #22190d25}.guide-overview button:focus-visible,.guide-annotation:focus-visible{outline:2px solid #86513d;outline-offset:2px}.guide button:disabled,.guide-overview button:disabled{opacity:.45;cursor:default}`;
-    const surface = document.createElement("div");
-    surface.className = "surface";
-    overlayRoot.append(surface);
-    (document.documentElement || document).append(overlayHost);
-    return overlayRoot;
-  }, guidePoint = function(elementId) {
-    const element = currentGuide?.targets.get(elementId)?.element;
-    if (!element || !guideElementAvailable(element)) return null;
-    const r = element.getBoundingClientRect();
-    return { x: r.left, y: r.top, width: r.width, height: r.height, element };
-  }, renderGuide = function() {
-    if (!currentGuide) return;
-    const step = currentGuide.steps[currentGuide.index];
-    if (hasSensitiveContent(document, true) || currentGuide.url !== location.href || [...currentGuide.targets.values()].some(
-      ({ element }) => !guideElementSafe(element)
-    )) {
-      closeGuide();
-      return;
-    }
-    const root = ensureOverlay();
-    const hadFocus = document.hasFocus();
-    if (currentGuide.overview) {
-      renderOverview();
-      return;
-    }
-    root.querySelectorAll("[data-guide-overview]").forEach((element) => element.remove());
-    const activeControl = root.querySelector(".guide")?.contains(root.activeElement) ? root.activeElement.dataset.guideControl : void 0;
-    root.querySelector(".guide")?.remove();
-    root.querySelector('svg[class~="draw"]')?.remove();
-    let point = guidePoint(step.elementId);
-    if (!point) {
-      const index = Math.max(adjacentGuideStep(1), adjacentGuideStep(-1));
-      if (index < 0) closeGuide();
-      else {
-        currentGuide.index = index;
-        renderGuide();
-      }
-      return;
-    }
-    const changed = renderedStep !== step.elementId;
-    if (changed && (point.y < 0 || point.y + point.height > innerHeight || point.x < 0 || point.x > innerWidth)) {
-      point.element.scrollIntoView({
-        block: point.height > innerHeight - 16 ? "start" : "center",
-        inline: "nearest",
-        behavior: "instant"
-      });
-      point = guidePoint(step.elementId);
-    }
-    renderedStep = step.elementId;
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.classList.add("draw");
-    svg.setAttribute("aria-hidden", "true");
-    const pad = 8;
-    const x = Math.max(4, point.x - pad);
-    const y = Math.max(4, point.y - pad);
-    const w = Math.max(24, point.width + pad * 2);
-    const h = Math.max(24, point.height + pad * 2);
-    drawRegion(
-      svg,
-      point,
-      currentGuide.targets.get(step.elementId)?.role || "",
-      x,
-      y,
-      w,
-      h
-    );
-    const callout = document.createElement("div");
-    callout.className = "guide";
-    callout.setAttribute("role", "region");
-    callout.setAttribute("aria-label", currentGuide.labels.title);
-    const blink = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    blink.setAttribute("viewBox", "0 0 38 24");
-    blink.setAttribute("width", "38");
-    blink.setAttribute("height", "24");
-    blink.setAttribute("aria-label", "Blink guide");
-    for (const [cx, cy, rx, ry] of [
-      [11, 11, 8, 9],
-      [25, 11, 8, 9]
-    ]) {
-      const eye = document.createElementNS(blink.namespaceURI, "ellipse");
-      eye.setAttribute("cx", String(cx));
-      eye.setAttribute("cy", String(cy));
-      eye.setAttribute("rx", String(rx));
-      eye.setAttribute("ry", String(ry));
-      eye.setAttribute("fill", "#f4bb62");
-      eye.setAttribute("stroke", "#49362a");
-      eye.setAttribute("stroke-width", "1.6");
-      blink.append(eye);
-      const pupil = document.createElementNS(blink.namespaceURI, "circle");
-      pupil.setAttribute("cx", String(cx + 2));
-      pupil.setAttribute("cy", String(cy));
-      pupil.setAttribute("r", "2.5");
-      pupil.setAttribute("fill", "#30271d");
-      blink.append(pupil);
-    }
-    const wink = document.createElementNS(blink.namespaceURI, "path");
-    wink.setAttribute("d", "M29 21 Q34 20 36 16");
-    wink.setAttribute("fill", "none");
-    wink.setAttribute("stroke", "#cc704e");
-    wink.setAttribute("stroke-width", "2");
-    blink.append(wink);
-    const head = document.createElement("div");
-    head.style.cssText = "display:flex;flex-wrap:wrap;flex-shrink:0;align-items:center;gap:6px;margin-bottom:5px;font:700 11px system-ui;color:#86513d";
-    const title = document.createElement("span");
-    title.textContent = currentGuide.labels.title;
-    head.append(blink, title);
-    const overview = document.createElement("button");
-    overview.dataset.guideControl = "overview";
-    overview.textContent = currentGuide.labels.overview;
-    overview.style.cssText = "margin-left:auto;padding:3px 5px;font-size:11px;flex-shrink:0";
-    overview.onclick = () => {
-      if (!currentGuide) return;
-      currentGuide.overview = true;
-      renderGuide();
-      overlayRoot?.querySelector('[data-guide-control="tour"]')?.focus({ preventScroll: true });
-    };
-    head.append(overview);
-    callout.append(head);
-    const note = document.createElement("p");
-    note.textContent = (currentGuide.index === 0 && currentGuide.purpose ? `${currentGuide.purpose}
-
-` : "") + step.note + (step.action ? ` \xB7 ${step.action}` : "");
-    note.style.whiteSpace = "pre-line";
-    note.setAttribute("aria-live", "polite");
-    callout.append(note);
-    const nav = document.createElement("nav");
-    const back = document.createElement("button");
-    back.dataset.guideControl = "back";
-    back.textContent = currentGuide.labels.back;
-    back.disabled = adjacentGuideStep(-1) < 0;
-    back.onclick = () => {
-      const index = adjacentGuideStep(-1);
-      if (currentGuide && index >= 0) {
-        currentGuide.index = index;
-        renderGuide();
-      }
-    };
-    const counter = document.createElement("span");
-    counter.textContent = `${currentGuide.index + 1}/${currentGuide.steps.length}`;
-    counter.style.cssText = "align-self:center;font-size:12px;color:#766957";
-    const next = document.createElement("button");
-    next.dataset.guideControl = "next";
-    next.textContent = adjacentGuideStep(1) < 0 ? currentGuide.labels.done : currentGuide.labels.next;
-    next.onclick = () => {
-      if (!currentGuide) return;
-      const index = adjacentGuideStep(1);
-      if (index < 0) closeGuide();
-      else {
-        currentGuide.index = index;
-        renderGuide();
-      }
-    };
-    const close = document.createElement("button");
-    close.dataset.guideControl = "close";
-    close.textContent = currentGuide.labels.close;
-    close.onclick = closeGuide;
-    nav.append(back, counter, next, close);
-    callout.append(nav);
-    callout.style.visibility = "hidden";
-    root.append(callout);
-    const margin = 8;
-    const viewportWidth = innerWidth - margin * 2;
-    const viewportHeight = innerHeight - margin * 2;
-    const naturalWidth = callout.getBoundingClientRect().width || 269;
-    const minimumNoteHeight = Number.parseFloat(
-      getComputedStyle(note).lineHeight
-    );
-    const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
-    const spaces = (gap) => [
-      {
-        x: margin,
-        y: margin,
-        width: viewportWidth,
-        height: clamp(point.y - gap - margin, 0, viewportHeight),
-        side: "above"
-      },
-      {
-        x: margin,
-        y: Math.max(margin, point.y + point.height + gap),
-        width: viewportWidth,
-        height: clamp(
-          innerHeight - margin - point.y - point.height - gap,
-          0,
-          viewportHeight
-        ),
-        side: "below"
-      },
-      {
-        x: Math.max(margin, point.x + point.width + gap),
-        y: margin,
-        width: clamp(
-          innerWidth - margin - point.x - point.width - gap,
-          0,
-          viewportWidth
-        ),
-        height: viewportHeight,
-        side: "right"
-      },
-      {
-        x: margin,
-        y: margin,
-        width: clamp(point.x - gap - margin, 0, viewportWidth),
-        height: viewportHeight,
-        side: "left"
-      }
-    ];
-    let placement;
-    for (const compact of [false, true]) {
-      if (compact) {
-        head.append(counter);
-        blink.style.display = "none";
-        title.style.display = "none";
-        callout.style.padding = "6px 8px";
-        note.style.marginBottom = "4px";
-        counter.style.marginLeft = "auto";
-        head.style.marginBottom = "3px";
-        blink.style.flexShrink = "0";
-        for (const button of [back, next, close])
-          button.style.padding = "4px 4px";
-      }
-      for (const [index, space] of spaces(compact ? 8 : 18).entries()) {
-        if (space.width <= 0 || space.height <= 0) continue;
-        const width = Math.min(
-          compact ? viewportWidth : naturalWidth,
-          space.width
-        );
-        callout.style.width = `${width}px`;
-        callout.style.maxHeight = `${space.height}px`;
-        const bounds = callout.getBoundingClientRect();
-        if (bounds.height > space.height || bounds.width > space.width || note.scrollHeight > 0 && note.getBoundingClientRect().height < minimumNoteHeight || [back, next, close].some((button) => {
-          const control = button.getBoundingClientRect();
-          return control.left < bounds.left || control.right > bounds.right || control.top < bounds.top || control.bottom > bounds.bottom;
-        }))
-          continue;
-        const x2 = space.side === "left" ? space.x + space.width - bounds.width : clamp(point.x, space.x, space.x + space.width - bounds.width);
-        const y2 = space.side === "above" ? space.y + space.height - bounds.height : clamp(point.y, space.y, space.y + space.height - bounds.height);
-        const visibleNote = note.scrollHeight ? Math.min(1, note.clientHeight / note.scrollHeight) : 1;
-        const score = visibleNote * 1e3 - index;
-        if (!placement || score > placement.score)
-          placement = { x: x2, y: y2, width, height: space.height, score };
-      }
-      if (placement) break;
-    }
-    placement ??= {
-      x: margin,
-      y: margin,
-      width: viewportWidth,
-      height: viewportHeight,
-      score: 0
-    };
-    callout.style.width = `${placement.width}px`;
-    callout.style.maxHeight = `${placement.height}px`;
-    const cardX = placement.x;
-    const cardY = placement.y;
-    callout.style.left = `${cardX}px`;
-    callout.style.top = `${cardY}px`;
-    callout.style.visibility = "visible";
-    const card = callout.getBoundingClientRect();
-    const startX = point.x + point.width / 2;
-    const startY = point.y + point.height / 2;
-    const endX = clamp(startX, cardX, cardX + card.width);
-    const endY = clamp(startY, cardY, cardY + card.height);
-    const arrow = document.createElementNS(svg.namespaceURI, "path");
-    arrow.setAttribute("class", "arrow");
-    arrow.setAttribute(
-      "d",
-      `M${startX} ${startY} Q${(startX + endX) / 2 + 22} ${(startY + endY) / 2} ${endX} ${endY} m-7 -4 l7 4 l-7 4`
-    );
-    svg.append(arrow);
-    root.append(svg, callout);
-    if (!changed)
-      for (const ink of svg.querySelectorAll(".ink,.arrow")) {
-        ink.style.animation = "none";
-        ink.style.strokeDashoffset = "0";
-      }
-    if (!hadFocus) return;
-    if (changed || activeControl === "back" && back.disabled)
-      next.focus({ preventScroll: true });
-    else if (activeControl === "back") back.focus({ preventScroll: true });
-    else if (activeControl === "next") next.focus({ preventScroll: true });
-    else if (activeControl === "close") close.focus({ preventScroll: true });
-    else if (activeControl === "overview")
-      overview.focus({ preventScroll: true });
-  }, drawRegion = function(svg, point, role, x = point.x - 6, y = point.y - 6, width = point.width + 12, height = point.height + 12) {
-    const region = document.createElementNS(
-      svg.namespaceURI,
-      role === "section" || role === "paragraph" ? "rect" : "ellipse"
-    );
-    region.setAttribute("class", "ink");
-    region.setAttribute("data-guide-target", stableElementId(point.element));
-    region.setAttribute("pathLength", "900");
-    if (region.tagName === "rect") {
-      for (const [key, value] of Object.entries({
-        x,
-        y,
-        width,
-        height,
-        rx: 10
-      }))
-        region.setAttribute(key, String(value));
-    } else {
-      for (const [key, value] of Object.entries({
-        cx: x + width / 2,
-        cy: y + height / 2,
-        rx: width / 2,
-        ry: height / 2
-      }))
-        region.setAttribute(key, String(value));
-    }
-    svg.append(region);
-  }, overviewGroups = function() {
-    if (!currentGuide) return [];
-    const headings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")].filter(
-      guideElementAvailable
-    );
-    const groups = /* @__PURE__ */ new Map();
-    for (const [index, step] of currentGuide.steps.entries()) {
-      const target = currentGuide.targets.get(step.elementId);
-      const task = !!step.action || /^(button|input|select|textarea|tab|menuitem|checkbox|switch|radio|combobox)$/.test(
-        target.role
-      );
-      const region = target.element.closest(
-        "section,article,main,form,[role=region],[role=main],[role=form]"
-      );
-      const heading = headings.filter(
-        (h) => (!region || region.contains(h)) && (h === target.element || !!(h.compareDocumentPosition(target.element) & Node.DOCUMENT_POSITION_FOLLOWING))
-      ).at(-1) ?? (target.role === "section" ? headings.find((h) => target.element.contains(h)) : void 0);
-      const key = task ? "task" : heading ?? region ?? document.body;
-      let group = groups.get(key);
-      if (!group) {
-        group = {
-          title: task ? currentGuide.labels.task : heading?.textContent?.trim().slice(0, 120) || currentGuide.labels.sections,
-          task,
-          indices: []
-        };
-        groups.set(key, group);
-      }
-      group.indices.push(index);
-    }
-    return [...groups.values()].sort((a, b) => Number(b.task) - Number(a.task));
-  }, renderOverview = function() {
-    if (!currentGuide || !overlayRoot) return;
-    const hadFocus = document.hasFocus();
-    const root = overlayRoot;
-    const focusedAnnotation = root.activeElement?.matches(".guide-annotation") ? root.activeElement.dataset.guideIndex : void 0;
-    root.querySelector(".guide")?.remove();
-    root.querySelector('svg[class~="draw"]')?.remove();
-    root.querySelectorAll('[data-guide-overview="annotation"]').forEach((element) => element.remove());
-    let panel = root.querySelector(
-      '[data-guide-overview="panel"]'
-    );
-    if (!panel) {
-      panel = document.createElement("section");
-      panel.className = "guide-overview";
-      panel.dataset.guideOverview = "panel";
-      panel.setAttribute("aria-label", currentGuide.labels.overview);
-      const header = document.createElement("header");
-      const title = document.createElement("strong");
-      title.textContent = currentGuide.labels.overview;
-      const tour = document.createElement("button");
-      tour.dataset.guideControl = "tour";
-      tour.textContent = currentGuide.labels.tour;
-      tour.onclick = () => {
-        if (!currentGuide) return;
-        if (!guidePoint(currentGuide.steps[currentGuide.index].elementId)) {
-          const index = Math.max(adjacentGuideStep(1), adjacentGuideStep(-1));
-          if (index < 0) {
-            closeGuide();
-            return;
-          }
-          currentGuide.index = index;
-        }
-        currentGuide.overview = false;
-        renderedStep = "";
-        renderGuide();
-      };
-      const close = document.createElement("button");
-      close.dataset.guideControl = "close";
-      close.textContent = currentGuide.labels.close;
-      close.onclick = closeGuide;
-      header.append(title, tour, close);
-      panel.append(header);
-      if (currentGuide.purpose) {
-        const purpose = document.createElement("p");
-        purpose.textContent = currentGuide.purpose;
-        panel.append(purpose);
-      }
-      const groups = document.createElement("div");
-      groups.className = "guide-groups";
-      for (const group of overviewGroups()) {
-        const container = document.createElement(
-          group.task ? "section" : "details"
-        );
-        container.className = group.task ? "guide-task" : "guide-section";
-        container.addEventListener("toggle", updateGuidePosition);
-        const title2 = document.createElement(group.task ? "h3" : "summary");
-        title2.textContent = `${group.title} \xB7 ${group.indices.length}`;
-        container.append(title2);
-        const list = document.createElement("ol");
-        for (const index of group.indices) {
-          const step = currentGuide.steps[index];
-          const item = document.createElement("li");
-          item.value = index + 1;
-          const button = document.createElement("button");
-          button.dataset.guideIndex = String(index);
-          button.textContent = step.note + (step.action ? ` \xB7 ${step.action}` : "");
-          button.onclick = () => visitGuideStep(index);
-          item.append(button);
-          list.append(item);
-        }
-        container.append(list);
-        groups.append(container);
-      }
-      panel.append(groups);
-      root.append(panel);
-    }
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.classList.add("draw");
-    svg.setAttribute("aria-hidden", "true");
-    const occupied = [];
-    const panelRect = panel.getBoundingClientRect();
-    occupied.push(panelRect);
-    const visibleIndices = /* @__PURE__ */ new Set();
-    for (const group of panel.querySelectorAll(
-      ".guide-task,.guide-section"
-    )) {
-      const indices = [
-        ...group.querySelectorAll("[data-guide-index]")
-      ].map((button) => Number(button.dataset.guideIndex));
-      for (const index of group instanceof HTMLDetailsElement && !group.open ? indices.slice(0, 1) : indices)
-        visibleIndices.add(index);
-    }
-    for (const [index, step] of currentGuide.steps.entries()) {
-      if (!visibleIndices.has(index)) continue;
-      const point = guidePoint(step.elementId);
-      if (!point || point.y >= innerHeight || point.y + point.height <= 0 || point.x >= innerWidth || point.x + point.width <= 0)
-        continue;
-      const isRegion = point.element.matches(
-        "main,article,section,form,[role=main],[role=region],[role=form],p,li,dt,dd,blockquote,.pdf-text-layer>span"
-      );
-      drawRegion(svg, point, isRegion ? "section" : "control");
-      const annotation = document.createElement("button");
-      annotation.className = "guide-annotation";
-      annotation.dataset.guideOverview = "annotation";
-      annotation.dataset.guideIndex = String(index);
-      annotation.textContent = `${index + 1}. ${step.note}`;
-      annotation.title = step.note;
-      annotation.onclick = () => visitGuideStep(index);
-      const width = Math.min(220, innerWidth - 16);
-      const x = Math.max(8, Math.min(innerWidth - width - 8, point.x));
-      let y = Math.max(8, Math.min(innerHeight - 36, point.y));
-      while (y < innerHeight - 36 && occupied.some(
-        (r) => x < r.x + r.width && x + width > r.x && y < r.y + r.height && y + 28 > r.y
-      ))
-        y += 32;
-      if (y >= innerHeight - 36) continue;
-      annotation.style.cssText = `left:${x}px;top:${y}px;width:${width}px`;
-      occupied.push({ x, y, width, height: 28 });
-      root.append(annotation);
-    }
-    for (const ink of svg.querySelectorAll(".ink")) {
-      ink.style.animation = "none";
-      ink.style.strokeDashoffset = "0";
-    }
-    root.append(svg);
-    for (const button of panel.querySelectorAll(
-      "[data-guide-index]"
-    )) {
-      button.disabled = !guidePoint(
-        currentGuide.steps[Number(button.dataset.guideIndex)].elementId
-      );
-      if (Number(button.dataset.guideIndex) === currentGuide.index)
-        button.setAttribute("aria-current", "step");
-      else button.removeAttribute("aria-current");
-    }
-    if (hadFocus && focusedAnnotation !== void 0)
-      (root.querySelector(
-        `.guide-annotation[data-guide-index="${focusedAnnotation}"]`
-      ) || panel.querySelector(
-        `[data-guide-index="${focusedAnnotation}"]`
-      ))?.focus({ preventScroll: true });
-  }, visitGuideStep = function(index) {
-    if (!currentGuide || !currentGuide.steps[index] || !guidePoint(currentGuide.steps[index].elementId))
-      return;
-    currentGuide.index = index;
-    currentGuide.overview = false;
-    renderedStep = "";
-    renderGuide();
-  }, adjacentGuideStep = function(direction) {
-    if (!currentGuide) return -1;
-    for (let index = currentGuide.index + direction; index >= 0 && index < currentGuide.steps.length; index += direction)
-      if (guidePoint(currentGuide.steps[index].elementId)) return index;
-    return -1;
-  }, closeGuide = function() {
-    const hadFocus = document.hasFocus();
-    const returnFocus = currentGuide ? guideReturnFocus : void 0;
-    currentGuide = void 0;
-    guideReturnFocus = void 0;
-    renderedStep = "";
-    overlayRoot?.querySelector(".guide")?.remove();
-    overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
-    overlayRoot?.querySelectorAll("[data-guide-overview]").forEach((element) => element.remove());
-    if (hadFocus && returnFocus?.isConnected)
-      returnFocus.focus({ preventScroll: true });
-  }, closeSelectionPopover = function() {
-    window.clearTimeout(selectionTimer);
-    selectionTimer = 0;
-    selectionPopover?.remove();
-    selectionPopover = void 0;
-  }, showSelectionPopover = function() {
-    closeSelectionPopover();
-    if (currentGuide) return;
-    const selection = getSelection();
-    if (selection?.rangeCount !== 1) return;
-    const range = selection.getRangeAt(0).cloneRange();
-    const text = contextRangeText(range);
-    if (!text) return;
-    const rect = range.getBoundingClientRect();
-    const pop = document.createElement("div");
-    pop.className = "popover";
-    selectionPopover = pop;
-    for (const [action, label] of [
-      ["explain", labels.explain],
-      ["translate", labels.translate],
-      ["ask", labels.ask]
-    ]) {
-      const button = document.createElement("button");
-      button.textContent = label;
-      button.onmousedown = (event) => event.preventDefault();
-      button.onclick = () => {
-        closeSelectionPopover();
-        const current = getSelection();
-        if (current?.rangeCount !== 1) return;
-        const currentRange = current.getRangeAt(0);
-        if (currentRange.startContainer !== range.startContainer || currentRange.startOffset !== range.startOffset || currentRange.endContainer !== range.endContainer || currentRange.endOffset !== range.endOffset)
-          return;
-        if (contextRangeText(range) !== text) return;
-        send({
-          type: "blinkling:selection",
-          text,
-          url: location.href,
-          action
-        });
-      };
-      pop.append(button);
-    }
-    pop.style.left = `${Math.max(8, Math.min(innerWidth - 250, rect.left))}px`;
-    pop.style.top = `${Math.max(8, rect.top - 45)}px`;
-    ensureOverlay().append(pop);
-  }, onSelectionChange = function() {
-    closeSelectionPopover();
-    if (currentGuide) return;
-    selectionTimer = window.setTimeout(() => {
-      selectionTimer = 0;
-      showSelectionPopover();
-    }, 40);
-  }, updateGuidePosition = function() {
-    if (!guideFrame && currentGuide)
-      guideFrame = requestAnimationFrame(() => {
-        guideFrame = 0;
-        renderGuide();
-      });
-  }, reportPageChange = function(checkContent = false) {
-    const url = location.href;
-    if (url === lastUrl && !checkContent) return;
-    const context = buildPageContext();
-    lastSensitive = context.hasPassword;
-    const revision = pageRevision(context);
-    if (url !== lastUrl || checkContent && revision !== lastRevision) {
-      lastUrl = url;
-      lastRevision = revision;
-      send({ type: "blinkling:page-changed", url, revision });
-    }
-  }, relevantMutation = function(record) {
-    const target = record.target instanceof Element ? record.target : record.target.parentElement;
-    if (!target) return false;
-    if (record.type === "attributes" && [
-      "type",
-      "data-private",
-      "data-sensitive",
-      "contenteditable",
-      "aria-hidden",
-      "hidden"
-    ].includes(record.attributeName ?? ""))
-      return true;
-    if (target.closest(
-      "[data-blinkling-overlay], [data-blinkling-crop], [data-private], [data-sensitive], [contenteditable]:not([contenteditable=false])"
-    ))
-      return false;
-    if (target instanceof HTMLInputElement && /^(password|hidden|file)$/i.test(target.type))
-      return false;
-    if (record.type === "characterData")
-      return target.tagName === "TITLE" || contextTextNode(record.target);
-    return true;
-  }, initObserver = function() {
-    observer?.disconnect();
-    const context = buildPageContext();
-    lastSensitive = context.hasPassword;
-    lastRevision = pageRevision(context);
-    observer = new MutationObserver((records) => {
-      if (!records.some(relevantMutation)) return;
-      updateGuidePosition();
-      window.clearTimeout(pageTimer);
-      pageTimer = window.setTimeout(() => reportPageChange(true), 250);
-    });
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: [
-        "aria-label",
-        "aria-hidden",
-        "class",
-        "contenteditable",
-        "data-private",
-        "data-sensitive",
-        "hidden",
-        "role",
-        "style",
-        "title",
-        "type",
-        "autocomplete"
-      ]
-    });
-    window.setInterval(() => {
-      reportPageChange(hasSensitiveContent() !== lastSensitive);
-    }, 650);
-    window.addEventListener("popstate", () => reportPageChange());
-    window.addEventListener("hashchange", () => reportPageChange());
-    window.addEventListener("scroll", updateGuidePosition, { passive: true });
-    window.addEventListener("resize", updateGuidePosition, { passive: true });
-    document.addEventListener("selectionchange", onSelectionChange);
-    listenForShiftCrop(
-      window,
-      () => shiftCropEnabled && !selecting && !hasSensitiveContent(document, "visible-capture"),
-      (initialPointer) => {
-        void select("region", cropLabels.cropCancel, initialPointer).then(
-          (result) => {
-            const value = result;
-            if (value.rect)
-              void send({
-                type: "blinkling:crop-selected",
-                rect: value.rect,
-                url: location.href,
-                geometry: {
-                  width: innerWidth,
-                  height: innerHeight,
-                  scrollX,
-                  scrollY,
-                  devicePixelRatio
-                }
-              });
-          }
-        );
-      }
-    );
-    window.addEventListener(
-      "keydown",
-      (event) => {
-        if (event.key === "Escape") {
-          closeGuide();
-          closeSelectionPopover();
-        }
-      },
-      true
-    );
-  }, select = function(mode, cancelLabel, initialPointer) {
-    if (hasSensitiveContent(document, "visible-capture"))
-      return Promise.resolve({ error: "password_page" });
-    if (selecting) return Promise.resolve({ cancelled: true });
-    selecting = true;
-    selectionMode = mode;
-    if (mode === "region") {
-      const host = document.createElement("div");
-      host.dataset.blinklingCrop = "true";
-      host.style.setProperty("display", "block", "important");
-      document.documentElement.append(host);
-      void send({ type: "blinkling:crop-mode", active: true });
-      return selectCrop(
-        host,
-        () => new DOMRect(0, 0, innerWidth, innerHeight),
-        cropLabels,
-        devicePixelRatio,
-        initialPointer
-      ).then(
-        (rect) => rect ? { rect: [rect.x, rect.y, rect.width, rect.height] } : { cancelled: true }
-      ).finally(() => {
-        selecting = false;
-        selectionMode = void 0;
-        void send({ type: "blinkling:crop-mode", active: false });
-      });
-    }
-    return new Promise((resolve) => {
-      selectionResolve = resolve;
-      const root = ensureOverlay();
-      const shade = document.createElement("div");
-      shade.className = "shade";
-      shade.setAttribute("role", "button");
-      shade.setAttribute("aria-label", cancelLabel);
-      root.append(shade);
-      const cancelButton = document.createElement("button");
-      cancelButton.className = "cancel";
-      cancelButton.textContent = cancelLabel;
-      cancelButton.onclick = () => finishSelection({ cancelled: true });
-      root.append(cancelButton);
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.classList.add("draw");
-      root.append(svg);
-      const cancel = () => finishSelection({ cancelled: true });
-      const key = (event) => {
-        if (event.key === "Escape") cancel();
-      };
-      const finish = (rect) => finishSelection({ rect });
-      const click = (event) => {
-        if (selectionMode === "element") {
-          event.preventDefault();
-          event.stopPropagation();
-          shade.style.pointerEvents = "none";
-          const target = document.elementFromPoint(
-            event.clientX,
-            event.clientY
-          );
-          shade.style.pointerEvents = "auto";
-          if (!target || target.closest("[data-blinkling-overlay]")) return;
-          const r = target.getBoundingClientRect();
-          finish([
-            Math.round(r.left),
-            Math.round(r.top),
-            Math.round(r.width),
-            Math.round(r.height)
-          ]);
-        }
-      };
-      shade.addEventListener("click", click);
-      window.addEventListener("keydown", key, true);
-      const cleanup = () => {
-        window.removeEventListener("keydown", key, true);
-      };
-      shade.cleanup = cleanup;
-    });
-  }, finishSelection = function(result) {
-    const shade = overlayRoot?.querySelector(".shade");
-    shade?.cleanup?.();
-    shade?.remove();
-    overlayRoot?.querySelector(".cancel")?.remove();
-    overlayRoot?.querySelector('svg[class~="draw"]')?.remove();
-    selecting = false;
-    selectionMode = void 0;
-    const resolve = selectionResolve;
-    selectionResolve = void 0;
-    resolve?.(result);
-  }, textNodeId = function(node) {
-    let id = nodeIds.get(node);
-    if (!id) {
-      id = `t${nextTextId++}`;
-      nodeIds.set(node, id);
-    }
-    return id;
-  };
-  contentScope.blinklingContentReady = true;
-  const originals = /* @__PURE__ */ new Map();
-  const nodeIds = /* @__PURE__ */ new WeakMap();
-  let nextTextId = 1;
-  let labels = {
-    explain: "Explain",
-    translate: "Translate",
-    ask: "Ask"
-  };
-  let observer;
-  let overlayHost;
-  let overlayRoot;
-  let selectionPopover;
-  let selectionTimer = 0;
-  let currentGuide;
-  let guideReturnFocus;
-  let lastUrl = location.href;
-  let lastRevision = "";
-  let lastSensitive = false;
-  let pageTimer = 0;
-  let selecting = false;
-  let cropLabels = {
-    cropTitle: "Crop",
-    cropHint: "Drag to select. Enter to confirm. Esc to cancel.",
-    cropConfirm: "Confirm",
-    cropCancel: "Cancel"
-  };
-  let selectionMode;
-  let shiftCropEnabled = true;
-  void chrome.storage.local.get(["shiftCropEnabled"]).then((stored) => {
-    shiftCropEnabled = stored.shiftCropEnabled !== false;
-  });
-  chrome.storage.onChanged.addListener(
-    (changes, area) => {
-      if (area === "local" && changes.shiftCropEnabled)
-        shiftCropEnabled = changes.shiftCropEnabled.newValue !== false;
-    }
-  );
-  let selectionResolve;
-  let renderedStep = "";
-  let guideFrame = 0;
-  const send = (message2) => chrome.runtime.sendMessage(message2).catch(() => void 0);
-  window.addEventListener("message", (event) => {
-    if (event.source !== window || event.origin !== location.origin || location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/install")
-      return;
-    const value = event.data;
-    if (value?.type === "blinkling:hello") {
-      window.postMessage(
-        { type: "blinkling:extension-ready" },
-        location.origin
-      );
-      return;
-    }
-    if (value?.type === "blinkling:open-bubble") {
-      void send({
-        type: "blinkling:open-bubble",
-        locale: isWelcomeLocale(value.locale) ? value.locale : void 0
-      });
-      return;
-    }
-    if (!value || value.type !== "blinkling:pair" || typeof value.code !== "string" || !/^[A-F0-9]{16}$/.test(value.code) || Number(value.port) !== Number(location.port || 80))
-      return;
-    void send({
-      type: "blinkling:pair",
-      port: Number(value.port),
-      code: value.code,
-      locale: isWelcomeLocale(value.locale) ? value.locale : void 0
-    }).then(
-      (result) => window.postMessage(
-        {
-          type: result?.ok ? "blinkling:paired" : "blinkling:connection-failed"
-        },
-        location.origin
-      )
-    );
-  });
-  window.addEventListener("blinkling:tutorial-action", (event) => {
-    if (location.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname) || location.pathname !== "/assets/blinkling-welcome-sample.html")
-      return;
-    const value = event.detail;
-    if (value?.version !== 1 || ![
-      "float",
-      "capture",
-      "suggest",
-      "passive",
-      "guide",
-      "translate",
-      "selection",
-      "pdf"
-    ].includes(value.action) || !Number.isInteger(value.step) || value.step < 1 || value.step > 8)
-      return;
-    void send({
-      type: "blinkling:tutorial",
-      action: value.action,
-      step: value.step,
-      locale: value.locale === "en" || value.locale === "zh-TW" ? value.locale : void 0
-    });
-  });
-  if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/assets/blinkling-welcome-sample.html") {
-    window.postMessage(
-      { type: "blinkling:tutorial:content-ready", version: 1 },
-      location.origin
-    );
-  }
-  if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname) && location.pathname === "/install") {
-    window.postMessage({ type: "blinkling:extension-ready" }, location.origin);
-  }
-  chrome.runtime.onMessage.addListener(
-    (message2, _sender, respond) => {
-      if (!message2 || typeof message2.type !== "string") return;
-      if ([
-        "blinkling:guide-context",
-        "blinkling:explicit-context",
-        "blinkling:guide",
-        "blinkling:text-nodes",
-        "blinkling:translate",
-        "blinkling:restore"
-      ].includes(message2.type) && typeof message2.documentKey === "string" && (message2.documentKey !== pageDocumentKey() || message2.url !== location.href)) {
-        respond({ error: "tab_changed" });
-        return;
-      }
-      if (message2.type === "blinkling:tutorial-select" && location.pathname === "/assets/blinkling-welcome-sample.html") {
-        const paragraph = document.querySelector("main p, article p, p");
-        if (paragraph) {
-          const range = document.createRange();
-          range.selectNodeContents(paragraph);
-          window.getSelection()?.removeAllRanges();
-          window.getSelection()?.addRange(range);
-          document.dispatchEvent(new Event("selectionchange"));
-        }
-        respond({ ok: true });
-        return;
-      }
-      if (message2.type === "blinkling:tutorial-done" && location.pathname === "/assets/blinkling-welcome-sample.html" && Number.isInteger(message2.step) && Number(message2.step) >= 1 && Number(message2.step) <= 8) {
-        window.opener?.postMessage(
-          { type: "blinkling:tutorial:done", version: 1, step: message2.step },
-          location.origin
-        );
-        respond({ ok: true });
-        return;
-      }
-      if (message2.type === "blinkling:sensitive") {
-        respond({
-          hasPassword: hasSensitiveContent()
-        });
-        return;
-      }
-      if (message2.type === "blinkling:context") {
-        respond(buildPageContext());
-        return;
-      }
-      if (message2.type === "blinkling:guide-context" || message2.type === "blinkling:explicit-context") {
-        if (hasSensitiveContent(document, true)) {
-          respond({ error: "password_page" });
-          return;
-        }
-        respond(
-          message2.type === "blinkling:guide-context" ? buildGuideContext() : buildExplicitPageContext()
-        );
-        return;
-      }
-      if (message2.type === "blinkling:identity") {
-        respond({
-          documentKey: pageDocumentKey(),
-          url: location.href,
-          translated: [...originals.values()].some(
-            (entry) => entry.node.isConnected && entry.lastWritten !== void 0 && entry.node.nodeValue === entry.lastWritten && restorableTextNode(entry.node)
-          )
-        });
-        return;
-      }
-      if (message2.type === "blinkling:labels" && message2.labels && typeof message2.labels === "object") {
-        const incoming = message2.labels;
-        for (const key of [
-          "cropTitle",
-          "cropHint",
-          "cropConfirm",
-          "cropCancel"
-        ]) {
-          if (typeof incoming[key] === "string")
-            cropLabels[key] = incoming[key];
-        }
-        labels = {
-          explain: incoming.explain || labels.explain,
-          translate: incoming.translate || labels.translate,
-          ask: incoming.ask || labels.ask
-        };
-        respond({ ok: true });
-        return;
-      }
-      if (message2.type === "blinkling:select" && (message2.mode === "region" || message2.mode === "element")) {
-        const requestLabels = message2.labels;
-        if (requestLabels) cropLabels = { ...cropLabels, ...requestLabels };
-        void select(message2.mode, requestLabels?.cancel || "Cancel").then(
-          respond
-        );
-        return true;
-      }
-      if (message2.type === "blinkling:guide" && Array.isArray(message2.steps)) {
-        if (hasSensitiveContent(document, true)) {
-          closeGuide();
-          respond({ error: "password_page" });
-          return;
-        }
-        const availableTargets = resolveGuideTargets();
-        const valid = validateGuideSteps(
-          { steps: message2.steps },
-          new Set(availableTargets.keys())
-        );
-        const targets = new Map(
-          valid.map((step) => [
-            step.elementId,
-            availableTargets.get(step.elementId)
-          ])
-        );
-        if (valid.length) {
-          closeSelectionPopover();
-          if (!currentGuide) {
-            const active = document.activeElement;
-            guideReturnFocus = active && active !== document.body && !overlayHost?.contains(active) ? active : void 0;
-          }
-          const guideLabels = message2.labels || {};
-          currentGuide = {
-            steps: valid,
-            index: 0,
-            overview: false,
-            targets,
-            url: location.href,
-            purpose: typeof message2.purpose === "string" ? message2.purpose.trim().slice(0, 360) : void 0,
-            labels: {
-              next: guideLabels.next || "Next",
-              back: guideLabels.back || "Back",
-              close: guideLabels.close || "Close guide",
-              done: guideLabels.done || "Done",
-              title: guideLabels.title || "Blinkling",
-              overview: guideLabels.overview || "Overview",
-              tour: guideLabels.tour || "Step by step",
-              sections: guideLabels.sections || "Page sections",
-              task: guideLabels.task || "Main task"
-            }
-          };
-          renderedStep = "";
-          renderGuide();
-          respond({ ok: true });
-        } else {
-          closeGuide();
-          respond({ ok: false });
-        }
-        return;
-      }
-      if (message2.type === "blinkling:text-nodes") {
-        if (hasSensitiveContent(document, true)) {
-          respond({ error: "password_page" });
-          return;
-        }
-        const nodes = [];
-        const cursor = Math.max(0, Math.floor(Number(message2.cursor) || 0));
-        const walker = document.createTreeWalker(
-          document.body,
-          NodeFilter.SHOW_TEXT
-        );
-        let node;
-        let size = 0;
-        let index = 0;
-        let hasMore = false;
-        while (node = walker.nextNode()) {
-          if (!(node instanceof Text)) continue;
-          const retainedId = nodeIds.get(node);
-          let original = retainedId ? originals.get(retainedId) : void 0;
-          const retainedEmpty = original?.node === node && original.lastWritten === "" && node.nodeValue === "";
-          if (!contextTextNode(node, retainedEmpty)) continue;
-          if (index < cursor) {
-            index++;
-            continue;
-          }
-          let id = retainedId ?? textNodeId(node);
-          if (original && node.nodeValue !== (original.lastWritten ?? original.text)) {
-            originals.delete(id);
-            nodeIds.delete(node);
-            id = textNodeId(node);
-            original = void 0;
-          }
-          const sourceText = original?.text ?? node.nodeValue;
-          if (sourceText.length > 12e3) {
-            respond({ error: "translation_incomplete" });
-            return;
-          }
-          if (nodes.length >= 160 || size + sourceText.length > 24e3) {
-            hasMore = true;
-            break;
-          }
-          if (!original) originals.set(id, { node, text: sourceText });
-          nodes.push({ id, text: sourceText });
-          size += sourceText.length;
-          index++;
-        }
-        respond({ nodes, ...hasMore ? { nextCursor: index } : {} });
-        return;
-      }
-      if (message2.type === "blinkling:translate" && Array.isArray(message2.nodes)) {
-        if (hasSensitiveContent(document, true)) {
-          respond({ error: "password_page" });
-          return;
-        }
-        let applied = 0;
-        let changed = 0;
-        let rejected = 0;
-        const skipped = { disconnected: 0, sourceChanged: 0, ineligible: 0 };
-        for (const entry of message2.nodes.slice(0, 160)) {
-          if (!entry || typeof entry.id !== "string" || typeof entry.text !== "string") {
-            rejected++;
-            continue;
-          }
-          const original = originals.get(entry.id);
-          if (!original || entry.text.length > 12e3) {
-            rejected++;
-            continue;
-          }
-          if (!original.node.isConnected) {
-            skipped.disconnected++;
-            continue;
-          }
-          if (!contextTextNode(
-            original.node,
-            original.lastWritten === "" && original.node.nodeValue === ""
-          )) {
-            skipped.ineligible++;
-            continue;
-          }
-          if (original.node.nodeValue !== (original.lastWritten ?? original.text)) {
-            originals.delete(entry.id);
-            nodeIds.delete(original.node);
-            skipped.sourceChanged++;
-            continue;
-          }
-          if (original.node.nodeValue !== entry.text) {
-            original.node.nodeValue = entry.text;
-            original.lastWritten = entry.text;
-            changed++;
-            original.node.parentElement?.setAttribute(
-              "data-blinkling-translated",
-              "true"
-            );
-          }
-          applied++;
-        }
-        respond({ applied, changed, skipped, rejected });
-        return;
-      }
-      if (message2.type === "blinkling:restore") {
-        let restored = 0;
-        for (const [id, entry] of originals) {
-          if (entry.node.isConnected && restorableTextNode(entry.node) && entry.lastWritten !== void 0 && entry.node.nodeValue === entry.lastWritten) {
-            entry.node.nodeValue = entry.text;
-            entry.node.parentElement?.removeAttribute(
-              "data-blinkling-translated"
-            );
-            restored++;
-          }
-          originals.delete(id);
-          nodeIds.delete(entry.node);
-        }
-        respond({ restored });
-        return;
-      }
-    }
-  );
-  initObserver();
-}
-
-// extension/png.ts
-var MAX_PNG_LENGTH = 5e6;
-var MAX_EDGE = 8e3;
-var MAX_PIXELS = 4e7;
-function encodeCanvasPng(source) {
-  if (!source.width || !source.height || source.width * source.height > 9e7)
-    throw new Error("image_limit");
-  let canvas = source;
-  let scale = 1;
-  while (true) {
-    const image = canvas.toDataURL("image/png");
-    if (!image.startsWith("data:image/png;base64,"))
-      throw new Error("image_decode");
-    if (image.length <= MAX_PNG_LENGTH && canvas.width <= MAX_EDGE && canvas.height <= MAX_EDGE && canvas.width * canvas.height <= MAX_PIXELS)
-      return image;
-    if (canvas.width === 1 && canvas.height === 1)
-      throw new Error("image_limit");
-    scale *= 0.8;
-    if (canvas === source)
-      canvas = source.ownerDocument.createElement("canvas");
-    canvas.width = Math.max(1, Math.floor(source.width * scale));
-    canvas.height = Math.max(1, Math.floor(source.height * scale));
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("image_decode");
-    context.drawImage(source, 0, 0, canvas.width, canvas.height);
-  }
-}
-
 // extension/reader-url.ts
 function parseReaderPdfUrl(value) {
   try {
@@ -27808,32 +25812,10 @@ function parseReaderPdfUrl(value) {
     return void 0;
   }
 }
-function readerUrlOriginPattern(parsed) {
-  return `${parsed.protocol}//${parsed.host}/*`;
-}
-
-// extension/permission-handoff.ts
-async function prepareReaderPermissionHandoff(origins, contains, handoff) {
-  if (await contains({ origins })) return "granted";
-  const response = await handoff();
-  if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
-  return "prepared";
-}
 
 // extension/reader-locales.ts
 var readerLocales = {
   en: {
-    permissionNotice: "Chrome's site permission prompt may briefly close floating chat. Your conversation will be kept.",
-    permissionPaused: "Floating chat paused for site access. Your session, draft and attachment are kept. Resume it with one click.",
-    resumePanel: "Resume floating chat",
-    floatingResumed: "Floating chat resumed.",
-    resumeError: "Could not resume floating chat. Select Resume floating chat to try again.",
-    questionReady: "Question ready in chat. Review it and select Ask to send.",
-    summarySelection: "Summarize selection",
-    selectFirst: "Select a passage first.",
-    selectionHelp: "Select a passage to translate or summarize it.",
-    selectionUnavailable: "This page has no selectable text. Use Ask about page or Summarize page to ask about the page image.",
-    selectionTooLong: "Select at most 5,000 characters, or use Summarize page for the whole page.",
     title: "Blinkling PDF Reader",
     openFile: "Open PDF",
     urlPlaceholder: "Paste a PDF URL",
@@ -27843,44 +25825,15 @@ var readerLocales = {
     next: "Next page",
     noDocument: "No document",
     pageLabel: "Page {page} of {total}",
-    ask: "Ask about page",
-    translate: "Translate selection",
-    summary: "Summarize page",
-    guide: "Guide me through this section",
-    openPanel: "Open chat",
     pdfPage: "PDF page",
     choose: "Choose a PDF file or open a URL.",
     loading: "Loading PDF...",
-    ready: "{count} pages ready. Select text or choose an action.",
-    openError: "Could not open this PDF. Check the URL permission or choose a file from your device.",
+    ready: "{count} pages ready.",
+    openError: "Could not open this PDF. Check the link or choose a file from your device.",
     badUrl: "Enter a PDF link beginning with https:// or http://.",
-    permissionRequired: "Allow access to this PDF site by selecting Open URL.",
-    permissionDenied: "Permission was not granted for this PDF site.",
-    tooLarge: "This PDF is larger than 100 MB. Choose a smaller file.",
-    openFirst: "Open a PDF first.",
-    actionSent: "{action} sent to Blinkling. Keep the floating panel open to receive it.",
-    actionBusy: "Wait for the current answer, then try again.",
-    actionError: "Blinkling could not receive this action. Open the floating panel and try again.",
-    panelOpened: "Chat opened. Choose Open floating panel there to keep it above other windows.",
-    panelError: "Could not open the floating panel. Try again from the extension button.",
-    summarySent: "Summary",
-    questionSent: "Question",
-    translationSent: "Translation",
-    guideSent: "Guide request",
-    resizeHelp: "PDF page. Select text to ask, translate, summarize, or request guidance."
+    tooLarge: "This PDF is larger than 100 MB. Choose a smaller file."
   },
   "zh-TW": {
-    permissionNotice: "Chrome \u986F\u793A\u7DB2\u7AD9\u6B0A\u9650\u63D0\u793A\u6642\uFF0C\u53EF\u80FD\u6703\u66AB\u6642\u95DC\u9589\u6D6E\u52D5\u804A\u5929\u3002\u5C0D\u8A71\u6703\u4FDD\u7559\u3002",
-    permissionPaused: "\u6D6E\u52D5\u804A\u5929\u56E0\u7DB2\u7AD9\u5B58\u53D6\u6B0A\u9650\u66AB\u505C\u3002\u5DE5\u4F5C\u968E\u6BB5\u3001\u8349\u7A3F\u8207\u9644\u4EF6\u90FD\u5DF2\u4FDD\u7559\u3002\u6309\u4E00\u4E0B\u5373\u53EF\u6062\u5FA9\u3002",
-    resumePanel: "\u6062\u5FA9\u6D6E\u52D5\u804A\u5929",
-    floatingResumed: "\u6D6E\u52D5\u804A\u5929\u5DF2\u6062\u5FA9\u3002",
-    resumeError: "\u7121\u6CD5\u6062\u5FA9\u6D6E\u52D5\u804A\u5929\u3002\u8ACB\u9078\u64C7\u300C\u6062\u5FA9\u6D6E\u52D5\u804A\u5929\u300D\u91CD\u8A66\u3002",
-    questionReady: "\u554F\u984C\u5DF2\u6E96\u5099\u5728\u804A\u5929\u4E2D\u3002\u8ACB\u6AA2\u67E5\u5F8C\u9078\u53D6\u300C\u8A62\u554F\u300D\u50B3\u9001\u3002",
-    summarySelection: "\u6458\u8981\u9078\u53D6\u6587\u5B57",
-    selectFirst: "\u8ACB\u5148\u9078\u53D6\u4E00\u6BB5\u6587\u5B57\u3002",
-    selectionHelp: "\u9078\u53D6\u4E00\u6BB5\u6587\u5B57\u5F8C\u5373\u53EF\u7FFB\u8B6F\u6216\u6458\u8981\u3002",
-    selectionUnavailable: "\u6B64\u9801\u6C92\u6709\u53EF\u9078\u53D6\u7684\u6587\u5B57\u3002\u53EF\u9078\u64C7\u300C\u8A62\u554F\u6B64\u9801\u300D\u6216\u300C\u6458\u8981\u6B64\u9801\u300D\u4F86\u8A62\u554F\u9801\u9762\u5716\u7247\u3002",
-    selectionTooLong: "\u8ACB\u9078\u53D6\u4E0D\u8D85\u904E 5,000 \u500B\u5B57\u5143\uFF0C\u6216\u4F7F\u7528\u300C\u6458\u8981\u6B64\u9801\u300D\u6458\u8981\u6574\u9801\u3002",
     title: "Blinkling PDF \u95B1\u8B80\u5668",
     openFile: "\u958B\u555F PDF",
     urlPlaceholder: "\u8CBC\u4E0A PDF \u7DB2\u5740",
@@ -27890,44 +25843,15 @@ var readerLocales = {
     next: "\u4E0B\u4E00\u9801",
     noDocument: "\u5C1A\u672A\u958B\u555F\u6587\u4EF6",
     pageLabel: "\u7B2C {page} \u9801\uFF0C\u5171 {total} \u9801",
-    ask: "\u8A62\u554F\u6B64\u9801",
-    translate: "\u7FFB\u8B6F\u9078\u53D6\u6587\u5B57",
-    summary: "\u6458\u8981\u6B64\u9801",
-    guide: "\u5F15\u5C0E\u6211\u95B1\u8B80\u6B64\u6BB5",
-    openPanel: "\u958B\u555F\u804A\u5929",
     pdfPage: "PDF \u9801\u9762",
     choose: "\u9078\u64C7 PDF \u6A94\u6848\u6216\u958B\u555F\u7DB2\u5740\u3002",
     loading: "\u6B63\u5728\u8F09\u5165 PDF...",
-    ready: "\u5171 {count} \u9801\uFF0C\u5DF2\u5C31\u7DD2\u3002\u9078\u53D6\u6587\u5B57\u6216\u9078\u64C7\u64CD\u4F5C\u3002",
-    openError: "\u7121\u6CD5\u958B\u555F\u6B64 PDF\u3002\u8ACB\u6AA2\u67E5\u7DB2\u5740\u6B0A\u9650\u6216\u5F9E\u88DD\u7F6E\u9078\u64C7\u6A94\u6848\u3002",
+    ready: "\u5171 {count} \u9801\uFF0C\u5DF2\u5C31\u7DD2\u3002",
+    openError: "\u7121\u6CD5\u958B\u555F\u9019\u4EFD PDF\u3002\u8ACB\u6AA2\u67E5\u9023\u7D50\uFF0C\u6216\u5F9E\u88DD\u7F6E\u9078\u64C7\u6A94\u6848\u3002",
     badUrl: "\u8ACB\u8F38\u5165\u4EE5 https:// \u6216 http:// \u958B\u982D\u7684 PDF \u9023\u7D50\u3002",
-    permissionRequired: "\u8ACB\u9078\u53D6\u300C\u958B\u555F\u7DB2\u5740\u300D\u4EE5\u5141\u8A31\u5B58\u53D6\u6B64 PDF \u7DB2\u7AD9\u3002",
-    permissionDenied: "\u672A\u6388\u4E88\u6B64 PDF \u7DB2\u7AD9\u7684\u6B0A\u9650\u3002",
-    tooLarge: "\u6B64 PDF \u8D85\u904E 100 MB\uFF0C\u8ACB\u9078\u64C7\u8F03\u5C0F\u7684\u6A94\u6848\u3002",
-    openFirst: "\u8ACB\u5148\u958B\u555F PDF\u3002",
-    actionSent: "\u5DF2\u5C07\u300C{action}\u300D\u50B3\u9001\u81F3 Blinkling\u3002\u8ACB\u4FDD\u6301\u6D6E\u52D5\u9762\u677F\u958B\u555F\u4EE5\u63A5\u6536\u3002",
-    actionBusy: "\u8ACB\u7B49\u76EE\u524D\u7684\u56DE\u7B54\u5B8C\u6210\uFF0C\u518D\u8A66\u4E00\u6B21\u3002",
-    actionError: "Blinkling \u7121\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8ACB\u958B\u555F\u6D6E\u52D5\u9762\u677F\u5F8C\u91CD\u8A66\u3002",
-    panelOpened: "\u5DF2\u958B\u555F\u804A\u5929\u3002\u8ACB\u5728\u804A\u5929\u4E2D\u9078\u64C7\u958B\u555F\u6D6E\u52D5\u9762\u677F\uFF0C\u8B93\u5B83\u4FDD\u6301\u5728\u5176\u4ED6\u8996\u7A97\u4E0A\u65B9\u3002",
-    panelError: "\u7121\u6CD5\u958B\u555F\u6D6E\u52D5\u9762\u677F\u3002\u8ACB\u5F9E\u64F4\u5145\u529F\u80FD\u6309\u9215\u91CD\u8A66\u3002",
-    summarySent: "\u6458\u8981",
-    questionSent: "\u554F\u984C",
-    translationSent: "\u7FFB\u8B6F",
-    guideSent: "\u95B1\u8B80\u5F15\u5C0E",
-    resizeHelp: "PDF \u9801\u9762\u3002\u9078\u53D6\u6587\u5B57\u5F8C\u53EF\u63D0\u554F\u3001\u7FFB\u8B6F\u3001\u6458\u8981\u6216\u8981\u6C42\u5F15\u5C0E\u3002"
+    tooLarge: "\u6B64 PDF \u8D85\u904E 100 MB\uFF0C\u8ACB\u9078\u64C7\u8F03\u5C0F\u7684\u6A94\u6848\u3002"
   },
   "zh-CN": {
-    permissionNotice: "Chrome \u663E\u793A\u7F51\u7AD9\u6743\u9650\u63D0\u793A\u65F6\uFF0C\u53EF\u80FD\u4F1A\u6682\u65F6\u5173\u95ED\u6D6E\u52A8\u804A\u5929\u3002\u5BF9\u8BDD\u4F1A\u4FDD\u7559\u3002",
-    permissionPaused: "\u6D6E\u52A8\u804A\u5929\u56E0\u7F51\u7AD9\u8BBF\u95EE\u6743\u9650\u6682\u505C\u3002\u4F1A\u8BDD\u3001\u8349\u7A3F\u4E0E\u9644\u4EF6\u90FD\u5DF2\u4FDD\u7559\u3002\u70B9\u51FB\u5373\u53EF\u6062\u590D\u3002",
-    resumePanel: "\u6062\u590D\u6D6E\u52A8\u804A\u5929",
-    floatingResumed: "\u6D6E\u52A8\u804A\u5929\u5DF2\u6062\u590D\u3002",
-    resumeError: "\u65E0\u6CD5\u6062\u590D\u6D6E\u52A8\u804A\u5929\u3002\u8BF7\u9009\u62E9\u201C\u6062\u590D\u6D6E\u52A8\u804A\u5929\u201D\u91CD\u8BD5\u3002",
-    questionReady: "\u95EE\u9898\u5DF2\u51C6\u5907\u5728\u804A\u5929\u4E2D\u3002\u8BF7\u68C0\u67E5\u540E\u9009\u62E9\u300C\u8BE2\u95EE\u300D\u53D1\u9001\u3002",
-    summarySelection: "\u603B\u7ED3\u9009\u53D6\u6587\u5B57",
-    selectFirst: "\u8BF7\u5148\u9009\u62E9\u4E00\u6BB5\u6587\u5B57\u3002",
-    selectionHelp: "\u9009\u62E9\u4E00\u6BB5\u6587\u5B57\u540E\u5373\u53EF\u7FFB\u8BD1\u6216\u603B\u7ED3\u3002",
-    selectionUnavailable: "\u6B64\u9875\u6CA1\u6709\u53EF\u9009\u62E9\u7684\u6587\u5B57\u3002\u53EF\u9009\u62E9\u201C\u8BE2\u95EE\u6B64\u9875\u201D\u6216\u201C\u603B\u7ED3\u6B64\u9875\u201D\u6765\u8BE2\u95EE\u9875\u9762\u56FE\u7247\u3002",
-    selectionTooLong: "\u8BF7\u9009\u53D6\u4E0D\u8D85\u8FC7 5,000 \u4E2A\u5B57\u7B26\uFF0C\u6216\u4F7F\u7528\u201C\u603B\u7ED3\u6B64\u9875\u201D\u603B\u7ED3\u6574\u9875\u3002",
     title: "Blinkling PDF \u9605\u8BFB\u5668",
     openFile: "\u6253\u5F00 PDF",
     urlPlaceholder: "\u7C98\u8D34 PDF \u7F51\u5740",
@@ -27937,44 +25861,15 @@ var readerLocales = {
     next: "\u4E0B\u4E00\u9875",
     noDocument: "\u5C1A\u672A\u6253\u5F00\u6587\u6863",
     pageLabel: "\u7B2C {page} \u9875\uFF0C\u5171 {total} \u9875",
-    ask: "\u8BE2\u95EE\u6B64\u9875",
-    translate: "\u7FFB\u8BD1\u6240\u9009\u6587\u672C",
-    summary: "\u603B\u7ED3\u6B64\u9875",
-    guide: "\u5F15\u5BFC\u6211\u9605\u8BFB\u6B64\u6BB5",
-    openPanel: "\u6253\u5F00\u804A\u5929",
     pdfPage: "PDF \u9875\u9762",
     choose: "\u9009\u62E9 PDF \u6587\u4EF6\u6216\u6253\u5F00\u7F51\u5740\u3002",
     loading: "\u6B63\u5728\u52A0\u8F7D PDF...",
-    ready: "\u5171 {count} \u9875\uFF0C\u5DF2\u5C31\u7EEA\u3002\u9009\u62E9\u6587\u672C\u6216\u6267\u884C\u64CD\u4F5C\u3002",
-    openError: "\u65E0\u6CD5\u6253\u5F00\u6B64 PDF\u3002\u8BF7\u68C0\u67E5\u7F51\u5740\u6743\u9650\uFF0C\u6216\u4ECE\u8BBE\u5907\u9009\u62E9\u6587\u4EF6\u3002",
+    ready: "\u5171 {count} \u9875\uFF0C\u5DF2\u5C31\u7EEA\u3002",
+    openError: "\u65E0\u6CD5\u6253\u5F00\u6B64 PDF\u3002\u8BF7\u68C0\u67E5\u94FE\u63A5\uFF0C\u6216\u4ECE\u8BBE\u5907\u4E2D\u9009\u62E9\u6587\u4EF6\u3002",
     badUrl: "\u8BF7\u8F93\u5165\u4EE5 https:// \u6216 http:// \u5F00\u5934\u7684 PDF \u94FE\u63A5\u3002",
-    permissionRequired: "\u8BF7\u9009\u62E9\u6253\u5F00\u7F51\u5740\u4EE5\u5141\u8BB8\u8BBF\u95EE\u6B64 PDF \u7F51\u7AD9\u3002",
-    permissionDenied: "\u672A\u83B7\u5F97\u6B64 PDF \u7F51\u7AD9\u7684\u8BBF\u95EE\u6743\u9650\u3002",
-    tooLarge: "\u6B64 PDF \u8D85\u8FC7 100 MB\uFF0C\u8BF7\u9009\u62E9\u8F83\u5C0F\u7684\u6587\u4EF6\u3002",
-    openFirst: "\u8BF7\u5148\u6253\u5F00 PDF\u3002",
-    actionSent: '\u5DF2\u5C06"{action}"\u53D1\u9001\u5230 Blinkling\u3002\u8BF7\u4FDD\u6301\u6D6E\u52A8\u9762\u677F\u6253\u5F00\u4EE5\u63A5\u6536\u3002',
-    actionBusy: "\u8BF7\u7B49\u5F85\u5F53\u524D\u56DE\u7B54\u5B8C\u6210\u540E\u91CD\u8BD5\u3002",
-    actionError: "Blinkling \u65E0\u6CD5\u63A5\u6536\u6B64\u64CD\u4F5C\u3002\u8BF7\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u540E\u91CD\u8BD5\u3002",
-    panelOpened: "\u5DF2\u6253\u5F00\u804A\u5929\u3002\u8BF7\u5728\u804A\u5929\u4E2D\u9009\u62E9\u6253\u5F00\u6D6E\u52A8\u9762\u677F\uFF0C\u8BA9\u5B83\u4FDD\u6301\u5728\u5176\u4ED6\u7A97\u53E3\u4E0A\u65B9\u3002",
-    panelError: "\u65E0\u6CD5\u6253\u5F00\u6D6E\u52A8\u9762\u677F\u3002\u8BF7\u901A\u8FC7\u6269\u5C55\u7A0B\u5E8F\u6309\u94AE\u91CD\u8BD5\u3002",
-    summarySent: "\u603B\u7ED3",
-    questionSent: "\u95EE\u9898",
-    translationSent: "\u7FFB\u8BD1",
-    guideSent: "\u9605\u8BFB\u5F15\u5BFC",
-    resizeHelp: "PDF \u9875\u9762\u3002\u9009\u62E9\u6587\u672C\u540E\u53EF\u63D0\u95EE\u3001\u7FFB\u8BD1\u3001\u603B\u7ED3\u6216\u8BF7\u6C42\u5F15\u5BFC\u3002"
+    tooLarge: "\u6B64 PDF \u8D85\u8FC7 100 MB\uFF0C\u8BF7\u9009\u62E9\u8F83\u5C0F\u7684\u6587\u4EF6\u3002"
   },
   ja: {
-    permissionNotice: "Chrome \u306E\u30B5\u30A4\u30C8\u6A29\u9650\u306E\u78BA\u8A8D\u4E2D\u306F\u3001\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u304C\u4E00\u6642\u7684\u306B\u9589\u3058\u308B\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002\u4F1A\u8A71\u306F\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002",
-    permissionPaused: "\u30B5\u30A4\u30C8\u6A29\u9650\u306E\u78BA\u8A8D\u306E\u305F\u3081\u30C1\u30E3\u30C3\u30C8\u3092\u4E00\u6642\u505C\u6B62\u3057\u307E\u3057\u305F\u3002\u30BB\u30C3\u30B7\u30E7\u30F3\u3001\u4E0B\u66F8\u304D\u3001\u6DFB\u4ED8\u306F\u4FDD\u6301\u3055\u308C\u3066\u3044\u307E\u3059\u3002\u30EF\u30F3\u30AF\u30EA\u30C3\u30AF\u3067\u518D\u958B\u3067\u304D\u307E\u3059\u3002",
-    resumePanel: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B",
-    floatingResumed: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B\u3057\u307E\u3057\u305F\u3002",
-    resumeError: "\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u300C\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30C1\u30E3\u30C3\u30C8\u3092\u518D\u958B\u300D\u3067\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    questionReady: "\u30C1\u30E3\u30C3\u30C8\u306B\u8CEA\u554F\u3092\u6E96\u5099\u3057\u307E\u3057\u305F\u3002\u78BA\u8A8D\u3057\u3066\u300C\u8CEA\u554F\u300D\u3067\u9001\u4FE1\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    summarySelection: "\u9078\u629E\u3057\u305F\u6587\u7AE0\u3092\u8981\u7D04",
-    selectFirst: "\u5148\u306B\u6587\u7AE0\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    selectionHelp: "\u6587\u7AE0\u3092\u9078\u629E\u3059\u308B\u3068\u7FFB\u8A33\u3084\u8981\u7D04\u304C\u3067\u304D\u307E\u3059\u3002",
-    selectionUnavailable: "\u3053\u306E\u30DA\u30FC\u30B8\u306B\u306F\u9078\u629E\u3067\u304D\u308B\u30C6\u30AD\u30B9\u30C8\u304C\u3042\u308A\u307E\u305B\u3093\u3002\u300C\u3053\u306E\u30DA\u30FC\u30B8\u306B\u3064\u3044\u3066\u8CEA\u554F\u300D\u307E\u305F\u306F\u300C\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u300D\u3067\u30DA\u30FC\u30B8\u306E\u753B\u50CF\u306B\u3064\u3044\u3066\u8CEA\u554F\u3067\u304D\u307E\u3059\u3002",
-    selectionTooLong: "5,000\u6587\u5B57\u4EE5\u5185\u3092\u9078\u629E\u3059\u308B\u304B\u3001\u300C\u3053\u306E\u30DA\u30FC\u30B8\u3092\u8981\u7D04\u300D\u3067\u30DA\u30FC\u30B8\u5168\u4F53\u3092\u8981\u7D04\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
     title: "Blinkling PDF \u30EA\u30FC\u30C0\u30FC",
     openFile: "PDF \u3092\u958B\u304F",
     urlPlaceholder: "PDF \u306E URL \u3092\u8CBC\u308A\u4ED8\u3051",
@@ -27984,44 +25879,15 @@ var readerLocales = {
     next: "\u6B21\u306E\u30DA\u30FC\u30B8",
     noDocument: "\u6587\u66F8\u304C\u3042\u308A\u307E\u305B\u3093",
     pageLabel: "{total} \u30DA\u30FC\u30B8\u4E2D {page} \u30DA\u30FC\u30B8",
-    ask: "\u3053\u306E\u30DA\u30FC\u30B8\u306B\u3064\u3044\u3066\u8CEA\u554F",
-    translate: "\u9078\u629E\u7BC4\u56F2\u3092\u7FFB\u8A33",
-    summary: "\u30DA\u30FC\u30B8\u3092\u8981\u7D04",
-    guide: "\u3053\u306E\u7B87\u6240\u3092\u6848\u5185",
-    openPanel: "\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304F",
     pdfPage: "PDF \u30DA\u30FC\u30B8",
     choose: "PDF \u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3076\u304B URL \u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
     loading: "PDF \u3092\u8AAD\u307F\u8FBC\u307F\u4E2D...",
-    ready: "\u5168 {count} \u30DA\u30FC\u30B8\u3092\u8AAD\u307F\u8FBC\u307F\u307E\u3057\u305F\u3002\u30C6\u30AD\u30B9\u30C8\u3092\u9078\u629E\u3059\u308B\u304B\u64CD\u4F5C\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
-    openError: "PDF \u3092\u958B\u3051\u307E\u305B\u3093\u3002URL \u306E\u6A29\u9650\u3092\u78BA\u8A8D\u3059\u308B\u304B\u3001\u7AEF\u672B\u304B\u3089\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
+    ready: "{count} \u30DA\u30FC\u30B8\u3092\u8AAD\u307F\u8FBC\u307F\u307E\u3057\u305F\u3002",
+    openError: "\u3053\u306E PDF \u3092\u958B\u3051\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u30EA\u30F3\u30AF\u3092\u78BA\u8A8D\u3059\u308B\u304B\u3001\u30C7\u30D0\u30A4\u30B9\u304B\u3089\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
     badUrl: "https:// \u307E\u305F\u306F http:// \u3067\u59CB\u307E\u308B PDF \u30EA\u30F3\u30AF\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    permissionRequired: "\u3053\u306E PDF \u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u3092\u8A31\u53EF\u3059\u308B\u306B\u306F\u300CURL \u3092\u958B\u304F\u300D\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    permissionDenied: "\u3053\u306E PDF \u30B5\u30A4\u30C8\u3078\u306E\u30A2\u30AF\u30BB\u30B9\u306F\u8A31\u53EF\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002",
-    tooLarge: "PDF \u304C 100 MB \u3092\u8D85\u3048\u3066\u3044\u307E\u3059\u3002\u3088\u308A\u5C0F\u3055\u3044\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
-    openFirst: "\u5148\u306B PDF \u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
-    actionSent: "Blinkling \u306B\u300C{action}\u300D\u3092\u9001\u4FE1\u3057\u307E\u3057\u305F\u3002\u53D7\u4FE1\u3067\u304D\u308B\u3088\u3046\u30D1\u30CD\u30EB\u3092\u958B\u3044\u305F\u307E\u307E\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    actionBusy: "\u73FE\u5728\u306E\u56DE\u7B54\u304C\u5B8C\u4E86\u3057\u3066\u304B\u3089\u3001\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
-    actionError: "Blinkling \u304C\u64CD\u4F5C\u3092\u53D7\u4FE1\u3067\u304D\u307E\u305B\u3093\u3002\u30D1\u30CD\u30EB\u3092\u958B\u3044\u3066\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    panelOpened: "\u30C1\u30E3\u30C3\u30C8\u3092\u958B\u304D\u307E\u3057\u305F\u3002\u30C1\u30E3\u30C3\u30C8\u3067\u30D5\u30ED\u30FC\u30C6\u30A3\u30F3\u30B0\u30D1\u30CD\u30EB\u3092\u958B\u304F\u3068\u3001\u4ED6\u306E\u30A6\u30A3\u30F3\u30C9\u30A6\u306E\u4E0A\u306B\u8868\u793A\u3067\u304D\u307E\u3059\u3002",
-    panelError: "\u30D1\u30CD\u30EB\u3092\u958B\u3051\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u62E1\u5F35\u6A5F\u80FD\u30DC\u30BF\u30F3\u304B\u3089\u518D\u8A66\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
-    summarySent: "\u8981\u7D04",
-    questionSent: "\u8CEA\u554F",
-    translationSent: "\u7FFB\u8A33",
-    guideSent: "\u6848\u5185",
-    resizeHelp: "PDF \u30DA\u30FC\u30B8\u3067\u3059\u3002\u30C6\u30AD\u30B9\u30C8\u3092\u9078\u629E\u3057\u3066\u8CEA\u554F\u3001\u7FFB\u8A33\u3001\u8981\u7D04\u3001\u6848\u5185\u306E\u4F9D\u983C\u304C\u3067\u304D\u307E\u3059\u3002"
+    tooLarge: "PDF \u304C 100 MB \u3092\u8D85\u3048\u3066\u3044\u307E\u3059\u3002\u3088\u308A\u5C0F\u3055\u3044\u30D5\u30A1\u30A4\u30EB\u3092\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002"
   },
   ko: {
-    permissionNotice: "Chrome \uC0AC\uC774\uD2B8 \uAD8C\uD55C \uCC3D\uC774 \uD45C\uC2DC\uB418\uB294 \uB3D9\uC548 \uD50C\uB85C\uD305 \uCC44\uD305\uC774 \uC7A0\uC2DC \uB2EB\uD790 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uB300\uD654\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4.",
-    permissionPaused: "\uC0AC\uC774\uD2B8 \uAD8C\uD55C \uD655\uC778\uC744 \uC704\uD574 \uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC77C\uC2DC \uC911\uC9C0\uD588\uC2B5\uB2C8\uB2E4. \uC138\uC158, \uCD08\uC548, \uCCA8\uBD80 \uD30C\uC77C\uC740 \uC720\uC9C0\uB429\uB2C8\uB2E4. \uD55C \uBC88 \uD074\uB9AD\uD574 \uC7AC\uAC1C\uD558\uC138\uC694.",
-    resumePanel: "\uD50C\uB85C\uD305 \uCC44\uD305 \uC7AC\uAC1C",
-    floatingResumed: "\uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC7AC\uAC1C\uD588\uC2B5\uB2C8\uB2E4.",
-    resumeError: "\uD50C\uB85C\uD305 \uCC44\uD305\uC744 \uC7AC\uAC1C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uCC44\uD305 \uC7AC\uAC1C\uB97C \uC120\uD0DD\uD574 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
-    questionReady: "\uCC44\uD305\uC5D0 \uC9C8\uBB38\uC774 \uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uAC80\uD1A0\uD55C \uB4A4 \uC9C8\uBB38 \uBC84\uD2BC\uC744 \uB20C\uB7EC \uBCF4\uB0B4\uC138\uC694.",
-    summarySelection: "\uC120\uD0DD\uD55C \uB0B4\uC6A9 \uC694\uC57D",
-    selectFirst: "\uBA3C\uC800 \uBB38\uB2E8\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
-    selectionHelp: "\uBC88\uC5ED\uD558\uAC70\uB098 \uC694\uC57D\uD560 \uBB38\uB2E8\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
-    selectionUnavailable: "\uC774 \uD398\uC774\uC9C0\uC5D0\uB294 \uC120\uD0DD\uD560 \uC218 \uC788\uB294 \uD14D\uC2A4\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uD398\uC774\uC9C0 \uC9C8\uBB38\uD558\uAE30 \uB610\uB294 \uD398\uC774\uC9C0 \uC694\uC57D\uC73C\uB85C \uD398\uC774\uC9C0 \uC774\uBBF8\uC9C0\uC5D0 \uB300\uD574 \uC9C8\uBB38\uD558\uC138\uC694.",
-    selectionTooLong: "5,000\uC790 \uC774\uD558\uB97C \uC120\uD0DD\uD558\uAC70\uB098 \uD398\uC774\uC9C0 \uC694\uC57D\uC73C\uB85C \uC804\uCCB4 \uD398\uC774\uC9C0\uB97C \uC694\uC57D\uD558\uC138\uC694.",
     title: "Blinkling PDF \uB9AC\uB354",
     openFile: "PDF \uC5F4\uAE30",
     urlPlaceholder: "PDF URL \uBD99\uC5EC\uB123\uAE30",
@@ -28031,44 +25897,15 @@ var readerLocales = {
     next: "\uB2E4\uC74C \uD398\uC774\uC9C0",
     noDocument: "\uBB38\uC11C \uC5C6\uC74C",
     pageLabel: "\uC804\uCCB4 {total}\uD398\uC774\uC9C0 \uC911 {page}\uD398\uC774\uC9C0",
-    ask: "\uD398\uC774\uC9C0 \uC9C8\uBB38\uD558\uAE30",
-    translate: "\uC120\uD0DD\uD55C \uD14D\uC2A4\uD2B8 \uBC88\uC5ED",
-    summary: "\uD398\uC774\uC9C0 \uC694\uC57D",
-    guide: "\uC774 \uBD80\uBD84 \uC548\uB0B4\uBC1B\uAE30",
-    openPanel: "\uCC44\uD305 \uC5F4\uAE30",
     pdfPage: "PDF \uD398\uC774\uC9C0",
     choose: "PDF \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uAC70\uB098 URL\uC744 \uC5EC\uC138\uC694.",
     loading: "PDF \uB85C\uB4DC \uC911...",
-    ready: "\uCD1D {count}\uD398\uC774\uC9C0\uB97C \uBD88\uB7EC\uC654\uC2B5\uB2C8\uB2E4. \uD14D\uC2A4\uD2B8\uB97C \uC120\uD0DD\uD558\uAC70\uB098 \uC791\uC5C5\uC744 \uACE0\uB974\uC138\uC694.",
-    openError: "PDF\uB97C \uC5F4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. URL \uAD8C\uD55C\uC744 \uD655\uC778\uD558\uAC70\uB098 \uAE30\uAE30\uC5D0\uC11C \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
+    ready: "{count}\uD398\uC774\uC9C0\uB97C \uBD88\uB7EC\uC654\uC2B5\uB2C8\uB2E4.",
+    openError: "\uC774 PDF\uB97C \uC5F4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uB9C1\uD06C\uB97C \uD655\uC778\uD558\uAC70\uB098 \uAE30\uAE30\uC5D0\uC11C \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
     badUrl: "https:// \uB610\uB294 http://\uB85C \uC2DC\uC791\uD558\uB294 PDF \uB9C1\uD06C\uB97C \uC785\uB825\uD558\uC138\uC694.",
-    permissionRequired: "\uC774 PDF \uC0AC\uC774\uD2B8\uC5D0 \uC811\uADFC\uD558\uB824\uBA74 URL \uC5F4\uAE30\uB97C \uC120\uD0DD\uD558\uC138\uC694.",
-    permissionDenied: "\uC774 PDF \uC0AC\uC774\uD2B8\uC5D0 \uB300\uD55C \uAD8C\uD55C\uC774 \uD5C8\uC6A9\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.",
-    tooLarge: "PDF\uAC00 100MB\uBCF4\uB2E4 \uD07D\uB2C8\uB2E4. \uB354 \uC791\uC740 \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.",
-    openFirst: "\uBA3C\uC800 PDF\uB97C \uC5EC\uC138\uC694.",
-    actionSent: "Blinkling\uC5D0 {action}\uC744(\uB97C) \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4. \uBC1B\uC73C\uB824\uBA74 \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uC5B4 \uB450\uC138\uC694.",
-    actionBusy: "\uD604\uC7AC \uB2F5\uBCC0\uC774 \uC644\uB8CC\uB418\uBA74 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
-    actionError: "Blinkling\uC774 \uC791\uC5C5\uC744 \uBC1B\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
-    panelOpened: "\uCC44\uD305\uC744 \uC5F4\uC5C8\uC2B5\uB2C8\uB2E4. \uCC44\uD305\uC5D0\uC11C \uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4\uBA74 \uB2E4\uB978 \uCC3D \uC704\uC5D0 \uD45C\uC2DC\uB429\uB2C8\uB2E4.",
-    panelError: "\uD50C\uB85C\uD305 \uD328\uB110\uC744 \uC5F4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD655\uC7A5 \uD504\uB85C\uADF8\uB7A8 \uBC84\uD2BC\uC5D0\uC11C \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.",
-    summarySent: "\uC694\uC57D",
-    questionSent: "\uC9C8\uBB38",
-    translationSent: "\uBC88\uC5ED",
-    guideSent: "\uC548\uB0B4 \uC694\uCCAD",
-    resizeHelp: "PDF \uD398\uC774\uC9C0\uC785\uB2C8\uB2E4. \uD14D\uC2A4\uD2B8\uB97C \uC120\uD0DD\uD574 \uC9C8\uBB38, \uBC88\uC5ED, \uC694\uC57D \uB610\uB294 \uC548\uB0B4\uB97C \uC694\uCCAD\uD558\uC138\uC694."
+    tooLarge: "PDF\uAC00 100MB\uBCF4\uB2E4 \uD07D\uB2C8\uB2E4. \uB354 \uC791\uC740 \uD30C\uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694."
   },
   es: {
-    permissionNotice: "El aviso de permiso de Chrome puede cerrar brevemente el chat flotante. Tu conversaci\xF3n se conservar\xE1.",
-    permissionPaused: "El chat flotante se paus\xF3 para el permiso del sitio. Se conservan tu sesi\xF3n, borrador y adjunto. Rean\xFAdalo con un clic.",
-    resumePanel: "Reanudar chat flotante",
-    floatingResumed: "Chat flotante reanudado.",
-    resumeError: "No se pudo reanudar el chat flotante. Selecciona Reanudar chat flotante para volver a intentarlo.",
-    questionReady: "Pregunta preparada en el chat. Rev\xEDsala y pulsa Preguntar para enviarla.",
-    summarySelection: "Resumir selecci\xF3n",
-    selectFirst: "Selecciona primero un pasaje.",
-    selectionHelp: "Selecciona un pasaje para traducirlo o resumirlo.",
-    selectionUnavailable: "Esta p\xE1gina no tiene texto seleccionable. Usa Preguntar sobre la p\xE1gina o Resumir p\xE1gina para preguntar sobre la imagen de la p\xE1gina.",
-    selectionTooLong: "Selecciona como m\xE1ximo 5.000 caracteres o usa Resumir p\xE1gina para toda la p\xE1gina.",
     title: "Lector de PDF de Blinkling",
     openFile: "Abrir PDF",
     urlPlaceholder: "Pega una URL de PDF",
@@ -28078,44 +25915,15 @@ var readerLocales = {
     next: "P\xE1gina siguiente",
     noDocument: "Ning\xFAn documento",
     pageLabel: "P\xE1gina {page} de {total}",
-    ask: "Preguntar sobre la p\xE1gina",
-    translate: "Traducir selecci\xF3n",
-    summary: "Resumir p\xE1gina",
-    guide: "Gu\xEDame por esta secci\xF3n",
-    openPanel: "Abrir chat",
     pdfPage: "P\xE1gina del PDF",
     choose: "Elige un archivo PDF o abre una URL.",
     loading: "Cargando PDF...",
-    ready: "PDF listo: {count} p\xE1ginas. Selecciona texto o elige una acci\xF3n.",
-    openError: "No se pudo abrir el PDF. Comprueba el permiso de la URL o elige un archivo del dispositivo.",
+    ready: "{count} p\xE1ginas listas.",
+    openError: "No se pudo abrir este PDF. Revisa el enlace o elige un archivo de tu dispositivo.",
     badUrl: "Introduce un enlace PDF que empiece por https:// o http://.",
-    permissionRequired: "Selecciona Abrir URL para permitir el acceso a este sitio PDF.",
-    permissionDenied: "No se concedi\xF3 permiso para este sitio PDF.",
-    tooLarge: "Este PDF supera los 100 MB. Elige un archivo m\xE1s peque\xF1o.",
-    openFirst: "Abre un PDF primero.",
-    actionSent: "Se envi\xF3 {action} a Blinkling. Mant\xE9n abierto el panel flotante para recibirlo.",
-    actionBusy: "Espera a que termine la respuesta actual y vuelve a intentarlo.",
-    actionError: "Blinkling no pudo recibir la acci\xF3n. Abre el panel flotante e int\xE9ntalo de nuevo.",
-    panelOpened: "Chat abierto. Elige Abrir panel flotante en el chat para mantenerlo sobre otras ventanas.",
-    panelError: "No se pudo abrir el panel flotante. Int\xE9ntalo desde el bot\xF3n de la extensi\xF3n.",
-    summarySent: "Resumen",
-    questionSent: "Pregunta",
-    translationSent: "Traducci\xF3n",
-    guideSent: "Gu\xEDa",
-    resizeHelp: "P\xE1gina PDF. Selecciona texto para preguntar, traducir, resumir o pedir orientaci\xF3n."
+    tooLarge: "Este PDF supera los 100 MB. Elige un archivo m\xE1s peque\xF1o."
   },
   fr: {
-    permissionNotice: "La demande d\u2019autorisation de Chrome peut fermer bri\xE8vement le chat flottant. Votre conversation sera conserv\xE9e.",
-    permissionPaused: "Le chat flottant est en pause pour l\u2019acc\xE8s au site. Votre session, brouillon et pi\xE8ce jointe sont conserv\xE9s. Reprenez en un clic.",
-    resumePanel: "Reprendre le chat flottant",
-    floatingResumed: "Chat flottant repris.",
-    resumeError: "Impossible de reprendre le chat flottant. S\xE9lectionnez Reprendre le chat flottant pour r\xE9essayer.",
-    questionReady: "Question pr\xEAte dans le chat. Relisez-la et choisissez Demander pour l\u2019envoyer.",
-    summarySelection: "R\xE9sumer la s\xE9lection",
-    selectFirst: "S\xE9lectionnez d'abord un passage.",
-    selectionHelp: "S\xE9lectionnez un passage \xE0 traduire ou \xE0 r\xE9sumer.",
-    selectionUnavailable: "Cette page n'a pas de texte s\xE9lectionnable. Utilisez Poser une question sur la page ou R\xE9sumer la page pour interroger l'image de la page.",
-    selectionTooLong: "S\xE9lectionnez au maximum 5\u202F000 caract\xE8res ou utilisez R\xE9sumer la page pour la page enti\xE8re.",
     title: "Lecteur PDF Blinkling",
     openFile: "Ouvrir un PDF",
     urlPlaceholder: "Coller l'URL d'un PDF",
@@ -28125,44 +25933,15 @@ var readerLocales = {
     next: "Page suivante",
     noDocument: "Aucun document",
     pageLabel: "Page {page} sur {total}",
-    ask: "Poser une question sur la page",
-    translate: "Traduire la s\xE9lection",
-    summary: "R\xE9sumer la page",
-    guide: "Me guider dans cette section",
-    openPanel: "Ouvrir le chat",
     pdfPage: "Page PDF",
     choose: "Choisissez un PDF ou ouvrez une URL.",
     loading: "Chargement du PDF...",
-    ready: "PDF pr\xEAt : {count} pages. S\xE9lectionnez du texte ou choisissez une action.",
-    openError: "Impossible d'ouvrir ce PDF. V\xE9rifiez l'autorisation de l'URL ou choisissez un fichier sur votre appareil.",
+    ready: "{count} pages pr\xEAtes.",
+    openError: "Impossible d\u2019ouvrir ce PDF. V\xE9rifiez le lien ou choisissez un fichier sur votre appareil.",
     badUrl: "Saisissez un lien PDF commen\xE7ant par https:// ou http://.",
-    permissionRequired: "S\xE9lectionnez Ouvrir l'URL pour autoriser l'acc\xE8s \xE0 ce site PDF.",
-    permissionDenied: "L'acc\xE8s \xE0 ce site PDF n'a pas \xE9t\xE9 autoris\xE9.",
-    tooLarge: "Ce PDF d\xE9passe 100 Mo. Choisissez un fichier plus petit.",
-    openFirst: "Ouvrez d'abord un PDF.",
-    actionSent: "{action} envoy\xE9 \xE0 Blinkling. Gardez le panneau flottant ouvert pour le recevoir.",
-    actionBusy: "Attendez la fin de la r\xE9ponse en cours, puis r\xE9essayez.",
-    actionError: "Blinkling n'a pas re\xE7u l'action. Ouvrez le panneau flottant et r\xE9essayez.",
-    panelOpened: "Chat ouvert. Choisissez Ouvrir le panneau flottant dans le chat pour le garder au-dessus des autres fen\xEAtres.",
-    panelError: "Impossible d'ouvrir le panneau flottant. R\xE9essayez depuis le bouton de l'extension.",
-    summarySent: "R\xE9sum\xE9",
-    questionSent: "Demande",
-    translationSent: "Traduction",
-    guideSent: "Guide",
-    resizeHelp: "Page PDF. S\xE9lectionnez du texte pour poser une question, traduire, r\xE9sumer ou demander un guide."
+    tooLarge: "Ce PDF d\xE9passe 100 Mo. Choisissez un fichier plus petit."
   },
   de: {
-    permissionNotice: "Die Website-Berechtigungsabfrage von Chrome kann den schwebenden Chat kurz schlie\xDFen. Dein Gespr\xE4ch bleibt erhalten.",
-    permissionPaused: "Der schwebende Chat pausiert f\xFCr den Website-Zugriff. Sitzung, Entwurf und Anhang bleiben erhalten. Mit einem Klick fortsetzen.",
-    resumePanel: "Schwebenden Chat fortsetzen",
-    floatingResumed: "Schwebender Chat fortgesetzt.",
-    resumeError: "Der schwebende Chat konnte nicht fortgesetzt werden. W\xE4hle Schwebenden Chat fortsetzen, um es erneut zu versuchen.",
-    questionReady: "Die Frage ist im Chat bereit. Pr\xFCfe sie und w\xE4hle Fragen zum Senden.",
-    summarySelection: "Auswahl zusammenfassen",
-    selectFirst: "W\xE4hle zuerst einen Abschnitt aus.",
-    selectionHelp: "W\xE4hle einen Abschnitt zum \xDCbersetzen oder Zusammenfassen aus.",
-    selectionUnavailable: "Diese Seite hat keinen ausw\xE4hlbaren Text. Nutze Frage zur Seite oder Seite zusammenfassen, um zum Seitenbild zu fragen.",
-    selectionTooLong: "W\xE4hle h\xF6chstens 5.000 Zeichen oder nutze Seite zusammenfassen f\xFCr die gesamte Seite.",
     title: "Blinkling PDF-Reader",
     openFile: "PDF \xF6ffnen",
     urlPlaceholder: "PDF-URL einf\xFCgen",
@@ -28172,44 +25951,15 @@ var readerLocales = {
     next: "N\xE4chste Seite",
     noDocument: "Kein Dokument",
     pageLabel: "Seite {page} von {total}",
-    ask: "Frage zur Seite",
-    translate: "Auswahl \xFCbersetzen",
-    summary: "Seite zusammenfassen",
-    guide: "Durch diesen Abschnitt f\xFChren",
-    openPanel: "Chat \xF6ffnen",
     pdfPage: "PDF-Seite",
     choose: "W\xE4hle eine PDF-Datei oder \xF6ffne eine URL.",
     loading: "PDF wird geladen...",
-    ready: "PDF bereit: {count} Seiten. W\xE4hle Text oder eine Aktion.",
-    openError: "PDF konnte nicht ge\xF6ffnet werden. Pr\xFCfe die URL-Berechtigung oder w\xE4hle eine Datei vom Ger\xE4t.",
+    ready: "{count} Seiten bereit.",
+    openError: "Dieses PDF konnte nicht ge\xF6ffnet werden. Pr\xFCfe den Link oder w\xE4hle eine Datei von deinem Ger\xE4t.",
     badUrl: "Gib einen PDF-Link ein, der mit https:// oder http:// beginnt.",
-    permissionRequired: "W\xE4hle URL \xF6ffnen, um den Zugriff auf diese PDF-Website zu erlauben.",
-    permissionDenied: "Der Zugriff auf diese PDF-Website wurde nicht erlaubt.",
-    tooLarge: "Diese PDF ist gr\xF6\xDFer als 100 MB. W\xE4hle eine kleinere Datei.",
-    openFirst: "\xD6ffne zuerst eine PDF.",
-    actionSent: "{action} an Blinkling gesendet. Lass das schwebende Panel ge\xF6ffnet, damit es die Aktion empf\xE4ngt.",
-    actionBusy: "Warte, bis die aktuelle Antwort fertig ist, und versuche es erneut.",
-    actionError: "Blinkling konnte die Aktion nicht empfangen. \xD6ffne das schwebende Panel und versuche es erneut.",
-    panelOpened: "Chat ge\xF6ffnet. W\xE4hlen Sie dort Schwebendes Panel \xF6ffnen, damit es \xFCber anderen Fenstern bleibt.",
-    panelError: "Das schwebende Panel konnte nicht ge\xF6ffnet werden. Versuche es \xFCber die Erweiterungsschaltfl\xE4che.",
-    summarySent: "Zusammenfassung",
-    questionSent: "Frage",
-    translationSent: "\xDCbersetzung",
-    guideSent: "Anleitung",
-    resizeHelp: "PDF-Seite. W\xE4hle Text aus, um zu fragen, zu \xFCbersetzen, zusammenzufassen oder eine Anleitung anzufordern."
+    tooLarge: "Diese PDF ist gr\xF6\xDFer als 100 MB. W\xE4hle eine kleinere Datei."
   },
   "pt-BR": {
-    permissionNotice: "O pedido de permiss\xE3o do Chrome pode fechar brevemente a conversa flutuante. Sua conversa ser\xE1 mantida.",
-    permissionPaused: "A conversa flutuante foi pausada para o acesso ao site. Sua sess\xE3o, rascunho e anexo foram mantidos. Retome com um clique.",
-    resumePanel: "Retomar conversa flutuante",
-    floatingResumed: "Conversa flutuante retomada.",
-    resumeError: "N\xE3o foi poss\xEDvel retomar a conversa flutuante. Selecione Retomar conversa flutuante para tentar novamente.",
-    questionReady: "Pergunta pronta no chat. Revise e selecione Perguntar para enviar.",
-    summarySelection: "Resumir sele\xE7\xE3o",
-    selectFirst: "Selecione primeiro um trecho.",
-    selectionHelp: "Selecione um trecho para traduzir ou resumir.",
-    selectionUnavailable: "Esta p\xE1gina n\xE3o tem texto selecion\xE1vel. Use Perguntar sobre a p\xE1gina ou Resumir p\xE1gina para perguntar sobre a imagem da p\xE1gina.",
-    selectionTooLong: "Selecione no m\xE1ximo 5.000 caracteres ou use Resumir p\xE1gina para a p\xE1gina inteira.",
     title: "Leitor de PDF do Blinkling",
     openFile: "Abrir PDF",
     urlPlaceholder: "Cole uma URL de PDF",
@@ -28219,31 +25969,13 @@ var readerLocales = {
     next: "Pr\xF3xima p\xE1gina",
     noDocument: "Nenhum documento",
     pageLabel: "P\xE1gina {page} de {total}",
-    ask: "Perguntar sobre a p\xE1gina",
-    translate: "Traduzir sele\xE7\xE3o",
-    summary: "Resumir p\xE1gina",
-    guide: "Me guie por esta se\xE7\xE3o",
-    openPanel: "Abrir conversa",
     pdfPage: "P\xE1gina do PDF",
     choose: "Escolha um arquivo PDF ou abra uma URL.",
     loading: "Carregando PDF...",
-    ready: "PDF pronto: {count} p\xE1ginas. Selecione texto ou escolha uma a\xE7\xE3o.",
-    openError: "N\xE3o foi poss\xEDvel abrir o PDF. Confira a permiss\xE3o da URL ou escolha um arquivo do dispositivo.",
+    ready: "{count} p\xE1ginas prontas.",
+    openError: "N\xE3o foi poss\xEDvel abrir este PDF. Verifique o link ou escolha um arquivo do seu dispositivo.",
     badUrl: "Digite um link PDF iniciado por https:// ou http://.",
-    permissionRequired: "Selecione Abrir URL para permitir o acesso a este site de PDF.",
-    permissionDenied: "A permiss\xE3o para este site de PDF n\xE3o foi concedida.",
-    tooLarge: "Este PDF tem mais de 100 MB. Escolha um arquivo menor.",
-    openFirst: "Abra um PDF primeiro.",
-    actionSent: "{action} enviado ao Blinkling. Mantenha o painel flutuante aberto para receb\xEA-lo.",
-    actionBusy: "Aguarde a resposta atual terminar e tente novamente.",
-    actionError: "O Blinkling n\xE3o recebeu a a\xE7\xE3o. Abra o painel flutuante e tente novamente.",
-    panelOpened: "Conversa aberta. Escolha Abrir painel flutuante na conversa para mant\xEA-lo sobre outras janelas.",
-    panelError: "N\xE3o foi poss\xEDvel abrir o painel flutuante. Tente pelo bot\xE3o da extens\xE3o.",
-    summarySent: "Resumo",
-    questionSent: "Pergunta",
-    translationSent: "Tradu\xE7\xE3o",
-    guideSent: "Orienta\xE7\xE3o",
-    resizeHelp: "P\xE1gina PDF. Selecione texto para perguntar, traduzir, resumir ou pedir orienta\xE7\xE3o."
+    tooLarge: "Este PDF tem mais de 100 MB. Escolha um arquivo menor."
   }
 };
 function formatReaderText(template, values = {}) {
@@ -28251,6 +25983,136 @@ function formatReaderText(template, values = {}) {
     /\{([a-z]+)\}/g,
     (_, key) => String(values[key] ?? `{${key}}`)
   );
+}
+
+// extension/strings.ts
+var en = {
+  connected: "Connected to Blinkling in Claude Code.",
+  notSetUp: "Not set up yet. Open the companion guide from Blink's settings.",
+  bridgeMissing: "Can't find Blinkling. Start Claude Code with the Blinkling plugin.",
+  blinkRunning: "Blink is running.",
+  blinkOff: "Blink is not running.",
+  blinkUnknown: "Blink can't be checked until Blinkling is connected.",
+  pageReadable: "Blink can read this page.",
+  pageRestricted: "Blink can't read this kind of page.",
+  wake: "Wake Blink",
+  waking: "Waking Blink\u2026",
+  wakeFailed: "Blink did not wake. Try again."
+};
+var popupLocales = {
+  en,
+  "zh-TW": {
+    connected: "\u5DF2\u9023\u5230 Claude Code \u88E1\u7684 Blinkling\u3002",
+    notSetUp: "\u5C1A\u672A\u8A2D\u5B9A\u3002\u8ACB\u5F9E Blink \u7684\u8A2D\u5B9A\u958B\u555F\u5C0F\u5E6B\u624B\u8AAA\u660E\u3002",
+    bridgeMissing: "\u627E\u4E0D\u5230 Blinkling\u3002\u8ACB\u555F\u52D5\u5DF2\u5B89\u88DD Blinkling \u5916\u639B\u7684 Claude Code\u3002",
+    blinkRunning: "Blink \u6B63\u5728\u57F7\u884C\u3002",
+    blinkOff: "Blink \u6C92\u6709\u5728\u57F7\u884C\u3002",
+    blinkUnknown: "\u9023\u4E0A Blinkling \u5F8C\u624D\u80FD\u6AA2\u67E5 Blink\u3002",
+    pageReadable: "Blink \u53EF\u4EE5\u8B80\u53D6\u9019\u500B\u9801\u9762\u3002",
+    pageRestricted: "Blink \u7121\u6CD5\u8B80\u53D6\u9019\u985E\u9801\u9762\u3002",
+    wake: "\u559A\u9192 Blink",
+    waking: "\u6B63\u5728\u559A\u9192 Blink\u2026",
+    wakeFailed: "Blink \u6C92\u6709\u9192\u4F86\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21\u3002"
+  },
+  "zh-CN": {
+    connected: "\u5DF2\u8FDE\u63A5\u5230 Claude Code \u4E2D\u7684 Blinkling\u3002",
+    notSetUp: "\u5C1A\u672A\u8BBE\u7F6E\u3002\u8BF7\u5728 Blink \u7684\u8BBE\u7F6E\u4E2D\u6253\u5F00\u914D\u5957\u8BF4\u660E\u3002",
+    bridgeMissing: "\u627E\u4E0D\u5230 Blinkling\u3002\u8BF7\u542F\u52A8\u5DF2\u5B89\u88C5 Blinkling \u63D2\u4EF6\u7684 Claude Code\u3002",
+    blinkRunning: "Blink \u6B63\u5728\u8FD0\u884C\u3002",
+    blinkOff: "Blink \u6CA1\u6709\u8FD0\u884C\u3002",
+    blinkUnknown: "\u8FDE\u63A5 Blinkling \u540E\u624D\u80FD\u68C0\u67E5 Blink\u3002",
+    pageReadable: "Blink \u53EF\u4EE5\u8BFB\u53D6\u6B64\u9875\u9762\u3002",
+    pageRestricted: "Blink \u65E0\u6CD5\u8BFB\u53D6\u8FD9\u7C7B\u9875\u9762\u3002",
+    wake: "\u5524\u9192 Blink",
+    waking: "\u6B63\u5728\u5524\u9192 Blink\u2026",
+    wakeFailed: "Blink \u6CA1\u6709\u9192\u6765\uFF0C\u8BF7\u91CD\u8BD5\u3002"
+  },
+  ja: {
+    connected: "Claude Code \u306E Blinkling \u306B\u63A5\u7D9A\u3057\u3066\u3044\u307E\u3059\u3002",
+    notSetUp: "\u307E\u3060\u8A2D\u5B9A\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002Blink \u306E\u8A2D\u5B9A\u304B\u3089\u30B3\u30F3\u30D1\u30CB\u30AA\u30F3\u306E\u6848\u5185\u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
+    bridgeMissing: "Blinkling \u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093\u3002Blinkling \u30D7\u30E9\u30B0\u30A4\u30F3\u5165\u308A\u306E Claude Code \u3092\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    blinkRunning: "Blink \u306F\u8D77\u52D5\u3057\u3066\u3044\u307E\u3059\u3002",
+    blinkOff: "Blink \u306F\u8D77\u52D5\u3057\u3066\u3044\u307E\u305B\u3093\u3002",
+    blinkUnknown: "Blinkling \u306B\u63A5\u7D9A\u3059\u308B\u307E\u3067 Blink \u3092\u78BA\u8A8D\u3067\u304D\u307E\u305B\u3093\u3002",
+    pageReadable: "Blink \u306F\u3053\u306E\u30DA\u30FC\u30B8\u3092\u8AAD\u3081\u307E\u3059\u3002",
+    pageRestricted: "Blink \u306F\u3053\u306E\u7A2E\u985E\u306E\u30DA\u30FC\u30B8\u3092\u8AAD\u3081\u307E\u305B\u3093\u3002",
+    wake: "Blink \u3092\u8D77\u3053\u3059",
+    waking: "Blink \u3092\u8D77\u3053\u3057\u3066\u3044\u307E\u3059\u2026",
+    wakeFailed: "Blink \u304C\u8D77\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002"
+  },
+  ko: {
+    connected: "Claude Code\uC758 Blinkling\uC5D0 \uC5F0\uACB0\uB418\uC5C8\uC2B5\uB2C8\uB2E4.",
+    notSetUp: "\uC544\uC9C1 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. Blink \uC124\uC815\uC5D0\uC11C \uB3D9\uBC18 \uC548\uB0B4\uB97C \uC5EC\uC138\uC694.",
+    bridgeMissing: "Blinkling\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. Blinkling \uD50C\uB7EC\uADF8\uC778\uC774 \uC788\uB294 Claude Code\uB97C \uC2DC\uC791\uD558\uC138\uC694.",
+    blinkRunning: "Blink\uAC00 \uC2E4\uD589 \uC911\uC785\uB2C8\uB2E4.",
+    blinkOff: "Blink\uAC00 \uC2E4\uD589 \uC911\uC774 \uC544\uB2D9\uB2C8\uB2E4.",
+    blinkUnknown: "Blinkling\uC5D0 \uC5F0\uACB0\uB418\uC5B4\uC57C Blink\uB97C \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+    pageReadable: "Blink\uAC00 \uC774 \uD398\uC774\uC9C0\uB97C \uC77D\uC744 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+    pageRestricted: "Blink\uAC00 \uC77D\uC744 \uC218 \uC5C6\uB294 \uC885\uB958\uC758 \uD398\uC774\uC9C0\uC785\uB2C8\uB2E4.",
+    wake: "Blink \uAE68\uC6B0\uAE30",
+    waking: "Blink\uB97C \uAE68\uC6B0\uB294 \uC911\u2026",
+    wakeFailed: "Blink\uAC00 \uAE68\uC5B4\uB098\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694."
+  },
+  es: {
+    connected: "Conectado a Blinkling en Claude Code.",
+    notSetUp: "A\xFAn sin configurar. Abre la gu\xEDa del complemento desde los ajustes de Blink.",
+    bridgeMissing: "No se encuentra Blinkling. Inicia Claude Code con el plugin de Blinkling.",
+    blinkRunning: "Blink est\xE1 en marcha.",
+    blinkOff: "Blink no est\xE1 en marcha.",
+    blinkUnknown: "Blink no se puede comprobar hasta conectar con Blinkling.",
+    pageReadable: "Blink puede leer esta p\xE1gina.",
+    pageRestricted: "Blink no puede leer este tipo de p\xE1gina.",
+    wake: "Despertar a Blink",
+    waking: "Despertando a Blink\u2026",
+    wakeFailed: "Blink no despert\xF3. Int\xE9ntalo de nuevo."
+  },
+  fr: {
+    connected: "Connect\xE9 \xE0 Blinkling dans Claude Code.",
+    notSetUp: "Pas encore configur\xE9. Ouvrez le guide du compagnon depuis les r\xE9glages de Blink.",
+    bridgeMissing: "Blinkling est introuvable. Lancez Claude Code avec le plugin Blinkling.",
+    blinkRunning: "Blink est en marche.",
+    blinkOff: "Blink n'est pas en marche.",
+    blinkUnknown: "Blink ne peut \xEAtre v\xE9rifi\xE9 qu'une fois Blinkling connect\xE9.",
+    pageReadable: "Blink peut lire cette page.",
+    pageRestricted: "Blink ne peut pas lire ce type de page.",
+    wake: "R\xE9veiller Blink",
+    waking: "R\xE9veil de Blink\u2026",
+    wakeFailed: "Blink ne s'est pas r\xE9veill\xE9. R\xE9essayez."
+  },
+  de: {
+    connected: "Mit Blinkling in Claude Code verbunden.",
+    notSetUp: "Noch nicht eingerichtet. \xD6ffne die Begleiter-Anleitung in den Einstellungen von Blink.",
+    bridgeMissing: "Blinkling wurde nicht gefunden. Starte Claude Code mit dem Blinkling-Plugin.",
+    blinkRunning: "Blink l\xE4uft.",
+    blinkOff: "Blink l\xE4uft nicht.",
+    blinkUnknown: "Blink l\xE4sst sich erst pr\xFCfen, wenn Blinkling verbunden ist.",
+    pageReadable: "Blink kann diese Seite lesen.",
+    pageRestricted: "Blink kann diese Art von Seite nicht lesen.",
+    wake: "Blink wecken",
+    waking: "Blink wird geweckt\u2026",
+    wakeFailed: "Blink ist nicht aufgewacht. Versuche es erneut."
+  },
+  "pt-BR": {
+    connected: "Conectado ao Blinkling no Claude Code.",
+    notSetUp: "Ainda n\xE3o configurado. Abra o guia do companheiro nas configura\xE7\xF5es do Blink.",
+    bridgeMissing: "N\xE3o encontrei o Blinkling. Inicie o Claude Code com o plugin do Blinkling.",
+    blinkRunning: "O Blink est\xE1 em execu\xE7\xE3o.",
+    blinkOff: "O Blink n\xE3o est\xE1 em execu\xE7\xE3o.",
+    blinkUnknown: "O Blink s\xF3 pode ser verificado depois de conectar ao Blinkling.",
+    pageReadable: "O Blink pode ler esta p\xE1gina.",
+    pageRestricted: "O Blink n\xE3o pode ler este tipo de p\xE1gina.",
+    wake: "Acordar o Blink",
+    waking: "Acordando o Blink\u2026",
+    wakeFailed: "O Blink n\xE3o acordou. Tente de novo."
+  }
+};
+function pickLocale(tag) {
+  const lower = (tag || "en").toLowerCase().replace("_", "-");
+  if (lower.startsWith("zh"))
+    return /hant|-tw|-hk|-mo/.test(lower) ? "zh-TW" : "zh-CN";
+  if (lower.startsWith("pt")) return "pt-BR";
+  const base = lower.split("-")[0];
+  return base in popupLocales ? base : "en";
 }
 
 // extension/reader.ts
@@ -28261,20 +26123,14 @@ var urlForm = document.querySelector("#url-form");
 var pageElement = document.querySelector("#page");
 var pageLabel = document.querySelector("#page-label");
 var status = document.querySelector("#status");
-var permissionRecovery = document.querySelector(
-  "#permission-recovery"
-);
-var permissionNote = document.querySelector("#permission-note");
-var resumePanel = document.querySelector("#resume-panel");
 document.documentElement.classList.add("locale-loading");
-var locale = "en";
-var t = readerLocales.en;
+var locale = pickLocale(
+  chrome.i18n.getUILanguage()
+);
+var t = readerLocales[locale];
 var pdf;
 var loadingTask;
 var pageNumber = 1;
-var pageText = "";
-var passageSelection = "";
-var pageReady = false;
 var pageTitle = "PDF document";
 var documentGeneration = 0;
 var renderGeneration = 0;
@@ -28284,55 +26140,6 @@ var activeTextLayer;
 var resizeFrame = 0;
 var currentStatusKey = "choose";
 var currentStatusValues = {};
-var preparedPermissionOrigins = /* @__PURE__ */ new Set();
-var permissionPreparations = /* @__PURE__ */ new Map();
-var permissionInterrupted = false;
-var floatingSize = { width: 420, height: 650 };
-function permissionNotice(key) {
-  permissionNote.dataset.readerLabel = key;
-  permissionNote.textContent = message(key);
-  permissionRecovery.hidden = false;
-  permissionRecovery.scrollIntoView({ block: "nearest" });
-}
-function finishPermissionPrompt() {
-  if (!permissionInterrupted) return;
-  permissionNotice("permissionPaused");
-  resumePanel.hidden = false;
-}
-function preparePermissionOrigin(parsed) {
-  const origin = readerUrlOriginPattern(parsed);
-  const current = permissionPreparations.get(origin);
-  if (current) return current;
-  const preparation = prepareReaderPermissionHandoff(
-    [origin],
-    (details) => chrome.permissions.contains(details),
-    async () => {
-      permissionNotice("permissionNotice");
-      resumePanel.hidden = true;
-      await new Promise(
-        (resolve) => requestAnimationFrame(() => resolve())
-      );
-      const response = await chrome.runtime.sendMessage({
-        type: "blinkling:reader-permission-handoff"
-      });
-      if (response?.interrupted) permissionInterrupted = true;
-      else if (!permissionInterrupted) permissionRecovery.hidden = true;
-      return response;
-    }
-  ).then((result) => {
-    preparedPermissionOrigins.add(origin);
-    if (result === "prepared" && permissionInterrupted)
-      resumePanel.hidden = false;
-    return result === "granted";
-  }).catch(() => {
-    finishPermissionPrompt();
-    if (permissionPreparations.get(origin) === preparation)
-      permissionPreparations.delete(origin);
-    return false;
-  });
-  permissionPreparations.set(origin, preparation);
-  return preparation;
-}
 function message(key, values = {}) {
   return formatReaderText(t[key], values);
 }
@@ -28371,30 +26178,6 @@ function applyLocale() {
   }
   document.documentElement.classList.remove("locale-loading");
 }
-async function initializeLocale() {
-  try {
-    const stored = await chrome.storage.local.get(["locale", "pipSize"]);
-    const candidate = stored.locale;
-    if (typeof candidate === "string" && candidate in readerLocales)
-      locale = candidate;
-    const size = stored.pipSize;
-    if (size && Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0)
-      floatingSize = { width: size.width, height: size.height };
-  } catch {
-  }
-  t = readerLocales[locale];
-  applyLocale();
-}
-chrome.storage.onChanged.addListener(
-  (changes, areaName) => {
-    const candidate = changes.locale?.newValue;
-    if (areaName === "local" && typeof candidate === "string" && candidate in readerLocales) {
-      locale = candidate;
-      t = readerLocales[locale];
-      applyLocale();
-    }
-  }
-);
 function stopRendering() {
   renderGeneration++;
   activeRender?.cancel();
@@ -28402,40 +26185,6 @@ function stopRendering() {
   activeTextLayer?.cancel();
   activeTextLayer = void 0;
 }
-function updateSelectionButton() {
-  document.querySelectorAll(
-    '[data-action="translate"], [data-action="summary-selection"]'
-  ).forEach((button) => {
-    button.disabled = !pageReady || !passageSelection;
-  });
-  const help = document.querySelector("#selection-help");
-  const helpKey = pageText.trim() ? "selectionHelp" : "selectionUnavailable";
-  help.dataset.readerLabel = helpKey;
-  help.textContent = message(helpKey);
-  help.hidden = !pageReady || !!passageSelection;
-}
-function clearSelection() {
-  passageSelection = "";
-  pageReady = false;
-  const selection = getSelection();
-  if (selection?.anchorNode && pageElement.contains(selection.anchorNode))
-    selection.removeAllRanges();
-  updateSelectionButton();
-}
-function rememberSelection() {
-  const selection = getSelection();
-  const layer = pageElement.querySelector(".pdf-text-layer");
-  if (selection && !selection.isCollapsed && layer?.contains(selection.anchorNode) && layer.contains(selection.focusNode))
-    passageSelection = selection.toString().trim();
-  else if (!document.activeElement?.closest("[data-action]"))
-    passageSelection = "";
-  updateSelectionButton();
-}
-document.addEventListener("selectionchange", rememberSelection);
-pageElement.addEventListener("pointerdown", () => {
-  passageSelection = "";
-  updateSelectionButton();
-});
 async function loadDocument(source, title, intent) {
   if (intent !== sourceIntent) return;
   const generation = ++documentGeneration;
@@ -28443,8 +26192,6 @@ async function loadDocument(source, title, intent) {
   const oldTask = loadingTask;
   loadingTask = void 0;
   pdf = void 0;
-  clearSelection();
-  pageText = "";
   pageElement.replaceChildren();
   if (oldTask) void oldTask.destroy().catch(() => {
   });
@@ -28486,7 +26233,6 @@ async function renderPage(documentId = documentGeneration) {
   const doc = pdf;
   if (!doc || documentId !== documentGeneration) return;
   const number = pageNumber;
-  clearSelection();
   const renderId = ++renderGeneration;
   activeRender?.cancel();
   activeRender = void 0;
@@ -28498,7 +26244,6 @@ async function renderPage(documentId = documentGeneration) {
     const viewport = page.getViewport({ scale });
     const wrapper = document.createElement("section");
     wrapper.className = "pdf-page";
-    wrapper.dataset.blinklingReaderPage = "true";
     wrapper.style.width = `${viewport.width}px`;
     wrapper.style.height = `${viewport.height}px`;
     wrapper.setAttribute("aria-label", message("pdfPage"));
@@ -28536,15 +26281,11 @@ async function renderPage(documentId = documentGeneration) {
     if (renderId !== renderGeneration || documentId !== documentGeneration || doc !== pdf || number !== pageNumber)
       return;
     pageElement.replaceChildren(wrapper);
-    pageReady = true;
-    pageText = text.items.map((item) => "str" in item ? item.str : "").join(" ").replace(/\s+/g, " ").slice(0, 24e3);
-    updateSelectionButton();
     document.title = `${pageTitle} \xB7 ${message("pageLabel", { page: number, total: doc.numPages })}`;
     pageLabel.textContent = message("pageLabel", {
       page: number,
       total: doc.numPages
     });
-    await publishContext(documentId, renderId);
   } catch {
     if (renderId === renderGeneration && documentId === documentGeneration)
       setStatus("openError");
@@ -28555,132 +26296,23 @@ async function renderPage(documentId = documentGeneration) {
     }
   }
 }
-async function publishContext(documentId, renderId) {
-  if (!pdf || documentId !== documentGeneration || renderId !== renderGeneration)
-    return;
-  try {
-    await chrome.runtime.sendMessage({
-      type: "blinkling:reader-context",
-      context: buildPageContext()
-    });
-  } catch {
-  }
-}
-function selectedText() {
-  rememberSelection();
-  return passageSelection;
-}
-async function ask(action) {
-  if (!pdf) {
-    setStatus("openFirst");
-    return;
-  }
-  if (!pageReady) {
-    setStatus("loading");
-    return;
-  }
-  const selected = selectedText();
-  const selectionOnly = action === "translate" || action === "summary-selection";
-  if (selectionOnly && !selected) {
-    setStatus(pageText.trim() ? "selectFirst" : "selectionUnavailable");
-    return;
-  }
-  if (action !== "summary" && selected.length > 5e3) {
-    setStatus("selectionTooLong");
-    return;
-  }
-  const text = action === "summary" ? "" : selectionOnly ? selected : selected || pageText;
-  const questions = {
-    ask: selected ? "Help me understand this selected passage." : "Explain what this PDF page says and its key points.",
-    translate: "Translate this selected passage into my target language.",
-    summary: "Summarize this PDF page.",
-    "summary-selection": "Summarize only this selected PDF passage.",
-    guide: selected ? "Guide me through this selected passage, explaining its steps in order." : "Guide me through this PDF page, explaining its key steps in order."
-  };
-  try {
-    const canvas = pageElement.querySelector("canvas");
-    let image;
-    if (canvas && !selectionOnly) {
-      const thumbnail = document.createElement("canvas");
-      const scale = Math.min(1, 1600 / Math.max(canvas.width, canvas.height));
-      thumbnail.width = Math.round(canvas.width * scale);
-      thumbnail.height = Math.round(canvas.height * scale);
-      thumbnail.getContext("2d")?.drawImage(canvas, 0, 0, thumbnail.width, thumbnail.height);
-      image = encodeCanvasPng(thumbnail);
-    }
-    const response = await chrome.runtime.sendMessage({
-      type: "blinkling:reader-action",
-      action,
-      question: questions[action],
-      text,
-      page: pageNumber,
-      context: buildPageContext(),
-      image
-    });
-    if (!response?.ok) {
-      setStatus(
-        response?.error === "busy" ? "actionBusy" : response?.error === "selection_limit" ? "selectionTooLong" : "actionError"
-      );
-      return;
-    }
-    if (action === "ask") {
-      setStatus("questionReady");
-      return;
-    }
-    const statusKey = action === "summary" || action === "summary-selection" ? "summarySent" : action === "translate" ? "translationSent" : action === "guide" ? "guideSent" : "questionSent";
-    setStatus("actionSent", { action: message(statusKey) });
-  } catch {
-    setStatus("actionError");
-  }
-}
-urlForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const intent = ++sourceIntent;
-  const value = urlInput.value.trim();
+function openUrl(value, intent) {
   const parsed = parseReaderPdfUrl(value);
   if (!parsed) {
     setStatus("badUrl");
     return;
   }
-  const origin = readerUrlOriginPattern(parsed);
-  if (!preparedPermissionOrigins.has(origin)) {
-    setStatus("permissionRequired");
-    void preparePermissionOrigin(parsed);
-    return;
-  }
-  let permissionRequest;
-  resumePanel.hidden = true;
+  const leaf = parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
+  let title = leaf;
   try {
-    permissionRequest = chrome.permissions.request({
-      origins: [readerUrlOriginPattern(parsed)]
-    });
+    title = decodeURIComponent(leaf);
   } catch {
-    finishPermissionPrompt();
-    setStatus("permissionDenied");
-    return;
   }
-  void permissionRequest.then((granted) => {
-    finishPermissionPrompt();
-    if (intent !== sourceIntent) return;
-    if (!granted) {
-      setStatus("permissionDenied");
-      return;
-    }
-    const leaf = parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
-    let title = leaf;
-    try {
-      title = decodeURIComponent(leaf);
-    } catch {
-    }
-    void loadDocument(parsed.href, title, intent);
-  }).catch(() => {
-    finishPermissionPrompt();
-    if (intent === sourceIntent) setStatus("permissionDenied");
-  });
-});
-urlInput.addEventListener("input", () => {
-  const parsed = parseReaderPdfUrl(urlInput.value.trim());
-  if (parsed) void preparePermissionOrigin(parsed);
+  void loadDocument(parsed.href, title, intent);
+}
+urlForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  openUrl(urlInput.value.trim(), ++sourceIntent);
 });
 fileInput.addEventListener("change", () => {
   const intent = ++sourceIntent;
@@ -28706,78 +26338,14 @@ document.querySelector("#next").addEventListener("click", () => {
     void renderPage();
   }
 });
-document.querySelectorAll("[data-action]").forEach((button) => {
-  button.addEventListener(
-    "click",
-    () => void ask(button.dataset.action)
-  );
-});
-document.querySelector("#open-panel").addEventListener("click", () => {
-  void chrome.runtime.sendMessage({ type: "blinkling:open" }).then((response) => {
-    if (response?.ok) setStatus("panelOpened");
-    else setStatus("panelError");
-  }).catch(() => setStatus("panelError"));
-});
-resumePanel.addEventListener("click", () => {
-  if (resumePanel.disabled) return;
-  const pip = window.documentPictureInPicture;
-  if (!pip) {
-    setStatus("resumeError");
-    return;
-  }
-  resumePanel.disabled = true;
-  let opened;
-  void (async () => {
-    try {
-      opened = await pip.requestWindow(floatingSize);
-      const response = await chrome.runtime.sendMessage({
-        type: "blinkling:reader-resume-floating"
-      });
-      if (!response?.ok) throw new Error("reader_resume_unconfirmed");
-      permissionInterrupted = false;
-      permissionRecovery.hidden = true;
-      preparedPermissionOrigins.clear();
-      permissionPreparations.clear();
-      setStatus("floatingResumed");
-    } catch {
-      opened?.close();
-      setStatus("resumeError");
-    } finally {
-      resumePanel.disabled = false;
-    }
-  })();
-});
 window.addEventListener("resize", () => {
   if (!pdf) return;
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => void renderPage());
 });
-void initializeLocale().then(() => {
-  const initialUrl = new URL(location.href).searchParams.get("url");
-  if (initialUrl) {
-    urlInput.value = initialUrl;
-    const intent = sourceIntent;
-    const parsed = parseReaderPdfUrl(initialUrl.trim());
-    if (!parsed) {
-      setStatus("badUrl");
-      return;
-    }
-    void preparePermissionOrigin(parsed).then((granted) => {
-      if (intent !== sourceIntent || urlInput.value.trim() !== initialUrl.trim())
-        return;
-      if (!granted) {
-        setStatus("permissionRequired");
-        return;
-      }
-      const leaf = parsed.pathname.split("/").filter(Boolean).at(-1) || "PDF document";
-      let title = leaf;
-      try {
-        title = decodeURIComponent(leaf);
-      } catch {
-      }
-      void loadDocument(parsed.href, title, intent);
-    }).catch(() => {
-      if (intent === sourceIntent) setStatus("permissionRequired");
-    });
-  }
-});
+applyLocale();
+var initialUrl = new URL(location.href).searchParams.get("url");
+if (initialUrl) {
+  urlInput.value = initialUrl;
+  openUrl(initialUrl.trim(), sourceIntent);
+}

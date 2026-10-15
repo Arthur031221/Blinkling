@@ -14,7 +14,8 @@ export const strings = {
     "tag.frame": "Current frame",
     "mini.pause": "Auto explain paused",
     "translate.page": "Translate page",
-    "pdf.offer": "This PDF has no text I can pick. Open it in the Blinkling PDF reader to select text?",
+    "pdf.offer":
+      "This PDF has no text I can pick. Open it in the Blinkling PDF reader to select text?",
     "hint.pick": "Click once to ask about this",
     "key.control": "Control",
     "key.option": "Option",
@@ -29,7 +30,8 @@ export const strings = {
     "tag.frame": "目前畫面",
     "mini.pause": "暫停自動解說",
     "translate.page": "翻譯整頁",
-    "pdf.offer": "這份 PDF 沒有可選取的文字。要用 Blinkling 的 PDF 閱讀器開啟並選取文字嗎？",
+    "pdf.offer":
+      "這份 PDF 沒有可選取的文字。要用 Blinkling 的 PDF 閱讀器開啟並選取文字嗎？",
     "hint.pick": "點一下就能詢問這個",
     "key.control": "Control",
     "key.option": "Option",
@@ -44,7 +46,8 @@ export const strings = {
     "tag.frame": "当前画面",
     "mini.pause": "暂停自动解说",
     "translate.page": "翻译整页",
-    "pdf.offer": "这份 PDF 没有可选取的文字。要用 Blinkling 的 PDF 阅读器打开并选取文字吗？",
+    "pdf.offer":
+      "这份 PDF 没有可选取的文字。要用 Blinkling 的 PDF 阅读器打开并选取文字吗？",
     "hint.pick": "点一下就能询问这个",
     "key.control": "Control",
     "key.option": "Option",
@@ -59,7 +62,8 @@ export const strings = {
     "tag.frame": "現在の画面",
     "mini.pause": "自動解説を一時停止",
     "translate.page": "ページ全体を翻訳",
-    "pdf.offer": "この PDF には選択できるテキストがありません。Blinkling の PDF リーダーで開いてテキストを選択しますか？",
+    "pdf.offer":
+      "この PDF には選択できるテキストがありません。Blinkling の PDF リーダーで開いてテキストを選択しますか？",
     "hint.pick": "クリックするとこれについて質問できます",
     "key.control": "Control",
     "key.option": "Option",
@@ -74,7 +78,8 @@ export const strings = {
     "tag.frame": "현재 화면",
     "mini.pause": "자동 설명 일시 중지",
     "translate.page": "페이지 전체 번역",
-    "pdf.offer": "이 PDF에는 선택할 수 있는 텍스트가 없습니다. Blinkling PDF 리더로 열어 텍스트를 선택할까요?",
+    "pdf.offer":
+      "이 PDF에는 선택할 수 있는 텍스트가 없습니다. Blinkling PDF 리더로 열어 텍스트를 선택할까요?",
     "hint.pick": "한 번 클릭하면 이것에 대해 물어볼 수 있어요",
     "key.control": "Control",
     "key.option": "Option",
@@ -89,7 +94,8 @@ export const strings = {
     "tag.frame": "Aktuelles Bild",
     "mini.pause": "Automatische Erklärung pausiert",
     "translate.page": "Ganze Seite übersetzen",
-    "pdf.offer": "Dieses PDF enthält keinen auswählbaren Text. Im Blinkling-PDF-Reader öffnen, um Text auszuwählen?",
+    "pdf.offer":
+      "Dieses PDF enthält keinen auswählbaren Text. Im Blinkling-PDF-Reader öffnen, um Text auszuwählen?",
     "hint.pick": "Einmal klicken, um dazu zu fragen",
     "key.control": "Control",
     "key.option": "Option",
@@ -104,7 +110,8 @@ export const strings = {
     "tag.frame": "Imagen actual",
     "mini.pause": "Explicación automática en pausa",
     "translate.page": "Traducir la página",
-    "pdf.offer": "Este PDF no tiene texto seleccionable. ¿Abrirlo en el lector de PDF de Blinkling para seleccionar texto?",
+    "pdf.offer":
+      "Este PDF no tiene texto seleccionable. ¿Abrirlo en el lector de PDF de Blinkling para seleccionar texto?",
     "hint.pick": "Haz clic una vez para preguntar sobre esto",
     "key.control": "Control",
     "key.option": "Option",
@@ -119,7 +126,8 @@ export const strings = {
     "tag.frame": "Image actuelle",
     "mini.pause": "Explication automatique en pause",
     "translate.page": "Traduire la page",
-    "pdf.offer": "Ce PDF n’a pas de texte sélectionnable. L’ouvrir dans le lecteur PDF de Blinkling pour sélectionner du texte ?",
+    "pdf.offer":
+      "Ce PDF n’a pas de texte sélectionnable. L’ouvrir dans le lecteur PDF de Blinkling pour sélectionner du texte ?",
     "hint.pick": "Cliquez une fois pour poser une question",
     "key.control": "Control",
     "key.option": "Option",
@@ -134,7 +142,8 @@ export const strings = {
     "tag.frame": "Quadro atual",
     "mini.pause": "Explicação automática em pausa",
     "translate.page": "Traduzir a página",
-    "pdf.offer": "Este PDF não tem texto selecionável. Abrir no leitor de PDF do Blinkling para selecionar texto?",
+    "pdf.offer":
+      "Este PDF não tem texto selecionável. Abrir no leitor de PDF do Blinkling para selecionar texto?",
     "hint.pick": "Clique uma vez para perguntar sobre isto",
     "key.control": "Control",
     "key.option": "Option",

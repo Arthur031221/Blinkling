@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "Blinkling"
+  },
+  "extDescription": {
+    "message": "Un compagnon pour Blink sur votre bureau : il indique à Blink ce que contient la page que vous regardez."
+  },
+  "actionTitle": {
+    "message": "État de Blinkling"
+  }
+}

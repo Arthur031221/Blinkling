@@ -2,8 +2,26 @@ import { test, expect } from "@playwright/test";
 import { mkdirSync, readFileSync } from "node:fs";
 import { PNG } from "pngjs";
 import {
-  SCALE, px, launch, openFixture, record, log, frames, frameStats, domRect, domSentence, pageEval,
-  raised, miniOpen, miniEval, sameRect, near, sent, input, poll, shot,
+  SCALE,
+  px,
+  launch,
+  openFixture,
+  record,
+  log,
+  frames,
+  frameStats,
+  domRect,
+  domSentence,
+  pageEval,
+  raised,
+  miniOpen,
+  miniEval,
+  sameRect,
+  near,
+  sent,
+  input,
+  poll,
+  shot,
 } from "./harness.mjs";
 
 const OUT = process.env.PICK_SHOTS ?? `/tmp/pick-e2e-${SCALE}`;
@@ -34,7 +52,11 @@ async function hold(app, point) {
   const [downAt] = input([["down", "ctrl"]]);
   await poll(() => raised(app), 3000, "the layer to rise");
   // A person cannot click within a frame of the layer appearing: wait for its first outline.
-  await poll(async () => sent(await log(app), "outline").length > 0, 3000, "the first outline");
+  await poll(
+    async () => sent(await log(app), "outline").length > 0,
+    3000,
+    "the first outline",
+  );
   await pause(120);
   return downAt;
 }
@@ -43,15 +65,23 @@ const click = () => input([["press"], ["release"]]);
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 const waitFor = async (app, channel, count = 1) => {
   let data;
-  await poll(async () => ((data = await log(app)), sent(data, channel).length >= count), 4000, `${channel} x${count}`);
+  await poll(
+    async () => ((data = await log(app)), sent(data, channel).length >= count),
+    4000,
+    `${channel} x${count}`,
+  );
   return data;
 };
 const outlineNear = async (app, rect, label) => {
   let last;
-  await poll(async () => {
-    last = sent(await log(app), "outline").at(-1);
-    return last?.rect && sameRect(last.rect, rect, 2);
-  }, 4000, `${label} outline ${JSON.stringify(rect)}, last ${JSON.stringify(last)}`);
+  await poll(
+    async () => {
+      last = sent(await log(app), "outline").at(-1);
+      return last?.rect && sameRect(last.rect, rect, 2);
+    },
+    4000,
+    `${label} outline ${JSON.stringify(rect)}, last ${JSON.stringify(last)}`,
+  );
   return last;
 };
 const stats = async (app, surface) => frameStats(await frames(app), surface);
@@ -73,7 +103,12 @@ function differs(a, b, x0, x1, y, band = 3) {
     for (let k = -band; k <= band; k++) {
       const yy = Math.round(y * SCALE) + k;
       const i = (yy * a.width + x) * 4;
-      d = Math.max(d, Math.abs(a.data[i] - b.data[i]) + Math.abs(a.data[i + 1] - b.data[i + 1]) + Math.abs(a.data[i + 2] - b.data[i + 2]));
+      d = Math.max(
+        d,
+        Math.abs(a.data[i] - b.data[i]) +
+          Math.abs(a.data[i + 1] - b.data[i + 1]) +
+          Math.abs(a.data[i + 2] - b.data[i + 2]),
+      );
     }
     if (d > 40) changed++;
   }
@@ -91,12 +126,16 @@ test("M4 the layer rises one frame after the 250 ms threshold, not before, with 
     await poll(() => raised(app), 2000, "raise");
     const data = await log(app);
     const lateness = data.shows[0] - downAt;
-    console.log(`SCALE ${SCALE}: layer shown ${lateness.toFixed(0)} ms after the key went down`);
+    console.log(
+      `SCALE ${SCALE}: layer shown ${lateness.toFixed(0)} ms after the key went down`,
+    );
     expect(lateness).toBeGreaterThanOrEqual(245);
     expect(lateness).toBeLessThanOrEqual(250 + 50);
     expect(sent(data, "badge")[0]).toEqual({ name: "crayon" });
     const visible = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes("layer.html") && w.isVisible()),
+      BrowserWindow.getAllWindows().some(
+        (w) => w.webContents.getURL().includes("layer.html") && w.isVisible(),
+      ),
     );
     expect(visible).toBe(true);
     await pause(400);
@@ -115,16 +154,21 @@ test("M7 the first hold says to click once, near the cursor, and never again", a
     const first = await waitFor(app, "hint");
     expect(sent(first, "hint")[0].text).toMatch(/click once/i);
     const text = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("layer.html")).webContents.executeJavaScript(
-        "document.querySelector('.pick-hint').textContent",
-      ),
+      BrowserWindow.getAllWindows()
+        .find((w) => w.webContents.getURL().includes("layer.html"))
+        .webContents.executeJavaScript(
+          "document.querySelector('.pick-hint').textContent",
+        ),
     );
     expect(text).toMatch(/click once/i);
     release();
     await poll(async () => !(await raised(app)), 2000, "drop");
     await hold(app, { x: p.x + 40, y: p.y + 40 });
     await pause(300);
-    expect(sent(await log(app), "hint").length, "the hint is not sent a second time").toBe(1);
+    expect(
+      sent(await log(app), "hint").length,
+      "the hint is not sent a second time",
+    ).toBe(1);
     release();
   } finally {
     await app.close();
@@ -145,33 +189,54 @@ test("M4 N1.3 Ctrl+click on text takes the sentence: outline, a crayon stroke pe
     await screen(app, "03-text-outline");
     const during = png(readFileSync(`${OUT}/03-text-outline.png`));
     // The outline is really on screen along the sentence's top edge, and the page far away is untouched.
-    expect(differs(base, during, dom.bounds.x + 20, dom.bounds.x + dom.bounds.width - 20, dom.bounds.y)).toBeGreaterThan(0.8);
+    expect(
+      differs(
+        base,
+        during,
+        dom.bounds.x + 20,
+        dom.bounds.x + dom.bounds.width - 20,
+        dom.bounds.y,
+      ),
+    ).toBeGreaterThan(0.8);
     expect(differs(base, during, 800, 1000, 100)).toBe(0);
 
-    const before = (await frames(app)).filter((f) => f.surface === "pick-effect").length;
+    const before = (await frames(app)).filter(
+      (f) => f.surface === "pick-effect",
+    ).length;
     click();
     const data = await waitFor(app, "taken");
     const taken = sent(data, "taken")[0];
     expect(taken.kind).toBe("text");
     expect(taken.effect.effect).toBe("crayon-lines");
     const crayons = taken.effect.strokes.filter((s) => s.role === "crayon");
-    expect(crayons.length, "one crayon stroke per rendered line").toBe(dom.lines.length);
+    expect(crayons.length, "one crayon stroke per rendered line").toBe(
+      dom.lines.length,
+    );
     expect(sameRect(taken.bounds, dom.bounds, 2)).toBe(true);
     expect(taken.effect.total).toBeLessThanOrEqual(450);
     await pause(700);
-    const run = (await frames(app)).filter((f) => f.surface === "pick-effect").slice(before);
+    const run = (await frames(app))
+      .filter((f) => f.surface === "pick-effect")
+      .slice(before);
     const span = run.at(-1).t - run[0].t;
-    console.log(`SCALE ${SCALE}: crayon effect ran ${span.toFixed(0)} ms over ${run.length} frames`);
+    console.log(
+      `SCALE ${SCALE}: crayon effect ran ${span.toFixed(0)} ms over ${run.length} frames`,
+    );
     expect(span).toBeLessThanOrEqual(450 + 20);
     await screen(app, "04-text-taken");
 
     release();
     await poll(() => miniOpen(app), 6000, "the mini composer");
-    const mini = JSON.parse(await miniEval(app, `JSON.stringify({
+    const mini = JSON.parse(
+      await miniEval(
+        app,
+        `JSON.stringify({
       text: [...document.querySelectorAll('.mini-entry-text')].map((e) => e.textContent),
       images: document.querySelectorAll('.mini-entry-image').length,
       chips: [...document.querySelectorAll('.mini-chip')].map((c) => [c.dataset.id, c.classList.contains('is-default')])
-    })`));
+    })`,
+      ),
+    );
     expect(mini.text).toHaveLength(1);
     expect(mini.text[0]).toMatch(/The second sentence/);
     expect(mini.images).toBe(0);
@@ -201,7 +266,11 @@ test("M4 N1.1 Ctrl+click on an image: loop effect, flight into Blink, image chip
     await pause(500);
     await screen(app, "06-image-taken");
     release();
-    await poll(async () => (await log(app)).flights.length > 0, 4000, "the flight");
+    await poll(
+      async () => (await log(app)).flights.length > 0,
+      4000,
+      "the flight",
+    );
     await pause(120);
     await screen(app, "07-image-flight");
     await poll(() => miniOpen(app), 6000, "the mini composer");
@@ -210,27 +279,38 @@ test("M4 N1.1 Ctrl+click on an image: loop effect, flight into Blink, image chip
     expect(sameRect(flight.items[0].bounds, photo, 2)).toBe(true);
     expect(flight.items[0].dataUrl).toMatch(/^data:image\/png;base64,/);
     const blink = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("renderer/index.html")).webContents.executeJavaScript(
-        "(() => { const r = document.getElementById('blink').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })()",
-      ),
+      BrowserWindow.getAllWindows()
+        .find((w) => w.webContents.getURL().includes("renderer/index.html"))
+        .webContents.executeJavaScript(
+          "(() => { const r = document.getElementById('blink').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })()",
+        ),
     );
-    console.log(`SCALE ${SCALE}: flight to ${JSON.stringify(flight.to)}, Blink at ${JSON.stringify(blink)}`);
+    console.log(
+      `SCALE ${SCALE}: flight to ${JSON.stringify(flight.to)}, Blink at ${JSON.stringify(blink)}`,
+    );
     expect(flight.to.x).toBeGreaterThanOrEqual(blink.x - 60);
     expect(flight.to.x).toBeLessThanOrEqual(blink.x + blink.width + 60);
     expect(flight.to.y).toBeGreaterThanOrEqual(blink.y - 60);
     expect(flight.to.y).toBeLessThanOrEqual(blink.y + blink.height + 60);
-    const layerFrames = (await frames(app)).filter((f) => f.surface === "flight");
+    const layerFrames = (await frames(app)).filter(
+      (f) => f.surface === "flight",
+    );
     const last = layerFrames.at(-1).box;
     expect(near(last.x + last.width / 2, flight.to.x, 24)).toBe(true);
     expect(near(last.y + last.height / 2, flight.to.y, 24)).toBe(true);
 
     await pause(500);
-    const mini = JSON.parse(await miniEval(app, `JSON.stringify({
+    const mini = JSON.parse(
+      await miniEval(
+        app,
+        `JSON.stringify({
       images: document.querySelectorAll('.mini-entry-image').length,
       thumb: document.querySelector('.mini-thumb')?.src.slice(0, 22),
       chips: [...document.querySelectorAll('.mini-chip')].map((c) => [c.textContent, c.classList.contains('is-default')]),
       focus: document.activeElement?.className
-    })`));
+    })`,
+      ),
+    );
     expect(mini.images).toBe(1);
     expect(mini.thumb).toBe("data:image/png;base64,");
     expect(mini.chips).toHaveLength(3);
@@ -239,20 +319,35 @@ test("M4 N1.1 Ctrl+click on an image: loop effect, flight into Blink, image chip
     await screen(app, "08-image-mini");
 
     input([["key", "enter"]]);
-    await poll(async () => (await log(app)).turns.length === 1, 4000, "the turn");
+    await poll(
+      async () => (await log(app)).turns.length === 1,
+      4000,
+      "the turn",
+    );
     const [turn] = (await log(app)).turns;
     expect(turn.source).toBe("quick-ask");
     expect(turn.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(turn.attachments).toHaveLength(1);
     expect(turn.attachments[0].mediaType).toBe("image/png");
-    await poll(async () => !(await miniOpen(app)), 3000, "the mini closes after a send");
+    await poll(
+      async () => !(await miniOpen(app)),
+      3000,
+      "the mini closes after a send",
+    );
 
     const all = [];
     for (const surface of ["pick-effect", "flight", "mini-composer"]) {
       const s = await stats(app, surface);
       console.log(`SCALE ${SCALE}: ${JSON.stringify(s)}`);
-      const ts = (await frames(app)).filter((f) => f.surface === surface).map((f) => f.t);
-      console.log(`SCALE ${SCALE}: ${surface} gaps ${ts.slice(1).map((t, i) => Math.round(t - ts[i])).join(" ")}`);
+      const ts = (await frames(app))
+        .filter((f) => f.surface === surface)
+        .map((f) => f.t);
+      console.log(
+        `SCALE ${SCALE}: ${surface} gaps ${ts
+          .slice(1)
+          .map((t, i) => Math.round(t - ts[i]))
+          .join(" ")}`,
+      );
       all.push(s);
     }
     all.forEach((s) => gate(s));
@@ -277,7 +372,12 @@ test("M4 Ctrl+click on a table: outline sweep over the table, the table goes as 
     await screen(app, "09-table-taken");
     release();
     await poll(() => miniOpen(app), 6000, "the mini composer");
-    const entry = JSON.parse(await miniEval(app, "JSON.stringify([...document.querySelectorAll('.mini-entry')].map((e) => e.className))"));
+    const entry = JSON.parse(
+      await miniEval(
+        app,
+        "JSON.stringify([...document.querySelectorAll('.mini-entry')].map((e) => e.className))",
+      ),
+    );
     expect(entry).toHaveLength(1);
   } finally {
     await app.close();
@@ -295,9 +395,22 @@ test("N1.2 Ctrl+drag past 6 px takes an area equal to the dragged rectangle and 
     const data = await waitFor(app, "taken");
     const taken = sent(data, "taken")[0];
     expect(taken.kind).toBe("area");
-    expect(sameRect(taken.bounds, { x: from.x, y: from.y, width: to.x - from.x, height: to.y - from.y }, 2), JSON.stringify(taken.bounds)).toBe(true);
-    expect(sent(data, "drag").some((d) => d.rect), "a rubber band was drawn").toBe(true);
-    expect(sent(data, "badge").some((b) => b.name === "crosshair"), "the badge turns to the crosshair while dragging").toBe(true);
+    expect(
+      sameRect(
+        taken.bounds,
+        { x: from.x, y: from.y, width: to.x - from.x, height: to.y - from.y },
+        2,
+      ),
+      JSON.stringify(taken.bounds),
+    ).toBe(true);
+    expect(
+      sent(data, "drag").some((d) => d.rect),
+      "a rubber band was drawn",
+    ).toBe(true);
+    expect(
+      sent(data, "badge").some((b) => b.name === "crosshair"),
+      "the badge turns to the crosshair while dragging",
+    ).toBe(true);
     expect(await pageEval(app, "getSelection().toString()")).toBe("");
     await pause(300);
     await screen(app, "10-area");
@@ -314,7 +427,9 @@ test("N1.2 a drag of 6 px or less is a click, not an area", async () => {
     const p = await domRect(app, "#photo");
     const from = { x: p.x + 40, y: p.y + 40 };
     await hold(app, from);
-    input([["drag", px(from.x), px(from.y), px(from.x + 4), px(from.y + 2), 120]]);
+    input([
+      ["drag", px(from.x), px(from.y), px(from.x + 4), px(from.y + 2), 120],
+    ]);
     const taken = sent(await waitFor(app, "taken"), "taken")[0];
     expect(taken.kind).toBe("image");
     release();
@@ -327,7 +442,11 @@ test("Esc discards the pick, takes nothing and gives focus back", async () => {
   const app = await start();
   try {
     await app.evaluate(() => globalThis.__fixture.focus());
-    await poll(() => app.evaluate(() => globalThis.__fixture.isFocused()), 3000, "fixture focus");
+    await poll(
+      () => app.evaluate(() => globalThis.__fixture.isFocused()),
+      3000,
+      "fixture focus",
+    );
     const photo = await domRect(app, "#photo");
     await hold(app, { x: photo.x + 40, y: photo.y + 40 });
     click();
@@ -349,17 +468,32 @@ test("Esc in the mini composer discards, sends nothing and returns the keyboard 
   const app = await start();
   try {
     await app.evaluate(() => globalThis.__fixture.focus());
-    await poll(() => app.evaluate(() => globalThis.__fixture.isFocused()), 3000, "fixture focus");
+    await poll(
+      () => app.evaluate(() => globalThis.__fixture.isFocused()),
+      3000,
+      "fixture focus",
+    );
     const photo = await domRect(app, "#photo");
     await hold(app, { x: photo.x + 40, y: photo.y + 40 });
     click();
     await waitFor(app, "taken");
     release();
     await poll(() => miniOpen(app), 6000, "the mini composer");
-    await poll(() => app.evaluate(({}) => globalThis.blinklingTest.pick.test.miniWindow.isFocused()), 3000, "the mini takes the keyboard");
+    await poll(
+      () =>
+        app.evaluate(() =>
+          globalThis.blinklingTest.pick.test.miniWindow.isFocused(),
+        ),
+      3000,
+      "the mini takes the keyboard",
+    );
     input([["key", "esc"]]);
     await poll(async () => !(await miniOpen(app)), 3000, "closes");
-    await poll(() => app.evaluate(() => globalThis.__fixture.isFocused()), 4000, "focus returns to the fixture");
+    await poll(
+      () => app.evaluate(() => globalThis.__fixture.isFocused()),
+      4000,
+      "focus returns to the fixture",
+    );
     expect((await log(app)).turns).toHaveLength(0);
   } finally {
     await app.close();
@@ -374,7 +508,9 @@ test("N1.5 Shift is not a capture key: holding it, and Shift+drag, do nothing", 
     input([["down", "shift"]]);
     await pause(700);
     expect(await raised(app)).toBe(false);
-    input([["drag", px(t.x + 10), px(t.y + 6), px(t.x + 300), px(t.y + 100), 300]]);
+    input([
+      ["drag", px(t.x + 10), px(t.y + 6), px(t.x + 300), px(t.y + 100), 300],
+    ]);
     await pause(300);
     input([["up", "shift"]]);
     const data = await log(app);
@@ -391,18 +527,35 @@ test("Ctrl+C, Ctrl+V and Ctrl+Tab are left alone: no layer, nothing swallowed", 
   const app = await start();
   try {
     for (const key of ["c", "v", "tab"]) {
-      input([["down", "ctrl"], ["key", key], ["up", "ctrl"]]);
+      input([
+        ["down", "ctrl"],
+        ["key", key],
+        ["up", "ctrl"],
+      ]);
       await pause(400);
       expect(await raised(app), `Ctrl+${key}`).toBe(false);
     }
     expect((await log(app)).shows).toHaveLength(0);
     // Ctrl+C reaches the focused page: copy really happened.
     await app.evaluate(() => globalThis.__fixture.focus());
-    await poll(() => app.evaluate(() => globalThis.__fixture.isFocused()), 3000, "focus");
-    await pageEval(app, "getSelection().selectAllChildren(document.getElementById('story-text')); 1");
-    input([["down", "ctrl"], ["key", "c"], ["up", "ctrl"]]);
+    await poll(
+      () => app.evaluate(() => globalThis.__fixture.isFocused()),
+      3000,
+      "focus",
+    );
+    await pageEval(
+      app,
+      "getSelection().selectAllChildren(document.getElementById('story-text')); 1",
+    );
+    input([
+      ["down", "ctrl"],
+      ["key", "c"],
+      ["up", "ctrl"],
+    ]);
     await pause(300);
-    expect(await app.evaluate(({ clipboard }) => clipboard.readText())).toMatch(/Blink looks at your screen/);
+    expect(await app.evaluate(({ clipboard }) => clipboard.readText())).toMatch(
+      /Blink looks at your screen/,
+    );
     expect(await raised(app)).toBe(false);
   } finally {
     await app.close();
@@ -415,9 +568,16 @@ test("the first wheel tick drops the layer so scrolling works", async () => {
     const photo = await domRect(app, "#photo");
     await hold(app, { x: photo.x + 40, y: photo.y + 40 });
     input([["wheel", -1]]);
-    await poll(async () => !(await raised(app)), 3000, "the layer drops on a wheel tick");
-    const hidden = await app.evaluate(({ BrowserWindow }) =>
-      !BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("layer.html")).isVisible(),
+    await poll(
+      async () => !(await raised(app)),
+      3000,
+      "the layer drops on a wheel tick",
+    );
+    const hidden = await app.evaluate(
+      ({ BrowserWindow }) =>
+        !BrowserWindow.getAllWindows()
+          .find((w) => w.webContents.getURL().includes("layer.html"))
+          .isVisible(),
     );
     expect(hidden).toBe(true);
     release();
@@ -439,7 +599,10 @@ test("a secure field locks: no outline, no taken, the lock is drawn", async () =
     await pause(400);
     const data = await log(app);
     expect(sent(data, "taken")).toHaveLength(0);
-    expect(sent(data, "lock").length + sent(data, "outline").filter((o) => o.lock).length).toBeGreaterThan(0);
+    expect(
+      sent(data, "lock").length +
+        sent(data, "outline").filter((o) => o.lock).length,
+    ).toBeGreaterThan(0);
     release();
     await pause(500);
     expect(await miniOpen(app)).toBe(false);
@@ -464,18 +627,40 @@ test("a pick growth to the whole page in a browser offers 翻譯整頁, and clic
     expect(kinds.at(-1)).toBe("page");
     release();
     await poll(() => miniOpen(app), 6000, "the mini composer");
-    await poll(async () => (await miniEval(app, "document.querySelectorAll('.mini-offer').length")) > 0, 3000, "the offer");
-    const offers = JSON.parse(await miniEval(app, "JSON.stringify([...document.querySelectorAll('.mini-offer')].map((o) => [o.dataset.id, o.textContent]))"));
+    await poll(
+      async () =>
+        (await miniEval(
+          app,
+          "document.querySelectorAll('.mini-offer').length",
+        )) > 0,
+      3000,
+      "the offer",
+    );
+    const offers = JSON.parse(
+      await miniEval(
+        app,
+        "JSON.stringify([...document.querySelectorAll('.mini-offer')].map((o) => [o.dataset.id, o.textContent]))",
+      ),
+    );
     expect(offers.map(([id]) => id)).toContain("translate-page");
     await pause(500);
     await screen(app, "12-page-offer");
-    await miniEval(app, "document.querySelector('.mini-offer[data-id=translate-page]').click()");
-    await poll(async () => (await log(app)).turns.length === 1, 4000, "the translate turn");
+    await miniEval(
+      app,
+      "document.querySelector('.mini-offer[data-id=translate-page]').click()",
+    );
+    await poll(
+      async () => (await log(app)).turns.length === 1,
+      4000,
+      "the translate turn",
+    );
     const [turn] = (await log(app)).turns;
     expect(turn.source).toBe("quick-ask");
     expect(turn.text).toMatch(/翻譯|translate/i);
     expect(turn.attachments[0].mediaType).toBe("text/plain");
-    expect(Buffer.from(turn.attachments[0].data, "base64").toString()).toMatch(/Lake notes/);
+    expect(Buffer.from(turn.attachments[0].data, "base64").toString()).toMatch(
+      /Lake notes/,
+    );
   } finally {
     await app.close();
   }
@@ -486,17 +671,28 @@ test("N2.5 with auto explain on, the mini composer says it is paused and auto ex
   try {
     await app.evaluate(() => {
       globalThis.__auto = [];
-      globalThis.blinklingTest.registerAction("auto-explain", async (context) => {
-        globalThis.__auto.push(context.enabled);
-        return { ok: true };
-      });
+      globalThis.blinklingTest.registerAction(
+        "auto-explain",
+        async (context) => {
+          globalThis.__auto.push(context.enabled);
+          return { ok: true };
+        },
+      );
     });
     const blinkWindow = (code) =>
-      app.evaluate(({ BrowserWindow }, code) =>
-        BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("renderer/index.html")).webContents.executeJavaScript(code),
-      code);
+      app.evaluate(
+        ({ BrowserWindow }, code) =>
+          BrowserWindow.getAllWindows()
+            .find((w) => w.webContents.getURL().includes("renderer/index.html"))
+            .webContents.executeJavaScript(code),
+        code,
+      );
     await blinkWindow("window.blinkling.action('auto-explain')");
-    await poll(async () => (await app.evaluate(() => globalThis.__auto)).length === 1, 3000, "auto explain on");
+    await poll(
+      async () => (await app.evaluate(() => globalThis.__auto)).length === 1,
+      3000,
+      "auto explain on",
+    );
 
     const photo = await domRect(app, "#photo");
     await hold(app, { x: photo.x + 40, y: photo.y + 40 });
@@ -505,14 +701,27 @@ test("N2.5 with auto explain on, the mini composer says it is paused and auto ex
     release();
     await poll(() => miniOpen(app), 6000, "the mini composer");
     await pause(500);
-    const line = JSON.parse(await miniEval(app, "JSON.stringify({ shown: !document.querySelector('.mini-pause').hidden, text: document.querySelector('.mini-pause').textContent })"));
+    const line = JSON.parse(
+      await miniEval(
+        app,
+        "JSON.stringify({ shown: !document.querySelector('.mini-pause').hidden, text: document.querySelector('.mini-pause').textContent })",
+      ),
+    );
     expect(line.shown).toBe(true);
     expect(line.text).toBe("暫停自動解說");
     await screen(app, "13-pause-line");
     expect(await app.evaluate(() => globalThis.__auto)).toEqual([true, false]);
     input([["key", "esc"]]);
-    await poll(async () => (await app.evaluate(() => globalThis.__auto)).length === 3, 4000, "auto explain resumes");
-    expect(await app.evaluate(() => globalThis.__auto)).toEqual([true, false, true]);
+    await poll(
+      async () => (await app.evaluate(() => globalThis.__auto)).length === 3,
+      4000,
+      "auto explain resumes",
+    );
+    expect(await app.evaluate(() => globalThis.__auto)).toEqual([
+      true,
+      false,
+      true,
+    ]);
   } finally {
     await app.close();
   }
@@ -548,7 +757,11 @@ test("K2 a second pick within 60 s stays in the chat; one 66 s later opens a new
     await once();
     await pause(66_000);
     await once();
-    expect(await app.evaluate(() => globalThis.__fresh)).toEqual([true, false, true]);
+    expect(await app.evaluate(() => globalThis.__fresh)).toEqual([
+      true,
+      false,
+      true,
+    ]);
   } finally {
     await app.close();
   }

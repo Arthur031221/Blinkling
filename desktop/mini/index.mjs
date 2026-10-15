@@ -35,7 +35,12 @@ export function createMiniController({
   };
   const trusted = (event) => event.sender === win.webContents;
 
-  const view = () => ({ ...model.view(), entries: model.view().entries.map((e) => ({ ...e, thumb: thumbs.get(e.id) })) });
+  const view = () => ({
+    ...model.view(),
+    entries: model
+      .view()
+      .entries.map((e) => ({ ...e, thumb: thumbs.get(e.id) })),
+  });
   const refresh = () => model && send("blinkling:mini-view", view());
 
   function place() {
@@ -105,7 +110,9 @@ export function createMiniController({
       if (model) model.dispose();
       clearTimer(hideTimer);
       hideTimer = null;
-      thumbs = new Map(entries.filter((e) => e.thumb).map((e) => [e.id, e.thumb]));
+      thumbs = new Map(
+        entries.filter((e) => e.thumb).map((e) => [e.id, e.thumb]),
+      );
       model = createMini({
         locale,
         entries,

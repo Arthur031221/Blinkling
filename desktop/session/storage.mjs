@@ -182,7 +182,9 @@ export function persistable(state) {
     const turn = { id, source };
     if (waiting && !pixels) turn.text = item.turn.text;
     if (waiting && pixels) turn.redacted = true;
-    const { turn: _, digest: __, ...rest } = item;
+    const rest = { ...item };
+    delete rest.turn;
+    delete rest.digest;
     return { ...rest, turn };
   });
   value.messages = value.messages.map(({ type, id, role }) => ({

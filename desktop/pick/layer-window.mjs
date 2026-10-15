@@ -1,6 +1,7 @@
 import { duration } from "../shared/motion.mjs";
 
-const inside = (b, p) => p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height;
+const inside = (b, p) =>
+  p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height;
 const center = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
 const clamp = (p, b) => ({
   x: Math.min(b.x + b.width - 1, Math.max(b.x, p.x)),
@@ -38,7 +39,8 @@ export function createLayers({
   const send = (layer, channel, value) => {
     if (layer.win.isDestroyed()) return;
     if (!layer.ready) layer.queue.push({ channel, value });
-    else layer.win.webContents.send("blinkling:pick-message", { channel, value });
+    else
+      layer.win.webContents.send("blinkling:pick-message", { channel, value });
   };
 
   function make(display) {
@@ -53,14 +55,19 @@ export function createLayers({
     const layer = { win, display, ready: false, queue: [], active: false };
     win.setIgnoreMouseEvents(true);
     win.webContents.once("did-finish-load", () => {
-      win.webContents.send("blinkling:pick-init", { origin: { x: display.bounds.x, y: display.bounds.y } });
+      win.webContents.send("blinkling:pick-init", {
+        origin: { x: display.bounds.x, y: display.bounds.y },
+      });
     });
     layer.load = win.loadFile ? win.loadFile(page) : win.loadURL(page);
     layers.set(String(display.id), layer);
     return layer;
   }
 
-  const byWebContents = (sender) => [...layers.values()].find((l) => !l.win.isDestroyed() && l.win.webContents === sender);
+  const byWebContents = (sender) =>
+    [...layers.values()].find(
+      (l) => !l.win.isDestroyed() && l.win.webContents === sender,
+    );
 
   ipcMain.on("blinkling:pick-ready", (event) => {
     const layer = byWebContents(event.sender);
@@ -70,7 +77,12 @@ export function createLayers({
   });
   ipcMain.on("blinkling:pick-pointer", (event, payload) => {
     const layer = byWebContents(event.sender);
-    if (!layer || !layer.active || !["move", "down", "up"].includes(payload?.type)) return;
+    if (
+      !layer ||
+      !layer.active ||
+      !["move", "down", "up"].includes(payload?.type)
+    )
+      return;
     if (!Number.isFinite(payload.x) || !Number.isFinite(payload.y)) return;
     onPointer({ type: payload.type, x: payload.x, y: payload.y });
   });
@@ -97,7 +109,11 @@ export function createLayers({
     }
   }
   sync();
-  const events = ["display-added", "display-removed", "display-metrics-changed"];
+  const events = [
+    "display-added",
+    "display-removed",
+    "display-metrics-changed",
+  ];
   for (const name of events) screen.on(name, sync);
 
   const layerFor = (display) => layers.get(String(display.id));
@@ -139,7 +155,11 @@ export function createLayers({
     flight(items, to) {
       const first = items[0] && center(items[0].bounds);
       const layer =
-        [...layers.values()].find((l) => first && inside(l.display.bounds, first)) ?? current ?? [...layers.values()][0];
+        [...layers.values()].find(
+          (l) => first && inside(l.display.bounds, first),
+        ) ??
+        current ??
+        [...layers.values()][0];
       if (!layer) return Promise.resolve();
       current = null;
       const id = `flight-${++token}`;
@@ -153,12 +173,17 @@ export function createLayers({
         const timer = setTimer(finish, FLIGHT_LIMIT);
         waiting.set(id, finish);
         raiseWindow(layer, false);
-        send(layer, "flight", { items, to: clamp(to, layer.display.bounds), token: id });
+        send(layer, "flight", {
+          items,
+          to: clamp(to, layer.display.bounds),
+          token: id,
+        });
       });
     },
     dispose() {
       for (const name of events) screen.removeListener(name, sync);
-      for (const layer of layers.values()) if (!layer.win.isDestroyed()) layer.win.destroy();
+      for (const layer of layers.values())
+        if (!layer.win.isDestroyed()) layer.win.destroy();
       layers.clear();
     },
     count: () => layers.size,

@@ -11,14 +11,16 @@ export function strokeProgress(stroke, elapsed, ease = (x) => x) {
 
 export const polylineLength = (points) =>
   points.reduce(
-    (sum, p, i) => (i ? sum + Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) : 0),
+    (sum, p, i) =>
+      i ? sum + Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) : 0,
     0,
   );
 
 /** The leading part of a polyline: its points up to `progress` of its length,
  * ending on an interpolated point so the stroke grows smoothly. */
 export function partial(points, progress) {
-  if (progress <= 0 || points.length < 2) return progress > 0 ? points.slice(0, 1) : [];
+  if (progress <= 0 || points.length < 2)
+    return progress > 0 ? points.slice(0, 1) : [];
   if (progress >= 1) return points;
   const goal = polylineLength(points) * progress;
   const out = [points[0]];

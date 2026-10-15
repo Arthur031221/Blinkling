@@ -16,13 +16,27 @@ function fakes(displays, extra = {}) {
       };
       log.windows.push(this);
     }
-    loadFile() { return Promise.resolve(); }
-    setIgnoreMouseEvents(v) { this.calls.push(["ignore", v]); }
-    showInactive() { this.calls.push(["show"]); }
-    hide() { this.calls.push(["hide"]); }
-    setBounds(b) { this.calls.push(["bounds", b]); }
-    isDestroyed() { return this.destroyed; }
-    destroy() { this.destroyed = true; }
+    loadFile() {
+      return Promise.resolve();
+    }
+    setIgnoreMouseEvents(v) {
+      this.calls.push(["ignore", v]);
+    }
+    showInactive() {
+      this.calls.push(["show"]);
+    }
+    hide() {
+      this.calls.push(["hide"]);
+    }
+    setBounds(b) {
+      this.calls.push(["bounds", b]);
+    }
+    isDestroyed() {
+      return this.destroyed;
+    }
+    destroy() {
+      this.destroyed = true;
+    }
   }
   const listeners = {};
   const screen = {
@@ -43,7 +57,8 @@ function fakes(displays, extra = {}) {
     clearTimer: () => {},
     ...extra,
   });
-  const ready = (win) => log.handlers["blinkling:pick-ready"]({ sender: win.webContents });
+  const ready = (win) =>
+    log.handlers["blinkling:pick-ready"]({ sender: win.webContents });
   return { log, layers, pointer, listeners, ready, screen };
 }
 const d1 = { id: 1, bounds: { x: 0, y: 0, width: 1280, height: 800 } };
@@ -77,10 +92,19 @@ test("show takes the pointer, hide gives it back and tells the page to clear", (
   const { log, layers, ready } = fakes([d1]);
   ready(log.windows[0]);
   layers.show(d1, { x: 5, y: 6 });
-  assert.deepEqual(log.windows[0].calls.filter(([c]) => c === "ignore").at(-1), ["ignore", false]);
-  assert.deepEqual(log.windows[0].sent.at(-1), ["blinkling:pick-message", { channel: "cursor", value: { x: 5, y: 6 } }]);
+  assert.deepEqual(
+    log.windows[0].calls.filter(([c]) => c === "ignore").at(-1),
+    ["ignore", false],
+  );
+  assert.deepEqual(log.windows[0].sent.at(-1), [
+    "blinkling:pick-message",
+    { channel: "cursor", value: { x: 5, y: 6 } },
+  ]);
   layers.hide();
-  assert.deepEqual(log.windows[0].calls.filter(([c]) => c === "ignore").at(-1), ["ignore", true]);
+  assert.deepEqual(
+    log.windows[0].calls.filter(([c]) => c === "ignore").at(-1),
+    ["ignore", true],
+  );
   assert.equal(log.windows[0].sent.at(-1)[1].channel, "clear");
   assert.deepEqual(log.windows[0].calls.at(-1), ["hide"]);
 });
@@ -96,7 +120,8 @@ test("messages sent before the page is ready are delivered when it is", () => {
 test("pointer events from the page reach the controller only while raised, and only from a layer", () => {
   const { log, layers, ready, pointer } = fakes([d1]);
   ready(log.windows[0]);
-  const from = (sender, payload) => log.handlers["blinkling:pick-pointer"]({ sender }, payload);
+  const from = (sender, payload) =>
+    log.handlers["blinkling:pick-pointer"]({ sender }, payload);
   from(log.windows[0].webContents, { type: "down", x: 1, y: 2 });
   assert.equal(pointer.length, 0, "not raised");
   layers.show(d1, { x: 0, y: 0 });
@@ -111,13 +136,26 @@ test("pointer events from the page reach the controller only while raised, and o
 test("a flight runs click-through on the display of the first thumbnail and ends when the page says so", async () => {
   const { log, layers, ready } = fakes([d1, d2]);
   log.windows.forEach(ready);
-  const flying = layers.flight([{ id: "a", bounds: { x: 1500, y: 100, width: 100, height: 60 } }], { x: 1200, y: 400 });
+  const flying = layers.flight(
+    [{ id: "a", bounds: { x: 1500, y: 100, width: 100, height: 60 } }],
+    { x: 1200, y: 400 },
+  );
   const win = log.windows[1];
-  assert.deepEqual(win.calls.filter(([c]) => c === "ignore").at(-1), ["ignore", true]);
+  assert.deepEqual(win.calls.filter(([c]) => c === "ignore").at(-1), [
+    "ignore",
+    true,
+  ]);
   const message = win.sent.at(-1)[1];
   assert.equal(message.channel, "flight");
-  assert.deepEqual(message.value.to, { x: 1280, y: 400 }, "clamped into that display");
-  log.handlers["blinkling:pick-flight-done"]({ sender: win.webContents }, message.value.token);
+  assert.deepEqual(
+    message.value.to,
+    { x: 1280, y: 400 },
+    "clamped into that display",
+  );
+  log.handlers["blinkling:pick-flight-done"](
+    { sender: win.webContents },
+    message.value.token,
+  );
   await flying;
   assert.deepEqual(win.calls.at(-1), ["hide"]);
 });
@@ -125,7 +163,10 @@ test("a flight runs click-through on the display of the first thumbnail and ends
 test("a flight that never reports back is cut off", async () => {
   const { log, layers, ready } = fakes([d1]);
   ready(log.windows[0]);
-  const flying = layers.flight([{ id: "a", bounds: { x: 10, y: 10, width: 10, height: 10 } }], { x: 100, y: 100 });
+  const flying = layers.flight(
+    [{ id: "a", bounds: { x: 10, y: 10, width: 10, height: 10 } }],
+    { x: 100, y: 100 },
+  );
   log.timers.at(-1).fn();
   await flying;
   assert.deepEqual(log.windows[0].calls.at(-1), ["hide"]);
@@ -145,7 +186,9 @@ test("plugging a display in or out adds and removes its window", () => {
 
 test("each time a layer rises it is put back on top of the X stack", () => {
   const raised = [];
-  const { log, layers, ready } = fakes([d1, d2], { raise: (windows) => raised.push(windows) });
+  const { log, layers, ready } = fakes([d1, d2], {
+    raise: (windows) => raised.push(windows),
+  });
   log.windows.forEach(ready);
   layers.show(d2, { x: 1400, y: 200 });
   layers.show(d2, { x: 1400, y: 200 });

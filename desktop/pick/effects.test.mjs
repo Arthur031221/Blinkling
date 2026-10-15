@@ -5,10 +5,22 @@ import { duration } from "../shared/motion.mjs";
 
 const bounds = { x: 100, y: 100, width: 300, height: 120 };
 const KINDS = [
-  "text", "image", "table", "code", "formula", "chart", "video", "control",
-  "section", "window", "area", "screen", "page",
+  "text",
+  "image",
+  "table",
+  "code",
+  "formula",
+  "chart",
+  "video",
+  "control",
+  "section",
+  "window",
+  "area",
+  "screen",
+  "page",
 ];
-const end = (plan) => Math.max(0, ...plan.strokes.map((s) => s.at + s.duration));
+const end = (plan) =>
+  Math.max(0, ...plan.strokes.map((s) => s.at + s.duration));
 
 test("every taken kind has an effect and no effect is missing from the table", () => {
   for (const kind of KINDS) assert.ok(EFFECT_FOR[kind], kind);
@@ -27,7 +39,12 @@ test("every effect finishes within about 450 ms, and the cap is made of tokens",
 });
 
 test("text gets one crayon stroke per line, left to right, a few tens of ms apart", () => {
-  const lines = [0, 1, 2].map((i) => ({ x: 100, y: 100 + i * 20, width: 300 - i * 80, height: 20 }));
+  const lines = [0, 1, 2].map((i) => ({
+    x: 100,
+    y: 100 + i * 20,
+    width: 300 - i * 80,
+    height: 20,
+  }));
   const plan = effectPlan({ kind: "text", bounds, lines });
   assert.equal(plan.effect, "crayon-lines");
   const crayons = plan.strokes.filter((s) => s.role === "crayon");
@@ -38,15 +55,25 @@ test("text gets one crayon stroke per line, left to right, a few tens of ms apar
     assert.ok(xs[0] < xs[xs.length - 1], "left to right");
     assert.ok(Math.min(...xs) >= lines[i].x - 6);
     assert.ok(Math.max(...xs) <= lines[i].x + lines[i].width + 6);
-    for (const p of s.points) assert.ok(Math.abs(p.y - (lines[i].y + 10)) <= lines[i].height / 2 + 2);
+    for (const p of s.points)
+      assert.ok(Math.abs(p.y - (lines[i].y + 10)) <= lines[i].height / 2 + 2);
   }
   const gaps = [crayons[1].at - crayons[0].at, crayons[2].at - crayons[1].at];
   for (const gap of gaps) assert.ok(gap >= 20 && gap <= 60, `gap ${gap}`);
 });
 
 test("many lines are compressed to fit the cap, never skipped", () => {
-  const lines = Array.from({ length: 40 }, (_, i) => ({ x: 0, y: i * 20, width: 400, height: 20 }));
-  const plan = effectPlan({ kind: "text", bounds: { x: 0, y: 0, width: 400, height: 800 }, lines });
+  const lines = Array.from({ length: 40 }, (_, i) => ({
+    x: 0,
+    y: i * 20,
+    width: 400,
+    height: 20,
+  }));
+  const plan = effectPlan({
+    kind: "text",
+    bounds: { x: 0, y: 0, width: 400, height: 800 },
+    lines,
+  });
   assert.equal(plan.strokes.filter((s) => s.role === "crayon").length, 40);
   assert.ok(plan.total <= 450);
 });
@@ -68,13 +95,19 @@ test("an image loop closes on itself", () => {
   const plan = effectPlan({ kind: "image", bounds });
   assert.equal(plan.effect, "loop");
   const pts = plan.strokes[0].points;
-  const gap = Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y);
+  const gap = Math.hypot(
+    pts[0].x - pts[pts.length - 1].x,
+    pts[0].y - pts[pts.length - 1].y,
+  );
   assert.ok(gap < 14, `loop gap ${gap}`);
 });
 
 test("a table gets an outline and a sweep down its rows", () => {
   const plan = effectPlan({ kind: "table", bounds });
-  assert.deepEqual([...new Set(plan.strokes.map((s) => s.role))].sort(), ["outline", "sweep"]);
+  assert.deepEqual([...new Set(plan.strokes.map((s) => s.role))].sort(), [
+    "outline",
+    "sweep",
+  ]);
   const sweep = plan.strokes.find((s) => s.role === "sweep");
   assert.equal(sweep.direction, "down");
 });
@@ -85,7 +118,9 @@ test("code gets brackets on both sides", () => {
   assert.equal(brackets.length, 2);
   const [left, right] = brackets;
   assert.ok(Math.max(...left.points.map((p) => p.x)) <= bounds.x + 2);
-  assert.ok(Math.min(...right.points.map((p) => p.x)) >= bounds.x + bounds.width - 2);
+  assert.ok(
+    Math.min(...right.points.map((p) => p.x)) >= bounds.x + bounds.width - 2,
+  );
 });
 
 test("a formula gets a wavy underline and an outline", () => {
@@ -123,13 +158,20 @@ test("a section gets a crayon bracket down its left side", () => {
   const plan = effectPlan({ kind: "section", bounds });
   const b = plan.strokes.find((s) => s.role === "bracket");
   assert.ok(Math.max(...b.points.map((p) => p.x)) <= bounds.x + 2);
-  assert.ok(Math.max(...b.points.map((p) => p.y)) - Math.min(...b.points.map((p) => p.y)) >= bounds.height * 0.8);
+  assert.ok(
+    Math.max(...b.points.map((p) => p.y)) -
+      Math.min(...b.points.map((p) => p.y)) >=
+      bounds.height * 0.8,
+  );
 });
 
 test("a window, screen or page gets an outline along its edge", () => {
   for (const kind of ["window", "screen", "page", "area"]) {
     const plan = effectPlan({ kind, bounds });
-    assert.ok(plan.strokes.some((s) => s.role === "outline"), kind);
+    assert.ok(
+      plan.strokes.some((s) => s.role === "outline"),
+      kind,
+    );
   }
 });
 
@@ -154,7 +196,12 @@ test("strokes stay aligned at every scale: plans are in DIP and scale linearly",
   const k = 2;
   const scaled = effectPlan({
     kind: "table",
-    bounds: { x: bounds.x * k, y: bounds.y * k, width: bounds.width * k, height: bounds.height * k },
+    bounds: {
+      x: bounds.x * k,
+      y: bounds.y * k,
+      width: bounds.width * k,
+      height: bounds.height * k,
+    },
   });
   const box = (p) => {
     const xs = p.strokes.flatMap((s) => s.points.map((q) => q.x));

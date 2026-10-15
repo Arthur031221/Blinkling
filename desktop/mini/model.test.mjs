@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { createMini, LONG_CHARS, LONG_LINES } from "./model.mjs";
 
 const UUID = "00000000-0000-4000-8000-000000000001";
-const image = { id: "a1", name: "Selection.png", mediaType: "image/png", data: "AAAA" };
+const image = {
+  id: "a1",
+  name: "Selection.png",
+  mediaType: "image/png",
+  data: "AAAA",
+};
 const textFile = (text) => ({
   id: "t1",
   name: "Selection.txt",
@@ -13,7 +18,15 @@ const textFile = (text) => ({
 const entry = (id, kind, extra = {}) => ({ id, kind, ...extra });
 
 function host(overrides = {}) {
-  const log = { sent: [], opened: [], closed: [], paused: 0, resumed: 0, translated: 0, pdf: 0 };
+  const log = {
+    sent: [],
+    opened: [],
+    closed: [],
+    paused: 0,
+    resumed: 0,
+    translated: 0,
+    pdf: 0,
+  };
   return {
     log,
     send: async (turn) => void log.sent.push(turn),
@@ -44,25 +57,41 @@ const make = (options = {}) => {
 test("an image shows an image chip and the three quick-ask chips with the default highlighted", () => {
   const { mini } = make();
   const v = mini.view();
-  assert.deepEqual(v.entries.map((e) => e.type), ["image"]);
-  assert.deepEqual(v.chips.map((c) => [c.label, c.highlighted]), [
-    ["這是什麼", true],
-    ["翻譯", false],
-    ["重點", false],
-  ]);
+  assert.deepEqual(
+    v.entries.map((e) => e.type),
+    ["image"],
+  );
+  assert.deepEqual(
+    v.chips.map((c) => [c.label, c.highlighted]),
+    [
+      ["這是什麼", true],
+      ["翻譯", false],
+      ["重點", false],
+    ],
+  );
   assert.equal(v.placeholder, undefined);
 });
 
 test("text shows a text chip with its first words and length", () => {
-  const text = "Blink looks at your screen and explains what it sees to you quietly.";
+  const text =
+    "Blink looks at your screen and explains what it sees to you quietly.";
   const { mini } = make({
-    entries: [entry("t1", "text", { attachment: textFile(text), taken: { kind: "text", text } })],
+    entries: [
+      entry("t1", "text", {
+        attachment: textFile(text),
+        taken: { kind: "text", text },
+      }),
+    ],
   });
   const e = mini.view().entries[0];
   assert.equal(e.type, "text");
   assert.match(e.preview, /^Blink looks at your screen/);
   assert.equal(e.length, text.length);
-  assert.equal(mini.view().defaultId, "translate", "English text for a Chinese reader");
+  assert.equal(
+    mini.view().defaultId,
+    "translate",
+    "English text for a Chinese reader",
+  );
 });
 
 test("Enter with nothing typed sends the highlighted default as a quick ask", async () => {
@@ -103,12 +132,18 @@ test("removing a chip drops its attachment from the turn", async () => {
   const { mini, h } = make({
     entries: [
       entry("i1", "image", { attachment: image }),
-      entry("t1", "text", { attachment: textFile("hello there"), taken: { kind: "text", text: "hello there" } }),
+      entry("t1", "text", {
+        attachment: textFile("hello there"),
+        taken: { kind: "text", text: "hello there" },
+      }),
     ],
   });
   mini.remove("i1");
   await mini.submit({});
-  assert.deepEqual(h.log.sent[0].attachments.map((a) => a.mediaType), ["text/plain"]);
+  assert.deepEqual(
+    h.log.sent[0].attachments.map((a) => a.mediaType),
+    ["text/plain"],
+  );
 });
 
 test("with every chip removed it is a plain text box with no quick asks", async () => {
@@ -168,10 +203,19 @@ test("with auto explain off there is no pause line and nothing to resume", () =>
 });
 
 test("a page pick in a browser offers to translate the whole page without sending a turn", async () => {
-  const taken = { kind: "page", browser: true, text: "Hello world, this is a page." };
-  const { mini, h } = make({ entries: [entry("p1", "page", { attachment: textFile(taken.text), taken })] });
+  const taken = {
+    kind: "page",
+    browser: true,
+    text: "Hello world, this is a page.",
+  };
+  const { mini, h } = make({
+    entries: [entry("p1", "page", { attachment: textFile(taken.text), taken })],
+  });
   const offers = mini.view().offers;
-  assert.deepEqual(offers.map((o) => o.id), ["translate-page"]);
+  assert.deepEqual(
+    offers.map((o) => o.id),
+    ["translate-page"],
+  );
   await mini.offer("translate-page");
   assert.equal(h.log.translated, 1);
   assert.equal(h.log.sent.length, 0);
@@ -186,32 +230,62 @@ test("no translate offer without a host that can translate pages, or off a brows
   });
   assert.deepEqual(mini.view().offers, []);
   const other = make({
-    entries: [entry("p1", "page", { attachment: textFile("Hello"), taken: { kind: "page", text: "Hello" } })],
+    entries: [
+      entry("p1", "page", {
+        attachment: textFile("Hello"),
+        taken: { kind: "page", text: "Hello" },
+      }),
+    ],
   });
   assert.deepEqual(other.mini.view().offers, []);
 });
 
 test("a page with no text has nothing to translate, so only the PDF reader is offered", () => {
-  const taken = { kind: "page", browser: true, text: "  ", window: { pdf: true } };
+  const taken = {
+    kind: "page",
+    browser: true,
+    text: "  ",
+    window: { pdf: true },
+  };
   const once = { take: () => true, seen: () => false };
-  const { mini } = make({ once, entries: [entry("p1", "page", { attachment: image, taken })] });
-  assert.deepEqual(mini.view().offers.map((o) => o.id), ["pdf-reader"]);
+  const { mini } = make({
+    once,
+    entries: [entry("p1", "page", { attachment: image, taken })],
+  });
+  assert.deepEqual(
+    mini.view().offers.map((o) => o.id),
+    ["pdf-reader"],
+  );
 });
 
 test("a PDF viewer pick with no text offers the PDF reader once", async () => {
   const taken = { kind: "window", window: { pdf: true } };
   const seen = new Set();
-  const once = { take: (k) => (seen.has(k) ? false : (seen.add(k), true)), seen: (k) => seen.has(k) };
-  const first = make({ once, entries: [entry("w1", "window", { attachment: image, taken })] });
-  assert.deepEqual(first.mini.view().offers.map((o) => o.id), ["pdf-reader"]);
+  const once = {
+    take: (k) => (seen.has(k) ? false : (seen.add(k), true)),
+    seen: (k) => seen.has(k),
+  };
+  const first = make({
+    once,
+    entries: [entry("w1", "window", { attachment: image, taken })],
+  });
+  assert.deepEqual(
+    first.mini.view().offers.map((o) => o.id),
+    ["pdf-reader"],
+  );
   await first.mini.offer("pdf-reader");
   assert.equal(first.h.log.pdf, 1);
-  const second = make({ once, entries: [entry("w1", "window", { attachment: image, taken })] });
+  const second = make({
+    once,
+    entries: [entry("w1", "window", { attachment: image, taken })],
+  });
   assert.deepEqual(second.mini.view().offers, [], "only the first time");
 });
 
 test("a PDF pick that has text does not offer the reader", () => {
   const taken = { kind: "text", text: "real text", window: { pdf: true } };
-  const { mini } = make({ entries: [entry("t", "text", { attachment: textFile("real text"), taken })] });
+  const { mini } = make({
+    entries: [entry("t", "text", { attachment: textFile("real text"), taken })],
+  });
   assert.deepEqual(mini.view().offers, []);
 });

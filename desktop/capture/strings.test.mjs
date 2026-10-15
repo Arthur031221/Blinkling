@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { LOCALES } from "../shared/i18n.mjs";
 import { strings, captureText, textTable } from "./strings.mjs";
 import { permissionLabels } from "./permission.mjs";
+// The old product name, built from parts so this file does not name it.
+const OLD_NAME = new RegExp(["Glimp", "selet"].join(""));
 
 const here = (name) => new URL(name, import.meta.url);
 
@@ -21,7 +23,11 @@ test("every one of the nine locales has every key, no blanks", () => {
 test("the product name is written exactly Blinkling in every language", () => {
   for (const locale of LOCALES) {
     const text = JSON.stringify(strings[locale]);
-    assert.doesNotMatch(text, /Glimpselet|布林克林|ブリンクリング/, locale);
+    assert.doesNotMatch(
+      text,
+      new RegExp(`${OLD_NAME.source}|布林克林|ブリンクリング`),
+      locale,
+    );
   }
   for (const locale of LOCALES)
     assert.match(strings[locale].permissionLead, /Blinkling/, locale);

@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "Blinkling"
+  },
+  "extDescription": {
+    "message": "데스크톱 Blink를 위한 동반 확장: 지금 보고 있는 페이지의 내용을 Blink에 알려 줍니다."
+  },
+  "actionTitle": {
+    "message": "Blinkling 상태"
+  }
+}

@@ -30,7 +30,6 @@ test("older bubbles fade by opacity alone; the deck has no native scrollbar and 
     await reveal(app, bubble);
     const deck = bubble.locator(".gl-bubble-deck");
     const probe = await deck.evaluate((n) => {
-      const bubbles = [...n.querySelectorAll(".gl-answer-bubble")];
       const style = getComputedStyle(n);
       return {
         scrollbarWidth: style.scrollbarWidth,
