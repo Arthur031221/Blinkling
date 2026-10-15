@@ -29,6 +29,9 @@ jobs:
       - name: Test Linux desktop pixels and native input
         if: runner.os == 'Linux'
         run: xvfb-run -a -s '-screen 0 1280x800x24 +extension Composite' dbus-run-session -- bash desktop/e2e/linux.sh
+        env:
+          # The app's own output, so a stall on a runner names its step.
+          DEBUG: pw:browser
       - name: Native desktop smoke
         if: runner.os != 'Linux'
         run: npm run desktop:e2e

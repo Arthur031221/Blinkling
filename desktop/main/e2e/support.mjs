@@ -172,22 +172,48 @@ export async function launch(scale = 1, theme = "light", data = null) {
     },
   };
 }
+/** A screen grab that stalls on a loaded runner is tried once more, then fails
+ * by name rather than holding the whole test until its timeout. */
+async function bounded(task, label, ms = 20000) {
+  let timer;
+  try {
+    return await Promise.race([
+      task(),
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} stalled for ${ms} ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 export async function desktopShot(app, name) {
-  const base64 = await app.evaluate(async ({ desktopCapturer, screen }) => {
-    const id = globalThis.blinklingTest.snapshot().display.id;
-    const d = screen.getAllDisplays().find((d) => String(d.id) === id);
-    const sources = await desktopCapturer.getSources({
-      types: ["screen"],
-      thumbnailSize: {
-        width: Math.round(d.bounds.width * d.scaleFactor),
-        height: Math.round(d.bounds.height * d.scaleFactor),
-      },
+  const grab = () =>
+    app.evaluate(async ({ desktopCapturer, screen }) => {
+      const id = globalThis.blinklingTest.snapshot().display.id;
+      const d = screen.getAllDisplays().find((d) => String(d.id) === id);
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: {
+          width: Math.round(d.bounds.width * d.scaleFactor),
+          height: Math.round(d.bounds.height * d.scaleFactor),
+        },
+      });
+      return sources
+        .find((s) => s.display_id === id)
+        .thumbnail.toPNG()
+        .toString("base64");
     });
-    return sources
-      .find((s) => s.display_id === id)
-      .thumbnail.toPNG()
-      .toString("base64");
-  });
+  let base64;
+  try {
+    base64 = await bounded(grab, `screen grab ${name}`);
+  } catch (error) {
+    if (!/stalled/.test(error.message)) throw error;
+    base64 = await bounded(grab, `screen grab ${name} (second try)`);
+  }
   const bytes = Buffer.from(base64, "base64");
   await writeFile(join(report, name + ".png"), bytes);
   return PNG.sync.read(bytes);
