@@ -32,6 +32,16 @@ const composerState = (app) =>
     const c = globalThis.blinklingTest.composer;
     return { visible: !!c && c.isVisible(), focused: !!c && c.isFocused() };
   });
+/** The mini composer, which a plain click on Blink opens, is on screen and has the keyboard. */
+const miniState = (app) =>
+  app.evaluate(({ BrowserWindow }) => {
+    const mini = BrowserWindow.getAllWindows().find((w) =>
+      /\/mini\/index\.html$/.test(w.webContents.getURL()),
+    );
+    return Boolean(mini?.isVisible() && mini.isFocused());
+  });
+const miniPage = (app) =>
+  app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
 const nativeId = (app, name) =>
   app.evaluate(
     (_electron, name) =>
@@ -54,9 +64,11 @@ function rootStack() {
 }
 async function openCard(app, page) {
   // The card window is created once and then reused.
-  const created = cardPage(app) ? null : app.waitForEvent("window");
-  await clickBlink(page);
-  await created;
+  // A click on Blink while it waits on a permission request opens the full
+  // card; a plain click opens the mini composer (N5.1).
+  await page.evaluate(() =>
+    window.blinkling.shell({ type: "click", permission: true }),
+  );
   await expect.poll(() => !!cardPage(app)).toBe(true);
   const card = cardPage(app);
   await expect(card.getByRole("textbox", { name: "輸入問題" })).toBeVisible();
@@ -204,9 +216,7 @@ test("with bubbles present Blink stays above the deck and every menu bubble is c
     await reveal(page);
     await page.waitForTimeout(500);
     await clickBlink(page);
-    await expect
-      .poll(() => composerState(app).then((s) => s.visible))
-      .toBe(true);
+    await expect.poll(() => miniState(app)).toBe(true);
   } finally {
     await app.close();
   }
@@ -295,18 +305,14 @@ test("the card stays open while typing, holding a chip or a dialog, and still cl
   }
 });
 
-test("after a region capture the card and its text box have focus and typing lands in the draft", async () => {
+test("after an area capture the mini composer and its text box have focus and typing lands in the draft", async () => {
   test.setTimeout(90000);
   const { app, page } = await launch();
   try {
     await background(app);
-    // Started in the main process and polled, so the pending call does not hold the page evaluation open.
-    await app.evaluate(() => {
-      const t = globalThis.blinklingTest;
-      globalThis.regionCapture = t.features.capture
-        .region(String(t.snapshot().display.id))
-        .then((capture) => ({ done: !!capture }));
-    });
+    // The overlay windows exist from the start and are shown on demand. The
+    // capture call answers only when the capture ends, so it is not awaited.
+    await page.evaluate(() => void window.blinkling.action("capture"));
     let selector;
     await expect
       .poll(
@@ -326,39 +332,32 @@ test("after a region capture the card and its text box have focus and typing lan
     await selector.mouse.move(400, 200);
     await selector.mouse.down();
     await selector.mouse.move(520, 290, { steps: 12 });
+    // Releasing the drag takes the area; the shot flies into Blink.
     await selector.mouse.up();
-    key(0xff0d);
-    await expect
-      .poll(() =>
-        app.evaluate(() => globalThis.regionCapture.then((r) => r.done)),
-      )
-      .toBe(true);
-    const card = await (async () => {
-      await expect.poll(() => !!cardPage(app)).toBe(true);
-      return cardPage(app);
+    const mini = await (async () => {
+      await expect
+        .poll(() => miniPage(app)?.locator(".mini-entry-image").count())
+        .toBe(1);
+      return miniPage(app);
     })();
-    await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
-    await expect
-      .poll(() => composerState(app).then((s) => s.focused))
-      .toBe(true);
+    await expect.poll(() => miniState(app)).toBe(true);
     expect(
-      await card.evaluate(
+      await mini.evaluate(
         () =>
           document.hasFocus() &&
-          document.activeElement === document.querySelector("textarea"),
+          document.activeElement === document.querySelector(".mini-input"),
       ),
     ).toBe(true);
     // Real keyboard events through the X server, not Playwright's injection.
     keys("typed after capture");
-    await expect(card.getByRole("textbox", { name: "輸入問題" })).toHaveValue(
+    await expect(mini.locator(".mini-input")).toHaveValue(
       "typed after capture",
     );
-    await shot(app, "card-after-capture");
-    // The chip keeps the card open after the pointer leaves, with no draft needed.
-    await card.getByRole("textbox", { name: "輸入問題" }).fill("");
+    await shot(app, "mini-after-capture");
+    // The capture stays in the mini composer after the pointer leaves.
     click(40, 40);
-    await page.waitForTimeout(3600);
-    expect((await composerState(app)).visible).toBe(true);
+    await page.waitForTimeout(1500);
+    await expect(mini.locator(".mini-entry-image")).toHaveCount(1);
   } finally {
     await app.close();
   }

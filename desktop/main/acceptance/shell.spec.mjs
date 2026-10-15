@@ -2,8 +2,15 @@ import { test, expect } from "@playwright/test";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
-import { launch, native, move, click, report } from "./support.mjs";
+import { launch, native, move, click, key, report } from "./support.mjs";
 import { reveal, clickBlink, background, shot, rgb } from "./helpers.mjs";
+
+const cardWindow = (app) =>
+  app.windows().find((p) => p.url().includes("surface=card"));
+const openCard = (page) =>
+  page.evaluate(() =>
+    window.blinkling.shell({ type: "click", permission: true }),
+  );
 test("registered services receive native menu actions and auto switch reflects the applied result", async () => {
   const { app, page } = await launch();
   try {
@@ -90,12 +97,18 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     const focusBefore = await app.evaluate(() => globalThis.bg.isFocused());
     expect(focusBefore).toBe(true);
     click(b.x + active.anchor.x - 18, b.y + active.anchor.y + 10);
-    await expect
-      .poll(() =>
-        app.evaluate(() => globalThis.blinklingTest.snapshot().chatOpen),
-      )
-      .toBe(true);
-    await page.evaluate(() => window.blinkling.shell({ type: "close-chat" }));
+    // A click on Blink opens the mini composer, which holds the keyboard; Escape
+    // gives it back to the application that had it.
+    const miniFocused = () =>
+      app.evaluate(({ BrowserWindow }) => {
+        const mini = BrowserWindow.getAllWindows().find((w) =>
+          /\/mini\/index\.html$/.test(w.webContents.getURL()),
+        );
+        return Boolean(mini?.isVisible() && mini.isFocused());
+      });
+    await expect.poll(miniFocused).toBe(true);
+    key(0xff1b);
+    await expect.poll(miniFocused).toBe(false);
     await expect
       .poll(() => app.evaluate(() => globalThis.bg.isFocused()))
       .toBe(true);
@@ -502,10 +515,11 @@ test("rounded card opens by intent, pin holds it, unpin dismisses and restores a
     await reveal(page);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     await page.waitForTimeout(650);
-    const opening = app.waitForEvent("window");
-    await clickBlink(page);
-    const cardPage = await opening;
-    await cardPage.waitForURL("**/composer/index.html?surface=card");
+    // A click on Blink while it waits on a permission request opens the full
+    // card; any other click opens the mini composer.
+    await openCard(page);
+    await expect.poll(() => cardWindow(app)).toBeTruthy();
+    const cardPage = cardWindow(app);
     await expect(
       cardPage.getByRole("textbox", { name: "輸入問題" }),
     ).toBeVisible();
@@ -562,9 +576,7 @@ test("rounded card opens by intent, pin holds it, unpin dismisses and restores a
       )
       .toBe(false);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
-    await page.evaluate(() =>
-      window.blinkling.shell({ type: "click", permission: false }),
-    );
+    await openCard(page);
     await cardPage.getByRole("button", { name: "收起" }).click();
     await page.waitForTimeout(300);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
@@ -609,12 +621,9 @@ for (const scale of [1, 1.5, 2])
           ).toBe(true);
         }
         await shot(app, `menu-${scale * 100}-${theme}`);
-        await page.evaluate(() =>
-          window.blinkling.shell({ type: "click", permission: false }),
-        );
-        const cardPage = app
-          .windows()
-          .find((p) => p.url().includes("surface=card"));
+        await openCard(page);
+        await expect.poll(() => cardWindow(app)).toBeTruthy();
+        const cardPage = cardWindow(app);
         await cardPage.emulateMedia({ colorScheme: theme });
         await cardPage.waitForTimeout(350);
         await expect
