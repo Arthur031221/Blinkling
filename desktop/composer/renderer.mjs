@@ -1,7 +1,21 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
 import { anchorOf, growOrigin } from "./origin.mjs";
 import { captureNotice } from "../capture/full-page.mjs";
+import { pickLocale, translator } from "../shared/i18n.mjs";
+import { cssVariables } from "../shared/motion.mjs";
+import { strings } from "./strings.mjs";
+import { followShellTheme } from "./theme.mjs";
 const api = window.blinkling;
+const locale = pickLocale(navigator.languages);
+const tr = translator(strings, locale);
+document.documentElement.lang = locale;
+// The motion tokens reach the stylesheet as custom properties (CSSOM, so the
+// page's CSP stays free of inline styles).
+for (const declaration of cssVariables().split(";")) {
+  const [name, value] = declaration.split(/:(.*)/s).map((part) => part?.trim());
+  if (name && value) document.documentElement.style.setProperty(name, value);
+}
+followShellTheme();
 const configuration = await api.configuration();
 document.body.dataset.surface = configuration.surface ?? "card";
 if (configuration.theme)
@@ -69,15 +83,9 @@ const unSurface = api.onSurface?.((event) => {
   if (event.type === "display") conversation.store.leaveDisplay();
   if (event.type === "menu") conversation.bubbles?.avoid(event.rect);
   if (event.type === "open") {
+    if (event.seed) conversation.seed(event.seed);
     conversation.card?.open(event.messageId);
     placeOrigin();
-  }
-  if (event.type === "view" && conversation.card) {
-    notice.hidden = false;
-    notice.textContent =
-      event.view === "help"
-        ? "滑過 Blink 打開動作。拖曳 Blink 到螢幕邊緣。Shift 或 Ctrl+Shift+S 選取區域。"
-        : "釘選讓對話保持開啟。拖曳 Blink 會記住每個螢幕的位置。";
   }
   if (event.type === "close") conversation.card?.close();
 });
@@ -118,9 +126,9 @@ const button = (label, action, enabled = true) => {
 const unEvent = api.onEvent((event) => {
   if (event.type === "companion-required") {
     notice.replaceChildren(
-      "整頁截圖需要瀏覽器小幫手。",
-      button("安裝說明", "companion-guide"),
-      button("截取畫面", "screen"),
+      tr("companion-required"),
+      button(tr("companion-guide"), "companion-guide"),
+      button(tr("capture-screen"), "screen"),
     );
     notice.hidden = false;
   }
@@ -129,7 +137,7 @@ const unEvent = api.onEvent((event) => {
     guide.hidden = event.phase === "dismissed";
     notice.hidden = true;
     for (const text of event.bubbles ??
-      (event.phase === "thinking" ? ["正在看這個畫面…"] : [])) {
+      (event.phase === "thinking" ? [tr("guide-thinking")] : [])) {
       const bubble = document.createElement("p");
       bubble.className = "gl-answer-bubble";
       bubble.textContent = text;
@@ -137,21 +145,25 @@ const unEvent = api.onEvent((event) => {
     }
     if (["overview", "step"].includes(event.phase))
       guide.append(
-        button("上一步", "guide-back", event.canBack),
-        button(event.last ? "完成" : "下一步", "guide-next", event.canNext),
-        button("總覽", "guide-overview"),
-        button("結束導覽", "guide-dismiss"),
+        button(tr("guide-back"), "guide-back", event.canBack),
+        button(
+          tr(event.last ? "guide-done" : "guide-next"),
+          "guide-next",
+          event.canNext,
+        ),
+        button(tr("guide-overview"), "guide-overview"),
+        button(tr("guide-dismiss"), "guide-dismiss"),
       );
     if (event.phase === "finished")
       guide.append(
-        button("上一步", "guide-back", event.canBack),
-        button("總覽", "guide-overview"),
-        button("結束導覽", "guide-dismiss"),
+        button(tr("guide-back"), "guide-back", event.canBack),
+        button(tr("guide-overview"), "guide-overview"),
+        button(tr("guide-dismiss"), "guide-dismiss"),
       );
     if (event.phase === "error")
       guide.append(
-        button("再試一次", "guide-retry"),
-        button("關閉", "guide-dismiss"),
+        button(tr("guide-retry"), "guide-retry"),
+        button(tr("guide-close"), "guide-dismiss"),
       );
   }
   const change = captureNotice(event);
@@ -206,7 +218,9 @@ if (configuration.surface === "bubbles") {
   shapes();
 } else {
   addEventListener("keydown", (event) => {
-    if (event.key === "Escape") conversation.card.close();
+    // One Escape closes one thing: an open list first, then the card.
+    if (event.key === "Escape" && !event.isComposing)
+      conversation.card.escape();
   });
 }
 window.conversation = conversation;

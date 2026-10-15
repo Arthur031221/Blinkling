@@ -66,7 +66,7 @@ test("session admission rejects invalid PDF, UTF-8, base64 and overlong text", (
     });
   assert.throws(() => send("application/pdf", "aGVsbG8="), /Invalid PDF/);
   assert.throws(() => send("text/plain", "//8="), /encoded data/);
-  assert.throws(() => send("image/png", "a=AA"), /無法讀取/);
+  assert.throws(() => send("image/png", "a=AA"), /cannot be read/);
   assert.throws(
     () =>
       send("text/plain", Buffer.from("x".repeat(200001)).toString("base64")),
@@ -216,7 +216,7 @@ test("BLINKLING_REMOTE selects off, the one disposable test session, or the defa
   });
 });
 
-test("the old GLIMPSELET_REMOTE name still switches Remote Control off", () => {
+test("GLIMPSELET_REMOTE is the fallback for BLINKLING_REMOTE, which wins when both are set", () => {
   assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
   assert.equal(remoteMode({ GLIMPSELET_REMOTE: "test" }), "test");
   assert.equal(
@@ -228,4 +228,12 @@ test("the old GLIMPSELET_REMOTE name still switches Remote Control off", () => {
     "on",
   );
   assert.equal(remoteMode({ BLINKLING_E2E: "1" }), "off");
+  assert.equal(
+    remoteMode({ GLIMPSELET_REMOTE: "1", BLINKLING_REMOTE: "0" }),
+    "off",
+  );
+  assert.equal(
+    remoteMode({ BLINKLING_E2E: "1", GLIMPSELET_REMOTE: "test" }),
+    "test",
+  );
 });

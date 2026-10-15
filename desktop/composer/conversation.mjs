@@ -70,6 +70,14 @@ export function mountConversation({
     card,
     bubbles,
     capture: (value) => (card ? card.capture(value) : composer.capture(value)),
+    /** Carry the mini composer's text and chips into the card. */
+    seed(value) {
+      try {
+        composer.seed(value);
+      } catch (e) {
+        composer.error(e.code ?? "unreadable");
+      }
+    },
     hover: (value) => store.hover(value),
     dispose() {
       unsubscribe();

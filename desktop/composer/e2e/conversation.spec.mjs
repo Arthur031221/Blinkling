@@ -109,19 +109,19 @@ test("plus, paste, drop, remove, text files and acknowledged picker rejection", 
     ]);
     await options.getByRole("option", { name: "Sonnet" }).click();
     // The selection is only shown once Claude confirms it.
-    await expect(modelPicker).toHaveAttribute("aria-label", "模型：Haiku");
-    await expect(modelPicker).toHaveAttribute("aria-label", "模型：Sonnet 5.5");
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型: Haiku");
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型: Sonnet 5.5");
     await effortPicker.click();
     await card
       .getByRole("listbox", { name: "思考程度" })
-      .getByRole("option", { name: "High" })
+      .getByRole("option", { name: "高", exact: true })
       .click();
-    await expect(effortPicker).toHaveAttribute("aria-label", "思考程度：High");
+    await expect(effortPicker).toHaveAttribute("aria-label", "思考程度: 高");
     await modelPicker.click();
     await options.getByRole("option", { name: "Opus" }).click();
     await expect(card.getByRole("alert")).toBeVisible();
-    await expect(modelPicker).toHaveAttribute("aria-label", "模型：Sonnet 5.5");
-    await expect(effortPicker).toHaveAttribute("aria-label", "思考程度：High");
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型: Sonnet 5.5");
+    await expect(effortPicker).toHaveAttribute("aria-label", "思考程度: 高");
     expect(await bounds(card)).toEqual([]);
   } finally {
     await app.close();

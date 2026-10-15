@@ -248,6 +248,9 @@ test("native drag squishes, snaps and persists; pin/chat focus is intentional an
     await c.page.evaluate(() => window.blinkling.action("chat"));
     const chat2 = c.app.windows().find((p) => p.url().includes("surface=card"));
     await expect(chat2.locator(".gl-input")).toBeFocused();
+    // The card holds on to the keyboard for its first moments (the window
+    // manager may hand it elsewhere); a click after that is the user's choice.
+    await c.page.waitForTimeout(400);
     const pointer = native(800, 200, "click");
     await c.page.waitForTimeout(2100);
     await desktopShot(c.app, "outside-card-click");
@@ -489,7 +492,7 @@ test("native menu routing and measured stagger/reverse motion", async () => {
         .find((p) => p.url().includes("surface=card"));
       await expect(chat.locator(".gl-input")).toBeFocused();
       if (action === "settings" || action === "help")
-        await expect(chat.locator(".gl-notice")).not.toBeEmpty();
+        await expect(chat.locator(".gl-notice")).toBeHidden();
       if (action === "screen")
         await expect(chat.locator(".gl-attachment-chip img")).toHaveCount(1);
       await chat.keyboard.press("Escape");
@@ -591,7 +594,7 @@ for (const scale of [1, 1.5, 2])
             (cardBounds.x + 30) * scale,
             (cardBounds.y + 90) * scale,
           ),
-        ).toEqual(theme === "light" ? [250, 248, 243] : [38, 39, 37]);
+        ).toEqual(theme === "light" ? [250, 248, 243] : [34, 39, 35]);
         const capture = await c.app.evaluate(() =>
           globalThis.blinklingTest.capture(),
         );

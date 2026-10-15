@@ -27,10 +27,10 @@ The narrow preload adapter in `renderer.mjs` expects:
 | `stop()`                                     | Bridge interrupt; `done` releases the busy state.                                                                                                     |
 | `onEvent(listener)`                          | Subscribe to normalized `SessionEvent`; return unsubscribe. Replay history in order when rebuilding a surface.                                        |
 | `onCapture(listener)`                        | Forward the `Capture` object or its image attachment after capture confirmation; optional `text: Attachment` adds the removable window-text chip.     |
-| `onSurface(listener)`                        | `{type:'hover',value}`, `{type:'open',messageId?}`, or `{type:'close'}`. Hover from Blink revives the answer deck.                                    |
+| `onSurface(listener)`                        | `{type:'hover',value}`, `{type:'open',messageId?,seed?}`, or `{type:'close'}`. Hover from Blink revives the answer deck.                              |
 | `activity({visible,speaking})`               | Drive Blink's mouth and native answer visibility/peek policy; choose the active surface in the shell.                                                 |
 | `pin(boolean)`, `close()`, `typing(boolean)` | Shell pin/return-to-peek, native card close/focus restoration, and auto-explain typing pause.                                                         |
-| `hold({chips,dialog})`                       | Tell the shell a pending attachment chip or an open file dialog must keep the card open when the pointer leaves.                                      |
+| `hold({chips,dialog,pointer?})`              | Tell the shell a pending attachment chip or an open file dialog must keep the card open when the pointer leaves.                                      |
 | `openChat(messageId)`                        | Open the focusable full card at the selected answer.                                                                                                  |
 | `openLink(url)`                              | Validate the URL in main before opening it externally.                                                                                                |
 
@@ -42,6 +42,31 @@ Pass capture errors to the shell, not to the assistant transcript. Connection
 events affect only the small status dot. Shell geometry/hit regions must keep
 the card/deck within the target display's DIP work area, leave transparent space
 click-through, and hide both surfaces during native capture.
+
+## The card
+
+- **Keyboard.** `openComposer({ focus = true, seed } = {})` in the shell gives
+  the card the keyboard and keeps asking for a short settle period
+  (`claimFocus` in `main/card-hold.mjs`), because a window manager may hand it
+  back to the window that was active. Esc, X and an unpinned send return it to
+  the previous application. A click elsewhere after the settle period wins.
+- **Seed.** `seed = { conversationId, draft, attachments }` is the mini
+  composer's text and chips (picked regions are attachments). The shell checks
+  it with `validSeed`; the card applies it with `composer.seed`, replacing the
+  draft and chips in one step.
+- **What keeps it open.** Focus, a draft, a pending chip, an open file dialog
+  and the pointer on the card all hold it against a leave. Unpinning never
+  closes it directly; the shell decides with the same rule.
+- **Esc** closes the topmost thing: an open model or effort list, then the
+  card.
+- **Strings** are in `strings.mjs` (nine locales, English fallback) and follow
+  the system language; errors carry codes that the card translates. Model names
+  come from one function, `modelLabel` in `models.mjs`; efforts are low,
+  medium, high, xhigh and max.
+- **The dot** is shown only while the connection is retrying, blocked or
+  disconnected.
+- **Chips** are tiles at least 48 px tall that wrap onto at most two rows at the
+  narrowest card; there is no inner scroll.
 
 `attachmentContent()` is the main/session-side encoder: PNG/JPEG/WebP/GIF become
 image blocks with actual base64; PDF becomes a base64 document; UTF-8 TXT/MD/CSV/
@@ -70,6 +95,11 @@ npm run desktop:test
 xvfb-run -a -s '-screen 0 1920x1440x24 +extension Composite' \
   dbus-run-session -- bash -c 'xfwm4 --compositor=on >/tmp/blinkling-conversation-wm.log 2>&1 & wm=$!; trap "kill $wm" EXIT; sleep 2; npx playwright test -c desktop/composer/e2e/playwright.config.mjs'
 ```
+
+The display must be at least 1600x1000: at 200% a smaller one leaves a card too
+short for two rows of chip tiles, and the chip layout test says so by failing.
+The suite also needs a compositing window manager; without one the transparent
+corner checks fail.
 
 The normal suite has zero retries and needs no Claude account. It loads the
 production renderer in actual transparent Electron windows, with a deterministic

@@ -5,6 +5,7 @@ import {
   attachmentBytes,
   validateAttachment,
   attachmentLimits,
+  validSeed,
 } from "./index.mjs";
 const image = {
   id: "image",
@@ -99,7 +100,9 @@ test("selection and turn admission serialize, displaying only acknowledged appli
   assert.equal(c.state().selection.model, "claude-sonnet-5-5");
   assert.equal(bridge.turns.length, 1);
   assert.equal(calls.length, 1);
-  await assert.rejects(c.select({ model: "haiku", effort: "low" }), /回答/);
+  await assert.rejects(c.select({ model: "haiku", effort: "low" }), {
+    code: "busy",
+  });
   c.dispose();
 });
 
@@ -123,7 +126,7 @@ test("failed selection keeps confirmed values and rejected send retains draft an
   assert.equal(c.state().draft, "Keep this");
   assert.deepEqual(c.state().attachments, [image]);
   assert.equal(c.state().busy, false);
-  assert.equal(c.state().error, "傳送失敗，內容已保留，請再試一次");
+  assert.equal(c.state().error, "send-failed");
   c.dispose();
 });
 
@@ -138,7 +141,7 @@ test("stop interrupts without admitting another paid turn until done", async () 
   await c.stop();
   assert.equal(stopped, 1);
   assert.equal(c.state().busy, true);
-  await assert.rejects(c.send("again"), /回答/);
+  await assert.rejects(c.send("again"), { code: "busy" });
   bridge.emit({ type: "done", turnId: bridge.turns[0].id });
   await c.send("again");
   assert.equal(bridge.turns.length, 2);
@@ -148,11 +151,13 @@ test("stop interrupts without admitting another paid turn until done", async () 
 test("attachment validation bounds images, files, count and prevents silent dropped files", () => {
   const c = createComposer({ maxAttachments: 1 });
   c.attach(image);
-  assert.throws(() => c.attach({ ...image, id: "two" }), /附件/);
+  assert.throws(() => c.attach({ ...image, id: "two" }), {
+    code: "too-many-files",
+  });
   c.remove(image.id);
   assert.throws(
     () => c.attach({ ...image, mediaType: "application/x-msdownload" }),
-    /格式/,
+    { code: "unsupported-file" },
   );
   c.attach({ ...image, mediaType: "application/pdf", name: "paper.pdf" });
   assert.equal(c.turn("t", "Read").attachments[0].mediaType, "application/pdf");
@@ -189,7 +194,9 @@ test("remote answer activity disables selection and enables stop", async () => {
   const c = createComposer({ session: bridge });
   bridge.emit({ type: "delta", id: "remote", text: "Hi" });
   assert.equal(c.state().busy, true);
-  await assert.rejects(c.select({ model: "sonnet", effort: "high" }), /回答/);
+  await assert.rejects(c.select({ model: "sonnet", effort: "high" }), {
+    code: "busy",
+  });
   await c.stop();
   assert.equal(interrupted, 1);
   bridge.emit({ type: "done", turnId: "remote" });
@@ -208,6 +215,90 @@ test("attachment byte limits use decoded bytes including base64 padding", () => 
         ...image,
         data: Buffer.alloc(attachmentLimits.bytes + 1).toString("base64"),
       }),
-    /太大/,
+    { code: "too-large" },
+  );
+});
+
+test("failures carry a code the view translates, never display text", async () => {
+  const bridge = session();
+  const c = createComposer({ session: bridge });
+  await assert.rejects(c.send("  "), { code: "empty" });
+  const offline = createComposer({});
+  await assert.rejects(offline.send("hi"), { code: "connecting" });
+  await assert.rejects(offline.select({ model: "haiku", effort: "low" }), {
+    code: "connecting",
+  });
+  bridge.select = async () => ({ model: "haiku", effort: "turbo" });
+  const unconfirmed = createComposer({ session: bridge });
+  await assert.rejects(unconfirmed.select({ model: "haiku", effort: "low" }));
+  assert.equal(unconfirmed.state().error, "switch-failed");
+  bridge.stop = async () => {
+    throw Error("down");
+  };
+  await c.send("hi");
+  await assert.rejects(c.stop());
+  assert.equal(c.state().error, "stop-failed");
+  const total = createComposer({});
+  const big = Buffer.alloc(attachmentLimits.bytes).toString("base64");
+  total.attach({ ...image, id: "a", data: big });
+  assert.throws(() => total.attach({ ...image, id: "b", data: big }), {
+    code: "total-too-large",
+  });
+  assert.throws(() => validateAttachment({ ...image, data: "@@@@" }), {
+    code: "unreadable",
+  });
+  for (const c of [offline, unconfirmed, total]) c.dispose();
+});
+
+test("seed replaces the draft and chips together, and a bad seed changes nothing", () => {
+  const c = createComposer({ session: session() });
+  c.draft("old");
+  c.attach(image);
+  const second = { ...image, id: "second", name: "two.png" };
+  c.seed({ draft: "what is this?", attachments: [second] });
+  assert.equal(c.state().draft, "what is this?");
+  assert.deepEqual(c.state().attachments, [second]);
+  assert.throws(
+    () =>
+      c.seed({ draft: "lost", attachments: [{ ...image, mediaType: "x/y" }] }),
+    { code: "unsupported-file" },
+  );
+  assert.equal(c.state().draft, "what is this?");
+  assert.deepEqual(c.state().attachments, [second]);
+  c.seed({});
+  assert.deepEqual([c.state().draft, c.state().attachments], ["", []]);
+});
+
+test("a seed is checked before it reaches the card", () => {
+  assert.deepEqual(
+    validSeed({ conversationId: "c1", draft: "hi", attachments: [image] }),
+    {
+      conversationId: "c1",
+      draft: "hi",
+      attachments: [image],
+    },
+  );
+  assert.deepEqual(validSeed({}), { draft: "", attachments: [] });
+  for (const bad of [
+    null,
+    "x",
+    [],
+    { draft: 3 },
+    { conversationId: 7 },
+    { attachments: "x" },
+  ])
+    assert.throws(() => validSeed(bad), { code: "unreadable" });
+  assert.throws(() => validSeed({ attachments: [{ ...image, id: "" }] }), {
+    code: "unsupported-file",
+  });
+  assert.throws(
+    () =>
+      validSeed({
+        attachments: Array.from(
+          { length: attachmentLimits.count + 1 },
+          () => image,
+        ),
+      }),
+    { code: "too-many-files" },
   );
 });

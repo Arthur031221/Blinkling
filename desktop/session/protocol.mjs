@@ -66,16 +66,16 @@ export function launchArguments({
         : []),
   ];
 }
-/** BLINKLING_REMOTE (old name GLIMPSELET_REMOTE): unset or 1 syncs to Remote
- * Control (the default), 0 never asks for it, test asks for one disposable
- * "Blinkling test" session. */
+/** BLINKLING_REMOTE: unset or 1 syncs to Remote Control (the default), 0 never
+ * asks for it, test asks for one disposable "Blinkling test" session. The
+ * pre-rename GLIMPSELET_REMOTE is honoured when BLINKLING_REMOTE is unset. */
 export function remoteMode(env = process.env) {
-  const setting = env.BLINKLING_REMOTE ?? env.GLIMPSELET_REMOTE;
-  if (setting === "0") return "off";
-  if (setting === "test") return "test";
+  const value = env.BLINKLING_REMOTE ?? env.GLIMPSELET_REMOTE;
+  if (value === "0") return "off";
+  if (value === "test") return "test";
   // A live automated run must opt in to Remote Control explicitly.
   if (
-    setting === undefined &&
+    value === undefined &&
     (env.BLINKLING_LIVE === "1" || env.BLINKLING_E2E === "1")
   )
     return "off";

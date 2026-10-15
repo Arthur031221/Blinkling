@@ -118,6 +118,7 @@ export async function launch(scale = 1, theme = "light", data = null) {
         : [fileURLToPath(new URL("../..", import.meta.url))]),
       "--no-sandbox",
       `--force-device-scale-factor=${scale}`,
+      "--lang=zh-TW",
     ],
     ...(process.env.BLINKLING_TEST_EXECUTABLE
       ? { executablePath: process.env.BLINKLING_TEST_EXECUTABLE }

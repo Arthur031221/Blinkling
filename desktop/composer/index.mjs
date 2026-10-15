@@ -1,3 +1,4 @@
+import { efforts } from "./models.mjs";
 const imageTypes = new Set([
   "image/png",
   "image/jpeg",
@@ -11,6 +12,22 @@ const fileTypes = new Set([
   "text/csv",
   "application/json",
 ]);
+/** A failure the user can be told about. `code` names a key in strings.mjs
+ * (`error-<code>`), so the view translates it and no display text lives here. */
+/** Failures carry a code the card translates. The message is for logs and the
+ * session layer, never shown to the user. */
+const reasons = {
+  "unsupported-file": "Unsupported attachment type",
+  "too-large": "Attachment is larger than 20 MB",
+  unreadable: "Attachment cannot be read",
+  "too-many-files": "Too many attachments (8 at most)",
+  "total-too-large": "Attachments are larger than 32 MB together",
+  busy: "The previous answer is not finished",
+  connecting: "Not connected to Claude Code yet",
+  empty: "Nothing to send",
+};
+export const failure = (code) =>
+  Object.assign(new Error(reasons[code] ?? code), { code });
 export const attachmentLimits = Object.freeze({
   bytes: 20 * 1024 * 1024,
   totalBytes: 32 * 1024 * 1024,
@@ -28,28 +45,49 @@ export function validateAttachment(a) {
     a.name.length > 512 ||
     ![...imageTypes, ...fileTypes].includes(a.mediaType)
   )
-    throw new Error("不支援這個檔案格式");
+    throw failure("unsupported-file");
   if (
     typeof a.data !== "string" ||
     a.data.length > Math.ceil(attachmentLimits.bytes / 3) * 4
   )
-    throw new Error("附件太大，請選擇 20 MB 以下的檔案");
+    throw failure("too-large");
   if (
     a.data.length % 4 !== 0 ||
     /[^A-Za-z0-9+/]/.test(a.data.replace(/={1,2}$/, "")) ||
     !a.data.length
   )
-    throw new Error("無法讀取附件");
-  if (attachmentBytes(a) > attachmentLimits.bytes)
-    throw new Error("附件太大，請選擇 20 MB 以下的檔案");
+    throw failure("unreadable");
+  if (attachmentBytes(a) > attachmentLimits.bytes) throw failure("too-large");
   return structuredClone(a);
+}
+/** What the mini composer hands the card when it grows: the conversation, its
+ * unsent text and the chips (the picked regions). Checked in the main process
+ * before it reaches the card, and again by the card as it applies it. */
+export function validSeed(seed) {
+  if (!seed || typeof seed !== "object" || Array.isArray(seed))
+    throw failure("unreadable");
+  const { conversationId, draft = "", attachments = [] } = seed;
+  if (
+    (conversationId !== undefined &&
+      (typeof conversationId !== "string" || conversationId.length > 200)) ||
+    typeof draft !== "string" ||
+    draft.length > 100000 ||
+    !Array.isArray(attachments)
+  )
+    throw failure("unreadable");
+  if (attachments.length > attachmentLimits.count)
+    throw failure("too-many-files");
+  return {
+    ...(conversationId !== undefined && { conversationId }),
+    draft,
+    attachments: attachments.map(validateAttachment),
+  };
 }
 export async function readAttachment(
   file,
   { id = () => globalThis.crypto.randomUUID() } = {},
 ) {
-  if (file.size > attachmentLimits.bytes)
-    throw new Error("附件太大，請選擇 20 MB 以下的檔案");
+  if (file.size > attachmentLimits.bytes) throw failure("too-large");
   const extension = file.name?.split(".").at(-1)?.toLowerCase();
   const inferred =
     !file.type || file.type === "application/octet-stream"
@@ -67,11 +105,11 @@ export async function readAttachment(
         }[extension] ?? "")
       : file.type;
   if (!imageTypes.has(inferred) && !fileTypes.has(inferred))
-    throw new Error("不支援這個檔案格式");
+    throw failure("unsupported-file");
   const data = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(",")[1]);
-    reader.onerror = () => reject(Error("無法讀取附件"));
+    reader.onerror = () => reject(failure("unreadable"));
     reader.readAsDataURL(file);
   });
   return validateAttachment({
@@ -142,12 +180,12 @@ export function createComposer({
       const a = validateAttachment(value);
       next.set(a.id, a);
     }
-    if (next.size > maxAttachments) throw Error("最多可加入 8 個附件");
+    if (next.size > maxAttachments) throw failure("too-many-files");
     if (
       [...next.values()].reduce((n, x) => n + attachmentBytes(x), 0) >
       attachmentLimits.totalBytes
     )
-      throw Error("附件總大小超過 32 MB");
+      throw failure("total-too-large");
     attachments.clear();
     for (const [id, a] of next) attachments.set(id, a);
     notify();
@@ -164,6 +202,21 @@ export function createComposer({
     },
     capture(value) {
       attach([value.image ?? value, ...(value.text ? [value.text] : [])]);
+    },
+    /** Replace the draft and the chips as one step: the mini composer grows
+     * into the card carrying both. A bad seed changes nothing. */
+    seed({ draft: text = "", attachments: values = [] } = {}) {
+      const before = new Map(attachments);
+      attachments.clear();
+      try {
+        attach(values);
+      } catch (e) {
+        for (const [id, a] of before) attachments.set(id, a);
+        throw e;
+      }
+      draft = String(text);
+      error = "";
+      notify();
     },
     remove(id) {
       attachments.delete(id);
@@ -182,10 +235,9 @@ export function createComposer({
       const t = turn(uuid(), text, source);
       const draftAtGesture = draft;
       return enqueue(async () => {
-        if (busy) throw Error("請等回答完成");
-        if (!session) throw Error("正在連線，請稍候");
-        if (!t.text.trim() && !t.attachments.length)
-          throw Error("請輸入問題或加入附件");
+        if (busy) throw failure("busy");
+        if (!session) throw failure("connecting");
+        if (!t.text.trim() && !t.attachments.length) throw failure("empty");
         busy = true;
         pendingId = t.id;
         error = "";
@@ -201,7 +253,7 @@ export function createComposer({
         } catch (e) {
           busy = false;
           pendingId = undefined;
-          error = "傳送失敗，內容已保留，請再試一次";
+          error = "send-failed";
           notify();
           throw e;
         }
@@ -209,8 +261,8 @@ export function createComposer({
     },
     select(next) {
       return enqueue(async () => {
-        if (busy) throw Error("請等回答完成");
-        if (!session) throw Error("正在連線，請稍候");
+        if (busy) throw failure("busy");
+        if (!session) throw failure("connecting");
         selecting = true;
         error = "";
         notify();
@@ -219,13 +271,13 @@ export function createComposer({
           if (
             !applied ||
             typeof applied.model !== "string" ||
-            !["low", "medium", "high", "xhigh", "max"].includes(applied.effort)
+            !efforts.includes(applied.effort)
           )
-            throw Error("模型設定尚未確認");
+            throw failure("switch-failed");
           selection = structuredClone(applied);
           return structuredClone(selection);
         } catch (e) {
-          error = "無法切換，已保留原本的模型";
+          error = "switch-failed";
           throw e;
         } finally {
           selecting = false;
@@ -241,7 +293,7 @@ export function createComposer({
         await session.stop();
       } catch (e) {
         stopping = false;
-        error = "暫時無法停止，請再試一次";
+        error = "stop-failed";
         notify();
         throw e;
       }

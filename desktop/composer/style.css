@@ -1,28 +1,20 @@
+/* Colors, radii, type sizes and shadows come from shared/look.css, motion from
+   shared/motion.mjs (renderer.mjs sets --motion-* and --ease-*). The --gl-*
+   names are this surface's aliases of those tokens. */
 :root {
-  color-scheme: light dark;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK TC",
     sans-serif;
-  font-size: 14px;
-  --gl-paper: #faf8f3;
-  --gl-ink: #302f2c;
-  --gl-muted: #6e6b65;
-  --gl-border: #dedad1;
-  --gl-input: #fffdf9;
-  --gl-soft: #eeebe3;
-  --gl-code: #eeede8;
-  --gl-green: #3ddc97;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --gl-paper: #262725;
-    --gl-ink: #eeeae0;
-    --gl-muted: #b4b0a7;
-    --gl-border: #474842;
-    --gl-input: #30312d;
-    --gl-soft: #3b3d36;
-    --gl-code: #1d211d;
-  }
+  font-size: var(--type-m);
+  --gl-paper: var(--surface-2);
+  --gl-ink: var(--text);
+  --gl-muted: color-mix(in srgb, var(--text) 62%, var(--surface-2));
+  --gl-border: var(--line);
+  --gl-input: var(--surface);
+  --gl-soft: color-mix(in srgb, var(--text) 8%, var(--surface-2));
+  --gl-code: color-mix(in srgb, var(--text) 6%, var(--surface-2));
+  --gl-green: var(--green);
+  --gl-shadow-ink: light-dark(var(--text), var(--surface));
 }
 * {
   box-sizing: border-box;
@@ -53,7 +45,7 @@ button:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-  outline: 2px solid #258f61;
+  outline: 2px solid var(--green);
   outline-offset: 2px;
 }
 [hidden] {
@@ -79,13 +71,26 @@ a:focus-visible {
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--gl-border);
-  border-radius: 26px;
+  border-radius: var(--radius-l);
   background: var(--gl-paper);
   transform-origin: var(--gl-origin, 100% 100%);
-  box-shadow: 0 6px 24px #00000018;
+  box-shadow: var(--shadow);
+  /* The card grows out of Blink and folds back the same way. A transition, not
+     a keyframe run: cut short in either direction it turns around from where
+     it is instead of jumping. */
+  transition:
+    opacity var(--motion-slow) var(--ease-enter),
+    transform var(--motion-slow) var(--ease-enter);
 }
-.gl-chat-card[data-open="true"] {
-  animation: gl-grow 280ms cubic-bezier(0.16, 1.18, 0.3, 1) both;
+.gl-chat-card[data-open="false"] {
+  opacity: 0;
+  transform: translateY(12px) scale(0.94);
+}
+@starting-style {
+  .gl-chat-card[data-open="true"] {
+    opacity: 0;
+    transform: translateY(12px) scale(0.94);
+  }
 }
 .gl-card-header {
   display: flex;
@@ -94,32 +99,30 @@ a:focus-visible {
   flex-shrink: 0;
 }
 .gl-brand {
-  font-size: 15px;
+  font-size: var(--type-m);
   font-weight: 650;
   margin-right: auto;
 }
+/* Present only when something is wrong; view.mjs hides it otherwise. */
 .gl-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #bd9b50;
-}
-.gl-status-dot[data-state="connected"] {
-  background: #28a570;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--warn);
 }
 .gl-status-dot[data-state="retrying"] {
-  animation: gl-pulse 1.5s ease-in-out infinite;
+  animation: gl-pulse calc(var(--motion-slow) * 4) var(--ease-standard) infinite;
 }
 .gl-icon-button {
   border: 0;
   background: transparent;
   width: 30px;
   height: 30px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  font-size: 21px;
+  font-size: var(--type-xl);
   line-height: 1;
 }
 .gl-icon-button:hover {
@@ -127,7 +130,7 @@ a:focus-visible {
 }
 .gl-icon-button[aria-pressed="true"] {
   background: var(--gl-green);
-  color: #193425;
+  color: var(--text-on-green);
 }
 .gl-chat-history {
   flex: 1;
@@ -143,13 +146,13 @@ a:focus-visible {
   max-width: 100%;
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-m);
   margin: 0 0 10px;
 }
 .gl-user {
   background: var(--gl-soft);
   margin-left: 18px;
-  border-bottom-right-radius: 5px;
+  border-bottom-right-radius: var(--radius-s);
 }
 .gl-assistant {
   padding-left: 0;
@@ -163,13 +166,13 @@ a:focus-visible {
 }
 .gl-quick-chip {
   border: 1px solid var(--gl-border);
-  border-radius: 18px;
+  border-radius: var(--radius-pill);
   padding: 7px 12px;
   background: var(--gl-input);
-  font-size: 13px;
+  font-size: var(--type-s);
 }
 .gl-quick-chip:hover {
-  border-color: #258f61;
+  border-color: var(--green);
 }
 .gl-composer {
   flex-shrink: 0;
@@ -177,20 +180,20 @@ a:focus-visible {
   flex-direction: column;
   gap: 8px;
   border: 1px solid var(--gl-border);
-  border-radius: 20px;
+  border-radius: var(--radius-l);
   background: var(--gl-input);
   padding: 10px;
   min-width: 0;
 }
 .gl-composer:focus-within {
-  border-color: #929083;
+  border-color: var(--gl-muted);
 }
 .gl-input {
   resize: none;
   border: 0;
   background: transparent;
   width: 100%;
-  min-height: 60px;
+  min-height: 44px;
   max-height: 160px;
   padding: 4px;
   line-height: 1.5;
@@ -216,10 +219,10 @@ a:focus-visible {
 .gl-picker-trigger {
   max-width: 100%;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-m);
   background: transparent;
   color: var(--gl-ink);
-  font-size: 13px;
+  font-size: var(--type-s);
   padding: 5px 8px;
   display: block;
 }
@@ -248,11 +251,19 @@ a:focus-visible {
   max-width: 260px;
   padding: 4px;
   border: 1px solid var(--gl-border);
-  border-radius: 14px;
+  border-radius: var(--radius-m);
   background: var(--gl-paper);
-  box-shadow: 0 6px 24px #00000026;
+  box-shadow: var(--shadow);
   transform-origin: bottom left;
-  animation: gl-grow 140ms cubic-bezier(0.16, 1.18, 0.3, 1) both;
+  transition:
+    opacity var(--motion-fast) var(--ease-enter),
+    transform var(--motion-fast) var(--ease-enter);
+}
+@starting-style {
+  .gl-picker-menu {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
 }
 .gl-picker-option {
   display: flex;
@@ -260,8 +271,8 @@ a:focus-visible {
   justify-content: space-between;
   gap: 12px;
   padding: 7px 10px;
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: var(--radius-m);
+  font-size: var(--type-s);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -272,7 +283,7 @@ a:focus-visible {
 }
 .gl-picker-option[aria-selected="true"]::after {
   content: "✓";
-  color: #258f61;
+  color: var(--green);
 }
 .gl-picker-dot {
   color: var(--gl-muted);
@@ -282,56 +293,68 @@ a:focus-visible {
   margin-left: auto;
   background: var(--gl-ink);
   color: var(--gl-paper);
-  font-size: 18px;
+  font-size: var(--type-l);
 }
+/* Chips are tiles: a thumbnail at least 48px tall, the name under it. They
+   wrap, never scroll: six tiles take two rows at the narrowest card and one at
+   the widest. */
 .gl-attachments {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  max-height: 144px;
-  overflow-y: auto;
+  padding-top: 6px;
 }
 .gl-attachment-chip {
+  position: relative;
   display: flex;
-  gap: 6px;
-  align-items: center;
+  flex-direction: column;
+  gap: 2px;
+  width: 72px;
+  padding: 4px;
   background: var(--gl-soft);
-  border-radius: 12px;
-  padding: 5px;
+  border-radius: var(--radius-m);
   min-width: 0;
-  max-width: 100%;
 }
-.gl-attachment-chip .gl-message-image {
-  width: 38px;
-  height: 38px;
-  object-fit: cover;
+.gl-attachment-chip .gl-message-image,
+.gl-attachment-chip .gl-file-icon {
+  width: 100%;
+  height: 52px;
   margin: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   flex-shrink: 0;
 }
+.gl-attachment-chip .gl-message-image {
+  object-fit: cover;
+}
 .gl-file-icon {
-  width: 30px;
-  text-align: center;
-  font-size: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--gl-input);
+  font-size: var(--type-xl);
 }
 .gl-attachment-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
-  max-width: 140px;
+  font-size: var(--type-xs);
+  text-align: center;
 }
 .gl-attachment-chip .gl-icon-button {
-  width: 24px;
-  height: 24px;
-  font-size: 18px;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  font-size: var(--type-m);
+  background: var(--gl-ink);
+  color: var(--gl-paper);
 }
 .gl-composer-error {
   flex-shrink: 0;
-  font-size: 12px;
-  color: #b74836;
+  font-size: var(--type-xs);
+  color: var(--warn);
   overflow-wrap: anywhere;
 }
 .gl-chat-card[data-dragging="true"] {
@@ -374,14 +397,14 @@ a:focus-visible {
   margin: 10px 0;
 }
 .gl-markdown a {
-  color: #258f61;
+  color: var(--green);
   text-decoration: underline;
 }
 .gl-markdown code {
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--type-xs);
   background: var(--gl-code);
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   padding: 1px 4px;
 }
 .gl-code {
@@ -389,7 +412,7 @@ a:focus-visible {
   overflow: hidden;
   background: var(--gl-code);
   border: 1px solid var(--gl-border);
-  border-radius: 10px;
+  border-radius: var(--radius-m);
   margin: 7px 0;
 }
 .gl-code-toolbar {
@@ -399,15 +422,15 @@ a:focus-visible {
   gap: 8px;
   padding: 5px 8px;
   color: var(--gl-muted);
-  font-size: 11px;
+  font-size: var(--type-xs);
 }
 .gl-code-toolbar button {
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: 11px;
+  font-size: var(--type-xs);
   padding: 3px 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
 }
 .gl-code pre {
   margin: 0;
@@ -427,7 +450,7 @@ a:focus-visible {
 }
 .gl-table table {
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .gl-table th,
 .gl-table td {
@@ -439,16 +462,16 @@ a:focus-visible {
   max-width: 100%;
   max-height: 220px;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: var(--radius-m);
   margin: 6px 0;
 }
 .gl-document {
   border: 1px solid var(--gl-border);
-  border-radius: 10px;
+  border-radius: var(--radius-m);
   padding: 7px 10px;
   margin: 6px 0;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .gl-notice {
   flex-shrink: 0;
@@ -457,8 +480,8 @@ a:focus-visible {
   padding: 10px 14px;
   background: var(--gl-paper);
   border: 1px solid var(--gl-border);
-  border-radius: 20px 20px 6px 20px;
-  box-shadow: 0 2px 8px #00000012;
+  border-radius: var(--radius-l) var(--radius-l) var(--radius-s) var(--radius-l);
+  box-shadow: var(--shadow);
 }
 .gl-summary-tag {
   cursor: help;
@@ -492,7 +515,7 @@ body[data-surface="bubbles"] #card {
     padding: 10px;
   }
   .gl-picker-trigger {
-    font-size: 12px;
+    font-size: var(--type-xs);
     padding: 5px 4px;
   }
   .gl-quick-chip {
@@ -519,7 +542,7 @@ body[data-surface="bubbles"] #card {
 .gl-guide > button,
 .gl-notice > button {
   border: 1px solid var(--gl-border);
-  border-radius: 18px;
+  border-radius: var(--radius-pill);
   padding: 6px 10px;
   margin: 4px;
   background: var(--gl-paper);
@@ -527,32 +550,14 @@ body[data-surface="bubbles"] #card {
 .gl-notice {
   flex-shrink: 0;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--type-s);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .gl-chat-card > .gl-notice {
-  border-radius: 14px;
+  border-radius: var(--radius-m);
   padding: 8px 12px;
 }
 .gl-attachments:empty {
   display: none;
-}
-:root[data-theme="dark"] {
-  --gl-paper: #262725;
-  --gl-ink: #eeeae0;
-  --gl-muted: #b4b0a7;
-  --gl-border: #474842;
-  --gl-input: #30312d;
-  --gl-soft: #3b3d36;
-  --gl-code: #1d211d;
-}
-:root[data-theme="light"] {
-  --gl-paper: #faf8f3;
-  --gl-ink: #302f2c;
-  --gl-muted: #6e6b65;
-  --gl-border: #dedad1;
-  --gl-input: #fffdf9;
-  --gl-soft: #eeebe3;
-  --gl-code: #eeede8;
 }
