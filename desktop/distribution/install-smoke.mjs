@@ -7,6 +7,7 @@ import {
   cp,
   mkdir,
   mkdtemp,
+  realpath,
   readFile,
   rm,
   stat,
@@ -25,7 +26,8 @@ if (!version || !assets) {
   process.exit(2);
 }
 
-const root = await mkdtemp(join(tmpdir(), "blinkling-smoke-"));
+// macOS keeps its temp directory behind a /var symlink; the app must see the real path.
+const root = await realpath(await mkdtemp(join(tmpdir(), "blinkling-smoke-")));
 const home = join(root, "home");
 const plugin = join(root, "plugin");
 await mkdir(home);
