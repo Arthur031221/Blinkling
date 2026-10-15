@@ -56,7 +56,9 @@ export function mountMini(root, { t, tp, on }) {
     });
     const label = entry.type === "image" ? t("mini.image") : t("mini.text");
     if (entry.type === "image") {
-      if (entry.thumb) {
+      if (entry.pending) {
+        chip.append(el("span", "mini-thumb mini-thumb-pending"));
+      } else if (entry.thumb) {
         const img = el("img", "mini-thumb", { alt: "", src: entry.thumb });
         chip.append(img);
       }

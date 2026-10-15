@@ -1,6 +1,7 @@
 import { mountMini } from "./view.mjs";
 import { t as translateMini } from "./strings.mjs";
 import { t as translatePick } from "../pick/strings.mjs";
+import { followShellTheme } from "../composer/theme.mjs";
 import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
 
 const api = window.miniAPI;
@@ -12,6 +13,7 @@ for (const declaration of cssVariables().split(";")) {
 }
 
 let mini = null;
+let followed = false;
 let latest = null;
 const root = document.getElementById("mini");
 
@@ -34,7 +36,12 @@ function report() {
   if (card) api.size(Math.ceil(card.offsetHeight) + 32);
 }
 
-api.onInit(({ locale }) => {
+api.onInit(({ locale, theme }) => {
+  // Dark from the first frame: the card is still transparent when this lands.
+  if (theme) {
+    if (!followed) followed = followShellTheme();
+    document.documentElement.dataset.theme = theme;
+  }
   mini = mountMini(root, {
     t: translateMini(locale),
     tp: translatePick(locale),
@@ -67,9 +74,19 @@ api.onView((view) => {
   report();
 });
 
-api.onOpen(() => {
+api.onOpen(({ origin } = {}) => {
   const card = root.firstElementChild;
   if (!card) return;
+  // The box grows out of Blink, which is where origin points.
+  if (origin) {
+    // Blink may be on another screen: the card only leans toward it.
+    const lean = (value, size) => Math.min(Math.max(value - 16, 0), size);
+    card.style.setProperty("--grow-x", `${lean(origin.x, card.offsetWidth)}px`);
+    card.style.setProperty(
+      "--grow-y",
+      `${lean(origin.y, card.offsetHeight)}px`,
+    );
+  }
   mini.input.value = "";
   mini.input.focus();
   report();

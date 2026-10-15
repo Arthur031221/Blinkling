@@ -162,3 +162,14 @@ test("with no entries there are no quick asks", () => {
   mini.update(view({ entries: [], chips: [] }));
   assert.equal(doc.querySelector(".mini-quick").hidden, true);
 });
+
+test("an image whose pixels have not come yet shows a placeholder where the thumbnail goes", () => {
+  const { mini, doc } = setup();
+  mini.update(view({ entries: [{ ...image, pending: true }] }));
+  assert.ok(doc.querySelector(".mini-thumb-pending"));
+  mini.update(
+    view({ entries: [{ ...image, thumb: "data:image/png;base64,AA" }] }),
+  );
+  assert.equal(doc.querySelector(".mini-thumb-pending"), null);
+  assert.ok(doc.querySelector("img.mini-thumb"));
+});

@@ -219,6 +219,35 @@ test("the test hook exposes the guard and a focus override only under blinklingT
     delete globalThis.blinklingTest;
   }
 });
+test("under E2E the hook keeps an earlier module's hook when both wait for the shell's object", async () => {
+  const before = process.env.BLINKLING_E2E;
+  process.env.BLINKLING_E2E = "1";
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  try {
+    delete globalThis.blinklingTest;
+    let held;
+    Object.defineProperty(globalThis, "blinklingTest", {
+      configurable: true,
+      get: () => held,
+      set(value) {
+        held = value;
+        if (value && typeof value === "object") value.pick = "pick hook";
+      },
+    });
+    const r = rig();
+    globalThis.blinklingTest = { other: 1 };
+    assert.equal(globalThis.blinklingTest.pick, "pick hook");
+    assert.equal(typeof globalThis.blinklingTest.privacy.focus, "function");
+    r.privacy.dispose();
+    assert.equal(globalThis.blinklingTest.privacy, undefined);
+    assert.equal(globalThis.blinklingTest.pick, "pick hook");
+  } finally {
+    delete globalThis.blinklingTest;
+    if (saved) Object.defineProperty(globalThis, "blinklingTest", saved);
+    if (before === undefined) delete process.env.BLINKLING_E2E;
+    else process.env.BLINKLING_E2E = before;
+  }
+});
 test("under E2E the hook joins a blinklingTest object assigned after the install", async () => {
   const before = process.env.BLINKLING_E2E;
   process.env.BLINKLING_E2E = "1";

@@ -2,10 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { installPick } from "./install.mjs";
 import { KEYCODES } from "./keys.mjs";
 import { timing, duration } from "../shared/motion.mjs";
+
+/** Whether a file path ends with the given forward-slash tail, on any platform. */
+const endsWithPath = (file, tail) => file.replaceAll("\\", "/").endsWith(tail);
 
 const PNG = "iVBORw0KGgo=";
 const d1 = {
@@ -143,15 +146,26 @@ function setup(options = {}) {
   };
 }
 
+test("a Windows path with backslashes ends with the same tail as a POSIX one", () => {
+  assert.equal(
+    endsWithPath(
+      win32.join("C:\\app", "desktop", "mini", "index.html"),
+      "mini/index.html",
+    ),
+    true,
+  );
+  assert.equal(
+    endsWithPath("/app/desktop/mini/index.html", "pick/index.html"),
+    false,
+  );
+});
+
 test("at start one hidden layer per display and the hidden mini window exist, and the pick key source is listening", async () => {
   const s = setup();
   const pick = await s.install();
   assert.equal(s.log.windows.length, 2);
   for (const w of s.log.windows) assert.equal(w.options.show, false);
-  assert.equal(
-    s.log.windows[1].file.endsWith(join("mini", "index.html")),
-    true,
-  );
+  assert.equal(endsWithPath(s.log.windows[1].file, "mini/index.html"), true);
   assert.equal(pick.started, true);
   assert.deepEqual(s.hooks.map(([t]) => t).sort(), [
     "keydown",
@@ -166,13 +180,14 @@ test("the layer windows load their own preload, the mini window its own, neither
   await s.install();
   const [layer, mini] = s.log.windows;
   assert.equal(
-    layer.options.webPreferences.preload.endsWith(
-      join("pick", "layer-preload.cjs"),
+    endsWithPath(
+      layer.options.webPreferences.preload,
+      "pick/layer-preload.cjs",
     ),
     true,
   );
   assert.equal(
-    mini.options.webPreferences.preload.endsWith(join("mini", "preload.cjs")),
+    endsWithPath(mini.options.webPreferences.preload, "mini/preload.cjs"),
     true,
   );
 });
@@ -302,6 +317,30 @@ test("the test hook hangs on blinklingTest even though the shell assigns that ob
     globalThis.blinklingTest = { other: 1 };
     assert.equal(globalThis.blinklingTest.pick, pick);
     assert.equal(globalThis.blinklingTest.other, 1);
+  } finally {
+    delete globalThis.blinklingTest;
+    if (saved) Object.defineProperty(globalThis, "blinklingTest", saved);
+  }
+});
+
+test("the test hook keeps another module's hook when both wait for the shell's object", async () => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  try {
+    delete globalThis.blinklingTest;
+    let held;
+    Object.defineProperty(globalThis, "blinklingTest", {
+      configurable: true,
+      get: () => held,
+      set(value) {
+        held = value;
+        if (value && typeof value === "object") value.privacy = "privacy hook";
+      },
+    });
+    const s = setup({ env: { BLINKLING_E2E: "1" } });
+    const pick = await s.install();
+    globalThis.blinklingTest = { other: 1 };
+    assert.equal(globalThis.blinklingTest.pick, pick);
+    assert.equal(globalThis.blinklingTest.privacy, "privacy hook");
   } finally {
     delete globalThis.blinklingTest;
     if (saved) Object.defineProperty(globalThis, "blinklingTest", saved);

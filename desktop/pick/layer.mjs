@@ -8,6 +8,7 @@ import {
 import { stepSpring, settled } from "./spring.mjs";
 import { cubicBezier, flightPath, flightAt, thumbnailSize } from "./flight.mjs";
 import { badgeOffset } from "./badge.mjs";
+import { rectBetween } from "./gesture.mjs";
 import { partial, strokeProgress, effectDone } from "./draw.mjs";
 
 const api = window.pickLayerAPI;
@@ -38,7 +39,8 @@ let glide = {
   opacity: 0,
   opacityVelocity: 0,
 };
-let drag = null;
+let drag = null; // { rect, from } the area being dragged
+let pointerLive = false; // this window saw the pointer since the drag began
 let lock = null; // { plan, start }
 let running = false;
 let last = 0;
@@ -243,7 +245,7 @@ function frame(now) {
     );
   for (const item of items)
     box = union(box, grow(toClient(item.bounds), REACH));
-  if (drag) box = union(box, grow(toClient(drag), REACH));
+  if (drag) box = union(box, grow(toClient(dragRect()), REACH));
   if (lock) {
     const at = toClientPoint(lock.plan.at);
     box = union(box, grow({ x: at.x, y: at.y, width: 0, height: 0 }, REACH));
@@ -283,9 +285,13 @@ function frame(now) {
     ctx.strokeStyle = colors.green;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 4]);
-    const r = toClient(drag);
+    // The band follows this window's own pointer; the controller's rect is a
+    // round trip behind it and only stands in until the pointer moves here.
+    const r = toClient(dragRect());
     ctx.strokeRect(r.x, r.y, r.width, r.height);
     ctx.setLineDash([]);
+    log("pick-band", r);
+    log("pick-pointer", { ...cursor, width: 0, height: 0 });
   }
 
   if (lock) {
@@ -298,6 +304,14 @@ function frame(now) {
 
   running = busy;
   if (busy) requestAnimationFrame(frame);
+}
+
+function dragRect() {
+  if (!drag.from || !pointerLive) return drag.rect;
+  return rectBetween(drag.from, {
+    x: cursor.x + origin.x,
+    y: cursor.y + origin.y,
+  });
 }
 
 function clearAll() {
@@ -411,7 +425,8 @@ api.onMessage(({ channel, value }) => {
       wake();
       break;
     case "drag":
-      drag = value.rect;
+      if (!drag) pointerLive = false;
+      drag = value.rect ? value : null;
       wake();
       break;
     case "taken": {
@@ -452,6 +467,10 @@ function report(type, event) {
 window.addEventListener("pointermove", (event) => {
   cursor = { x: event.clientX, y: event.clientY };
   placeBadge();
+  if (drag) {
+    pointerLive = true;
+    wake();
+  }
   if (!moveQueued)
     moveQueued = requestAnimationFrame(() => {
       moveQueued = null;

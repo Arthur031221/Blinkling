@@ -162,6 +162,10 @@ export const pageEval = (app, code) =>
 const SENTENCE =
   "The second sentence of this paragraph is long enough that it wraps onto a further line of text.";
 
+/** The sentence as a pattern: the fixture's source wraps its lines, so its words
+ * are split by any whitespace. */
+const SENTENCE_PATTERN = SENTENCE.replace(/\./g, "\\.").replace(/ /g, "\\s+");
+
 /** The DOM's own answer for the second sentence of the paragraph, independent of
  * the locator under test: one rect per rendered line (screen DIP), their union,
  * and the middle of the word "paragraph" to click on. */
@@ -172,10 +176,10 @@ export async function domSentence(app) {
       const node = document.getElementById("story-text").firstChild;
       const text = node.data;
       const range = document.createRange();
-      // The fixture's source wraps its lines; the sentence matches across them.
-      const found = text.match(new RegExp(${JSON.stringify(SENTENCE.split(" ").join("\\s+"))}));
-      range.setStart(node, found.index);
-      range.setEnd(node, found.index + found[0].length);
+      const found = new RegExp(${JSON.stringify(SENTENCE_PATTERN)}).exec(text);
+      const from = found.index;
+      range.setStart(node, from);
+      range.setEnd(node, from + found[0].length);
       const lines = [];
       for (const r of range.getClientRects()) {
         if (r.width < 1) continue;

@@ -21,8 +21,8 @@ body {
   border-radius: var(--radius-l);
   box-shadow: var(--shadow);
   opacity: 0;
-  transform: translateY(8px) scale(0.98);
-  transform-origin: 100% 50%;
+  transform: scale(0.9);
+  transform-origin: var(--grow-x, 100%) var(--grow-y, 50%);
   transition:
     opacity var(--motion-base) var(--ease-exit),
     transform var(--motion-base) var(--ease-exit);
@@ -69,6 +69,10 @@ body {
   object-fit: cover;
   border-radius: var(--radius-s);
 }
+.mini-thumb-pending {
+  display: inline-block;
+  background: var(--line);
+}
 .mini-entry-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -110,6 +114,10 @@ body {
   border: 1px solid var(--line);
   border-radius: var(--radius-m);
   outline: none;
+  scrollbar-width: none;
+}
+.mini-input::-webkit-scrollbar {
+  display: none;
 }
 .mini-input:focus {
   border-color: var(--green);

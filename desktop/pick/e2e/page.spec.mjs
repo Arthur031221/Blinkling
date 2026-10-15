@@ -292,12 +292,19 @@ test("M4 N1.1 Ctrl+click on an image: loop effect, flight into Blink, image chip
     expect(flight.to.x).toBeLessThanOrEqual(blink.x + blink.width + 60);
     expect(flight.to.y).toBeGreaterThanOrEqual(blink.y - 60);
     expect(flight.to.y).toBeLessThanOrEqual(blink.y + blink.height + 60);
-    const layerFrames = (await frames(app)).filter(
-      (f) => f.surface === "flight",
+    // The mini composer is already open while the picture is still flying, so
+    // wait for the flight to land before looking at where it ended.
+    const lastFlightFrame = async () =>
+      (await frames(app)).filter((f) => f.surface === "flight").at(-1)?.box;
+    const landed = (box) =>
+      box &&
+      near(box.x + box.width / 2, flight.to.x, 24) &&
+      near(box.y + box.height / 2, flight.to.y, 24);
+    await poll(
+      async () => landed(await lastFlightFrame()),
+      3000,
+      "the flight to land on Blink",
     );
-    const last = layerFrames.at(-1).box;
-    expect(near(last.x + last.width / 2, flight.to.x, 24)).toBe(true);
-    expect(near(last.y + last.height / 2, flight.to.y, 24)).toBe(true);
 
     await pause(500);
     const mini = JSON.parse(
@@ -416,6 +423,128 @@ test("N1.2 Ctrl+drag past 6 px takes an area equal to the dragged rectangle and 
     await screen(app, "10-area");
     release();
     await poll(() => miniOpen(app), 6000, "the mini composer");
+  } finally {
+    await app.close();
+  }
+});
+
+test("MP-3 the rubber band sits on the pointer while the button is held, not behind it", async () => {
+  const app = await start();
+  try {
+    const t = await domRect(app, "#story-text");
+    const from = { x: t.x + 10, y: t.y + 6 };
+    const to = { x: t.x + 300, y: t.y + 150 };
+    await hold(app, from);
+    const path = Array.from({ length: 24 }, (_, i) => [
+      [
+        "move",
+        px(from.x + ((to.x - from.x) * (i + 1)) / 24),
+        px(from.y + ((to.y - from.y) * (i + 1)) / 24),
+      ],
+      ["wait", 8],
+    ]).flat();
+    const steps = [["move", px(from.x), px(from.y)], ["press"], ...path];
+    input(steps);
+    await pause(300);
+    const drawn = (await frames(app)).filter(
+      (f) => f.surface === "pick-band" || f.surface === "pick-pointer",
+    );
+    const bands = drawn.filter((f) => f.surface === "pick-band");
+    const pointers = drawn.filter((f) => f.surface === "pick-pointer");
+    expect(bands.length, "the band was drawn while dragging").toBeGreaterThan(
+      8,
+    );
+    // In every frame the band's far corner is where the pointer is in that frame.
+    const behind = bands.filter((band, i) => {
+      const at = pointers[i].box;
+      return (
+        Math.abs(band.box.x + band.box.width - at.x) > 1 ||
+        Math.abs(band.box.y + band.box.height - at.y) > 1
+      );
+    });
+    expect(behind.length, "frames with the band behind the pointer").toBe(0);
+    await screen(app, "10b-held");
+    input([["release"]]);
+    release();
+    await poll(() => miniOpen(app), 6000, "the mini composer");
+  } finally {
+    await app.close();
+  }
+});
+
+test("MP-5 the mini composer is shown within 200 ms of the pick key coming up", async () => {
+  const app = await start();
+  try {
+    const p = await domRect(app, "#photo");
+    await hold(app, { x: p.x + 40, y: p.y + 40 });
+    click();
+    await waitFor(app, "taken");
+    // Watch from inside the main process, so polling from here adds no delay.
+    const shown = app.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const win = globalThis.blinklingTest.pick.test.miniWindow;
+          const look = () =>
+            win.isVisible() ? resolve(Date.now()) : setTimeout(look, 2);
+          look();
+        }),
+    );
+    const releasedAt = Date.now();
+    release();
+    const took = (await shown) - releasedAt;
+    console.log(`SCALE ${SCALE}: mini visible ${took} ms after release`);
+    expect(took).toBeLessThanOrEqual(200);
+  } finally {
+    await app.close();
+  }
+});
+
+test("MP-6 MP-7 in the dark the mini composer is dark from its first frame, and a long wrapped message shows no native scrollbar", async () => {
+  const app = await start();
+  try {
+    await app.evaluate(({ nativeTheme }) => {
+      nativeTheme.themeSource = "dark";
+    });
+    const p = await domRect(app, "#photo");
+    await hold(app, { x: p.x + 40, y: p.y + 40 });
+    click();
+    await waitFor(app, "taken");
+    release();
+    await poll(() => miniOpen(app), 6000, "the mini composer");
+    const look = await miniEval(
+      app,
+      `(() => {
+        const color = (e, p) => getComputedStyle(e)[p];
+        const card = document.querySelector(".mini-card");
+        const entry = document.querySelector(".mini-entry");
+        const input = document.querySelector(".mini-input");
+        input.value = "word ".repeat(50);
+        input.dispatchEvent(new Event("input"));
+        return {
+          theme: document.documentElement.dataset.theme,
+          card: color(card, "backgroundColor"),
+          entry: entry && color(entry, "backgroundColor"),
+          input: color(input, "backgroundColor"),
+          scrolls: input.scrollHeight > input.clientHeight,
+          bar: input.offsetWidth - input.clientWidth - 2,
+        };
+      })()`,
+    );
+    // The picture fills the chip in once the grab lands.
+    await poll(
+      () => miniEval(app, `Boolean(document.querySelector("img.mini-thumb"))`),
+      6000,
+      "the thumbnail",
+    );
+    await pause(300);
+    await screen(app, "08-mini-dark");
+    console.log(`SCALE ${SCALE}: mini ${JSON.stringify(look)}`);
+    expect(look.theme).toBe("dark");
+    expect(look.card).toBe("rgb(12, 14, 13)");
+    expect(look.entry).toBe("rgb(34, 39, 35)");
+    expect(look.input).toBe("rgb(34, 39, 35)");
+    expect(look.scrolls).toBe(true);
+    expect(look.bar).toBe(0);
   } finally {
     await app.close();
   }

@@ -841,6 +841,7 @@ const pick = await installPick({
     screen,
     ipcMain,
     nativeImage,
+    nativeTheme,
     systemPreferences,
     dialog,
   },

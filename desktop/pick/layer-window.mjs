@@ -140,6 +140,7 @@ export function createLayers({
       const layer = layerFor(display);
       if (!layer) return;
       current = layer;
+      layer.claims = (layer.claims ?? 0) + 1;
       send(layer, "cursor", cursor);
       raiseWindow(layer, true);
     },
@@ -161,18 +162,23 @@ export function createLayers({
         current ??
         [...layers.values()][0];
       if (!layer) return Promise.resolve();
-      current = null;
+      // A pick already holding this layer keeps it: the thumbnails fly over it.
+      const shared = layer === current && layer.active;
+      if (!shared) current = null;
       const id = `flight-${++token}`;
+      const claims = layer.claims ?? 0;
       return new Promise((resolve) => {
         const finish = () => {
           clearTimer(timer);
           waiting.delete(id);
-          hideLayer(layer);
+          // A pick that started while the thumbnails were still landing owns the
+          // layer now; the flight's end must not hide it.
+          if (!shared && (layer.claims ?? 0) === claims) hideLayer(layer);
           resolve();
         };
         const timer = setTimer(finish, FLIGHT_LIMIT);
         waiting.set(id, finish);
-        raiseWindow(layer, false);
+        if (!shared) raiseWindow(layer, false);
         send(layer, "flight", {
           items,
           to: clamp(to, layer.display.bounds),

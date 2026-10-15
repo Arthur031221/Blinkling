@@ -1,5 +1,5 @@
 import { createMini } from "./model.mjs";
-import { placeMini, MINI_WIDTH } from "./placement.mjs";
+import { placeMini, blinkBody, MINI_WIDTH } from "./placement.mjs";
 import { duration } from "../shared/motion.mjs";
 import { setLayer } from "../shared/escape.mjs";
 
@@ -16,6 +16,7 @@ export function createMiniController({
   win,
   ipc,
   locale,
+  theme = () => "light",
   focus,
   workArea,
   blinkPoint,
@@ -43,14 +44,31 @@ export function createMiniController({
   });
   const refresh = () => model && send("blinkling:mini-view", view());
 
+  let placed = null;
+  let picks = [];
+
+  /** The box opens on the display of the pick, away from what was picked and from
+   * Blink; a Blink click has no pick, so it is beside Blink on Blink's display. */
   function place() {
-    win.setBounds(
-      placeMini({
-        blink: blinkPoint(),
-        size: { width: MINI_WIDTH + 32, height },
-        workArea: workArea(),
-      }),
-    );
+    const taken = picks.map((e) => e.taken).filter(Boolean);
+    const display = taken.find((t) => t.display)?.display;
+    const area = display ? (display.workArea ?? display.bounds) : workArea();
+    placed = placeMini({
+      blink: blinkPoint(),
+      size: { width: MINI_WIDTH + 32, height },
+      workArea: area,
+      avoid: taken.map((t) => t.bounds).filter(Boolean),
+    });
+    win.setBounds(placed);
+  }
+
+  /** Where the box grows from: Blink's body, relative to the box. */
+  function origin() {
+    const body = blinkBody(blinkPoint());
+    return {
+      x: Math.round(body.x + body.width / 2 - placed.x),
+      y: Math.round(body.y + body.height / 2 - placed.y),
+    };
   }
 
   function claimKeyboard(until = now() + FOCUS_WINDOW) {
@@ -105,7 +123,7 @@ export function createMiniController({
     get isOpen() {
       return !!model;
     },
-    /** entries: [{id, kind, attachment, taken?, thumb?}] */
+    /** entries: [{id, kind, attachment, taken?, thumb?, pending?}] */
     async open(entries) {
       if (model) model.dispose();
       clearTimer(hideTimer);
@@ -113,6 +131,7 @@ export function createMiniController({
       thumbs = new Map(
         entries.filter((e) => e.thumb).map((e) => [e.id, e.thumb]),
       );
+      picks = entries;
       model = createMini({
         locale,
         entries,
@@ -120,16 +139,47 @@ export function createMiniController({
         autoExplain,
         host: { ...host, close },
       });
+      const mine = model;
       setLayer("mini", () => model?.escape());
-      await focus.remember();
-      send("blinkling:mini-init", { locale });
+      // The window answers first; the previous app is remembered right after,
+      // before the keyboard moves, which is the only order that matters.
+      send("blinkling:mini-init", { locale, theme: theme() });
       refresh();
       place();
       win.showInactive();
+      send("blinkling:mini-open", { origin: origin() });
+      await focus.remember();
+      if (model !== mine) return;
       focus.activate(win);
       win.focus();
       claimKeyboard();
-      send("blinkling:mini-open", {});
+    },
+    /** Whether the box sits over any of these screen rectangles. */
+    covers(rects) {
+      if (!model || !placed) return false;
+      return rects.some(
+        (r) =>
+          r.x < placed.x + placed.width &&
+          r.x + r.width > placed.x &&
+          r.y < placed.y + placed.height &&
+          r.y + r.height > placed.y,
+      );
+    },
+    /** The pixels of a pick that opened without them. */
+    fill(entry) {
+      if (!model) return;
+      if (entry.thumb) thumbs.set(entry.id, entry.thumb);
+      model.fill(entry);
+      refresh();
+    },
+    /** A pick whose pixels never came: gone from the chips, and the mini closes
+     * if nothing is left to send. */
+    drop(id) {
+      if (!model) return;
+      model.remove(id);
+      thumbs.delete(id);
+      if (model.view().entries.length) refresh();
+      else model.escape();
     },
     escape: () => model?.escape(),
     dispose() {

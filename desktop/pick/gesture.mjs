@@ -1,7 +1,8 @@
 /** Past this many pixels a press becomes an area drag (N1.2). */
 export const DRAG_THRESHOLD = 6;
 
-const rectOf = (a, b) => ({
+/** The box between two corners, whichever way it was dragged. */
+export const rectBetween = (a, b) => ({
   x: Math.min(a.x, b.x),
   y: Math.min(a.y, b.y),
   width: Math.abs(a.x - b.x),
@@ -22,7 +23,8 @@ export function createGesture({ threshold = DRAG_THRESHOLD, bounds } = {}) {
       : p;
   const state = () => ({
     phase,
-    rect: phase === "dragging" ? rectOf(start, end) : null,
+    rect: phase === "dragging" ? rectBetween(start, end) : null,
+    from: phase === "dragging" ? start : null,
   });
   return {
     state,
@@ -47,7 +49,7 @@ export function createGesture({ threshold = DRAG_THRESHOLD, bounds } = {}) {
       const result =
         phase === "dragging"
           ? (() => {
-              const rect = rectOf(start, end);
+              const rect = rectBetween(start, end);
               // Dragging back onto the press point cancels; anything else is an area.
               return rect.width > 0 || rect.height > 0
                 ? { type: "area", rect }

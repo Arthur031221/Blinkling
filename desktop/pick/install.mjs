@@ -81,6 +81,7 @@ export async function installPick({
     ipcMain,
     nativeImage,
     systemPreferences,
+    nativeTheme,
     dialog,
   } = electron;
   const env = shell.env ?? process.env;
@@ -169,6 +170,8 @@ export async function installPick({
     win: miniWindow,
     ipc: ipcMain,
     locale,
+    // The window's own media query does not always follow the system theme.
+    theme: () => (nativeTheme?.shouldUseDarkColors ? "dark" : "light"),
     focus: {
       remember: async () => {
         await shell.input?.rememberFocus();
@@ -213,8 +216,13 @@ export async function installPick({
     layer,
     // The layer hides before the grab, and the surface guard hides the rest.
     settle: async () => {},
-    grab: (display) =>
-      shell.captureScreen(display, [...shell.windows(), miniWindow]),
+    // The mini composer is already open when the pixels are taken; it is only
+    // hidden for the grab when it sits over what is being grabbed.
+    grab: (display, rects = []) =>
+      shell.captureScreen(display, [
+        ...shell.windows(),
+        ...(mini.covers(rects) ? [miniWindow] : []),
+      ]),
     crop: cropper,
     grouper,
     newChat: () => shell.newChat?.(),
@@ -286,16 +294,21 @@ export async function installPick({
 }
 
 /** The shell assigns `globalThis.blinklingTest` as one object later on; hang the
- * pick on it whenever that happens, without touching the shell's literal. */
+ * pick on it whenever that happens, without touching the shell's literal. Another
+ * module may already be waiting for that object the same way: keep its accessor
+ * and run it after this one instead of replacing it. */
 function exposeForTests(api) {
   let value = globalThis.blinklingTest;
   if (value) value.pick = api;
+  const earlier = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  const chained = earlier?.get && earlier?.set ? earlier : null;
   Object.defineProperty(globalThis, "blinklingTest", {
     configurable: true,
-    get: () => value,
+    get: () => (chained ? chained.get.call(globalThis) : value),
     set(next) {
       value = next;
       if (value && typeof value === "object") value.pick = api;
+      chained?.set.call(globalThis, next);
     },
   });
 }
