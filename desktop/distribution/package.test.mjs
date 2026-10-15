@@ -97,3 +97,13 @@ test("the app's own package.json names the desktop entry Electron looks up", asy
   assert.equal(pkg.description, "Blink, the Blinkling companion");
   assert.deepEqual(pkg.author, { name: "Arthur031221" });
 });
+
+test("the other platforms keep their plain config", () => {
+  const plan = packagePlan({
+    target: target("win32", "x64"),
+    version: "3.0.0",
+    packaged: "/p",
+    output: "/o",
+  });
+  assert.equal(plan.config.linux, undefined);
+});
