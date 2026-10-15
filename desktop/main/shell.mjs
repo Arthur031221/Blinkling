@@ -970,9 +970,16 @@ const pick = await installPick({
     },
   },
 });
+// Privacy looks through whichever locator pick has now, so one that plugs in
+// later is used by both; its verdicts come back to pick as the open guard.
+const pickLocator = {
+  focus: () => pick.locator().focus(),
+  windowAt: (point) => pick.locator().windowAt?.(point),
+};
 const privacy = installPrivacy({
   session,
   features,
+  locator: pickLocator,
   send,
   languages: [locale],
   renderer: (listener) => {
@@ -983,6 +990,7 @@ const privacy = installPrivacy({
     };
   },
 });
+pick.setGuard(privacy.openGuard);
 app.once("will-quit", () => privacy.dispose());
 if (
   !(

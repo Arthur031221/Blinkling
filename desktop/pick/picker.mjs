@@ -156,9 +156,20 @@ export function createPicker({ locator, guard, display }) {
     return rungs;
   }
 
+  /** The guard may answer at once or later, with a boolean or `{ok}`. Anything but
+   * a plain yes is a refusal, and so is a guard that fails: nothing is read. */
+  async function refused(options) {
+    try {
+      const verdict = await guard.allowed(options);
+      return verdict === false || verdict?.ok === false;
+    } catch {
+      return true;
+    }
+  }
+
   /** Looks under the point. Returns {lock} or what a first click would take. */
   async function resolve(point) {
-    if (guard.allowed({ point }) === false) return { lock: true };
+    if (await refused({ point })) return { lock: true };
     const focus = await locator.focus();
     if (focus?.secure) return { lock: true };
     const selection = await locator.selectionAt(point);
@@ -280,10 +291,7 @@ export function createPicker({ locator, guard, display }) {
         width: Math.max(1, rect.width),
         height: Math.max(1, rect.height),
       };
-      if (
-        guard.allowed({ rect: bounds }) === false ||
-        (await locator.focus())?.secure
-      )
+      if ((await refused({ rect: bounds })) || (await locator.focus())?.secure)
         return { type: "lock", at: { x: bounds.x, y: bounds.y } };
       if (await areaIsSecure(bounds))
         return { type: "lock", at: { x: bounds.x, y: bounds.y } };

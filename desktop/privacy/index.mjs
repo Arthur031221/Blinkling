@@ -2,6 +2,7 @@ import { pickLocale } from "../shared/i18n.mjs";
 import { LIMIT_FALLBACK_MS } from "../autowatch/index.mjs";
 import { createGuard } from "./guard.mjs";
 import { lockKey, say } from "./strings.mjs";
+import { exposeTestHook } from "../shared/test-hooks.mjs";
 
 /** Turns that carry what is on screen. A typed question with no pixels does not. */
 const SCREEN_SOURCES = new Set(["auto-explain", "guide", "companion"]);
@@ -32,6 +33,7 @@ export function installPrivacy({
   let override;
   const source = {
     focus: () => (override === undefined ? locator.focus() : override),
+    windowAt: (point) => locator.windowAt?.(point),
   };
   let missing = false,
     watching = false,
@@ -62,7 +64,7 @@ export function installPrivacy({
   // Capture itself is refused, so nothing is read from a locked window at all.
   const capture = features?.capture;
   const originals = {};
-  for (const name of ["screen", "region"]) {
+  for (const name of ["screen", "pick"]) {
     if (typeof capture?.[name] !== "function") continue;
     originals[name] = { own: Object.hasOwn(capture, name), fn: capture[name] };
     capture[name] = async (id, signal, options) => {
@@ -136,12 +138,23 @@ export function installPrivacy({
     guard,
     focus: (value) => (override = value === null ? undefined : value),
   };
-  // The shell assigns `blinklingTest` after this runs; the hook joins whichever
-  // object is assigned, so the shell's test literal needs no change.
-  const release = exposeTestHooks(hooks);
+  // The shell assigns `blinklingTest` after this runs; the shared helper joins
+  // whichever object is assigned and leaves the other hooks (pick) alone.
+  const release = exposeTestHook("privacy", hooks);
+
+  /** What pick and capture ask before any pixels or text leave the process:
+   * `{point?, rect?, window?}` in, `{ok}` or `{ok:false, reason}` out. A refusal
+   * lights Blink's lock face and says why once, exactly as a refused capture does. */
+  const openGuard = Object.freeze({
+    async allowed(options = {}) {
+      const verdict = await guard.allowed(options);
+      return verdict.ok === false ? refused(verdict) : verdict;
+    },
+  });
 
   return {
     guard,
+    openGuard,
     dispose() {
       unhook?.();
       unsubscribe?.();
@@ -157,34 +170,5 @@ export function installPrivacy({
       if (capture) delete capture.privacy;
       release();
     },
-  };
-}
-
-/** Test-only: `globalThis.blinklingTest.privacy`, present under E2E alone. */
-function exposeTestHooks(hooks) {
-  const present = () => globalThis.blinklingTest;
-  if (present()) {
-    present().privacy = hooks;
-    return () => {
-      if (present()?.privacy === hooks) delete present().privacy;
-    };
-  }
-  if (process.env.BLINKLING_E2E !== "1") return () => {};
-  // Another module may already wait for the object the same way (the pick
-  // does); keep its accessor working underneath this one.
-  const earlier = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
-  let held;
-  Object.defineProperty(globalThis, "blinklingTest", {
-    configurable: true,
-    get: () => (earlier?.get ? earlier.get() : held),
-    set(value) {
-      if (earlier?.set) earlier.set(value);
-      else held = value;
-      if (value && typeof value === "object") value.privacy = hooks;
-    },
-  });
-  return () => {
-    const object = present();
-    if (object?.privacy === hooks) delete object.privacy;
   };
 }

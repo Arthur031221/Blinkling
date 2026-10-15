@@ -396,3 +396,56 @@ test("a locator and guard plugged in later are used by the next pick", async () 
     "the hover under the cursor asks the new locator",
   );
 });
+
+test("MV-1: the privacy guard given to setGuard locks the next pick, and the locator it looks through is the pick's", async () => {
+  const s = setup();
+  const pick = await s.install();
+  const asked = [];
+  pick.setGuard({
+    allowed: async (o) => (asked.push(o), { ok: false, reason: "secure" }),
+  });
+  pick.test.keys.handle({ type: "keydown", code: KEYCODES.ctrl });
+  s.timers.find((t) => t.ms === timing.pickHold).fn();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(asked[0].point, { x: 20, y: 20 });
+  const next = { ...(await import("./install.mjs")).windowLocator };
+  pick.setLocator(next);
+  assert.equal(pick.locator(), next);
+});
+
+test("MV-2: pick and privacy test hooks both hang on blinklingTest, in either install order", async () => {
+  const { installPrivacy } = await import("../privacy/index.mjs");
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  const privacyOn = () =>
+    installPrivacy({
+      session: { subscribe: () => () => {}, beforeSend: () => () => {} },
+      features: {},
+      send: () => {},
+    });
+  const before = process.env.BLINKLING_E2E;
+  process.env.BLINKLING_E2E = "1";
+  try {
+    for (const privacyFirst of [false, true]) {
+      delete globalThis.blinklingTest;
+      const s = setup({ env: { BLINKLING_E2E: "1" } });
+      let privacy, pick;
+      if (privacyFirst) privacy = privacyOn();
+      pick = await s.install();
+      if (!privacyFirst) privacy = privacyOn();
+      globalThis.blinklingTest = { other: 1 };
+      const hooks = globalThis.blinklingTest;
+      assert.equal(hooks.pick, pick);
+      assert.equal(typeof hooks.privacy.focus, "function");
+      assert.equal(hooks.privacy.guard, privacy.guard);
+      assert.equal(hooks.other, 1);
+      privacy.dispose();
+      assert.equal(hooks.privacy, undefined);
+      assert.equal(hooks.pick, pick, "disposing privacy leaves the pick hook");
+    }
+  } finally {
+    delete globalThis.blinklingTest;
+    if (saved) Object.defineProperty(globalThis, "blinklingTest", saved);
+    if (before === undefined) delete process.env.BLINKLING_E2E;
+    else process.env.BLINKLING_E2E = before;
+  }
+});
