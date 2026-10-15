@@ -130,6 +130,15 @@ test("dragging past 6 px takes an area", async () => {
   assert.deepEqual(taken.bounds, { x: 10, y: 20, width: 190, height: 130 });
 });
 
+test("the drag message carries the press point, so the layer can follow its own pointer", async () => {
+  const { controller, log } = setup();
+  await controller.raise();
+  await controller.input({ type: "down", x: 10, y: 20 });
+  await controller.input({ type: "move", x: 200, y: 150 });
+  const drag = log.sent.filter(([c, v]) => c === "drag" && v.rect).at(-1)[1];
+  assert.deepEqual(drag.from, { x: 10, y: 20 });
+});
+
 test("while an area is dragged the hover outline goes away, so the rubber band is the only box", async () => {
   const { controller, log } = setup();
   await controller.raise();

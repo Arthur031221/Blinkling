@@ -421,6 +421,50 @@ test("N1.2 Ctrl+drag past 6 px takes an area equal to the dragged rectangle and 
   }
 });
 
+test("MP-3 the rubber band sits on the pointer while the button is held, not behind it", async () => {
+  const app = await start();
+  try {
+    const t = await domRect(app, "#story-text");
+    const from = { x: t.x + 10, y: t.y + 6 };
+    const to = { x: t.x + 300, y: t.y + 150 };
+    await hold(app, from);
+    const path = Array.from({ length: 24 }, (_, i) => [
+      [
+        "move",
+        px(from.x + ((to.x - from.x) * (i + 1)) / 24),
+        px(from.y + ((to.y - from.y) * (i + 1)) / 24),
+      ],
+      ["wait", 8],
+    ]).flat();
+    const steps = [["move", px(from.x), px(from.y)], ["press"], ...path];
+    input(steps);
+    await pause(300);
+    const drawn = (await frames(app)).filter(
+      (f) => f.surface === "pick-band" || f.surface === "pick-pointer",
+    );
+    const bands = drawn.filter((f) => f.surface === "pick-band");
+    const pointers = drawn.filter((f) => f.surface === "pick-pointer");
+    expect(bands.length, "the band was drawn while dragging").toBeGreaterThan(
+      8,
+    );
+    // In every frame the band's far corner is where the pointer is in that frame.
+    const behind = bands.filter((band, i) => {
+      const at = pointers[i].box;
+      return (
+        Math.abs(band.box.x + band.box.width - at.x) > 1 ||
+        Math.abs(band.box.y + band.box.height - at.y) > 1
+      );
+    });
+    expect(behind.length, "frames with the band behind the pointer").toBe(0);
+    await screen(app, "10b-held");
+    input([["release"]]);
+    release();
+    await poll(() => miniOpen(app), 6000, "the mini composer");
+  } finally {
+    await app.close();
+  }
+});
+
 test("N1.2 a drag of 6 px or less is a click, not an area", async () => {
   const app = await start();
   try {

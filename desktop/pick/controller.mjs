@@ -136,7 +136,7 @@ export function createPickController({
           if (!current.dragging)
             send("outline", { rect: null, kind: null, lock: false });
           current.dragging = true;
-          send("drag", { rect: g.rect });
+          send("drag", { rect: g.rect, from: g.from });
           badge();
         } else await hover(point);
         break;

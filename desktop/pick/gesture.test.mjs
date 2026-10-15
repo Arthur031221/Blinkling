@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGesture, DRAG_THRESHOLD } from "./gesture.mjs";
+import { createGesture, DRAG_THRESHOLD, rectBetween } from "./gesture.mjs";
 
 test("drag threshold is about 6 px", () => assert.equal(DRAG_THRESHOLD, 6));
 
@@ -58,5 +58,21 @@ test("the area is clamped to the bounds it is given", () => {
     y: 50,
     width: 50,
     height: 50,
+  });
+});
+
+test("a dragging state names the press point, so the layer can redraw the band from its own pointer", () => {
+  const g = createGesture();
+  g.down({ x: 100, y: 100 });
+  assert.equal(g.move({ x: 103, y: 100 }).from, null);
+  assert.deepEqual(g.move({ x: 80, y: 60 }).from, { x: 100, y: 100 });
+});
+
+test("rectBetween normalizes any two corners", () => {
+  assert.deepEqual(rectBetween({ x: 100, y: 100 }, { x: 80, y: 130 }), {
+    x: 80,
+    y: 100,
+    width: 20,
+    height: 30,
   });
 });
