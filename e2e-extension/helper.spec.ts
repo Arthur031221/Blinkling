@@ -159,6 +159,14 @@ test("the helper gives Blink page structure, a full-length capture, translation 
     await popup.emulateMedia({ reducedMotion: "reduce" });
     expect(await motion()).toEqual({ eye: "none", star: "none", band: "none" });
     await popup.emulateMedia({ reducedMotion: "no-preference" });
+    // A frame must be produced after the media change before Chrome can capture.
+    await popup.bringToFront();
+    await popup.evaluate(
+      () =>
+        new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(done)),
+        ),
+    );
     await popup.screenshot({ path: join(report, "popup.png") });
     await popup.close();
 

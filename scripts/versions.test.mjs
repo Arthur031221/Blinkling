@@ -17,6 +17,21 @@ describe("one version for everything a user installs", () => {
     expect(json("package.json").version).toBe(version);
   });
 
+  it("is reported by the extension, the bridge package and the MCP server", () => {
+    expect(json("extension/manifest.json").version).toBe(version);
+    expect(json("bridge/package.json").version).toBe(version);
+    expect(
+      readFileSync(join(process.cwd(), "bridge/src/server.ts"), "utf8"),
+    ).toContain(`version: "${version}"`);
+  });
+
+  it("is what the privacy page and the committed bundle state", () => {
+    expect(
+      readFileSync(join(process.cwd(), "public/privacy.html"), "utf8"),
+    ).toContain(`Version ${version}`);
+    expect(json("bin/extension/manifest.json").version).toBe(version);
+  });
+
   it("is what the release builder stamps on the app", () => {
     const build = readFileSync(
       join(process.cwd(), "desktop/distribution/build.mjs"),
