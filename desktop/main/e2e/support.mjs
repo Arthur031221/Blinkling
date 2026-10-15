@@ -8,7 +8,7 @@ import {
   readFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { PNG } from "pngjs";
@@ -132,7 +132,7 @@ export async function launch(scale = 1, theme = "light", data = null) {
     args: [
       ...(process.env.BLINKLING_TEST_EXECUTABLE
         ? []
-        : [fileURLToPath(new URL("../..", import.meta.url))]),
+        : [resolve(fileURLToPath(new URL("../..", import.meta.url)))]),
       "--no-sandbox",
       `--force-device-scale-factor=${scale}`,
       "--lang=zh-TW",

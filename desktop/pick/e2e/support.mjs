@@ -1,9 +1,10 @@
 import { _electron as electron } from "@playwright/test";
 import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFileSync } from "node:fs";
 
-const desktop = fileURLToPath(new URL("../..", import.meta.url));
+const desktop = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
 /** Starts the real shell. `scale` is the device scale factor the whole run uses;
  * `args` are extra Chromium or Electron switches. */

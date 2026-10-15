@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 export const report =
   process.env.BLINKLING_REPORT_DIR ?? join(tmpdir(), "blinkling-shell-report");
 export async function launch({ scale = 1, theme = "light", data } = {}) {
@@ -18,7 +18,7 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
   );
   const app = await electron.launch({
     args: [
-      fileURLToPath(new URL("../..", import.meta.url)),
+      resolve(fileURLToPath(new URL("../..", import.meta.url))),
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
       `--force-device-scale-factor=${scale}`,
       "--lang=zh-TW",

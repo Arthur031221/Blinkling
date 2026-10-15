@@ -1,4 +1,5 @@
 import { _electron as electron } from "@playwright/test";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 export function launch() {
@@ -9,7 +10,7 @@ export function launch() {
     args: [
       ...(process.env.BLINKLING_TEST_EXECUTABLE
         ? []
-        : [fileURLToPath(new URL("..", import.meta.url))]),
+        : [resolve(fileURLToPath(new URL("..", import.meta.url)))]),
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
       // The specs read the card in Traditional Chinese; it follows the system language.
       "--lang=zh-TW",

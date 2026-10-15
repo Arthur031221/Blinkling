@@ -1,9 +1,10 @@
 import { PNG } from "pngjs";
 import { _electron as electron } from "@playwright/test";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFileSync } from "node:fs";
 
-const desktop = fileURLToPath(new URL("../..", import.meta.url));
+const desktop = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
 /** Starts the real shell and waits for its locator hook. */
 export async function launch({ env = {} } = {}) {
