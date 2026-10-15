@@ -42633,6 +42633,7 @@ function readElements(value) {
     const element = {
       id: text(e.id, 100),
       kind: text(e.kind, 40),
+      tag: typeof e.tag === "string" && /^[a-z][a-z0-9-]{0,31}$/.test(e.tag) ? e.tag : "",
       rect: {
         x: finite(rect.x),
         y: finite(rect.y),
