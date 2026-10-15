@@ -601,7 +601,7 @@ test("a Windows install removes any Zone.Identifier stream from the extracted ex
   exe.write("MZ");
   exe.writeUInt32LE(128, 60);
   exe.writeUInt32LE(0x4550, 128);
-  exe.writeUInt16LE(0x8664, 132);
+  exe.writeUInt16LE(0x14c, 132); // the portable build's 32-bit launcher stub
   const unlinked = [];
   try {
     const installed = await installDesktop(

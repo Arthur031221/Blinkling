@@ -489,7 +489,11 @@ function verifyExecutable(entries, build) {
     matches =
       pe + 6 <= data.length &&
       data.readUInt32LE(pe) === 0x4550 &&
-      data.readUInt16LE(pe + 4) === (build.arch === "arm64" ? 0xaa64 : 0x8664);
+      // electron-builder's portable launcher is a 32-bit NSIS stub (0x14c) that
+      // unpacks and starts the real 64-bit app, on x64 and Arm Windows alike.
+      [build.arch === "arm64" ? 0xaa64 : 0x8664, 0x14c].includes(
+        data.readUInt16LE(pe + 4),
+      );
   }
   if (build.os === "darwin" && data.length >= 8)
     matches =

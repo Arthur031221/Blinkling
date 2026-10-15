@@ -107,3 +107,21 @@ test("the other platforms keep their plain config", () => {
   });
   assert.equal(plan.config.linux, undefined);
 });
+
+test("electron-builder never tries to publish from a CI runner", async () => {
+  const source = await readFile(
+    new URL("./package.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /"--publish",\s*"never"/);
+});
+
+test("the mac app is signed ad hoc with codesign and verified, not through the keychain-only packager option", async () => {
+  const source = await readFile(
+    new URL("./build.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /osxSign/);
+  assert.match(source, /"--force", "--deep", "--sign", "-"/);
+  assert.match(source, /"--verify", "--deep", "--strict"/);
+});

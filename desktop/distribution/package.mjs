@@ -66,7 +66,15 @@ function run(plan, scratch) {
   return writeFile(config, JSON.stringify(plan.config)).then(() =>
     execFileSync(
       "npx",
-      ["--yes", plan.package, ...plan.args, "--config", config],
+      [
+        "--yes",
+        plan.package,
+        ...plan.args,
+        "--publish",
+        "never",
+        "--config",
+        config,
+      ],
       { stdio: "inherit", shell: process.platform === "win32" },
     ),
   );

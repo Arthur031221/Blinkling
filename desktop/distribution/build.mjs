@@ -1,6 +1,7 @@
 import { packager } from "@electron/packager";
 import { fileURLToPath } from "node:url";
 import { copyDependencies } from "./dependencies.mjs";
+import { execFileSync } from "node:child_process";
 import { cp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 const { version } = JSON.parse(
@@ -50,8 +51,19 @@ const output = await packager({
     /\/(\.test-claude|test-results|test)($|\/)/,
     /\.test\.mjs$/,
   ],
-  ...(process.platform === "darwin"
-    ? { osxSign: { identity: "-", type: "development" } }
-    : {}),
 });
+// There is no Apple Developer identity, so the app is signed ad hoc here with
+// the system tool (the packager's own signing needs a keychain identity and
+// only warns when there is none). A signature that does not verify fails the
+// build, because macOS would refuse to start the app.
+if (process.platform === "darwin")
+  for (const dir of output) {
+    const app = join(dir, "Blinkling.app");
+    execFileSync("codesign", ["--force", "--deep", "--sign", "-", app], {
+      stdio: "inherit",
+    });
+    execFileSync("codesign", ["--verify", "--deep", "--strict", app], {
+      stdio: "inherit",
+    });
+  }
 console.log(output.join("\n"));

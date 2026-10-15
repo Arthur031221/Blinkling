@@ -19166,7 +19166,11 @@ function verifyExecutable(entries, build) {
     matches = data.length >= 20 && data.subarray(0, 4).equals(Buffer.from([127, 69, 76, 70])) && data[4] === 2 && data[5] === 1 && data.readUInt16LE(18) === (build.arch === "arm64" ? 183 : 62) && Boolean(entry.mode & 73);
   if (build.os === "win32" && data.length >= 64 && data.toString("ascii", 0, 2) === "MZ") {
     const pe = data.readUInt32LE(60);
-    matches = pe + 6 <= data.length && data.readUInt32LE(pe) === 17744 && data.readUInt16LE(pe + 4) === (build.arch === "arm64" ? 43620 : 34404);
+    matches = pe + 6 <= data.length && data.readUInt32LE(pe) === 17744 && // electron-builder's portable launcher is a 32-bit NSIS stub (0x14c) that
+    // unpacks and starts the real 64-bit app, on x64 and Arm Windows alike.
+    [build.arch === "arm64" ? 43620 : 34404, 332].includes(
+      data.readUInt16LE(pe + 4)
+    );
   }
   if (build.os === "darwin" && data.length >= 8)
     matches = data.readUInt32LE(0) === 4277009103 && data.readUInt32LE(4) === (build.arch === "arm64" ? 16777228 : 16777223) && Boolean(entry.mode & 73);
