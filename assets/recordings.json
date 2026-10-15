@@ -14,7 +14,7 @@
       "sha256": "d4f8af6965bd0d0c7941531091ddba86050146b6323974d1c77646ae76518af0",
       "segments": [[1, 22]],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "ed3a8fa01878ee4baa3d536df200f5e613319569c4c9ff39684610758bbd13e6",
+      "eventsSha256": "6ae66893f2730ecaf351c8ef68261084141e283fc575eddfa221f36078fcbb46",
       "turns": 1
     },
     {
@@ -24,7 +24,7 @@
       "sha256": "1694fe5a6f9df3a70ba12abca2f134f34ee62eebaf68c1796af2e7aab72776e2",
       "segments": [[1.5, 26]],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "0fe999147d62bca9b0ae2c1bce776fce174e2deccca49fccadce5795736bd06e",
+      "eventsSha256": "23873da267ad2ef5969bc34d1d538a91ff9c7406b307523d6d61fbccf054fec8",
       "turns": 1
     }
   ],
@@ -33,7 +33,7 @@
       "asset": "assets/store/area.png",
       "scene": "area",
       "events": "assets/record/events/area.events.json",
-      "eventsSha256": "ddb9882ba79d1bbbcacbc00228eb91b028afc123509d640616790f86bf7c7b81"
+      "eventsSha256": "bf0dfc7df2d5b070cb85d65abbfbb38058ba19dc53af80f8f4c1da536cc11fef"
     }
   ]
 }
