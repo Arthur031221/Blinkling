@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { TARGETS, assetName } from "./targets.mjs";
 import { packagePlan } from "./package.mjs";
@@ -65,4 +66,34 @@ test("the AppImage launches the binary the packager produced", () => {
     output: "/o",
   });
   assert.equal(plan.config.linux.executableName, "Blinkling");
+});
+
+test("the AppImage carries Blink's icon and the metadata electron-builder warns about", async () => {
+  const plan = packagePlan({
+    target: target("linux", "x64"),
+    version: "3.0.0",
+    packaged: "/p",
+    output: "/o",
+  });
+  const { linux, extraMetadata } = plan.config;
+  const icon = await readFile(linux.icon);
+  assert.equal(icon.subarray(1, 4).toString(), "PNG");
+  // electron-builder wants at least 256px for a Linux icon; Blink ships at 512.
+  assert.equal(icon.readUInt32BE(16), 512);
+  assert.equal(icon.readUInt32BE(20), 512);
+  assert.equal(extraMetadata.desktopName, "blinkling.desktop");
+  // The .desktop file takes its name from desktopName so it matches the WM class.
+  assert.equal(linux.syncDesktopName, true);
+  assert.equal(extraMetadata.description, "Blink, the Blinkling companion");
+  assert.deepEqual(extraMetadata.author, { name: "Arthur031221" });
+  assert.equal(extraMetadata.version, "3.0.0");
+});
+
+test("the app's own package.json names the desktop entry Electron looks up", async () => {
+  const pkg = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(pkg.desktopName, "blinkling.desktop");
+  assert.equal(pkg.description, "Blink, the Blinkling companion");
+  assert.deepEqual(pkg.author, { name: "Arthur031221" });
 });

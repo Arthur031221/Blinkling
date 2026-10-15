@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { TARGETS, assetName, packagedDirectory } from "./targets.mjs";
 
 const BUILDER = "electron-builder@26.17.0";
+const ICON = fileURLToPath(new URL("./icons/blink-512.png", import.meta.url));
 
 /** What turns an unpacked app into the release asset for one target. Pure so
  * the names and formats can be tested without building anything. */
@@ -37,13 +38,20 @@ export function packagePlan({ target, version, packaged, output }) {
       productName: "Blinkling",
       artifactName: asset,
       directories: { output },
-      extraMetadata: { version },
+      extraMetadata: {
+        version,
+        description: "Blink, the Blinkling companion",
+        author: { name: "Arthur031221" },
+        desktopName: "blinkling.desktop",
+      },
       ...(linux
         ? {
             linux: {
               target: "AppImage",
               category: "Utility",
               executableName: "Blinkling",
+              icon: ICON,
+              syncDesktopName: true,
             },
           }
         : { win: { target: "portable" } }),
