@@ -236,17 +236,18 @@ adapter implements this recovery above the low-level transport scaffold.
 `desktop/shared/contracts.ts` is the integration contract. Builders should agree
 on any change before changing it; the shell bucket owns edits to that file.
 
-| Module                                     | Responsibility / boundary                                                                                                                                        |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/main/`, `preload/`, `shared/`     | Window lifecycle, geometry, validated IPC, display policy and service composition. No feature logic in preload.                                                  |
-| `desktop/renderer/`, `character/`, `menu/` | House Blink rig/state machine, hover/drag/pin, spring menu, animated silhouette input regions.                                                                   |
-| `desktop/messages/`, `composer/`           | Normalized conversation store, streamed sentence bubbles, structured rendering, attachments, picker and rounded card.                                            |
-| `desktop/capture/`                         | `CaptureService`: screen, cancellable region, optional full-page companion. Hides all owned surfaces and restores them in `finally`.                             |
-| `desktop/overlay/`, `autowatch/`           | `OverlayService`: capture-coordinate drawings/steps/dismissal; low-rate screen-change policy and typing pause.                                                   |
-| `desktop/session/`                         | Durable `SessionBridge`: connect, send, select, stop, subscribe, dispose; normalized events, persistence, locking, retry and remote resume above `OwnedSession`. |
-| `plugin/desktop/`                          | Platform asset selection, pinned digest verification, atomic installation, launcher and companion host. No published V3 binary is assumed.                       |
-| `bridge/`, `extension/`, existing `src/`   | Optional browser capabilities and legacy compatibility; route their AI turns through the desktop session when connected.                                         |
-| `desktop/distribution/`, `e2e/`            | Native package build and desktop verification.                                                                                                                   |
+| Module                                     | Responsibility / boundary                                                                                                                                               |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop/main/`, `preload/`, `shared/`     | Window lifecycle, geometry, validated IPC, display policy and service composition. No feature logic in preload.                                                         |
+| `desktop/renderer/`, `character/`, `menu/` | House Blink rig/state machine, hover/drag/pin, spring menu, animated silhouette input regions.                                                                          |
+| `desktop/messages/`, `composer/`           | Normalized conversation store, streamed sentence bubbles, structured rendering, attachments, picker and rounded card.                                                   |
+| `desktop/capture/`                         | `CaptureService`: screen, cancellable region, optional full-page companion. Hides all owned surfaces and restores them in `finally`.                                    |
+| `desktop/locator/`                         | Element locator: what is under a point, from the companion DOM, then OS accessibility, then pixels; snapping; secure fields never read. See "Element locator (M1, M2)". |
+| `desktop/overlay/`, `autowatch/`           | `OverlayService`: capture-coordinate drawings/steps/dismissal; low-rate screen-change policy and typing pause.                                                          |
+| `desktop/session/`                         | Durable `SessionBridge`: connect, send, select, stop, subscribe, dispose; normalized events, persistence, locking, retry and remote resume above `OwnedSession`.        |
+| `plugin/desktop/`                          | Platform asset selection, pinned digest verification, atomic installation, launcher and companion host. No published V3 binary is assumed.                              |
+| `bridge/`, `extension/`, existing `src/`   | Optional browser capabilities and legacy compatibility; route their AI turns through the desktop session when connected.                                                |
+| `desktop/distribution/`, `e2e/`            | Native package build and desktop verification.                                                                                                                          |
 
 `Turn` includes a UUID, text, attachments and source (composer, quick-ask, guide,
 auto-explain, companion). `Capture` includes an immutable display, DIP region,
@@ -257,6 +258,131 @@ Markdown, CSV and JSON files. Limits are eight attachments, 20 MB each, 32 MB
 combined and 200,000 characters per text file. Unsupported files are rejected
 instead of pretending to send them. Guide output needs a validated schema
 of regions, steps, labels and arrows, never executable model-generated HTML.
+
+## Element locator (M1, M2)
+
+`desktop/locator/` answers one question for pick, pointing, privacy and the
+guide: what is under this point, and how big is it. It is created once by the
+shell (`createLocator({ companion, platform, capture })`) and the same object is
+handed to `installPick`, `installPrivacy`, capture and pointing as
+`shell.locator`. Callers code against the interface below and nothing else.
+
+```ts
+type Rect = { x: number; y: number; width: number; height: number }; // screen DIP
+type Kind =
+  | "paragraph"
+  | "sentence"
+  | "heading"
+  | "section"
+  | "text"
+  | "image"
+  | "figure"
+  | "table"
+  | "cell"
+  | "code"
+  | "formula"
+  | "chart"
+  | "video"
+  | "canvas"
+  | "link"
+  | "button"
+  | "control"
+  | "input"
+  | "window"
+  | "page";
+type WindowRef = {
+  id: string;
+  title: string;
+  app: string;
+  bounds: Rect;
+  private: boolean;
+  passwordManager: boolean;
+};
+type DisplayRef = { id: string; scaleFactor: number; bounds: Rect };
+type Element = {
+  id: string; // '<source>:<windowId>:<n>', source is dom | ax | image
+  kind: Kind;
+  bounds: Rect;
+  role: string;
+  name: string;
+  text: string; // capped at 4000
+  window: WindowRef;
+  display: DisplayRef;
+  secure?: true; // a bare marker: kind "input", empty name and text, no content
+  content?: {
+    markdown?: string;
+    code?: string;
+    language?: string;
+    latex?: string;
+    mathml?: string;
+  };
+};
+type Locator = {
+  locate(point): Promise<Element | null>; // hover answer, 50 ms budget
+  elements(window: WindowRef): Promise<Element[]>;
+  parent(el: Element): Promise<Element | null>;
+  sentenceAt(el: Element, point): Promise<Element | null>;
+  selectionAt(point): Promise<Element | null>;
+  textIn(rect: Rect): Promise<string>; // capped at 4000, never secure
+  focus(): Promise<{ secure: boolean; window: WindowRef | null }>;
+  windowAt(point): Promise<WindowRef | null>;
+  snap(
+    rect: Rect,
+    opts?: { kinds?: Kind[] },
+  ): Promise<{ rect: Rect; element: Element | null }>;
+};
+```
+
+**Sources and fall-through.** Each window is read by up to three sources, in
+this order, and the first one that has an element under the point answers:
+
+1. **DOM**, from the companion extension (`companion.elements`), for browser
+   windows only. The companion's rectangles are viewport CSS pixels and become
+   screen DIP as `css * frame.zoom + frame.screenX/Y`. PDF viewers and pages
+   the extension cannot read answer `null`, which means "fall through".
+2. **OS accessibility**: AT-SPI on Linux, AX on macOS, UI Automation on
+   Windows. Each is a small helper in `desktop/locator/native/` that prints one
+   JSON tree; the JavaScript side maps roles to kinds, so the three platforms
+   share one mapping and one set of tests. An app with no accessibility tree
+   answers an empty tree, which means "fall through".
+3. **Image**, from a fresh capture of the window: connected non-background
+   regions become `image`/`figure`, runs of glyph-sized ink are clustered into
+   text lines and lines into `paragraph`s. It reads no characters (no OCR), so
+   its `text` is empty and callers send the pixels.
+
+**Speed (M10).** Hover answers within 50 ms because a read is never awaited
+past a 30 ms budget. Each source keeps one snapshot per window; a point is hit
+tested against the snapshot, which is in memory. A stale snapshot is answered
+from and refreshed in the background, a missing one is raced against the
+budget and otherwise falls through. An image answer is never given for a window
+whose DOM or accessibility read has not finished, because pixels cannot tell a
+secure field from text; the hover answers `null` until the read lands.
+
+Snapshots are dropped when the window moves, resizes, is raised or the window
+list changes, when browser zoom changes, on scroll (including nested
+containers), on a mutation with no input, and on keys that move content
+(Enter, Backspace, Delete, paging and arrow keys), not on every key. The
+shell calls `locator.invalidate()` for the input it sees.
+
+**Click is fail-closed.** Before a click is taken the picker invalidates and
+waits for a fresh read of the window under the pointer. If that read cannot
+finish within the budget, the pick locks instead of using the stale answer.
+
+**Secure fields.** Password, card and `data-private` fields are never read. A
+secure element is returned only as a bare marker (`secure: true`, empty
+`name`, `text` and no `content`; it keeps `id`, `window`, `bounds` and
+`kind: "input"`) so a caller can lock. `locate`, `elements` and `parent` all
+return that marker; `textIn`, `sentenceAt` and `snap` skip it, and nothing in
+this module ever holds its value.
+`focus().secure` is true while the focused control is a secure field, and
+`focus().window` carries the `private` and `passwordManager` flags the privacy
+rules read.
+
+**Snapping (M2).** `snap(rect, { kinds })` moves a model box onto the real
+element it points at: the candidate with the greatest overlap with the rect
+(by intersection over union, at least 0.3) that has an allowed kind, in screen
+DIP so it is the same at scale factor 1, 1.5 and 2 and across displays. With
+no such element the rect comes back unchanged and `element` is `null`.
 
 ## Distribution without store accounts
 
