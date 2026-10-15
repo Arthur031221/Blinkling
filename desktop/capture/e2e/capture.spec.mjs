@@ -1,8 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { PNG } from "pngjs";
+import { createServer } from "node:http";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { LOCALES } from "../../shared/i18n.mjs";
+import { strings } from "../strings.mjs";
 import {
   launch,
   background,
@@ -323,6 +326,143 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
     }
   });
 });
+
+// A companion that registers the way the bridge does: an authenticated local
+// endpoint announced to the real desktop host over its RPC. Nothing of the
+// capture service is replaced, so the chip depends on the real status path.
+async function registerCompanion(app) {
+  const token = "ab".repeat(32);
+  const tile = new PNG({ width: 40, height: 120 });
+  tile.data.fill(200);
+  const requests = [];
+  const server = createServer(async (req, res) => {
+    if (req.headers.authorization !== `Bearer ${token}`) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    if (req.method === "POST") requests.push(JSON.parse(body).method);
+    if (req.method !== "POST") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ companion: true }));
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/x-ndjson" });
+    res.end(
+      JSON.stringify({
+        tiles: [
+          {
+            image: {
+              id: "t1",
+              name: "Page.png",
+              mediaType: "image/png",
+              data: PNG.sync.write(tile).toString("base64"),
+            },
+            pixelWidth: 40,
+            pixelHeight: 120,
+          },
+        ],
+        capturedAt: Date.now(),
+      }) + "\n",
+    );
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${server.address().port}/desktop-companion`;
+  const address = await app.evaluate(
+    () => globalThis.blinklingCompanion.address,
+  );
+  const response = await fetch(`${address.url}/rpc`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${address.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ method: "companion", url, token }),
+  });
+  if (!response.ok) throw new Error(`companion rpc ${response.status}`);
+  return { requests, stop: () => server.close() };
+}
+
+test("the 整頁 chip follows the real companion registration of the desktop host", async () => {
+  await withApp(1, async ({ app, dir }) => {
+    const blink = await app.firstWindow();
+    await background(app);
+    await collectTaken(app);
+    const windows = await twoWindows(app, dir, {
+      a: { title: "Docs - Google Chrome" },
+    });
+    const chip = (page) => page.locator("#chip.on");
+    let fake;
+    try {
+      const bare = await openOverlay(app, blink);
+      await bare.mouse.move(centre(A).x, centre(A).y);
+      await expect(bare.locator("#hint")).toBeVisible();
+      await expect(chip(bare)).toHaveCount(0);
+      await bare.keyboard.press("Escape");
+      await idle(app);
+      fake = await registerCompanion(app);
+      const page = await openOverlay(app, blink);
+      await page.mouse.move(centre(B).x, centre(B).y);
+      await expect(chip(page)).toHaveCount(0);
+      await page.mouse.move(centre(A).x, centre(A).y);
+      await expect(chip(page)).toHaveCount(1);
+      await page.locator("#chip").click();
+      await expect.poll(() => taken(app).then((t) => t.length)).toBe(1);
+      const [t] = await taken(app);
+      expect(t.kind).toBe("page");
+      expect(fake.requests).toEqual(["full-page"]);
+    } finally {
+      fake?.stop();
+      windows.close();
+    }
+  });
+});
+
+// The hint is one line in every language at every scale: its text is a single
+// line box, the pill is as tall as one line plus its padding, and it fits the
+// overlay with room to spare.
+for (const scale of [1, 1.5, 2])
+  test(`the capture hint is one line in every locale at ${scale * 100}%`, async () => {
+    for (const lang of LOCALES)
+      await withApp([scale, { lang }], async ({ app }) => {
+        const blink = await app.firstWindow();
+        await background(app);
+        const page = await openOverlay(app, blink);
+        const hint = await page.locator("#hint").evaluate((el) => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const box = el.getBoundingClientRect();
+          const style = getComputedStyle(el);
+          return {
+            text: el.textContent,
+            lines: range.getClientRects().length,
+            height: box.height,
+            line: parseFloat(style.lineHeight),
+            chrome:
+              parseFloat(style.paddingTop) +
+              parseFloat(style.paddingBottom) +
+              parseFloat(style.borderTopWidth) +
+              parseFloat(style.borderBottomWidth),
+            clipped: el.scrollWidth > el.clientWidth,
+            left: box.left,
+            right: box.right,
+            width: innerWidth,
+          };
+        });
+        expect(hint.text, lang).toBe(strings[lang].hint);
+        expect(hint.lines, `${lang} text lines`).toBe(1);
+        expect(hint.height, `${lang} height`).toBeLessThanOrEqual(
+          hint.line + hint.chrome + 1,
+        );
+        expect(hint.clipped, `${lang} clipped`).toBe(false);
+        expect(hint.left, lang).toBeGreaterThanOrEqual(0);
+        expect(hint.right, lang).toBeLessThanOrEqual(hint.width);
+        if (scale === 2 && ["zh-TW", "de", "fr"].includes(lang))
+          await desktopShot(app, `capture-hint-${lang}`);
+      });
+  });
 
 for (const scale of [1, 1.5, 2])
   for (const theme of ["light", "dark"])

@@ -121,6 +121,9 @@ body.dragging #selection {
   color: var(--text);
   box-shadow: var(--shadow);
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   pointer-events: none;
   transform: translateX(-50%);
   transition: opacity var(--motion-base) var(--ease-standard);

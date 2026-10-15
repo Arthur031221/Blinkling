@@ -47,6 +47,7 @@ async function rig(openGuide: () => Promise<unknown> = async () => {}) {
   return {
     host,
     gateway,
+    server,
     origin,
     trust,
     close: async () => {
@@ -225,3 +226,27 @@ it("host.elements, translatePage and openPdfReader reach the helper end to end",
     await app.close();
   }
 });
+
+it("registers again when the desktop has dropped the companion", async () => {
+  const app = await rig();
+  try {
+    const port = Number(new URL(app.origin).port);
+    await new Promise<void>((resolve) => {
+      app.server.close(() => resolve());
+      app.server.closeAllConnections();
+    });
+    // A refused connection makes the desktop forget the companion.
+    expect(await app.host.fullPage()).toEqual({ companionRequired: true });
+    expect((await discoverDesktop())?.status.companion).toBe(false);
+    await new Promise<void>((resolve) =>
+      app.server.listen(port, "127.0.0.1", resolve),
+    );
+    await vi.waitFor(
+      async () =>
+        expect((await discoverDesktop())?.status.companion).toBe(true),
+      { timeout: 6000 },
+    );
+  } finally {
+    await app.close();
+  }
+}, 12_000);

@@ -105,3 +105,11 @@ test("textTable falls back to English for an unknown locale", () => {
   assert.equal(textTable("xx").hint, strings.en.hint);
   assert.deepEqual(Object.keys(textTable("de")), Object.keys(strings.en));
 });
+
+test("the capture hint stays short enough for one line in every language", () => {
+  for (const locale of LOCALES)
+    assert.ok(
+      [...strings[locale].hint].length <= 80,
+      `${locale} hint is ${[...strings[locale].hint].length} characters`,
+    );
+});
