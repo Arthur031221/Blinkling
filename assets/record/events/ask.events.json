@@ -1,0 +1,26 @@
+[
+  {
+    "name": "start",
+    "at": 7.49
+  },
+  {
+    "name": "blink",
+    "at": 8.728
+  },
+  {
+    "name": "typing",
+    "at": 13.855
+  },
+  {
+    "name": "send",
+    "at": 15.635
+  },
+  {
+    "name": "answer",
+    "at": 60.674
+  },
+  {
+    "name": "end",
+    "at": 60.674
+  }
+]

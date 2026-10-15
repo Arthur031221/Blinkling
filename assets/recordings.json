@@ -1,35 +1,42 @@
 {
-  "recordedAt": "2026-10-14T01:59:24.691Z",
-  "version": "2.1.0",
-  "extension": "bin/extension",
+  "recordedAt": "2026-10-15T00:00:00.000Z",
+  "version": "3.0.0",
+  "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
   "model": "haiku",
-  "capture": "X11 desktop with native Document Picture-in-Picture",
-  "editing": "Waiting time shortened; frames and replies unchanged",
+  "capture": "Real Blinkling desktop app built from this tree and a real Chromium window on an X11 desktop, driven by native XTest mouse and keyboard input",
+  "editing": "Waiting time cut; frames and replies unchanged",
   "recordings": [
     {
-      "asset": "assets/demo.gif",
-      "url": "https://www.google.com/travel/flights?hl=en",
-      "sha256": "7d468fdd15b354b67492f6464805ce55487333080a0c4b9d1e02cae829f66cd5",
+      "asset": "assets/pick.gif",
+      "scene": "pick",
+      "url": "https://arxiv.org/abs/2501.12948",
+      "sha256": "7da4d075415351fc116fcfe194985b06a3b54fd81d17bd4b560883ee6dee8bdd",
       "segments": [
-        [0, 4.679],
-        [22.303, 32.144],
-        [35.449, 39.112]
+        [1, 10],
+        [12, 24]
       ],
-      "requestCount": 3,
-      "requestsSha256": "e3ee84f3f405176433e9fe390075c25832d7ddeae86e3d8f2006820f29a8eba3"
+      "events": "assets/record/events/pick.events.json",
+      "eventsSha256": "668e41c0ebf49bbd5ca4bc8ec320ced698ea37d8802e84c681e0c38b7e04ae84",
+      "turns": 1
     },
     {
-      "asset": "assets/arxiv.gif",
-      "url": "https://arxiv.org/html/2501.12948v1",
-      "sha256": "fc871a89c4a12dce2d3343cecc8c3a0639cdffecd4b25200db6fb2dc8cbe76dc",
-      "segments": [
-        [0, 6.776],
-        [8.571, 15.742],
-        [17.031, 21.2]
-      ],
-      "requestCount": 3,
-      "requestsSha256": "bdb8ce96f5261a75da8114dd4d566a0c89a8907ff271faa15c14e785dec404d9"
+      "asset": "assets/ask.gif",
+      "scene": "ask",
+      "url": "https://arxiv.org/abs/2501.12948",
+      "sha256": "f909c9a4d2611293e790cb9125d718eff84b1b5dbc074f1e278bf8606a838e97",
+      "segments": [[1.5, 24]],
+      "events": "assets/record/events/ask.events.json",
+      "eventsSha256": "19890bcfce045dbc74062bee71338e634f96ec0b921425250e773168b460e636",
+      "turns": 1
+    }
+  ],
+  "stills": [
+    {
+      "asset": "assets/store/area.png",
+      "scene": "area",
+      "events": "assets/record/events/area.events.json",
+      "eventsSha256": "b26b3de6ea94be7ff5e03a3f668e9651d86c49b4ef791a757d49554900fc6a2b"
     }
   ]
 }

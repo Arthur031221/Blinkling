@@ -1,0 +1,30 @@
+[
+  {
+    "name": "start",
+    "at": 4.904
+  },
+  {
+    "name": "ctrl-down",
+    "at": 6.141
+  },
+  {
+    "name": "click",
+    "at": 8.012
+  },
+  {
+    "name": "composer",
+    "at": 12.703
+  },
+  {
+    "name": "ask",
+    "at": 13.539
+  },
+  {
+    "name": "answer",
+    "at": 45.6
+  },
+  {
+    "name": "end",
+    "at": 48.603
+  }
+]
