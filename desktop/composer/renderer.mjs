@@ -80,6 +80,7 @@ const unSurface = api.onSurface?.((event) => {
   if (event.type === "hover") conversation.hover(event.value);
   if (event.type === "pin") conversation.store.pin(event.value);
   if (event.type === "display") conversation.store.leaveDisplay();
+  if (event.type === "new-chat") conversation.store.reset();
   if (event.type === "menu") conversation.bubbles?.avoid(event.rect);
   if (event.type === "open") {
     if (event.seed) conversation.seed(event.seed);

@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLayers } from "./layer-window.mjs";
+import { createRaiser } from "./raise.mjs";
 import { createPickKeys } from "./keys.mjs";
 import { createKeySource, loadUiohook } from "./keys-uiohook.mjs";
 import { createPickController } from "./controller.mjs";
@@ -71,6 +72,7 @@ export async function installPick({ electron, shell, loadKeys = loadUiohook, set
   let pickKey = pickKeySetting(settingsFile, env);
 
   let controller = null;
+  const raiser = createRaiser();
   const layer = createLayers({
     BrowserWindow,
     screen,
@@ -82,6 +84,7 @@ export async function installPick({ electron, shell, loadKeys = loadUiohook, set
       shell.secure(win);
     },
     onPointer: (event) => void controller?.input(event).catch(onError),
+    raise: (windows) => raiser.raise(windows),
     ...timers,
   });
   // The first hold teaches the gesture once, near the cursor, then never again.
@@ -219,6 +222,7 @@ export async function installPick({ electron, shell, loadKeys = loadUiohook, set
       keys.dispose();
       mini.dispose();
       layer.dispose();
+      raiser.dispose();
       if (!miniWindow.isDestroyed()) miniWindow.destroy();
     },
   };

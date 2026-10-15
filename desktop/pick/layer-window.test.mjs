@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createLayers } from "./layer-window.mjs";
 
-function fakes(displays) {
+function fakes(displays, extra = {}) {
   const log = { windows: [], handlers: {}, timers: [] };
   class Win {
     constructor(options) {
@@ -41,6 +41,7 @@ function fakes(displays) {
     onPointer: (p) => pointer.push(p),
     setTimer: (fn, ms) => (log.timers.push({ fn, ms }), log.timers.length),
     clearTimer: () => {},
+    ...extra,
   });
   const ready = (win) => log.handlers["blinkling:pick-ready"]({ sender: win.webContents });
   return { log, layers, pointer, listeners, ready, screen };
@@ -140,4 +141,13 @@ test("plugging a display in or out adds and removes its window", () => {
   listeners["display-removed"]();
   assert.equal(layers.count(), 1);
   assert.equal(log.windows[1].destroyed, true);
+});
+
+test("each time a layer rises it is put back on top of the X stack", () => {
+  const raised = [];
+  const { log, layers, ready } = fakes([d1, d2], { raise: (windows) => raised.push(windows) });
+  log.windows.forEach(ready);
+  layers.show(d2, { x: 1400, y: 200 });
+  layers.show(d2, { x: 1400, y: 200 });
+  assert.deepEqual(raised, [[log.windows[1]], [log.windows[1]]]);
 });

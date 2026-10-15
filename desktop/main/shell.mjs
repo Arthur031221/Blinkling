@@ -773,7 +773,7 @@ const pick = await installPick({
     workArea: () => display.workArea,
     session,
     captureScreen,
-    newChat: () => session.newChat?.(),
+    newChat: () => tellDeck({ type: "new-chat" }),
     autoExplain: {
       get: () => autoExplain,
       set: async (enabled) => {
@@ -880,6 +880,7 @@ app.on("will-quit", () => {
   clearInterval(poll);
   stopStacking();
   input?.dispose();
+  pick.dispose();
   globalShortcut.unregisterAll();
 });
 app.on("window-all-closed", () => app.quit());

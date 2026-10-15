@@ -16,7 +16,8 @@ const FLIGHT_LIMIT = duration.slow * 4;
  * Electron comes in as parameters so the lifecycle is tested with fakes:
  *   BrowserWindow, screen (getAllDisplays, on/removeListener), ipcMain (on),
  *   options (BrowserWindow options shared with the other windows), page (url or
- *   file path to layer.html), secure(win) (the shell's window hardening). */
+ *   file path to layer.html), secure(win) (the shell's window hardening),
+ *   raise(windows) (puts windows back on top of the X stack on Linux). */
 export function createLayers({
   BrowserWindow,
   screen,
@@ -25,6 +26,7 @@ export function createLayers({
   page,
   secure = () => {},
   onPointer = () => {},
+  raise = () => {},
   setTimer = setTimeout,
   clearTimer = clearTimeout,
 }) {
@@ -104,6 +106,7 @@ export function createLayers({
     layer.win.setIgnoreMouseEvents(!interactive);
     layer.active = interactive;
     layer.win.showInactive();
+    raise([layer.win]);
   }
 
   function hideLayer(layer) {

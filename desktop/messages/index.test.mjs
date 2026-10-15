@@ -294,3 +294,18 @@ test("pinning keeps the answer", () => {
   t.advance(8000);
   assert.equal(s.state().visible, false);
 });
+
+test("a new chat empties the deck and nothing of the old chat comes back", () => {
+  const s = createMessageStream();
+  s.accept({ type: "delta", id: "a", text: "First chat answer." });
+  s.accept({ type: "done", turnId: "t1" });
+  assert.equal(s.state().visible, true);
+  s.reset();
+  assert.equal(s.state().visible, false);
+  assert.deepEqual(s.bubbles(), []);
+  s.hover(true);
+  assert.equal(s.state().visible, false, "hovering Blink has nothing to bring back");
+  s.accept({ type: "delta", id: "b", text: "Second chat answer." });
+  assert.equal(s.bubbles().length, 1);
+  s.dispose();
+});

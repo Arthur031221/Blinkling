@@ -195,6 +195,17 @@ export function createMessageStream({
     leaveDisplay() {
       calm.leave();
     },
+    /** A new chat (a pick sixty quiet seconds after the last one): the deck
+     * starts empty and the old answers are not brought back by hovering. */
+    reset() {
+      messages.clear();
+      floor = 0;
+      speaking = false;
+      visible = false;
+      calm.leave();
+      holding();
+      notify();
+    },
     subscribe(listener) {
       listeners.add(listener);
       listener(state());
