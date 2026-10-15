@@ -91,89 +91,55 @@
     <main>
       <h1>Blinkling Privacy Policy</h1>
       <p><a href="./">Blinkling</a> / Privacy</p>
-      <p>Last updated: 14 October 2026 · Version 2.1.0</p>
+      <p>Last updated: 15 October 2026 · Version 2.1.0</p>
       <p>
         Blinkling has no telemetry. It does not send analytics or diagnostic
-        events to its publisher. This policy explains what the extension reads,
-        where user data goes, and how it is stored.
+        events to its publisher. This policy explains what the optional browser
+        helper reads, where that information goes, and how it is stored.
       </p>
       <p>
-        Blinkling has no publisher-operated answer service. Your chosen backend
-        processes requests using your own Claude Code account or Anthropic API
-        key. The publisher does not receive those requests. Blinkling does not
-        sell user data or use it for advertising.
+        Blinkling has no publisher-operated answer service. Blink sends what you
+        pick to your own signed-in Claude Code, on your own computer. The
+        publisher does not receive those requests. Blinkling does not sell user
+        data or use it for advertising.
       </p>
 
-      <h2>Information the extension can access</h2>
+      <h2>Information the helper can access</h2>
       <p>
-        When you invoke Blinkling on a page, it can read bounded visible page
-        text, the page URL and title, and descriptions of selected interactive
-        elements. It skips hidden, editable, private and password fields and
-        does not read form values. You can choose to capture a visible tab, full
-        page, region, element, or screen in the browser's share picker. Images
-        may contain information that cannot be recognized by text filters.
-        Review a capture before asking a question.
+        The helper is a browser extension that works only together with Blink on
+        the same computer. When Blink asks about the page under your pointer,
+        the helper reads the page address and title and a short list of the
+        page's visible elements: what kind each is, where it is, its role, its
+        name and a bounded amount of its text. It reads at most 400 elements and
+        skips hidden ones. It never reads the value of password, payment or
+        other sensitive fields; those are listed as protected, without text.
       </p>
       <p>
-        Page tools ask the browser for access to the site when you use them. You
-        can manage site access in the browser's extension settings. The bundled
-        sample article and PDF are local files. Opening them does not send their
-        contents anywhere by itself.
-      </p>
-
-      <h2>When information is sent</h2>
-      <p>
-        Auto explain is optional and starts off. After you consent and allow
-        site access, changed page text may be sent for suggested questions and
-        summaries without screen sharing. Questions and page actions may send
-        relevant text and images to your backend. Shared frames stay in bubble
-        memory. Automatic browser-tab summaries require a shared tab bound to
-        the same inspected tab. Password fields, blocklisted hosts and loading
-        or inaccessible embedded pages pause automatic page requests. The check
-        includes open shadow roots and accessible embedded pages; closed shadow
-        roots cannot be inspected.
+        When you ask for a full-page capture, the helper scrolls the page and
+        takes screenshots of the visible tab. It refuses pages that contain a
+        password field. When you ask to translate a page, the text of the page
+        is sent in batches to Claude Code through Blink, and the translation
+        replaces the text in place until you restore it. The PDF reader opens a
+        PDF you are viewing in a page of the extension itself.
       </p>
       <p>
-        Shared monitors and app windows require separate consent for each share
-        before Auto explain can send their images. This consent ends when the
-        share stops or changes source. Password fields and blocked websites
-        cannot be checked in those pixels. Unknown sharing sources remain
-        paused. Monitor images mask the floating bubble before comparison and
-        transmission. Stable changes are debounced; summaries are limited to six
-        requests per rolling minute. Sensitive-content detection is incomplete.
-        Hide private content or pause Auto explain before sharing it. Manual
-        captures and questions remain available.
-      </p>
-      <p>
-        In bridge mode, the extension sends your question, relevant page context
-        and optional image to the loopback bridge on the computer running the
-        plugin. The bridge runs the installed command-line assistant. Images
-        used by that process are placed in a private temporary directory and
-        removed after the request. The command-line assistant stores persistent
-        conversation transcripts on the host using its UUID session system.
-        Without a verified live channel, Blinkling resumes the latest saved
-        project conversation in a parallel process, or starts one if none
-        exists. Avoid using the same transcript in the terminal concurrently.
-        With a live channel enabled, questions enter the running terminal
-        conversation and replies return through MCP tools.
-      </p>
-      <p>
-        In direct API mode, the extension sends the question, relevant page
-        context and optional image directly to the API service using the API key
-        you entered. The key is not sent to the local bridge. The service's data
-        practices and retention terms apply to these requests.
-      </p>
-      <p>
-        Data is used to provide the chat, capture and page-reading features you
-        choose. Blinkling's use of information received from browser APIs
-        complies with the Chrome Web Store User Data Policy, including the
-        Limited Use requirements. The publisher does not use page content for
-        unrelated purposes or maintain a browsing-history log. Your questions
-        and captures can contain personal information. Your chosen provider's
-        own data policy applies to processing and retention there.
+        The helper asks the browser for access to all sites so that it can read
+        the page you point at. It does nothing on a page until Blink asks. The
+        browser's settings pages, extension stores and its built-in PDF viewer
+        cannot be read.
       </p>
 
-      <h2>Storage</h2>
+      <h2>Where information goes</h2>
+      <p>
+        The helper talks only to Blinkling on the same computer, over a local
+        connection that both sides prove they are allowed to use. Nothing the
+        helper reads is sent to a website or to the publisher. Blink passes what
+        you pick, and what the helper read, to your Claude Code. The provider's
+        terms apply, and the provider may retain what it receives. Auto explain
+        is off until you turn it on.
+      </p>
+
+      <h2>What is stored</h2>
       <table>
         <thead>
           <tr>
@@ -185,62 +151,47 @@
           <tr>
             <td>Browser local storage</td>
             <td>
-              Consent, language, backend and model choices, target language,
-              Auto explain and Shift preferences, host blocklist and saved
-              floating-window size and position. Per-share image consent stays
-              only in bubble memory.
+              A random secret that lets the helper and Blink recognise each
+              other. It is created when you open the setup page and is not
+              shared with any website.
             </td>
           </tr>
           <tr>
-            <td>Browser session storage</td>
+            <td>Blink's runtime folder</td>
             <td>
-              Bridge token, bridge connection settings and direct API key.
-              Captures, shared frames and chat history remain only in bubble
-              memory. Browser session storage is cleared when the browser
-              session ends.
+              The same secret, in a file only your user account can read.
+              Deleting it ends the connection.
             </td>
           </tr>
           <tr>
-            <td>Host process memory</td>
+            <td>Memory of the helper and Blink</td>
             <td>
-              Temporary pairing state, active requests, short follow-up context
-              and connection metadata. It is cleared when the bridge stops.
+              The latest page elements, kept for about a second and a half, and
+              active requests. They are cleared when the browser or Blink stops.
             </td>
           </tr>
           <tr>
-            <td>Host command-line assistant</td>
+            <td>Claude Code</td>
             <td>
-              Persistent UUID conversation transcripts stored according to that
-              program's session behavior. Blinkling does not keep these
-              transcripts in browser storage.
+              Conversation transcripts, stored according to that program's own
+              session behaviour. Blinkling does not keep them in the browser.
             </td>
           </tr>
         </tbody>
       </table>
 
-      <h2>Cost and sharing controls</h2>
+      <h2>Cost and controls</h2>
       <p>
-        The bridge can report usage cost, which Blinkling adds over the
-        preceding hour as an estimate. Direct API mode estimates token costs
-        using the bundled model rates. Live channel replies have no
-        authoritative usage report. Auto explain requests are rate-limited, but
-        the limit is not a spending cap. Cost depends on the selected model,
-        context, images, output and current provider pricing. Check your
-        provider account for actual charges.
+        Requests go through your own Claude Code account, so provider usage
+        charges apply. Cost depends on the model, context, images and output.
+        Check your provider account for actual charges.
       </p>
       <p>
-        Screen sharing starts only after you choose a source in the browser
-        picker. Closing the floating window stops the share. You can pause or
-        turn off Auto explain at any time. Ending the browser session clears
-        session storage, including the API key. You can remove the extension and
-        its browser data through the browser's extension settings.
-      </p>
-      <p>
-        Revoke site permissions in the browser's extension settings. Clear
-        extension data or remove the extension to delete saved preferences.
-        Closing the bubble ends sharing. Removing the extension does not delete
-        Claude Code transcripts on the host or records retained by your
-        provider. Manage those with the host application or provider account.
+        You can remove the extension in the browser's extension settings, which
+        deletes its stored secret and disconnects it from Blink. Removing the
+        extension does not delete Claude Code transcripts on the computer or
+        records retained by your provider. Manage those with Claude Code or your
+        provider account.
       </p>
 
       <h2>Contact</h2>
