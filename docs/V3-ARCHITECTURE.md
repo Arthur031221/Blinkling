@@ -358,15 +358,22 @@ budget and otherwise falls through. An image answer is never given for a window
 whose DOM or accessibility read has not finished, because pixels cannot tell a
 secure field from text; the hover answers `null` until the read lands.
 
-Snapshots are dropped when the window moves, resizes, is raised or the window
-list changes, when browser zoom changes, on scroll (including nested
-containers), on a mutation with no input, and on keys that move content
-(Enter, Backspace, Delete, paging and arrow keys), not on every key. The
-shell calls `locator.invalidate()` for the input it sees.
+A snapshot is keyed by window id, position and size, so a window that moves or
+resizes is a different snapshot, and it expires after 400 ms. It is also
+dropped when the window list shows a different front window, and by
+`locator.invalidate(reason)`: `raise`, `move` and `resize` also forget the
+window list, and `key:<name>` counts only for keys that move content (paging,
+Home/End, arrows, space). The shell calls `invalidate("raise")` from the
+pick's raise hook. Scroll, zoom and DOM mutation are not hooked separately;
+the 400 ms expiry and the click-time refresh below cover them.
 
 **Click is fail-closed.** Before a click is taken the picker invalidates and
-waits for a fresh read of the window under the pointer. If that read cannot
-finish within the budget, the pick locks instead of using the stale answer.
+waits for a fresh read of the window under the pointer. `locator.refresh(point)`
+starts a read that began after the call and answers `{ ok, window }`; if it
+cannot finish within the budget, `ok` is false and the pick locks instead of
+using the stale answer. The picker sees the locator through `forPicker`
+(`desktop/locator/pick.mjs`), which maps kinds to the picker's own and adds
+`settle(point)`, the call that does this refresh.
 
 **Secure fields.** Password, card and `data-private` fields are never read. A
 secure element is returned only as a bare marker (`secure: true`, empty
@@ -374,9 +381,41 @@ secure element is returned only as a bare marker (`secure: true`, empty
 `kind: "input"`) so a caller can lock. `locate`, `elements` and `parent` all
 return that marker; `textIn`, `sentenceAt` and `snap` skip it, and nothing in
 this module ever holds its value.
-`focus().secure` is true while the focused control is a secure field, and
+`focus()` is conservative: the export does not say which field has the caret,
+so `secure` is true when any secure field is visible in the front window.
 `focus().window` carries the `private` and `passwordManager` flags the privacy
-rules read.
+rules read. It rejects when the front window has not been read yet, so the
+guard fails closed for an automatic capture.
+
+**Text and selection.** `textIn(rect)` joins the text of the leaf elements the
+rectangle covers in reading order, skips secure elements and password-manager
+windows, and stops at 4000 characters. `sentenceAt` cuts the element's text at
+sentence ends. The DOM export has no per-line boxes, so the sentence is exact
+and its rectangles are an estimate from the element's size and text length.
+`selectionAt(point)` returns the page selection under the point and works for
+browser windows only.
+
+**Wiring.** `desktop/locator/electron.mjs` (`electronLocator`) supplies the
+Electron pieces: the window list (without Blinkling's own windows), displays,
+DIP and native pixel conversion, and a capture that crops the display image to
+the window. Accessibility coordinates are native pixels on Linux and Windows
+and points on macOS; the locator converts them to DIP once.
+
+**Image source details.** Before ink is grouped into lines, long straight
+rules (window borders, separators, scroll-bar edges) are removed from the ink
+bitmap. Without that, a border touching a line of text joins everything into
+one region taller than a line, and the window reads as empty.
+
+**Tests.** Unit tests live beside each module and drive the chain with fake
+sources. `desktop/locator/e2e/` drives real software: a Chrome page, Chrome's
+PDF viewer, and the shell's own locator over a PDF and over a plain X client
+(image fallback). Each hover run takes 250 samples and asserts p95 <= 50 ms.
+Run it on Linux with
+`BLINKLING_REMOTE=0 xvfb-run -a -s "-screen 0 1280x800x24" dbus-run-session -- desktop/locator/e2e/linux.sh [spec]`.
+The script turns on the AT-SPI flag (`org.a11y.Status IsEnabled`) that a real
+desktop already has; without it Chrome publishes no accessibility tree.
+The e2e companion is a stand-in that runs the extension's export code in the
+real page; it is not the extension plus the native-messaging helper.
 
 **Snapping (M2).** `snap(rect, { kinds })` moves a model box onto the real
 element it points at: the candidate with the greatest overlap with the rect
