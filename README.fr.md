@@ -36,7 +36,7 @@ Il vous faut Claude Code, connecté. Ensuite :
    /blinkling:blinkling
    ```
 
-3. Sur Mac, autorisez une fois l’**Enregistrement de l’écran** pour Blinkling : Réglages Système, Confidentialité et sécurité. macOS demande aussi une fois l’**Accessibilité**, pour que la touche Ctrl puisse lancer une sélection ; autorisez-la au même endroit.
+3. Sur Mac, autorisez une fois l’**Enregistrement de l’écran** pour Blinkling : Réglages Système, Confidentialité et sécurité. macOS demande aussi une fois l’**Accessibilité**, pour que la touche Ctrl puisse lancer une sélection. Autorisez-la au même endroit.
 
 > [!NOTE]
 > Dans Windows PowerShell 5, utilisez `;` au lieu de `&&`. Étapes animées pour votre ordinateur : [guide d’installation](https://arthur031221.github.io/Blinkling/install/). Autres méthodes, mises à jour et sandbox Linux : [docs/INSTALL.md](docs/INSTALL.md).

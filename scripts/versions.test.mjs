@@ -41,9 +41,13 @@ describe("one version for everything a user installs", () => {
     expect(build).toMatch(/appVersion:\s*version/);
   });
 
-  it("is what the pinned desktop manifest pins, once it is pinned", () => {
+  it("is never older than what the pinned desktop manifest pins (the release workflow pins the new builds last)", () => {
     const manifest = json("plugin/desktop/manifest.json");
-    if (manifest.builds?.length) expect(manifest.version).toBe(version);
+    if (!manifest.builds?.length) return;
+    const parts = (v) => v.split(".").map(Number);
+    const [a, b] = [parts(manifest.version), parts(version)];
+    const order = a.findIndex((n, i) => n !== b[i]);
+    expect(order === -1 || a[order] < b[order]).toBe(true);
   });
 
   it("is what the lock file records for the root package", () => {

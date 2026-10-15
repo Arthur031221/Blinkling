@@ -294,7 +294,8 @@ export class DesktopCaptureService {
   }
   /** The whole page from the companion, one capture per tile. If the companion
    * cannot do it the picked window is taken from the frozen frame instead, so
-   * the click still gives the user something and nothing is announced. */
+   * the click still gives the user something. The attachment is named for what
+   * it is, "Visible part", so neither the user nor Claude takes it for the page. */
   async page({ capture, choice }, signal) {
     try {
       const result = await this.fullPage(signal);
@@ -309,7 +310,7 @@ export class DesktopCaptureService {
     }
     return [
       {
-        ...cropped(capture, choice.rect, "Window.png"),
+        ...cropped(capture, choice.rect, "Visible part.png"),
         kind: "window",
         source: "page",
       },

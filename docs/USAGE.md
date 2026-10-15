@@ -11,7 +11,7 @@ Blink's menu holds the secondary tools: capture overlay, guide, auto explain and
 The companion for Chrome and Edge is optional. Blink never needs it to start, and offers its guide only when a feature needs it, or from settings; `/blinkling:install` opens the same guide. With it:
 
 - Blink knows the structure of the page under the pointer, so a pick lands on the paragraph, the table cell or the button rather than on pixels, and the text of the pick is what the page says. Password and payment fields carry no text.
-- The **整頁** chip captures a whole page, top to bottom, with progress you can cancel.
+- The **Full page** chip in the capture overlay captures a whole page, top to bottom, with progress you can cancel.
 - On a whole web page, one bubble offers to translate the page in place; it restores the original.
 - When a pick lands on the browser's built-in PDF viewer and returns no text, one bubble offers the bundled reader.
 

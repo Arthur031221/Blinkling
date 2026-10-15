@@ -46,7 +46,7 @@ Upload `blinkling-extension.zip` from the Edge submission kit. In Partner Center
 
 1. Install the ZIP in a current desktop Chrome or Edge. The toolbar button opens the status popup, which reads **not connected** at first.
 2. Install the Claude Code plugin with the two commands in the README and run `/blinkling:install`. The setup page connects the extension automatically; the popup then reads **connected**. No publisher credentials are embedded or required, and Blink needs the reviewer's own signed-in Claude Code for answers.
-3. Hold Ctrl and click a paragraph of an ordinary HTTPS page: Blink answers about that paragraph. Pick the 整頁 chip in the composer to capture the whole page. Ask Blink to translate a page and then to restore the original. Point at a PDF in the browser's viewer: Blink opens it in the extension's bundled reader.
+3. Hold Ctrl and click a paragraph of an ordinary HTTPS page: Blink answers about that paragraph. Open Screenshot from the Blink menu over the browser window and pick the Full page chip to capture the whole page. Ask Blink to translate a page and then to restore the original. Point at a PDF in the browser's viewer: Blink opens it in the extension's bundled reader.
 4. Open a page with a password field, point at it and ask: the field carries no text.
 
 The account holder must arrange temporary reviewer access if the store requests it. Do not put an account password or key in the public listing or submission archive.

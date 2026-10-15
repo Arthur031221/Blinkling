@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.1 - 2026-10-15
+
+- macOS: the Ctrl pick key needs the Accessibility permission, which the first run never asked for, so on a Mac the pick could silently do nothing. Blinkling now raises the system prompt once and starts listening for the key as soon as you allow it, with no restart. The README, the install guide and docs/INSTALL.md say so.
+- Guide mode failure and closing bubbles follow the system language in all nine languages. They were fixed Traditional Chinese for everyone.
+- The Full page chip falls back to the visible part of the window when the page grab fails, and the attachment is now named Visible part so it is not mistaken for the whole page. The docs name the chip the way the app shows it.
+
 ## 3.0.0 - 2026-10-15
 
 Blink is now a desktop companion: a small character in the corner of your screen. Hold Ctrl and click a thing, or hold Ctrl and drag an area, and ask Claude Code about it. This release also makes it easy to install.

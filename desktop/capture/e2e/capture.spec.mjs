@@ -381,6 +381,21 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
       expect(t.kind).toBe("page");
       expect(t.source).toBe("page");
       await idle(app);
+      // A page grab that fails still gives the window, and says so in its name.
+      await app.evaluate(() => {
+        globalThis.blinklingTest.features.capture.fullPage = async () => {
+          throw new Error("page grab failed");
+        };
+      });
+      const failed = await openOverlay(app, blink);
+      await failed.mouse.move(centre(A).x, centre(A).y);
+      await failed.locator("#chip").click();
+      await expect.poll(() => taken(app).then((t) => t.length)).toBe(2);
+      expect((await taken(app))[1].kind).toBe("window");
+      expect(await app.evaluate(() => globalThis.taken[1].image.name)).toBe(
+        "Visible part.png",
+      );
+      await idle(app);
       // Without a connected companion: no chip, no notice, and a click on the
       // browser is a plain window capture.
       await fakeCompanion(app, false);
@@ -389,8 +404,8 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
       await expect(chip(again)).toHaveCount(0);
       await again.mouse.down();
       await again.mouse.up();
-      await expect.poll(() => taken(app).then((t) => t.length)).toBe(2);
-      expect((await taken(app))[1].kind).toBe("window");
+      await expect.poll(() => taken(app).then((t) => t.length)).toBe(3);
+      expect((await taken(app))[2].kind).toBe("window");
       await idle(app);
       const events = await blink.evaluate(() => window.events);
       expect(
