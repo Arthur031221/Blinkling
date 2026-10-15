@@ -6,3 +6,5 @@ test-results/
 *.tsbuildinfo
 dist-extension/
 release/
+__pycache__/
+*.pyc
