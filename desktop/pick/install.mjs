@@ -287,16 +287,21 @@ export async function installPick({
 }
 
 /** The shell assigns `globalThis.blinklingTest` as one object later on; hang the
- * pick on it whenever that happens, without touching the shell's literal. */
+ * pick on it whenever that happens, without touching the shell's literal. Another
+ * module may already be waiting for that object the same way: keep its accessor
+ * and run it after this one instead of replacing it. */
 function exposeForTests(api) {
   let value = globalThis.blinklingTest;
   if (value) value.pick = api;
+  const earlier = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  const chained = earlier?.get && earlier?.set ? earlier : null;
   Object.defineProperty(globalThis, "blinklingTest", {
     configurable: true,
-    get: () => value,
+    get: () => (chained ? chained.get.call(globalThis) : value),
     set(next) {
       value = next;
       if (value && typeof value === "object") value.pick = api;
+      chained?.set.call(globalThis, next);
     },
   });
 }

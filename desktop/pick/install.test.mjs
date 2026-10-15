@@ -294,6 +294,30 @@ test("the test hook hangs on blinklingTest even though the shell assigns that ob
   }
 });
 
+test("the test hook keeps another module's hook when both wait for the shell's object", async () => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  try {
+    delete globalThis.blinklingTest;
+    let held;
+    Object.defineProperty(globalThis, "blinklingTest", {
+      configurable: true,
+      get: () => held,
+      set(value) {
+        held = value;
+        if (value && typeof value === "object") value.privacy = "privacy hook";
+      },
+    });
+    const s = setup({ env: { BLINKLING_E2E: "1" } });
+    const pick = await s.install();
+    globalThis.blinklingTest = { other: 1 };
+    assert.equal(globalThis.blinklingTest.pick, pick);
+    assert.equal(globalThis.blinklingTest.privacy, "privacy hook");
+  } finally {
+    delete globalThis.blinklingTest;
+    if (saved) Object.defineProperty(globalThis, "blinklingTest", saved);
+  }
+});
+
 test("translating a page from the mini composer sends the page text as a quick ask", async () => {
   const s = setup();
   const pick = await s.install();
