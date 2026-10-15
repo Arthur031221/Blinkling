@@ -44,6 +44,9 @@ export function createPointing({
 } = {}) {
   let state = null;
   let interactive = false;
+  // Bumped by every show and clear; a draw that finds it moved was cancelled.
+  let generation = 0;
+  let inFlight = 0;
   let cursorTimer = null;
   let watchTimer = null;
   let busy = false;
@@ -145,6 +148,7 @@ export function createPointing({
      * resolves is skipped and the rest keep their numbers. Resolves true when
      * something was drawn. `capture` makes box refs screenshot pixels. */
     async show(refs, { displayId, capture, window, snap } = {}) {
+      const mine = ++generation;
       const ctx = {
         capture,
         snap: snap ?? !capture,
@@ -162,13 +166,17 @@ export function createPointing({
         const drawing = await resolve(ref, ctx);
         if (drawing) drawings.push(drawing);
       }
+      if (mine !== generation) return false;
       if (!drawings.length || !ctx.display) {
         api.clear("nothing-to-point-at");
         return false;
       }
       const shownCapture = capture ?? { display: ctx.display };
-      const shown = await overlay.show(shownCapture, drawings);
-      if (shown === false) return false;
+      inFlight++;
+      const shown = await overlay.show(shownCapture, drawings).finally(() => {
+        inFlight--;
+      });
+      if (shown === false || mine !== generation) return false;
       state = { capture: shownCapture, drawings, window };
       clearInterval(cursorTimer);
       clearInterval(watchTimer);
@@ -187,7 +195,8 @@ export function createPointing({
       if (state) overlay.command("focus", which);
     },
     clear(reason = "user") {
-      if (!state) return;
+      generation++;
+      if (!state && !inFlight) return;
       overlay.dismiss(reason);
       stop();
     },

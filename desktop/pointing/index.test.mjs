@@ -194,6 +194,28 @@ test("pulse, focus and clear go to the overlay; clear says why", async () => {
   assert.equal(overlay.dismissed.length, 1);
 });
 
+test("clearing while marks are still being drawn cancels the draw instead of letting it appear", async () => {
+  const { overlay, pointing } = rig();
+  const realShow = overlay.show;
+  let finish;
+  overlay.show = async (capture, drawings) => {
+    // The real service holds its capture from the moment it starts to draw.
+    overlay.capture = capture;
+    await new Promise((resolve) => (finish = resolve));
+    return realShow(capture, drawings);
+  };
+  const drawing = pointing.show(refs, { displayId: DISPLAY.id });
+  await new Promise((resolve) => setImmediate(resolve));
+  pointing.clear("esc");
+  assert.deepEqual(overlay.dismissed, ["esc"]);
+  finish();
+  assert.equal(await drawing, false);
+  assert.equal(pointing.active, false);
+  assert.deepEqual(overlay.commands, []);
+  pointing.pulse(1);
+  assert.deepEqual(overlay.commands, [], "nothing was drawn to pulse");
+});
+
 test("numberOf maps the ref a hovered bubble carries to its mark", async () => {
   const { pointing } = rig();
   await pointing.show(refs, { displayId: "1" });
