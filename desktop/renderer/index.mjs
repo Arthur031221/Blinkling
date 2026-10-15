@@ -6,6 +6,7 @@ import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createMessageStream } from "../messages/index.mjs";
 import { createComposer } from "../composer/index.mjs";
 import { createRest } from "../menu/rest.mjs";
+import { fanWanted } from "../menu/gate.mjs";
 import { createGesture } from "./gesture.mjs";
 import { applyText, windowText } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
@@ -93,7 +94,10 @@ async function action(id) {
 }
 {
   character = mountBlink(host);
-  menu = mountMenu(document.querySelector("#menu"), action);
+  menu = mountMenu(document.querySelector("#menu"), action, {
+    firstUse: !shell.fanLabelsSeen,
+    onLabelsShown: () => api.shell({ type: "fan-labels-seen" }),
+  });
   menu.setAuto(shell.autoExplain);
   host.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
@@ -224,7 +228,13 @@ async function action(id) {
     const stay = revealed && state.mode !== "drag" && state.mode !== "drop";
     pointerOver = onBlink(pointer, shell.position);
     rest.update(pointerOver && stay, now, { keep: stay && menu.open });
-    menu.setOpen(rest.ready && stay && !shell.chatOpen, now / 1000, {
+    const wanted = fanWanted({
+      ready: rest.ready,
+      stay,
+      chatOpen: shell.chatOpen,
+      miniOpen: shell.miniOpen,
+    });
+    menu.setOpen(wanted, now / 1000, {
       together: state.mode === "drag" || state.mode === "drop",
     });
     menu.frame(now / 1000, dt, area, current);

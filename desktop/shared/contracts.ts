@@ -116,7 +116,9 @@ export type ShellCommand =
   | { type: "pin"; value: boolean }
   | { type: "visibility"; value: boolean }
   | { type: "close-chat" }
-  | { type: "activity" };
+  | { type: "activity" }
+  /** The first-use fan has named all four bubbles; never name them all again. */
+  | { type: "fan-labels-seen" };
 export type ShellState = {
   display: Display;
   position: {
@@ -129,6 +131,8 @@ export type ShellState = {
   drag: { x: number; y: number; velocity: number } | null;
   pinned: boolean;
   chatOpen: boolean;
+  miniOpen: boolean;
+  fanLabelsSeen: boolean;
   chatFocused: boolean;
   autoExplain: boolean;
   theme: "light" | "dark";
@@ -139,5 +143,4 @@ export type ShellEvent =
   | { type: "chat-blur" }
   | { type: "chat-activity" }
   | { type: "focus-composer" }
-  | { type: "view"; view: "settings" | "help" }
   | { type: "capture"; capture: Capture };

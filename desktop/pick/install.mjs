@@ -67,6 +67,7 @@ function pickKeySetting(file, env) {
  * shell: {userDataDir, windowOptions(bounds, focusable), secure(win), windows(),
  *   input, blinkPoint(), workArea(), session, autoExplain:{get, set},
  *   composer:{open, attach}, captureScreen(display, windows), newChat?, caught? (Blink bounces when the flight lands),
+ *   miniChanged? (true while the mini composer is open),
  *   locator?, guard?, env?, platform?} */
 export async function installPick({
   electron,
@@ -194,6 +195,7 @@ export async function installPick({
         if (seed.text)
           await shell.composer.attach(textAttachment(seed.text, "Message.txt"));
       },
+      changed: (open) => shell.miniChanged?.(open),
       pauseAuto: () => void shell.autoExplain.set(false),
       resumeAuto: () => void shell.autoExplain.set(true),
       translatePage,
