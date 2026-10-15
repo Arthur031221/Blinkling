@@ -549,6 +549,9 @@ export class DesktopSessionBridge {
   /** A missing Claude is something to install, not a fault: say so once and
    * keep looking, so the next launch after installing needs no restart. */
   transportFailed(error) {
+    // An e2e run on a CI runner prints why the session could not start.
+    if (process.env.BLINKLING_E2E === "1")
+      console.error("session transport failed:", error?.message ?? error);
     if (isMissing(error)) {
       if (!this.missing) {
         this.missing = true;

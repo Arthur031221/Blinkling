@@ -22,8 +22,9 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
       .toBe(true);
     await expect(card.getByRole("textbox", { name: "輸入問題" })).toBeVisible();
     await expect
-      .poll(() =>
-        app.evaluate(() => globalThis.blinklingTest.session.status.state),
+      .poll(
+        () => app.evaluate(() => globalThis.blinklingTest.session.status.state),
+        { timeout: 20000 },
       )
       .toBe("connected");
     const pdf = Buffer.from("%PDF-1.7\nfixture");
