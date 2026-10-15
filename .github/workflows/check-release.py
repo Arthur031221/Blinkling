@@ -6,6 +6,7 @@ import json
 from pathlib import Path, PurePosixPath
 import re
 import struct
+import subprocess
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -131,4 +132,9 @@ if desktop.is_dir():
         sums[name] = build["sha256"]
     listed = dict(line.split("  ", 1)[::-1] for line in (desktop / "SHA256SUMS").read_text().splitlines())
     require(listed == sums, "Desktop SHA256SUMS differs from the manifest")
-print(f"Release {version}: versions, nine READMEs, listing images and all three ZIPs passed.")
+bundle = subprocess.run(
+    ["node", "desktop/distribution/bundle-manifest.mjs", "bin/blinkling.cjs", "plugin/desktop/manifest.json"],
+    cwd=ROOT, capture_output=True, text=True,
+)
+require(bundle.returncode == 0, bundle.stderr.strip() or "bin/blinkling.cjs does not match plugin/desktop/manifest.json")
+print(f"Release {version}: versions, nine READMEs, listing images, the bundled desktop manifest and all three ZIPs passed.")

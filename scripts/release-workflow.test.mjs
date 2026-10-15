@@ -64,6 +64,32 @@ describe("the release workflow", () => {
     expect(upload).toBeGreaterThan(pin);
   });
 
+  it("rebuilds bin/blinkling.cjs after the pin and commits it with the manifest", () => {
+    const step = release.slice(release.indexOf("Commit the pinned manifest"));
+    const copy = step.indexOf(
+      "cp release/desktop-assets/manifest.json plugin/desktop/manifest.json",
+    );
+    const build = step.indexOf("node scripts/build-plugin.mjs");
+    const add = step.indexOf("git add plugin/desktop/manifest.json bin");
+    const commit = step.indexOf("git commit");
+    expect(copy).toBeGreaterThan(-1);
+    expect(build).toBeGreaterThan(copy);
+    expect(add).toBeGreaterThan(build);
+    expect(commit).toBeGreaterThan(add);
+  });
+
+  it("checks the bundle against the manifest in the release check and in the dry run", () => {
+    expect(read("check-release.py")).toContain(
+      "desktop/distribution/bundle-manifest.mjs",
+    );
+    const dry = release.slice(
+      release.indexOf("Dry-run the pin"),
+      release.indexOf("publish:"),
+    );
+    expect(dry).toContain("node scripts/build-plugin.mjs");
+    expect(dry).toContain("--resolve linux/x64");
+  });
+
   it("takes the release notes from docs/releases", () => {
     expect(release).toContain("docs/releases/${tag}.md");
   });
