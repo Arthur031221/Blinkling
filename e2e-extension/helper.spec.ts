@@ -140,6 +140,25 @@ test("the helper gives Blink page structure, a full-length capture, translation 
     await expect(popup.locator("#lines li").first()).toBeVisible();
     await expect(popup.locator("#wake")).toBeVisible();
     await expect(popup.locator("#lines li")).toHaveCount(3);
+    const motion = () =>
+      popup.evaluate(() => {
+        const name = (selector: string) =>
+          getComputedStyle(document.querySelector(selector)!).animationName;
+        return {
+          eye: name("#title .bl-wm-eye"),
+          star: name("#title .bl-wm-t0"),
+          band: name("#title .bl-wm-band"),
+        };
+      });
+    await popup.emulateMedia({ reducedMotion: "no-preference" });
+    expect(await motion()).toEqual({
+      eye: "bl-wm-blink",
+      star: "bl-wm-twk",
+      band: "bl-wm-sweep",
+    });
+    await popup.emulateMedia({ reducedMotion: "reduce" });
+    expect(await motion()).toEqual({ eye: "none", star: "none", band: "none" });
+    await popup.emulateMedia({ reducedMotion: "no-preference" });
     await popup.screenshot({ path: join(report, "popup.png") });
     await popup.close();
 

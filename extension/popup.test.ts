@@ -62,12 +62,10 @@ describe("popup page", () => {
       .replace(/<script.*<\/script>/, "");
   });
 
-  it("draws the sparkle name, lists the status in the browser language and wakes Blink", async () => {
+  it("draws the wordmark, lists the status in the browser language and wakes Blink", async () => {
     await mountPopup();
-    expect(
-      document.querySelectorAll(".sparkle-name .sparkle-star"),
-    ).toHaveLength(3);
-    expect(document.querySelector(".sparkle-text")!.textContent).toBe(
+    expect(document.querySelectorAll("#title svg.bl-wordmark")).toHaveLength(1);
+    expect(document.querySelector("#title svg title")!.textContent).toBe(
       "Blinkling",
     );
     const fr = popupText("fr");

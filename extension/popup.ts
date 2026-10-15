@@ -1,3 +1,4 @@
+import { mountWordmark } from "../assets/brand/wordmark.mjs";
 import { popupText, type PopupText } from "./strings";
 
 /** What the background reports for the popup. */
@@ -33,29 +34,12 @@ export function statusLines(
   ];
 }
 
-/** The drawn name: the same band of light and stars as the other surfaces. */
-function drawTitle(heading: HTMLElement): void {
-  const name = document.createElement("span");
-  name.className = "sparkle-name";
-  const word = document.createElement("span");
-  word.className = "sparkle-text";
-  word.textContent = "Blinkling";
-  name.append(word);
-  for (let star = 0; star < 3; star++) {
-    const mark = document.createElement("i");
-    mark.className = "sparkle-star";
-    mark.setAttribute("aria-hidden", "true");
-    name.append(mark);
-  }
-  heading.replaceChildren(name);
-}
-
 export async function mountPopup(root: Document = document): Promise<void> {
   const text = popupText(chrome.i18n.getUILanguage());
   const lines = root.getElementById("lines")!;
   const wake = root.getElementById("wake") as HTMLButtonElement;
   const note = root.getElementById("note")!;
-  drawTitle(root.getElementById("title")!);
+  mountWordmark(root.getElementById("title")!);
   root.documentElement.lang = chrome.i18n.getUILanguage();
   wake.textContent = text.wake;
 
