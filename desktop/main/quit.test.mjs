@@ -34,10 +34,11 @@ Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
   );
   try {
     const child = spawn(process.execPath, [script], { stdio: "ignore" });
-    const signal = await new Promise((resolve) =>
-      child.on("exit", (_code, name) => resolve(name)),
+    const { code, signal } = await new Promise((resolve) =>
+      child.on("exit", (code, signal) => resolve({ code, signal })),
     );
-    assert.equal(signal, "SIGKILL");
+    // Windows reports a terminated process by exit code, not by signal name.
+    assert.ok(signal === "SIGKILL" || (process.platform === "win32" && code));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
