@@ -31,7 +31,7 @@ import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
 import { createEscapeKeys } from "./escape-keys.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
-import { captureScreen } from "../capture/index.mjs";
+import { captureScreen, screenImage } from "../capture/index.mjs";
 import { createOverlay } from "../overlay/index.mjs";
 import {
   installCaptureGuide,
@@ -43,6 +43,9 @@ import { SessionBridge } from "../session/index.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
+import { electronLocator } from "../locator/electron.mjs";
+import { forPicker } from "../locator/pick.mjs";
+import { listWindows } from "../capture/window-list.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -794,6 +797,14 @@ registerAction("companion-guide", async () => {
   return { ok: true };
 });
 const { systemPreferences, nativeImage, dialog } = await import("electron");
+// One locator for the whole desktop: the pick, the privacy guard and the marks
+// all ask it, and it reads each window once for all of them.
+const locator = electronLocator({
+  electron: { screen, BrowserWindow, nativeImage },
+  companion: companionHost,
+  listWindows,
+  screenImage,
+});
 const pick = await installPick({
   electron: {
     BrowserWindow,
@@ -804,6 +815,7 @@ const pick = await installPick({
     dialog,
   },
   shell: {
+    locator: forPicker(locator),
     userDataDir: app.getPath("userData"),
     locales: app.getPreferredSystemLanguages(),
     windowOptions,
@@ -850,6 +862,7 @@ const pick = await installPick({
 const privacy = installPrivacy({
   session,
   features,
+  locator,
   send,
   languages: app.getPreferredSystemLanguages(),
   renderer: (listener) => {

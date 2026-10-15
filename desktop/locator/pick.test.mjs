@@ -298,3 +298,17 @@ describe("forPicker: a click waits for a fresh read", () => {
     assert.equal((await picker.click(at(20, 20))).type, "lock");
   });
 });
+
+describe("forPicker: the rest of the locator", () => {
+  it("passes snap and invalidate through", async () => {
+    const seen = [];
+    const locator = fake([], { invalidate: (reason) => seen.push(reason) });
+    const adapted = forPicker(locator);
+    adapted.invalidate("raise");
+    assert.deepEqual(seen, ["raise"]);
+    assert.deepEqual(await adapted.snap({ x: 1, y: 2, width: 3, height: 4 }), {
+      rect: { x: 1, y: 2, width: 3, height: 4 },
+      element: null,
+    });
+  });
+});

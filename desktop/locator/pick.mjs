@@ -91,6 +91,7 @@ export function forPicker(
     focus: () => locator.focus(),
     windowAt: async (point) => windowOf(await locator.windowAt(point)),
     snap: (rect, options) => locator.snap(rect, options),
+    invalidate: (reason) => locator.invalidate?.(reason),
     async settle(point) {
       try {
         return (await locator.refresh(point)).ok === true;

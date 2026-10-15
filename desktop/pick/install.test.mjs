@@ -343,3 +343,21 @@ test("a locator and guard plugged in later are used by the next pick", async () 
     "the hover under the cursor asks the new locator",
   );
 });
+
+test("raising the layer makes the locator forget what it read", async () => {
+  const s = setup();
+  const pick = await s.install();
+  const order = [];
+  pick.setLocator(
+    {
+      ...(await import("./install.mjs")).windowLocator,
+      invalidate: (reason) => order.push(`invalidate:${reason}`),
+      windowAt: async () => (order.push("windowAt"), null),
+    },
+    { allowed: () => true },
+  );
+  pick.test.keys.handle({ type: "keydown", code: KEYCODES.ctrl });
+  s.timers.find((t) => t.ms === timing.pickHold).fn();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(order.slice(0, 2), ["invalidate:raise", "windowAt"]);
+});

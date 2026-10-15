@@ -235,7 +235,11 @@ export async function installPick({
       locator = next;
       if (nextGuard) guard = nextGuard;
     },
-    onRaise: () => void controller.raise().catch(onError),
+    onRaise: () => {
+      // The page may have scrolled or changed since the last pick.
+      locator.invalidate?.("raise");
+      void controller.raise().catch(onError);
+    },
     onDrop: (reason) => void controller.drop(reason).catch(onError),
     ...timers,
   });
