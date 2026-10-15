@@ -44,7 +44,7 @@ require(f"## {version} - " in (ROOT / "CHANGELOG.md").read_text(), "Missing chan
 
 recordings = read_json("assets/recordings.json")
 require(recordings["version"] == version, "Demo recordings use another extension version")
-require({item["asset"] for item in recordings["recordings"]} == {"assets/demo.gif", "assets/arxiv.gif"}, "Missing real demo recording")
+require("assets/demo.gif" in {item["asset"] for item in recordings["recordings"]}, "Missing real demo recording")
 for item in recordings["recordings"]:
     data = (ROOT / item["asset"]).read_bytes()
     require(data[:6] in [b"GIF87a", b"GIF89a"], f"Not a GIF: {item['asset']}")
@@ -59,7 +59,6 @@ for path in readmes:
     first_screen = content.split("\n## ", 1)[0]
     for image in ["assets/logo.svg", "assets/demo.gif"]:
         require(image in first_screen, f"Missing first-screen image: {path.name}: {image}")
-    require("assets/arxiv.gif" in content, f"Missing paper demo: {path.name}")
     for target in re.findall(r"\]\(([^\s)]+)\)", content):
         if not re.match(r"https?://|#", target):
             require((path.parent / target.split("#", 1)[0]).exists(), f"Broken README link: {path.name}: {target}")
@@ -88,7 +87,7 @@ with ZipFile(extension_path) as archive:
     scripts = [manifest["background"]["service_worker"]]
     scripts += [script for item in manifest.get("content_scripts", []) for script in item.get("js", [])]
     scripts += list(manifest["icons"].values())
-    scripts += ["panel.html", "reader.html", "pdf.worker.js", "pdf.worker.min.mjs"]
+    scripts += ["popup.html", "reader.html", "pdf.worker.js", "pdf.worker.min.mjs"]
     require(set(scripts) <= set(names), "A bundled entry point is missing")
 
 common = {

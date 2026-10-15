@@ -1,17 +1,20 @@
 # Usage
 
-Run `/blinkling:blinkling` after installing the plugin. The welcome page has three steps: install, connect automatically and open the bubble. On a remote host, run the printed SSH command on the browser computer. On a local desktop, **Try without installing** opens a separate Chromium profile. There are no practice exercises or second consent screen.
+Run `/blinkling:blinkling` after installing the plugin. Blink opens in the corner of the screen. The welcome has three steps: hello, screen permission, then Ctrl and click.
 
-Open the bubble from the toolbar or Alt+Shift+G. Keep its companion window open. It fades when idle, becomes clearer on hover and becomes opaque while typing or answering. Minimize folds it into a small Blink control; click Blink to restore it. Size and position are remembered. The browser-owned frame cannot pass clicks through, and native window minimum sizes limit how small the Blink window can be.
+**Hold Ctrl and click** a thing to ask about it, or **hold Ctrl and drag** to take an area. What you took flies into the mini composer. Pick one of the three quick asks, or type; Enter sends the highlighted one. Answers arrive beside Blink and point at what they talk about. Click Blink to reopen the last conversation.
 
-**Capture whole screen** asks you to choose a tab, window or monitor when needed. **Pick an area** freezes a shared screen and opens a full screen selector, or draws directly on a supported page. Hold Shift and drag, adjust the handles, then press Enter to confirm or Esc to cancel. Captures appear in the bubble. The native bubble minimizes or closes during shared-screen capture, then returns automatically. If Escape prevents floating mode from reopening, the chat returns in a companion popup; click **Open floating bubble** to restore it.
+Blink's menu holds the secondary tools: capture overlay, guide, auto explain and settings. Auto explain is off until you turn it on and never draws marks.
 
-Ctrl+Shift+S crops while the browser is focused. Ctrl+Shift+7 crops from another app; Chrome restricts global defaults to digits. On macOS, use Cmd instead of Ctrl. Remap at `chrome://extensions/shortcuts`. A page cannot listen for Shift in another app. Settings can disable the Shift shortcut.
+## With the companion
 
-**Guide this page** explains the page's reading regions, sections and controls. Start with the overview, then use Next and Back for a tour. Esc closes it. Scrolling and resizing redraw the guide without taking focus from another app. Select text to **Explain**, **Translate** or **Ask**. Page translation progressively replaces eligible text; **Restore original** reverses it while preserving newer site changes. PDFs open in the bundled reader.
+The companion for Chrome and Edge is optional. Blink never needs it to start, and offers its guide only when a feature needs it, or from settings; `/blinkling:install` opens the same guide. With it:
 
-**Auto explain** combines suggested questions and summaries. Enable it with site access to summarize page changes without screen sharing. Password fields, the host blocklist and loading or inaccessible embedded pages pause automatic requests. Shared browser tabs must remain bound to the inspected tab. A shared monitor or app requires separate consent for each share because its pixels cannot be checked for password fields or blocked sites. Unknown sources stay paused. Hide private content first. Alt+P pauses explanations; the cost estimate covers the preceding hour and is not a spending cap.
+- Blink knows the structure of the page under the pointer, so a pick lands on the paragraph, the table cell or the button rather than on pixels, and the text of the pick is what the page says. Password and payment fields carry no text.
+- The **整頁** chip captures a whole page, top to bottom, with progress you can cancel.
+- On a whole web page, one bubble offers to translate the page in place; it restores the original.
+- When a pick lands on the browser's built-in PDF viewer and returns no text, one bubble offers the bundled reader.
 
-Ask follow-up questions with streamed answers, copy or pin replies, and choose Opus, Sonnet or Haiku. A verified [Claude Code live channel](DESIGN.md#the-running-claude-code-conversation) uses the terminal's model and permissions. Stop ends the bubble's wait; press Esc in the terminal to stop its work. Without a channel, Blinkling continues the latest saved project conversation in a separate process, or starts one if needed. Avoid concurrent terminal work on the same transcript. Direct API mode is optional and uses your own key for the browser session.
+The toolbar button opens a small popup that says whether the companion is connected, what is missing and has a **Wake Blink** button.
 
-Desktop Chromium browsers are required. Settings, extension stores and protected pages block page tools. Chrome's built-in PDF viewer cannot be inspected; use the Blinkling reader. Native apps support captures and questions, with no page overlays. For a blocked page, select a passage and choose **Ask without page content** to send only the selected text. See [privacy details](SECURITY.md).
+Settings, extension stores, the built-in PDF viewer and incognito windows (unless the user allowed the companion there) hide their structure. Blink then works from pixels alone. Page text and pixels are untrusted data, never instructions. See [privacy details](SECURITY.md).

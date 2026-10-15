@@ -36,10 +36,10 @@ _Google Flights: una guía de la página y una pregunta sobre cómo reservar un 
    /blinkling:blinkling
    ```
 
-3. Activa el **modo de desarrollador** en `chrome://extensions` (o `edge://extensions`). Elige **Load unpacked** y la carpeta que abre **Show in Files / Finder**. La página de bienvenida se conecta automáticamente. Abre la burbuja.
+3. Activa el **modo de desarrollador** en `chrome://extensions` (o `edge://extensions`). Elige **Load unpacked** y la carpeta que abre **Show in Files / Finder**. La página de bienvenida se conecta automáticamente. Después haz clic en el botón de Blink de la barra de herramientas para ver que está conectado.
 
 > [!NOTE]
-> En un escritorio local, **Try without installing** abre un perfil separado de Chromium. En un host remoto, ejecuta el comando SSH mostrado en el equipo del navegador. [Instalación y actualizaciones](docs/INSTALL.md).
+> El ayudante del navegador es opcional: Blink funciona en cualquier ventana sin él. Para Chrome o Edge, ejecuta `/blinkling:install` y carga `~/Blinkling-extension` como en el paso 3. [Detalles de instalación y actualización](docs/INSTALL.md).
 
 ### Avanzado: cargar desde el código fuente
 
@@ -82,35 +82,28 @@ claude plugin list
 
 ## Mientras lees
 
-- **Capturar pantalla** o **Elegir área**. Mantén Shift y arrastra en una página compatible o en la burbuja. Enter confirma y Esc cancela. La burbuja se aparta durante la captura compartida y vuelve después.
-- **Guiar esta página** ofrece una vista general y un recorrido con Siguiente/Anterior por zonas de lectura y controles.
-- Selecciona texto para preguntar, explicar o traducir. Traduce una página y restaura el original, o abre un PDF en el lector integrado.
-- **Explicar automáticamente** propone hasta tres preguntas y resume cambios. Alt+P pausa. Elige Opus, Sonnet o Haiku para el chat.
-
-![arXiv: seleccionar un resumen, preguntar sobre él y traducirlo al chino tradicional.](assets/arxiv.gif)
-
-_arXiv: seleccionar un resumen, preguntar sobre él y traducirlo al chino tradicional._
-
-Grabado con la extensión real en sitios en vivo y respuestas de Claude Code. Se acortan las esperas. El contenido y las respuestas no están preparados.
+- **Mantén Ctrl y haz clic** en un párrafo, botón o imagen de tu pantalla: Blink lo toma y le pregunta a Claude Code. **Mantén Ctrl y arrastra** para tomar un área.
+- Se abre un pequeño cuadro con tres preguntas rápidas. Enter envía la resaltada. Haz clic en Blink cuando quieras para retomar la conversación.
+- Las respuestas llegan en burbujas que señalan aquello de lo que hablan. El menú de Blink tiene captura, guía, Explicar automáticamente (desactivado hasta que la actives) y ajustes.
+- El ayudante opcional para Chrome o Edge aporta la estructura propia de la página, de modo que Blink sabe qué párrafo o botón señalaste, además de captura de página completa, traducción de la página en su sitio y un lector de PDF. Su botón de la barra muestra si está conectado y despierta a Blink. Sin él, Blink sigue funcionando en todas las ventanas.
 
 ## Atajos
 
-| Atajo        | Acción                         |
-| ------------ | ------------------------------ |
-| Alt+Shift+G  | Abrir la burbuja               |
-| Ctrl+Shift+S | Recortar en el navegador       |
-| Ctrl+Shift+7 | Recortar desde otra aplicación |
+| Atajo            | Acción                                   |
+| ---------------- | ---------------------------------------- |
+| Ctrl + clic      | Preguntar por lo que hay bajo el puntero |
+| Ctrl + arrastrar | Tomar un área                            |
+| Atajo en Ajustes | Abrir la superposición de captura        |
 
-En macOS, usa Cmd en lugar de Ctrl. Configura los atajos en `chrome://extensions/shortcuts`. Shift solo funciona en páginas compatibles y en la burbuja.
+Elige las teclas en Ajustes.
 
 ## Sesiones y privacidad
 
-Blinkling usa un canal activo verificado de Claude Code. Si no existe, continúa la última conversación guardada del proyecto en otro proceso. Evita usar ese mismo historial a la vez en el terminal. [Canal y límites](docs/DESIGN.md#the-running-claude-code-conversation).
+Blink envía lo que elegiste a tu propio Claude Code con sesión iniciada y muestra la respuesta junto a aquello de lo que trata. Evita usar la misma conversación en una terminal al mismo tiempo.
 
 > [!IMPORTANT]
-> Explicar automáticamente resume cambios **sin compartir la pantalla** tras el consentimiento y el acceso al sitio. Los campos de contraseña y la lista de bloqueo pausan resúmenes y sugerencias automáticos. Los resúmenes de pantalla usan una pestaña del navegador vinculada a la misma pestaña inspeccionada y las mismas comprobaciones. Un monitor o una aplicación compartidos necesitan **consentimiento separado para cada sesión de uso compartido**. Sus píxeles no permiten comprobar contraseñas ni sitios bloqueados. Las fuentes desconocidas siguen en pausa.
-> Las páginas incrustadas que están cargando o no son accesibles también pausan las solicitudes automáticas.
+> El ayudante del navegador solo lee una página cuando la señalas. Nunca lee campos de contraseña ni de pago, y solo se comunica con Blinkling en tu propio equipo. Explicar automáticamente está desactivado hasta que lo actives.
 
-Sin telemetría ni servicio de respuestas del editor. El contexto y las capturas elegidos van a tu backend. Se aplican sus condiciones y costes. Las aplicaciones nativas solo aportan píxeles. Ajustes del navegador, tiendas de extensiones y páginas protegidas bloquean las herramientas. La opacidad y el paso de clics de la ventana nativa dependen del navegador. [Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de versión](docs/releases/v2.1.0.md)
+Sin telemetría ni servicio de respuestas operado por el editor. Lo que eliges va a tu Claude Code; se aplican las condiciones y los costes de uso del proveedor. Los ajustes del navegador, las tiendas de extensiones y el visor de PDF del propio navegador son páginas protegidas: allí Blink responde a partir de la pantalla. [Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de versión](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.

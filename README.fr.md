@@ -36,10 +36,10 @@ _Google Flights : un guide de la page, puis une question sur la réservation d'u
    /blinkling:blinkling
    ```
 
-3. Activez le **mode développeur** dans `chrome://extensions` (ou `edge://extensions`). Choisissez **Load unpacked** et le dossier ouvert par **Show in Files / Finder**. La page de bienvenue se connecte automatiquement. Ouvrez la bulle.
+3. Activez le **mode développeur** dans `chrome://extensions` (ou `edge://extensions`). Choisissez **Load unpacked** et le dossier ouvert par **Show in Files / Finder**. La page de bienvenue se connecte automatiquement. Cliquez ensuite sur le bouton Blink de la barre d'outils pour voir qu'il est connecté.
 
 > [!NOTE]
-> Sur un ordinateur local, **Try without installing** ouvre un profil Chromium séparé. Pour un hôte distant, exécutez la commande SSH affichée sur l'ordinateur du navigateur. [Installation et mises à jour](docs/INSTALL.md).
+> L'assistant du navigateur est facultatif : Blink fonctionne sur n'importe quelle fenêtre sans lui. Pour Chrome ou Edge, exécutez `/blinkling:install`, puis chargez `~/Blinkling-extension` comme à l'étape 3. [Détails d'installation et de mise à jour](docs/INSTALL.md).
 
 ### Avancé : charger depuis les sources
 
@@ -81,35 +81,28 @@ claude plugin list
 
 ## Pendant la lecture
 
-- **Capturer l'écran** ou **Choisir une zone**. Maintenez Shift et faites glisser sur une page compatible ou dans la bulle. Entrée confirme, Échap annule. La bulle disparaît pendant la capture partagée, puis revient.
-- **Guider cette page** propose une vue générale et un parcours Suivant/Précédent des zones de lecture et des commandes.
-- Sélectionnez du texte pour poser une question, expliquer ou traduire. Traduisez une page puis restaurez-la, ou ouvrez un PDF dans le lecteur intégré.
-- **Explication automatique** propose jusqu'à trois questions et résume les changements. Alt+P met en pause. Choisissez Opus, Sonnet ou Haiku pour le chat.
-
-![arXiv : sélectionner un résumé, poser une question et le traduire en chinois traditionnel.](assets/arxiv.gif)
-
-_arXiv : sélectionner un résumé, poser une question et le traduire en chinois traditionnel._
-
-Enregistré avec la vraie extension sur des sites en ligne et des réponses de Claude Code. Les attentes sont raccourcies. Le contenu et les réponses ne sont pas préparés.
+- **Maintenez Ctrl et cliquez** sur un paragraphe, un bouton ou une image de votre écran : Blink le prend et interroge Claude Code. **Maintenez Ctrl et faites glisser** pour prendre une zone.
+- Un petit champ de saisie s'ouvre avec trois questions rapides. Entrée envoie celle qui est en surbrillance. Cliquez sur Blink à tout moment pour reprendre la conversation.
+- Les réponses arrivent sous forme de bulles qui pointent ce dont elles parlent. Le menu de Blink propose capture, visite guidée, Explication automatique (désactivée tant que vous ne l'activez pas) et réglages.
+- L'assistant facultatif pour Chrome ou Edge apporte la structure propre de la page, pour que Blink sache quel paragraphe ou bouton vous avez désigné, ainsi que la capture de page entière, la traduction de la page sur place et un lecteur de PDF. Son bouton de barre d'outils indique s'il est connecté et réveille Blink. Sans lui, Blink fonctionne toujours sur toutes les fenêtres.
 
 ## Raccourcis
 
-| Raccourci    | Action                                |
-| ------------ | ------------------------------------- |
-| Alt+Shift+G  | Ouvrir la bulle                       |
-| Ctrl+Shift+S | Recadrer dans le navigateur           |
-| Ctrl+Shift+7 | Recadrer depuis une autre application |
+| Raccourci              | Action                                 |
+| ---------------------- | -------------------------------------- |
+| Ctrl + clic            | Interroger ce qui est sous le pointeur |
+| Ctrl + glisser         | Prendre une zone                       |
+| Raccourci des Réglages | Ouvrir la superposition de capture     |
 
-Sur macOS, utilisez Cmd au lieu de Ctrl. Modifiez les raccourcis dans `chrome://extensions/shortcuts`. Shift fonctionne uniquement sur les pages compatibles et dans la bulle.
+Choisissez les touches dans les Réglages.
 
 ## Sessions et confidentialité
 
-Blinkling utilise un canal actif vérifié de Claude Code. Sinon, un processus séparé reprend la dernière conversation enregistrée du projet. Évitez de travailler simultanément sur ce même historique dans le terminal. [Canal et limites](docs/DESIGN.md#the-running-claude-code-conversation).
+Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et affiche la réponse à côté de ce dont elle parle. Évitez d'utiliser la même conversation dans un terminal en même temps.
 
 > [!IMPORTANT]
-> Explication automatique résume les changements **sans partage d'écran**, après consentement et autorisation du site. Les champs de mot de passe et la liste de blocage suspendent résumés et suggestions automatiques. Les résumés d'écran utilisent un onglet partagé associé au même onglet inspecté, avec les mêmes vérifications. Un écran ou une application partagés nécessitent **un consentement séparé pour chaque partage**. Les pixels ne permettent pas de vérifier mots de passe ou sites bloqués. Les sources inconnues restent en pause.
-> Les pages intégrées en chargement ou inaccessibles suspendent aussi les requêtes automatiques.
+> L'assistant du navigateur ne lit une page que lorsque vous la désignez. Il ne lit jamais les champs de mot de passe ni de paiement, et ne communique qu'avec Blinkling sur votre propre ordinateur. Explication automatique reste désactivée tant que vous ne l'activez pas.
 
-Aucune télémétrie ni service de réponses géré par l'éditeur. Le contexte et les captures choisis vont à votre backend. Ses conditions et coûts s'appliquent. Les applications natives fournissent seulement des pixels. Les paramètres, boutiques d'extensions et pages protégées bloquent les outils. Opacité et passage des clics de la fenêtre native dépendent du navigateur. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v2.1.0.md)
+Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.

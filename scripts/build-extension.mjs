@@ -13,9 +13,13 @@ await build({
   target: "chrome116",
   legalComments: "none",
 });
+// Injected files must be classic scripts, so these are not modules.
 await build({
-  entryPoints: ["extension/content.ts"],
-  outfile: "dist-extension/content.js",
+  entryPoints: {
+    page: "extension/page.ts",
+    install: "extension/install.ts",
+  },
+  outdir: "dist-extension",
   bundle: true,
   format: "iife",
   platform: "browser",
@@ -23,28 +27,26 @@ await build({
   legalComments: "none",
 });
 await build({
-  entryPoints: { main: "extension/main.tsx", reader: "extension/reader.ts" },
+  entryPoints: { popup: "extension/popup.ts", reader: "extension/reader.ts" },
   outdir: "dist-extension",
   bundle: true,
   format: "esm",
   platform: "browser",
   target: "chrome116",
   legalComments: "none",
-  jsx: "automatic",
-  loader: { ".ttf": "file", ".svg": "file" },
-  assetNames: "assets/[name]",
   define: { "process.env.NODE_ENV": '"production"' },
 });
 for (const name of [
   "manifest.json",
-  "panel.html",
+  "popup.html",
+  "popup.css",
   "reader.html",
-  "style.css",
   "reader.css",
 ])
   await cp(`extension/${name}`, `dist-extension/${name}`);
 await cp("public/assets", "dist-extension/assets", { recursive: true });
 await cp("extension/icons", "dist-extension/icons", { recursive: true });
+await cp("extension/_locales", "dist-extension/_locales", { recursive: true });
 await cp("public/licenses", "dist-extension/licenses", { recursive: true });
 await cp(
   resolve("node_modules/pdfjs-dist/build/pdf.worker.min.mjs"),

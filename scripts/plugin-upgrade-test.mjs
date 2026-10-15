@@ -83,8 +83,8 @@ async function welcome(profile, pluginPath) {
     join(pluginPath, "commands/blinkling.md"),
     "utf8",
   );
-  assert.match(command, /Call `panel_open`/);
-  // Redirect homedir only in this child so panel_open cannot overwrite the user's extension.
+  assert.match(command, /Call `desktop_open`/);
+  // Redirect homedir only in this child so extension_install cannot overwrite the user's extension.
   const isolate = join(profile.cwd, "isolate-home.cjs");
   await writeFile(
     isolate,
@@ -95,6 +95,8 @@ async function welcome(profile, pluginPath) {
     BLINKLING_DISABLE_BROWSER_OPEN: "1",
     BLINKLING_TEST_MODE: "1",
     BLINKLING_PORT: "0",
+    BLINKLING_REMOTE: "0",
+    BLINKLING_RUNTIME_DIR: join(profile.cwd, "runtime"),
   };
   delete env.SSH_CONNECTION;
   delete env.BLINKLING_EXTENSION_DIR;
@@ -108,22 +110,25 @@ async function welcome(profile, pluginPath) {
   });
   try {
     await client.connect(transport);
-    const opened = await client.callTool({ name: "panel_open", arguments: {} });
+    const opened = await client.callTool({
+      name: "extension_install",
+      arguments: {},
+    });
     assert.notEqual(opened.isError, true);
     const link = /http:\/\/127\.0\.0\.1:\d+\/install#code=([A-F0-9]{16})/.exec(
       opened.content[0].text,
     );
-    assert.ok(link, "Installed command must reach v2 welcome/pairing");
+    assert.ok(link, "The installed command must reach the helper setup page");
     const origin = new URL(link[0]).origin;
     const page = await fetch(`${origin}/install`);
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Welcome to Blinkling/);
-    const status = await fetch(`${origin}/install/status?code=${link[1]}`);
-    assert.deepEqual(await status.json(), {
-      connected: false,
-      mode: "direct",
-      trialError: false,
+    assert.match(await page.text(), /Blinkling/);
+    const trust = await fetch(`${origin}/install/trust`, {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ code: link[1] }),
     });
+    assert.match((await trust.json()).secret, /^[a-f0-9]{64}$/);
     const copied = JSON.parse(
       await readFile(
         join(profile.cwd, "Blinkling-extension/manifest.json"),
@@ -132,7 +137,7 @@ async function welcome(profile, pluginPath) {
     );
     assert.equal(copied.version, releaseVersion);
     console.log(
-      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension ${releaseVersion}; packaged /blinkling:blinkling tool opened welcome/pairing`,
+      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension ${releaseVersion}; the packaged helper setup page handed over its trust automatically`,
     );
   } finally {
     await client.close();
