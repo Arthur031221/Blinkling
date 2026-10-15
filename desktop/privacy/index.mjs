@@ -170,16 +170,21 @@ function exposeTestHooks(hooks) {
     };
   }
   if (process.env.BLINKLING_E2E !== "1") return () => {};
+  // Another module may already wait for the object the same way (the pick
+  // does); keep its accessor working underneath this one.
+  const earlier = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
   let held;
   Object.defineProperty(globalThis, "blinklingTest", {
     configurable: true,
-    get: () => held,
+    get: () => (earlier?.get ? earlier.get() : held),
     set(value) {
-      held = value;
+      if (earlier?.set) earlier.set(value);
+      else held = value;
       if (value && typeof value === "object") value.privacy = hooks;
     },
   });
   return () => {
-    if (held?.privacy === hooks) delete held.privacy;
+    const object = present();
+    if (object?.privacy === hooks) delete object.privacy;
   };
 }

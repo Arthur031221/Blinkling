@@ -1,4 +1,4 @@
-import { pickLocale, translator } from "../shared/i18n.mjs";
+import { documentLocale, translator } from "../shared/i18n.mjs";
 
 /** Everything the answer deck and the shared Markdown renderer say. "Blink" is
  * a name and stays untranslated. */
@@ -142,7 +142,4 @@ export const strings = {
 
 /** The renderer follows the language of the window that shows it. */
 export const translatorFor = (doc, locale) =>
-  translator(
-    strings,
-    locale ?? pickLocale(doc?.defaultView?.navigator?.languages ?? []),
-  );
+  translator(strings, locale ?? documentLocale(doc));

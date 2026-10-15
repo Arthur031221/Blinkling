@@ -1,13 +1,14 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
 import { anchorOf, growOrigin } from "./origin.mjs";
-import { pickLocale, translator } from "../shared/i18n.mjs";
+import {
+  setDocumentLocale,
+  documentLocale,
+  translator,
+} from "../shared/i18n.mjs";
 import { cssVariables } from "../shared/motion.mjs";
 import { strings } from "./strings.mjs";
 import { followShellTheme } from "./theme.mjs";
 const api = window.blinkling;
-const locale = pickLocale(navigator.languages);
-const tr = translator(strings, locale);
-document.documentElement.lang = locale;
 // The motion tokens reach the stylesheet as custom properties (CSSOM, so the
 // page's CSP stays free of inline styles).
 for (const declaration of cssVariables().split(";")) {
@@ -16,6 +17,11 @@ for (const declaration of cssVariables().split(";")) {
 }
 followShellTheme();
 const configuration = await api.configuration();
+// Main sends the one system locale; the page follows it and says so in `lang`.
+setDocumentLocale(document, configuration.locale);
+const locale = documentLocale(document);
+const tr = translator(strings, locale);
+document.documentElement.lang = locale;
 document.body.dataset.surface = configuration.surface ?? "card";
 if (configuration.theme)
   document.documentElement.dataset.theme = configuration.theme;

@@ -43,6 +43,7 @@ import { SessionBridge } from "../session/index.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
+import { systemLocale } from "../shared/i18n.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -74,6 +75,8 @@ app.commandLine.appendSwitch("enable-transparent-visuals");
 if (process.platform === "linux" && process.env.DISPLAY)
   app.commandLine.appendSwitch("ozone-platform", "x11");
 await app.whenReady();
+// Every surface speaks this one language, resolved here and sent out (N3.10).
+const locale = systemLocale({ app });
 const store = await new PositionStore(
   join(app.getPath("userData"), "blink-positions.json"),
 ).load();
@@ -176,6 +179,7 @@ const snapshot = () => ({
   chatFocused: !!composer && !composer.isDestroyed() && composer.isFocused(),
   autoExplain,
   theme: nativeTheme.shouldUseDarkColors ? "dark" : "light",
+  locale,
 });
 function broadcast() {
   if (quitting) return;
@@ -611,6 +615,7 @@ ipcMain.handle("blinkling:configuration", (event) => {
     surface: event.sender === bubbles?.webContents ? "bubbles" : "card",
     selection: session.state?.selection,
     theme: snapshot().theme,
+    locale,
   };
 });
 ipcMain.on("blinkling:subscribe", (event) => {
@@ -805,7 +810,7 @@ const pick = await installPick({
   },
   shell: {
     userDataDir: app.getPath("userData"),
-    locales: app.getPreferredSystemLanguages(),
+    locale,
     windowOptions,
     secure,
     windows,
@@ -851,7 +856,7 @@ const privacy = installPrivacy({
   session,
   features,
   send,
-  languages: app.getPreferredSystemLanguages(),
+  languages: [locale],
   renderer: (listener) => {
     blink.webContents.on("did-finish-load", listener);
     return () => {

@@ -1,4 +1,4 @@
-import { pickLocale, translator } from "../shared/i18n.mjs";
+import { documentLocale, translator } from "../shared/i18n.mjs";
 /** Text the character window itself shows, one table per locale. */
 export const strings = {
   en: {
@@ -29,11 +29,7 @@ export const strings = {
     permission: "Blink precisa da sua permissão",
   },
 };
-const system = () => [
-  ...(globalThis.navigator?.languages ?? []),
-  globalThis.navigator?.language,
-];
-export const windowText = (locale = pickLocale(system())) =>
+export const windowText = (locale = documentLocale(globalThis.document)) =>
   translator(strings, locale);
 /** Fill every [data-label] / [data-text] from the table. */
 export function applyText(root, text = windowText()) {

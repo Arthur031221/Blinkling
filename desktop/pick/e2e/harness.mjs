@@ -172,9 +172,10 @@ export async function domSentence(app) {
       const node = document.getElementById("story-text").firstChild;
       const text = node.data;
       const range = document.createRange();
-      const from = text.indexOf(${JSON.stringify(SENTENCE)});
-      range.setStart(node, from);
-      range.setEnd(node, from + ${SENTENCE.length});
+      // The fixture's source wraps its lines; the sentence matches across them.
+      const found = text.match(new RegExp(${JSON.stringify(SENTENCE.split(" ").join("\\s+"))}));
+      range.setStart(node, found.index);
+      range.setEnd(node, found.index + found[0].length);
       const lines = [];
       for (const r of range.getClientRects()) {
         if (r.width < 1) continue;

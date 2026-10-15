@@ -5,12 +5,14 @@ import { writeFileSync } from "node:fs";
 
 const desktop = fileURLToPath(new URL("../..", import.meta.url));
 
-/** Starts the real shell. `scale` is the device scale factor the whole run uses. */
-export async function launch({ scale = 1, env = {} } = {}) {
+/** Starts the real shell. `scale` is the device scale factor the whole run uses;
+ * `args` are extra Chromium or Electron switches. */
+export async function launch({ scale = 1, env = {}, args = [] } = {}) {
   const app = await electron.launch({
     args: [
       desktop,
       "--no-sandbox",
+      ...args,
       ...(scale === 1 ? [] : [`--force-device-scale-factor=${scale}`]),
     ],
     env: {

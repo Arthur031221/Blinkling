@@ -228,6 +228,15 @@ test("the first hold of the pick key says to click once, and it never shows agai
   second.dispose();
 });
 
+test("the pick hint speaks the one locale the shell resolved", async () => {
+  const s = setup();
+  s.shell.locale = "zh-TW";
+  const pick = await s.install();
+  await hold(s, pick);
+  assert.deepEqual(hintsSent(s.log.windows[0]), ["點一下就能詢問這個"]);
+  pick.dispose();
+});
+
 test("a capture from the overlay or the hotkey goes through deliver, flies and opens the mini composer", async () => {
   const s = setup();
   const pick = await s.install();
