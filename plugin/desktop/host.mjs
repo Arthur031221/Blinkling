@@ -374,6 +374,24 @@ export async function startDesktopHost({
   return {
     address,
     attachSession: attach,
+    /** Whether the helper answers right now. A registration is made once, so
+     * the endpoint is asked again, and one that is gone is forgotten. */
+    async companionConnected({ timeout = 400 } = {}) {
+      const known = companion;
+      if (!known) return false;
+      try {
+        const response = await fetch(known.url, {
+          headers: { Authorization: `Bearer ${known.token}` },
+          redirect: "error",
+          signal: AbortSignal.timeout(timeout),
+        });
+        return response.ok && (await response.json()).companion === true;
+      } catch (error) {
+        if (error instanceof TypeError && companion === known)
+          companion = undefined;
+        return false;
+      }
+    },
     async openCompanionGuide() {
       if (!companion)
         throw new Error(

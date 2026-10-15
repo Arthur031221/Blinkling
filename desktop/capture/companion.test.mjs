@@ -71,3 +71,43 @@ test("a host that never answers is given up on", async () => {
     false,
   );
 });
+
+test("the real desktop host reports a companion once the extension's bridge has registered", async () => {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createServer } = await import("node:http");
+  const { startDesktopHost } = await import("../../plugin/desktop/host.mjs");
+  const { discoverDesktop } = await import("../../plugin/desktop/client.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "blinkling-companion-"));
+  const descriptor = join(directory, "desktop.json");
+  const token = "b".repeat(64);
+  const bridge = createServer((req, res) => {
+    const ok = req.headers.authorization === `Bearer ${token}`;
+    res.writeHead(ok ? 200 : 403, { "content-type": "application/json" });
+    res.end(JSON.stringify({ companion: ok }));
+  });
+  await new Promise((resolve) => bridge.listen(0, "127.0.0.1", resolve));
+  const host = await startDesktopHost({
+    directory,
+    descriptor,
+    session: { subscribe: () => () => undefined },
+  });
+  try {
+    assert.equal(await companionConnected(host), false);
+    const { client } = await discoverDesktop(descriptor);
+    await client.rpc("companion", {
+      url: `http://127.0.0.1:${bridge.address().port}/desktop-companion`,
+      token,
+    });
+    assert.equal(await companionConnected(host), true);
+    // The bridge going away must take the chip away with it; a registration
+    // made once is not a connection.
+    await new Promise((resolve) => bridge.close(resolve));
+    assert.equal(await companionConnected(host), false);
+  } finally {
+    await host.close();
+    bridge.close();
+    await rm(directory, { recursive: true });
+  }
+});
