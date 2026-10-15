@@ -224,12 +224,11 @@ test("the notice sits above the toolbar, interrupts read 已停止, chips ellips
       };
     });
     expect(fit).toEqual({ ellipsis: "ellipsis", clipped: true, inside: true });
-    await app.evaluate(() =>
-      globalThis.conversationTest.windows[0].webContents.send("test:surface", {
-        type: "view",
-        view: "help",
-      }),
-    );
+    await emit(app, {
+      type: "capture-status",
+      state: "failed",
+      message: "Could not capture the whole page.",
+    });
     const notice = card.locator(".gl-notice");
     await expect(notice).toBeVisible();
     const rects = await card.evaluate(() => {

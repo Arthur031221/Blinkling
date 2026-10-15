@@ -34,7 +34,7 @@ export function createPicker(doc, { label, items = [], onChoose, signal }) {
     value.dataset.empty = String(!rows.has(current));
     trigger.setAttribute(
       "aria-label",
-      rows.has(current) ? `${label}：${text(current)}` : label,
+      rows.has(current) ? `${label}: ${text(current)}` : label,
     );
     for (const [id, row] of rows) {
       row.node.setAttribute("aria-selected", String(id === current));
@@ -155,5 +155,15 @@ export function createPicker(doc, { label, items = [], onChoose, signal }) {
       if (disabled) hide(false);
     },
     close: () => hide(false),
+    get isOpen() {
+      return open;
+    },
+    /** Close the list for Escape. Focus goes back to the trigger only when it
+     * was inside the list; a typing caret elsewhere stays where it is. */
+    dismiss() {
+      if (!open) return false;
+      hide(root.contains(doc.activeElement));
+      return true;
+    },
   };
 }

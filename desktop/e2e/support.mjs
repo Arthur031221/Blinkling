@@ -11,6 +11,8 @@ export function launch() {
         ? []
         : [fileURLToPath(new URL("..", import.meta.url))]),
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
+      // The specs read the card in Traditional Chinese; it follows the system language.
+      "--lang=zh-TW",
     ],
     env: {
       ...process.env,

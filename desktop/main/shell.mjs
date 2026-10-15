@@ -9,7 +9,14 @@ import {
 } from "electron";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
-import { leaveCloses, noHold, validHold } from "./card-hold.mjs";
+import {
+  claimFocus,
+  leaveCloses,
+  noHold,
+  sendCloses,
+  validHold,
+} from "./card-hold.mjs";
+import { validSeed } from "../composer/index.mjs";
 import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
@@ -260,7 +267,11 @@ ipcMain.on("blinkling:composer-ready", (event) => {
   )
     composerReady?.();
 });
-async function openComposer(focus = true) {
+/** Open the card. `focus` gives it the keyboard; `seed` is what the mini
+ * composer was holding ({ conversationId, draft, attachments }), carried into
+ * the card as it grows. */
+async function openComposer({ focus = true, seed } = {}) {
+  const carried = seed === undefined ? undefined : validSeed(seed);
   if (!composer?.isVisible() || (focus && !composer?.isFocused())) {
     previousFocused = BrowserWindow.getFocusedWindow();
     await input?.rememberFocus();
@@ -268,7 +279,10 @@ async function openComposer(focus = true) {
   const win = await ensureComposer();
   chatOpen = true;
   bubbles?.hide();
-  win.webContents.send("blinkling:surface", { type: "open" });
+  win.webContents.send("blinkling:surface", {
+    type: "open",
+    ...(carried && { seed: carried }),
+  });
   broadcast();
   if (focus) {
     if (input) {
@@ -280,6 +294,7 @@ async function openComposer(focus = true) {
     }
     shapeComposer();
     win.webContents.send("blinkling:surface", { type: "open" });
+    claimKeyboard(win, 250);
   } else if (!win.isVisible()) win.showInactive();
 }
 /** Blink asked to close the card because the pointer left, but something held
@@ -297,22 +312,26 @@ function leaveIfIdle() {
   )
     closeComposer();
 }
-/** The window that just closed (the region selector) hands the keyboard back
- * to whatever had it, and a window manager may do so after our first request.
- * For a short settle period, ask again whenever the card does not have it. */
-function claimKeyboard(win, until = Date.now() + 500) {
-  const retry = () => {
-    if (win.isDestroyed() || !win.isVisible() || !chatOpen) return;
-    if (!win.isFocused()) {
+/** A window manager may hand the keyboard to another window just after the
+ * card opens (the window that closed, a focus revert). For a short settle
+ * period, ask again whenever the card does not have it; after that a click
+ * elsewhere is the user's decision and wins. */
+let cancelClaim = null;
+function claimKeyboard(win, settle = 600) {
+  cancelClaim?.();
+  cancelClaim = claimFocus({
+    settle,
+    focused: () => win.isFocused(),
+    wanted: () => !win.isDestroyed() && win.isVisible() && chatOpen,
+    claim: () => {
       if (input) input.activate(win);
       win.focus();
       win.webContents.send("blinkling:surface", { type: "open" });
-    }
-    if (Date.now() < until) setTimeout(retry, 60);
-  };
-  setTimeout(retry, 60);
+    },
+  });
 }
 function closeComposer(restore = true) {
+  cancelClaim?.();
   leaving = false;
   const focused = composer?.isFocused();
   chatOpen = false;
@@ -447,7 +466,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     }
   } else if (command.type === "pin") {
     pinned = command.value;
-    if (pinned) await openComposer(false);
+    if (pinned) await openComposer({ focus: false });
     else {
       // Unpinning dismisses the card, but never over an unsent draft or an
       // open file dialog; it closes as soon as nothing holds it.
@@ -465,7 +484,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     }
   } else if (command.type === "close-chat") closeComposer();
   else if (command.type === "visibility") {
-    if (command.value && !chatOpen) await openComposer(false);
+    if (command.value && !chatOpen) await openComposer({ focus: false });
     else if (command.value) leaving = false;
     else if (!command.value && !pinned && chatOpen) {
       leaving = true;
@@ -553,7 +572,8 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
   if (event.sender !== composer?.webContents)
     throw new Error("Invalid composer sender");
   await session.send(turn);
-  if (turn.source === "quick-ask" && !pinned) closeComposer();
+  if (sendCloses({ pinned, pointer: cardHold.pointer, source: turn.source }))
+    closeComposer();
 });
 ipcMain.handle("blinkling:select", (event, selection) => {
   requireView(event);
@@ -816,6 +836,7 @@ if (process.env.BLINKLING_E2E === "1")
     pointer: cursor,
     cardBounds: () => cardBounds(display, position),
     attachCapture,
+    openComposer,
     visualMasks,
     capture: () => captureScreen(display, windows()),
     overlay: async (drawings) => {

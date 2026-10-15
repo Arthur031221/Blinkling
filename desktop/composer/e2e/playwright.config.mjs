@@ -4,7 +4,7 @@ import { defineConfig } from "@playwright/test";
 process.env.BLINKLING_REMOTE ??= "0";
 export default defineConfig({
   testDir: ".",
-  testMatch: ["conversation.spec.mjs", "visuals.spec.mjs"],
+  testMatch: ["conversation.spec.mjs", "visuals.spec.mjs", "card.spec.mjs"],
   workers: 1,
   retries: 0,
   timeout: 45000,

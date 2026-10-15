@@ -14,12 +14,15 @@ export const capture = {
   mediaType: "image/png",
   data: png,
 };
-export async function launch(scale = 1) {
+/** The card follows the system language; these specs read it in Traditional
+ * Chinese unless a test asks for another, and one spec checks English. */
+export async function launch(scale = 1, { lang = "zh-TW" } = {}) {
   const app = await electron.launch({
     args: [
       fileURLToPath(new URL("./fixture.cjs", import.meta.url)),
       "--no-sandbox",
       `--force-device-scale-factor=${scale}`,
+      `--lang=${lang}`,
     ],
     env: {
       ...process.env,
@@ -30,7 +33,11 @@ export async function launch(scale = 1) {
   const errors = [];
   for (const page of await app.windows())
     page.on("pageerror", (e) => errors.push(e.message));
-  await expect(card.getByRole("textbox", { name: "輸入問題" })).toBeVisible();
+  await expect(
+    card.getByRole("textbox", {
+      name: lang === "zh-TW" ? "輸入問題" : "Ask a question",
+    }),
+  ).toBeVisible();
   await expect
     .poll(() => app.evaluate(() => Boolean(globalThis.conversationTest)))
     .toBe(true);
@@ -67,9 +74,13 @@ export async function shot(app, name) {
       bytes = Buffer.from(data.png, "base64");
       const desktop = PNG.sync.read(bytes);
       const offset = (data.corner.y * desktop.width + data.corner.x) * 4;
-      return [...desktop.data.subarray(offset, offset + 3)];
+      // The card's soft shadow may darken the corner by a level or two; an
+      // opaque or missing underlay is nowhere near the desktop colour.
+      return Math.max(
+        ...[32, 48, 64].map((v, i) => Math.abs(desktop.data[offset + i] - v)),
+      );
     })
-    .toEqual([32, 48, 64]);
+    .toBeLessThanOrEqual(3);
   await writeFile(`${report}/${name}.png`, bytes);
 }
 export async function bounds(page) {

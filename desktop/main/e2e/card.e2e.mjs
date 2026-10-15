@@ -34,6 +34,8 @@ async function leave(c) {
   });
   await c.page.waitForTimeout(800);
 }
+/** Playwright clicks move a synthetic pointer inside the card; take it away the way the real pointer leaves. */
+const pointerAway = (card) => card.mouse.move(-20, -20);
 async function unfocus(c) {
   await c.app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getFocusedWindow()?.blur();
@@ -85,6 +87,7 @@ test("H-4 a pending attachment chip keeps the card open after the pointer leaves
     await leave(c);
     expect(await visible(c.app)).toBe(true);
     await card.getByRole("button", { name: "移除 capture.png" }).click();
+    await pointerAway(card);
     await expect.poll(() => visible(c.app)).toBe(false);
   } finally {
     await c.close();
@@ -100,6 +103,7 @@ test("H-4 an open file dialog keeps the card open after the pointer leaves", asy
       HTMLInputElement.prototype.click = function () {};
     });
     await card.getByRole("button", { name: "加入附件" }).click();
+    await pointerAway(card);
     await unfocus(c);
     await leave(c);
     expect(await visible(c.app)).toBe(true);

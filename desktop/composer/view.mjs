@@ -1,28 +1,28 @@
 import { readAttachment } from "./index.mjs";
+import {
+  efforts as effortIds,
+  families,
+  familyOf,
+  modelLabel,
+} from "./models.mjs";
+import { pickLocale, translator } from "../shared/i18n.mjs";
+import { strings } from "./strings.mjs";
 import { createPicker } from "./picker.mjs";
 import {
   renderMarkdown,
   renderImage,
   renderDocument,
 } from "../messages/render.mjs";
-export const quickAsks = Object.freeze(["這是什麼", "翻譯", "重點"]);
-const defaultModels = [
-  { id: "opus", label: "Opus" },
-  { id: "sonnet", label: "Sonnet" },
-  { id: "haiku", label: "Haiku" },
-];
-const defaultEfforts = [
-  { id: "low", label: "Low" },
-  { id: "medium", label: "Medium" },
-  { id: "high", label: "High" },
-];
-
-const prettyModel = (value) =>
-  value.replace(
-    /^claude-(opus|sonnet|haiku)-(\d+)-(\d+)(?:-\d{8})?$/,
-    (_match, family, major, minor) =>
-      `${family[0].toUpperCase()}${family.slice(1)} ${major}.${minor}`,
-  );
+const quickAsks = Object.freeze([
+  "quick-what",
+  "quick-translate",
+  "quick-summary",
+]);
+// The dot only exists for trouble; these states are the normal ones.
+const healthy = new Set(["starting", "connected"]);
+const statusKey = (status) =>
+  ({ retrying: "status-retrying", blocked: "status-blocked" })[status] ??
+  "status-disconnected";
 const prettyEffort = (value) => `${value[0].toUpperCase()}${value.slice(1)}`;
 
 export function mountComposer(
@@ -30,17 +30,24 @@ export function mountComposer(
   {
     composer,
     store,
-    models = defaultModels,
-    efforts = defaultEfforts,
+    models = families.map((id) => ({ id, label: modelLabel(id) })),
+    efforts,
     onPin = () => {},
     onClose = () => {},
     onTyping = () => {},
     onHold = () => {},
     copy,
     openLink,
+    locale = pickLocale(host.ownerDocument.defaultView?.navigator?.languages),
   } = {},
 ) {
   const doc = host.ownerDocument;
+  const tr = translator(strings, locale);
+  const effortLabel = (id) =>
+    strings.en[`effort-${id}`] === undefined
+      ? prettyEffort(id)
+      : tr(`effort-${id}`);
+  efforts ??= effortIds.map((id) => ({ id, label: effortLabel(id) }));
   const node = (tag, cls, text) => {
     const n = doc.createElement(tag);
     if (cls) n.className = cls;
@@ -55,12 +62,12 @@ export function mountComposer(
     return n;
   };
   const card = node("section", "gl-chat-card");
-  card.setAttribute("aria-label", "與 Blink 對話");
+  card.setAttribute("aria-label", tr("card"));
   const header = node("header", "gl-card-header"),
     brand = node("span", "gl-brand", "Blink"),
     dot = node("span", "gl-status-dot"),
-    pin = button("釘選對話", ""),
-    close = button("收起對話", "×");
+    pin = button(tr("pin"), ""),
+    close = button(tr("close"), "×");
   const pinSvg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
   pinSvg.setAttribute("viewBox", "0 0 24 24");
   pinSvg.setAttribute("width", "18");
@@ -74,45 +81,46 @@ export function mountComposer(
   pinPath.setAttribute("stroke-linejoin", "round");
   pinSvg.append(pinPath);
   pin.append(pinSvg);
+  // Nothing to report while the connection is fine (N3.11).
   dot.setAttribute("role", "status");
-  dot.setAttribute("aria-label", "正在連線");
+  dot.hidden = true;
   pin.setAttribute("aria-pressed", "false");
   header.append(brand, dot, pin, close);
   const history = node("div", "gl-chat-history");
   history.setAttribute("role", "log");
-  history.setAttribute("aria-label", "對話紀錄");
+  history.setAttribute("aria-label", tr("history"));
   history.setAttribute("aria-live", "polite");
   const quick = node("div", "gl-quick-asks");
-  quick.setAttribute("aria-label", "快速提問");
+  quick.setAttribute("aria-label", tr("quick-label"));
   const attachments = node("div", "gl-attachments");
-  attachments.setAttribute("aria-label", "附件");
+  attachments.setAttribute("aria-label", tr("attachments"));
   attachments.hidden = true;
   const form = node("form", "gl-composer"),
     text = node("textarea", "gl-input");
-  text.setAttribute("aria-label", "輸入問題");
-  text.placeholder = "問 Blink…";
+  text.setAttribute("aria-label", tr("input"));
+  text.placeholder = tr("placeholder");
   text.rows = 2;
   const controller = new AbortController(),
     signal = controller.signal;
   const model = createPicker(doc, {
-      label: "模型",
+      label: tr("model"),
       items: models,
       signal,
       onChoose: (id) => choose({ model: id, effort: effort.value }),
     }),
     effort = createPicker(doc, {
-      label: "思考程度",
+      label: tr("effort"),
       items: efforts,
       signal,
       onChoose: (id) => choose({ model: model.value, effort: id }),
     });
   const listen = (n, type, fn) => n.addEventListener(type, fn, { signal });
   const toolbar = node("div", "gl-composer-toolbar"),
-    add = button("加入附件", "+"),
+    add = button(tr("add"), "+"),
     file = node("input"),
     separator = node("span", "gl-picker-dot", "·"),
-    send = button("傳送", "↑"),
-    stop = button("停止回答", "■");
+    send = button(tr("send"), "↑"),
+    stop = button(tr("stop"), "■");
   file.type = "file";
   file.multiple = true;
   file.accept =
@@ -144,14 +152,20 @@ export function mountComposer(
     disposed = false;
   const messageNodes = new Map(),
     attachmentNodes = new Map();
-  const fail = (e) =>
-    composer.error(
-      /^[\u4e00-\u9fff]/u.test(e?.message ?? "")
-        ? e.message
-        : "暫時無法完成，請再試一次",
-    );
-  listen(card, "mouseenter", () => store.hover(true, "card"));
-  listen(card, "mouseleave", () => store.hover(false, "card"));
+  // The composer carries a code; anything without a known one reads generically.
+  const known = (code) => strings.en[`error-${code}`] !== undefined;
+  const fail = (e) => composer.error(known(e?.code) ? e.code : "generic");
+  let pointer = false;
+  listen(card, "mouseenter", () => {
+    pointer = true;
+    store.hover(true, "card");
+    hold();
+  });
+  listen(card, "mouseleave", () => {
+    pointer = false;
+    store.hover(false, "card");
+    hold();
+  });
   const submit = (question = undefined, source = "composer") =>
     composer
       .send(question, source)
@@ -177,7 +191,8 @@ export function mountComposer(
       .catch((e) => {
         if (!composer.state().error) fail(e);
       });
-  for (const question of quickAsks) {
+  for (const key of quickAsks) {
+    const question = tr(key);
     const b = node("button", "gl-quick-chip", question);
     b.type = "button";
     listen(b, "click", () => submit(question, "quick-ask"));
@@ -195,7 +210,7 @@ export function mountComposer(
   // file chooser the user has not answered yet.
   let dialogOpen = false,
     chips = false;
-  const hold = () => onHold({ chips, dialog: dialogOpen });
+  const hold = () => onHold({ chips, dialog: dialogOpen, pointer });
   const closeDialog = () => {
     if (!dialogOpen) return;
     dialogOpen = false;
@@ -217,7 +232,7 @@ export function mountComposer(
     composer.draft(text.value);
     onTyping(Boolean(text.value));
     text.style.height = "auto";
-    text.style.height = `${Math.min(160, Math.max(60, text.scrollHeight))}px`;
+    text.style.height = `${Math.min(160, Math.max(44, text.scrollHeight))}px`;
   });
   listen(text, "keydown", (e) => {
     if (
@@ -263,8 +278,9 @@ export function mountComposer(
   listen(pin, "click", () => {
     pinned = !pinned;
     pin.setAttribute("aria-pressed", String(pinned));
+    // Unpinning only says so. Whether the card then closes is the shell's call,
+    // which knows where the pointer and the keyboard focus are.
     onPin(pinned);
-    if (!pinned && !store.state().visible) view.close();
   });
   listen(close, "click", () => {
     view.close();
@@ -281,19 +297,19 @@ export function mountComposer(
     }
     // A confirmed full model id names the family entry already in the list;
     // it refines that row's label instead of adding a second row.
-    const family = selection.model.match(/^claude-(opus|sonnet|haiku)-/)?.[1];
+    const family = familyOf(selection.model);
     if (family && model.has(family) && selection.model !== family)
-      model.set(family, prettyModel(selection.model));
+      model.set(family, modelLabel(selection.model));
     else
       model.set(
         selection.model,
         models.find((m) => m.id === selection.model)?.label ??
-          prettyModel(selection.model),
+          modelLabel(selection.model),
       );
     effort.set(
       selection.effort,
       efforts.find((e) => e.id === selection.effort)?.label ??
-        prettyEffort(selection.effort),
+        effortLabel(selection.effort),
     );
   }
   const unComposer = composer.subscribe((state) => {
@@ -313,7 +329,9 @@ export function mountComposer(
     quick.hidden = !state.attachments.some((a) =>
       a.mediaType.startsWith("image/"),
     );
-    error.textContent = state.error;
+    error.textContent = state.error
+      ? tr(`error-${known(state.error) ? state.error : "generic"}`)
+      : "";
     error.hidden = !state.error;
     const keep = new Set(state.attachments.map((a) => a.id));
     for (const [id, n] of attachmentNodes)
@@ -328,7 +346,7 @@ export function mountComposer(
             ? renderImage(doc, a)
             : node("span", "gl-file-icon", "▤"),
           name = node("span", "gl-attachment-name", a.name),
-          remove = button(`移除 ${a.name}`, "×");
+          remove = button(tr("remove", { name: a.name }), "×");
         chip.title = a.name;
         if (img) chip.append(img);
         chip.append(name, remove);
@@ -343,16 +361,9 @@ export function mountComposer(
     }
   });
   const unMessages = store.subscribe((state) => {
+    dot.hidden = healthy.has(state.status);
     dot.dataset.state = state.status;
-    dot.setAttribute(
-      "aria-label",
-      {
-        starting: "正在連線",
-        connected: "已連到你的 Claude Code",
-        retrying: "正在重新連線",
-        blocked: "等待連線",
-      }[state.status] ?? "正在連線",
-    );
+    dot.setAttribute("aria-label", tr(statusKey(state.status)));
     const ids = new Set(state.messages.map((m) => m.id));
     for (const [id, n] of messageNodes)
       if (!ids.has(id)) {
@@ -406,8 +417,15 @@ export function mountComposer(
       onTyping(false);
       onClose();
     },
+    /** Escape closes the topmost thing: an open list first, then the card. */
+    escape() {
+      if ([model.dismiss(), effort.dismiss()].some(Boolean)) return true;
+      if (!visible) return false;
+      view.close();
+      return true;
+    },
     quiet() {
-      if (!pinned && !dialogOpen && !doc.hasFocus()) view.close();
+      if (!pinned && !dialogOpen && !pointer && !doc.hasFocus()) view.close();
     },
     capture(capture) {
       composer.capture(capture);

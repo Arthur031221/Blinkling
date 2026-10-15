@@ -14,6 +14,7 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
       fileURLToPath(new URL("../..", import.meta.url)),
       ...(process.platform === "linux" ? ["--no-sandbox"] : []),
       `--force-device-scale-factor=${scale}`,
+      "--lang=zh-TW",
     ],
     env: {
       ...process.env,

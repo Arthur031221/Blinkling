@@ -63,6 +63,9 @@ async function openCard(app, page) {
   const card = cardPage(app);
   await expect(card.getByRole("textbox", { name: "輸入問題" })).toBeVisible();
   await expect.poll(() => composerState(app).then((s) => s.focused)).toBe(true);
+  // The card keeps asking for the keyboard for its first 250 ms (the window
+  // manager may hand it elsewhere); a click away after that is the user's.
+  await page.waitForTimeout(400);
   return card;
 }
 const png = Buffer.from(
@@ -276,6 +279,7 @@ test("the card stays open while typing, holding a chip or a dialog, and still cl
     expect((await composerState(app)).visible).toBe(true);
     await shot(app, "card-kept-chip");
     await card.getByRole("button", { name: /移除/ }).click();
+    await card.mouse.move(-20, -20); // the click above was a synthetic pointer
     away();
     await expect
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
@@ -287,6 +291,7 @@ test("the card stays open while typing, holding a chip or a dialog, and still cl
     const chooser = card.waitForEvent("filechooser");
     await card.getByRole("button", { name: "加入附件" }).first().click();
     const dialog = await chooser;
+    await card.mouse.move(-20, -20);
     away();
     await settle();
     expect((await composerState(app)).visible).toBe(true);
