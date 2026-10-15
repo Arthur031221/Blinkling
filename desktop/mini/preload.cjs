@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("miniAPI", {
   chip: (id) => ipcRenderer.send("blinkling:mini-chip", String(id)),
   remove: (id) => ipcRenderer.send("blinkling:mini-remove", String(id)),
   offer: (id) => ipcRenderer.send("blinkling:mini-offer", String(id)),
+  attach: (value) => ipcRenderer.send("blinkling:mini-attach", value),
+  select: (value) => ipcRenderer.send("blinkling:mini-select", value),
   escape: () => ipcRenderer.send("blinkling:mini-escape"),
   size: (height) => ipcRenderer.send("blinkling:mini-size", Number(height)),
 });

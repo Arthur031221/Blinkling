@@ -59,6 +59,7 @@ export class OwnedSession extends EventEmitter {
     remoteId?: string;
     model?: string;
     effort?: string;
+    permissionMode?: string;
   }): Promise<{ session_url: string; bridge_session_id: string }>;
   send(turn: Turn, sessionId?: string): Promise<void>;
   getSelection(): Promise<Selection>;

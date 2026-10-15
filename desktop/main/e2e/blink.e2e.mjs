@@ -175,6 +175,49 @@ test("a click on Blink opens the focused mini composer; a drag past 4 px does no
   }
 });
 
+test("the mini composer has the add button, model, effort and permission lists, and a pick reaches the session", async () => {
+  const c = await launch();
+  try {
+    await background(c.app);
+    await moveOn(c.page);
+    const p = await rigPoint(c.page);
+    native(p.x, p.y, "down");
+    native(p.x, p.y, "up");
+    await expect.poll(() => miniFocused(c.app)).toBe(true);
+    const mini = miniPage(c.app);
+    await expect(mini.locator(".mini-add")).toBeVisible();
+    const triggers = mini.locator(".mini-toolbar .gl-picker-trigger");
+    await expect(triggers).toHaveCount(3);
+    // The session answers once connected; until then the lists are shut.
+    await expect(triggers.nth(2)).toBeEnabled({ timeout: 20000 });
+    await expect(triggers.nth(2)).toContainText(/Ask first|先詢問/);
+    const before = await mini.locator(".mini-card").boundingBox();
+    await triggers.nth(2).click();
+    const menu = mini.locator(".mini-toolbar .gl-picker-menu:visible");
+    await expect(menu).toBeVisible();
+    // The window grew to hold the list instead of clipping it.
+    const box = await menu.boundingBox();
+    const viewport = await mini.evaluate(() => window.innerHeight);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport);
+    expect(
+      (await mini.locator(".mini-card").boundingBox()).height,
+    ).toBeGreaterThan(before.height);
+    await mini.screenshot({ path: "test-results/mini-toolbar.png" });
+    await menu.locator('[data-value="plan"]').click();
+    await expect(triggers.nth(2)).toContainText(/Plan only|只做規劃/);
+    await expect(mini.locator(".mini-notice")).toBeHidden();
+    // A list is closed by Escape before the box is.
+    await triggers.nth(0).click();
+    await mini.keyboard.press("Escape");
+    expect(await miniFocused(c.app)).toBe(true);
+    await mini.locator(".mini-input").focus();
+    await mini.keyboard.press("Escape");
+    await expect.poll(() => miniFocused(c.app)).toBe(false);
+  } finally {
+    await c.close();
+  }
+});
+
 test("Esc closes only the topmost layer: the mini composer, then guide mode", async () => {
   const c = await launch();
   try {

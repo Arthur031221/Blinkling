@@ -1,6 +1,8 @@
 /** Model and effort names, in one place for the list, the selected value and
  * the validation in index.mjs. */
 export const efforts = Object.freeze(["low", "medium", "high", "xhigh", "max"]);
+/** Blink has no tools, so asking first and planning are the only modes. */
+export const permissionModes = Object.freeze(["default", "plan"]);
 export const families = Object.freeze(["opus", "sonnet", "haiku"]);
 
 const full =

@@ -189,6 +189,8 @@ export async function installPick({
     autoExplain: shell.autoExplain.get,
     host: {
       send: sendTurn,
+      selection: () => shell.session.state?.selection ?? null,
+      select: (next) => shell.session.select(next),
       openComposer: async (seed) => {
         await shell.composer.open();
         for (const attachment of seed.attachments ?? [])

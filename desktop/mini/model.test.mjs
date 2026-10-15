@@ -338,3 +338,66 @@ test("a pick whose pixels never came is dropped and the send goes on without it"
     ["t1"],
   );
 });
+
+const pdf = {
+  id: "p1",
+  name: "notes.pdf",
+  mediaType: "application/pdf",
+  data: "AAAA",
+};
+
+test("a file added with + is a named chip, goes with the send, and a text file is not read as pasted text", async () => {
+  const { mini, h } = make();
+  mini.add({ id: "p1", attachment: pdf });
+  mini.add({ id: "t1", attachment: textFile("hello") });
+  const files = mini.view().entries.filter((e) => e.type === "file");
+  assert.deepEqual(
+    files.map((e) => e.name),
+    ["notes.pdf", "Selection.txt"],
+  );
+  assert.ok(files.every((e) => e.preview === undefined));
+  await mini.submit({});
+  assert.deepEqual(
+    h.log.sent[0].attachments.map((a) => a.id),
+    ["a1", "p1", "t1"],
+  );
+});
+
+test("an image added with + is an image chip, and removing it drops it from the send", async () => {
+  const { mini, h } = make({ entries: [] });
+  mini.add({ id: "x", attachment: { ...image, id: "x" } });
+  assert.equal(mini.view().entries[0].type, "image");
+  assert.equal(mini.view().chips.length, 3);
+  mini.remove("x");
+  assert.equal(mini.view().entries.length, 0);
+  await mini.setText("hi");
+  await mini.submit({});
+  assert.deepEqual(h.log.sent[0].attachments, []);
+});
+
+test("added files obey the full composer's limits: eight in all, 32 MB together", () => {
+  const { mini } = make({ entries: [] });
+  for (let i = 0; i < 8; i++)
+    mini.add({ id: `f${i}`, attachment: { ...pdf, id: `f${i}` } });
+  assert.throws(() => mini.add({ id: "ninth", attachment: pdf }), {
+    code: "too-many-files",
+  });
+  const big = Buffer.alloc(15 * 1024 * 1024).toString("base64");
+  const other = make({ entries: [] }).mini;
+  other.add({ id: "b1", attachment: { ...pdf, id: "b1", data: big } });
+  other.add({ id: "b2", attachment: { ...pdf, id: "b2", data: big } });
+  assert.throws(
+    () => other.add({ id: "b3", attachment: { ...pdf, id: "b3", data: big } }),
+    { code: "total-too-large" },
+  );
+});
+
+test("growing into the full composer carries the added files", () => {
+  const { mini, h } = make({ entries: [] });
+  mini.add({ id: "p1", attachment: pdf });
+  mini.setText("x".repeat(LONG_CHARS + 1));
+  assert.deepEqual(
+    h.log.opened[0].attachments.map((a) => a.name),
+    ["notes.pdf"],
+  );
+});

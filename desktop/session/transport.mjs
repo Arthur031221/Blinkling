@@ -28,6 +28,7 @@ export class OwnedSession extends EventEmitter {
     this.connectTimeoutMs = connectTimeoutMs;
     this.executableArgs = [...executableArgs];
     this.abort = new AbortController();
+    this.permissionMode = "default";
   }
   async connect({
     cwd,
@@ -36,11 +37,13 @@ export class OwnedSession extends EventEmitter {
     remoteId,
     model,
     effort,
+    permissionMode,
     executable = "claude",
   }) {
     if (this.disposing) throw new Error("Session closed");
     if (this.connecting) throw new Error("Session already started");
     this.connecting = true;
+    if (permissionMode) this.permissionMode = permissionMode;
     const found = await resolveClaude(executable);
     executable = found.command;
     const prefix = [...found.args, ...this.executableArgs];
@@ -68,6 +71,7 @@ export class OwnedSession extends EventEmitter {
           newSessionId: sessionId ? undefined : localId,
           model,
           effort,
+          permissionMode,
         }),
       ],
       {
@@ -191,14 +195,28 @@ export class OwnedSession extends EventEmitter {
   async getSelection() {
     const settings = await this.controls.request({ subtype: "get_settings" });
     // Never forward effective settings, permissions, environment or local paths to a view.
-    return { model: settings.applied?.model, effort: settings.applied?.effort };
+    // The applied settings do not carry the permission mode, so it is tracked here.
+    return {
+      model: settings.applied?.model,
+      effort: settings.applied?.effort,
+      permissionMode: this.permissionMode,
+    };
   }
-  async select({ model, effort }) {
+  async select({ model, effort, permissionMode }) {
     await this.controls.request({ subtype: "set_model", model });
     await this.controls.request({
       subtype: "apply_flag_settings",
       settings: { effortLevel: effort },
     });
+    if (permissionMode && permissionMode !== this.permissionMode) {
+      const reply = await this.controls.request({
+        subtype: "set_permission_mode",
+        mode: permissionMode,
+      });
+      if (reply?.mode !== permissionMode)
+        throw new Error("Claude did not apply the permission mode");
+      this.permissionMode = permissionMode;
+    }
     return this.getSelection();
   }
   stop() {

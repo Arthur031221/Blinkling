@@ -1,6 +1,9 @@
 import { mountMini } from "./view.mjs";
 import { t as translateMini } from "./strings.mjs";
 import { t as translatePick } from "../pick/strings.mjs";
+import { strings as composerStrings } from "../composer/strings.mjs";
+import { readAttachment } from "../composer/index.mjs";
+import { translator } from "../shared/i18n.mjs";
 import { followShellTheme } from "../composer/theme.mjs";
 import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
 
@@ -45,6 +48,7 @@ api.onInit(({ locale, theme }) => {
   mini = mountMini(root, {
     t: translateMini(locale),
     tp: translatePick(locale),
+    tc: translator(composerStrings, locale),
     on: {
       input: (text) => {
         api.input(text);
@@ -55,10 +59,41 @@ api.onInit(({ locale, theme }) => {
       remove: (id) => api.remove(id),
       offer: (id) => api.offer(id),
       escape: () => api.escape(),
+      select: (wanted) => api.select(wanted),
+      attach: addFile,
+      resize: report,
     },
   });
   if (latest) mini.update(latest);
 });
+
+/** A small preview for an image, drawn here because only the page can decode it. */
+async function thumbnail(file) {
+  if (!file.type.startsWith("image/")) return undefined;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 96 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas
+      .getContext("2d")
+      .drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    return canvas.toDataURL("image/jpeg", 0.8);
+  } catch {
+    return undefined;
+  }
+}
+
+async function addFile(file) {
+  try {
+    const attachment = await readAttachment(file);
+    api.attach({ attachment, thumb: await thumbnail(file) });
+  } catch (error) {
+    api.attach({ error: error.code ?? "unreadable" });
+  }
+}
 
 function autoGrow() {
   const input = mini?.input;

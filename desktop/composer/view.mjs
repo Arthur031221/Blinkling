@@ -1,13 +1,7 @@
 import { readAttachment } from "./index.mjs";
-import {
-  efforts as effortIds,
-  families,
-  familyOf,
-  modelLabel,
-} from "./models.mjs";
 import { documentLocale, translator } from "../shared/i18n.mjs";
 import { strings } from "./strings.mjs";
-import { createPicker } from "./picker.mjs";
+import { createSelectionPickers } from "./selection.mjs";
 import {
   renderMarkdown,
   renderImage,
@@ -23,14 +17,13 @@ const healthy = new Set(["starting", "connected"]);
 const statusKey = (status) =>
   ({ retrying: "status-retrying", blocked: "status-blocked" })[status] ??
   "status-disconnected";
-const prettyEffort = (value) => `${value[0].toUpperCase()}${value.slice(1)}`;
 
 export function mountComposer(
   host,
   {
     composer,
     store,
-    models = families.map((id) => ({ id, label: modelLabel(id) })),
+    models,
     efforts,
     onPin = () => {},
     onClose = () => {},
@@ -43,11 +36,6 @@ export function mountComposer(
 ) {
   const doc = host.ownerDocument;
   const tr = translator(strings, locale);
-  const effortLabel = (id) =>
-    strings.en[`effort-${id}`] === undefined
-      ? prettyEffort(id)
-      : tr(`effort-${id}`);
-  efforts ??= effortIds.map((id) => ({ id, label: effortLabel(id) }));
   const node = (tag, cls, text) => {
     const n = doc.createElement(tag);
     if (cls) n.className = cls;
@@ -102,18 +90,10 @@ export function mountComposer(
   text.rows = 2;
   const controller = new AbortController(),
     signal = controller.signal;
-  const model = createPicker(doc, {
-      label: tr("model"),
-      items: models,
-      signal,
-      onChoose: (id) => choose({ model: id, effort: effort.value }),
-    }),
-    effort = createPicker(doc, {
-      label: tr("effort"),
-      items: efforts,
-      signal,
-      onChoose: (id) => choose({ model: model.value, effort: id }),
-    });
+  const { model, effort, permission, ...pickers } = createSelectionPickers(
+    doc,
+    { tr, signal, models, efforts, onChoose: (wanted) => choose(wanted) },
+  );
   const listen = (n, type, fn) => n.addEventListener(type, fn, { signal });
   const toolbar = node("div", "gl-composer-toolbar"),
     add = button(tr("add"), "+"),
@@ -132,6 +112,8 @@ export function mountComposer(
     model.element,
     separator,
     effort.element,
+    separator.cloneNode(true),
+    permission.element,
     send,
     stop,
   );
@@ -289,36 +271,12 @@ export function mountComposer(
     following =
       history.scrollHeight - history.clientHeight - history.scrollTop < 32;
   });
-  function applySelection(selection) {
-    if (!selection) {
-      model.set("");
-      effort.set("");
-      return;
-    }
-    // A confirmed full model id names the family entry already in the list;
-    // it refines that row's label instead of adding a second row.
-    const family = familyOf(selection.model);
-    if (family && model.has(family) && selection.model !== family)
-      model.set(family, modelLabel(selection.model));
-    else
-      model.set(
-        selection.model,
-        models.find((m) => m.id === selection.model)?.label ??
-          modelLabel(selection.model),
-      );
-    effort.set(
-      selection.effort,
-      efforts.find((e) => e.id === selection.effort)?.label ??
-        effortLabel(selection.effort),
-    );
-  }
   const unComposer = composer.subscribe((state) => {
     if (text.value !== state.draft) text.value = state.draft;
     hold();
-    applySelection(state.selection);
+    pickers.apply(state.selection);
     const locked = state.busy || state.selecting || !state.selection;
-    model.setDisabled(locked);
-    effort.setDisabled(locked);
+    pickers.setDisabled(locked);
     model.trigger.setAttribute("aria-busy", String(state.selecting));
     send.hidden = state.busy;
     send.disabled =
@@ -419,7 +377,7 @@ export function mountComposer(
     },
     /** Escape closes the topmost thing: an open list first, then the card. */
     escape() {
-      if ([model.dismiss(), effort.dismiss()].some(Boolean)) return true;
+      if (pickers.dismiss()) return true;
       if (!visible) return false;
       view.close();
       return true;

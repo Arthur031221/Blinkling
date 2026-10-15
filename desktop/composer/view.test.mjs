@@ -183,7 +183,34 @@ each(
     t.picker(t.tr("model")).querySelector('[data-value="sonnet"]').click();
     assert.equal(menu.hidden, true);
     await new Promise((r) => setTimeout(r));
-    assert.deepEqual(t.selected, [{ model: "sonnet", effort: "low" }]);
+    assert.deepEqual(t.selected, [
+      { model: "sonnet", effort: "low", permissionMode: "default" },
+    ]);
+    t.dispose();
+  },
+);
+
+each(
+  "the permission mode offers ask first and plan, and a pick keeps the other lists",
+  async (locale) => {
+    const t = setup({ locale });
+    const menu = t.picker(t.tr("permission")).querySelector(".gl-picker-menu");
+    assert.deepEqual(
+      [...menu.querySelectorAll("[data-value]")].map((n) => n.dataset.value),
+      ["default", "plan"],
+    );
+    assert.equal(
+      t
+        .trigger(t.tr("permission"))
+        .textContent.includes(t.tr("permission-default")),
+      true,
+    );
+    t.trigger(t.tr("permission")).click();
+    menu.querySelector('[data-value="plan"]').click();
+    await new Promise((r) => setTimeout(r));
+    assert.deepEqual(t.selected, [
+      { model: "haiku", effort: "low", permissionMode: "plan" },
+    ]);
     t.dispose();
   },
 );
@@ -205,7 +232,9 @@ each(
     t.key(menu, "ArrowDown");
     t.key(menu, "Enter");
     await new Promise((r) => setTimeout(r));
-    assert.deepEqual(t.selected, [{ model: "haiku", effort: "high" }]);
+    assert.deepEqual(t.selected, [
+      { model: "haiku", effort: "high", permissionMode: "default" },
+    ]);
     assert.equal(menu.hidden, true);
     assert.equal(
       t.window.document.activeElement,

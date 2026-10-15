@@ -81,6 +81,8 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     if (request.subtype === "set_model") applied.model = request.model;
     if (request.subtype === "apply_flag_settings")
       applied.effort = request.settings.effortLevel;
+    if (request.subtype === "set_permission_mode")
+      response = { mode: request.mode };
     if (request.subtype === "get_settings")
       response = {
         applied,

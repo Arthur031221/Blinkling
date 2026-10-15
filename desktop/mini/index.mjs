@@ -2,6 +2,8 @@ import { createMini } from "./model.mjs";
 import { placeMini, blinkBody, MINI_WIDTH } from "./placement.mjs";
 import { duration } from "../shared/motion.mjs";
 import { setLayer } from "../shared/escape.mjs";
+import { validateAttachment } from "../composer/index.mjs";
+import { efforts, permissionModes } from "../composer/models.mjs";
 
 const FOCUS_RETRY = 60;
 const FOCUS_WINDOW = 500;
@@ -32,17 +34,24 @@ export function createMiniController({
   let reopening = false;
   let height = 140;
   let thumbs = new Map();
+  // What the user was last told went wrong, as an error code the box translates.
+  let notice = "";
+  let selecting = false;
   const send = (channel, value) => {
     if (!win.isDestroyed()) win.webContents.send(channel, value);
   };
   const trusted = (event) => event.sender === win.webContents;
 
-  const view = () => ({
-    ...model.view(),
-    entries: model
-      .view()
-      .entries.map((e) => ({ ...e, thumb: thumbs.get(e.id) })),
-  });
+  const view = () => {
+    const shown = model.view();
+    return {
+      ...shown,
+      entries: shown.entries.map((e) => ({ ...e, thumb: thumbs.get(e.id) })),
+      selection: host.selection?.() ?? null,
+      selecting,
+      notice,
+    };
+  };
   const refresh = () => model && send("blinkling:mini-view", view());
 
   let placed = null;
@@ -84,10 +93,76 @@ export function createMiniController({
     setTimer(retry, FOCUS_RETRY);
   }
 
+  const THUMB_CHARS = 200_000;
+  const KNOWN_NOTICES = new Set([
+    "unsupported-file",
+    "too-large",
+    "unreadable",
+    "too-many-files",
+    "total-too-large",
+  ]);
+  /** A file or image from the + button: checked here like any attachment, then
+   * a chip. The box makes the small preview; only a small image is accepted. */
+  function attach(value) {
+    if (!model) return;
+    try {
+      if (typeof value?.error === "string") {
+        throw Object.assign(new Error(value.error), {
+          code: KNOWN_NOTICES.has(value.error) ? value.error : "unreadable",
+        });
+      }
+      const attachment = validateAttachment(value?.attachment);
+      model.add({ id: attachment.id, attachment });
+      if (
+        typeof value.thumb === "string" &&
+        value.thumb.length <= THUMB_CHARS &&
+        /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(
+          value.thumb,
+        )
+      )
+        thumbs.set(attachment.id, value.thumb);
+      notice = "";
+    } catch (error) {
+      notice = KNOWN_NOTICES.has(error.code) ? error.code : "unreadable";
+    }
+    refresh();
+  }
+
+  /** A model, effort or permission pick: the session confirms it or the lists
+   * go back to what it still has. */
+  async function select(next) {
+    if (
+      !model ||
+      selecting ||
+      !host.select ||
+      typeof next?.model !== "string" ||
+      !efforts.includes(next.effort) ||
+      (next.permissionMode !== undefined &&
+        !permissionModes.includes(next.permissionMode))
+    )
+      return;
+    selecting = true;
+    notice = "";
+    refresh();
+    try {
+      await host.select({
+        model: next.model,
+        effort: next.effort,
+        ...(next.permissionMode ? { permissionMode: next.permissionMode } : {}),
+      });
+    } catch {
+      notice = "switch-failed";
+    } finally {
+      selecting = false;
+      refresh();
+    }
+  }
+
   function close(reason) {
     const closing = model;
     model = null;
     thumbs = new Map();
+    notice = "";
     send("blinkling:mini-close", { reason });
     // The window stays long enough for the reverse transition, unless reopened.
     clearTimer(hideTimer);
@@ -112,6 +187,8 @@ export function createMiniController({
     "blinkling:mini-chip": (id) => model?.chip(id).catch(() => {}),
     "blinkling:mini-remove": (id) => (model?.remove(id), refresh()),
     "blinkling:mini-offer": (id) => model?.offer(id).catch(() => {}),
+    "blinkling:mini-attach": attach,
+    "blinkling:mini-select": (next) => void select(next),
     "blinkling:mini-escape": () => model?.escape(),
     "blinkling:mini-size": (value) => {
       if (Number.isFinite(value) && value > 0 && value !== height) {
@@ -136,6 +213,7 @@ export function createMiniController({
       reopening = false;
       clearTimer(hideTimer);
       hideTimer = null;
+      notice = "";
       thumbs = new Map(
         entries.filter((e) => e.thumb).map((e) => [e.id, e.thumb]),
       );

@@ -427,6 +427,24 @@ test("app restart preserves the original working directory, identity, selection 
   }
 });
 
+test("the permission mode is validated, applied, confirmed and kept across a restart", async (t) => {
+  const { bridge, children } = await setup(t);
+  await bridge.connect();
+  await assert.rejects(
+    bridge.select({ model: "haiku", effort: "low", permissionMode: "yolo" }),
+    /Invalid/,
+  );
+  const applied = await bridge.select({
+    model: "haiku",
+    effort: "low",
+    permissionMode: "plan",
+  });
+  assert.equal(applied.permissionMode, "plan");
+  assert.equal(bridge.state.selection.permissionMode, "plan");
+  assert.equal((await bridge.store.load()).selection.permissionMode, "plan");
+  assert.equal(children[0].selection.permissionMode, "plan");
+});
+
 test("failed selection persistence restores both the controls and the confirmed UI state", async (t) => {
   const { bridge, children } = await setup(t);
   await bridge.connect();

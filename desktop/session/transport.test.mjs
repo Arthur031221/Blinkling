@@ -55,9 +55,27 @@ test("actual child completes handshake, streams image turns, applies controls an
   assert.deepEqual(await child.select({ model: "sonnet", effort: "medium" }), {
     model: "sonnet",
     effort: "medium",
+    permissionMode: "default",
   });
   await child.dispose();
   assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+});
+test("the permission mode is set on the live child and tracked by the transport", async (t) => {
+  const { child } = await setup(t);
+  assert.equal((await child.getSelection()).permissionMode, "default");
+  assert.deepEqual(
+    await child.select({
+      model: "haiku",
+      effort: "low",
+      permissionMode: "plan",
+    }),
+    { model: "haiku", effort: "low", permissionMode: "plan" },
+  );
+  // A selection that leaves the mode out keeps it.
+  assert.equal(
+    (await child.select({ model: "haiku", effort: "high" })).permissionMode,
+    "plan",
+  );
 });
 test(
   "actual child receives the composer PDF and text with the same session and turn IDs",

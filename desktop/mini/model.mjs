@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { askModel } from "../pick/ask.mjs";
 import { chipText } from "../pick/taken.mjs";
+import {
+  attachmentBytes,
+  attachmentLimits,
+  failure,
+} from "../composer/index.mjs";
 
 /** A message this long, or this many lines, no longer fits a mini box: it moves
  * to the full composer with everything attached (M5, N1.5). */
@@ -10,6 +15,8 @@ export const LONG_LINES = 6;
 const decode = (a) => Buffer.from(a.data, "base64").toString("utf8");
 const isImage = (e) =>
   e.pending || e.attachment?.mediaType?.startsWith("image/");
+/** A file added with the + button: shown by its name, never as pasted text. */
+const isFile = (e) => e.kind === "file";
 
 /** The state and rules of the mini composer, without any window. The renderer
  * shows `view()` and forwards key presses and clicks to the methods.
@@ -104,11 +111,12 @@ export function createMini({
       return {
         entries: list.map((e) => ({
           id: e.id,
-          type: isImage(e) ? "image" : "text",
+          type: isImage(e) ? "image" : isFile(e) ? "file" : "text",
           kind: e.kind,
           thumb: e.thumb,
           ...(e.pending ? { pending: true } : {}),
-          ...(isImage(e)
+          ...(isFile(e) ? { name: e.attachment.name } : {}),
+          ...(isImage(e) || isFile(e)
             ? {}
             : chipText(e.taken?.text ?? decode(e.attachment))),
           tag: e.taken?.tag ?? null,
@@ -126,6 +134,26 @@ export function createMini({
       text = value;
       if (text.length > LONG_CHARS || text.split("\n").length >= LONG_LINES)
         grow();
+    },
+    /** A file or image the user added with +, already checked as an attachment.
+     * It counts against the same limits as the full composer. */
+    add({ id, attachment }) {
+      if (closed) return;
+      if (list.length >= attachmentLimits.count)
+        throw failure("too-many-files");
+      const total = list.reduce(
+        (sum, e) => sum + (e.attachment ? attachmentBytes(e.attachment) : 0),
+        attachmentBytes(attachment),
+      );
+      if (total > attachmentLimits.totalBytes) throw failure("total-too-large");
+      list = [
+        ...list,
+        {
+          id,
+          kind: attachment.mediaType.startsWith("image/") ? "image" : "file",
+          attachment,
+        },
+      ];
     },
     remove(id) {
       list = list.filter((e) => e.id !== id);

@@ -30,6 +30,8 @@ export type Turn = {
 export type Selection = {
   model: string;
   effort: "low" | "medium" | "high" | "xhigh" | "max";
+  /** Blink has no tools, so only asking first or planning is offered. */
+  permissionMode?: "default" | "plan";
 };
 export type SessionEvent =
   | {

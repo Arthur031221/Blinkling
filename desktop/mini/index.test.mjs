@@ -34,6 +34,7 @@ function setup(options = {}) {
     opened: [],
     closed: [],
     changes: [],
+    selected: [],
   };
   const controller = createMiniController({
     win,
@@ -53,6 +54,12 @@ function setup(options = {}) {
       openComposer: (seed) => void log.opened.push(seed),
       closed: (reason) => void log.closed.push(reason),
       changed: (open) => void log.changes.push(open),
+      selection: () => options.selection ?? null,
+      select: async (next) => {
+        log.selected.push(next);
+        if (options.selectFails) throw new Error("no");
+        options.selection = next;
+      },
     },
     autoExplain: () => false,
     setTimer: (fn, ms) => (timers.push({ fn, ms }), timers.length),
@@ -285,4 +292,101 @@ test("the window is told the shell's theme with every open, since its own media 
   ]);
   const init = sent.find(([channel]) => channel === "blinkling:mini-init");
   assert.equal(init[1].theme, "dark");
+});
+
+const viewOf = (sent) =>
+  sent.filter(([c]) => c === "blinkling:mini-view").at(-1)[1];
+const selection = { model: "haiku", effort: "low", permissionMode: "default" };
+
+test("the view carries the session's selection, and a pick is applied through the host and shown", async () => {
+  const { controller, sent, fire, log } = setup({ selection });
+  await controller.open(entries());
+  assert.deepEqual(viewOf(sent).selection, selection);
+  const next = { model: "sonnet", effort: "high", permissionMode: "plan" };
+  fire("blinkling:mini-select", next);
+  assert.equal(viewOf(sent).selecting, true);
+  await new Promise((r) => setTimeout(r));
+  assert.deepEqual(log.selected, [next]);
+  assert.deepEqual(viewOf(sent).selection, next);
+  assert.equal(viewOf(sent).selecting, false);
+  assert.equal(viewOf(sent).notice, "");
+  setLayer("mini", null);
+});
+
+test("a pick the session refuses leaves the old selection and says so", async () => {
+  const { controller, sent, fire } = setup({ selection, selectFails: true });
+  await controller.open(entries());
+  fire("blinkling:mini-select", { model: "sonnet", effort: "high" });
+  await new Promise((r) => setTimeout(r));
+  assert.deepEqual(viewOf(sent).selection, selection);
+  assert.equal(viewOf(sent).notice, "switch-failed");
+  setLayer("mini", null);
+});
+
+test("a malformed pick never reaches the host", async () => {
+  const { controller, fire, log } = setup({ selection });
+  await controller.open(entries());
+  for (const bad of [
+    null,
+    "x",
+    { model: 5, effort: "low" },
+    { model: "haiku", effort: "huge" },
+    { model: "haiku", effort: "low", permissionMode: "yolo" },
+  ])
+    fire("blinkling:mini-select", bad);
+  await new Promise((r) => setTimeout(r));
+  assert.deepEqual(log.selected, []);
+  setLayer("mini", null);
+});
+
+test("an attachment from the box becomes a chip with its preview; a bad one becomes a notice", async () => {
+  const { controller, sent, fire } = setup({ selection });
+  await controller.open([]);
+  const attachment = {
+    id: "n1",
+    name: "n.png",
+    mediaType: "image/png",
+    data: "AAAA",
+  };
+  const thumb = "data:image/jpeg;base64,AAAA";
+  fire("blinkling:mini-attach", { attachment, thumb });
+  const shown = viewOf(sent);
+  assert.deepEqual(
+    shown.entries.map((e) => [e.id, e.type, e.thumb]),
+    [["n1", "image", thumb]],
+  );
+  assert.equal(shown.notice, "");
+  fire("blinkling:mini-attach", {
+    attachment: { ...attachment, mediaType: "image/svg+xml", id: "n2" },
+  });
+  assert.equal(viewOf(sent).notice, "unsupported-file");
+  assert.equal(viewOf(sent).entries.length, 1);
+  fire("blinkling:mini-attach", { error: "too-large" });
+  assert.equal(viewOf(sent).notice, "too-large");
+  fire("blinkling:mini-attach", { error: "something <b>else</b>" });
+  assert.equal(viewOf(sent).notice, "unreadable");
+  setLayer("mini", null);
+});
+
+test("a preview that is not a small image data URL is dropped", async () => {
+  const { controller, sent, fire } = setup({ selection });
+  await controller.open([]);
+  const attachment = {
+    id: "n1",
+    name: "n.png",
+    mediaType: "image/png",
+    data: "AAAA",
+  };
+  for (const thumb of [
+    "https://example.com/x.png",
+    "data:text/html;base64,AAAA",
+    `data:image/png;base64,${"A".repeat(200_001)}`,
+  ]) {
+    fire("blinkling:mini-attach", {
+      attachment: { ...attachment, id: `n${thumb.length}` },
+      thumb,
+    });
+  }
+  assert.ok(viewOf(sent).entries.every((e) => e.thumb === undefined));
+  setLayer("mini", null);
 });

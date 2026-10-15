@@ -21,6 +21,9 @@ export const compatibility = Object.freeze({
     stablePublicAPI: false,
   }),
 });
+/** Blink runs with no tools, so the only modes that mean anything are asking
+ * first (the CLI default) and planning. */
+export const permissionModes = Object.freeze(["default", "plan"]);
 export const supportedClaudeVersion = "2.1.296";
 /** Claude Code updates itself, so the proved version is a floor inside 2.1.x:
  * same major and minor, patch at or above it. The transport still checks the
@@ -45,6 +48,7 @@ export function launchArguments({
   newSessionId,
   model = "haiku",
   effort = "low",
+  permissionMode,
 } = {}) {
   return [
     "-p",
@@ -61,6 +65,7 @@ export function launchArguments({
     model,
     "--effort",
     effort,
+    ...(permissionMode ? ["--permission-mode", permissionMode] : []),
     "--tools",
     "",
     "--strict-mcp-config",

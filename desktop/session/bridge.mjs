@@ -9,7 +9,7 @@ import {
   reconcileTranscript,
   usageLimit,
 } from "./normalize.mjs";
-import { userMessage } from "./protocol.mjs";
+import { permissionModes, userMessage } from "./protocol.mjs";
 
 const INTERNAL_SOURCES = new Set(["guide", "companion"]);
 
@@ -471,6 +471,8 @@ export class DesktopSessionBridge {
         );
         if (
           applied.effort !== selection.effort ||
+          (selection.permissionMode &&
+            applied.permissionMode !== selection.permissionMode) ||
           !modelMatches(selection.model, applied.model)
         )
           throw new Error("Claude did not apply the requested selection");
@@ -687,13 +689,19 @@ function validateSelection(selection) {
     !selection ||
     typeof selection.model !== "string" ||
     !/^[a-zA-Z0-9][a-zA-Z0-9._:[\]-]{0,127}$/.test(selection.model) ||
-    !["low", "medium", "high", "xhigh", "max"].includes(selection.effort)
+    !["low", "medium", "high", "xhigh", "max"].includes(selection.effort) ||
+    (selection.permissionMode !== undefined &&
+      !permissionModes.includes(selection.permissionMode))
   )
     throw new Error("Invalid model or effort selection");
 }
 function confirmedSelection(value) {
   validateSelection(value);
-  return { model: value.model, effort: value.effort };
+  return {
+    model: value.model,
+    effort: value.effort,
+    ...(value.permissionMode ? { permissionMode: value.permissionMode } : {}),
+  };
 }
 function validateTurn(turn) {
   if (

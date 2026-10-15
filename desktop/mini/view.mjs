@@ -1,6 +1,11 @@
+import { createSelectionPickers } from "../composer/selection.mjs";
+
+const ACCEPT =
+  "image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,.md,.txt";
+
 /** The mini composer's DOM. `mountMini` builds the frame once so the text box
  * keeps focus and its caret while chips come and go; `update` redraws the rest. */
-export function mountMini(root, { t, tp, on }) {
+export function mountMini(root, { t, tp, tc, on }) {
   const doc = root.ownerDocument;
   const el = (tag, className, attrs = {}) => {
     const node = doc.createElement(tag);
@@ -24,12 +29,67 @@ export function mountMini(root, { t, tp, on }) {
   send.textContent = "↵";
   const row = el("div", "mini-row");
   row.append(input, send);
+  const controller = new (doc.defaultView?.AbortController ??
+    AbortController)();
+  const toolbar = el("div", "mini-toolbar");
+  const add = el("button", "mini-add", {
+    type: "button",
+    "aria-label": tc("add"),
+    title: tc("add"),
+  });
+  add.textContent = "+";
+  const file = el("input", "", {
+    type: "file",
+    multiple: "",
+    accept: ACCEPT,
+    hidden: "",
+  });
+  const pickers = createSelectionPickers(doc, {
+    tr: tc,
+    signal: controller.signal,
+    onChoose: (wanted) => on.select(wanted),
+  });
+  const dot = () => {
+    const d = el("span", "gl-picker-dot");
+    d.textContent = "·";
+    return d;
+  };
+  toolbar.append(
+    add,
+    file,
+    pickers.model.element,
+    dot(),
+    pickers.effort.element,
+    dot(),
+    pickers.permission.element,
+  );
+  // A list opens below the toolbar and the card makes room for it, so the
+  // window grows to fit it instead of clipping it.
+  const fitList = () => {
+    const open = pickers.all.find((p) => p.isOpen);
+    if (!open) toolbar.style.marginBottom = "";
+    else {
+      const menu = open.element.querySelector(".gl-picker-menu");
+      menu.style.left = `${open.element.offsetLeft}px`;
+      toolbar.style.marginBottom = `${menu.offsetHeight + 4}px`;
+    }
+    on.resize?.();
+  };
+  const View = doc.defaultView;
+  if (View?.MutationObserver)
+    new View.MutationObserver(fitList).observe(toolbar, {
+      attributes: true,
+      attributeFilter: ["data-open"],
+      subtree: true,
+    });
+  const notice = el("div", "mini-notice", { role: "alert" });
+  notice.hidden = true;
   const quick = el("div", "mini-quick", {
     role: "group",
     "aria-label": t("mini.quick"),
   });
   const offers = el("div", "mini-offers");
-  card.append(pause, entries, row, quick, offers);
+  card.append(pause, entries, row, toolbar, notice, quick, offers);
   root.replaceChildren(card);
 
   input.addEventListener("input", () => on.input(input.value));
@@ -43,6 +103,12 @@ export function mountMini(root, { t, tp, on }) {
     }
   });
   send.addEventListener("click", () => on.submit());
+  add.addEventListener("click", () => file.click());
+  file.addEventListener("change", async () => {
+    const chosen = [...file.files];
+    file.value = "";
+    for (const f of chosen) await on.attach(f);
+  });
   doc.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && event.target !== input) {
       event.preventDefault();
@@ -54,7 +120,12 @@ export function mountMini(root, { t, tp, on }) {
     const chip = el("span", `mini-entry mini-entry-${entry.type}`, {
       "data-id": entry.id,
     });
-    const label = entry.type === "image" ? t("mini.image") : t("mini.text");
+    const label =
+      entry.type === "image"
+        ? t("mini.image")
+        : entry.type === "file"
+          ? entry.name
+          : t("mini.text");
     if (entry.type === "image") {
       if (entry.pending) {
         chip.append(el("span", "mini-thumb mini-thumb-pending"));
@@ -70,6 +141,10 @@ export function mountMini(root, { t, tp, on }) {
         tag.textContent = tp("tag.frame");
         chip.append(tag);
       }
+    } else if (entry.type === "file") {
+      const name = el("span", "mini-entry-label", { title: entry.name });
+      name.textContent = entry.name;
+      chip.append(name);
     } else {
       const preview = el("span", "mini-entry-label");
       preview.textContent = entry.preview;
@@ -89,10 +164,21 @@ export function mountMini(root, { t, tp, on }) {
 
   return {
     input,
+    pickers,
+    /** The file chooser, for the + button and for tests. */
+    file,
+    add,
+    fitList,
+    dispose: () => controller.abort(),
     update(view) {
       pause.hidden = !view.pause;
       pause.textContent = view.pause ? tp("mini.pause") : "";
       entries.replaceChildren(...view.entries.map(entryChip));
+      pickers.apply(view.selection);
+      pickers.setDisabled(!view.selection || view.selecting);
+      pickers.model.trigger.setAttribute("aria-busy", String(!!view.selecting));
+      notice.hidden = !view.notice;
+      notice.textContent = view.notice ? tc(`error-${view.notice}`) : "";
       quick.hidden = view.chips.length === 0;
       quick.replaceChildren(
         ...view.chips.map((chip) => {

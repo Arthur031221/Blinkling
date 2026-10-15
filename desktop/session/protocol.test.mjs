@@ -99,6 +99,12 @@ test("owned session resumes exact ID without forking or requiring user flags", (
   assert.equal(enableRemote("remote").reattach_session_id, "remote");
 });
 
+test("a permission mode reaches the launch flags only when one is given", () => {
+  assert.ok(!launchArguments().includes("--permission-mode"));
+  const args = launchArguments({ permissionMode: "plan" });
+  assert.equal(args[args.indexOf("--permission-mode") + 1], "plan");
+});
+
 test("BLINKLING_REMOTE selects off, test or the default on", () => {
   assert.equal(remoteMode({}), "on");
   assert.equal(remoteMode({ BLINKLING_REMOTE: "1" }), "on");
