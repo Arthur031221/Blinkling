@@ -10,6 +10,8 @@ import {
   moveOn,
   rigPoint,
   background,
+  miniFocused,
+  miniPage,
 } from "./support.mjs";
 
 const hooks = (app) =>
@@ -135,7 +137,7 @@ test("the fan opens after a 300 ms rest, not on a pass-by or a wake", async () =
   }
 });
 
-test("a click on Blink opens the focused composer; a drag past 4 px does not", async () => {
+test("a click on Blink opens the focused mini composer; a drag past 4 px does not", async () => {
   const c = await launch();
   try {
     await background(c.app);
@@ -145,14 +147,11 @@ test("a click on Blink opens the focused composer; a drag past 4 px does not", a
     native(p.x, p.y, "down");
     native(p.x + 3, p.y);
     native(p.x + 3, p.y, "up");
-    await expect.poll(() => composerOpen(c)).toBe(true);
-    await expect
-      .poll(() =>
-        c.app.evaluate(() => globalThis.blinklingTest.composer.isFocused()),
-      )
-      .toBe(true);
-    await cardPage(c).keyboard.press("Escape");
-    await expect.poll(() => composerOpen(c)).toBe(false);
+    await expect.poll(() => miniFocused(c.app)).toBe(true);
+    await expect(miniPage(c.app).locator(".mini-input")).toBeFocused();
+    expect(await composerOpen(c)).toBe(false);
+    await miniPage(c.app).keyboard.press("Escape");
+    await expect.poll(() => miniFocused(c.app)).toBe(false);
     await moveOn(c.page);
     const q = await rigPoint(c.page);
     native(q.x, q.y, "down");
@@ -160,6 +159,7 @@ test("a click on Blink opens the focused composer; a drag past 4 px does not", a
     await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drag");
     native(q.x + 30, q.y - 10, "up");
     await c.page.waitForTimeout(400);
+    expect(await miniFocused(c.app)).toBe(false);
     expect(await composerOpen(c)).toBe(false);
   } finally {
     await c.close();

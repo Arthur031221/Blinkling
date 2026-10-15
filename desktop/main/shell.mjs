@@ -312,7 +312,7 @@ async function openComposer({ focus = true, seed } = {}) {
 /** Click on Blink (N5.1): the mini composer on the last conversation, with
  * nothing attached. At a permission request the full card opens instead. */
 const openMini = () => pick.openMini([]);
-const openChat = () => openComposer(true);
+const openChat = () => openComposer({ focus: true });
 /** Blink asked to close the card because the pointer left, but something held
  * it. Close it as soon as nothing does, without waiting for another leave. */
 function leaveIfIdle() {
@@ -978,7 +978,7 @@ if (process.env.BLINKLING_E2E === "1")
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {
     escapeKeys,
-    openCard: (focus = false) => openComposer(focus),
+    openCard: (focus = false) => openComposer({ focus }),
     titles: () => BrowserWindow.getAllWindows().map((w) => w.getTitle()),
   };
 /** Deck hooks live under blinklingTest.deck so the literal above stays shared. */

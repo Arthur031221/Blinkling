@@ -91,7 +91,17 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       [50, 50],
       [bounds.x + 5, bounds.y + 5],
     ]);
-    expect(clicks.focus).toBe(true);
+    // The click was Blink's, not the page's: it opened the mini composer and
+    // that took the keyboard from the page underneath (N5.1).
+    expect(clicks.focus).toBe(false);
+    const miniFocus = () =>
+      app.evaluate(({ BrowserWindow }) => {
+        const mini = BrowserWindow.getAllWindows().find((w) =>
+          /\/mini\/index\.html$/.test(w.webContents.getURL()),
+        );
+        return Boolean(mini?.isVisible() && mini.isFocused());
+      });
+    await expect.poll(miniFocus).toBe(true);
     const capture = await app.evaluate(() =>
       globalThis.blinklingTest.capture(),
     );

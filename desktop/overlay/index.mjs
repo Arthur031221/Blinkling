@@ -89,6 +89,7 @@ export async function createOverlay(
   initialHandlers();
   const win = new BrowserWindow({
     ...display.bounds,
+    title: "Blinkling",
     transparent: true,
     frame: false,
     hasShadow: false,
@@ -104,6 +105,7 @@ export async function createOverlay(
       backgroundThrottling: false,
     },
   });
+  win.on("page-title-updated", (event) => event.preventDefault());
   win.setAlwaysOnTop(true, "screen-saver");
   if (process.platform === "darwin")
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });

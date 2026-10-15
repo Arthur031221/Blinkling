@@ -10,6 +10,10 @@ import {
   moveOn,
   activeWindow,
   typeKeys,
+  openCard,
+  miniFocused,
+  miniPage,
+  rigPoint,
 } from "./support.mjs";
 
 const cardPage = (app) =>
@@ -55,10 +59,7 @@ async function browserForm() {
 }
 
 for (const [label, open] of [
-  [
-    "the chat action",
-    (c) => c.page.evaluate(() => window.blinkling.action("chat")),
-  ],
+  ["a click at a permission request", (c) => openCard(c.page)],
   [
     "open in chat",
     async (c) => {
@@ -79,33 +80,19 @@ for (const [label, open] of [
     },
   ],
   [
-    "a real click on the chat pill",
+    "a click at a permission request after the card opened unfocused",
     async (c) => {
-      await moveOn(c.page);
-      const pill = c.page.locator('[data-action="chat"]');
-      await expect(pill).toBeVisible();
-      await c.page.waitForTimeout(600);
-      const r = await pill.boundingBox();
-      native(r.x + r.width / 2, r.y + r.height / 2, "click");
-      await expect.poll(() => cardPage(c.app)).toBeTruthy();
-    },
-  ],
-  [
-    "the chat action after hovering opened the card unfocused",
-    async (c) => {
-      await c.page.evaluate(() =>
-        window.blinkling.shell({ type: "visibility", value: true }),
+      await c.app.evaluate(() =>
+        globalThis.blinklingTest.openComposer({ focus: false }),
       );
       await expect.poll(() => cardPage(c.app)).toBeTruthy();
-      await c.page.evaluate(() => window.blinkling.action("chat"));
+      await openCard(c.page);
     },
   ],
 ]) {
   test(`E-1 opening the full composer from ${label} gives it the keyboard`, async () => {
     const c = await launch();
-    const other = await (label.includes("real click")
-      ? browserForm()
-      : otherApp());
+    const other = await otherApp();
     try {
       await open(c);
       // One frame at 60 fps after the open request has returned.
@@ -124,11 +111,30 @@ for (const [label, open] of [
   });
 }
 
+test("E-1 a real click on Blink gives the mini composer the keyboard while a browser form had it", async () => {
+  const c = await launch();
+  const other = await browserForm();
+  try {
+    await moveOn(c.page);
+    const p = await rigPoint(c.page);
+    native(p.x, p.y, "click");
+    await expect.poll(() => miniFocused(c.app)).toBe(true);
+    const mini = miniPage(c.app);
+    await expect(mini.locator(".mini-input")).toBeFocused();
+    typeKeys("typed here");
+    await expect(mini.locator(".mini-input")).toHaveValue("typed here");
+    expect(activeWindow()).not.toBe(other.id);
+  } finally {
+    other.stop();
+    await c.close();
+  }
+});
+
 test("E-1 closing the full composer hands the keyboard back to the previous application", async () => {
   const c = await launch();
   const other = await otherApp();
   try {
-    await c.page.evaluate(() => window.blinkling.action("chat"));
+    await openCard(c.page);
     await expect
       .poll(() => composerFocused(c.app), { timeout: 1500 })
       .toBe(true);
@@ -144,13 +150,17 @@ test("E-1 the full composer wins the keyboard back when the window manager hands
   const c = await launch();
   const other = await otherApp();
   try {
-    const opened = c.page.evaluate(() => window.blinkling.action("chat"));
+    const opened = openCard(c.page);
     await new Promise((resolve) => setTimeout(resolve, 60));
     activate(other.id);
     await opened;
     await expect
       .poll(() => composerFocused(c.app), { timeout: 1500 })
       .toBe(true);
+    // The card re-claims the keyboard in steps while it settles; type once it
+    // has, so the first key does not land in the window that just lost it.
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(await composerFocused(c.app)).toBe(true);
     typeKeys("recovered");
     await expect(cardPage(c.app).locator(".gl-input")).toHaveValue("recovered");
   } finally {
@@ -163,7 +173,7 @@ test("E-1 a click on another application once the card has settled is respected"
   const c = await launch();
   const other = await otherApp();
   try {
-    await c.page.evaluate(() => window.blinkling.action("chat"));
+    await openCard(c.page);
     await expect
       .poll(() => composerFocused(c.app), { timeout: 1500 })
       .toBe(true);
@@ -238,7 +248,7 @@ test("E-1 sending from the card closes it and hands the keyboard back to the pre
   const c = await launch();
   const other = await otherApp();
   try {
-    await c.page.evaluate(() => window.blinkling.action("chat"));
+    await openCard(c.page);
     await expect
       .poll(() => composerFocused(c.app), { timeout: 1500 })
       .toBe(true);
@@ -262,8 +272,8 @@ test("E-1 sending from the card closes it and hands the keyboard back to the pre
 test("E-2 unpinning with the pointer on the card keeps it open", async () => {
   const c = await launch();
   try {
-    await c.page.evaluate(() =>
-      window.blinkling.shell({ type: "visibility", value: true }),
+    await c.app.evaluate(() =>
+      globalThis.blinklingTest.openComposer({ focus: false }),
     );
     await expect.poll(() => cardPage(c.app)).toBeTruthy();
     const card = cardPage(c.app);

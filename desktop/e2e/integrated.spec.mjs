@@ -81,22 +81,18 @@ test("native menu capture reaches the composer and the shared answer session", a
     await selector.mouse.up();
     await expect(selector.locator("#size")).toHaveText("100 × 80");
     captureKey(500, 280, [0xff0d]);
-    let card;
+    // A capture flies into Blink and opens the mini composer with the shot
+    // attached (K); the question is typed there and the answer lands in the deck.
+    let mini;
     await expect
       .poll(() => {
-        card = app.windows().find((p) => p.url().includes("surface=card"));
-        return !!card;
+        mini = app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
+        return !!mini;
       })
       .toBe(true);
-    card.on("pageerror", (error) => errors.push(error.message));
-    await expect(card.locator(".gl-attachment-chip img")).toHaveCount(1);
-    const uri = await card
-      .locator(".gl-attachment-chip img")
-      .getAttribute("src");
-    const bytes = Buffer.from(uri.split(",")[1], "base64");
-    const png = PNG.sync.read(bytes);
-    expect([png.width, png.height]).toEqual([100, 80]);
-    expect([...png.data.subarray(0, 4)]).toEqual([255, 0, 0, 255]);
+    mini.on("pageerror", (error) => errors.push(error.message));
+    await expect(mini.locator(".mini-entry-image")).toHaveCount(1);
+    await expect(mini.locator(".mini-entry-image .mini-thumb")).toHaveCount(1);
     const question = "What color? One word.";
     await expect
       .poll(
@@ -104,12 +100,31 @@ test("native menu capture reaches the composer and the shared answer session", a
         { timeout: 60000 },
       )
       .toBe("connected");
-    await card.getByRole("textbox", { name: "輸入問題" }).fill(question);
-    await card.getByRole("textbox", { name: "輸入問題" }).press("Enter");
+    // The stored copy of a message holds no pixels (PV-2); a live subscriber
+    // sees what was sent, so record the picture as it goes out.
+    await app.evaluate(() => {
+      globalThis.sentImages = [];
+      globalThis.blinklingTest.session.subscribe((event) => {
+        if (event.type === "message" && event.role === "user")
+          for (const block of event.content)
+            if (block.type === "image")
+              globalThis.sentImages.push(block.source.data);
+      });
+    });
+    await mini.locator(".mini-input").fill(question);
+    await mini.locator(".mini-input").press("Enter");
+    const deck = () =>
+      app
+        .windows()
+        .find(
+          (p) =>
+            p.url().includes("composer/index.html") &&
+            !p.url().includes("surface=card"),
+        );
     const expected = process.env.BLINKLING_LIVE === "1" ? /red/i : /OK\./;
-    await expect(
-      card.locator(".gl-chat-message.gl-assistant").last(),
-    ).toContainText(expected, { timeout: 60000 });
+    await expect
+      .poll(async () => (await deck()?.locator(".gl-answer-bubble").allTextContents())?.join(" ") ?? "", { timeout: 60000 })
+      .toMatch(expected);
     await expect
       .poll(
         () => app.evaluate(() => !!globalThis.blinklingTest.session.active),
@@ -130,9 +145,13 @@ test("native menu capture reaches the composer and the shared answer session", a
         m.role === "user" &&
         m.content.some((c) => c.type === "text" && c.text === question),
     );
-    expect(user.content.find((c) => c.type === "image").source.data).toBe(
-      bytes.toString("base64"),
-    );
+    expect(user.content.some((c) => c.type === "image")).toBe(false);
+    const sent = await app.evaluate(() => globalThis.sentImages);
+    expect(sent).toHaveLength(1);
+    const bytes = Buffer.from(sent[0], "base64");
+    const png = PNG.sync.read(bytes);
+    expect([png.width, png.height]).toEqual([100, 80]);
+    expect([...png.data.subarray(0, 4)]).toEqual([255, 0, 0, 255]);
     expect(
       session.messages.some(
         (m) =>
@@ -150,12 +169,9 @@ test("native menu capture reaches the composer and the shared answer session", a
         imageSha256: createHash("sha256").update(bytes).digest("hex"),
       });
       expect(remote.serverTranscriptVerified).toBe(true);
-      await expect(
-        card.locator(".gl-chat-message.gl-user").last(),
-      ).toContainText(remote.question, { timeout: 60000 });
-      await expect(
-        card.locator(".gl-chat-message.gl-assistant").last(),
-      ).toContainText(remote.answer, { timeout: 60000 });
+      await expect
+        .poll(async () => (await deck()?.locator(".gl-answer-bubble").allTextContents())?.join(" ") ?? "", { timeout: 60000 })
+        .toContain(remote.answer);
       await expect
         .poll(
           () => app.evaluate(() => !!globalThis.blinklingTest.session.active),

@@ -6,8 +6,10 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
   try {
     const blink = await app.firstWindow();
     await expect(blink.getByRole("img", { name: "Blink" })).toBeVisible();
+    // A plain click opens the mini composer; the full card (where files are
+    // attached) opens when Blink is waiting on a permission request.
     await blink.evaluate(() =>
-      window.blinkling.shell({ type: "click", permission: false }),
+      window.blinkling.shell({ type: "click", permission: true }),
     );
     let card;
     await expect
@@ -82,9 +84,9 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
     );
     expect(turns).toHaveLength(1);
     expect(turns[0].state).toBe("done");
-    expect(
-      turns[0].turn.attachments.map((attachment) => attachment.name),
-    ).toEqual(["paper.pdf", "notes.md"]);
+    // What was sent reached Claude (the documents above); Blinkling keeps no
+    // copy of it once the turn is done (PV-2).
+    expect(turns[0].turn.attachments).toEqual([]);
     await expect(card.locator(".gl-attachment-chip")).toHaveCount(0);
   } finally {
     await app.close();

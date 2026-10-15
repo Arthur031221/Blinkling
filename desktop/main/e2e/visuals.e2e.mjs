@@ -60,7 +60,7 @@ for (const edge of ["left", "right", "top", "bottom"])
       await background(c.app);
       await placeBlink(c, edge);
       await c.page.evaluate(() =>
-        window.blinkling.shell({ type: "click", permission: false }),
+        window.blinkling.shell({ type: "click", permission: true }),
       );
       await expect.poll(() => !!cardPage(c)).toBe(true);
       const card = cardPage(c);
@@ -152,7 +152,7 @@ for (const scale of [1, 1.5])
       runs.menuClose = await closing;
       await moveOn(c.page, scale);
       await c.page.evaluate(() =>
-        window.blinkling.shell({ type: "click", permission: false }),
+        window.blinkling.shell({ type: "click", permission: true }),
       );
       await expect.poll(() => !!cardPage(c)).toBe(true);
       runs.cardOpen = await sampleFrames(cardPage(c), 800);

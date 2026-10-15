@@ -58,6 +58,7 @@ const page = (name) => fileURLToPath(new URL(`./${name}`, import.meta.url));
 const secureWindow = (options) =>
   new BrowserWindow({
     ...options,
+    title: "Blinkling",
     useContentSize: true,
     transparent: true,
     backgroundColor: "#00000000",
@@ -76,6 +77,8 @@ const secureWindow = (options) =>
     },
   });
 function lock(win) {
+  // Every window is "Blinkling", whatever its page calls itself (L1).
+  win.on("page-title-updated", (event) => event.preventDefault());
   win.setAlwaysOnTop(true, "screen-saver");
   if (process.platform === "darwin")
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });

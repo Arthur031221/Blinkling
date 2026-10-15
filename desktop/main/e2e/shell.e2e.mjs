@@ -15,6 +15,8 @@ import {
   moveOn,
   background,
   activeWindow,
+  miniFocused,
+  miniPage,
 } from "./support.mjs";
 test("real alpha, silhouette click-through, hover wave, delayed retreat and fullscreen focus", async () => {
   const c = await launch();
@@ -250,7 +252,7 @@ test("native drag squishes, snaps and persists; pin/click focus is intentional a
       await c.app.evaluate(() => globalThis.blinklingTest.snapshot().pinned),
     ).toBe(false);
     await c.page.evaluate(() =>
-      window.blinkling.shell({ type: "click", permission: false }),
+      window.blinkling.shell({ type: "click", permission: true }),
     );
     const chat2 = c.app.windows().find((p) => p.url().includes("surface=card"));
     await expect(chat2.locator(".gl-input")).toBeFocused();
@@ -306,7 +308,7 @@ test("native drag squishes, snaps and persists; pin/click focus is intentional a
   }
 });
 
-test("closing an intentional chat restores a separate application's native focus", async () => {
+test("closing the mini composer restores a separate application's native focus", async () => {
   const c = await launch();
   const probe = spawn(
     "xmessage",
@@ -339,35 +341,27 @@ test("closing an intentional chat restores a separate application's native focus
     await moveOn(c.page);
     expect(activeWindow()).toBe(external);
     const blink = await rigPoint(c.page);
-    await progress("opening intentional chat");
+    await progress("opening the mini composer");
     native(blink.x, blink.y, "click");
-    await expect
-      .poll(() =>
-        c.app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible()),
-      )
-      .toBe(true);
-    const chat = c.app.windows().find((p) => p.url().includes("surface=card"));
-    await expect(chat.locator(".gl-input")).toBeFocused();
+    await expect.poll(() => miniFocused(c.app)).toBe(true);
+    await expect(miniPage(c.app).locator(".mini-input")).toBeFocused();
     await expect.poll(activeWindow).not.toBe(external);
-    const close = await chat
-        .getByRole("button", { name: "收起" })
-        .boundingBox(),
-      card = await c.app.evaluate(() =>
-        globalThis.blinklingTest.composer.getBounds(),
-      );
-    native(
-      card.x + close.x + close.width / 2,
-      card.y + close.y + close.height / 2,
-      "click",
-    );
     await progress("restoring external focus");
+    await miniPage(c.app).keyboard.press("Escape");
     await expect.poll(activeWindow).toBe(external);
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
+        c.app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().some(
+            (w) =>
+              w.isVisible() &&
+              /\/mini\/index\.html$/.test(w.webContents.getURL()),
+          ),
+        ),
       )
       .toBe(false);
     await progress("waiting for settled peek");
+    native(20, 20);
     await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "peek");
     await c.page.waitForTimeout(450);
     expect(activeWindow()).toBe(external);
@@ -571,8 +565,15 @@ for (const scale of [1, 1.5, 2])
             }),
           ),
         ).rejects.toThrow(/Invalid shell command/);
+        // A plain click opens the mini composer; Esc closes it again. At a permission request the click opens the card.
         await c.page.evaluate(() =>
           window.blinkling.shell({ type: "click", permission: false }),
+        );
+        await expect.poll(() => miniFocused(c.app)).toBe(true);
+        await miniPage(c.app).keyboard.press("Escape");
+        await expect.poll(() => miniFocused(c.app)).toBe(false);
+        await c.page.evaluate(() =>
+          window.blinkling.shell({ type: "click", permission: true }),
         );
         const chat = c.app
           .windows()
