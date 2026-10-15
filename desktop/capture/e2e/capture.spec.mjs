@@ -263,6 +263,75 @@ test("window pick: hover highlights, click takes the window, drag takes an area,
   });
 });
 
+const takenPng = (app, index) =>
+  app
+    .evaluate(
+      (_electron, index) => globalThis.taken[index]?.image?.data ?? null,
+      index,
+    )
+    .then((data) => PNG.sync.read(Buffer.from(data, "base64")));
+for (const scale of [1, 2])
+  test(`K2: one click on a window takes only that window, its image the size of its bounds at ${scale * 100}%`, async () => {
+    await withApp(scale, async ({ app, dir }) => {
+      const blink = await app.firstWindow();
+      await background(app);
+      await collectTaken(app);
+      const windows = await twoWindows(app, dir);
+      try {
+        for (const [index, win] of [A, B].entries()) {
+          const page = await openOverlay(app, blink);
+          // Windows are placed in screen pixels; the overlay works in DIPs.
+          await page.mouse.move(centre(win).x / scale, centre(win).y / scale);
+          // The outline sits exactly on the window, at any scale.
+          await expect
+            .poll(() =>
+              page.evaluate(() => {
+                const r = document
+                  .querySelector(".win.on")
+                  ?.getBoundingClientRect();
+                return r && [r.x, r.y, r.width, r.height];
+              }),
+            )
+            .toEqual([
+              win.x / scale,
+              win.y / scale,
+              win.width / scale,
+              win.height / scale,
+            ]);
+          await page.mouse.down();
+          await page.mouse.up();
+          await expect
+            .poll(() => taken(app).then((t) => t.length))
+            .toBe(index + 1);
+          const [t] = (await taken(app)).slice(index);
+          expect(t.kind).toBe("window");
+          expect(t.region).toEqual({
+            x: win.x / scale,
+            y: win.y / scale,
+            width: win.width / scale,
+            height: win.height / scale,
+          });
+          const png = await takenPng(app, index);
+          expect([png.width, png.height]).toEqual([win.width, win.height]);
+          // Only that window: its own colour at the corners and the middle,
+          // never the desktop behind it or the other window.
+          const want = Array.from(Buffer.from(win.color.slice(1), "hex"));
+          for (const [x, y] of [
+            [2, 2],
+            [png.width - 3, 2],
+            [2, png.height - 3],
+            [png.width - 3, png.height - 3],
+            [png.width >> 1, png.height >> 1],
+          ])
+            expect(pixel(png, x, y)).toEqual(want);
+          await idle(app);
+        }
+      } finally {
+        windows.close();
+      }
+    });
+  });
+
 test("the 整頁 chip needs a browser window and a connected companion, and delivers a page", async () => {
   await withApp(1, async ({ app, dir }) => {
     const blink = await app.firstWindow();
@@ -331,12 +400,7 @@ for (const scale of [1, 1.5, 2])
         const blink = await app.firstWindow();
         const d = await background(app);
         native(30, 30);
-        await blink.evaluate(() => {
-          window.captures = [];
-          window.blinkling.onEvent((e) => {
-            if (e.type === "capture") window.captures.push(e.capture);
-          });
-        });
+        await collectTaken(app);
         const selector = await openOverlay(app, blink);
         await selector.emulateMedia({ colorScheme: theme });
         expect(await selector.evaluate(() => typeof window.require)).toBe(
@@ -375,23 +439,22 @@ for (const scale of [1, 1.5, 2])
         }
         await desktopShot(app, `selection-${scale}-${theme}`);
         await selector.mouse.up();
-        await expect
-          .poll(() => blink.evaluate(() => window.captures.length))
-          .toBe(1);
-        const capture = await blink.evaluate(() => window.captures[0]);
+        await expect.poll(async () => (await taken(app)).length).toBe(1);
+        const [capture] = await taken(app);
+        expect(capture.kind).toBe("area");
         expect(capture.region).toEqual({
           x: 240,
           y: 160,
           width: 160,
           height: 100,
         });
-        const png = PNG.sync.read(Buffer.from(capture.image.data, "base64"));
+        const png = await takenPng(app, 0);
         expect(png.width).toBeGreaterThanOrEqual(Math.floor(160 * scale));
         expect(png.height).toBeGreaterThanOrEqual(Math.floor(100 * scale));
         expect(pixel(png, 10, 10)).toEqual([232, 73, 73]);
         await writeFile(
           `${reports}/cropped-${scale}-${theme}.png`,
-          Buffer.from(capture.image.data, "base64"),
+          PNG.sync.write(png),
         );
         await idle(app);
         expect(
