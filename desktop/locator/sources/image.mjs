@@ -33,8 +33,10 @@ function background(data, width, height) {
   return [pick(10), pick(5), pick(0)];
 }
 
-// Cell classes: 0 background, 1 ink, 2 rich (many colours).
-function classify({ data, width, height }) {
+// Cell classes: 0 background, 1 ink, 2 rich (many colours). A generator: it
+// yields after every row of cells so a caller on the main loop can give the
+// loop back (see analyseAsync); analyse() just runs it through.
+function* classify({ data, width, height }) {
   const [br, bg, bb] = background(data, width, height);
   const cols = Math.ceil(width / CELL);
   const rows = Math.ceil(height / CELL);
@@ -68,6 +70,7 @@ function classify({ data, width, height }) {
       }
       if (ink) cells[cy * cols + cx] = distinct >= RICH_COLOURS ? 2 : 1;
     }
+    yield;
   }
   return { cells, cols, rows };
 }
@@ -131,9 +134,7 @@ const cellRect = (box, width, height) => ({
   height: Math.min(height, (box.y1 + 1) * CELL) - box.y0 * CELL,
 });
 
-// canvas: { width, height, data (RGBA or BGRA), scale } -> [{ kind, bounds }]
-// with bounds in capture pixels, in reading order.
-export function analyse(canvas) {
+function* steps(canvas) {
   const { width, height } = canvas;
   const scale = canvas.scale || 1;
   if (
@@ -142,7 +143,7 @@ export function analyse(canvas) {
     canvas.data.length < width * height * 4
   )
     return [];
-  const { cells, cols, rows } = classify(canvas);
+  const { cells, cols, rows } = yield* classify(canvas);
   const regions = [];
 
   // Photographs and other colour-rich blocks.
@@ -225,6 +226,30 @@ export function analyse(canvas) {
   return regions.slice(0, MAX_REGIONS);
 }
 
+// canvas: { width, height, data (RGBA or BGRA), scale } -> [{ kind, bounds }]
+// with bounds in capture pixels, in reading order.
+export function analyse(canvas) {
+  const run = steps(canvas);
+  for (let step = run.next(); ; step = run.next())
+    if (step.done) return step.value;
+}
+
+const SLICE_MS = 4;
+
+/** analyse(), but it hands the event loop back every few milliseconds, so a
+ * large window never holds up a hover, a timer or the UI while it is read. */
+export async function analyseAsync(canvas) {
+  const run = steps(canvas);
+  let since = performance.now();
+  for (let step = run.next(); ; step = run.next()) {
+    if (step.done) return step.value;
+    if (performance.now() - since >= SLICE_MS) {
+      await new Promise((resolve) => setImmediate(resolve));
+      since = performance.now();
+    }
+  }
+}
+
 export function createImageSource({ capture }) {
   return {
     name: "image",
@@ -239,21 +264,23 @@ export function createImageSource({ capture }) {
       }
       if (!picture?.data) return null;
       const scale = picture.scale || 1;
-      const elements = analyse({ ...picture, scale }).map((region, n) => ({
-        key: String(n),
-        parent: null,
-        kind: region.kind,
-        bounds: {
-          x: win.bounds.x + region.bounds.x / scale,
-          y: win.bounds.y + region.bounds.y / scale,
-          width: region.bounds.width / scale,
-          height: region.bounds.height / scale,
-        },
-        role: "",
-        name: "",
-        text: "",
-        secure: false,
-      }));
+      const elements = (await analyseAsync({ ...picture, scale })).map(
+        (region, n) => ({
+          key: String(n),
+          parent: null,
+          kind: region.kind,
+          bounds: {
+            x: win.bounds.x + region.bounds.x / scale,
+            y: win.bounds.y + region.bounds.y / scale,
+            width: region.bounds.width / scale,
+            height: region.bounds.height / scale,
+          },
+          role: "",
+          name: "",
+          text: "",
+          secure: false,
+        }),
+      );
       return elements.length ? { elements } : null;
     },
   };

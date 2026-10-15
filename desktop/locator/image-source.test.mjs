@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createImageSource, analyse } from "./sources/image.mjs";
+import { createImageSource, analyse, analyseAsync } from "./sources/image.mjs";
 
 const win = {
   id: "w3",
@@ -42,6 +42,19 @@ function canvas(width, height) {
     },
   };
 }
+
+test("analyseAsync finds what analyse finds and lets timers run while it works", async () => {
+  const c = canvas(1600, 1200);
+  for (let row = 0; row < 12; row++) c.textLine(40, 40 + row * 18, 900);
+  c.photo(1000, 300, 400, 300);
+  let ticks = 0;
+  const timer = setInterval(() => ticks++, 1);
+  const regions = await analyseAsync(c);
+  clearInterval(timer);
+  assert.deepEqual(regions, analyse(c));
+  assert.ok(regions.some((r) => r.kind === "image"));
+  assert.ok(ticks >= 3, `the event loop kept turning (${ticks} timer ticks)`);
+});
 
 test("an empty window has no regions", () => {
   assert.deepEqual(analyse(canvas(400, 300)), []);

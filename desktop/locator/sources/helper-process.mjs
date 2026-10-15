@@ -86,6 +86,16 @@ export function persistentRequest({
       );
     });
 
+  // Starts the helper ahead of the first request: spawning takes tens of
+  // milliseconds on the calling thread, which a hover cannot afford.
+  request.warm = () => {
+    try {
+      ensure();
+    } catch {
+      // the first real request reports it
+    }
+  };
+
   request.close = () => {
     const proc = child;
     child = null;

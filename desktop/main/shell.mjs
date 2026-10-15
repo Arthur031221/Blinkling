@@ -989,6 +989,7 @@ if (process.env.BLINKLING_E2E === "1")
     setDisplay: useDisplay,
     positionStore: store,
     registerAction,
+    locator,
   };
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {

@@ -65,6 +65,26 @@ test("persistent: one process serves many requests, matched by id", async () => 
   assert.deepEqual(await a, { found: true });
 });
 
+test("persistent: warm starts the helper once, before any request", async () => {
+  const { spawnFn, spawned } = spawner();
+  const request = persistentRequest({ command: "py", spawnFn });
+  request.warm();
+  request.warm();
+  assert.equal(spawned.length, 1);
+  const answer = request("focus");
+  assert.equal(spawned.length, 1, "the request reuses the warm process");
+  spawned[0].stdout.write('{"id":1,"ok":true,"result":{"secure":false}}\n');
+  assert.deepEqual(await answer, { secure: false });
+  const failing = persistentRequest({
+    command: "py",
+    spawnFn: () => {
+      throw new Error("no python");
+    },
+  });
+  assert.doesNotThrow(() => failing.warm());
+  await assert.rejects(failing("focus"), /no python/);
+});
+
 test("persistent: errors, noise and unknown ids are survived", async () => {
   const { spawnFn, spawned } = spawner();
   const request = persistentRequest({ command: "py", spawnFn });

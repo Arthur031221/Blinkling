@@ -18,7 +18,9 @@ export const SOURCE_WAIT_MS = 40;
 const SNAP_WAIT_MS = 400;
 const ELEMENTS_WAIT_MS = 2000;
 const FOCUS_WAIT_MS = 1500;
+const WARM_DELAY_MS = 250; // after the first hover, start helpers it did not need yet
 const WINDOWS_MAX_AGE_MS = 200;
+const WINDOWS_STALE_MS = 2000; // hover answers from a list this old, refreshing behind
 // Used to place a sentence inside a paragraph; a rendered line is about this tall.
 const LINE_HEIGHT = 22;
 
@@ -97,14 +99,16 @@ export function createLocator({
   const privateIds = new Set(); // windows whose page reported a private tab
   const abort = new AbortController();
   let closed = false;
-  let listed = null; // { at, raws, pending }
+  let warmTimer = null;
+  let listed = null; // { at, raws }: the last window list that came back
+  let inflight = null; // the window list being fetched, if any
 
   // --- windows -------------------------------------------------------------
-  async function rawWindows(maxAge = 0) {
-    const t = performance.now();
-    if (listed?.pending && maxAge > 0) return listed.pending;
-    if (listed && !listed.pending && maxAge > 0 && t - listed.at < maxAge)
-      return listed.raws;
+  // `maxAge` reuses a list that recent. `staleFor` (hover) goes further: a list
+  // up to that old is answered at once while a new one is fetched behind it, so
+  // a slow window listing never costs a hover.
+  function fetchWindows() {
+    if (inflight) return inflight;
     const pending = (async () => {
       let raws = [];
       try {
@@ -119,8 +123,22 @@ export function createLocator({
       forget(raws);
       return raws;
     })();
-    listed = { at: t, raws: listed?.raws ?? [], pending };
+    inflight = pending;
+    const done = () => {
+      if (inflight === pending) inflight = null;
+    };
+    pending.then(done, done);
     return pending;
+  }
+
+  async function rawWindows(maxAge = 0, staleFor = 0) {
+    const age = listed ? performance.now() - listed.at : Infinity;
+    if (maxAge > 0 && age < maxAge) return listed.raws;
+    if (staleFor > 0 && age < staleFor) {
+      fetchWindows();
+      return listed.raws;
+    }
+    return fetchWindows();
   }
 
   // Windows that are gone take their cached lists and flags with them.
@@ -258,9 +276,26 @@ export function createLocator({
     return best;
   }
 
+  // Starting a helper process blocks the caller for tens of milliseconds, so
+  // the first hover schedules it for a moment when no hover is in flight.
+  function warmSources() {
+    if (warmTimer) return;
+    warmTimer = setTimeout(() => {
+      if (closed) return;
+      for (const source of sources) {
+        try {
+          source.warm?.();
+        } catch {
+          // a helper that cannot start is reported by its first request
+        }
+      }
+    }, WARM_DELAY_MS);
+    warmTimer.unref?.();
+  }
+
   // --- API -----------------------------------------------------------------
   async function locateWithin(point, deadline) {
-    const raws = await rawWindows(WINDOWS_MAX_AGE_MS);
+    const raws = await rawWindows(WINDOWS_MAX_AGE_MS, WINDOWS_STALE_MS);
     const win = hitWindow(raws, point);
     if (!win || blocked(win)) return null;
     for (const source of sources) {
@@ -294,6 +329,7 @@ export function createLocator({
      * budget; a source that is still loading is skipped and warms the cache. */
     async locate(point) {
       if (closed || !finitePoint(point)) return null;
+      warmSources();
       const deadline = performance.now() + HOVER_BUDGET_MS;
       let timer;
       try {
@@ -525,6 +561,7 @@ export function createLocator({
 
     async close() {
       closed = true;
+      clearTimeout(warmTimer);
       abort.abort();
       cache.invalidate();
       listed = null;

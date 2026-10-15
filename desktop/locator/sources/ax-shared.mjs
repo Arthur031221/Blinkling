@@ -125,6 +125,7 @@ export function createHelperSource({ request, displays, native, name = "ax" }) {
   return {
     name,
     applies: () => true,
+    warm: () => request.warm?.(),
     async load(win, ctx = {}) {
       const list = displaysOf(ctx);
       try {

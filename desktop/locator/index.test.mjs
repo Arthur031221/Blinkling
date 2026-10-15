@@ -282,6 +282,60 @@ test("lists are cached, and reload when the window moves, on invalidate, or afte
   assert.equal(ax.loads, 5);
 });
 
+test("helpers are started once, shortly after the first hover and not on close", async () => {
+  let warmed = 0;
+  const ax = fake("ax", null, { extra: { warm: () => warmed++ } });
+  const { locator } = make({ ax, connected: false });
+  await locator.locate({ x: 5, y: 5 });
+  assert.equal(warmed, 0, "not during the hover");
+  await idle(300);
+  assert.equal(warmed, 1);
+  await locator.locate({ x: 6, y: 6 });
+  await idle(300);
+  assert.equal(warmed, 1, "only once");
+
+  const never = fake("ax", null, { extra: { warm: () => warmed++ } });
+  const { locator: closing } = make({ ax: never, connected: false });
+  await closing.locate({ x: 5, y: 5 });
+  await closing.close();
+  await idle(300);
+  assert.equal(warmed, 1, "a closed locator starts nothing");
+});
+
+test("a slow window listing never costs a hover once a list is known", async () => {
+  const ax = fake("ax", [raw("0", null, "window", [0, 0, 1000, 800])]);
+  let calls = 0;
+  let slow = false;
+  const windows = [chrome, pdf];
+  const locator = createLocator({
+    companion: () => false,
+    platform: "linux",
+    capture: {
+      windows: async () => {
+        calls++;
+        if (slow) await idle(300);
+        return windows;
+      },
+      displays: () => [display],
+    },
+    ax,
+  });
+  assert.ok(await locator.locate({ x: 5, y: 5 }));
+  assert.equal(calls, 1);
+
+  slow = true;
+  await idle(250); // older than a fresh list, younger than a usable one
+  const started = performance.now();
+  const el = await locator.locate({ x: 6, y: 6 });
+  assert.ok(el, "answered from the list it already had");
+  assert.ok(performance.now() - started < 40, "did not wait for the listing");
+  assert.equal(calls, 2, "a new listing was started behind the hover");
+  await locator.locate({ x: 7, y: 7 });
+  assert.equal(calls, 2, "only one listing runs at a time");
+  await idle(350);
+  assert.ok(await locator.locate({ x: 8, y: 8 }));
+});
+
 test("a cold load past the budget answers null in time, and the next hover hits", async () => {
   const ax = fake("ax", [raw("0", null, "paragraph", [0, 0, 1000, 800])], {
     delay: 200,
