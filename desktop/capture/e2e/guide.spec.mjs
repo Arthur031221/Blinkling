@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { PNG } from "pngjs";
 import { CLOSING } from "../../overlay/guide.mjs";
 import { fileURLToPath } from "node:url";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import {
   launch,
   background,
@@ -804,6 +804,40 @@ test("a failed guide turn names its reason and offers a retry that reruns the gu
     await nextWindow(app, () => act("guide-retry"));
     await expect.poll(phase).toBe("overview");
     expect(await app.evaluate(() => globalThis.b3Sends)).toBe(2);
+    await act("guide-dismiss");
+  } finally {
+    await close();
+  }
+});
+test("the recorded haiku reply at low effort draws as numbered marks", async () => {
+  const reply = await readFile(
+    new URL("../../overlay/recorded/haiku-low-reply.txt", import.meta.url),
+    "utf8",
+  );
+  const { app, close } = await launch();
+  try {
+    const blink = await app.firstWindow();
+    await background(app);
+    native(30, 30);
+    await blink.evaluate(() => {
+      window.guides = [];
+      window.blinkling.onEvent((e) => {
+        if (e.type === "guide") window.guides.push(e);
+      });
+    });
+    await scriptedSession(app, [reply]);
+    const act = (name) =>
+      blink.evaluate((n) => window.blinkling.action(n), name);
+    const phase = () => blink.evaluate(() => window.guides.at(-1).phase);
+    await nextWindow(app, () => act("guide"));
+    // The reply that used to fail every time now reaches the overview.
+    await expect.poll(phase).toBe("overview");
+    const marks = await app.evaluate(
+      () => globalThis.blinklingTest.features.overlay.drawings?.length ?? -1,
+    );
+    expect(marks).toBeGreaterThanOrEqual(4);
+    await expect.poll(() => bubbleText(app)).not.toContain("導覽暫時無法完成");
+    await desktopShot(app, "guide-haiku");
     await act("guide-dismiss");
   } finally {
     await close();
