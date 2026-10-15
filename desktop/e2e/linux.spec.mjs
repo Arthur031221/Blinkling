@@ -123,9 +123,9 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       for (let x = near.left; x < near.right; x++) {
         const [r, g, b] = pixel(overlay, x, y);
         if (
-          Math.abs(r - 61) <= 4 &&
-          Math.abs(g - 220) <= 4 &&
-          Math.abs(b - 151) <= 4
+          Math.abs(r - 67) <= 4 &&
+          Math.abs(g - 216) <= 4 &&
+          Math.abs(b - 150) <= 4
         ) {
           found.left = Math.min(found.left, x);
           found.top = Math.min(found.top, y);
