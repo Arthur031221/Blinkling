@@ -718,6 +718,40 @@ secure(bubbles);
 bubbles.setIgnoreMouseEvents(!input && process.platform !== "win32", {
   forward: true,
 });
+// Installed before the first await after Blink exists, so a test that sees Blink
+// can already reach the hook. What is created further down is reached lazily.
+if (process.env.BLINKLING_E2E === "1")
+  globalThis.blinklingTest = {
+    blink,
+    get features() {
+      return features;
+    },
+    session,
+    get bubbles() {
+      return bubbles;
+    },
+    send,
+    get composer() {
+      return composer;
+    },
+    snapshot,
+    cursor: () => cursor.point(),
+    pointer: cursor,
+    cardBounds: () => cardBounds(display, position),
+    attachCapture: (taken) => attachCapture(taken),
+    openComposer,
+    visualMasks: () => visualMasks(),
+    capture: () => captureScreen(display, windows()),
+    overlay: async (drawings) => {
+      overlay?.close();
+      overlay = await createOverlay(display, drawings);
+      return overlay.id;
+    },
+    displaysChanged,
+    setDisplay: useDisplay,
+    positionStore: store,
+    registerAction,
+  };
 await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
 );
@@ -947,34 +981,6 @@ app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 app.on("window-all-closed", () => app.quit());
-if (process.env.BLINKLING_E2E === "1")
-  globalThis.blinklingTest = {
-    blink,
-    features,
-    session,
-    bubbles,
-    send,
-    get composer() {
-      return composer;
-    },
-    snapshot,
-    cursor: () => cursor.point(),
-    pointer: cursor,
-    cardBounds: () => cardBounds(display, position),
-    attachCapture,
-    openComposer,
-    visualMasks,
-    capture: () => captureScreen(display, windows()),
-    overlay: async (drawings) => {
-      overlay?.close();
-      overlay = await createOverlay(display, drawings);
-      return overlay.id;
-    },
-    displaysChanged,
-    setDisplay: useDisplay,
-    positionStore: store,
-    registerAction,
-  };
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {
     escapeKeys,
