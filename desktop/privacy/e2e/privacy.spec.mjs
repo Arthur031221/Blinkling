@@ -127,10 +127,12 @@ async function locked(t, name, locator, browserArgs = []) {
     const shot = await app.evaluate(async (_e, id) => {
       const t = globalThis.blinklingTest;
       const c = await t.features.capture.screen(id);
-      const r = await t.features.capture.region(id);
-      return { screen: c, region: r };
+      // The capture shortcut and the menu both go through handle("capture").
+      await t.features.handle("capture");
+      const r = t.features.overlay.capture ?? null;
+      return { screen: c, overlay: r };
     }, id);
-    expect(shot).toEqual({ screen: null, region: null });
+    expect(shot).toEqual({ screen: null, overlay: null });
     const sent = await app.evaluate(async (_e, turn) => {
       const t = globalThis.blinklingTest;
       try {

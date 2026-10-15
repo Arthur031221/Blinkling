@@ -479,3 +479,91 @@ test("PV-1: a guard that locks after the capture drops the pixels before they ar
     watch.dispose();
   }
 });
+
+test("PV-2: auto explain samples and captures only the active display, at a low rate, and leaves no temp file behind", async (t) => {
+  const { mkdtempSync, readdirSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const scratch = mkdtempSync(join(tmpdir(), "autowatch-scratch-"));
+  const savedTmp = process.env.TMPDIR;
+  process.env.TMPDIR = scratch;
+  t.after(() => {
+    if (savedTmp === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = savedTmp;
+    rmSync(scratch, { recursive: true, force: true });
+  });
+  assert.throws(
+    () => new AutoWatch({ intervalMs: 1000 }),
+    /low rate/,
+    "a sampling interval under three seconds is refused",
+  );
+  let active = "2",
+    value = 20,
+    now = 0;
+  const sampled = [],
+    captured = [],
+    during = [],
+    turns = [];
+  let event;
+  const watch = new AutoWatch({
+    session: {
+      subscribe: (f) => ((event = f), () => {}),
+      send: async (turn) => {
+        during.push(readdirSync(scratch));
+        turns.push(turn);
+      },
+    },
+    capture: {
+      screen: async (id) => (
+        captured.push(id),
+        { image: { id: "i", mediaType: "image/png", data: "pixels" } }
+      ),
+    },
+    displayId: () => active,
+    sample: async (id) => (sampled.push(id), Buffer.alloc(32 * 18 * 4, value)),
+    idleSeconds: () => 5,
+    now: () => now,
+  });
+  try {
+    watch.enable();
+    await watch.tick();
+    value = 230;
+    now = 6000;
+    await watch.tick();
+    now = 12000;
+    await watch.tick();
+    assert.equal(turns.length, 1, "one explanation was sent");
+    event({ type: "done", turnId: turns[0].id });
+    active = "3";
+    value = 30;
+    now = 100000;
+    await watch.tick();
+    now = 106000;
+    await watch.tick();
+    assert.deepEqual(
+      [...new Set(sampled)].sort(),
+      ["2", "3"],
+      "only the display that was active at each tick is sampled",
+    );
+    assert.ok(captured.every((id) => id === "2" || id === "3"));
+    assert.equal(
+      captured.length,
+      turns.length,
+      "one capture per turn, none extra",
+    );
+    assert.equal(sampled.length, 5, "one sample per tick");
+    assert.equal(typeof turns[0].attachments[0].data, "string");
+    assert.deepEqual(
+      during,
+      turns.map(() => []),
+      "no temp file while sending",
+    );
+    assert.deepEqual(
+      readdirSync(scratch),
+      [],
+      "no temp file right after sending",
+    );
+  } finally {
+    watch.dispose();
+  }
+});

@@ -304,3 +304,40 @@ test("clicking the same selection twice does not add it twice", async () => {
   await p.click({ x: 330, y: 180 });
   assert.equal(p.items().length, 1);
 });
+
+test("MV-1: the verdict of a guard that answers with a promise is awaited, and a refusal locks", async () => {
+  const locator = createLocatorStub();
+  for (const verdict of [
+    { ok: false, reason: "secure" },
+    { ok: false, reason: "private" },
+  ]) {
+    const asked = [];
+    const p = make({
+      locator,
+      guard: {
+        allowed: async (o) => (asked.push(o), verdict),
+      },
+    });
+    assert.equal((await p.click(inPara)).type, "lock");
+    assert.equal((await p.hover(inPara)).lock, true);
+    assert.equal(
+      (await p.area({ x: 10, y: 10, width: 50, height: 50 })).type,
+      "lock",
+    );
+    assert.deepEqual(asked[0].point, inPara);
+  }
+  assert.equal(locator.calls.locate, 0, "nothing under a refusal was read");
+});
+
+test("MV-1: an allowing promise verdict lets the pick through, and a guard that throws locks", async () => {
+  const ok = make({ guard: { allowed: async () => ({ ok: true }) } });
+  assert.equal((await ok.click(inPara)).type, "taken");
+  const broken = make({
+    guard: {
+      allowed: async () => {
+        throw new Error("boom");
+      },
+    },
+  });
+  assert.equal((await broken.click(inPara)).type, "lock");
+});

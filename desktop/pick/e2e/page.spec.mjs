@@ -611,6 +611,69 @@ test("a secure field locks: no outline, no taken, the lock is drawn", async () =
   }
 });
 
+const guardWindow = (over) => ({
+  secure: false,
+  window: {
+    id: "9",
+    title: "Docs",
+    app: "chromium",
+    bounds: { x: 0, y: 0, width: 1200, height: 800 },
+    private: false,
+    passwordManager: false,
+    ...over,
+  },
+});
+
+// The real shell hands pick the privacy guard: whatever the guard refuses, a
+// Ctrl+click takes nothing, sends nothing and writes nothing, and Blink gets the lock.
+for (const [name, state] of [
+  [
+    "a password field",
+    { secure: true, window: guardWindow({ title: "Sign in" }).window },
+  ],
+  [
+    "a password manager window",
+    guardWindow({
+      app: "1password",
+      title: "1Password",
+      passwordManager: true,
+    }),
+  ],
+  [
+    "a private browser window",
+    guardWindow({ title: "Docs (Incognito)", private: true }),
+  ],
+]) {
+  test(`${name} locks a Ctrl+click: the lock face, nothing taken, sent or written`, async () => {
+    const app = await start();
+    try {
+      await app.evaluate(
+        (_e, v) => globalThis.blinklingTest.privacy.focus(v),
+        state,
+      );
+      const image = await domRect(app, "#photo");
+      await hold(app, { x: image.x + 20, y: image.y + 20 });
+      click();
+      await pause(100);
+      await screen(app, `11-guard-${name.replaceAll(" ", "-")}`);
+      await pause(400);
+      const data = await log(app);
+      expect(sent(data, "taken")).toHaveLength(0);
+      expect(
+        sent(data, "lock").length +
+          sent(data, "outline").filter((o) => o.lock).length,
+      ).toBeGreaterThan(0);
+      expect(data.flights ?? []).toHaveLength(0);
+      expect(data.turns ?? []).toHaveLength(0);
+      release();
+      await pause(500);
+      expect(await miniOpen(app)).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+}
+
 test("a pick growth to the whole page in a browser offers 翻譯整頁, and clicking it sends the page as a translate turn", async () => {
   const app = await start();
   try {

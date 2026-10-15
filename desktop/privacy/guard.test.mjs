@@ -188,3 +188,55 @@ test("lock changes are reported once per change, and a lock rechecks itself unti
   t.mock.timers.tick(5000);
   assert.equal(changes.length, count, "a disposed guard is silent");
 });
+
+test("a point, a rect or a window handed in is checked against the window there", async () => {
+  const windows = {
+    "10,10": win({ private: true }),
+    "300,300": win({ passwordManager: true }),
+    "50,50": win(),
+  };
+  const asked = [];
+  const guard = createGuard({
+    locator: {
+      focus: async () => focus(win()),
+      windowAt: async (p) => (asked.push(p), windows[`${p.x},${p.y}`] ?? null),
+    },
+  });
+  assert.deepEqual(await guard.allowed({ point: { x: 10, y: 10 } }), {
+    ok: false,
+    reason: "private",
+  });
+  assert.deepEqual(await guard.allowed({ point: { x: 50, y: 50 } }), {
+    ok: true,
+  });
+  assert.deepEqual(
+    await guard.allowed({ rect: { x: 0, y: 0, width: 20, height: 20 } }),
+    { ok: false, reason: "private" },
+    "a corner of the rect lies in the private window",
+  );
+  assert.deepEqual(
+    await guard.allowed({ window: win({ passwordManager: true }) }),
+    { ok: false, reason: "password-manager" },
+  );
+  assert.ok(asked.length >= 2);
+  guard.dispose();
+});
+
+test("a point whose window cannot be read refuses an automatic look and lets the user's own click through", async () => {
+  const guard = createGuard({
+    locator: {
+      focus: async () => focus(win()),
+      windowAt: async () => {
+        throw new Error("gone");
+      },
+    },
+  });
+  assert.equal(
+    (await guard.allowed({ point: { x: 1, y: 1 }, automatic: true })).ok,
+    false,
+  );
+  assert.deepEqual(await guard.allowed({ point: { x: 1, y: 1 } }), {
+    ok: true,
+  });
+  guard.dispose();
+});

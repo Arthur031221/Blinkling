@@ -20,7 +20,7 @@ function rig(over = {}) {
   const sent = [];
   const listeners = new Set();
   const hooks = [];
-  const calls = { screen: 0, region: 0, pause: [] };
+  const calls = { screen: 0, pick: 0, pause: [] };
   const focus = { value: chrome() };
   const session = {
     subscribe: (f) => (listeners.add(f), () => listeners.delete(f)),
@@ -29,7 +29,7 @@ function rig(over = {}) {
   const features = {
     capture: {
       screen: async () => (calls.screen++, { image: { data: "pixels" } }),
-      region: async () => (calls.region++, { image: { data: "pixels" } }),
+      pick: async () => (calls.pick++, { image: { data: "pixels" } }),
     },
     auto: { enabled: true, pause: (until) => calls.pause.push(until) },
   };
@@ -64,8 +64,8 @@ test("PV-1: a secure field blocks capture and sending and Blink gets the lock", 
   const r = rig();
   r.focus.value = secure;
   assert.equal(await r.features.capture.screen("1"), null);
-  assert.equal(await r.features.capture.region("1"), null);
-  assert.equal(r.calls.screen + r.calls.region, 0, "nothing was captured");
+  assert.equal(await r.features.capture.pick("1"), null);
+  assert.equal(r.calls.screen + r.calls.pick, 0, "nothing was captured");
   const verdict = await r.admit(turn());
   assert.deepEqual(verdict, { ok: false, reason: "secure" });
   assert.deepEqual(
@@ -278,4 +278,90 @@ test("dispose survives a renderer that is already gone", () => {
     },
   });
   assert.doesNotThrow(() => r.privacy.dispose());
+});
+
+test("MV-1: openGuard refuses a password field, a password manager and a private window, tells Blink, and reads nothing", async () => {
+  const r = rig();
+  const windows = {
+    pm: chrome({ app: "1password", passwordManager: true }),
+    pv: chrome({ private: true }),
+  };
+  assert.equal(typeof r.privacy.openGuard.allowed, "function");
+  assert.deepEqual(
+    await r.privacy.openGuard.allowed({ point: { x: 1, y: 1 } }),
+    { ok: true },
+  );
+  r.focus.value = secure;
+  assert.deepEqual(
+    await r.privacy.openGuard.allowed({ point: { x: 1, y: 1 } }),
+    { ok: false, reason: "secure" },
+  );
+  assert.deepEqual(
+    r.sent.find((e) => e.type === "guard"),
+    { type: "guard", lock: true },
+  );
+  assert.equal(r.sent.filter((e) => e.type === "blink-say").length, 1);
+  r.focus.value = windows.pm;
+  assert.equal(
+    (await r.privacy.openGuard.allowed({ point: { x: 1, y: 1 } })).reason,
+    "password-manager",
+  );
+  r.focus.value = windows.pv;
+  assert.equal(
+    (await r.privacy.openGuard.allowed({ window: windows.pv.window })).reason,
+    "private",
+  );
+  assert.equal(r.calls.screen + r.calls.pick, 0);
+  assert.equal(r.hooks.length, 1);
+  r.focus.value = chrome();
+  assert.deepEqual(await r.privacy.openGuard.allowed({}), { ok: true });
+  assert.deepEqual(r.sent.at(-1), { type: "guard", lock: false });
+});
+
+test("MV-1: openGuard looks at the window under the point through the locator", async () => {
+  const pv = chrome({ private: true }).window;
+  const r = rig({
+    locator: {
+      focus: () => chrome(),
+      windowAt: async (p) => (p.x === 5 ? pv : null),
+    },
+  });
+  assert.equal(
+    (await r.privacy.openGuard.allowed({ point: { x: 5, y: 5 } })).reason,
+    "private",
+  );
+  assert.equal(
+    (await r.privacy.openGuard.allowed({ point: { x: 9, y: 9 } })).ok,
+    true,
+  );
+});
+
+test("MV-2: the privacy and pick test hooks coexist, whichever installs first, and each leaves cleanly", async () => {
+  const { exposeTestHook } = await import("../shared/test-hooks.mjs");
+  const before = process.env.BLINKLING_E2E;
+  process.env.BLINKLING_E2E = "1";
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "blinklingTest");
+  try {
+    for (const order of [
+      ["pick", "privacy"],
+      ["privacy", "pick"],
+    ]) {
+      delete globalThis.blinklingTest;
+      const apis = { pick: { id: "pick" }, privacy: { id: "privacy" } };
+      const release = order.map((name) => exposeTestHook(name, apis[name]));
+      globalThis.blinklingTest = { other: 1 };
+      assert.equal(globalThis.blinklingTest.pick, apis.pick);
+      assert.equal(globalThis.blinklingTest.privacy, apis.privacy);
+      assert.equal(globalThis.blinklingTest.other, 1);
+      release[0]();
+      assert.equal(globalThis.blinklingTest[order[0]], undefined);
+      assert.equal(globalThis.blinklingTest[order[1]], apis[order[1]]);
+      release[1]();
+    }
+  } finally {
+    delete globalThis.blinklingTest;
+    if (saved) Object.defineProperty(globalThis, "blinklingTest", saved);
+    if (before === undefined) delete process.env.BLINKLING_E2E;
+    else process.env.BLINKLING_E2E = before;
+  }
 });

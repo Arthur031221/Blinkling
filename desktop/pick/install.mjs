@@ -16,6 +16,7 @@ import { textAttachment } from "./taken.mjs";
 import { t as pickText } from "./strings.mjs";
 import { createMiniController } from "../mini/index.mjs";
 import { pickLocale } from "../shared/i18n.mjs";
+import { exposeTestHook } from "../shared/test-hooks.mjs";
 
 const here = (name) => fileURLToPath(new URL(name, import.meta.url));
 const miniFile = (name) =>
@@ -32,6 +33,7 @@ export const windowLocator = Object.freeze({
   focus: async () => ({ secure: false }),
   windowAt: async () => null,
 });
+/** The stand-in until the shell hands over the privacy guard (`setGuard`). */
 export const openGuard = Object.freeze({ allowed: () => true });
 
 /** The layer page talks to the main process through its own small preload, not the shell's. */
@@ -271,6 +273,12 @@ export async function installPick({
       locator = next;
       if (nextGuard) guard = nextGuard;
     },
+    /** The locator in use now, for the privacy guard to look through the same one. */
+    locator: () => locator,
+    /** The privacy guard (`privacy.openGuard`) every pick and area asks first. */
+    setGuard(next) {
+      guard = next;
+    },
     /** The same pieces, for tests that drive the flow without native input. */
     test: { keys, controller, layer, mini, grouper, once, miniWindow },
     dispose() {
@@ -282,21 +290,6 @@ export async function installPick({
       if (!miniWindow.isDestroyed()) miniWindow.destroy();
     },
   };
-  if (env.BLINKLING_E2E === "1") exposeForTests(api);
+  if (env.BLINKLING_E2E === "1") exposeTestHook("pick", api, env);
   return api;
-}
-
-/** The shell assigns `globalThis.blinklingTest` as one object later on; hang the
- * pick on it whenever that happens, without touching the shell's literal. */
-function exposeForTests(api) {
-  let value = globalThis.blinklingTest;
-  if (value) value.pick = api;
-  Object.defineProperty(globalThis, "blinklingTest", {
-    configurable: true,
-    get: () => value,
-    set(next) {
-      value = next;
-      if (value && typeof value === "object") value.pick = api;
-    },
-  });
 }
