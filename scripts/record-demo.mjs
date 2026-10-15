@@ -1,3 +1,4 @@
+import "../desktop/shared/test-env.mjs";
 import { chromium, expect } from "@playwright/test";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";

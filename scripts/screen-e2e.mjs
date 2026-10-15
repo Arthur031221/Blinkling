@@ -1,3 +1,4 @@
+import "../desktop/shared/test-env.mjs";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";

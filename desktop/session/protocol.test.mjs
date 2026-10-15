@@ -215,3 +215,15 @@ test("BLINKLING_REMOTE selects off, the one disposable test session, or the defa
     reattach_session_id: "cse_x",
   });
 });
+
+test("the previous GLIMPSELET_ switches still control Remote Control when nothing adopted them", () => {
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "0" }), "off");
+  assert.equal(remoteMode({ GLIMPSELET_REMOTE: "test" }), "test");
+  assert.equal(remoteMode({ GLIMPSELET_LIVE: "1" }), "off");
+  assert.equal(remoteMode({ GLIMPSELET_E2E: "1" }), "off");
+  // The new name wins when both are present.
+  assert.equal(
+    remoteMode({ BLINKLING_REMOTE: "1", GLIMPSELET_REMOTE: "0" }),
+    "on",
+  );
+});

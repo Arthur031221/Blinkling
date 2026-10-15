@@ -1,3 +1,4 @@
+import "../desktop/shared/test-env.mjs";
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { once } from "node:events";

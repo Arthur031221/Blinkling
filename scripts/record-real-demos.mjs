@@ -1,3 +1,4 @@
+import "../desktop/shared/test-env.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chromium, expect } from "@playwright/test";

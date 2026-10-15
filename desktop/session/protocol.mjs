@@ -67,15 +67,16 @@ export function launchArguments({
   ];
 }
 /** BLINKLING_REMOTE: unset or 1 syncs to Remote Control (the default), 0 never
- * asks for it, test asks for one disposable "Blinkling test" session. */
+ * asks for it, test asks for one disposable "Blinkling test" session. The
+ * previous release's GLIMPSELET_ names still count when the new one is unset,
+ * so a test harness that predates the rename can never reach a real account. */
 export function remoteMode(env = process.env) {
-  if (env.BLINKLING_REMOTE === "0") return "off";
-  if (env.BLINKLING_REMOTE === "test") return "test";
+  const read = (name) => env[`BLINKLING_${name}`] ?? env[`GLIMPSELET_${name}`];
+  const remote = read("REMOTE");
+  if (remote === "0") return "off";
+  if (remote === "test") return "test";
   // A live automated run must opt in to Remote Control explicitly.
-  if (
-    env.BLINKLING_REMOTE === undefined &&
-    (env.BLINKLING_LIVE === "1" || env.BLINKLING_E2E === "1")
-  )
+  if (remote === undefined && (read("LIVE") === "1" || read("E2E") === "1"))
     return "off";
   return "on";
 }

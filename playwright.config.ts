@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { env } from "node:process";
+// Automated runs never create Remote Control sessions.
+env.BLINKLING_REMOTE ??= "0";
 export default defineConfig({
   testDir: "./e2e",
   timeout: 45_000,

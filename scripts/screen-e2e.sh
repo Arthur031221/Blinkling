@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Automated runs never create Remote Control sessions in a real account.
+export BLINKLING_REMOTE=${BLINKLING_REMOTE:-0}
+
 # Native fullscreen crop needs a real window manager. Each run owns its
 # display and session bus, including when another Node matrix run is active.
 if [[ ${BLINKLING_TEST_DESKTOP:-} != 1 ]]; then
