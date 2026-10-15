@@ -14,7 +14,9 @@ if (args.includes("--version")) {
     appendFileSync(process.env.BLINKLING_TEST_VERSION_PID, String(process.pid));
     await new Promise((resolve) => setTimeout(resolve, 10000));
   }
-  process.stdout.write("2.1.296 (Claude Code)\n");
+  process.stdout.write(
+    `${process.env.BLINKLING_TEST_CLAUDE_VERSION ?? "2.1.296"} (Claude Code)\n`,
+  );
   process.exit(0);
 }
 const localId =
@@ -51,6 +53,31 @@ if (process.env.BLINKLING_TEST_DESCENDANT) {
     descendant.kill("SIGTERM");
   });
 }
+function typedRemotely() {
+  const text = process.env.BLINKLING_TEST_TYPED_REMOTELY;
+  const user = randomUUID();
+  const id = `msg_${randomUUID()}`;
+  setTimeout(() => {
+    send({
+      type: "user",
+      uuid: user,
+      message: { role: "user", content: [{ type: "text", text }] },
+    });
+    const answer = {
+      type: "assistant",
+      uuid: randomUUID(),
+      parentUuid: user,
+      message: {
+        id,
+        content: [{ type: "text", text: `Answer to: ${text}` }],
+        stop_reason: "end_turn",
+      },
+    };
+    log(answer);
+    send(answer);
+    send({ type: "result", uuid: randomUUID(), subtype: "success" });
+  }, 150);
+}
 createInterface({ input: process.stdin }).on("line", (line) => {
   const frame = JSON.parse(line);
   if (frame.type === "control_request") {
@@ -77,6 +104,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         state: "connected",
         session_id: localId,
       });
+      // A message typed in the Claude app arrives as a user event the child
+      // did not get from stdin, followed by the answer to it.
+      if (process.env.BLINKLING_TEST_TYPED_REMOTELY) typedRemotely();
     }
     if (request.subtype === "set_model") applied.model = request.model;
     if (request.subtype === "apply_flag_settings")

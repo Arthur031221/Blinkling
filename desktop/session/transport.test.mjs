@@ -409,3 +409,54 @@ test("a bridge without Remote Control works and keeps any earlier remote identit
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test("against Claude Code 2.1.300 a message typed in the Claude app shows in Blink and Blink's turn still gets its answer", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "blinkling-two-way-"));
+  const env = [
+    "BLINKLING_TEST_CLAUDE_VERSION",
+    "BLINKLING_TEST_TYPED_REMOTELY",
+  ];
+  process.env.BLINKLING_TEST_CLAUDE_VERSION = "2.1.300";
+  process.env.BLINKLING_TEST_TYPED_REMOTELY = "typed in the app";
+  const events = [];
+  const waitFor = async (predicate) => {
+    const end = Date.now() + 8000;
+    while (!events.some(predicate)) {
+      assert.ok(Date.now() < end, "timed out waiting for an event");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  };
+  const bridge = new DesktopSessionBridge({
+    userDataDir: cwd,
+    cwd,
+    executable: process.execPath,
+    transportFactory: () =>
+      new OwnedSession({ executableArgs: [fixture], remote: "on" }),
+    readTranscript: async () => [],
+  });
+  try {
+    bridge.subscribe((event) => events.push(event));
+    await bridge.connect();
+    assert.equal(bridge.status.state, "connected");
+    const text = (event, role) =>
+      event.type === "message" &&
+      event.role === role &&
+      JSON.stringify(event.content).includes(
+        role === "user" ? "typed in the app" : "Answer to: typed in the app",
+      );
+    await waitFor((event) => text(event, "user"));
+    await waitFor((event) => text(event, "assistant"));
+    const turn = {
+      id: randomUUID(),
+      source: "composer",
+      text: "Hi",
+      attachments: [],
+    };
+    await bridge.send(turn);
+    await waitFor((event) => event.type === "done" && event.turnId === turn.id);
+  } finally {
+    for (const name of env) delete process.env[name];
+    await bridge.dispose();
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
