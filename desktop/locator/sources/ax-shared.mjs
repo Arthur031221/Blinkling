@@ -84,9 +84,46 @@ export function nodesToRaw(nodes, { displays, native }) {
     });
   }
   // A node whose parent was a secure field hangs from nothing.
-  return raw.map((r) =>
-    r.parent && secure.has(r.parent) ? { ...r, parent: null } : r,
+  return clipToAncestors(
+    raw.map((r) =>
+      r.parent && secure.has(r.parent) ? { ...r, parent: null } : r,
+    ),
   );
+}
+
+// A viewer reports the whole of a scrolled page, not the part on screen.
+// What is shown of an element is what its ancestors show of it; one that is
+// scrolled out of every ancestor is not there to be pointed at.
+function clipToAncestors(raw) {
+  const byKey = new Map(raw.map((r) => [r.key, r]));
+  const clipped = new Map();
+  const visit = (r, seen = new Set()) => {
+    if (clipped.has(r.key)) return clipped.get(r.key);
+    seen.add(r.key);
+    const above = r.parent && !seen.has(r.parent) ? byKey.get(r.parent) : null;
+    let rect = r.bounds;
+    if (above) {
+      const outer = visit(above, seen);
+      rect = outer && intersect(rect, outer);
+    }
+    clipped.set(r.key, rect);
+    return rect;
+  };
+  const kept = new Set();
+  for (const r of raw) if (visit(r)) kept.add(r.key);
+  return raw
+    .filter((r) => kept.has(r.key))
+    .map((r) => ({ ...r, bounds: clipped.get(r.key) }));
+}
+
+function intersect(a, b) {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  return right > x && bottom > y
+    ? { x, y, width: right - x, height: bottom - y }
+    : null;
 }
 
 // Native-pixel rect of a DIP window, for helpers that match by geometry.

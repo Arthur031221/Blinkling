@@ -341,13 +341,30 @@ manager or a private/incognito window carry `passwordManager` / `private`
 and the guard (`desktop/privacy`) decides on them; the locator also returns
 no elements from such windows.
 
-**Cache.** Elements are cached per window for 1.5 s (DOM and AX) and
-invalidated when the window's bounds or title change, when the window leaves
-the list, when the pointer scrolls or the page reports a new URL, or on
-`locator.invalidate()`. A hover answer is served from the cache in under a
-millisecond; a cold lookup is bounded to 40 ms per source before it falls
-through, which keeps the hover budget of 50 ms (p95 verified by the e2e on a
-real browser page and a real PDF viewer).
+**Cache.** Elements are cached per window: fresh for 1.5 s, then served
+stale for up to 30 s while a refresh runs behind the hover (stale while
+revalidate). An entry is dropped when the window's bounds or title change,
+when the window leaves the list, or on `locator.invalidate()`, which the pick
+layer calls on scroll and click. A hover answer is served from the cache in
+under a millisecond; a cold lookup is bounded to 40 ms per source before it
+falls through, which keeps the hover budget of 50 ms (p95 about 1 ms on a
+real browser page and 0.2 ms on a real PDF viewer in the e2e).
+
+**Keeping hover cheap.** Hover never waits on a slow platform call it has
+already paid for once: it is answered from a window list up to 2 s old while a
+fresh one is fetched behind it (listing windows costs far more on macOS and
+Windows than on X11). Image analysis yields to the event loop every few
+milliseconds so it cannot hold up the 46 ms budget timer, and the AX helper
+processes are started about 250 ms after the first hover rather than inside
+it, because starting a child process blocks the main thread.
+
+**Ids and flags.** AX and image ids are renumbered each time a window's tree is
+loaded, so an id outlives only its cache entry; hold the element, not the id.
+A window seen as `private` or as a password manager stays flagged for as long
+as the window exists. On Linux AX bounds are clipped to what the ancestors
+show: a PDF viewer reports a whole page larger than its scrolled viewport, and
+the part scrolled out of view is not pointable. In a browser, `focus().secure`
+relies on the accessibility tree, since the DOM export does not report focus.
 
 **Tests.** `desktop/locator/*.test.mjs`: kind detection per Kind, snapping at
 scale 1, 1.5 and 2 and across displays, the no-element fallback, secure

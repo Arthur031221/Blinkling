@@ -17,6 +17,7 @@ import {
   outline,
 } from "./support.mjs";
 
+type Rect = { x: number; y: number; width: number; height: number };
 const report = join(process.cwd(), "..", "test-results", "locator");
 const IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='300' height='160'><rect width='300' height='160' fill='rgb(0,40,230)'/></svg>",
@@ -116,7 +117,7 @@ test("hover locate on a real browser page returns the element under the pointer 
       })
       .toBe("button");
 
-    const close = (a: any, b: any, slack = 3) => {
+    const close = (a: Rect, b: Rect, slack = 3) => {
       expect(Math.abs(a.x - b.x)).toBeLessThanOrEqual(slack);
       expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(slack);
       expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(slack);

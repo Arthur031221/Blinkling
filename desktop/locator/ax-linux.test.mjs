@@ -86,6 +86,44 @@ test("tree nodes become raw elements in DIP with kinds from AT-SPI roles", async
   assert.equal(byKey["0"].parent, null);
 });
 
+test("an element is clipped to what its ancestors show, and one scrolled out of view is dropped", async () => {
+  // A document viewer: the page is taller and wider than the scrolled
+  // viewport that holds it, so only part of it is on screen.
+  const source = createAxLinux({
+    request: async () => ({
+      found: true,
+      nodes: [
+        node(0, -1, "frame", { x: 0, y: 0, width: 1000, height: 800 }),
+        node(1, 0, "page", { x: 200, y: 100, width: 600, height: 500 }),
+        node(
+          2,
+          1,
+          "page",
+          { x: 220, y: 120, width: 700, height: 1400 },
+          { text: "Quarterly figures" },
+        ),
+        node(
+          3,
+          2,
+          "section",
+          { x: 240, y: 1300, width: 100, height: 40 },
+          { text: "scrolled away" },
+        ),
+      ],
+    }),
+    displays: () => displays,
+  });
+  const { elements } = await source.load(win, { displays });
+  const page = elements.find((e) => e.text === "Quarterly figures");
+  // 1000 native px over a 2x display: the viewport is x 100..400, y 50..300.
+  assert.deepEqual(page.bounds, { x: 110, y: 60, width: 290, height: 240 });
+  assert.equal(
+    elements.some((e) => e.text === "scrolled away"),
+    false,
+    "nothing of it is visible",
+  );
+});
+
 test("a window the tree cannot find, or a helper that fails, answers null", async () => {
   assert.equal(
     await createAxLinux({
