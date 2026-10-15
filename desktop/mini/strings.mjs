@@ -1,0 +1,89 @@
+import { translator } from "../shared/i18n.mjs";
+
+/** Mini composer strings (N3.10). Blinkling and Blink are never translated. The
+ * input has no placeholder sentence: the highlighted chip says what Enter does. */
+export const strings = {
+  en: {
+    "mini.input": "Ask Blink about this",
+    "mini.remove": "Remove {name}",
+    "mini.send": "Send",
+    "mini.image": "Image",
+    "mini.text": "Text",
+    "mini.chars": "{n} characters",
+    "mini.quick": "Quick questions",
+  },
+  "zh-TW": {
+    "mini.input": "問 Blink 這是什麼",
+    "mini.remove": "移除{name}",
+    "mini.send": "送出",
+    "mini.image": "圖片",
+    "mini.text": "文字",
+    "mini.chars": "{n} 個字",
+    "mini.quick": "快速提問",
+  },
+  "zh-CN": {
+    "mini.input": "问 Blink 这是什么",
+    "mini.remove": "移除{name}",
+    "mini.send": "发送",
+    "mini.image": "图片",
+    "mini.text": "文字",
+    "mini.chars": "{n} 个字",
+    "mini.quick": "快速提问",
+  },
+  ja: {
+    "mini.input": "Blink にこれについて聞く",
+    "mini.remove": "{name}を削除",
+    "mini.send": "送信",
+    "mini.image": "画像",
+    "mini.text": "テキスト",
+    "mini.chars": "{n} 文字",
+    "mini.quick": "クイック質問",
+  },
+  ko: {
+    "mini.input": "Blink에게 이것에 대해 묻기",
+    "mini.remove": "{name} 제거",
+    "mini.send": "보내기",
+    "mini.image": "이미지",
+    "mini.text": "텍스트",
+    "mini.chars": "{n}자",
+    "mini.quick": "빠른 질문",
+  },
+  de: {
+    "mini.input": "Blink dazu etwas fragen",
+    "mini.remove": "{name} entfernen",
+    "mini.send": "Senden",
+    "mini.image": "Bild",
+    "mini.text": "Text",
+    "mini.chars": "{n} Zeichen",
+    "mini.quick": "Schnellfragen",
+  },
+  es: {
+    "mini.input": "Preguntar a Blink sobre esto",
+    "mini.remove": "Quitar {name}",
+    "mini.send": "Enviar",
+    "mini.image": "Imagen",
+    "mini.text": "Texto",
+    "mini.chars": "{n} caracteres",
+    "mini.quick": "Preguntas rápidas",
+  },
+  fr: {
+    "mini.input": "Demander à Blink à ce sujet",
+    "mini.remove": "Retirer {name}",
+    "mini.send": "Envoyer",
+    "mini.image": "Image",
+    "mini.text": "Texte",
+    "mini.chars": "{n} caractères",
+    "mini.quick": "Questions rapides",
+  },
+  "pt-BR": {
+    "mini.input": "Perguntar ao Blink sobre isto",
+    "mini.remove": "Remover {name}",
+    "mini.send": "Enviar",
+    "mini.image": "Imagem",
+    "mini.text": "Texto",
+    "mini.chars": "{n} caracteres",
+    "mini.quick": "Perguntas rápidas",
+  },
+};
+
+export const t = (locale) => translator(strings, locale);
