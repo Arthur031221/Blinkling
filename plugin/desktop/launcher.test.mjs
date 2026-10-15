@@ -79,3 +79,10 @@ test("the manifest names the operating system in the os field", () => {
     /Duplicate/,
   );
 });
+
+test("a manifest with no pinned builds says so instead of naming the platform", () => {
+  assert.throws(
+    () => selectBuild({ schemaVersion: 1, version: "3.0.0", builds: [] }),
+    /no release build pinned/,
+  );
+});

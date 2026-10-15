@@ -49,6 +49,13 @@ jobs:
             if (!data.workflow_runs.some(run => run.conclusion === 'success' && run.event === 'push')) {
               throw new Error('Main must pass CI before publishing');
             }
+            const desktop = await github.rest.actions.listWorkflowRuns({
+              ...context.repo, workflow_id: 'desktop.yml', head_sha: context.sha,
+              branch: 'main', status: 'completed'
+            });
+            if (!desktop.data.workflow_runs.some(run => run.conclusion === 'success' && run.event === 'push')) {
+              throw new Error('Main must pass the desktop checks on all three systems before publishing');
+            }
   desktop:
     needs: verify
     strategy:
@@ -140,7 +147,7 @@ jobs:
         with:
           name: desktop-release
           path: release/desktop-assets
-      - name: Commit the pinned manifest
+      - name: Commit the pinned manifest (pushed only after the files are uploaded)
         id: pin
         run: |
           cp release/desktop-assets/manifest.json plugin/desktop/manifest.json
@@ -149,36 +156,35 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A bin plugin/desktop/manifest.json
           git commit -m "Pin the desktop builds for v${{ inputs.version }}"
-          git push origin HEAD:main
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - run: python3 .github/workflows/check-release.py
       - name: Combine the extension and desktop assets
         run: |
           cp release/desktop-assets/Blinkling-* release/
           cat release/desktop-assets/SHA256SUMS >> release/SHA256SUMS
-      - name: Upload assets and publish
+      - name: Upload the files to a draft release
+        id: draft
         uses: actions/github-script@v9
         env:
           RELEASE_VERSION: ${{ inputs.version }}
-          RELEASE_SHA: ${{ steps.pin.outputs.sha }}
         with:
           script: |
             const fs = require('node:fs');
             const version = process.env.RELEASE_VERSION;
-            const sha = process.env.RELEASE_SHA;
             const tag = `v${version}`;
             let release;
             try {
-              const ref = await github.rest.git.getRef({...context.repo, ref: `tags/${tag}`});
-              if (ref.data.object.sha !== sha) throw new Error('Release tag belongs to another commit');
+              await github.rest.git.getRef({...context.repo, ref: `tags/${tag}`});
+              throw new Error('Release tag already exists');
             } catch (error) { if (error.status !== 404) throw error; }
             try {
               release = (await github.rest.repos.getReleaseByTag({...context.repo, tag})).data;
               if (!release.draft) throw new Error('This release is already published');
+              await github.rest.repos.updateRelease({...context.repo, release_id: release.id, target_commitish: context.sha});
             } catch (error) {
               if (error.status !== 404) throw error;
               release = (await github.rest.repos.createRelease({
-                ...context.repo, tag_name: tag, target_commitish: sha,
+                ...context.repo, tag_name: tag, target_commitish: context.sha,
                 name: `Blinkling ${tag}`, draft: true,
                 body: fs.readFileSync(`docs/releases/${tag}.md`, 'utf8')
               })).data;
@@ -199,4 +205,19 @@ jobs:
                 headers: {'content-type': types[name.split('.').pop()] || (name === 'SHA256SUMS' ? 'text/plain' : 'application/octet-stream')}
               });
             }
-            await github.rest.repos.updateRelease({...context.repo, release_id: release.id, draft: false});
+            core.setOutput('release_id', String(release.id));
+      # The marketplace serves main, so the pin goes up only now, when every
+      # file it points at is already downloadable from the draft.
+      - name: Push the pin
+        run: git push origin HEAD:main
+      - name: Publish the release at the pinned commit
+        uses: actions/github-script@v9
+        env:
+          RELEASE_ID: ${{ steps.draft.outputs.release_id }}
+          RELEASE_SHA: ${{ steps.pin.outputs.sha }}
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              ...context.repo, release_id: Number(process.env.RELEASE_ID),
+              target_commitish: process.env.RELEASE_SHA, draft: false
+            });

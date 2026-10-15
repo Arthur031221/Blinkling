@@ -19489,6 +19489,10 @@ var RELEASE_PATHS = [
 function selectBuild(manifest, platform = process.platform, arch = process.arch) {
   if (!manifest || !Array.isArray(manifest.builds))
     throw new Error("Invalid pinned desktop manifest");
+  if (manifest.builds.length === 0)
+    throw new Error(
+      "This copy of Blinkling has no release build pinned yet. Install the plugin from the marketplace, or build the desktop app from source (docs/INSTALL.md)."
+    );
   const matches = manifest.builds.filter(
     (b) => b.os === platform && b.arch === arch
   );

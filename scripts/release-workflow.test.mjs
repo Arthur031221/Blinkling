@@ -59,9 +59,25 @@ describe("the release workflow", () => {
 
   it("pins the manifest before tagging so the tag carries it", () => {
     const pin = release.indexOf("Commit the pinned manifest");
-    const upload = release.indexOf("target_commitish: sha");
+    const publish = release.indexOf(
+      "target_commitish: process.env.RELEASE_SHA",
+    );
     expect(pin).toBeGreaterThan(0);
-    expect(upload).toBeGreaterThan(pin);
+    expect(publish).toBeGreaterThan(pin);
+  });
+
+  it("uploads every file before main points at them, and publishes last", () => {
+    const upload = release.indexOf("uploadReleaseAsset");
+    const push = release.indexOf("git push origin HEAD:main");
+    const publish = release.indexOf("draft: false");
+    expect(upload).toBeGreaterThan(0);
+    expect(push).toBeGreaterThan(upload);
+    expect(publish).toBeGreaterThan(push);
+  });
+
+  it("waits for the CI and the desktop checks on main before a real release", () => {
+    expect(release).toContain("workflow_id: 'ci.yml'");
+    expect(release).toContain("workflow_id: 'desktop.yml'");
   });
 
   it("rebuilds the bundled launcher after pinning and commits it with the manifest", () => {

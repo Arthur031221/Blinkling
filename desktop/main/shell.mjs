@@ -908,7 +908,7 @@ async function openCompanionGuide() {
     await companionHost.openCompanionGuide();
   } catch {
     await externalShell.openExternal(
-      "https://arthur031221.github.io/Glimpselet/install.html",
+      "https://arthur031221.github.io/Blinkling/install/",
     );
   }
   return { ok: true };

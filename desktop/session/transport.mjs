@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { spawn, execFile } from "node:child_process";
 import { createInterface } from "node:readline";
 import { EventEmitter } from "node:events";
+import { resolveClaude } from "./resolve.mjs";
 import {
   assertClaudeVersion,
   ControlRequests,
@@ -40,9 +41,12 @@ export class OwnedSession extends EventEmitter {
     if (this.disposing) throw new Error("Session closed");
     if (this.connecting) throw new Error("Session already started");
     this.connecting = true;
+    const found = resolveClaude(executable);
+    executable = found.command;
+    const prefix = [...found.args, ...this.executableArgs];
     this.versionCheck = promisify(execFile)(
       executable,
-      [...this.executableArgs, "--version"],
+      [...prefix, "--version"],
       {
         timeout: 10000,
         windowsHide: true,
@@ -58,7 +62,7 @@ export class OwnedSession extends EventEmitter {
     const child = (this.child = spawn(
       executable,
       [
-        ...this.executableArgs,
+        ...prefix,
         ...launchArguments({
           sessionId,
           newSessionId: sessionId ? undefined : localId,

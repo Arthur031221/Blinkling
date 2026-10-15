@@ -39,12 +39,9 @@ test("a bundle with the pinned builds resolves every shipped target", () => {
   assert.equal(resolved.length, 4);
 });
 
-test("a stale bundle with the empty manifest is rejected as unsupported", () => {
+test("a stale bundle with the empty manifest is rejected as having no pinned build", () => {
   const stale = bundleWith({ schemaVersion: 1, version: "3.0.0", builds: [] });
-  assert.throws(
-    () => resolveBundled(stale),
-    /Unsupported desktop target: darwin\/arm64/,
-  );
+  assert.throws(() => resolveBundled(stale), /no release build pinned/);
 });
 
 test("a bundle without the embedded manifest is rejected", () => {
