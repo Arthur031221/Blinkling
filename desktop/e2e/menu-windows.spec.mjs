@@ -3,15 +3,20 @@ import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launch, nativeClick } from "./support.mjs";
-import { background, native, rigPoint, desktopShot, report } from "../main/e2e/support.mjs";
+import {
+  background,
+  native,
+  rigPoint,
+  desktopShot,
+  report,
+} from "../main/e2e/support.mjs";
 
 /** A window that logs a CSP violation or throws did not draw; fail on both. */
 const watch = (page, errors) => {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 };
-const find = (app, pattern) =>
-  app.windows().find((p) => pattern.test(p.url()));
+const find = (app, pattern) => app.windows().find((p) => pattern.test(p.url()));
 
 async function wake(app) {
   const page = await app.firstWindow();
@@ -53,7 +58,9 @@ const shown = (page) =>
 test("first use names the four bubbles once; Settings opens, changes the hotkey and replays the welcome", async () => {
   test.setTimeout(120000);
   await mkdir(report, { recursive: true });
-  process.env.BLINKLING_TEST_DATA = await mkdtemp(join(tmpdir(), "blinkling-ms-"));
+  process.env.BLINKLING_TEST_DATA = await mkdtemp(
+    join(tmpdir(), "blinkling-ms-"),
+  );
   const data = process.env.BLINKLING_TEST_DATA;
   const app = await launch();
   try {
@@ -64,38 +71,61 @@ test("first use names the four bubbles once; Settings opens, changes the hotkey 
     await rest(page);
     const first = await shown(page);
     expect(first.map((b) => b.named)).toEqual([true, true, true, true]);
-    expect(first.every((b) => b.label.opacity > 0.9 && b.label.height < 51)).toBe(true);
+    expect(
+      first.every((b) => b.label.opacity > 0.9 && b.label.height < 51),
+    ).toBe(true);
     await desktopShot(app, "menu-windows-first-fan");
     await expect
-      .poll(() => app.evaluate(() => globalThis.blinklingTest.uiOnce.seen("fan-labels")))
+      .poll(() =>
+        app.evaluate(() => globalThis.blinklingTest.uiOnce.seen("fan-labels")),
+      )
       .toBe(true);
     // Leave: the fan closes and the next opening is the quiet one.
     native(600, 500);
     await page.waitForFunction(() => !window.desktop.inspect().fan.open);
     await page.waitForTimeout(600);
     await rest(page);
-    expect((await shown(page)).map((b) => b.named)).toEqual([false, false, false, false]);
+    expect((await shown(page)).map((b) => b.named)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
 
     // NS-1: the Settings bubble opens the window.
     const bubble = await page.locator('[data-action="settings"]').boundingBox();
-    nativeClick(Math.round(bubble.x + bubble.width / 2), Math.round(bubble.y + bubble.height / 2));
+    nativeClick(
+      Math.round(bubble.x + bubble.width / 2),
+      Math.round(bubble.y + bubble.height / 2),
+    );
     await expect.poll(() => !!find(app, /\/settings\/index\.html$/)).toBe(true);
     const settings = find(app, /\/settings\/index\.html$/);
     watch(settings, errors);
     await expect(settings.locator("#settings")).toHaveClass(/is-open/);
     await expect(settings.locator("#settings-title")).toHaveText("設定");
     await expect(settings.locator("#row-pick")).toBeHidden();
-    await expect(settings.locator("#about-version")).toContainText(/\d+\.\d+\.\d+/);
-    await expect(settings.locator("[data-wordmark] svg, [data-wordmark] *").first()).toBeAttached();
+    await expect(settings.locator("#about-version")).toContainText(
+      /\d+\.\d+\.\d+/,
+    );
+    await expect(
+      settings.locator("[data-wordmark] svg, [data-wordmark] *").first(),
+    ).toBeAttached();
     await desktopShot(app, "menu-windows-settings");
 
     // NS-5: the hotkey shows and changes.
-    const before = await app.evaluate(() => globalThis.blinklingTest.features.hotkey);
+    const before = await app.evaluate(
+      () => globalThis.blinklingTest.features.hotkey,
+    );
     await expect(settings.locator("#hotkey-label")).toContainText(/[A-Za-z]/);
     await settings.locator("#hotkey-change").click();
     await settings.keyboard.press("Control+Alt+J");
-    await expect(settings.locator("#hotkey-note")).toHaveAttribute("data-kind", "info");
-    const after = await app.evaluate(() => globalThis.blinklingTest.features.hotkey);
+    await expect(settings.locator("#hotkey-note")).toHaveAttribute(
+      "data-kind",
+      "info",
+    );
+    const after = await app.evaluate(
+      () => globalThis.blinklingTest.features.hotkey,
+    );
     expect(after).not.toBe(before);
     expect(after).toMatch(/J$/);
     await desktopShot(app, "menu-windows-hotkey");
@@ -103,16 +133,26 @@ test("first use names the four bubbles once; Settings opens, changes the hotkey 
     await settings.locator("#hotkey-change").click();
     await settings.keyboard.press("J");
     await settings.keyboard.press("Escape");
-    expect(await app.evaluate(() => globalThis.blinklingTest.features.hotkey)).toBe(after);
+    expect(
+      await app.evaluate(() => globalThis.blinklingTest.features.hotkey),
+    ).toBe(after);
 
     // Start with Claude Code is stored where the launcher reads it.
     await settings.locator("#start-switch").click();
     await expect
-      .poll(async () =>
-        JSON.parse(await readFile(join(data, "settings.json"), "utf8").catch(() => "{}")).startWithClaudeCode,
+      .poll(
+        async () =>
+          JSON.parse(
+            await readFile(join(data, "settings.json"), "utf8").catch(
+              () => "{}",
+            ),
+          ).startWithClaudeCode,
       )
       .toBe(false);
-    await expect(settings.locator("#start-switch")).toHaveAttribute("aria-checked", "false");
+    await expect(settings.locator("#start-switch")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
 
     // NS-2: Help replays the welcome; Settings steps aside.
     await settings.locator('[data-help="welcome"]').click();
@@ -125,7 +165,9 @@ test("first use names the four bubbles once; Settings opens, changes the hotkey 
     await welcome.waitForTimeout(600);
     await desktopShot(app, "menu-windows-welcome-1");
     await welcome.locator("#welcome-next").click();
-    await expect(welcome.locator('section[data-step="2"]')).toHaveClass(/is-current/);
+    await expect(welcome.locator('section[data-step="2"]')).toHaveClass(
+      /is-current/,
+    );
     await expect(welcome.locator("[data-safety]")).not.toBeEmpty();
     await welcome.waitForTimeout(600);
     await desktopShot(app, "menu-windows-welcome-2");
@@ -143,7 +185,9 @@ test("first use names the four bubbles once; Settings opens, changes the hotkey 
 
 test("the welcome opens by itself on the first start only, and the fan closes over the mini composer", async () => {
   test.setTimeout(120000);
-  process.env.BLINKLING_TEST_DATA = await mkdtemp(join(tmpdir(), "blinkling-mw-"));
+  process.env.BLINKLING_TEST_DATA = await mkdtemp(
+    join(tmpdir(), "blinkling-mw-"),
+  );
   process.env.BLINKLING_WELCOME = "1";
   let app = await launch();
   try {
@@ -163,15 +207,26 @@ test("the welcome opens by itself on the first start only, and the fan closes ov
     await background(app);
     const page = await wake(app);
     await page.waitForTimeout(1500);
-    expect(await app.evaluate(() => globalThis.blinklingTest.welcome.test.controller.isOpen)).toBe(false);
+    expect(
+      await app.evaluate(
+        () => globalThis.blinklingTest.welcome.test.controller.isOpen,
+      ),
+    ).toBe(false);
     // NS-3: with the mini composer open the fan stays shut while Blink is hovered.
     const point = await rest(page);
-    expect((await shown(page)).map((b) => b.named)).toEqual([true, true, true, true]);
+    expect((await shown(page)).map((b) => b.named)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
     native(point.x, point.y, "click");
     await page.waitForFunction(() => window.desktop.inspect().shell.miniOpen);
     await page.waitForTimeout(800);
     await page.waitForFunction(() => !window.desktop.inspect().fan.open);
-    expect(await page.evaluate(() => window.desktop.inspect().fan.open)).toBe(false);
+    expect(await page.evaluate(() => window.desktop.inspect().fan.open)).toBe(
+      false,
+    );
     await desktopShot(app, "menu-windows-mini-no-fan");
   } finally {
     delete process.env.BLINKLING_WELCOME;

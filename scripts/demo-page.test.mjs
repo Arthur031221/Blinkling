@@ -29,7 +29,7 @@ describe("demo page", () => {
     /shift/i,
     /chromium/i,
     /\b2\.1\b/,
-    /google flights|arxiv/i,
+    /google flights/i,
   ])
     it(`has no v2 wording ${v2}`, () => {
       assert.doesNotMatch(html, v2);
@@ -37,10 +37,24 @@ describe("demo page", () => {
       if (!v2.test("chromium")) assert.doesNotMatch(check, v2);
     });
 
-  it("ships no v2 recordings", () => {
-    assert.doesNotMatch(html, /<img[^>]+\.gif/);
-    assert.doesNotMatch(html, /demo-assets/);
-    assert.doesNotMatch(pages, /\.gif|demo-assets/);
+  it("ships only the recordings made from the desktop app", () => {
+    const shipped = JSON.parse(readFileSync("assets/recordings.json", "utf8"));
+    const names = shipped.recordings.map((r) => r.asset.split("/").pop());
+    const used = [...html.matchAll(/<img[^>]+src="([^"]+\.gif)"/g)].map((m) =>
+      m[1].split("/").pop(),
+    );
+    assert.ok(used.length > 0);
+    for (const gif of used)
+      assert.ok(names.includes(gif), `${gif} is a v2 file`);
+    assert.equal(
+      shipped.version,
+      JSON.parse(readFileSync("package.json", "utf8")).version,
+    );
+    for (const gif of names)
+      assert.ok(
+        pages.includes(`"${gif.replace(/\.gif$/, "")}"`),
+        `${gif} is copied by build-pages.mjs`,
+      );
   });
 
   it("teaches Blink: Ctrl and click, Ctrl and drag, the mini composer", () => {
@@ -50,8 +64,8 @@ describe("demo page", () => {
     assert.match(text, /drag/i);
   });
 
-  it("keeps only the main and secondary tiers: hero, install, extras", () => {
-    assert.ok(html.match(/<section/g).length <= 3);
+  it("keeps only the main and secondary tiers: hero, install, extras, limits", () => {
+    assert.ok(html.match(/<section/g).length <= 4);
     assert.ok(html.match(/<article/g).length <= 7);
   });
 

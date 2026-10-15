@@ -189,7 +189,6 @@ test("clicking a mark scrolls the deck to the bubble that carries its number", a
   try {
     const offscreen = () =>
       deck.evaluate(() => {
-        const d = document.querySelector("#answers .gl-deck, #answers > *");
         const ref = document.querySelector(".gl-ref");
         const bubble = ref.closest(".gl-answer-bubble");
         const box = bubble.getBoundingClientRect();

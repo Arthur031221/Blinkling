@@ -954,7 +954,6 @@ const pick = await installPick({
     workArea: () => display.workArea,
     session,
     captureScreen,
-    locator,
     newChat: () => tellDeck({ type: "new-chat" }),
     caught: () => blink.webContents.send("blinkling:catch"),
     miniChanged: (open) => {
@@ -1060,10 +1059,7 @@ if (
 )
   void session.connect().catch(() => {});
 // The first start opens the welcome; end-to-end runs skip it unless asked.
-if (
-  process.env.BLINKLING_E2E !== "1" ||
-  process.env.BLINKLING_WELCOME === "1"
-)
+if (process.env.BLINKLING_E2E !== "1" || process.env.BLINKLING_WELCOME === "1")
   void welcome.openFirstTime();
 void features
   .resume()

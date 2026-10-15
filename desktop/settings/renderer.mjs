@@ -60,10 +60,14 @@ function render() {
   start.setAttribute("aria-checked", String(state.startWithClaudeCode));
   start.setAttribute("aria-label", t("startWithClaude"));
   pickRow.hidden = !state.pickKeys;
-  pickRow.querySelector("[role=radiogroup]").setAttribute("aria-label", t("pickKey"));
+  pickRow
+    .querySelector("[role=radiogroup]")
+    .setAttribute("aria-label", t("pickKey"));
   for (const button of pickRow.querySelectorAll("[data-pick]")) {
     const name = button.dataset.pick;
-    button.textContent = t(name === "option" ? "pickKeyOption" : "pickKeyControl");
+    button.textContent = t(
+      name === "option" ? "pickKeyOption" : "pickKeyControl",
+    );
     button.setAttribute("aria-checked", String(state.pickKey === name));
   }
   $("#about-version").textContent = t("version", { version: state.version });
@@ -99,7 +103,10 @@ async function onCapture(event) {
   if (!accelerator) return; // a modifier on its own: keep listening
   const result = await apply("hotkey", accelerator);
   stopListening();
-  say(result.ok ? t("hotkeySaved") : t(reasons[result.reason] ?? "hotkeyInvalid"), result.ok ? "info" : "error");
+  say(
+    result.ok ? t("hotkeySaved") : t(reasons[result.reason] ?? "hotkeyInvalid"),
+    result.ok ? "info" : "error",
+  );
 }
 
 change.addEventListener("click", () => {

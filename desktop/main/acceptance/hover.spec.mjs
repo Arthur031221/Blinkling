@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import x11 from "x11";
 import { cardBounds } from "../placement.mjs";
-import { launch, native, move, click, wheel, keys, key } from "./support.mjs";
+import { launch, native, move, click, wheel, keys } from "./support.mjs";
 import { reveal, clickBlink, bubble, background, shot } from "./helpers.mjs";
 
 const bubblesPage = (app) =>

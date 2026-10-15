@@ -12,7 +12,12 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <main id="welcome" class="welcome-card" role="dialog" aria-labelledby="welcome-title">
+    <main
+      id="welcome"
+      class="welcome-card"
+      role="dialog"
+      aria-labelledby="welcome-title"
+    >
       <header class="welcome-head">
         <div data-wordmark></div>
         <button type="button" id="welcome-close" class="welcome-x"></button>
@@ -30,8 +35,16 @@
           <p id="permission-body"></p>
           <p id="permission-status" role="status" aria-live="polite"></p>
           <div class="welcome-actions">
-            <button type="button" id="permission-allow" data-text="permissionAllow"></button>
-            <button type="button" id="permission-open" data-text="permissionOpen"></button>
+            <button
+              type="button"
+              id="permission-allow"
+              data-text="permissionAllow"
+            ></button>
+            <button
+              type="button"
+              id="permission-open"
+              data-text="permissionOpen"
+            ></button>
           </div>
           <p data-safety class="welcome-safety"></p>
         </section>
@@ -50,7 +63,11 @@
           <li></li>
           <li></li>
         </ol>
-        <button type="button" id="welcome-next" class="welcome-primary"></button>
+        <button
+          type="button"
+          id="welcome-next"
+          class="welcome-primary"
+        ></button>
       </footer>
     </main>
     <script type="module" src="./renderer.mjs"></script>

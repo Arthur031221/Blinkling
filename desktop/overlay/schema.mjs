@@ -142,16 +142,6 @@ function salvageGuide(value, capture) {
     drop = (what) => warnings.push(what);
   const W = capture.pixelWidth,
     H = capture.pixelHeight;
-  const point = (p) =>
-    p &&
-    Number.isFinite(p.x) &&
-    Number.isFinite(p.y) &&
-    p.x >= 0 &&
-    p.y >= 0 &&
-    p.x <= W &&
-    p.y <= H
-      ? { x: p.x, y: p.y }
-      : null;
   const ids = new Set(),
     sections = [];
   for (const [i, section] of (Array.isArray(value.sections)

@@ -35,7 +35,8 @@ const blink = mountBlink($("#blink-host"));
  * reduced motion the raised hand is held still instead. */
 function animate(now) {
   const seconds = now / 1000;
-  if (step === 0 && !reduced.matches && seconds - waveAt > 4.5) waveAt = seconds;
+  if (step === 0 && !reduced.matches && seconds - waveAt > 4.5)
+    waveAt = seconds;
   blink.pose(seconds, {
     mode: "peek",
     waveAt: reduced.matches ? seconds - 0.6 : waveAt,
@@ -86,7 +87,9 @@ function render() {
     panel.toggleAttribute("inert", index !== step);
     panel.setAttribute("aria-hidden", String(index !== step));
   });
-  dots.forEach((dot, index) => dot.classList.toggle("is-current", index === step));
+  dots.forEach((dot, index) =>
+    dot.classList.toggle("is-current", index === step),
+  );
   $("[data-safety]").textContent = (safety[state.locale] ?? safety.en).safety;
   permissionLines();
   // Mounted once per key and language, so a re-render never restarts the loop.

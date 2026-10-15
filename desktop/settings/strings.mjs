@@ -74,12 +74,14 @@ export const strings = {
     title: "設定",
     close: "閉じる",
     hotkey: "キャプチャのショートカット",
-    hotkeyHint: "どのアプリからでも使えます。Alt や Ctrl などの修飾キーが必要です。",
+    hotkeyHint:
+      "どのアプリからでも使えます。Alt や Ctrl などの修飾キーが必要です。",
     hotkeyChange: "変更",
     hotkeyListening: "新しいキーを押してください。Esc で中止。",
     hotkeySaved: "保存しました",
     hotkeyInvalid: "この組み合わせは使えません。修飾キーを加えてください。",
-    hotkeyClash: "ほかのアプリやシステムが使っています。別の組み合わせにしてください。",
+    hotkeyClash:
+      "ほかのアプリやシステムが使っています。別の組み合わせにしてください。",
     hotkeyUnavailable: "このキーを登録できませんでした。元のキーは使えます。",
     pickKey: "選択キー",
     pickKeyHint: "押したままクリックすると、ポインタの下のものを取り込みます",
@@ -97,13 +99,16 @@ export const strings = {
     title: "설정",
     close: "닫기",
     hotkey: "캡처 단축키",
-    hotkeyHint: "어떤 앱에서든 작동합니다. Alt나 Ctrl 같은 보조 키가 필요합니다.",
+    hotkeyHint:
+      "어떤 앱에서든 작동합니다. Alt나 Ctrl 같은 보조 키가 필요합니다.",
     hotkeyChange: "변경",
     hotkeyListening: "새 키를 누르세요. Esc로 취소합니다.",
     hotkeySaved: "저장됨",
     hotkeyInvalid: "이 조합은 쓸 수 없습니다. 보조 키를 추가하세요.",
-    hotkeyClash: "다른 앱이나 시스템이 이미 쓰고 있습니다. 다른 조합을 고르세요.",
-    hotkeyUnavailable: "이 키를 등록하지 못했습니다. 기존 키는 그대로 작동합니다.",
+    hotkeyClash:
+      "다른 앱이나 시스템이 이미 쓰고 있습니다. 다른 조합을 고르세요.",
+    hotkeyUnavailable:
+      "이 키를 등록하지 못했습니다. 기존 키는 그대로 작동합니다.",
     pickKey: "선택 키",
     pickKeyHint: "누른 채 클릭하면 포인터 아래의 내용을 가져옵니다",
     pickKeyControl: "Control",
@@ -120,13 +125,16 @@ export const strings = {
     title: "Einstellungen",
     close: "Schließen",
     hotkey: "Tastenkürzel für die Aufnahme",
-    hotkeyHint: "Funktioniert in jeder App. Braucht eine Zusatztaste wie Alt oder Strg.",
+    hotkeyHint:
+      "Funktioniert in jeder App. Braucht eine Zusatztaste wie Alt oder Strg.",
     hotkeyChange: "Ändern",
     hotkeyListening: "Neue Tasten drücken. Esc bricht ab.",
     hotkeySaved: "Gespeichert",
     hotkeyInvalid: "Diese Kombination geht nicht. Füge eine Zusatztaste hinzu.",
-    hotkeyClash: "Eine andere App oder das System nutzt das schon. Nimm eine andere.",
-    hotkeyUnavailable: "Die Taste ließ sich nicht registrieren. Die alte gilt weiter.",
+    hotkeyClash:
+      "Eine andere App oder das System nutzt das schon. Nimm eine andere.",
+    hotkeyUnavailable:
+      "Die Taste ließ sich nicht registrieren. Die alte gilt weiter.",
     pickKey: "Auswahltaste",
     pickKeyHint: "Halten und klicken, um zu nehmen, was unter dem Zeiger liegt",
     pickKeyControl: "Control",
@@ -143,13 +151,15 @@ export const strings = {
     title: "Ajustes",
     close: "Cerrar",
     hotkey: "Atajo de captura",
-    hotkeyHint: "Funciona desde cualquier app. Necesita una tecla como Alt o Ctrl.",
+    hotkeyHint:
+      "Funciona desde cualquier app. Necesita una tecla como Alt o Ctrl.",
     hotkeyChange: "Cambiar",
     hotkeyListening: "Pulsa las teclas nuevas. Esc cancela.",
     hotkeySaved: "Guardado",
     hotkeyInvalid: "Esa combinación no sirve. Añade una tecla modificadora.",
     hotkeyClash: "Otra app o el sistema ya la usa. Prueba otra.",
-    hotkeyUnavailable: "No se pudo registrar esa tecla. La anterior sigue activa.",
+    hotkeyUnavailable:
+      "No se pudo registrar esa tecla. La anterior sigue activa.",
     pickKey: "Tecla de selección",
     pickKeyHint: "Mantenla y haz clic para tomar lo que hay bajo el puntero",
     pickKeyControl: "Control",
@@ -166,15 +176,20 @@ export const strings = {
     title: "Réglages",
     close: "Fermer",
     hotkey: "Raccourci de capture",
-    hotkeyHint: "Fonctionne depuis n'importe quelle app. Il faut une touche comme Alt ou Ctrl.",
+    hotkeyHint:
+      "Fonctionne depuis n'importe quelle app. Il faut une touche comme Alt ou Ctrl.",
     hotkeyChange: "Modifier",
     hotkeyListening: "Appuyez sur les nouvelles touches. Échap annule.",
     hotkeySaved: "Enregistré",
-    hotkeyInvalid: "Cette combinaison ne convient pas. Ajoutez une touche modificatrice.",
-    hotkeyClash: "Une autre app ou le système l'utilise déjà. Essayez-en une autre.",
-    hotkeyUnavailable: "Impossible d'enregistrer cette touche. L'ancienne reste active.",
+    hotkeyInvalid:
+      "Cette combinaison ne convient pas. Ajoutez une touche modificatrice.",
+    hotkeyClash:
+      "Une autre app ou le système l'utilise déjà. Essayez-en une autre.",
+    hotkeyUnavailable:
+      "Impossible d'enregistrer cette touche. L'ancienne reste active.",
     pickKey: "Touche de sélection",
-    pickKeyHint: "Maintenez-la et cliquez pour prendre ce qui est sous le pointeur",
+    pickKeyHint:
+      "Maintenez-la et cliquez pour prendre ce qui est sous le pointeur",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
     startWithClaude: "Démarrer avec Claude Code",
@@ -189,19 +204,23 @@ export const strings = {
     title: "Ajustes",
     close: "Fechar",
     hotkey: "Atalho de captura",
-    hotkeyHint: "Funciona em qualquer app. Precisa de uma tecla como Alt ou Ctrl.",
+    hotkeyHint:
+      "Funciona em qualquer app. Precisa de uma tecla como Alt ou Ctrl.",
     hotkeyChange: "Mudar",
     hotkeyListening: "Aperte as novas teclas. Esc cancela.",
     hotkeySaved: "Salvo",
-    hotkeyInvalid: "Essa combinação não serve. Adicione uma tecla modificadora.",
+    hotkeyInvalid:
+      "Essa combinação não serve. Adicione uma tecla modificadora.",
     hotkeyClash: "Outro app ou o sistema já usa. Tente outra.",
-    hotkeyUnavailable: "Não foi possível registrar essa tecla. A antiga continua valendo.",
+    hotkeyUnavailable:
+      "Não foi possível registrar essa tecla. A antiga continua valendo.",
     pickKey: "Tecla de seleção",
     pickKeyHint: "Segure e clique para pegar o que está sob o ponteiro",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
     startWithClaude: "Iniciar com o Claude Code",
-    startWithClaudeHint: "Abrir o Blink quando uma sessão do Claude Code começar",
+    startWithClaudeHint:
+      "Abrir o Blink quando uma sessão do Claude Code começar",
     help: "Ajuda",
     helpWelcome: "Tour de boas-vindas",
     helpGuide: "Guia do companheiro",

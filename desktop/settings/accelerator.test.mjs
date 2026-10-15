@@ -22,7 +22,10 @@ test("a letter with modifiers becomes an accelerator the registry accepts", () =
 
 test("the key comes from the physical code, so Option+letter is not a dead-key symbol", () => {
   assert.equal(
-    acceleratorFromKeyEvent(press("KeyX", { metaKey: true, altKey: true, shiftKey: true }), "darwin"),
+    acceleratorFromKeyEvent(
+      press("KeyX", { metaKey: true, altKey: true, shiftKey: true }),
+      "darwin",
+    ),
     "Command+Alt+Shift+X",
   );
   assert.equal(
@@ -52,13 +55,19 @@ test("pressing only modifiers is not a hotkey yet", () => {
 });
 
 test("an unknown key gives nothing", () => {
-  assert.equal(acceleratorFromKeyEvent(press("MediaPlayPause", { ctrlKey: true })), null);
+  assert.equal(
+    acceleratorFromKeyEvent(press("MediaPlayPause", { ctrlKey: true })),
+    null,
+  );
   assert.equal(acceleratorFromKeyEvent(press("")), null);
 });
 
 test("the Windows key is Super off the Mac", () => {
   assert.equal(
-    acceleratorFromKeyEvent(press("KeyV", { metaKey: true, shiftKey: true }), "win32"),
+    acceleratorFromKeyEvent(
+      press("KeyV", { metaKey: true, shiftKey: true }),
+      "win32",
+    ),
     "Super+Shift+V",
   );
 });

@@ -26,7 +26,9 @@ const output = await packager({
       );
       // The app root is desktop/, so shared/brand holds a stub that re-exports
       // assets/brand; the package carries the real Wordmark component instead.
-      const brand = fileURLToPath(new URL("../../assets/brand", import.meta.url));
+      const brand = fileURLToPath(
+        new URL("../../assets/brand", import.meta.url),
+      );
       for (const file of ["wordmark.mjs", "wordmark-parts.json"]) {
         await cp(join(brand, file), join(buildPath, "shared", "brand", file));
       }

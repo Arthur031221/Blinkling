@@ -18,7 +18,10 @@ test("every locale has the same keys, and none say the old name", () => {
 });
 
 test("the version fills in and the help section keeps its Chinese name", () => {
-  assert.equal(settingsText("en")("version", { version: "3.0.0" }), "Version 3.0.0");
+  assert.equal(
+    settingsText("en")("version", { version: "3.0.0" }),
+    "Version 3.0.0",
+  );
   assert.equal(settingsText("zh-TW")("help"), "說明");
   assert.equal(settingsText("zh-TW")("title"), "設定");
 });

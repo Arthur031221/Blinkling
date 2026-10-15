@@ -4,8 +4,7 @@ import { createWelcomeController, WELCOME_SIZE } from "./index.mjs";
 import { createOnce, fileStore } from "../pick/once.mjs";
 import { pickLocale } from "../shared/i18n.mjs";
 
-const file = (name) =>
-  fileURLToPath(new URL(`./${name}`, import.meta.url));
+const file = (name) => fileURLToPath(new URL(`./${name}`, import.meta.url));
 
 /** Makes the welcome window (hidden, reused) and its controller. The shell opens
  * it on the first start and from Settings.
@@ -14,8 +13,14 @@ const file = (name) =>
  * shell: {userDataDir, locales, windowOptions(bounds, focusable), secure(win),
  *   workArea(), input, openExternal(url), env?, platform?}
  * pickKey: {get()} */
-export function installWelcome({ electron, shell, pickKey, onError = () => {} }) {
-  const { BrowserWindow, ipcMain, systemPreferences, desktopCapturer } = electron;
+export function installWelcome({
+  electron,
+  shell,
+  pickKey,
+  onError = () => {},
+}) {
+  const { BrowserWindow, ipcMain, systemPreferences, desktopCapturer } =
+    electron;
   const env = shell.env ?? process.env;
   const locale = pickLocale(
     [env.BLINKLING_LOCALE, ...(shell.locales ?? [])].filter(Boolean),
@@ -30,7 +35,9 @@ export function installWelcome({ electron, shell, pickKey, onError = () => {} })
   shell.secure(win);
   const loaded = win.loadFile(file("index.html")).catch(onError);
 
-  const once = createOnce(fileStore(join(shell.userDataDir, "welcome-once.json")));
+  const once = createOnce(
+    fileStore(join(shell.userDataDir, "welcome-once.json")),
+  );
   const controller = createWelcomeController({
     win,
     loaded,
@@ -43,7 +50,10 @@ export function installWelcome({ electron, shell, pickKey, onError = () => {} })
       // Asking for a source is what makes macOS list the app under Screen Recording.
       request: async () => {
         await desktopCapturer
-          .getSources({ types: ["screen"], thumbnailSize: { width: 0, height: 0 } })
+          .getSources({
+            types: ["screen"],
+            thumbnailSize: { width: 0, height: 0 },
+          })
           .catch(onError);
       },
       open: () =>

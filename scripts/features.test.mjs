@@ -172,17 +172,28 @@ describe("docs/FEATURES.md menu rows", async () => {
       );
     });
 
-  it("claims nothing for settings that the settings action does not do", () => {
+  it("claims for settings only what the settings window does", () => {
     const settings = menuRows.find((row) => row.entry.includes("::settings"));
     assert.ok(settings);
-    // The settings action only opens the conversation card; hotkey, pick key,
-    // welcome replay and About rows are not built, so no row may promise them.
-    assert.doesNotMatch(settings.why, /About|replay|pick key|hotkey/i);
+    assert.match(shell, /registerAction\("settings"/);
+    const window = ["index.html", "renderer.mjs", "store.mjs", "install.mjs"]
+      .map((name) => read(`desktop/settings/${name}`))
+      .join("\n");
+    const built = {
+      hotkey: /hotkey/i,
+      "pick key": /pickKey/,
+      "start with Claude Code": /login|startWith|autoStart|session/i,
+      "welcome replay": /welcome/i,
+      "companion guide": /guide/i,
+      About: /helpAbout|data-about|about/i,
+    };
+    for (const [claim, evidence] of Object.entries(built)) {
+      if (!settings.why.toLowerCase().includes(claim.toLowerCase())) continue;
+      assert.match(window, evidence, `settings claims ${claim}`);
+    }
+    // Nothing outside the settings row promises a replay or an About page.
     for (const row of table().filter((row) => row.tier !== "removed"))
-      assert.doesNotMatch(
-        row.feature,
-        /\bAbout\b|welcome replay/i,
-        row.feature,
-      );
+      if (row !== settings)
+        assert.doesNotMatch(row.feature, /\bAbout\b|welcome replay/i);
   });
 });

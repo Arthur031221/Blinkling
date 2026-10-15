@@ -4,8 +4,7 @@ import { createSettingsController, SETTINGS_SIZE } from "./index.mjs";
 import { createSettingsStore } from "./store.mjs";
 import { pickLocale } from "../shared/i18n.mjs";
 
-const file = (name) =>
-  fileURLToPath(new URL(`./${name}`, import.meta.url));
+const file = (name) => fileURLToPath(new URL(`./${name}`, import.meta.url));
 
 /** Makes the settings window (hidden, reused) and its controller. The shell
  * calls this once and opens the window from the Settings bubble.

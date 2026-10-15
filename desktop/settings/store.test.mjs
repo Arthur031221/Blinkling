@@ -47,14 +47,21 @@ test("a damaged or foreign file never switches Blink off", async () => {
   const file = join(dir, "settings.json");
   for (const text of ["", "{", "[]", '{"startWithClaudeCode":"no"}', "null"]) {
     await writeFile(file, text);
-    assert.equal(createSettingsStore(file).get().startWithClaudeCode, true, text);
+    assert.equal(
+      createSettingsStore(file).get().startWithClaudeCode,
+      true,
+      text,
+    );
   }
 });
 
 test("only known settings with the right type are accepted", async () => {
   const dir = await home();
   const store = createSettingsStore(join(dir, "settings.json"));
-  assert.throws(() => store.set({ startWithClaudeCode: "yes" }), /startWithClaudeCode/);
+  assert.throws(
+    () => store.set({ startWithClaudeCode: "yes" }),
+    /startWithClaudeCode/,
+  );
   assert.throws(() => store.set({ launchAtLogin: true }), /launchAtLogin/);
   assert.equal(store.get().startWithClaudeCode, true);
 });

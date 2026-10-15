@@ -1,7 +1,8 @@
 /** Turns the keys the user presses in the hotkey field into an Electron
  * accelerator, and an accelerator into the text shown next to it. The key is
  * read from the physical `code`, so Option+X on a Mac is X and not a symbol. */
-const MODIFIER_CODES = /^(Control|Shift|Alt|Meta)(Left|Right)$|^OS(Left|Right)?$/;
+const MODIFIER_CODES =
+  /^(Control|Shift|Alt|Meta)(Left|Right)$|^OS(Left|Right)?$/;
 const NAMED = Object.freeze({
   Space: "Space",
   Tab: "Tab",

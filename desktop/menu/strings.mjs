@@ -98,7 +98,8 @@ export const strings = {
     autoExplainHint: "Explique brièvement les grands changements à l’écran",
     autoExplainOn: "Activé, cliquez pour désactiver",
     settings: "Réglages",
-    settingsHint: "Raccourci, démarrage avec Claude Code, bienvenue et À propos",
+    settingsHint:
+      "Raccourci, démarrage avec Claude Code, bienvenue et À propos",
   },
   "pt-BR": {
     toolbar: "Ações do Blink",

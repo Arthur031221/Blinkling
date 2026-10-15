@@ -11,7 +11,12 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <main id="settings" class="settings-card" role="dialog" aria-labelledby="settings-title">
+    <main
+      id="settings"
+      class="settings-card"
+      role="dialog"
+      aria-labelledby="settings-title"
+    >
       <header class="settings-head">
         <h1 id="settings-title"></h1>
         <button type="button" id="settings-close" class="settings-x"></button>
@@ -26,7 +31,12 @@
           <kbd id="hotkey-label"></kbd>
           <button type="button" id="hotkey-change"></button>
         </div>
-        <p class="settings-note" id="hotkey-note" role="status" aria-live="polite"></p>
+        <p
+          class="settings-note"
+          id="hotkey-note"
+          role="status"
+          aria-live="polite"
+        ></p>
       </section>
 
       <section class="settings-row" id="row-pick" hidden>
@@ -46,15 +56,28 @@
           <p data-text="startWithClaudeHint"></p>
         </div>
         <div class="settings-control">
-          <button type="button" role="switch" id="start-switch" class="settings-switch"></button>
+          <button
+            type="button"
+            role="switch"
+            id="start-switch"
+            class="settings-switch"
+          ></button>
         </div>
       </section>
 
       <section class="settings-help">
         <h2 data-text="help"></h2>
         <div class="settings-actions">
-          <button type="button" data-help="welcome" data-text="helpWelcome"></button>
-          <button type="button" data-help="guide" data-text="helpGuide"></button>
+          <button
+            type="button"
+            data-help="welcome"
+            data-text="helpWelcome"
+          ></button>
+          <button
+            type="button"
+            data-help="guide"
+            data-text="helpGuide"
+          ></button>
         </div>
         <div class="settings-about" aria-labelledby="about-title">
           <h3 id="about-title" data-text="helpAbout"></h3>

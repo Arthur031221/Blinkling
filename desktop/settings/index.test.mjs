@@ -6,7 +6,11 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-async function setup({ platform = "linux", hotkey = "Alt+Shift+X", loaded } = {}) {
+async function setup({
+  platform = "linux",
+  hotkey = "Alt+Shift+X",
+  loaded,
+} = {}) {
   const dir = await mkdtemp(join(tmpdir(), "blinkling-settings-ui-"));
   const sent = [];
   const handlers = new Map();
@@ -184,9 +188,18 @@ test("unknown settings and wrong types are refused without a throw", async () =>
 test("only the settings window is trusted", async () => {
   const { ask, fire, log } = await setup();
   const stranger = {};
-  assert.equal(await ask("blinkling:settings-ready", undefined, stranger), null);
   assert.equal(
-    (await ask("blinkling:settings-set", { key: "hotkey", value: "Alt+K" }, stranger)).ok,
+    await ask("blinkling:settings-ready", undefined, stranger),
+    null,
+  );
+  assert.equal(
+    (
+      await ask(
+        "blinkling:settings-set",
+        { key: "hotkey", value: "Alt+K" },
+        stranger,
+      )
+    ).ok,
     false,
   );
   fire("blinkling:settings-help", "welcome", stranger);

@@ -4,7 +4,12 @@ import { createWelcomeController, WELCOME_SIZE } from "./index.mjs";
 import { createOnce } from "../pick/once.mjs";
 import { duration } from "../shared/motion.mjs";
 
-function setup({ platform = "linux", pick = "control", status = "granted", loaded } = {}) {
+function setup({
+  platform = "linux",
+  pick = "control",
+  status = "granted",
+  loaded,
+} = {}) {
   const sent = [];
   const handlers = new Map();
   const listeners = new Map();
@@ -63,11 +68,21 @@ function setup({ platform = "linux", pick = "control", status = "granted", loade
       if (at >= 0) timers.splice(at, 1);
     },
   });
-  const ask = (channel, ...args) =>
-    handlers.get(channel)({ sender }, ...args);
+  const ask = (channel, ...args) => handlers.get(channel)({ sender }, ...args);
   const tell = (channel, ...args) =>
     listeners.get(channel)({ sender }, ...args);
-  return { controller, sent, state, timers, log, flags, ask, tell, handlers, listeners };
+  return {
+    controller,
+    sent,
+    state,
+    timers,
+    log,
+    flags,
+    ask,
+    tell,
+    handlers,
+    listeners,
+  };
 }
 
 test("the first start opens the welcome once, centred, and never again", async () => {
@@ -102,20 +117,30 @@ test("the view carries locale, the pick key name and the permission", async () =
     keyName: "Ctrl",
     permission: "unneeded",
   });
-  const mac = await setup({ platform: "darwin", pick: "option", status: "denied" }).ask(
-    "blinkling:welcome-ready",
-  );
+  const mac = await setup({
+    platform: "darwin",
+    pick: "option",
+    status: "denied",
+  }).ask("blinkling:welcome-ready");
   assert.equal(mac.keyName, "Option");
   assert.equal(mac.permission, "denied");
-  const control = await setup({ platform: "darwin" }).ask("blinkling:welcome-ready");
+  const control = await setup({ platform: "darwin" }).ask(
+    "blinkling:welcome-ready",
+  );
   assert.equal(control.keyName, "Control");
   assert.equal(control.permission, "granted");
 });
 
 test("on macOS the permission step can ask, open System Settings and re-check", async () => {
   const t = setup({ platform: "darwin", status: "not-determined" });
-  assert.equal(await t.ask("blinkling:welcome-permission", "refresh"), "not-determined");
-  assert.equal(await t.ask("blinkling:welcome-permission", "request"), "granted");
+  assert.equal(
+    await t.ask("blinkling:welcome-permission", "refresh"),
+    "not-determined",
+  );
+  assert.equal(
+    await t.ask("blinkling:welcome-permission", "request"),
+    "granted",
+  );
   assert.equal(t.log.requested, 1);
   await t.ask("blinkling:welcome-permission", "open");
   assert.equal(t.log.opened, 1);
@@ -123,7 +148,10 @@ test("on macOS the permission step can ask, open System Settings and re-check", 
 
 test("elsewhere no permission is asked for and nothing is opened", async () => {
   const t = setup({ platform: "win32", status: "denied" });
-  assert.equal(await t.ask("blinkling:welcome-permission", "request"), "unneeded");
+  assert.equal(
+    await t.ask("blinkling:welcome-permission", "request"),
+    "unneeded",
+  );
   await t.ask("blinkling:welcome-permission", "open");
   assert.equal(t.log.requested + t.log.opened, 0);
 });
@@ -132,10 +160,16 @@ test("unknown permission actions and untrusted senders are refused", async () =>
   const t = setup({ platform: "darwin", status: "denied" });
   assert.equal(await t.ask("blinkling:welcome-permission", "format"), null);
   assert.equal(
-    await t.handlers.get("blinkling:welcome-permission")({ sender: {} }, "request"),
+    await t.handlers.get("blinkling:welcome-permission")(
+      { sender: {} },
+      "request",
+    ),
     null,
   );
-  assert.equal(await t.handlers.get("blinkling:welcome-ready")({ sender: {} }), null);
+  assert.equal(
+    await t.handlers.get("blinkling:welcome-ready")({ sender: {} }),
+    null,
+  );
   t.listeners.get("blinkling:welcome-close")({ sender: {} });
   assert.equal(t.controller.isOpen, false);
 });

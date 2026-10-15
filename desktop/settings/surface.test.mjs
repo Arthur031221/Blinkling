@@ -2,8 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const read = (file) =>
-  readFileSync(new URL(file, import.meta.url), "utf8");
+const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
 const windows = ["settings", "welcome"];
 
 for (const name of windows) {
@@ -11,8 +10,14 @@ for (const name of windows) {
     const css = read(`../${name}/style.css`);
     assert.doesNotMatch(css, /\b(?!0ms)\d+(\.\d+)?m?s\b/, "timing literal");
     const bare = css.replace(/var\([^)]*\)/g, "");
-    assert.doesNotMatch(bare, /cubic-bezier|\bease(-in|-out|-in-out)?\b|\blinear\b/, "easing literal");
-    const properties = [...css.matchAll(/transition(?:-property)?:\s*([^;]+);/g)]
+    assert.doesNotMatch(
+      bare,
+      /cubic-bezier|\bease(-in|-out|-in-out)?\b|\blinear\b/,
+      "easing literal",
+    );
+    const properties = [
+      ...css.matchAll(/transition(?:-property)?:\s*([^;]+);/g),
+    ]
       .flatMap((m) => m[1].split(","))
       .map((part) => part.trim().split(/\s+/)[0]);
     assert.ok(properties.length > 0);
