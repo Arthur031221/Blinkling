@@ -97,6 +97,7 @@ export class DesktopCompanion {
       const result = await this.extension.elements(
         valid ? { x: point.x, y: point.y } : undefined,
         controller.signal,
+        { fresh: message.fresh === true },
       );
       res.end(JSON.stringify({ result }));
       return;

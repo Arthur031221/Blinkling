@@ -412,10 +412,11 @@ export async function startDesktopHost({
     },
     /** Page structure from the optional browser helper, or null when there is
      * no helper, no Chrome or Edge window under `point` (screen DIP), or the page
-     * is restricted. Secure fields come back with no name or text. */
-    async elements({ point, signal } = {}) {
+     * is restricted. Secure fields come back with no name or text. `fresh` skips the
+     * helper's short cache, for the read a click depends on. */
+    async elements({ point, signal, fresh } = {}) {
       const value = await callCompanion(
-        { method: "elements", point },
+        { method: "elements", point, ...(fresh === true ? { fresh } : {}) },
         signal,
         8000,
       );

@@ -163,6 +163,44 @@ it("carries a full page as separate tiles at their own size, with progress while
   }
 });
 
+it("host.elements reaches the helper again when the read must be fresh", async () => {
+  const app = await rig();
+  try {
+    const socket = await connectHelper(app.origin, app.trust.secret());
+    let asked = 0;
+    socket.on("message", (raw) => {
+      const message = JSON.parse(raw.toString());
+      if (message.type !== "elements") return;
+      asked++;
+      socket.send(
+        JSON.stringify({
+          type: "elements-result",
+          id: message.id,
+          result: {
+            page: {
+              url: "https://example.test/",
+              title: "",
+              tabId: 1,
+              incognito: false,
+            },
+            frame: { screenX: 0, screenY: 0, devicePixelRatio: 1, zoom: 1 },
+            elements: [],
+          },
+        }),
+      );
+    });
+    const point = { x: 50, y: 150 };
+    await app.host.elements({ point });
+    await app.host.elements({ point });
+    expect(asked).toBe(1);
+    await app.host.elements({ point, fresh: true });
+    expect(asked).toBe(2);
+    socket.terminate();
+  } finally {
+    await app.close();
+  }
+});
+
 it("host.elements, translatePage and openPdfReader reach the helper end to end", async () => {
   const app = await rig();
   try {
