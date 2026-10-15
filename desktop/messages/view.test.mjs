@@ -17,7 +17,13 @@ const rule = (selector) =>
   )?.[1] ?? "";
 
 /** jsdom has no layout: give the deck and its bubbles a deterministic one. */
-function setup({ openChat, locale = "zh-TW", onShape, onReference } = {}) {
+function setup({
+  openChat,
+  locale = "zh-TW",
+  onShape,
+  onReference,
+  onAction,
+} = {}) {
   const clock = { now: 100_000 };
   const { window } = new JSDOM("<body><div id='host'></div></body>", {
     pretendToBeVisual: true,
@@ -38,6 +44,7 @@ function setup({ openChat, locale = "zh-TW", onShape, onReference } = {}) {
     openChat,
     onShape,
     onReference,
+    onAction,
     t: translatorFor(window.document, locale),
     now: () => clock.now,
   });
@@ -399,6 +406,32 @@ test("reference badges show the number, report hover and scroll their bubble int
       (index + 1) * ROW - t.deck.scrollTop <= 200,
     "the bubble with the badge is fully inside the deck",
   );
+  t.dispose();
+});
+
+test("a failure bubble carries its chips, and a chip reports its action", async () => {
+  const actions = [];
+  const t = setup({ onAction: (id) => actions.push(id) });
+  t.store.fail({
+    id: "guide-failure",
+    text: "導覽暫時無法完成，請再試一次。",
+    actions: [
+      { id: "guide-retry", label: "再試一次" },
+      { id: "guide-dismiss", label: "關閉" },
+    ],
+  });
+  const bubble = t.deck.querySelector('[data-kind="failure"]');
+  assert.match(bubble.textContent, /導覽暫時無法完成/);
+  const chips = [...bubble.querySelectorAll("button")];
+  assert.deepEqual(
+    chips.map((c) => c.textContent),
+    ["再試一次", "關閉"],
+  );
+  chips[0].click();
+  chips[1].click();
+  assert.deepEqual(actions, ["guide-retry", "guide-dismiss"]);
+  t.store.dismiss("guide-failure");
+  assert.equal(t.deck.querySelector('[data-kind="failure"]'), null);
   t.dispose();
 });
 

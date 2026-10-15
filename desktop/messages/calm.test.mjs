@@ -195,3 +195,17 @@ test("the deck modules load in a renderer: no node: imports", () => {
     assert.doesNotMatch(source, /from\s+["']node:/, name);
   }
 });
+
+test("turnId and faded follow the timer instead of freezing at their first value", () => {
+  const c = clock();
+  const calm = createCalm({ now: c.now, setTimer: c.setTimer });
+  assert.equal(calm.turnId, undefined);
+  calm.settle("t1");
+  assert.equal(calm.turnId, "t1");
+  assert.equal(calm.faded, false);
+  c.advance(timing.settle);
+  assert.equal(calm.faded, true);
+  calm.settle("t2");
+  assert.equal(calm.turnId, "t2");
+  assert.equal(calm.faded, false);
+});

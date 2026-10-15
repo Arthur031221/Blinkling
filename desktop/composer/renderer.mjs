@@ -54,6 +54,7 @@ api.shell?.({ type: "state" }).then(
   () => {},
 );
 let shapeHook;
+const FAILURE_ID = "guide-failure";
 export const conversation = mountConversation({
   session: sessionFromDesktopAPI(api),
   cardHost:
@@ -71,6 +72,10 @@ export const conversation = mountConversation({
   openLink: (url) => api.openLink?.(url),
   onShape: () => shapeHook?.(),
   onReference: ({ ref }) => api.bubbleHover?.({ ref }),
+  onAction: (action) => {
+    if (action === "guide-dismiss") conversation.store.dismiss(FAILURE_ID);
+    api.action(action).catch(() => {});
+  },
 });
 const unMark = api.onMarkClick?.(({ ref }) =>
   conversation.bubbles?.reveal(ref),
@@ -128,6 +133,21 @@ const unEvent = api.onEvent((event) => {
     guide.replaceChildren();
     guide.hidden = event.phase === "dismissed";
     notice.hidden = true;
+    conversation.store.dismiss(FAILURE_ID);
+    // A failed guide is one more bubble on the deck, so it settles and fades
+    // with the rest instead of staying on the page (N6.6).
+    if (event.phase === "error" && configuration.surface === "bubbles") {
+      guide.hidden = true;
+      conversation.store.fail({
+        id: FAILURE_ID,
+        text: event.bubbles?.[0] ?? event.message ?? "",
+        actions: [
+          { id: "guide-retry", label: tr("guide-retry") },
+          { id: "guide-dismiss", label: tr("guide-close") },
+        ],
+      });
+      return;
+    }
     for (const text of event.bubbles ??
       (event.phase === "thinking" ? [tr("guide-thinking")] : [])) {
       const bubble = document.createElement("p");

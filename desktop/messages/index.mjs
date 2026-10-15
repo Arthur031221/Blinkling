@@ -38,6 +38,17 @@ export function createMessageStream({
       .slice(floor)
       .filter((m) => m.role === "assistant")
       .flatMap((m) => {
+        if (m.failure)
+          return [
+            {
+              kind: "failure",
+              markdown: m.text,
+              complete: true,
+              id: `${m.id}:0`,
+              messageId: m.id,
+              actions: structuredClone(m.failure.actions),
+            },
+          ];
         if (m.plain)
           return [
             {
@@ -119,6 +130,7 @@ export function createMessageStream({
         .join("\n\n"),
       complete: message.complete ?? true,
       ...(message.plain ? { plain: true } : {}),
+      ...(message.failure ? { failure: message.failure } : {}),
     });
     if (!live) {
       floor = messages.size;
@@ -132,12 +144,44 @@ export function createMessageStream({
       calm.settle(message.id);
     }
   };
+  const bringBack = () => calm.hover();
   return {
     append(message) {
       upsert(message);
       holding();
       notify();
     },
+    /** Something went wrong and Blink says so: one plain bubble with its
+     * action chips. It settles, fades and is recalled like every other bubble. */
+    fail({ id, text, actions = [] }) {
+      upsert({
+        id,
+        role: "assistant",
+        content: [{ type: "text", text }],
+        plain: true,
+        failure: { actions },
+      });
+      visible = true;
+      calm.settle(id);
+      holding();
+      notify();
+    },
+    /** The reader acted on a failure (or the problem went away): drop it, for
+     * good, so neither the timer nor a hover brings it back. */
+    dismiss(id) {
+      const at = [...messages.keys()].indexOf(id);
+      if (at < 0) return;
+      messages.delete(id);
+      if (at < floor) floor--;
+      notify();
+    },
+    /** Called when the deck fades (N6.6), so marks on the page can go with it. */
+    onSettle(listener) {
+      calm.on("fade", listener);
+      return () => calm.off("fade", listener);
+    },
+    /** The one way back for a faded answer: it shows again, then settles again. */
+    bringBack,
     snapshot,
     bubbles,
     state,
@@ -175,7 +219,9 @@ export function createMessageStream({
         for (const m of messages.values())
           if (m.role === "assistant") m.complete = true;
         speaking = false;
-        if (calm.turnId !== undefined) calm.settle(event.turnId ?? calm.turnId);
+        // The wait starts when the turn ends, but only for an answer on show.
+        if (calm.turnId !== undefined && !calm.faded)
+          calm.settle(event.turnId ?? calm.turnId);
       } else return;
       holding();
       notify();
@@ -188,7 +234,7 @@ export function createMessageStream({
       else hoverSources.delete(source);
       if (Boolean(value) === had) return;
       holding();
-      if (value && source !== "bubbles") calm.hover();
+      if (value && source !== "bubbles") bringBack();
     },
     pin: (on) => calm.pin(on),
     /** Blink moved to another display; its answers stay behind. */
