@@ -81,6 +81,6 @@ For the explicit logged-in CLI 2.1.296 canary, replace the configuration path wi
 `desktop/composer/e2e/live.config.mjs`. It creates one isolated owned Remote
 Control session, confirms controls, sends two one-word prompts (image and text
 file), and terminates its child. It is separate so normal unit/CI runs never
-silently consume the user's Claude quota. No API key or credential access.
+silently consume the user's Claude quota. No credential access.
 Screenshots/evidence use `BLINKLING_REPORT_DIR`, defaulting to the ignored
 `test-results/conversation-artifacts/` directory for portable local/CI runs.

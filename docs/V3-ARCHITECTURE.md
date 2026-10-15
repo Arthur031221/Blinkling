@@ -132,7 +132,7 @@ fullscreen, or a physical mixed-DPI monitor arrangement. Those are release gates
 ## Claude Code 2.1.296: actual Remote Control path
 
 The host's logged-in `claude` was used with tiny Haiku/low prompts, no separate
-API key. Saved CLI help is in `spike/claude-help.txt` and
+credential. Saved CLI help is in `spike/claude-help.txt` and
 `spike/remote-control-help.txt`. Findings:
 
 | Path                                                              | Result and decision                                                                                                                                                                                                          |
@@ -315,7 +315,7 @@ serialize installs, preserve the previous working version, and pass arguments
 as arrays. Launch/deduplicate by authenticated local IPC, not process-name kills.
 Register the idempotent launcher in plugin SessionStart integration so future
 Claude Code sessions reconnect automatically after the initial slash command.
-No user pairing codes. No arbitrary port input. `/blinkling:blinkling` now invokes
+Nobody types a code or a port. `/blinkling:blinkling` now invokes
 the verified desktop launcher. The empty embedded release manifest fails closed
 until published V3 builds and their pinned hashes are available.
 

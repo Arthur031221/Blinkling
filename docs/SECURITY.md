@@ -1,40 +1,28 @@
 # Security and privacy
 
-Blinkling collects no telemetry. The bridge does not log page content, capture bytes, pairing tokens or API keys. The prerecorded interactive chat uses a fixture image and recorded answers, without provider requests. The README and showcase GIFs record the real extension on public sites with Claude Code replies.
+Blinkling collects no telemetry. The bridge does not log page content, capture bytes or pairing tokens.
 
 ## Data flow
 
-After consent, bounded page text may be sent to generate suggested questions. Context excludes hidden, editable, private and password fields and does not collect form values. Questions and optional Auto explain summaries can send relevant page text and images. Pixel captures can contain information the text filter cannot identify. Review the source before asking.
+Blink asks Claude Code on the same computer, signed in with your own account. A question sends the pick you made (an image and, when the helper is connected, the text inside the picked element) through that Claude Code session. Pixel captures can contain information a text filter cannot identify. Review what is on screen before asking, or turn Blink off.
 
-Bridge mode uses an origin bound, paired loopback WebSocket. Dedicated threads and parallel continuations run the user's CLI. An image is placed in a private temporary directory and removed after completion, timeout or cancellation. Recent sessions are listed through the official SDK. A parallel continuation resumes the exact selected UUID and writes to that conversation. Avoid running it concurrently with terminal work on the same transcript.
+The browser helper only talks to the bridge on `127.0.0.1`, through a WebSocket that checks the local host, the extension origin and a one-use setup code or a 64-hex token. Password and other secure fields are reported as secure with no text and no value; input values are never read. A full-length capture is refused on a page that has a password field. Page content is untrusted input.
 
 Print mode keeps restricted mode and safe mode enabled, disabling user and project customizations, including hooks, and configures no MCP servers. Managed CLI policies still apply. Image requests expose only the Read tool, add only that request's private temporary directory with `--add-dir`, and preapprove the exact screenshot path using an absolute Read rule. Text-only requests enable no tools or additional directories. This preapproval is not a deny rule: Read can still access files in the session's working directories under the CLI's normal read permissions.
 
-With an enabled live channel, requests are pushed into the running terminal conversation. Its model, permissions and tools apply. The plugin returns images and scoped reply chunks through MCP tools. Only bubble request replies are mirrored. Stop ends the bubble's wait. It does not stop terminal execution. Press Esc there when necessary.
-
-Direct API mode sends requests and optional images to Anthropic using the user's key. The key is not sent to the local bridge. Provider retention and account policies apply to all provider requests.
-
-Auto explain starts off. Once enabled with consent and site access, page changes can trigger summaries without screen sharing. Shared browser video requires a Capture Handle matching the inspected HTTP or HTTPS tab before and after its privacy check. Password fields, blocklisted hosts and loading or inaccessible embedded pages pause automatic page requests. Open shadow roots and accessible embedded pages are checked; closed shadow roots cannot be inspected.
-
-Shared monitors and native app windows can trigger image explanations only after separate consent for that share. Consent is bound to the stream and track, and ends when sharing stops or the source changes. These pixels cannot be checked for password fields or blocked websites. Unknown capture sources remain paused. Monitor frames mask the floating bubble before comparison and transmission; stable changes are debounced and summaries are capped at six per rolling minute. These controls do not detect every sensitive image. Hide private content or pause Auto explain before sharing it. Manual captures and questions remain available.
+Auto explain starts off. When it is on, Blink adds at most two bubbles for a large screen change, never draws marks and pauses while you type. These controls do not detect every sensitive image; turn it off before showing private content.
 
 ## Storage
 
-| Location                 | Data                                                                                                                                                           |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Browser local storage    | Consent, language, backend, model, effort, target language, passive and Shift preferences, host blocklist and observed PiP dimensions.                         |
-| Browser session storage  | Bridge token, URL, mode and direct API key. Cleared when the browser session ends.                                                                             |
-| Bubble memory            | Captures, latest shared video frame, chat replies and translation originals. Frames are not written to browser storage. Closing the opener clears this memory. |
-| Bridge memory            | Pairing state, active requests, short follow up context and temporary session metadata. Tokens expire after twelve hours. Restart clears memory.               |
-| Host CLI storage         | Persistent conversation transcripts owned by the CLI. Dedicated and selected sessions follow its normal persistence behavior.                                  |
-| Temporary host directory | Request image for print mode, removed when the request ends.                                                                                                   |
+| Location                 | Data                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Browser session storage  | The helper's bridge token and URL. Cleared when the browser session ends.                                                |
+| Bridge memory            | Pairing state, active requests and the in-memory capture history. Tokens expire after twelve hours; restart clears them. |
+| Host CLI storage         | Persistent conversation transcripts owned by Claude Code, following its normal persistence behavior.                     |
+| Temporary host directory | Request image for print mode, removed when the request ends.                                                             |
 
-The bridge uses an operating system assigned loopback port. Pairing checks the local host, extension origin and one use code or token. Codes expire after ten minutes. Payloads and requests have limits. Disconnecting aborts the active print request. It ends waiting for a live channel reply without cancelling the terminal's work.
+The bridge uses an operating system assigned loopback port. Setup codes expire after ten minutes and work once. Payloads and requests have limits. Disconnecting aborts the active request.
 
-## Cost and controls
+## Controls
 
-The preceding hour's cost uses reported CLI usage when available. Direct API mode estimates input and output token cost at the bundled model rates. Live channel replies have no authoritative usage report. The total is an estimate, not a spending cap. Check provider billing for actual charges.
-
-Sharing begins only after the user chooses a browser source. Closing the floating window stops its stream. Auto explain can be paused or disabled with Alt+P or its control. Ending the browser session clears the API key. Browser permissions govern page access and restricted pages. The bubble cannot make its native frame transparent or click through, and native apps cannot receive DOM guides.
-
-Page content is untrusted input. Guide element IDs and translation node IDs are checked before changes are applied. No remote code is loaded. A model response is not a security boundary. Review it before acting.
+Capture begins only when the user asks. Browser permissions govern page access and restricted pages; the helper needs the one-time "Allow on all sites" for full-length capture and page structure, and says so in its popup. A model response is not a security boundary. Review it before acting. No remote code is loaded. Guide element IDs and translation node IDs are checked before changes are applied.

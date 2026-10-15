@@ -1,26 +1,14 @@
 # Configuration
 
-The plugin requires Node.js 22 or newer and a working installed coding-assistant CLI. The default backend starts that CLI without a shell in a private temporary directory. It receives the current PNG through one allowed read path, with no other tools, an empty strict MCP configuration and no saved conversation. The temporary directory is removed when the answer finishes or is cancelled. Responses stream into the panel.
+Blinkling needs Node.js 22 or newer for the plugin bridge and Claude Code, signed in, on the computer that shows Blink. Blink asks Claude Code there; nothing else is configured and no separate account is used. If Claude Code is missing on that computer, one bubble says how to install it.
 
-Select one of the `sonnet`, `opus` or `haiku` aliases. The installed CLI resolves the alias according to its own configuration.
+Pick a model and effort in the full composer. The mini composer silently uses the last choice. The installed Claude Code resolves the model aliases `sonnet`, `opus` and `haiku` according to its own configuration.
 
-The optional API backend sends requests from the local bridge. Enter its API key in panel Settings. The key remains in bridge process memory for the session, is sent only to the selected API backend, and is not written to panel storage or a file. **Clear** removes it and aborts active jobs. The session expires after 30 minutes, stopping the plugin process also removes the key.
+The settings are few: the pick key on macOS (Control or Option), the global capture hotkey, starting Blinkling with Claude Code, and under Help the welcome replay, the browser helper guide and About. The language follows the system.
 
-The panel offers nine interface locales: English, Traditional Chinese, Simplified Chinese, Japanese, Korean, Spanish, French, German and Brazilian Portuguese. Language, theme, model, size and translation target preferences are stored in the panel tab's session storage. Launch and session tokens are held in memory and are not written there.
+The browser helper has no settings. Its popup and setup guide follow the browser language in nine locales: English, Traditional Chinese, Simplified Chinese, Japanese, Korean, Spanish, French, German and Brazilian Portuguese. It keeps one pairing token for the current browser session in `chrome.storage.session`; nothing is written to disk.
 
-Compact and expanded dimensions are saved separately. A local file and browser cache also retain popup position and window frame dimensions when the bridge restarts on a new port. The browser controls Picture in Picture placement. Saving is best effort when either storage location is unavailable.
-
-Only geometry is saved. The file contains no questions, images, keys, session tokens or answer history.
-
-Popup positions are clamped to the screen available to the opener. A popup last used on another monitor may reopen on the opener's screen.
-
-| Platform | Preference file                                                                                                        |
-| -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Linux    | `$XDG_CONFIG_HOME/blinkling/floating-geometry-v1.json`, or `~/.config/blinkling/floating-geometry-v1.json` when unset  |
-| macOS    | `~/Library/Application Support/blinkling/floating-geometry-v1.json`                                                    |
-| Windows  | `%APPDATA%/blinkling/floating-geometry-v1.json`, or `~/AppData/Roaming/blinkling/floating-geometry-v1.json` when unset |
-
-Passive-note requests are capped at six per rolling minute by default. Settings allow a lower cap. This is a request-rate limit. It does not predict API or account cost. The separate MCP screen watch samples at a selected interval from 5 to 60 seconds, retains changed images only, and makes no model calls.
+The separate MCP screen watch samples at a selected interval from 5 to 60 seconds, retains changed images only, and makes no model calls.
 
 ## Remote Control switch (desktop)
 

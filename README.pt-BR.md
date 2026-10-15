@@ -12,14 +12,10 @@
 
 Formerly Glimpselet. Vindo do plugin antigo? Execute `/plugin uninstall glimpselet@glimpselet` e `/plugin marketplace remove glimpselet` e depois instale o Blinkling pelos passos abaixo.
 
-Um pequeno chat flutuante do Claude Code. Pergunte sobre a página, capture uma área, siga um guia ou traduza um trecho.
+O Blink é um pequeno companheiro no canto da sua tela. Segure Ctrl e clique em algo para perguntar sobre isso ao Claude Code.
 
 > [!TIP]
-> Use sua própria conta conectada do Claude Code e Chrome ou Edge no desktop. O Claude Code não precisa de chave de API.
-
-![Google Flights: um guia da página e uma pergunta sobre reservar uma viagem de ida e volta.](assets/demo.gif)
-
-_Google Flights: um guia da página e uma pergunta sobre reservar uma viagem de ida e volta._
+> O Blink usa o Claude Code em que você já está conectado, no mesmo computador.
 
 ## Instalação
 
@@ -30,16 +26,16 @@ _Google Flights: um guia da página e uma pergunta sobre reservar uma viagem de 
    /plugin install blinkling@blinkling
    ```
 
-2. Abra o guia de boas-vindas:
+2. Acorde o Blink. Na primeira vez aparece uma boas-vindas em três passos:
 
    ```text
    /blinkling:blinkling
    ```
 
-3. Ative o **modo de desenvolvedor** em `chrome://extensions` (ou `edge://extensions`). Escolha **Load unpacked** e a pasta aberta por **Show in Files / Finder**. A página de boas-vindas conecta automaticamente. Abra a bolha.
+3. Opcional, para estrutura da página, captura de página inteira, tradução no lugar e leitor de PDF: execute `/blinkling:install`, ative o **modo de desenvolvedor** em `chrome://extensions` (ou `edge://extensions`), escolha **Load unpacked** e selecione `~/Blinkling-extension`.
 
 > [!NOTE]
-> No desktop local, **Try without installing** abre um perfil separado do Chromium. Em um host remoto, execute o comando SSH exibido no computador do navegador. [Instalação e atualizações](docs/INSTALL.md).
+> O auxiliar é opcional: o Blink funciona sem ele. [Detalhes de instalação e atualização](docs/INSTALL.md).
 
 ### Avançado: carregar do código-fonte
 
@@ -62,15 +58,15 @@ node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-As duas verificações de versão devem mostrar `2.1.0`. A lista de plugins deve mostrar `blinkling@inline` na versão `2.1.0`, ativado para esta sessão. O último comando abre o Claude Code. Execute `/blinkling:blinkling` nessa sessão para abrir o guia de boas-vindas. `--plugin-dir` carrega esta cópia do repositório apenas para essa sessão. Use a opção a cada inicialização e reinicie o Claude Code depois de executar `npm run build:plugin` novamente. A extensão compilada fica em `dist-extension`. O guia de boas-vindas a copia para a pasta estável indicada abaixo.
+As duas verificações de versão devem exibir **2.1.0**, e a lista de plugins deve mostrar `blinkling@inline` em **2.1.0**, ativado para esta sessão. Na sessão do Claude Code aberta pelo último comando, execute `/blinkling:blinkling`. A opção `--plugin-dir` carrega seu checkout somente nessa sessão. Use-a toda vez que iniciar o Claude Code a partir do código-fonte e reinicie a sessão depois de recompilar. A extensão compilada fica em `dist-extension`, dentro do checkout.
 
-Os detalhes do plugin também devem incluir as habilidades `blinkling` e `install` e o servidor MCP `blinkling`. A extensão empacotada fica em `bin/extension` e também deve estar na versão **2.1.0**. Se o Claude Code estiver em um host remoto, use o comando SSH do guia, baixe o ZIP da extensão no computador com o navegador e carregue a pasta extraída ali.
+Os detalhes do plugin também devem listar as skills `blinkling` e `install` e o servidor MCP `blinkling`. A extensão empacotada fica em `bin/extension` e sua versão também deve ser **2.1.0**.
 
-Se o navegador e o Claude Code rodam no mesmo computador, o guia de boas-vindas copia a extensão compilada para a pasta estável `~/Blinkling-extension`. No Chrome ou Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continuará visível. As atualizações precisam ser feitas manualmente.
+O auxiliar do navegador é opcional. Execute `/blinkling:install` para copiar a extensão compilada para a pasta fixa `~/Blinkling-extension`. No Chrome ou no Edge, abra `chrome://extensions` ou `edge://extensions`, ative **Developer mode**, escolha **Load unpacked** e selecione essa pasta. O aviso de desenvolvedor continua visível e as atualizações são manuais quando houver uma nova versão.
 
-Para atualizar uma extensão descompactada, feche a bolha antiga e execute `/blinkling:blinkling` novamente para atualizar a pasta estável. Clique em Recarregar no cartão da extensão. Se o Claude Code for remoto, baixe o novo ZIP pelo guia, substitua os arquivos extraídos no computador com o navegador e recarregue a extensão. Ao mudar para `~/Blinkling-extension`, remova o cartão anterior e carregue esta pasta uma vez.
+Depois de atualizar a extensão não empacotada, execute `/blinkling:install` de novo para renovar a pasta fixa e clique em Recarregar no cartão dela na página de extensões. Ao mudar para `~/Blinkling-extension`, remova o cartão antigo e carregue esta pasta uma vez.
 
-Para atualizar o plugin instalado, execute estes comandos e depois `/reload-plugins` e `/blinkling:blinkling` no Claude Code. Confira **2.1.0** na lista de plugins e no cartão da extensão antes de reabrir a bolha.
+Com o plugin instalado, execute estes comandos e depois `/reload-plugins` e `/blinkling:blinkling` no Claude Code. Confirme que a lista de plugins e o cartão da extensão mostram a versão **2.1.0**.
 
 ```sh
 claude plugin marketplace update blinkling
@@ -82,35 +78,18 @@ claude plugin list
 
 ## Enquanto você lê
 
-- **Capturar tela inteira** ou **Escolher área**. Segure Shift e arraste em uma página compatível ou na bolha. Enter confirma e Esc cancela. A bolha sai do caminho durante a captura compartilhada e volta depois.
-- **Guiar esta página** oferece uma visão geral e um percurso Próximo/Voltar por áreas de leitura e controles.
-- Selecione texto para perguntar, explicar ou traduzir. Traduza uma página e restaure o original, ou abra um PDF no leitor integrado.
-- **Explicação automática** sugere até três perguntas e resume mudanças. Alt+P pausa. Escolha Opus, Sonnet ou Haiku para o chat.
+- **Pergunte sobre o que está sob o ponteiro.** Segure Ctrl e clique em algo, ou arraste para pegar uma área. Ela voa para o Blink e o compositor mini se abre. Enter envia.
+- **Converse com o Blink.** Clique no Blink para continuar a última conversa no compositor mini. Uma mensagem longa ou Shift+Enter abre o compositor completo.
+- **Respostas em balões.** Eles apontam para aquilo de que falam. Gire a roda sobre o Blink para ler os anteriores.
+- **O menu.** Passe o ponteiro sobre o Blink para abri-lo: captura, guia, explicação automática e configurações. Um guia numera seus passos na página e pode ser salvo como Markdown. A explicação automática vem desativada, acrescenta no máximo dois balões e nunca desenha marcas.
+- **Auxiliar do navegador (opcional).** O pop-up da barra de ferramentas mostra o que está conectado e tem um botão **Wake Blink**. Ele permite que o Blink leia a estrutura da página, capture uma página inteira, traduza uma página no lugar e abra PDFs em um leitor.
 
-![arXiv: selecionar um resumo, perguntar sobre ele e traduzir para chinês tradicional.](assets/arxiv.gif)
+A captura também tem um atalho global, Ctrl+Shift+S (Cmd no macOS), que você pode mudar nas configurações.
 
-_arXiv: selecionar um resumo, perguntar sobre ele e traduzir para chinês tradicional._
+## Privacidade
 
-Gravado com a extensão real em sites ao vivo e respostas do Claude Code. As esperas foram encurtadas. Conteúdo e respostas não foram preparados.
+O Blink pergunta ao Claude Code em que você está conectado neste computador, e nada é capturado até você pedir. Sem telemetria nem serviço de respostas operado pelo editor. O contexto escolhido e as capturas vão para o Claude Code e seu provedor; valem os termos e as cobranças de uso do provedor. O auxiliar só fala com a ponte em `127.0.0.1` e nunca lê campos de senha nem valores digitados. A explicação automática permanece desativada até você ativá-la.
 
-## Atalhos
-
-| Atalho       | Ação                         |
-| ------------ | ---------------------------- |
-| Alt+Shift+G  | Abrir a bolha                |
-| Ctrl+Shift+S | Recortar no navegador        |
-| Ctrl+Shift+7 | Recortar de outro aplicativo |
-
-No macOS, use Cmd em vez de Ctrl. Remapeie em `chrome://extensions/shortcuts`. Shift funciona apenas em páginas compatíveis e na bolha.
-
-## Sessões e privacidade
-
-O Blinkling usa um canal ativo verificado do Claude Code. Caso contrário, continua a última conversa salva do projeto em outro processo. Evite usar o mesmo histórico simultaneamente no terminal. [Canal e limites](docs/DESIGN.md#the-running-claude-code-conversation).
-
-> [!IMPORTANT]
-> Explicação automática resume mudanças **sem compartilhar a tela** após consentimento e acesso ao site. Campos de senha e a lista de bloqueio pausam resumos e sugestões automáticos. Resumos de tela usam uma guia compartilhada vinculada à mesma guia inspecionada, com as mesmas verificações. Um monitor ou aplicativo compartilhado precisa de **consentimento separado para cada compartilhamento**. Seus pixels não permitem verificar senhas ou sites bloqueados. Fontes desconhecidas continuam pausadas.
-> Páginas incorporadas carregando ou inacessíveis também pausam solicitações automáticas.
-
-Sem telemetria nem serviço de respostas do editor. Contexto e capturas escolhidos vão ao seu backend. Os termos e custos dele se aplicam. Aplicativos nativos fornecem apenas pixels. Configurações, lojas de extensões e páginas protegidas bloqueiam ferramentas. Opacidade e passagem de cliques da janela nativa dependem do navegador. [Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v2.1.0.md)
+[Detalhes de privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Recursos](docs/FEATURES.md) | [Notas da versão](docs/releases/v2.1.0.md)
 
 Assisted by Claude/Codex.

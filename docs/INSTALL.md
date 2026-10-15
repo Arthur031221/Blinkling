@@ -7,7 +7,7 @@ Install the Blinkling plugin with these two commands in Claude Code:
 /plugin install blinkling@blinkling
 ```
 
-Run `/blinkling:blinkling` to connect and start. The welcome page has exactly three steps: install the extension, connect automatically, and open the bubble. The extension is copied to the stable `~/Blinkling-extension` directory. If a desktop browser is available on the same computer, the installer opens the browser's extension page and reveals the folder.
+Blinkling is the Blink desktop companion. It works as soon as the plugin is installed: run `/blinkling:blinkling` to wake Blink. The browser helper is optional. It lets Blink read page structure for the locator, capture a full-length page, translate a page in place and open PDFs in the reader.
 
 ## Upgrade to 2.1.0
 
@@ -19,7 +19,7 @@ claude plugin update blinkling@blinkling
 claude plugin list
 ```
 
-Run `/reload-plugins` in Claude Code, or restart it, then run `/blinkling:blinkling` again. Confirm the plugin list and the browser's extension card both show **2.1.0**. Reload the unpacked extension after the command refreshes `~/Blinkling-extension`. On a remote host, download the new ZIP through the guide and replace the extracted files before reloading. Close the old bubble before updating.
+Run `/reload-plugins` in Claude Code, or restart it, then run `/blinkling:blinkling` again. Confirm the plugin list and the browser's extension card both show **2.1.0**. Reload the unpacked helper after the command refreshes `~/Blinkling-extension`.
 
 ## Advanced: run a source checkout
 
@@ -43,48 +43,30 @@ For this v2 checkout, all three version checks should print `2.1.0`. The plugin 
 
 The plugin details must also report **blinkling 2.1.0**, include the `blinkling` and `install` skills and the `blinkling` MCP server. The packaged extension is at `bin/extension`; its version check must also print **2.1.0**.
 
-For the browser extension, **Load unpacked** can use the checkout's `dist-extension` folder after the build, or the stable `~/Blinkling-extension` folder copied by `/blinkling:blinkling`. Check version `2.1.0` on its card at `chrome://extensions` or `edge://extensions`. If the checkout is on a remote host, download and extract its extension ZIP on the browser computer using the tunnel flow below.
+For the browser extension, **Load unpacked** can use the checkout's `dist-extension` folder after the build, or the stable `~/Blinkling-extension` folder copied by `/blinkling:blinkling`. Check version `2.1.0` on its card at `chrome://extensions` or `edge://extensions`.
 
-## Load the unpacked extension
+## Load the browser helper
 
-Choose `~/Blinkling-extension` in desktop Chrome or Edge:
+Run `/blinkling:install` in Claude Code. It copies the helper to `~/Blinkling-extension`, opens the browser's extension page and a short guide. Then choose `~/Blinkling-extension` in desktop Chrome or Edge:
 
 1. Open `chrome://extensions` or `edge://extensions` and turn on **Developer mode**.
 2. Choose **Load unpacked**.
 3. Select `~/Blinkling-extension`.
 
-Browsers require a user to confirm an unpacked extension this way. Silent installation is available only through managed enterprise policy. The Developer mode banner remains visible, and updates require running the install command again and reloading the extension until a store listing is available.
+Browsers require a user to confirm an unpacked extension this way. Silent installation is available only through managed enterprise policy. The Developer mode banner stays visible, and updates need `/blinkling:install` again and a reload of the extension until a store listing is available.
 
 If an older card loads `~/.blinkling/extension` or another source folder, remove that card and load `~/Blinkling-extension` once. Browser cards keep their original source path; Reload cannot move an installation. Later updates refresh the visible folder and need only Reload.
 
 `config/distribution.json` selects the install flow. Leave both URLs empty to show the three-step unpacked instructions. After store approval, fill `chromeWebStoreUrl` and/or `edgeAddonsUrl` with the approved listing URL. The guide then shows the matching one-click store link in the install step. `BLINKLING_DISTRIBUTION_CONFIG` can point to the JSON file when Blinkling runs outside the repository checkout. The installer accepts only HTTPS listing URL patterns for the named stores.
 
-## Zero-install desktop mode
+## How the helper connects
 
-Choose **Try without installing** in the welcome page to launch a separate browser with the extension already loaded and connected. You can also run `npm run build:extension`, then `node scripts/launch-browser.mjs`. The launcher works from the shipped `bin` directory without `node_modules`: when it cannot import Playwright, it installs pinned Playwright 1.64.0 under `~/.blinkling/runtime`, then installs Chromium there on first use. It loads the extension into a separate persistent profile at `~/.blinkling/chromium-profile`. Set `BLINKLING_TRIAL_URL` to open a page after launch. Close the Chromium window, or send the launcher SIGTERM, to stop it. This mode requires a graphical desktop on the same computer as Claude Code. A remote SSH host cannot open the browser window. Use the remote tunnel flow below.
+The helper pairs with Blinkling on its own. The guide page carries a short-lived setup link in its URL fragment, which keeps it out of request logs and page text, and the helper completes the handshake and keeps the resulting token in `chrome.storage.session`. Nobody sees or types a code. After the browser or the bridge restarts, run `/blinkling:install` once more.
 
-## Connect the browser and host
+Click the helper's toolbar button to see its status in one line each: connected, and what is missing (the link to Claude Code, Blink being awake, access to the current site). **Wake Blink** opens the companion. **Allow on all sites** grants the one-time site access that full-length capture and page structure need. The popup and the guide follow the browser language in the nine supported languages: English, 繁體中文, 简体中文, 日本語, 한국어, Español, Français, Deutsch and Português (Brasil).
 
-On one computer, the extension connects to the loopback bridge automatically when it detects the welcome page. No port or pairing code is shown or entered. When the page says **Connected to your Claude Code**, choose **Open the bubble**. Chrome still requires a click in the companion window to open its floating window. The connection label is **已連到你的 Claude Code** in Traditional Chinese.
-
-When Claude Code runs on a remote host, run the SSH local-forward command printed by `/blinkling:blinkling` on the computer with the browser. The SSH command stays in the terminal instructions; the welcome page keeps its three steps. It has this form:
-
-```sh
-ssh -N -L 37115:127.0.0.1:37115 user@remote-host
-```
-
-The tunnel forwards the browser's local loopback connection to the host's loopback bridge. On the welcome page, **Download extension** downloads the extension files packaged with that installed plugin directly from its loopback bridge. The download requires the page's short-lived setup code and includes only regular files from the packaged extension directory. Extract it into a visible folder such as `Downloads/Blinkling-extension` on the browser computer, then use **Load unpacked** in Chrome or Edge. Do not expose the bridge port publicly. The dedicated zero-install browser mode is unavailable on a remote host because it has no local desktop.
-
-Your paired remote Claude Code login works through the SSH tunnel. You do not need to install Claude Code on the browser computer, and you do not need an Anthropic API key: no local Claude Code installation on the browser computer and no API key are required. Keep the SSH tunnel running on the browser computer and the bridge running on the remote host while using the extension.
-
-Use direct API mode only if there is no usable Claude Code host, or if you choose it explicitly. Select it in extension settings and enter your own Anthropic API key. The key is held in `chrome.storage.session` and is not sent to the bridge.
+The helper only talks to the Blinkling bridge on `127.0.0.1` of the same computer. Do not expose the bridge port.
 
 ## Browser and page limits
 
-Use desktop Chrome, Edge, or another Chromium browser. Firefox and Safari are unsupported. Browser extensions cannot run on browser settings, the extension store, some built-in pages, or pages blocked by browser or organization policy. The built-in PDF viewer cannot be inspected as an ordinary page. Use **Open in Blinkling reader** for PDF interaction. Non-browser apps can be screen-shared through the browser picker, but page overlays and page controls are only available on accessible web pages.
-
-The welcome page and bubble support the same nine languages: English, 繁體中文, 简体中文, 日本語, 한국어, Español, Français, Deutsch and Português (Brasil). Blink appears above the three steps. The install step shows three browser clicks and a **Show in Finder** or **Show in Files** button for the visible extension folder. There are no practice exercises or replay tour.
-
-The page carries a short-lived capability in its URL fragment, keeping it out of HTTP request logs and visible page text. Its bundled content script automatically completes an authenticated WebSocket handshake through the extension service worker and saves the token in `chrome.storage.session`. The worker does not open a bubble during connection. A separate click opens the companion window and preserves any supported language preference; otherwise it adopts the selected welcome language. Status is checked at `GET /install/status?code=...`. **Try without installing** sends a same-origin `POST /install/try?code=...&locale=...`; folder reveal sends `POST /install/reveal?code=...`. Both require a valid capability and exact origin. Reveal opens only Blinkling's fixed local extension folder. Remote pages offer a ZIP instead of revealing a host folder and explain that the trial browser needs a local desktop.
-
-The bridge prefers a verified channel into the current interactive Claude Code session. When channels are unavailable, the first bubble request automatically continues the most recently modified saved session in the current project through the Agent SDK and `claude --resume ID -p`. It excludes other worktrees. Later replies stay in that same conversation. If the project has no saved conversation, Blinkling creates one. The advanced conversation picker remains available; selecting a conversation or starting a new one overrides automatic selection. See [channel setup and session limits](DESIGN.md#the-running-claude-code-conversation).
+Use desktop Chrome or Edge, or another Chromium browser. Firefox and Safari are unsupported. Extensions cannot run on browser settings, the extension store, some built-in pages, or pages blocked by browser or organization policy; Blink then locates with the screenshot only. Password and other secure fields are reported without any text. The built-in PDF viewer cannot be inspected as an ordinary page; the helper opens such files in its own reader.
