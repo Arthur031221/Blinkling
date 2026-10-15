@@ -6,6 +6,7 @@ const PHOTO_COVERAGE = 0.4;
 const INK = 60;
 const MIN_PHOTO = 24;
 const MAX_LINE = 48;
+const RULE_ACROSS = 64;
 const WORD_GAP = 16;
 const HEADING_RATIO = 1.6;
 const PARAGRAPH_RATIO = 1.6;
@@ -150,17 +151,63 @@ function differs(data, o, bg) {
   );
 }
 
+/** Unbroken runs of ink along one line of pixels, at least `min` long. A hatched
+ * or dotted rule is still one run: a single missing pixel does not end it. */
+function longRuns(ink, from, step, count, min) {
+  const runs = [];
+  let start = -1;
+  let last = -1;
+  for (let i = 0; i <= count; i++) {
+    const on = i < count && ink[from + i * step];
+    if (on) {
+      if (start < 0) start = i;
+      last = i;
+    } else if (start >= 0 && (i === count || i - last > 1)) {
+      if (last - start + 1 >= min) runs.push([start, last]);
+      start = -1;
+    }
+  }
+  return runs;
+}
+
+/** The pixels that differ from the page, minus what is not text: photographs,
+ * and the rules a window draws around its content (borders, separators, the
+ * edge of a scroll bar), which are runs far longer than any glyph. Left in, they
+ * would join every line of the window into one box. */
+function inkOf(image, bg, scale, photos) {
+  const { width, height, data } = image;
+  const ink = new Uint8Array(width * height);
+  for (let i = 0; i < width * height; i++)
+    ink[i] = differs(data, i * 4, bg) ? 1 : 0;
+  for (const p of photos)
+    for (let y = Math.max(0, p.y); y < Math.min(height, p.y + p.height); y++)
+      ink.fill(
+        0,
+        y * width + Math.max(0, p.x),
+        y * width + Math.min(width, p.x + p.width),
+      );
+  const across = Math.round(RULE_ACROSS * scale);
+  const down = Math.round(MAX_LINE * scale);
+  const rules = [];
+  for (let y = 0; y < height; y++)
+    for (const [a, b] of longRuns(ink, y * width, 1, width, across))
+      rules.push([y * width + a, 1, b - a + 1]);
+  for (let x = 0; x < width; x++)
+    for (const [a, b] of longRuns(ink, x, width, height, down))
+      rules.push([a * width + x, width, b - a + 1]);
+  for (const [from, step, length] of rules)
+    for (let i = 0; i < length; i++) ink[from + i * step] = 0;
+  return ink;
+}
+
 /** Text lines: ink runs on each row, joined across word gaps, then stacked
  * into boxes where touching rows overlap. Photographs are left out. */
 function lineBoxes(image, bg, scale, photos) {
-  const { width, height, data } = image;
+  const { width, height } = image;
   const gap = Math.max(2, Math.round(WORD_GAP * scale));
   const reach = Math.max(1, Math.round(scale));
   const maxHeight = MAX_LINE * scale;
-  const covered = (x, y) =>
-    photos.some(
-      (p) => x >= p.x && x < p.x + p.width && y >= p.y && y < p.y + p.height,
-    );
+  const ink = inkOf(image, bg, scale, photos);
   const parent = [];
   const find = (i) => {
     while (parent[i] !== i) {
@@ -175,8 +222,7 @@ function lineBoxes(image, bg, scale, photos) {
     const row = [];
     let run = null;
     for (let x = 0; x < width; x++) {
-      const ink = differs(data, (y * width + x) * 4, bg) && !covered(x, y);
-      if (!ink) continue;
+      if (!ink[y * width + x]) continue;
       if (run && x - run.x1 <= gap) run.x1 = x;
       else {
         run = { x0: x, x1: x, y, id: segments.length };

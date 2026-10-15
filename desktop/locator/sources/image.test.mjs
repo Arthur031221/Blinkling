@@ -111,6 +111,24 @@ test("light text on a dark page is found against the page's own background", () 
   assert.equal(kinds(result, "text").length, 2);
 });
 
+test("window borders and a hatched scroll bar do not swallow the text", () => {
+  const img = canvas(420, 340);
+  // The frame of a window and a scroll bar down its side, as drawn by a toolkit.
+  fill(img, 0, 0, 420, 2, 40);
+  fill(img, 0, 338, 420, 2, 40);
+  fill(img, 0, 0, 2, 340, 40);
+  fill(img, 418, 0, 2, 340, 40);
+  fill(img, 396, 0, 2, 340, 40);
+  for (let y = 0; y < 340; y += 2) fill(img, 399, y, 16, 1, 120);
+  line(img, 30, 40, 5, 10);
+  line(img, 60, 58, 8, 10); // runs up to the scroll bar
+  line(img, 30, 76, 4, 10);
+  const result = analyzeImage(img, { scale: 1 });
+  assert.equal(kinds(result, "text").length, 3);
+  const [paragraph] = kinds(result, "paragraph");
+  assert.ok(inside(paragraph, { x: 30, y: 40, width: 360, height: 46 }));
+});
+
 test("a 2x capture gives the same layout in half the units when scaled back", () => {
   const img = canvas(1000, 600);
   line(img, 80, 80, 6, 20, 30, 12, 72);
