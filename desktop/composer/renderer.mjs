@@ -145,7 +145,11 @@ if (configuration.surface === "bubbles") {
     // scrolling; the notice and the guide are plain elements.
     const regions = [
       ...(conversation.bubbles?.regions() ?? []),
-      ...[...document.querySelectorAll(".gl-notice, .gl-guide > button")]
+      ...[
+        ...document.querySelectorAll(
+          ".gl-notice, .gl-guide > button, .gl-guide > .gl-answer-bubble",
+        ),
+      ]
         .filter((n) => n.getClientRects().length)
         .map((n) => box(n.getBoundingClientRect()))
         .filter((r) => r.width && r.height),
@@ -160,9 +164,12 @@ if (configuration.surface === "bubbles") {
     attributes: true,
   });
   addEventListener("resize", shapes);
+  // A guide bubble grows in with a transform; measure it again once it is full size.
+  guide.addEventListener("animationend", shapes);
   document.querySelector("#answers").addEventListener("scroll", shapes, true);
   cleanShapes = () => {
     observer.disconnect();
+    guide.removeEventListener("animationend", shapes);
     removeEventListener("resize", shapes);
     document
       .querySelector("#answers")
