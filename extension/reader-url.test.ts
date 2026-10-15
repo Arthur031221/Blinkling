@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readerLocales } from "./reader-locales";
+import { bundles } from "./i18n";
 import {
   parseReaderPdfUrl,
   readerUrlOriginPattern,
@@ -45,9 +45,9 @@ describe("reader PDF URL permissions", () => {
     expect(parseReaderPdfUrl(value)).toBeUndefined();
   });
 
-  it("provides actionable permission text in all nine reader locales", () => {
-    const permissionMessages = Object.values(readerLocales).map(
-      (strings) => strings.permissionRequired,
+  it("provides a site permission button label in all nine locales", () => {
+    const permissionMessages = Object.values(bundles).map(
+      (strings) => strings.readerAllow,
     );
 
     expect(permissionMessages).toHaveLength(9);

@@ -97,6 +97,58 @@ function validateTiles(value) {
     page,
   };
 }
+const KINDS = new Set([
+  "paragraph",
+  "heading",
+  "image",
+  "figure",
+  "table",
+  "code",
+  "formula",
+  "video",
+  "canvas",
+  "link",
+  "button",
+  "input",
+]);
+const finite = (n) => typeof n === "number" && Number.isFinite(n);
+/** The page structure as the locator needs it. A password or other secret
+ * field arrives with `secure: true` and never with text. */
+function validateElements(value) {
+  const { page, frame, elements } = value ?? {};
+  if (
+    typeof page?.url !== "string" ||
+    typeof page.title !== "string" ||
+    !Number.isSafeInteger(page.tabId) ||
+    typeof page.incognito !== "boolean" ||
+    ![
+      frame?.screenX,
+      frame?.screenY,
+      frame?.devicePixelRatio,
+      frame?.zoom,
+    ].every(finite) ||
+    !Array.isArray(elements) ||
+    elements.length > 600
+  )
+    throw new Error("Invalid page elements");
+  const ids = new Set();
+  for (const e of elements) {
+    if (
+      typeof e?.id !== "string" ||
+      ids.has(e.id) ||
+      !KINDS.has(e.kind) ||
+      ![e.rect?.x, e.rect?.y, e.rect?.width, e.rect?.height].every(finite) ||
+      typeof e.role !== "string" ||
+      typeof e.name !== "string" ||
+      typeof e.text !== "string" ||
+      typeof e.secure !== "boolean" ||
+      (e.secure && (e.text !== "" || e.content !== undefined))
+    )
+      throw new Error("Invalid page elements");
+    ids.add(e.id);
+  }
+  return { page, frame, elements };
+}
 /** Main-process-only adapter. The shell supplies its one durable SessionBridge.
  * No credentials, file APIs or renderer access are exposed through this transport.
  */
@@ -349,13 +401,35 @@ export async function startDesktopHost({
     server.close();
     throw error;
   }
+  /** Reads a JSON answer from the browser helper, or `undefined` without one. */
+  async function companionJson(body, signal, timeout) {
+    if (!companion) return undefined;
+    try {
+      const response = await fetch(companion.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${companion.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        redirect: "error",
+        signal: signal || AbortSignal.timeout(timeout),
+      });
+      if (!response.ok) throw new Error("The browser helper request failed");
+      return await response.json();
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (error instanceof TypeError) companion = undefined;
+      return undefined;
+    }
+  }
   return {
     address,
     attachSession: attach,
     async openCompanionGuide() {
       if (!companion)
         throw new Error(
-          "Open /blinkling:blinkling in Claude Code to load the optional browser helper guide.",
+          "Run /blinkling:install in Claude Code to load the optional browser helper guide.",
         );
       const response = await fetch(companion.url, {
         method: "POST",
@@ -404,6 +478,34 @@ export async function startDesktopHost({
         if (error instanceof TypeError) companion = undefined;
         return { companionRequired: true };
       }
+    },
+    /** The page structure under a screen point (DIP), or null without a helper,
+     * a Chrome/Edge window there, or on a page the helper may not read. */
+    async elements({ point, signal } = {}) {
+      const answer = await companionJson(
+        { method: "elements", point },
+        signal,
+        6000,
+      );
+      return answer?.elements ? validateElements(answer.elements) : null;
+    },
+    /** Translates the live page in place (`on`) or restores it. */
+    async translatePage({ on }) {
+      const answer = await companionJson(
+        { method: "translate", on: on === true },
+        undefined,
+        120_000,
+      );
+      return { ok: answer?.ok === true };
+    },
+    /** Opens the page's PDF in the helper's reader tab. */
+    async openPdfReader() {
+      const answer = await companionJson(
+        { method: "pdf-reader" },
+        undefined,
+        10_000,
+      );
+      return { ok: answer?.ok === true };
     },
     async close() {
       unsubscribe?.();

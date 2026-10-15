@@ -1,90 +1,53 @@
-export const welcomeLocaleNames = {
-  en: "English",
-  "zh-TW": "繁體中文",
-  "zh-CN": "简体中文",
-  ja: "日本語",
-  ko: "한국어",
-  es: "Español",
-  fr: "Français",
-  de: "Deutsch",
-  "pt-BR": "Português",
-};
-export const isWelcomeLocale = (
-  value: unknown,
-): value is keyof typeof welcomeLocaleNames =>
-  typeof value === "string" && Object.hasOwn(welcomeLocaleNames, value);
+import type { Credentials } from "./link";
 
+/** What pairing needs from the link, so it can be tested without a socket. */
+export type Pairing = {
+  open(credentials: Credentials): Promise<void>;
+};
+
+const CODE = /^[A-F0-9]{16}$/;
 const pending = new Map<string, Promise<void>>();
-/** Authenticate only with a capability issued by the local welcome page. */
+
+export const bridgeUrl = (port: number) => `ws://127.0.0.1:${port}/extension`;
+
+export async function storedCredentials(): Promise<Credentials | undefined> {
+  const stored = await chrome.storage.session.get(["bridgeToken", "bridgeUrl"]);
+  return typeof stored.bridgeToken === "string" &&
+    /^[a-f0-9]{64}$/.test(stored.bridgeToken) &&
+    typeof stored.bridgeUrl === "string"
+    ? { url: stored.bridgeUrl, token: stored.bridgeToken }
+    : undefined;
+}
+
+export async function saveToken(url: string, token: string, setup?: string) {
+  await chrome.storage.session.set({
+    bridgeToken: token,
+    bridgeUrl: url,
+    ...(setup ? { bridgeSetup: setup } : {}),
+  });
+}
+
+/** Pairs with the one-time code the local install page hands over; the user never sees it. */
 export async function connectWelcome(
+  link: Pairing,
   port: number,
   code: string,
 ): Promise<void> {
-  const url = `ws://127.0.0.1:${port}/extension`;
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || !CODE.test(code))
+    throw new Error("connection_failed");
+  const url = bridgeUrl(port);
   const key = `${port}:${code}`;
-  const stored = await chrome.storage.session.get([
-    "bridgeSetup",
-    "bridgeToken",
-  ]);
-  if (stored.bridgeSetup === key && typeof stored.bridgeToken === "string")
-    return;
+  const stored = await chrome.storage.session.get(["bridgeSetup"]);
+  if (stored.bridgeSetup === key) return;
   const existing = pending.get(key);
   if (existing) return existing;
-  const connection = new Promise<void>((resolve, reject) => {
-    const socket = new WebSocket(url);
-    let settled = false;
-    const finish = (error?: Error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      socket.close();
-      if (error) reject(error);
-      else resolve();
-    };
-    const timer = setTimeout(
-      () => finish(new Error("connection_timeout")),
-      8000,
-    );
-    socket.onopen = () => socket.send(JSON.stringify({ type: "pair", code }));
-    socket.onerror = () => finish(new Error("connection_failed"));
-    socket.onclose = () => finish(new Error("connection_closed"));
-    socket.onmessage = (event) => {
-      let message: { type?: string; token?: string; mode?: string };
-      try {
-        message = JSON.parse(String(event.data));
-      } catch {
-        return;
-      }
-      if (message.type === "error") finish(new Error("connection_failed"));
-      if (
-        message.type !== "paired" ||
-        !/^[a-f0-9]{64}$/.test(message.token || "")
-      )
-        return;
-      void chrome.storage.session
-        .set({
-          bridgeToken: message.token,
-          bridgeUrl: url,
-          bridgeMode: message.mode === "tunnel" ? "tunnel" : "direct",
-          bridgeSetup: key,
-        })
-        .then(
-          () => finish(),
-          () => finish(new Error("connection_failed")),
-        );
-    };
-  });
+  const connection = link
+    .open({ url, code })
+    .then(() => chrome.storage.session.set({ bridgeSetup: key }));
   pending.set(key, connection);
   try {
     await connection;
   } finally {
     pending.delete(key);
   }
-}
-
-export async function saveWelcomeLocale(value: unknown): Promise<void> {
-  if (!isWelcomeLocale(value)) return;
-  const stored = await chrome.storage.local.get("locale");
-  if (!isWelcomeLocale(stored.locale))
-    await chrome.storage.local.set({ locale: value });
 }

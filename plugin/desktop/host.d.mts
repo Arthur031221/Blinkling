@@ -15,6 +15,50 @@ export type CompanionSession = Pick<
   SessionBridge,
   "subscribe" | "select" | "send" | "stop"
 >;
+export type PageElementKind =
+  | "paragraph"
+  | "heading"
+  | "image"
+  | "figure"
+  | "table"
+  | "code"
+  | "formula"
+  | "video"
+  | "canvas"
+  | "link"
+  | "button"
+  | "input";
+export type PageElement = {
+  id: string;
+  kind: PageElementKind;
+  /** Viewport CSS pixels. */
+  rect: { x: number; y: number; width: number; height: number };
+  role: string;
+  name: string;
+  /** Empty for a secure field. */
+  text: string;
+  parentId?: string;
+  /** A password or other secret field: located, never read. */
+  secure: boolean;
+  content?: {
+    markdown?: string;
+    code?: string;
+    language?: string;
+    latex?: string;
+    mathml?: string;
+  };
+};
+export type PageElements = {
+  page: { url: string; title: string; tabId: number; incognito: boolean };
+  /** Where the viewport sits on the screen (DIP), and its scale. */
+  frame: {
+    screenX: number;
+    screenY: number;
+    devicePixelRatio: number;
+    zoom: number;
+  };
+  elements: PageElement[];
+};
 export function startDesktopHost(options?: {
   directory?: string;
   descriptor?: string;
@@ -30,5 +74,13 @@ export function startDesktopHost(options?: {
     signal?: AbortSignal,
     onProgress?: (progress: FullPageProgress) => void,
   ) => Promise<CompanionPage | { companionRequired: true }>;
+  /** Null without a helper, a Chrome/Edge window under the point, or on a
+   * restricted page. `point` is in screen DIP. */
+  elements: (query?: {
+    point?: { x: number; y: number };
+    signal?: AbortSignal;
+  }) => Promise<PageElements | null>;
+  translatePage: (options: { on: boolean }) => Promise<{ ok: boolean }>;
+  openPdfReader: () => Promise<{ ok: boolean }>;
   close: () => Promise<void>;
 }>;

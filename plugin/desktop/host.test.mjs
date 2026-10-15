@@ -7,7 +7,8 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { request as httpRequest } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
+import { once } from "node:events";
 import { startDesktopHost } from "./host.mjs";
 import { discoverDesktop, DesktopClient } from "./client.mjs";
 import { launchDesktop } from "./launcher.mjs";
@@ -316,6 +317,150 @@ test("selection acknowledgement serializes admission and cancellation before ack
     assert.equal(stopped, 1);
   } finally {
     release();
+    await host.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+/** A stand-in for the bridge's /desktop-companion endpoint. */
+async function fakeHelper(answer) {
+  const token = "b".repeat(64);
+  const seen = [];
+  const server = createServer(async (req, res) => {
+    if (req.headers.authorization !== `Bearer ${token}`) {
+      res.writeHead(403).end();
+      return;
+    }
+    if (req.method === "GET") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ companion: true }));
+      return;
+    }
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const message = JSON.parse(body);
+    seen.push(message);
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(answer(message)));
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const url = `http://127.0.0.1:${server.address().port}/desktop-companion`;
+  return {
+    url,
+    token,
+    seen,
+    close: () =>
+      new Promise((done) => {
+        server.close(done);
+        server.closeAllConnections();
+      }),
+  };
+}
+
+const sample = (overrides = {}) => ({
+  page: {
+    url: "https://example.test/",
+    title: "Example",
+    tabId: 4,
+    incognito: false,
+  },
+  frame: { screenX: 10, screenY: 90, devicePixelRatio: 2, zoom: 1 },
+  elements: [
+    {
+      id: "e1",
+      kind: "heading",
+      rect: { x: 8, y: 8, width: 300, height: 32 },
+      role: "heading",
+      name: "",
+      text: "Title",
+      secure: false,
+    },
+    {
+      id: "e2",
+      kind: "input",
+      rect: { x: 8, y: 60, width: 200, height: 24 },
+      role: "textbox",
+      name: "Password",
+      text: "",
+      parentId: "e1",
+      secure: true,
+    },
+  ],
+  ...overrides,
+});
+
+test("elements, translatePage and openPdfReader reach the helper, and nothing leaks when there is none", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-host-"));
+  const descriptor = join(directory, "desktop.json");
+  const host = await startDesktopHost({ directory, descriptor });
+  const helper = await fakeHelper((message) =>
+    message.method === "elements"
+      ? { ok: true, elements: sample() }
+      : { ok: message.method !== "pdf-reader" },
+  );
+  try {
+    assert.equal(await host.elements({}), null, "no helper yet");
+    assert.deepEqual(await host.translatePage({ on: true }), { ok: false });
+    assert.deepEqual(await host.openPdfReader(), { ok: false });
+    const client = (await discoverDesktop(descriptor)).client;
+    await client.rpc("companion", { url: helper.url, token: helper.token });
+
+    const found = await host.elements({ point: { x: 40, y: 120 } });
+    assert.equal(found.page.url, "https://example.test/");
+    assert.equal(found.frame.devicePixelRatio, 2);
+    assert.equal(found.elements.length, 2);
+    assert.equal(found.elements[1].secure, true);
+    assert.equal(found.elements[1].text, "");
+    assert.deepEqual(helper.seen.at(-1), {
+      method: "elements",
+      point: { x: 40, y: 120 },
+    });
+
+    assert.deepEqual(await host.translatePage({ on: true }), { ok: true });
+    assert.deepEqual(helper.seen.at(-1), { method: "translate", on: true });
+    assert.deepEqual(await host.translatePage({ on: false }), { ok: true });
+    assert.deepEqual(helper.seen.at(-1), { method: "translate", on: false });
+    assert.deepEqual(
+      await host.openPdfReader(),
+      { ok: false },
+      "a page that is not a PDF is not claimed",
+    );
+    assert.deepEqual(helper.seen.at(-1), { method: "pdf-reader" });
+  } finally {
+    await helper.close();
+    await host.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("elements is null when the helper says there is nothing to read, and rejects a secure field that carries text", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-host-"));
+  const descriptor = join(directory, "desktop.json");
+  const host = await startDesktopHost({ directory, descriptor });
+  let answer = { ok: false, companionRequired: true };
+  const helper = await fakeHelper(() => answer);
+  try {
+    const client = (await discoverDesktop(descriptor)).client;
+    await client.rpc("companion", { url: helper.url, token: helper.token });
+    assert.equal(await host.elements({}), null);
+    const leaky = sample();
+    leaky.elements[1].text = "hunter2";
+    answer = { ok: true, elements: leaky };
+    await assert.rejects(host.elements({}), /Invalid page elements/);
+    const duplicate = sample();
+    duplicate.elements[1].id = "e1";
+    answer = { ok: true, elements: duplicate };
+    await assert.rejects(host.elements({}), /Invalid page elements/);
+    const crowd = sample();
+    crowd.elements = Array.from({ length: 601 }, (_, i) => ({
+      ...crowd.elements[0],
+      id: `n${i}`,
+    }));
+    answer = { ok: true, elements: crowd };
+    await assert.rejects(host.elements({}), /Invalid page elements/);
+  } finally {
+    await helper.close();
     await host.close();
     await rm(directory, { recursive: true });
   }

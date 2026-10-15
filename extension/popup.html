@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Blinkling</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="icons/blink-48.png" alt="" width="32" height="32" />
+        <h1>
+          <span class="sparkle-name"
+            ><span class="sparkle-text">Blinkling</span
+            ><i class="sparkle-star" aria-hidden="true"></i
+            ><i class="sparkle-star" aria-hidden="true"></i
+            ><i class="sparkle-star" aria-hidden="true"></i
+          ></span>
+        </h1>
+      </header>
+      <ul id="status" aria-live="polite">
+        <li data-row="link">
+          <span class="dot" aria-hidden="true"></span><span></span>
+        </li>
+        <li data-row="blink">
+          <span class="dot" aria-hidden="true"></span><span></span>
+        </li>
+        <li data-row="sites">
+          <span class="dot" aria-hidden="true"></span><span></span>
+        </li>
+      </ul>
+      <button id="sites" type="button" hidden></button>
+      <button id="wake" type="button" class="primary"></button>
+      <p id="note" role="status"></p>
+    </main>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

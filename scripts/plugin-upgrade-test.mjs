@@ -80,11 +80,11 @@ async function welcome(profile, pluginPath) {
     await readFile(join(root, "bin/blinkling.cjs")),
   );
   const command = await readFile(
-    join(pluginPath, "commands/blinkling.md"),
+    join(pluginPath, "commands/install.md"),
     "utf8",
   );
-  assert.match(command, /Call `panel_open`/);
-  // Redirect homedir only in this child so panel_open cannot overwrite the user's extension.
+  assert.match(command, /Call `extension_install`/);
+  // Redirect homedir only in this child so extension_install cannot overwrite the user's extension.
   const isolate = join(profile.cwd, "isolate-home.cjs");
   await writeFile(
     isolate,
@@ -98,7 +98,6 @@ async function welcome(profile, pluginPath) {
   };
   delete env.SSH_CONNECTION;
   delete env.BLINKLING_EXTENSION_DIR;
-  delete env.BLINKLING_PANEL_DIR;
   const client = new Client({ name: "upgrade-verification", version: "1.0.0" });
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -108,22 +107,21 @@ async function welcome(profile, pluginPath) {
   });
   try {
     await client.connect(transport);
-    const opened = await client.callTool({ name: "panel_open", arguments: {} });
+    const opened = await client.callTool({
+      name: "extension_install",
+      arguments: {},
+    });
     assert.notEqual(opened.isError, true);
     const link = /http:\/\/127\.0\.0\.1:\d+\/install#code=([A-F0-9]{16})/.exec(
       opened.content[0].text,
     );
-    assert.ok(link, "Installed command must reach v2 welcome/pairing");
+    assert.ok(link, "Installed command must reach the install guide");
     const origin = new URL(link[0]).origin;
     const page = await fetch(`${origin}/install`);
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Welcome to Blinkling/);
+    assert.match(await page.text(), /Blinkling/);
     const status = await fetch(`${origin}/install/status?code=${link[1]}`);
-    assert.deepEqual(await status.json(), {
-      connected: false,
-      mode: "direct",
-      trialError: false,
-    });
+    assert.equal((await status.json()).connected, false);
     const copied = JSON.parse(
       await readFile(
         join(profile.cwd, "Blinkling-extension/manifest.json"),
@@ -132,7 +130,7 @@ async function welcome(profile, pluginPath) {
     );
     assert.equal(copied.version, releaseVersion);
     console.log(
-      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension ${releaseVersion}; packaged /blinkling:blinkling tool opened welcome/pairing`,
+      `PASS: ${profile.cwd.split("/").at(-1)} installed plugin and extension ${releaseVersion}; packaged /blinkling:install tool opened the install guide`,
     );
   } finally {
     await client.close();

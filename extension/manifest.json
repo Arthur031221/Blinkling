@@ -8,60 +8,27 @@
     "48": "icons/blink-48.png",
     "128": "icons/blink-128.png"
   },
-  "description": "A small floating assistant for the page or screen you choose to share.",
+  "description": "A quiet helper for Blink: it tells Blink what is on the page you point at.",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
-  "optional_host_permissions": ["https://api.anthropic.com/*", "<all_urls>"],
+  "optional_host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": [
-        "http://127.0.0.1/install*",
-        "http://localhost/install*",
-        "http://127.0.0.1/assets/blinkling-welcome-sample.html",
-        "http://localhost/assets/blinkling-welcome-sample.html"
-      ],
+      "matches": ["http://127.0.0.1/install*", "http://localhost/install*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_title": "Open Blinkling",
+    "default_title": "Blinkling",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/blink-16.png",
       "32": "icons/blink-32.png"
-    }
-  },
-  "commands": {
-    "open-blinkling": {
-      "suggested_key": {
-        "default": "Alt+Shift+G"
-      },
-      "description": "Open Blinkling"
-    },
-    "pause-passive": {
-      "suggested_key": {
-        "default": "Alt+P"
-      },
-      "description": "Pause passive reading"
-    },
-    "crop-screen": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Crop the shared screen or current page"
-    },
-    "crop-global": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+7",
-        "mac": "Command+Shift+7"
-      },
-      "description": "Crop from any app. Remap in browser shortcut settings.",
-      "global": true
     }
   },
   "content_security_policy": {

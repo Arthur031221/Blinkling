@@ -1,0 +1,223 @@
+/* The small status popup: three one-line facts and one button. */
+:root {
+  color-scheme: light dark;
+  --paper: #fffdf9;
+  --ink: #28241f;
+  --muted: #71695f;
+  --line: #e7dfd4;
+  --warm: #c96343;
+  --green: #39846a;
+  --sparkle-ink: #168454;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #24221f;
+    --ink: #f4eee5;
+    --muted: #b4a99b;
+    --line: #4a4137;
+    --green: #6fcf9b;
+    --sparkle-ink: #3ddc97;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  width: 300px;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+}
+main {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+h1 {
+  margin: 0;
+  font:
+    600 18px Georgia,
+    serif;
+}
+ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
+}
+li[data-ok="true"] {
+  color: var(--ink);
+}
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+}
+li[data-ok="true"] .dot {
+  background: var(--green);
+  border-color: var(--green);
+}
+button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    600 13px system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+button.primary {
+  background: var(--warm);
+  border-color: var(--warm);
+  color: #fff;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+button:focus-visible {
+  outline: 2px solid var(--warm);
+  outline-offset: 2px;
+}
+[hidden] {
+  display: none !important;
+}
+#note {
+  min-height: 1.4em;
+  margin: 0;
+  color: var(--muted);
+}
+/* sparkle:start — the drawn name; keep this block identical in src/style.css, extension/style.css and bridge/src/sparkle.ts */
+.sparkle-name {
+  --spark-base: var(--sparkle-ink, #168454);
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  color: var(--spark-base);
+  overflow: visible;
+}
+.sparkle-name > .sparkle-text {
+  color: inherit;
+}
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .sparkle-name > .sparkle-text {
+    background-image:
+      linear-gradient(100deg, transparent 40%, #fff 50%, transparent 60%),
+      linear-gradient(var(--spark-base), var(--spark-base));
+    background-size:
+      300% 100%,
+      100% 100%;
+    background-repeat: no-repeat;
+    background-position:
+      100% 0,
+      0 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: sparkle-sweep 5.5s ease-in-out infinite;
+  }
+}
+.sparkle-star {
+  position: absolute;
+  width: 0.34em;
+  height: 0.34em;
+  pointer-events: none;
+  background: radial-gradient(circle, #fff 0 22%, #3ddc97 62%);
+  clip-path: polygon(
+    50% 0,
+    61% 39%,
+    100% 50%,
+    61% 61%,
+    50% 100%,
+    39% 61%,
+    0 50%,
+    39% 39%
+  );
+  opacity: 0;
+  transform: scale(0.2) rotate(0deg);
+  animation: sparkle-twinkle 5.5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+.sparkle-star:nth-child(2) {
+  left: 4%;
+  top: 4%;
+  animation-delay: 0.9s;
+}
+.sparkle-star:nth-child(3) {
+  right: 12%;
+  top: 0;
+  width: 0.26em;
+  height: 0.26em;
+  animation-delay: 1.5s;
+}
+.sparkle-star:nth-child(4) {
+  right: -2%;
+  bottom: 14%;
+  width: 0.2em;
+  height: 0.2em;
+  animation-delay: 2.1s;
+}
+@keyframes sparkle-sweep {
+  0% {
+    background-position:
+      100% 0,
+      0 0;
+  }
+  32%,
+  100% {
+    background-position:
+      0% 0,
+      0 0;
+  }
+}
+@keyframes sparkle-twinkle {
+  0%,
+  22%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sparkle-name > .sparkle-text {
+    animation: none;
+    background-position:
+      62% 0,
+      0 0;
+  }
+  .sparkle-star {
+    animation: none;
+    opacity: 0.9;
+    transform: scale(0.85);
+    will-change: auto;
+  }
+  .sparkle-star:nth-child(4) {
+    opacity: 0;
+  }
+}
+/* sparkle:end */

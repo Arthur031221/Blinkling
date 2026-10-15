@@ -32,31 +32,21 @@ const result = await build({
 const bundle = result.outputFiles[0].text.replace(/[\t ]+$/gm, "");
 await writeFile("bin/blinkling.cjs", bundle, { mode: 0o755 });
 await chmod("bin/blinkling.cjs", 0o755);
-await rm("bin/panel", { recursive: true, force: true });
-await cp("dist", "bin/panel", { recursive: true });
-await cp("assets/install", "bin/panel/assets/install", { recursive: true });
+// What the local companion page serves: the install guide's pictures and logo.
+await rm("bin/companion", { recursive: true, force: true });
+await mkdir("bin/companion/assets", { recursive: true });
+await cp("assets/install", "bin/companion/assets/install", {
+  recursive: true,
+});
+await cp("assets/logo.svg", "bin/companion/assets/logo.svg");
 await rm("bin/extension", { recursive: true, force: true });
 await cp("dist-extension", "bin/extension", { recursive: true });
 await mkdir("bin/config", { recursive: true });
 await cp("config/distribution.json", "bin/config/distribution.json");
-// Bundled so the launcher also runs from a copy that has no checkout around it.
-await build({
-  entryPoints: ["scripts/launch-browser.mjs"],
-  outfile: "bin/launch-browser.mjs",
-  bundle: true,
-  platform: "node",
-  format: "esm",
-  target: "node22",
-  packages: "external",
-});
-
 const packages = new Map();
 const candidates = [
   ...Object.keys(result.metafile.inputs).filter((file) =>
     file.includes("node_modules/"),
-  ),
-  ...["react", "react-dom", "scheduler", "dompurify", "marked"].map(
-    (name) => `node_modules/${name}/package.json`,
   ),
 ];
 for (const input of candidates) {

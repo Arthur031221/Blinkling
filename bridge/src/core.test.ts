@@ -3,20 +3,6 @@ import { PNG } from "pngjs";
 import { CaptureHistory } from "./history.js";
 import { SlidingWindowLimiter } from "./limiter.js";
 import { normalizePng } from "./png.js";
-import { OneTimeTokens } from "./auth.js";
-
-describe("one-time panel tokens", () => {
-  it("expire and cannot be replayed after exchange", () => {
-    let now = 10;
-    const tokens = new OneTimeTokens(20, () => now);
-    const valid = tokens.issue();
-    expect(tokens.consume(valid)).toBe(true);
-    expect(tokens.consume(valid)).toBe(false);
-    const expired = tokens.issue();
-    now += 21;
-    expect(tokens.consume(expired)).toBe(false);
-  });
-});
 
 const pngFixture = (width: number, height: number) => {
   const png = new PNG({ width, height });

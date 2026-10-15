@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { desktopConnection } from "./desktop-session.js";
+import { desktopConnection } from "./desktop-link.js";
 import type { ExtensionBridge } from "./extension-bridge.js";
 
 /** Authenticated reverse RPC: Blink requests browser-only captures through the
@@ -27,7 +27,6 @@ export class DesktopCompanion {
           token: this.token,
         });
         this.registered = desktop.client.endpoint.token;
-        this.extension.useDesktopSession();
       } catch {
         /* Retry quietly after startup, restart or transient disconnect. */
       }
@@ -76,6 +75,41 @@ export class DesktopCompanion {
     if (message.method === "open-guide" && this.openGuide) {
       await this.openGuide();
       res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    if (message.method === "elements") {
+      const point = message.point;
+      const valid =
+        point === undefined ||
+        (point &&
+          typeof point === "object" &&
+          Number.isFinite(point.x) &&
+          Number.isFinite(point.y));
+      if (!valid) throw new Error("Invalid point");
+      const controller = new AbortController();
+      res.once("close", () => controller.abort());
+      const elements = await this.extension.requestElements(
+        point && { x: point.x, y: point.y },
+        controller.signal,
+      );
+      res.end(JSON.stringify({ elements }));
+      return;
+    }
+    if (message.method === "translate") {
+      const controller = new AbortController();
+      res.once("close", () => controller.abort());
+      const ok = await this.extension.requestTranslate(
+        message.on === true,
+        controller.signal,
+      );
+      res.end(JSON.stringify(ok ? { ok } : { ok, companionRequired: true }));
+      return;
+    }
+    if (message.method === "pdf-reader") {
+      const controller = new AbortController();
+      res.once("close", () => controller.abort());
+      const ok = await this.extension.requestPdfReader(controller.signal);
+      res.end(JSON.stringify(ok ? { ok } : { ok, companionRequired: true }));
       return;
     }
     if (message.method !== "full-page")

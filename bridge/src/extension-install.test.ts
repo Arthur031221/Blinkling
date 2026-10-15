@@ -10,7 +10,6 @@ import {
   installGuide,
   loadDistributionConfig,
   selectedStoreUrl,
-  tunnelCommand,
 } from "./extension-install.js";
 
 describe("extension distribution and first-run guide", () => {
@@ -63,36 +62,6 @@ describe("extension distribution and first-run guide", () => {
       "explorer.exe",
       [folder],
     ]);
-  });
-
-  it("uses the validated SSH server port while preserving default and IPv6 commands", () => {
-    expect(
-      tunnelCommand(37115, {
-        SSH_CONNECTION: "192.0.2.4 41000 10.0.0.3 22",
-        BLINKLING_SSH_USER: "reader",
-      }),
-    ).toBe("ssh -N -L 37115:127.0.0.1:37115 reader@10.0.0.3");
-    expect(
-      tunnelCommand(37115, {
-        SSH_CONNECTION: "192.0.2.4 41000 10.0.0.3 46797",
-        BLINKLING_SSH_USER: "reader",
-      }),
-    ).toBe("ssh -N -p 46797 -L 37115:127.0.0.1:37115 reader@10.0.0.3");
-    expect(
-      tunnelCommand(37115, {
-        SSH_CONNECTION: "192.0.2.4 41000 2001:db8::3 46797",
-        BLINKLING_SSH_USER: "reader",
-        BLINKLING_SSH_PORT: "5522",
-      }),
-    ).toBe("ssh -N -p 5522 -L 37115:127.0.0.1:37115 reader@[2001:db8::3]");
-    for (const invalid of ["0", "65536", "22;touch", "abc"]) {
-      expect(
-        tunnelCommand(37115, {
-          SSH_CONNECTION: "1 2 host.example 46797",
-          BLINKLING_SSH_PORT: invalid,
-        }),
-      ).toBeUndefined();
-    }
   });
 
   it("loads only store URL fields from the one distribution file", async () => {

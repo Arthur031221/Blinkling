@@ -2,8 +2,8 @@
 
 `/blinkling:blinkling` calls `desktop_open`. The launcher consumes only the release
 manifest embedded in this plugin. SessionStart reconnects after the first
-successful launch; neither path asks for a port, pairing code, browser extension,
-or Claude startup flag.
+successful launch; neither path asks for a port, a code, a browser extension,
+or a Claude startup flag.
 
 The release bucket must populate `manifest.json` before publishing V3. The empty
 build list intentionally refuses installation: there is no published binary to

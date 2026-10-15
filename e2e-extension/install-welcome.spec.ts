@@ -7,7 +7,6 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   INSTALL_GUIDE_SCRIPT,
-  createExtensionZip,
   installGuide,
 } from "../bridge/src/extension-install";
 
@@ -16,11 +15,9 @@ let context: BrowserContext,
   directory: string,
   origin: string,
   welcome: Page;
-let installMode: "direct" | "tunnel";
 let storeUrl: string;
 
 test.beforeEach(async () => {
-  installMode = "direct";
   storeUrl = "";
   directory = await mkdtemp(join(tmpdir(), "blinkling-welcome-recovery-"));
   server = createServer((req, res) => {
@@ -39,16 +36,7 @@ test.beforeEach(async () => {
       );
     } else if (path === "/install/status") {
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ connected: false, mode: installMode }));
-    } else if (path === "/install/extension.zip") {
-      res.setHeader("Content-Type", "application/zip");
-      res.setHeader(
-        "Content-Disposition",
-        'attachment; filename="blinkling-extension.zip"',
-      );
-      void createExtensionZip(resolve("dist-extension")).then((data) =>
-        res.end(data),
-      );
+      res.end(JSON.stringify({ connected: false }));
     } else if (path === "/install-guide.js") {
       res.setHeader("Content-Type", "text/javascript; charset=utf-8");
       res.end(INSTALL_GUIDE_SCRIPT);
@@ -109,47 +97,32 @@ test.afterEach(async () => {
   if (directory) await rm(directory, { recursive: true, force: true });
 });
 
-for (const mode of ["direct", "tunnel"] as const) {
-  test(`copies a usable extensions-manager address for ${mode} install`, async () => {
-    installMode = mode;
-    welcome = await context.newPage();
-    await welcome.goto(`${origin}/install#code=0123456789ABCDEF`);
-    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
-      origin,
-    });
-    const card = welcome.locator(
-      mode === "direct" ? "#install-local" : "#install-remote",
-    );
-    await expect(card).toBeVisible();
-    await expect(welcome.locator("#installation")).toContainText(
-      "Paste in your browser’s address bar.",
-    );
-    await expect(welcome.locator(".manager-address")).toHaveValue(
-      "chrome://extensions",
-    );
-    await welcome
-      .getByRole("button", { name: "Copy address", exact: true })
-      .click();
-    const copied = await welcome.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toBe("chrome://extensions");
-    const manager = await context.newPage();
-    // Navigate the actual browser to the address the user copies, including its
-    // native manager UI; localhost anchors cannot perform this navigation.
-    await manager.goto(copied);
-    await expect(manager).toHaveURL("chrome://extensions/");
-    await expect(manager.locator("extensions-manager")).toBeVisible();
-    await manager.close();
-    if (mode === "tunnel") {
-      const downloadPromise = welcome.waitForEvent("download");
-      await card.getByRole("link", { name: "Download extension" }).click();
-      const download = await downloadPromise;
-      expect(download.suggestedFilename()).toBe("blinkling-extension.zip");
-      const data = await readFile((await download.path())!);
-      expect(data.readUInt32LE(0)).toBe(0x04034b50);
-      expect(data.includes(Buffer.from("manifest.json"))).toBe(true);
-    }
+test("copies a usable extensions-manager address for the install", async () => {
+  welcome = await context.newPage();
+  await welcome.goto(`${origin}/install#code=0123456789ABCDEF`);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin,
   });
-}
+  await expect(welcome.locator("#install-local")).toBeVisible();
+  await expect(welcome.locator("#installation")).toContainText(
+    "Paste in your browser’s address bar.",
+  );
+  await expect(welcome.locator(".manager-address")).toHaveValue(
+    "chrome://extensions",
+  );
+  await welcome
+    .getByRole("button", { name: "Copy address", exact: true })
+    .click();
+  const copied = await welcome.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toBe("chrome://extensions");
+  const manager = await context.newPage();
+  // Navigate the actual browser to the address the user copies, including its
+  // native manager UI; localhost anchors cannot perform this navigation.
+  await manager.goto(copied);
+  await expect(manager).toHaveURL("chrome://extensions/");
+  await expect(manager.locator("extensions-manager")).toBeVisible();
+  await manager.close();
+});
 
 test("configured store install navigates to its listing without unpacked controls", async () => {
   storeUrl =
@@ -162,7 +135,6 @@ test("configured store install navigates to its listing without unpacked control
   );
   await welcome.reload();
   await expect(welcome.locator("#install-local")).toHaveCount(0);
-  await expect(welcome.locator("#install-remote")).toHaveCount(0);
   const navigation = welcome.waitForRequest(storeUrl);
   await welcome.getByRole("link", { name: "Add to browser" }).click();
   expect((await navigation).isNavigationRequest()).toBe(true);
@@ -243,7 +215,7 @@ test("three steps and Blink fit every locale at compact widths in light and dark
       expect(layout.overflow, `${colorScheme} ${locale}`).toBe(false);
       expect(layout.logo).toBeGreaterThan(0);
       expect(layout.text).not.toMatch(
-        /0123456789ABCDEF|Pairing code|practice|exercise/i,
+        /0123456789ABCDEF|\bcode\b|practice|exercise/i,
       );
     }
   }

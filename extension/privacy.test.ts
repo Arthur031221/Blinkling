@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasSensitiveContent } from "./privacy";
-import { buildPageContext } from "./page-context";
 
 describe("page privacy gate", () => {
   beforeEach(() => {
@@ -44,7 +43,6 @@ describe("page privacy gate", () => {
     outer.querySelector("span")!.attachShadow({ mode: "open" }).innerHTML =
       `<input ${attribute}>`;
     expect(hasSensitiveContent()).toBe(true);
-    expect(buildPageContext().hasPassword).toBe(true);
   });
 
   it("inspects same origin frame documents and their shadow roots", () => {

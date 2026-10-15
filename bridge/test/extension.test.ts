@@ -1,46 +1,25 @@
-import { LiveChannel } from "../src/live-channel.js";
 // @vitest-environment node
 import { createServer, type Server } from "node:http";
-import { access, mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { once } from "node:events";
 import { PNG } from "pngjs";
 import { WebSocket } from "ws";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { ExtensionBridge } from "../src/extension-bridge.js";
-import {
-  ExtensionSessions,
-  ExtensionThread,
-} from "../src/extension-sessions.js";
-import type { ProviderRequest } from "../src/provider-request.js";
-import { installGuide, tunnelCommand } from "../src/extension-install.js";
+import { afterEach, describe, expect, it } from "vitest";
+import { ExtensionBridge, pageElements } from "../src/extension-bridge.js";
+import { parseTranslation } from "../src/desktop-link.js";
+import { installGuide } from "../src/extension-install.js";
 
 const origin = `chrome-extension://${"a".repeat(32)}`;
-const sourceId = "a88b5348-a13b-42fd-9685-000000000001";
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => {
   for (const stop of cleanup.splice(0).reverse()) await stop();
 });
 
 async function setup(
-  provider: (
-    r: ProviderRequest,
-  ) => Promise<{ answer: string; sessionId?: string }>,
-  now = Date.now,
-  persisted?: (id: string, project: string) => Promise<boolean>,
+  options: ConstructorParameters<typeof ExtensionBridge>[2] = {},
 ) {
   const server: Server = createServer();
   let url = "";
-  const sessions = new ExtensionSessions(
-    "/fixture/project",
-    async () => [],
-    persisted,
-  );
-  const bridge = new ExtensionBridge(server, () => url, {
-    provider,
-    sessions,
-    now,
-  });
+  const bridge = new ExtensionBridge(server, () => url, options);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
@@ -66,7 +45,7 @@ async function setup(
       await closed;
     });
     const wait = async (type: string) => {
-      for (let tries = 0; tries < 100; tries++) {
+      for (let tries = 0; tries < 200; tries++) {
         const found = messages.findIndex((m) => m.type === type);
         if (found >= 0) return messages.splice(found, 1)[0]!;
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -75,925 +54,335 @@ async function setup(
     };
     return {
       socket,
-      messages,
       wait,
       send: (message: unknown) => socket.send(JSON.stringify(message)),
     };
   }
-  return { bridge, client, url, sessions };
+  async function paired() {
+    const helper = await client();
+    helper.send({ type: "pair", code: bridge.issueCode() });
+    await helper.wait("paired");
+    return helper;
+  }
+  return { bridge, client, paired, url };
 }
-const ask = {
-  type: "ask",
-  id: "q1",
-  question: "Where is export?",
-  kind: "ask",
-  model: "sonnet",
-  effort: "high",
-};
 
-describe("extension pairing and answers", () => {
-  it("keeps installation status isolated between browser profiles without reusing or extending codes", async () => {
+const png = (width: number, height: number) =>
+  PNG.sync.write(new PNG({ width, height })).toString("base64");
+
+const element = (over: Record<string, unknown> = {}) => ({
+  id: "e1",
+  kind: "paragraph",
+  rect: { x: 0, y: 0, width: 10, height: 10 },
+  role: "paragraph",
+  name: "",
+  text: "Hi",
+  secure: false,
+  ...over,
+});
+const snapshot = (elements: unknown[]) => ({
+  page: { url: "https://a.test/", title: "A", tabId: 1, incognito: false },
+  frame: { screenX: 0, screenY: 0, devicePixelRatio: 1, zoom: 1 },
+  elements,
+});
+
+describe("browser helper pairing", () => {
+  it("keeps installation status per code and never reuses or extends a code", async () => {
     let now = 1000;
-    const app = await setup(
-      async () => ({ answer: "unused" }),
-      () => now,
-    );
-    const ordinaryCode = app.bridge.issueCode();
-    const ordinary = await app.client();
-    ordinary.send({ type: "pair", code: ordinaryCode });
-    await ordinary.wait("paired");
-    expect(app.bridge.installStatus(ordinaryCode)).toBe(true);
+    const app = await setup({ now: () => now });
+    const first = app.bridge.issueCode();
+    expect(first).toMatch(/^[A-F0-9]{16}$/);
+    const a = await app.client();
+    a.send({ type: "pair", code: first });
+    const token = (await a.wait("paired")).token;
+    expect(app.bridge.installStatus(first)).toBe(true);
 
     now += 1000;
-    const trialCode = app.bridge.issueCode();
-    expect(trialCode).not.toBe(ordinaryCode);
-    expect(app.bridge.installStatus(trialCode)).toBe(false);
-    const trial = await app.client();
-    trial.send({ type: "pair", code: trialCode });
-    const trialPair = await trial.wait("paired");
-    expect(app.bridge.installStatus(trialCode)).toBe(true);
-    expect(app.bridge.installStatus(ordinaryCode)).toBe(true);
+    const second = app.bridge.issueCode();
+    expect(second).not.toBe(first);
+    expect(app.bridge.installStatus(second)).toBe(false);
 
-    const duplicate = await app.client();
-    duplicate.send({ type: "pair", code: trialCode });
-    expect((await duplicate.wait("error")).code).toBe("pairing_expired");
-    expect(app.bridge.installStatus(trialCode)).toBe(true);
-    const trialClosed = once(trial.socket, "close");
-    trial.socket.close();
-    await trialClosed;
-    expect(app.bridge.installStatus(trialCode)).toBe(true);
-    expect(app.bridge.installStatus(ordinaryCode)).toBe(true);
-    const reconnected = await app.client();
-    reconnected.send({ type: "pair", token: trialPair.token });
-    await reconnected.wait("paired");
-    expect(app.bridge.installStatus(trialCode)).toBe(true);
+    const replay = await app.client();
+    replay.send({ type: "pair", code: first });
+    expect((await replay.wait("error")).code).toBe("pairing_expired");
 
-    now = 601000;
-    expect(app.bridge.installStatus(ordinaryCode)).toBeUndefined();
-    expect(app.bridge.installStatus(trialCode)).toBe(true);
-    now = 602000;
-    expect(app.bridge.installStatus(trialCode)).toBeUndefined();
+    const again = await app.client();
+    again.send({ type: "pair", token });
+    await again.wait("paired");
+    expect(app.bridge.connected).toBe(true);
+
+    now = 601_000;
+    expect(app.bridge.installStatus(first)).toBeUndefined();
+    expect(app.bridge.installStatus(second)).toBe(false);
+    now = 602_000;
+    expect(app.bridge.installStatus(second)).toBeUndefined();
   });
 
-  function serverSocket(app: Awaited<ReturnType<typeof setup>>) {
-    const clients = (
-      app.bridge as unknown as { sockets: { clients: Set<WebSocket> } }
-    ).sockets.clients;
-    return [...clients][0]!;
-  }
-
-  it("ignores the retired server socket's delayed close and cancellation", async () => {
-    const requests: ProviderRequest[] = [];
-    let complete!: () => void;
-    const app = await setup(async (request) => {
-      requests.push(request);
-      await new Promise<void>((resolve) => {
-        complete = resolve;
-      });
-      return { answer: "Completed normally" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    const paired = await a.wait("paired");
-    const retired = serverSocket(app);
-    const delayedClose = vi
-      .spyOn(retired, "close")
-      .mockImplementation(() => {});
-    try {
-      const b = await app.client();
-      b.send({ type: "pair", token: paired.token });
-      await b.wait("paired");
-      b.send(ask);
-      await vi.waitFor(() => expect(requests).toHaveLength(1));
-      retired.emit("close", 4002, Buffer.from("Opened in another window"));
-      expect(requests[0]!.signal.aborted).toBe(false);
-      retired.emit(
-        "message",
-        Buffer.from(JSON.stringify({ type: "cancel", id: ask.id })),
-        false,
-      );
-      expect(requests[0]!.signal.aborted).toBe(false);
-      complete();
-      expect((await b.wait("done")).answer).toBe("Completed normally");
-    } finally {
-      complete?.();
-      delayedClose.mockRestore();
-      retired.terminate();
-    }
-  });
-
-  it("aborts the previous owned job during replacement and waits for cleanup before new work", async () => {
-    const requests: ProviderRequest[] = [];
-    let cleanupOld!: () => void;
-    const app = await setup(async (request) => {
-      requests.push(request);
-      if (requests.length === 1) {
-        await new Promise<void>((resolve) => {
-          cleanupOld = resolve;
-        });
-        return { answer: "Old answer" };
-      }
-      return { answer: "New answer" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    const paired = await a.wait("paired");
-    a.send(ask);
-    await vi.waitFor(() => expect(requests).toHaveLength(1));
-    const retired = serverSocket(app);
-    const delayedClose = vi
-      .spyOn(retired, "close")
-      .mockImplementation(() => {});
-    try {
-      const b = await app.client();
-      b.send({ type: "pair", token: paired.token });
-      await b.wait("paired");
-      expect(requests[0]!.signal.aborted).toBe(true);
-      b.send({ ...ask, id: "too-early" });
-      await b.wait("error");
-      expect(requests).toHaveLength(1);
-      cleanupOld();
-      await a.wait("error");
-      b.send({ ...ask, id: "new-question" });
-      expect((await b.wait("done")).answer).toBe("New answer");
-      expect(requests).toHaveLength(2);
-    } finally {
-      cleanupOld?.();
-      delayedClose.mockRestore();
-      retired.terminate();
-    }
-  });
-
-  it("rejects sharing, session changes and new questions from a retired server client", async () => {
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Current client answer" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    const paired = await a.wait("paired");
-    const retired = serverSocket(app);
-    const delayedClose = vi
-      .spyOn(retired, "close")
-      .mockImplementation(() => {});
-    try {
-      const b = await app.client();
-      b.send({ type: "pair", token: paired.token });
-      await b.wait("paired");
-      for (const message of [
-        { type: "share", active: true },
-        { type: "session", id: "retired-session", sessionId: sourceId },
-        { ...ask, id: "retired-question" },
-      ])
-        retired.emit("message", Buffer.from(JSON.stringify(message)), false);
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      expect(app.bridge.isSharing).toBe(false);
-      expect(requests).toHaveLength(0);
-      b.send(ask);
-      await b.wait("done");
-      expect(requests[0]!.cliSession?.id).toBe(paired.sessionId);
-    } finally {
-      delayedClose.mockRestore();
-      retired.terminate();
-    }
-  });
-
-  it("ignores a retired client's conversation lookup that completes after replacement", async () => {
-    let finishLookup!: (thread: ExtensionThread) => void;
-    const lookup = vi
-      .spyOn(ExtensionSessions.prototype, "resume")
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finishLookup = resolve;
-          }),
-      );
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Original paired conversation" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    const paired = await a.wait("paired");
-    a.send({ type: "session", id: "pending-selection", sessionId: sourceId });
-    await vi.waitFor(() => expect(lookup).toHaveBeenCalledOnce());
-    const retired = serverSocket(app);
-    const delayedClose = vi
-      .spyOn(retired, "close")
-      .mockImplementation(() => {});
-    try {
-      const b = await app.client();
-      b.send({ type: "pair", token: paired.token });
-      expect((await b.wait("paired")).sessionId).toBe(paired.sessionId);
-      b.send({ ...ask, id: "before-retired-lookup" });
-      await b.wait("done");
-      expect(requests[0]!.cliSession?.id).toBe(paired.sessionId);
-      finishLookup(new ExtensionThread("/fixture/project", sourceId));
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      b.send(ask);
-      await b.wait("done");
-      expect(requests[1]!.cliSession?.id).toBe(paired.sessionId);
-    } finally {
-      finishLookup?.(new ExtensionThread("/fixture/project", sourceId));
-      lookup.mockRestore();
-      delayedClose.mockRestore();
-      retired.terminate();
-    }
-  });
-
-  it("clearing cancels an outstanding session selection and keeps the fresh conversation", async () => {
-    let finishLookup!: (thread: ExtensionThread) => void;
-    const lookup = vi
-      .spyOn(ExtensionSessions.prototype, "resume")
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finishLookup = resolve;
-          }),
-      );
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Fresh conversation" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({ type: "session", id: "obsolete-selection", sessionId: sourceId });
-    await vi.waitFor(() => expect(lookup).toHaveBeenCalledOnce());
-    try {
-      await app.bridge.clear();
-      expect(await a.wait("error")).toMatchObject({
-        id: "obsolete-selection",
-        code: "cancelled",
-      });
-      a.send(ask);
-      await a.wait("done");
-      const freshId = requests[0]!.cliSession!.id;
-      expect(freshId).not.toBe(sourceId);
-      finishLookup(new ExtensionThread("/fixture/project", sourceId));
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      a.send({ ...ask, id: "after-obsolete-lookup" });
-      await a.wait("done");
-      expect(requests[1]!.cliSession?.id).toBe(freshId);
-      expect(a.messages).not.toContainEqual(
-        expect.objectContaining({ type: "session", id: "obsolete-selection" }),
-      );
-    } finally {
-      finishLookup?.(new ExtensionThread("/fixture/project", sourceId));
-      lookup.mockRestore();
-    }
-  });
-
-  it("an obsolete selection cannot release the lock held by a newer selection", async () => {
-    const finish: Array<(thread: ExtensionThread) => void> = [];
-    const lookup = vi
-      .spyOn(ExtensionSessions.prototype, "resume")
-      .mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            finish.push(resolve);
-          }),
-      );
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Selected conversation" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({ type: "session", id: "old-selection", sessionId: sourceId });
-    await vi.waitFor(() => expect(finish).toHaveLength(1));
-    const nextId = "a88b5348-a13b-42fd-9685-000000000002";
-    try {
-      await app.bridge.clear();
-      await a.wait("error");
-      a.send({ type: "session", id: "new-selection", sessionId: nextId });
-      await vi.waitFor(() => expect(finish).toHaveLength(2));
-      finish[0]!(new ExtensionThread("/fixture/project", sourceId));
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      a.send({ ...ask, id: "while-current-selection" });
-      expect(await a.wait("error")).toMatchObject({
-        id: "while-current-selection",
-      });
-      expect(requests).toHaveLength(0);
-      finish[1]!(new ExtensionThread("/fixture/project", nextId));
-      expect(await a.wait("session")).toMatchObject({
-        id: "new-selection",
-        sessionId: nextId,
-      });
-      a.send(ask);
-      await a.wait("done");
-      expect(requests[0]!.cliSession?.id).toBe(nextId);
-    } finally {
-      for (const resolve of finish)
-        resolve(new ExtensionThread("/fixture/project", sourceId));
-      lookup.mockRestore();
-    }
-  });
-
-  for (const transcriptCreated of [true, false]) {
-    it(`continues after a cancelled first turn when transcript creation is ${transcriptCreated}`, async () => {
-      const persisted = new Set<string>();
-      const requests: ProviderRequest[] = [];
-      const inspect = vi.fn(async (id: string, project: string) => {
-        expect(project).toBe("/fixture/project");
-        return persisted.has(id);
-      });
-      const app = await setup(
-        async (request) => {
-          requests.push(request);
-          const session = request.cliSession!;
-          if (requests.length === 1) {
-            if (transcriptCreated) persisted.add(session.id);
-            request.onText("Partial first answer");
-            await new Promise<void>((resolve) =>
-              request.signal.addEventListener("abort", () => resolve(), {
-                once: true,
-              }),
-            );
-            throw new Error("The answer stopped");
-          }
-          if (session.resume !== persisted.has(session.id))
-            throw new Error(
-              "Session launch mode does not match its transcript",
-            );
-          return { answer: "Followup accepted", sessionId: session.id };
-        },
-        Date.now,
-        inspect,
-      );
-      const a = await app.client();
-      a.send({ type: "pair", code: app.bridge.issueCode() });
-      const paired = await a.wait("paired");
-      a.send(ask);
-      await a.wait("delta");
-      a.send({ type: "cancel", id: "stop-first", jobId: ask.id });
-      await a.wait("cancelled");
-      a.send({ ...ask, id: "retry-first", question: "Continue this answer" });
-      expect((await a.wait("done")).answer).toBe("Followup accepted");
-      expect(requests[1].cliSession).toMatchObject({
-        id: paired.sessionId,
-        resume: transcriptCreated,
-      });
-    });
-  }
-
-  it("does not pin a cancelled automatic lookup and resolves the latest session on retry", async () => {
-    let finishLookup!: (thread: ExtensionThread) => void;
-    const lookup = vi
-      .spyOn(ExtensionSessions.prototype, "latest")
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finishLookup = resolve;
-          }),
-      )
-      .mockResolvedValueOnce(new ExtensionThread("/fixture/project", sourceId));
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Latest session", sessionId: request.cliSession!.id };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    try {
-      a.send(ask);
-      await vi.waitFor(() => expect(lookup).toHaveBeenCalledOnce());
-      a.send({ type: "cancel", id: "stop-lookup", jobId: ask.id });
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      finishLookup(
-        new ExtensionThread(
-          "/fixture/project",
-          "00000000-0000-4000-8000-000000000001",
-        ),
-      );
-      await a.wait("cancelled");
-      expect(requests).toHaveLength(0);
-      a.send({ ...ask, id: "retry-lookup" });
-      expect((await a.wait("done")).sessionId).toBe(sourceId);
-      expect(lookup).toHaveBeenCalledTimes(2);
-      expect(requests[0]!.cliSession).toMatchObject({
-        id: sourceId,
-        resume: true,
-        fork: false,
-      });
-    } finally {
-      finishLookup?.(new ExtensionThread("/fixture/project", sourceId));
-      lookup.mockRestore();
-    }
-  });
-
-  it("holds session ownership while reconciling and stops before provider launch", async () => {
-    let finishLookup: ((persisted: boolean) => void) | undefined;
-    const inspect = vi.fn(
-      () =>
-        new Promise<boolean>((resolve) => {
-          finishLookup = resolve;
-        }),
-    );
-    const provider = vi.fn(async () => ({ answer: "Unexpected launch" }));
-    const app = await setup(provider, Date.now, inspect);
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send(ask);
-    await vi.waitFor(() => expect(finishLookup).toBeDefined());
-    a.send({ ...ask, id: "concurrent-reconcile" });
-    expect((await a.wait("error")).message).toContain("current answer");
-    a.send({ type: "session", id: "select-reconcile", sessionId: "new" });
-    expect((await a.wait("error")).message).toContain("current answer");
-    a.send({ type: "cancel", id: "stop-reconcile", jobId: ask.id });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(a.messages.some((message) => message.type === "cancelled")).toBe(
-      false,
-    );
-    finishLookup!(false);
-    expect((await a.wait("cancelled")).id).toBe("stop-reconcile");
-    expect(provider).not.toHaveBeenCalled();
-  });
-
-  it("does not reconcile a conversation for automatic page questions", async () => {
-    const inspect = vi.fn(async () => false);
-    const provider = vi.fn(async (request: ProviderRequest) => ({
-      answer: request.question,
-    }));
-    const app = await setup(provider, Date.now, inspect);
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({ ...ask, kind: "suggest" });
-    await a.wait("done");
-    expect(provider).toHaveBeenCalledOnce();
-    expect(provider.mock.calls[0][0].cliSession).toBeUndefined();
-    expect(inspect).not.toHaveBeenCalled();
-  });
-
-  it("automatically resumes the latest current-project session and keeps subsequent turns anchored", async () => {
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Continued", sessionId: request.cliSession!.id };
-    });
-    const latest = vi
-      .spyOn(app.sessions, "recent")
-      .mockResolvedValue([
-        { id: sourceId, title: "Current terminal", updatedAt: 2 },
-      ]);
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send(ask);
-    expect((await a.wait("done")).sessionId).toBe(sourceId);
-    latest.mockResolvedValue([
-      {
-        id: "a88b5348-a13b-42fd-9685-000000000002",
-        title: "Another terminal",
-        updatedAt: 3,
-      },
-    ]);
-    a.send({ ...ask, id: "followup" });
-    expect((await a.wait("done")).sessionId).toBe(sourceId);
-    expect(latest).toHaveBeenCalledOnce();
-    expect(requests.map((r) => r.cliSession)).toEqual(
-      [0, 1].map(() => ({
-        id: sourceId,
-        project: "/fixture/project",
-        resume: true,
-        fork: false,
-      })),
-    );
-  });
-
-  it("automatically prefers a late live channel and falls back after it disconnects", async () => {
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Fallback", sessionId: request.cliSession!.id };
-    });
-    vi.spyOn(app.sessions, "recent").mockResolvedValue([
-      { id: sourceId, title: "Terminal", updatedAt: 2 },
-    ]);
-    const pushed: Parameters<
-      ConstructorParameters<typeof LiveChannel>[0]
-    >[0][] = [];
-    const channel = new LiveChannel(async (event) => {
-      pushed.push(event);
-    });
-    app.bridge.attachChannel(channel);
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    await channel.probe();
-    channel.confirm(pushed[0].params.meta.nonce!);
-    expect(await a.wait("channel-status")).toMatchObject({
-      live: true,
-      sessionId: "live",
-    });
-    a.send(ask);
-    await vi.waitFor(() => expect(pushed).toHaveLength(2));
-    channel.reply(pushed[1].params.meta.request_id!, "Live reply", true);
-    expect((await a.wait("done")).sessionId).toBe("live");
-    expect(requests).toHaveLength(0);
-    channel.close();
-    a.send({ ...ask, id: "fallback" });
-    expect((await a.wait("done")).sessionId).toBe(sourceId);
-    expect(requests[0].cliSession?.resume).toBe(true);
-  });
-
-  it("honors an explicit new conversation even when automatic live sync becomes available", async () => {
-    const app = await setup(async (request) => ({
-      answer: "Chosen new conversation",
-      sessionId: request.cliSession!.id,
-    }));
-    let nonce = "";
-    const channel = new LiveChannel(async (event) => {
-      nonce = event.params.meta.nonce || "";
-    });
-    app.bridge.attachChannel(channel);
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({ type: "session", id: "new" });
-    const selected = await a.wait("session");
-    await channel.probe();
-    channel.confirm(nonce);
-    a.send(ask);
-    expect((await a.wait("done")).sessionId).toBe(selected.sessionId);
-    channel.close();
-  });
-
-  it("routes live chat into the connected MCP channel and keeps replies paired", async () => {
-    const provider = vi.fn(async () => ({ answer: "wrong provider" }));
-    const inspect = vi.fn(async () => false);
-    const app = await setup(provider, Date.now, inspect);
-    const pushed: Array<{ params: { meta: Record<string, string> } }> = [];
-    const channel = new LiveChannel(async (event) => {
-      pushed.push(event);
-    });
-    app.bridge.attachChannel(channel);
-    await channel.probe();
-    channel.confirm(pushed[0]!.params.meta.nonce!);
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({ type: "session", id: "live-select", sessionId: "live" });
-    expect((await a.wait("session")).live).toBe(true);
-    a.send({
-      type: "session",
-      id: "bad-session",
-      sessionId: "not-in-this-project",
-    });
-    expect((await a.wait("error")).id).toBe("bad-session");
-    a.send(ask);
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    channel.reply(
-      pushed[1]!.params.meta.request_id!,
-      "From your terminal",
-      true,
-    );
-    expect((await a.wait("delta")).text).toBe("From your terminal");
-    expect((await a.wait("done")).answer).toBe("From your terminal");
-    expect(provider).not.toHaveBeenCalled();
-    channel.close();
-    expect(inspect).not.toHaveBeenCalled();
-  });
-  it("consumes a pairing code, streams answers, keeps dedicated follow-ups and binds reconnect tokens to the extension", async () => {
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      request.onText("Export is ");
-      request.onText("next to Save.");
-      return { answer: "Export is next to Save." };
-    });
-    const a = await app.client();
-    const code = app.bridge.issueCode();
-    a.send({ type: "pair", code });
-    const paired = await a.wait("paired");
-    expect(paired.mode).toBe(process.env.SSH_CONNECTION ? "tunnel" : "direct");
-    expect(paired.token).toMatch(/^[a-f0-9]{64}$/);
-    a.send(ask);
-    expect((await a.wait("delta")).text).toBe("Export is ");
-    await a.wait("done");
-    a.send({ ...ask, id: "q2", question: "What happens next?" });
-    await a.wait("done");
-    expect(requests[0]!.cliSession?.resume).toBe(false);
-    expect(requests[1]!.cliSession).toMatchObject({
-      id: paired.sessionId,
-      resume: true,
-      fork: false,
-    });
-    expect(requests[1]!.context).toHaveLength(1);
-    expect(requests[1]!.effort).toBe("high");
-    const b = await app.client();
-    b.send({ type: "pair", code });
-    expect((await b.wait("error")).code).toBe("pairing_expired");
-    const c = await app.client(`chrome-extension://${"b".repeat(32)}`);
-    c.send({ type: "pair", token: paired.token });
-    expect((await c.wait("error")).code).toBe("pairing_expired");
-    const d = await app.client();
-    d.send({ type: "pair", token: paired.token });
-    expect((await d.wait("paired")).sessionId).toBe(paired.sessionId);
-    const oldClosed =
-      a.socket.readyState === WebSocket.CLOSED ? null : once(a.socket, "close");
-    await oldClosed;
-  });
-
-  it("acknowledges cancellation after cleanup before admitting a reader action", async () => {
-    let cleaned = false;
-    const app = await setup(async (request) => {
-      if (request.question === "Background suggestion") {
-        await new Promise<void>((resolve) =>
-          request.signal!.addEventListener("abort", () => resolve(), {
-            once: true,
-          }),
-        );
-        await new Promise((resolve) => setTimeout(resolve, 25));
-        cleaned = true;
-        throw new Error("cancelled");
-      }
-      expect(cleaned).toBe(true);
-      return { answer: "Reader guide" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({ ...ask, question: "Background suggestion", kind: "suggest" });
-    a.send({ type: "cancel", id: "cancel-ack", jobId: ask.id });
-    expect((await a.wait("cancelled")).id).toBe("cancel-ack");
-    expect(cleaned).toBe(true);
-    a.send({ ...ask, id: "reader-action", kind: "guide" });
-    expect((await a.wait("done")).answer).toBe("Reader guide");
-  });
-
-  it("does not route to a desktop that quit: a stale endpoint file is ignored and removed", async () => {
-    const runtime = join(process.env.HOME!, ".blinkling", "runtime");
-    await mkdir(runtime, { recursive: true, mode: 0o700 });
-    const probe = createServer();
-    await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
-    const port = (probe.address() as { port: number }).port;
-    await new Promise((resolve) => probe.close(resolve));
-    const descriptor = join(runtime, "desktop.json");
-    await writeFile(
-      descriptor,
-      JSON.stringify({
-        url: `http://127.0.0.1:${port}`,
-        token: "b".repeat(64),
-        pid: 1,
-        version: "3.0.0",
-      }),
-      { mode: 0o600 },
-    );
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Answered locally" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    const paired = await a.wait("paired");
-    expect(paired.sessionId).not.toBe("desktop");
-    a.send({ ...ask, id: "after-quit" });
-    expect((await a.wait("done")).answer).toBe("Answered locally");
-    expect(requests).toHaveLength(1);
-    await expect(access(descriptor)).rejects.toThrow();
-  });
-
-  it("waits a short while for a reconnecting browser before giving up on a full page", async () => {
-    const app = await setup(async () => ({ answer: "" }));
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    const { token } = await a.wait("paired");
-    const closed = once(a.socket, "close");
-    a.socket.close();
-    await closed;
-
-    const png = new PNG({ width: 8, height: 8 });
-    png.data.fill(200);
-    const tile = PNG.sync.write(png).toString("base64");
-    // The browser comes back after a moment: the capture still happens.
-    const capture = app.bridge.requestFullPage(
-      5000,
-      undefined,
-      undefined,
-      3000,
-    );
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const b = await app.client();
-    b.send({ type: "pair", token });
-    await b.wait("paired");
-    const request = await b.wait("full-page");
-    b.send({
-      type: "full-page-result",
-      id: request.id,
-      images: [tile],
-    });
-    expect((await capture)?.tiles).toHaveLength(1);
-
-    // Nobody returns: it gives up after the grace, not after the long timeout.
-    b.socket.close();
-    const started = Date.now();
-    expect(
-      await app.bridge.requestFullPage(5000, undefined, undefined, 400),
-    ).toBeUndefined();
-    expect(Date.now() - started).toBeLessThan(2000);
-  });
   it("rejects website origins and an expired code", async () => {
     let now = Date.now();
-    const app = await setup(
-      async () => ({ answer: "unused" }),
-      () => now,
-    );
+    const app = await setup({ now: () => now });
     const bad = new WebSocket(`${app.url.replace("http:", "ws:")}/extension`, {
       origin: "https://example.com",
     });
     await expect(once(bad, "open")).rejects.toThrow();
     const code = app.bridge.issueCode();
-    now += 600001;
+    now += 600_001;
     const a = await app.client();
     a.send({ type: "pair", code });
     expect((await a.wait("error")).code).toBe("pairing_expired");
   });
 
-  it("lists project sessions and continues the exact selected session", async () => {
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (request) => {
-      requests.push(request);
-      return { answer: "Continued", sessionId: sourceId };
-    });
-    vi.spyOn(app.sessions, "recent").mockResolvedValue([
-      { id: sourceId, title: "Export preferences", updatedAt: 1700000000000 },
-    ]);
+  it("moves a profile to its newest window and closes the older one", async () => {
+    const app = await setup();
+    const code = app.bridge.issueCode();
     const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({ type: "sessions", id: "list" });
-    expect((await a.wait("sessions")).sessions).toEqual([
-      { id: sourceId, title: "Export preferences", updatedAt: 1700000000000 },
-    ]);
-    a.send({ type: "session", id: "select", sessionId: sourceId });
-    await a.wait("session");
-    a.send(ask);
-    expect((await a.wait("done")).sessionId).toBe(sourceId);
-    a.send({ ...ask, id: "q2" });
-    await a.wait("done");
-    expect(requests[0]!.cliSession).toMatchObject({
-      id: sourceId,
-      resume: true,
-      fork: false,
-    });
-    expect(requests[1]!.cliSession).toMatchObject({
-      id: sourceId,
-      resume: true,
-      fork: false,
-    });
-    a.send({ type: "session", id: "invalid", sessionId: "../../secrets" });
-    expect((await a.wait("error")).message).toContain(
-      "no longer in this project",
-    );
-  });
-
-  it("refuses passive requests on password pages before calling the provider", async () => {
-    let calls = 0;
-    const app = await setup(async () => {
-      calls++;
-      return { answer: "unused" };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    a.send({
-      ...ask,
-      kind: "passive",
-      page: {
-        url: "https://example.com/login",
-        title: "Login",
-        text: "",
-        elements: [],
-        hasPassword: true,
-      },
-    });
-    expect((await a.wait("error")).message).toContain("password");
-    expect(calls).toBe(0);
-  });
-
-  it("caps automatic requests and keeps their JSON instructions out of session history", async () => {
-    const requests: ProviderRequest[] = [];
-    const app = await setup(async (r) => {
-      requests.push(r);
-      return { answer: '{"what":"settings","points":[],"questions":[]}' };
-    });
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    await a.wait("paired");
-    for (let i = 0; i < 6; i++) {
-      a.send({ ...ask, id: `p${i}`, kind: "passive" });
-      await a.wait("done");
-    }
-    a.send({ ...ask, id: "p7", kind: "passive" });
-    expect((await a.wait("error")).message).toContain("rate limit");
-    expect(requests.every((r) => !r.cliSession && !r.context.length)).toBe(
-      true,
-    );
-  });
-
-  it("aborts on stop and disconnect, excludes incomplete turns, and preserves failed-closed sharing intent", async () => {
-    const requests: ProviderRequest[] = [];
-    const app = await setup(
-      (r) =>
-        new Promise((resolve, reject) => {
-          requests.push(r);
-          if (r.question === "completed") {
-            resolve({ answer: "Complete." });
-            return;
-          }
-          r.onText("Partial");
-          r.signal.addEventListener(
-            "abort",
-            () => reject(new Error("Answer stopped")),
-            { once: true },
-          );
-        }),
-    );
-    const a = await app.client();
-    a.send({ type: "pair", code: app.bridge.issueCode() });
-    const paired = await a.wait("paired");
-    a.send(ask);
-    await a.wait("delta");
-    a.send({ ...ask, id: "concurrent" });
-    expect((await a.wait("error")).message).toContain("current answer");
-    a.send({ type: "cancel", id: "q1" });
-    await a.wait("error");
-    expect(requests[0]!.signal.aborted).toBe(true);
-    a.send({ ...ask, id: "q2", question: "completed" });
-    await a.wait("done");
-    expect(requests[1]!.context).toHaveLength(0);
-    a.send({ type: "share", active: true });
-    a.send({ ...ask, id: "q3" });
-    await a.wait("delta");
+    a.send({ type: "pair", code });
+    const token = (await a.wait("paired")).token;
     const closed = once(a.socket, "close");
-    a.socket.close();
-    await closed;
-    expect(requests[2]!.signal.aborted).toBe(true);
-    expect(app.bridge.isSharing).toBe(true);
-    expect(await app.bridge.requestCapture(50)).toBeUndefined();
     const b = await app.client();
-    b.send({ type: "pair", token: paired.token });
+    b.send({ type: "pair", token });
     await b.wait("paired");
-    await app.bridge.clear();
-    expect(app.bridge.isSharing).toBe(false);
+    expect((await closed)[0]).toBe(4002);
   });
 });
 
-describe("session and installation contracts", () => {
-  it("rejects a different session returned during an exact continuation", () => {
-    const thread = new ExtensionThread("/fixture/project", sourceId);
-    expect(() =>
-      thread.complete({
-        answer: "Reply",
-        sessionId: "a88b5348-a13b-42fd-9685-000000000002",
-      }),
-    ).toThrow("different session");
-    expect(thread.options).toMatchObject({
-      id: sourceId,
-      resume: true,
-      fork: false,
+describe("requests to the browser helper", () => {
+  it("returns the page structure, and validates it before Blink sees it", async () => {
+    const app = await setup();
+    const helper = await app.paired();
+    const asked = app.bridge.requestElements({ x: 5, y: 6 });
+    const request = await helper.wait("request");
+    expect(request).toMatchObject({ op: "elements", point: { x: 5, y: 6 } });
+    helper.send({
+      type: "result",
+      id: request.id,
+      ok: true,
+      elements: snapshot([element()]),
     });
-    thread.complete({ answer: "Reply", sessionId: sourceId });
-    expect(thread.id).toBe(sourceId);
+    expect((await asked)?.elements[0]?.text).toBe("Hi");
+
+    const bad = app.bridge.requestElements();
+    const second = await helper.wait("request");
+    helper.send({
+      type: "result",
+      id: second.id,
+      ok: true,
+      elements: snapshot([element({ kind: "script" })]),
+    });
+    expect(await bad).toBeNull();
   });
-  it("does not resume the original if a fork was not confirmed", () => {
-    const thread = new ExtensionThread("/project", sourceId, true);
-    expect(() => thread.complete({ answer: "missing session id" })).toThrow(
-      "not confirmed",
+
+  it("answers null when no helper is paired or the helper reports a restricted page", async () => {
+    const app = await setup();
+    expect(await app.bridge.requestElements()).toBeNull();
+    expect(await app.bridge.requestTranslate(true)).toBe(false);
+    expect(await app.bridge.requestPdfReader()).toBe(false);
+    const helper = await app.paired();
+    const asked = app.bridge.requestElements();
+    const request = await helper.wait("request");
+    helper.send({ type: "result", id: request.id, ok: false });
+    expect(await asked).toBeNull();
+  });
+
+  it("cancels the browser's work when Blink gives up", async () => {
+    const app = await setup();
+    const helper = await app.paired();
+    const controller = new AbortController();
+    const asked = app.bridge.requestTranslate(true, controller.signal);
+    const request = await helper.wait("request");
+    controller.abort();
+    expect(await asked).toBe(false);
+    expect(await helper.wait("cancel")).toMatchObject({ id: request.id });
+  });
+
+  it("collects a long page: progress first, then bounded tiles", async () => {
+    const app = await setup();
+    const helper = await app.paired();
+    const progress: number[] = [];
+    const asked = app.bridge.requestFullPage(5000, undefined, (done) =>
+      progress.push(done),
     );
-    expect(thread.options).toMatchObject({ id: sourceId, fork: true });
+    const request = await helper.wait("request");
+    expect(request.op).toBe("full-page");
+    helper.send({ type: "progress", id: request.id, completed: 1, total: 2 });
+    helper.send({ type: "progress", id: request.id, completed: 9, total: 2 });
+    helper.send({
+      type: "result",
+      id: request.id,
+      ok: true,
+      images: [png(8, 8), png(8, 4)],
+      truncated: true,
+      page: { url: "https://a.test/", title: "A" },
+    });
+    const capture = await asked;
+    expect(progress).toEqual([1]);
+    expect(capture?.tiles.map((t) => [t.width, t.height])).toEqual([
+      [8, 8],
+      [8, 4],
+    ]);
+    expect(capture?.truncated).toBe(true);
   });
-  it("prints one SSH command with explicit local binding and supports configured reachable hostnames", () => {
-    expect(tunnelCommand(37115, {})).toBeUndefined();
-    expect(
-      tunnelCommand(37115, {
-        SSH_CONNECTION: "1 2 10.0.0.3 22",
-        BLINKLING_SSH_USER: "reader",
-      }),
-    ).toBe("ssh -N -L 37115:127.0.0.1:37115 reader@10.0.0.3");
-    expect(
-      tunnelCommand(37115, {
-        SSH_CONNECTION: "1 2 ::1 22",
-        BLINKLING_SSH_USER: "reader",
-      }),
-    ).toContain("reader@[::1]");
-    expect(
-      tunnelCommand(37115, {
-        SSH_CONNECTION: "1 2 3 22",
-        BLINKLING_SSH_HOST: "bad host",
-      }),
-    ).toBeUndefined();
+
+  it("takes only a result from the socket that was asked", async () => {
+    const app = await setup();
+    const helper = await app.paired();
+    const intruder = await app.client();
+    const asked = app.bridge.requestPdfReader();
+    const request = await helper.wait("request");
+    intruder.send({ type: "result", id: request.id, ok: true });
+    helper.send({ type: "result", id: request.id, ok: true });
+    expect(await asked).toBe(true);
   });
+});
+
+describe("requests from the browser helper", () => {
+  it("wakes Blink and reports whether the desktop is present", async () => {
+    let woke = 0;
+    const app = await setup({
+      wake: async () => {
+        woke++;
+        return true;
+      },
+    });
+    const helper = await app.paired();
+    helper.send({ type: "wake", id: "w1" });
+    expect(await helper.wait("wake")).toMatchObject({ id: "w1", ok: true });
+    expect(woke).toBe(1);
+    helper.send({ type: "status", id: "s1" });
+    expect(await helper.wait("status")).toMatchObject({ id: "s1" });
+  });
+
+  it("translates a batch through Blink, cancellable, and rejects oversized batches", async () => {
+    const app = await setup({
+      translate: async (texts, target, signal) => {
+        if (target === "slow")
+          await new Promise((_, reject) =>
+            signal.addEventListener("abort", () =>
+              reject(new Error("The translation stopped.")),
+            ),
+          );
+        return texts.map((t) => `${target}:${t}`);
+      },
+    });
+    const helper = await app.paired();
+    helper.send({
+      type: "translate-batch",
+      id: "t1",
+      target: "fr",
+      texts: ["a", "b"],
+    });
+    expect(await helper.wait("translate-batch")).toMatchObject({
+      id: "t1",
+      texts: ["fr:a", "fr:b"],
+    });
+    helper.send({
+      type: "translate-batch",
+      id: "t2",
+      target: "slow",
+      texts: ["a"],
+    });
+    helper.send({ type: "translate-cancel", id: "t2" });
+    expect((await helper.wait("error")).id).toBe("t2");
+    helper.send({
+      type: "translate-batch",
+      id: "t3",
+      target: "fr",
+      texts: Array.from({ length: 61 }, () => "x"),
+    });
+    expect((await helper.wait("error")).id).toBe("t3");
+  });
+});
+
+describe("page structure contract", () => {
+  it("returns a secure field with no text, name or content", () => {
+    const page = pageElements(
+      snapshot([
+        element(),
+        element({
+          id: "e2",
+          kind: "input",
+          role: "textbox",
+          name: "Password",
+          text: "hunter2",
+          secure: true,
+          parentId: "e1",
+          content: { markdown: "hunter2" },
+        }),
+      ]),
+    );
+    expect(page?.elements[1]).toEqual({
+      id: "e2",
+      kind: "input",
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+      role: "textbox",
+      name: "",
+      text: "",
+      parentId: "e1",
+      secure: true,
+    });
+  });
+
+  it("keeps content for tables, code and formulas, and rejects broken trees", () => {
+    const page = pageElements(
+      snapshot([
+        element({
+          id: "t",
+          kind: "table",
+          content: { markdown: "| a |\n| - |\n| 1 |" },
+        }),
+        element({
+          id: "c",
+          kind: "code",
+          content: { code: "x = 1", language: "python" },
+        }),
+        element({
+          id: "f",
+          kind: "formula",
+          content: { latex: "E=mc^2", mathml: "<math/>" },
+        }),
+      ]),
+    );
+    expect(page?.elements.map((e) => e.content)).toEqual([
+      { markdown: "| a |\n| - |\n| 1 |" },
+      { code: "x = 1", language: "python" },
+      { latex: "E=mc^2", mathml: "<math/>" },
+    ]);
+    expect(() =>
+      pageElements(snapshot([element(), element({ id: "e1" })])),
+    ).toThrow();
+    expect(() =>
+      pageElements(snapshot([element({ parentId: "nope" })])),
+    ).toThrow();
+    expect(() =>
+      pageElements(
+        snapshot([
+          element({ rect: { x: 0, y: 0, width: Infinity, height: 1 } }),
+        ]),
+      ),
+    ).toThrow();
+    expect(() =>
+      pageElements(
+        snapshot(
+          Array.from({ length: 601 }, (_, i) => element({ id: `n${i}` })),
+        ),
+      ),
+    ).toThrow();
+    expect(pageElements(null)).toBeNull();
+  });
+});
+
+describe("translation replies", () => {
+  it("accepts a JSON array of the same length, even inside prose", () => {
+    expect(parseTranslation('Sure: ["a","b"]', 2)).toEqual(["a", "b"]);
+  });
+  it("rejects wrong lengths, non-strings and prose", () => {
+    expect(() => parseTranslation('["a"]', 2)).toThrow(/incomplete/);
+    expect(() => parseTranslation("[1,2]", 2)).toThrow(/incomplete/);
+    expect(() => parseTranslation("no", 1)).toThrow(/not understood/);
+  });
+});
+
+describe("install guide", () => {
   it("escapes local install paths and keeps codes in the fragment", () => {
     const guide = installGuide('/tmp/<script>"&');
     expect(guide).toContain("&lt;script&gt;&quot;&amp;");

@@ -5,15 +5,10 @@ import {
   INSTALL_GUIDE_SCRIPT,
   installGuide,
 } from "../src/extension-install.js";
-import { welcomeLocales } from "../src/welcome-locales.js";
+import { installLocales } from "../src/install-locales.js";
 
 const documents: JSDOM[] = [];
-async function openGuide(
-  mode = "direct",
-  connected = false,
-  locale = "en",
-  store = false,
-) {
+async function openGuide(connected = false, locale = "en", store = false) {
   const dom = new JSDOM(
     installGuide("/home/reader/Blinkling-extension", {
       chromeWebStoreUrl: store
@@ -33,7 +28,7 @@ async function openGuide(
     status: 200,
     json: async () =>
       input.startsWith("/install/status")
-        ? { connected, active: connected, mode }
+        ? { connected, active: connected }
         : {},
   }));
   const polls: Array<() => Promise<void>> = [];
@@ -91,12 +86,12 @@ describe("documented plugin upgrades", () => {
   });
 });
 
-describe("three step welcome", () => {
-  it.each(Object.keys(welcomeLocales))(
+describe("three step install guide", () => {
+  it.each(Object.keys(installLocales))(
     "renders complete %s instructions and connection feedback",
     async (locale) => {
-      const { document, message } = await openGuide("direct", false, locale);
-      const text = welcomeLocales[locale as keyof typeof welcomeLocales];
+      const { document, message } = await openGuide(false, locale);
+      const text = installLocales[locale as keyof typeof installLocales];
       expect(document.documentElement.lang).toBe(locale);
       expect(
         [...document.querySelectorAll("section h2 [data-i18n]")].map(
@@ -107,7 +102,6 @@ describe("three step welcome", () => {
       expect(document.querySelector(".blink")?.getAttribute("alt")).toBe(
         "Blink",
       );
-      expect(document.querySelector("#try-zero")?.textContent).toBe(text.try);
       expect(document.querySelector("#connection")?.textContent).toBe(
         text.waiting,
       );
@@ -116,18 +110,18 @@ describe("three step welcome", () => {
         text.completed,
       );
       expect(Object.keys(text).sort()).toEqual(
-        Object.keys(welcomeLocales.en).sort(),
+        Object.keys(installLocales.en).sort(),
       );
       expect(Object.values(text).every((value) => value.trim())).toBe(true);
       expect(document.body.textContent).not.toMatch(
-        /0123456789ABCDEF|4312|Pairing code|practice|exercise|eight/i,
+        /0123456789ABCDEF|4312|\bcode\b|practice|exercise|eight/i,
       );
     },
   );
 
   it("authenticates when the extension becomes ready, then opens only on the third step", async () => {
     const { document, message, post } = await openGuide();
-    const open = document.querySelector<HTMLButtonElement>("#open-bubble")!;
+    const open = document.querySelector<HTMLButtonElement>("#wake")!;
     expect(open.disabled).toBe(true);
     message("blinkling:extension-ready", {
       origin: "https://untrusted.example",
@@ -158,7 +152,7 @@ describe("three step welcome", () => {
     expect(open.disabled).toBe(false);
     open.click();
     expect(post).toHaveBeenLastCalledWith(
-      { type: "blinkling:open-bubble", locale: "en" },
+      { type: "blinkling:wake", locale: "en" },
       "http://127.0.0.1:4312",
     );
   });
@@ -168,11 +162,11 @@ describe("three step welcome", () => {
     message("blinkling:extension-ready");
     message("blinkling:connection-failed");
     expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.connectionFailed,
+      installLocales.en.connectionFailed,
     );
-    expect(
-      document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-    ).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>("#wake")?.disabled).toBe(
+      true,
+    );
     document.querySelector<HTMLButtonElement>("#reconnect")!.click();
     expect(
       post.mock.calls.filter(([value]) => value.type === "blinkling:pair"),
@@ -180,27 +174,23 @@ describe("three step welcome", () => {
   });
 
   it("preserves connected status when changing language", async () => {
-    const { document } = await openGuide("direct", true);
+    const { document } = await openGuide(true);
     const language = document.querySelector<HTMLSelectElement>("#language")!;
     language.value = "zh-TW";
     language.dispatchEvent(new document.defaultView!.Event("change"));
     expect(document.querySelector("#connection")?.textContent).toBe(
       "已連到你的 Claude Code",
     );
-    expect(
-      document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-    ).toBe(false);
+    expect(document.querySelector<HTMLButtonElement>("#wake")?.disabled).toBe(
+      false,
+    );
   });
 
-  it.each(Object.keys(welcomeLocales))(
+  it.each(Object.keys(installLocales))(
     "keeps completed %s setup truthful when the setup link expires",
     async (locale) => {
-      const { document, fetch, poll, post } = await openGuide(
-        "direct",
-        true,
-        locale,
-      );
-      const text = welcomeLocales[locale as keyof typeof welcomeLocales];
+      const { document, fetch, poll, post } = await openGuide(true, locale);
+      const text = installLocales[locale as keyof typeof installLocales];
       fetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -216,20 +206,20 @@ describe("three step welcome", () => {
       expect(
         document.querySelector("#connection")?.classList.contains("connected"),
       ).toBe(false);
-      const open = document.querySelector<HTMLButtonElement>("#open-bubble")!;
+      const open = document.querySelector<HTMLButtonElement>("#wake")!;
       expect(open.disabled).toBe(false);
       expect(
         document.querySelector<HTMLButtonElement>("#reconnect")?.hidden,
       ).toBe(true);
       open.click();
       expect(post).toHaveBeenLastCalledWith(
-        { type: "blinkling:open-bubble", locale },
+        { type: "blinkling:wake", locale },
         "http://127.0.0.1:4312",
       );
     },
   );
 
-  it("expires an unpaired setup without enabling the bubble", async () => {
+  it("expires an unpaired setup without enabling Wake Blink", async () => {
     const { document, fetch, poll } = await openGuide();
     fetch.mockResolvedValueOnce({
       ok: false,
@@ -238,23 +228,23 @@ describe("three step welcome", () => {
     });
     await poll();
     expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.expired,
+      installLocales.en.expired,
     );
-    expect(
-      document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-    ).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>("#wake")?.disabled).toBe(
+      true,
+    );
   });
 
-  it("distinguishes completed pairing from an active bubble connection", async () => {
-    const { document, fetch, poll } = await openGuide("direct", true);
+  it("distinguishes completed pairing from an active connection", async () => {
+    const { document, fetch, poll } = await openGuide(true);
     fetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ connected: true, active: false, mode: "direct" }),
+      json: async () => ({ connected: true, active: false }),
     });
     await poll();
     expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.completed,
+      installLocales.en.completed,
     );
     expect(
       document.querySelector("#connection")?.classList.contains("connected"),
@@ -262,11 +252,11 @@ describe("three step welcome", () => {
     fetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ connected: true, active: true, mode: "direct" }),
+      json: async () => ({ connected: true, active: true }),
     });
     await poll();
     expect(document.querySelector("#connection")?.textContent).toBe(
-      welcomeLocales.en.connected,
+      installLocales.en.connected,
     );
     expect(
       document.querySelector("#connection")?.classList.contains("connected"),
@@ -276,10 +266,7 @@ describe("three step welcome", () => {
   it.each(["http", "network", "unpaired"])(
     "does not claim a live connection after a %s poll failure and recovers",
     async (failure) => {
-      const { document, fetch, poll } = await openGuide(
-        "direct",
-        failure !== "unpaired",
-      );
+      const { document, fetch, poll } = await openGuide(failure !== "unpaired");
       if (failure === "network")
         fetch.mockRejectedValueOnce(new Error("Offline"));
       else
@@ -290,19 +277,19 @@ describe("three step welcome", () => {
         });
       await poll();
       expect(document.querySelector("#connection")?.textContent).toBe(
-        welcomeLocales.en.checkFailed,
+        installLocales.en.checkFailed,
       );
       expect(
         document.querySelector("#connection")?.classList.contains("connected"),
       ).toBe(false);
-      expect(
-        document.querySelector<HTMLButtonElement>("#open-bubble")?.disabled,
-      ).toBe(failure === "unpaired");
+      expect(document.querySelector<HTMLButtonElement>("#wake")?.disabled).toBe(
+        failure === "unpaired",
+      );
       await poll();
       expect(document.querySelector("#connection")?.textContent).toBe(
         failure === "unpaired"
-          ? welcomeLocales.en.waiting
-          : welcomeLocales.en.connected,
+          ? installLocales.en.waiting
+          : installLocales.en.connected,
       );
     },
   );
@@ -320,32 +307,29 @@ describe("three step welcome", () => {
       { method: "POST" },
     );
     expect(document.querySelector("#folder-note")?.textContent).toBe(
-      welcomeLocales.en.revealFailed,
+      installLocales.en.revealFailed,
     );
   });
 
-  it.each(["direct", "tunnel"])(
-    "copies the browser manager address in %s mode and selects it if clipboard is denied",
-    async (mode) => {
-      const { document, window } = await openGuide(mode);
-      const writeText = vi.fn().mockResolvedValue(undefined);
-      Object.defineProperty(window.navigator, "clipboard", {
-        value: { writeText },
-      });
-      document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
-      await Promise.resolve();
-      expect(writeText).toHaveBeenCalledWith("chrome://extensions");
-      writeText.mockRejectedValueOnce(new Error("Denied"));
-      document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      const input = document.querySelector<HTMLInputElement>("#manager")!;
-      expect(document.activeElement).toBe(input);
-      expect([input.selectionStart, input.selectionEnd]).toEqual([
-        0,
-        input.value.length,
-      ]);
-    },
-  );
+  it("copies the browser manager address and selects it if clipboard is denied", async () => {
+    const { document, window } = await openGuide();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: { writeText },
+    });
+    document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith("chrome://extensions");
+    writeText.mockRejectedValueOnce(new Error("Denied"));
+    document.querySelector<HTMLButtonElement>("#copy-manager")!.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const input = document.querySelector<HTMLInputElement>("#manager")!;
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([
+      0,
+      input.value.length,
+    ]);
+  });
 
   it("uses Edge's manager when selected", async () => {
     vi.stubEnv("BLINKLING_BROWSER", "msedge");
@@ -355,48 +339,10 @@ describe("three step welcome", () => {
     );
   });
 
-  it("starts a trial in the chosen language and keeps failures retryable", async () => {
-    const { document, fetch } = await openGuide("direct", false, "ja");
-    const button = document.querySelector<HTMLButtonElement>("#try-zero")!;
-    button.click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(fetch).toHaveBeenCalledWith(
-      "/install/try?code=0123456789ABCDEF&locale=ja",
-      { method: "POST" },
-    );
-    expect(document.querySelector("#try-note")?.textContent).toBe(
-      welcomeLocales.ja.tried,
-    );
-    fetch.mockRejectedValueOnce(new Error("No browser"));
-    button.click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(document.querySelector("#try-note")?.textContent).toBe(
-      welcomeLocales.ja.tryFailed,
-    );
-    expect(button.disabled).toBe(false);
-  });
-
-  it("shows a download for remote installs, hides the server path and disables a remote trial", async () => {
-    const { document } = await openGuide("tunnel");
-    expect(document.querySelector<HTMLElement>("#install-local")?.hidden).toBe(
-      true,
-    );
-    expect(document.querySelector<HTMLElement>("#install-remote")?.hidden).toBe(
-      false,
-    );
-    expect(document.querySelector("#download")?.getAttribute("href")).toBe(
-      "/install/extension.zip?code=0123456789ABCDEF",
-    );
-    expect(
-      document.querySelector<HTMLButtonElement>("#try-zero")?.disabled,
-    ).toBe(true);
-    expect(document.querySelector("#tunnel-command")).toBeNull();
-  });
-
   it("uses a configured store without adding steps or showing a source folder", async () => {
-    const { document } = await openGuide("direct", false, "en", true);
+    const { document } = await openGuide(false, "en", true);
     expect(document.querySelector("#installation a")?.textContent).toBe(
-      welcomeLocales.en.store,
+      installLocales.en.store,
     );
     expect(document.querySelector("#manager")).toBeNull();
     expect(document.querySelectorAll("section")).toHaveLength(3);

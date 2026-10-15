@@ -1,117 +1,85 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  connectWelcome,
-  saveWelcomeLocale,
-  welcomeLocaleNames,
-} from "./connection";
-class Socket {
-  static instances: Socket[] = [];
-  onopen?: () => void;
-  onmessage?: (event: { data: string }) => void;
-  onerror?: () => void;
-  onclose?: () => void;
-  sent: string[] = [];
-  constructor(readonly url: string) {
-    Socket.instances.push(this);
-  }
-  send(data: string) {
-    this.sent.push(data);
-  }
-  close() {
-    this.onclose?.();
-  }
-}
-let session: Record<string, unknown>, local: Record<string, unknown>;
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { connectWelcome, saveToken, storedCredentials } from "./connection";
+
+let store: Record<string, unknown>;
 beforeEach(() => {
-  vi.useFakeTimers();
-  Socket.instances = [];
-  session = {};
-  local = {};
-  vi.stubGlobal("WebSocket", Socket);
-  vi.stubGlobal("chrome", {
+  store = {};
+  (globalThis as { chrome?: unknown }).chrome = {
     storage: {
       session: {
-        get: vi.fn(async () => session),
-        set: vi.fn(async (value) => {
-          session = value;
+        get: vi.fn(async (keys: string[]) =>
+          Object.fromEntries(
+            keys.filter((k) => k in store).map((k) => [k, store[k]]),
+          ),
+        ),
+        set: vi.fn(async (values: Record<string, unknown>) => {
+          Object.assign(store, values);
         }),
       },
-      local: {
-        get: vi.fn(async () => local),
-        set: vi.fn(async (value) => {
-          local = value;
-        }),
-      },
     },
+  };
+});
+
+const code = "0123456789ABCDEF";
+describe("connectWelcome", () => {
+  it("pairs once with the code from the local install page", async () => {
+    const open = vi.fn(async () => {});
+    await connectWelcome({ open }, 4711, code);
+    expect(open).toHaveBeenCalledWith({
+      url: "ws://127.0.0.1:4711/extension",
+      code,
+    });
+    await connectWelcome({ open }, 4711, code);
+    expect(open).toHaveBeenCalledOnce();
+  });
+
+  it("shares one attempt between concurrent calls", async () => {
+    let release!: () => void;
+    const open = vi.fn(
+      () => new Promise<void>((resolve) => (release = resolve)),
+    );
+    const a = connectWelcome({ open }, 9, code);
+    const b = connectWelcome({ open }, 9, code);
+    await vi.waitFor(() => expect(open).toHaveBeenCalled());
+    release();
+    await Promise.all([a, b]);
+    expect(open).toHaveBeenCalledOnce();
+  });
+
+  it("does not remember a failed pairing", async () => {
+    const open = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("connection_failed"))
+      .mockResolvedValue(undefined);
+    await expect(connectWelcome({ open }, 9, code)).rejects.toThrow(
+      "connection_failed",
+    );
+    await connectWelcome({ open }, 9, code);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    [0, code],
+    [70000, code],
+    [1.5, code],
+    [4711, "short"],
+    [4711, code.toLowerCase()],
+  ])("refuses port %s with code %s", async (port, bad) => {
+    const open = vi.fn();
+    await expect(connectWelcome({ open }, port, bad)).rejects.toThrow();
+    expect(open).not.toHaveBeenCalled();
   });
 });
-afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-});
-describe("worker welcome handshake", () => {
-  it("deduplicates concurrent handshakes and saves credentials only after authentication", async () => {
-    const first = connectWelcome(37115, "ABCDEF0123456789");
-    const second = connectWelcome(37115, "ABCDEF0123456789");
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(Socket.instances).toHaveLength(1);
-    const socket = Socket.instances[0];
-    socket.onopen?.();
-    expect(JSON.parse(socket.sent[0])).toEqual({
-      type: "pair",
-      code: "ABCDEF0123456789",
+
+describe("stored credentials", () => {
+  it("round trips a valid token and ignores a malformed one", async () => {
+    expect(await storedCredentials()).toBeUndefined();
+    await saveToken("ws://127.0.0.1:1/extension", "b".repeat(64));
+    expect(await storedCredentials()).toEqual({
+      url: "ws://127.0.0.1:1/extension",
+      token: "b".repeat(64),
     });
-    socket.onmessage?.({
-      data: JSON.stringify({ type: "paired", token: "bad" }),
-    });
-    expect(session).toEqual({});
-    socket.onmessage?.({
-      data: JSON.stringify({
-        type: "paired",
-        token: "a".repeat(64),
-        mode: "tunnel",
-      }),
-    });
-    await Promise.all([first, second]);
-    expect(session).toEqual({
-      bridgeSetup: "37115:ABCDEF0123456789",
-      bridgeUrl: "ws://127.0.0.1:37115/extension",
-      bridgeToken: "a".repeat(64),
-      bridgeMode: "tunnel",
-    });
-    await connectWelcome(37115, "ABCDEF0123456789");
-    expect(Socket.instances).toHaveLength(1);
+    store.bridgeToken = "nope";
+    expect(await storedCredentials()).toBeUndefined();
   });
-  it("expires an unanswered handshake without saving a token, and can retry", async () => {
-    const first = connectWelcome(37115, "ABCDEF0123456789");
-    const rejection = expect(first).rejects.toThrow("connection_timeout");
-    await vi.advanceTimersByTimeAsync(8000);
-    await rejection;
-    expect(session).toEqual({});
-    const second = connectWelcome(37115, "ABCDEF0123456789");
-    const retryRejection = expect(second).rejects.toThrow("connection_failed");
-    await Promise.resolve();
-    Socket.instances[1].onerror?.();
-    await retryRejection;
-  });
-  it.each(Object.keys(welcomeLocaleNames))(
-    "saves %s only when no valid preference exists",
-    async (locale) => {
-      await saveWelcomeLocale(locale);
-      expect(local.locale).toBe(locale);
-      await saveWelcomeLocale(locale === "en" ? "ja" : "en");
-      expect(local.locale).toBe(locale);
-      local.locale = "invalid";
-      await saveWelcomeLocale(locale);
-      expect(local.locale).toBe(locale);
-    },
-  );
-  it.each(["constructor", "zh", "", undefined, {}])(
-    "ignores unsupported locale %j",
-    async (locale) => {
-      await saveWelcomeLocale(locale);
-      expect(local).toEqual({});
-    },
-  );
 });

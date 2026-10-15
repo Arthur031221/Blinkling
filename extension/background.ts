@@ -1,209 +1,275 @@
-import { connectWelcome, saveWelcomeLocale } from "./connection";
-const panelUrl = () => chrome.runtime.getURL("panel.html");
-const readerUrl = () => chrome.runtime.getURL("reader.html");
-type BrowserTab = { id?: number; url?: string; windowId?: number };
-type MessageSender = { tab?: { id?: number; url?: string; windowId?: number } };
-async function injectContent(tabId: number): Promise<void> {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["content.js"],
-    });
-  } catch {
-    /* restricted browser pages stay capture-only */
-  }
+import {
+  bridgeUrl,
+  connectWelcome,
+  saveToken,
+  storedCredentials,
+} from "./connection";
+import { captureFullPage } from "./full-page";
+import { HelperLink, type Request, type RequestContext } from "./link";
+import { isReaderPdfCandidate } from "./reader-url";
+
+type BrowserTab = {
+  id?: number;
+  windowId?: number;
+  url?: string;
+  title?: string;
+  incognito?: boolean;
+};
+type Point = { x: number; y: number };
+type PageReply = {
+  elements: unknown[];
+  page: { url: string; title: string };
+  frame: { innerWidth: number; innerHeight: number; devicePixelRatio: number };
+};
+const READABLE = /^(https?|file):/i;
+const BATCH_TEXTS = 60;
+const BATCH_CHARS = 2000;
+const BATCH_TOTAL_CHARS = 8000;
+let url = "";
+
+const link: HelperLink = new HelperLink(
+  (request, context) => handle(request, context),
+  (token) => saveToken(url, token),
+);
+
+async function normalWindows() {
+  const windows = (await chrome.windows.getAll({
+    windowTypes: ["normal"],
+  })) as {
+    id?: number;
+    left?: number;
+    top?: number;
+    width?: number;
+    height?: number;
+    focused?: boolean;
+    state?: string;
+  }[];
+  return windows.filter((w) => w.state !== "minimized" && w.id !== undefined);
 }
-async function openPanel(source?: BrowserTab): Promise<void> {
-  const [existing] = await chrome.tabs.query({ url: `${panelUrl()}*` });
-  if (existing?.id !== undefined) {
-    if (source?.id !== undefined) await injectContent(source.id);
-    if (existing.windowId !== undefined) {
-      const owner = await chrome.windows
-        .get(existing.windowId)
-        .catch(() => undefined);
-      if (owner?.state === "minimized")
-        await chrome.windows.update(existing.windowId, {
-          state: "normal",
-          focused: true,
-        });
-    }
-    await chrome.runtime
-      .sendMessage({ type: "blinkling:focus", sourceTab: source?.id })
-      .catch(() => {});
-    return;
-  }
-  const target = new URL(panelUrl());
-  if (source?.id !== undefined) {
-    target.searchParams.set("sourceTab", String(source.id));
-    await injectContent(source.id);
-  }
-  await chrome.windows.create({
-    url: target.toString(),
-    type: "popup",
-    width: 420,
-    height: 620,
-    focused: true,
+
+/** The browser window under a screen point (DIP), else the focused one. */
+async function windowAt(point?: Point) {
+  const windows = await normalWindows();
+  const under = point
+    ? windows.filter(
+        (w) =>
+          point.x >= (w.left ?? 0) &&
+          point.x < (w.left ?? 0) + (w.width ?? 0) &&
+          point.y >= (w.top ?? 0) &&
+          point.y < (w.top ?? 0) + (w.height ?? 0),
+      )
+    : windows;
+  return under.find((w) => w.focused) ?? under[0];
+}
+
+async function tabAt(point?: Point) {
+  const win = await windowAt(point);
+  if (!win) return undefined;
+  const [tab] = (await chrome.tabs.query({
+    active: true,
+    windowId: win.id,
+  })) as BrowserTab[];
+  return tab?.id === undefined ? undefined : { win, tab };
+}
+
+async function ensurePage(tabId: number): Promise<void> {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["page.js"],
   });
 }
-chrome.action.onClicked.addListener((tab: BrowserTab) => {
-  void openPanel(tab);
-});
-chrome.runtime.onInstalled.addListener(() => {
-  void chrome.tabs
-    .query({ url: ["http://127.0.0.1/install*", "http://localhost/install*"] })
-    .then((tabs: BrowserTab[]) => {
-      for (const tab of tabs)
-        if (tab.id !== undefined) void injectContent(tab.id);
-    });
-});
-chrome.commands.onCommand.addListener(async (command: string) => {
-  if (command === "open-blinkling") {
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      lastFocusedWindow: true,
-    });
-    void openPanel(tab);
+
+async function ask<T>(tabId: number, message: unknown): Promise<T> {
+  await ensurePage(tabId);
+  return (await chrome.tabs.sendMessage(tabId, message)) as T;
+}
+
+async function elements(point?: Point) {
+  const found = await tabAt(point);
+  if (!found || !found.tab.url || !READABLE.test(found.tab.url)) return null;
+  const { win, tab } = found;
+  const reply = await ask<PageReply>(tab.id!, {
+    type: "blinkling:elements",
+  }).catch(() => undefined);
+  if (!reply) return null;
+  const zoom = await chrome.tabs.getZoom(tab.id!).catch(() => 1);
+  // The window's outer box is in screen DIPs; the page sits below the toolbar and
+  // between equal side borders.
+  const viewportWidth = reply.frame.innerWidth * zoom;
+  const viewportHeight = reply.frame.innerHeight * zoom;
+  return {
+    page: {
+      url: reply.page.url,
+      title: reply.page.title,
+      tabId: tab.id!,
+      incognito: Boolean(tab.incognito),
+    },
+    frame: {
+      screenX: (win.left ?? 0) + ((win.width ?? 0) - viewportWidth) / 2,
+      screenY: (win.top ?? 0) + (win.height ?? 0) - viewportHeight,
+      devicePixelRatio: reply.frame.devicePixelRatio,
+      zoom,
+    },
+    elements: reply.elements,
+  };
+}
+
+function languageName(): string {
+  const tag = navigator.language || "en";
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(tag) ?? tag;
+  } catch {
+    return tag;
   }
-  if (command === "crop-screen" || command === "crop-global") {
-    chrome.runtime
-      .sendMessage({ type: "blinkling:command", command: "crop-screen" })
-      .catch(() => {});
+}
+
+async function translate(on: boolean, context: RequestContext) {
+  const found = await tabAt();
+  if (!found || !found.tab.url || !READABLE.test(found.tab.url))
+    throw new Error("restricted");
+  const tabId = found.tab.id!;
+  if (!on) {
+    await ask(tabId, { type: "blinkling:restore" });
+    return {};
   }
-  if (command === "pause-passive")
-    chrome.runtime
-      .sendMessage({ type: "blinkling:command", command })
-      .catch(() => {});
-});
+  const { texts } = await ask<{ texts: string[] }>(tabId, {
+    type: "blinkling:texts",
+  });
+  const batches: { from: number; texts: string[] }[] = [];
+  let chars = 0;
+  texts.forEach((text, index) => {
+    const piece = text.slice(0, BATCH_CHARS);
+    const last = batches.at(-1);
+    if (
+      !last ||
+      last.texts.length >= BATCH_TEXTS ||
+      chars + piece.length > BATCH_TOTAL_CHARS
+    ) {
+      batches.push({ from: index, texts: [piece] });
+      chars = piece.length;
+    } else {
+      last.texts.push(piece);
+      chars += piece.length;
+    }
+  });
+  const target = languageName();
+  for (const [done, batch] of batches.entries()) {
+    if (context.signal.aborted) break;
+    context.progress(done, batches.length);
+    const reply = await link.call({
+      type: "translate-batch",
+      target,
+      texts: batch.texts,
+    });
+    if (context.signal.aborted) break;
+    await ask(tabId, {
+      type: "blinkling:apply",
+      from: batch.from,
+      texts: reply.texts,
+    });
+  }
+  return {};
+}
+
+async function openPdfReader() {
+  const found = await tabAt();
+  const source = found?.tab.url;
+  if (!source || !isReaderPdfCandidate(source)) return false;
+  const reader = new URL(chrome.runtime.getURL("reader.html"));
+  reader.searchParams.set("url", source);
+  await chrome.tabs.create({ url: reader.toString() });
+  return true;
+}
+
+async function handle(request: Request, context: RequestContext) {
+  switch (request.op) {
+    case "full-page": {
+      const found = await tabAt();
+      if (!found || !found.tab.url || !READABLE.test(found.tab.url))
+        throw new Error("restricted");
+      return captureFullPage(
+        { id: found.tab.id!, windowId: found.win.id!, ...found.tab },
+        context.signal,
+        context.progress,
+      );
+    }
+    case "elements":
+      return { elements: await elements(request.point as Point | undefined) };
+    case "translate":
+      return translate(request.on === true, context);
+    case "pdf-reader":
+      if (!(await openPdfReader())) throw new Error("not_a_pdf");
+      return {};
+    default:
+      throw new Error("unknown_op");
+  }
+}
+
+async function resume(): Promise<void> {
+  if (link.connected) return;
+  const credentials = await storedCredentials();
+  if (!credentials) return;
+  url = credentials.url;
+  link.keep(credentials);
+}
+
+async function status() {
+  await resume();
+  let blink = false;
+  if (link.connected)
+    blink =
+      (await link.call({ type: "status" }, 4000).catch(() => undefined))
+        ?.desktop === true;
+  return { link: link.connected, blink };
+}
 
 chrome.runtime.onMessage.addListener(
   (
-    message: { type?: string; url?: string },
-    sender: MessageSender,
-    sendResponse: (value?: unknown) => void,
+    message: { type?: string; port?: number; code?: string },
+    sender: { id?: string; tab?: { url?: string } },
+    respond: (value: unknown) => void,
   ) => {
-    if (message?.type === "blinkling:open") {
-      void openPanel().then(() => sendResponse({ ok: true }));
-      return true;
-    }
-    if (
-      message?.type === "blinkling:inject-content" &&
-      sender.tab?.id !== undefined
-    ) {
-      void injectContent(sender.tab.id).then(() => sendResponse({ ok: true }));
-      return true;
-    }
-    if (
-      message?.type === "blinkling:open-reader" &&
-      typeof message.url === "string"
-    ) {
-      const target = new URL(chrome.runtime.getURL("reader.html"));
-      target.searchParams.set("url", message.url);
-      void chrome.tabs.create({ url: target.toString() }).then(
-        (tab) => sendResponse({ ok: true, tabId: tab.id }),
-        () => sendResponse({ ok: false }),
+    if (sender.id !== chrome.runtime.id) return false;
+    const fromInstall =
+      /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/install/.test(
+        sender.tab?.url ?? "",
       );
+    if (message?.type === "blinkling:status") {
+      void status().then(respond, () => respond({ link: false, blink: false }));
       return true;
     }
-    if (
-      message?.type === "blinkling:reader-permission-handoff" &&
-      sender.tab?.url?.split(/[?#]/, 1)[0] === readerUrl()
-    ) {
-      let interrupted = false;
-      void (async () => {
-        const panels = await chrome.tabs.query({ url: `${panelUrl()}*` });
-        if (!panels.length) return false;
-        // The panel owns any document PiP window. Require its acknowledgement
-        // before reporting readiness, so the reader cannot open a prompt while
-        // an unclosed PiP window may still cover Chromium's permission UI.
-        const response = (await chrome.runtime
-          .sendMessage({ type: "blinkling:reader-permission-handoff" })
-          .catch(() => undefined)) as
-          | { ok?: boolean; interrupted?: boolean }
-          | undefined;
-        if (!response?.ok) throw new Error("reader_handoff_unconfirmed");
-        interrupted = response.interrupted === true;
-        const panel = panels.find(
-          (tab: BrowserTab) => tab.windowId !== undefined,
-        );
-        if (panel?.windowId !== undefined) {
-          const owner = await chrome.windows
-            .get(panel.windowId)
-            .catch(() => undefined);
-          if (owner?.type === "popup" && owner.state !== "minimized") {
-            await chrome.windows.update(panel.windowId, { state: "minimized" });
-            interrupted = true;
-          }
-        }
-        return interrupted;
-      })()
-        .then((interrupted) => sendResponse({ ok: true, interrupted }))
-        .catch(() =>
-          sendResponse(
-            interrupted ? { ok: false, interrupted } : { ok: false },
-          ),
+    if (message?.type === "blinkling:wake") {
+      void resume()
+        .then(() => link.call({ type: "wake" }, 20_000))
+        .then(
+          (reply) => respond({ ok: reply.ok === true }),
+          () => respond({ ok: false }),
         );
       return true;
     }
-    if (message?.type === "blinkling:open-bubble" && sender.tab?.url) {
-      let source: URL;
-      try {
-        source = new URL(sender.tab.url);
-      } catch {
-        return false;
-      }
-      if (
-        source.protocol !== "http:" ||
-        !["127.0.0.1", "localhost"].includes(source.hostname) ||
-        source.username !== "" ||
-        source.password !== "" ||
-        source.pathname !== "/install"
-      )
-        return false;
-      void saveWelcomeLocale((message as { locale?: unknown }).locale)
-        .then(() => openPanel())
-        .then(() => sendResponse({ ok: true }))
-        .catch(() => sendResponse({ ok: false }));
-      return true;
-    }
-    if (message?.type === "blinkling:pair" && sender.tab?.url) {
-      let senderUrl: URL;
-      try {
-        senderUrl = new URL(sender.tab.url);
-      } catch {
-        sendResponse({ ok: false, error: "invalid_pair_request" });
-        return false;
-      }
-      const port = Number((message as { port?: unknown }).port);
-      const code = (message as { code?: unknown }).code;
-      const validHost =
-        (senderUrl.hostname === "localhost" ||
-          senderUrl.hostname === "127.0.0.1") &&
-        senderUrl.protocol === "http:" &&
-        senderUrl.username === "" &&
-        senderUrl.password === "";
-      if (
-        !validHost ||
-        senderUrl.pathname !== "/install" ||
-        port !== Number(senderUrl.port || 80) ||
-        !Number.isInteger(port) ||
-        port < 1 ||
-        port > 65535 ||
-        typeof code !== "string" ||
-        !/^[A-F0-9]{16}$/.test(code)
-      ) {
-        sendResponse({ ok: false, error: "invalid_pair_request" });
-        return false;
-      }
-      void connectWelcome(port, code)
-        .then(() =>
-          chrome.runtime
-            .sendMessage({ type: "blinkling:connection-updated" })
-            .catch(() => {}),
-        )
-        .then(() => sendResponse({ ok: true }))
-        .catch(() => sendResponse({ ok: false }));
+    if (message?.type === "blinkling:pair" && fromInstall) {
+      const port = Number(message.port);
+      url = bridgeUrl(port);
+      void connectWelcome(link, port, String(message.code)).then(
+        () => respond({ ok: true }),
+        () => respond({ ok: false }),
+      );
       return true;
     }
     return false;
   },
 );
+chrome.runtime.onStartup.addListener(() => void resume());
+chrome.runtime.onInstalled.addListener(() => {
+  void resume();
+  void chrome.tabs
+    .query({ url: ["http://127.0.0.1/install*", "http://localhost/install*"] })
+    .then((tabs: BrowserTab[]) => {
+      for (const tab of tabs)
+        if (tab.id !== undefined)
+          void chrome.scripting
+            .executeScript({ target: { tabId: tab.id }, files: ["content.js"] })
+            .catch(() => {});
+    });
+});
+void resume();

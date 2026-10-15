@@ -3,7 +3,7 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 await rm("dist-extension", { recursive: true, force: true });
-await mkdir("dist-extension/assets", { recursive: true });
+await mkdir("dist-extension/licenses", { recursive: true });
 await build({
   entryPoints: ["extension/background.ts"],
   outfile: "dist-extension/background.js",
@@ -13,39 +13,39 @@ await build({
   target: "chrome116",
   legalComments: "none",
 });
+// Injected into pages and the install page: plain scripts, not modules.
+for (const [entry, outfile] of [
+  ["extension/content.ts", "dist-extension/content.js"],
+  ["extension/page.ts", "dist-extension/page.js"],
+])
+  await build({
+    entryPoints: [entry],
+    outfile,
+    bundle: true,
+    format: "iife",
+    platform: "browser",
+    target: "chrome116",
+    legalComments: "none",
+  });
 await build({
-  entryPoints: ["extension/content.ts"],
-  outfile: "dist-extension/content.js",
-  bundle: true,
-  format: "iife",
-  platform: "browser",
-  target: "chrome116",
-  legalComments: "none",
-});
-await build({
-  entryPoints: { main: "extension/main.tsx", reader: "extension/reader.ts" },
+  entryPoints: { popup: "extension/popup.ts", reader: "extension/reader.ts" },
   outdir: "dist-extension",
   bundle: true,
   format: "esm",
   platform: "browser",
   target: "chrome116",
   legalComments: "none",
-  jsx: "automatic",
-  loader: { ".ttf": "file", ".svg": "file" },
-  assetNames: "assets/[name]",
   define: { "process.env.NODE_ENV": '"production"' },
 });
 for (const name of [
   "manifest.json",
-  "panel.html",
+  "popup.html",
+  "popup.css",
   "reader.html",
-  "style.css",
   "reader.css",
 ])
   await cp(`extension/${name}`, `dist-extension/${name}`);
-await cp("public/assets", "dist-extension/assets", { recursive: true });
 await cp("extension/icons", "dist-extension/icons", { recursive: true });
-await cp("public/licenses", "dist-extension/licenses", { recursive: true });
 await cp(
   resolve("node_modules/pdfjs-dist/build/pdf.worker.min.mjs"),
   "dist-extension/pdf.worker.min.mjs",
