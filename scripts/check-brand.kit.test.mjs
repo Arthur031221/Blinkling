@@ -12,13 +12,17 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { checkKit } from "./check-brand.mjs";
+import { checkKit, toolchainProblem } from "./check-brand.mjs";
 
 function copyOfKit() {
   const root = mkdtempSync(join(tmpdir(), "blinkling-kit-test-"));
   cpSync("assets/brand", join(root, "assets/brand"), { recursive: true });
   return root;
 }
+
+test("the Python toolchain is installed", () => {
+  assert.equal(toolchainProblem(), "");
+});
 
 test("the committed kit is what kit.py makes", () => {
   assert.deepEqual(checkKit({ root: "." }), []);

@@ -13,10 +13,32 @@ from it, and `scripts/check-brand.mjs` (run in CI) fails when they disagree.
 | `wordmark-light-static.svg`, `wordmark-dark-static.svg` | Places that do not animate or must hold still: store tiles, slides, email, PDFs, small sizes.                                           |
 | `wordmark-light.png`, `wordmark-dark.png`               | Where SVG is not accepted: social cards, release banners, app store uploads, chat apps. Transparent, 3x.                                |
 | `wordmark-parts.json`                                   | Anything that draws the name in code. The app's shared Wordmark component and the Blinkling Reels read it; nothing else draws the name. |
-| `wm.py`, `build.py`, `kit.py`                           | The generator. `python kit.py OUTDIR` rebuilds all of the above. Needs `pip install fonttools uharfbuzz cairosvg`.                      |
+| `wm.py`, `build.py`, `kit.py`                           | The generator. `python kit.py OUTDIR` rebuilds all of the above. Needs the Python modules below.                                        |
 | `DynaPuff[wdth,wght].ttf`, `DynaPuff-OFL.txt`           | The font and its license, kept next to the generator so it runs from a clean checkout.                                                  |
 
 The app, tray and extension icons are Blink, not the wordmark.
+
+## Checking it locally
+
+`npm run check:brand` regenerates the kit with `kit.py` and compares. It needs
+Python 3 and three modules:
+
+```
+python3 -m pip install fonttools uharfbuzz cairosvg
+```
+
+(`fonttools` provides `fontTools`; `cairosvg` also needs the system cairo
+library.) CI installs the same three. Without them the check does not skip: it
+exits non-zero with one line naming the modules that are missing. Set
+`BLINKLING_BRAND_PYTHON` to use another interpreter, for example one in a venv.
+
+The guard also fails when a page, stylesheet or script loads a font face other
+than Inter (an `@font-face`, `new FontFace`, a web-font link, or `font-family`
+naming Fraunces or DynaPuff). The name is outlines from the kit, so no page
+needs a display face to draw it.
+
+`assets/brand/` is in `.prettierignore`: Prettier must never rewrite the files
+the kit writes.
 
 ## Clear space
 
