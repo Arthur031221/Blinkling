@@ -1181,15 +1181,16 @@ app.on("before-quit", (event) => {
   quitting = true;
   if (disposed) return;
   event.preventDefault();
-  // Disposal may hang on a stuck session or helper; Quit still has to work.
-  const cancelWatchdog = armQuitWatchdog(() => app.exit(0));
+  // Disposal may hang on a stuck session or helper, and the quit that follows
+  // it can stall too, so the deadline runs from the first request until the
+  // process is gone and is never cancelled.
+  armQuitWatchdog(() => app.exit(0));
   features.dispose();
   Promise.allSettled([
     session.dispose(),
     companionHost.close(),
     realLocator.close(),
   ]).finally(() => {
-    cancelWatchdog();
     disposed = true;
     app.quit();
   });
