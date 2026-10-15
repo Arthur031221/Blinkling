@@ -28,6 +28,14 @@ const put = async (path, text = "x") => {
   await mkdir(join(path, ".."), { recursive: true });
   await writeFile(path, text);
 };
+// On a case-insensitive disk (the macOS default) ".config/Glimpselet" and
+// ".config/glimpselet" are one folder, so the two legacy config places move together.
+const foldsCase = async (h) => {
+  await mkdir(join(h, ".config", "Probe"), { recursive: true });
+  const folds = existsSync(join(h, ".config", "probe"));
+  await rm(join(h, ".config", "Probe"), { recursive: true });
+  return folds;
+};
 const linux = (h) => ({ home: h, platform: "linux", env: {} });
 
 test("old environment switches are read when the new ones are unset", () => {
@@ -67,9 +75,10 @@ test("settings, guides, extension folder, runtime and builds move once", async (
     join(h, ".local", "share", "glimpselet", "desktop", "build", "app"),
     "bin",
   );
+  const moves = (await foldsCase(h)) ? 5 : 6;
   const result = await migrateLegacyData(linux(h));
   assert.deepEqual(result.failed, []);
-  assert.equal(result.moved.length, 6);
+  assert.equal(result.moved.length, moves);
   const read = (...p) => readFile(join(h, ...p), "utf8");
   assert.equal(
     await read(".config", "Blinkling", "blink-positions.json"),
@@ -91,7 +100,7 @@ test("settings, guides, extension folder, runtime and builds move once", async (
   );
   for (const [from] of legacyLocations(linux(h)))
     assert.equal(existsSync(from), false, `${from} is gone`);
-  assert.ok((await migrationRecord(h)).moved.length === 6);
+  assert.equal((await migrationRecord(h)).moved.length, moves);
 });
 
 test("it runs once: later old data is left alone", async (t) => {

@@ -4,10 +4,11 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { embeddedManifest, resolveBundled } from "./bundled.mjs";
 import { TARGETS, assetName } from "./targets.mjs";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL(".", import.meta.url));
 const checker = join(here, "../../.github/workflows/bundle_manifest.py");
 
 const pinned = (version = "3.0.0") => ({

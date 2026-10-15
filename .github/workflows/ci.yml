@@ -30,8 +30,9 @@ jobs:
       - run: npm run check:name
       - name: Check the wordmark kit
         run: |
-          python3 -m pip install fonttools uharfbuzz cairosvg
-          npm run check:brand
+          python3 -m venv "$RUNNER_TEMP/brand"
+          "$RUNNER_TEMP/brand/bin/pip" install fonttools uharfbuzz cairosvg
+          BLINKLING_BRAND_PYTHON="$RUNNER_TEMP/brand/bin/python" npm run check:brand
       - run: npm run lint
       - run: npm run format:check
       - run: npm test

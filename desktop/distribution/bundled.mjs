@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { selectBuild } from "../../plugin/desktop/launcher.mjs";
 import { TARGETS } from "./targets.mjs";
@@ -22,7 +23,7 @@ export function resolveBundled(bundleText) {
   return TARGETS.map((target) => selectBuild(manifest, target.os, target.arch));
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const resolved = resolveBundled(
     await readFile(process.argv[2] ?? "bin/blinkling.cjs", "utf8"),
   );

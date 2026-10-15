@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { badgeFor } from "./badge.mjs";
 
-const here = new URL(".", import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
+const here = fileURLToPath(new URL(".", import.meta.url));
 const shipped = (dir) =>
   readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isFile() && /\.(mjs|css|html)$/.test(e.name))
@@ -27,7 +28,7 @@ test("no Shift capture code, badge or strings are left in pick and mini", () => 
   for (const dir of [here, join(here, "..", "mini")])
     for (const file of shipped(dir))
       readFileSync(file, "utf8")
-        .split("\n")
+        .split(/\r?\n/)
         .forEach((line, i) => {
           if (/shift/i.test(line) && !allowed.some((a) => a.test(line)))
             found.push(`${file}:${i + 1}: ${line.trim()}`);

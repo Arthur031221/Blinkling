@@ -683,7 +683,8 @@ export async function installDesktop(manifest, options = {}) {
       }
     }
     const entry = await realpath(join(directory, build.entry));
-    const rel = relative(directory, entry);
+    // The install directory itself may sit behind a symlink (/var on macOS).
+    const rel = relative(await realpath(directory), entry);
     if (rel.startsWith("..") || isAbsolute(rel))
       throw new Error("Executable escapes installation");
     return { entry, directory, root, version: manifest.version, build };

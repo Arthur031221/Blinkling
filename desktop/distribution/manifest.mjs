@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -61,7 +62,7 @@ export async function writeRelease({
   return manifest;
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [version, directory, manifestPath = "plugin/desktop/manifest.json"] =
     process.argv.slice(2);
   await writeRelease({

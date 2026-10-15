@@ -1,3 +1,4 @@
+* text=auto eol=lf
 *.pdf binary
 *.ttf binary
 *.otf binary

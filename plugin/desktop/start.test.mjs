@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { startWithClaudeCode } from "./launcher.mjs";
 
-const start = new URL("./start.mjs", import.meta.url).pathname;
+const start = fileURLToPath(new URL("./start.mjs", import.meta.url));
 async function home(settings) {
   const root = await mkdtemp(join(tmpdir(), "blinkling-start-"));
   const runtime = join(root, "runtime");
