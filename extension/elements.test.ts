@@ -68,6 +68,22 @@ describe("page element collector", () => {
     expect(main.parentId).toBeNull();
   });
 
+  it("reports the tag, and finds figures, canvases and table cells", () => {
+    document.body.innerHTML = `
+      <figure data-rect="0,0,300,200"><canvas data-rect="0,0,300,160"></canvas><figcaption data-rect="0,160,300,20">Chart</figcaption></figure>
+      <table data-rect="0,220,300,60"><tr><td data-rect="0,220,100,30">42</td></tr></table>`;
+    const { elements } = collectElements();
+    const byTag = (tag: string) => elements.find((e) => e.tag === tag);
+    expect(byTag("figure")).toMatchObject({ kind: "figure", role: "figure" });
+    expect(byTag("canvas")).toMatchObject({ kind: "image", tag: "canvas" });
+    expect(byTag("td")).toMatchObject({
+      kind: "cell",
+      role: "cell",
+      text: "42",
+    });
+    expect(byTag("table")?.kind).toBe("table");
+  });
+
   it("marks a password input secure with no name, text or content", () => {
     document.body.innerHTML = `
       <form data-rect="0,0,400,300">

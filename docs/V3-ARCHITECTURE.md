@@ -258,6 +258,120 @@ combined and 200,000 characters per text file. Unsupported files are rejected
 instead of pretending to send them. Guide output needs a validated schema
 of regions, steps, labels and arrows, never executable model-generated HTML.
 
+## Element locator (M1, M2)
+
+`desktop/locator/` answers "what is under this point?" for the pick layer, the
+privacy guard, pointing and marks. It is created once by the shell
+(`createLocator`) and handed on as `shell.locator`; nothing else builds one.
+
+```ts
+createLocator(options: {
+  companion: () => boolean | Promise<boolean>; // browser helper connected?
+  platform: NodeJS.Platform;
+  capture: CaptureAccess;                      // windows, displays, pixels
+  // optional, for tests and the shell
+  host?: { elements(q): Promise<PageElements | null> };
+  ax?: AxSource | null;  image?: ImageSource | null;  now?: () => number;
+}): Locator
+
+type Rect = { x: number; y: number; width: number; height: number }; // screen DIP
+type Kind = "paragraph" | "sentence" | "heading" | "section" | "text" | "image"
+  | "figure" | "table" | "cell" | "code" | "formula" | "chart" | "video"
+  | "canvas" | "link" | "button" | "control" | "input" | "window" | "page";
+type WindowRef = { id: string; title: string; app: string; bounds: Rect;
+  private: boolean; passwordManager: boolean };
+type DisplayRef = { id: number | string; scaleFactor: number; bounds: Rect };
+type Element = {
+  id: string;            // "<source>:<windowId>:<n>", source = dom | ax | image
+  kind: Kind; bounds: Rect; role: string; name: string;
+  text: string;          // at most 4000 characters
+  window: WindowRef; display: DisplayRef;
+  content?: { markdown?: string; code?: string; language?: string;
+              latex?: string; mathml?: string };
+};
+type Locator = {
+  locate(point): Promise<Element | null>;          // hover, at most 50 ms
+  elements(window: WindowRef): Promise<Element[]>;
+  parent(el: Element): Promise<Element | null>;
+  sentenceAt(el: Element, point): Promise<Element | null>;
+  selectionAt(point): Promise<Element | null>;
+  textIn(rect: Rect): Promise<string>;             // at most 4000, never secure
+  focus(): Promise<{ secure: boolean; window: WindowRef | null }>;
+  windowAt(point): Promise<WindowRef | null>;
+  snap(rect: Rect, opts?: { kinds?: Kind[] }): Promise<{ rect: Rect; element: Element | null }>;
+};
+```
+
+`CaptureAccess` is `{ windows(): Promise<WindowRef[]>; displays(): DisplayRef[];
+image?(rect: Rect): Promise<{ width; height; data: Uint8Array; scale }> }`:
+windows are front to back in absolute screen DIP, and `image` returns RGBA
+pixels of a screen DIP rect with the pixels-per-DIP it was taken at.
+
+**Sources and order.** For a point the locator asks, in order, and stops at the
+first that returns an element: the browser DOM (companion extension export,
+only when the window under the point is a browser and the companion is
+connected), the OS accessibility tree (AT-SPI on Linux through
+`native/ax-linux/atspi.py`, AX through JXA on macOS, UI Automation through
+PowerShell on Windows), then a local image analysis of a fresh capture of the
+window (connected regions and text-line clustering). A source that is missing,
+throws, times out or returns nothing falls through; the locator itself never
+throws. DOM ids come from the extension element ids, AX ids are per-window
+counters, so an id is stable only while its window's cache entry lives.
+
+**Coordinates.** Everything is screen DIP. DOM rects arrive in viewport CSS
+px and become `frame.screenX + rect.x * frame.zoom` (likewise y, width and
+height). AX bounds arrive in native pixels on Linux and Windows and are
+divided by the scale factor of the display that holds them; macOS reports
+points. `snap` converts to device pixels with the scale factor of the display
+under the rectangle's centre (1, 1.5, 2, any other), rounds outward to whole
+device pixels, and converts back, so marks land on the pixel grid of the
+screen they sit on, including on a second display with a different factor.
+
+**Snapping.** `snap(rect)` picks the element of the window under the
+rectangle's centre that best matches it: highest overlap ratio of
+intersection over union, ties to the smaller element, restricted to
+`opts.kinds` when given. Below 0.3 overlap there is no element and the
+result is the input rectangle (grid-aligned) with `element: null`.
+
+**Privacy.** Password and payment fields (DOM `secure`, AX role
+`password text` or the secure state, UIA `IsPassword`) are never returned by
+any method and their text never enters `textIn`, `text` or `name`. `focus()`
+reports `secure: true` while one has the keyboard focus. Windows of a password
+manager or a private/incognito window carry `passwordManager` / `private`
+and the guard (`desktop/privacy`) decides on them; the locator also returns
+no elements from such windows.
+
+**Cache.** Elements are cached per window: fresh for 1.5 s, then served
+stale for up to 30 s while a refresh runs behind the hover (stale while
+revalidate). An entry is dropped when the window's bounds or title change,
+when the window leaves the list, or on `locator.invalidate()`. The pick layer (m-pick) is to call `invalidate()` on
+scroll and click; until it does, a scroll shows up through the
+stale-while-revalidate refresh. A hover answer is served from the cache in
+under a millisecond; a cold lookup is bounded to 40 ms per source before it
+falls through, which keeps the hover budget of 50 ms (p95 about 1 ms on a
+real browser page and 0.2 ms on a real PDF viewer in the e2e).
+
+**Keeping hover cheap.** Hover never waits on a slow platform call it has
+already paid for once: it is answered from a window list up to 2 s old while a
+fresh one is fetched behind it (listing windows costs far more on macOS and
+Windows than on X11). Image analysis yields to the event loop every few
+milliseconds so it cannot hold up the 46 ms budget timer, and the AX helper
+processes are started about 250 ms after the first hover rather than inside
+it, because starting a child process blocks the main thread.
+
+**Ids and flags.** AX and image ids are renumbered each time a window's tree is
+loaded, so an id outlives only its cache entry; hold the element, not the id.
+A window seen as `private` or as a password manager stays flagged for as long
+as the window exists. On Linux AX bounds are clipped to what the ancestors
+show: a PDF viewer reports a whole page larger than its scrolled viewport, and
+the part scrolled out of view is not pointable. In a browser, `focus().secure`
+relies on the accessibility tree, since the DOM export does not report focus.
+
+**Tests.** `desktop/locator/*.test.mjs`: kind detection per Kind, snapping at
+scale 1, 1.5 and 2 and across displays, the no-element fallback, secure
+fields never returned, cache invalidation, and the DOM → AX → image order
+with fakes. `desktop/locator/e2e/` measures hover latency under Xvfb.
+
 ## Distribution without store accounts
 
 Release through GitHub only; the desktop never depends on Chrome/Edge, Apple or

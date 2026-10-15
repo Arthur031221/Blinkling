@@ -19,6 +19,8 @@ export type ElementRect = {
 export type PageElement = {
   id: string;
   kind: string;
+  /** Lowercase tag name ("canvas", "td"), or "" when the helper sent none. */
+  tag: string;
   /** Viewport CSS px. */
   rect: ElementRect;
   role: string;
