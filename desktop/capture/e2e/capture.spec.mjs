@@ -573,3 +573,50 @@ for (const [lang, english] of [
       await app.evaluate(() => globalThis.b3Permission.close());
     });
   });
+
+// The hint pill is one line in every language at every scale, and it is
+// measured, not guessed: its own box is a single line tall and sits whole
+// inside the display.
+for (const lang of ["en", "zh-TW", "zh-CN", "ja", "ko", "de", "es", "fr", "pt"])
+  for (const scale of [1, 1.5, 2])
+    test(`the hint pill is one line in ${lang} at ${scale * 100}%`, async () => {
+      await withApp([scale, { lang }], async ({ app }) => {
+        const blink = await app.firstWindow();
+        const d = await background(app);
+        native(30, 30);
+        const page = await openOverlay(app, blink);
+        const hint = await page.evaluate(() => {
+          const el = document.getElementById("hint");
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const box = el.getBoundingClientRect();
+          const style = getComputedStyle(el);
+          const edge = (side) =>
+            parseFloat(style[`padding${side}`]) +
+            parseFloat(style[`border${side}Width`]);
+          return {
+            text: el.textContent,
+            lines: new Set(
+              [...range.getClientRects()].map((r) => Math.round(r.top)),
+            ).size,
+            height: box.height,
+            chrome: edge("Top") + edge("Bottom"),
+            lineHeight:
+              parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5,
+            left: box.left,
+            right: box.right,
+            clipped: el.scrollWidth > el.clientWidth,
+          };
+        });
+        expect(hint.text.length).toBeGreaterThan(10);
+        expect(hint.lines).toBe(1);
+        expect(hint.clipped).toBe(false);
+        expect(hint.height - hint.chrome).toBeLessThan(hint.lineHeight * 1.5);
+        expect(hint.left).toBeGreaterThanOrEqual(0);
+        expect(hint.right).toBeLessThanOrEqual(d.bounds.width);
+        expect(
+          Math.abs((hint.left + hint.right) / 2 - d.bounds.width / 2),
+        ).toBeLessThan(2);
+        await desktopShot(app, `hint-${lang}-${scale * 100}`);
+      });
+    });

@@ -49,6 +49,14 @@ test("the overlay hint names the four gestures and nothing else", () => {
   }
 });
 
+test("the overlay hint is short enough to stay one line on a small display", () => {
+  // Wide characters count double. 640 CSS px is a 1280 px display at 200%.
+  const width = (text) =>
+    [...text].reduce((sum, c) => sum + (/[぀-鿿가-힣]/.test(c) ? 2 : 1), 0);
+  for (const locale of LOCALES)
+    assert.ok(width(strings[locale].hint) <= 70, locale);
+});
+
 test("the capture pages carry no hard-coded text or language", async () => {
   for (const name of ["selection.html", "permission.html"]) {
     const html = await readFile(here(name), "utf8");
