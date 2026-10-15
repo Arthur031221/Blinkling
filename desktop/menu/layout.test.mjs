@@ -108,7 +108,7 @@ for (const [w, h] of displays)
             { x: reveal.x + 3.3, y: reveal.y - 2.1 },
           ])
             for (let expanded = -1; expanded < COUNT; expanded++)
-              for (const wide of [42, 70, 117, 180, 252]) {
+              for (const wide of [42, 70, 117, 180, 288]) {
                 const widths = Array.from({ length: COUNT }, (_, i) =>
                   i === expanded ? wide : 42,
                 );

@@ -3,22 +3,22 @@ import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import { launch, native, move, click, report } from "./support.mjs";
-import { reveal, clickButton, background, shot, rgb } from "./helpers.mjs";
+import {
+  reveal,
+  clickButton,
+  clickBlink,
+  pill,
+  background,
+  shot,
+  rgb,
+} from "./helpers.mjs";
 test("registered services receive native menu actions and auto switch reflects the applied result", async () => {
   const { app, page } = await launch();
   try {
     const b = await background(app);
     await app.evaluate(() => {
       globalThis.actions = [];
-      for (const action of [
-        "screen",
-        "region",
-        "full-page",
-        "guide",
-        "auto-explain",
-        "settings",
-        "help",
-      ])
+      for (const action of ["region", "guide", "auto-explain", "settings"])
         globalThis.blinklingTest.registerAction(action, ({ display }) => {
           globalThis.actions.push({ action, displayId: String(display.id) });
           return { ok: true, enabled: action === "auto-explain" };
@@ -26,38 +26,28 @@ test("registered services receive native menu actions and auto switch reflects t
     });
     await reveal(page);
     let count = 0;
-    for (const label of [
-      "截取畫面",
-      "選取區域",
-      "整頁截圖",
-      "導覽",
-      "自動解說",
-      "設定",
-      "說明",
-    ]) {
-      const r = await page
-        .getByRole("button", { name: label, exact: true })
-        .boundingBox();
+    for (const label of ["Capture", "Guide", "Auto explain", "Settings"]) {
+      // A picked action sends Blink back to the peek: wake it again.
+      await reveal(page);
+      const r = await pill(page, label).boundingBox();
       click(b.x + r.x + r.width / 2, b.y + r.y + r.height / 2);
       await expect
         .poll(() => app.evaluate(() => globalThis.actions.length))
         .toBe(++count);
     }
-    await expect(
-      page.getByRole("button", { name: "自動解說（已開啟）", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await expect(pill(page, "Auto explain (on)")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
     const actions = await app.evaluate(() => globalThis.actions);
     const displayId = await app.evaluate(
       () => globalThis.blinklingTest.snapshot().display.id,
     );
     expect(actions.map((a) => a.action)).toEqual([
-      "screen",
       "region",
-      "full-page",
       "guide",
       "auto-explain",
       "settings",
-      "help",
     ]);
     expect(actions.every((a) => a.displayId === displayId)).toBe(true);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
@@ -242,9 +232,10 @@ for (const scale of [1, 1.5, 2])
           event,
         );
       await emit({ type: "status", state: "connected" });
+      // A healthy connection draws nothing: the dot shows only for trouble.
       await expect(
         page.locator('[data-connection="connected"]'),
-      ).toHaveAttribute("fill", "#1f9e68");
+      ).toHaveAttribute("opacity", "0");
       await emit({ type: "activity", state: "thinking" });
       await expect(page.locator("#blink")).toHaveAttribute(
         "data-expression",
@@ -275,9 +266,16 @@ for (const scale of [1, 1.5, 2])
         "idle",
       );
       await emit({ type: "status", state: "retrying" });
-      await expect(
-        page.locator('[data-connection="retrying"]'),
-      ).toHaveAttribute("fill", "#d99729");
+      await expect(page.locator('[data-connection="retrying"]')).toBeAttached();
+      await expect
+        .poll(async () =>
+          Number(
+            await page
+              .locator('[data-connection="retrying"]')
+              .getAttribute("opacity"),
+          ),
+        )
+        .toBeGreaterThan(0.3);
       await emit({ type: "status", state: "blocked" });
       await expect(page.locator("#blink")).toHaveAttribute(
         "data-expression",
@@ -286,7 +284,7 @@ for (const scale of [1, 1.5, 2])
       await shot(app, `error-peek-${scale * 100}`);
       await emit({ type: "activity", state: "permission" });
       await expect(
-        page.getByRole("button", { name: "需要你的允許", exact: true }),
+        page.getByRole("button", { name: "Needs your OK", exact: true }),
       ).toBeVisible();
       expect(
         await page.locator("#permission-alert").evaluate((e) => {
@@ -303,7 +301,7 @@ for (const scale of [1, 1.5, 2])
       await shot(app, `permission-peek-${scale * 100}`);
       expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
       const opening = app.waitForEvent("window");
-      await clickButton(page, "需要你的允許", scale);
+      await clickButton(page, "Needs your OK", scale);
       const cardPage = await opening;
       await cardPage.waitForURL("**/composer/index.html?surface=card");
       await expect(
@@ -520,7 +518,7 @@ test("rounded card opens by intent, pin holds it, unpin dismisses and restores a
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     await page.waitForTimeout(650);
     const opening = app.waitForEvent("window");
-    await clickButton(page, "對話");
+    await clickBlink(page);
     const cardPage = await opening;
     await cardPage.waitForURL("**/composer/index.html?surface=card");
     await expect(
@@ -601,18 +599,9 @@ for (const scale of [1, 1.5, 2])
             () => matchMedia("(prefers-color-scheme: dark)").matches,
           ),
         ).toBe(theme === "dark");
-        await expect(page.locator(".action")).toHaveCount(8);
-        for (const label of [
-          "截取畫面",
-          "選取區域",
-          "整頁截圖",
-          "導覽",
-          "自動解說",
-          "對話",
-          "設定",
-          "說明",
-        ]) {
-          const button = page.getByRole("button", { name: label, exact: true });
+        await expect(page.locator(".action")).toHaveCount(4);
+        for (const label of ["Capture", "Guide", "Auto explain", "Settings"]) {
+          const button = pill(page, label);
           await button.hover();
           await page.waitForTimeout(250);
           expect(
@@ -704,8 +693,8 @@ for (const scale of [1, 1.5, 2])
         const after = await page
           .locator(".action")
           .evaluateAll((els) => els.map((e) => +getComputedStyle(e).opacity));
-        expect(after[7]).toBeLessThanOrEqual(before[7]);
-        expect(after[0]).toBeGreaterThanOrEqual(after[7]);
+        expect(after[3]).toBeLessThanOrEqual(before[3]);
+        expect(after[0]).toBeGreaterThanOrEqual(after[3]);
         await page.waitForTimeout(500);
         await expect(page.locator("#blink")).toHaveAttribute(
           "data-mode",

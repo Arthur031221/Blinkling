@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launch, native, rigPoint, desktopShot, report } from "./support.mjs";
+import { timing } from "../../shared/motion.mjs";
 const randr = (...args) => execFileSync("xrandr", args);
 const state = (c) => c.app.evaluate(() => globalThis.blinklingTest.snapshot());
 async function hover(c) {
@@ -11,7 +12,11 @@ async function hover(c) {
     s = await state(c);
   native(s.display.bounds.x + p.x, s.display.bounds.y + p.y);
   await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "hover");
-  await c.page.waitForTimeout(550);
+  // Revealing slides Blink inward: follow it, then rest for the fan.
+  await c.page.waitForTimeout(900);
+  const q = await rigPoint(c.page);
+  native(s.display.bounds.x + q.x, s.display.bounds.y + q.y);
+  await c.page.waitForTimeout(timing.menuRest + 700);
 }
 async function dragTo(c, x, y) {
   await hover(c);
@@ -111,7 +116,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
         return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
       }),
     );
-    expect(bounds).toHaveLength(8);
+    expect(bounds).toHaveLength(4);
     expect(
       bounds.every(
         (r) => r.x >= 0 && r.y >= 0 && r.right <= 800 && r.bottom <= 600,

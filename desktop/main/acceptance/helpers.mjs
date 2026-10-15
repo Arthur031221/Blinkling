@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import { move, click, report } from "./support.mjs";
+import { timing } from "../../shared/motion.mjs";
 export async function reveal(page, scale = 1) {
   await page.waitForFunction(() => window.desktop.inspect().anchor);
   await page.waitForTimeout(100);
@@ -23,9 +24,25 @@ export async function reveal(page, scale = 1) {
     (active.x + active.width * 0.35) * scale,
     (active.y + active.height * 0.72) * scale,
   );
+  // The fan opens once Blink has rested (timing.menuRest), then springs in.
+  await page.waitForTimeout(timing.menuRest + 700);
+}
+/** A menu pill by name; the auto-explain pill is a switch, the rest buttons. */
+export const pill = (page, label) =>
+  page.getByRole(label.startsWith("Auto explain") ? "switch" : "button", {
+    name: label,
+    exact: true,
+  });
+/** Opens the chat the way a user does now: a plain click on Blink's body. */
+export async function clickBlink(page, scale = 1) {
+  const body = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+  click(
+    (body.x + body.width * 0.35) * scale,
+    (body.y + body.height * 0.72) * scale,
+  );
 }
 export async function clickButton(page, label, scale = 1) {
-  const button = page.getByRole("button", { name: label, exact: true });
+  const button = pill(page, label);
   await button.hover();
   await page.waitForTimeout(250);
   const r = await button.boundingBox();

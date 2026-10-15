@@ -136,16 +136,14 @@ test("H-3 every menu pill is clickable while answer bubbles are on screen", asyn
   const c = await launch();
   const { app, page } = c;
   try {
-    // "chat" opens the card instead of calling a registered handler, and
-    // hides the menu while it is open, so it is clicked last.
-    const actions = (
-      await page.evaluate(() =>
-        [...document.querySelectorAll("[data-action]")].map(
-          (b) => b.dataset.action,
-        ),
-      )
-    ).sort((a, b) => (a === "chat") - (b === "chat"));
-    expect(actions).toHaveLength(8);
+    const actions = await page.evaluate(() =>
+      [...document.querySelectorAll("[data-action]")].map(
+        (b) => b.dataset.action,
+      ),
+    );
+    expect(actions).toHaveLength(4);
+    // Capture is handled as the region action.
+    const handled = (id) => (id === "capture" ? "region" : id);
     await app.evaluate((_, ids) => {
       globalThis.pillCalls = [];
       for (const id of ids)
@@ -158,7 +156,7 @@ test("H-3 every menu pill is clickable while answer bubbles are on screen", asyn
         id: "answer",
         text: text.join(" "),
       });
-    }, actions);
+    }, actions.map(handled));
     await expect
       .poll(async () => {
         for (const w of await app.windows())
@@ -178,18 +176,11 @@ test("H-3 every menu pill is clickable while answer bubbles are on screen", asyn
         .toBeGreaterThan(150);
       const wide = await pill.boundingBox();
       native(wide.x + 24, wide.y + wide.height / 2, "click");
-      if (action === "chat")
-        await expect
-          .poll(() =>
-            app.evaluate(() => globalThis.blinklingTest.snapshot().chatOpen),
-          )
-          .toBe(true);
-      else
-        await expect
-          .poll(() => app.evaluate(() => globalThis.pillCalls), {
-            message: `pill ${action}`,
-          })
-          .toContain(action);
+      await expect
+        .poll(() => app.evaluate(() => globalThis.pillCalls), {
+          message: `pill ${action}`,
+        })
+        .toContain(handled(action));
       native(20, 20);
       await page.waitForTimeout(150);
     }

@@ -1,4 +1,4 @@
-export const PILL = Object.freeze({ narrow: 42, wide: 252, height: 42 });
+export const PILL = Object.freeze({ narrow: 42, wide: 288, height: 42 });
 const CLEAR = 12;
 
 export const COUNT = 4;

@@ -2,10 +2,8 @@ import { test, expect } from "@playwright/test";
 import x11 from "x11";
 import { cardBounds } from "../placement.mjs";
 import { launch, native, move, click, wheel, keys, key } from "./support.mjs";
-import { reveal, clickButton, background, shot } from "./helpers.mjs";
+import { reveal, clickBlink, pill, background, shot } from "./helpers.mjs";
 
-const pill = (page, label) =>
-  page.getByRole("button", { name: label, exact: true });
 const bubblesPage = (app) =>
   app
     .windows()
@@ -57,7 +55,7 @@ function rootStack() {
 async function openCard(app, page) {
   // The card window is created once and then reused.
   const created = cardPage(app) ? null : app.waitForEvent("window");
-  await clickButton(page, "對話");
+  await clickBlink(page);
   await created;
   await expect.poll(() => !!cardPage(app)).toBe(true);
   const card = cardPage(app);
@@ -170,15 +168,7 @@ test("with bubbles present Blink stays above the deck and every menu pill is cli
     const b = await background(app);
     await app.evaluate(() => {
       globalThis.actions = [];
-      for (const action of [
-        "screen",
-        "region",
-        "full-page",
-        "guide",
-        "auto-explain",
-        "settings",
-        "help",
-      ])
+      for (const action of ["region", "guide", "auto-explain", "settings"])
         globalThis.blinklingTest.registerAction(action, () => {
           globalThis.actions.push(action);
           return { ok: true, enabled: action === "auto-explain" };
@@ -201,25 +191,19 @@ test("with bubbles present Blink stays above the deck and every menu pill is cli
     expect(stack.indexOf(blink)).toBeGreaterThan(stack.indexOf(bubbles));
     await shot(app, "menu-over-deck");
     let count = 0;
-    for (const label of [
-      "截取畫面",
-      "選取區域",
-      "整頁截圖",
-      "導覽",
-      "自動解說",
-      "設定",
-      "說明",
-    ]) {
+    for (const label of ["Capture", "Guide", "Auto explain", "Settings"]) {
+      // A picked action sends Blink back to the peek: wake it again.
+      await reveal(page);
       const r = await pill(page, label).boundingBox();
       click(b.x + r.x + r.width / 2, b.y + r.y + r.height / 2);
       await expect
         .poll(() => app.evaluate(() => globalThis.actions.length))
         .toBe(++count);
     }
+    // Clicking Blink itself opens the chat; there is no chat pill.
     await reveal(page);
-    await page.waitForTimeout(500);
-    const chat = await pill(page, "對話").boundingBox();
-    click(b.x + chat.x + chat.width / 2, b.y + chat.y + chat.height / 2);
+    const body = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+    click(b.x + body.x + body.width * 0.35, b.y + body.y + body.height * 0.72);
     await expect
       .poll(() => composerState(app).then((s) => s.visible))
       .toBe(true);

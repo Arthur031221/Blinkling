@@ -41,8 +41,15 @@ test("native menu capture reaches the composer and the shared answer session", a
       Math.round(point.y + point.height * 0.72),
     );
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
-    await page.waitForTimeout(650);
-    await expect(page.locator(".action-bubble")).toHaveCount(8);
+    // Revealing slides Blink inward: follow it, then rest for the fan.
+    await page.waitForTimeout(900);
+    const body = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+    native(
+      Math.round(body.x + body.width * 0.2),
+      Math.round(body.y + body.height * 0.72),
+    );
+    await page.waitForTimeout(1000);
+    await expect(page.locator(".action-bubble")).toHaveCount(4);
     expect(
       await page.evaluate(() =>
         [...document.querySelectorAll(".action-bubble")].every((bubble) => {
@@ -57,7 +64,7 @@ test("native menu capture reaches the composer and the shared answer session", a
       ),
     ).toBe(true);
     await desktopShot(app, "integrated-menu");
-    const region = page.getByRole("button", { name: "選取區域", exact: true });
+    const region = page.getByRole("button", { name: "Capture", exact: true });
     await region.hover();
     await page.waitForTimeout(250);
     const r = await region.boundingBox();

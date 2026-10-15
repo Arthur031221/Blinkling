@@ -195,14 +195,20 @@ for (const scale of [1, 1.5])
           icon: b.querySelector("svg")?.getBoundingClientRect().width ?? 0,
         })),
       );
-      expect(sizes).toHaveLength(8);
+      expect(sizes).toHaveLength(4);
       for (const s of sizes) {
         expect(s.font, s.label).toBeGreaterThanOrEqual(13);
         expect(s.icon, s.label).toBeGreaterThanOrEqual(20);
       }
-      await expect(c.page.locator("#auto-badge")).toBeHidden();
+      await expect(c.page.locator("#blink")).not.toHaveAttribute(
+        "data-face",
+        "watching",
+      );
       await c.page.evaluate(() => window.blinkling.action("auto-explain"));
-      await expect(c.page.locator("#auto-badge")).toBeVisible();
+      await expect(c.page.locator("#blink")).toHaveAttribute(
+        "data-face",
+        "watching",
+      );
       await expect(
         c.page.locator('.action-bubble[data-on="true"]'),
       ).toHaveCount(1);

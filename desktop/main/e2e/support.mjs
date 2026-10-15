@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { PNG } from "pngjs";
 import { report } from "./artifacts.mjs";
 export { report };
+import { timing } from "../../shared/motion.mjs";
 export function native(x, y, button = null) {
   const result = execFileSync("python3", [
     "-c",
@@ -196,7 +197,13 @@ export async function moveOn(page, scale = 1) {
   const p = await rigPoint(page);
   native(p.x * scale, p.y * scale);
   await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
-  await page.waitForTimeout(550);
+  // Revealing slides Blink inward, away from where it peeked; follow it as a
+  // hand would, then rest on the revealed body.
+  await page.waitForTimeout(900);
+  const q = await rigPoint(page);
+  native(q.x * scale, q.y * scale);
+  // The fan opens after Blink has rested (timing.menuRest) and then springs in.
+  await page.waitForTimeout(timing.menuRest + 700);
 }
 export async function background(app, fullscreen = false) {
   await app.evaluate(async ({ BrowserWindow, screen }, full) => {
