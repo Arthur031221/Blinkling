@@ -106,6 +106,36 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       process.stdout.write("not-json\n");
       return;
     }
+    if (frame.message.content.at(-1).text === "limit-me") {
+      // What Claude Code 2.1.x writes when the plan's usage limit is reached.
+      const resetsAt =
+        Number(process.env.BLINKLING_TEST_LIMIT_RESET) ||
+        Math.floor(Date.now() / 1000) + 2 * 60 * 60;
+      send({
+        type: "rate_limit_event",
+        uuid: randomUUID(),
+        rate_limit_info: { status: "rejected", resetsAt },
+      });
+      send({
+        type: "assistant",
+        uuid: randomUUID(),
+        error: "rate_limit",
+        isApiErrorMessage: true,
+        message: {
+          id: `msg_${randomUUID()}`,
+          content: [{ type: "text", text: "You've hit your limit" }],
+          stop_reason: "stop_sequence",
+        },
+      });
+      send({
+        type: "result",
+        uuid: randomUUID(),
+        subtype: "success",
+        is_error: true,
+        result: `You've hit your limit · resets ${resetsAt}`,
+      });
+      return;
+    }
     // "slow:" streams a few sentences over about 1.2 s, so a test can tell the
     // moment the first sentence arrives from the moment the answer ends.
     const slow = frame.message.content.at(-1).text?.startsWith("slow:");

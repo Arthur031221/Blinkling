@@ -13,11 +13,56 @@ export function fingerprint(bitmap) {
 }
 /** Minimum time between two automatic explanations. The one place to tune it. */
 export const COOLDOWN_MS = 12000;
+/** Sampling never goes faster than this; it is also the interval auto explain uses. */
+export const MIN_INTERVAL_MS = 3000;
+/** From the baseline sample to the capture being sent: one sample to see the
+ * change and `settleSamples` more to see it hold still, all at the floor interval. */
+export const DETECTION_BUDGET_MS = 10000;
+const W = 32,
+  H = 18;
 /** Two white pages share most pixels, so a navigation moves the mean only a
  * little while still changing the structure of many cells. Cursor blink, caret
- * movement, a clock tick or a small scroll stay far below both limits. */
+ * movement and a clock tick stay far below the limits. */
 const BROAD = { mean: 0.1, fraction: 0.3 };
-const STRUCTURAL = { mean: 0.02, cell: 0.06, fraction: 0.12 };
+const STRUCTURAL = { mean: 0.008, cell: 0.06, fraction: 0.03 };
+/** A scroll moves text up or down as a whole. If shifting one frame by a few
+ * rows makes it match the other, nothing new was read, however much text moved.
+ * Beyond MAX_SHIFT rows (about half a screen) it is a different part of the page. */
+const SCROLL = { maxShift: 8, ratio: 0.56, residual: 0.015 };
+function residual(a, b, shift) {
+  let sum = 0,
+    n = 0;
+  for (let row = 0; row < H; row++) {
+    const other = row + shift;
+    if (other < 0 || other >= H) continue;
+    for (let x = 0; x < W; x++) {
+      const i = (row * W + x) * 3,
+        j = (other * W + x) * 3;
+      if (!Number.isFinite(a[i]) || !Number.isFinite(b[j])) continue;
+      sum +=
+        (Math.abs(a[i] - b[j]) +
+          Math.abs(a[i + 1] - b[j + 1]) +
+          Math.abs(a[i + 2] - b[j + 2])) /
+        (3 * 255);
+      n++;
+    }
+  }
+  return n ? sum / n : 1;
+}
+/** The vertical shift (rows) that explains the difference, or 0 when none does. */
+export function scrollShift(a, b) {
+  const unshifted = residual(a, b, 0);
+  let best = unshifted,
+    at = 0;
+  for (let s = -SCROLL.maxShift; s <= SCROLL.maxShift; s++) {
+    if (!s) continue;
+    const r = residual(a, b, s);
+    if (r < best) ((best = r), (at = s));
+  }
+  return at && best <= SCROLL.residual && best <= unshifted * SCROLL.ratio
+    ? at
+    : 0;
+}
 export function difference(a, b) {
   if (!a || !b || a.length !== b.length || !a.length)
     return { substantial: true, mean: 1, fraction: 1 };
@@ -38,13 +83,16 @@ export function difference(a, b) {
     if (d > STRUCTURAL.cell) shifted++;
   }
   if (!pixels) return { substantial: false, mean: 0, fraction: 0 };
+  const mean = sum / pixels,
+    broad = mean > BROAD.mean && changed / pixels > BROAD.fraction;
+  const structural =
+    mean > STRUCTURAL.mean && shifted / pixels > STRUCTURAL.fraction;
+  const scroll = !broad && structural ? scrollShift(a, b) : 0;
   return {
-    mean: sum / pixels,
+    mean,
     fraction: changed / pixels,
-    substantial:
-      (sum / pixels > BROAD.mean && changed / pixels > BROAD.fraction) ||
-      (sum / pixels > STRUCTURAL.mean &&
-        shifted / pixels > STRUCTURAL.fraction),
+    scroll,
+    substantial: broad || (structural && !scroll),
   };
 }
 export class ChangePolicy {

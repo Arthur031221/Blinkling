@@ -117,7 +117,7 @@ export class SessionStore {
         )
       )
         throw new Error("Invalid saved Blinkling session");
-      return value;
+      return revive(value);
     } catch (error) {
       if (error.code === "ENOENT") return null;
       throw Object.assign(
@@ -129,7 +129,7 @@ export class SessionStore {
   save(state) {
     if (!this.held)
       return Promise.reject(new Error("Session writer lock is not held"));
-    const value = structuredClone(state);
+    const value = persistable(state);
     const write = this.writes.then(() => writeAtomic(this.file, value));
     this.writes = write.catch(() => {});
     return write;
@@ -167,6 +167,40 @@ async function writeAtomic(file, value) {
     await handle?.close();
     await rm(temporary, { force: true });
   }
+}
+/** What reaches the disk (PV-2). Blinkling keeps no copy of anything it sends:
+ * no pixels, no picked or answered text. Claude's own transcript is the only
+ * record, and history is rebuilt from it on the next start. A turn that is
+ * still waiting in the outbox keeps its typed text so it can go out after a
+ * restart; a turn that carried pixels cannot, so it is marked and cancelled. */
+export function persistable(state) {
+  const value = structuredClone(state);
+  value.turns = value.turns.map((item) => {
+    const { id, source } = item.turn;
+    const waiting = item.state === "queued";
+    const pixels = !!item.turn.attachments?.length || item.turn.redacted;
+    const turn = { id, source };
+    if (waiting && !pixels) turn.text = item.turn.text;
+    if (waiting && pixels) turn.redacted = true;
+    const { turn: _, digest: __, ...rest } = item;
+    return { ...rest, turn };
+  });
+  value.messages = value.messages.map(({ type, id, role }) => ({
+    type,
+    id,
+    role,
+    content: [],
+  }));
+  return value;
+}
+/** Applied after load: a turn with no content cannot be sent. */
+export function revive(state) {
+  for (const item of state.turns) {
+    item.turn.text ??= "";
+    item.turn.attachments ??= [];
+    if (item.turn.redacted && item.state === "queued") item.state = "cancelled";
+  }
+  return state;
 }
 export function isUUID(value) {
   return (

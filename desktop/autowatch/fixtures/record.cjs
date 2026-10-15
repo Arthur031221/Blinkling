@@ -49,6 +49,94 @@ const variants = {
   ),
   scrolledBefore: page(`<div style="padding:30px 40px">${lines(24)}</div>`),
 };
+// One long document read in a 1280x720 window. Each section has its own
+// shape (heading size, paragraph widths, a figure, a table, a code block), the
+// way a real manual or paper does. A viewport is the document shifted up.
+const paragraph = (words, width) =>
+  `<p style="margin:0 0 14px;width:${width}%">${"Tides rise and fall with the pull of the moon and the sun ".repeat(words)}</p>`;
+const section = (title, body) =>
+  `<section style="height:720px;overflow:hidden"><h2 style="margin:0 0 18px;font-size:30px">${title}</h2>${body}</section>`;
+const longDocument = [
+  section(
+    "1. Background",
+    paragraph(6, 78) +
+      paragraph(4, 62) +
+      paragraph(7, 80) +
+      paragraph(5, 70) +
+      paragraph(6, 76) +
+      paragraph(3, 55) +
+      paragraph(7, 79) +
+      paragraph(5, 66),
+  ),
+  section(
+    "2. Method",
+    paragraph(3, 70) +
+      `<div style="width:520px;height:230px;background:#dfe6ee;margin:10px 0 18px"></div>` +
+      paragraph(5, 74) +
+      paragraph(2, 40),
+  ),
+  section(
+    "3. Results",
+    `<table style="border-collapse:collapse;width:80%;margin-bottom:18px">${Array.from(
+      { length: 7 },
+      (_, i) =>
+        `<tr style="background:${i % 2 ? "#f4f4f4" : "#fff"}"><td style="border:1px solid #bbb;padding:10px">Site ${i + 1}</td><td style="border:1px solid #bbb;padding:10px">${12 + i * 3} species</td><td style="border:1px solid #bbb;padding:10px">${(i * 7.3 + 2).toFixed(1)}%</td></tr>`,
+    ).join("")}</table>` + paragraph(5, 72),
+  ),
+  section(
+    "4. Code",
+    `<pre style="background:#272822;color:#f8f8f2;padding:16px;margin:0 0 18px;width:80%;height:300px">const pool = await survey("rocky-shore");\nfor (const site of pool.sites) {\n  report(site.species);\n}</pre>` +
+      paragraph(4, 70),
+  ),
+].join("");
+const reading = (offset) =>
+  page(
+    `<div style="padding:30px 40px;width:900px;position:relative;top:${-offset}px"><h1 style="margin:0 0 20px;font-size:38px">A field guide to tide pools</h1>${longDocument}</div>`,
+  );
+variants.docSection1 = reading(0);
+variants.docNudge = reading(70);
+variants.docSection2 = reading(760);
+variants.docSection3 = reading(1520);
+variants.docSection4 = reading(2280);
+// Plain prose, no figures: lines of seeded random width, headings every screen.
+// The hardest case for a thumbnail comparison, because every screen looks alike.
+const prose = (() => {
+  let seed = 7;
+  const next = () =>
+    (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  return Array.from(
+    { length: 4 },
+    (_, s) =>
+      `<h2 style="margin:0 0 16px;font-size:26px">Chapter ${s + 1}</h2>` +
+      Array.from(
+        { length: 11 },
+        () =>
+          `<p style="margin:0 0 12px;width:${40 + Math.round(next() * 45)}%">${"The harbour lights came on one by one and nobody spoke ".repeat(2 + Math.round(next() * 5))}</p>`,
+      ).join(""),
+  ).join("");
+})();
+const proseAt = (offset) =>
+  page(
+    `<div style="padding:30px 40px;width:900px;position:relative;top:${-offset}px">${prose}</div>`,
+  );
+variants.proseTop = proseAt(0);
+variants.proseNudge = proseAt(70);
+variants.proseNext = proseAt(700);
+// A sparse reader view (a PDF page or a blog): grey 14px text in a narrow
+// column. Screens differ little in brightness, the case a plain mean misses.
+const sparse = Array.from({ length: 60 }, (_, i) => {
+  const heading = i % 15 === 0;
+  return heading
+    ? `<h3 style="margin:34px 0 14px;font-size:20px;color:#333">Part ${i / 15 + 1}</h3>`
+    : `<p style="margin:0 0 6px;color:#666;font-size:14px;line-height:1.7;width:${58 + ((i * 13) % 37)}%">${"A quiet afternoon on the river and the boats drifted past ".repeat(1 + (i % 3))}</p>`;
+}).join("");
+const sparseAt = (offset) =>
+  page(
+    `<div style="padding:30px 0 0 260px;width:560px;position:relative;top:${-offset}px">${sparse}</div>`,
+  );
+variants.sparseTop = sparseAt(0);
+variants.sparseNudge = sparseAt(60);
+variants.sparseNext = sparseAt(640);
 let rendered = 0,
   win;
 async function render(html) {

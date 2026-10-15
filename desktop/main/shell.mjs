@@ -41,6 +41,7 @@ import { tmpdir } from "node:os";
 import { SessionBridge } from "../session/index.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
+import { installPrivacy } from "../privacy/index.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -801,6 +802,20 @@ const pick = await installPick({
     },
   },
 });
+const privacy = installPrivacy({
+  session,
+  features,
+  send,
+  languages: app.getPreferredSystemLanguages(),
+  renderer: (listener) => {
+    blink.webContents.on("did-finish-load", listener);
+    return () => {
+      if (!blink.isDestroyed())
+        blink.webContents.off("did-finish-load", listener);
+    };
+  },
+});
+app.once("will-quit", () => privacy.dispose());
 if (
   !(
     process.env.BLINKLING_E2E === "1" &&
