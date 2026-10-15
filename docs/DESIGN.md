@@ -40,7 +40,7 @@ Residual risk: a process running as the same user that can read `helper.json`, o
 
 ## Popup
 
-The toolbar popup (`extension/popup.html`) shows whether the companion is connected and, one line each, what is missing: Blink not running, the bridge not found, or the setup page not yet opened. A **Wake Blink** button asks the bridge to open Blink (the `open` call on the host). The popup header shows the sparkle name; under reduced motion it is a still frame. All strings follow the browser language in nine locales.
+The toolbar popup (`extension/popup.html`) shows whether the companion is connected and, one line each, what is missing: Blink not running, the bridge not found, or the setup page not yet opened. A **Wake Blink** button asks the bridge to open Blink (the `open` call on the host). The popup header shows the shared Wordmark component; under reduced motion it holds a still frame. All strings follow the browser language in nine locales.
 
 ## Permissions
 
