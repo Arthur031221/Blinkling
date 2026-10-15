@@ -19,7 +19,11 @@ const watch = (page, errors) => {
 const find = (app, pattern) => app.windows().find((p) => pattern.test(p.url()));
 
 async function wake(app) {
-  const page = await app.firstWindow();
+  // The test background is a window too, and may already exist: take Blink by
+  // its address, not by order.
+  await app.firstWindow();
+  await expect.poll(() => !!find(app, /\/renderer\/index\.html$/)).toBe(true);
+  const page = find(app, /\/renderer\/index\.html$/);
   await expect(page.getByRole("img", { name: "Blink" })).toBeVisible();
   await expect
     .poll(() => app.evaluate(() => Boolean(globalThis.blinklingTest)))

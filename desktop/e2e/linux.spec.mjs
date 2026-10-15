@@ -115,7 +115,34 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
       ]),
     );
     const overlay = await shot("overlay");
-    expect(pixel(overlay, 400, 200)).toEqual([61, 220, 151]);
+    // The mark is hand drawn with a numbered badge on its top-left corner, so
+    // the aligned overlay is checked by where its accent pixels fall: the
+    // stroke and badge must hug the 400,200 100x80 rectangle (wobble and the
+    // 24px badge stay within 14px of it) and span most of it.
+    const near = { left: 380, top: 180, right: 520, bottom: 300 };
+    const found = { left: Infinity, top: Infinity, right: -1, bottom: -1 };
+    for (let y = near.top; y < near.bottom; y++)
+      for (let x = near.left; x < near.right; x++) {
+        const [r, g, b] = pixel(overlay, x, y);
+        if (
+          Math.abs(r - 61) <= 4 &&
+          Math.abs(g - 220) <= 4 &&
+          Math.abs(b - 151) <= 4
+        ) {
+          found.left = Math.min(found.left, x);
+          found.top = Math.min(found.top, y);
+          found.right = Math.max(found.right, x);
+          found.bottom = Math.max(found.bottom, y);
+        }
+      }
+    expect(found.left).toBeGreaterThanOrEqual(386);
+    expect(found.left).toBeLessThanOrEqual(404);
+    expect(found.top).toBeGreaterThanOrEqual(186);
+    expect(found.top).toBeLessThanOrEqual(204);
+    expect(found.right).toBeGreaterThanOrEqual(490);
+    expect(found.right).toBeLessThanOrEqual(514);
+    expect(found.bottom).toBeGreaterThanOrEqual(270);
+    expect(found.bottom).toBeLessThanOrEqual(294);
     expect(pixel(overlay, 450, 240)).toEqual([255, 0, 0]);
     nativeClick(450, 240);
     expect(
