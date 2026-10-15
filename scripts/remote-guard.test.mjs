@@ -6,16 +6,10 @@ import { readFile } from "node:fs/promises";
 // the account holder's list. Each entry point either imports the shared test
 // environment (which sets BLINKLING_REMOTE=0) or sets the switch itself.
 const entryPoints = [
-  "playwright.config.ts",
   "playwright.extension.config.ts",
-  "scripts/screen-e2e.mjs",
   "scripts/mcp-e2e.mjs",
-  "scripts/launcher-test.mjs",
-  "scripts/record-demo.mjs",
-  "scripts/record-real-demos.mjs",
   "scripts/plugin-upgrade-test.mjs",
   "scripts/extension-e2e.sh",
-  "scripts/screen-e2e.sh",
 ];
 
 for (const file of entryPoints)

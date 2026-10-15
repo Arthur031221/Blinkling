@@ -4,13 +4,17 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["bridge/test/isolated-home.ts"],
     include: [
-      "src/**/*.test.ts",
       "bridge/src/**/*.test.ts",
       "bridge/test/**/*.test.ts",
       "extension/**/*.test.{ts,tsx}",
       "scripts/**/*.test.mjs",
     ],
-    // Runs under node:test through `npm run check:name`.
-    exclude: ["scripts/check-name.test.mjs", "node_modules/**"],
+    // These run under node:test: `npm run check:name` and `npm run test:features`.
+    exclude: [
+      "scripts/check-name.test.mjs",
+      "scripts/features.test.mjs",
+      "scripts/remote-guard.test.mjs",
+      "node_modules/**",
+    ],
   },
 });

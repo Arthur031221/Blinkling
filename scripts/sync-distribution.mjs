@@ -74,18 +74,18 @@ const LINK_LABELS = {
 };
 
 const STORE_PAIR_STEP = {
-  en: "Open the store link above and add Blinkling, then return to the welcome guide to pair. If Claude Code is remote, run the guide's SSH command on the computer with your browser.",
-  de: "Öffne den Store-Link oben und füge Blinkling hinzu. Kehre dann zur Willkommensanleitung zurück, um die Verbindung herzustellen. Läuft Claude Code auf einem entfernten Rechner, führe den SSH-Befehl der Anleitung auf dem Computer mit deinem Browser aus.",
-  es: "Abre el enlace de la tienda de arriba y añade Blinkling. Vuelve a la guía de bienvenida para vincularlo. Si Claude Code está en un equipo remoto, ejecuta el comando SSH de la guía en el equipo con tu navegador.",
-  fr: "Ouvrez le lien de la boutique ci-dessus et ajoutez Blinkling, puis revenez au guide de bienvenue pour l'associer. Si Claude Code est distant, exécutez la commande SSH du guide sur l'ordinateur avec votre navigateur.",
-  ja: "上のストアリンクを開いて Blinkling を追加し、ウェルカムガイドに戻ってペアリングします。Claude Code がリモートで動いている場合は、ブラウザーのある端末でガイドの SSH コマンドを実行してください。",
-  ko: "위 스토어 링크에서 Blinkling을 추가한 후 시작 안내로 돌아와 페어링합니다. Claude Code가 원격 호스트에서 실행 중이면 브라우저가 있는 컴퓨터에서 안내의 SSH 명령을 실행하세요.",
+  en: "Open the store link above and add Blinkling. It connects to Blink on its own; click its toolbar button to see the status.",
+  de: "Öffne den Store-Link oben und füge Blinkling hinzu. Es verbindet sich von selbst mit Blink; ein Klick auf die Schaltfläche in der Symbolleiste zeigt den Status.",
+  es: "Abre el enlace de la tienda de arriba y añade Blinkling. Se conecta solo con Blink; pulsa su botón de la barra de herramientas para ver el estado.",
+  fr: "Ouvrez le lien de la boutique ci-dessus et ajoutez Blinkling. Il se connecte tout seul à Blink ; cliquez sur son bouton dans la barre d'outils pour voir l'état.",
+  ja: "上のストアリンクを開いて Blinkling を追加します。Blink には自動で接続され、ツールバーのボタンを押すと状況を確認できます。",
+  ko: "위 스토어 링크에서 Blinkling을 추가합니다. Blink에 자동으로 연결되며, 도구 모음 버튼을 누르면 상태를 볼 수 있습니다.",
   "pt-BR":
-    "Abra o link da loja acima e adicione o Blinkling. Volte ao guia de boas-vindas para parear. Se o Claude Code estiver em um host remoto, execute o comando SSH do guia no computador com seu navegador.",
+    "Abra o link da loja acima e adicione o Blinkling. Ele se conecta sozinho ao Blink; clique no botão da barra de ferramentas para ver o estado.",
   "zh-CN":
-    "打开上方商店链接并添加 Blinkling，再回到欢迎指南配对。如果 Claude Code 在远程主机上运行，请在浏览器所在的电脑执行指南中的 SSH 命令。",
+    "打开上方商店链接并添加 Blinkling。它会自动连接 Blink，点击工具栏按钮即可查看状态。",
   "zh-TW":
-    "開啟上方商店連結並加入 Blinkling，再回到歡迎指南配對。如果 Claude Code 在遠端主機執行，請在瀏覽器所在的電腦執行指南中的 SSH 指令。",
+    "開啟上方商店連結並加入 Blinkling。它會自動連線到 Blink，點工具列按鈕即可查看狀態。",
 };
 const UNPACKED_LIMIT =
   /developer banner|Entwicklermodus-Hinweis|Updates erfolgen manuell|bannière de développement|aviso de desarrollador|開発者向け|開發者提示|开发者提示|개발자 배너|aviso de desenvolvedor|atualizações.*manuais|mises à jour.*manuelles/i;

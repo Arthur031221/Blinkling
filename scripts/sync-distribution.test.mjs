@@ -78,95 +78,6 @@ claude --plugin-dir "$PWD" plugin details blinkling
 node -p "require('./bin/extension/manifest.json').version"
 claude --plugin-dir "$PWD"`;
 
-const automaticExplanationLabels = [
-  "Auto explain",
-  "Automatisch erklären",
-  "Explicar automáticamente",
-  "Explication automatique",
-  "自動解説",
-  "자동 설명",
-  "Explicação automática",
-  "自动解说",
-  "自動解說",
-];
-const screenConsentChecks = [
-  /separate consent for each share/i,
-  /separate Zustimmung für jede Freigabe/i,
-  /consentimiento separado para cada sesión/i,
-  /consentement séparé pour chaque partage/i,
-  /共有ごとに個別の同意/,
-  /공유할 때마다 별도의 동의/,
-  /consentimento separado para cada compartilhamento/i,
-  /每次共享单独同意/,
-  /每次分享另外同意/,
-];
-
-const passiveLanguageChecks = [
-  [
-    "README.md",
-    /without screen sharing/i,
-    /password/i,
-    /blocklist/i,
-    /shared browser tab bound to the same inspected tab/i,
-  ],
-  [
-    "README.de.md",
-    /ohne Bildschirmfreigabe/i,
-    /Passwort/i,
-    /Sperrliste/i,
-    /geteilten Browser-Tab.*demselben geprüften Tab/i,
-  ],
-  [
-    "README.es.md",
-    /sin compartir (?:la )?pantalla/i,
-    /contraseña/i,
-    /lista de bloqueo/i,
-    /pestaña del navegador vinculada a la misma pestaña inspeccionada/i,
-  ],
-  [
-    "README.fr.md",
-    /sans partage d['’]écran/i,
-    /mot de passe/i,
-    /liste de blocage/i,
-    /onglet partagé associé au même onglet inspecté/i,
-  ],
-  [
-    "README.ja.md",
-    /画面共有なし/,
-    /パスワード/,
-    /ブロックリスト/,
-    /検査した同じタブに結び付いたブラウザータブの共有/,
-  ],
-  [
-    "README.ko.md",
-    /화면 공유 없이/,
-    /비밀번호/,
-    /차단 목록/,
-    /검사한 동일한 탭에 연결된 브라우저 탭 공유/,
-  ],
-  [
-    "README.pt-BR.md",
-    /sem compartilhar (?:a )?tela/i,
-    /senha/i,
-    /lista de bloqueio/i,
-    /guia compartilhada vinculada à mesma guia inspecionada/i,
-  ],
-  [
-    "README.zh-CN.md",
-    /无需共享屏幕/,
-    /密码/,
-    /屏蔽列表/,
-    /共享浏览器标签页，并绑定到同一个已检查的标签页/,
-  ],
-  [
-    "README.zh-TW.md",
-    /不需要分享螢幕/,
-    /密碼/,
-    /封鎖清單/,
-    /分享瀏覽器分頁，並綁定到同一個已檢查的分頁/,
-  ],
-];
-
 afterEach(async () => {
   if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
   temporaryRoot = undefined;
@@ -201,18 +112,17 @@ describe("distribution README sync", () => {
     expect(content).toContain(releaseVersion);
   });
 
-  it.each(passiveLanguageChecks)(
-    "explains no-share page summaries and privacy restrictions in %s",
-    async (file, noShare, password, blocklist, sharedTabBinding) => {
+  it.each(readmeFiles)(
+    "describes only the kept tiers and links the privacy page in %s",
+    async (file) => {
       const content = await readFile(join(process.cwd(), file), "utf8");
       const privacy = content.slice(content.lastIndexOf("\n## "));
-      expect(privacy).toMatch(noShare);
-      expect(privacy).toMatch(password);
-      expect(privacy).toMatch(blocklist);
-      expect(privacy).toMatch(sharedTabBinding);
-      const index = readmeFiles.indexOf(file);
-      expect(privacy).toContain(automaticExplanationLabels[index]);
-      expect(privacy).toMatch(screenConsentChecks[index]);
+      expect(privacy).toContain("docs/SECURITY.md");
+      expect(privacy).toContain("docs/FEATURES.md");
+      expect(privacy).toContain("127.0.0.1");
+      expect(content).toMatch(/(?:Ctrl|Strg)\+(?:Shift|Umschalt|Maj)\+S/);
+      expect(content).toContain("Wake Blink");
+      expect(content).not.toMatch(/\bssh\b/i);
     },
   );
 
@@ -342,64 +252,4 @@ describe("source checkout instructions", () => {
     for (const content of await readReadmes(root))
       expectCheckoutInstructions(content);
   });
-});
-
-const passiveDocumentation = [
-  {
-    noShare: /without (?:screen )?sharing/i,
-    password: /password/i,
-    blocked: /blocklist/i,
-  },
-  {
-    noShare: /ohne (?:Bildschirmfreigabe|.*teilen)/i,
-    password: /Passwort/i,
-    blocked: /Sperrliste/i,
-  },
-  {
-    noShare: /sin compartir (?:la )?pantalla/i,
-    password: /contraseñ/i,
-    blocked: /bloquead/i,
-  },
-  {
-    noShare: /sans partage d['’]écran/i,
-    password: /mot[s]? de passe/i,
-    blocked: /bloqu/i,
-  },
-  {
-    noShare: /画面共有(?:なし|せず|は不要|を開始せず|をしなくても)/,
-    password: /パスワード/,
-    blocked: /ブロック/,
-  },
-  {
-    noShare: /화면(?:을)? 공유(?:하지 않| 없이)/,
-    password: /비밀번호/,
-    blocked: /차단/,
-  },
-  {
-    noShare: /sem compartilhar a tela/i,
-    password: /senha/i,
-    blocked: /bloquead/i,
-  },
-  {
-    noShare: /(?:无需|不需要|不必)共享屏幕|不共享屏幕/,
-    password: /密码/,
-    blocked: /屏蔽|阻止|封锁|黑名单/,
-  },
-  {
-    noShare: /(?:無需|不需要|不必)分享螢幕|不分享螢幕/,
-    password: /密碼/,
-    blocked: /封鎖|封鎖清單|黑名單/,
-  },
-];
-
-describe("passive page summary instructions", () => {
-  for (const [index, file] of readmeFiles.entries()) {
-    it(`${file} explains summaries without a share and keeps sensitive-page restrictions`, async () => {
-      const content = await readFile(join(process.cwd(), file), "utf8");
-      const rules = passiveDocumentation[index];
-      expect(content).toMatch(rules.noShare);
-      expect(content).toMatch(rules.password);
-      expect(content).toMatch(rules.blocked);
-    });
-  }
 });
