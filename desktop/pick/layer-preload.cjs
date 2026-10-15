@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld(
   Object.freeze({
     onState: listen("blinkling:pick:state"),
     onPlay: listen("blinkling:pick:play"),
+    onBlank: listen("blinkling:pick:blank"),
+    blanked: () => ipcRenderer.send("blinkling:pick:blanked"),
     pointer: (type, x, y) => ipcRenderer.send("blinkling:pick:pointer", { type, x, y }),
     landed: () => ipcRenderer.send("blinkling:pick:landed"),
   }),

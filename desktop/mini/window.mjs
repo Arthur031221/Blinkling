@@ -18,7 +18,7 @@ export function placeMini(size, blink, workArea) {
   return { x: Math.round(x), y: Math.round(y), width: size.width, height: size.height };
 }
 
-export function createMiniWindow({ electron, mini, locale, blinkBounds, workAreaFor }) {
+export function createMiniWindow({ electron, mini, locale, blinkBounds, workAreaFor, input }) {
   const { BrowserWindow, ipcMain } = electron;
   const text = miniText(locale);
   const strings = { pauseAuto: text("pauseAuto"), inputLabel: text("inputLabel"), remove: text("remove") };
@@ -89,8 +89,15 @@ export function createMiniWindow({ electron, mini, locale, blinkBounds, workArea
       await loaded;
       opening = true;
       reposition();
-      win.show();
-      win.focus();
+      // Remember who had the keyboard, so Esc and Enter can give it back.
+      await input?.rememberFocus?.();
+      if (input?.activate) {
+        win.showInactive();
+        input.activate(win);
+      } else {
+        win.show();
+        win.focus();
+      }
       win.webContents.focus();
       opening = false;
     },

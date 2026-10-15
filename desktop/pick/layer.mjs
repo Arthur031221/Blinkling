@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { MAX_EFFECT_MS } from "./effects.mjs";
 import { FLIGHT_MS } from "./flight.mjs";
 
+const BLANK_TIMEOUT = 500;
 const here = (name) => fileURLToPath(new URL(name, import.meta.url));
 
 export function createLayers({ electron, onPointer = () => {} }) {
@@ -73,6 +74,12 @@ export function createLayers({ electron, onPointer = () => {} }) {
   };
   ipcMain.on("blinkling:pick:pointer", onPointerEvent);
   ipcMain.on("blinkling:pick:landed", onLandedEvent);
+  let blanking = null;
+  const onBlankedEvent = (event) => {
+    const layer = owner(event);
+    if (layer) blanking?.check(layer.display.id);
+  };
+  ipcMain.on("blinkling:pick:blanked", onBlankedEvent);
 
   const sync = () => {
     const displays = screen.getAllDisplays();
@@ -136,6 +143,25 @@ export function createLayers({ electron, onPointer = () => {} }) {
       send("blinkling:pick:play", message);
       return done;
     },
+    /** Blank or restore every layer's drawing; resolves once each has painted it. */
+    blank(on) {
+      const waiting = new Set(live().map((l) => l.display.id));
+      if (!waiting.size) return Promise.resolve();
+      return new Promise((resolve) => {
+        const timer = setTimeout(resolve, BLANK_TIMEOUT);
+        timer.unref?.();
+        blanking = {
+          check(id) {
+            waiting.delete(id);
+            if (!waiting.size) {
+              clearTimeout(timer);
+              resolve();
+            }
+          },
+        };
+        send("blinkling:pick:blank", { on });
+      });
+    },
     frames: () =>
       Promise.all(
         live().map((l) =>
@@ -145,6 +171,7 @@ export function createLayers({ electron, onPointer = () => {} }) {
     dispose() {
       ipcMain.removeListener("blinkling:pick:pointer", onPointerEvent);
       ipcMain.removeListener("blinkling:pick:landed", onLandedEvent);
+      ipcMain.removeListener("blinkling:pick:blanked", onBlankedEvent);
       screen.removeListener("display-added", sync);
       screen.removeListener("display-removed", sync);
       screen.removeListener("display-metrics-changed", sync);

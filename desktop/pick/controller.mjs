@@ -37,8 +37,9 @@ export function createPickController({
   onTaken = () => {},
   onError = () => {},
   newId = () => crypto.randomUUID(),
+  now = Date.now,
 }) {
-  const group = createGroup({ newId });
+  const group = createGroup({ newId, now });
   let active = false,
     allowed = true,
     hover = null,
@@ -89,7 +90,12 @@ export function createPickController({
       const item = { id, elementId: taken.elementId, bounds: rect, kind: taken.kind };
       if (extra.replaces) group.replace(extra.replaces, item);
       else group.add(item);
-      onTaken(taken, { id, ...(extra.replaces ? { replaces: extra.replaces } : {}) });
+      emit();
+      onTaken(taken, {
+        id,
+        ...(extra.replaces ? { replaces: extra.replaces } : {}),
+        ...(element?.window ? { window: element.window } : {}),
+      });
     } catch (error) {
       onError(error);
     }
@@ -167,6 +173,13 @@ export function createPickController({
       group.clear();
       emit();
     },
+    /** A fresh chat starts with only the pick that began it. */
+    keepOnly(id) {
+      for (const item of group.items) if (item.id !== id) group.remove(item.id);
+      emit();
+    },
+    /** A pick happened now: the chat it belongs to (K2, sixty seconds). */
+    touchChat: () => group.touchChat(),
     async pointer({ type, x, y }) {
       if (!active) return;
       const point = { x, y };

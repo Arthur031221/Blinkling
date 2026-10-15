@@ -239,3 +239,47 @@ test("reset forgets the picks", async () => {
   r.controller.reset();
   assert.equal(r.controller.items.length, 0);
 });
+
+test("the state count follows what was taken and the meta carries the window", async () => {
+  const r = rig();
+  await r.controller.raise();
+  assert.equal(r.last().count, 0);
+  await click(r.controller, at(150, 250));
+  assert.equal(r.last().count, 1);
+  assert.equal(r.taken[0].meta.window.id, "w1");
+  r.controller.reset();
+  assert.equal(r.last().count, 0);
+});
+
+test("the chat clock starts a new chat after sixty seconds", () => {
+  let t = 1000;
+  const controller = createPickController({
+    locator: createLocatorStub(),
+    guard: { allowed: () => true },
+    capture: async () => ({ data: "", width: 1, height: 1 }),
+    displayAt: () => display,
+    now: () => t,
+    newId: (() => {
+      let n = 0;
+      return () => `chat-${++n}`;
+    })(),
+  });
+  const first = controller.touchChat();
+  t += 59_000;
+  const second = controller.touchChat();
+  assert.equal(second.fresh, false);
+  assert.equal(second.id, first.id);
+  t += 61_000;
+  assert.equal(controller.touchChat().fresh, true);
+});
+
+test("keepOnly leaves just the pick that started a new chat", async () => {
+  const r = rig();
+  await r.controller.raise();
+  await click(r.controller, at(150, 250));
+  await click(r.controller, at(120, 120));
+  assert.equal(r.controller.items.length, 2);
+  r.controller.keepOnly(r.taken[1].meta.id);
+  assert.deepEqual(r.controller.items.map((i) => i.id), [r.taken[1].meta.id]);
+  assert.equal(r.last().count, 1);
+});

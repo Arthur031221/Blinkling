@@ -156,3 +156,7 @@ body {
   position: absolute;
   inset: 0;
 }
+
+html[data-blank="true"] body {
+  visibility: hidden;
+}

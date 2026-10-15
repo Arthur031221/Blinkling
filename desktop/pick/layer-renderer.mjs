@@ -244,5 +244,10 @@ async function play({ taken, seed, blink, reducedMotion, text, origin: next }) {
   container.remove();
 }
 
+// Blank while the screen is grabbed, so the outline never ends up in the picture.
+window.pickLayer.onBlank(({ on }) => {
+  document.documentElement.dataset.blank = String(on);
+  requestAnimationFrame(() => requestAnimationFrame(() => window.pickLayer.blanked()));
+});
 window.pickLayer.onState(render);
 window.pickLayer.onPlay((message) => void play(message));
