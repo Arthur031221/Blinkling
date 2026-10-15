@@ -1,6 +1,11 @@
 {
   "name": "@blinkling/desktop",
   "version": "3.0.0",
+  "description": "Blink, the Blinkling companion",
+  "author": {
+    "name": "Arthur031221"
+  },
+  "desktopName": "blinkling.desktop",
   "private": true,
   "type": "module",
   "main": "main/index.cjs",

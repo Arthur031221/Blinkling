@@ -148,7 +148,10 @@ test("at start one hidden layer per display and the hidden mini window exist, an
   const pick = await s.install();
   assert.equal(s.log.windows.length, 2);
   for (const w of s.log.windows) assert.equal(w.options.show, false);
-  assert.equal(s.log.windows[1].file.endsWith("mini/index.html"), true);
+  assert.equal(
+    s.log.windows[1].file.endsWith(join("mini", "index.html")),
+    true,
+  );
   assert.equal(pick.started, true);
   assert.deepEqual(s.hooks.map(([t]) => t).sort(), [
     "keydown",
@@ -163,11 +166,13 @@ test("the layer windows load their own preload, the mini window its own, neither
   await s.install();
   const [layer, mini] = s.log.windows;
   assert.equal(
-    layer.options.webPreferences.preload.endsWith("pick/layer-preload.cjs"),
+    layer.options.webPreferences.preload.endsWith(
+      join("pick", "layer-preload.cjs"),
+    ),
     true,
   );
   assert.equal(
-    mini.options.webPreferences.preload.endsWith("mini/preload.cjs"),
+    mini.options.webPreferences.preload.endsWith(join("mini", "preload.cjs")),
     true,
   );
 });

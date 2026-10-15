@@ -123,7 +123,13 @@ test("native menu capture reaches the composer and the shared answer session", a
         );
     const expected = process.env.BLINKLING_LIVE === "1" ? /red/i : /OK\./;
     await expect
-      .poll(async () => (await deck()?.locator(".gl-answer-bubble").allTextContents())?.join(" ") ?? "", { timeout: 60000 })
+      .poll(
+        async () =>
+          (await deck()?.locator(".gl-answer-bubble").allTextContents())?.join(
+            " ",
+          ) ?? "",
+        { timeout: 60000 },
+      )
       .toMatch(expected);
     await expect
       .poll(
@@ -170,7 +176,13 @@ test("native menu capture reaches the composer and the shared answer session", a
       });
       expect(remote.serverTranscriptVerified).toBe(true);
       await expect
-        .poll(async () => (await deck()?.locator(".gl-answer-bubble").allTextContents())?.join(" ") ?? "", { timeout: 60000 })
+        .poll(
+          async () =>
+            (
+              await deck()?.locator(".gl-answer-bubble").allTextContents()
+            )?.join(" ") ?? "",
+          { timeout: 60000 },
+        )
         .toContain(remote.answer);
       await expect
         .poll(

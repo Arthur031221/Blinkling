@@ -110,6 +110,17 @@ jobs:
           name: desktop-release
           path: release/desktop-assets/*
           if-no-files-found: error
+      # The launcher the plugin ships is bin/blinkling.cjs, which inlines the manifest.
+      # Prove on every run, dry or not, that pinning and rebuilding gives a launcher
+      # that resolves the Linux build instead of "Unsupported desktop target".
+      - run: npm ci
+      - name: Rebuild the bundled launcher with the pinned builds and resolve each target
+        run: |
+          cp release/desktop-assets/manifest.json plugin/desktop/manifest.json
+          npm run build:extension && node scripts/build-plugin.mjs
+          python3 .github/workflows/bundle_manifest.py bin/blinkling.cjs plugin/desktop/manifest.json
+          node desktop/distribution/bundled.mjs bin/blinkling.cjs | tee resolved.txt
+          grep -q '^linux/x64 -> https://github.com/' resolved.txt
   publish:
     needs: manifest
     if: ${{ !inputs.dry_run }}
@@ -133,9 +144,10 @@ jobs:
         id: pin
         run: |
           cp release/desktop-assets/manifest.json plugin/desktop/manifest.json
+          node scripts/build-plugin.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add plugin/desktop/manifest.json
+          git add -A bin plugin/desktop/manifest.json
           git commit -m "Pin the desktop builds for v${{ inputs.version }}"
           git push origin HEAD:main
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

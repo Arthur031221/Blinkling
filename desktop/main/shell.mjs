@@ -718,6 +718,14 @@ secure(bubbles);
 bubbles.setIgnoreMouseEvents(!input && process.platform !== "win32", {
   forward: true,
 });
+// Tests reach Blink as soon as the window exists; the rest is added below.
+if (process.env.BLINKLING_E2E === "1")
+  globalThis.blinklingTest = {
+    blink,
+    get composer() {
+      return composer;
+    },
+  };
 await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
 );
@@ -948,15 +956,11 @@ app.on("will-quit", () => {
 });
 app.on("window-all-closed", () => app.quit());
 if (process.env.BLINKLING_E2E === "1")
-  globalThis.blinklingTest = {
-    blink,
+  Object.assign(globalThis.blinklingTest, {
     features,
     session,
     bubbles,
     send,
-    get composer() {
-      return composer;
-    },
     snapshot,
     cursor: () => cursor.point(),
     pointer: cursor,
@@ -974,7 +978,7 @@ if (process.env.BLINKLING_E2E === "1")
     setDisplay: useDisplay,
     positionStore: store,
     registerAction,
-  };
+  });
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {
     escapeKeys,
