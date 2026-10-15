@@ -1,4 +1,7 @@
 import { placeCallouts } from "./layout.mjs";
+import { cssVariables } from "../shared/motion.mjs";
+
+document.documentElement.style.cssText += cssVariables();
 const ns = "http://www.w3.org/2000/svg",
   svg = document.querySelector("#drawings"),
   labels = document.querySelector("#labels");

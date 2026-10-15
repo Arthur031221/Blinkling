@@ -1,4 +1,4 @@
-import { duration, easing } from "../shared/motion.mjs";
+import { duration, easing, timing } from "../shared/motion.mjs";
 export function aborted(signal) {
   signal?.throwIfAborted();
 }
@@ -114,7 +114,7 @@ export function fadeWindow(win, to, reduced = false) {
   return win.webContents.executeJavaScript(script, false);
 }
 const frames = (count) =>
-  new Promise((resolve) => setTimeout(resolve, count * 17));
+  new Promise((resolve) => setTimeout(resolve, count * timing.frame));
 /** Includes temporary windows supplied by feature services. A failed capture
  * must release the queue, and neither cancellation nor restore may activate
  * Blink. Surfaces fade out before the screen is read and back in after. */

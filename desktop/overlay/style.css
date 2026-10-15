@@ -82,7 +82,7 @@ body {
   .label,
   .outline,
   .arrow {
-    animation: arrive 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: arrive var(--motion-base) var(--ease-enter) both;
   }
   @keyframes arrive {
     from {

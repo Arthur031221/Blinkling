@@ -2,6 +2,7 @@
  * A server transcript may be supplied by a test-only authenticated observer.
  * This module, like the production bridge, never reads account credentials.
  */
+import { timing } from "../shared/motion.mjs";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -33,7 +34,7 @@ export async function runCanary({ reportDir, holdMs = 0, observer }) {
     const end = Date.now() + timeout;
     while (!events.some(predicate)) {
       if (Date.now() > end) throw new Error("Live Claude canary timed out");
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, timing.canaryPoll));
     }
     return events.find(predicate);
   };

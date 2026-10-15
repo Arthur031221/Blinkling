@@ -17,6 +17,7 @@ import {
   validHold,
 } from "./card-hold.mjs";
 import { validSeed } from "../composer/index.mjs";
+import { timing } from "../shared/motion.mjs";
 import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
@@ -237,7 +238,7 @@ async function ensureComposer() {
   const ready = new Promise((resolve, reject) => {
     timer = setTimeout(
       () => reject(Error("Composer startup timed out")),
-      10000,
+      timing.composerStartup,
     );
     composerReady = () => {
       clearTimeout(timer);
@@ -927,7 +928,7 @@ const poll = setInterval(() => {
       blink.setIgnoreMouseEvents(ignoring, { forward: true });
     }
   }
-}, 16);
+}, timing.cursorPoll);
 let disposed = false;
 app.on("before-quit", (event) => {
   quitting = true;

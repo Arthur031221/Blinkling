@@ -1,3 +1,4 @@
+import { timing } from "../shared/motion.mjs";
 import { BrowserWindow, screen, globalShortcut, ipcMain } from "electron";
 import { fileURLToPath } from "node:url";
 import { OverlayService } from "./service.mjs";
@@ -133,11 +134,11 @@ export async function createOverlay(
     }
     await win.loadFile(fileURLToPath(new URL("./index.html", import.meta.url)));
     await win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>reject(Error("Guide layout timed out")),3000);
+      const timer=setTimeout(()=>reject(Error("Guide layout timed out")),${timing.guideLayout});
       function check(){
         if(document.body.dataset.error){clearTimeout(timer);reject(Error(document.body.dataset.error));}
         else if(document.body.dataset.ready){clearTimeout(timer);resolve();}
-        else setTimeout(check,10);
+        else setTimeout(check,${timing.layoutPoll});
       }check();
     })`);
     win.showInactive();
