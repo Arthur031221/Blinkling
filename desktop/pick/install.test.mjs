@@ -79,6 +79,7 @@ function setup(options = {}) {
   let clock = 1_000_000;
   const hooks = [];
   const shell = {
+    platform: "linux",
     userDataDir:
       options.userDataDir ?? mkdtempSync(join(tmpdir(), "pick-install-")),
     env: { BLINKLING_LOCALE: "en", ...options.env },

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { join } from "node:path";
 import { createHelperKeySource, keytapPath } from "./keys-helper.mjs";
 
 function fake() {
@@ -146,17 +147,17 @@ test("a burst of events never holds the main thread", async () => {
 });
 
 test("the helper is found in the app resources, then the build folder, else null", () => {
-  const seen = new Set(["/app/res/blinkling-keytap"]);
+  const seen = new Set([join("/app/res", "blinkling-keytap")]);
   const exists = (p) => seen.has(p);
   assert.equal(
     keytapPath({ resourcesPath: "/app/res", appDir: "/src/desktop", exists }),
-    "/app/res/blinkling-keytap",
+    join("/app/res", "blinkling-keytap"),
   );
   seen.clear();
-  seen.add("/src/desktop/pick/native/build/blinkling-keytap");
+  seen.add(join("/src/desktop", "pick", "native", "build", "blinkling-keytap"));
   assert.equal(
     keytapPath({ resourcesPath: "/app/res", appDir: "/src/desktop", exists }),
-    "/src/desktop/pick/native/build/blinkling-keytap",
+    join("/src/desktop", "pick", "native", "build", "blinkling-keytap"),
   );
   seen.clear();
   assert.equal(
