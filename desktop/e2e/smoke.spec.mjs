@@ -11,6 +11,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
     ).toEqual([
       "action",
       "activity",
+      "bubbleHover",
       "bubbleRegions",
       "close",
       "configuration",
@@ -18,6 +19,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       "interactive",
       "onCapture",
       "onEvent",
+      "onMarkClick",
       "onShell",
       "onSurface",
       "openChat",

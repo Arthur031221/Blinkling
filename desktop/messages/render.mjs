@@ -1,4 +1,5 @@
 import { markdown } from "./parts.mjs";
+import { translatorFor } from "./strings.mjs";
 export const imageURL = (image) => {
   const source = image.source ?? {
     media_type: image.mediaType,
@@ -32,6 +33,23 @@ const decode = (text) =>
         ),
       ),
   );
+/** `[[n:elementId|label]]` and `[[n:box:x,y,w,h|label]]` point at the page. The
+ * model writes them inline; the reader sees only the number. Each reference is
+ * swapped for one private-use character before Markdown runs, so no lexer rule
+ * can split it, and swapped back into a badge afterwards. */
+const REFERENCE = /\[\[(\d{1,3}):([^|\]\n]+)\|([^\]\n]*)\]\]/g;
+const UNFINISHED_REFERENCE = /\[\[\d{0,3}(?::[^\]\n]*)?$/;
+const MARK = 0xe000;
+export function extractReferences(source) {
+  const references = [];
+  const text = source
+    .replace(REFERENCE, (raw, n, ref, label) => {
+      references.push({ raw, n: Number(n), ref: ref.trim(), label });
+      return String.fromCodePoint(MARK + references.length - 1);
+    })
+    .replace(UNFINISHED_REFERENCE, ""); // a streaming reference stays hidden until closed
+  return { text, references };
+}
 const el = (doc, tag, cls) => {
   const n = doc.createElement(tag);
   if (cls) n.className = cls;
@@ -40,7 +58,7 @@ const el = (doc, tag, cls) => {
 /** The runtime's raw interrupt markers are not something a person wrote. */
 const INTERRUPT = /^\s*\[Request interrupted by user(?: for tool use)?\]\s*$/;
 /** "簡答" is model-written; explain it where it appears instead of leaving a bare label. */
-function tagSummary(doc, root) {
+function tagSummary(doc, root, t) {
   const lead = root.firstElementChild?.firstElementChild;
   if (
     lead?.tagName !== "STRONG" ||
@@ -49,7 +67,7 @@ function tagSummary(doc, root) {
     return;
   const tag = el(doc, "span", "gl-summary-tag");
   tag.textContent = lead.textContent;
-  tag.title = "這是簡短回答，完整內容可在對話中查看";
+  tag.title = t("briefTag");
   lead.replaceWith(tag);
 }
 export function renderMarkdown(
@@ -58,9 +76,33 @@ export function renderMarkdown(
   {
     copy = (text) => doc.defaultView.navigator.clipboard.writeText(text),
     openLink,
+    t: tr = translatorFor(doc),
   } = {},
 ) {
   const root = el(doc, "div", "gl-markdown");
+  const extracted = extractReferences(source);
+  const restore = (text) =>
+    text.replace(
+      /[\ue000-\uf8ff]/g,
+      (c) => extracted.references[c.codePointAt(0) - MARK]?.raw ?? c,
+    );
+  function words(parent, text) {
+    for (const piece of text.split(/([\ue000-\uf8ff])/)) {
+      const reference = extracted.references[piece.codePointAt(0) - MARK];
+      if (piece.length === 1 && reference) {
+        const badge = el(doc, "button", "gl-ref");
+        badge.type = "button";
+        badge.dataset.ref = reference.ref;
+        badge.textContent = String(reference.n);
+        badge.title = reference.label;
+        badge.setAttribute(
+          "aria-label",
+          tr("reference", { n: reference.n, label: reference.label }),
+        );
+        parent.append(badge);
+      } else if (piece) parent.append(doc.createTextNode(decode(piece)));
+    }
+  }
   function inline(parent, tokens = []) {
     for (const t of tokens) {
       if (["strong", "em", "del"].includes(t.type)) {
@@ -69,7 +111,7 @@ export function renderMarkdown(
         parent.append(n);
       } else if (t.type === "codespan") {
         const n = el(doc, "code");
-        n.textContent = decode(t.text);
+        n.textContent = restore(decode(t.text));
         parent.append(n);
       } else if (t.type === "br") parent.append(el(doc, "br"));
       else if (t.type === "link") {
@@ -94,10 +136,10 @@ export function renderMarkdown(
         parent.append(n);
       } else if (t.type === "image") {
         const n = el(doc, "span", "gl-image-label");
-        n.textContent = t.text || "圖片";
+        n.textContent = t.text || tr("image");
         parent.append(n);
       } else if (t.tokens) inline(parent, t.tokens);
-      else parent.append(doc.createTextNode(decode(t.text ?? t.raw ?? "")));
+      else words(parent, t.text ?? t.raw ?? "");
     }
   }
   function blocks(parent, tokens) {
@@ -112,17 +154,17 @@ export function renderMarkdown(
           code = el(doc, "code");
         label.textContent = t.lang?.split(/\s/)[0] ?? "";
         button.type = "button";
-        button.textContent = "複製";
-        button.setAttribute("aria-label", "複製程式碼");
+        button.textContent = tr("copy");
+        button.setAttribute("aria-label", tr("copyCode"));
         button.addEventListener("click", async () => {
           try {
             await copy(t.text);
-            button.textContent = "已複製";
+            button.textContent = tr("copied");
           } catch {
-            button.textContent = "請再試一次";
+            button.textContent = tr("retry");
           }
         });
-        code.textContent = t.text;
+        code.textContent = restore(t.text);
         pre.append(code);
         toolbar.append(label, button);
         wrap.append(toolbar, pre);
@@ -173,7 +215,7 @@ export function renderMarkdown(
         parent.append(n);
       } else if (t.type === "hr") parent.append(el(doc, "hr"));
       else if (t.type === "html") {
-        parent.append(doc.createTextNode(t.text));
+        parent.append(doc.createTextNode(restore(t.text)));
       } else {
         const n = el(
           doc,
@@ -184,26 +226,27 @@ export function renderMarkdown(
       }
     }
   }
+  source = extracted.text;
   if (INTERRUPT.test(source)) {
     const line = el(doc, "p", "gl-system-line");
-    line.textContent = "已停止";
+    line.textContent = tr("stopped");
     root.append(line);
     return root;
   }
   blocks(root, markdown.lexer(source));
-  tagSummary(doc, root);
+  tagSummary(doc, root, tr);
   return root;
 }
-export function renderImage(doc, image) {
+export function renderImage(doc, image, t = translatorFor(doc)) {
   const url = imageURL(image);
   if (!url) return null;
   const n = el(doc, "img", "gl-message-image");
   n.src = url;
-  n.alt = image.name || "附件圖片";
+  n.alt = image.name || t("attachedImage");
   return n;
 }
-export function renderDocument(doc, document) {
+export function renderDocument(doc, document, t = translatorFor(doc)) {
   const n = el(doc, "div", "gl-document");
-  n.textContent = `📎 ${document.title || "附件檔案"}`;
+  n.textContent = `📎 ${document.title || t("attachedFile")}`;
   return n;
 }
