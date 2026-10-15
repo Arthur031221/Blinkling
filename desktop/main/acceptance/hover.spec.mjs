@@ -373,7 +373,7 @@ test("capture busy clears when delivery throws, hangs, or the selection never an
       const result = {};
       const original = {
         onCapture: service.onCapture,
-        select: service.select,
+        open: service.overlays.open,
         limits: { ...service.limits },
       };
       service.limits.delivery = 300;
@@ -394,15 +394,15 @@ test("capture busy clears when delivery throws, hangs, or the selection never an
       service.onCapture = () => new Promise(() => {});
       await attempt("hangs");
       service.onCapture = original.onCapture;
-      service.select = () => new Promise(() => {});
+      service.overlays.open = () => new Promise(() => {});
       try {
-        await service.region(id);
+        await service.pick(id);
         result.selection = "resolved";
       } catch (error) {
         result.selection = error.code ?? error.message;
       }
       result.selectionBusy = service.busy;
-      service.select = original.select;
+      service.overlays.open = original.open;
       service.limits = original.limits;
       return result;
     });

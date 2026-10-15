@@ -31,7 +31,7 @@ export async function launch(scale = 1, { lang } = {}) {
   });
   await app.firstWindow();
   await expect
-    .poll(() => app.evaluate(() => !!globalThis.blinklingTest), {
+    .poll(() => app.evaluate(() => !!globalThis.blinklingTest?.features), {
       timeout: 10000,
     })
     .toBe(true);

@@ -469,29 +469,30 @@ test("native menu routing and measured stagger/reverse motion", async () => {
     await expect(
       c.page.locator('[data-action="auto-explain"]'),
     ).toHaveAttribute("aria-checked", "false");
-    for (const action of ["settings"]) {
-      await moveOn(c.page);
-      const r = await c.page.locator(`[data-action="${action}"]`).boundingBox();
-      native(r.x + r.width / 2, r.y + r.height / 2, "click");
-      await expect
-        .poll(() =>
-          c.app.evaluate(
-            () => !!globalThis.blinklingTest.composer?.isVisible(),
-          ),
-        )
-        .toBe(true);
-      const chat = c.app
-        .windows()
-        .find((p) => p.url().includes("surface=card"));
-      await expect(chat.locator(".gl-input")).toBeFocused();
-      await expect(chat.locator(".gl-notice")).toBeHidden();
-      await chat.keyboard.press("Escape");
-      await expect
-        .poll(() =>
-          c.app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
-        )
-        .toBe(false);
-    }
+    // The settings bubble opens the settings window, not the composer.
+    await moveOn(c.page);
+    const r = await c.page.locator('[data-action="settings"]').boundingBox();
+    native(r.x + r.width / 2, r.y + r.height / 2, "click");
+    await expect
+      .poll(() =>
+        c.app.evaluate(() =>
+          globalThis.blinklingTest.settings.test.win.isVisible(),
+        ),
+      )
+      .toBe(true);
+    expect(
+      await c.app.evaluate(
+        () => !!globalThis.blinklingTest.composer?.isVisible(),
+      ),
+    ).toBe(false);
+    await c.app.evaluate(() => globalThis.blinklingTest.settings.close());
+    await expect
+      .poll(() =>
+        c.app.evaluate(() =>
+          globalThis.blinklingTest.settings.test.win.isVisible(),
+        ),
+      )
+      .toBe(false);
     await writeFile(
       join(report, "menu-routing.json"),
       JSON.stringify(calls, null, 2),

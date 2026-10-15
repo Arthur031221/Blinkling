@@ -410,6 +410,9 @@ const intersects = (a, b) =>
 test("hover recall of the last answer never overlaps the fan bubbles", async () => {
   const { app, page } = await launch();
   try {
+    // The real pointer outlives the app: park it away from the deck so the
+    // previous test's hover cannot hold the fade timer.
+    move(2, 2);
     await background(app);
     await say(app, 3);
     const bubbles = bubblesPage(app);

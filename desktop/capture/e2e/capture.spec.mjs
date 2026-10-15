@@ -278,11 +278,12 @@ test("window pick: hover highlights, click takes the window, drag takes an area,
   });
 });
 
-const takenPng = (app, index) =>
+const takenPng = (app, index, list = "taken") =>
   app
     .evaluate(
-      (_electron, index) => globalThis.taken[index]?.image?.data ?? null,
-      index,
+      (_electron, { index, list }) =>
+        globalThis[list][index]?.image?.data ?? null,
+      { index, list },
     )
     .then((data) => PNG.sync.read(Buffer.from(data, "base64")));
 for (const scale of [1, 2])
@@ -600,7 +601,7 @@ for (const scale of [1, 1.5, 2])
           width: 160,
           height: 100,
         });
-        const png = await takenPng(app, 0);
+        const png = await takenPng(app, 0, "images");
         expect(png.width).toBeGreaterThanOrEqual(Math.floor(160 * scale));
         expect(png.height).toBeGreaterThanOrEqual(Math.floor(100 * scale));
         expect(pixel(png, 10, 10)).toEqual([232, 73, 73]);

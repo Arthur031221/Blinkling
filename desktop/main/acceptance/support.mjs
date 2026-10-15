@@ -1,7 +1,7 @@
 import { _electron as electron, expect } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 export const report =
@@ -9,6 +9,13 @@ export const report =
 export async function launch({ scale = 1, theme = "light", data } = {}) {
   await mkdir(report, { recursive: true });
   const userData = data ?? (await mkdtemp(join(tmpdir(), "blink-e2e-")));
+  // The first fan shows its labels once; these suites measure the bare fan.
+  const once = join(userData, "ui-once.json");
+  const seen = await readFile(once, "utf8").catch(() => "{}");
+  await writeFile(
+    once,
+    JSON.stringify({ ...JSON.parse(seen), "fan-labels": true }),
+  );
   const app = await electron.launch({
     args: [
       fileURLToPath(new URL("../..", import.meta.url)),
@@ -30,7 +37,7 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
   page.on("pageerror", (error) => process.stderr.write(`${error.stack}\n`));
   await page.waitForFunction(() => window.desktop);
   await expect
-    .poll(() => app.evaluate(() => !!globalThis.blinklingTest))
+    .poll(() => app.evaluate(() => !!globalThis.blinklingTest?.features))
     .toBe(true);
   await page.emulateMedia({ colorScheme: theme });
   return { app, page, data: userData };

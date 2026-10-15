@@ -190,7 +190,7 @@ test("long answers are capped and open the chat; 簡答 explains itself", async 
   }
 });
 
-test("the notice sits above the toolbar, interrupts read 已停止, chips ellipsize, no gap without chips", async () => {
+test("a capture status opens no notice, interrupts read 已停止, chips ellipsize, no gap without chips", async () => {
   const { app, card, errors } = await launch();
   try {
     const gapWithout = await card.evaluate(() => {
@@ -229,22 +229,15 @@ test("the notice sits above the toolbar, interrupts read 已停止, chips ellips
       };
     });
     expect(fit).toEqual({ ellipsis: "ellipsis", clipped: true, inside: true });
+    // A capture status no longer opens a notice in the card (N3.1).
     await emit(app, {
       type: "capture-status",
       state: "failed",
       message: "Could not capture the whole page.",
     });
-    const notice = card.locator(".gl-notice");
-    await expect(notice).toBeVisible();
-    const rects = await card.evaluate(() => {
-      const r = (s) => document.querySelector(s).getBoundingClientRect();
-      const n = r(".gl-notice"),
-        t = r(".gl-composer-toolbar"),
-        f = r(".gl-composer");
-      return { notice: n.toJSON(), toolbar: t.toJSON(), form: f.toJSON() };
-    });
-    expect(rects.notice.bottom).toBeLessThanOrEqual(rects.form.top + 0.5);
-    expect(rects.notice.bottom).toBeLessThanOrEqual(rects.toolbar.top);
+    await card.waitForTimeout(150);
+    await expect(card.locator(".gl-notice")).toBeHidden();
+    await expect(card.getByText("Could not capture")).toHaveCount(0);
     expect(await bounds(card)).toEqual([]);
     await card.waitForTimeout(350);
     await shot(app, "visuals-notice-chip");

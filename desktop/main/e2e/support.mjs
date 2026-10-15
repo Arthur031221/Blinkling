@@ -1,5 +1,12 @@
 import { expect, _electron as electron } from "@playwright/test";
-import { mkdtemp, mkdir, rm, writeFile, appendFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  rm,
+  writeFile,
+  appendFile,
+  readFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -108,9 +115,19 @@ finally:
       .trim(),
   );
 }
+async function seenLabels(directory) {
+  const file = join(directory, "ui-once.json");
+  const seen = await readFile(file, "utf8").catch(() => "{}");
+  await writeFile(
+    file,
+    JSON.stringify({ ...JSON.parse(seen), "fan-labels": true }),
+  );
+}
 export async function launch(scale = 1, theme = "light", data = null) {
   await mkdir(report, { recursive: true });
   const directory = data ?? (await mkdtemp(join(tmpdir(), "blinkling-shell-")));
+  // The first fan shows its labels once; these suites measure the bare fan.
+  await seenLabels(directory);
   const app = await electron.launch({
     args: [
       ...(process.env.BLINKLING_TEST_EXECUTABLE
@@ -140,7 +157,7 @@ export async function launch(scale = 1, theme = "light", data = null) {
     /peek|hover/,
   );
   await expect
-    .poll(() => app.evaluate(() => !!globalThis.blinklingTest))
+    .poll(() => app.evaluate(() => !!globalThis.blinklingTest?.features))
     .toBe(true);
   await app.evaluate(({ nativeTheme }, theme) => {
     nativeTheme.themeSource = theme;

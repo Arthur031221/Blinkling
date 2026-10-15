@@ -255,7 +255,7 @@ test("bubbles stream upward, fade by height, retain wheel history, revive after 
   }
 });
 
-test("a full-page capture shows progress at once and its notice is replaced on success, truncation and failure", async () => {
+test("a full-page capture raises no in-card notice: progress, truncation and failure leave the bubble surface empty (N3.1)", async () => {
   const { app } = await launch();
   try {
     await app.evaluate(() => globalThis.conversationTest.bubbles());
@@ -267,53 +267,24 @@ test("a full-page capture shows progress at once and its notice is replaced on s
           globalThis.conversationTest.emit({ type: "capture-status", ...e }),
         event,
       );
-    await status({
-      state: "capturing",
-      kind: "full-page",
-      message: "整頁截圖中…",
-    });
-    await expect(notice).toHaveText("整頁截圖中…");
-    await status({
-      state: "capturing",
-      kind: "full-page",
-      message: "整頁截圖中… 3/12",
-      completed: 3,
-      total: 12,
-    });
-    await expect(notice).toHaveText("整頁截圖中… 3/12");
-    await bubble.waitForTimeout(300);
-    await shot(app, "full-page-progress");
-    await status({ state: "done", kind: "full-page" });
-    await expect(notice).toBeHidden();
-
-    await status({
-      state: "capturing",
-      kind: "full-page",
-      message: "整頁截圖中… 1/12",
-    });
-    await expect(notice).toBeVisible();
-    await status({
-      state: "done",
-      kind: "full-page",
-      message: "頁面很長，只截取了前面的部分。",
-    });
-    await expect(notice).toHaveText("頁面很長，只截取了前面的部分。");
-
-    await status({
-      state: "capturing",
-      kind: "full-page",
-      message: "整頁截圖中…",
-    });
-    await status({
-      state: "failed",
-      kind: "full-page",
-      message: "整頁截圖暫時無法完成，請再試一次。",
-    });
-    await expect(notice).toHaveText("整頁截圖暫時無法完成，請再試一次。");
-    await bubble.waitForTimeout(300);
-    await shot(app, "full-page-failed");
-    await status({ state: "done", kind: "full-page" });
-    await expect(notice).toBeHidden();
+    for (const event of [
+      { state: "capturing", message: "整頁截圖中…" },
+      {
+        state: "capturing",
+        message: "整頁截圖中… 3/12",
+        completed: 3,
+        total: 12,
+      },
+      { state: "done", message: "頁面很長，只截取了前面的部分。" },
+      { state: "failed", message: "整頁截圖暫時無法完成，請再試一次。" },
+      { state: "done" },
+    ]) {
+      await status({ kind: "full-page", ...event });
+      await bubble.waitForTimeout(150);
+      await expect(notice).toBeHidden();
+      await expect(bubble.getByText(event.message ?? "\u0000")).toHaveCount(0);
+    }
+    await shot(app, "full-page-no-notice");
   } finally {
     await app.close();
   }
