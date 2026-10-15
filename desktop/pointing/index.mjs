@@ -171,7 +171,8 @@ export function createPointing({
         api.clear("nothing-to-point-at");
         return false;
       }
-      const shownCapture = capture ?? { display: ctx.display };
+      // The service compares the display by value, so it gets the plain form.
+      const shownCapture = { ...capture, display: ctx.display };
       inFlight++;
       const shown = await overlay.show(shownCapture, drawings).finally(() => {
         inFlight--;

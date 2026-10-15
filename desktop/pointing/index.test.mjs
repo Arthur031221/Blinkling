@@ -138,13 +138,45 @@ test("pixel boxes of a capture are converted to the screen before they are drawn
     ],
     { displayId: "1", capture },
   );
-  assert.equal(overlay.shown[0].capture, capture);
+  assert.equal(overlay.shown[0].capture.image, capture.image);
+  assert.equal(overlay.shown[0].capture.pixelWidth, 2560);
   assert.deepEqual(overlay.shown[0].drawings[0].rect, {
     x: 100,
     y: 200,
     width: 300,
     height: 100,
   });
+});
+
+test("the overlay is given the display the way the service compares it: a string id, no Electron extras", async () => {
+  const electronDisplay = {
+    id: 60,
+    bounds: { ...DISPLAY.bounds },
+    scaleFactor: 1,
+    workArea: { x: 0, y: 0, width: 1280, height: 770 },
+    rotation: 0,
+  };
+  const { overlay, pointing } = rig({
+    locator: createPointingLocator({ snaps: false }),
+  });
+  await pointing.show(
+    [{ n: 1, rect: { x: 100, y: 100, width: 200, height: 80 }, label: "box" }],
+    {
+      displayId: 60,
+      capture: {
+        display: electronDisplay,
+        region: { x: 0, y: 0, width: 1280, height: 800 },
+        pixelWidth: 1280,
+        pixelHeight: 800,
+      },
+    },
+  );
+  assert.deepEqual(overlay.shown[0].capture.display, {
+    id: "60",
+    bounds: DISPLAY.bounds,
+    scaleFactor: 1,
+  });
+  assert.equal(overlay.shown[0].capture.region.width, 1280);
 });
 
 test("a box that overshoots the display is trimmed to it, and one wholly off it is skipped", async () => {
