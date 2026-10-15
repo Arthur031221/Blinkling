@@ -69,7 +69,6 @@ try {
     const printed = await readFile(log, "utf8").catch(() => "(no log)");
     console.error(`--- what Blink printed while starting ---\n${printed}`);
     if (process.platform === "darwin") {
-      const app = join(home, "Applications", "Blinkling.app");
       const run = (command) => {
         try {
           return execFileSync("/bin/sh", ["-c", command], {
@@ -82,7 +81,7 @@ try {
       };
       console.error(
         `--- the installed app ---\n${run(
-          `cd "${app}/Contents" && find . -name 'icudtl*' | head; ls -l Frameworks "Frameworks/Electron Framework.framework" "Frameworks/Electron Framework.framework/Versions" | head -40; codesign -dvv "${app}" 2>&1 | head -12`,
+          `cd "${home}" && find . -name '*.app' -maxdepth 6 | head -20; find . -name 'icudtl*' | head; app=$(find . -name Blinkling.app -maxdepth 6 | head -1); [ -n "$app" ] && { ls -l "$app/Contents/Frameworks" "$app/Contents/Frameworks/Electron Framework.framework" "$app/Contents/Frameworks/Electron Framework.framework/Versions" | head -40; codesign -dvv "$app" 2>&1 | head -12; }`,
         )}`,
       );
     }
