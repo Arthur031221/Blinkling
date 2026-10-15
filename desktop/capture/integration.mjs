@@ -139,6 +139,12 @@ export function installCaptureGuide({
     if (!guard() || capture.busy) return Promise.resolve(null);
     return capture.pick(displayId(), undefined, { source }).catch(reportError);
   };
+  const takeLargest = (source) => {
+    if (!guard() || capture.busy) return Promise.resolve(null);
+    return capture
+      .largest(displayId(), undefined, { source })
+      .catch(reportError);
+  };
   const hotkey = new HotkeyRegistry({
     shortcuts: globalShortcut,
     initial: DEFAULT_HOTKEY[process.platform],
@@ -154,6 +160,8 @@ export function installCaptureGuide({
     overlay,
     pointing,
     ready: Promise.all([overlaysReady, hotkeyStarted]).then(() => {}),
+    /** The selection overlay, which is what the hotkey opens. */
+    select: (source = "hotkey") => take(source),
     get hotkey() {
       return hotkey.current;
     },
@@ -178,7 +186,7 @@ export function installCaptureGuide({
     },
     async handle(action) {
       if (!featureActions.has(action)) return null;
-      if (action === "capture") await take("capture");
+      if (action === "capture") await takeLargest("capture");
       if (action === "guide") {
         if (overlay.capture || guide.controller) guide.dismiss();
         else await startGuide(() => guide.start(displayId()));

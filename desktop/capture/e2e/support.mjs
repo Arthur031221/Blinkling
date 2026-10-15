@@ -199,8 +199,10 @@ export async function spawnWindow({ x, y, width, height, color, title }, dir) {
 /** The capture overlay page of the (single) test display. */
 export const overlayPage = (app) =>
   app.windows().find((p) => /\/capture\/selection\.html$/.test(p.url()));
-export async function openOverlay(app, blink) {
-  await blink.evaluate(() => void window.blinkling.action("capture"));
+export async function openOverlay(app) {
+  await app.evaluate(
+    () => void globalThis.blinklingTest.features.select("capture"),
+  );
   await expect.poll(() => !!overlayPage(app), { timeout: 10000 }).toBe(true);
   const page = overlayPage(app);
   await expect(page.locator("body")).toHaveAttribute("data-ready", "true");

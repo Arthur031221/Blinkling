@@ -197,7 +197,9 @@ test("H-5 after a real area capture the mini composer, not the closed selector, 
     // The overlay windows exist from the start and are shown on demand.
     const overlay = () =>
       c.app.windows().find((p) => /\/capture\/selection\.html$/.test(p.url()));
-    await c.page.evaluate(() => void window.blinkling.action("capture"));
+    await c.app.evaluate(
+      () => void globalThis.blinklingTest.features.select("capture"),
+    );
     await expect.poll(overlay).toBeTruthy();
     const selector = overlay();
     await expect(selector.locator("body")).toHaveAttribute(

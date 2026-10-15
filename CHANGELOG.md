@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Screenshot bubble takes the largest area you can see in one click. With a browser in front and the companion connected it captures the whole page, including the parts above and below the scroll. Otherwise, or if the page grab fails, it captures the whole screen. The hotkey still opens the selection overlay.
 - Typed messages now get an answer or a visible reason. The version check accepts command line tool builds 2.1.296 and later in the 2.1 line instead of one exact build. The command is found in the usual install folders and through a login shell, because an app opened from the Dock gets a minimal PATH. When a session cannot start, Blink says why in a bubble and the log records it.
 - macOS: Blink no longer hangs on quit when an input method such as Zhuyin is active. The native key hook is left for the exit to release.
 - Close joins the menu as a fifth bubble and always quits. If shutdown stalls, the app exits after three seconds. A display too short for the fifth bubble keeps the four that matter.

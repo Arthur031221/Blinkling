@@ -4,7 +4,7 @@ export const strings = {
   en: {
     toolbar: "Blink actions",
     capture: "Screenshot",
-    captureHint: "Drag an area, click a window, or press Enter for the screen",
+    captureHint: "Captures the whole page, or the whole screen",
     guide: "Guide",
     guideHint: "Mark the steps on your screen",
     autoExplain: "Auto explain",
@@ -18,7 +18,7 @@ export const strings = {
   "zh-TW": {
     toolbar: "Blink 動作",
     capture: "截圖",
-    captureHint: "拖曳選取範圍、點選視窗，或按 Enter 擷取整個螢幕",
+    captureHint: "擷取整個網頁，沒有網頁時擷取整個螢幕",
     guide: "導覽",
     guideHint: "在畫面上標出重點與步驟",
     autoExplain: "自動解說",
@@ -32,7 +32,7 @@ export const strings = {
   "zh-CN": {
     toolbar: "Blink 动作",
     capture: "截图",
-    captureHint: "拖动选取范围、点击窗口，或按 Enter 截取整个屏幕",
+    captureHint: "截取整个网页，没有网页时截取整个屏幕",
     guide: "导览",
     guideHint: "在屏幕上标出重点与步骤",
     autoExplain: "自动解说",
@@ -46,7 +46,7 @@ export const strings = {
   ja: {
     toolbar: "Blink の操作",
     capture: "スクリーンショット",
-    captureHint: "範囲をドラッグ、ウィンドウをクリック、Enter で画面全体",
+    captureHint: "ウェブページ全体、なければ画面全体を撮影",
     guide: "ガイド",
     guideHint: "画面上に手順の印をつけます",
     autoExplain: "自動解説",
@@ -60,7 +60,7 @@ export const strings = {
   ko: {
     toolbar: "Blink 동작",
     capture: "스크린샷",
-    captureHint: "영역을 드래그하거나 창을 클릭하고, Enter로 전체 화면",
+    captureHint: "웹 페이지 전체, 없으면 전체 화면을 캡처",
     guide: "안내",
     guideHint: "화면에 단계를 표시합니다",
     autoExplain: "자동 설명",
@@ -74,8 +74,7 @@ export const strings = {
   de: {
     toolbar: "Blink-Aktionen",
     capture: "Screenshot",
-    captureHint:
-      "Bereich ziehen, Fenster anklicken oder Enter für den Bildschirm",
+    captureHint: "Erfasst die ganze Seite oder den ganzen Bildschirm",
     guide: "Anleitung",
     guideHint: "Schritte auf dem Bildschirm markieren",
     autoExplain: "Auto-Erklären",
@@ -89,8 +88,7 @@ export const strings = {
   es: {
     toolbar: "Acciones de Blink",
     capture: "Captura",
-    captureHint:
-      "Arrastra un área, haz clic en una ventana o pulsa Intro para la pantalla",
+    captureHint: "Captura la página completa o toda la pantalla",
     guide: "Guía",
     guideHint: "Marca los pasos en tu pantalla",
     autoExplain: "Explicar solo",
@@ -104,8 +102,7 @@ export const strings = {
   fr: {
     toolbar: "Actions de Blink",
     capture: "Capture",
-    captureHint:
-      "Faites glisser une zone, cliquez une fenêtre ou Entrée pour l’écran",
+    captureHint: "Capture la page entière ou tout l’écran",
     guide: "Guide",
     guideHint: "Marquer les étapes sur votre écran",
     autoExplain: "Explication auto",
@@ -120,8 +117,7 @@ export const strings = {
   "pt-BR": {
     toolbar: "Ações do Blink",
     capture: "Captura",
-    captureHint:
-      "Arraste uma área, clique numa janela ou aperte Enter para a tela",
+    captureHint: "Captura a página inteira ou a tela inteira",
     guide: "Guia",
     guideHint: "Marque os passos na sua tela",
     autoExplain: "Explicar sozinho",

@@ -63,7 +63,7 @@ for (const scale of [1, 1.5, 2]) {
     });
     // Let the newly created real reference windows receive their first paint.
     await new Promise((resolve) => setTimeout(resolve, 500));
-    const blink = await app.firstWindow();
+    await app.firstWindow();
     const captures = [];
     for (const [i, display] of displays.entries()) {
       await app.evaluate(
@@ -85,7 +85,9 @@ for (const scale of [1, 1.5, 2]) {
         ),
         [false, false],
       );
-      await blink.evaluate(() => void window.blinkling.action("capture"));
+      await app.evaluate(
+        () => void globalThis.blinklingTest.features.select("capture"),
+      );
       // Enter with nothing picked takes the whole screen of Blink's display.
       await expect
         .poll(

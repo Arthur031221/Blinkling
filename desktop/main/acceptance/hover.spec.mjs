@@ -312,7 +312,9 @@ test("after an area capture the mini composer and its text box have focus and ty
     await background(app);
     // The overlay windows exist from the start and are shown on demand. The
     // capture call answers only when the capture ends, so it is not awaited.
-    await page.evaluate(() => void window.blinkling.action("capture"));
+    await app.evaluate(
+      () => void globalThis.blinklingTest.features.select("capture"),
+    );
     let selector;
     await expect
       .poll(

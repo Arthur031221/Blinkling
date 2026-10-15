@@ -14,7 +14,9 @@ export class IntentStore {
       // "region" is what versions before the single capture entry saved.
       if (v.kind === "region") v.kind = "capture";
       if (
-        !["screen", "capture", "guide", "auto-explain"].includes(v.kind) ||
+        !["screen", "capture", "largest", "guide", "auto-explain"].includes(
+          v.kind,
+        ) ||
         typeof v.displayId !== "string" ||
         !Number.isFinite(v.createdAt) ||
         Date.now() - v.createdAt > 86400000 ||

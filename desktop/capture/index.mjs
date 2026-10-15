@@ -17,6 +17,7 @@ import {
   freezeDisplay,
 } from "./core.mjs";
 import { IntentStore, PermissionRecovery } from "./permission.mjs";
+import { browserOf } from "./window-hit.mjs";
 import { CaptureOverlays, permissionWindow } from "./windows.mjs";
 import { fitWindows, listWindows } from "./window-list.mjs";
 export async function screenImage(display, size) {
@@ -227,11 +228,31 @@ export class DesktopCaptureService {
           // so the overlay opens with both and hover has nothing to wait for.
           const [capture, windows, companion] = await Promise.all([
             readScreen(display),
-            kind === "capture" ? this.list(display) : [],
-            kind === "capture" ? Promise.resolve(this.companion()) : false,
+            kind === "capture" || kind === "largest" ? this.list(display) : [],
+            kind === "capture" || kind === "largest"
+              ? Promise.resolve(this.companion())
+              : false,
           ]);
           invalidate();
           aborted(controller.signal);
+          if (kind === "largest") {
+            // No overlay: the biggest thing the user can see is the whole page
+            // when a browser is in front and the companion can scroll it, and
+            // the whole screen otherwise.
+            const front = windows[0];
+            if (companion && browserOf(front))
+              return {
+                capture,
+                choice: {
+                  kind: "page",
+                  rect: { ...front.bounds },
+                  window: front,
+                  fallback: "screen",
+                },
+                source,
+              };
+            return { ...capture, kind: "screen", source };
+          }
           if (kind !== "capture") return { ...capture, kind: "screen", source };
           const choice = await this.overlays.open(
             display.id,
@@ -296,7 +317,7 @@ export class DesktopCaptureService {
    * cannot do it the picked window is taken from the frozen frame instead, so
    * the click still gives the user something. The attachment is named for what
    * it is, "Visible part", so neither the user nor Claude takes it for the page. */
-  async page({ capture, choice }, signal) {
+  async page({ capture, choice, source = "capture" }, signal) {
     try {
       const result = await this.fullPage(signal);
       if (!result?.companionRequired)
@@ -308,6 +329,8 @@ export class DesktopCaptureService {
     } catch (error) {
       if (signal.aborted) throw error;
     }
+    if (choice.fallback === "screen")
+      return [{ ...capture, kind: "screen", source }];
     return [
       {
         ...cropped(capture, choice.rect, "Visible part.png"),
@@ -322,6 +345,11 @@ export class DesktopCaptureService {
   /** Whole-screen read for Guide and auto explain: no overlay, no choice. */
   screen(id, signal, options) {
     return this.run(options?.kind ?? "screen", id, signal, options);
+  }
+  /** The menu's screenshot: the whole page when a browser is in front, the
+   * whole screen otherwise, with no overlay in between. */
+  largest(id, signal, options) {
+    return this.run("largest", id, signal, options);
   }
   /** The capture overlay: pick an area, a window, the screen or a page. */
   pick(id, signal, options) {

@@ -122,7 +122,7 @@ async function withApp(options, body) {
 
 test("overlays are created hidden at start, one per display, and reused", async () => {
   await withApp(1, async ({ app }) => {
-    const blink = await app.firstWindow();
+    await app.firstWindow();
     await background(app);
     const ids = () =>
       app.evaluate(() =>
@@ -146,7 +146,7 @@ test("overlays are created hidden at start, one per display, and reused", async 
       true,
     );
     for (let round = 0; round < 2; round++) {
-      await openOverlay(app, blink);
+      await openOverlay(app);
       expect(await overlaysVisible(app)).toContain(true);
       expect(await ids()).toEqual(first);
       await overlayPage(app).keyboard.press("Escape");
@@ -187,14 +187,14 @@ test("holding native Shift over Blink does nothing", async () => {
 
 test("window pick: hover highlights, click takes the window, drag takes an area, Enter the screen, Esc cancels", async () => {
   await withApp(1, async ({ app, dir }) => {
-    const blink = await app.firstWindow();
+    await app.firstWindow();
     await background(app);
     await collectTaken(app);
     const windows = await twoWindows(app, dir);
     try {
       // Hover, with the pointer already over a window when the overlay opens.
       native(centre(A).x, centre(A).y);
-      const page = await openOverlay(app, blink);
+      const page = await openOverlay(app);
       const on = () =>
         page.evaluate(
           () =>
@@ -230,7 +230,7 @@ test("window pick: hover highlights, click takes the window, drag takes an area,
       });
       await idle(app);
       // A press that wanders 5 px is still a click; past 6 px it is a drag.
-      await openOverlay(app, blink);
+      await openOverlay(app);
       await page.mouse.move(centre(B).x, centre(B).y);
       await page.mouse.down();
       await page.mouse.move(centre(B).x + 5, centre(B).y);
@@ -238,7 +238,7 @@ test("window pick: hover highlights, click takes the window, drag takes an area,
       await expect.poll(() => taken(app).then((t) => t.length)).toBe(2);
       expect((await taken(app))[1].kind).toBe("window");
       await idle(app);
-      await openOverlay(app, blink);
+      await openOverlay(app);
       await page.mouse.move(150, 360);
       await page.mouse.down();
       await page.mouse.move(150 + 7, 360, { steps: 3 });
@@ -251,7 +251,7 @@ test("window pick: hover highlights, click takes the window, drag takes an area,
       expect(t.region).toEqual({ x: 150, y: 360, width: 120, height: 80 });
       await idle(app);
       // Enter with nothing picked takes Blink's whole display.
-      await openOverlay(app, blink);
+      await openOverlay(app);
       await page.keyboard.press("Enter");
       await expect.poll(() => taken(app).then((t) => t.length)).toBe(4);
       t = (await taken(app))[3];
@@ -267,7 +267,7 @@ test("window pick: hover highlights, click takes the window, drag takes an area,
       });
       await idle(app);
       // Esc cancels: nothing is delivered and the overlay goes away.
-      await openOverlay(app, blink);
+      await openOverlay(app);
       await page.keyboard.press("Escape");
       await idle(app);
       await expect.poll(() => overlaysVisible(app)).toEqual([false]);
@@ -289,13 +289,13 @@ const takenPng = (app, index, list = "taken") =>
 for (const scale of [1, 2])
   test(`K2: one click on a window takes only that window, its image the size of its bounds at ${scale * 100}%`, async () => {
     await withApp(scale, async ({ app, dir }) => {
-      const blink = await app.firstWindow();
+      await app.firstWindow();
       await background(app);
       await collectTaken(app);
       const windows = await twoWindows(app, dir);
       try {
         for (const [index, win] of [A, B].entries()) {
-          const page = await openOverlay(app, blink);
+          const page = await openOverlay(app);
           // Windows are placed in screen pixels; the overlay works in DIPs.
           await page.mouse.move(centre(win).x / scale, centre(win).y / scale);
           // The outline sits exactly on the window, at any scale.
@@ -363,7 +363,7 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
     const chip = (page) => page.locator("#chip.on");
     try {
       await fakeCompanion(app, true);
-      const page = await openOverlay(app, blink);
+      const page = await openOverlay(app);
       await page.mouse.move(centre(B).x, centre(B).y);
       await expect(chip(page)).toHaveCount(0);
       await page.mouse.move(centre(A).x, centre(A).y);
@@ -387,7 +387,7 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
           throw new Error("page grab failed");
         };
       });
-      const failed = await openOverlay(app, blink);
+      const failed = await openOverlay(app);
       await failed.mouse.move(centre(A).x, centre(A).y);
       await failed.locator("#chip").click();
       await expect.poll(() => taken(app).then((t) => t.length)).toBe(2);
@@ -399,7 +399,7 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
       // Without a connected companion: no chip, no notice, and a click on the
       // browser is a plain window capture.
       await fakeCompanion(app, false);
-      const again = await openOverlay(app, blink);
+      const again = await openOverlay(app);
       await again.mouse.move(centre(A).x, centre(A).y);
       await expect(chip(again)).toHaveCount(0);
       await again.mouse.down();
@@ -420,6 +420,57 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
       ).toBe(true);
     } finally {
       windows.close();
+    }
+  });
+});
+
+test("the menu screenshot takes the whole page when a browser is in front, and the whole screen otherwise", async () => {
+  await withApp(1, async ({ app, dir }) => {
+    const blink = await app.firstWindow();
+    await background(app);
+    await collectTaken(app);
+    const windows = await twoWindows(app, dir, {
+      a: { title: "Docs - Google Chrome" },
+      b: { title: "Notes - Microsoft Edge" },
+    });
+    const shoot = async (count) => {
+      await blink.evaluate(() => void window.blinkling.action("capture"));
+      await expect.poll(() => taken(app).then((t) => t.length)).toBe(count);
+      await idle(app);
+    };
+    try {
+      // A browser in front and a connected companion: the page, whole, with no
+      // selection overlay in between.
+      await fakeCompanion(app, true);
+      await shoot(1);
+      expect((await taken(app))[0].kind).toBe("page");
+      expect(await overlaysVisible(app)).toEqual([false]);
+      // A page grab that fails still gives something, the whole screen.
+      await app.evaluate(() => {
+        globalThis.blinklingTest.features.capture.fullPage = async () => {
+          throw new Error("page grab failed");
+        };
+      });
+      await shoot(2);
+      expect((await taken(app))[1].kind).toBe("screen");
+      // No companion: the whole screen.
+      await fakeCompanion(app, false);
+      await shoot(3);
+      expect((await taken(app))[2].kind).toBe("screen");
+    } finally {
+      windows.close();
+    }
+    // Nothing of a browser on screen: the whole screen even with a companion.
+    const plain = await twoWindows(app, dir, {
+      a: { title: "Terminal" },
+      b: { title: "Notes" },
+    });
+    try {
+      await fakeCompanion(app, true);
+      await shoot(4);
+      expect((await taken(app))[3].kind).toBe("screen");
+    } finally {
+      plain.close();
     }
   });
 });
@@ -484,7 +535,7 @@ async function registerCompanion(app) {
 
 test("the 整頁 chip follows the real companion registration of the desktop host", async () => {
   await withApp(1, async ({ app, dir }) => {
-    const blink = await app.firstWindow();
+    await app.firstWindow();
     await background(app);
     await collectTaken(app);
     const windows = await twoWindows(app, dir, {
@@ -493,14 +544,14 @@ test("the 整頁 chip follows the real companion registration of the desktop hos
     const chip = (page) => page.locator("#chip.on");
     let fake;
     try {
-      const bare = await openOverlay(app, blink);
+      const bare = await openOverlay(app);
       await bare.mouse.move(centre(A).x, centre(A).y);
       await expect(bare.locator("#hint")).toBeVisible();
       await expect(chip(bare)).toHaveCount(0);
       await bare.keyboard.press("Escape");
       await idle(app);
       fake = await registerCompanion(app);
-      const page = await openOverlay(app, blink);
+      const page = await openOverlay(app);
       await page.mouse.move(centre(B).x, centre(B).y);
       await expect(chip(page)).toHaveCount(0);
       await page.mouse.move(centre(A).x, centre(A).y);
@@ -524,9 +575,9 @@ for (const scale of [1, 1.5, 2])
   test(`the capture hint is one line in every locale at ${scale * 100}%`, async () => {
     for (const lang of LOCALES)
       await withApp([scale, { lang }], async ({ app }) => {
-        const blink = await app.firstWindow();
+        await app.firstWindow();
         await background(app);
-        const page = await openOverlay(app, blink);
+        const page = await openOverlay(app);
         const hint = await page.locator("#hint").evaluate((el) => {
           const range = document.createRange();
           range.selectNodeContents(el);
@@ -565,11 +616,11 @@ for (const scale of [1, 1.5, 2])
   for (const theme of ["light", "dark"])
     test(`area capture and exclusion of own windows at ${scale} ${theme}`, async () => {
       await withApp(scale, async ({ app }) => {
-        const blink = await app.firstWindow();
+        await app.firstWindow();
         const d = await background(app);
         native(30, 30);
         await collectImages(app);
-        const selector = await openOverlay(app, blink);
+        const selector = await openOverlay(app);
         await selector.emulateMedia({ colorScheme: theme });
         expect(await selector.evaluate(() => typeof window.require)).toBe(
           "undefined",
@@ -653,7 +704,7 @@ for (const scale of [1, 1.5, 2])
 for (const scale of [1, 2])
   test(`a window click delivers only that window's pixels at ${scale}`, async () => {
     await withApp(scale, async ({ app, dir }) => {
-      const blink = await app.firstWindow();
+      await app.firstWindow();
       await background(app);
       await collectImages(app);
       const windows = await twoWindows(app, dir);
@@ -667,7 +718,7 @@ for (const scale of [1, 2])
             height: win.height / scale,
           };
           native(win.x + win.width / 2, win.y + win.height / 2);
-          const page = await openOverlay(app, blink);
+          const page = await openOverlay(app);
           await page.mouse.move(dip.x + dip.width / 2, dip.y + dip.height / 2);
           await expect(page.locator(".win.on")).toHaveCount(1);
           await desktopShot(app, `window-click-${scale}-${index}`);
@@ -702,7 +753,7 @@ for (const scale of [1, 2])
   for (const theme of ["light", "dark"])
     test(`opening and closing the overlay never darkens the screen at ${scale} ${theme}`, async () => {
       await withApp(scale, async ({ app }) => {
-        const blink = await app.firstWindow();
+        await app.firstWindow();
         await app.evaluate(({ nativeTheme }, theme) => {
           nativeTheme.themeSource = theme;
         }, theme);
@@ -713,7 +764,7 @@ for (const scale of [1, 2])
           Math.floor(baseline.length / 2)
         ];
         const frames = await recordLuminance(async () => {
-          const page = await openOverlay(app, blink);
+          const page = await openOverlay(app);
           await new Promise((resolve) => setTimeout(resolve, 500));
           await page.keyboard.press("Escape");
           await idle(app);
@@ -860,10 +911,10 @@ for (const lang of ["en", "zh-TW", "zh-CN", "ja", "ko", "de", "es", "fr", "pt"])
   for (const scale of [1, 1.5, 2])
     test(`the hint pill is one line in ${lang} at ${scale * 100}%`, async () => {
       await withApp([scale, { lang }], async ({ app }) => {
-        const blink = await app.firstWindow();
+        await app.firstWindow();
         const d = await background(app);
         native(30, 30);
-        const page = await openOverlay(app, blink);
+        const page = await openOverlay(app);
         const hint = await page.evaluate(() => {
           const el = document.getElementById("hint");
           const range = document.createRange();

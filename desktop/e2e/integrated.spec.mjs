@@ -6,9 +6,8 @@ import { pathToFileURL } from "node:url";
 import { PNG } from "pngjs";
 import { launch, nativeClick } from "./support.mjs";
 import { native, desktopShot, report } from "../main/e2e/support.mjs";
-import { native as captureKey } from "../capture/e2e/support.mjs";
 
-test("native menu capture reaches the composer and the shared answer session", async () => {
+test("native menu screenshot reaches the composer and the shared answer session", async () => {
   test.setTimeout(120000);
   await mkdir(report, { recursive: true });
   const app = await launch();
@@ -62,25 +61,8 @@ test("native menu capture reaches the composer and the shared answer session", a
     await page.waitForTimeout(250);
     const r = await region.boundingBox();
     nativeClick(Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2));
-    let selector;
-    await expect
-      .poll(() => {
-        selector = app
-          .windows()
-          .find((p) => /\/capture\/selection\.html$/.test(p.url()));
-        return !!selector;
-      })
-      .toBe(true);
-    await expect(selector.locator("body")).toHaveAttribute(
-      "data-ready",
-      "true",
-    );
-    await selector.mouse.move(400, 200);
-    await selector.mouse.down();
-    await selector.mouse.move(500, 280, { steps: 16 });
-    await selector.mouse.up();
-    await expect(selector.locator("#size")).toHaveText("100 × 80");
-    captureKey(500, 280, [0xff0d]);
+    // The bubble takes the largest area in one click: with no browser in front
+    // that is the whole screen, so there is no selection step.
     // A capture flies into Blink and opens the mini composer with the shot
     // attached (K); the question is typed there and the answer lands in the deck.
     let mini;
@@ -156,8 +138,23 @@ test("native menu capture reaches the composer and the shared answer session", a
     expect(sent).toHaveLength(1);
     const bytes = Buffer.from(sent[0], "base64");
     const png = PNG.sync.read(bytes);
-    expect([png.width, png.height]).toEqual([100, 80]);
-    expect([...png.data.subarray(0, 4)]).toEqual([255, 0, 0, 255]);
+    const shape = await app.evaluate(({ screen }) => {
+      const d = screen.getPrimaryDisplay();
+      return {
+        width: Math.round(d.bounds.width * d.scaleFactor),
+        height: Math.round(d.bounds.height * d.scaleFactor),
+        scale: d.scaleFactor,
+      };
+    });
+    expect([png.width, png.height]).toEqual([shape.width, shape.height]);
+    const at = (x, y) => {
+      const i =
+        (Math.round(y * shape.scale) * png.width +
+          Math.round(x * shape.scale)) *
+        4;
+      return [...png.data.subarray(i, i + 4)];
+    };
+    expect(at(450, 240)).toEqual([255, 0, 0, 255]);
     expect(
       session.messages.some(
         (m) =>
