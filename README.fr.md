@@ -12,11 +12,13 @@
 
 Formerly Glimpselet. Vous utilisez l'ancien plugin ? Exécutez `/plugin uninstall glimpselet@glimpselet` puis `/plugin marketplace remove glimpselet`, et installez Blinkling avec les étapes ci-dessous.
 
-Blinkling place Blink, un petit compagnon vert, dans un coin de votre écran, au-dessus de toutes les applications. Maintenez **Ctrl** (Control sur macOS) et cliquez sur ce que vous voulez demander, ou faites glisser pour prendre une zone. L'élément s'envole vers Blink, vous posez votre question, et la réponse revient en bulles qui montrent de quoi elles parlent.
+Blinkling place Blink, un petit compagnon vert, dans un coin de votre écran, au-dessus de toutes les applications. Maintenez **Ctrl** (Control sur macOS) et cliquez sur ce que vous voulez demander, ou faites glisser pour prendre une zone. L'élément s'envole vers Blink, vous posez votre question, et la réponse revient en bulles à côté de Blink.
 
 > **Sûr par conception :** Blinkling regarde et explique, rien de plus. Il ne clique, ne tape et ne contrôle jamais vos applications.
 
 Utilise le Claude Code déjà connecté sur cet ordinateur.
+
+![Maintenez Ctrl et cliquez sur un paragraphe d’une page web. Il s’envole vers Blink, vous posez votre question, et la réponse apparaît à côté de Blink.](assets/pick.gif)
 
 ## Installation
 
@@ -41,9 +43,14 @@ Il vous faut Claude Code, connecté. Ensuite :
 
 ## Pendant la lecture
 
-- **Maintenez Ctrl et cliquez** sur un paragraphe, un bouton ou une image de votre écran : Blink le prend et interroge Claude Code. **Maintenez Ctrl et faites glisser** pour prendre une zone.
-- Un petit champ de saisie s'ouvre avec trois questions rapides. Entrée envoie celle qui est en surbrillance. Cliquez sur Blink à tout moment pour reprendre la conversation.
-- Les réponses arrivent sous forme de bulles qui pointent ce dont elles parlent. Le menu de Blink propose capture, visite guidée, Explication automatique (désactivée tant que vous ne l'activez pas) et réglages.
+- **Maintenez Ctrl et cliquez** sur un paragraphe, un bouton ou une image. Blink le prend.
+- **Maintenez Ctrl et faites glisser** pour prendre une zone.
+- Un petit champ de saisie s'ouvre avec trois questions rapides. Entrée envoie celle qui est en surbrillance.
+- Cliquez sur Blink à tout moment pour parler. Les réponses arrivent en bulles à côté de Blink.
+
+![Cliquez sur Blink, tapez une question, et la réponse revient dans une bulle.](assets/ask.gif)
+
+- Le menu de Blink propose capture, visite guidée, Explication automatique (désactivée tant que vous ne l'activez pas) et réglages.
 - L'assistant facultatif pour Chrome ou Edge apporte la structure propre de la page, pour que Blink sache quel paragraphe ou bouton vous avez désigné, ainsi que la capture de page entière, la traduction de la page sur place et un lecteur de PDF. Son bouton de barre d'outils indique s'il est connecté et réveille Blink. Sans lui, Blink fonctionne toujours sur toutes les fenêtres.
 
 ## Raccourcis
@@ -58,11 +65,11 @@ Choisissez les touches dans les Réglages.
 
 ## Sessions et confidentialité
 
-Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et affiche la réponse à côté de ce dont elle parle. Évitez d'utiliser la même conversation dans un terminal en même temps.
+Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et affiche la réponse en bulles à côté de Blink. Évitez d'utiliser la même conversation dans un terminal en même temps.
 
 > [!IMPORTANT]
 > L'assistant du navigateur ne lit une page que lorsque vous la désignez. Il ne lit jamais les champs de mot de passe ni de paiement, et ne communique qu'avec Blinkling sur votre propre ordinateur. Explication automatique reste désactivée tant que vous ne l'activez pas.
 
-Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v2.1.0.md)
+Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.0.0.md)
 
 Assisted by Claude/Codex.

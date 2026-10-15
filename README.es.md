@@ -12,11 +12,13 @@
 
 Formerly Glimpselet. ¿Vienes del plugin anterior? Ejecuta `/plugin uninstall glimpselet@glimpselet` y `/plugin marketplace remove glimpselet`, y luego instala Blinkling con los pasos de abajo.
 
-Blinkling pone a Blink, un pequeño compañero verde, en la esquina de tu pantalla, por encima de cualquier app. Mantén **Ctrl** (Control en macOS) y haz clic en lo que quieras preguntar, o arrastra para tomar una zona. Vuela hacia Blink, preguntas, y la respuesta llega en burbujas que señalan de qué hablan.
+Blinkling pone a Blink, un pequeño compañero verde, en la esquina de tu pantalla, por encima de cualquier app. Mantén **Ctrl** (Control en macOS) y haz clic en lo que quieras preguntar, o arrastra para tomar una zona. Vuela hacia Blink, preguntas, y la respuesta llega en burbujas junto a Blink.
 
 > **Seguro por diseño:** Blinkling solo mira y explica. Nunca hace clic, escribe ni controla tus apps.
 
 Usa el Claude Code en el que ya iniciaste sesión en este equipo.
+
+![Mantén Ctrl y haz clic en un párrafo de una página web. Vuela hacia Blink, preguntas, y la respuesta aparece junto a Blink.](assets/pick.gif)
 
 ## Instalación
 
@@ -41,9 +43,14 @@ Necesitas Claude Code con la sesión iniciada. Después:
 
 ## Mientras lees
 
-- **Mantén Ctrl y haz clic** en un párrafo, botón o imagen de tu pantalla: Blink lo toma y le pregunta a Claude Code. **Mantén Ctrl y arrastra** para tomar un área.
-- Se abre un pequeño cuadro con tres preguntas rápidas. Enter envía la resaltada. Haz clic en Blink cuando quieras para retomar la conversación.
-- Las respuestas llegan en burbujas que señalan aquello de lo que hablan. El menú de Blink tiene captura, guía, Explicar automáticamente (desactivado hasta que la actives) y ajustes.
+- **Mantén Ctrl y haz clic** en un párrafo, botón o imagen. Blink lo toma.
+- **Mantén Ctrl y arrastra** para tomar un área.
+- Se abre un pequeño cuadro con tres preguntas rápidas. Enter envía la resaltada.
+- Haz clic en Blink cuando quieras para hablar. Las respuestas llegan en burbujas junto a Blink.
+
+![Haz clic en Blink, escribe una pregunta y la respuesta vuelve en una burbuja.](assets/ask.gif)
+
+- El menú de Blink tiene captura, guía, Explicar automáticamente (desactivado hasta que la actives) y ajustes.
 - El ayudante opcional para Chrome o Edge aporta la estructura propia de la página, de modo que Blink sabe qué párrafo o botón señalaste, además de captura de página completa, traducción de la página en su sitio y un lector de PDF. Su botón de la barra muestra si está conectado y despierta a Blink. Sin él, Blink sigue funcionando en todas las ventanas.
 
 ## Atajos
@@ -58,11 +65,11 @@ Elige las teclas en Ajustes.
 
 ## Sesiones y privacidad
 
-Blink envía lo que elegiste a tu propio Claude Code con sesión iniciada y muestra la respuesta junto a aquello de lo que trata. Evita usar la misma conversación en una terminal al mismo tiempo.
+Blink envía lo que elegiste a tu propio Claude Code con sesión iniciada y muestra la respuesta en burbujas junto a Blink. Evita usar la misma conversación en una terminal al mismo tiempo.
 
 > [!IMPORTANT]
 > El ayudante del navegador solo lee una página cuando la señalas. Nunca lee campos de contraseña ni de pago, y solo se comunica con Blinkling en tu propio equipo. Explicar automáticamente está desactivado hasta que lo actives.
 
-Sin telemetría ni servicio de respuestas operado por el editor. Lo que eliges va a tu Claude Code; se aplican las condiciones y los costes de uso del proveedor. Los ajustes del navegador, las tiendas de extensiones y el visor de PDF del propio navegador son páginas protegidas: allí Blink responde a partir de la pantalla. [Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de versión](docs/releases/v2.1.0.md)
+Sin telemetría ni servicio de respuestas operado por el editor. Lo que eliges va a tu Claude Code; se aplican las condiciones y los costes de uso del proveedor. Los ajustes del navegador, las tiendas de extensiones y el visor de PDF del propio navegador son páginas protegidas: allí Blink responde a partir de la pantalla. [Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de versión](docs/releases/v3.0.0.md)
 
 Assisted by Claude/Codex.

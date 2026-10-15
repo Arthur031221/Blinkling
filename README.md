@@ -12,11 +12,13 @@
 
 Formerly Glimpselet. Coming from the old plugin? Run `/plugin uninstall glimpselet@glimpselet` and `/plugin marketplace remove glimpselet`, then install Blinkling below.
 
-Blinkling puts Blink, a small green companion, in the corner of your screen, above every app. Hold **Ctrl** (Control on macOS) and click anything you want to ask about, or drag to take an area. It flies into Blink, you ask, and the answer comes back as bubbles that point at what they talk about.
+Blinkling puts Blink, a small green companion, in the corner of your screen, above every app. Hold **Ctrl** (Control on macOS) and click anything you want to ask about, or drag to take an area. It flies into Blink, you ask, and the answer comes back as bubbles beside Blink.
 
 > **Safe by design:** Blinkling only looks and explains. It never clicks, types or controls your apps.
 
 Uses the Claude Code you are already signed in to on this computer.
+
+![Hold Ctrl and click a paragraph on a web page. It flies into Blink, you ask, and the answer appears beside Blink.](assets/pick.gif)
 
 ## Install
 
@@ -41,9 +43,14 @@ You need Claude Code, signed in. Then:
 
 ## While you read
 
-- **Hold Ctrl and click** a paragraph, button or picture on your screen: Blink takes it and asks Claude Code about it. **Hold Ctrl and drag** to take an area instead.
-- A small composer opens with three quick asks. Enter sends the highlighted one. Click Blink any time to pick the conversation up again.
-- Answers arrive as bubbles that point at what they talk about. Blink's menu has capture, guide, auto explain (off until you turn it on) and settings.
+- **Hold Ctrl and click** a paragraph, button or picture. Blink takes it.
+- **Hold Ctrl and drag** to take an area instead.
+- A small composer opens with three quick asks. Enter sends the highlighted one.
+- Click Blink any time to talk. Answers arrive as bubbles beside Blink.
+
+![Click Blink, type a question, and the answer comes back as a bubble.](assets/ask.gif)
+
+- Blink's menu has capture, guide, auto explain (off until you turn it on) and settings.
 - The optional browser helper for Chrome or Edge adds the page's own structure, so Blink knows which paragraph or button you pointed at, plus full-length page capture, translating the page in place and a reader for PDFs. Its toolbar button shows whether it is connected and wakes Blink. Without it Blink still works on every window.
 
 ## Shortcuts
@@ -58,11 +65,11 @@ Pick the keys in Settings.
 
 ## Sessions and privacy
 
-Blink sends what you picked to your own signed-in Claude Code and shows the answer beside the thing it is about. Avoid using the same conversation in a terminal at the same time.
+Blink sends what you picked to your own signed-in Claude Code and shows the answer in bubbles beside Blink. Avoid using the same conversation in a terminal at the same time.
 
 > [!IMPORTANT]
 > The browser helper reads a page only when you point at it. Password and payment fields are never read, and it talks only to Blinkling on your own computer. Auto explain is off until you turn it on.
 
-No telemetry or publisher-operated answer service. What you pick goes to your Claude Code; provider terms and usage charges apply. Browser settings, extension stores and the browser's own PDF viewer are protected pages: Blink answers from the screen there. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v2.1.0.md)
+No telemetry or publisher-operated answer service. What you pick goes to your Claude Code. Provider terms and usage charges apply. Browser settings, extension stores and the browser's own PDF viewer are protected pages: Blink answers from the screen there. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v3.0.0.md)
 
 Assisted by Claude/Codex.
