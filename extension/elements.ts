@@ -8,6 +8,8 @@ import {
 export type CollectedElement = {
   id: string;
   kind: string;
+  /** The HTML tag, lowercase: a canvas and an svg both have the role img. */
+  tag: string;
   /** Viewport CSS px. */
   rect: { x: number; y: number; width: number; height: number };
   role: string;
@@ -41,7 +43,7 @@ const SELECTOR = [
   "a[href],button,summary",
   "input,textarea,select",
   "img,picture,svg[role=img],canvas,video,audio",
-  "pre,code,table",
+  "pre,code,table,figure,td,th",
   "math,.katex,mjx-container",
   "nav,main,article,aside,header,footer,form,dialog",
   "[role]",
@@ -70,6 +72,9 @@ const implicitRole: Record<string, string> = {
   pre: "code",
   code: "code",
   table: "table",
+  figure: "figure",
+  td: "cell",
+  th: "columnheader",
   math: "math",
   nav: "navigation",
   main: "main",
@@ -109,6 +114,7 @@ const kindOfRole: Record<string, string> = {
   audio: "media",
   code: "code",
   table: "table",
+  figure: "figure",
   math: "math",
   blockquote: "quote",
   caption: "caption",
@@ -398,6 +404,7 @@ export function collectElements(
     const entry: CollectedElement = {
       id: `e${++index}`,
       kind: kindOf(element, role),
+      tag: element.localName,
       rect: box,
       role,
       name: secure ? "" : nameOf(element),

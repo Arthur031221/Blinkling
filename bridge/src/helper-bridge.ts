@@ -16,6 +16,8 @@ export type HelperPage = {
 export type HelperElement = {
   id: string;
   kind: string;
+  /** The HTML tag, lowercase, or "" when the helper did not say. */
+  tag: string;
   rect: { x: number; y: number; width: number; height: number };
   role: string;
   name: string;
@@ -91,6 +93,7 @@ export function readElements(value: unknown): ElementsResult | null {
     const element: HelperElement = {
       id: text(e.id, 100),
       kind: text(e.kind, 40),
+      tag: text(e.tag, 20),
       rect: {
         x: finite(rect.x),
         y: finite(rect.y),

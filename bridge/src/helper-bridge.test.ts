@@ -246,6 +246,19 @@ it("shapes what a helper reports: caps elements, drops malformed ones and bounds
   expect(odd.elements[0]!.text).toHaveLength(2000);
 });
 
+it("keeps the element tag and drops anything that is not a short name", () => {
+  const out = readElements({
+    page,
+    frame,
+    elements: [element({ tag: "canvas" }), element({ tag: "x".repeat(99) })],
+  })!;
+  expect(out.elements[0]!.tag).toBe("canvas");
+  expect(out.elements[1]!.tag).toHaveLength(20);
+  expect(
+    readElements({ page, frame, elements: [element({})] })!.elements[0]!.tag,
+  ).toBe("");
+});
+
 it("carries translate and PDF reader requests and returns the helper's answer", async () => {
   const { bridge, helper } = await setup();
   const socket = await helper();

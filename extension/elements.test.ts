@@ -120,6 +120,20 @@ describe("page element collector", () => {
     expect(math.content?.mathml).toContain("<math");
   });
 
+  it("reports the tag, and reads figures and table cells as their own elements", () => {
+    document.body.innerHTML = `
+      <figure data-rect="0,0,300,200"><canvas data-rect="0,0,300,160"></canvas><figcaption data-rect="0,160,300,20">Plot</figcaption></figure>
+      <table data-rect="0,300,300,40"><tr><th data-rect="0,300,100,20">A</th><td data-rect="100,300,100,20">1</td></tr></table>
+      <svg role="img" aria-label="Revenue chart" data-rect="0,400,100,100"></svg>`;
+    const { elements } = collectElements();
+    const by = (tag: string) => elements.find((e) => e.tag === tag);
+    expect(by("figure")).toMatchObject({ role: "figure", kind: "figure" });
+    expect(by("canvas")).toMatchObject({ role: "img" });
+    expect(by("th")).toMatchObject({ role: "columnheader", text: "A" });
+    expect(by("td")).toMatchObject({ role: "cell", text: "1" });
+    expect(by("svg")).toMatchObject({ name: "Revenue chart" });
+  });
+
   it("skips hidden, empty and off-screen elements and the Blink overlay", () => {
     document.body.innerHTML = `
       <p data-rect="0,0,100,20">shown</p>
