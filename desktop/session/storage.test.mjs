@@ -8,7 +8,7 @@ import {
   writeFile,
   mkdir,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { SessionStore, transcriptPath } from "./storage.mjs";
@@ -75,9 +75,15 @@ test("stale writer locks recover, incomplete locks are not stolen", async (t) =>
 });
 test("transcripts are scoped to the owned UUID and project, not arbitrary paths", () => {
   const id = randomUUID();
+  // Claude names the project folder after the absolute path with every
+  // non-alphanumeric character replaced; on Windows that path starts with a drive.
+  const folder =
+    process.platform === "win32"
+      ? `${resolve("/")[0]}--tmp-test-project`
+      : "-tmp-test-project";
   assert.equal(
     transcriptPath("/tmp/test project", id, "/claude"),
-    `/claude/projects/-tmp-test-project/${id}.jsonl`,
+    join("/claude", "projects", folder, `${id}.jsonl`),
   );
   assert.throws(() => transcriptPath("/tmp", "../../credentials"), /Invalid/);
 });

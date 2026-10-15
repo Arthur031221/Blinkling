@@ -377,6 +377,9 @@ test("Stop cancels an uncertain admission without replaying it and allows a new 
   assert.equal(bridge.active, undefined);
   const next = turn();
   await bridge.send(next);
+  // send() resolves once the turn is queued and saved. The reconciliation pass
+  // that was already scheduled may be the pump that dispatches it, a moment later.
+  await waitFor(() => children[1].sent.length > 0);
   assert.deepEqual(
     children[1].sent.map((x) => x.id),
     [next.id],
