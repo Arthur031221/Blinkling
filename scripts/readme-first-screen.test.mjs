@@ -60,10 +60,10 @@ describe("the README first screen", () => {
     it("draws the wordmark through a light and dark <picture>", () => {
       const picture = top.match(/<picture>.*?<\/picture>/s)?.[0] ?? "";
       expect(picture).toMatch(
-        /<source media="\(prefers-color-scheme: dark\)" srcset="assets\/(?:brand\/)?wordmark-dark\.svg"/,
+        /<source media="\(prefers-color-scheme: dark\)" srcset="assets\/brand\/wordmark-dark\.svg"/,
       );
       expect(picture).toMatch(
-        /<img src="assets\/(?:brand\/)?wordmark-light\.svg"[^>]*alt="Blinkling"/,
+        /<img src="assets\/brand\/wordmark-light\.svg"[^>]*alt="Blinkling"/,
       );
     });
 
