@@ -2,10 +2,8 @@ import { test, expect } from "@playwright/test";
 import x11 from "x11";
 import { cardBounds } from "../placement.mjs";
 import { launch, native, move, click, wheel, keys, key } from "./support.mjs";
-import { reveal, clickButton, background, shot } from "./helpers.mjs";
+import { reveal, clickBlink, bubble, background, shot } from "./helpers.mjs";
 
-const pill = (page, label) =>
-  page.getByRole("button", { name: label, exact: true });
 const bubblesPage = (app) =>
   app
     .windows()
@@ -57,7 +55,7 @@ function rootStack() {
 async function openCard(app, page) {
   // The card window is created once and then reused.
   const created = cardPage(app) ? null : app.waitForEvent("window");
-  await clickButton(page, "對話");
+  await clickBlink(page);
   await created;
   await expect.poll(() => !!cardPage(app)).toBe(true);
   const card = cardPage(app);
@@ -164,21 +162,13 @@ test("the deck follows Blink to each of the four edges", async () => {
   }
 });
 
-test("with bubbles present Blink stays above the deck and every menu pill is clickable", async () => {
+test("with bubbles present Blink stays above the deck and every menu bubble is clickable", async () => {
   const { app, page } = await launch();
   try {
     const b = await background(app);
     await app.evaluate(() => {
       globalThis.actions = [];
-      for (const action of [
-        "screen",
-        "region",
-        "full-page",
-        "guide",
-        "auto-explain",
-        "settings",
-        "help",
-      ])
+      for (const action of ["capture", "guide", "auto-explain", "settings"])
         globalThis.blinklingTest.registerAction(action, () => {
           globalThis.actions.push(action);
           return { ok: true, enabled: action === "auto-explain" };
@@ -201,16 +191,8 @@ test("with bubbles present Blink stays above the deck and every menu pill is cli
     expect(stack.indexOf(blink)).toBeGreaterThan(stack.indexOf(bubbles));
     await shot(app, "menu-over-deck");
     let count = 0;
-    for (const label of [
-      "截取畫面",
-      "選取區域",
-      "整頁截圖",
-      "導覽",
-      "自動解說",
-      "設定",
-      "說明",
-    ]) {
-      const r = await pill(page, label).boundingBox();
+    for (const action of ["capture", "guide", "auto-explain", "settings"]) {
+      const r = await bubble(page, action).boundingBox();
       click(b.x + r.x + r.width / 2, b.y + r.y + r.height / 2);
       await expect
         .poll(() => app.evaluate(() => globalThis.actions.length))
@@ -218,8 +200,7 @@ test("with bubbles present Blink stays above the deck and every menu pill is cli
     }
     await reveal(page);
     await page.waitForTimeout(500);
-    const chat = await pill(page, "對話").boundingBox();
-    click(b.x + chat.x + chat.width / 2, b.y + chat.y + chat.height / 2);
+    await clickBlink(page);
     await expect
       .poll(() => composerState(app).then((s) => s.visible))
       .toBe(true);

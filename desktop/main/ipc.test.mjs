@@ -7,12 +7,17 @@ test("shell IPC admits only narrow gestures and boolean state, never arbitrary p
     { type: "pin", value: true },
     { type: "visibility", value: false },
     { type: "drag", phase: "end" },
+    { type: "click", permission: false },
+    { type: "click", permission: true },
   ])
     assert.equal(validCommand(c), true);
   for (const c of [
     { type: "exec", path: "/bin/sh" },
     { type: "pin", value: "true" },
     { type: "drag", phase: "start", x: 100 },
+    { type: "click" },
+    { type: "click", permission: "yes" },
+    { type: "click", permission: true, x: 4 },
     { type: "state", file: "/etc/passwd" },
     null,
     [],

@@ -59,7 +59,9 @@ for (const edge of ["left", "right", "top", "bottom"])
     try {
       await background(c.app);
       await placeBlink(c, edge);
-      await c.page.evaluate(() => window.blinkling.action("chat"));
+      await c.page.evaluate(() =>
+        window.blinkling.shell({ type: "click", permission: false }),
+      );
       await expect.poll(() => !!cardPage(c)).toBe(true);
       const card = cardPage(c);
       await expect(card.locator(".gl-chat-card")).toHaveAttribute(
@@ -149,7 +151,9 @@ for (const scale of [1, 1.5])
       native(20, 20);
       runs.menuClose = await closing;
       await moveOn(c.page, scale);
-      await c.page.evaluate(() => window.blinkling.action("chat"));
+      await c.page.evaluate(() =>
+        window.blinkling.shell({ type: "click", permission: false }),
+      );
       await expect.poll(() => !!cardPage(c)).toBe(true);
       runs.cardOpen = await sampleFrames(cardPage(c), 800);
       await writeFile(
@@ -175,7 +179,7 @@ for (const scale of [1, 1.5])
   });
 
 for (const scale of [1, 1.5])
-  test(`pill text is at least 13px and auto explain shows on at ${scale * 100}%`, async () => {
+  test(`bubble text is at least 13px and auto explain shows on at ${scale * 100}%`, async () => {
     const c = await launch(scale);
     try {
       await background(c.app);
@@ -190,19 +194,25 @@ for (const scale of [1, 1.5])
         [...document.querySelectorAll(".action-bubble")].map((b) => ({
           label: b.getAttribute("aria-label"),
           font: parseFloat(
-            getComputedStyle(b.querySelector(".action-detail") ?? b).fontSize,
+            getComputedStyle(b.querySelector(".action-label") ?? b).fontSize,
           ),
           icon: b.querySelector("svg")?.getBoundingClientRect().width ?? 0,
         })),
       );
-      expect(sizes).toHaveLength(8);
+      expect(sizes).toHaveLength(4);
       for (const s of sizes) {
         expect(s.font, s.label).toBeGreaterThanOrEqual(13);
         expect(s.icon, s.label).toBeGreaterThanOrEqual(20);
       }
-      await expect(c.page.locator("#auto-badge")).toBeHidden();
+      // The always-on auto badge is gone (N3); the bubble itself is the switch.
+      await expect(c.page.locator("#auto-badge")).toHaveCount(0);
+      await expect(
+        c.page.locator('[data-action="auto-explain"]'),
+      ).toHaveAttribute("aria-checked", "false");
       await c.page.evaluate(() => window.blinkling.action("auto-explain"));
-      await expect(c.page.locator("#auto-badge")).toBeVisible();
+      await expect(
+        c.page.locator('[data-action="auto-explain"]'),
+      ).toHaveAttribute("aria-checked", "true");
       await expect(
         c.page.locator('.action-bubble[data-on="true"]'),
       ).toHaveCount(1);

@@ -51,20 +51,14 @@ export function resolvePosition(display, saved) {
       ? a.y + 70
       : a.y + a.height + 55;
   const peek = { x, y };
-  // Revealing slides the character in from a side edge or down from the top;
-  // along the edge it never moves, so hovering cannot shove it sideways or up
-  // and down. Below the top edge the anchor leaves room for the whole menu fan;
-  // on a side edge the fan is pulled inside the screen instead.
-  const rows = a.height < 610 ? 4 : 8;
+  // Revealing slides the character in from a side edge or down from the top
+  // or up from the bottom, a short hop of at most 90 px; along the edge it
+  // never moves, so hovering cannot shove it sideways or fling it across the
+  // screen. The menu fan opens below Blink at the top edge and beside or above
+  // it elsewhere, so no extra lift is needed.
   const reveal = vertical
     ? { x: clamp(x, a.x + 90, a.x + a.width - 90), y }
-    : {
-        x,
-        y: Math.max(
-          clamp(y, a.y + 150, a.y + a.height - 18),
-          Math.min(a.y + a.height - 18, a.y + rows * 51 + 156),
-        ),
-      };
+    : { x, y: clamp(y, a.y + 150, a.y + a.height - 18) };
   return { ...p, peek, reveal, area: a };
 }
 export function reconcileDisplay(displays, id) {

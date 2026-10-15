@@ -195,24 +195,75 @@ export function mountBlink(host) {
     },
     face.node,
   );
-  const thoughts = [-18, 0, 18].map((x) =>
+  // Thought dots above each eye and the lock and sleep marks sit on both
+  // sides of the face, so any half of Blink showing at the peek still reads.
+  const thoughts = [-64, -50, -36, 36, 50, 64].map((x) =>
     el(
       "circle",
-      { cx: x, cy: -80, r: 5, fill: colors.ink, opacity: 0 },
+      { cx: x, cy: -88, r: 5, fill: colors.ink, opacity: 0 },
       face.node,
     ),
   );
+  const marks = {};
+  for (const [name, shape] of [
+    [
+      "lock",
+      (g) => {
+        el(
+          "path",
+          {
+            d: "M -9 -8 V -15 a9 9 0 0 1 18 0 V -8",
+            fill: "none",
+            stroke: colors.ink,
+            "stroke-width": 5,
+          },
+          g,
+        );
+        el(
+          "rect",
+          { x: -13, y: -8, width: 26, height: 20, rx: 5, fill: colors.ink },
+          g,
+        );
+      },
+    ],
+    [
+      "sleep",
+      (g) =>
+        el(
+          "path",
+          {
+            d: "M -10 -10 H 10 L -10 10 H 10",
+            fill: "none",
+            stroke: colors.ink,
+            "stroke-width": 6,
+            "stroke-linecap": "round",
+            "stroke-linejoin": "round",
+          },
+          g,
+        ),
+    ],
+  ])
+    marks[name] = [-92, 92].map((x) => {
+      const g = el(
+        "g",
+        { opacity: 0, transform: `translate(${x},-88)` },
+        face.node,
+      );
+      shape(g);
+      return g;
+    });
   const status = el(
     "circle",
     {
       cx: -90,
       cy: -216,
       r: 10,
-      fill: "#d99729",
-      "data-connection": "starting",
+      visibility: "hidden",
+      "data-connection": "ok",
     },
     body,
   );
+  status.style.fill = "var(--warn)";
   const smile = el(
     "path",
     {
@@ -251,20 +302,49 @@ export function mountBlink(host) {
     ...Object.values(legs).flatMap((l) => [l.hip, l.knee]),
     ...Object.values(arms).flatMap((a) => [a.shoulder, a.elbow]),
   ];
+  /** Eyes, pupils, brows, mouth and marks for each state of the face table.
+   * Every sign is mirrored so either half of Blink at the peek shows it. */
+  const LOOKS = {
+    idle: { eye: 1, brows: null, mouth: "smile", scan: 0 },
+    lock: { eye: 0.08, brows: null, mouth: "flat", scan: 0, mark: "lock" },
+    permission: { eye: 1.18, brows: "worried", mouth: "open", scan: 0 },
+    "usage-limit": {
+      eye: 0.42,
+      brows: null,
+      mouth: "flat",
+      scan: 0,
+      mark: "sleep",
+    },
+    error: { eye: 0.78, brows: "angry", mouth: "frown", scan: 0 },
+    thinking: { eye: 1, brows: null, mouth: "smile", scan: 0, look: -14 },
+    talking: { eye: 0.7, brows: null, mouth: "talk", scan: 0 },
+    watching: { eye: 1.14, brows: null, mouth: "smile", scan: 16 },
+  };
+  const BROWS = {
+    worried: "M -78 -44 l38 -16 M 40 -60 l38 16",
+    angry: "M -78 -62 l38 16 M 40 -46 l38 -16",
+  };
+  const MOUTHS = {
+    smile: "M -28 50 Q 0 78 28 50",
+    frown: "M -28 66 Q 0 42 28 66",
+    flat: "M -20 58 H 20",
+  };
   function pose(
     time,
     {
       mode = "peek",
       waveAt = -100,
       dropAt = -100,
-      talking = false,
+      catchAt = -100,
       velocity = 0,
       expression = "idle",
-      connection = "starting",
+      face: faceName = "idle",
+      dot = null,
       edge = "right",
       hanging = false,
     } = {},
   ) {
+    const look = LOOKS[faceName] ?? LOOKS.idle;
     const breath = Math.sin(time * 1.8),
       blinkPhase = (time + 1.3) % 4.6,
       blink =
@@ -281,41 +361,32 @@ export function mountBlink(host) {
     squash.r = 0;
     face.r = (hanging ? -180 : 0) + Math.sin(time * 1.5) * 1.3;
     eyes.sx = 1;
-    eyes.sy = blink;
-    pupils.x = Math.sin(time * 0.42) * 8;
-    pupils.y = (expression === "thinking" ? -14 : 0) + Math.sin(time * 0.7) * 2;
-    brows.setAttribute(
-      "opacity",
-      expression === "permission" || expression === "error" ? 1 : 0,
-    );
+    eyes.sy = look.eye * blink;
+    pupils.x = look.scan
+      ? Math.sin(time * 2.2) * look.scan
+      : Math.sin(time * 0.42) * 8;
+    pupils.y = (look.look ?? 0) + Math.sin(time * 0.7) * 2;
+    brows.setAttribute("d", BROWS[look.brows] ?? BROWS.worried);
+    brows.setAttribute("opacity", look.brows ? 1 : 0);
     thoughts.forEach((dot, i) =>
       dot.setAttribute(
         "opacity",
-        expression === "thinking"
-          ? 0.4 + (Math.sin(time * 5 - i * 1.2) + 1) * 0.3
+        faceName === "thinking"
+          ? 0.4 + (Math.sin(time * 5 - (i % 3) * 1.2) + 1) * 0.3
           : 0,
       ),
     );
-    status.setAttribute(
-      "fill",
-      {
-        starting: "#d99729",
-        connected: "#1f9e68",
-        retrying: "#d99729",
-        blocked: "#d84949",
-      }[connection] ?? "#d99729",
-    );
-    status.dataset.connection = connection;
+    for (const [name, group] of Object.entries(marks))
+      group.forEach((g) =>
+        g.setAttribute("opacity", look.mark === name ? 1 : 0),
+      );
+    status.setAttribute("visibility", dot ? "visible" : "hidden");
+    status.dataset.connection = dot ?? "ok";
     status.setAttribute(
       "cx",
       (edge === "right" ? -90 : edge === "left" ? 90 : 0) * (hanging ? -1 : 1),
     );
-    smile.setAttribute(
-      "d",
-      expression === "error"
-        ? "M -28 66 Q 0 42 28 66"
-        : "M -28 50 Q 0 78 28 50",
-    );
+    smile.setAttribute("d", MOUTHS[look.mouth] ?? MOUTHS.smile);
     for (const [side, s] of [
       ["L", 1],
       ["R", -1],
@@ -333,7 +404,8 @@ export function mountBlink(host) {
       pupils.x = 5;
     }
     let open =
-      expression === "permission" || (talking && Math.sin(time * 17) > 0.1);
+      look.mouth === "open" ||
+      (look.mouth === "talk" && Math.sin(time * 17) > 0.1);
     if (mode === "drag") {
       squash.sx = 0.88;
       squash.sy = 1.12;
@@ -353,6 +425,15 @@ export function mountBlink(host) {
       squash.sx += q * 0.18;
       squash.sy -= q * 0.18;
     }
+    // Catching what the user took: a hop and an open mouth to swallow it.
+    const caught = time - catchAt;
+    if (caught >= 0 && caught < 0.6) {
+      const q = Math.sin(caught * 18) * Math.exp(-caught * 6);
+      lift.y -= Math.abs(q) * 26;
+      squash.sx += q * 0.12;
+      squash.sy -= q * 0.12;
+      open = true;
+    }
     smile.setAttribute("opacity", open ? 0 : 1);
     mouth.setAttribute("opacity", open ? 1 : 0);
     all.forEach((j) => j.apply());
@@ -369,6 +450,7 @@ export function mountBlink(host) {
       pupils,
       brows,
       thoughts,
+      marks,
       status,
       smile,
       mouth,

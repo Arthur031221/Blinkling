@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld(
       return remove;
     },
     onSurface: (listener) => subscribe("blinkling:surface", listener),
+    onCatch: (listener) => subscribe("blinkling:catch", listener),
     activity: (value) => ipcRenderer.send("blinkling:activity", value),
     typing: (value) => ipcRenderer.send("blinkling:typing", value),
     hold: (value) => ipcRenderer.send("blinkling:hold", value),

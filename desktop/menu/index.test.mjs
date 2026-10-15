@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import { mountMenu } from "./index.mjs";
+import { menuText, strings } from "./strings.mjs";
+import { LOCALES } from "../shared/i18n.mjs";
 
 const css = readFileSync(
   new URL("../renderer/style.css", import.meta.url),
@@ -12,7 +14,8 @@ const html = readFileSync(
   new URL("../renderer/index.html", import.meta.url),
   "utf8",
 );
-const size = (selector, property = "font-size") =>
+const source = readFileSync(new URL("./index.mjs", import.meta.url), "utf8");
+const rules = (selector) =>
   [...css.matchAll(/(?:^|\n)([^{}\n]+)\{([^}]*)\}/g)]
     .filter((m) =>
       m[1]
@@ -20,59 +23,238 @@ const size = (selector, property = "font-size") =>
         .map((s) => s.trim())
         .includes(selector),
     )
-    .map(
-      (m) =>
-        m[2].match(new RegExp(`${property}:\\s*(\\d+(?:\\.\\d+)?)px`))?.[1],
-    )
-    .filter(Boolean)
-    .map(Number)
-    .at(-1);
+    .map((m) => m[2])
+    .join("\n");
+const px = (selector, property = "font-size") =>
+  Number(rules(selector).match(new RegExp(`${property}:\\s*(\\d+)px`))?.[1]);
 
-function mount() {
+function mount(options) {
   const { window } = new JSDOM("<body><div id='menu'></div></body>");
   const previous = globalThis.document;
   globalThis.document = window.document;
-  const menu = mountMenu(window.document.querySelector("#menu"), () => {});
+  const clicks = [];
+  const menu = mountMenu(
+    window.document.querySelector("#menu"),
+    (id) => clicks.push(id),
+    options,
+  );
   globalThis.document = previous;
-  return { menu, window };
+  return { menu, window, clicks };
 }
+const area = { x: 0, y: 0, width: 1280, height: 800 };
+const anchor = { x: 1200, y: 400 };
+const run = (menu, seconds, open) => {
+  menu.setOpen(open, 0);
+  for (let t = 0; t < seconds; t += 1 / 60) menu.frame(t, 1 / 60, area, anchor);
+};
 
-test("pill text is at least 13px and icons are larger at 100%", () => {
-  assert.ok(size(".action-detail") >= 13);
-  assert.ok(size(".action-detail strong") >= 13);
-  assert.ok(size(".action-detail > span") >= 13);
-  assert.ok(size(".action-bubble svg", "width") >= 24);
-  assert.doesNotMatch(
-    css,
-    /\.action-bubble\s*\{[^}]*transition:\s*width/,
-    "width is animated in JS so layout can follow it",
+test("the fan has exactly four bubbles: capture, guide, auto explain, settings", () => {
+  const { menu } = mount({ text: menuText("zh-TW") });
+  assert.deepEqual(
+    menu.buttons.map((b) => b.dataset.action),
+    ["capture", "guide", "auto-explain", "settings"],
+  );
+  assert.deepEqual(
+    menu.buttons.map((b) => b.getAttribute("aria-label")),
+    ["截圖", "導覽", "自動解說", "設定"],
   );
 });
 
-test("auto explain shows a visible on-state on its pill and offers the same on Blink", () => {
-  const { menu } = mount();
-  const pill = menu.buttons[4];
-  assert.equal(pill.getAttribute("aria-pressed"), "false");
+test("every locale has the complete menu table and the product names stay untranslated", () => {
+  const keys = Object.keys(strings.en).sort();
+  assert.deepEqual(Object.keys(strings).sort(), [...LOCALES].sort());
+  for (const locale of LOCALES) {
+    assert.deepEqual(Object.keys(strings[locale]).sort(), keys, locale);
+    for (const value of Object.values(strings[locale]))
+      assert.ok(value.trim(), locale);
+  }
+  for (const locale of LOCALES)
+    assert.match(strings[locale].toolbar, /Blink/, locale);
+  const labels = (locale) =>
+    mount({ text: menuText(locale) }).menu.buttons.map((b) =>
+      b.getAttribute("aria-label"),
+    );
+  assert.notDeepEqual(labels("ja"), labels("en"));
+  assert.notDeepEqual(labels("de"), labels("fr"));
+});
+
+test("no menu label is hard-coded in the module", () => {
+  assert.doesNotMatch(source, /[\u3000-\u9fff]/);
+});
+
+test("auto explain is a switch that shows its state on the bubble", () => {
+  const { menu } = mount({ text: menuText("en") });
+  const pill = menu.buttons[2];
+  assert.equal(pill.getAttribute("role"), "switch");
+  assert.equal(pill.getAttribute("aria-checked"), "false");
   assert.notEqual(pill.dataset.on, "true");
   menu.setAuto(true);
-  assert.equal(pill.getAttribute("aria-pressed"), "true");
+  assert.equal(pill.getAttribute("aria-checked"), "true");
   assert.equal(pill.dataset.on, "true");
-  assert.match(pill.getAttribute("aria-label"), /已開啟/);
-  assert.match(pill.querySelector(".action-detail span").textContent, /已開啟/);
-  assert.match(
-    css,
-    /\.action-bubble\[data-on="true"\]::after/,
-    "a mark shows on the collapsed pill",
-  );
-  menu.setAuto(false);
-  assert.equal(pill.getAttribute("aria-label"), "自動解說");
   assert.equal(
-    pill.querySelector(".action-detail span").textContent,
-    "畫面有大變化時簡短說明",
+    pill.querySelector(".action-label span").textContent,
+    strings.en.autoExplainOn,
   );
-  assert.match(
+  assert.match(css, /\.action-bubble\[data-on="true"\]::after/);
+  menu.setAuto(false);
+  assert.equal(pill.getAttribute("aria-checked"), "false");
+  assert.equal(
+    pill.querySelector(".action-label span").textContent,
+    strings.en.autoExplainHint,
+  );
+  assert.doesNotMatch(
     html,
-    /id="auto-badge"[^>]*hidden/,
-    "Blink carries its own badge while auto explain is on",
+    /auto-badge|id="pin"/,
+    "Blink carries no badge or pin",
   );
+});
+
+test("only the switch is a switch; the other bubbles are plain buttons", () => {
+  const { menu } = mount();
+  assert.deepEqual(
+    menu.buttons.map((b) => b.getAttribute("role")),
+    [null, null, "switch", null],
+  );
+});
+
+test("label text is at least 13px from the shared type tokens and icons are 24px", () => {
+  const look = readFileSync(
+    new URL("../shared/look.css", import.meta.url),
+    "utf8",
+  );
+  const token = (name) =>
+    Number(look.match(new RegExp(`--${name}:\\s*(\\d+)px`))[1]);
+  for (const selector of [".action-label strong", ".action-label span"]) {
+    const name = rules(selector).match(/font-size:\s*var\(--(type-\w+)\)/)?.[1];
+    assert.ok(name, `${selector} uses a type token`);
+    assert.ok(token(name) >= 13, selector);
+  }
+  assert.ok(px(".action-bubble svg", "width") >= 24);
+});
+
+test("bubbles keep one fixed size and animate only transform and opacity", () => {
+  const bubble = rules(".action-bubble");
+  assert.match(bubble, /width:\s*42px/);
+  assert.match(bubble, /height:\s*42px/);
+  for (const [, , props] of css
+    .matchAll(/(?:^|\n)([^{}\n]*action[^{}\n]*)\{([^}]*)\}/g)
+    .map((m) => m)) {
+    for (const t of props.matchAll(/transition:([^;]*);/g))
+      for (const part of t[1].split(",")) {
+        const property = part.trim().split(/\s+/)[0];
+        assert.ok(["transform", "opacity"].includes(property), part);
+        assert.match(part, /var\(--motion-/, "duration from the motion tokens");
+        assert.match(part, /var\(--ease-/, "easing from the motion tokens");
+      }
+  }
+  assert.doesNotMatch(css, /transition:\s*(width|left|top|all)/);
+});
+
+test("the module positions bubbles with transform only", () => {
+  const { menu } = mount();
+  run(menu, 1, true);
+  for (const b of menu.buttons) {
+    assert.equal(b.style.left, "");
+    assert.equal(b.style.top, "");
+    assert.equal(b.style.width, "");
+    assert.match(b.style.transform, /^translate\(/);
+  }
+});
+
+test("no timing, easing or spring literal in the module", () => {
+  assert.doesNotMatch(source, /cubic-bezier|\b\d+ms\b/);
+  assert.doesNotMatch(source, /spring\([^)]*,\s*\d+\s*\)/);
+});
+
+test("opening and closing settle, and reversing mid-way is smooth", () => {
+  const { menu } = mount();
+  run(menu, 1, true);
+  assert.ok(menu.buttons.every((b) => b.style.opacity === "1"));
+  assert.ok(menu.buttons.every((b) => !b.inert));
+  menu.setOpen(false, 1);
+  for (let t = 1; t < 1.1; t += 1 / 60) menu.frame(t, 1 / 60, area, anchor);
+  const partway = menu.buttons.map((b) => Number(b.style.opacity));
+  assert.ok(
+    partway.some((v) => v > 0 && v < 1),
+    "mid-close",
+  );
+  menu.setOpen(true, 1.1);
+  for (let t = 1.1; t < 2; t += 1 / 60) menu.frame(t, 1 / 60, area, anchor);
+  assert.ok(menu.buttons.every((b) => b.style.opacity === "1"));
+});
+
+test("a bubble reports its click and unfolds its label on hover", () => {
+  const { menu, clicks, window } = mount();
+  run(menu, 1, true);
+  menu.buttons[1].dispatchEvent(new window.Event("pointerenter"));
+  menu.frame(2, 1 / 60, area, anchor);
+  assert.equal(menu.expanded, 1);
+  assert.ok(menu.buttons[1].classList.contains("expanded"));
+  menu.buttons[1].dispatchEvent(new window.Event("pointerleave"));
+  assert.equal(menu.expanded, -1);
+  menu.buttons[3].click();
+  assert.deepEqual(clicks, ["settings"]);
+});
+
+test("the fan logs its frames for the motion gate and never leaves the display", () => {
+  globalThis.__blinklingFrames = [];
+  const { menu } = mount();
+  run(menu, 1, true);
+  const frames = globalThis.__blinklingFrames.filter(
+    (f) => f.surface === "fan",
+  );
+  assert.ok(frames.length > 10);
+  for (const f of frames.filter((f) => f.box)) {
+    assert.ok(f.box.x >= 0 && f.box.y >= 0, "inside top-left");
+    assert.ok(f.box.x + f.box.width <= area.width, "inside right");
+    assert.ok(f.box.y + f.box.height <= area.height, "inside bottom");
+  }
+});
+
+test("closing collapses where the fan stood, even when Blink leaves at once", () => {
+  const { menu } = mount();
+  run(menu, 1, true);
+  const standing = menu.buttons.map((b) => b.style.transform);
+  menu.setOpen(false, 1);
+  const far = { x: 100, y: 700 };
+  const before = menu.buttons[0].style.transform;
+  menu.frame(1.02, 1 / 60, area, far);
+  const after = menu.buttons.map((b) => b.style.transform);
+  const near = (t) => t.match(/-?\d+(\.\d+)?/g).map(Number);
+  assert.ok(Math.abs(near(after[0])[0] - near(before)[0]) < 40, "no jump");
+  assert.notDeepEqual(after, standing);
+});
+
+test("a fan closed by picking Blink up shrinks together, so no bubble crosses another", () => {
+  const overlap = (boxes) =>
+    boxes.some((a, i) =>
+      boxes
+        .slice(i + 1)
+        .some(
+          (b) =>
+            a.x < b.x + b.size &&
+            b.x < a.x + a.size &&
+            a.y < b.y + b.size &&
+            b.y < a.y + a.size,
+        ),
+    );
+  const worst = (together) => {
+    const { menu } = mount();
+    run(menu, 1, true);
+    menu.setOpen(false, 1, { together });
+    let bad = 0;
+    for (let t = 1; t < 1.6; t += 1 / 60) {
+      menu.frame(t, 1 / 60, area, anchor);
+      const boxes = menu.buttons
+        .filter((b) => Number(b.style.opacity) > 0.8)
+        .map((b) => {
+          const [x, y, scale] = b.style.transform.match(/-?\d+(\.\d+)?/g);
+          return { x: +x, y: +y, size: 42 * scale };
+        });
+      if (overlap(boxes)) bad++;
+    }
+    return bad;
+  };
+  assert.equal(worst(true), 0);
+  assert.ok(worst(false) > 0, "the staggered close is the one that crosses");
 });

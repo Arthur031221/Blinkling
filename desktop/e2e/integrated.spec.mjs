@@ -42,7 +42,7 @@ test("native menu capture reaches the composer and the shared answer session", a
     );
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     await page.waitForTimeout(650);
-    await expect(page.locator(".action-bubble")).toHaveCount(8);
+    await expect(page.locator(".action-bubble")).toHaveCount(4);
     expect(
       await page.evaluate(() =>
         [...document.querySelectorAll(".action-bubble")].every((bubble) => {
@@ -57,7 +57,7 @@ test("native menu capture reaches the composer and the shared answer session", a
       ),
     ).toBe(true);
     await desktopShot(app, "integrated-menu");
-    const region = page.getByRole("button", { name: "選取區域", exact: true });
+    const region = page.locator('[data-action="capture"]');
     await region.hover();
     await page.waitForTimeout(250);
     const r = await region.boundingBox();
