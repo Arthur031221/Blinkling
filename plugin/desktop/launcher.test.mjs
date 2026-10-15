@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { selectBuild, verifyArchive } from "./launcher.mjs";
+import { readFile } from "node:fs/promises";
 test("launcher refuses replaced archives and release origins", () => {
   const bytes = Buffer.from("archive");
   const b = {
@@ -85,4 +86,13 @@ test("a manifest with no pinned builds says so instead of naming the platform", 
     () => selectBuild({ schemaVersion: 1, version: "3.0.0", builds: [] }),
     /no release build pinned/,
   );
+});
+
+test("the Mac app is copied with its framework links kept relative", async () => {
+  const source = await readFile(
+    new URL("./launcher.mjs", import.meta.url),
+    "utf8",
+  );
+  const copy = source.slice(source.indexOf("await cp(source, stage"));
+  assert.match(copy.slice(0, 200), /verbatimSymlinks: true/);
 });

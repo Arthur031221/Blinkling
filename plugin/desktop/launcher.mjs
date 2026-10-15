@@ -134,7 +134,11 @@ export async function launchDesktop(options = {}) {
         stage = `${target}.staging`;
       macPrevious = `${target}.previous`;
       await rm(stage, { recursive: true, force: true });
-      await cp(source, stage, { recursive: true, dereference: false });
+      await cp(source, stage, {
+        recursive: true,
+        dereference: false,
+        verbatimSymlinks: true,
+      });
       await rm(macPrevious, { recursive: true, force: true });
       try {
         await rename(target, macPrevious);
