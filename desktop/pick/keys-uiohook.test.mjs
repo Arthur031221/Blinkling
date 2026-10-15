@@ -40,7 +40,8 @@ test("starting twice listens once, and stop releases the hook", async () => {
   await source.start();
   await source.start();
   assert.equal(uIOhook.started, 1);
-  source.stop();
+  // Off macOS the native hook is stopped; on macOS it is left for the exit.
+  source.stop({ platform: "linux" });
   assert.equal(uIOhook.started, 0);
   assert.equal(uIOhook.listenerCount("keydown"), 0);
   assert.equal(source.started(), false);

@@ -145,17 +145,24 @@ test("the login shell answer must be an absolute path that exists", async () => 
   );
 });
 
-test("a slow login shell does not block the event loop while it answers", async () => {
-  const { mkdtemp, writeFile, chmod } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const shell = join(await mkdtemp(join(tmpdir(), "slow-shell-")), "sh");
-  await writeFile(shell, "#!/bin/sh\nsleep 0.5\necho /bin/sh\n");
-  await chmod(shell, 0o755);
-  let ticks = 0;
-  const timer = setInterval(() => ticks++, 20);
-  const found = await loginShellProbe({ env: { SHELL: shell } });
-  clearInterval(timer);
-  assert.equal(found, "/bin/sh");
-  assert.ok(ticks >= 10, `the loop ran ${ticks} times during the probe`);
-});
+// The probe runs a POSIX login shell, which Windows does not have.
+test(
+  "a slow login shell does not block the event loop while it answers",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    const { mkdtemp, writeFile, chmod } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const shell = join(await mkdtemp(join(tmpdir(), "slow-shell-")), "sh");
+    await writeFile(shell, "#!/bin/sh\nsleep 0.5\necho /bin/sh\n");
+    await chmod(shell, 0o755);
+    let ticks = 0;
+    const timer = setInterval(() => ticks++, 20);
+    const found = await loginShellProbe({ env: { SHELL: shell } });
+    clearInterval(timer);
+    assert.equal(found, "/bin/sh");
+    assert.ok(ticks >= 10, `the loop ran ${ticks} times during the probe`);
+  },
+);

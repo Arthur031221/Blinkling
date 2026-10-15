@@ -19563,6 +19563,44 @@ async function desktopEnabled(directory = runtimeDirectory()) {
     throw error43;
   }
 }
+async function looksLikeBlink(pid) {
+  const [file2, args] = process.platform === "win32" ? ["tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"]] : ["ps", ["-p", String(pid), "-o", "comm="]];
+  const output = await new Promise(
+    (resolve5) => (0, import_node_child_process2.execFile)(file2, args, { timeout: 5e3 }, (_, out) => resolve5(out || ""))
+  );
+  return /blinkling|electron/i.test(output);
+}
+async function replaceHungDesktop(descriptor, {
+  isAlive = (pid) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error43) {
+      return error43.code === "EPERM";
+    }
+  },
+  isBlink = looksLikeBlink,
+  kill = (pid) => process.kill(pid, "SIGKILL")
+} = {}) {
+  let endpoint;
+  try {
+    endpoint = JSON.parse(await (0, import_promises5.readFile)(descriptor, "utf8"));
+  } catch {
+    return false;
+  }
+  const pid = endpoint?.pid;
+  let ended = false;
+  if (Number.isInteger(pid) && pid > 1 && pid !== process.pid && isAlive(pid) && await isBlink(pid)) {
+    try {
+      kill(pid);
+      ended = true;
+    } catch {
+    }
+  }
+  await (0, import_promises5.rm)(descriptor, { force: true }).catch(() => {
+  });
+  return ended;
+}
 async function launchDesktop(options = {}) {
   const directory = options.runtime || runtimeDirectory();
   await privateDirectory(directory);
@@ -19574,6 +19612,7 @@ async function launchDesktop(options = {}) {
       await atomicJson((0, import_node_path5.join)(directory, "enabled.json"), { enabled: true });
       return { ...previous.status, alreadyRunning: true };
     }
+    await replaceHungDesktop(descriptor, options.hung);
     if ((options.platform || process.platform) === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY && !options.spawn)
       throw new Error(
         "Blink needs a graphical desktop on this computer. Run /blinkling:blinkling in local Claude Code."
