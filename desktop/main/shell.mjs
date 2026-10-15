@@ -45,7 +45,7 @@ import {
 } from "../capture/integration.mjs";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { SessionBridge } from "../session/index.mjs";
+import { OwnedSession, SessionBridge } from "../session/index.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
 import { createOnce, fileStore } from "../pick/once.mjs";
@@ -608,6 +608,12 @@ const send = (event) => {
   const shown = hidePointing(event);
   for (const win of windows()) win.webContents.send("blinkling:event", shown);
 };
+const fakeClaude =
+  process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"
+    ? fileURLToPath(
+        new URL("../session/e2e/fake-claude.fixture.mjs", import.meta.url),
+      )
+    : null;
 const session = new SessionBridge({
   userDataDir: app.getPath("userData"),
   cwd:
@@ -615,13 +621,15 @@ const session = new SessionBridge({
     (process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"
       ? app.getPath("userData")
       : process.cwd()),
-  executable:
-    process.env.BLINKLING_CLAUDE ??
-    (process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"
-      ? fileURLToPath(
-          new URL("../session/e2e/fake-claude.fixture.mjs", import.meta.url),
-        )
-      : "claude"),
+  // The e2e fixture is a script, which Windows cannot run as a program, so
+  // tests run it through node on every platform.
+  executable: process.env.BLINKLING_CLAUDE ?? (fakeClaude ? "node" : "claude"),
+  ...(fakeClaude && !process.env.BLINKLING_CLAUDE
+    ? {
+        transportFactory: () =>
+          new OwnedSession({ executableArgs: [fakeClaude] }),
+      }
+    : {}),
 });
 session.subscribe(send, { visible: true });
 // Pointing, the pick layer and the privacy guard share one locator. It is
