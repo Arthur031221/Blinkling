@@ -5,7 +5,7 @@ import { WORDMARK_CSS, wordmarkSvg } from "../../assets/brand/wordmark.mjs";
 await rm("dist", { recursive: true, force: true });
 await mkdir("dist/assets", { recursive: true });
 await cp("public/privacy.html", "dist/privacy.html");
-for (const name of ["Inter.ttf", "Fraunces.ttf", "logo.svg"]) {
+for (const name of ["Inter.ttf", "logo.svg"]) {
   await cp(`public/assets/${name}`, `dist/assets/${name}`);
 }
 // The showcase header draws the name with the shared Wordmark component: its
@@ -21,10 +21,6 @@ await writeFile(
 );
 await writeFile("dist/wordmark.css", `${WORDMARK_CSS}\n`);
 await cp("demo/demo.css", "dist/demo.css");
-await mkdir("dist/demo-assets", { recursive: true });
-for (const name of ["demo", "arxiv"]) {
-  await cp(`assets/${name}.gif`, `dist/demo-assets/${name}.gif`);
-}
 
 // The install guide, with the animated wordmark files it shows as its title.
 await cp("site/install", "dist/install", { recursive: true });

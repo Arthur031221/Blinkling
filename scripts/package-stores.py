@@ -16,8 +16,10 @@ files = {
 }
 for path in sorted((root / "assets/store").glob("*.png")):
     files[f"assets/{path.name}"] = path
-if len(files) < 9:
-    raise SystemExit("Store screenshots and the promo tile are required")
+if "assets/promo.png" not in files:
+    raise SystemExit("The promo tile is required")
+# Screenshots are captured from the desktop app as a ship step (docs/STORE.md);
+# the kit carries whichever of them exist.
 for store in ("chrome", "edge"):
     output = release / f"blinkling-{store}-store.zip"
     with ZipFile(output, "w", ZIP_DEFLATED, compresslevel=9) as archive:

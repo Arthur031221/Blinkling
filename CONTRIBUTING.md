@@ -8,8 +8,6 @@ Before sharing a change, run the checks that cover it:
 - `npm test` and `npm run build`
 - `npm run build:plugin`, `npm run test:plugin` and `npm run validate:plugin`
 - `npm run test:e2e` for changes to panel and bridge integration
-- `npm run test:screen` for real browser sharing and floating window integration on Linux with Xvfb
-- `npm run demo` and `npm run record-demo` for the published fixture media
 
 Keep screen sharing explicit. An active browser share must fail closed if a capture cannot be returned. Do not add a native fallback that could bypass an opaque mask. Opaque masks belong in the outgoing image. Keep image and session data out of logs, and preserve request Origin, token and session checks.
 
