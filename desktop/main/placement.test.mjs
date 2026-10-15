@@ -217,3 +217,57 @@ test("the card takes the side of Blink that has room, whatever the edge", () => 
     cardBounds(screen, topRight).x < topRight.reveal.x + screen.bounds.x,
   );
 });
+for (const [name, d] of Object.entries({
+  "a narrow display right of the primary (the seam)": {
+    id: 2,
+    scaleFactor: 1,
+    bounds: { x: 1280, y: 0, width: 800, height: 600 },
+    workArea: { x: 1280, y: 0, width: 800, height: 570 },
+  },
+  "a narrow display left of the primary (the seam)": {
+    id: 3,
+    scaleFactor: 1,
+    bounds: { x: -1024, y: 0, width: 1024, height: 768 },
+    workArea: { x: -1024, y: 24, width: 1024, height: 744 },
+  },
+  "a wide display": {
+    id: 4,
+    scaleFactor: 1,
+    bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    workArea: { x: 0, y: 0, width: 1920, height: 1050 },
+  },
+}))
+  test(`the card never covers Blink or its fan, anywhere along any edge of ${name}`, () => {
+    for (const edge of ["left", "right", "top", "bottom"])
+      for (const ratio of [0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1]) {
+        const p = resolvePosition(d, { edge, ratio });
+        const card = cardBounds(d, p);
+        const blink = {
+          x: p.reveal.x + d.bounds.x - 74,
+          y: p.reveal.y + d.bounds.y - 142,
+          width: 148,
+          height: 152,
+        };
+        assert.ok(!overlaps(card, blink), `${edge} ${ratio} covers Blink`);
+        for (const pill of menuLayout(p.area, p.reveal))
+          assert.ok(
+            !overlaps(card, {
+              ...pill,
+              x: pill.x + d.bounds.x,
+              y: pill.y + d.bounds.y,
+            }),
+            `${edge} ${ratio} covers the fan`,
+          );
+        assert.ok(card.x >= d.workArea.x, `${edge} ${ratio} left`);
+        assert.ok(
+          card.x + card.width <= d.workArea.x + d.workArea.width,
+          `${edge} ${ratio} right`,
+        );
+        assert.ok(card.y >= d.workArea.y, `${edge} ${ratio} top`);
+        assert.ok(
+          card.y + card.height <= d.workArea.y + d.workArea.height,
+          `${edge} ${ratio} bottom`,
+        );
+        assert.ok(card.height >= 200, `${edge} ${ratio} stays usable`);
+      }
+  });

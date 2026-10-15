@@ -1,3 +1,4 @@
+import { menuLayout } from "../menu/layout.mjs";
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const CHARACTER = Object.freeze({ width: 148, height: 152, foot: 142 });
 const valid = (p) =>
@@ -64,29 +65,90 @@ export function resolvePosition(display, saved) {
 export function reconcileDisplay(displays, id) {
   return displays.find((d) => String(d.id) === String(id)) ?? displays[0];
 }
+/** Blink's revealed box in desktop coordinates. */
+export function characterBox(display, position) {
+  return {
+    x: position.reveal.x + display.bounds.x - CHARACTER.width / 2,
+    y: position.reveal.y + display.bounds.y - CHARACTER.foot,
+    width: CHARACTER.width,
+    height: CHARACTER.height,
+  };
+}
+/** Gap kept between the card and Blink's box. */
+const CARD_GAP = 6;
+/** Narrowest card worth showing beside Blink before stacking it instead. */
+const CARD_MIN = 280;
+const union = (rects) => {
+  const x = Math.min(...rects.map((r) => r.x)),
+    y = Math.min(...rects.map((r) => r.y));
+  return {
+    x,
+    y,
+    width: Math.max(...rects.map((r) => r.x + r.width)) - x,
+    height: Math.max(...rects.map((r) => r.y + r.height)) - y,
+  };
+};
+/** The card and the answer deck share this rectangle. It never covers Blink
+ * and never covers the open menu fan, wherever Blink rests: beside Blink, on
+ * the side away from its edge, narrowed when the display is too narrow for
+ * the full width; stacked above or below Blink and its fan on a display too
+ * narrow even for that. */
 export function cardBounds(display, position) {
   const a = display.workArea,
-    width = Math.min(440, a.width - 24),
+    full = Math.min(440, a.width - 24),
     height = Math.min(520, a.height - 24);
+  const blink = characterBox(display, position);
   const anchor = {
     x: position.reveal.x + display.bounds.x,
     y: position.reveal.y + display.bounds.y,
   };
+  const y = Math.round(
+    clamp(anchor.y - height, a.y + 12, a.y + a.height - height - 12),
+  );
   // Beside Blink, away from its edge. On a top or bottom edge, or in a corner,
   // take whichever side has room so the card never lands on top of Blink.
-  const left = anchor.x - width - 80,
-    right = anchor.x + 80;
-  const fits = (x) => x >= a.x + 12 && x + width <= a.x + a.width - 12;
-  const sides = position.edge === "left" ? [right, left] : [left, right];
+  const room = {
+    left: blink.x - CARD_GAP - (a.x + 12),
+    right: a.x + a.width - 12 - (blink.x + blink.width + CARD_GAP),
+  };
+  const order =
+    position.edge === "left" ? ["right", "left"] : ["left", "right"];
+  const side =
+    order.find((s) => room[s] >= full) ??
+    order.sort((p, q) => room[q] - room[p])[0];
+  if (room[side] >= Math.min(full, CARD_MIN)) {
+    const width = Math.min(full, Math.floor(room[side]));
+    return {
+      x: Math.round(
+        side === "left"
+          ? blink.x - CARD_GAP - width
+          : blink.x + blink.width + CARD_GAP,
+      ),
+      y,
+      width,
+      height,
+    };
+  }
+  const fan = menuLayout(position.area, position.reveal).map((r) => ({
+    ...r,
+    x: r.x + display.bounds.x,
+    y: r.y + display.bounds.y,
+  }));
+  const keepClear = union([blink, ...fan]);
+  const above = keepClear.y - CARD_GAP - (a.y + 12),
+    below = a.y + a.height - 12 - (keepClear.y + keepClear.height + CARD_GAP);
+  const tall = Math.min(height, Math.max(above, below));
   return {
     x: Math.round(
-      clamp(sides.find(fits) ?? sides[0], a.x + 12, a.x + a.width - width - 12),
+      clamp(anchor.x - full / 2, a.x + 12, a.x + a.width - full - 12),
     ),
     y: Math.round(
-      clamp(anchor.y - height, a.y + 12, a.y + a.height - height - 12),
+      above >= below
+        ? keepClear.y - CARD_GAP - tall
+        : keepClear.y + keepClear.height + CARD_GAP,
     ),
-    width,
-    height,
+    width: full,
+    height: Math.round(tall),
   };
 }
 
