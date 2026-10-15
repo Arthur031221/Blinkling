@@ -52,7 +52,12 @@ test("start with Claude Code is on unless the settings file says false", async (
         String(settings),
       );
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(root, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 200,
+      });
     }
   }
 });
@@ -72,8 +77,18 @@ test("--background exits quietly without launching when start with Claude Code i
       assert.match(tried.stderr, /graphical desktop/);
     }
   } finally {
-    await rm(off.root, { recursive: true, force: true });
-    await rm(on.root, { recursive: true, force: true });
+    await rm(off.root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 200,
+    });
+    await rm(on.root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 200,
+    });
   }
 });
 
@@ -86,6 +101,11 @@ test("the slash command still starts Blink when the background start is off", as
       assert.equal(result.code, 1);
     }
   } finally {
-    await rm(off.root, { recursive: true, force: true });
+    await rm(off.root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 200,
+    });
   }
 });
