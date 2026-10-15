@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
 import { openSync, closeSync } from "node:fs";
 import { readFile, cp, rename, rm, mkdir, lstat } from "node:fs/promises";
 import { join, dirname } from "node:path";
@@ -89,6 +89,62 @@ export async function startWithClaudeCode(userData) {
 /** The Electron user data directory of a Blink that this plugin launched. */
 export const userDataDirectory = (runtime = runtimeDirectory()) =>
   join(runtime, "electron");
+/** Whether a process id is a Blinkling or Electron process, so a recycled id
+ * that now belongs to something else is never killed. */
+async function looksLikeBlink(pid) {
+  const [file, args] =
+    process.platform === "win32"
+      ? ["tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"]]
+      : ["ps", ["-p", String(pid), "-o", "comm="]];
+  const output = await new Promise((resolve) =>
+    execFile(file, args, { timeout: 5000 }, (_, out) => resolve(out || "")),
+  );
+  return /blinkling|electron/i.test(output);
+}
+/** A Blink whose endpoint no longer answers (hung, or its window server is
+ * stuck) would otherwise make every new start die at its single instance lock
+ * and look like nothing happened. Ends that one so a fresh start can take over.
+ * Returns whether it ended one. */
+export async function replaceHungDesktop(
+  descriptor,
+  {
+    isAlive = (pid) => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch (error) {
+        return error.code === "EPERM";
+      }
+    },
+    isBlink = looksLikeBlink,
+    kill = (pid) => process.kill(pid, "SIGKILL"),
+  } = {},
+) {
+  let endpoint;
+  try {
+    endpoint = JSON.parse(await readFile(descriptor, "utf8"));
+  } catch {
+    return false;
+  }
+  const pid = endpoint?.pid;
+  let ended = false;
+  if (
+    Number.isInteger(pid) &&
+    pid > 1 &&
+    pid !== process.pid &&
+    isAlive(pid) &&
+    (await isBlink(pid))
+  ) {
+    try {
+      kill(pid);
+      ended = true;
+    } catch {
+      /* It exited on its own between the check and the kill. */
+    }
+  }
+  await rm(descriptor, { force: true }).catch(() => {});
+  return ended;
+}
 export async function launchDesktop(options = {}) {
   const directory = options.runtime || runtimeDirectory();
   await privateDirectory(directory);
@@ -102,6 +158,7 @@ export async function launchDesktop(options = {}) {
       await atomicJson(join(directory, "enabled.json"), { enabled: true });
       return { ...previous.status, alreadyRunning: true };
     }
+    await replaceHungDesktop(descriptor, options.hung);
     if (
       (options.platform || process.platform) === "linux" &&
       !process.env.DISPLAY &&

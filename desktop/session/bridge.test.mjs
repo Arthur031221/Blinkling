@@ -130,6 +130,7 @@ async function setup(t, options = {}) {
     },
     retry: { minMs: 5, maxMs: 15 },
     readTranscript: async () => [],
+    log: () => {},
     ...options,
   });
   const events = [];
@@ -543,6 +544,33 @@ test("unverified versions are blocked without infinite retry or local-only answe
   await new Promise((r) => setTimeout(r, 30));
   assert.equal(attempts, 1);
   assert.ok(events.some((e) => e.type === "status" && e.state === "blocked"));
+  assert.deepEqual(
+    events.filter((e) => e.type === "session-problem"),
+    [{ type: "session-problem", code: "UNSUPPORTED_CLAUDE" }],
+  );
+});
+
+test("a session that cannot start is logged and said once, never silent", async (t) => {
+  const lines = [];
+  let attempts = 0;
+  const { bridge, events } = await setup(t, {
+    log: (line) => lines.push(line),
+    transportFactory: () => {
+      const child = new Transport();
+      child.connect = async () => {
+        attempts++;
+        throw new Error("spawn exploded");
+      };
+      return child;
+    },
+  });
+  bridge.connect().catch(() => {});
+  await waitFor(() => attempts >= 3);
+  assert.equal(events.filter((e) => e.type === "session-problem").length, 1);
+  assert.ok(lines.some((l) => /session start/.test(l)));
+  assert.ok(
+    lines.some((l) => /session transport failed: spawn exploded/.test(l)),
+  );
 });
 
 test("connection recovery does not replay the same messages to an existing subscriber", async (t) => {

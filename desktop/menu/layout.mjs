@@ -1,6 +1,6 @@
-/** Four round bubbles; the label of the one under the pointer unfolds beside
+/** Five round bubbles; the label of the one under the pointer unfolds beside
  * it, so every bubble keeps one fixed size and nothing reflows (N6.3). */
-export const PILL = Object.freeze({ size: 42, label: 280, gap: 51, count: 4 });
+export const PILL = Object.freeze({ size: 42, label: 280, gap: 51, count: 5 });
 const MARGIN = 8;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -10,7 +10,12 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
  * Blink instead, so it never covers it. Each bubble's footprint includes the room its
  * label needs, so a label can never leave the screen or meet a neighbour. */
 export function menuLayout(area, anchor) {
-  const { size, label, gap, count } = PILL;
+  const { size, label, gap } = PILL;
+  // Close is the fifth bubble. It needs a display tall enough that the fan
+  // opens above or below Blink wherever Blink rests (164 + 2 spans); a shorter
+  // one keeps the four that matter and leaves Close out.
+  const full = (PILL.count - 1) * gap + size;
+  const count = area.height >= 164 + 2 * full ? PILL.count : PILL.count - 1;
   const span = (count - 1) * gap + size;
   // Spring motion can settle either side of the midpoint by a tiny fraction.
   // Use pixel precision so an idle fan cannot flip sides on successive frames.

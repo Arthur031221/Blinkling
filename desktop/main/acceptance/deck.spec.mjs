@@ -430,7 +430,7 @@ test("hover recall of the last answer never overlaps the fan bubbles", async () 
     await expect(
       bubbles.locator('.gl-bubble-deck[data-visible="true"]'),
     ).toHaveCount(1);
-    await expect(page.locator(".action-bubble")).toHaveCount(4);
+    await expect(page.locator(".action-bubble")).toHaveCount(5);
     await bubbles.waitForTimeout(900);
     const { bubbles: deck, fan } = await screenBoxes(app, page);
     expect(deck.length).toBeGreaterThan(0);

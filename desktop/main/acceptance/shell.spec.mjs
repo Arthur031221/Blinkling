@@ -598,7 +598,7 @@ for (const scale of [1, 1.5, 2])
             () => matchMedia("(prefers-color-scheme: dark)").matches,
           ),
         ).toBe(theme === "dark");
-        await expect(page.locator(".action")).toHaveCount(4);
+        await expect(page.locator(".action")).toHaveCount(5);
         for (const action of ["capture", "guide", "auto-explain", "settings"]) {
           const button = page.locator(`[data-action="${action}"]`);
           await button.hover();

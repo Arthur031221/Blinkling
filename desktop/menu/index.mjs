@@ -3,7 +3,7 @@ import { menuText } from "./strings.mjs";
 import { spring } from "../character/state.mjs";
 import { roundedRect } from "../character/silhouette.mjs";
 import { duration, frameLog, springs } from "../shared/motion.mjs";
-// Four bubbles (N2.1), nearest Blink first: id, string key and icon.
+// Four bubbles (N2.1) and Close, nearest Blink first: id, string key and icon.
 const definitions = [
   ["capture", "M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5"],
   ["guide", "M5 4l14 7-7 3-3 7z"],
@@ -12,19 +12,21 @@ const definitions = [
     "M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2M6 18l2-2m8-8 2-2 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
   ],
   ["settings", "M4 7h16M4 17h16M9 4v6m6 4v6"],
+  ["quit", "M12 3v8M7 6.8a7 7 0 1 0 10 0"],
 ];
 const keys = {
   capture: ["capture", "captureHint"],
   guide: ["guide", "guideHint"],
   "auto-explain": ["autoExplain", "autoExplainHint"],
   settings: ["settings", "settingsHint"],
+  quit: ["quit", "quitHint"],
 };
 export const menuActions = Object.freeze(
   definitions.map(([id]) => Object.freeze({ id })),
 );
 const AUTO = definitions.findIndex(([id]) => id === "auto-explain");
 // The bubbles open one after another within one fast step.
-const STAGGER = duration.fast / 1000 / PILL.count;
+const STAGGER = (shown) => duration.fast / 1000 / shown;
 const LABEL_GAP = 8;
 // Below this distance from its target a spring has visibly stopped.
 const SETTLED = 0.002;
@@ -43,7 +45,7 @@ export function mountMenu(
     introduced = false,
     open = false,
     changedAt = 0,
-    steps = STAGGER;
+    steps = 0;
   // When each bubble may start its trip, in seconds after the change.
   let waits = [];
   const log = frameLog();
@@ -109,13 +111,15 @@ export function mountMenu(
         open = value;
         changedAt = now;
         expanded = -1;
-        steps = together ? 0 : STAGGER;
+        // Only the bubbles on screen take a turn: one left out must not delay the rest.
+        const shown = rects.length || buttons.length;
+        steps = together ? 0 : STAGGER(shown);
         // A bubble that is moving turns around at once with the momentum it
         // has (N6.2); only the ones standing still wait for their turn.
         waits = buttons.map((_, i) =>
           values[i].value > SETTLED && values[i].value < 1 - SETTLED
             ? 0
-            : (open ? i : buttons.length - 1 - i) * steps,
+            : (open ? i : shown - 1 - i) * steps,
         );
       }
     },
@@ -140,7 +144,9 @@ export function mountMenu(
         host.classList.remove("intro");
       }
       const naming = intro && open;
-      if (naming && !introduced && values.every((v) => v.value > 0.8)) {
+      // A bubble left out on a short display never opens, so it cannot be waited on.
+      const shown = values.filter((_, i) => rects[i]);
+      if (naming && !introduced && shown.every((v) => v.value > 0.8)) {
         introduced = true;
         onLabelsShown();
       }
@@ -162,8 +168,19 @@ export function mountMenu(
           values[i].velocity = 0;
         }
         const q = values[i].value,
-          r = rects[i],
-          pose = menuTransform(stand.area, stand.anchor, r, q);
+          r = rects[i];
+        // A display too short for the fan's last bubble leaves it out.
+        if (!r) {
+          // Set once: a write on every frame would restyle a bubble nobody sees.
+          if (!b.hidden) {
+            b.hidden = true;
+            b.inert = true;
+          }
+          values[i] = { value: 0, velocity: 0 };
+          return;
+        }
+        if (b.hidden) b.hidden = false;
+        const pose = menuTransform(stand.area, stand.anchor, r, q);
         painted[i] = {
           x: r.x + pose.x,
           y: r.y + pose.y,
@@ -183,8 +200,8 @@ export function mountMenu(
     polygons() {
       const shapes = [];
       buttons.forEach((b, i) => {
-        if (values[i].value <= 0.8) return;
         const r = rects[i];
+        if (!r || values[i].value <= 0.8) return;
         shapes.push(roundedRect(r.x, r.y, r.width, r.height, r.height / 2));
         if (i !== expanded && !(intro && open)) return;
         const label = b.querySelector(".action-label"),

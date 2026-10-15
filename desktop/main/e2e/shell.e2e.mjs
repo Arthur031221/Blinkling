@@ -511,7 +511,7 @@ for (const scale of [1, 1.5, 2])
         native(20, 20);
         await moveOn(c.page, scale);
         const buttons = c.page.locator(".action-bubble");
-        await expect(buttons).toHaveCount(4);
+        await expect(buttons).toHaveCount(5);
         await expect(c.page.locator("#pin")).toHaveCount(0);
         await desktopShot(c.app, `menu-${scale * 100}-${theme}`);
         for (let i = 0; i < 4; i++) {

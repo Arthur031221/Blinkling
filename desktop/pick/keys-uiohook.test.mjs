@@ -46,6 +46,19 @@ test("starting twice listens once, and stop releases the hook", async () => {
   assert.equal(source.started(), false);
 });
 
+test("on macOS quit never calls the native stop that an input method can deadlock", async () => {
+  const uIOhook = fakeHook();
+  const source = createKeySource({
+    load: async () => ({ uIOhook }),
+    handle: () => {},
+  });
+  await source.start();
+  source.stop({ platform: "darwin" });
+  assert.equal(uIOhook.started, 1);
+  assert.equal(uIOhook.listenerCount("keydown"), 0);
+  assert.equal(source.started(), false);
+});
+
 test("a native module that will not load is reported, not thrown", async () => {
   const errors = [];
   const source = createKeySource({

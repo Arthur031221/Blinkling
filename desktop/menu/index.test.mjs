@@ -48,15 +48,15 @@ const run = (menu, seconds, open) => {
   for (let t = 0; t < seconds; t += 1 / 60) menu.frame(t, 1 / 60, area, anchor);
 };
 
-test("the fan has exactly four bubbles: capture, guide, auto explain, settings", () => {
+test("the fan has five bubbles: capture, guide, auto explain, settings, close", () => {
   const { menu } = mount({ text: menuText("zh-TW") });
   assert.deepEqual(
     menu.buttons.map((b) => b.dataset.action),
-    ["capture", "guide", "auto-explain", "settings"],
+    ["capture", "guide", "auto-explain", "settings", "quit"],
   );
   assert.deepEqual(
     menu.buttons.map((b) => b.getAttribute("aria-label")),
-    ["截圖", "導覽", "自動解說", "設定"],
+    ["截圖", "導覽", "自動解說", "設定", "關閉"],
   );
 });
 
@@ -96,6 +96,8 @@ test("auto explain is a switch that shows its state on the bubble", () => {
     strings.en.autoExplainOn,
   );
   assert.match(css, /\.action-bubble\[data-on="true"\]::after/);
+  // The bubble's own display rule would otherwise win over the hidden attribute.
+  assert.match(rules(".action-bubble[hidden]"), /display:\s*none/);
   menu.setAuto(false);
   assert.equal(pill.getAttribute("aria-checked"), "false");
   assert.equal(
@@ -113,7 +115,7 @@ test("only the switch is a switch; the other bubbles are plain buttons", () => {
   const { menu } = mount();
   assert.deepEqual(
     menu.buttons.map((b) => b.getAttribute("role")),
-    [null, null, "switch", null],
+    [null, null, "switch", null, null],
   );
 });
 
@@ -301,30 +303,30 @@ test("reversing mid-way turns every moving bubble around from where it is", () =
   }
 });
 
-test("first use: the open fan names all four bubbles, reports it once and keeps them until it closes", () => {
+test("first use: the open fan names all five bubbles, reports it once and keeps them until it closes", () => {
   const seen = [];
   const { menu } = mount({ firstUse: true, onLabelsShown: () => seen.push(1) });
   const names = () => menu.buttons.map((b) => b.classList.contains("expanded"));
   menu.frame(0, 1 / 60, area, anchor);
-  assert.deepEqual(names(), [false, false, false, false]);
+  assert.deepEqual(names(), [false, false, false, false, false]);
   assert.equal(seen.length, 0, "a closed fan has shown nothing");
   run(menu, 1, true);
-  assert.deepEqual(names(), [true, true, true, true]);
+  assert.deepEqual(names(), [true, true, true, true, true]);
   assert.equal(seen.length, 1);
   run(menu, 1, true);
   assert.equal(seen.length, 1, "reported once, not per frame");
   assert.equal(
     menu.polygons().length,
-    8,
+    10,
     "bubbles and their labels take the pointer",
   );
   menu.setOpen(false, 1);
   for (let t = 1; t < 3; t += 1 / 60) menu.frame(t, 1 / 60, area, anchor);
-  assert.deepEqual(names(), [false, false, false, false]);
+  assert.deepEqual(names(), [false, false, false, false, false]);
   run(menu, 1, true);
   assert.deepEqual(
     names(),
-    [false, false, false, false],
+    [false, false, false, false, false],
     "the next opening is the quiet one",
   );
   assert.equal(seen.length, 1);
@@ -339,12 +341,12 @@ test("after the first use the fan labels only the bubble under the pointer", () 
   run(menu, 1, true);
   assert.deepEqual(
     menu.buttons.map((b) => b.classList.contains("expanded")),
-    [false, false, false, false],
+    [false, false, false, false, false],
   );
   assert.equal(seen.length, 0);
 });
 
-test("first-use labels are one line, so four of them never meet", () => {
+test("first-use labels are one line, so five of them never meet", () => {
   assert.match(rules(".intro .action-label"), /white-space:\s*nowrap/);
   assert.match(rules(".intro .action-label span"), /display:\s*none/);
 });
@@ -352,11 +354,57 @@ test("first-use labels are one line, so four of them never meet", () => {
 test("the first-use labels reach every locale at the same size as a hovered one", () => {
   for (const locale of LOCALES) {
     const { menu } = mount({ text: menuText(locale), firstUse: true });
-    assert.equal(menu.buttons.length, 4);
+    assert.equal(menu.buttons.length, 5);
     for (const b of menu.buttons)
       assert.ok(
         b.querySelector(".action-label strong").textContent.length > 0,
         locale,
       );
   }
+});
+
+test("first use on a display too short for Close still finishes: the bubble left out is not waited on", () => {
+  const seen = [];
+  const { menu } = mount({ firstUse: true, onLabelsShown: () => seen.push(1) });
+  const short = { x: 0, y: 0, width: 640, height: 400 };
+  const go = (from) => {
+    for (let t = from; t < from + 1; t += 1 / 60)
+      menu.frame(t, 1 / 60, short, anchor);
+  };
+  menu.frame(0, 1 / 60, short, anchor);
+  menu.setOpen(true, 0);
+  go(0);
+  assert.equal(menu.buttons.filter((b) => b.hidden).length, 1);
+  assert.equal(seen.length, 1, "the names were reported");
+  menu.setOpen(false, 1);
+  go(1);
+  go(2);
+  menu.setOpen(true, 3);
+  go(3);
+  assert.deepEqual(
+    menu.buttons
+      .filter((b) => !b.hidden)
+      .map((b) => b.classList.contains("expanded")),
+    [false, false, false, false],
+    "the next opening is the quiet one",
+  );
+});
+
+test("closing on a display too short for Close starts at once: the bubble left out takes no turn", () => {
+  const { menu } = mount();
+  const short = { x: 0, y: 0, width: 640, height: 400 };
+  let t = 0;
+  const step = () => menu.frame((t += 1 / 60), 1 / 60, short, anchor);
+  menu.frame(0, 1 / 60, short, anchor);
+  menu.setOpen(true, 0);
+  for (let i = 0; i < 90; i++) step();
+  const before = menu.buttons[0].style.opacity;
+  assert.equal(before, "1");
+  menu.setOpen(false, t);
+  step();
+  step();
+  assert.ok(
+    Number(menu.buttons[3].style.opacity) < 1,
+    "the farthest bubble leaves first, with no empty turn before it",
+  );
 });

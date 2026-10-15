@@ -29,10 +29,14 @@ export function createKeySource({ load, handle, onError = () => {} }) {
         return { ok: false, error };
       }
     },
-    stop() {
+    /** Stops listening. On macOS the native stop can block the main thread when
+     * an input method such as Zhuyin holds the event tap (uiohook-napi#23), and
+     * this only runs as the app quits, so the tap is left for the exit to
+     * release. */
+    stop({ platform = process.platform } = {}) {
       if (!hook) return;
       for (const type of FORWARDED) hook.removeAllListeners(type);
-      hook.stop();
+      if (platform !== "darwin") hook.stop();
       hook = null;
     },
     started: () => hook !== null,

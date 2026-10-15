@@ -168,13 +168,16 @@ test("unanswered controls time out and late responses cannot revive them", async
   );
 });
 
-test("undocumented controls require the verified CLI version", async () => {
+test("the verified CLI version is a floor inside 2.1.x, so a self-updated Claude Code works", async () => {
   const { assertClaudeVersion } = await import("./protocol.mjs");
-  assert.doesNotThrow(() => assertClaudeVersion("2.1.296 (Claude Code)\n"));
-  assert.throws(
-    () => assertClaudeVersion("2.1.297 (Claude Code)"),
-    /Unverified/,
-  );
+  for (const ok of [
+    "2.1.296 (Claude Code)\n",
+    "2.1.301 (Claude Code)",
+    "2.1.300",
+  ])
+    assert.doesNotThrow(() => assertClaudeVersion(ok), ok);
+  for (const bad of ["2.1.295", "2.2.0", "3.0.0", "2.1", "garbage", ""])
+    assert.throws(() => assertClaudeVersion(bad), /Unverified/, bad);
 });
 
 test("BLINKLING_REMOTE selects off, the one disposable test session, or the default", () => {

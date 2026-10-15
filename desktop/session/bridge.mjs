@@ -23,6 +23,7 @@ export class DesktopSessionBridge {
     transportFactory = () => new OwnedSession(),
     readTranscript: read = readTranscript,
     retry = {},
+    log = defaultLog,
   }) {
     if (!cwd) throw new Error("Session working directory is required");
     validateSelection(selection);
@@ -33,6 +34,7 @@ export class DesktopSessionBridge {
     this.factory = transportFactory;
     this.read = read;
     this.retry = { minMs: 500, maxMs: 30000, ...retry };
+    this.log = log;
     this.listeners = new Set();
     this.hooks = new Set();
     this.idleWaiters = new Set();
@@ -121,6 +123,7 @@ export class DesktopSessionBridge {
     return this.connecting;
   }
   async start() {
+    this.log(`session start in ${this.cwd} with ${this.executable}`);
     try {
       await this.store.acquire();
       this.state = (await this.store.load()) ?? {
@@ -144,6 +147,7 @@ export class DesktopSessionBridge {
       await this.openTransport();
     } catch (error) {
       if (isFatal(error)) {
+        this.reportProblem(error);
         this.setStatus("blocked", error.code ?? "saved-state");
         throw error;
       }
@@ -226,6 +230,7 @@ export class DesktopSessionBridge {
       initializing = false;
       for (const event of buffered) await this.handle(event);
       this.missing = false;
+      this.problem = undefined;
       this.setStatus("connected");
       this.notifyIdle();
       await this.pump();
@@ -270,6 +275,7 @@ export class DesktopSessionBridge {
     }
   }
   async send(turn) {
+    this.log(`send turn ${turn?.id} from ${turn?.source}`);
     await this.admit(turn);
     return this.enqueue(async () => {
       validateTurn(turn);
@@ -346,6 +352,7 @@ export class DesktopSessionBridge {
         this.ready = true;
         clearTimeout(this.timer);
         this.timer = undefined;
+        this.problem = undefined;
         this.setStatus("connected");
         await this.pump();
       } else if (!["ready"].includes(event.state)) {
@@ -549,17 +556,27 @@ export class DesktopSessionBridge {
   /** A missing Claude is something to install, not a fault: say so once and
    * keep looking, so the next launch after installing needs no restart. */
   transportFailed(error) {
-    // An e2e run on a CI runner prints why the session could not start.
-    if (process.env.BLINKLING_E2E === "1")
-      console.error("session transport failed:", error?.message ?? error);
+    this.log(`session transport failed: ${error?.message ?? error}`);
     if (isMissing(error)) {
       if (!this.missing) {
         this.missing = true;
         this.emit({ type: "claude-missing" });
       }
       this.setStatus("retrying", "claude-missing");
-    } else this.setStatus("retrying");
+    } else {
+      this.reportProblem(error);
+      this.setStatus("retrying");
+    }
     this.scheduleReconnect();
+  }
+  /** Every session failure reaches the log, and the user hears of it once in a
+   * bubble (a changed reason is said again), never as silence. */
+  reportProblem(error) {
+    const code = error?.code ?? "failed";
+    this.log(`session problem ${code}: ${error?.message ?? error}`);
+    if (this.problem === code) return;
+    this.problem = code;
+    this.emit({ type: "session-problem", code });
   }
   fail(detail) {
     if (this.closed) return;
@@ -600,8 +617,10 @@ export class DesktopSessionBridge {
       await this.openTransport();
     } catch (error) {
       if (!this.closed) {
-        if (isFatal(error)) this.setStatus("blocked", error.code);
-        else this.transportFailed(error);
+        if (isFatal(error)) {
+          this.reportProblem(error);
+          this.setStatus("blocked", error.code);
+        } else this.transportFailed(error);
       }
     }
   }
@@ -621,8 +640,8 @@ export class DesktopSessionBridge {
             this.upsert(message, true);
           await this.store.save(this.state);
           this.emitRecoveredCompletion(previousTurns);
-          if (!this.state.turns.some((item) => item.state === "uncertain"))
-            this.setStatus("connected");
+          this.problem = undefined;
+          this.setStatus("connected");
           await this.pump();
         })
         .catch(() => this.fail("reconciliation"));
@@ -692,6 +711,9 @@ function validateTurn(turn) {
   if (!turn.text.trim() && !turn.attachments.length)
     throw new Error("Empty desktop turn");
   userMessage(turn);
+}
+function defaultLog(line) {
+  console.error(`[blinkling ${new Date().toISOString()}] ${line}`);
 }
 function isFatal(error) {
   return (

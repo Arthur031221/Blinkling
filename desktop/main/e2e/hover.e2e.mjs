@@ -141,7 +141,13 @@ test("H-3 every menu bubble is clickable while answer bubbles are on screen", as
         (b) => b.dataset.action,
       ),
     );
-    expect(actions).toEqual(["capture", "guide", "auto-explain", "settings"]);
+    expect(actions).toEqual([
+      "capture",
+      "guide",
+      "auto-explain",
+      "settings",
+      "quit",
+    ]);
     await app.evaluate((_, ids) => {
       globalThis.pillCalls = [];
       for (const id of ids)

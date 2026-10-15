@@ -27,16 +27,21 @@ const displays = [
   [1280, 800],
 ];
 
-test("the menu is four bubbles of one fixed size", () => {
+test("the menu is five bubbles of one fixed size, four on a display too short for five", () => {
   const rs = menuLayout(
     { x: 0, y: 0, width: 1280, height: 800 },
     { x: 1190, y: 704 },
   );
-  assert.equal(rs.length, 4);
+  assert.equal(rs.length, 5);
   for (const r of rs) {
     assert.equal(r.width, PILL.size);
     assert.equal(r.height, PILL.size);
   }
+  assert.equal(
+    menuLayout({ x: 0, y: 0, width: 683, height: 225 }, { x: 600, y: 200 })
+      .length,
+    4,
+  );
 });
 
 test("the fan direction stays stable while a spring settles at the midpoint", () => {

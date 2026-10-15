@@ -59,7 +59,7 @@ const shown = (page) =>
     })),
   );
 
-test("first use names the four bubbles once; Settings opens, changes the hotkey and replays the welcome", async () => {
+test("first use names all its bubbles once; Settings opens, changes the hotkey and replays the welcome", async () => {
   test.setTimeout(120000);
   await mkdir(report, { recursive: true });
   process.env.BLINKLING_TEST_DATA = await mkdtemp(
@@ -71,10 +71,10 @@ test("first use names the four bubbles once; Settings opens, changes the hotkey 
     const errors = [];
     const page = await wake(app);
     watch(page, errors);
-    // NS-4: the first fan carries all four names.
+    // NS-4: the first fan carries every name.
     await rest(page);
     const first = await shown(page);
-    expect(first.map((b) => b.named)).toEqual([true, true, true, true]);
+    expect(first.map((b) => b.named)).toEqual(Array(5).fill(true));
     expect(
       first.every((b) => b.label.opacity > 0.9 && b.label.height < 51),
     ).toBe(true);
@@ -89,12 +89,9 @@ test("first use names the four bubbles once; Settings opens, changes the hotkey 
     await page.waitForFunction(() => !window.desktop.inspect().fan.open);
     await page.waitForTimeout(600);
     await rest(page);
-    expect((await shown(page)).map((b) => b.named)).toEqual([
-      false,
-      false,
-      false,
-      false,
-    ]);
+    expect((await shown(page)).map((b) => b.named)).toEqual(
+      Array(5).fill(false),
+    );
 
     // NS-1: the Settings bubble opens the window.
     const bubble = await page.locator('[data-action="settings"]').boundingBox();
@@ -218,12 +215,9 @@ test("the welcome opens by itself on the first start only, and the fan closes ov
     ).toBe(false);
     // NS-3: with the mini composer open the fan stays shut while Blink is hovered.
     const point = await rest(page);
-    expect((await shown(page)).map((b) => b.named)).toEqual([
-      true,
-      true,
-      true,
-      true,
-    ]);
+    expect((await shown(page)).map((b) => b.named)).toEqual(
+      Array(5).fill(true),
+    );
     native(point.x, point.y, "click");
     await page.waitForFunction(() => window.desktop.inspect().shell.miniOpen);
     await page.waitForTimeout(800);

@@ -82,6 +82,9 @@ button svg {
   will-change: transform, opacity;
   pointer-events: none;
 }
+.action-bubble[hidden] {
+  display: none;
+}
 .action-bubble svg {
   width: 24px;
   height: 24px;

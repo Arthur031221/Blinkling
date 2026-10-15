@@ -42,7 +42,9 @@ export function installPrivacy({
     limitUntil = null;
   const said = (id, text) => send({ type: "blink-say", id, text });
   let limitText = null,
-    limitId = null;
+    limitId = null,
+    problemText = null,
+    problemId = null;
   const guard = createGuard({
     locator: source,
     onChange: ({ lock }) => {
@@ -120,8 +122,14 @@ export function installPrivacy({
     } else if (event.type === "claude-missing") {
       if (!missing) said("claude-missing", t("claudeMissing"));
       missing = true;
+    } else if (event.type === "session-problem") {
+      const unsupported = event.code === "UNSUPPORTED_CLAUDE";
+      problemId = `session-problem-${event.code}`;
+      problemText = t(unsupported ? "claudeUnsupported" : "sessionProblem");
+      said(problemId, problemText);
     } else if (event.type === "status" && event.state === "connected") {
       missing = false;
+      problemText = null;
     }
   });
 
@@ -131,6 +139,7 @@ export function installPrivacy({
     if (guard.locked) send({ type: "guard", lock: true });
     if (watching) send({ type: "watching", on: true });
     if (missing) said("claude-missing", t("claudeMissing"));
+    if (problemText) said(problemId, problemText);
     if (limitUntil !== null && now() < limitUntil) said(limitId, limitText);
   });
 

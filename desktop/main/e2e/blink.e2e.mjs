@@ -71,7 +71,7 @@ const place = async (c, edge, ratio = 0.5) => {
 const rects = (page) =>
   page.evaluate(() =>
     [...document.querySelectorAll("[data-action]")]
-      .filter((b) => Number(getComputedStyle(b).opacity) > 0.1)
+      .filter((b) => !b.hidden && Number(getComputedStyle(b).opacity) > 0.1)
       .map((b) => {
         const r = b.getBoundingClientRect();
         return {
@@ -93,21 +93,21 @@ const overlaps = (list) =>
       ),
   );
 
-test("the fan has four bubbles and nothing beside Blink to pin", async () => {
+test("the fan has five bubbles and nothing beside Blink to pin", async () => {
   const c = await launch();
   try {
     expect(await hooks(c.app)).toContain("escapeKeys");
     await background(c.app);
     native(20, 20);
     await moveOn(c.page);
-    await expect(c.page.locator("[data-action]")).toHaveCount(4);
+    await expect(c.page.locator("[data-action]")).toHaveCount(5);
     expect(
       await c.page.evaluate(() =>
         [...document.querySelectorAll("[data-action]")].map(
           (b) => b.dataset.action,
         ),
       ),
-    ).toEqual(["capture", "guide", "auto-explain", "settings"]);
+    ).toEqual(["capture", "guide", "auto-explain", "settings", "quit"]);
     await expect(c.page.locator("#pin, #auto-badge")).toHaveCount(0);
     await expect(
       c.page.locator('[data-action="auto-explain"]'),
@@ -133,7 +133,7 @@ test("the fan opens after a 300 ms rest, not on a pass-by or a wake", async () =
     // A rest does.
     const resting = sampleOpen(c.page, 1500);
     native(p.x, p.y);
-    expect(await resting).toBe(4);
+    expect(await resting).toBe(5);
     native(20, 20);
     await expect.poll(() => sampleOpen(c.page, 100)).toBe(0);
     // Blink waking for a permission request or an answer does not open it.

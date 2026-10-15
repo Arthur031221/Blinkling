@@ -1,5 +1,5 @@
 import { documentLocale, translator } from "../shared/i18n.mjs";
-/** Menu text for the four bubbles (N2.1), one table per locale. */
+/** Menu text for the five bubbles (N2.1, plus Close), one table per locale. */
 export const strings = {
   en: {
     toolbar: "Blink actions",
@@ -12,6 +12,8 @@ export const strings = {
     autoExplainOn: "On, click to turn off",
     settings: "Settings",
     settingsHint: "Hotkey, start with Claude Code, welcome tour and About",
+    quit: "Close",
+    quitHint: "Quit Blinkling",
   },
   "zh-TW": {
     toolbar: "Blink 動作",
@@ -24,6 +26,8 @@ export const strings = {
     autoExplainOn: "已開啟，點一下關閉",
     settings: "設定",
     settingsHint: "快速鍵、隨 Claude Code 啟動、歡迎導覽與關於",
+    quit: "關閉",
+    quitHint: "結束 Blinkling",
   },
   "zh-CN": {
     toolbar: "Blink 动作",
@@ -36,6 +40,8 @@ export const strings = {
     autoExplainOn: "已开启，点一下关闭",
     settings: "设置",
     settingsHint: "快捷键、随 Claude Code 启动、欢迎导览与关于",
+    quit: "关闭",
+    quitHint: "退出 Blinkling",
   },
   ja: {
     toolbar: "Blink の操作",
@@ -48,6 +54,8 @@ export const strings = {
     autoExplainOn: "オン、クリックでオフ",
     settings: "設定",
     settingsHint: "ホットキー、Claude Code と一緒に起動、ようこそ、情報",
+    quit: "閉じる",
+    quitHint: "Blinkling を終了",
   },
   ko: {
     toolbar: "Blink 동작",
@@ -60,6 +68,8 @@ export const strings = {
     autoExplainOn: "켜짐, 클릭하면 끕니다",
     settings: "설정",
     settingsHint: "단축키, Claude Code와 함께 시작, 환영 화면, 정보",
+    quit: "닫기",
+    quitHint: "Blinkling 종료",
   },
   de: {
     toolbar: "Blink-Aktionen",
@@ -73,6 +83,8 @@ export const strings = {
     autoExplainOn: "An, zum Ausschalten klicken",
     settings: "Einstellungen",
     settingsHint: "Kurzbefehl, Start mit Claude Code, Willkommen und Info",
+    quit: "Schließen",
+    quitHint: "Blinkling beenden",
   },
   es: {
     toolbar: "Acciones de Blink",
@@ -86,6 +98,8 @@ export const strings = {
     autoExplainOn: "Activado, haz clic para apagarlo",
     settings: "Ajustes",
     settingsHint: "Atajo, inicio con Claude Code, bienvenida y Acerca de",
+    quit: "Cerrar",
+    quitHint: "Salir de Blinkling",
   },
   fr: {
     toolbar: "Actions de Blink",
@@ -100,6 +114,8 @@ export const strings = {
     settings: "Réglages",
     settingsHint:
       "Raccourci, démarrage avec Claude Code, bienvenue et À propos",
+    quit: "Fermer",
+    quitHint: "Quitter Blinkling",
   },
   "pt-BR": {
     toolbar: "Ações do Blink",
@@ -113,6 +129,8 @@ export const strings = {
     autoExplainOn: "Ligado, clique para desligar",
     settings: "Ajustes",
     settingsHint: "Atalho, iniciar com o Claude Code, boas-vindas e Sobre",
+    quit: "Fechar",
+    quitHint: "Sair do Blinkling",
   },
 };
 export const menuText = (locale = documentLocale(globalThis.document)) =>

@@ -41,7 +41,7 @@ export class OwnedSession extends EventEmitter {
     if (this.disposing) throw new Error("Session closed");
     if (this.connecting) throw new Error("Session already started");
     this.connecting = true;
-    const found = resolveClaude(executable);
+    const found = await resolveClaude(executable);
     executable = found.command;
     const prefix = [...found.args, ...this.executableArgs];
     this.versionCheck = promisify(execFile)(

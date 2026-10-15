@@ -42,7 +42,7 @@ test("native menu capture reaches the composer and the shared answer session", a
     );
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     await page.waitForTimeout(650);
-    await expect(page.locator(".action-bubble")).toHaveCount(4);
+    await expect(page.locator(".action-bubble")).toHaveCount(5);
     expect(
       await page.evaluate(() =>
         [...document.querySelectorAll(".action-bubble")].every((bubble) => {

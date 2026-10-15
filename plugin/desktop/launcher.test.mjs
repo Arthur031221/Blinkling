@@ -96,3 +96,51 @@ test("the Mac app is copied with its framework links kept relative", async () =>
   const copy = source.slice(source.indexOf("await cp(source, stage"));
   assert.match(copy.slice(0, 200), /verbatimSymlinks: true/);
 });
+
+test("a Blink that stopped answering is ended and its endpoint cleared; anything else is left alone", async () => {
+  const { replaceHungDesktop } = await import("./launcher.mjs");
+  const { mkdtemp, writeFile, access } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const exists = (p) =>
+    access(p).then(
+      () => true,
+      () => false,
+    );
+  const make = async (pid) => {
+    const file = join(await mkdtemp(join(tmpdir(), "hung-")), "desktop.json");
+    await writeFile(file, JSON.stringify({ pid, token: "t" }));
+    return file;
+  };
+  const killed = [];
+  const hung = {
+    isAlive: () => true,
+    isBlink: async () => true,
+    kill: (pid) => killed.push(pid),
+  };
+  const file = await make(4242);
+  assert.equal(await replaceHungDesktop(file, hung), true);
+  assert.deepEqual(killed, [4242]);
+  assert.equal(await exists(file), false);
+  // A recycled id that is not Blink is never killed.
+  const other = await make(4343);
+  assert.equal(
+    await replaceHungDesktop(other, { ...hung, isBlink: async () => false }),
+    false,
+  );
+  assert.deepEqual(killed, [4242]);
+  // A dead process, our own id and a missing file are all harmless.
+  assert.equal(
+    await replaceHungDesktop(await make(4545), {
+      ...hung,
+      isAlive: () => false,
+    }),
+    false,
+  );
+  assert.equal(await replaceHungDesktop(await make(process.pid), hung), false);
+  assert.equal(
+    await replaceHungDesktop("/nonexistent/desktop.json", hung),
+    false,
+  );
+  assert.deepEqual(killed, [4242]);
+});

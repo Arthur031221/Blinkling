@@ -22,8 +22,19 @@ export const compatibility = Object.freeze({
   }),
 });
 export const supportedClaudeVersion = "2.1.296";
+/** Claude Code updates itself, so the proved version is a floor inside 2.1.x:
+ * same major and minor, patch at or above it. The transport still checks the
+ * remote_control reply, which is what a changed protocol would break. */
 export function assertClaudeVersion(version) {
-  if (version.trim().split(/\s/)[0] !== supportedClaudeVersion)
+  const found = version.trim().split(/\s/)[0];
+  const [major, minor, patch] = supportedClaudeVersion.split(".").map(Number);
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(found);
+  if (
+    !match ||
+    Number(match[1]) !== major ||
+    Number(match[2]) !== minor ||
+    Number(match[3]) < patch
+  )
     throw Object.assign(
       new Error("Unverified Claude Code protocol version: " + version.trim()),
       { code: "UNSUPPORTED_CLAUDE" },

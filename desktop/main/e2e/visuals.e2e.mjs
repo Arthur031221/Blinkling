@@ -190,16 +190,26 @@ for (const scale of [1, 1.5])
       );
       native(20, 20);
       await moveOn(c.page, scale);
-      const sizes = await c.page.evaluate(() =>
-        [...document.querySelectorAll(".action-bubble")].map((b) => ({
-          label: b.getAttribute("aria-label"),
-          font: parseFloat(
-            getComputedStyle(b.querySelector(".action-label") ?? b).fontSize,
-          ),
-          icon: b.querySelector("svg")?.getBoundingClientRect().width ?? 0,
-        })),
-      );
-      expect(sizes).toHaveLength(4);
+      const measure = () =>
+        c.page.evaluate(() =>
+          [...document.querySelectorAll(".action-bubble")]
+            .filter((b) => !b.hidden)
+            .map((b) => ({
+              label: b.getAttribute("aria-label"),
+              font: parseFloat(
+                getComputedStyle(b.querySelector(".action-label") ?? b)
+                  .fontSize,
+              ),
+              icon: b.querySelector("svg")?.getBoundingClientRect().width ?? 0,
+            })),
+        );
+      // The fan has opened once every icon has reached its full size.
+      await expect
+        .poll(async () => Math.min(...(await measure()).map((s) => s.icon)))
+        .toBeGreaterThanOrEqual(20);
+      const sizes = await measure();
+      // The Close bubble needs a display tall enough for five.
+      expect(sizes).toHaveLength(scale === 1 ? 5 : 4);
       for (const s of sizes) {
         expect(s.font, s.label).toBeGreaterThanOrEqual(13);
         expect(s.icon, s.label).toBeGreaterThanOrEqual(20);

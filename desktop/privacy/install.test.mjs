@@ -419,3 +419,16 @@ test("MV-2: the privacy and pick test hooks coexist, whichever installs first, a
     else process.env.BLINKLING_E2E = before;
   }
 });
+
+test("a session that cannot start is one bubble naming the fix, said again only for a new reason", async () => {
+  const r = rig();
+  r.emit({ type: "session-problem", code: "failed" });
+  r.emit({ type: "session-problem", code: "failed" });
+  r.emit({ type: "session-problem", code: "UNSUPPORTED_CLAUDE" });
+  const says = r.sent.filter((e) => e.type === "blink-say");
+  assert.equal(says.length, 3);
+  assert.equal(says[0].id, says[1].id);
+  assert.match(says[0].text, /blinkling\.log/);
+  assert.match(says[2].text, /claude update/);
+  r.privacy.dispose();
+});

@@ -54,6 +54,7 @@ import { installWelcome } from "../welcome/install.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
 import { systemLocale } from "../shared/i18n.mjs";
 import { createGuideOffer, SAVE_ACTION } from "../guides/offer.mjs";
+import { armQuitWatchdog } from "./quit.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -125,12 +126,13 @@ const cursor = cursorSource({
   fallback: () => screen.getCursorScreenPoint(),
   toDip: (point) => screen.screenToDipPoint(point),
 });
-// The menu has four bubbles (N2.1); the capture, guide and auto explain
+// The menu has four bubbles (N2.1) and Close; the capture, guide and auto explain
 // buttons reach the feature actions behind them.
 const actions = new Set([
   "guide",
   "auto-explain",
   "settings",
+  "quit",
   ...featureActions,
 ]);
 const escapeKeys = createEscapeKeys({ shortcuts: globalShortcut });
@@ -832,6 +834,10 @@ const companionHost = await startDesktopHost({
   onShutdown: () => app.quit(),
 });
 globalThis.blinklingCompanion = companionHost;
+// Opening Blink again while it runs brings it forward instead of doing nothing.
+app.on("second-instance", () => {
+  if (!blink.isDestroyed()) blink.showInactive();
+});
 const visualMasks = () =>
   surfaces()
     .filter((w) => w.isVisible())
@@ -1039,6 +1045,11 @@ const settings = installSettings({
   },
 });
 extraWindows.push(welcome.test.win, settings.test.win);
+// Close ends Blinkling, as the end of its session does.
+registerAction("quit", async () => {
+  setImmediate(() => app.quit());
+  return { ok: true };
+});
 registerAction("settings", async () => {
   await settings.open();
   return { ok: true };
@@ -1065,7 +1076,11 @@ if (
     process.env.BLINKLING_TEST_SESSION === "manual"
   )
 )
-  void session.connect().catch(() => {});
+  void session.connect().catch((error) => {
+    console.error(
+      `Blinkling: the session did not start: ${error?.message ?? error}`,
+    );
+  });
 // The first start opens the welcome; end-to-end runs skip it unless asked.
 if (process.env.BLINKLING_E2E !== "1" || process.env.BLINKLING_WELCOME === "1")
   void welcome.openFirstTime();
@@ -1139,12 +1154,15 @@ app.on("before-quit", (event) => {
   quitting = true;
   if (disposed) return;
   event.preventDefault();
+  // Disposal may hang on a stuck session or helper; Quit still has to work.
+  const cancelWatchdog = armQuitWatchdog(() => app.exit(0));
   features.dispose();
   Promise.allSettled([
     session.dispose(),
     companionHost.close(),
     realLocator.close(),
   ]).finally(() => {
+    cancelWatchdog();
     disposed = true;
     app.quit();
   });
