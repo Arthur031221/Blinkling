@@ -11,6 +11,7 @@ export default tseslint.config(
       "assets/**",
       "public/assets/blink.js",
       "bridge/dist/**",
+      "desktop/locator/native/**",
       "coverage/**",
     ],
   },
