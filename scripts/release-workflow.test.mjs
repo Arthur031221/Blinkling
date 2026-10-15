@@ -69,7 +69,7 @@ describe("the release workflow", () => {
     const copy = step.indexOf(
       "cp release/desktop-assets/manifest.json plugin/desktop/manifest.json",
     );
-    const build = step.indexOf("node scripts/build-plugin.mjs");
+    const build = step.indexOf("npm run build:plugin");
     const add = step.indexOf("git add plugin/desktop/manifest.json bin");
     const commit = step.indexOf("git commit");
     expect(copy).toBeGreaterThan(-1);
@@ -86,7 +86,7 @@ describe("the release workflow", () => {
       release.indexOf("Dry-run the pin"),
       release.indexOf("publish:"),
     );
-    expect(dry).toContain("node scripts/build-plugin.mjs");
+    expect(dry).toContain("npm run build:plugin");
     expect(dry).toContain("--resolve linux/x64");
   });
 
