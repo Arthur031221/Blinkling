@@ -1,6 +1,6 @@
 <h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg" /><img src="assets/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
-<p align="center"><strong>답을 읽고 있는 페이지 곁에.</strong></p>
+<p align="center"><strong>Blink는 화면 구석에 삽니다. Ctrl을 누른 채 클릭하면 답이 옵니다.</strong></p>
 
 <p align="center">
   <a href="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -12,14 +12,11 @@
 
 Formerly Glimpselet. 이전 플러그인을 쓰고 있다면 `/plugin uninstall glimpselet@glimpselet` 과 `/plugin marketplace remove glimpselet` 를 실행한 뒤 아래 단계로 Blinkling 을 설치하세요.
 
-작은 Claude Code 플로팅 채팅입니다. 페이지를 질문하고, 영역을 캡처하고, 가이드를 따라가거나 문장을 번역하세요.
+Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 둡니다. 궁금한 것을 **Ctrl**(macOS에서는 Control)을 누른 채 클릭하거나, 드래그해서 영역을 선택하세요. 선택한 내용이 Blink로 날아가고, 질문하면 답이 말풍선으로 돌아와 이야기하는 곳을 가리킵니다.
 
-> [!TIP]
-> 로그인한 본인 Claude Code 계정과 데스크톱 Chrome 또는 Edge를 사용합니다. Claude Code에는 API 키가 필요 없습니다.
+> **설계부터 안전합니다:** Blinkling은 보고 설명만 합니다. 클릭하거나 입력하거나 앱을 조작하지 않습니다.
 
-![Google Flights: 페이지 가이드를 보고 왕복 항공편 예약을 질문합니다.](assets/demo.gif)
-
-_Google Flights: 페이지 가이드를 보고 왕복 항공편 예약을 질문합니다._
+이 컴퓨터에 로그인된 Claude Code를 사용합니다.
 
 ## 설치
 

@@ -1,6 +1,6 @@
 <h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg" /><img src="assets/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
-<p align="center"><strong>Keep the answer beside the page.</strong></p>
+<p align="center"><strong>Blink lives in the corner of your screen. Hold Ctrl, click anything, get the answer.</strong></p>
 
 <p align="center">
   <a href="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -12,14 +12,11 @@
 
 Formerly Glimpselet. Coming from the old plugin? Run `/plugin uninstall glimpselet@glimpselet` and `/plugin marketplace remove glimpselet`, then install Blinkling below.
 
-A small floating Claude Code chat. Ask about a page, capture an area, follow a guide, or translate a passage.
+Blinkling puts Blink, a small green companion, in the corner of your screen, above every app. Hold **Ctrl** (Control on macOS) and click anything you want to ask about, or drag to take an area. It flies into Blink, you ask, and the answer comes back as bubbles that point at what they talk about.
 
-> [!TIP]
-> Use your own signed-in Claude Code account and desktop Chrome or Edge. No API key is needed for Claude Code.
+> **Safe by design:** Blinkling only looks and explains. It never clicks, types or controls your apps.
 
-![Google Flights: a page guide, then a question about booking a round trip.](assets/demo.gif)
-
-_Google Flights: a page guide, then a question about booking a round trip._
+Uses the Claude Code you are already signed in to on this computer.
 
 ## Install
 

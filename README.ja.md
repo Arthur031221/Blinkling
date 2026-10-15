@@ -1,6 +1,6 @@
 <h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg" /><img src="assets/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
-<p align="center"><strong>答えを、読んでいるページのそばに。</strong></p>
+<p align="center"><strong>Blink は画面の隅に住んでいます。Ctrl を押しながらクリックすれば、答えが返ってきます。</strong></p>
 
 <p align="center">
   <a href="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -12,14 +12,11 @@
 
 Formerly Glimpselet。旧プラグインをお使いの方は、`/plugin uninstall glimpselet@glimpselet` と `/plugin marketplace remove glimpselet` を実行してから、下の手順で Blinkling をインストールしてください。
 
-小さな Claude Code のフローティングチャット。ページについて質問し、範囲をキャプチャし、ガイドをたどり、文章を翻訳できます。
+Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべてのアプリの上に表示します。聞きたいものを **Ctrl**（macOS では Control）を押しながらクリックするか、ドラッグして範囲を選びます。選んだものは Blink に飛び込み、質問すると、答えは吹き出しで返り、話している場所を指し示します。
 
-> [!TIP]
-> ログイン済みの自分の Claude Code アカウントと、デスクトップ版 Chrome または Edge を使います。Claude Code に API キーは不要です。
+> **安全な設計：** Blinkling は見て説明するだけ。クリックや入力、アプリの操作は一切しません。
 
-![Google Flights：ページガイドを表示し、往復便の予約について質問。](assets/demo.gif)
-
-_Google Flights：ページガイドを表示し、往復便の予約について質問。_
+このコンピュータでログイン済みの Claude Code を使います。
 
 ## インストール
 

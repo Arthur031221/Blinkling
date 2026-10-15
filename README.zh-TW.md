@@ -1,6 +1,6 @@
 <h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg" /><img src="assets/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
-<p align="center"><strong>讓答案留在頁面旁邊。</strong></p>
+<p align="center"><strong>Blink 住在螢幕角落。按住 Ctrl 點一下，答案就來。</strong></p>
 
 <p align="center">
   <a href="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -12,14 +12,11 @@
 
 Formerly Glimpselet。從舊外掛升級？請執行 `/plugin uninstall glimpselet@glimpselet` 與 `/plugin marketplace remove glimpselet`，再照下方步驟安裝 Blinkling。
 
-一個小巧的 Claude Code 浮動聊天視窗。詢問頁面、擷取區域、跟著導覽，或翻譯一段文字。
+Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。按住 **Ctrl**（macOS 為 Control）點一下想問的東西，或拖曳框出一個區域。內容會飛進 Blink，你開口問，答案以對話泡泡回來，並指出它說的是哪裡。
 
-> [!TIP]
-> 使用你已登入的 Claude Code 帳號，以及桌面版 Chrome 或 Edge。使用 Claude Code 不需要 API 金鑰。
+> **設計上就安全：** Blinkling 只看和解說，絕不替你點擊、打字或操作任何程式。
 
-![Google Flights：先看頁面導覽，再詢問如何預訂來回航班。](assets/demo.gif)
-
-_Google Flights：先看頁面導覽，再詢問如何預訂來回航班。_
+使用這台電腦上你已登入的 Claude Code。
 
 ## 安裝
 
