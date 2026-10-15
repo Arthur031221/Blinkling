@@ -138,3 +138,51 @@ describe("docs/FEATURES.md", () => {
         assert.deepEqual(occurrences(symbol), [], `${symbol} still present`);
     });
 });
+
+// The menu rows are checked against the real menu definition and the action
+// registry, not only against files that happen to exist.
+describe("docs/FEATURES.md menu rows", async () => {
+  const { menuActions } = await import("../desktop/menu/index.mjs");
+  const { featureActions } = await import("../desktop/capture/integration.mjs");
+  const menuRows = table().filter((row) =>
+    ticks(row.entry).some((entry) =>
+      entry.startsWith("desktop/menu/index.mjs"),
+    ),
+  );
+  const ids = menuRows.map((row) => ticks(row.entry)[0].split("::")[1]);
+  const shell = read("desktop/main/shell.mjs");
+
+  it("has one row per menu bubble, in the menu's order", () => {
+    assert.deepEqual(
+      ids,
+      menuActions.map((action) => action.id),
+    );
+  });
+
+  it("keeps every menu row secondary", () => {
+    for (const row of menuRows)
+      assert.equal(row.tier, "secondary", row.feature);
+  });
+
+  for (const { id } of menuActions)
+    it(`menu action "${id}" is registered in the action registry`, () => {
+      assert.ok(
+        featureActions.has(id) || shell.includes(`registerAction("${id}"`),
+        `${id} has no handler`,
+      );
+    });
+
+  it("claims nothing for settings that the settings action does not do", () => {
+    const settings = menuRows.find((row) => row.entry.includes("::settings"));
+    assert.ok(settings);
+    // The settings action only opens the conversation card; hotkey, pick key,
+    // welcome replay and About rows are not built, so no row may promise them.
+    assert.doesNotMatch(settings.why, /About|replay|pick key|hotkey/i);
+    for (const row of table().filter((row) => row.tier !== "removed"))
+      assert.doesNotMatch(
+        row.feature,
+        /\bAbout\b|welcome replay/i,
+        row.feature,
+      );
+  });
+});

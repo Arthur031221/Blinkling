@@ -3,11 +3,6 @@
   src: url("assets/Inter.ttf") format("truetype");
   font-display: swap;
 }
-@font-face {
-  font-family: Fraunces;
-  src: url("assets/Fraunces.ttf") format("truetype");
-  font-display: swap;
-}
 :root {
   color-scheme: light dark;
   --paper: #f7f3ec;
@@ -86,8 +81,7 @@ section {
 h1,
 h2,
 h3 {
-  font-family: Fraunces, Georgia, serif;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.1;
 }
 h1 {
@@ -122,37 +116,22 @@ h3 {
   border-radius: 8px;
   text-decoration: none;
 }
-.hint,
-figcaption {
+.hint {
   font-size: 13px;
   color: var(--muted);
 }
-.screens,
 .features {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
-.screens {
+.hero .features {
+  grid-template-columns: repeat(3, 1fr);
   margin-top: 36px;
-}
-figure {
-  margin: 0;
-  min-width: 0;
 }
 img {
   max-width: 100%;
   height: auto;
-}
-figure img,
-article img {
-  display: block;
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-figcaption {
-  margin-top: 10px;
 }
 .install-steps {
   display: grid;
@@ -186,11 +165,10 @@ pre {
   margin-top: 0;
 }
 .features p,
-.limits p {
-  color: var(--muted);
-}
 .limits {
   max-width: 840px;
+  margin-top: 32px;
+  color: var(--muted);
 }
 footer {
   padding: 28px 0;
@@ -226,8 +204,8 @@ footer {
   section {
     padding: 40px 0;
   }
-  .screens,
   .features,
+  .hero .features,
   .install-steps {
     grid-template-columns: 1fr;
   }

@@ -10,7 +10,7 @@
     {
       "name": "blinkling",
       "source": "./",
-      "description": "A local floating screen companion"
+      "description": "Blink, a small desktop screen companion"
     }
   ]
 }
