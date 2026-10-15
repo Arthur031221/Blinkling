@@ -68,6 +68,24 @@ try {
     const log = join(home, ".blinkling", "runtime", "blinkling.log");
     const printed = await readFile(log, "utf8").catch(() => "(no log)");
     console.error(`--- what Blink printed while starting ---\n${printed}`);
+    if (process.platform === "darwin") {
+      const app = join(home, "Applications", "Blinkling.app");
+      const run = (command) => {
+        try {
+          return execFileSync("/bin/sh", ["-c", command], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+          });
+        } catch (error) {
+          return `${error.stdout || ""}${error.stderr || ""}`;
+        }
+      };
+      console.error(
+        `--- the installed app ---\n${run(
+          `cd "${app}/Contents" && find . -name 'icudtl*' | head; ls -l Frameworks "Frameworks/Electron Framework.framework" "Frameworks/Electron Framework.framework/Versions" | head -40; codesign -dvv "${app}" 2>&1 | head -12`,
+        )}`,
+      );
+    }
     throw new Error(`start.mjs exited with ${code}`);
   }
 
