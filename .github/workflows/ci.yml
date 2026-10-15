@@ -28,6 +28,10 @@ jobs:
           sudo apt-get install -y ffmpeg xvfb xfwm4 x11-utils x11-xserver-utils dbus-daemon
       - run: npm install --global @anthropic-ai/claude-code@2.1.296
       - run: npm run check:name
+      - name: Check the wordmark kit
+        run: |
+          python3 -m pip install fonttools uharfbuzz cairosvg
+          npm run check:brand
       - run: npm run lint
       - run: npm run format:check
       - run: npm test

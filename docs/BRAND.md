@@ -6,15 +6,15 @@ from it, and `scripts/check-brand.mjs` (run in CI) fails when they disagree.
 
 ## Which file to use
 
-| File | Use it for |
-| --- | --- |
-| `wordmark-light.svg` | Light backgrounds where SVG animates: README headers (`<picture>`), the docs site, web pages. |
-| `wordmark-dark.svg` | Dark backgrounds, same places. |
-| `wordmark-light-static.svg`, `wordmark-dark-static.svg` | Places that do not animate or must hold still: store tiles, slides, email, PDFs, small sizes. |
-| `wordmark-light.png`, `wordmark-dark.png` | Where SVG is not accepted: social cards, release banners, app store uploads, chat apps. Transparent, 3x. |
-| `wordmark-parts.json` | Anything that draws the name in code. The app's shared Wordmark component and the Blinkling Reels read it; nothing else draws the name. |
-| `wm.py`, `build.py`, `kit.py` | The generator. `python kit.py OUTDIR` rebuilds all of the above. Needs `pip install fonttools uharfbuzz cairosvg`. |
-| `DynaPuff[wdth,wght].ttf`, `DynaPuff-OFL.txt` | The font and its license, kept next to the generator so it runs from a clean checkout. |
+| File                                                    | Use it for                                                                                                                              |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `wordmark-light.svg`                                    | Light backgrounds where SVG animates: README headers (`<picture>`), the docs site, web pages.                                           |
+| `wordmark-dark.svg`                                     | Dark backgrounds, same places.                                                                                                          |
+| `wordmark-light-static.svg`, `wordmark-dark-static.svg` | Places that do not animate or must hold still: store tiles, slides, email, PDFs, small sizes.                                           |
+| `wordmark-light.png`, `wordmark-dark.png`               | Where SVG is not accepted: social cards, release banners, app store uploads, chat apps. Transparent, 3x.                                |
+| `wordmark-parts.json`                                   | Anything that draws the name in code. The app's shared Wordmark component and the Blinkling Reels read it; nothing else draws the name. |
+| `wm.py`, `build.py`, `kit.py`                           | The generator. `python kit.py OUTDIR` rebuilds all of the above. Needs `pip install fonttools uharfbuzz cairosvg`.                      |
+| `DynaPuff[wdth,wght].ttf`, `DynaPuff-OFL.txt`           | The font and its license, kept next to the generator so it runs from a clean checkout.                                                  |
 
 The app, tray and extension icons are Blink, not the wordmark.
 
