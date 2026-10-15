@@ -19559,7 +19559,11 @@ async function launchDesktop(options = {}) {
       const target = (0, import_node_path5.join)(applications, "Blinkling.app"), stage = `${target}.staging`;
       macPrevious = `${target}.previous`;
       await (0, import_promises5.rm)(stage, { recursive: true, force: true });
-      await (0, import_promises5.cp)(source, stage, { recursive: true, dereference: false });
+      await (0, import_promises5.cp)(source, stage, {
+        recursive: true,
+        dereference: false,
+        verbatimSymlinks: true
+      });
       await (0, import_promises5.rm)(macPrevious, { recursive: true, force: true });
       try {
         await (0, import_promises5.rename)(target, macPrevious);
