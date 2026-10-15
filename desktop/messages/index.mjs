@@ -126,6 +126,12 @@ export function createMessageStream({
         });
         speaking = true;
         touch();
+      } else if (event.type === "reset") {
+        // A new chat (sixty quiet seconds after the last pick): the display starts empty.
+        messages.clear();
+        speaking = false;
+        visible = false;
+        clearTimer();
       } else if (event.type === "message") upsert(event);
       else if (event.type === "done") {
         for (const m of messages.values())

@@ -128,3 +128,19 @@ test("leaving Blink does not fade a hovered answer surface", () => {
   assert.equal(tasks.size, 1);
   s.dispose();
 });
+
+test("a reset event starts an empty chat and hides the bubbles", () => {
+  const s = createMessageStream();
+  s.accept({ type: "delta", id: "a", text: "Old answer. " });
+  s.accept({ type: "done" });
+  assert.equal(s.snapshot().length, 1);
+  let seen;
+  s.subscribe((state) => (seen = state));
+  s.accept({ type: "reset" });
+  assert.deepEqual(seen.messages, []);
+  assert.equal(seen.visible, false);
+  assert.equal(seen.speaking, false);
+  s.accept({ type: "delta", id: "b", text: "New. " });
+  assert.equal(s.snapshot().length, 1);
+  s.dispose();
+});

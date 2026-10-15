@@ -30,16 +30,27 @@ let mode = "crayon";
 let lastState = null;
 
 const local = (r) => ({ ...r, x: r.x - origin.x, y: r.y - origin.y });
-const matrix = (r) => `matrix(${r.width}, 0, 0, ${r.height}, ${r.x}, ${r.y})`;
 const place = (el, x, y) => (el.style.transform = `translate3d(${x}px, ${y}px, 0)`);
 
+/** What each of a box's five parts looks like around a rectangle. */
+const parts = (r) => ({
+  fill: `matrix(${r.width}, 0, 0, ${r.height}, ${r.x}, ${r.y})`,
+  top: `matrix(${r.width}, 0, 0, 1, ${r.x}, ${r.y - 1})`,
+  bottom: `matrix(${r.width}, 0, 0, 1, ${r.x}, ${r.y + r.height - 1})`,
+  left: `matrix(1, 0, 0, ${r.height}, ${r.x - 1}, ${r.y})`,
+  right: `matrix(1, 0, 0, ${r.height}, ${r.x + r.width - 1}, ${r.y})`,
+});
+
 /** Move a box to a new rectangle from wherever it currently is. */
-function moveBox(el, rect, animate) {
-  const next = matrix(rect);
-  const from = getComputedStyle(el).transform;
-  el.style.transform = next;
-  if (animate && from && from !== "none")
-    el.animate([{ transform: from }, { transform: next }], motion());
+function moveBox(box, rect, animate) {
+  const next = parts(rect);
+  for (const [name, transform] of Object.entries(next)) {
+    const el = box.querySelector(`.${name}`);
+    const from = getComputedStyle(el).transform;
+    el.style.transform = transform;
+    if (animate && from && from !== "none")
+      el.animate([{ transform: from }, { transform }], motion());
+  }
 }
 
 function fade(el, to, options = {}) {
@@ -78,7 +89,7 @@ function render(state) {
   }
   if (state.area) {
     area.hidden = false;
-    area.style.transform = matrix(local(state.area));
+    moveBox(area, local(state.area), false);
     area.style.opacity = "1";
   } else if (!area.hidden) {
     area.hidden = true;

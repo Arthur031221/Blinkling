@@ -18,36 +18,45 @@ body {
 #stage[data-active="false"] #badge {
   visibility: hidden;
 }
+/* A box is five plain elements, each moved by transform alone: the fill is
+ * scaled both ways, an edge only along its own length, so the line keeps its
+ * width at any size. */
 .box {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 1px;
-  height: 1px;
-  transform-origin: 0 0;
+  inset: 0;
   opacity: 0;
   pointer-events: none;
 }
-.box svg {
+.box > * {
+  position: absolute;
+  left: 0;
+  top: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  transform-origin: 0 0;
 }
-.box rect {
-  fill: color-mix(in srgb, var(--green) 12%, transparent);
-  stroke: var(--green);
-  stroke-width: 2px;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
+.box .fill {
+  width: 1px;
+  height: 1px;
+  background: color-mix(in srgb, var(--green) 12%, transparent);
 }
-#stage[data-locked="true"] .box rect {
-  fill: color-mix(in srgb, var(--warn) 12%, transparent);
-  stroke: var(--warn);
-  stroke-dasharray: 6 4;
+.box .edge {
+  background: var(--green);
 }
-#area rect {
-  stroke-dasharray: none;
+.box .top,
+.box .bottom {
+  width: 1px;
+  height: 2px;
+}
+.box .left,
+.box .right {
+  width: 2px;
+  height: 1px;
+}
+#stage[data-locked="true"] .box .fill {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+#stage[data-locked="true"] .box .edge {
+  background: var(--warn);
 }
 #effects {
   position: absolute;

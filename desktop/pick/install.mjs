@@ -12,7 +12,9 @@ import { defaultChip } from "./ask.mjs";
 import { createPickController } from "./controller.mjs";
 import { createKeySource } from "./keys-source.mjs";
 import { createPickKeys } from "./keys.mjs";
+import { blinkRect } from "./blink-rect.mjs";
 import { createLayers } from "./layer.mjs";
+import { createRaiser } from "./raise.mjs";
 import { pickText } from "./strings.mjs";
 
 const ATTACH_RETRY = 10;
@@ -64,6 +66,35 @@ function screenLocator(displayAt) {
   };
 }
 
+/** What the region overlay, hotkey and full-page capture hand over today is a
+ * capture record, not a Taken. Anything that already has a kind passes as is. */
+export function toTaken(capture, fallbackDisplay) {
+  if (capture?.kind && capture.bounds && capture.display) return capture;
+  const display = capture.display ?? fallbackDisplay;
+  const region = capture.region;
+  const whole = !region;
+  const rect = region ?? { x: 0, y: 0, width: display.bounds.width, height: display.bounds.height };
+  const full = rect.width >= display.bounds.width && rect.height >= display.bounds.height;
+  return {
+    kind: capture.kind ?? (whole || full ? "screen" : "area"),
+    source: capture.source ?? "capture",
+    bounds: {
+      x: display.bounds.x + rect.x,
+      y: display.bounds.y + rect.y,
+      width: rect.width,
+      height: rect.height,
+    },
+    display,
+    image: {
+      data: capture.image.data,
+      width: capture.pixelWidth ?? Math.round(rect.width * (display.scaleFactor ?? 1)),
+      height: capture.pixelHeight ?? Math.round(rect.height * (display.scaleFactor ?? 1)),
+    },
+    ...(capture.text ? { text: capture.text } : {}),
+    ...(capture.content ? { content: capture.content } : {}),
+  };
+}
+
 function loadState(path) {
   try {
     return { hinted: false, pdfOffered: false, ...JSON.parse(readFileSync(path, "utf8")) };
@@ -89,6 +120,7 @@ export function installPick({
   locale,
   parts = {},
   workAreaFor,
+  placement,
   now,
 } = {}) {
   const { screen } = electron;
@@ -122,6 +154,7 @@ export function installPick({
     ["locate", "elements", "parent", "selectionAt", "textIn", "focus"].map((n) => [n, delegate(n)]),
   );
 
+  let skew = 0;
   let reducedMotion = false;
   let hint = false;
   let cursor = null;
@@ -130,10 +163,20 @@ export function installPick({
   let hideTimer = null;
   let disposed = false;
 
+  const raiser = (parts.createRaiser ?? createRaiser)();
   const layers = makeLayers({
     electron,
+    raise: (windows) => raiser.raise(windows),
     onPointer: (event) => void controller.pointer(event),
   });
+
+  // Blink's window covers the display; where the character stands comes from
+  // the shell's placement.
+  const blinkArt = () => (placement ? blinkRect(placement()) : blink.getBounds());
+  const blinkCenter = () => {
+    const b = blinkArt();
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
 
   // ---- the screen grab -------------------------------------------------
   async function grab(rect, display) {
@@ -143,7 +186,7 @@ export function installPick({
     for (const w of covering) w.hide();
     try {
       await layers.blank(true);
-      const image = await screenImage(display);
+      const image = await (screenImage ?? (await import("../capture/index.mjs")).screenImage)(display);
       const size = image.getSize();
       const local = clamp(rect, display.bounds);
       const crop = cropGeometry(
@@ -168,7 +211,7 @@ export function installPick({
     guard,
     capture: grab,
     displayAt,
-    ...(now ? { now } : {}),
+    now: () => (now ? now() : Date.now()) + skew,
     onState: (state) => {
       layers.state({
         ...state,
@@ -184,6 +227,7 @@ export function installPick({
   // ---- the mini composer -----------------------------------------------
   const safeHost = {
     translatePage: async () => {
+      mark("offer-accepted", { id: "translate-page" });
       try {
         await host.translatePage?.();
       } catch (error) {
@@ -191,6 +235,7 @@ export function installPick({
       }
     },
     openPdfReader: async () => {
+      mark("offer-accepted", { id: "pdf" });
       try {
         await host.openPdfReader?.();
       } catch (error) {
@@ -220,7 +265,7 @@ export function installPick({
     electron,
     mini,
     locale,
-    blinkBounds: () => blink.getBounds(),
+    blinkBounds: blinkArt,
     workAreaFor:
       workAreaFor ?? ((rect) => screen.getDisplayMatching(rect).workArea),
     input,
@@ -261,8 +306,9 @@ export function installPick({
     return run;
   }
 
-  async function settle(taken, meta) {
+  async function settle(given, meta) {
     if (disposed) return;
+    const taken = toTaken(given, displayAt(blinkCenter()));
     const id = meta.id ?? crypto.randomUUID();
     const chat = controller.touchChat();
     if (chat.fresh && picks.length) {
@@ -283,11 +329,10 @@ export function installPick({
     playing++;
     try {
       if (!layers.shown) layers.show();
-      const b = blink.getBounds();
       await layers.play({
         taken,
         seed: seedOf(id),
-        blink: { x: b.x + b.width / 2, y: b.y + b.height / 2 },
+        blink: blinkCenter(),
         reducedMotion,
         text: { thisFrame: p("thisFrame") },
       });
@@ -366,6 +411,9 @@ export function installPick({
       useLocator: (next) => {
         source = next ?? screenLocator(displayAt);
       },
+      skew: (ms) => {
+        skew += ms;
+      },
       setReducedMotion: (value) => {
         reducedMotion = !!value;
       },
@@ -404,6 +452,7 @@ export function installPick({
       setLayer("mini", null);
       miniWindow.dispose();
       layers.dispose();
+      raiser.dispose();
     },
   };
 }

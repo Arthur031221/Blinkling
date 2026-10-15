@@ -33,6 +33,7 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { SessionBridge } from "../session/index.mjs";
 import { runFullPage } from "../capture/full-page.mjs";
+import { installPick } from "../pick/install.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -669,14 +670,8 @@ const visualMasks = () =>
         y: r.y + b.y - display.bounds.y,
       }));
     });
-const attachCapture = async (capture) => {
-  await openComposer();
-  // Only a capture re-claims the keyboard: the selector that just closed hands
-  // it back to the previous window, but a user click elsewhere must win.
-  claimKeyboard(composer);
-  composer.webContents.send("blinkling:capture", capture);
-  send({ type: "capture", capture });
-};
+// Every capture ends in Blink's mini composer (M3); the old card-first path is gone.
+const attachCapture = async (taken) => pick.deliver(taken);
 features = installCaptureGuide({
   blink,
   windows,
@@ -719,6 +714,65 @@ registerAction("companion-guide", async () => {
   }
   return { ok: true };
 });
+const pick = installPick({
+  blink,
+  guard: { allowed: () => true },
+  settings: { get: () => undefined, on: () => () => {} },
+  // The full composer takes the picks as attachments; the half-typed line stays
+  // with the composer card until it can accept a seed of its own.
+  composer: {
+    open: async ({ picks }) => {
+      await openComposer();
+      claimKeyboard(composer);
+      for (const [i, x] of picks.entries()) {
+        const capture = {
+          image: {
+            id: crypto.randomUUID(),
+            name: `Pick ${i + 1}.png`,
+            mediaType: "image/png",
+            data: x.image.data,
+          },
+          ...(x.text
+            ? {
+                text: {
+                  id: crypto.randomUUID(),
+                  name: `Picked text ${i + 1}.txt`,
+                  mediaType: "text/plain",
+                  data: Buffer.from(x.text, "utf8").toString("base64"),
+                },
+              }
+            : {}),
+        };
+        composer.webContents.send("blinkling:capture", capture);
+        send({ type: "capture", capture });
+      }
+    },
+  },
+  autoExplain: {
+    enabled: () => autoExplain,
+    pause: async () => {
+      if (!autoExplain) return;
+      const result = await dispatchAction("auto-explain", {
+        display,
+        windows: windows(),
+        enabled: false,
+      });
+      if (result.ok) {
+        autoExplain = false;
+        broadcast();
+      }
+    },
+  },
+  session,
+  send,
+  electron: { BrowserWindow, ipcMain, screen },
+  host: {},
+  input,
+  placement: () => ({ display, position, revealed: false }),
+  statePath: join(app.getPath("userData"), "pick.json"),
+  locale: app.getLocale(),
+});
+app.on("before-quit", () => pick.dispose());
 if (
   !(
     process.env.BLINKLING_E2E === "1" &&

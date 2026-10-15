@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { installPick } from "./install.mjs";
+import { blinkRect } from "./blink-rect.mjs";
 import { createLocatorStub, display, element } from "./test/locator-stub.mjs";
 
 const pdfWindow = { id: "w2", title: "Report.pdf - Browser", app: "browser", bounds: display.bounds };
@@ -17,6 +18,8 @@ function rig(options = {}) {
   const log = [];
   const sent = [];
   const events = [];
+  const plays = [];
+  let miniArgs = null;
   let t = 1_000_000;
   const layers = {
     shown: false,
@@ -31,6 +34,7 @@ function rig(options = {}) {
     state: (s) => log.push(`state:${s.active ? "active" : "idle"}${s.hint ? ":hint" : ""}`),
     blank: async () => {},
     play: async (message) => {
+      plays.push(message);
       log.push(`play:${message.taken.kind}`);
       await options.playGate;
     },
@@ -87,12 +91,13 @@ function rig(options = {}) {
       openPdfReader: async () => log.push("pdf-reader"),
     },
     input: { restoreFocus: () => log.push("restore-focus"), rememberFocus: async () => {} },
+    placement: options.placement,
     statePath: join(dir, "pick.json"),
     locale: "en",
     now: () => t,
     parts: {
       createLayers: () => layers,
-      createMiniWindow: () => miniWindow,
+      createMiniWindow: (args) => ((miniArgs = args), miniWindow),
       createKeySource: async () => ({
         available: true,
         subscribe: (handler) => (keyHandlers.add(handler), () => keyHandlers.delete(handler)),
@@ -106,6 +111,8 @@ function rig(options = {}) {
     sent,
     events,
     layers,
+    plays,
+    miniArgs: () => miniArgs,
     dir,
     key,
     settingsHandlers,
@@ -164,6 +171,16 @@ test("a pick flies into Blink before the mini composer opens with its chip", asy
   await r.pick.deliver(taken(), { id: "a" });
   const order = r.log.filter((l) => /^(play|blink|mini-show)/.test(l));
   assert.deepEqual(order, ["play:text", "blink:blinkling:catch", "mini-show"]);
+});
+
+test("the flight lands in Blink's art and the mini sits by it, not by the display-wide window", async () => {
+  const position = { edge: "right", peek: { x: 1280, y: 640 }, reveal: { x: 1190, y: 640 } };
+  const r = rig({ placement: () => ({ display, position }) });
+  await r.pick.ready;
+  await r.pick.deliver(taken(), { id: "a" });
+  const art = blinkRect({ display, position });
+  assert.deepEqual(r.plays[0].blink, { x: art.x + art.width / 2, y: art.y + art.height / 2 });
+  assert.deepEqual(r.miniArgs().blinkBounds(), art);
 });
 
 test("a pick after sixty quiet seconds starts a new chat and drops the old picks", async () => {
@@ -293,4 +310,27 @@ test("changing the pick key in settings takes effect at once", async () => {
   await tick(300);
   assert.ok(r.log.includes("layers-show"));
   r.key("keyup", "option", 56);
+});
+
+test("a legacy capture record from the overlay or hotkey is delivered like a pick", async () => {
+  const r = rig();
+  await r.pick.ready;
+  await r.pick.deliver({
+    image: { id: "shot", name: "capture.png", mediaType: "image/png", data: "AAAA" },
+    region: { x: 40, y: 50, width: 300, height: 200 },
+    display,
+    pixelWidth: 600,
+    pixelHeight: 400,
+  });
+  assert.ok(r.log.includes("play:area"));
+  assert.ok(r.log.includes("blink:blinkling:catch"));
+  const [pick] = r.pick.mini.state().picks;
+  assert.equal(pick.kind, "area");
+});
+
+test("a capture with no region is the whole screen", async () => {
+  const r = rig();
+  await r.pick.ready;
+  await r.pick.deliver({ image: { data: "AAAA" } });
+  assert.ok(r.log.includes("play:screen"));
 });

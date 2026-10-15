@@ -8,7 +8,7 @@ import { FLIGHT_MS } from "./flight.mjs";
 const BLANK_TIMEOUT = 500;
 const here = (name) => fileURLToPath(new URL(name, import.meta.url));
 
-export function createLayers({ electron, onPointer = () => {} }) {
+export function createLayers({ electron, onPointer = () => {}, raise }) {
   const { BrowserWindow, screen, ipcMain } = electron;
   const layers = new Map(); // display id -> { win, display }
   let shown = false;
@@ -117,6 +117,7 @@ export function createLayers({ electron, onPointer = () => {} }) {
     show() {
       shown = true;
       for (const l of live()) if (!l.win.isVisible()) l.win.showInactive();
+      raise?.(live().map((l) => l.win));
     },
     hide() {
       shown = false;
