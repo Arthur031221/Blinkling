@@ -39,9 +39,7 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
     const samplePoint = () =>
       page.evaluate(() => {
-        const r = document
-          .querySelector('rect[fill="#3ddc97"]')
-          .getBoundingClientRect();
+        const r = document.querySelector(".blink-body").getBoundingClientRect();
         return {
           x: Math.round(r.x + r.width * 0.2),
           y: Math.round(r.y + r.height * 0.72),

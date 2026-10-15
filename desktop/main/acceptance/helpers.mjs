@@ -2,14 +2,12 @@ import { expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
-import { move, click, report } from "./support.mjs";
+import { move, click, report, bodyBox } from "./support.mjs";
 export async function reveal(page, scale = 1) {
   await page.waitForFunction(() => window.desktop.inspect().anchor);
   await page.waitForTimeout(100);
   const point = await page.evaluate(() => {
-    const rect = document
-      .querySelector('rect[fill="#3ddc97"]')
-      .getBoundingClientRect();
+    const rect = document.querySelector(".blink-body").getBoundingClientRect();
     return {
       x: Math.max(8, Math.min(innerWidth - 8, rect.x + rect.width * 0.35)),
       y: Math.max(8, Math.min(innerHeight - 8, rect.y + rect.height * 0.72)),
@@ -18,7 +16,7 @@ export async function reveal(page, scale = 1) {
   move(point.x * scale, point.y * scale);
   await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
   await page.waitForTimeout(650);
-  const active = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+  const active = await bodyBox(page);
   move(
     (active.x + active.width * 0.35) * scale,
     (active.y + active.height * 0.72) * scale,
@@ -33,7 +31,7 @@ export async function clickButton(page, label, scale = 1) {
 }
 /** A real click on Blink's body: the one gesture that opens the composer (N5.1). */
 export async function clickBlink(page, scale = 1) {
-  const r = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+  const r = await bodyBox(page);
   click((r.x + r.width * 0.35) * scale, (r.y + r.height * 0.72) * scale);
 }
 /** The bubble for an action, whatever language the system speaks. */

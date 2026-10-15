@@ -225,17 +225,45 @@ export const pixel = (image, x, y) =>
       (Math.round(y) * image.width + Math.round(x)) * 4 + 3,
     ),
   );
+/** A point on the part of Blink that can be seen and grabbed: where a hand
+ * would go on a standing Blink, or the nearest visible spot when the rest of it
+ * is behind a screen edge. */
 export async function rigPoint(page) {
   return page.evaluate(() => {
-    const r = document
-      .querySelector('rect[fill="#3ddc97"]')
-      .getBoundingClientRect();
-    return {
+    const body = document.querySelector(".blink-body");
+    const r = body.getBoundingClientRect();
+    const want = {
       x: r.x + r.width * (r.x < 0 ? 0.8 : 0.2),
       y: r.y + r.height * 0.72,
     };
+    const shows = (x, y) =>
+      x > 2 &&
+      y > 2 &&
+      x < innerWidth - 2 &&
+      y < innerHeight - 2 &&
+      document.elementsFromPoint(x, y).includes(body);
+    if (shows(want.x, want.y)) return want;
+    let best = null;
+    for (let i = 0; i <= 16; i++)
+      for (let j = 0; j <= 16; j++) {
+        const x = r.x + (r.width * i) / 16,
+          y = r.y + (r.height * j) / 16;
+        if (!shows(x, y)) continue;
+        const d = Math.hypot(x - want.x, y - want.y);
+        if (!best || d < best.d) best = { x, y, d };
+      }
+    return best ? { x: best.x, y: best.y } : want;
   });
 }
+/** Where Blink's body is drawn, in page pixels. An SVG shape has no CSS box, so
+ * the page measures it instead of asking Playwright. */
+export const bodyBox = (page) =>
+  page.evaluate(() => {
+    const { x, y, width, height } = document
+      .querySelector(".blink-body")
+      .getBoundingClientRect();
+    return { x, y, width, height };
+  });
 export async function moveOn(page, scale = 1) {
   const p = await rigPoint(page);
   native(p.x * scale, p.y * scale);

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PNG } from "pngjs";
 import { launch, nativeClick } from "./support.mjs";
-import { native, desktopShot, report } from "../main/e2e/support.mjs";
+import { native, desktopShot, report, bodyBox } from "../main/e2e/support.mjs";
 
 test("native menu screenshot reaches the composer and the shared answer session", async () => {
   test.setTimeout(120000);
@@ -34,7 +34,7 @@ test("native menu screenshot reaches the composer and the shared answer session"
     native(30, 30);
     await page.waitForFunction(() => window.desktop.inspect().anchor);
     await desktopShot(app, "integrated-blink-peek");
-    const point = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+    const point = await bodyBox(page);
     native(
       Math.round(Math.min(1272, point.x + point.width * 0.2)),
       Math.round(point.y + point.height * 0.72),

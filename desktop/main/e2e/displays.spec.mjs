@@ -3,7 +3,14 @@ import { execFileSync } from "../e2e/exec.mjs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { launch, native, rigPoint, desktopShot, report } from "./support.mjs";
+import {
+  launch,
+  native,
+  rigPoint,
+  bodyBox,
+  desktopShot,
+  report,
+} from "./support.mjs";
 const randr = (...args) => execFileSync("xrandr", args);
 const state = (c) => c.app.evaluate(() => globalThis.blinklingTest.snapshot());
 async function hover(c) {
@@ -90,7 +97,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
     expect(card.x).toBeGreaterThanOrEqual(0);
     expect(card.x + card.width).toBeLessThanOrEqual(1280);
     await c.page.waitForTimeout(550);
-    const body = await c.page.locator('rect[fill="#3ddc97"]').boundingBox();
+    const body = await bodyBox(c.page);
     expect(body.x + body.width).toBeLessThan(card.x);
     await desktopShot(c.app, "display-removed-pinned-card");
     randr("--output", "DUMMY0", "--mode", "800x600");
@@ -111,7 +118,7 @@ test("native RandR hotplug, cross-display dragging, per-display restart and reso
         return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
       }),
     );
-    expect(bounds).toHaveLength(4);
+    expect(bounds).toHaveLength(5);
     expect(
       bounds.every(
         (r) => r.x >= 0 && r.y >= 0 && r.right <= 800 && r.bottom <= 600,
@@ -219,7 +226,7 @@ for (const [edge, y] of [
         })
         .filter((r) => r.width > 0 && r.height > 0);
       expect(boxes.length).toBeGreaterThan(2);
-      const body = await c.page.locator('rect[fill="#3ddc97"]').boundingBox();
+      const body = await bodyBox(c.page);
       const blink = {
         x: s.display.bounds.x + body.x,
         y: s.display.bounds.y + body.y,
@@ -242,7 +249,7 @@ for (const [edge, y] of [
           }),
         )
       ).map((r) => ({ ...r, x: d.x + r.x, y: d.y + r.y }));
-      expect(fan).toHaveLength(4);
+      expect(fan).toHaveLength(5);
       for (const r of boxes)
         for (const pill of fan)
           expect(

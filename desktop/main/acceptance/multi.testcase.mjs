@@ -2,12 +2,12 @@ import { test, expect } from "@playwright/test";
 import { execFileSync } from "../../main/e2e/exec.mjs";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { launch, native, report } from "./support.mjs";
+import { launch, native, report, bodyBox } from "./support.mjs";
 test("real RandR outputs: drag between displays, save both positions, remove and restore display", async () => {
   const { app, page, data } = await launch();
   const reveal = async () => {
     const state = await page.evaluate(() => window.desktop.inspect());
-    const body = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+    const body = await bodyBox(page);
     const area = state.shell.workArea;
     native([
       {

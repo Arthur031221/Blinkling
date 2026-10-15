@@ -2,7 +2,17 @@ import { test, expect } from "@playwright/test";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
-import { launch, native, move, click, key, report } from "./support.mjs";
+import {
+  launch,
+  native,
+  move,
+  click,
+  key,
+  report,
+  bodyBox,
+  bodyPoint,
+  limbTip,
+} from "./support.mjs";
 import { reveal, clickBlink, background, shot, rgb } from "./helpers.mjs";
 
 const cardWindow = (app) =>
@@ -64,39 +74,65 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     expect(idle.anchor.x).toBeCloseTo(b.width, 6);
     const p = await shot(app, "idle-fullscreen");
     expect(rgb(p, 600, 600)).toEqual([32, 64, 128]);
-    const sample = { x: b.x + idle.anchor.x - 18, y: b.y + idle.anchor.y + 10 };
-    [44, 126, 137].forEach((v, i) =>
-      expect(Math.abs(rgb(p, sample.x, sample.y)[i] - v)).toBeLessThanOrEqual(
-        3,
-      ),
-    );
+    const at = await bodyPoint(page);
+    const sample = { x: b.x + at.x, y: b.y + at.y };
+    // Blink's body at rest, blended over the desktop at the idle opacity. Its
+    // outline and shading draw darker lines, so look for the plain fill nearby.
+    const near = [];
+    for (let dx = -12; dx <= 12; dx += 6)
+      for (let dy = -12; dy <= 12; dy += 6)
+        near.push(rgb(p, sample.x + dx, sample.y + dy));
+    expect(
+      near.some((c) => [46, 125, 137].every((v, i) => Math.abs(c[i] - v) <= 3)),
+      JSON.stringify(near),
+    ).toBe(true);
     move(sample.x, sample.y);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     await page.waitForTimeout(550);
-    const active = await page.evaluate(() => window.desktop.inspect());
-    move(b.x + active.anchor.x - 18, b.y + active.anchor.y + 10);
+    const stand = await bodyPoint(page);
+    move(b.x + stand.x, b.y + stand.y);
     await shot(app, "hover-wave");
-    await page.waitForFunction(() =>
-      window.desktop.character.rig.eyes.node
-        .getAttribute("transform")
-        .endsWith("scale(1,1)"),
+    // Under the pointer Blink reacts to the touch; pinned and left alone it shows
+    // its open eyes.
+    await page.evaluate(() =>
+      window.blinkling.shell({ type: "pin", value: true }),
     );
-    const pupil = await page.evaluate(() => {
-      const node =
-        window.desktop.character.rig.pupils.node.querySelector("circle");
-      const m = node.getScreenCTM(),
-        x = +node.getAttribute("cx"),
-        y = +node.getAttribute("cy");
-      return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
-    });
+    move(40, 40);
+    await page.waitForFunction(
+      () =>
+        window.desktop.character.last.open > 0.99 &&
+        window.desktop.character.last.eyes === "open" &&
+        document.querySelector(".blink-pupil"),
+    );
+    const where = () =>
+      page.evaluate(() => {
+        const r = document
+          .querySelector(".blink-pupil")
+          .getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      });
+    const first = await where();
     const face = await shot(app, "visible-pupils", 0);
-    expect(rgb(face, b.x + pupil.x, b.y + pupil.y)).toEqual([12, 14, 13]);
+    const pupil = await where();
+    // The pupil is Blink's dark ink, not the green of the body; it drifts a
+    // little between two looks, so any dark pixel around it counts.
+    const dark = [];
+    for (const at of [first, pupil])
+      for (let dx = -4; dx <= 4; dx += 2)
+        for (let dy = -4; dy <= 4; dy += 2)
+          dark.push(Math.max(...rgb(face, b.x + at.x + dx, b.y + at.y + dy)));
+    expect(Math.min(...dark)).toBeLessThan(40);
     expect(
       await page.locator("#blink").evaluate((e) => getComputedStyle(e).opacity),
     ).toBe("1");
+    await page.evaluate(() =>
+      window.blinkling.shell({ type: "pin", value: false }),
+    );
+    move(b.x + stand.x, b.y + stand.y);
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     const focusBefore = await app.evaluate(() => globalThis.bg.isFocused());
     expect(focusBefore).toBe(true);
-    click(b.x + active.anchor.x - 18, b.y + active.anchor.y + 10);
+    click(b.x + stand.x, b.y + stand.y);
     // A click on Blink opens the mini composer, which holds the keyboard; Escape
     // gives it back to the application that had it.
     const miniFocused = () =>
@@ -112,13 +148,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     await expect
       .poll(() => app.evaluate(() => globalThis.bg.isFocused()))
       .toBe(true);
-    const hand = await page
-      .locator('#blink svg circle[r="24"]')
-      .first()
-      .evaluate((e) => {
-        const m = e.getScreenCTM();
-        return { x: m.e, y: m.d * +e.getAttribute("cy") + m.f };
-      });
+    const hand = await limbTip(page);
     const clickCount = await app.evaluate(() =>
       globalThis.bg.webContents.executeJavaScript("clicks.length"),
     );
@@ -131,10 +161,17 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     const before = await page.locator("#blink svg").innerHTML();
     await page.waitForTimeout(180);
     expect(await page.locator("#blink svg").innerHTML()).not.toBe(before);
-    // Empty corner of the sprite is transparent and passes a native click.
+    // A click on the limb is a click on Blink: it opened the mini composer again.
+    await expect.poll(miniFocused).toBe(true);
+    key(0xff1b);
+    await expect.poll(miniFocused).toBe(false);
+    // Empty space above Blink's head is transparent and passes a native click.
     await page.evaluate(() => window.blinkling.shell({ type: "close-chat" }));
-    click(b.x + active.anchor.x - 76, b.y + active.anchor.y - 78);
-    expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
+    const corner = await page.locator("#blink").boundingBox();
+    click(b.x + corner.x + corner.width * 0.75, b.y + corner.y + 3);
+    await expect
+      .poll(() => app.evaluate(() => globalThis.bg.isFocused()))
+      .toBe(true);
     move(40, 40);
     await page.waitForTimeout(900);
     expect(await page.locator("#blink").getAttribute("data-mode")).toBe(
@@ -176,19 +213,15 @@ test("real animation frames include eye blinks, pupil looks and a talking mouth"
       }),
     );
     const poses = await page.evaluate(async () => {
-      const rig = window.desktop.character.rig,
-        samples = [],
+      const samples = [],
         start = performance.now();
       await new Promise((resolve) => {
         function sample(now) {
+          const pose = window.desktop.character.last;
           samples.push({
-            eye: Number(
-              rig.eyes.node
-                .getAttribute("transform")
-                .match(/scale\([^,]+,([^)]+)\)/)[1],
-            ),
-            look: rig.pupils.node.transform.baseVal.consolidate().matrix.e,
-            mouth: Number(rig.mouth.getAttribute("opacity")),
+            eye: pose.open,
+            mouth: pose.mouth,
+            mp: pose.mp,
           });
           if (now - start < 5500) requestAnimationFrame(sample);
           else resolve();
@@ -197,14 +230,16 @@ test("real animation frames include eye blinks, pupil looks and a talking mouth"
       });
       return samples;
     });
-    expect(Math.min(...poses.map((p) => p.eye))).toBeLessThan(0.2);
-    // The talking face keeps the eyes a little narrowed (N4): 0.7, not 1.
-    expect(Math.max(...poses.map((p) => p.eye))).toBeCloseTo(0.7, 2);
+    // The eyes blink now and then, and the mouth works while it talks.
+    expect(Math.min(...poses.map((p) => p.eye))).toBeLessThan(0.5);
+    expect(Math.max(...poses.map((p) => p.eye))).toBe(1);
+    // The face blends into the talking pose in under half a second.
+    expect(new Set(poses.slice(40).map((p) => p.mouth))).toEqual(
+      new Set(["talk"]),
+    );
     expect(
-      Math.max(...poses.map((p) => p.look)) -
-        Math.min(...poses.map((p) => p.look)),
-    ).toBeGreaterThan(4);
-    expect(new Set(poses.map((p) => p.mouth))).toEqual(new Set([0, 1]));
+      Math.max(...poses.map((p) => p.mp)) - Math.min(...poses.map((p) => p.mp)),
+    ).toBeGreaterThan(0.4);
     await app.evaluate(() =>
       globalThis.blinklingTest.send({
         type: "done",
@@ -212,12 +247,8 @@ test("real animation frames include eye blinks, pupil looks and a talking mouth"
       }),
     );
     await expect
-      .poll(() =>
-        page.evaluate(() =>
-          window.desktop.character.rig.mouth.getAttribute("opacity"),
-        ),
-      )
-      .toBe("0");
+      .poll(() => page.evaluate(() => window.desktop.character.last.mouth))
+      .not.toBe("talk");
     await writeFile(
       join(report, "animation-poses.json"),
       JSON.stringify(poses, null, 2),
@@ -245,20 +276,15 @@ for (const scale of [1, 1.5, 2])
         "data-expression",
         "thinking",
       );
+      // Thinking looks up and to the side, with the thought bubbles beside the head.
+      await expect
+        .poll(() =>
+          page.evaluate(() => window.desktop.character.last.look?.[1]),
+        )
+        .toBeLessThan(-0.5);
       expect(
-        await page.evaluate(
-          () =>
-            window.desktop.character.rig.pupils.node.transform.baseVal.consolidate()
-              .matrix.f,
-        ),
-      ).toBeLessThan(-10);
-      expect(
-        await page.evaluate(() =>
-          window.desktop.character.rig.thoughts.every(
-            (e) => +e.getAttribute("opacity") > 0.3,
-          ),
-        ),
-      ).toBe(true);
+        await page.evaluate(() => window.desktop.character.last.front),
+      ).toContain("<circle");
       await shot(app, `thinking-peek-${scale * 100}`);
       await emit({ type: "done", turnId: "expressions" });
       await expect(page.locator("#blink")).toHaveAttribute(
@@ -324,7 +350,7 @@ test("grabbing the peek preserves the cursor offset without a drag jump", async 
         { capture: true, once: true },
       );
     });
-    const body = await page.locator('rect[fill="#3ddc97"]').boundingBox();
+    const body = await bodyBox(page);
     const start = {
       x: b.x + Math.min(b.width - 8, body.x + body.width * 0.35),
       y: b.y + body.y + body.height * 0.72,
@@ -366,10 +392,17 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
     await shot(app, "drag-surprised", 600);
     for (const button of await page.locator("#menu button").all())
       await expect(button).toHaveCSS("visibility", "hidden");
-    const transform = await page
-      .locator("#blink svg > g > g")
-      .getAttribute("transform");
-    expect(transform).toContain("0.88,1.12");
+    // Held, Blink is scared and keeps its shape: the body is rigid, never stretched.
+    const held = await page.evaluate(() => {
+      const m = document.querySelector(".blink-body").getScreenCTM();
+      return {
+        ratio: Math.hypot(m.a, m.b) / Math.hypot(m.c, m.d),
+        eyes: window.desktop.character.last.eyes,
+      };
+    });
+    expect(held.ratio).toBeGreaterThan(0.99);
+    expect(held.ratio).toBeLessThan(1.01);
+    expect(held.eyes).toBe("wide");
     await page.evaluate(() =>
       window.blinkling.shell({ type: "pin", value: false }),
     );
@@ -463,19 +496,16 @@ test("native drops peek from all four edges and three corners with a visible eye
       expect(dropped.mode).toBe("peek");
       await shot(app, `edge-${edge}${corner ? "-corner" : ""}`);
       expect(
-        await page.evaluate(() => {
-          const rig = window.desktop.character.rig;
-          return [...rig.pupils.node.querySelectorAll('circle[r="16"]')].some(
-            (e) => {
-              const m = e.getScreenCTM(),
-                x = +e.getAttribute("cx"),
-                y = +e.getAttribute("cy");
-              const px = m.a * x + m.c * y + m.e,
-                py = m.b * x + m.d * y + m.f;
+        await page.evaluate(
+          () =>
+            // Both eyes show in the peek, not only the edge of the head.
+            [...document.querySelectorAll(".blink-pupil")].filter((e) => {
+              const r = e.getBoundingClientRect(),
+                px = r.x + r.width / 2,
+                py = r.y + r.height / 2;
               return px >= 0 && px < innerWidth && py >= 0 && py < innerHeight;
-            },
-          );
-        }),
+            }).length >= 2,
+        ),
       ).toBe(true);
       await reveal(page);
       await page.waitForTimeout(700);

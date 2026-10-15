@@ -2,11 +2,11 @@ import { menuLayout } from "../menu/layout.mjs";
 import { BLINK_SCALE } from "../character/size.mjs";
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const CHARACTER = Object.freeze({ width: 148, height: 152, foot: 142 });
-/** Blink's mouth inside its box, from the top left: it is 64 px above the feet
- * at full size, and the drawing is scaled around the feet. */
+/** Blink's mouth inside its box, from the top left: it sits 69 drawing units
+ * above the feet, and the drawing is BLINK_SCALE pixels to the unit. */
 export const MOUTH = Object.freeze({
   x: CHARACTER.width / 2,
-  y: Math.round(CHARACTER.foot - (CHARACTER.foot - 78) * BLINK_SCALE),
+  y: Math.round(CHARACTER.foot - 69 * BLINK_SCALE),
 });
 /** Where Blink's mouth is on the screen when its feet stand at `feet`. */
 export const mouthOf = (feet) => ({

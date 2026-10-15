@@ -1,679 +1,355 @@
-import { capsule, roundedRect, transformPolygon } from "./silhouette.mjs";
-const NS = "http://www.w3.org/2000/svg";
-/** How long a dizzy Blink sways before it recovers, in seconds. */
-export const DIZZY_FOR = 2.6;
-/** How long Blink's reaction to catching a pick lasts, in seconds. */
-export const CATCH_FOR = 1.1;
-export const colors = Object.freeze({
-  ink: "#0c0e0d",
-  green: "#3ddc97",
-  greenDark: "#1f9e68",
-  shade: "#2cc283",
-  bone: "#f5f5f4",
-  cheek: "#ff8fb1",
+import {
+  BODY,
+  LEG,
+  LIMB_LINE,
+  STAND,
+  armGeom,
+  clamp,
+  drawBlink,
+  ease,
+  f1,
+  lerp,
+  legGeom,
+  silhouette,
+} from "./rig.mjs";
+import {
+  BLEND,
+  CATCH_FOR,
+  DIZZY_FOR,
+  PEEK_EDGE,
+  blendPose,
+  catching,
+  dizzy,
+  facePose,
+  gazeYaw,
+  grumbling,
+  held,
+  idle,
+  landed,
+  looking,
+  peek,
+  touched,
+  greeting,
+} from "./motions.mjs";
+import { BLINK_SCALE as K } from "./size.mjs";
+import { roundedRect } from "./silhouette.mjs";
+export { CATCH_FOR, DIZZY_FOR };
+
+/** The box the renderer gives Blink, and where its feet stand in it. The drawing is
+ * 200 units wide; K pixels to the unit, with the feet at (100, 190) in the drawing
+ * on the box's foot point. */
+export const BOX = Object.freeze({
+  width: 148,
+  height: 152,
+  footX: 74,
+  footY: 142,
 });
-/** Port of ~/reels/house-style/mascot/blink.js: same joints, proportions, face,
- * palette and outlined limbs. Round the block for desktop; omit its ground shadow.
- * Motion is computed from a monotonic clock instead of a video/GSAP timeline. */
+export const FEET = Object.freeze({ x: 100, y: 190 });
+const VIEW = [
+  FEET.x - BOX.footX / K,
+  FEET.y - BOX.footY / K,
+  BOX.width / K,
+  BOX.height / K,
+];
+/** Where the peek line of the drawing lands on each edge, and how the figure turns
+ * so that its feet point at the edge: the hands grip a line in the drawing, and that
+ * line is laid on the screen edge. */
+const EDGES = {
+  bottom: { angle: 0, x: 100, y: 80 },
+  top: { angle: 180, x: 100, y: 50 },
+  right: { angle: -90, x: 100, y: 105 },
+  left: { angle: 90, x: 100, y: 105 },
+};
+const FACE_FIELDS = [
+  "eyes",
+  "open",
+  "look",
+  "lid",
+  "lidTilt",
+  "mouth",
+  "mp",
+  "blush",
+  "attach",
+  "front",
+];
+const SCENE = ["front", "back", "attach", "faceExtra"];
+const NS = "http://www.w3.org/2000/svg";
+
+const pick = (pose, keys) =>
+  Object.fromEntries(keys.filter((k) => k in pose).map((k) => [k, pose[k]]));
+const without = (pose, keys) =>
+  Object.fromEntries(Object.entries(pose).filter(([k]) => !keys.includes(k)));
+const ring = (x, y, r, n = 12) =>
+  Array.from({ length: n }, (_, i) => ({
+    x: x + Math.cos((i / n) * Math.PI * 2) * r,
+    y: y + Math.sin((i / n) * Math.PI * 2) * r,
+  }));
+
+/** The status dot: shown only while the connection is in trouble. */
+const dotSvg = (dot) =>
+  dot
+    ? `<circle class="status" data-connection="${dot}" cx="62" cy="54" r="6.5" style="fill:var(--warn)" stroke="#fff" stroke-width="2"/>`
+    : "";
+
+/** Blink: one drawing per frame from the rig, a pose chosen from what the app is
+ * doing, and the shapes of that pose for click-through. */
 export function mountBlink(host) {
-  const contours = [];
-  function el(tag, attrs, parent) {
-    const n = document.createElementNS(NS, tag);
-    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
-    parent?.append(n);
-    return n;
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", VIEW.map(f1).join(" "));
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Blink");
+  host.append(svg);
+  const ctx = {
+    key: null,
+    from: null,
+    last: null,
+    blendAt: 0,
+    blendFor: BLEND,
+    touchAt: 0,
+    dragAt: -1,
+    yaw: 0,
+    peek: 0,
+    time: null,
+    edge: "right",
+    outer: { angle: 0, x: FEET.x, y: PEEK_EDGE },
+    drawn: "",
+  };
+
+  /** The pose the app asks for right now, and the motion it belongs to. */
+  function choose(time, o) {
+    const face = o.face ?? "idle";
+    const grumble = o.grumbling && face === "idle";
+    let base = { ...idle(time), ...facePose(face, time) };
+    let key = `face:${face}`;
+    if (grumble) {
+      base = { ...base, ...grumbling(time) };
+      key = "grumble";
+    }
+    const plain = (pose) => ({ ...without(base, SCENE), ...pose });
+    if (o.mode === "drag") {
+      if (ctx.dragAt < 0) ctx.dragAt = time;
+      return {
+        key: "held",
+        pose: held(time, time - ctx.dragAt, o.velocity ?? 0),
+        blend: 0.2,
+      };
+    }
+    ctx.dragAt = -1;
+    const woke = time - (o.dizzyAt ?? -100);
+    if (woke >= 0 && woke < DIZZY_FOR)
+      return { key: "dizzy", pose: dizzy(woke), blend: 0.25 };
+    const down = time - (o.dropAt ?? -100);
+    if (o.mode === "drop" || (down >= 0 && down < 0.35)) {
+      const d = clamp(down, 0, 1);
+      const bounce = Math.sin(d * 23) * Math.exp(-d * 8);
+      return {
+        key: "land",
+        pose: plain({ ...landed(), y: -Math.abs(bounce) * 10 }),
+        blend: 0.1,
+      };
+    }
+    const caught = time - (o.catchAt ?? -100);
+    if (caught >= 0 && caught < CATCH_FOR)
+      return { key: "catch", pose: plain(catching(time, caught)), blend: 0.12 };
+    if (o.touch) {
+      const id = `touch:${o.touch.part}${o.touch.side}`;
+      if (ctx.key !== id) ctx.touchAt = time;
+      return {
+        key: id,
+        pose: plain(
+          touched(time, o.touch.part, o.touch.side, time - ctx.touchAt),
+        ),
+        blend: BLEND,
+      };
+    }
+    const waved = time - (o.waveAt ?? -100);
+    if (waved >= 0 && waved < 1.5)
+      return { key: "wave", pose: plain(greeting(time, waved)), blend: 0.3 };
+    if (o.gaze) {
+      ctx.yaw = lerp(ctx.yaw, gazeYaw(o.gaze), 1 - Math.exp(-ctx.dt * 8));
+      return {
+        key: "gaze",
+        pose: plain(looking(time, o.gaze, ctx.yaw)),
+        blend: 0.25,
+      };
+    }
+    ctx.yaw = 0;
+    return { key, pose: base, blend: BLEND };
   }
-  function joint(parent, x = 0, y = 0) {
-    const node = el("g", {}, parent);
+
+  /** Eased toward the pose that grips the screen edge, or away from it. */
+  function leaning(mode, edge, dt) {
+    ctx.peek +=
+      ((mode === "peek" ? 1 : 0) - ctx.peek) * (1 - Math.exp(-dt * 7));
+    if (Math.abs(ctx.peek - (mode === "peek" ? 1 : 0)) < 0.002)
+      ctx.peek = mode === "peek" ? 1 : 0;
+    if (mode === "peek") ctx.edge = EDGES[edge] ? edge : "right";
+    return ctx.peek;
+  }
+
+  /** A gaze on the screen as the tilted head sees it: the figure is turned by the
+   * edge it grips, and its eyes turn back by the same angle. */
+  function gripGaze(gaze) {
+    if (!gaze) return {};
+    const a = (EDGES[ctx.edge].angle * Math.PI) / 180,
+      x = gaze.x * Math.cos(a) + gaze.y * Math.sin(a),
+      y = -gaze.x * Math.sin(a) + gaze.y * Math.cos(a),
+      m = Math.hypot(x, y) || 1;
+    return { look: [(x / m) * Math.min(1, m), (y / m) * Math.min(1, m)] };
+  }
+
+  function pose(time, o = {}) {
+    ctx.dt = clamp(ctx.time === null ? 1 / 60 : time - ctx.time, 0, 0.1);
+    ctx.time = time;
+    const { key, pose: target, blend } = choose(time, o);
+    if (key !== ctx.key) {
+      ctx.from = ctx.last ?? target;
+      ctx.key = key;
+      ctx.blendAt = time;
+      ctx.blendFor = blend;
+    }
+    let out = blendPose(
+      ctx.from,
+      target,
+      ease((time - ctx.blendAt) / ctx.blendFor),
+    );
+    const lean = leaning(o.mode, o.edge, ctx.dt);
+    if (lean > 0) {
+      // Gripping the edge, only the face still follows the session.
+      const face =
+        o.grumbling && (o.face ?? "idle") === "idle"
+          ? grumbling(time)
+          : facePose(o.face ?? "idle", time);
+      out = blendPose(
+        out,
+        { ...peek(time), ...pick(face, FACE_FIELDS), ...gripGaze(o.gaze) },
+        ease(lean),
+      );
+      // The edge hides the rest of Blink only once it is gripping it.
+      if (lean > 0.4)
+        out.clipY = lerp(320, PEEK_EDGE, ease((lean - 0.4) / 0.6));
+      out.armsOver = lean > 0.5;
+      if (lean > 0.5) out.back = "";
+    }
+    out.attach = (out.attach ?? "") + dotSvg(o.dot);
+    out.noShadow = true;
+    ctx.last = out;
+    const edge = EDGES[ctx.edge];
+    ctx.outer = {
+      angle: lerp(0, edge.angle, ease(lean)),
+      x: lerp(FEET.x, edge.x, ease(lean)),
+      y: lerp(PEEK_EDGE, edge.y, ease(lean)),
+    };
+    const { angle, x, y } = ctx.outer;
+    const frame = `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(angle)}) translate(${-FEET.x} ${-PEEK_EDGE})">${drawBlink(out, "b")}</g>`;
+    if (frame !== ctx.drawn) {
+      svg.innerHTML = frame;
+      ctx.drawn = frame;
+    }
+    return out;
+  }
+
+  /** The drawing's coordinates as the screen sees them. */
+  function toScreen() {
+    const m = svg.getScreenCTM?.();
+    if (m)
+      return (p) => ({
+        x: m.a * p.x + m.c * p.y + m.e,
+        y: m.b * p.x + m.d * p.y + m.f,
+      });
+    const r = svg.getBoundingClientRect();
+    const s = r.width / VIEW[2] || 1;
+    return (p) => ({
+      x: r.x + (p.x - VIEW[0]) * s,
+      y: r.y + (p.y - VIEW[1]) * s,
+    });
+  }
+
+  /** Every shape that takes a click, in the drawing's coordinates after the pose has
+   * moved and tilted the figure and the edge has turned it. */
+  function shapes() {
+    const o = { ...STAND, ...ctx.last };
+    const sil = silhouette(o.yaw);
+    const out = {
+      body: roundedRect(
+        sil.x1 - BODY.line / 2,
+        BODY.top - BODY.line / 2,
+        sil.x2 - sil.x1 + BODY.line,
+        BODY.bottom - BODY.top + BODY.line,
+        BODY.rx,
+      ),
+      parts: [],
+    };
+    for (const [key, side] of [
+      ["L", -1],
+      ["R", 1],
+    ]) {
+      for (const p of armGeom(side, o[key], o.yaw).pts)
+        out.parts.push(ring(p.x, p.y, p.r + LIMB_LINE / 2));
+      const leg = legGeom(side, o["leg" + key], o.yaw);
+      for (const p of leg.pts)
+        out.parts.push(ring(p.x, p.y, p.r + LIMB_LINE / 2));
+      out.parts.push(ring(leg.a.x, leg.a.y + 2, LEG.shoeW / 2, 10));
+    }
+    const pivot = o.pivot ?? [100, 190];
+    const a = (o.roll * Math.PI) / 180,
+      c = Math.cos(a),
+      s = Math.sin(a);
+    const outer = ctx.outer,
+      b = (outer.angle * Math.PI) / 180,
+      bc = Math.cos(b),
+      bs = Math.sin(b);
+    const place = (p) => {
+      const dx = p.x - pivot[0],
+        dy = p.y - pivot[1];
+      const x = pivot[0] + dx * c - dy * s + o.x,
+        y = pivot[1] + dx * s + dy * c + o.y;
+      const ex = x - FEET.x,
+        ey = y - PEEK_EDGE;
+      return {
+        x: outer.x + ex * bc - ey * bs,
+        y: outer.y + ex * bs + ey * bc,
+      };
+    };
     return {
-      node,
-      x,
-      y,
-      r: 0,
-      sx: 1,
-      sy: 1,
-      apply() {
-        node.setAttribute(
-          "transform",
-          `translate(${this.x},${this.y}) rotate(${this.r}) scale(${this.sx},${this.sy})`,
-        );
-      },
+      body: out.body.map(place),
+      parts: out.parts.map((r) => r.map(place)),
     };
   }
-  function contour(node, polygon) {
-    contours.push({ node, polygon });
-    return node;
-  }
-  function limb(parent, len1, len2, hand) {
-    const upper = joint(parent),
-      lower = joint(upper.node, 0, len1);
-    for (const [node, length] of [
-      [upper.node, len1],
-      [lower.node, len2],
-    ]) {
-      contour(
-        el(
-          "line",
-          {
-            x1: 0,
-            y1: 0,
-            x2: 0,
-            y2: length,
-            stroke: colors.ink,
-            "stroke-width": 34,
-            "stroke-linecap": "round",
-          },
-          node,
-        ),
-        capsule(0, 0, 0, length, 17),
-      );
-      el(
-        "line",
-        {
-          x1: 0,
-          y1: 0,
-          x2: 0,
-          y2: length,
-          stroke: colors.greenDark,
-          "stroke-width": 18,
-          "stroke-linecap": "round",
-        },
-        node,
-      );
-    }
-    if (hand)
-      contour(
-        el(
-          "circle",
-          {
-            cx: 0,
-            cy: len2 + 6,
-            r: 24,
-            fill: colors.bone,
-            stroke: colors.ink,
-            "stroke-width": 8,
-          },
-          lower.node,
-        ),
-        roundedRect(-28, len2 - 22, 56, 56, 28),
-      );
-    else
-      contour(
-        el(
-          "rect",
-          { x: -34, y: 22, width: 68, height: 30, rx: 15, fill: colors.ink },
-          lower.node,
-        ),
-        roundedRect(-34, 22, 68, 30, 15),
-      );
-    return { upper, lower };
-  }
-  const svg = el(
-    "svg",
-    { viewBox: "-210 -405 420 430", role: "img", "aria-label": "Blink" },
-    host,
-  );
-  const lift = joint(svg),
-    squash = joint(lift.node),
-    legs = {},
-    arms = {};
-  for (const [side, x] of [
-    ["L", -52],
-    ["R", 52],
-  ]) {
-    const hip = joint(squash.node, x, -78),
-      l = limb(hip.node, 40, 30, false);
-    legs[side] = { hip, knee: l.lower };
-  }
-  function arm(side) {
-    const shoulder = joint(squash.node, side === "L" ? -112 : 112, -232),
-      l = limb(shoulder.node, 74, 62, true);
-    arms[side] = { shoulder, elbow: l.lower };
-  }
-  arm("L");
-  const body = el("g", {}, squash.node);
-  contour(
-    el(
-      "rect",
-      {
-        x: -120,
-        y: -356,
-        width: 240,
-        height: 280,
-        rx: 64,
-        fill: colors.green,
-        stroke: colors.ink,
-        "stroke-width": 10,
-      },
-      body,
-    ),
-    roundedRect(-125, -361, 250, 290, 69),
-  );
-  el(
-    "path",
-    {
-      d: "M -115 -116 H 115 Q 108 -81 64 -81 H -64 Q -108 -81 -115 -116 Z",
-      fill: colors.shade,
-    },
-    body,
-  );
-  el(
-    "rect",
-    { x: -82, y: -334, width: 54, height: 16, rx: 8, fill: "#8ff0c4" },
-    body,
-  );
-  const face = joint(body, 0, -248),
-    eyes = joint(face.node),
-    pupils = joint(eyes.node);
-  for (const x of [-50, 50]) {
-    el(
-      "ellipse",
-      {
-        cx: x,
-        cy: 0,
-        rx: 31,
-        ry: 38,
-        fill: colors.bone,
-        stroke: colors.ink,
-        "stroke-width": 8,
-      },
-      eyes.node,
-    );
-    el("circle", { cx: x, cy: 6, r: 16, fill: colors.ink }, pupils.node);
-    el("circle", { cx: x + 6, cy: 0, r: 5, fill: colors.bone }, pupils.node);
-  }
-  const cheeks = [-86, 86].map((x) =>
-    el(
-      "ellipse",
-      { cx: x, cy: 52, rx: 19, ry: 10, fill: colors.cheek, opacity: 0.75 },
-      face.node,
-    ),
-  );
-  const brows = el(
-    "path",
-    {
-      d: "M -78 -50 l38 -8 M 40 -58 l38 8",
-      stroke: colors.ink,
-      "stroke-width": 8,
-      fill: "none",
-      opacity: 0,
-    },
-    face.node,
-  );
-  // Thought dots above each eye and the lock and sleep marks sit on both
-  // sides of the face, so any half of Blink showing at the peek still reads.
-  const thoughts = [-64, -50, -36, 36, 50, 64].map((x) =>
-    el(
-      "circle",
-      { cx: x, cy: -88, r: 5, fill: colors.ink, opacity: 0 },
-      face.node,
-    ),
-  );
-  const marks = {};
-  for (const [name, shape] of [
-    [
-      "lock",
-      (g) => {
-        el(
-          "path",
-          {
-            d: "M -9 -8 V -15 a9 9 0 0 1 18 0 V -8",
-            fill: "none",
-            stroke: colors.ink,
-            "stroke-width": 5,
-          },
-          g,
-        );
-        el(
-          "rect",
-          { x: -13, y: -8, width: 26, height: 20, rx: 5, fill: colors.ink },
-          g,
-        );
-      },
-    ],
-    [
-      "sleep",
-      (g) =>
-        el(
-          "path",
-          {
-            d: "M -10 -10 H 10 L -10 10 H 10",
-            fill: "none",
-            stroke: colors.ink,
-            "stroke-width": 6,
-            "stroke-linecap": "round",
-            "stroke-linejoin": "round",
-          },
-          g,
-        ),
-    ],
-  ])
-    marks[name] = [-92, 92].map((x) => {
-      const g = el(
-        "g",
-        { opacity: 0, transform: `translate(${x},-88)` },
-        face.node,
-      );
-      shape(g);
-      return g;
-    });
-  const status = el(
-    "circle",
-    {
-      cx: -90,
-      cy: -216,
-      r: 10,
-      visibility: "hidden",
-      "data-connection": "ok",
-    },
-    body,
-  );
-  status.style.fill = "var(--warn)";
-  // A sweat drop for a held Blink, spiral eyes and orbiting stars for a dizzy
-  // one, and a heart for a pat on the head. All hidden until a pose asks.
-  const sweat = el(
-    "path",
-    {
-      d: "M 0 -22 Q 16 2 0 14 Q -16 2 0 -22 Z",
-      fill: "#9fd8ff",
-      stroke: colors.ink,
-      "stroke-width": 5,
-      opacity: 0,
-    },
-    face.node,
-  );
-  const spirals = [-50, 50].map((x) =>
-    el(
-      "path",
-      {
-        d: "M 0 -4 a4 4 0 1 1 -4 4 a10 10 0 1 1 10 10 a17 17 0 1 1 -17 -17 a24 24 0 1 1 24 24",
-        transform: `translate(${x},0)`,
-        fill: "none",
-        stroke: colors.ink,
-        "stroke-width": 5,
-        "stroke-linecap": "round",
-        opacity: 0,
-      },
-      face.node,
-    ),
-  );
-  const stars = [0, 1, 2].map(() =>
-    el(
-      "path",
-      {
-        d: "M 0 -14 L 4 -4 L 14 -4 L 6 3 L 9 13 L 0 7 L -9 13 L -6 3 L -14 -4 L -4 -4 Z",
-        fill: "#ffd84a",
-        stroke: colors.ink,
-        "stroke-width": 4,
-        "stroke-linejoin": "round",
-        opacity: 0,
-      },
-      face.node,
-    ),
-  );
-  const heart = el(
-    "path",
-    {
-      d: "M 0 12 C -22 -4 -16 -22 0 -12 C 16 -22 22 -4 0 12 Z",
-      fill: colors.cheek,
-      stroke: colors.ink,
-      "stroke-width": 4,
-      "stroke-linejoin": "round",
-      opacity: 0,
-    },
-    face.node,
-  );
-  const smile = el(
-    "path",
-    {
-      d: "M -28 50 Q 0 78 28 50",
-      fill: "none",
-      stroke: colors.ink,
-      "stroke-width": 9,
-      "stroke-linecap": "round",
-    },
-    face.node,
-  );
-  const mouth = el("g", { opacity: 0 }, face.node);
-  el(
-    "path",
-    {
-      d: "M -26 48 Q 0 44 26 48 Q 24 88 0 90 Q -24 88 -26 48 Z",
-      fill: colors.ink,
-    },
-    mouth,
-  );
-  el(
-    "path",
-    {
-      d: "M -14 76 Q 0 66 14 76 Q 8 86 0 87 Q -8 86 -14 76 Z",
-      fill: colors.cheek,
-    },
-    mouth,
-  );
-  arm("R");
-  const all = [
-    lift,
-    squash,
-    face,
-    eyes,
-    pupils,
-    ...Object.values(legs).flatMap((l) => [l.hip, l.knee]),
-    ...Object.values(arms).flatMap((a) => [a.shoulder, a.elbow]),
-  ];
-  /** Eyes, pupils, brows, mouth and marks for each state of the face table.
-   * Every sign is mirrored so either half of Blink at the peek shows it. */
-  const LOOKS = {
-    idle: { eye: 1, brows: null, mouth: "smile", scan: 0 },
-    lock: { eye: 0.08, brows: null, mouth: "flat", scan: 0, mark: "lock" },
-    permission: { eye: 1.18, brows: "worried", mouth: "open", scan: 0 },
-    "usage-limit": {
-      eye: 0.42,
-      brows: null,
-      mouth: "flat",
-      scan: 0,
-      mark: "sleep",
-    },
-    error: { eye: 0.78, brows: "angry", mouth: "frown", scan: 0 },
-    thinking: { eye: 1, brows: null, mouth: "smile", scan: 0, look: -14 },
-    talking: { eye: 0.7, brows: null, mouth: "talk", scan: 0 },
-    watching: { eye: 1.14, brows: null, mouth: "smile", scan: 16 },
-  };
-  const BROWS = {
-    worried: "M -78 -44 l38 -16 M 40 -60 l38 16",
-    angry: "M -78 -62 l38 16 M 40 -46 l38 -16",
-  };
-  const MOUTHS = {
-    smile: "M -28 50 Q 0 78 28 50",
-    frown: "M -28 66 Q 0 42 28 66",
-    flat: "M -20 58 H 20",
-  };
-  function pose(
-    time,
-    {
-      mode = "peek",
-      waveAt = -100,
-      dropAt = -100,
-      catchAt = -100,
-      velocity = 0,
-      expression = "idle",
-      face: faceName = "idle",
-      dot = null,
-      edge = "right",
-      hanging = false,
-      dizzyAt = -100,
-      touch = null,
-      gaze = null,
-    } = {},
-  ) {
-    const look = LOOKS[faceName] ?? LOOKS.idle;
-    const breath = Math.sin(time * 1.8),
-      blinkPhase = (time + 1.3) % 4.6,
-      blink =
-        blinkPhase < 0.14
-          ? Math.max(0.08, Math.abs(blinkPhase - 0.07) / 0.07)
-          : 1;
-    lift.r = hanging ? 180 : 0;
-    lift.y =
-      (hanging ? -432 : 0) +
-      breath * 3 +
-      (expression === "finished" ? Math.sin(time * 12) * 3 : 0);
-    squash.sx = 1 + breath * 0.008;
-    squash.sy = 1 - breath * 0.008;
-    squash.r = 0;
-    face.r = (hanging ? -180 : 0) + Math.sin(time * 1.5) * 1.3;
-    eyes.sx = 1;
-    eyes.sy = look.eye * blink;
-    pupils.x = look.scan
-      ? Math.sin(time * 2.2) * look.scan
-      : Math.sin(time * 0.42) * 8;
-    pupils.y = (look.look ?? 0) + Math.sin(time * 0.7) * 2;
-    if (gaze && mode !== "drag") {
-      // Picking: the eyes widen a little and the pupils follow the cursor.
-      eyes.sx = 1.06;
-      eyes.sy *= 1.08;
-      pupils.x = gaze.x * 9;
-      pupils.y = gaze.y * 7;
-    }
-    brows.setAttribute("d", BROWS[look.brows] ?? BROWS.worried);
-    brows.setAttribute("opacity", look.brows ? 1 : 0);
-    thoughts.forEach((dot, i) =>
-      dot.setAttribute(
-        "opacity",
-        faceName === "thinking"
-          ? 0.4 + (Math.sin(time * 5 - (i % 3) * 1.2) + 1) * 0.3
-          : 0,
-      ),
-    );
-    for (const [name, group] of Object.entries(marks))
-      group.forEach((g) =>
-        g.setAttribute("opacity", look.mark === name ? 1 : 0),
-      );
-    status.setAttribute("visibility", dot ? "visible" : "hidden");
-    status.dataset.connection = dot ?? "ok";
-    status.setAttribute(
-      "cx",
-      (edge === "right" ? -90 : edge === "left" ? 90 : 0) * (hanging ? -1 : 1),
-    );
-    smile.setAttribute("d", MOUTHS[look.mouth] ?? MOUTHS.smile);
-    for (const [side, s] of [
-      ["L", 1],
-      ["R", -1],
-    ]) {
-      arms[side].shoulder.r = s * (14 + Math.sin(time * 2.1 + s) * 3);
-      arms[side].elbow.r = 0;
-      legs[side].hip.r = 0;
-      legs[side].knee.r = 0;
-    }
-    const wave = time - waveAt;
-    if (wave >= 0 && wave < 1.5) {
-      const q = Math.min(1, wave / 0.23, (1.5 - wave) / 0.3);
-      arms.R.shoulder.r = -14 - 136 * q;
-      arms.R.elbow.r = Math.sin(wave * 22) * 30 * q;
-      pupils.x = 5;
-    }
-    let open =
-      look.mouth === "open" ||
-      (look.mouth === "talk" && Math.sin(time * 17) > 0.1);
-    let nervous = 0;
-    if (mode === "drag") {
-      // Held by the scruff: it does not stretch into a box. It trembles, its
-      // eyes go wide, a sweat drop slides down and its legs dangle and kick.
-      nervous = 1;
-      const shake = Math.sin(time * 26);
-      squash.sx = 1.02 + shake * 0.015;
-      squash.sy = 0.99 - shake * 0.015;
-      squash.r =
-        Math.max(-14, Math.min(14, -velocity * 0.04)) +
-        Math.sin(time * 15) * 4.5;
-      eyes.sx = 1.12;
-      eyes.sy = 1.2;
-      pupils.x *= 0.3;
-      pupils.y = -4;
-      brows.setAttribute("d", BROWS.worried);
-      brows.setAttribute("opacity", 1);
-      arms.L.shoulder.r = 150 + Math.sin(time * 19) * 5;
-      arms.R.shoulder.r = -150 - Math.sin(time * 19 + 1) * 5;
-      legs.L.hip.r = Math.sin(time * 9) * 12;
-      legs.R.hip.r = -Math.sin(time * 9 + 1) * 12;
-      legs.L.knee.r = -18 + Math.sin(time * 9) * 10;
-      legs.R.knee.r = 18 - Math.sin(time * 9 + 1) * 10;
-      smile.setAttribute(
-        "d",
-        `M -26 62 Q -13 ${52 + shake * 3} 0 62 Q 13 ${72 - shake * 3} 26 62`,
-      );
-      open = false;
-    }
-    const slide = (time * 0.9) % 1;
-    sweat.setAttribute("opacity", nervous ? 1 - slide * slide : 0);
-    sweat.setAttribute(
-      "transform",
-      `translate(${hanging ? -92 : 92},${-56 + slide * 70}) scale(${1 - slide * 0.25})`,
-    );
-    // Dizzy after a spin: spiral eyes, stars on a ring and a sway that fades.
-    const dizzy = time - dizzyAt;
-    const dizzyOn = !nervous && dizzy >= 0 && dizzy < DIZZY_FOR;
-    if (dizzyOn) {
-      const fade = Math.min(1, (DIZZY_FOR - dizzy) / 0.6);
-      squash.r = Math.sin(dizzy * 5.5) * 9 * fade;
-      lift.y += Math.abs(Math.sin(dizzy * 5.5)) * 4;
-      squash.sx = 1 + Math.sin(dizzy * 11) * 0.02 * fade;
-      eyes.sy = 0.001;
-      pupils.x = 0;
-      arms.L.shoulder.r = 40 + Math.sin(dizzy * 5.5) * 14;
-      arms.R.shoulder.r = -40 + Math.sin(dizzy * 5.5) * 14;
-      legs.L.hip.r = Math.sin(dizzy * 5.5) * 6;
-      legs.R.hip.r = Math.sin(dizzy * 5.5 + 3) * 6;
-      smile.setAttribute("d", "M -22 60 Q -10 50 0 60 Q 10 70 22 60");
-      stars.forEach((star, i) => {
-        const a = dizzy * 4.2 + (i * Math.PI * 2) / 3;
-        star.setAttribute(
-          "transform",
-          `translate(${Math.cos(a) * 82},${-104 + Math.sin(a) * 18}) scale(${0.8 + Math.sin(a) * 0.2})`,
-        );
-        star.setAttribute("opacity", fade);
-      });
-      spirals.forEach((sp, i) => {
-        sp.setAttribute(
-          "transform",
-          `translate(${i ? 50 : -50},0) rotate(${(i ? -1 : 1) * dizzy * 360})`,
-        );
-        sp.setAttribute("opacity", fade);
-      });
-    } else {
-      stars.forEach((star) => star.setAttribute("opacity", 0));
-      spirals.forEach((sp) => sp.setAttribute("opacity", 0));
-    }
-    // Touch reactions, one per part. A held or dizzy Blink keeps its own pose.
-    cheeks.forEach((c) => {
-      c.setAttribute("opacity", 0.75);
-      c.removeAttribute("transform");
-    });
-    heart.setAttribute("opacity", 0);
-    if (!nervous && !dizzyOn && touch) {
-      const t = Math.sin(time * 18);
-      if (touch.part === "head") {
-        // A pat: eyes squint shut, a heart floats up, the head leans in.
-        eyes.sy = 0.12;
-        face.r += Math.sin(time * 5) * 3;
-        squash.sy -= 0.03;
-        heart.setAttribute("opacity", 1);
-        heart.setAttribute(
-          "transform",
-          `translate(0,${-96 - ((time * 40) % 24)}) scale(${0.9 + t * 0.05})`,
-        );
-        open = false;
-      } else if (touch.part === "cheek") {
-        // Blushing: the cheeks swell and glow and Blink looks away shyly.
-        cheeks.forEach((c, i) => {
-          c.setAttribute("opacity", 1);
-          c.setAttribute(
-            "transform",
-            `translate(${i ? 86 : -86},52) scale(1.35) translate(${i ? -86 : 86},-52)`,
-          );
-        });
-        eyes.sy = Math.min(eyes.sy, 0.5);
-        squash.sx += 0.03 + t * 0.01;
-        squash.sy -= 0.03;
-        pupils.x = touch.side * 8;
-      } else if (touch.part === "belly") {
-        // Ticklish: a giggle jiggle with the mouth open.
-        squash.sx += t * 0.05;
-        squash.sy -= t * 0.05;
-        squash.r = t * 3;
-        eyes.sy = Math.min(eyes.sy, 0.35);
-        open = true;
-      } else if (touch.part === "hand") {
-        // The touched hand shakes in greeting.
-        const arm = touch.side < 0 ? arms.L : arms.R;
-        arm.shoulder.r = touch.side * -(70 + Math.sin(time * 20) * 14);
-        arm.elbow.r = Math.sin(time * 22) * 24;
-        pupils.x = touch.side * 10;
-      } else if (touch.part === "foot") {
-        // Ticklish feet: a hop and a kick of the touched leg.
-        const leg = touch.side < 0 ? legs.L : legs.R;
-        lift.y -= Math.abs(Math.sin(time * 9)) * 14;
-        leg.hip.r = touch.side * Math.sin(time * 18) * 22;
-        leg.knee.r = Math.sin(time * 18) * 18;
-        eyes.sy = Math.min(eyes.sy, 0.5);
-        open = true;
-      }
-    }
-    const drop = time - dropAt;
-    if (drop >= 0 && drop < 0.5) {
-      const q = Math.sin(drop * 23) * Math.exp(-drop * 8);
-      lift.y -= Math.abs(q) * 20;
-      squash.sx += q * 0.18;
-      squash.sy -= q * 0.18;
-    }
-    // Catching what the user took: a wide gulp, then a few happy chews, a hop
-    // each time, and a satisfied puff at the end.
-    mouth.removeAttribute("transform");
-    const caught = time - catchAt;
-    if (caught >= 0 && caught < CATCH_FOR) {
-      const settle = Math.exp(-caught * 2.2);
-      const hop = Math.abs(Math.sin(caught * 14)) * settle;
-      lift.y -= hop * 34;
-      const gulp = Math.max(0, 1 - caught / 0.22);
-      const chew = caught < 0.22 ? 0 : Math.sin((caught - 0.22) * 26) * settle;
-      // The mouth gapes wide at the catch, then works back and forth.
-      const wide = 1.15 + gulp * 0.5 + chew * 0.25;
-      mouth.setAttribute(
-        "transform",
-        `translate(0,48) scale(${1 + gulp * 0.3},${wide}) translate(0,-48)`,
-      );
-      squash.sx += (gulp * 0.1 - chew * 0.06) * settle;
-      squash.sy += (gulp * -0.04 + chew * 0.06) * settle;
-      eyes.sy = Math.min(eyes.sy, 0.4 + gulp * 0.7);
-      face.y += gulp * 3;
-      cheeks.forEach((c, i) => {
-        c.setAttribute("opacity", 1);
-        c.setAttribute(
-          "transform",
-          `translate(${i ? 86 : -86},52) scale(${1.2 + Math.max(0, chew) * 0.25}) translate(${i ? -86 : 86},-52)`,
-        );
-      });
-      open = gulp > 0 || chew > -0.2;
-    }
-    smile.setAttribute("opacity", open ? 0 : 1);
-    mouth.setAttribute("opacity", open ? 1 : 0);
-    all.forEach((j) => j.apply());
-  }
-  eyes.node.append(pupils.node);
-  pose(0);
+
   return {
     svg,
-    rig: {
-      svg,
-      root: squash,
-      face,
-      eyes,
-      pupils,
-      brows,
-      cheeks,
-      sweat,
-      spirals,
-      stars,
-      heart,
-      thoughts,
-      marks,
-      status,
-      smile,
-      mouth,
-      arms,
-      legs,
-    },
     pose,
-    polygons: () =>
-      contours
-        .map(({ node, polygon }) =>
-          transformPolygon(polygon, node.getScreenCTM()),
-        )
-        .filter((p) =>
-          p.every((v) => Number.isFinite(v.x) && Number.isFinite(v.y)),
-        ),
-    body,
-    arms,
-    eyes,
+    /** The last pose that was drawn. */
+    get last() {
+      return ctx.last;
+    },
+    /** How far toward the screen edge pose Blink is, from 0 to 1. */
+    get peeking() {
+      return ctx.peek;
+    },
+    /** Clickable outlines in screen coordinates. */
+    polygons() {
+      const screen = toScreen(),
+        { body, parts } = shapes();
+      return [body, ...parts]
+        .map((poly) => poly.map(screen))
+        .filter((poly) =>
+          poly.every((v) => Number.isFinite(v.x) && Number.isFinite(v.y)),
+        );
+    },
+    /** The body's bounding box on the screen. */
+    bodyRect() {
+      const screen = toScreen(),
+        poly = shapes().body.map(screen);
+      const xs = poly.map((p) => p.x),
+        ys = poly.map((p) => p.y);
+      return {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      };
+    },
   };
 }

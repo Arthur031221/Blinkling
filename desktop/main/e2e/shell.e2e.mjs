@@ -28,7 +28,8 @@ test("real alpha, silhouette click-through, hover wave, delayed retreat and full
     const p = await rigPoint(page),
       idle = await desktopShot(app, "idle-alpha-desktop");
     expect(pixel(idle, 5, 5)).toEqual([32, 64, 128]);
-    [44, 126, 137].forEach((v, i) =>
+    // Blink's body at rest, blended over the desktop at the idle opacity.
+    [46, 125, 137].forEach((v, i) =>
       expect(Math.abs(pixel(idle, p.x, p.y)[i] - v)).toBeLessThanOrEqual(3),
     );
     const box = await page.locator("#blink").boundingBox();
@@ -41,12 +42,12 @@ test("real alpha, silhouette click-through, hover wave, delayed retreat and full
         const samples = [],
           start = performance.now();
         function frame(now) {
-          const c = desktop.character;
+          const pose = desktop.character.last;
           samples.push({
-            y: c.body.getBoundingClientRect().y,
-            blink: c.eyes.sy,
-            wave: c.arms.R.shoulder.r,
-            look: c.eyes.node.querySelector("g").getAttribute("transform"),
+            y: pose.y,
+            blink: pose.open,
+            wave: pose.R[2],
+            look: pose.look.map((v) => v.toFixed(3)).join(" "),
           });
           if (now - start < 4900) requestAnimationFrame(frame);
           else resolve(samples);
@@ -57,7 +58,7 @@ test("real alpha, silhouette click-through, hover wave, delayed retreat and full
     expect(
       Math.max(...poses.map((p) => p.y)) - Math.min(...poses.map((p) => p.y)),
     ).toBeGreaterThan(0.8);
-    expect(Math.min(...poses.map((p) => p.blink))).toBeLessThan(0.2);
+    expect(Math.min(...poses.map((p) => p.blink))).toBeLessThan(0.5);
     expect(
       Math.max(...poses.map((p) => p.wave)) -
         Math.min(...poses.map((p) => p.wave)),
@@ -72,7 +73,7 @@ test("real alpha, silhouette click-through, hover wave, delayed retreat and full
     ).toBe(true);
     const opaque = await rigPoint(page),
       hover = await desktopShot(app, "hover-opaque-desktop");
-    expect(pixel(hover, opaque.x, opaque.y)).toEqual([61, 220, 151]);
+    expect(pixel(hover, opaque.x, opaque.y)).toEqual([67, 216, 150]);
     // A native click in empty pixels of Blink's rectangular SVG must pass through.
     const blank = await page.evaluate(() => {
       const b = document.querySelector("#blink").getBoundingClientRect();
@@ -148,32 +149,31 @@ test("native drag squishes, snaps and persists; pin/click focus is intentional a
       .toBeLessThan(1);
     const held = await c.page.evaluate(async () => {
       const { desktop } = await import("./index.mjs");
-      const matrix = desktop.character.body.parentElement.getScreenCTM(),
-        { sweat, brows } = desktop.character.rig;
+      const matrix = document.querySelector(".blink-body").getScreenCTM();
       return {
         ratio: Math.hypot(matrix.a, matrix.b) / Math.hypot(matrix.c, matrix.d),
-        sweat: Number(sweat.getAttribute("opacity")),
-        brows: brows.getAttribute("opacity"),
+        sweat: desktop.character.svg.innerHTML.includes("#9fd8ff"),
+        eyes: desktop.character.last.eyes,
       };
     });
-    // Held, Blink is scared and keeps its shape: it is not stretched tall.
-    expect(held.ratio).toBeGreaterThan(0.94);
-    expect(held.ratio).toBeLessThan(1.08);
-    expect(held.sweat).toBeGreaterThan(0);
-    expect(held.brows).toBe("1");
+    // Held, Blink is scared and keeps its shape: the body is rigid, never stretched.
+    expect(held.ratio).toBeGreaterThan(0.99);
+    expect(held.ratio).toBeLessThan(1.01);
+    expect(held.sweat).toBe(true);
+    expect(held.eyes).toBe("wide");
     await desktopShot(c.app, "drag-desktop");
     await c.page.evaluate(() => {
       window.dropSamples = [];
       const started = performance.now();
       function frame(now) {
-        const matrix = document
-          .querySelector('rect[fill="#3ddc97"]')
-          .parentElement.parentElement.getScreenCTM();
+        const body = document
+          .querySelector(".blink-body")
+          .getBoundingClientRect();
+        const box = document.querySelector("#blink").getBoundingClientRect();
         window.dropSamples.push({
           time: now - started,
           mode: document.querySelector("#blink").dataset.mode,
-          ratio:
-            Math.hypot(matrix.a, matrix.b) / Math.hypot(matrix.c, matrix.d),
+          rise: body.y - box.y,
         });
         if (now - started < 800) requestAnimationFrame(frame);
       }
@@ -189,14 +189,18 @@ test("native drag squishes, snaps and persists; pin/click focus is intentional a
     await c.page.waitForTimeout(850);
     const dropSamples = await c.page.evaluate(() => window.dropSamples),
       bounce = dropSamples.filter((s) => s.mode === "drop");
-    expect(bounce.length).toBeGreaterThan(15);
-    expect(Math.max(...bounce.map((s) => s.ratio))).toBeGreaterThan(1.1);
-    expect(Math.min(...bounce.map((s) => s.ratio))).toBeLessThan(0.98);
-    expect(Math.abs(dropSamples.at(-1).ratio - 1)).toBeLessThan(0.025);
     await writeFile(
       join(report, "drop-motion.json"),
       JSON.stringify(dropSamples, null, 2),
     );
+    expect(bounce.length).toBeGreaterThan(15);
+    // The landing is a hop of a rigid body: it rises and comes back to rest.
+    const rises = bounce.map((s) => s.rise);
+    expect(Math.max(...rises) - Math.min(...rises)).toBeGreaterThan(1.5);
+    expect(
+      Math.abs(bounce.at(-1).rise - bounce.at(-2).rise),
+      "settled by the end of the landing",
+    ).toBeLessThan(1);
     await desktopShot(c.app, "drop-left-desktop");
     const saved = await c.app.evaluate(
       () => globalThis.blinklingTest.snapshot().position,

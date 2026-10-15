@@ -165,9 +165,7 @@ test("holding native Shift over Blink does nothing", async () => {
     native(30, 30);
     const page = await app.firstWindow();
     const point = await page.evaluate(() => {
-      const r = document
-        .querySelector('rect[fill="#3ddc97"]')
-        .getBoundingClientRect();
+      const r = document.querySelector(".blink-body").getBoundingClientRect();
       return {
         x: Math.min(innerWidth - 8, r.x + r.width * 0.35),
         y: r.y + r.height * 0.72,

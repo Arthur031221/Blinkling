@@ -11,16 +11,11 @@ import { createGesture } from "./gesture.mjs";
 import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
 import { setDocumentLocale } from "../shared/i18n.mjs";
-import { BLINK_SCALE } from "../character/size.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
 import { createSpinDetector } from "../character/spin.mjs";
 import { touchPart, sideOf, gazeAt } from "../character/touch.mjs";
 const api = window.blinkling;
 document.documentElement.style.cssText += cssVariables();
-document.documentElement.style.setProperty(
-  "--blink-scale",
-  String(BLINK_SCALE),
-);
 let shell = await api.shell({ type: "state" });
 // Main sends the one system locale with the state; every string below follows it.
 setDocumentLocale(document, shell.locale);
@@ -274,7 +269,7 @@ async function action(id) {
       dot: session.dot,
       catchAt,
       edge: shell.position.edge,
-      hanging: state.mode === "peek" && shell.position.edge === "top",
+      grumbling: grumbling !== null,
     });
     // Idle for a minute, Blink thinks out loud. Anything that keeps it busy
     // or any use of the app starts the quiet again.

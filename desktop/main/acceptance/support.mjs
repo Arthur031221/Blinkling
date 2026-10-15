@@ -81,3 +81,63 @@ export const wheel = (x, y, notches) =>
   ]);
 export const keys = (text) => native([{ type: "keys", text }]);
 export const key = (keysym) => native([{ type: "key", keysym }]);
+/** Where Blink's body is drawn, in page pixels. An SVG shape has no CSS box,
+ * so the page measures it instead of asking Playwright. */
+export const bodyBox = (page) =>
+  page.evaluate(() => {
+    const { x, y, width, height } = document
+      .querySelector(".blink-body")
+      .getBoundingClientRect();
+    return { x, y, width, height };
+  });
+/** A spot on Blink's body that is really drawn (not behind a screen edge), in
+ * page pixels: where a pointer goes to touch Blink. */
+export const bodyPoint = (page) =>
+  page.evaluate(() => {
+    const body = document.querySelector(".blink-body");
+    const r = body.getBoundingClientRect();
+    const shows = (x, y) =>
+      x > 2 &&
+      y > 2 &&
+      x < innerWidth - 2 &&
+      y < innerHeight - 2 &&
+      document.elementsFromPoint(x, y).includes(body);
+    let best = null;
+    const want = { x: r.x + r.width * 0.3, y: r.y + r.height * 0.72 };
+    for (let i = 0; i <= 16; i++)
+      for (let j = 0; j <= 16; j++) {
+        const x = r.x + (r.width * i) / 16,
+          y = r.y + (r.height * j) / 16;
+        if (!shows(x, y)) continue;
+        const d = Math.hypot(x - want.x, y - want.y);
+        if (!best || d < best.d) best = { x, y, d };
+      }
+    return best && { x: best.x, y: best.y };
+  });
+/** The far end of the limb that sticks out of Blink the most, in page pixels. */
+export const limbTip = (page) =>
+  page.evaluate(() => {
+    const polys = window.desktop.character.polygons();
+    const [body, ...limbs] = polys;
+    const c = body.reduce(
+      (m, p) => ({ x: m.x + p.x / body.length, y: m.y + p.y / body.length }),
+      { x: 0, y: 0 },
+    );
+    let tip = null;
+    for (const poly of limbs) {
+      const mid = poly.reduce(
+        (m, p) => ({ x: m.x + p.x / poly.length, y: m.y + p.y / poly.length }),
+        { x: 0, y: 0 },
+      );
+      for (const p of poly) {
+        const d = Math.hypot(p.x - c.x, p.y - c.y);
+        if (!tip || d > tip.d) tip = { x: p.x, y: p.y, d, mid };
+      }
+    }
+    // A few pixels inside the outline, so the click lands on the limb itself.
+    const k = 6 / (Math.hypot(tip.mid.x - tip.x, tip.mid.y - tip.y) || 1);
+    return {
+      x: tip.x + (tip.mid.x - tip.x) * k,
+      y: tip.y + (tip.mid.y - tip.y) * k,
+    };
+  });

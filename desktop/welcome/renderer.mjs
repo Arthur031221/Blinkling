@@ -38,7 +38,6 @@ function animate(now) {
   if (step === 0 && !reduced.matches && seconds - waveAt > 4.5)
     waveAt = seconds;
   blink.pose(seconds, {
-    mode: "peek",
     waveAt: reduced.matches ? seconds - 0.6 : waveAt,
     face: "idle",
   });

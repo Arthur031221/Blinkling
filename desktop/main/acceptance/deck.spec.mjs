@@ -434,7 +434,7 @@ test("hover recall of the last answer never overlaps the fan bubbles", async () 
     await bubbles.waitForTimeout(900);
     const { bubbles: deck, fan } = await screenBoxes(app, page);
     expect(deck.length).toBeGreaterThan(0);
-    expect(fan).toHaveLength(4);
+    expect(fan).toHaveLength(5);
     await shot(app, "recall-with-fan");
     for (const a of deck)
       for (const b of fan) expect(intersects(a, b)).toBe(false);
@@ -475,7 +475,7 @@ test("hover recall and a fresh answer never overlap the fan, at any edge or posi
       await reveal(page);
       await bubbles.waitForTimeout(900);
       const { bubbles: deck, fan } = await screenBoxes(app, page);
-      expect(fan, `${edge} ${ratio}`).toHaveLength(4);
+      expect(fan, `${edge} ${ratio}`).toHaveLength(5);
       for (const a of deck)
         for (const b of fan)
           expect(intersects(a, b), `${edge} ${ratio}`).toBe(false);

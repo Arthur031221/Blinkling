@@ -159,7 +159,7 @@ test("touching Blink's head or belly gets its own reaction, and leaving ends it"
       c.page.evaluate(
         ([fx, fy]) => {
           const r = document
-            .querySelector('rect[fill="#3ddc97"]')
+            .querySelector(".blink-body")
             .getBoundingClientRect();
           return { x: r.x + r.width * fx, y: r.y + r.height * fy };
         },
@@ -168,18 +168,25 @@ test("touching Blink's head or belly gets its own reaction, and leaving ends it"
     const rig = (read) =>
       c.page.evaluate(
         (read) =>
-          new Function("r", `return ${read}`)(window.desktop.character.rig),
+          new Function("p", "svg", `return ${read}`)(
+            window.desktop.character.last,
+            window.desktop.character.svg,
+          ),
         read,
       );
     const head = await spot(0.5, 0.3);
     native(head.x, head.y);
-    await expect.poll(() => rig('r.heart.getAttribute("opacity")')).toBe("1");
+    // A pat on the head raises both hands; a poke in the belly rocks Blink and
+    // pulls them in; leaving restores the plain face.
+    await expect.poll(() => rig("Math.round(p.L[0])")).toBe(70);
+    await expect.poll(() => rig("p.eyes")).toBe("happy");
     const belly = await spot(0.5, 0.92);
     native(belly.x, belly.y);
-    await expect.poll(() => rig('r.heart.getAttribute("opacity")')).toBe("0");
-    await expect.poll(() => rig('r.mouth.getAttribute("opacity")')).toBe("1");
+    await expect.poll(() => rig("Math.round(p.L[0])")).toBe(40);
+    await expect.poll(() => rig("p.mouth")).toBe("open");
     native(20, 20);
-    await expect.poll(() => rig('r.mouth.getAttribute("opacity")')).toBe("0");
+    await expect.poll(() => rig("p.eyes")).not.toBe("happy");
+    await expect.poll(() => rig("p.mouth")).not.toBe("open");
   } finally {
     await c.close();
   }
@@ -192,21 +199,20 @@ test("while picking, Blink's eyes follow the cursor, and they let go when pickin
     native(20, 20);
     await c.page.waitForTimeout(600);
     await moveOn(c.page);
-    const pupilX = () =>
-      c.page.evaluate(() => window.desktop.character.rig.pupils.x);
+    const look = (axis) => () =>
+      c.page.evaluate(
+        (axis) => (window.desktop.character.last.look ?? [0, 0])[axis],
+        axis,
+      );
     await c.app.evaluate(() => globalThis.blinklingTest.picking(true));
-    const pupilY = () =>
-      c.page.evaluate(() => window.desktop.character.rig.pupils.y);
-    // Blink stands at the right edge: the pointer far to its left, then far above it.
+    // Blink grips the right edge with its head turned a quarter turn, so a
+    // pointer far to its left is "up" for its eyes, and one far above is "forward".
     native(20, 400);
-    await expect.poll(pupilX).toBeLessThan(-4);
+    await expect.poll(look(1)).toBeLessThan(-0.4);
     native(1100, 10);
-    await expect.poll(pupilY).toBeLessThan(-4);
-    const wide = () =>
-      c.page.evaluate(() => window.desktop.character.rig.eyes.sx);
-    expect(await wide()).toBeGreaterThan(1);
+    await expect.poll(look(0)).toBeGreaterThan(0.4);
     await c.app.evaluate(() => globalThis.blinklingTest.picking(false));
-    await expect.poll(wide).toBe(1);
+    await expect.poll(look(0)).toBeLessThan(0.4);
   } finally {
     await c.close();
   }
@@ -221,15 +227,16 @@ test("a held Blink is nervous, and two circles in the air leave it dizzy", async
     const rig = (read) =>
       c.page.evaluate(
         (read) =>
-          new Function("r", `return ${read}`)(window.desktop.character.rig),
+          new Function("p", "svg", `return ${read}`)(
+            window.desktop.character.last,
+            window.desktop.character.svg,
+          ),
         read,
       );
     native(p.x, p.y, "down");
     native(p.x + 40, p.y + 10);
     await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drag");
-    expect(
-      Number(await rig('r.sweat.getAttribute("opacity")')),
-    ).toBeGreaterThan(0);
+    expect(await rig('svg.innerHTML.includes("#9fd8ff")')).toBe(true);
     // Each native move takes longer than a real hand, so the three circles are
     // fed to the detector in one go instead of being drawn with the mouse.
     await c.page.evaluate(() => {
@@ -245,15 +252,9 @@ test("a held Blink is nervous, and two circles in the air leave it dizzy", async
       }
     });
     native(p.x + 40, p.y + 10, "up");
-    await expect
-      .poll(() => rig('r.spirals[0].getAttribute("opacity")'))
-      .toBe("1");
+    await expect.poll(() => rig("p.eyes")).toBe("dizzy");
     // Then it recovers.
-    await expect
-      .poll(() => rig('r.spirals[0].getAttribute("opacity")'), {
-        timeout: 6000,
-      })
-      .toBe("0");
+    await expect.poll(() => rig("p.eyes"), { timeout: 6000 }).not.toBe("dizzy");
   } finally {
     await c.close();
   }
@@ -369,12 +370,12 @@ test("the mini composer stays at Blink's mouth when Blink moves", async () => {
     native(p.x, p.y, "down");
     native(p.x, p.y, "up");
     await expect.poll(() => miniFocused(c.app)).toBe(true);
-    // The mouth sits 91 px below the top of Blink's box; the box rises from 40 px under it.
+    // The mouth sits 108 px below the top of Blink's box; the box rises from 40 px under it.
     const bottomWanted = () =>
       c.app.evaluate(() => {
         const s = globalThis.blinklingTest.snapshot();
         return Math.round(
-          s.position.reveal.y + s.display.bounds.y - 142 + 91 + 40,
+          s.position.reveal.y + s.display.bounds.y - 142 + 108 + 40,
         );
       });
     const bottom = async () => {
@@ -442,7 +443,7 @@ test("hovering Blink at the top edge does not make it lunge", async () => {
     const moved = c.page.evaluate(
       () =>
         new Promise((resolve) => {
-          const body = document.querySelector('rect[fill="#3ddc97"]');
+          const body = document.querySelector(".blink-body");
           const y0 = body.getBoundingClientRect().y;
           let far = 0;
           const start = performance.now();
@@ -679,7 +680,7 @@ for (const scale of [1, 2])
         await c.page.waitForTimeout(800);
         const r = await c.page.evaluate(() => {
           const b = document
-            .querySelector('rect[fill="#3ddc97"]')
+            .querySelector(".blink-body")
             .getBoundingClientRect();
           return { x: b.x, y: b.y, width: b.width, height: b.height };
         });
@@ -760,8 +761,10 @@ for (const scale of [1, 2]) {
         const p = await rigPoint(c.page);
         native(p.x * scale, p.y * scale);
         await c.page.waitForTimeout(550);
-        native(p.x * scale, p.y * scale, "down");
-        native(p.x * scale, p.y * scale, "up");
+        // Blink has come out of the edge: the click goes where it stands now.
+        const q = await rigPoint(c.page);
+        native(q.x * scale, q.y * scale, "down");
+        native(q.x * scale, q.y * scale, "up");
         await expect.poll(() => miniFocused(c.app)).toBe(true);
         await c.page.waitForTimeout(600);
         await miniPage(c.app).keyboard.press("Escape");
@@ -913,9 +916,7 @@ async function traceFan(page) {
       if (!trace.seen && Math.max(...opacities) > 0.05) {
         trace.seen = true;
         // Where Blink stands now that it is revealed.
-        const r = document
-          .querySelector('rect[fill="#3ddc97"]')
-          .getBoundingClientRect();
+        const r = document.querySelector(".blink-body").getBoundingClientRect();
         trace.stand = {
           x: r.x + r.width * (r.x < 0 ? 0.8 : 0.2),
           y: r.y + r.height * 0.72,

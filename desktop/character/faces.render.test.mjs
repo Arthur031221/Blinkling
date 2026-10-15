@@ -12,18 +12,16 @@ function rig() {
   globalThis.document = previous;
   return blink;
 }
-// Everything that can differ between faces; the body and limbs stay identical.
-const look = (blink) =>
-  [
-    blink.rig.face.node,
-    blink.rig.eyes.node,
-    blink.rig.pupils.node,
-    blink.rig.mouth,
-  ]
-    .map((n) => n.outerHTML)
-    .join("|");
-// A moment with open eyes, no wave, a round mouth opening.
+const look = (blink) => blink.svg.innerHTML;
+const SWEAT = "#9fd8ff";
+const STAR = "#ffd25e";
+// A moment with open eyes and no wave.
 const T = 0.1;
+/** Plays a pose for a while so that its blend has finished. */
+function settle(blink, from, o, seconds = 1) {
+  for (let t = from; t <= from + seconds; t += 1 / 30) blink.pose(t, o);
+  return from + seconds;
+}
 
 test("every face looks different from idle and from every other face", () => {
   const seen = new Map();
@@ -39,113 +37,86 @@ test("every face looks different from idle and from every other face", () => {
 test("the connection dot is hidden unless the connection is in trouble", () => {
   const blink = rig();
   blink.pose(T, { dot: null });
-  assert.equal(blink.rig.status.getAttribute("visibility"), "hidden");
+  assert.ok(!look(blink).includes('class="status"'));
   for (const dot of ["retrying", "blocked"]) {
     blink.pose(T, { dot });
-    assert.equal(blink.rig.status.getAttribute("visibility"), "visible");
-    assert.equal(blink.rig.status.dataset.connection, dot);
+    assert.ok(look(blink).includes(`data-connection="${dot}"`));
   }
   blink.pose(T, { dot: null });
-  assert.equal(blink.rig.status.getAttribute("visibility"), "hidden");
+  assert.ok(!look(blink).includes('class="status"'));
 });
 
-test("a catch bounces Blink and opens its mouth, then settles", () => {
+test("a catch opens Blink's mouth wide, chews, hops and settles", () => {
   const blink = rig();
   blink.pose(T, { face: "idle" });
-  const rest = blink.rig.mouth.getAttribute("opacity");
-  blink.pose(5.1, { face: "idle", catchAt: 5 });
-  assert.equal(blink.rig.mouth.getAttribute("opacity"), "1");
-  assert.equal(rest, "0");
-  blink.pose(7, { face: "idle", catchAt: 5 });
-  assert.equal(blink.rig.mouth.getAttribute("opacity"), "0");
-  assert.equal(blink.rig.mouth.getAttribute("transform"), null);
-});
-
-test("a catch is a big reaction: a wide gulp, chewing that fades, puffed cheeks and a high hop", () => {
-  const blink = rig();
-  blink.pose(5.05, { face: "idle", catchAt: 5 });
-  const gape = (at) =>
-    Number(
-      /scale\(([\d.]+),([\d.]+)\)/.exec(
-        (blink.pose(at, { face: "idle", catchAt: 5 }),
-        blink.rig.mouth.getAttribute("transform")),
-      )[2],
-    );
-  assert.ok(gape(5.05) > 1.5, "gapes wide when it catches");
+  const rest = blink.last.mouth;
+  blink.pose(5.01, { face: "idle", catchAt: 5 });
+  blink.pose(5.15, { face: "idle", catchAt: 5 });
+  assert.equal(blink.last.mouth, "gulp");
+  assert.ok(blink.last.mp > 0.6, "gapes wide when it catches");
+  assert.notEqual(rest, "gulp");
+  let top = 0;
   const chews = [];
-  for (let t = 5.3; t < 5 + CATCH_FOR * 0.7; t += 0.02) chews.push(gape(t));
+  for (let t = 5.16; t < 5 + CATCH_FOR; t += 0.01) {
+    blink.pose(t, { face: "idle", catchAt: 5 });
+    top = Math.max(top, -blink.last.y);
+    if (t > 5.3 && t < 5 + CATCH_FOR * 0.7) chews.push(blink.last.mp);
+  }
+  assert.ok(top > 6, `hop ${top}`);
   assert.ok(
     Math.max(...chews) - Math.min(...chews) > 0.1,
     "the mouth works back and forth",
   );
-  blink.pose(5.1, { face: "idle", catchAt: 5 });
-  assert.ok(blink.rig.cheeks[0].getAttribute("transform").includes("scale(1."));
-  let top = 0;
-  for (let t = 5; t < 5 + CATCH_FOR; t += 0.01) {
-    blink.pose(t, { face: "idle", catchAt: 5 });
-    top = Math.max(
-      top,
-      -Number(
-        /translate\(0,(-?[\d.]+)\)/.exec(
-          blink.rig.root.node.parentNode.getAttribute("transform"),
-        )[1],
-      ),
-    );
-  }
-  assert.ok(top > 20, `hop ${top}`);
-  blink.pose(5 + CATCH_FOR + 0.1, { face: "idle", catchAt: 5 });
-  assert.equal(blink.rig.mouth.getAttribute("opacity"), "0");
-  assert.equal(blink.rig.cheeks[0].getAttribute("transform"), null);
+  settle(blink, 5 + CATCH_FOR + 0.05, { face: "idle", catchAt: 5 });
+  assert.equal(blink.last.mouth, rest);
+  assert.ok(!look(blink).includes(STAR), "the sparkle is gone");
 });
 
-test("a held Blink is nervous, not stretched: it trembles, sweats and keeps its shape", () => {
+test("a held Blink is nervous: it trembles, sweats and never changes its shape", () => {
   const blink = rig();
-  blink.pose(T, { mode: "peek" });
-  assert.equal(blink.rig.sweat.getAttribute("opacity"), "0");
-  const seen = new Set();
-  for (let i = 0; i < 12; i++) {
-    blink.pose(T + i * 0.013, { mode: "drag", velocity: 0 });
-    assert.ok(Number(blink.rig.sweat.getAttribute("opacity")) > 0);
-    assert.equal(blink.rig.brows.getAttribute("opacity"), "1");
-    assert.ok(blink.rig.root.sx > 0.95 && blink.rig.root.sx < 1.08);
-    assert.ok(blink.rig.root.sy > 0.95 && blink.rig.root.sy < 1.08);
-    seen.add(blink.rig.root.r.toFixed(2));
+  blink.pose(T, {});
+  assert.ok(!look(blink).includes(SWEAT));
+  const rolls = new Set();
+  for (let i = 0; i < 40; i++) {
+    blink.pose(T + i * 0.04, { mode: "drag", velocity: 0 });
+    rolls.add(blink.last.roll.toFixed(2));
+    assert.ok(look(blink).includes(SWEAT), "sweats while held");
+    if (i > 8) assert.equal(blink.last.eyes, "wide");
+    assert.ok(Math.abs(blink.last.roll) < 15, "swings, never stretches");
+    assert.equal(blink.last.yaw, 0);
   }
-  assert.ok(seen.size > 6, "the wobble moves");
-  blink.pose(T + 1, { mode: "peek" });
-  assert.equal(blink.rig.sweat.getAttribute("opacity"), "0");
+  assert.ok(rolls.size > 6, "the wobble moves");
+  settle(blink, T + 2, {});
+  assert.ok(!look(blink).includes(SWEAT));
 });
 
 test("a dizzy Blink shows spiral eyes and stars, sways, then recovers", () => {
   const blink = rig();
   blink.pose(10.5, { dizzyAt: 10 });
-  assert.ok(blink.rig.spirals.every((s) => s.getAttribute("opacity") === "1"));
-  assert.ok(blink.rig.stars.every((s) => s.getAttribute("opacity") === "1"));
-  assert.ok(Math.abs(blink.rig.root.r) > 0);
-  blink.pose(10 + DIZZY_FOR + 0.1, { dizzyAt: 10 });
-  assert.ok(blink.rig.spirals.every((s) => s.getAttribute("opacity") === "0"));
-  assert.ok(blink.rig.stars.every((s) => s.getAttribute("opacity") === "0"));
-  assert.equal(blink.rig.root.r, 0);
+  assert.equal(blink.last.eyes, "dizzy");
+  assert.equal((look(blink).match(new RegExp(STAR, "g")) ?? []).length, 3);
+  assert.ok(Math.abs(blink.last.roll) > 0);
+  settle(blink, 10.5, { dizzyAt: 10 }, DIZZY_FOR + 0.2 - 0.5);
+  assert.notEqual(blink.last.eyes, "dizzy");
+  assert.ok(!look(blink).includes(STAR), "the stars are gone");
+  settle(blink, 10 + DIZZY_FOR + 0.3, { dizzyAt: 10 });
+  assert.ok(Math.abs(blink.last.roll) < 0.05, "it stands still again");
 });
 
 test("each touched body part gets its own reaction and release restores Blink", () => {
   const looks = new Map();
+  const plain = rig();
+  plain.pose(T, {});
   for (const part of ["head", "cheek", "belly", "hand", "foot"]) {
     const blink = rig();
     blink.pose(T, { touch: { part, side: -1 } });
-    const key = [
-      look(blink),
-      blink.rig.root.node.getAttribute("transform"),
-      blink.rig.arms.L.shoulder.node.getAttribute("transform"),
-      blink.rig.legs.L.hip.node.getAttribute("transform"),
-      blink.rig.heart.getAttribute("opacity"),
-      blink.rig.cheeks[0].getAttribute("transform"),
-    ].join("|");
+    const key = look(blink);
     assert.ok(!looks.has(key), `${part} looks like ${looks.get(key)}`);
     looks.set(key, part);
-    blink.pose(T, { touch: null });
-    assert.equal(blink.rig.heart.getAttribute("opacity"), "0");
-    assert.equal(blink.rig.cheeks[0].getAttribute("transform"), null);
+    assert.notEqual(key, look(plain), `${part} looks like standing`);
+    settle(blink, T + 0.1, { touch: null });
+    assert.equal(blink.last.eyes, plain.last.eyes);
+    assert.equal(blink.last.mouth, plain.last.mouth);
   }
 });
 
@@ -157,7 +128,7 @@ test("a held Blink ignores a touch", () => {
   assert.equal(look(a), look(b));
 });
 
-test("while picking, Blink's pupils follow the cursor and its eyes widen, and it stops when picking ends", () => {
+test("while picking, Blink's eyes follow the cursor and it stops when picking ends", () => {
   const plain = rig();
   const left = rig();
   const right = rig();
@@ -166,12 +137,13 @@ test("while picking, Blink's pupils follow the cursor and its eyes widen, and it
   left.pose(T, { gaze: { x: -1, y: 0 } });
   right.pose(T, { gaze: { x: 1, y: 0 } });
   below.pose(T, { gaze: { x: 0, y: 1 } });
-  assert.ok(left.rig.pupils.x < -5, "looks left");
-  assert.ok(right.rig.pupils.x > 5, "looks right");
-  assert.ok(below.rig.pupils.y > 4, "looks down");
-  assert.ok(left.rig.eyes.sx > plain.rig.eyes.sx, "eyes widen");
-  left.pose(T, { gaze: null });
-  assert.equal(look(left), look(plain));
+  assert.ok(left.last.look[0] < -0.5, "looks left");
+  assert.ok(right.last.look[0] > 0.5, "looks right");
+  assert.ok(below.last.look[1] > 0.5, "looks down");
+  assert.ok(left.last.yaw < 0 && right.last.yaw > 0, "the body turns with it");
+  settle(left, T + 0.05, { gaze: null });
+  assert.ok(Math.abs(left.last.yaw) < 0.5);
+  assert.notDeepEqual(left.last.look, [-1, 0]);
 });
 
 test("a held, dizzy or touched Blink is not pulled to the cursor", () => {
@@ -183,8 +155,10 @@ test("a held, dizzy or touched Blink is not pulled to the cursor", () => {
   assert.equal(look(held), look(heldPlain));
   const dizzy = rig();
   dizzy.pose(10.5, { dizzyAt: 10, gaze });
-  assert.equal(dizzy.rig.pupils.x, 0);
+  assert.equal(dizzy.last.yaw, 0);
+  assert.equal(dizzy.last.eyes, "dizzy");
   const touched = rig();
   touched.pose(T, { touch: { part: "cheek", side: -1 }, gaze });
-  assert.equal(touched.rig.pupils.x, -8);
+  assert.equal(touched.last.yaw, 0);
+  assert.equal(touched.last.eyes, "squeeze");
 });

@@ -1,4 +1,4 @@
-/** How much of its 148 by 152 box Blink fills. The box stays the same so every
- * place and distance that measures it holds; the character is drawn smaller,
- * standing on the same point. */
-export const BLINK_SCALE = 0.8;
+/** Pixels per unit of Blink's drawing. The drawing is 200 units wide and the box
+ * the renderer gives it stays 148 by 152, so every place and distance that measures
+ * the box holds; the character is drawn small, standing on the same foot point. */
+export const BLINK_SCALE = 0.5;
