@@ -31,8 +31,8 @@ test("the spec's Traditional Chinese words", () => {
   assert.equal(z("translate.page"), "翻譯整頁");
 });
 
-test("variables fill in and a missing key throws", () => {
-  assert.equal(t("en")("hint.pick", { key: "Ctrl" }).includes("Ctrl"), true);
+test("a missing key throws, and the first-hold hint tells the reader to click once", () => {
+  assert.equal(t("en")("hint.pick"), "Click once to ask about this");
   assert.throws(() => t("en")("nope"));
 });
 
