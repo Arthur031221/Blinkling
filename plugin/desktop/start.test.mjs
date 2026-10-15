@@ -95,8 +95,10 @@ test("--background exits quietly without launching when start with Claude Code i
 test("the slash command still starts Blink when the background start is off", async () => {
   const off = await home('{"schemaVersion":1,"startWithClaudeCode":false}');
   try {
-    const result = await run(off.root, off.runtime, []);
+    // Only Linux fails before any download, so only there can the run be
+    // checked without fetching and launching a real build.
     if (process.platform === "linux") {
+      const result = await run(off.root, off.runtime, []);
       assert.match(result.stderr, /graphical desktop/);
       assert.equal(result.code, 1);
     }
