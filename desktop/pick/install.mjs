@@ -214,8 +214,13 @@ export async function installPick({
     layer,
     // The layer hides before the grab, and the surface guard hides the rest.
     settle: async () => {},
-    grab: (display) =>
-      shell.captureScreen(display, [...shell.windows(), miniWindow]),
+    // The mini composer is already open when the pixels are taken; it is only
+    // hidden for the grab when it sits over what is being grabbed.
+    grab: (display, rects = []) =>
+      shell.captureScreen(display, [
+        ...shell.windows(),
+        ...(mini.covers(rects) ? [miniWindow] : []),
+      ]),
     crop: cropper,
     grouper,
     newChat: () => shell.newChat?.(),

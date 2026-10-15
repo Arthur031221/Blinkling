@@ -465,6 +465,33 @@ test("MP-3 the rubber band sits on the pointer while the button is held, not beh
   }
 });
 
+test("MP-5 the mini composer is shown within 200 ms of the pick key coming up", async () => {
+  const app = await start();
+  try {
+    const p = await domRect(app, "#photo");
+    await hold(app, { x: p.x + 40, y: p.y + 40 });
+    click();
+    await waitFor(app, "taken");
+    // Watch from inside the main process, so polling from here adds no delay.
+    const shown = app.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const win = globalThis.blinklingTest.pick.test.miniWindow;
+          const look = () =>
+            win.isVisible() ? resolve(Date.now()) : setTimeout(look, 2);
+          look();
+        }),
+    );
+    const releasedAt = Date.now();
+    release();
+    const took = (await shown) - releasedAt;
+    console.log(`SCALE ${SCALE}: mini visible ${took} ms after release`);
+    expect(took).toBeLessThanOrEqual(200);
+  } finally {
+    await app.close();
+  }
+});
+
 test("N1.2 a drag of 6 px or less is a click, not an area", async () => {
   const app = await start();
   try {

@@ -208,34 +208,67 @@ export function createPickController({
     await mini.open(entries);
   }
 
+  /** The mini composer answers the release, so it opens with what is already
+   * known: text is there, a picture is a chip still waiting for the grab. The grab,
+   * the flight into Blink and the chips filling in follow while it is open. */
   async function deliverTaken(takens) {
     layer.hide();
+    const group = grouper.join();
+    const fresh = group.fresh ? Promise.resolve(newChat?.()) : null;
+    const early = takens.map((taken) => ({
+      taken,
+      entry: taken.text
+        ? entryFor(taken, null)
+        : {
+            id: globalThis.crypto.randomUUID(),
+            kind: taken.kind,
+            taken,
+            pending: true,
+          },
+    }));
+    const opened = mini.open(early.map((e) => e.entry));
     let shot = null;
     let release;
     grabbing = new Promise((resolve) => (release = resolve));
     try {
       await settle();
-      shot = await grab(takens[0].display);
+      shot = await grab(
+        takens[0].display,
+        takens.map((t) => t.bounds),
+      );
     } catch (error) {
       onError(error);
     } finally {
       release();
     }
-    const pictures = takens.map((t) => thumbnail(shot, t));
-    const entries = [];
     const flightItems = [];
-    takens.forEach((taken, i) => {
-      const entry = entryFor(taken, pictures[i]);
-      if (!entry) return;
-      entries.push(entry);
+    for (const { taken, entry } of early) {
+      const picture = thumbnail(shot, taken);
+      if (entry.pending) {
+        const full = entryFor(taken, picture);
+        if (full) mini.fill({ ...full, id: entry.id });
+        else {
+          mini.drop(entry.id);
+          continue;
+        }
+      }
       flightItems.push({
         id: entry.id,
         kind: taken.kind,
         bounds: taken.bounds,
-        dataUrl: pictures[i]?.dataUrl ?? null,
+        dataUrl: picture?.dataUrl ?? null,
       });
-    });
-    if (entries.length) await finish(entries, flightItems);
+    }
+    try {
+      await fresh;
+      if (flightItems.length) {
+        await layer.flight(flightItems, blinkPoint());
+        caught();
+      }
+    } catch (error) {
+      onError(error);
+    }
+    await opened;
   }
 
   async function deliverCapture(capture) {

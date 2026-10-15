@@ -289,3 +289,52 @@ test("a PDF pick that has text does not offer the reader", () => {
   });
   assert.deepEqual(mini.view().offers, []);
 });
+
+test("a pick still waiting for its pixels shows as an image chip and fills in when they arrive", () => {
+  const { mini } = make({
+    entries: [
+      entry("p1", "image", { pending: true, taken: { kind: "image" } }),
+    ],
+  });
+  const waiting = mini.view().entries[0];
+  assert.equal(waiting.type, "image");
+  assert.equal(waiting.pending, true);
+  assert.equal(mini.view().chips.length, 3, "the quick asks are already there");
+  mini.fill(entry("p1", "image", { attachment: image, thumb: "data:x" }));
+  const filled = mini.view().entries[0];
+  assert.equal(filled.pending, undefined);
+  assert.equal(filled.thumb, "data:x");
+});
+
+test("a send waits for the pixels still on their way, then carries them", async () => {
+  const { mini, h } = make({
+    entries: [
+      entry("p1", "image", { pending: true, taken: { kind: "image" } }),
+    ],
+  });
+  const sending = mini.submit({});
+  await new Promise((r) => setImmediate(r));
+  assert.equal(h.log.sent.length, 0, "nothing goes out without its picture");
+  mini.fill(entry("p1", "image", { attachment: image }));
+  await sending;
+  assert.deepEqual(h.log.sent[0].attachments, [image]);
+});
+
+test("a pick whose pixels never came is dropped and the send goes on without it", async () => {
+  const { mini, h } = make({
+    entries: [
+      entry("p1", "image", { pending: true, taken: { kind: "image" } }),
+      entry("t1", "text", {
+        attachment: textFile("hello"),
+        taken: { kind: "text", text: "hello" },
+      }),
+    ],
+  });
+  const sending = mini.submit({});
+  mini.remove("p1");
+  await sending;
+  assert.deepEqual(
+    h.log.sent[0].attachments.map((a) => a.id),
+    ["t1"],
+  );
+});

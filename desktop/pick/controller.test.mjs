@@ -16,6 +16,8 @@ function setup(options = {}) {
     caught: 0,
     order: [],
     opened: [],
+    filled: [],
+    dropped: [],
     grabs: 0,
     newChats: 0,
     errors: [],
@@ -44,6 +46,7 @@ function setup(options = {}) {
       options.grab ??
       (async () => (
         log.grabs++,
+        log.order.push("grab"),
         {
           image: { data: PNG },
           pixelWidth: 1280,
@@ -72,6 +75,8 @@ function setup(options = {}) {
     mini: {
       open: async (entries) =>
         void (log.opened.push(entries), log.order.push("mini")),
+      fill: (entry) => void (log.filled.push(entry), log.order.push("fill")),
+      drop: (id) => void (log.dropped.push(id), log.order.push("drop")),
     },
     reduced: () => false,
     onError: (e) => log.errors.push(e),
@@ -174,7 +179,7 @@ test("a drag shorter than 6 px is a click", async () => {
   assert.equal(log.sent.find(([c]) => c === "taken")[1].kind, "image");
 });
 
-test("release delivers: layer clears, the screen is grabbed once, thumbnails fly to Blink, the mini composer opens", async () => {
+test("release delivers: layer clears, the mini composer opens at once, the screen is grabbed once, thumbnails fly to Blink", async () => {
   const { controller, log } = setup();
   await controller.raise();
   await pickAt(controller, local(200, 280));
@@ -184,19 +189,14 @@ test("release delivers: layer clears, the screen is grabbed once, thumbnails fly
   assert.equal(log.flights.length, 1);
   assert.equal(log.flights[0].items.length, 2);
   assert.deepEqual(log.flights[0].to, { x: 1280, y: 400 });
+  assert.equal(log.opened.length, 1);
   const [entries] = log.opened;
   assert.equal(entries.length, 2);
-  assert.equal(entries[0].attachment.mediaType, "image/png");
+  assert.equal(entries[0].pending, true, "the picture is still being taken");
   assert.equal(
-    entries[0].thumb,
-    log.flights[0].items[0].dataUrl,
-    "the image chip shows the picture that flew",
-  );
-  assert.match(entries[0].thumb, /^data:image\/png;base64,/);
-  assert.equal(
-    entries[1].thumb,
+    entries[1].pending,
     undefined,
-    "a table is text, it has no picture",
+    "a table is text, it is complete",
   );
   assert.equal(entries[1].kind, "table");
   assert.equal(entries[1].attachment.mediaType, "text/plain");
@@ -204,6 +204,24 @@ test("release delivers: layer clears, the screen is grabbed once, thumbnails fly
     Buffer.from(entries[1].attachment.data, "base64").toString().split("\n")[0],
     "| Item | Price |",
   );
+  const [filled] = log.filled;
+  assert.equal(filled.id, entries[0].id);
+  assert.equal(filled.attachment.mediaType, "image/png");
+  assert.equal(
+    filled.thumb,
+    log.flights[0].items[0].dataUrl,
+    "the image chip shows the picture that flew",
+  );
+  assert.match(filled.thumb, /^data:image\/png;base64,/);
+  assert.equal(log.filled.length, 1, "a table is text, it has no picture");
+});
+
+test("the mini composer opens before the screen grab starts, so it answers the release at once", async () => {
+  const { controller, log } = setup();
+  await controller.raise();
+  await pickAt(controller, local(200, 280));
+  await controller.drop("release");
+  assert.deepEqual(log.order, ["mini", "grab", "fill", "flight", "caught"]);
 });
 
 test("text arrives as a text attachment, not a picture of text", async () => {
@@ -297,8 +315,9 @@ test("a failed screen grab still delivers the text that was picked, and drops wh
   const [entries] = failing.log.opened;
   assert.deepEqual(
     entries.map((e) => e.kind),
-    ["text"],
+    ["text", "image"],
   );
+  assert.deepEqual(failing.log.dropped, [entries[1].id]);
   assert.equal(failing.log.errors.length, 1);
 });
 

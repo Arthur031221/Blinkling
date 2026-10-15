@@ -8,12 +8,15 @@ export const LONG_CHARS = 280;
 export const LONG_LINES = 6;
 
 const decode = (a) => Buffer.from(a.data, "base64").toString("utf8");
-const isImage = (e) => e.attachment?.mediaType?.startsWith("image/");
+const isImage = (e) =>
+  e.pending || e.attachment?.mediaType?.startsWith("image/");
 
 /** The state and rules of the mini composer, without any window. The renderer
  * shows `view()` and forwards key presses and clicks to the methods.
  *
- * entries: [{id, kind, attachment, taken?, thumb?}] one per chip.
+ * entries: [{id, kind, attachment, taken?, thumb?, pending?}] one per chip. A
+ *   pending entry is a pick whose pixels are still being taken: it shows at once,
+ *   `fill` completes it, `remove` drops it, and a send waits for either.
  * host: send(turn), openComposer(seed), close(reason) and optionally
  *   pauseAuto/resumeAuto, translatePage, openPdfReader. */
 export function createMini({
@@ -54,16 +57,31 @@ export function createMini({
       items: list.map((e) => e.taken ?? { kind: e.kind }),
       locale,
     });
-  const attachments = () => list.map((e) => e.attachment);
+  const attachments = () =>
+    list.filter((e) => !e.pending).map((e) => e.attachment);
+
+  let waiting = [];
+  const settle = () => {
+    if (list.some((e) => e.pending)) return;
+    for (const resolve of waiting.splice(0)) resolve();
+  };
+  const pixels = () =>
+    list.some((e) => e.pending)
+      ? new Promise((resolve) => waiting.push(resolve))
+      : Promise.resolve();
 
   function close(reason) {
     if (closed) return;
     closed = true;
+    list = list.filter((e) => !e.pending);
+    settle();
     if (paused) host.resumeAuto?.();
     host.close(reason);
   }
 
   async function sendTurn(message, source) {
+    await pixels();
+    if (closed) return { type: "closed" };
     const turn = {
       id: uuid(),
       text: message,
@@ -89,6 +107,7 @@ export function createMini({
           type: isImage(e) ? "image" : "text",
           kind: e.kind,
           thumb: e.thumb,
+          ...(e.pending ? { pending: true } : {}),
           ...(isImage(e)
             ? {}
             : chipText(e.taken?.text ?? decode(e.attachment))),
@@ -110,6 +129,11 @@ export function createMini({
     },
     remove(id) {
       list = list.filter((e) => e.id !== id);
+      settle();
+    },
+    fill(entry) {
+      list = list.map((e) => (e.id === entry.id ? entry : e));
+      settle();
     },
     async submit({ shift = false } = {}) {
       if (closed) return { type: "closed" };
