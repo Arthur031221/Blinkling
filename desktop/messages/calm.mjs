@@ -13,6 +13,12 @@ function emitter() {
     on(name, handler) {
       handlers.set(name, [...(handlers.get(name) ?? []), handler]);
     },
+    off(name, handler) {
+      handlers.set(
+        name,
+        (handlers.get(name) ?? []).filter((h) => h !== handler),
+      );
+    },
     emit(name, value) {
       for (const handler of handlers.get(name) ?? []) handler(value);
     },
@@ -68,7 +74,7 @@ export function createCalm({
     calm.emit("revive", { turnId: turn });
     arm();
   };
-  return Object.assign(calm, {
+  const api = {
     /** The answer to `turnId` finished; it is the one hover will bring back. */
     settle(turnId) {
       turn = turnId;
@@ -99,16 +105,15 @@ export function createCalm({
       faded = false;
       stop();
     },
-    get turnId() {
-      return turn;
-    },
-    get faded() {
-      return faded;
-    },
     dispose() {
       stop();
       turn = undefined;
       calm.removeAllListeners();
     },
+  };
+  // Object.assign would copy the getters' values, not the getters.
+  return Object.defineProperties(Object.assign(calm, api), {
+    turnId: { get: () => turn, enumerable: true },
+    faded: { get: () => faded, enumerable: true },
   });
 }

@@ -141,6 +141,7 @@ function fakeTimers() {
       return id;
     },
     cancel: (id) => tasks.delete(id),
+    pending: () => tasks.size,
     advance(ms) {
       const end = clock + ms;
       for (;;) {
@@ -312,4 +313,142 @@ test("a new chat empties the deck and nothing of the old chat comes back", () =>
   s.accept({ type: "delta", id: "b", text: "Second chat answer." });
   assert.equal(s.bubbles().length, 1);
   s.dispose();
+});
+
+const failure = {
+  id: "guide-failure",
+  text: "導覽暫時無法完成，請再試一次。",
+  actions: [
+    { id: "guide-retry", label: "再試一次" },
+    { id: "guide-dismiss", label: "關閉" },
+  ],
+};
+
+test("a failure is a bubble with its actions and fades on the same settle timer", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.fail(failure);
+  assert.deepEqual(
+    s.bubbles().map((b) => [b.kind, b.markdown, b.actions.map((a) => a.label)]),
+    [["failure", failure.text, ["再試一次", "關閉"]]],
+  );
+  t.advance(7999);
+  assert.equal(s.state().visible, true, "readable for the whole settle time");
+  t.advance(1);
+  assert.equal(s.state().visible, false);
+  assert.deepEqual(s.bubbles(), [], "its chips fade with it");
+});
+
+test("nothing resurfaces after the fade except through bringBack()", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  let notified = 0;
+  s.subscribe(() => notified++);
+  s.fail(failure);
+  t.advance(8000);
+  const settled = notified;
+  t.advance(10 * 60 * 1000);
+  assert.equal(notified, settled, "minutes later: no change, no resurfacing");
+  assert.deepEqual(s.bubbles(), []);
+  s.accept({ type: "status", state: "ready" });
+  s.accept({ type: "done", turnId: "later" });
+  assert.deepEqual(s.bubbles(), [], "unrelated events do not bring it back");
+  s.bringBack();
+  assert.deepEqual(
+    s.bubbles().map((b) => b.id),
+    ["guide-failure:0"],
+  );
+  assert.equal(s.state().visible, true);
+  t.advance(8000);
+  assert.equal(s.state().visible, false, "and it settles again");
+});
+
+test("every bubble kind, failures included, goes with the one settle timer", () => {
+  const t = fakeTimers();
+  const s = createMessageStream({ ...t, maxPeekParts: 2 });
+  s.accept({
+    type: "message",
+    id: "a",
+    role: "assistant",
+    complete: true,
+    content: [
+      {
+        type: "text",
+        text: "Para.\n\n- point\n\n```js\nlet a;\n```\n\n# Head\n\nMore. Even more.",
+      },
+      {
+        type: "image",
+        source: { type: "base64", media_type: "image/png", data: "AA==" },
+      },
+    ],
+  });
+  s.accept({ type: "blink-say", id: "say", text: "Plain line" });
+  s.fail(failure);
+  const kinds = new Set(s.bubbles().map((b) => b.kind));
+  for (const kind of [
+    "sentence",
+    "point",
+    "code",
+    "heading",
+    "image",
+    "open-chat",
+    "say",
+    "failure",
+  ])
+    assert.ok(kinds.has(kind), `${kind} is on the deck`);
+  t.advance(7999);
+  assert.ok(s.bubbles().length > 0);
+  t.advance(1);
+  assert.deepEqual(s.bubbles(), []);
+  assert.equal(t.pending(), 0, "no second timer is left running");
+});
+
+test("the pointer on a failure holds it; leaving hands the timer back", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.fail(failure);
+  s.hover(true, "bubbles");
+  t.advance(60_000);
+  assert.equal(s.state().visible, true);
+  s.hover(false, "bubbles");
+  t.advance(8000);
+  assert.equal(s.state().visible, false);
+});
+
+test("dismissing a failure removes it for good, even from bringBack()", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  s.accept({ type: "delta", id: "a", text: "Earlier answer." });
+  s.accept({ type: "done", turnId: "t1" });
+  t.advance(8000);
+  s.fail(failure);
+  s.dismiss("guide-failure");
+  assert.deepEqual(s.bubbles(), []);
+  t.advance(8000);
+  s.bringBack();
+  assert.ok(
+    s.bubbles().every((b) => b.kind !== "failure"),
+    "the dismissed failure is gone",
+  );
+  assert.deepEqual(
+    s.bubbles().map((b) => b.markdown),
+    ["Earlier answer."],
+    "the answer before it is still what hovering recalls",
+  );
+});
+
+test("onSettle tells marks when the deck fades, and stops when unsubscribed", () => {
+  const t = fakeTimers();
+  const s = createMessageStream(t);
+  const seen = [];
+  const off = s.onSettle((event) => seen.push(event));
+  s.accept({ type: "delta", id: "a", text: "Answer." });
+  s.accept({ type: "done", turnId: "t1" });
+  assert.deepEqual(seen, []);
+  t.advance(8000);
+  assert.deepEqual(seen, [{ turnId: "t1" }]);
+  off();
+  s.fail(failure);
+  t.advance(8000);
+  assert.equal(seen.length, 1);
 });

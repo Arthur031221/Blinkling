@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { launch, move, wheel } from "./support.mjs";
-import { reveal, shot } from "./helpers.mjs";
+import { reveal, shot, background } from "./helpers.mjs";
 
 const bubblesPage = (app) =>
   app
@@ -362,6 +362,121 @@ test("reference badges show a number, report hover and scroll to their bubble on
     await expect
       .poll(() => app.evaluate(() => globalThis.blinklingTest.deck.hovered))
       .toContain("btn-save");
+  } finally {
+    await app.close();
+  }
+});
+
+/** Screen-space boxes of the visible deck bubbles and of the open fan. */
+const screenBoxes = (app, page) =>
+  Promise.all([
+    app.evaluate(() => globalThis.blinklingTest.bubbles.getBounds()),
+    app.evaluate(() => globalThis.blinklingTest.snapshot().display.bounds),
+  ]).then(async ([at, display]) => ({
+    bubbles: await bubblesPage(app).evaluate(
+      ([x, y]) =>
+        [...document.querySelectorAll(".gl-answer-bubble")]
+          .filter(
+            (n) =>
+              n.closest(".gl-bubble-deck").dataset.visible === "true" &&
+              Number(getComputedStyle(n).opacity) > 0.05,
+          )
+          .map((n) => {
+            const r = n.getBoundingClientRect();
+            return {
+              x: r.x + x,
+              y: r.y + y,
+              width: r.width,
+              height: r.height,
+            };
+          }),
+      [at.x, at.y],
+    ),
+    fan: await page.locator(".action-bubble").evaluateAll(
+      (nodes, [x, y]) =>
+        nodes.map((n) => {
+          const r = n.getBoundingClientRect();
+          return { x: r.x + x, y: r.y + y, width: r.width, height: r.height };
+        }),
+      [display.x, display.y],
+    ),
+  }));
+const intersects = (a, b) =>
+  a.x < b.x + b.width &&
+  a.x + a.width > b.x &&
+  a.y < b.y + b.height &&
+  a.y + a.height > b.y;
+
+test("hover recall of the last answer never overlaps the fan bubbles", async () => {
+  const { app, page } = await launch();
+  try {
+    await background(app);
+    await say(app, 3);
+    const bubbles = bubblesPage(app);
+    await expect(bubbles.locator(".gl-answer-bubble")).toHaveCount(3);
+    // The answer settles and fades by itself (N6.6), then Blink is hovered.
+    await expect
+      .poll(
+        () => bubbles.locator('.gl-bubble-deck[data-visible="true"]').count(),
+        {
+          timeout: 20000,
+        },
+      )
+      .toBe(0);
+    await reveal(page);
+    await expect(
+      bubbles.locator('.gl-bubble-deck[data-visible="true"]'),
+    ).toHaveCount(1);
+    await expect(page.locator(".action-bubble")).toHaveCount(4);
+    await bubbles.waitForTimeout(900);
+    const { bubbles: deck, fan } = await screenBoxes(app, page);
+    expect(deck.length).toBeGreaterThan(0);
+    expect(fan).toHaveLength(4);
+    await shot(app, "recall-with-fan");
+    for (const a of deck)
+      for (const b of fan) expect(intersects(a, b)).toBe(false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("hover recall and a fresh answer never overlap the fan, at any edge or position", async () => {
+  const { app, page } = await launch();
+  try {
+    await background(app);
+    await say(app, 3);
+    const bubbles = bubblesPage(app);
+    for (const [edge, ratio] of [
+      ["bottom", 0.5],
+      ["bottom", 0],
+      ["bottom", 1],
+      ["top", 0.5],
+      ["top", 0],
+      ["top", 1],
+      ["left", 0.5],
+      ["left", 0],
+      ["left", 1],
+      ["right", 0.1],
+      ["right", 0.5],
+      ["right", 1],
+    ]) {
+      await app.evaluate(
+        async ({ screen }, { edge, ratio }) => {
+          const t = globalThis.blinklingTest;
+          await t.positionStore.save(t.snapshot().display.id, { edge, ratio });
+          t.setDisplay(screen.getPrimaryDisplay());
+        },
+        { edge, ratio },
+      );
+      await page.waitForTimeout(500);
+      await reveal(page);
+      await bubbles.waitForTimeout(900);
+      const { bubbles: deck, fan } = await screenBoxes(app, page);
+      expect(fan, `${edge} ${ratio}`).toHaveLength(4);
+      for (const a of deck)
+        for (const b of fan)
+          expect(intersects(a, b), `${edge} ${ratio}`).toBe(false);
+    }
   } finally {
     await app.close();
   }

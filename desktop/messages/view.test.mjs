@@ -17,7 +17,13 @@ const rule = (selector) =>
   )?.[1] ?? "";
 
 /** jsdom has no layout: give the deck and its bubbles a deterministic one. */
-function setup({ openChat, locale = "zh-TW", onShape, onReference } = {}) {
+function setup({
+  openChat,
+  locale = "zh-TW",
+  onShape,
+  onReference,
+  onAction,
+} = {}) {
   const clock = { now: 100_000 };
   const { window } = new JSDOM("<body><div id='host'></div></body>", {
     pretendToBeVisual: true,
@@ -38,6 +44,7 @@ function setup({ openChat, locale = "zh-TW", onShape, onReference } = {}) {
     openChat,
     onShape,
     onReference,
+    onAction,
     t: translatorFor(window.document, locale),
     now: () => clock.now,
   });
@@ -402,6 +409,32 @@ test("reference badges show the number, report hover and scroll their bubble int
   t.dispose();
 });
 
+test("a failure bubble carries its chips, and a chip reports its action", async () => {
+  const actions = [];
+  const t = setup({ onAction: (id) => actions.push(id) });
+  t.store.fail({
+    id: "guide-failure",
+    text: "導覽暫時無法完成，請再試一次。",
+    actions: [
+      { id: "guide-retry", label: "再試一次" },
+      { id: "guide-dismiss", label: "關閉" },
+    ],
+  });
+  const bubble = t.deck.querySelector('[data-kind="failure"]');
+  assert.match(bubble.textContent, /導覽暫時無法完成/);
+  const chips = [...bubble.querySelectorAll("button")];
+  assert.deepEqual(
+    chips.map((c) => c.textContent),
+    ["再試一次", "關閉"],
+  );
+  chips[0].click();
+  chips[1].click();
+  assert.deepEqual(actions, ["guide-retry", "guide-dismiss"]);
+  t.store.dismiss("guide-failure");
+  assert.equal(t.deck.querySelector('[data-kind="failure"]'), null);
+  t.dispose();
+});
+
 test("the deck keeps clear of the fan when a menu rectangle is given", async () => {
   const t = setup();
   t.say("a", "一。");
@@ -423,6 +456,30 @@ test("the deck keeps clear of the fan when a menu rectangle is given", async () 
     host.style.getPropertyValue("--gl-clear"),
     "0px",
     "a fan elsewhere changes nothing",
+  );
+  t.dispose();
+});
+
+test("carrying Blink steps the stack aside, click-through, and putting Blink down brings it back", async () => {
+  const shapes = [];
+  const t = setup({ onShape: () => shapes.push(t.view.regions().length) });
+  t.say("a", "一。二。三。");
+  await t.frame();
+  await t.frame();
+  assert.equal(t.view.regions().length, 3);
+  t.view.carry(true);
+  assert.equal(t.deck.dataset.away, "true");
+  assert.deepEqual(t.view.regions(), [], "nothing catches the pointer");
+  assert.equal(shapes.at(-1), 0, "the shape is told at once");
+  assert.equal(t.deck.dataset.visible, "true", "the calm timer is untouched");
+  t.view.carry(true);
+  t.view.carry(false);
+  assert.equal(t.deck.dataset.away, "false");
+  assert.equal(t.view.regions().length, 3, "back where it was");
+  assert.match(
+    rule('.gl-bubble-deck[data-away="true"]'),
+    /opacity: *0/,
+    "hidden by opacity alone",
   );
   t.dispose();
 });

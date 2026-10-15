@@ -25,6 +25,7 @@ export function mountMessageBubbles(
     openChat,
     onActivity = () => {},
     onReference = () => {},
+    onAction = () => {},
     onShape = () => {},
     copy,
     openLink,
@@ -71,6 +72,7 @@ export function mountMessageBubbles(
     frame,
     settle,
     framing,
+    away = false,
     clearance = 0;
 
   // Scroll events arrive a frame late, after streamed text may have grown the
@@ -96,7 +98,7 @@ export function mountMessageBubbles(
   };
   /** Window-relative click-through rectangles of the deck. */
   function regions() {
-    if (deck.dataset.visible !== "true") return [];
+    if (deck.dataset.visible !== "true" || away) return [];
     const bounds = deck.getBoundingClientRect();
     const own = solid
       ? [rect(bounds, bounds)]
@@ -245,6 +247,21 @@ export function mountMessageBubbles(
     } else if (part.kind === "image") {
       const image = renderImage(doc, part.image, tr);
       if (image) node.append(image);
+    } else if (part.kind === "failure") {
+      const line = doc.createElement("p");
+      line.className = "gl-say";
+      line.textContent = part.markdown;
+      const chips = doc.createElement("div");
+      chips.className = "gl-actions";
+      for (const action of part.actions) {
+        const chip = doc.createElement("button");
+        chip.type = "button";
+        chip.className = "gl-chip";
+        chip.textContent = action.label;
+        chip.addEventListener("click", () => onAction(action.id));
+        chips.append(chip);
+      }
+      node.append(line, chips);
     } else if (part.kind === "say") {
       const line = doc.createElement("p");
       line.className = "gl-say";
@@ -350,6 +367,19 @@ export function mountMessageBubbles(
       pinned = deck.scrollTop;
       age();
       return true;
+    },
+    /** Step aside while Blink is carried, so the stack never trails across the
+     * page; it returns, at Blink's new place, when Blink is put down. */
+    carry(value) {
+      if (away === value) return;
+      const from = Number.parseFloat(view.getComputedStyle(deck).opacity);
+      away = value;
+      deck.dataset.away = String(value);
+      play(deck, [{ opacity: Number.isFinite(from) ? from : Number(!value) }], {
+        duration: value ? duration.fast : duration.base,
+        easing: value ? easing.exit : easing.enter,
+      });
+      onShape();
     },
     /** Keep the deck clear of the open fan (`snapshot().menu`, window space). */
     avoid(menu) {

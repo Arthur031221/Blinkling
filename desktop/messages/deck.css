@@ -40,7 +40,8 @@ body[data-surface="bubbles"] #answers {
   height: 0;
 }
 /* view.mjs animates the opacity change; this is where it ends. */
-.gl-bubble-deck[data-visible="false"] {
+.gl-bubble-deck[data-visible="false"],
+.gl-bubble-deck[data-away="true"] {
   opacity: 0;
   pointer-events: none;
 }
@@ -84,6 +85,22 @@ body[data-surface="bubbles"] #answers {
   border: 0;
   padding: 0;
   color: var(--green);
+}
+/* The chips under a failure: the same pills the guide's buttons use. */
+.gl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.gl-answer-bubble > .gl-actions > .gl-chip {
+  padding: 4px 10px;
+  color: var(--text);
+  font-size: var(--type-s);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
 }
 .gl-point {
   display: flex;
