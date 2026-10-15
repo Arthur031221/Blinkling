@@ -460,6 +460,30 @@ test("the deck keeps clear of the fan when a menu rectangle is given", async () 
   t.dispose();
 });
 
+test("carrying Blink steps the stack aside, click-through, and putting Blink down brings it back", async () => {
+  const shapes = [];
+  const t = setup({ onShape: () => shapes.push(t.view.regions().length) });
+  t.say("a", "一。二。三。");
+  await t.frame();
+  await t.frame();
+  assert.equal(t.view.regions().length, 3);
+  t.view.carry(true);
+  assert.equal(t.deck.dataset.away, "true");
+  assert.deepEqual(t.view.regions(), [], "nothing catches the pointer");
+  assert.equal(shapes.at(-1), 0, "the shape is told at once");
+  assert.equal(t.deck.dataset.visible, "true", "the calm timer is untouched");
+  t.view.carry(true);
+  t.view.carry(false);
+  assert.equal(t.deck.dataset.away, "false");
+  assert.equal(t.view.regions().length, 3, "back where it was");
+  assert.match(
+    rule('.gl-bubble-deck[data-away="true"]'),
+    /opacity: *0/,
+    "hidden by opacity alone",
+  );
+  t.dispose();
+});
+
 test("the deck's own files hold no timing, easing or color literals", () => {
   for (const file of [
     "deck.css",

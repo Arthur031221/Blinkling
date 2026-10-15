@@ -429,6 +429,7 @@ function placeCard(at = position) {
 }
 function displaysChanged() {
   const next = reconcileDisplay(screen.getAllDisplays(), display.id);
+  if (drag?.active) tellDeck({ type: "drag", value: false });
   drag = null;
   overlay?.close();
   overlay = null;
@@ -505,11 +506,13 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     } else if (drag) {
       const saved = drag.active ? snapPosition(display, drag.anchor) : null;
       if (saved) position = resolvePosition(display, saved);
+      const carried = drag.active;
       drag = null;
       if (input) input.setRegions(blink, regions, display.scaleFactor);
       else if (process.platform === "win32") blink.setShape(regions);
       if (saved) await store.save(display.id, saved);
       placeCard();
+      if (carried) tellDeck({ type: "drag", value: false });
     }
   } else if (command.type === "pin") {
     pinned = command.value;
@@ -884,8 +887,13 @@ const poll = setInterval(() => {
 
   const p = cursor.point();
   if (drag) {
-    if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4)
+    if (
+      !drag.active &&
+      Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4
+    ) {
       drag.active = true;
+      tellDeck({ type: "drag", value: true }); // the stack steps aside while Blink is carried
+    }
     const next = screen.getDisplayNearestPoint(p);
     if (next.id !== display.id) useDisplay(next);
     drag.velocity = (p.x - drag.lastX) / 0.016;

@@ -72,6 +72,7 @@ export function mountMessageBubbles(
     frame,
     settle,
     framing,
+    away = false,
     clearance = 0;
 
   // Scroll events arrive a frame late, after streamed text may have grown the
@@ -97,7 +98,7 @@ export function mountMessageBubbles(
   };
   /** Window-relative click-through rectangles of the deck. */
   function regions() {
-    if (deck.dataset.visible !== "true") return [];
+    if (deck.dataset.visible !== "true" || away) return [];
     const bounds = deck.getBoundingClientRect();
     const own = solid
       ? [rect(bounds, bounds)]
@@ -366,6 +367,19 @@ export function mountMessageBubbles(
       pinned = deck.scrollTop;
       age();
       return true;
+    },
+    /** Step aside while Blink is carried, so the stack never trails across the
+     * page; it returns, at Blink's new place, when Blink is put down. */
+    carry(value) {
+      if (away === value) return;
+      const from = Number.parseFloat(view.getComputedStyle(deck).opacity);
+      away = value;
+      deck.dataset.away = String(value);
+      play(deck, [{ opacity: Number.isFinite(from) ? from : Number(!value) }], {
+        duration: value ? duration.fast : duration.base,
+        easing: value ? easing.exit : easing.enter,
+      });
+      onShape();
     },
     /** Keep the deck clear of the open fan (`snapshot().menu`, window space). */
     avoid(menu) {

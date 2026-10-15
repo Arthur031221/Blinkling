@@ -40,7 +40,8 @@ body[data-surface="bubbles"] #answers {
   height: 0;
 }
 /* view.mjs animates the opacity change; this is where it ends. */
-.gl-bubble-deck[data-visible="false"] {
+.gl-bubble-deck[data-visible="false"],
+.gl-bubble-deck[data-away="true"] {
   opacity: 0;
   pointer-events: none;
 }

@@ -273,3 +273,94 @@ for (const [edge, y] of [
       );
     }
   });
+
+const deckPage = (c) =>
+  c.app
+    .windows()
+    .find(
+      (p) =>
+        p.url().includes("composer/index.html") &&
+        !p.url().includes("surface=card"),
+    );
+/** Screen boxes of the answer rows that can be seen right now. */
+async function shownRows(c) {
+  const win = await c.app.evaluate(() =>
+    globalThis.blinklingTest.bubbles.getBounds(),
+  );
+  const rows = await deckPage(c)
+    .locator("[data-kind]")
+    .evaluateAll((nodes) =>
+      nodes.map((n) => {
+        const r = n.getBoundingClientRect();
+        const deck = n.closest(".gl-bubble-deck");
+        return {
+          x: r.x,
+          y: r.y,
+          width: r.width,
+          height: r.height,
+          opacity:
+            Number(getComputedStyle(n).opacity) *
+            Number(getComputedStyle(deck).opacity),
+        };
+      }),
+    );
+  return rows
+    .filter((r) => r.opacity > 0.05 && r.width > 0)
+    .map((r) => ({ ...r, x: win.x + r.x, y: win.y + r.y }));
+}
+const crosses = (a, b) =>
+  a.x < b.x + b.width &&
+  b.x < a.x + a.width &&
+  a.y < b.y + b.height &&
+  b.y < a.y + a.height;
+
+test("dragging Blink takes the answer bubbles with it: none is left over the old spot, none floats over the page mid-drag", async () => {
+  randr(
+    "--output",
+    "DUMMY1",
+    "--off",
+    "--output",
+    "DUMMY0",
+    "--mode",
+    "1280x800",
+  );
+  const data = await mkdtemp(join(tmpdir(), "blink-drag-"));
+  const c = await launch(1, "light", data);
+  try {
+    await c.app.evaluate(() => {
+      globalThis.blinklingTest.send({
+        type: "message",
+        id: "drag-a",
+        role: "assistant",
+        content: [{ type: "text", text: "First one. Second one. Third one." }],
+        complete: true,
+      });
+    });
+    await expect.poll(async () => (await shownRows(c)).length).toBe(3);
+    const before = await shownRows(c);
+    await hover(c);
+    const p = await rigPoint(c.page),
+      s = await state(c);
+    native(s.display.bounds.x + p.x, s.display.bounds.y + p.y, "down");
+    native(s.display.bounds.x + p.x - 10, s.display.bounds.y + p.y - 10);
+    await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drag");
+    native(40, 500);
+    await c.page.waitForTimeout(500);
+    await desktopShot(c.app, "drag-answers-hidden");
+    // While Blink is carried, the stack is out of the way of the page.
+    expect(await shownRows(c)).toEqual([]);
+    native(40, 500, "up");
+    await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drop");
+    // It comes back beside Blink's new place, and nothing stays at the old one.
+    await expect.poll(async () => (await shownRows(c)).length).toBe(3);
+    await c.page.waitForTimeout(400);
+    await desktopShot(c.app, "drag-answers-returned");
+    const after = await shownRows(c);
+    expect((await state(c)).position.edge).toBe("left");
+    for (const a of after)
+      for (const b of before) expect(crosses(a, b)).toBe(false);
+  } finally {
+    await c.app.close();
+    await rm(data, { recursive: true, force: true });
+  }
+});
