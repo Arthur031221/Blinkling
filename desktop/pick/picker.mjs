@@ -17,7 +17,8 @@ const isSecure = (el) => el?.secure === true;
  * data, so the whole policy is unit tested.
  *
  * locator: locate(point), parent(el), selectionAt(point), textIn(rect),
- *   focus(), and optionally sentenceAt(el, point) and windowAt(point).
+ *   focus(), and optionally sentenceAt(el, point), windowAt(point) and
+ *   settle(point), the fresh read a click waits for (false locks).
  * guard: allowed() is false while a blocked app is in front (privacy). */
 export function createPicker({ locator, guard, display }) {
   let items = [];
@@ -240,6 +241,9 @@ export function createPicker({ locator, guard, display }) {
     },
 
     async click(point) {
+      // A click acts on a read begun after it; without one, it locks.
+      if (locator.settle && !(await locator.settle(point)))
+        return { type: "lock", at: point };
       const r = await resolve(point);
       if (r.lock) return { type: "lock", at: point };
       // The same element again, inside what it already gave: grow one level.
