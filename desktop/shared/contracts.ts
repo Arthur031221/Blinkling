@@ -70,9 +70,7 @@ export interface OverlayService {
   dismiss(): void;
 }
 export type Action =
-  | "screen"
-  | "region"
-  | "full-page"
+  | "capture"
   | "guide"
   | "auto-explain"
   | "chat"

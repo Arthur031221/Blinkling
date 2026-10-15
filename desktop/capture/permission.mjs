@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { aborted } from "./core.mjs";
+import { captureText } from "./strings.mjs";
 export class IntentStore {
   constructor(path) {
     this.path = path;
@@ -9,8 +10,10 @@ export class IntentStore {
   async read() {
     try {
       const v = JSON.parse(await readFile(this.path, "utf8"));
+      // "region" is what versions before the single capture entry saved.
+      if (v.kind === "region") v.kind = "capture";
       if (
-        !["screen", "region", "guide", "auto-explain"].includes(v.kind) ||
+        !["screen", "capture", "guide", "auto-explain"].includes(v.kind) ||
         typeof v.displayId !== "string" ||
         !Number.isFinite(v.createdAt) ||
         Date.now() - v.createdAt > 86400000 ||
@@ -39,28 +42,21 @@ export class IntentStore {
     return rm(this.path, { force: true });
   }
 }
-export function permissionLabels(version) {
+export function permissionLabels(version, t = captureText("en")) {
   const major = Number(String(version).split(".")[0]);
-  return major >= 14
+  return major >= 13
     ? {
-        app: "System Settings",
-        pane: "Privacy & Security",
-        section: "Screen & System Audio Recording",
+        app: t("app"),
+        pane: t("pane"),
+        section: t(major >= 14 ? "sectionSonoma" : "sectionVentura"),
         control: "switch",
       }
-    : major >= 13
-      ? {
-          app: "System Settings",
-          pane: "Privacy & Security",
-          section: "Screen Recording",
-          control: "switch",
-        }
-      : {
-          app: "System Preferences",
-          pane: "Security & Privacy",
-          section: "Screen Recording",
-          control: "checkbox",
-        };
+    : {
+        app: t("appOld"),
+        pane: t("paneOld"),
+        section: t("sectionOld"),
+        control: "checkbox",
+      };
 }
 /** OS adapters are injected; this state machine is also exercised across versions.
  * No automatic TCC reset, credential reads or attempts to grant consent. */

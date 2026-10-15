@@ -1,6 +1,5 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
 import { anchorOf, growOrigin } from "./origin.mjs";
-import { captureNotice } from "../capture/full-page.mjs";
 const api = window.blinkling;
 const configuration = await api.configuration();
 document.body.dataset.surface = configuration.surface ?? "card";
@@ -106,14 +105,6 @@ const button = (label, action, enabled = true) => {
   return b;
 };
 const unEvent = api.onEvent((event) => {
-  if (event.type === "companion-required") {
-    notice.replaceChildren(
-      "整頁截圖需要瀏覽器小幫手。",
-      button("安裝說明", "companion-guide"),
-      button("截取畫面", "screen"),
-    );
-    notice.hidden = false;
-  }
   if (event.type === "guide") {
     guide.replaceChildren();
     guide.hidden = event.phase === "dismissed";
@@ -143,12 +134,6 @@ const unEvent = api.onEvent((event) => {
         button("再試一次", "guide-retry"),
         button("關閉", "guide-dismiss"),
       );
-  }
-  const change = captureNotice(event);
-  if (change?.hidden) notice.hidden = true;
-  else if (change) {
-    notice.textContent = change.text;
-    notice.hidden = false;
   }
 });
 let cleanShapes;

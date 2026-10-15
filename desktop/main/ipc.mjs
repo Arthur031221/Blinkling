@@ -65,9 +65,7 @@ export function validRegions(value, bounds) {
 }
 
 export const actionNames = new Set([
-  "screen",
-  "region",
-  "full-page",
+  "capture",
   "guide",
   "auto-explain",
   "chat",

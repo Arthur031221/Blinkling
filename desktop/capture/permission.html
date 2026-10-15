@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -7,7 +7,8 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self'; style-src 'self'"
     />
-    <title>允許螢幕擷取</title>
+    <title></title>
+    <link rel="stylesheet" href="../shared/look.css" />
     <link rel="stylesheet" href="permission.css" />
   </head>
   <body>
@@ -31,8 +32,8 @@
           stroke-linecap="round"
         />
       </svg>
-      <p>開啟 Blinkling 的螢幕錄製權限，擷取會自動繼續。</p>
-      <div class="settings-demo" aria-label="螢幕錄製權限動畫">
+      <p id="lead"></p>
+      <div class="settings-demo" id="demo" role="img">
         <div class="sidebar">
           <b id="settings-app"></b><span id="settings-pane"></span>
         </div>
@@ -53,7 +54,7 @@
         </div>
       </div>
       <div class="buttons">
-        <button id="settings">開啟設定</button><button id="cancel">取消</button>
+        <button id="settings"></button><button id="cancel"></button>
       </div>
     </main>
     <script type="module" src="permission-ui.mjs"></script>

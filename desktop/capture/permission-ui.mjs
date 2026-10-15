@@ -1,10 +1,19 @@
+import { cssVariables } from "../shared/motion.mjs";
+
+document.documentElement.style.cssText += cssVariables();
 const initial = await window.captureUI.init();
-for (const [id, value] of [
-  ["settings-app", initial.labels.app],
-  ["settings-pane", initial.labels.pane],
-  ["settings-section", initial.labels.section],
-])
-  document.getElementById(id).textContent = value;
+document.documentElement.lang = initial.locale;
+document.title = initial.text.permissionTitle;
+const put = (id, value) => (document.getElementById(id).textContent = value);
+put("lead", initial.text.permissionLead);
+put("settings", initial.text.openSettings);
+put("cancel", initial.text.cancel);
+put("settings-app", initial.labels.app);
+put("settings-pane", initial.labels.pane);
+put("settings-section", initial.labels.section);
+document
+  .getElementById("demo")
+  .setAttribute("aria-label", initial.text.permissionDemo);
 if (initial.labels.control === "checkbox")
   document.getElementById("toggle").classList.add("checkbox");
 document.querySelector("#settings").onclick = () => window.captureUI.settings();

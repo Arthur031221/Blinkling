@@ -1,5 +1,6 @@
 import {
   app,
+  BrowserWindow,
   desktopCapturer,
   nativeImage,
   screen,
@@ -16,8 +17,8 @@ import {
   freezeDisplay,
 } from "./core.mjs";
 import { IntentStore, PermissionRecovery } from "./permission.mjs";
-import { selectRegion, permissionWindow, captureWindows } from "./windows.mjs";
-export { selectRegion } from "./windows.mjs";
+import { CaptureOverlays, permissionWindow } from "./windows.mjs";
+import { fitWindows, listWindows } from "./window-list.mjs";
 export async function screenImage(display, size) {
   const sources = await desktopCapturer.getSources({
     types: ["screen"],
@@ -73,21 +74,68 @@ export function captureScreen(display, windows) {
 export async function captureFullPage() {
   return { companionRequired: true };
 }
+/** The windows on one display as display-relative DIP boxes, front to back,
+ * without any of our own. Never throws and never waits long. */
+export async function windowsOn(display, list = listWindows) {
+  const ids = new Set(
+    BrowserWindow.getAllWindows()
+      .filter((w) => !w.isDestroyed())
+      .map((w) => w.getNativeWindowHandle().readUInt32LE(0)),
+  );
+  const native = await list({ own: { ids, pids: new Set([process.pid]) } });
+  // macOS reports points, which are DIPs already.
+  const toDip =
+    process.platform === "darwin"
+      ? (point) => point
+      : (point) => screen.screenToDipPoint(point);
+  return fitWindows(native, display, toDip);
+}
+const cropped = (capture, rect, name) => {
+  const image = nativeImage
+    .createFromBuffer(Buffer.from(capture.image.data, "base64"))
+    .crop(cropGeometry(rect, capture));
+  const size = image.getSize();
+  return {
+    ...capture,
+    id: randomUUID(),
+    region: { ...rect },
+    pixelWidth: size.width,
+    pixelHeight: size.height,
+    image: {
+      ...capture.image,
+      id: randomUUID(),
+      name,
+      data: image.toPNG().toString("base64"),
+    },
+  };
+};
 export class DesktopCaptureService {
   constructor({
     windows = () => [],
     onCapture = () => {},
     fullPage = captureFullPage,
+    companion = () => false,
+    overlays = new CaptureOverlays(),
+    list = windowsOn,
     permission,
-    select = selectRegion,
     limits = {},
   } = {}) {
     // Busy must always clear: no step may hang the service for longer than this.
-    this.limits = { run: 10 * 60_000, delivery: 15_000, ...limits };
+    this.limits = {
+      run: 10 * 60_000,
+      delivery: 15_000,
+      page: 2 * 60_000,
+      ...limits,
+    };
     this.onCapture = onCapture;
     this.fullPage = fullPage;
-    this.select = select;
-    this.guard = new SurfaceGuard(() => [...windows(), ...captureWindows()]);
+    this.companion = companion;
+    this.overlays = overlays;
+    this.list = list;
+    this.guard = new SurfaceGuard(() => [
+      ...windows(),
+      ...this.overlays.windows,
+    ]);
     this.store = new IntentStore(
       join(app.getPath("userData"), "capture-intent.json"),
     );
@@ -116,6 +164,10 @@ export class DesktopCaptureService {
           })
         : null);
   }
+  /** Creates the hidden overlays (one per display) before the first capture. */
+  start() {
+    return this.overlays.start();
+  }
   display(id) {
     const display = screen
       .getAllDisplays()
@@ -126,7 +178,12 @@ export class DesktopCaptureService {
   cancel() {
     this.controller?.abort();
   }
-  async run(kind, displayId, signal, { attach = true, intent } = {}) {
+  async run(
+    kind,
+    displayId,
+    signal,
+    { attach = true, intent, source = "capture" } = {},
+  ) {
     // One selection owns the frozen frame. Background callers check busy first.
     if (this.controller)
       throw Object.assign(Error("Capture in progress"), {
@@ -159,43 +216,59 @@ export class DesktopCaptureService {
     };
     screen.on("display-metrics-changed", invalidate);
     screen.on("display-removed", invalidate);
-    let capture = null;
+    let captures = [];
     try {
       const task = () =>
         this.guard.run(async () => {
-          this.matchesDisplay = freezeDisplay(this.display(displayId));
-          const capture = await readScreen(this.matchesDisplay);
+          const display = (this.matchesDisplay = freezeDisplay(
+            this.display(displayId),
+          ));
+          // The window list and the companion answer while the screen is read,
+          // so the overlay opens with both and hover has nothing to wait for.
+          const [capture, windows, companion] = await Promise.all([
+            readScreen(display),
+            kind === "capture" ? this.list(display) : [],
+            kind === "capture" ? Promise.resolve(this.companion()) : false,
+          ]);
           invalidate();
           aborted(controller.signal);
-          if (kind !== "region") return capture;
-          const rect = await this.select(capture, controller.signal);
-          if (!rect) return null;
+          if (kind !== "capture") return { ...capture, kind: "screen", source };
+          const choice = await this.overlays.open(
+            display.id,
+            { capture, windows, companion: !!companion },
+            controller.signal,
+          );
+          if (!choice) return null;
           aborted(controller.signal);
-          const image = nativeImage
-            .createFromBuffer(Buffer.from(capture.image.data, "base64"))
-            .crop(cropGeometry(rect, capture));
-          const size = image.getSize();
+          if (choice.kind === "screen")
+            return { ...capture, kind: "screen", source };
+          if (choice.kind === "page") return { capture, choice };
+          const named =
+            choice.kind === "window" ? "Window.png" : "Selection.png";
           return {
-            ...capture,
-            id: randomUUID(),
-            region: { ...rect },
-            pixelWidth: size.width,
-            pixelHeight: size.height,
-            image: {
-              ...capture.image,
-              id: randomUUID(),
-              name: "Selection.png",
-              data: image.toPNG().toString("base64"),
-            },
+            ...cropped(capture, choice.rect, named),
+            kind: choice.kind,
+            source,
           };
         }, controller.signal);
-      capture = await deadline(
+      const first = await deadline(
         this.permission
           ? this.permission.capture(task, this.intent, controller.signal)
           : task(),
         this.limits.run,
         "CAPTURE_TIMEOUT",
       );
+      // The page runs after the guard, so Blink is back while the browser
+      // scrolls; the frozen frame is the fallback if the companion cannot.
+      captures = first?.choice
+        ? await deadline(
+            this.page(first, controller.signal),
+            this.limits.page,
+            "CAPTURE_TIMEOUT",
+          )
+        : first
+          ? [first]
+          : [];
     } catch (error) {
       if (/^CAPTURE_(DELIVERY_)?TIMEOUT$/.test(error.code)) {
         // Close any selection overlay that is still waiting, then report it.
@@ -214,18 +287,44 @@ export class DesktopCaptureService {
     }
     // Delivery happens after busy has cleared: a card that is slow, closing or
     // gone must never leave later captures answering "capture in progress".
-    if (capture && attach)
-      await deliverCapture(this.onCapture, capture, this.limits.delivery);
-    return capture;
+    if (attach)
+      for (const capture of captures)
+        await deliverCapture(this.onCapture, capture, this.limits.delivery);
+    return captures[0] ?? null;
+  }
+  /** The whole page from the companion, one capture per tile. If the companion
+   * cannot do it the picked window is taken from the frozen frame instead, so
+   * the click still gives the user something and nothing is announced. */
+  async page({ capture, choice }, signal) {
+    try {
+      const result = await this.fullPage(signal);
+      if (!result?.companionRequired)
+        return (result.tiles ?? [result]).map((tile) => ({
+          ...tile,
+          kind: "page",
+          source: "page",
+        }));
+    } catch (error) {
+      if (signal.aborted) throw error;
+    }
+    return [
+      {
+        ...cropped(capture, choice.rect, "Window.png"),
+        kind: "window",
+        source: "page",
+      },
+    ];
   }
   get busy() {
     return !!this.controller;
   }
+  /** Whole-screen read for Guide and auto explain: no overlay, no choice. */
   screen(id, signal, options) {
     return this.run(options?.kind ?? "screen", id, signal, options);
   }
-  region(id, signal, options) {
-    return this.run("region", id, signal, options);
+  /** The capture overlay: pick an area, a window, the screen or a page. */
+  pick(id, signal, options) {
+    return this.run("capture", id, signal, options);
   }
   async resume(onGuide = () => {}, onAuto = () => {}) {
     const intent = await this.store.read();
