@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
+import { EventEmitter } from "node:events";
 import { installPick } from "./install.mjs";
 import { KEYCODES } from "./keys.mjs";
 import { timing, duration } from "../shared/motion.mjs";
@@ -122,7 +123,7 @@ function setup(options = {}) {
       },
     }));
   const timers = [];
-  return {
+  const api = {
     log,
     shell,
     electron,
@@ -135,6 +136,7 @@ function setup(options = {}) {
         electron,
         shell,
         loadKeys: load,
+        spawn: api.spawn,
         now: () => clock,
         // The layer's safety timeout stands in for the page's "flight done".
         setTimer: (fn, ms) => {
@@ -146,6 +148,7 @@ function setup(options = {}) {
         onError: (e) => log.errors.push(e),
       }),
   };
+  return api;
 }
 
 test("a Windows path with backslashes ends with the same tail as a POSIX one", () => {
@@ -452,24 +455,49 @@ test("MV-2: pick and privacy test hooks both hang on blinklingTest, in either in
   }
 });
 
-test("on macOS a refused key hook asks for Accessibility once and starts by itself after it is allowed", async () => {
-  let allowed = false;
-  let starts = 0;
-  const asked = [];
+/** A stand-in for the macOS key tap process. */
+function fakeHelper(answers) {
+  const spawned = [];
+  const spawn = (command) => {
+    const proc = new EventEmitter();
+    proc.stdout = new EventEmitter();
+    proc.stdout.setEncoding = () => {};
+    proc.stdin = { destroy() {} };
+    proc.killed = false;
+    proc.kill = () => (proc.killed = true);
+    spawned.push({ command, proc });
+    const answer = answers(spawned.length);
+    setImmediate(() => proc.stdout.emit("data", answer));
+    return proc;
+  };
+  return { spawn, spawned };
+}
+
+test("on macOS the keys come from the helper process and uiohook is never loaded", async () => {
+  let loaded = 0;
+  const helper = fakeHelper(() => "ready listen\n");
   const s = setup({
-    load: async () => ({
-      uIOhook: {
-        on() {},
-        removeAllListeners() {},
-        start() {
-          starts++;
-          if (!allowed)
-            throw new Error("Failed to enable access for assistive devices.");
-        },
-        stop() {},
-      },
-    }),
+    load: async () => void loaded++,
   });
+  s.shell.platform = "darwin";
+  s.shell.keytap = "/app/Resources/blinkling-keytap";
+  s.spawn = helper.spawn;
+  const pick = await s.install();
+  assert.equal(pick.started, true);
+  assert.equal(loaded, 0);
+  assert.equal(helper.spawned[0].command, "/app/Resources/blinkling-keytap");
+  helper.spawned[0].proc.stdout.emit("data", "kd 29\n");
+  s.timers.find((t) => t.ms === timing.pickHold).fn();
+  assert.equal(pick.test.keys.raised(), true);
+  pick.dispose();
+  assert.equal(helper.spawned[0].proc.killed, true);
+});
+
+test("on macOS a refused helper asks for Accessibility once and a fresh helper starts after it is allowed", async () => {
+  let allowed = false;
+  const asked = [];
+  const helper = fakeHelper(() => (allowed ? "ready active\n" : "denied\n"));
+  const s = setup();
   s.electron.systemPreferences = {
     isTrustedAccessibilityClient: (ask) => {
       asked.push(ask);
@@ -477,6 +505,8 @@ test("on macOS a refused key hook asks for Accessibility once and starts by itse
     },
   };
   s.shell.platform = "darwin";
+  s.shell.keytap = "/app/Resources/blinkling-keytap";
+  s.spawn = helper.spawn;
   const pick = await s.install();
   assert.equal(pick.started, false);
   assert.deepEqual(asked, [false, true]);
@@ -486,11 +516,30 @@ test("on macOS a refused key hook asks for Accessibility once and starts by itse
   };
   await poll();
   assert.equal(pick.started, false, "still waiting while the switch is off");
+  assert.equal(
+    helper.spawned[1].proc.killed,
+    true,
+    "a refused helper is reaped",
+  );
   allowed = true;
   await poll();
   assert.equal(pick.started, true);
-  assert.equal(starts, 2);
+  assert.equal(helper.spawned.length, 3);
   pick.dispose();
+});
+
+test("on macOS a missing helper is reported once and never retried", async () => {
+  const s = setup();
+  s.shell.platform = "darwin";
+  s.shell.keytap = null;
+  const pick = await s.install();
+  assert.equal(pick.started, false);
+  assert.equal(
+    s.timers.some((t) => t.ms === 2000),
+    false,
+  );
+  assert.equal(s.log.errors.length, 1);
+  assert.equal(s.log.errors[0].code, "MISSING");
 });
 
 test("a key hook that cannot start off macOS is not retried and raises no prompt", async () => {

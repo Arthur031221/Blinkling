@@ -39,6 +39,15 @@ jobs:
           # Playwright prints the app's own output, so a hang on a runner is visible.
           DEBUG: pw:browser
       - run: npm run desktop:build
+      # No permission is granted on a runner, so the helper either has its tap
+      # ("ready") or says "denied"; silence or a crash fails the job.
+      - name: The macOS key tap starts and answers
+        if: runner.os == 'macOS'
+        run: |
+          helper=$(ls -d release/desktop/*/Blinkling.app/Contents/Resources/blinkling-keytap)
+          out=$(sleep 2 | "$helper" | head -1 || true)
+          echo "key tap said: $out"
+          case "$out" in "ready "*|denied) ;; *) exit 1 ;; esac
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.os }}

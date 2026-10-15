@@ -8,3 +8,4 @@ dist-extension/
 release/
 __pycache__/
 *.pyc
+desktop/pick/native/build/

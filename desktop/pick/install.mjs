@@ -1,11 +1,13 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createLayers } from "./layer-window.mjs";
 import { createRaiser } from "./raise.mjs";
 import { createPickKeys } from "./keys.mjs";
 import { createKeySource, loadUiohook } from "./keys-uiohook.mjs";
+import { createHelperKeySource, keytapPath } from "./keys-helper.mjs";
+import { spawn as spawnProcess } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { createPickController } from "./controller.mjs";
 import { createPicker } from "./picker.mjs";
 import { createGrouper } from "./group.mjs";
@@ -75,6 +77,7 @@ export async function installPick({
   electron,
   shell,
   loadKeys = loadUiohook,
+  spawn = spawnProcess,
   setTimer,
   clearTimer,
   now,
@@ -283,18 +286,32 @@ export async function installPick({
     onDrop: (reason) => void controller.drop(reason).catch(onError),
     ...timers,
   });
-  const source = createKeySource({
-    load: loadKeys,
-    handle: keys.handle,
-    onError,
-  });
+  const platform = shell.platform ?? process.platform;
+  // On macOS the keys come from a separate helper process: the in-process hook
+  // handed every key to the main thread and deadlocked with input methods such
+  // as Zhuyin. uiohook is never loaded there.
+  const source =
+    platform === "darwin"
+      ? createHelperKeySource({
+          command:
+            shell.keytap ??
+            keytapPath({
+              appDir: fileURLToPath(new URL("..", import.meta.url)),
+            }),
+          spawn,
+          handle: keys.handle,
+          onError,
+          ...timers,
+        })
+      : createKeySource({ load: loadKeys, handle: keys.handle, onError });
   const started =
     env.BLINKLING_PICK_KEYS === "0" ? { ok: false } : await source.start();
 
-  // macOS only lets an app listen for keys once Accessibility is allowed. The
-  // first refusal raises the system's own prompt (it lists the app and opens the
-  // switch), then the hook is retried until the user has flipped it, so the pick
-  // key works without a restart.
+  // macOS only lets an app listen for keys once it is allowed to. The first
+  // refusal raises the system's own prompt (it lists the app and opens the
+  // switch), then a fresh helper is tried every few seconds until the user has
+  // flipped it, so the pick key works without a restart. A missing helper is
+  // not retried: no switch would fix it.
   let retry = null;
   let disposed = false;
   const trusted = (ask) =>
@@ -302,15 +319,16 @@ export async function installPick({
   if (
     !started.ok &&
     env.BLINKLING_PICK_KEYS !== "0" &&
-    (shell.platform ?? process.platform) === "darwin" &&
-    trusted(false) === false
+    platform === "darwin" &&
+    started.error?.code !== "MISSING"
   ) {
-    trusted(true);
+    if (trusted(false) === false) trusted(true);
     const setTimer = timers.setTimer ?? setTimeout;
     const poll = () => {
       retry = setTimer(async () => {
         if (disposed) return;
-        if (trusted(false) !== true || !(await source.start()).ok) poll();
+        const next = await source.start();
+        if (!next.ok && next.error?.code !== "MISSING") poll();
       }, RETRY_MS);
     };
     poll();
