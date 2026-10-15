@@ -1,6 +1,6 @@
 <h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg" /><img src="assets/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
-<p align="center"><strong>La respuesta, junto a la página.</strong></p>
+<p align="center"><strong>Blink vive en la esquina de tu pantalla. Mantén Ctrl, haz clic en lo que sea y recibe la respuesta.</strong></p>
 
 <p align="center">
   <a href="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Glimpselet/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -12,14 +12,11 @@
 
 Formerly Glimpselet. ¿Vienes del plugin anterior? Ejecuta `/plugin uninstall glimpselet@glimpselet` y `/plugin marketplace remove glimpselet`, y luego instala Blinkling con los pasos de abajo.
 
-Un pequeño chat flotante de Claude Code. Pregunta sobre una página, captura una zona, sigue una guía o traduce un pasaje.
+Blinkling pone a Blink, un pequeño compañero verde, en la esquina de tu pantalla, por encima de cualquier app. Mantén **Ctrl** (Control en macOS) y haz clic en lo que quieras preguntar, o arrastra para tomar una zona. Vuela hacia Blink, preguntas, y la respuesta llega en burbujas que señalan de qué hablan.
 
-> [!TIP]
-> Usa tu propia cuenta de Claude Code con sesión iniciada y Chrome o Edge de escritorio. Claude Code no necesita una clave API.
+> **Seguro por diseño:** Blinkling solo mira y explica. Nunca hace clic, escribe ni controla tus apps.
 
-![Google Flights: una guía de la página y una pregunta sobre cómo reservar un viaje de ida y vuelta.](assets/demo.gif)
-
-_Google Flights: una guía de la página y una pregunta sobre cómo reservar un viaje de ida y vuelta._
+Usa el Claude Code en el que ya iniciaste sesión en este equipo.
 
 ## Instalación
 
