@@ -2,7 +2,8 @@ import "../shared/test-env.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { parseGuide, guideDrawings } from "./schema.mjs";
+import { parseGuide } from "./schema.mjs";
+import { drawGuide } from "./test-draw.mjs";
 const reply = await readFile(
   new URL("./recorded/haiku-low-reply.txt", import.meta.url),
   "utf8",
@@ -25,8 +26,8 @@ test("the recorded haiku reply parses into a guide", () => {
   assert.ok(guide.sections.length >= 4);
   assert.ok(guide.steps.length >= 3);
 });
-test("the recorded haiku reply yields drawings", () => {
-  const drawings = guideDrawings(parseGuide(reply, capture), capture);
+test("the recorded haiku reply yields drawings", async () => {
+  const drawings = await drawGuide(parseGuide(reply, capture), capture);
   assert.ok(drawings.length >= 4);
 });
 test("a trailing comma and a dangling quote are repaired", () => {

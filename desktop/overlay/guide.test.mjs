@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { readFile } from "node:fs/promises";
 import { GuideController } from "./guide.mjs";
 import { collectTurn } from "./turn.mjs";
 const guide = {
@@ -15,8 +16,8 @@ const guide = {
     },
   ],
   steps: [
-    { id: "one", note: "Read the results.", regionIds: ["a"], arrows: [] },
-    { id: "two", note: "Compare them.", regionIds: ["a"], arrows: [] },
+    { id: "one", note: "Read the results.", regionIds: ["a"] },
+    { id: "two", note: "Compare them.", regionIds: ["a"] },
   ],
 };
 const capture = {
@@ -30,75 +31,52 @@ const capture = {
   pixelHeight: 600,
   image: { data: "pixels" },
 };
-test("guide sends image, validates complete content and renders Next/Back/overview as bubbles", async () => {
-  const events = [],
-    overlay = new EventEmitter();
-  let listener, turn, shown;
-  overlay.show = async (c, d) => (shown = { c, d });
-  overlay.step = (i) => events.push({ step: i });
-  overlay.dismiss = () => {};
-  const session = {
-    subscribe: (f) => {
-      listener = f;
-      return () => (listener = null);
+test("guide sends the image, draws numbered marks through pointing only and renders Next/Back/overview as bubbles", async () => {
+  const r = rig([JSON.stringify(guide)]);
+  await r.controller.start("1");
+  assert.equal(r.turns[0].source, "guide");
+  assert.equal(r.turns[0].attachments[0].data, "pixels");
+  assert.match(r.turns[0].text, /EVERY main section/);
+  assert.doesNotMatch(
+    r.turns[0].text,
+    /arrow/i,
+    "no arrows: the marks say it all",
+  );
+  assert.equal(r.pointing.shown.length, 1);
+  const { refs, options } = r.pointing.shown[0];
+  assert.deepEqual(refs, [
+    {
+      n: 1,
+      rect: { x: 10, y: 10, width: 100, height: 80 },
+      label: "Results",
+      kind: "outline",
     },
-    send: async (t) => {
-      turn = t;
-      listener({ type: "delta", text: JSON.stringify(guide) });
-      listener({ type: "done", turnId: "unrelated" });
-      listener({ type: "done", turnId: t.id });
-    },
-    stop: async () => {},
-  };
-  const controller = new GuideController({
-    session,
-    overlay,
-    capture: { run: async () => capture },
-    onGuide: (e) => events.push(e),
-  });
-  await controller.start("1");
-  assert.equal(turn.source, "guide");
-  assert.equal(turn.attachments[0].data, "pixels");
-  assert.match(turn.text, /EVERY main section/);
-  assert.equal(shown.d[0].rect.width, 100);
-  assert.deepEqual(events.at(-1).bubbles, [
+  ]);
+  assert.equal(options.displayId, "1");
+  assert.equal(options.capture, capture, "boxes are screenshot pixels");
+  assert.equal(options.snap, false, "the guide's own boxes are not snapped");
+  assert.deepEqual(r.events.at(-1).bubbles, [
     "Report overview.",
     "Results：The main results.",
     "Sales grew.",
   ]);
-  controller.next();
-  assert.equal(events.at(-1).index, 0);
-  controller.next();
-  assert.equal(events.at(-1).index, 1);
-  controller.back();
-  assert.equal(events.at(-1).index, 0);
-  controller.overview();
-  assert.equal(events.at(-1).index, -1);
-  overlay.emit("dismissed", "content-changed");
-  assert.equal(controller.guide, null);
-  controller.dispose();
+  r.controller.next();
+  assert.equal(r.events.at(-1).index, 0);
+  r.controller.next();
+  assert.equal(r.events.at(-1).index, 1);
+  r.controller.back();
+  assert.equal(r.events.at(-1).index, 0);
+  r.controller.overview();
+  assert.equal(r.events.at(-1).index, -1);
+  r.overlay.emit("dismissed", "content-changed");
+  assert.equal(r.controller.guide, null);
+  r.controller.dispose();
 });
-test("malformed model output never becomes drawings", async () => {
-  const overlay = new EventEmitter();
-  overlay.show = () => assert.fail();
-  overlay.dismiss = () => {};
-  let listener;
-  const controller = new GuideController({
-    session: {
-      subscribe: (f) => {
-        listener = f;
-        return () => {};
-      },
-      send: async (t) => {
-        listener({ type: "delta", text: "not JSON" });
-        listener({ type: "done", turnId: t.id });
-      },
-    },
-    overlay,
-    capture: { run: async () => capture },
-  });
-  await assert.rejects(controller.start("1"));
-  controller.dispose();
+test("malformed model output never becomes marks", async () => {
+  const r = rig(["not JSON"]);
+  await assert.rejects(r.controller.start("1"));
+  assert.equal(r.pointing.shown.length, 0);
+  r.controller.dispose();
 });
 test("cancellation interrupts only the pending turn and releases the subscription", async () => {
   let unsubscribed = 0,
@@ -118,16 +96,30 @@ test("cancellation interrupts only the pending turn and releases the subscriptio
   assert.equal(unsubscribed, 1);
   assert.equal(stopped, 1);
 });
+/** Pointing and overlay stand-ins: the guide may draw only through pointing. */
+function fakes() {
+  const overlay = new EventEmitter(),
+    pointing = { shown: [], focused: [], cleared: [] };
+  pointing.show = async (refs, options) => {
+    pointing.shown.push({ refs, options });
+    return pointing.result ?? true;
+  };
+  pointing.focus = (which) => pointing.focused.push(which);
+  pointing.clear = (reason) => {
+    pointing.cleared.push(reason);
+    overlay.emit("dismissed", reason);
+  };
+  overlay.show = () => assert.fail("the guide never draws on the overlay");
+  overlay.step = () => assert.fail("the guide never steps the overlay");
+  overlay.dismiss = () => assert.fail("the guide dismisses through pointing");
+  return { overlay, pointing };
+}
 function rig(replies, options = {}) {
   const events = [],
-    overlay = new EventEmitter(),
     turns = [],
-    steps = [],
-    shown = [];
+    ended = [],
+    { overlay, pointing } = fakes();
   let listener;
-  overlay.show = async (c, d) => shown.push({ c, d });
-  overlay.step = (i) => steps.push(i);
-  overlay.dismiss = () => {};
   const session = {
     subscribe: (f) => {
       listener = f;
@@ -146,6 +138,7 @@ function rig(replies, options = {}) {
   const controller = new GuideController({
     session,
     overlay,
+    pointing,
     capture: {
       run: async (...args) => {
         captures.push(args);
@@ -153,9 +146,10 @@ function rig(replies, options = {}) {
       },
     },
     onGuide: (e) => events.push(e),
+    onEnd: (e) => ended.push(e),
     ...options,
   });
-  return { controller, events, turns, steps, shown, captures };
+  return { controller, events, turns, pointing, overlay, ended, captures };
 }
 const threeSteps = () => ({
   ...guide,
@@ -163,8 +157,75 @@ const threeSteps = () => ({
     id,
     note: `Step ${id}.`,
     regionIds: ["a"],
-    arrows: [],
   })),
+});
+const fixture = await readFile(
+  new URL("./recorded/haiku-low-reply.txt", import.meta.url),
+  "utf8",
+);
+const bigCapture = {
+  ...capture,
+  display: {
+    id: "1",
+    bounds: { x: 0, y: 0, width: 1280, height: 900 },
+    scaleFactor: 1,
+  },
+  pixelWidth: 1280,
+  pixelHeight: 900,
+};
+test("the guide succeeds on a recorded haiku reply, marks numbered like the bubbles", async () => {
+  const r = rig([fixture], {
+    capture: { run: async () => bigCapture },
+  });
+  const guide = await r.controller.start("1");
+  assert.ok(guide.steps.length >= 3);
+  assert.equal(r.events.at(-1).phase, "overview");
+  const refs = r.pointing.shown[0].refs;
+  assert.equal(refs.length, guide.sections.length);
+  assert.deepEqual(
+    refs.map((ref) => ref.n),
+    refs.map((_, i) => i + 1),
+    "numbered in order, like the bubbles",
+  );
+  assert.deepEqual(
+    refs.map((ref) => ref.label),
+    guide.sections.map((s) => s.label),
+  );
+  r.controller.dispose();
+});
+test("a step focuses the marks of its regions, the overview and the end show them all", async () => {
+  const two = {
+    ...guide,
+    sections: [
+      guide.sections[0],
+      { ...guide.sections[0], id: "b", label: "Table" },
+    ],
+    steps: [
+      { id: "one", note: "Both.", regionIds: ["a", "b"] },
+      { id: "two", note: "Second.", regionIds: ["b"] },
+    ],
+  };
+  const r = rig([JSON.stringify(two)]);
+  await r.controller.start("1");
+  assert.deepEqual(r.pointing.focused, [null], "the overview shows everything");
+  r.controller.next();
+  r.controller.next();
+  r.controller.back();
+  r.controller.overview();
+  r.controller.step(1);
+  r.controller.next();
+  r.controller.next();
+  assert.deepEqual(r.pointing.focused, [
+    null,
+    [1, 2],
+    [2],
+    [1, 2],
+    null,
+    [2],
+    null,
+  ]);
+  assert.equal(r.events.at(-1).phase, "finished");
+  r.controller.dispose();
 });
 test("the last step is drawn and finishing shows a closing bubble from Blink", async () => {
   const r = rig([JSON.stringify(threeSteps())]);
@@ -172,11 +233,6 @@ test("the last step is drawn and finishing shows a closing bubble from Blink", a
   r.controller.next();
   r.controller.next();
   r.controller.next();
-  assert.deepEqual(
-    r.steps.slice(-3),
-    [0, 1, 2],
-    "all three steps drawn, the last too",
-  );
   assert.equal(r.events.at(-1).index, 2);
   assert.equal(
     r.events.at(-1).canNext,
@@ -184,6 +240,11 @@ test("the last step is drawn and finishing shows a closing bubble from Blink", a
     "Next on the last step finishes the tour",
   );
   assert.equal(r.events.at(-1).last, true);
+  assert.deepEqual(
+    r.pointing.focused.at(-1),
+    [1],
+    "the last step is drawn too",
+  );
   r.controller.next();
   const done = r.events.at(-1);
   assert.equal(done.phase, "finished");
@@ -191,7 +252,7 @@ test("the last step is drawn and finishing shows a closing bubble from Blink", a
   assert.match(done.bubbles[0], /導覽/);
   assert.equal(done.canBack, true);
   assert.equal(done.canNext, false);
-  assert.equal(r.steps.at(-1), -1, "everything is outlined again at the end");
+  assert.equal(r.pointing.focused.at(-1), null, "all marks again at the end");
   // Back leaves the closing bubble for the last step; Next after it finishes again.
   r.controller.back();
   assert.equal(r.events.at(-1).phase, "step");
@@ -201,6 +262,42 @@ test("the last step is drawn and finishing shows a closing bubble from Blink", a
   r.controller.next();
   assert.equal(r.events.at(-1).phase, "finished", "no step beyond the end");
   r.controller.dispose();
+});
+test("finishing hands the saver the title, steps, explanation and screenshot", async () => {
+  const r = rig([
+    JSON.stringify({ ...threeSteps(), title: "Reading the report" }),
+  ]);
+  await r.controller.start("1");
+  r.controller.next();
+  r.controller.next();
+  r.controller.next();
+  assert.equal(r.ended.length, 0, "not before the end");
+  r.controller.next();
+  assert.equal(r.ended.length, 1);
+  const end = r.ended[0];
+  assert.equal(end.title, "Reading the report");
+  assert.equal(end.explanation, "Report overview.");
+  assert.deepEqual(end.steps, [
+    { n: 1, title: "Results", text: "Step one." },
+    { n: 2, title: "Results", text: "Step two." },
+    { n: 3, title: "Results", text: "Step three." },
+  ]);
+  assert.deepEqual(end.shots, [{ data: "pixels", width: 800, height: 600 }]);
+  r.controller.next();
+  r.controller.back();
+  r.controller.next();
+  assert.equal(
+    r.ended.length,
+    1,
+    "finishing again does not offer a second save",
+  );
+  r.controller.dispose();
+});
+test("a guide without a title is named after its purpose", async () => {
+  const r = rig([JSON.stringify(threeSteps())]);
+  await r.controller.start("1");
+  for (let i = 0; i < 4; i++) r.controller.next();
+  assert.equal(r.ended[0].title, "Report overview.");
 });
 test("Next, Back, overview and end work across every step", async () => {
   const r = rig([JSON.stringify(threeSteps())]);
@@ -239,6 +336,7 @@ test("Next, Back, overview and end work across every step", async () => {
   ]);
   r.controller.dismiss();
   assert.equal(r.controller.guide, null);
+  assert.deepEqual(r.pointing.cleared, ["user", "user"], "marks are removed");
   const count = r.events.length;
   r.controller.next();
   r.controller.back();
@@ -257,18 +355,19 @@ test("a reply with prose around the JSON or one bad region still draws the valid
   });
   const r = rig([`好的！\n${JSON.stringify(bad)}\n以上。`]);
   await r.controller.start("1");
-  assert.equal(r.shown.length, 1);
-  assert.equal(r.shown[0].d.length, 1);
+  assert.equal(r.pointing.shown.length, 1);
+  assert.equal(r.pointing.shown[0].refs.length, 1);
   assert.equal(r.events.at(-1).phase, "overview");
 });
-test("a failed turn shows a plain error bubble with a retry that reruns the guide", async () => {
+test("a failed turn names its reason in one sentence and retry reruns the guide", async () => {
   const r = rig([new Error("network down"), JSON.stringify(guide)]);
   await assert.rejects(r.controller.start("1"), /network down/);
   const failed = r.events.at(-1);
   assert.equal(failed.phase, "error");
-  assert.deepEqual(failed.bubbles, ["導覽暫時無法完成，請再試一次。"]);
+  assert.match(failed.message, /^導覽暫時無法完成：.*network down.*。$/);
+  assert.deepEqual(failed.bubbles, [failed.message]);
   assert.equal(failed.retry, true);
-  assert.equal(failed.message, "導覽暫時無法完成，請再試一次。");
+  assert.equal(failed.message.split(/[。！？]/).filter(Boolean).length, 1);
   await r.controller.retry();
   assert.equal(r.turns.length, 2, "retry reran the guide turn");
   assert.deepEqual(
@@ -279,20 +378,55 @@ test("a failed turn shows a plain error bubble with a retry that reruns the guid
   assert.equal(r.events.at(-1).phase, "overview");
   r.controller.dispose();
 });
-test("a reply with no usable step, or a missing session, fails with the same error bubble", async () => {
-  for (const reply of [
-    "我看不到畫面",
-    JSON.stringify({ ...guide, steps: [] }),
-  ]) {
-    const r = rig([reply]);
+test("each way the guide can fail says why", async () => {
+  const cases = [
+    [{ replies: ["我看不到畫面"] }, /找不到|格式/],
+    [{ replies: [JSON.stringify({ ...guide, steps: [] })] }, /步驟|區塊/],
+    [{ replies: [], options: { session: null } }, /啟動/],
+    [
+      { replies: [Object.assign(Error("Guide response timed out"))] },
+      /太久|逾時|沒有回覆/,
+    ],
+    [
+      {
+        replies: [],
+        options: {
+          capture: {
+            run: async () => {
+              throw Error("Screen capture unavailable");
+            },
+          },
+        },
+      },
+      /擷取|截圖|畫面/,
+    ],
+  ];
+  const messages = new Set();
+  for (const [{ replies, options }, pattern] of cases) {
+    const r = rig(replies, options);
     await assert.rejects(r.controller.start("1"));
-    assert.equal(r.events.at(-1).phase, "error");
-    assert.equal(r.events.at(-1).retry, true);
-    assert.equal(r.shown.length, 0);
+    const failed = r.events.at(-1);
+    assert.equal(failed.phase, "error");
+    assert.match(failed.message, /^導覽暫時無法完成：/);
+    assert.match(failed.message, pattern);
+    assert.equal(failed.retry, true);
+    assert.equal(r.pointing.shown.length, 0);
+    assert.doesNotMatch(
+      failed.message,
+      /請再試一次。$/,
+      "not the old blanket text",
+    );
+    messages.add(failed.message);
   }
-  const r = rig([], { session: null });
-  await assert.rejects(r.controller.start("1"));
+  assert.equal(messages.size, cases.length, "every reason reads differently");
+});
+test("nothing drawable fails with that reason", async () => {
+  const r = rig([JSON.stringify(guide)]);
+  r.pointing.result = false;
+  await r.controller.start("1");
   assert.equal(r.events.at(-1).phase, "error");
+  assert.match(r.events.at(-1).message, /沒有.*標示|畫不出/);
+  assert.equal(r.controller.guide, null);
 });
 test("retry does nothing before any guide was requested", async () => {
   const r = rig([]);

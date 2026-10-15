@@ -1,11 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  validateGuide,
-  parseGuide,
-  guideDrawings,
-  captureMatchesDisplay,
-} from "./schema.mjs";
+import { validateGuide, parseGuide, captureMatchesDisplay } from "./schema.mjs";
+import { drawGuide } from "./test-draw.mjs";
 const capture = (scale = 1) => ({
   display: {
     id: "2",
@@ -46,18 +42,17 @@ const guide = (scale = 1) => ({
     },
   ],
 });
-test("complete-screen guide schema retains paragraphs, tasks and arrows and maps pixels once", () => {
+test("complete-screen guide schema retains paragraphs and tasks and maps pixels once", async () => {
   for (const scale of [1, 1.5, 2]) {
     const c = capture(scale);
     const parsed = validateGuide(guide(scale), c);
-    const drawings = guideDrawings(parsed, c);
+    const drawings = await drawGuide(parsed, c);
     assert.deepEqual(drawings[0].rect, {
       x: 100,
       y: 90,
       width: 200,
       height: 120,
     });
-    assert.deepEqual(drawings[0].arrows[0].to, { x: 100, y: 90 });
     assert.equal(parsed.sections[0].paragraphs[0], "Sales rose.");
     assert.ok(captureMatchesDisplay(c, { ...c.display, id: 2 }));
     assert.equal(
