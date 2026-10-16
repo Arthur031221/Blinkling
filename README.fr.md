@@ -18,7 +18,18 @@ Blinkling place Blink, un petit compagnon vert, dans un coin de votre écran, au
 
 Utilise le Claude Code déjà connecté sur cet ordinateur.
 
-![Maintenez Ctrl et cliquez sur un paragraphe d’une page web. Il s’envole vers Blink, vous posez votre question, et la réponse s'ouvre dans une carte de discussion à côté de Blink.](assets/pick.gif)
+<table>
+<tr>
+<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Ctrl et clic sur un paragraphe d’une page arXiv. Sa capture s’envole dans la bouche de Blink, la carte de discussion s’ouvre et la réponse arrive au fil de l’eau."></td>
+<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="Sur une page de Wikipédia en arabe, un passage choisi entre dans Blink, on appuie sur Traduire et la réponse explique le passage en anglais."></td>
+<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="Sur une page publique très dense, le guide marque les parties de la page. Blink tient un bâton pointeur sur l’étape en cours et Suivant parcourt les étapes."></td>
+</tr>
+<tr>
+<td align="center">Article : Ctrl et clic sur un paragraphe, puis lisez la réponse.</td>
+<td align="center">Traduire : un passage en arabe, expliqué en anglais.</td>
+<td align="center">Guide : une page difficile, pas à pas.</td>
+</tr>
+</table>
 
 ## Installation
 

@@ -47,7 +47,7 @@ require(f"## {version} - " in (ROOT / "CHANGELOG.md").read_text(), "Missing chan
 recordings = read_json("assets/recordings.json")
 require(recordings["version"] == version, "Demo recordings use another extension version")
 assets = {item["asset"] for item in recordings["recordings"]}
-require({"assets/pick.gif", "assets/ask.gif"} <= assets, "Missing real pick or ask recording")
+require({"assets/pick.gif", "assets/ask.gif", "assets/translate.gif", "assets/tour.gif"} <= assets, "Missing a real demo recording")
 for item in recordings["recordings"] + recordings.get("stills", []):
     data = (ROOT / item["asset"]).read_bytes()
     if item["asset"].endswith(".gif"):
@@ -67,7 +67,7 @@ for path in readmes:
     content = path.read_text()
     require(content.splitlines()[-1] == "Assisted by Claude/Codex.", f"Wrong final line: {path.name}")
     first_screen = content.split("\n## ", 1)[0]
-    for image in ["assets/logo.svg", "assets/pick.gif"]:
+    for image in ["assets/logo.svg", "assets/pick.gif", "assets/translate.gif", "assets/tour.gif"]:
         require(image in first_screen, f"Missing first-screen image: {path.name}: {image}")
     for target in re.findall(r"\]\(([^\s)]+)\)", content):
         if not re.match(r"https?://|#", target):

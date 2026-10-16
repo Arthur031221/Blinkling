@@ -20,9 +20,12 @@ const mark = (name, extra = {}) => {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Screen position of a button in one of the app's windows. */
-async function chipPoint(app, text) {
+async function chipPoint(app, text, scope = "body") {
   for (const page of app.windows()) {
-    const button = page.getByRole("button", { name: text }).first();
+    const button = page
+      .locator(scope)
+      .getByRole("button", { name: text, exact: true })
+      .first();
     if (!(await button.isVisible().catch(() => false))) continue;
     const box = await button.boundingBox({ timeout: 2000 }).catch(() => null);
     if (!box) continue;
@@ -189,17 +192,13 @@ const scenes = {
     input([["up", "ctrl"]]);
     await wait(4000);
     mark("composer");
-    // The chip would send one word and leave the language to the model, so the
-    // request is typed out in full.
-    input(
-      [..."translate to english"].flatMap((c) => [
-        ["key", c === " " ? "space" : c],
-        ["wait", 70],
-      ]),
-    );
-    await wait(600);
+    // The Translate chip sends exactly "Translate"; the answer says what the
+    // Arabic passage means in English.
+    const chip = await chipPoint(app, "Translate");
+    input([["move", chip.x, chip.y]]);
+    await wait(800);
     mark("ask");
-    input([["key", "enter"]]);
+    input([["press"], ["release"]]);
     await wait(14000);
     mark("answer");
     await wait(3000);
@@ -221,9 +220,29 @@ const scenes = {
     await wait(900);
     mark("guide");
     input([["press"], ["release"]]);
-    await wait(26000);
+    // The overview is up once the Start button is in the card.
+    let start;
+    for (let i = 0; i < 60 && !start; i++) {
+      await wait(1000);
+      start = await chipPoint(app, "Start", ".gl-guide").catch(() => null);
+    }
+    if (!start) throw new Error("the guide never offered Start");
     mark("answer");
-    await wait(3000);
+    await wait(4500);
+    start = await chipPoint(app, "Start", ".gl-guide");
+    input([["move", start.x, start.y]]);
+    await wait(900);
+    mark("start");
+    input([["press"], ["release"]]);
+    await wait(3500);
+    for (const n of [1, 2]) {
+      const next = await chipPoint(app, "Next", ".gl-guide");
+      input([["move", next.x, next.y]]);
+      await wait(700);
+      mark(`next-${n}`);
+      input([["press"], ["release"]]);
+      await wait(3500);
+    }
   },
   async pick() {
     input([["move", 500, 560]]);

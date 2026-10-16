@@ -18,7 +18,18 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 
 使用这台电脑上你已登录的 Claude Code。
 
-![按住 Ctrl，在网页上单击一个段落。它会飞进 Blink，你来提问，答案会在 Blink 旁边的聊天卡片中打开。](assets/pick.gif)
+<table>
+<tr>
+<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="在 arXiv 页面按住 Ctrl 单击一个段落。它的截图飞进 Blink 的嘴里，聊天卡片打开，答案逐字出现。"></td>
+<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="在阿拉伯文维基百科页面选一段文字，送进 Blink，点击翻译，答案用英文说明这段文字。"></td>
+<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="在内容密集的公开网页点击导览，Blink 标出页面各部分，拿着指示棒指向当前这一步，再用下一步往下走。"></td>
+</tr>
+<tr>
+<td align="center">论文：按住 Ctrl 单击一段，读答案。</td>
+<td align="center">翻译：阿拉伯文段落，用英文说明。</td>
+<td align="center">导览：难操作的页面，一步一步看。</td>
+</tr>
+</table>
 
 ## 安装
 

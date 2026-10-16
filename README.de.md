@@ -18,7 +18,18 @@ Blinkling setzt Blink, einen kleinen grünen Begleiter, in die Ecke deines Bilds
 
 Nutzt das Claude Code, bei dem du auf diesem Computer schon angemeldet bist.
 
-![Halte Strg gedrückt und klicke auf einen Absatz einer Webseite. Er fliegt in Blink hinein, du fragst, und die Antwort öffnet sich in einer Chatkarte neben Blink.](assets/pick.gif)
+<table>
+<tr>
+<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Strg und Klick auf einen Absatz einer arXiv-Seite. Sein Schnappschuss fliegt in Blinks Mund, die Chatkarte öffnet sich und die Antwort läuft ein."></td>
+<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="Auf einer arabischen Wikipedia-Seite geht ein gewählter Absatz in Blink, der Chip Übersetzen wird gedrückt und die Antwort erklärt den Absatz auf Englisch."></td>
+<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="Auf einer dichten öffentlichen Webseite markiert die Anleitung die Teile der Seite. Blink hält einen Zeigestab auf den aktuellen Schritt, Weiter geht die Schritte durch."></td>
+</tr>
+<tr>
+<td align="center">Paper: Strg und Klick auf einen Absatz, dann die Antwort lesen.</td>
+<td align="center">Übersetzen: ein arabischer Absatz, auf Englisch erklärt.</td>
+<td align="center">Anleitung: eine schwer bedienbare Seite, Schritt für Schritt.</td>
+</tr>
+</table>
 
 ## Installation
 

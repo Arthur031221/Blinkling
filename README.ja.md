@@ -18,7 +18,18 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
 
 このコンピュータでログイン済みの Claude Code を使います。
 
-![Ctrl を押しながら、ウェブページの段落をクリックします。Blink に飛び込み、質問すると、答えが Blink の横のチャットカードに開きます。](assets/pick.gif)
+<table>
+<tr>
+<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="arXiv のページで Ctrl を押しながら段落をクリックします。そのスナップショットが Blink の口に飛び込み、チャットカードが開いて答えが流れます。"></td>
+<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="アラビア語版ウィキペディアのページで選んだ一節を Blink に送り、翻訳を押すと、答えがその一節を英語で説明します。"></td>
+<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="情報が密集した公開ページでガイドを押すと、ページの各部分に印が付きます。Blink は指示棒で現在のステップを指し、次へで進みます。"></td>
+</tr>
+<tr>
+<td align="center">論文：Ctrl を押しながら段落をクリックし、答えを読む。</td>
+<td align="center">翻訳：アラビア語の一節を英語で説明。</td>
+<td align="center">ガイド：操作しにくいページを一歩ずつ。</td>
+</tr>
+</table>
 
 ## インストール
 

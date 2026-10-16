@@ -72,6 +72,8 @@ describe("real recordings and store images", () => {
     assert.deepEqual(shipped.recordings.map((item) => item.asset).sort(), [
       "assets/ask.gif",
       "assets/pick.gif",
+      "assets/tour.gif",
+      "assets/translate.gif",
     ]);
   });
 

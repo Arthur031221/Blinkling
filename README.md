@@ -18,7 +18,18 @@ Blinkling puts Blink, a small green companion, in the corner of your screen, abo
 
 Uses the Claude Code you are already signed in to on this computer.
 
-![Hold Ctrl and click a paragraph on a web page. It flies into Blink, you ask, and the answer opens in a chat card beside Blink.](assets/pick.gif)
+<table>
+<tr>
+<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Ctrl and click a paragraph on an arXiv page. Its snapshot flies into Blink's mouth, the chat card opens and the answer streams in."></td>
+<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="On an Arabic Wikipedia page, a picked passage goes into Blink, the Translate chip is pressed and the answer explains the passage in English."></td>
+<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="On a dense public web page, Guide marks the parts of the page. Blink holds a pointer stick at the current step while Next moves through the steps."></td>
+</tr>
+<tr>
+<td align="center">Paper: Ctrl and click a paragraph, then read the answer.</td>
+<td align="center">Translate: an Arabic passage, explained in English.</td>
+<td align="center">Guide: a hard page, one step at a time.</td>
+</tr>
+</table>
 
 ## Install
 

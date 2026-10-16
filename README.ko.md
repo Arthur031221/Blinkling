@@ -18,7 +18,18 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
 
 이 컴퓨터에 로그인된 Claude Code를 사용합니다.
 
-![Ctrl을 누른 채 웹 페이지의 문단을 클릭하세요. Blink로 날아가고, 질문하면 답이 Blink 옆 채팅 카드에 열립니다.](assets/pick.gif)
+<table>
+<tr>
+<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="arXiv 페이지에서 Ctrl을 누른 채 문단을 클릭합니다. 스냅샷이 Blink의 입으로 날아들고 채팅 카드가 열리며 답이 흘러나옵니다."></td>
+<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="아랍어 위키백과 페이지에서 고른 문단을 Blink에 보내고 번역을 누르면, 답이 그 문단을 영어로 설명합니다."></td>
+<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="내용이 빽빽한 공개 웹 페이지에서 안내를 누르면 페이지의 각 부분에 표시가 붙습니다. Blink는 지시봉으로 현재 단계를 가리키고, 다음으로 넘어갑니다."></td>
+</tr>
+<tr>
+<td align="center">논문: Ctrl을 누르고 문단을 클릭해 답을 읽습니다.</td>
+<td align="center">번역: 아랍어 문단을 영어로 설명합니다.</td>
+<td align="center">안내: 다루기 어려운 페이지를 한 단계씩.</td>
+</tr>
+</table>
 
 ## 설치
 

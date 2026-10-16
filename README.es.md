@@ -18,7 +18,18 @@ Blinkling pone a Blink, un pequeño compañero verde, en la esquina de tu pantal
 
 Usa el Claude Code en el que ya iniciaste sesión en este equipo.
 
-![Mantén Ctrl y haz clic en un párrafo de una página web. Vuela hacia Blink, preguntas, y la respuesta se abre en una tarjeta de chat junto a Blink.](assets/pick.gif)
+<table>
+<tr>
+<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Ctrl y clic en un párrafo de una página de arXiv. Su captura vuela a la boca de Blink, se abre la tarjeta de chat y la respuesta llega poco a poco."></td>
+<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="En una página de Wikipedia en árabe, un pasaje elegido entra en Blink, se pulsa Traducir y la respuesta explica el pasaje en inglés."></td>
+<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="En una página pública muy densa, la guía marca las partes de la página. Blink sostiene un puntero sobre el paso actual y Siguiente avanza por los pasos."></td>
+</tr>
+<tr>
+<td align="center">Artículo: Ctrl y clic en un párrafo, y lee la respuesta.</td>
+<td align="center">Traducir: un pasaje en árabe, explicado en inglés.</td>
+<td align="center">Guía: una página difícil, paso a paso.</td>
+</tr>
+</table>
 
 ## Instalación
 

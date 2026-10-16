@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-16T13:26:36.000Z",
+  "recordedAt": "2026-10-17T06:30:00.000Z",
   "version": "3.2.1",
   "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
@@ -9,24 +9,73 @@
   "recordings": [
     {
       "asset": "assets/pick.gif",
-      "scene": "pick",
+      "scene": "papers",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "0974179d3c233b7ba3c17ca2ed7067745fa5560518281ade06ad02e1e230f347",
-      "segments": [[1, 22]],
+      "sha256": "55201622779e6b0cb7b9585a562c8e80bfa2a17896b60f33cdd86090cc7a651f",
+      "segments": [
+        [
+          2.5,
+          22.5
+        ]
+      ],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "aea37c25b38778de071f0ab7931cdb44c2d865463a8ffd0829124ec37b9bb391",
+      "eventsSha256": "2f4ac1cc6b5d8c8ade2b4bba99fe15c874e7e5facc4c756b74ed1d3b5fc776e3",
       "turns": 1
     },
     {
       "asset": "assets/ask.gif",
       "scene": "ask",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "de1a6918b11530c003c1871fd6b541e0c70a5b3e1c67a8ed2226084a57e5ef87",
-      "segments": [[1, 22]],
+      "sha256": "fb9525b223bf94c0bbf149378958662c5a46a75f7339ec9c2ae7814375b6de69",
+      "segments": [
+        [
+          2.5,
+          17.5
+        ]
+      ],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "9b49040b77f7b0f61c6ac02b620ef759a8ce6771452fe4bd3c6530fd24eb2739",
+      "eventsSha256": "251ca9e9a08379854aadb41bd7ec759a7e6621a4f00db23d6ac2e72dd4aa0d9b",
       "turns": 1,
       "prompt": "what is reinforcement learning, in two lines"
+    },
+    {
+      "asset": "assets/translate.gif",
+      "scene": "arabic",
+      "url": "https://ar.wikipedia.org/wiki/ذكاء_اصطناعي",
+      "sha256": "9972dc71805816922cf27ac55e7a9a69458f6e50b44ddead5bf5959182b95edc",
+      "segments": [
+        [
+          2.5,
+          22.5
+        ]
+      ],
+      "events": "assets/record/events/translate.events.json",
+      "eventsSha256": "154cd4cb9bcaae9917be035a3ab0fcfc117f6b014d9c7fc0775337b954d2a559",
+      "turns": 1,
+      "prompt": "Translate"
+    },
+    {
+      "asset": "assets/tour.gif",
+      "scene": "hard",
+      "url": "https://www.w3.org/WAI/demos/bad/before/home.html",
+      "sha256": "27212e6298a1e5c6bc0015d9d3a93cf7b5831f557840f71e0429ee300c8eae68",
+      "segments": [
+        [
+          4.6,
+          9.6
+        ],
+        [
+          19.6,
+          22.6
+        ],
+        [
+          25.6,
+          37.6
+        ]
+      ],
+      "events": "assets/record/events/tour.events.json",
+      "eventsSha256": "f50b382bddaa59b16379c0d890d3426f3e0b401a1502022669da982f9ce547de",
+      "turns": 1
     }
   ],
   "stills": [

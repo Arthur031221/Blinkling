@@ -1,0 +1,38 @@
+[
+  {
+    "name": "start",
+    "at": 4.781
+  },
+  {
+    "name": "blink",
+    "at": 6.021
+  },
+  {
+    "name": "menu",
+    "at": 9.708
+  },
+  {
+    "name": "guide",
+    "at": 10.648
+  },
+  {
+    "name": "answer",
+    "at": 24.049
+  },
+  {
+    "name": "start",
+    "at": 29.707
+  },
+  {
+    "name": "next-1",
+    "at": 34.075
+  },
+  {
+    "name": "next-2",
+    "at": 38.393
+  },
+  {
+    "name": "end",
+    "at": 41.956
+  }
+]
