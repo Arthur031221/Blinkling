@@ -37,6 +37,8 @@ export function mountConversation({
       onClose,
       onTyping,
       onHold,
+      onAction,
+      onReference,
       copy,
       openLink,
     });

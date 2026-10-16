@@ -480,3 +480,20 @@ test("onSettle tells marks when the deck fades, and stops when unsubscribed", ()
   t.advance(8000);
   assert.equal(seen.length, 1);
 });
+
+test("working turns on when a question is sent and off once text streams or the turn ends", () => {
+  const s = createMessageStream();
+  assert.equal(s.state().working, false);
+  s.accept({ type: "sending", seeing: true });
+  assert.equal(s.state().working, true);
+  assert.equal(s.state().seeing, true);
+  s.accept({ type: "delta", id: "a", text: "Hi" });
+  assert.equal(s.state().working, false);
+  s.accept({ type: "activity", state: "thinking" });
+  assert.equal(s.state().working, false, "streaming text replaces the dots");
+  s.accept({ type: "done" });
+  s.accept({ type: "sending" });
+  assert.equal(s.state().seeing, false);
+  s.accept({ type: "activity", state: "error" });
+  assert.equal(s.state().working, false);
+});

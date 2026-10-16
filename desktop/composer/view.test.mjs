@@ -566,3 +566,56 @@ test("attachment chips are wrapping tiles with real thumbnails, never an inner s
   assert.equal(thumb["object-fit"], "cover");
   assert.doesNotMatch(css, /image-rendering/);
 });
+
+each(
+  "the thinking indicator shows while Claude works and gives way to the text",
+  (locale) => {
+    const t = setup({ locale });
+    t.view.open();
+    assert.equal(
+      t.q(".gl-thinking") === null || t.q(".gl-thinking").hidden,
+      true,
+    );
+    t.store.accept({ type: "sending", seeing: false });
+    const dots = t.q(".gl-thinking");
+    assert.ok(dots, "the indicator exists");
+    assert.equal(dots.hidden, false);
+    assert.equal(dots.querySelectorAll(".gl-dots i").length, 3);
+    assert.equal(dots.getAttribute("aria-label"), t.tr("working"));
+    assert.match(dots.querySelector(".gl-think-word").textContent, /^[A-Z]/);
+    t.store.accept({ type: "delta", id: "a", text: "Hello there." });
+    assert.equal(t.q(".gl-thinking").hidden, true);
+    assert.match(t.q(".gl-chat-history").textContent, /Hello there/);
+    t.dispose();
+  },
+);
+
+each("opening the card scrolls the history to the newest message", (locale) => {
+  const t = setup({ locale });
+  const history = t.q(".gl-chat-history");
+  Object.defineProperty(history, "scrollHeight", { value: 900 });
+  history.scrollTop = 0;
+  t.view.open();
+  assert.equal(history.scrollTop, 900);
+  history.scrollTop = 10;
+  t.view.close();
+  t.view.open();
+  assert.equal(history.scrollTop, 900);
+  t.dispose();
+});
+
+test("the message list ends above the composer and bubbles are tinted in both themes", () => {
+  const history = blocks(".gl-chat-history").join(";");
+  assert.match(history, /overflow-y:\s*auto/);
+  assert.match(history, /padding:\s*\d+px \d+px 1\d+px/);
+  assert.match(history, /mask-image/);
+  const user = blocks(".gl-user").join(";");
+  assert.match(user, /color-mix\(in srgb, var\(--green\)/);
+  assert.match(user, /align-self:\s*flex-end/);
+  assert.match(blocks(".gl-assistant").join(";"), /align-self:\s*flex-start/);
+  assert.doesNotMatch(
+    user,
+    /#[0-9a-f]{3,6}\b|rgb\(/i,
+    "tokens only, so both themes follow",
+  );
+});

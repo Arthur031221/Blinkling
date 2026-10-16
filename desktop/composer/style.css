@@ -135,28 +135,128 @@ a:focus-visible {
 .gl-chat-history {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  padding: 2px 4px;
+  /* The top padding keeps the first message clear of the fade; the bottom
+     padding keeps the last streaming line above the composer. */
+  padding: 20px 4px 14px;
   overflow-anchor: none;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22px);
 }
 .gl-chat-message {
   max-width: 100%;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 7px 11px;
   border-radius: var(--radius-m);
-  margin: 0 0 10px;
+  margin: 0;
+  animation: gl-message-in var(--motion-base) var(--ease-enter);
 }
+/* You: to the right, in a soft tint of the Blink green. */
 .gl-user {
-  background: var(--gl-soft);
-  margin-left: 18px;
+  align-self: flex-end;
+  max-width: 88%;
+  background: color-mix(in srgb, var(--green) 18%, var(--surface-2));
   border-bottom-right-radius: var(--radius-s);
 }
+/* Blink: to the left, on the neutral card surface. */
 .gl-assistant {
-  padding-left: 0;
-  padding-right: 0;
+  align-self: flex-start;
+  max-width: 96%;
+  background: var(--surface);
+  border: 1px solid var(--gl-border);
+  border-bottom-left-radius: var(--radius-s);
+}
+@keyframes gl-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.gl-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.gl-action-chip {
+  border: 1px solid var(--gl-border);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  background: var(--gl-paper);
+  font-size: var(--type-s);
+}
+.gl-action-chip:hover {
+  border-color: var(--green);
+}
+/* The wait before the first word: three dots and a word that changes. */
+.gl-thinking {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px;
+  color: var(--gl-muted);
+  font-size: var(--type-s);
+  animation: gl-message-in var(--motion-base) var(--ease-enter);
+}
+.gl-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.gl-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--green);
+  animation: gl-dot calc(var(--motion-slow) * 4) var(--ease-standard) infinite;
+}
+.gl-dots i:nth-child(2) {
+  animation-delay: var(--motion-fast);
+}
+.gl-dots i:nth-child(3) {
+  animation-delay: calc(var(--motion-fast) * 2);
+}
+@keyframes gl-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.gl-think-word {
+  position: relative;
+  overflow: hidden;
+  color: var(--gl-muted);
+}
+/* A band of light crosses the word: transform only. */
+.gl-think-word::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 55%, transparent),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: gl-shimmer calc(var(--motion-slow) * 5) var(--ease-standard)
+    infinite;
+}
+@keyframes gl-shimmer {
+  to {
+    transform: translateX(100%);
+  }
 }
 .gl-quick-asks {
   display: flex;
@@ -288,7 +388,7 @@ a:focus-visible {
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 .gl-markdown > :first-child {
   margin-top: 0;
@@ -297,7 +397,7 @@ a:focus-visible {
   margin-bottom: 0;
 }
 .gl-markdown p {
-  margin: 0 0 9px;
+  margin: 0 0 6px;
 }
 .gl-markdown h1,
 .gl-markdown h2,
@@ -415,9 +515,6 @@ a:focus-visible {
   margin: 0;
   color: var(--gl-muted);
 }
-body[data-surface="bubbles"] #card {
-  display: none;
-}
 @keyframes gl-grow {
   from {
     opacity: 0;
@@ -456,17 +553,23 @@ body[data-surface="bubbles"] #card {
 }
 
 .gl-guide {
-  position: absolute;
-  inset: 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 140px;
   overflow: auto;
-  padding: 8px;
-  background: transparent;
+  padding: 2px 4px;
 }
-/* The pill is its text plus its padding, never the width of the window, and
-   grows in with transform and opacity only. */
 .gl-guide > .gl-answer-bubble {
-  width: fit-content;
-  margin: 0 0 8px;
+  flex-basis: 100%;
+  margin: 0;
+  padding: 7px 11px;
+  border-radius: var(--radius-m);
+  background: var(--gl-input);
+  border: 1px solid var(--gl-border);
+  line-height: 1.4;
+  /* A new guide line grows in with transform and opacity only. */
   animation: gl-guide-in var(--motion-base) var(--ease-enter);
 }
 @keyframes gl-guide-in {
@@ -479,8 +582,7 @@ body[data-surface="bubbles"] #card {
 .gl-notice > button {
   border: 1px solid var(--gl-border);
   border-radius: var(--radius-pill);
-  padding: 6px 10px;
-  margin: 4px;
+  padding: 5px 11px;
   background: var(--gl-paper);
 }
 .gl-notice {
@@ -496,4 +598,30 @@ body[data-surface="bubbles"] #card {
 }
 .gl-attachments:empty {
   display: none;
+}
+/* A numbered badge: the number is all the reader sees of an element reference. */
+.gl-ref {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5em;
+  height: 1.5em;
+  margin: 0 2px;
+  padding: 0 4px;
+  vertical-align: baseline;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--type-xs);
+  color: var(--text-on-green);
+  background: var(--green);
+  cursor: pointer;
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+.gl-ref[data-flash="true"] {
+  animation: gl-flash calc(var(--motion-slow) * 3) var(--ease-standard);
+}
+@keyframes gl-flash {
+  40% {
+    transform: scale(1.4);
+  }
 }

@@ -218,7 +218,7 @@ test("while picking, Blink's eyes follow the cursor, and they let go when pickin
   }
 });
 
-test("a held Blink is nervous, and two circles in the air leave it dizzy", async () => {
+test("a held Blink is nervous and calms down when it is put down", async () => {
   const c = await launch();
   try {
     await background(c.app);
@@ -237,23 +237,9 @@ test("a held Blink is nervous, and two circles in the air leave it dizzy", async
     native(p.x + 40, p.y + 10);
     await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drag");
     expect(await rig('svg.innerHTML.includes("#9fd8ff")')).toBe(true);
-    // Each native move takes longer than a real hand, so the three circles are
-    // fed to the detector in one go instead of being drawn with the mouse.
-    await c.page.evaluate(() => {
-      const spin = window.desktop.spin;
-      const now = performance.now();
-      spin.reset();
-      for (let i = 0; i <= 90; i++) {
-        const a = (i / 30) * Math.PI * 2;
-        spin.add(
-          { x: 400 + Math.cos(a) * 90, y: 400 + Math.sin(a) * 90 },
-          now + i * 20,
-        );
-      }
-    });
+    // The spin and the dizzy phase are detected in main and covered by
+    // acceptance/motions.spec.mjs with real circles.
     native(p.x + 40, p.y + 10, "up");
-    await expect.poll(() => rig("p.eyes")).toBe("dizzy");
-    // Then it recovers.
     await expect.poll(() => rig("p.eyes"), { timeout: 6000 }).not.toBe("dizzy");
   } finally {
     await c.close();

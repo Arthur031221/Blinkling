@@ -105,10 +105,10 @@ test("each phase shows its own buttons and a dismissed guide hides the panel", (
   assert.equal(host.children.length, 0);
 });
 
-test("the pill is sized by its content and enters with transform and opacity only", () => {
+test("a guide line sits in the card flow and enters with transform and opacity only", () => {
   const css = readFileSync(new URL("./style.css", import.meta.url), "utf8");
   const rule = /\.gl-guide > \.gl-answer-bubble \{([^}]*)\}/.exec(css)?.[1];
-  assert.match(rule, /width:\s*fit-content/);
+  assert.match(rule, /flex-basis:\s*100%/);
   assert.match(rule, /animation:\s*gl-guide-in var\(--motion-/);
   const frames = /@keyframes gl-guide-in \{([\s\S]*?)\n\}/.exec(css)?.[1];
   assert.match(frames, /opacity/);

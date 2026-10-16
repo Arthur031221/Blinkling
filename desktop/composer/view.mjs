@@ -2,6 +2,8 @@ import { readAttachment } from "./index.mjs";
 import { documentLocale, translator } from "../shared/i18n.mjs";
 import { strings } from "./strings.mjs";
 import { createSelectionPickers } from "./selection.mjs";
+import { mountThinking } from "./thinking.mjs";
+import { mountGuidePanel } from "./guide-panel.mjs";
 import {
   renderMarkdown,
   renderImage,
@@ -29,6 +31,8 @@ export function mountComposer(
     onClose = () => {},
     onTyping = () => {},
     onHold = () => {},
+    onAction = () => {},
+    onReference = () => {},
     copy,
     openLink,
     locale = documentLocale(host.ownerDocument),
@@ -126,7 +130,13 @@ export function mountComposer(
   const notice = node("section", "gl-notice");
   notice.hidden = true;
   notice.setAttribute("role", "status");
-  card.append(header, history, notice, quick, form, error);
+  // The guide's steps and buttons live in the card too: one surface says
+  // everything Blink says.
+  const guide = node("section", "gl-guide");
+  guide.hidden = true;
+  const guidePanel = mountGuidePanel({ host: guide, tr, onAction });
+  const thinking = mountThinking(history, { label: tr("working") });
+  card.append(header, history, guide, notice, quick, form, error);
   host.append(card);
   let pinned = false,
     visible = true,
@@ -333,10 +343,14 @@ export function mountComposer(
       if (!n) {
         n = node("article", `gl-chat-message gl-${message.role}`);
         n.dataset.messageId = message.id;
-        history.append(n);
+        history.insertBefore(n, thinking.element);
         messageNodes.set(message.id, n);
       }
-      const signature = JSON.stringify(message.content);
+      const signature = JSON.stringify([
+        message.content,
+        message.failure,
+        message.offer,
+      ]);
       if (n.dataset.signature !== signature) {
         n.replaceChildren();
         for (const b of message.content) {
@@ -348,10 +362,37 @@ export function mountComposer(
           }
           if (b.type === "document") n.append(renderDocument(doc, b));
         }
+        // What Blink offers to do about a problem or a finished guide.
+        const actions = message.failure?.actions ?? [];
+        if (message.offer)
+          actions.push({
+            id: message.offer.action,
+            label: message.offer.label,
+          });
+        if (actions.length) {
+          const row = node("div", "gl-message-actions");
+          for (const a of actions) {
+            const b = node("button", "gl-action-chip", a.label);
+            b.type = "button";
+            listen(b, "click", () => onAction(a.id));
+            row.append(b);
+          }
+          n.append(row);
+        }
         n.dataset.signature = signature;
       }
     }
+    if (state.working) thinking.start({ seeing: state.seeing });
+    else thinking.stop();
     if (following) history.scrollTop = history.scrollHeight;
+  });
+  // A reference badge in an answer lights its mark on the page.
+  listen(history, "mouseover", (e) => {
+    const ref = e.target.closest?.(".gl-ref")?.dataset.ref;
+    if (ref) onReference({ ref });
+  });
+  listen(history, "mouseout", (e) => {
+    if (e.target.closest?.(".gl-ref")) onReference({ ref: null });
   });
   const view = {
     element: card,
@@ -364,6 +405,12 @@ export function mountComposer(
         messageNodes
           .get(messageId)
           ?.scrollIntoView({ block: "start", behavior: "smooth" });
+      else {
+        // Every opening continues the history: the newest message, right
+        // above the composer.
+        following = true;
+        history.scrollTop = history.scrollHeight;
+      }
       text.focus({ preventScroll: true });
       // A draft left behind by Esc still counts once the card is back.
       onTyping(Boolean(text.value));
@@ -389,6 +436,24 @@ export function mountComposer(
       composer.capture(capture);
       view.open();
     },
+    /** A guide event: its steps appear in the card. */
+    guide(event) {
+      guidePanel.update(event);
+      notice.hidden = true;
+    },
+    /** Show the reference badge a mark on the page cites. */
+    reveal(ref) {
+      const badge = [...history.querySelectorAll(".gl-ref")].find(
+        (b) => b.dataset.ref === ref,
+      );
+      if (!badge) return false;
+      badge.scrollIntoView({ block: "center", behavior: "smooth" });
+      badge.dataset.flash = "true";
+      badge.addEventListener("animationend", () => delete badge.dataset.flash, {
+        once: true,
+      });
+      return true;
+    },
     isPinned: () => pinned,
     isOpen: () => visible,
     dispose() {
@@ -397,6 +462,7 @@ export function mountComposer(
       store.hover(false, "card");
       unComposer();
       unMessages();
+      thinking.dispose();
       card.remove();
     },
     async files(files) {

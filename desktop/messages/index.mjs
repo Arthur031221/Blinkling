@@ -29,6 +29,9 @@ export function createMessageStream({
       },
     });
   let speaking = false,
+    // A turn is out and no answer text has arrived yet (the thinking wait).
+    working = false,
+    seeing = false,
     visible = false,
     floor = 0, // messages before this index belong to an answer that already faded
     status = "starting";
@@ -95,6 +98,8 @@ export function createMessageStream({
     messages: snapshot(),
     bubbles: bubbles(),
     speaking,
+    working: working && !speaking,
+    seeing,
     visible,
     status,
   });
@@ -147,6 +152,13 @@ export function createMessageStream({
       floor = messages.size;
       return;
     }
+    if (message.role === "user") {
+      working = true;
+      seeing = content.some(
+        (b) => b.type === "image" || b.type === "document",
+      );
+    } else if (message.role === "assistant" && messages.get(message.id).text)
+      working = false;
     if (
       message.role === "assistant" &&
       (!old || old.text !== messages.get(message.id).text)
@@ -198,7 +210,14 @@ export function createMessageStream({
     state,
     accept(event) {
       if (event.type === "status") status = event.state;
-      else if (
+      else if (event.type === "sending") {
+        working = true;
+        seeing = Boolean(event.seeing);
+      } else if (event.type === "activity") {
+        if (event.state === "thinking") working = true;
+        else if (["finished", "error", "idle"].includes(event.state))
+          working = false;
+      } else if (
         event.type === "delta" &&
         typeof event.id === "string" &&
         typeof event.text === "string"
@@ -215,6 +234,7 @@ export function createMessageStream({
           complete: false,
         });
         speaking = true;
+        working = false;
         visible = true;
         calm.settle(event.id);
       } else if (event.type === "message")
@@ -244,6 +264,7 @@ export function createMessageStream({
         for (const m of messages.values())
           if (m.role === "assistant") m.complete = true;
         speaking = false;
+        working = false;
         // The wait starts when the turn ends, but only for an answer on show.
         if (calm.turnId !== undefined && !calm.faded)
           calm.settle(event.turnId ?? calm.turnId);

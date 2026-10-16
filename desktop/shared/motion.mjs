@@ -30,6 +30,10 @@ export const timing = Object.freeze({
   eatLead: 400,
   // Launch: the wait that lets the window draw once before Blink steps in.
   appearLead: 600,
+  // How long the wait indicator stays on one word.
+  thinkWord: 2400,
+  // The card's offset from its anchored spot, at most this far.
+  nudgeMax: 120,
   sameChat: 60000,
   // Not motion: waits and polls that used to be bare numbers beside the code.
   frame: 17,
