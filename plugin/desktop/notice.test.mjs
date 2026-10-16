@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { startDesktopHost } from "./host.mjs";
 import { discoverDesktop } from "./client.mjs";
 import { joinSession } from "./sessions.mjs";
-import { notice, QUIT_NOTICE } from "./notice.mjs";
+import { notice, QUIT_NOTICE, asksForBlink, openBlink } from "./notice.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (check, ms = 5000) => {
@@ -94,4 +94,50 @@ test("a session that finds Blink running again is not told it was closed", async
     await host.close().catch(() => {});
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("typing the /blinkling command is recognised, other prompts are not", () => {
+  for (const prompt of [
+    "/blinkling:blinkling",
+    "/blinkling",
+    "  /blinkling:blinkling now ",
+  ])
+    assert.equal(asksForBlink({ prompt }), true, prompt);
+  for (const prompt of [
+    "/blinkling:look",
+    "/blinkling:install",
+    "tell me about /blinkling",
+    "",
+    undefined,
+  ])
+    assert.equal(asksForBlink({ prompt }), false, String(prompt));
+  assert.equal(asksForBlink(undefined), false);
+});
+
+test("the command starts Blink at once, from the prompt hook, with the session, without waiting for it", () => {
+  const calls = [];
+  const child = {
+    stdin: { end: (text) => calls.push(["stdin", text]) },
+    unref: () => calls.push(["unref"]),
+  };
+  const spawnFn = (command, args, options) => {
+    calls.push(["spawn", command, args, options]);
+    return child;
+  };
+  const payload = { prompt: "/blinkling:blinkling", session_id: "s1" };
+  assert.equal(openBlink(payload, spawnFn), true);
+  const [, command, args, options] = calls.find((c) => c[0] === "spawn");
+  assert.equal(command, process.execPath);
+  assert.match(args[0], /start\.mjs$/);
+  assert.equal(args.includes("--background"), false);
+  assert.equal(options.detached, true);
+  assert.deepEqual(
+    calls.find((c) => c[0] === "stdin")[1],
+    JSON.stringify(payload),
+  );
+  assert.ok(calls.some((c) => c[0] === "unref"));
+  // Another prompt starts nothing.
+  calls.length = 0;
+  assert.equal(openBlink({ prompt: "hello" }, spawnFn), false);
+  assert.deepEqual(calls, []);
 });

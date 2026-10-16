@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { discoverDesktop } from "./client.mjs";
@@ -20,10 +21,33 @@ export async function notice(payload, directory = runtimeDirectory()) {
   return running ? undefined : { systemMessage: QUIT_NOTICE };
 }
 
+/** Whether the person typed the command that opens Blink. */
+export const asksForBlink = (payload) =>
+  typeof payload?.prompt === "string" &&
+  /^\/blinkling(:blinkling)?(\s|$)/.test(payload.prompt.trim());
+
+/** Starts Blink the moment the command is typed: the model's turn before its
+ * desktop_open call takes seconds, and Blink need not wait for it. The start
+ * is the same one the tool makes, so the tool finds Blink already running. */
+export function openBlink(payload, spawnFn = spawn) {
+  if (!asksForBlink(payload)) return false;
+  const child = spawnFn(
+    process.execPath,
+    [fileURLToPath(new URL("./start.mjs", import.meta.url))],
+    { detached: true, stdio: ["pipe", "ignore", "ignore"], windowsHide: true },
+  );
+  child.stdin?.on?.("error", () => {});
+  child.stdin?.end(JSON.stringify(payload));
+  child.unref();
+  return true;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { hookPayload } = await import("./sessions.mjs");
   try {
-    const out = await notice(await hookPayload());
+    const payload = await hookPayload();
+    openBlink(payload);
+    const out = await notice(payload);
     if (out) process.stdout.write(JSON.stringify(out));
   } catch {
     /* The terminal must never wait for or hear about Blink. */
