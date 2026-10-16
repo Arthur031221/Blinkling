@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { PNG } from "pngjs";
-import { launch, move } from "./support.mjs";
+import { launch, move, native, key } from "./support.mjs";
 import { background, reveal } from "./helpers.mjs";
 import { record } from "./record.mjs";
 
@@ -113,6 +113,92 @@ test("the click area is the drawn shape plus a margin, on every edge and pose", 
     }
   } finally {
     await rec.stop();
+    await app.close();
+  }
+});
+
+/** Where a click lands, found by the pixels: a spot in the margin ring (taken
+ * by Blink) and a spot a hand's breadth outside it (falls through). */
+async function spots(page) {
+  await page.addStyleTag({
+    content: "#menu,#grumble,#permission-alert{display:none!important}",
+  });
+  const shot = PNG.sync.read(await page.screenshot({ omitBackground: true }));
+  const { width, height, data } = shot;
+  let top = 0;
+  for (let i = 0; i < width * height; i++) top = Math.max(top, data[i * 4 + 3]);
+  const drawn = (x, y) =>
+    x >= 0 && y >= 0 && x < width && y < height
+      ? data[(y * width + x) * 4 + 3] >= top / 2
+      : false;
+  const rects = await page.evaluate(() => window.desktop.hit());
+  const inArea = (x, y) =>
+    rects.some(
+      (r) => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height,
+    );
+  const gap = (x, y, reach) => {
+    for (let j = -reach; j <= reach; j++)
+      for (let i = -reach; i <= reach; i++)
+        if (i * i + j * j <= reach * reach && drawn(x + i, y + j)) return true;
+    return false;
+  };
+  let ring = null,
+    out = null;
+  for (let y = 12; y < height - 12; y += 2)
+    for (let x = 12; x < width - 12; x += 2) {
+      if (drawn(x, y) || gap(x, y, 2)) continue;
+      // In the ring: Blink takes it, and the drawing is within the margin.
+      if (!ring && inArea(x, y) && gap(x, y, MARGIN - 2) && !gap(x, y, 2))
+        ring = { x, y };
+      // Outside: not in the area and farther than the margin and its slack.
+      if (!out && !inArea(x, y) && !gap(x, y, MARGIN + 8) && gap(x, y, 40))
+        out = { x, y };
+    }
+  return { ring, out };
+}
+
+test("a real click in the margin ring is Blink's and one a hand's breadth outside falls through to the window below", async () => {
+  test.setTimeout(240000);
+  const { app, page } = await launch();
+  const reached = () =>
+    app.evaluate(() => globalThis.bg.webContents.executeJavaScript("clicks"));
+  try {
+    await background(app);
+    for (const edge of ["left", "right", "top", "bottom"]) {
+      await place(app, edge, 0.5);
+      move(640, 400);
+      await page.waitForTimeout(1700);
+      const { ring, out } = await spots(page);
+      expect(ring, `${edge}: a spot in the ring`).not.toBeNull();
+      expect(out, `${edge}: a spot outside`).not.toBeNull();
+      const before = (await reached()).length;
+      // Press at once on arrival: resting on Blink first would open its menu,
+      // and the click area is the menu's then.
+      const tap = ({ x, y }) =>
+        native([
+          { type: "move", x, y, wait: 0 },
+          { type: "down", wait: 0 },
+          { type: "up", wait: 0 },
+        ]);
+      tap(ring);
+      await page.waitForTimeout(400);
+      expect(
+        (await reached()).length,
+        `${edge}: the click in the ring did not fall through`,
+      ).toBe(before);
+      move(640, 400);
+      await page.waitForTimeout(1700);
+      tap(out);
+      await page.waitForTimeout(400);
+      expect(
+        (await reached()).length,
+        `${edge}: the click outside reached the window below`,
+      ).toBe(before + 1);
+      key(0xff1b);
+      move(640, 400);
+      await page.waitForTimeout(2200);
+    }
+  } finally {
     await app.close();
   }
 });
