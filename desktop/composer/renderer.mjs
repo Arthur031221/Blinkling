@@ -1,5 +1,5 @@
 import { mountConversation, sessionFromDesktopAPI } from "./conversation.mjs";
-import { anchorOf, growOrigin } from "./origin.mjs";
+import { anchorOf, growOrigin, mouthOfState, tailOf } from "./origin.mjs";
 import {
   setDocumentLocale,
   documentLocale,
@@ -60,6 +60,17 @@ function placeOrigin() {
       anchorOf(shellState),
     ),
   );
+  // The tail points the card at Blink's mouth.
+  const tail = shellState.mouth
+    ? tailOf(
+        { x, y, width: card.offsetWidth, height: card.offsetHeight },
+        mouthOfState(shellState),
+      )
+    : null;
+  if (tail) {
+    card.dataset.tail = tail.side;
+    card.style.setProperty("--gl-tail-at", `${tail.at}px`);
+  } else delete card.dataset.tail;
 }
 const unShell = api.onShell?.((event) => {
   if (event.type !== "state") return;

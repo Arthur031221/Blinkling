@@ -61,6 +61,7 @@ a:focus-visible {
   display: none;
 }
 .gl-chat-card {
+  position: relative;
   pointer-events: auto;
   min-width: 0;
   width: 100%;
@@ -624,4 +625,40 @@ a:focus-visible {
   40% {
     transform: scale(1.4);
   }
+}
+/* The tail points the card at Blink's mouth: a square turned on its corner,
+   outlined like the card on the two sides that show. */
+.gl-chat-card[data-tail]::before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--gl-paper);
+  border: 1px solid var(--gl-border);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.gl-chat-card[data-tail="right"]::before {
+  right: -8px;
+  top: calc(var(--gl-tail-at) - 7px);
+  border-left: 0;
+  border-bottom: 0;
+}
+.gl-chat-card[data-tail="left"]::before {
+  left: -8px;
+  top: calc(var(--gl-tail-at) - 7px);
+  border-top: 0;
+  border-right: 0;
+}
+.gl-chat-card[data-tail="top"]::before {
+  top: -8px;
+  left: calc(var(--gl-tail-at) - 7px);
+  border-right: 0;
+  border-bottom: 0;
+}
+.gl-chat-card[data-tail="bottom"]::before {
+  bottom: -8px;
+  left: calc(var(--gl-tail-at) - 7px);
+  border-top: 0;
+  border-left: 0;
 }

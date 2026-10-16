@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { cardBounds, resolvePosition } from "../main/placement.mjs";
-import { anchorOf, growOrigin } from "./origin.mjs";
+import { anchorOf, growOrigin, tailOf } from "./origin.mjs";
 
 const display = (scaleFactor = 1) => ({
   id: 1,
@@ -67,4 +67,24 @@ test("the card reads the origin from a variable instead of a fixed corner", () =
   const card = css.match(/\.gl-chat-card\s*\{([^}]*)\}/)[1];
   assert.match(card, /transform-origin:\s*var\(--gl-origin/);
   assert.doesNotMatch(card, /transform-origin:\s*bottom right/);
+});
+
+test("the tail grows from the side of the card that faces the mouth and keeps off the corners", () => {
+  const card = { x: 100, y: 100, width: 400, height: 500 };
+  assert.deepEqual(tailOf(card, { x: 560, y: 300 }), {
+    side: "right",
+    at: 200,
+  });
+  assert.deepEqual(tailOf(card, { x: 40, y: 350 }), { side: "left", at: 250 });
+  assert.deepEqual(tailOf(card, { x: 560, y: 90 }), { side: "right", at: 36 });
+  assert.deepEqual(tailOf(card, { x: 560, y: 900 }), {
+    side: "right",
+    at: 464,
+  });
+  assert.deepEqual(tailOf(card, { x: 300, y: 40 }), { side: "top", at: 200 });
+  assert.deepEqual(tailOf(card, { x: 300, y: 700 }), {
+    side: "bottom",
+    at: 200,
+  });
+  assert.equal(tailOf(card, { x: 300, y: 300 }), null);
 });

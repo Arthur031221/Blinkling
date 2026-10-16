@@ -4,6 +4,8 @@ import {
   snapPosition,
   resolvePosition,
   reconcileDisplay,
+  BODY_HALF,
+  TAIL,
   cardBounds,
   MOUTH,
   mouthOf,
@@ -184,9 +186,9 @@ for (const [scale, screen] of Object.entries(panels))
         y: position.reveal.y + screen.bounds.y,
       };
       const character = {
-        x: anchor.x - 74,
+        x: anchor.x - BODY_HALF,
         y: anchor.y - 142,
-        width: 148,
+        width: 2 * BODY_HALF,
         height: 152,
       };
       assert.ok(!overlaps(card, character), "card clears the revealed Blink");
@@ -258,13 +260,17 @@ for (const [name, d] of Object.entries({
         const p = resolvePosition(d, { edge, ratio });
         const card = cardBounds(d, p);
         const blink = {
-          x: p.reveal.x + d.bounds.x - 74,
+          x: p.reveal.x + d.bounds.x - BODY_HALF,
           y: p.reveal.y + d.bounds.y - 142,
-          width: 148,
+          width: 2 * BODY_HALF,
           height: 152,
         };
         assert.ok(!overlaps(card, blink), `${edge} ${ratio} covers Blink`);
-        for (const pill of menuLayout(p.area, p.reveal))
+        // Beside Blink the card may sit where the fan would open: the menu
+        // and the card are never open together. Stacked, the card keeps clear.
+        const centre = blink.x + BODY_HALF;
+        const stacked = card.x < centre && centre < card.x + card.width;
+        for (const pill of stacked ? menuLayout(p.area, p.reveal) : [])
           assert.ok(
             !overlaps(card, {
               ...pill,
@@ -293,4 +299,28 @@ test("the mouth is straight above the feet, where the drawing puts it", () => {
   assert.equal(mouth.y, 700 - (142 - MOUTH.y));
   // Smaller than full size, so closer to the feet than the 64 px of the full drawing.
   assert.ok(700 - mouth.y < 64);
+});
+
+test("the card's tail stops within 12 px of Blink's body, at the height of its mouth, wherever Blink rests", () => {
+  for (const d of Object.values(panels))
+    for (const edge of ["left", "right", "top", "bottom"])
+      for (const ratio of [0, 0.1, 0.5, 0.9, 1]) {
+        const p = resolvePosition(d, { edge, ratio });
+        const card = cardBounds(d, p);
+        const mouth = mouthOf({
+          x: p.reveal.x + d.bounds.x,
+          y: p.reveal.y + d.bounds.y,
+        });
+        if (card.x < mouth.x && mouth.x < card.x + card.width) continue;
+        const left = card.x + card.width < mouth.x;
+        const tip = left
+          ? card.x + card.width - 12 + TAIL.length
+          : card.x + 12 - TAIL.length;
+        const gap = Math.abs(tip - mouth.x) - BODY_HALF;
+        assert.ok(gap >= 0 && gap <= 12, `${edge} ${ratio} gap ${gap}`);
+        assert.ok(
+          mouth.y > card.y + 40 && mouth.y < card.y + card.height - 30,
+          `${edge} ${ratio} the mouth is level with the card`,
+        );
+      }
 });

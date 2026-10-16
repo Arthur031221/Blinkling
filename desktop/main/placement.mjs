@@ -97,8 +97,18 @@ export function characterBox(display, position) {
     height: CHARACTER.height,
   };
 }
-/** Gap kept between the card and Blink's box. */
+/** The card points at Blink's mouth with a tail. Blink's drawn body reaches
+ * `BODY_HALF` px either side of the mouth, the tail is `length` px long and
+ * its tip stops `gap` px short of the body. */
+export const BODY_HALF = 38;
+export const TAIL = Object.freeze({ length: 10, gap: 2 });
+/** The card window keeps this much clear around the card for its shadow, and
+ * the tail grows into it. */
+const SHADOW = 12;
+/** Gap kept between the card and Blink and its fan when the card is stacked. */
 const CARD_GAP = 6;
+/** How far the card window's near edge sits from the mouth, sideways. */
+export const CARD_NEAR = BODY_HALF + TAIL.gap + TAIL.length - SHADOW;
 /** Narrowest card worth showing beside Blink before stacking it instead. */
 const CARD_MIN = 280;
 const union = (rects) => {
@@ -111,8 +121,8 @@ const union = (rects) => {
     height: Math.max(...rects.map((r) => r.y + r.height)) - y,
   };
 };
-/** The card and the answer deck share this rectangle. It never covers Blink
- * and never covers the open menu fan, wherever Blink rests: beside Blink, on
+/** The card's rectangle. It never covers Blink's body, wherever Blink rests:
+ * beside Blink with its tail a few pixels from the body at mouth height, on
  * the side away from its edge, narrowed when the display is too narrow for
  * the full width; stacked above or below Blink and its fan on a display too
  * narrow even for that. */
@@ -125,12 +135,13 @@ export function cardBounds(display, position) {
     x: position.reveal.x + display.bounds.x,
     y: position.reveal.y + display.bounds.y,
   };
+  const centre = blink.x + blink.width / 2;
   const y = anchoredTop(blink, height, a, 12);
   // Beside Blink, away from its edge. On a top or bottom edge, or in a corner,
   // take whichever side has room so the card never lands on top of Blink.
   const room = {
-    left: blink.x - CARD_GAP - (a.x + 12),
-    right: a.x + a.width - 12 - (blink.x + blink.width + CARD_GAP),
+    left: centre - CARD_NEAR - (a.x + 12),
+    right: a.x + a.width - 12 - (centre + CARD_NEAR),
   };
   const order =
     position.edge === "left" ? ["right", "left"] : ["left", "right"];
@@ -140,11 +151,11 @@ export function cardBounds(display, position) {
   if (room[side] >= Math.min(full, CARD_MIN)) {
     const width = Math.min(full, Math.floor(room[side]));
     return {
-      x: Math.round(
+      // Rounded away from Blink, so the card never takes a pixel of its body.
+      x:
         side === "left"
-          ? blink.x - CARD_GAP - width
-          : blink.x + blink.width + CARD_GAP,
-      ),
+          ? Math.floor(centre - CARD_NEAR - width)
+          : Math.ceil(centre + CARD_NEAR),
       y,
       width,
       height,

@@ -226,6 +226,7 @@ const snapshot = () => ({
     scaleFactor: display.scaleFactor,
   },
   position,
+  mouth: mouthOf(position.reveal),
   drag: drag?.active
     ? {
         x: drag.anchor.x - display.bounds.x,
