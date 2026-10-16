@@ -63,6 +63,8 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     streaming: false,
     capture: 0,
     eatingUntil: 0,
+    showUntil: 0,
+    grumbling: false,
     viewer: 0,
     panels: 0,
     composer: { focus: false, text: false, ime: false },
@@ -107,6 +109,8 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         s.streaming ||
         s.capture > 0 ||
         s.viewer > 0 ||
+        s.grumbling ||
+        t < s.showUntil ||
         t < s.eatingUntil,
     );
   }
@@ -295,12 +299,30 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     viewer(open) {
       s.viewer = open ? 1 : 0;
     },
-    capture(open) {
+    /** A capture or the Ctrl pick is in progress: Blink comes out to take part
+     * and stays out until it is over. */
+    capture(open, t = clock()) {
       s.capture = Math.max(0, s.capture + (open ? 1 : -1));
+      if (open) pullOut(t);
+      else s.lastEngaged = t;
     },
     eat(ms, t = clock()) {
       s.eatingUntil = t + ms;
       s.lastEngaged = t;
+    },
+    /** A motion that has to be seen (appear, turn, celebrate, shrug, file
+     * catch): Blink is out and stays out while it plays. */
+    showFor(ms, t = clock()) {
+      s.showUntil = Math.max(s.showUntil, t + ms);
+      pullOut(t);
+    },
+    /** The idle grumble is drawn standing, so Blink is out for as long as it
+     * lasts and then retreats by the usual rule. */
+    grumble(on, t = clock()) {
+      if (s.grumbling === on) return;
+      s.grumbling = on;
+      if (on) pullOut(t);
+      else s.lastEngaged = t;
     },
     /** The question went out; the card opens by itself to show the answer. */
     answerStart(t = clock()) {
@@ -321,6 +343,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     answerFailed(t = clock()) {
       s.streaming = false;
       s.readUntil = t + timing.readMin;
+      emit("answer-failed");
     },
     tick(t = clock()) {
       if (s.press && !s.held && t - s.press.at >= timing.pickHold) held(t);

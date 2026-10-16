@@ -8,10 +8,25 @@ export const UP = [150, 10, 172, 10];
 export const CHEEK = [-5, 70, -60, 30];
 /** The line in the drawing where a peeking Blink's hands grip the edge. */
 export const PEEK_EDGE = 150;
-/** How long a dizzy Blink sways before it recovers, in seconds. */
-export const DIZZY_FOR = 3.7;
-/** How long Blink's reaction to catching a pick lasts, in seconds. */
-export const CATCH_FOR = 1.1;
+/** How long a dizzy Blink sways before it recovers, and the fall from the air that
+ * comes first, in seconds. */
+const SWAY_FOR = 3.7;
+const FALL_FOR = 0.3;
+export const DIZZY_FOR = SWAY_FOR + FALL_FOR;
+/** How long Blink takes to eat a capture, in seconds, and how long it has had the
+ * mouth open before the picture is sucked in. The sheet's own clock starts when the
+ * picture is shown; ours starts at the moment the mouth begins to open. */
+export const EAT_FOR = 4.2;
+const EAT_LEAD = 0.6;
+/** How long each of the other one-off motions lasts, in seconds. */
+export const APPEAR_FOR = 4.4;
+export const LEAVE_FOR = 2.4;
+export const TURN_FOR = 0.9;
+export const FILE_FOR = 4.4;
+export const CELEBRATE_FOR = 2.8;
+export const SHRUG_FOR = 4;
+/** How long Blink stays in the air before it is let go, once it has been spun. */
+export const AIR_FOR = 2.2;
 /** Seconds a pose takes to blend into the next one. */
 export const BLEND = 0.45;
 
@@ -203,8 +218,17 @@ export function landed() {
 
 /** Dizzy once let go after circles: spiral eyes, stars on a ring that pass in front
  * and behind, a sway that settles and a recovery. `k` is seconds since release. */
-export function dizzy(k) {
-  const rec = seg(k, DIZZY_FOR - 0.6, DIZZY_FOR);
+export function dizzy(since) {
+  if (since < FALL_FOR)
+    return {
+      y: lerp(-38, 0, (since / FALL_FOR) ** 2),
+      eyes: "squeeze",
+      mouth: "o",
+      L: UP,
+      R: UP,
+    };
+  const k = since - FALL_FOR;
+  const rec = seg(k, SWAY_FOR - 0.6, SWAY_FOR);
   const wob = (1 - rec) * (7 * Math.sin(k * 6.5));
   let front = "",
     back = "";
@@ -229,8 +253,8 @@ export function dizzy(k) {
     spin: k * 360,
     mouth: rec < 0.5 ? "wavy" : "smile",
     yaw:
-      k > DIZZY_FOR - 0.6
-        ? 16 * Math.sin((k - DIZZY_FOR + 0.6) * 14) * (1 - rec)
+      k > SWAY_FOR - 0.6
+        ? 16 * Math.sin((k - SWAY_FOR + 0.6) * 14) * (1 - rec)
         : 0,
     L: [70 + wob * 2, 0, 40, 0],
     R: [70 - wob * 2, 0, 40, 0],
@@ -265,31 +289,238 @@ export function peek(t, edge = "left") {
   };
 }
 
-/** The mouth opens wide for what was picked, chews, and swallows. `k` is the time
- * since the catch. */
-export function catching(t, k) {
-  const gulp = Math.max(0, 1 - k / 0.22);
-  const chew = k < 0.22 ? 0 : Math.sin((k - 0.22) * 26) * Math.exp(-k * 2.2);
-  const settle = Math.exp(-k * 2.2);
+/** The mouth opens wide for what was taken, the picture is sucked in, Blink chews,
+ * gulps and a sparkle follows. `k` is the time since the mouth began to open; the
+ * numbers are those of the motion sheet. */
+export function eating(k) {
+  const t = k + EAT_LEAD;
+  const open = ease(seg(t, 0.6, 0.95)) * (1 - ease(seg(t, 2, 2.15)));
+  const chew = t > 2.1 && t < 3.1;
+  const swallow = t >= 3.1 && t < 3.4;
+  const wide = open > 0.1;
   return {
-    y: -Math.abs(Math.sin(k * 14)) * settle * 12,
-    L: [100, 30, 130, 30],
-    R: [100, 30, 130, 30],
-    eyes: gulp > 0 ? "wide" : "happy",
-    look: gulp > 0 ? [0.9, 0] : null,
-    mouth: gulp > 0 ? "gulp" : "chew",
-    mp: gulp > 0 ? 0.55 + gulp * 0.45 : Math.abs(chew) * 1.2,
-    blush: 1.35,
+    y: chew
+      ? -1.5 * Math.abs(Math.sin(t * 12))
+      : swallow
+        ? -3 * Math.sin(((t - 3.1) / 0.3) * Math.PI)
+        : breath(t, 1.6),
+    L: wide ? [100, 30, 130, 30] : REST,
+    R: wide ? [100, 30, 130, 30] : REST,
+    eyes:
+      t < 0.95
+        ? "wide"
+        : t < 2
+          ? "squeeze"
+          : chew || t > 3.1
+            ? "happy"
+            : "open",
+    look: t < 0.95 ? [0.9, 0] : null,
+    mouth: open > 0.05 ? "gulp" : chew ? "chew" : "smile",
+    mp: open > 0.05 ? open : Math.abs(Math.sin(t * 12)),
+    blush: chew ? 1.35 : 1,
     faceExtra:
-      k > CATCH_FOR - 0.4
-        ? star4(
-            122,
-            118,
-            5 * (1 - seg(k, CATCH_FOR - 0.4, CATCH_FOR)) + 0.1,
-            "#ffd25e",
-            t * 90,
-          )
+      t > 3.4
+        ? star4(122, 118, 5 * (1 - seg(t, 3.4, 4.4)) + 0.1, "#ffd25e", t * 90)
         : "",
+  };
+}
+
+/** Dropping in from above, landing with a bounce and waving. `k` is the time since. */
+export function appearing(k) {
+  let y;
+  if (k < 0.5) y = lerp(-240, 0, (k / 0.5) ** 2);
+  else if (k < 0.9) y = -16 * Math.sin(((k - 0.5) / 0.4) * Math.PI);
+  else y = 0;
+  const falling = k < 0.5,
+    landing = k >= 0.5 && k < 0.7,
+    waving = k > 1.1 && k < 3.6;
+  const legs = falling ? [12, 25] : [0, 0];
+  return {
+    y,
+    L: falling ? UP : landing ? [95, 0, 120, 0] : REST,
+    R: waving ? [125, 10, 160 + wave(k, 2.2, 22), 10] : falling ? UP : REST,
+    eyes: falling ? "wide" : landing ? "squeeze" : waving ? "happy" : "open",
+    mouth: falling ? "o" : waving ? "open" : "smile",
+    mp: 0.6,
+    legL: legs,
+    legR: legs,
+    open: blinkAt(k, 3.9),
+  };
+}
+
+/** Waving goodbye, then jumping out of the picture. After LEAVE_FOR it is gone. */
+export function leaving(k) {
+  if (k > 2.3) return { y: -400, noShadow: true };
+  const jump = seg(k, 1.6, 2.1);
+  const y = k < 1.45 ? 0 : k < 1.6 ? 4 : lerp(0, -280, jump ** 1.6);
+  const legs = k > 1.6 ? [10, 30] : [0, 0];
+  return {
+    y,
+    L:
+      k < 1.4
+        ? [125, 10, 160 + wave(k, 2.2, 22), 10]
+        : k < 1.6
+          ? [70, 0, 40, 0]
+          : UP,
+    R: k < 1.6 ? REST : UP,
+    eyes: k < 1.4 ? "happy" : "open",
+    mouth: k < 1.4 ? "open" : "o",
+    mp: 0.5,
+    legL: legs,
+    legR: legs,
+  };
+}
+
+/** Turning to the other side: the body swings out to `dir` (1 or -1) and back, and
+ * the eyes follow it. */
+export function turning(k, dir = 1) {
+  const yaw = 38 * dir * Math.sin(clamp(k / TURN_FOR) * Math.PI);
+  return {
+    yaw,
+    look: [clamp(yaw / 38, -1, 1) * 0.8, 0.3],
+    L: [60, 0, 10, 0],
+    R: [60, 0, 10, 0],
+  };
+}
+
+/** Walking sideways along an edge toward `dir` (1 or -1): legs and arms swing in
+ * step, the body bobs and leans into the walk. */
+export function walking(t, dir = 1) {
+  const s = Math.sin(t * 2.2 * Math.PI * 2);
+  return {
+    yaw: 30 * dir,
+    y: -2.5 * Math.abs(Math.cos(t * 2.2 * Math.PI * 2)),
+    roll: 2 * dir,
+    legL: [0, 40 * s * dir],
+    legR: [0, -40 * s * dir],
+    L: [48, -28 * s * dir, 12, -24 * s * dir],
+    R: [48, 28 * s * dir, 12, 24 * s * dir],
+    look: [0.75 * dir, 0.2],
+    open: blinkAt(t % 6.4, 1.4, 5),
+  };
+}
+
+/** Holding the pick key: turned toward the screen, one hand raised like a pointer,
+ * a steady half closed gaze. */
+export function picking(t) {
+  return {
+    x: -6,
+    yaw: 18,
+    y: breath(t, 2),
+    R: [95, 5, 98, 0],
+    L: REST,
+    lid: 0.28,
+    look: [0.9, 0.1],
+    mouth: "smile",
+    mp: 0.5,
+  };
+}
+
+const sheet = (x, y, rot, op) =>
+  `<g opacity="${f1(op * 100) / 100}" transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(rot)} 0 18)"><path d="M-14 -18H6L14 -10V18H-14Z" fill="#fff" stroke="${C.ink}" stroke-width="3" stroke-linejoin="round"/><path d="M6 -18V-10H14" fill="none" stroke="${C.ink}" stroke-width="2.6" stroke-linejoin="round"/><path d="M-8 -4H8M-8 3H8M-8 10H4" stroke="#b9c4bd" stroke-width="2.6" stroke-linecap="round"/></g>`;
+
+/** A file dropped on Blink: it looks up with open hands, the sheet lands on its
+ * head and it sways under it, pleased. `k` is the time since the drop. */
+export function fileCaught(k) {
+  const fall = seg(k, 0.5, 1.15),
+    landed = k >= 1.15;
+  const bounce =
+    landed && k < 1.45 ? -7 * Math.sin(((k - 1.15) / 0.3) * Math.PI) : 0;
+  const fy = landed ? 14 + bounce : lerp(-90, 14, fall * fall);
+  const tilt = landed
+    ? 7 * Math.sin((k - 1.15) * 5) * (1 - seg(k, 3.2, 3.8))
+    : 0;
+  const op = 1 - seg(k, 3.8, 4.3);
+  const ready = [112, 20, 150, 20];
+  return {
+    y:
+      landed && k < 1.4
+        ? 3 * Math.sin(((k - 1.15) / 0.25) * Math.PI)
+        : breath(k, 1.8),
+    L: landed ? [150, 10, 168 + wave(k, 2.5, 8), 10] : ready,
+    R: landed ? [150, 10, 168 - wave(k, 2.5, 8), 10] : ready,
+    eyes: landed ? "happy" : "wide",
+    look: [0, -1],
+    mouth: landed ? "open" : "o",
+    mp: landed ? 0.6 : 0.5,
+    attach: sheet(100, fy, tilt, op),
+    roll: landed ? tilt * -0.3 : 0,
+    pivot: [100, 190],
+  };
+}
+
+/** A long answer or task is done: a jump with both hands up and a burst of stars. */
+export function celebrating(k) {
+  let y = 0;
+  if (k < 0.85) y = -40 * Math.sin((k / 0.85) * Math.PI);
+  else if (k > 1.1 && k < 1.6) y = -14 * Math.sin(((k - 1.1) / 0.5) * Math.PI);
+  const air = y < -2,
+    burst = seg(k, 0.25, 1.1);
+  let front = "";
+  if (burst > 0 && burst < 1)
+    for (let j = 0; j < 5; j++) {
+      const a = -Math.PI / 2 + (j - 2) * 0.62,
+        r = 70 + burst * 34;
+      front += star4(
+        100 + Math.cos(a) * r,
+        98 + Math.sin(a) * r * 0.9,
+        7 * (1 - burst) + 1,
+        j % 2 ? "#8ff0c2" : "#ffd25e",
+        burst * 160,
+      );
+    }
+  const legs = air ? [12, 32] : [0, 0];
+  return {
+    y,
+    L: [150, 10, 172 + wave(k, 3, 7), 10],
+    R: [150, 10, 172 - wave(k, 3, 7), 10],
+    eyes: "happy",
+    mouth: "open",
+    mp: 1,
+    legL: legs,
+    legR: legs,
+    front,
+  };
+}
+
+const OUT = [80, 15, 140, 15];
+const mixArm = (a, b, k) => a.map((v, i) => lerp(v, b[i], k));
+/** Nothing found, no answer: it spreads its hands, looks left and right, and the
+ * question marks float up. */
+export function shrugging(k) {
+  const u = ease(seg(k, 0.2, 0.5)) * (1 - ease(seg(k, 3.4, 3.8)));
+  const arms = mixArm(REST, OUT, u);
+  return {
+    y: u > 0.9 && k < 0.8 ? -4 : breath(k, 2),
+    roll: 3 * Math.sin(k * 1.6) * u,
+    L: arms,
+    R: arms,
+    look: [k < 2 ? -0.8 : 0.8, -0.2],
+    mouth: u > 0.5 ? "flat" : "smile",
+    open: blinkAt(k, 1.9),
+    front:
+      u > 0.2
+        ? `<g opacity="${f1(u * 100) / 100}">${mark(150, 30 - 4 * Math.sin(k * 3), "?", 26, "#18a866")}${mark(52, 40 - 4 * Math.cos(k * 3), "?", 18, "#18a866")}</g>`
+        : "",
+  };
+}
+
+/** Swung round in the air: it goes in circles, eyes shut, hands up, until it is let
+ * go. `k` is the time since the second loop was closed. */
+export function whirled(k) {
+  const a = (k / 1.1) * Math.PI * 2;
+  return {
+    x: 34 * Math.cos(a),
+    y: -38 + 16 * Math.sin(a),
+    roll: 14 * Math.sin(a + Math.PI / 2),
+    pivot: [100, 34],
+    eyes: "squeeze",
+    mouth: "o",
+    mp: 0.5,
+    L: [118, 10, 150, 10],
+    R: [118, 10, 150, 10],
+    legL: [14, 20 * Math.sin(a)],
+    legR: [14, -20 * Math.sin(a)],
   };
 }
 

@@ -6,7 +6,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 export const report =
   process.env.BLINKLING_REPORT_DIR ?? join(tmpdir(), "blinkling-shell-report");
-export async function launch({ scale = 1, theme = "light", data } = {}) {
+export async function launch({
+  scale = 1,
+  theme = "light",
+  data,
+  env = {},
+} = {}) {
   await mkdir(report, { recursive: true });
   const userData = data ?? (await mkdtemp(join(tmpdir(), "blink-e2e-")));
   // The first fan shows its labels once; these suites measure the bare fan.
@@ -28,6 +33,7 @@ export async function launch({ scale = 1, theme = "light", data } = {}) {
       BLINKLING_E2E: "1",
       BLINKLING_REMOTE: "0",
       BLINKLING_TEST_DATA: userData,
+      ...env,
     },
   });
   await app.evaluate(({ nativeTheme }, theme) => {

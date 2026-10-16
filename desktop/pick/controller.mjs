@@ -1,6 +1,7 @@
 import { createGesture } from "./gesture.mjs";
 import { effectPlan, lockPlan } from "./effects.mjs";
 import { badgeFor } from "./badge.mjs";
+import { timing } from "../shared/motion.mjs";
 import { textAttachment, imageAttachment } from "./taken.mjs";
 
 const names = {
@@ -26,6 +27,7 @@ export function createPickController({
   grouper,
   newChat,
   caught = () => {},
+  pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   pickedWhileHeld = () => null,
   mouthPoint,
   mini,
@@ -199,12 +201,18 @@ export function createPickController({
     };
   }
 
+  /** Blink opens its mouth first; the picture is sucked in once it is wide. */
+  async function feed(items) {
+    caught();
+    await pause(timing.eatLead);
+    await layer.flight(items, mouthPoint());
+  }
+
   async function finish(entries, flightItems) {
     const group = grouper.join();
     if (group.fresh) await newChat?.();
     try {
-      await layer.flight(flightItems, mouthPoint());
-      caught();
+      await feed(flightItems);
     } catch (error) {
       onError(error);
     }
@@ -264,10 +272,7 @@ export function createPickController({
     }
     try {
       await fresh;
-      if (flightItems.length) {
-        await layer.flight(flightItems, mouthPoint());
-        caught();
-      }
+      if (flightItems.length) await feed(flightItems);
     } catch (error) {
       onError(error);
     }

@@ -335,3 +335,52 @@ test("losing focus to a Blinkling panel or with the pointer on Blink keeps the c
   panel.m.blurred(50);
   assert.equal(panel.read().card, true);
 });
+
+test("a motion that must be seen pulls Blink out and holds it until it ends", () => {
+  const { m, go } = rig();
+  m.showFor(3000, 0);
+  assert.deepEqual(types(m.take()), ["out"]);
+  assert.equal(
+    types(go(3000 + timing.retreat - 64)).includes("retreat"),
+    false,
+  );
+  assert.deepEqual(
+    types(go(200)).filter((t) => t === "retreat"),
+    ["retreat"],
+  );
+});
+
+test("the standing grumble holds Blink out until it stops, then the retreat clock runs", () => {
+  const { m, go, at } = rig();
+  m.grumble(true, 0);
+  assert.deepEqual(types(m.take()), ["out"]);
+  assert.equal(types(go(30000)).includes("retreat"), false);
+  m.grumble(false, at.t);
+  assert.equal(types(go(timing.retreat - 64)).includes("retreat"), false);
+  assert.deepEqual(
+    types(go(200)).filter((t) => t === "retreat"),
+    ["retreat"],
+  );
+});
+
+test("a failed answer is reported once and ends the streaming state", () => {
+  const { m, read } = rig();
+  m.answerStart(0);
+  m.take();
+  m.answerFailed(10);
+  assert.deepEqual(types(m.take()), ["answer-failed"]);
+  assert.equal(read().streaming, false);
+});
+
+test("a pick in progress brings Blink out and holds it until the pick ends", () => {
+  const { m, go, at } = rig();
+  m.capture(true, 0);
+  assert.deepEqual(types(m.take()), ["out"]);
+  assert.equal(types(go(20000)).includes("retreat"), false);
+  m.capture(false, at.t);
+  assert.equal(types(go(timing.retreat - 64)).includes("retreat"), false);
+  assert.deepEqual(
+    types(go(200)).filter((t) => t === "retreat"),
+    ["retreat"],
+  );
+});

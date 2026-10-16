@@ -14,27 +14,42 @@ import {
   silhouette,
 } from "./rig.mjs";
 import {
+  APPEAR_FOR,
   BLEND,
-  CATCH_FOR,
+  CELEBRATE_FOR,
   DIZZY_FOR,
+  EAT_FOR,
+  FILE_FOR,
+  LEAVE_FOR,
   PEEK_EDGE,
+  SHRUG_FOR,
+  TURN_FOR,
+  appearing,
   blendPose,
-  catching,
+  celebrating,
   dizzy,
+  eating,
+  fileCaught,
   facePose,
   gazeYaw,
   grumbling,
   held,
   idle,
   landed,
+  leaving,
   looking,
   peek,
+  picking,
+  shrugging,
   touched,
+  turning,
+  walking,
+  whirled,
   greeting,
 } from "./motions.mjs";
 import { BLINK_SCALE as K } from "./size.mjs";
 import { clipAbove, roundedRect } from "./silhouette.mjs";
-export { CATCH_FOR, DIZZY_FOR };
+export { DIZZY_FOR, EAT_FOR };
 /** How far outside its drawn shape Blink still takes a click, hover or press. */
 export const HIT_MARGIN = 6;
 
@@ -129,13 +144,22 @@ export function mountBlink(host) {
       key = "grumble";
     }
     const plain = (pose) => ({ ...without(base, SCENE), ...pose });
+    if (o.leaveAt != null && time >= o.leaveAt)
+      return {
+        key: "leave",
+        pose: plain(leaving(time - o.leaveAt)),
+        blend: 0.15,
+      };
     if (o.mode === "drag") {
       if (ctx.dragAt < 0) ctx.dragAt = time;
-      return {
-        key: "held",
-        pose: held(time, time - ctx.dragAt, o.velocity ?? 0),
-        blend: 0.2,
-      };
+      const spun = time - (o.whirlAt ?? Infinity);
+      return spun >= 0
+        ? { key: "whirl", pose: whirled(spun), blend: 0.25 }
+        : {
+            key: "held",
+            pose: held(time, time - ctx.dragAt, o.velocity ?? 0),
+            blend: 0.2,
+          };
     }
     ctx.dragAt = -1;
     const woke = time - (o.dizzyAt ?? -100);
@@ -151,9 +175,32 @@ export function mountBlink(host) {
         blend: 0.1,
       };
     }
-    const caught = time - (o.catchAt ?? -100);
-    if (caught >= 0 && caught < CATCH_FOR)
-      return { key: "catch", pose: plain(catching(time, caught)), blend: 0.12 };
+    const came = time - (o.appearAt ?? -100);
+    if (came >= 0 && came < APPEAR_FOR)
+      return { key: "appear", pose: plain(appearing(came)), blend: 0.1 };
+    const ate = time - (o.eatAt ?? -100);
+    if (ate >= 0 && ate < EAT_FOR)
+      return { key: "eat", pose: plain(eating(ate)), blend: 0.12 };
+    const filed = time - (o.fileAt ?? -100);
+    if (filed >= 0 && filed < FILE_FOR)
+      return { key: "file", pose: plain(fileCaught(filed)), blend: 0.15 };
+    const cheered = time - (o.celebrateAt ?? -100);
+    if (cheered >= 0 && cheered < CELEBRATE_FOR)
+      return {
+        key: "celebrate",
+        pose: plain(celebrating(cheered)),
+        blend: 0.1,
+      };
+    const shrugged = time - (o.shrugAt ?? -100);
+    if (shrugged >= 0 && shrugged < SHRUG_FOR)
+      return { key: "shrug", pose: plain(shrugging(shrugged)), blend: 0.2 };
+    const turned = time - (o.turnAt ?? -100);
+    if (turned >= 0 && turned < TURN_FOR)
+      return {
+        key: "turn",
+        pose: plain(turning(turned, o.turnDir ?? 1)),
+        blend: 0.12,
+      };
     if (o.touch) {
       const id = `touch:${o.touch.part}${o.touch.side}`;
       if (ctx.key !== id) ctx.touchAt = time;
@@ -168,6 +215,24 @@ export function mountBlink(host) {
     const waved = time - (o.waveAt ?? -100);
     if (waved >= 0 && waved < 1.5)
       return { key: "wave", pose: plain(greeting(time, waved)), blend: 0.3 };
+    if (o.walking)
+      return {
+        key: "walk",
+        pose: plain(walking(time, o.walking)),
+        blend: 0.2,
+      };
+    if (o.picking) {
+      const g = o.gaze;
+      const m = g ? Math.hypot(g.x, g.y) || 1 : 1;
+      return {
+        key: "pick",
+        pose: plain({
+          ...picking(time),
+          ...(g ? { look: [g.x / m, g.y / m] } : {}),
+        }),
+        blend: 0.25,
+      };
+    }
     if (o.gaze) {
       ctx.yaw = lerp(ctx.yaw, gazeYaw(o.gaze), 1 - Math.exp(-ctx.dt * 8));
       return {
@@ -355,6 +420,8 @@ export function mountBlink(host) {
       return ctx.peek;
     },
     /** Clickable outlines in screen coordinates. */
+    /** Which pose is playing now (held, dizzy, eat, walk...). */
+    key: () => ctx.key,
     polygons() {
       const screen = toScreen(),
         { body, parts } = shapes();

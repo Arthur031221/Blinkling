@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
-import { mountBlink, DIZZY_FOR, CATCH_FOR } from "./index.mjs";
+import { mountBlink, DIZZY_FOR } from "./index.mjs";
 import { FACES } from "./face.mjs";
 
 function rig() {
@@ -44,32 +44,6 @@ test("the connection dot is hidden unless the connection is in trouble", () => {
   }
   blink.pose(T, { dot: null });
   assert.ok(!look(blink).includes('class="status"'));
-});
-
-test("a catch opens Blink's mouth wide, chews, hops and settles", () => {
-  const blink = rig();
-  blink.pose(T, { face: "idle" });
-  const rest = blink.last.mouth;
-  blink.pose(5.01, { face: "idle", catchAt: 5 });
-  blink.pose(5.15, { face: "idle", catchAt: 5 });
-  assert.equal(blink.last.mouth, "gulp");
-  assert.ok(blink.last.mp > 0.6, "gapes wide when it catches");
-  assert.notEqual(rest, "gulp");
-  let top = 0;
-  const chews = [];
-  for (let t = 5.16; t < 5 + CATCH_FOR; t += 0.01) {
-    blink.pose(t, { face: "idle", catchAt: 5 });
-    top = Math.max(top, -blink.last.y);
-    if (t > 5.3 && t < 5 + CATCH_FOR * 0.7) chews.push(blink.last.mp);
-  }
-  assert.ok(top > 6, `hop ${top}`);
-  assert.ok(
-    Math.max(...chews) - Math.min(...chews) > 0.1,
-    "the mouth works back and forth",
-  );
-  settle(blink, 5 + CATCH_FOR + 0.05, { face: "idle", catchAt: 5 });
-  assert.equal(blink.last.mouth, rest);
-  assert.ok(!look(blink).includes(STAR), "the sparkle is gone");
 });
 
 test("a held Blink is nervous: it trembles, sweats and never changes its shape", () => {

@@ -71,6 +71,7 @@ function setup(options = {}) {
     }),
     newChat: async () => void log.newChats++,
     caught: () => void (log.caught++, log.order.push("caught")),
+    pause: async (ms) => void log.order.push(`wait ${ms}`),
     mouthPoint: () => ({ x: 1280, y: 400 }),
     mini: {
       open: async (entries) =>
@@ -222,7 +223,14 @@ test("the mini composer opens before the screen grab starts, so it answers the r
   await controller.raise();
   await pickAt(controller, local(200, 280));
   await controller.drop("release");
-  assert.deepEqual(log.order, ["mini", "grab", "fill", "flight", "caught"]);
+  assert.deepEqual(log.order, [
+    "mini",
+    "grab",
+    "fill",
+    "caught",
+    "wait 400",
+    "flight",
+  ]);
 });
 
 test("text arrives as a text attachment, not a picture of text", async () => {
@@ -387,7 +395,7 @@ test("Blink is told the moment the flight lands, before the mini composer opens"
     },
   });
   assert.equal(log.caught, 1);
-  assert.deepEqual(log.order, ["flight", "caught", "mini"]);
+  assert.deepEqual(log.order, ["caught", "wait 400", "flight", "mini"]);
 });
 
 test("the key stays held after a capture: hovering and dragging keep working and each pick is announced", async () => {

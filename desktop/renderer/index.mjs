@@ -4,12 +4,11 @@ import { spring } from "../character/state.mjs";
 import { grow, scanlines, roundedRect } from "../character/silhouette.mjs";
 import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createMessageStream } from "../messages/index.mjs";
-import { createComposer } from "../composer/index.mjs";
+import { createComposer, readAttachment } from "../composer/index.mjs";
 import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
 import { setDocumentLocale } from "../shared/i18n.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
-import { createSpinDetector } from "../character/spin.mjs";
 import { touchPart, sideOf, gazeAt } from "../character/touch.mjs";
 const api = window.blinkling;
 document.documentElement.style.cssText += cssVariables();
@@ -21,11 +20,22 @@ applyText(document, text);
 const logFrame = frameLog();
 const activity = createActivityState();
 const grumbler = createGrumbler({ count: GRUMBLES });
-const spin = createSpinDetector();
 const grumble = document.querySelector("#grumble");
-// Where Blink was last carried round in circles: set on a drop that left it dizzy.
-let dizzyAt = -100,
-  grumbling = null;
+let grumbling = null;
+// When each one-off motion last started. Main decides when one plays and sends
+// it as a motion event; the pose picks the newest that is still running.
+const at = {
+  appear: -100,
+  eat: -100,
+  file: -100,
+  celebrate: -100,
+  shrug: -100,
+  turn: -100,
+  dizzy: -100,
+};
+let leaveAt = null,
+  whirlAt = null,
+  turnDir = 1;
 const composer = createComposer(),
   messages = createMessageStream();
 let hit = [],
@@ -36,7 +46,6 @@ let hit = [],
   waveAt = -100,
   dropAt = -100,
   current = null,
-  catchAt = -100,
   pointerOver = false,
   pointer = null,
   picking = false,
@@ -141,7 +150,7 @@ async function action(id) {
     last = now;
     const mode = modeOf(now);
     host.dataset.drag = String(shell.interaction.held);
-    const revealed = mode !== "peek",
+    const revealed = mode !== "peek" || leaveAt !== null,
       target =
         shell.drag ?? (revealed ? shell.position.reveal : shell.position.peek);
     const area = shell.position.area;
@@ -179,8 +188,15 @@ async function action(id) {
     host.dataset.mode = mode;
     const session = activity.read(now);
     host.dataset.expression = session.expression;
-    // Held and swung round in circles twice, Blink is dizzy once it is let go.
-    if (shell.drag) spin.add({ x: shell.drag.x, y: shell.drag.y }, now);
+    // Moving along its edge on its own, after a drop, Blink walks.
+    const along =
+      shell.position.edge === "left" || shell.position.edge === "right"
+        ? current.vy
+        : current.vx;
+    const walking =
+      !shell.drag && mode !== "drag" && Math.abs(along) > 30
+        ? Math.sign(along)
+        : 0;
     const touched =
       pointer?.point && pointer.blink && mode !== "drag" && mode !== "peek"
         ? touchPart(pointer.point, current)
@@ -190,7 +206,18 @@ async function action(id) {
       touch: touched
         ? { part: touched, side: sideOf(pointer.point, current) }
         : null,
-      dizzyAt,
+      dizzyAt: at.dizzy,
+      whirlAt: shell.interaction.held ? whirlAt : null,
+      appearAt: at.appear,
+      eatAt: at.eat,
+      fileAt: at.file,
+      celebrateAt: at.celebrate,
+      shrugAt: at.shrug,
+      turnAt: at.turn,
+      turnDir,
+      leaveAt,
+      walking,
+      picking,
       mode,
       waveAt,
       dropAt,
@@ -199,7 +226,6 @@ async function action(id) {
       expression: session.expression,
       face: session.face,
       dot: session.dot,
-      catchAt,
       edge: shell.position.edge,
       grumbling: grumbling !== null,
     });
@@ -211,13 +237,15 @@ async function action(id) {
       shell.miniOpen ||
       !!shell.drag ||
       touched !== null ||
-      mode !== "peek" ||
+      (mode !== "peek" && grumbling === null) ||
+      pointerOver ||
       menu.open;
     const line = grumbler.tick(now, busy);
     if (line !== grumbling) {
       grumbling = line;
       if (line !== null) grumble.textContent = text(`grumble${line + 1}`);
       grumble.dataset.shown = String(line !== null);
+      void api.shell({ type: "grumble", value: line !== null }).catch(() => {});
     }
     if (line !== null) placeGrumble(grumble, current, shell.position);
     // The machine in main decides when the fan shows: after the pointer has
@@ -256,12 +284,19 @@ api.onShell((event) => {
     if (dragging && !shell.drag) {
       dropAt = performance.now() / 1000;
       dropUntil = performance.now() + 500;
-      if (spin.dizzy) dizzyAt = dropAt;
-      spin.reset();
+      whirlAt = null;
       grumbler.touch(performance.now());
     }
   }
   if (event.type === "picking") picking = event.on === true;
+  if (event.type === "motion") {
+    const now = performance.now() / 1000;
+    if (event.name === "leave") leaveAt = now;
+    else if (event.name === "whirl") whirlAt = now;
+    else if (event.name in at) at[event.name] = now;
+    if (event.name === "turn") turnDir = event.dir === -1 ? -1 : 1;
+    grumbler.touch(performance.now());
+  }
   if (event.type === "cursor") {
     const before = pointerOver;
     pointer = { point: event.point, hit: event.hit, blink: event.blink };
@@ -289,7 +324,6 @@ export const desktop = {
   messages,
   composer,
   grumbler,
-  spin,
   get shell() {
     return shell;
   },
@@ -323,7 +357,30 @@ window.blinkling.onEvent((event) => {
 document.querySelector("#blink").addEventListener("pointerdown", () => {
   void window.blinkling.action("guide-dismiss");
 });
-// Blink's catch bounce (the picked region flies to it).
-window.blinkling.onCatch(() => {
-  catchAt = performance.now() / 1000;
+
+// A file dropped on Blink's drawn body is caught and goes into the card.
+const onBody = (e) =>
+  hit.some(
+    (r) =>
+      e.clientX >= r.x &&
+      e.clientX < r.x + r.width &&
+      e.clientY >= r.y &&
+      e.clientY < r.y + r.height,
+  );
+document.addEventListener("dragover", (e) => {
+  if (e.dataTransfer?.types.includes("Files") && onBody(e)) e.preventDefault();
+});
+document.addEventListener("drop", (e) => {
+  const files = [...(e.dataTransfer?.files ?? [])];
+  if (!files.length || !onBody(e)) return;
+  e.preventDefault();
+  void (async () => {
+    try {
+      const attachments = [];
+      for (const f of files) attachments.push(await readAttachment(f));
+      await window.blinkling.dropFiles(attachments);
+    } catch {
+      // An unreadable or unsupported file is left for the card to explain.
+    }
+  })();
 });

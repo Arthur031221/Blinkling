@@ -14,6 +14,19 @@ import { claimFocus, validHold } from "./card-hold.mjs";
 import { createMachine } from "../interaction/machine.mjs";
 import { validSeed } from "../composer/index.mjs";
 import { timing } from "../shared/motion.mjs";
+import { createSpinDetector } from "../character/spin.mjs";
+import { validateAttachment } from "../composer/index.mjs";
+import { reactionFor } from "../interaction/reactions.mjs";
+import {
+  APPEAR_FOR,
+  CELEBRATE_FOR,
+  DIZZY_FOR,
+  EAT_FOR,
+  FILE_FOR,
+  LEAVE_FOR,
+  SHRUG_FOR,
+  TURN_FOR,
+} from "../character/motions.mjs";
 import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
@@ -227,6 +240,28 @@ const snapshot = () => ({
   theme: nativeTheme.shouldUseDarkColors ? "dark" : "light",
   locale,
 });
+/** A one-off motion for the renderer to play. Blink is pulled out for as long as
+ * it lasts, so it is always seen. */
+const PLAYS = {
+  appear: APPEAR_FOR,
+  eat: EAT_FOR,
+  file: FILE_FOR,
+  celebrate: CELEBRATE_FOR,
+  shrug: SHRUG_FOR,
+  turn: TURN_FOR,
+  dizzy: DIZZY_FOR,
+  leave: LEAVE_FOR,
+};
+function motion(name, extra = {}) {
+  if (quitting && name !== "leave") return;
+  if (name in PLAYS) flow((m) => m.showFor(PLAYS[name] * 1000));
+  if (!blink.isDestroyed())
+    blink.webContents.send("blinkling:shell", {
+      type: "motion",
+      name,
+      ...extra,
+    });
+}
 function broadcast() {
   if (quitting) return;
   for (const w of windows())
@@ -384,7 +419,14 @@ function act(effects) {
     else if (effect.type === "close-chat") closeComposer();
     else if (effect.type === "out") rim = blinkRegions;
     else if (effect.type === "retreat") rim = [];
-    else if (effect.type === "open-menu" && !effect.hover) closeComposer(false);
+    else if (effect.type === "answer-done" || effect.type === "answer-failed") {
+      const name = reactionFor({
+        words: effect.words,
+        failed: effect.type === "answer-failed",
+      });
+      if (name) motion(name);
+    } else if (effect.type === "open-menu" && !effect.hover)
+      closeComposer(false);
     else if (effect.type === "pick-up" && drag) {
       rim = [];
       drag.active = true;
@@ -481,10 +523,17 @@ function placeCard(at = position) {
   bubbles?.setBounds(bounds);
   shapeComposer();
 }
+/** Both ways a carried Blink is put down end here. A drop that followed two
+ * loops leaves it dizzy. Returns whether it had been picked up. */
+function endDrag() {
+  const done = drag;
+  drag = null;
+  if (done?.whirled) motion("dizzy");
+  return Boolean(done?.active);
+}
 function displaysChanged() {
   const next = reconcileDisplay(screen.getAllDisplays(), display.id);
-  if (drag?.active) tellDeck({ type: "drag", value: false });
-  drag = null;
+  if (endDrag()) tellDeck({ type: "drag", value: false });
   overlay?.close();
   overlay = null;
   useDisplay(next);
@@ -550,6 +599,8 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
         },
         lastX: p.x,
         velocity: 0,
+        spin: createSpinDetector(),
+        whirled: false,
       };
       flow((m) => m.press(p));
       // Keep the native pointer capture alive while the rig moves under it.
@@ -568,9 +619,13 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       // The machine tells a click from a drop: a short press is a click.
       flow((m) => m.release());
       const saved = drag.active ? snapPosition(display, drag.anchor) : null;
+      const before = position.edge;
       if (saved) position = resolvePosition(display, saved);
-      const carried = drag.active;
-      drag = null;
+      const carried = endDrag();
+      if (saved && position.edge !== before)
+        motion("turn", {
+          dir: position.edge === "right" || position.edge === "bottom" ? 1 : -1,
+        });
       if (input) input.setRegions(blink, regions, display.scaleFactor);
       else if (process.platform === "win32") blink.setShape(regions);
       if (saved) await store.save(display.id, saved);
@@ -583,7 +638,10 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     tellDeck({ type: "pin", value: pinned });
     flow((m) => m.pin(pinned));
   } else if (command.type === "close-chat") flow((m) => m.close());
-  else if (command.type === "click") {
+  else if (command.type === "grumble") {
+    if (!fromBlink) throw new Error("Invalid shell gesture");
+    flow((m) => m.grumble(command.value));
+  } else if (command.type === "click") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
     flow((m) => m.click());
   } else if (command.type === "fan-labels-seen") {
@@ -661,7 +719,12 @@ const blinkPoint = () => ({
 });
 const mouthPoint = () => mouthOf(blinkPoint());
 /** While the pick layer is up Blink's eyes follow the cursor. */
+let pickingOn = false;
 const tellPicking = (on) => {
+  if (on !== pickingOn) {
+    pickingOn = on;
+    flow((m) => m.capture(on));
+  }
   if (!blink.isDestroyed())
     blink.webContents.send("blinkling:shell", { type: "picking", on });
 };
@@ -685,7 +748,10 @@ session.subscribe(
         .split(/\s+/)
         .filter(Boolean).length;
       if (!machine.read().streaming) flow((m) => m.answerStart());
-    } else if (event.type === "done") flow((m) => m.answerEnd(answerWords));
+    } else if (event.type === "done") {
+      flow((m) => m.answerEnd(answerWords));
+      answerWords = 0;
+    }
   },
   { visible: false },
 );
@@ -728,6 +794,22 @@ ipcMain.on("blinkling:subscribe", (event) => {
     { visible: true },
   );
   unsubscribe();
+});
+ipcMain.handle("blinkling:drop-files", async (event, attachments) => {
+  if (event.sender !== blink.webContents)
+    throw new Error("Invalid drop sender");
+  if (
+    !Array.isArray(attachments) ||
+    !attachments.length ||
+    attachments.length > 8
+  )
+    throw new Error("Invalid drop");
+  const valid = attachments.map(validateAttachment);
+  motion("file");
+  await openComposer();
+  claimKeyboard(composer);
+  for (const image of valid)
+    composer.webContents.send("blinkling:capture", { image });
 });
 ipcMain.handle("blinkling:send", async (event, turn) => {
   requireView(event);
@@ -1010,7 +1092,7 @@ const pick = await installPick({
     session,
     captureScreen,
     newChat: () => tellDeck({ type: "new-chat" }),
-    caught: () => blink.webContents.send("blinkling:catch"),
+    caught: () => motion("eat"),
     picking: tellPicking,
     miniChanged: (open) => {
       miniOpen = open;
@@ -1151,6 +1233,15 @@ const poll = setInterval(() => {
     flow((m) => m.pointer(p));
     const next = screen.getDisplayNearestPoint(p);
     if (next.id !== display.id) useDisplay(next);
+    if (
+      drag.active &&
+      !drag.whirled &&
+      drag.spin.add(p, performance.now()) >= 2
+    ) {
+      // Two loops while held: Blink is spun round in the air, dizzy on the drop.
+      drag.whirled = true;
+      motion("whirl");
+    }
     drag.velocity = (p.x - drag.lastX) / 0.016;
     drag.lastX = p.x;
     drag.anchor = {
@@ -1186,9 +1277,8 @@ const poll = setInterval(() => {
       m.pointer(p, performance.now(), onBlink);
     });
   }
-  flow((m) => {
-    m.tick();
-  });
+  // tick() hands back what it decided (a long press picks Blink up).
+  act(machine.tick());
   const overCard = composer?.isVisible() && contains(composer.getBounds(), p);
   const bubbleBounds = bubbles.getBounds();
   const overBubbles =
@@ -1217,6 +1307,11 @@ const poll = setInterval(() => {
     }
   }
 }, timing.cursorPoll);
+// End-to-end runs keep Blink still unless they ask for the entrance and exit.
+const showsMotions =
+  process.env.BLINKLING_E2E !== "1" || process.env.BLINKLING_MOTIONS === "1";
+if (showsMotions)
+  setTimeout(() => motion("appear"), timing.appearLead).unref?.();
 let disposed = false;
 app.on("before-quit", (event) => {
   if (disposed) return;
@@ -1224,10 +1319,16 @@ app.on("before-quit", (event) => {
   // The watchdog armed at the first request covers a stuck session or helper
   // here and a quit that stalls after disposal.
   features.dispose();
+  // Blink waves goodbye while the rest shuts down.
+  const leaving = showsMotions && blink.isVisible();
+  if (leaving) motion("leave");
   Promise.allSettled([
     session.dispose(),
     companionHost.close(),
     realLocator.close(),
+    leaving
+      ? new Promise((done) => setTimeout(done, LEAVE_FOR * 1000))
+      : undefined,
   ]).finally(() => {
     disposed = true;
     app.quit();

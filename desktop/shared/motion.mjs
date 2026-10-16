@@ -24,8 +24,12 @@ export const timing = Object.freeze({
   thinkingFace: 100,
   settle: 8000,
   spotLap: 1800,
-  // The genie into Blink's mouth: long enough to read as being sucked in.
-  genie: 640,
+  // The genie into Blink's mouth: long enough to read as being sucked in, and
+  // the wait that lets Blink open its mouth before the picture starts to move.
+  genie: 970,
+  eatLead: 400,
+  // Launch: the wait that lets the window draw once before Blink steps in.
+  appearLead: 600,
   sameChat: 60000,
   // Not motion: waits and polls that used to be bare numbers beside the code.
   frame: 17,

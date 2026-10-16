@@ -7,6 +7,7 @@ const types = new Set([
   "close-chat",
   "activity",
   "fan-labels-seen",
+  "grumble",
 ]);
 export function validCommand(command, bounds) {
   if (command?.type === "drag-end") return Object.keys(command).length === 1;
@@ -38,7 +39,11 @@ export function validCommand(command, bounds) {
       ["start", "end"].includes(command.phase) &&
       Object.keys(command).every((k) => ["type", "phase"].includes(k))
     );
-  if (command.type === "pin" || command.type === "visibility")
+  if (
+    command.type === "pin" ||
+    command.type === "visibility" ||
+    command.type === "grumble"
+  )
     return (
       typeof command.value === "boolean" &&
       Object.keys(command).every((k) => ["type", "value"].includes(k))
