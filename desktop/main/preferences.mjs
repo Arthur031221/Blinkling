@@ -5,6 +5,9 @@ export class PositionStore {
     this.path = path;
     this.positions = {};
     this.lastDisplay = null;
+    /** How far the reader moved each surface from where it opens, by name and
+     * edge ("card:right"), so it opens there again. */
+    this.nudges = {};
     this.pending = Promise.resolve();
   }
   async load() {
@@ -18,6 +21,10 @@ export class PositionStore {
       ) {
         this.positions = value.positions;
         this.lastDisplay = value.lastDisplay;
+        if (value.nudges && typeof value.nudges === "object")
+          for (const [key, n] of Object.entries(value.nudges))
+            if (Number.isFinite(n?.x) && Number.isFinite(n?.y))
+              this.nudges[key] = { x: n.x, y: n.y };
       }
     } catch (error) {
       if (error.code !== "ENOENT" && !(error instanceof SyntaxError))
@@ -28,10 +35,23 @@ export class PositionStore {
   save(id, position) {
     this.positions[String(id)] = position;
     this.lastDisplay = String(id);
+    return this.write();
+  }
+  nudge(key) {
+    return this.nudges[key] ?? { x: 0, y: 0 };
+  }
+  /** Remembers a nudge; a nudge of nothing is forgotten. */
+  saveNudge(key, offset) {
+    if (offset.x === 0 && offset.y === 0) delete this.nudges[key];
+    else this.nudges[key] = { x: offset.x, y: offset.y };
+    return this.write();
+  }
+  write() {
     const data = JSON.stringify({
       version: 1,
       positions: this.positions,
       lastDisplay: this.lastDisplay,
+      nudges: this.nudges,
     });
     this.pending = this.pending
       .catch(() => {})

@@ -91,6 +91,8 @@ export const conversation = mountConversation({
   cardHost: document.querySelector("#card"),
   ...configuration,
   onPin: (value) => api.pin?.(value),
+  onNudge: (value) => api.nudge?.(value),
+  nudgeNow: () => shellState?.nudge,
   onClose: () => api.close?.(),
   onTyping: (value) => api.typing?.(value),
   onHold: (value) => api.hold?.(value),

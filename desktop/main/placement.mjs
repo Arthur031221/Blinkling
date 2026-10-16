@@ -121,12 +121,38 @@ const union = (rects) => {
     height: Math.max(...rects.map((r) => r.y + r.height)) - y,
   };
 };
+/** How far, in DIP, the reader may move a card or panel from where it opens. */
+export const NUDGE_MAX = 120;
+/** A nudge held to `max` px from where the surface opens. */
+export function clampNudge(nudge, max = NUDGE_MAX) {
+  const x = Number(nudge?.x),
+    y = Number(nudge?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { x: 0, y: 0 };
+  const scale = Math.min(1, max / (Math.hypot(x, y) || 1));
+  return { x: Math.round(x * scale), y: Math.round(y * scale) };
+}
+/** `bounds` moved by a nudge, kept inside the work area. */
+export function nudged(bounds, nudge, area) {
+  const n = clampNudge(nudge);
+  return {
+    ...bounds,
+    x: Math.round(
+      clamp(bounds.x + n.x, area.x, area.x + area.width - bounds.width),
+    ),
+    y: Math.round(
+      clamp(bounds.y + n.y, area.y, area.y + area.height - bounds.height),
+    ),
+  };
+}
 /** The card's rectangle. It never covers Blink's body, wherever Blink rests:
  * beside Blink with its tail a few pixels from the body at mouth height, on
  * the side away from its edge, narrowed when the display is too narrow for
  * the full width; stacked above or below Blink and its fan on a display too
  * narrow even for that. */
-export function cardBounds(display, position) {
+export function cardBounds(display, position, nudge = { x: 0, y: 0 }) {
+  return nudged(placedCard(display, position), nudge, display.workArea);
+}
+function placedCard(display, position) {
   const a = display.workArea,
     full = Math.min(440, a.width - 24),
     height = Math.min(520, a.height - 24);

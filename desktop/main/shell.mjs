@@ -36,6 +36,7 @@ import {
   snapPosition,
   reconcileDisplay,
   cardBounds,
+  clampNudge,
   mouthOf,
 } from "./placement.mjs";
 import { PositionStore } from "./preferences.mjs";
@@ -218,6 +219,9 @@ const surfaces = () => [
   ...windows(),
   ...extraWindows.filter((w) => !w.isDestroyed()),
 ];
+/** The card's place: beside Blink, moved by what the reader nudged on this edge. */
+const cardAt = (at = position) =>
+  cardBounds(display, at, store.nudge(`card:${at.edge}`));
 const snapshot = () => ({
   display: {
     id: String(display.id),
@@ -227,6 +231,7 @@ const snapshot = () => ({
   },
   position,
   mouth: mouthOf(position.reveal),
+  nudge: store.nudge(`card:${position.edge}`),
   drag: drag?.active
     ? {
         x: drag.anchor.x - display.bounds.x,
@@ -294,9 +299,7 @@ function shapeComposer() {
 async function ensureComposer() {
   if (composerOpening) return composerOpening;
   if (composer) return composer;
-  const win = new BrowserWindow(
-    windowOptions(cardBounds(display, position), true),
-  );
+  const win = new BrowserWindow(windowOptions(cardAt(), true));
   composer = win;
   secure(win);
   // Esc in the focused card closes the top layer, which is the card itself
@@ -518,7 +521,7 @@ let placedAt = "";
 // The quick box goes with Blink too; it exists once the pick feature is up.
 let followBlink = () => {};
 function placeCard(at = position) {
-  const bounds = cardBounds(display, at);
+  const bounds = cardAt(at);
   const key = JSON.stringify(bounds);
   if (key === placedAt) return;
   placedAt = key;
@@ -873,6 +876,18 @@ ipcMain.handle("blinkling:open-link", async (event, url) => {
   if (typeof url !== "string" || url.length > 4096 || !/^https?:\/\//.test(url))
     throw new Error("Invalid link");
   await externalShell.openExternal(new URL(url).href);
+});
+/** The reader drags the card by its header: it moves up to 120 px from where
+ * it opens, a drag in progress is held in memory, and the final place (or a
+ * reset by double click) is remembered for this edge. */
+ipcMain.on("blinkling:nudge", (event, message) => {
+  if (!trusted(event) || event.sender !== composer?.webContents) return;
+  const key = `card:${position.edge}`;
+  const next = message?.reset ? { x: 0, y: 0 } : clampNudge(message);
+  store.nudges[key] = next;
+  placeCard();
+  broadcast();
+  if (message?.commit || message?.reset) void store.saveNudge(key, next);
 });
 ipcMain.on("blinkling:typing", (event, value) => {
   if (
@@ -1345,7 +1360,7 @@ if (process.env.BLINKLING_E2E === "1")
     snapshot,
     cursor: () => cursor.point(),
     pointer: cursor,
-    cardBounds: () => cardBounds(display, position),
+    cardBounds: () => cardAt(),
     attachCapture,
     openComposer,
     visualMasks,

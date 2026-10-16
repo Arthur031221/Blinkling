@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld(
     typing: (value) => ipcRenderer.send("blinkling:typing", value),
     engage: (value) => ipcRenderer.send("blinkling:engage", value),
     hold: (value) => ipcRenderer.send("blinkling:hold", value),
+    nudge: (value) => ipcRenderer.send("blinkling:nudge", value),
     pin: (value) =>
       ipcRenderer.invoke("blinkling:shell", { type: "pin", value }),
     close: () => ipcRenderer.invoke("blinkling:shell", { type: "close-chat" }),

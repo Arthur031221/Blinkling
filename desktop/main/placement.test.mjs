@@ -7,6 +7,8 @@ import {
   BODY_HALF,
   TAIL,
   cardBounds,
+  clampNudge,
+  NUDGE_MAX,
   MOUTH,
   mouthOf,
   MOUTH_DROP,
@@ -323,4 +325,21 @@ test("the card's tail stops within 12 px of Blink's body, at the height of its m
           `${edge} ${ratio} the mouth is level with the card`,
         );
       }
+});
+
+test("a nudge moves the card at most 120 px from where it opens and never off the screen", () => {
+  const screen = panels["100%"];
+  const p = resolvePosition(screen, { edge: "right", ratio: 0.5 });
+  const home = cardBounds(screen, p);
+  const moved = cardBounds(screen, p, { x: -60, y: 30 });
+  assert.deepEqual([moved.x - home.x, moved.y - home.y], [-60, 30]);
+  const far = cardBounds(screen, p, { x: -900, y: 0 });
+  assert.equal(home.x - far.x, NUDGE_MAX);
+  const corner = resolvePosition(screen, { edge: "right", ratio: 1 });
+  const down = cardBounds(screen, corner, { x: 0, y: 120 });
+  assert.ok(down.y + down.height <= screen.workArea.y + screen.workArea.height);
+  assert.deepEqual(clampNudge({ x: 300, y: 400 }), { x: 72, y: 96 });
+  assert.deepEqual(clampNudge({ x: NaN, y: 1 }), { x: 0, y: 0 });
+  assert.deepEqual(clampNudge(undefined), { x: 0, y: 0 });
+  assert.deepEqual(cardBounds(screen, p, { x: 0, y: 0 }), home);
 });

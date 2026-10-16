@@ -98,6 +98,12 @@ a:focus-visible {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.gl-card-header[data-nudging] {
+  cursor: grabbing;
 }
 .gl-brand {
   font-size: var(--type-m);
