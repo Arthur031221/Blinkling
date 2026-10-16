@@ -17,7 +17,17 @@ import {
 } from "./flight.mjs";
 import { badgeOffset } from "./badge.mjs";
 import { rectBetween, morphBox } from "./gesture.mjs";
-import { partial, strokeProgress, effectDone, spotTrail } from "./draw.mjs";
+import { partial, strokeProgress, effectDone } from "./draw.mjs";
+import {
+  LINE,
+  light,
+  perimeterOf,
+  radiusFor,
+  rings,
+  snapRing,
+  tailOf,
+  trace,
+} from "./frame.mjs";
 
 const api = window.pickLayerAPI;
 const log = frameLog();
@@ -157,7 +167,7 @@ function pathOf(points) {
 }
 
 function drawStroke(stroke, progress, bounds) {
-  if (progress <= 0) return;
+  if (progress <= 0 || stroke.role === "frame") return;
   const shape = stroke.points.map(toClientPoint);
   if (stroke.role === "sweep") {
     // A soft band that travels down the element and is gone when it arrives.
@@ -179,24 +189,81 @@ function drawStroke(stroke, progress, bounds) {
   ctx.stroke();
 }
 
-const spotWorthy = (plan) =>
-  plan.effect === "outline" && plan.strokes.some((s) => s.role === "outline");
+// Hairlines that keep the frame readable on a white page, a black page and a photograph.
+const HAIRLINE_COLOR = {
+  inner: "rgba(255, 255, 255, 0.75)",
+  outer: "rgba(0, 0, 0, 0.5)",
+};
+const SLICES = 16;
 
-function drawSpot({ trail }) {
-  ctx.lineCap = "round";
-  ctx.fillStyle = colors.green;
-  for (const [i, p] of trail.entries()) {
-    ctx.globalAlpha = p.fade;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 4 - (3 * i) / trail.length, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  const head = trail[0];
-  ctx.globalAlpha = 0.9;
-  ctx.fillStyle = "#fff";
+function tracePath(rect, radius) {
   ctx.beginPath();
-  ctx.arc(head.x, head.y, 1.8, 0, Math.PI * 2);
-  ctx.fill();
+  trace(ctx, rect, radius);
+}
+
+/** The exact frame: a dark hairline, 2 px of green on the edge, a light hairline,
+ * each moved onto whole device pixels so no line is blurred across two. */
+function drawFrame(rect, opacity) {
+  for (const ring of rings(rect, colors.radius)) {
+    tracePath(snapRing(ring, dpr), ring.radius);
+    ctx.globalAlpha = opacity;
+    ctx.lineWidth = ring.width;
+    ctx.strokeStyle =
+      ring.role === "line" ? colors.green : HAIRLINE_COLOR[ring.role];
+    ctx.stroke();
+  }
+}
+
+/** One streak running clockwise on the frame's green: a tail of slices that
+ * brighten towards the head, a white core on top and an additive bloom beneath,
+ * all dashes of the one path. */
+function drawStreak(rect, state, perimeter) {
+  const tail = tailOf(perimeter);
+  const slice = tail / SLICES;
+  tracePath(rect, colors.radius);
+  ctx.lineCap = "butt";
+  const dash = (k, width, style, alpha, composite) => {
+    const ahead = (k + 1) / SLICES;
+    const from = state.head * perimeter - tail + k * slice;
+    ctx.setLineDash([slice + 0.5, perimeter]);
+    ctx.lineDashOffset = -(((from % perimeter) + perimeter) % perimeter);
+    ctx.globalCompositeOperation = composite;
+    ctx.globalAlpha = alpha * ahead * ahead * state.strength;
+    ctx.lineWidth = width;
+    ctx.strokeStyle = style;
+    ctx.stroke();
+  };
+  for (let k = 0; k < SLICES; k++) dash(k, 8, colors.green, 0.16, "lighter");
+  for (let k = 0; k < SLICES; k++) dash(k, 4, colors.green, 0.3, "lighter");
+  for (let k = 0; k < SLICES; k++) dash(k, LINE, "#ffffff", 0.9, "source-over");
+  ctx.setLineDash([]);
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/** With reduced motion the frame is still, with a soft glow round it. */
+function drawGlow(rect, amount) {
+  tracePath(rect, colors.radius);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = colors.green;
+  ctx.globalAlpha = 0.14 * amount;
+  ctx.lineWidth = 8;
+  ctx.stroke();
+  ctx.globalAlpha = 0.24 * amount;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/** A taken rectangle: the frame ignites with one streak round it, settles, and a
+ * calm light keeps running. Returns whether another frame is needed. */
+function drawPicked(stroke, elapsed, reduced) {
+  const rect = toClient(stroke.rect);
+  const radius = radiusFor(rect, colors.radius);
+  const state = light(elapsed, perimeterOf(rect, radius), { reduced });
+  drawFrame(rect, state.base);
+  if (state.glow) drawGlow(rect, state.glow);
+  if (state.head !== null) drawStreak(rect, state, perimeterOf(rect, radius));
+  return state.head !== null;
 }
 
 function drawLock(plan, elapsed) {
@@ -307,37 +374,28 @@ function frame(now) {
 
   if (glide.opacity > 0.01) {
     const [x, y, w, h] = glide.value;
-    ctx.globalAlpha = glide.opacity;
-    ctx.strokeStyle = colors.green;
+    tracePath({ x, y, width: w, height: h }, colors.radius);
     ctx.fillStyle = colors.green;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, colors.radius);
     ctx.globalAlpha = glide.opacity * 0.08;
     ctx.fill();
-    ctx.globalAlpha = glide.opacity;
-    ctx.stroke();
+    drawFrame({ x, y, width: w, height: h }, glide.opacity);
     if (busy) log("pick-effect", { x, y, width: w, height: h });
   }
 
   for (const item of items) {
     const elapsed = now - item.start;
-    for (const stroke of item.plan.strokes)
-      drawStroke(stroke, strokeProgress(stroke, elapsed, ease), item.bounds);
+    for (const stroke of item.plan.strokes) {
+      if (stroke.role === "frame") {
+        // A rectangle stays picked, and its light keeps running.
+        if (drawPicked(stroke, elapsed, reduced)) busy = true;
+        if (!effectDone(item.plan, elapsed)) busy = true;
+        log("pick-light", toClient(item.bounds));
+      } else
+        drawStroke(stroke, strokeProgress(stroke, elapsed, ease), item.bounds);
+    }
     if (!effectDone(item.plan, elapsed)) {
       busy = true;
       log("pick-effect", toClient(item.bounds));
-    } else if (!reduced && spotWorthy(item.plan)) {
-      // A rectangle stays picked: a bright spot keeps running round its border.
-      const border = item.plan.strokes.find((s) => s.role === "outline");
-      const spot = spotTrail(
-        border.points.map(toClientPoint),
-        elapsed - item.plan.total,
-        { period: timing.spotLap },
-      );
-      drawSpot(spot);
-      busy = true;
-      log("pick-spot", { x: spot.head.x, y: spot.head.y, width: 0, height: 0 });
     }
   }
 

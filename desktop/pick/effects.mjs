@@ -1,4 +1,4 @@
-import { duration } from "../shared/motion.mjs";
+import { duration, timing } from "../shared/motion.mjs";
 
 /** The longest a pick effect may take (N1.3). Built from the shared tokens. */
 export const EFFECT_MAX = duration.slow + duration.fast;
@@ -300,12 +300,19 @@ export function effectPlan({ kind, bounds, lines = [], reduced = false }) {
       ];
       break;
     default:
+      // A rectangle that was taken keeps an exact frame on its edge: no wobble,
+      // nothing seeded. The layer draws it and the light that runs round it.
       strokes = [
         {
-          role: "outline",
-          points: path(rectCorners(bounds), rand),
+          role: "frame",
+          rect: {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+          },
           at: 0,
-          duration: duration.slow,
+          duration: timing.edgeIgnite,
         },
       ];
   }

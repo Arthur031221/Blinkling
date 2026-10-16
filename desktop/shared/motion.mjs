@@ -23,7 +23,12 @@ export const timing = Object.freeze({
   menuRest: 300,
   thinkingFace: 100,
   settle: 8000,
-  spotLap: 1800,
+  // The pick frame lights up with one streak round it in this long, then a calm
+  // light keeps running: perimeter / edgeSpeed seconds a lap, kept between the two laps.
+  edgeIgnite: 600,
+  edgeLapMin: 1800,
+  edgeLapMax: 3600,
+  edgeSpeed: 500,
   // The genie into Blink's mouth: long enough to read as being sucked in, and
   // the wait that lets Blink open its mouth before the picture starts to move.
   genie: 970,

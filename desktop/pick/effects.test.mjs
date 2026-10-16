@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { effectPlan, EFFECT_FOR, EFFECT_MAX, lockPlan } from "./effects.mjs";
-import { duration } from "../shared/motion.mjs";
+import { duration, timing } from "../shared/motion.mjs";
 
 const bounds = { x: 100, y: 100, width: 300, height: 120 };
 const KINDS = [
@@ -32,8 +32,11 @@ test("every effect finishes within about 450 ms, and the cap is made of tokens",
   assert.equal(EFFECT_MAX, duration.slow + duration.fast);
   for (const kind of KINDS) {
     const plan = effectPlan({ kind, bounds, lines: [] });
-    assert.ok(end(plan) <= 450, `${kind} ends at ${end(plan)}`);
-    assert.ok(plan.total <= 450, `${kind} total ${plan.total}`);
+    // A frame is on screen from its first moment; only the streak that lights it
+    // takes its own, longer time (timing.edgeIgnite).
+    const cap = plan.strokes[0].role === "frame" ? timing.edgeIgnite : 450;
+    assert.ok(end(plan) <= cap, `${kind} ends at ${end(plan)}`);
+    assert.ok(plan.total <= cap, `${kind} total ${plan.total}`);
     assert.ok(plan.strokes.length > 0, kind);
   }
 });
@@ -170,14 +173,33 @@ test("a section gets a crayon bracket down its left side", () => {
   );
 });
 
-test("a window, screen or page gets an outline along its edge", () => {
+test("a window, screen, page or area gets an exact frame on its edge, the same every time", () => {
   for (const kind of ["window", "screen", "page", "area"]) {
     const plan = effectPlan({ kind, bounds });
-    assert.ok(
-      plan.strokes.some((s) => s.role === "outline"),
+    assert.equal(plan.strokes.length, 1, kind);
+    const [frame] = plan.strokes;
+    assert.equal(frame.role, "frame", kind);
+    assert.deepEqual(frame.rect, bounds, `${kind}: on the edge, no padding`);
+    assert.equal(frame.points, undefined, `${kind}: no wobbling path`);
+    assert.equal(plan.total, timing.edgeIgnite, kind);
+    assert.deepEqual(effectPlan({ kind, bounds }), plan, kind);
+    // The same plan wherever it is: only the rectangle moves.
+    const moved = effectPlan({
       kind,
-    );
+      bounds: { ...bounds, x: bounds.x + 7, y: bounds.y + 3 },
+    });
+    assert.deepEqual(moved.strokes[0].rect, {
+      ...bounds,
+      x: bounds.x + 7,
+      y: bounds.y + 3,
+    });
   }
+});
+
+test("a frame under reduced motion is the same frame, shown once and still", () => {
+  const plan = effectPlan({ kind: "area", bounds, reduced: true });
+  assert.equal(plan.strokes[0].role, "frame");
+  assert.equal(plan.total, duration.fast);
 });
 
 test("the lock shows a small lock and takes nothing", () => {
