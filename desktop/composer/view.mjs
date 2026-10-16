@@ -527,8 +527,15 @@ export function mountComposer(
     cleanups.push(() => watch.disconnect());
   }
   if (win?.ResizeObserver) {
-    const watch = new win.ResizeObserver(resize);
+    // The history loses room when the composer grows (a picture joins it) and
+    // when the window is resized. A reader at the newest message stays there;
+    // one who scrolled up is left where they are.
+    const watch = new win.ResizeObserver(() => {
+      resize();
+      if (following && visible) history.scrollTop = history.scrollHeight;
+    });
     watch.observe(card);
+    watch.observe(history);
     cleanups.push(() => watch.disconnect());
   }
   // A reference badge in an answer lights its mark on the page.
@@ -571,6 +578,11 @@ export function mountComposer(
       card.hidden = true;
       onTyping(false);
       if (!quiet) onClose();
+    },
+    /** Back on the newest message, as after the image viewer closed. */
+    toNewest() {
+      following = true;
+      history.scrollTop = history.scrollHeight;
     },
     /** Escape closes the topmost thing: an open list first, then the card. */
     escape() {

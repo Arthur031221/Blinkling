@@ -255,3 +255,128 @@ test("a picture in the card opens in a viewer that zooms from fit to 800% with t
     await app.close();
   }
 });
+
+/** Where the history ends and the composer begins, in the card's own pixels. */
+const historyEnds = (app) =>
+  cardPage(app).evaluate(() => {
+    const h = document.querySelector(".gl-chat-history");
+    const last = [...h.querySelectorAll(".gl-user, .gl-assistant")].at(-1);
+    const box = h.getBoundingClientRect();
+    const tail = last.getBoundingClientRect();
+    return {
+      lastBottom: tail.bottom,
+      historyBottom: box.bottom,
+      composerTop: document.querySelector("textarea").getBoundingClientRect()
+        .top,
+      fromEnd: h.scrollHeight - h.clientHeight - h.scrollTop,
+    };
+  });
+
+test("the wheel zooms around an off-centre pointer, and once the viewer is closed the newest answer is whole above the composer, also after a picture joins it", async () => {
+  test.setTimeout(240000);
+  const { app, page } = await launch();
+  const rec = record("zoom_close", { suffix: "-321" });
+  try {
+    await background(app);
+    await place(app, "right", 0.5);
+    await page.waitForTimeout(500);
+    await reveal(page);
+    await expect.poll(() => cardPage(app)).toBeTruthy();
+    const data = await picture(cardPage(app));
+    await cardPage(app).evaluate(
+      (data) =>
+        window.blinkling.sendTurn({
+          id: crypto.randomUUID(),
+          text: "slow: here is a chart",
+          attachments: [
+            {
+              id: crypto.randomUUID(),
+              name: "chart.png",
+              mediaType: "image/png",
+              data,
+            },
+          ],
+          source: "composer",
+        }),
+      data,
+    );
+    await expect(cardPage(app).locator(".gl-assistant").last()).toContainText(
+      "And a third.",
+      { timeout: 8000 },
+    );
+    await cardPage(app).evaluate(() => window.blinkling.pin(true));
+    await page.waitForTimeout(700);
+    const resting = await historyEnds(app);
+    expect(resting.fromEnd).toBeLessThan(4);
+    rec.frame("card");
+
+    await openViewer(app, page);
+    const { bounds } = await viewerWin(app);
+    // The pointer is well off the centre: a third across, a third down.
+    const at = {
+      x: bounds.x + Math.round(bounds.width * 0.3),
+      y: bounds.y + Math.round(bounds.height * 0.35),
+    };
+    const underPointer = async () => {
+      const m = await shift(app);
+      const s = await scale(app);
+      return {
+        px: (at.x - bounds.x - m.x) / s,
+        py: (at.y - bounds.y - m.y) / s,
+        s,
+      };
+    };
+    native([
+      { type: "move", ...at },
+      { type: "wait", seconds: 0.3 },
+    ]);
+    const before = await underPointer();
+    native([{ type: "wheel", notches: -4 }]);
+    await page.waitForTimeout(400);
+    const after = await underPointer();
+    expect(after.s).toBeGreaterThan(before.s * 1.3);
+    // The same point of the picture is still under the pointer.
+    expect(Math.abs(after.px - before.px) * after.s).toBeLessThan(1.5);
+    expect(Math.abs(after.py - before.py) * after.s).toBeLessThan(1.5);
+    rec.frame("off-centre");
+    native([{ type: "wheel", notches: 3 }]);
+    await page.waitForTimeout(400);
+    const out = await underPointer();
+    expect(Math.abs(out.px - before.px) * out.s).toBeLessThan(2);
+    expect(Math.abs(out.py - before.py) * out.s).toBeLessThan(2);
+
+    key(0xff1b);
+    await expect.poll(async () => (await viewerWin(app)).visible).toBe(false);
+    await page.waitForTimeout(700);
+    const closed = await historyEnds(app);
+    expect(closed.fromEnd).toBeLessThan(4);
+    expect(closed.lastBottom).toBeLessThanOrEqual(closed.composerTop + 1);
+    rec.frame("closed");
+
+    // A picture joins the composer: the history is shorter, the newest answer
+    // must still be whole above it.
+    await cardPage(app).evaluate(async (data) => {
+      const file = new File(
+        [Uint8Array.from(atob(data), (c) => c.charCodeAt(0))],
+        "extra.png",
+        { type: "image/png" },
+      );
+      const input = document.querySelector("input[type=file]");
+      const list = new DataTransfer();
+      list.items.add(file);
+      input.files = list.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, data);
+    await expect(
+      cardPage(app).locator(".gl-attachment-chip").first(),
+    ).toBeVisible({ timeout: 4000 });
+    await page.waitForTimeout(900);
+    const grown = await historyEnds(app);
+    expect(grown.fromEnd).toBeLessThan(4);
+    expect(grown.lastBottom).toBeLessThanOrEqual(grown.composerTop + 1);
+    rec.frame("composer-grown");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

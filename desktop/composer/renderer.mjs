@@ -76,7 +76,10 @@ function placeOrigin() {
 const unShell = api.onShell?.((event) => {
   if (event.type !== "state") return;
   document.documentElement.dataset.theme = event.state.theme;
+  const viewed = shellState?.interaction?.viewing;
   shellState = event.state;
+  // The image viewer closed: the answer it was opened from is back in view.
+  if (viewed && !event.state.interaction?.viewing) conversation.card.toNewest();
   // A language chosen in settings: the card says its words again, from the
   // same chat and draft, without reloading the page.
   if (event.state.locale !== documentLocale(document)) {

@@ -32,12 +32,14 @@ const long =
 function setup({
   selection = { model: "haiku", effort: "low" },
   locale = "en",
+  prepare,
   ...hooks
 } = {}) {
   const dom = new JSDOM("<body><div id='host'></div></body>", {
     pretendToBeVisual: true,
   });
   const { window } = dom;
+  prepare?.(window);
   const previous = globalThis.AbortController;
   globalThis.AbortController = window.AbortController;
   const selected = [],
@@ -723,6 +725,56 @@ each("opening the card scrolls the history to the newest message", (locale) => {
   assert.equal(history.scrollTop, 900);
   t.dispose();
 });
+
+each(
+  "when the card changes size the history stays on the newest message, but a reader who scrolled up keeps their place",
+  (locale) => {
+    const watchers = [];
+    const t = setup({
+      locale,
+      prepare: (window) => {
+        window.ResizeObserver = class {
+          constructor(run) {
+            watchers.push(run);
+          }
+          observe() {}
+          disconnect() {}
+        };
+      },
+    });
+    const history = t.q(".gl-chat-history");
+    Object.defineProperty(history, "scrollHeight", { value: 900 });
+    t.view.close();
+    t.view.open();
+    assert.equal(history.scrollTop, 900);
+    // A picture joins the composer, so the history is shorter and its end
+    // would slip under the composer.
+    history.scrollTop = 700;
+    for (const run of watchers) run([]);
+    assert.equal(history.scrollTop, 900, "back on the newest message");
+    // A reader who scrolled up is left where they are.
+    history.scrollTop = 100;
+    history.dispatchEvent(new t.window.Event("scroll"));
+    for (const run of watchers) run([]);
+    assert.equal(history.scrollTop, 100);
+    t.dispose();
+  },
+);
+
+each(
+  "after the image viewer closes the history is on the newest message",
+  (locale) => {
+    const t = setup({ locale });
+    const history = t.q(".gl-chat-history");
+    Object.defineProperty(history, "scrollHeight", { value: 900 });
+    t.view.open();
+    history.scrollTop = 865;
+    history.dispatchEvent(new t.window.Event("scroll"));
+    t.view.toNewest();
+    assert.equal(history.scrollTop, 900);
+    t.dispose();
+  },
+);
 
 test("a close the shell made forgets the card was open without telling the shell again", () => {
   const closed = [];

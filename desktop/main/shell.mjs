@@ -1305,7 +1305,10 @@ const viewer = installViewer({
     secure,
     input,
     bounds: () => display.bounds,
-    viewing: (open) => flow((m) => m.viewer(open)),
+    viewing: (open) => {
+      flow((m) => m.viewer(open));
+      broadcast();
+    },
   },
 });
 extraWindows.push(welcome.test.win, settings.test.win, viewer.test.win);

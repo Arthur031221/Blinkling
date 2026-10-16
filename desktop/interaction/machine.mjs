@@ -218,6 +218,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         engaged: engaged(t),
         streaming: s.streaming,
         held: s.held,
+        viewing: s.viewer > 0,
         pointer: s.pointerOver,
         readUntil: s.readUntil,
       };
