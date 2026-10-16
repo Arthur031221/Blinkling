@@ -30,7 +30,15 @@ Necesitas Claude Code con la sesión iniciada. Después:
    claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. En Claude Code, ejecuta:
+2. En una terminal, inicia Claude Code con el canal de Blink:
+
+   ```text
+   claude --dangerously-load-development-channels plugin:blinkling@blinkling
+   ```
+
+   La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.
+
+   Después, en esa sesión, ejecuta:
 
    ```text
    /blinkling:blinkling
@@ -70,6 +78,6 @@ Blink envía lo que elegiste a tu propio Claude Code con sesión iniciada y mues
 > [!IMPORTANT]
 > El ayudante del navegador solo lee una página cuando la señalas. Nunca lee campos de contraseña ni de pago, y solo se comunica con Blinkling en tu propio equipo. Explicar automáticamente está desactivado hasta que lo actives.
 
-Sin telemetría ni servicio de respuestas operado por el editor. Lo que eliges va a tu Claude Code; se aplican las condiciones y los costes de uso del proveedor. Los ajustes del navegador, las tiendas de extensiones y el visor de PDF del propio navegador son páginas protegidas: allí Blink responde a partir de la pantalla. [Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de versión](docs/releases/v3.2.0.md)
+Sin telemetría ni servicio de respuestas operado por el editor. Lo que eliges va a tu Claude Code; se aplican las condiciones y los costes de uso del proveedor. Los ajustes del navegador, las tiendas de extensiones y el visor de PDF del propio navegador son páginas protegidas: allí Blink responde a partir de la pantalla. [Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de versión](docs/releases/v3.2.1.md)
 
 Assisted by Claude/Codex.

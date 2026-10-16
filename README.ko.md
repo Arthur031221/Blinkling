@@ -30,7 +30,15 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
    claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. Claude Code에서 실행하세요:
+2. 터미널에서 Blink 채널과 함께 Claude Code를 시작하세요:
+
+   ```text
+   claude --dangerously-load-development-channels plugin:blinkling@blinkling
+   ```
+
+   이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.
+
+   그다음 그 세션에서 실행하세요:
 
    ```text
    /blinkling:blinkling
@@ -70,6 +78,6 @@ Blink는 고른 내용을 로그인된 본인의 Claude Code로 보내고, 답�
 > [!IMPORTANT]
 > 브라우저 도우미는 사용자가 가리킬 때만 그 페이지를 읽습니다. 비밀번호와 결제 입력란은 절대 읽지 않으며, 사용자 컴퓨터의 Blinkling하고만 통신합니다. 자동 설명은 켜기 전까지 꺼져 있습니다.
 
-원격 측정도, 게시자가 운영하는 답변 서비스도 없습니다. 고른 내용은 본인의 Claude Code로 전송되며 제공업체 약관과 사용 요금이 적용됩니다. 브라우저 설정, 확장 프로그램 스토어, 브라우저 내장 PDF 뷰어는 보호된 페이지이며, 그곳에서는 Blink가 화면만 보고 답합니다. [개인정보](docs/SECURITY.md) | [사용법](docs/USAGE.md) | [릴리스 노트](docs/releases/v3.2.0.md)
+원격 측정도, 게시자가 운영하는 답변 서비스도 없습니다. 고른 내용은 본인의 Claude Code로 전송되며 제공업체 약관과 사용 요금이 적용됩니다. 브라우저 설정, 확장 프로그램 스토어, 브라우저 내장 PDF 뷰어는 보호된 페이지이며, 그곳에서는 Blink가 화면만 보고 답합니다. [개인정보](docs/SECURITY.md) | [사용법](docs/USAGE.md) | [릴리스 노트](docs/releases/v3.2.1.md)
 
 Assisted by Claude/Codex.

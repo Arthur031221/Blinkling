@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.2.1 - 2026-10-17
+
+- Start Claude Code with `claude --dangerously-load-development-channels plugin:blinkling@blinkling`, then type `/blinkling:blinkling`. The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session. Every README, the install guide, the site, the demo page, the installers and Settings say the same line. The plain `--channels` flag was tried and Claude Code 2.1.301 refuses it for this plugin as "not on the approved channels allowlist", so the development flag stays.
+- One terminal session is one chat in Blink. What you type in the terminal appears in Blink on the right, Claude's answer on the left, and what you type in Blink is answered in the terminal by the same session through the channel and the reply tool, with no raw markup and no double answers. A session that goes away with a question open answers it as closed instead of leaving the card waiting.
+
 ## 3.2.0 - 2026-10-16
 
 - The chat card is the one place answers appear. It points at Blink's mouth, sits close to its body, follows it, and can be dragged a short way by its header, with the spot remembered for each edge. It shows the thinking dots with a changing word, keeps messages tight with your side tinted green, fades at the top, and opens at the newest message. An answer opens it by itself.

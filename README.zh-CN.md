@@ -30,7 +30,15 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
    claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. 在 Claude Code 中运行：
+2. 在终端里用 Blink 频道启动 Claude Code：
+
+   ```text
+   claude --dangerously-load-development-channels plugin:blinkling@blinkling
+   ```
+
+   这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。
+
+   然后在那个会话中运行：
 
    ```text
    /blinkling:blinkling
@@ -70,6 +78,6 @@ Blink 会把你选取的内容发送给你自己已登录的 Claude Code，并�
 > [!IMPORTANT]
 > 浏览器小助手只在你指向网页时读取该页。密码和支付字段一律不读取，并且只与你电脑上的 Blinkling 通信。自动解说在你开启之前保持关闭。
 
-没有遥测，也没有发行者运营的回答服务。你选取的内容会发送到你的 Claude Code；适用提供方条款和用量费用。浏览器设置、扩展商店和浏览器内置的 PDF 查看器属于受保护页面：在那里 Blink 只根据屏幕画面回答。 [隐私](docs/SECURITY.md) | [使用说明](docs/USAGE.md) | [发布说明](docs/releases/v3.2.0.md)
+没有遥测，也没有发行者运营的回答服务。你选取的内容会发送到你的 Claude Code；适用提供方条款和用量费用。浏览器设置、扩展商店和浏览器内置的 PDF 查看器属于受保护页面：在那里 Blink 只根据屏幕画面回答。 [隐私](docs/SECURITY.md) | [使用说明](docs/USAGE.md) | [发布说明](docs/releases/v3.2.1.md)
 
 Assisted by Claude/Codex.

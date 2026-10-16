@@ -168,6 +168,25 @@ kbd[data-listening="true"] {
   gap: 8px;
   margin: 8px 0 16px;
 }
+.settings-sync {
+  margin: 0 0 16px;
+}
+.settings-sync h3 {
+  margin: 0 0 6px;
+}
+.settings-command {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-sunken, rgba(127, 127, 127, 0.14));
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.settings-sync p {
+  margin: 8px 0 0;
+}
 .settings-about {
   text-align: center;
 }

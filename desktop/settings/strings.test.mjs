@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { strings, settingsText } from "./strings.mjs";
@@ -28,4 +29,16 @@ test("the version fills in and the help section keeps its Chinese name", () => {
 
 test("a locale falls back to English", () => {
   assert.equal(settingsText("xx")("close"), "Close");
+});
+
+test("Help tells every language the start command and what the flag does", () => {
+  const flag = JSON.parse(
+    readFileSync(new URL("../../config/flag.json", import.meta.url), "utf8"),
+  );
+  for (const locale of LOCALES)
+    assert.equal(settingsText(locale)("syncLine"), flag.line[locale], locale);
+  const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+  assert.match(html, /data-text="syncTitle"/);
+  assert.match(html, /data-text="syncLine"/);
+  assert.ok(html.includes(flag.command));
 });

@@ -127,9 +127,12 @@ describe("the commands on the page", () => {
     );
   });
 
-  it("then run the plugin command once", () => {
-    for (const name of ["mac", "windows", "linux"])
-      expect(commands(name)[1]).toBe("/blinkling:blinkling");
+  it("then start Claude Code with the channel flag, the plugin command typed inside it", () => {
+    const flag = JSON.parse(readFileSync("config/flag.json", "utf8"));
+    for (const name of ["mac", "windows", "linux"]) {
+      expect(commands(name)[1]).toBe(flag.command);
+      expect(panel(name)).toContain("/blinkling:blinkling");
+    }
   });
 
   it("have at most two copy buttons per computer", () => {

@@ -12,7 +12,15 @@ There is an [install guide with animated steps](https://arthur031221.github.io/B
 
    In Windows PowerShell 5, use `;` instead of `&&`.
 
-2. In Claude Code, run:
+2. In a terminal, start Claude Code with the Blink channel:
+
+   ```text
+   claude --dangerously-load-development-channels plugin:blinkling@blinkling
+   ```
+
+   The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.
+
+   Then, in that session, run:
 
    ```text
    /blinkling:blinkling
@@ -37,7 +45,7 @@ claude plugin marketplace update blinkling
 claude plugin update blinkling@blinkling
 ```
 
-Then run `/reload-plugins` and `/blinkling:blinkling` in Claude Code. The new plugin pins the new desktop build; the launcher installs it and keeps the previous one until the new one answers.
+Then run `/reload-plugins`. To let Blink's chat reach the session, restart Claude Code with `claude --dangerously-load-development-channels plugin:blinkling@blinkling` and run `/blinkling:blinkling`. The new plugin pins the new desktop build; the launcher installs it and keeps the previous one until the new one answers.
 
 ## Run a source checkout
 
@@ -53,7 +61,7 @@ node -p "require('./.claude-plugin/plugin.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-The version check must print **3.2.0**. In the session that the last command opens, run `/blinkling:blinkling`. The `--plugin-dir` flag loads your checkout for that session, so use it each time you start Claude Code from source, and restart the session after rebuilding.
+The version check must print **3.2.1**. In the session that the last command opens, run `/blinkling:blinkling`. The `--plugin-dir` flag loads your checkout for that session, so use it each time you start Claude Code from source, and restart the session after rebuilding.
 
 A checkout has no pinned release until the release workflow commits one. Until then `plugin/desktop/manifest.json` lists no builds, and `/blinkling:blinkling` says so instead of downloading anything.
 
@@ -63,7 +71,7 @@ Blinkling works with desktop Claude Code on macOS, Windows and Linux. It does no
 
 ## The browser helper (optional)
 
-Run `/blinkling:blinkling` to start Blink on your desktop. Blink works on any window by itself. The browser helper is optional: it adds the page's own structure, full-length page capture, page translation and the paper reader in Chrome or Edge. To add it, run `/blinkling:install`. The helper is copied to the stable `~/Blinkling-extension` directory and a setup page opens in your browser.
+Start Claude Code with `claude --dangerously-load-development-channels plugin:blinkling@blinkling`, then run `/blinkling:blinkling` to start Blink on your desktop. The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session. Blink works on any window by itself. The browser helper is optional: it adds the page's own structure, full-length page capture, page translation and the paper reader in Chrome or Edge. To add it, run `/blinkling:install`. The helper is copied to the stable `~/Blinkling-extension` directory and a setup page opens in your browser.
 
 ## Load the unpacked extension
 

@@ -8,4 +8,5 @@ claude plugin marketplace add $source
 if ($LASTEXITCODE -ne 0) { throw 'Marketplace registration failed.' }
 claude plugin install blinkling@blinkling
 if ($LASTEXITCODE -ne 0) { throw 'Plugin installation failed.' }
-Write-Output 'Installed. Restart your coding session if prompted, then run /blinkling:blinkling.'
+Write-Output 'Installed. Start Claude Code with: claude --dangerously-load-development-channels plugin:blinkling@blinkling'
+Write-Output 'Then type /blinkling:blinkling. The flag lets Blink''s chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.'

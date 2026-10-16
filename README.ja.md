@@ -30,7 +30,15 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
    claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. Claude Code で実行します：
+2. ターミナルで、Blink チャンネル付きで Claude Code を起動します：
+
+   ```text
+   claude --dangerously-load-development-channels plugin:blinkling@blinkling
+   ```
+
+   このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。
+
+   続けて、そのセッションで実行します：
 
    ```text
    /blinkling:blinkling
@@ -70,6 +78,6 @@ Blink は選んだ内容を、あなた自身のサインイン済み Claude Cod
 > [!IMPORTANT]
 > ブラウザーヘルパーは、あなたが指したときだけそのページを読みます。パスワードや支払いの欄は一切読まず、あなたのコンピューター上の Blinkling とだけ通信します。自動解説はオンにするまでオフです。
 
-テレメトリーも、公開元が運営する回答サービスもありません。選んだ内容はあなたの Claude Code に送られ、プロバイダーの規約と利用料金が適用されます。ブラウザー設定、拡張機能ストア、ブラウザー内蔵の PDF ビューアーは保護されたページで、そこでは Blink は画面から答えます。 [プライバシー](docs/SECURITY.md) | [使い方](docs/USAGE.md) | [リリースノート](docs/releases/v3.2.0.md)
+テレメトリーも、公開元が運営する回答サービスもありません。選んだ内容はあなたの Claude Code に送られ、プロバイダーの規約と利用料金が適用されます。ブラウザー設定、拡張機能ストア、ブラウザー内蔵の PDF ビューアーは保護されたページで、そこでは Blink は画面から答えます。 [プライバシー](docs/SECURITY.md) | [使い方](docs/USAGE.md) | [リリースノート](docs/releases/v3.2.1.md)
 
 Assisted by Claude/Codex.

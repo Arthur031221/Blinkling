@@ -26,6 +26,9 @@ export const strings = {
     helpWelcome: "Welcome tour",
     helpGuide: "Companion guide",
     helpAbout: "About",
+    syncTitle: "Terminal sync",
+    syncLine:
+      "The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.",
     version: "Version {version}",
   },
   "zh-TW": {
@@ -52,6 +55,9 @@ export const strings = {
     helpWelcome: "歡迎導覽",
     helpGuide: "夥伴指南",
     helpAbout: "關於",
+    syncTitle: "終端機同步",
+    syncLine:
+      "這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。",
     version: "版本 {version}",
   },
   "zh-CN": {
@@ -78,6 +84,9 @@ export const strings = {
     helpWelcome: "欢迎导览",
     helpGuide: "伙伴指南",
     helpAbout: "关于",
+    syncTitle: "终端同步",
+    syncLine:
+      "这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。",
     version: "版本 {version}",
   },
   ja: {
@@ -106,6 +115,9 @@ export const strings = {
     helpWelcome: "ウェルカムツアー",
     helpGuide: "コンパニオンガイド",
     helpAbout: "このアプリについて",
+    syncTitle: "ターミナルとの同期",
+    syncLine:
+      "このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。",
     version: "バージョン {version}",
   },
   ko: {
@@ -135,6 +147,9 @@ export const strings = {
     helpWelcome: "환영 둘러보기",
     helpGuide: "컴패니언 가이드",
     helpAbout: "정보",
+    syncTitle: "터미널 동기화",
+    syncLine:
+      "이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.",
     version: "버전 {version}",
   },
   de: {
@@ -164,6 +179,9 @@ export const strings = {
     helpWelcome: "Willkommenstour",
     helpGuide: "Begleiter-Anleitung",
     helpAbout: "Über",
+    syncTitle: "Terminal-Sync",
+    syncLine:
+      "Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.",
     version: "Version {version}",
   },
   es: {
@@ -193,6 +211,9 @@ export const strings = {
     helpWelcome: "Recorrido de bienvenida",
     helpGuide: "Guía del compañero",
     helpAbout: "Acerca de",
+    syncTitle: "Sincronizar con la terminal",
+    syncLine:
+      "La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.",
     version: "Versión {version}",
   },
   fr: {
@@ -225,6 +246,9 @@ export const strings = {
     helpWelcome: "Visite de bienvenue",
     helpGuide: "Guide du compagnon",
     helpAbout: "À propos",
+    syncTitle: "Synchronisation du terminal",
+    syncLine:
+      "L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
     version: "Version {version}",
   },
   "pt-BR": {
@@ -256,6 +280,9 @@ export const strings = {
     helpWelcome: "Tour de boas-vindas",
     helpGuide: "Guia do companheiro",
     helpAbout: "Sobre",
+    syncTitle: "Sincronização com o terminal",
+    syncLine:
+      "A opção faz o chat do Blink chegar a esta sessão. O Claude Code pede uma confirmação, uma só vez. Sem ela, o Blink continua funcionando e responde pela própria sessão.",
     version: "Versão {version}",
   },
 };

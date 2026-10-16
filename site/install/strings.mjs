@@ -72,7 +72,10 @@ export const TEXT = {
     pasteMac: "Paste this line into Terminal and press Return.",
     pasteWindows: "Paste this line into PowerShell and press Enter.",
     pasteLinux: "Paste this line into a terminal and press Enter.",
-    runIt: "In Claude Code, run this. Blink appears.",
+    runIt:
+      "Start Claude Code with this line, then type /blinkling:blinkling. Blink appears.",
+    flagLine:
+      "The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.",
     permission:
       "Allow Screen Recording once: switch on Blinkling in System Settings, Privacy & Security. macOS also asks for Accessibility so the Ctrl key works. Allow it the same way.",
     copy: "Copy",
@@ -138,7 +141,10 @@ export const TEXT = {
     pasteMac: "把這一行貼到「終端機」，按下 Return。",
     pasteWindows: "把這一行貼到 PowerShell，按下 Enter。",
     pasteLinux: "把這一行貼到終端機，按下 Enter。",
-    runIt: "在 Claude Code 裡執行這個指令，Blink 就會出現。",
+    runIt:
+      "用這一行啟動 Claude Code，再輸入 /blinkling:blinkling，Blink 就會出現。",
+    flagLine:
+      "這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。",
     permission:
       "允許一次螢幕錄製：到「系統設定」的「隱私權與安全性」，開啟 Blinkling。macOS 也會要求輔助使用權限，Ctrl 鍵才能運作，用同樣的方式允許即可。",
     copy: "複製",
@@ -199,7 +205,10 @@ export const TEXT = {
     pasteMac: "把这一行粘贴到“终端”，按下 Return。",
     pasteWindows: "把这一行粘贴到 PowerShell，按下 Enter。",
     pasteLinux: "把这一行粘贴到终端，按下 Enter。",
-    runIt: "在 Claude Code 里运行这个命令，Blink 就会出现。",
+    runIt:
+      "用这一行启动 Claude Code，再输入 /blinkling:blinkling，Blink 就会出现。",
+    flagLine:
+      "这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。",
     permission:
       "允许一次屏幕录制：在“系统设置”的“隐私与安全性”中打开 Blinkling。macOS 还会请求辅助功能权限，Ctrl 键才能工作，用同样的方式允许即可。",
     copy: "复制",
@@ -259,7 +268,10 @@ export const TEXT = {
     pasteMac: "この行を「ターミナル」に貼り付けて、Return を押します。",
     pasteWindows: "この行を PowerShell に貼り付けて、Enter を押します。",
     pasteLinux: "この行をターミナルに貼り付けて、Enter を押します。",
-    runIt: "Claude Code でこれを実行すると、Blink が現れます。",
+    runIt:
+      "この 1 行で Claude Code を起動し、/blinkling:blinkling と入力すると、Blink が現れます。",
+    flagLine:
+      "このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。",
     permission:
       "画面収録を 1 度だけ許可します。「システム設定」の「プライバシーとセキュリティ」で Blinkling をオンにしてください。Ctrl キーを使えるように、macOS はアクセシビリティの許可も求めます。同じ方法で許可してください。",
     copy: "コピー",
@@ -327,7 +339,10 @@ export const TEXT = {
     pasteMac: "이 줄을 터미널에 붙여 넣고 Return을 누르세요.",
     pasteWindows: "이 줄을 PowerShell에 붙여 넣고 Enter를 누르세요.",
     pasteLinux: "이 줄을 터미널에 붙여 넣고 Enter를 누르세요.",
-    runIt: "Claude Code에서 이것을 실행하면 Blink가 나타납니다.",
+    runIt:
+      "이 한 줄로 Claude Code를 시작하고 /blinkling:blinkling을 입력하면 Blink가 나타납니다.",
+    flagLine:
+      "이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.",
     permission:
       "화면 녹화를 한 번만 허용하세요. ‘시스템 설정’의 ‘개인정보 보호 및 보안’에서 Blinkling을 켜면 됩니다. Ctrl 키가 동작하도록 macOS가 손쉬운 사용 권한도 요청합니다. 같은 방법으로 허용하세요.",
     copy: "복사",
@@ -390,7 +405,10 @@ export const TEXT = {
     pasteMac: "Füge diese Zeile ins Terminal ein und drücke die Eingabetaste.",
     pasteWindows: "Füge diese Zeile in PowerShell ein und drücke Enter.",
     pasteLinux: "Füge diese Zeile in ein Terminal ein und drücke Enter.",
-    runIt: "Führe das in Claude Code aus. Blink erscheint.",
+    runIt:
+      "Starte Claude Code mit dieser Zeile und tippe dann /blinkling:blinkling. Blink erscheint.",
+    flagLine:
+      "Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.",
     permission:
       "Erlaube die Bildschirmaufnahme einmal: Schalte Blinkling in den Systemeinstellungen unter „Datenschutz & Sicherheit“ ein. macOS fragt außerdem nach der Bedienungshilfen-Berechtigung, damit die Ctrl-Taste funktioniert. Erlaube sie auf dieselbe Weise.",
     copy: "Kopieren",
@@ -459,7 +477,10 @@ export const TEXT = {
     pasteMac: "Pega esta línea en Terminal y pulsa Retorno.",
     pasteWindows: "Pega esta línea en PowerShell y pulsa Intro.",
     pasteLinux: "Pega esta línea en un terminal y pulsa Intro.",
-    runIt: "En Claude Code, ejecuta esto. Aparece Blink.",
+    runIt:
+      "Inicia Claude Code con esta línea y escribe /blinkling:blinkling. Aparece Blink.",
+    flagLine:
+      "La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.",
     permission:
       "Permite una vez la grabación de pantalla: activa Blinkling en Ajustes del Sistema, Privacidad y seguridad. macOS también pide Accesibilidad para que funcione la tecla Ctrl. Permítelo de la misma forma.",
     copy: "Copiar",
@@ -526,7 +547,10 @@ export const TEXT = {
     pasteMac: "Collez cette ligne dans Terminal et appuyez sur Retour.",
     pasteWindows: "Collez cette ligne dans PowerShell et appuyez sur Entrée.",
     pasteLinux: "Collez cette ligne dans un terminal et appuyez sur Entrée.",
-    runIt: "Dans Claude Code, lancez ceci. Blink apparaît.",
+    runIt:
+      "Lancez Claude Code avec cette ligne, puis tapez /blinkling:blinkling. Blink apparaît.",
+    flagLine:
+      "L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
     permission:
       "Autorisez une fois l’enregistrement de l’écran : activez Blinkling dans Réglages Système, Confidentialité et sécurité. macOS demande aussi l’accessibilité pour que la touche Ctrl fonctionne. Autorisez-la de la même façon.",
     copy: "Copier",
@@ -595,7 +619,10 @@ export const TEXT = {
     pasteMac: "Cole esta linha no Terminal e pressione Return.",
     pasteWindows: "Cole esta linha no PowerShell e pressione Enter.",
     pasteLinux: "Cole esta linha em um terminal e pressione Enter.",
-    runIt: "No Claude Code, execute isto. O Blink aparece.",
+    runIt:
+      "Inicie o Claude Code com esta linha e digite /blinkling:blinkling. O Blink aparece.",
+    flagLine:
+      "A opção faz o chat do Blink chegar a esta sessão. O Claude Code pede uma confirmação, uma só vez. Sem ela, o Blink continua funcionando e responde pela própria sessão.",
     permission:
       "Permita a Gravação de Tela uma vez: ative o Blinkling em Ajustes do Sistema, Privacidade e Segurança. O macOS também pede Acessibilidade para a tecla Ctrl funcionar. Permita da mesma forma.",
     copy: "Copiar",

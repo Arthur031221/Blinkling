@@ -116,7 +116,7 @@ export async function startDesktopHost({
   chatImages = async () => [],
   descriptor = endpointPath(),
   directory = runtimeDirectory(),
-  version = "3.2.0",
+  version = "3.2.1",
 } = {}) {
   await privateDirectory(directory);
   const token = randomBytes(32).toString("hex");

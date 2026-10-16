@@ -82,7 +82,13 @@
             <pre><code>claude plugin marketplace add Arthur031221/Blinkling &amp;&amp; claude plugin install blinkling@blinkling</code></pre>
           </li>
           <li>
-            <h3>Run one command</h3>
+            <h3>Start Claude Code, then run one command</h3>
+            <pre><code>claude --dangerously-load-development-channels plugin:blinkling@blinkling</code></pre>
+            <p>
+              The flag lets Blink's chat reach this session. Claude Code asks
+              you to confirm it once. Without it Blink still works and answers
+              from its own session.
+            </p>
             <pre><code>/blinkling:blinkling</code></pre>
             <p>Blink appears on your desktop.</p>
           </li>
