@@ -201,3 +201,56 @@ test("no surface stays on screen without a way to close it: the card closes by r
     await app.close();
   }
 });
+
+test("an app killed with the card and the menu on screen starts again with nothing stuck: no card, no menu, nothing pinned, Blink at its edge", async () => {
+  test.setTimeout(180000);
+  const first = await launch();
+  let data;
+  try {
+    data = first.data;
+    await background(first.app);
+    await place(first.app, "right", 0.5);
+    await onBlink(first.page);
+    await clickBlink(first.page);
+    await expect.poll(async () => (await read(first.app)).card).toBe(true);
+    await clickBlink(first.page);
+    await expect.poll(async () => (await read(first.app)).menu).toBe(true);
+    // The process dies as a crash or a forced quit would end it.
+    first.app.process().kill("SIGKILL");
+    await new Promise((r) => setTimeout(r, 1000));
+  } finally {
+    await first.app.close().catch(() => {});
+  }
+  const again = await launch({ data });
+  try {
+    await background(again.app);
+    await expect
+      .poll(async () => (await read(again.app)).state, { timeout: 8000 })
+      .toBe("peek");
+    const state = await read(again.app);
+    expect(state.card).toBe(false);
+    expect(state.menu).toBe(false);
+    expect(state.pinned).toBe(false);
+    expect(state.surface).toBe("none");
+    await new Promise((r) => setTimeout(r, 1500));
+    const shown = await visible(again.app);
+    expect(
+      // The page standing in for the desktop is the test's own.
+      shown.filter(
+        (name) =>
+          name !== "blink" && name !== "renderer" && !name.startsWith("data:"),
+      ),
+    ).toEqual([]);
+    // And it still answers: the card opens and closes on Esc.
+    move(640, 400);
+    await place(again.app, "right", 0.5);
+    await again.page.waitForTimeout(1500);
+    await onBlink(again.page);
+    await clickBlink(again.page);
+    await expect.poll(async () => (await read(again.app)).card).toBe(true);
+    key(0xff1b);
+    await expect.poll(async () => (await read(again.app)).card).toBe(false);
+  } finally {
+    await again.app.close();
+  }
+});
