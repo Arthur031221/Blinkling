@@ -68,7 +68,7 @@ function pickKeySetting(file, env) {
  * routes every capture through the returned `deliver`.
  *
  * electron: {BrowserWindow, screen, ipcMain, nativeImage, systemPreferences?, dialog?}
- * shell: {userDataDir, windowOptions(bounds, focusable), secure(win), windows(),
+ * shell: {userDataDir, windowOptions(bounds, focusable), secure(win), windows(), viewImage?(image),
  *   input, blinkPoint(), workArea(), session, autoExplain:{get, set},
  *   composer:{open, attach}, captureScreen(display, windows), newChat?, caught? (Blink bounces when the flight lands),
  *   miniChanged? (true while the mini composer is open),
@@ -181,23 +181,28 @@ export async function installPick({
       }
     : undefined;
 
-  /** A chip's thumbnail opens the whole picture in the system's image viewer. */
-  const openImage = osShell?.openPath
+  /** A chip's thumbnail opens the whole picture in the viewer (or, where the
+   * shell has none, the system's image viewer). */
+  const openImage = shell.viewImage
     ? async (attachment) => {
-        const ext = { "image/jpeg": "jpg", "image/webp": "webp" }[
-          attachment.mediaType
-        ];
-        const file = join(
-          mkdtempSync(join(tmpdir(), "blink-image-")),
-          `Image.${ext ?? "png"}`,
-        );
-        writeFileSync(file, Buffer.from(attachment.data, "base64"), {
-          mode: 0o600,
-        });
-        const failed = await osShell.openPath(file);
-        if (failed) onError(new Error(failed));
+        await shell.viewImage({ ...attachment, name: attachment.name });
       }
-    : undefined;
+    : osShell?.openPath
+      ? async (attachment) => {
+          const ext = { "image/jpeg": "jpg", "image/webp": "webp" }[
+            attachment.mediaType
+          ];
+          const file = join(
+            mkdtempSync(join(tmpdir(), "blink-image-")),
+            `Image.${ext ?? "png"}`,
+          );
+          writeFileSync(file, Buffer.from(attachment.data, "base64"), {
+            mode: 0o600,
+          });
+          const failed = await osShell.openPath(file);
+          if (failed) onError(new Error(failed));
+        }
+      : undefined;
 
   const mini = createMiniController({
     win: miniWindow,

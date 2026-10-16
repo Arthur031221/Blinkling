@@ -18,6 +18,7 @@ export function mountConversation({
   onHold,
   copy,
   openLink,
+  openImage,
   onReference,
   onAction,
 } = {}) {
@@ -38,6 +39,7 @@ export function mountConversation({
     onReference,
     copy,
     openLink,
+    openImage,
   });
   const unsubscribe = session.subscribe((event) => store.accept(event));
   return {

@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld(
     close: () => ipcRenderer.invoke("blinkling:shell", { type: "close-chat" }),
     openChat: (messageId) =>
       ipcRenderer.invoke("blinkling:open-chat", messageId),
+    viewImage: (image) => ipcRenderer.send("blinkling:view-image", image),
     openLink: (url) => ipcRenderer.invoke("blinkling:open-link", url),
     referenceHover: (value) =>
       ipcRenderer.send("blinkling:reference-hover", value),

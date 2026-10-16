@@ -29,3 +29,19 @@ test("a window that can take the keyboard is raised only when it appears or has 
   assert.equal(mayRaise(card(true, true)), true);
   assert.equal(mayRaise(card(true, false), true), true);
 });
+test("while the image viewer is up it is the only window kept on top, so nothing is raised over it", () => {
+  const w = Object.fromEntries(
+    ["overlay", "guides", "card", "blink", "viewer"].map((name) => [
+      name,
+      { name },
+    ]),
+  );
+  assert.deepEqual(
+    stackOrder(w).map((x) => x.name),
+    ["viewer"],
+  );
+  assert.deepEqual(
+    stackOrder({ ...w, viewer: null }).map((x) => x.name),
+    ["overlay", "guides", "card", "blink"],
+  );
+});

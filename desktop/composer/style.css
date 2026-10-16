@@ -377,6 +377,9 @@ a:focus-visible {
 .gl-attachment-chip .gl-message-image {
   object-fit: cover;
 }
+.gl-message-image.is-zoomable {
+  cursor: zoom-in;
+}
 .gl-file-icon {
   display: grid;
   place-items: center;

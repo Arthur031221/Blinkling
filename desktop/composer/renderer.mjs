@@ -97,6 +97,7 @@ export const conversation = mountConversation({
   onTyping: (value) => api.typing?.(value),
   onHold: (value) => api.hold?.(value),
   openLink: (url) => api.openLink?.(url),
+  openImage: (image) => api.viewImage?.(image),
   onReference: ({ ref }) => api.referenceHover?.({ ref }),
   onAction: (action) => {
     if (action === "guide-dismiss") conversation.store.dismiss(FAILURE_ID);

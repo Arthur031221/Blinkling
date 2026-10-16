@@ -61,6 +61,7 @@ import { installPick } from "../pick/install.mjs";
 import { createOnce, fileStore } from "../pick/once.mjs";
 import { installSettings } from "../settings/install.mjs";
 import { installWelcome } from "../welcome/install.mjs";
+import { installViewer } from "../viewer/install.mjs";
 import { createSettingsStore } from "../settings/store.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
 import { systemLocale } from "../shared/i18n.mjs";
@@ -1099,6 +1100,7 @@ const pick = await installPick({
     mouthPoint,
     nudges,
     edge: () => position.edge,
+    viewImage: (image) => viewer.open(image),
     workArea: () => display.workArea,
     session,
     captureScreen,
@@ -1189,7 +1191,23 @@ const settings = installSettings({
     },
   },
 });
-extraWindows.push(welcome.test.win, settings.test.win);
+// The image viewer covers the display Blink is on; while it is up the machine
+// knows, so Blink holds still behind it.
+const viewer = installViewer({
+  electron: { BrowserWindow, ipcMain },
+  shell: {
+    windowOptions,
+    secure,
+    input,
+    bounds: () => display.bounds,
+    viewing: (open) => flow((m) => m.viewer(open)),
+  },
+});
+extraWindows.push(welcome.test.win, settings.test.win, viewer.test.win);
+ipcMain.on("blinkling:view-image", (event, image) => {
+  if (!trusted(event) || event.sender !== composer?.webContents) return;
+  void viewer.open(image);
+});
 // Close ends Blinkling, as the end of its session does.
 registerAction("quit", async () => {
   setImmediate(() => app.quit());
@@ -1240,6 +1258,7 @@ const stopStacking = await keepAbove(() =>
     guides: features.overlay.window,
     card: composer,
     blink,
+    viewer: viewer.isOpen() ? viewer.test.win : null,
   }),
 );
 /** Whether a screen point is on anything Blinkling draws and takes clicks on. */
@@ -1397,6 +1416,7 @@ if (process.env.BLINKLING_E2E === "1")
     }),
     settings,
     welcome,
+    viewer,
     uiOnce,
   });
 if (globalThis.blinklingTest)

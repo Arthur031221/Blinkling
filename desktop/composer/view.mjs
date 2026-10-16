@@ -38,11 +38,29 @@ export function mountComposer(
     onReference = () => {},
     copy,
     openLink,
+    openImage,
     locale = documentLocale(host.ownerDocument),
   } = {},
 ) {
   const doc = host.ownerDocument;
   const tr = translator(strings, locale);
+  /** A picture in the card opens in the viewer, where it can be zoomed. */
+  const zoomable = (img, image) => {
+    if (!img || !openImage) return img;
+    const source = image.source ?? {
+      media_type: image.mediaType,
+      data: image.data,
+    };
+    img.classList.add("is-zoomable");
+    listen(img, "click", () =>
+      openImage({
+        mediaType: source.media_type,
+        data: source.data,
+        name: image.name ?? "",
+      }),
+    );
+    return img;
+  };
   const node = (tag, cls, text) => {
     const n = doc.createElement(tag);
     if (cls) n.className = cls;
@@ -313,7 +331,7 @@ export function mountComposer(
       if (!attachmentNodes.has(a.id)) {
         const chip = node("div", "gl-attachment-chip"),
           img = a.mediaType.startsWith("image/")
-            ? renderImage(doc, a)
+            ? zoomable(renderImage(doc, a), a)
             : node("span", "gl-file-icon", "▤"),
           name = node("span", "gl-attachment-name", a.name),
           remove = button(tr("remove", { name: a.name }), "×");
@@ -359,7 +377,7 @@ export function mountComposer(
           if (b.type === "text")
             n.append(renderMarkdown(doc, b.text, { copy, openLink }));
           if (b.type === "image") {
-            const img = renderImage(doc, b);
+            const img = zoomable(renderImage(doc, b), b);
             if (img) n.append(img);
           }
           if (b.type === "document") n.append(renderDocument(doc, b));

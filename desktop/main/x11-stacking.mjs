@@ -10,7 +10,11 @@ import x11 from "x11";
 export function mayRaise(w, appearing = false) {
   return appearing || !w.isFocusable() || w.isFocused();
 }
-export function stackOrder({ overlay, guides, card, blink }) {
+/** The image viewer is modal: while it is up it is the only window kept on
+ * top, so the others stay where they were, beneath it. Raising them over it
+ * on every poll made the pointer cross between windows without end. */
+export function stackOrder({ overlay, guides, card, blink, viewer }) {
+  if (viewer) return [viewer];
   return [overlay, guides, card, blink].filter(Boolean);
 }
 export async function keepAbove(windows) {

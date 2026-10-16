@@ -1,0 +1,50 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+.viewer {
+  position: fixed;
+  inset: 0;
+  background: rgb(8 10 12 / 0.82);
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-exit);
+  touch-action: none;
+  cursor: zoom-in;
+}
+.viewer.is-open {
+  opacity: 1;
+  transition-timing-function: var(--ease-enter);
+}
+.viewer.is-zoomed {
+  cursor: grab;
+}
+.viewer.is-panning {
+  cursor: grabbing;
+}
+.viewer-picture {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  max-width: none;
+  user-select: none;
+  will-change: transform;
+  box-shadow: 0 8px 40px rgb(0 0 0 / 0.45);
+}
+.viewer-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
