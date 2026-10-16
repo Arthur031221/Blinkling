@@ -65,7 +65,7 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
 
 ## セッションとプライバシー
 
-Blink は選んだ内容を、あなた自身のサインイン済み Claude Code に送り、答えを Blink の横のチャットカードに表示します。Blink を起動したターミナルのセッションと Blink のチャットは互いに追従し、どちらで入力した質問と完成した答えも両方に表示されます。
+Blink は選んだ内容を、あなた自身のサインイン済み Claude Code に送り、答えを Blink の横のチャットカードに表示します。Blink を起動したターミナルのセッションで入力した質問と完成した答えは、Blink のチャットに自動で表示されます。逆方向、つまり Blink のチャットをターミナルに出す部分は Claude Code の実験的な channels を使い、起動時にしか読み込めません。`claude --dangerously-load-development-channels plugin:blinkling@blinkling` で Claude Code を起動すると（`/blinkling:blinkling` が表示します）、両方にすべて表示されます。起動しない場合、Blink は自分のセッションから答えます。
 
 > [!IMPORTANT]
 > ブラウザーヘルパーは、あなたが指したときだけそのページを読みます。パスワードや支払いの欄は一切読まず、あなたのコンピューター上の Blinkling とだけ通信します。自動解説はオンにするまでオフです。

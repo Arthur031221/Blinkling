@@ -65,7 +65,7 @@ Die Tasten wählst du in den Einstellungen.
 
 ## Sitzungen und Datenschutz
 
-Blink sendet, was du ausgewählt hast, an dein eigenes angemeldetes Claude Code und zeigt die Antwort in der Chatkarte neben Blink. Die Terminal-Sitzung, die Blink gestartet hat, und der Chat von Blink folgen einander: Eine Eingabe und eine fertige Antwort, die an einer der beiden Stellen entstehen, erscheinen an beiden.
+Blink sendet, was du ausgewählt hast, an dein eigenes angemeldetes Claude Code und zeigt die Antwort in der Chatkarte neben Blink. Eine Eingabe und eine fertige Antwort aus der Terminal-Sitzung, die Blink gestartet hat, erscheinen von selbst im Chat von Blink. Die Gegenrichtung, der Chat von Blink im Terminal, nutzt die experimentellen Channels von Claude Code, die nur beim Start geladen werden: Starte Claude Code mit `claude --dangerously-load-development-channels plugin:blinkling@blinkling` (`/blinkling:blinkling` zeigt es an), dann sehen beide Orte alles. Ohne das antwortet Blink aus seiner eigenen Sitzung.
 
 > [!IMPORTANT]
 > Der Browser-Helfer liest eine Seite nur, wenn du darauf zeigst. Passwort- und Zahlungsfelder werden nie gelesen, und er spricht nur mit Blinkling auf deinem eigenen Rechner. Automatisch erklären bleibt aus, bis du es einschaltest.

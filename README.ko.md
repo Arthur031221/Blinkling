@@ -65,7 +65,7 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
 
 ## 세션과 개인정보
 
-Blink는 고른 내용을 로그인된 본인의 Claude Code로 보내고, 답변을 Blink 옆 채팅 카드에 보여 줍니다. Blink를 시작한 터미널 세션과 Blink의 채팅은 서로를 따라가므로, 어느 쪽에서 입력한 질문과 완성된 답변이든 양쪽에 나타납니다.
+Blink는 고른 내용을 로그인된 본인의 Claude Code로 보내고, 답변을 Blink 옆 채팅 카드에 보여 줍니다. Blink를 시작한 터미널 세션에서 입력한 질문과 완성된 답변은 Blink의 채팅에 저절로 나타납니다. 반대 방향, 즉 Blink의 채팅을 터미널에 보여 주는 부분은 Claude Code의 실험적 channels를 쓰며 시작할 때만 불러올 수 있습니다. `claude --dangerously-load-development-channels plugin:blinkling@blinkling` 로 Claude Code를 시작하면(`/blinkling:blinkling`이 보여 줍니다) 양쪽 모두 전부 보입니다. 그렇지 않으면 Blink는 자체 세션에서 답합니다.
 
 > [!IMPORTANT]
 > 브라우저 도우미는 사용자가 가리킬 때만 그 페이지를 읽습니다. 비밀번호와 결제 입력란은 절대 읽지 않으며, 사용자 컴퓨터의 Blinkling하고만 통신합니다. 자동 설명은 켜기 전까지 꺼져 있습니다.

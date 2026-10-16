@@ -65,7 +65,7 @@ Elige las teclas en Ajustes.
 
 ## Sesiones y privacidad
 
-Blink envía lo que elegiste a tu propio Claude Code con sesión iniciada y muestra la respuesta en la tarjeta de chat junto a Blink. La sesión de terminal que inició Blink y el chat de Blink se siguen el uno al otro: un mensaje y una respuesta terminada escritos en cualquiera de los dos aparecen en ambos.
+Blink envía lo que elegiste a tu propio Claude Code con sesión iniciada y muestra la respuesta en la tarjeta de chat junto a Blink. Un mensaje y una respuesta terminada de la sesión de terminal que inició Blink aparecen solos en el chat de Blink. La otra dirección, el chat de Blink en el terminal, usa los channels experimentales de Claude Code, que solo se cargan al iniciar: inicia Claude Code con `claude --dangerously-load-development-channels plugin:blinkling@blinkling` (`/blinkling:blinkling` lo muestra) y ambos sitios lo muestran todo. Sin eso, Blink responde desde su propia sesión.
 
 > [!IMPORTANT]
 > El ayudante del navegador solo lee una página cuando la señalas. Nunca lee campos de contraseña ni de pago, y solo se comunica con Blinkling en tu propio equipo. Explicar automáticamente está desactivado hasta que lo actives.

@@ -65,7 +65,7 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 
 ## 会话与隐私
 
-Blink 会把你选取的内容发送给你自己已登录的 Claude Code，并把答案显示在 Blink 旁边的聊天卡片中。启动 Blink 的终端会话与 Blink 的聊天会互相同步，在任何一处输入的提问和完成的答案，两边都会出现。
+Blink 会把你选取的内容发送给你自己已登录的 Claude Code，并把答案显示在 Blink 旁边的聊天卡片中。在启动 Blink 的终端会话里输入的提问和完成的答案，会自动出现在 Blink 的聊天中。反方向，也就是让 Blink 的聊天出现在终端里，用的是 Claude Code 的实验性 channels，只能在启动时加载：用 `claude --dangerously-load-development-channels plugin:blinkling@blinkling` 启动 Claude Code（`/blinkling:blinkling` 会显示这条命令），两边就都能看到全部内容。不这样做时，Blink 用自己的会话回答。
 
 > [!IMPORTANT]
 > 浏览器小助手只在你指向网页时读取该页。密码和支付字段一律不读取，并且只与你电脑上的 Blinkling 通信。自动解说在你开启之前保持关闭。

@@ -65,7 +65,7 @@ Choisissez les touches dans les Réglages.
 
 ## Sessions et confidentialité
 
-Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et affiche la réponse dans la carte de discussion à côté de Blink. La session de terminal qui a lancé Blink et la discussion de Blink se suivent : une demande et une réponse terminée saisies à l'un des deux endroits apparaissent aux deux.
+Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et affiche la réponse dans la carte de discussion à côté de Blink. Une demande et une réponse terminée de la session de terminal qui a lancé Blink apparaissent d'elles-mêmes dans la discussion de Blink. Le sens inverse, la discussion de Blink dans le terminal, utilise les channels expérimentaux de Claude Code, chargés seulement au démarrage : lancez Claude Code avec `claude --dangerously-load-development-channels plugin:blinkling@blinkling` (`/blinkling:blinkling` l'affiche) et les deux endroits montrent tout. Sans cela, Blink répond depuis sa propre session.
 
 > [!IMPORTANT]
 > L'assistant du navigateur ne lit une page que lorsque vous la désignez. Il ne lit jamais les champs de mot de passe ni de paiement, et ne communique qu'avec Blinkling sur votre propre ordinateur. Explication automatique reste désactivée tant que vous ne l'activez pas.

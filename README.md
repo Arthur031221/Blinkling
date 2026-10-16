@@ -65,7 +65,7 @@ Pick the keys in Settings.
 
 ## Sessions and privacy
 
-Blink sends what you picked to your own signed-in Claude Code and shows the answer in the chat card beside Blink. The terminal session that started Blink and Blink's chat follow each other, so a prompt and a finished answer typed in either place appear in both.
+Blink sends what you picked to your own signed-in Claude Code and shows the answer in the chat card beside Blink. A prompt and a finished answer typed in the terminal session that started Blink appear in Blink's chat on their own. The other direction, Blink's chat showing up in the terminal, uses Claude Code's experimental channels, which only load at startup: start Claude Code with `claude --dangerously-load-development-channels plugin:blinkling@blinkling` (`/blinkling:blinkling` prints it) and both places show everything. Without it Blink answers from its own session.
 
 > [!IMPORTANT]
 > The browser helper reads a page only when you point at it. Password and payment fields are never read, and it talks only to Blinkling on your own computer. Auto explain is off until you turn it on.
