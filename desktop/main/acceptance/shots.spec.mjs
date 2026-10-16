@@ -30,17 +30,15 @@ const watch = (page) =>
     step();
   });
 const played = (page) => page.evaluate(() => window.__poses);
-const miniPage = (app) =>
-  app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
-const mini = (app) =>
-  app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((w) =>
-      /\/mini\/index\.html$/.test(w.webContents.getURL()),
-    );
+const cardPage = (app) =>
+  app.windows().find((p) => p.url().includes("surface=card"));
+const cardFocused = (app) =>
+  app.evaluate(() => {
+    const w = globalThis.blinklingTest.composer;
     return Boolean(w?.isVisible() && w.isFocused());
   });
 
-test("the full screen bubble takes the whole screen, plays eat, clears the menu and asks in the mini composer with the picture attached", async () => {
+test("the full screen bubble takes the whole screen, plays eat, clears the menu and asks in the card's own box with the picture attached", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
   const rec = record("fullscreen_shot");
@@ -70,7 +68,7 @@ test("the full screen bubble takes the whole screen, plays eat, clears the menu 
     expect(answered).toBeLessThan(400);
     rec.frame("clicked");
 
-    // Blink eats the picture, then the mini composer opens with it attached
+    // Blink eats the picture, then the card opens with it attached
     // and the cursor in the text box.
     await expect
       .poll(async () => (await played(page)).includes("eat"), {
@@ -79,14 +77,14 @@ test("the full screen bubble takes the whole screen, plays eat, clears the menu 
       .toBe(true);
     rec.frame("eat");
     await expect
-      .poll(() => miniPage(app)?.locator(".mini-entry-image").count(), {
+      .poll(() => cardPage(app)?.locator(".gl-attachment-chip").count(), {
         timeout: 8000,
       })
       .toBe(1);
-    await expect.poll(() => mini(app)).toBe(true);
+    await expect.poll(() => cardFocused(app)).toBe(true);
     expect(
-      await miniPage(app).evaluate(
-        () => document.activeElement === document.querySelector(".mini-input"),
+      await cardPage(app).evaluate(
+        () => document.activeElement === document.querySelector("textarea"),
       ),
     ).toBe(true);
     // Nothing of the menu is left over the composer.
@@ -115,7 +113,7 @@ test("the full screen bubble takes the whole screen, plays eat, clears the menu 
     // Click outside; the picture stays in the draft.
     click(40, 40);
     await page.waitForTimeout(1500);
-    await expect(miniPage(app).locator(".mini-entry-image")).toHaveCount(1);
+    await expect(cardPage(app).locator(".gl-attachment-chip")).toHaveCount(1);
   } finally {
     await rec.stop();
     await app.close();
@@ -264,17 +262,20 @@ test("with the browser extension the screenshot bubble takes the whole page, pla
       .toBe(true);
     rec.frame("eat");
     await expect
-      .poll(() => miniPage(app)?.locator(".mini-entry-image").count(), {
+      .poll(() => cardPage(app)?.locator(".gl-attachment-chip").count(), {
         timeout: 8000,
       })
       .toBe(3);
-    await expect.poll(() => mini(app)).toBe(true);
+    await expect.poll(() => cardFocused(app)).toBe(true);
     expect(fake.calls.fullPage).toBe(1);
     // Every tile keeps its picture in the box, not only the last one.
-    await expect(miniPage(app).locator("img.mini-thumb")).toHaveCount(3, {
-      timeout: 10000,
-    });
-    await expect(miniPage(app).locator(".mini-notice")).toBeHidden();
+    await expect(cardPage(app).locator(".gl-attachment-chip img")).toHaveCount(
+      3,
+      {
+        timeout: 10000,
+      },
+    );
+    await expect(cardPage(app).locator(".gl-composer-error")).toBeHidden();
     expect(await stalled(app)).toBeLessThan(250);
     rec.frame("asks");
   } finally {
@@ -303,20 +304,20 @@ test("when the extension cannot scroll the page the visible part is taken instea
       })
       .toBe(true);
     await expect
-      .poll(() => miniPage(app)?.locator(".mini-entry-image").count(), {
+      .poll(() => cardPage(app)?.locator(".gl-attachment-chip").count(), {
         timeout: 8000,
       })
       .toBe(1);
-    const note = miniPage(app).locator(".mini-notice");
+    const note = cardPage(app).locator(".gl-composer-error");
     await expect(note).toBeVisible();
     await expect(note).toContainText("整頁需要瀏覽器擴充功能");
     const oneLine = await note.evaluate(
       (el) =>
         el.getBoundingClientRect().height <=
-        parseFloat(getComputedStyle(el).lineHeight) * 1.5,
+        parseFloat(getComputedStyle(el).fontSize) * 1.8,
     );
     expect(oneLine).toBe(true);
-    await expect.poll(() => mini(app)).toBe(true);
+    await expect.poll(() => cardFocused(app)).toBe(true);
     rec.frame("note");
     fake.close();
   } finally {
@@ -344,20 +345,20 @@ test("with no extension connected at all the visible part is taken and the same 
       })
       .toBe(true);
     await expect
-      .poll(() => miniPage(app)?.locator(".mini-entry-image").count(), {
+      .poll(() => cardPage(app)?.locator(".gl-attachment-chip").count(), {
         timeout: 8000,
       })
       .toBe(1);
-    const note = miniPage(app).locator(".mini-notice");
+    const note = cardPage(app).locator(".gl-composer-error");
     await expect(note).toBeVisible();
     await expect(note).toContainText("整頁需要瀏覽器擴充功能");
     const oneLine = await note.evaluate(
       (el) =>
         el.getBoundingClientRect().height <=
-        parseFloat(getComputedStyle(el).lineHeight) * 1.5,
+        parseFloat(getComputedStyle(el).fontSize) * 1.8,
     );
     expect(oneLine).toBe(true);
-    await expect.poll(() => mini(app)).toBe(true);
+    await expect.poll(() => cardFocused(app)).toBe(true);
     rec.frame("noext");
   } finally {
     await rec.stop();

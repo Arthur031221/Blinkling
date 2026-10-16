@@ -10,28 +10,50 @@ const cardOpen = (app) =>
 
 /** What the hook script of the terminal session does: one authenticated call
  * to the running Blink. */
-const mirror = async (app, line) => {
-  const { url, token } = await app.evaluate(
-    () => globalThis.blinklingCompanion.address,
-  );
+const SESSION = "terminal-one";
+const address = (app) =>
+  app.evaluate(() => globalThis.blinklingCompanion.address);
+const rpc = async (app, message) => {
+  const { url, token } = await address(app);
   const response = await fetch(url + "/rpc", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ method: "mirror", ...line }),
+    body: JSON.stringify(message),
   });
   return response.status;
+};
+const mirror = (app, line) =>
+  rpc(app, { method: "mirror", session: SESSION, ...line });
+/** The terminal session's open line to Blink, as its server keeps it. */
+const link = async (app) => {
+  const { url, token } = await address(app);
+  const stop = new AbortController();
+  const response = await fetch(
+    `${url}/link?session=${SESSION}&pid=1&cwd=/tmp/project&channel=1`,
+    { headers: { Authorization: `Bearer ${token}` }, signal: stop.signal },
+  );
+  const reader = response.body.getReader();
+  await reader.read();
+  return () => {
+    reader.cancel().catch(() => {});
+    stop.abort();
+  };
 };
 
 test("what is typed and answered in the terminal session appears in Blink's chat, as it happened", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
   const rec = record("sync");
+  let unlink;
   try {
     await background(app);
     await reveal(page);
     await expect.poll(() => cardPage(app)).toBeTruthy();
     await page.waitForTimeout(600);
     rec.frame("empty");
+    unlink = await link(app);
+    // The session that opened Blink has the card.
+    await rpc(app, { method: "open", session: SESSION });
 
     expect(
       await mirror(app, { role: "user", id: "t-1", text: "fix the build" }),
@@ -73,6 +95,7 @@ test("what is typed and answered in the terminal session appears in Blink's chat
       400,
     );
   } finally {
+    unlink?.();
     await rec.stop();
     await app.close();
   }
