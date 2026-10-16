@@ -7,6 +7,7 @@ import {
   launch,
   desktopShot,
   moveOn,
+  openMenu,
   background,
 } from "./support.mjs";
 
@@ -144,11 +145,13 @@ for (const scale of [1, 1.5])
       native(20, 20);
       const limit = 50;
       const runs = {};
-      const opening = sampleFrames(c.page, 1800);
-      await moveOn(c.page, scale);
+      let opening;
+      await openMenu(c, scale, () => {
+        opening = sampleFrames(c.page, 1800);
+      });
       runs.menuOpen = await opening;
       const closing = sampleFrames(c.page, 1800);
-      native(20, 20);
+      native(20, 20, "click");
       runs.menuClose = await closing;
       await moveOn(c.page, scale);
       await c.page.evaluate(() =>

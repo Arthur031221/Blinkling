@@ -16,6 +16,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       "engage",
       "hold",
       "interactive",
+      "nudge",
       "onCapture",
       "onEvent",
       "onMarkClick",
@@ -30,6 +31,7 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       "shell",
       "stop",
       "typing",
+      "viewImage",
     ]);
     // The test hook is installed once startup (the card, companion host) finishes.
     await expect

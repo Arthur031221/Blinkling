@@ -20,7 +20,9 @@ function watchFrames() {
   // A safety stop in case the transition never ends (reduced motion).
   setTimeout(stop, duration.slow * 2);
   const frame = () => {
-    log("card", card.getBoundingClientRect());
+    // A folded card has no box and draws nothing; that is not a frame.
+    const box = card.getBoundingClientRect();
+    if (box.width > 0 && box.height > 0) log("card", box);
     if (running) requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

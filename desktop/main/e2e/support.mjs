@@ -270,6 +270,28 @@ export async function moveOn(page, scale = 1) {
   await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
   await page.waitForTimeout(550);
 }
+/** The menu opens by two clicks on Blink: the first opens the card, the second
+ * turns it into the menu. */
+export async function openMenu(
+  c,
+  scale = 1,
+  beforeSecondClick = async () => {},
+) {
+  const state = () =>
+    c.app.evaluate(() =>
+      globalThis.blinklingTest.nBlinkMenuFaces.interaction(),
+    );
+  await moveOn(c.page, scale);
+  const first = await rigPoint(c.page);
+  native(first.x * scale, first.y * scale, "click");
+  await expect.poll(async () => (await state()).card).toBe(true);
+  await c.page.waitForTimeout(500);
+  const second = await rigPoint(c.page);
+  await beforeSecondClick();
+  native(second.x * scale, second.y * scale, "click");
+  await expect.poll(async () => (await state()).menu).toBe(true);
+  await c.page.waitForTimeout(450);
+}
 export async function background(app, fullscreen = false) {
   await app.evaluate(async ({ BrowserWindow, screen }, full) => {
     const w = new BrowserWindow({

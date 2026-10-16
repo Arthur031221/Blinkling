@@ -13,6 +13,7 @@ import {
   pixel,
   rigPoint,
   moveOn,
+  openMenu,
   background,
   activeWindow,
 } from "./support.mjs";
@@ -406,7 +407,11 @@ test("native menu routing and measured stagger/reverse motion", async () => {
       window.fanSamples = [];
       window.sampleFan = () => {
         const started = performance.now();
+        // One sampler at a time: a second call replaces the first, or two
+        // loops with different clocks would interleave in the same list.
+        const mine = (window.fanSampler = (window.fanSampler ?? 0) + 1);
         function frame(now) {
+          if (mine !== window.fanSampler) return;
           window.fanSamples.push({
             time: now - started,
             opacity: [...document.querySelectorAll(".action-bubble")].map(
@@ -419,7 +424,12 @@ test("native menu routing and measured stagger/reverse motion", async () => {
       };
       window.sampleFan();
     });
-    await moveOn(c.page);
+    await openMenu(c, 1, () =>
+      c.page.evaluate(() => {
+        window.fanSamples = [];
+        window.sampleFan();
+      }),
+    );
     await c.page.waitForTimeout(1900);
     const opened = await c.page.evaluate(() => window.fanSamples);
     const firstAbove = Array.from(
@@ -433,7 +443,8 @@ test("native menu routing and measured stagger/reverse motion", async () => {
       window.fanSamples = [];
       window.sampleFan();
     });
-    native(20, 20);
+    // The menu now closes by a click away from it, not by the pointer leaving.
+    native(20, 20, "click");
     await c.page.waitForTimeout(2400);
     const closed = await c.page.evaluate(() => window.fanSamples);
     const firstBelow = Array.from(
