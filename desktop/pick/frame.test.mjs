@@ -12,6 +12,8 @@ import {
   snap,
   snapRing,
   tailOf,
+  increments,
+  coreFor,
   trace,
 } from "./frame.mjs";
 import { duration, timing } from "../shared/motion.mjs";
@@ -172,8 +174,48 @@ test("a lap is the perimeter at 500 px a second, never under 1.8 s or over 3.6 s
   assert.equal(lapOf(1800), 3600);
   assert.equal(lapOf(50000), 3600);
   // The tail never wraps onto its own head, on a small frame or a large one.
-  assert.equal(tailOf(100), 25);
-  assert.equal(tailOf(5000), 180);
+  assert.equal(tailOf(100), 50);
+  assert.equal(tailOf(5000), 240);
+});
+
+test("the tail is 22% of the perimeter, kept between 60 and 240 px", () => {
+  assert.equal(tailOf(600), 132);
+  assert.equal(tailOf(1000), 220);
+  assert.equal(tailOf(2000), 240);
+  assert.equal(tailOf(200), 60);
+  // On a tiny frame it is never more than half the way round.
+  assert.equal(tailOf(100), 50);
+});
+
+test("while it ignites, the frame behind the head is at full strength and the rest at 35%", () => {
+  const p = perimeterOf(rect, 4);
+  assert.equal(light(0, p).lit, 0);
+  assert.equal(light(300, p).lit, 0.5);
+  assert.equal(light(300, p).base, IGNITE_BASE);
+  assert.ok(light(timing.edgeIgnite - 1, p).lit > 0.99);
+  // Afterwards the settling base carries it and nothing is lit specially.
+  assert.equal(light(timing.edgeIgnite + 10, p).lit, 0);
+  assert.equal(light(100, p, { reduced: true }).lit, 0);
+});
+
+test("the streak's strokes stack to the wanted ramp with no seam, added or composited", () => {
+  const ramp = (share) => 0.9 * share * share;
+  for (const mode of ["add", "over"]) {
+    const steps = increments(16, ramp, mode);
+    assert.equal(steps.length, 16);
+    let reached = 0;
+    steps.forEach((step, k) => {
+      assert.ok(step >= 0, `${mode} ${k}`);
+      reached =
+        mode === "add" ? reached + step : 1 - (1 - reached) * (1 - step);
+      assert.ok(Math.abs(reached - ramp((k + 1) / 16)) < 1e-9, `${mode} ${k}`);
+    });
+  }
+});
+
+test("the core is white on a dark page and a deeper green on a light one", () => {
+  assert.equal(coreFor("#43d896", true), "#ffffff");
+  assert.equal(coreFor("#1f9e68", false), "rgb(16, 79, 52)");
 });
 
 test("it ignites at 35% with one streak clockwise in 600 ms", () => {

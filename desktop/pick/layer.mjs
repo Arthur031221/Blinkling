@@ -28,6 +28,8 @@ import {
   rings,
   snapRing,
   tailOf,
+  increments,
+  coreFor,
   trace,
 } from "./frame.mjs";
 
@@ -100,6 +102,10 @@ function readColors() {
   colors = {
     green: style.getPropertyValue("--green").trim(),
     warn: style.getPropertyValue("--warn").trim(),
+    core: coreFor(
+      style.getPropertyValue("--green").trim(),
+      matchMedia("(prefers-color-scheme: dark)").matches,
+    ),
     surface: style.getPropertyValue("--surface").trim(),
     radius: parseFloat(style.getPropertyValue("--radius-s")) || 0,
   };
@@ -120,6 +126,8 @@ window.addEventListener("resize", resize);
 
 function wake() {
   if (running) return;
+  // A hidden window may have missed a change of theme: look again as it wakes.
+  readColors();
   running = true;
   last = performance.now();
   requestAnimationFrame(frame);
@@ -204,40 +212,63 @@ function tracePath(rect, radius) {
 }
 
 /** The exact frame: a dark hairline, 2 px of green on the edge, a light hairline,
- * each moved onto whole device pixels so no line is blurred across two. */
-function drawFrame(rect, opacity) {
+ * each moved onto whole device pixels so no line is blurred across two. While it
+ * ignites, `lit` is the share behind the streak's head that is already at full
+ * strength. */
+function drawFrame(rect, opacity, lit = 0) {
   for (const ring of rings(rect, colors.radius)) {
-    tracePath(snapRing(ring, dpr), ring.radius);
-    ctx.globalAlpha = opacity;
+    const snapped = snapRing(ring, dpr);
     ctx.lineWidth = ring.width;
     ctx.strokeStyle =
       ring.role === "line" ? colors.green : HAIRLINE_COLOR[ring.role];
+    tracePath(snapped, ring.radius);
+    ctx.globalAlpha = opacity;
     ctx.stroke();
+    if (lit > 0) {
+      ctx.setLineDash([lit * perimeterOf(snapped, ring.radius), 1e9]);
+      ctx.globalAlpha = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 }
 
-/** One streak running clockwise on the frame's green: a tail of slices that
- * brighten towards the head, a white core on top and an additive bloom beneath,
- * all dashes of the one path. */
+/** One streak running clockwise on the frame's green: a tail that brightens
+ * towards the head, a core on top and an additive bloom beneath. Each layer is
+ * a stack of strokes that all end at the head and start at successive places
+ * along the tail, so the ramp has no seams. */
 function drawStreak(rect, state, perimeter) {
   const tail = tailOf(perimeter);
-  const slice = tail / SLICES;
   tracePath(rect, colors.radius);
   ctx.lineCap = "butt";
-  const dash = (k, width, style, alpha, composite) => {
-    const ahead = (k + 1) / SLICES;
-    const from = state.head * perimeter - tail + k * slice;
-    ctx.setLineDash([slice + 0.5, perimeter]);
-    ctx.lineDashOffset = -(((from % perimeter) + perimeter) % perimeter);
-    ctx.globalCompositeOperation = composite;
-    ctx.globalAlpha = alpha * ahead * ahead * state.strength;
-    ctx.lineWidth = width;
-    ctx.strokeStyle = style;
-    ctx.stroke();
+  const layer = (width, style, top, composite, over) => {
+    const steps = increments(
+      SLICES,
+      (share) => top * share * share * state.strength,
+      over,
+    );
+    steps.forEach((alpha, k) => {
+      const length = tail * (1 - k / SLICES);
+      const from = state.head * perimeter - length;
+      const start = ((from % perimeter) + perimeter) % perimeter;
+      ctx.setLineDash([length, perimeter]);
+      ctx.globalCompositeOperation = composite;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = width;
+      ctx.strokeStyle = style;
+      ctx.lineDashOffset = -start;
+      ctx.stroke();
+      // A dash does not carry on past the end of the path: the part of the tail
+      // that crosses the start is drawn again from the start.
+      if (start + length > perimeter) {
+        ctx.lineDashOffset = perimeter - start;
+        ctx.stroke();
+      }
+    });
   };
-  for (let k = 0; k < SLICES; k++) dash(k, 8, colors.green, 0.16, "lighter");
-  for (let k = 0; k < SLICES; k++) dash(k, 4, colors.green, 0.3, "lighter");
-  for (let k = 0; k < SLICES; k++) dash(k, LINE, "#ffffff", 0.9, "source-over");
+  layer(8, colors.green, 0.16, "lighter", "add");
+  layer(4, colors.green, 0.3, "lighter", "add");
+  layer(LINE, colors.core, 0.9, "source-over", "over");
   ctx.setLineDash([]);
   ctx.globalCompositeOperation = "source-over";
 }
@@ -262,7 +293,7 @@ function drawPicked(stroke, elapsed, reduced) {
   const rect = toClient(stroke.rect);
   const radius = radiusFor(rect, colors.radius);
   const state = light(elapsed, perimeterOf(rect, radius), { reduced });
-  drawFrame(rect, state.base);
+  drawFrame(rect, state.base, state.lit);
   if (state.glow) drawGlow(rect, state.glow);
   if (state.head !== null) drawStreak(rect, state, perimeterOf(rect, radius));
   return state.head !== null;

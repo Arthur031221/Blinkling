@@ -10,8 +10,11 @@ export const HAIRLINE = 1;
 export const IGNITE_BASE = 0.35;
 /** How bright the running light settles at once the ignition is over. */
 export const CALM = 0.75;
-/** The longest the running light's tail gets, in px; shorter on a small frame. */
-export const TAIL = 180;
+/** The running light's tail is this share of the perimeter, kept between the
+ * shortest and the longest tail in px (never more than half of a small frame). */
+export const TAIL_SHARE = 0.22;
+export const TAIL_MIN = 60;
+export const TAIL_MAX = 240;
 
 const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
 
@@ -31,7 +34,39 @@ export const lapOf = (perimeter) =>
     timing.edgeLapMax,
   );
 
-export const tailOf = (perimeter) => Math.min(TAIL, perimeter / 4);
+export const tailOf = (perimeter) =>
+  Math.min(perimeter / 2, clamp(perimeter * TAIL_SHARE, TAIL_MIN, TAIL_MAX));
+
+/** The streak is drawn as nested strokes, each from its own start to the head,
+ * so no two strokes share a seam (a shared seam shows as a faint tick). Slice k
+ * must bring the light up to `target(k)` of its full strength; this is the
+ * strength each stroke adds so the stack reaches exactly that. `over` is how
+ * strokes combine: "add" sums them, "over" composites each on the last. */
+export function increments(count, target, over) {
+  const out = [];
+  let reached = 0;
+  for (let k = 0; k < count; k++) {
+    const want = target((k + 1) / count);
+    out.push(
+      over === "add"
+        ? want - reached
+        : reached >= 1
+          ? 0
+          : 1 - (1 - want) / (1 - reached),
+    );
+    reached = want;
+  }
+  return out;
+}
+
+/** The streak's core: white on a dark page, a deeper green on a light one,
+ * where white would read as a pale gap in the line. */
+export function coreFor(green, dark) {
+  if (dark) return "#ffffff";
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(green.slice(i, i + 2), 16));
+  const deep = (v) => Math.round(v * 0.5);
+  return `rgb(${deep(r)}, ${deep(g)}, ${deep(b)})`;
+}
 
 /** Moves `value` to the device pixel grid so a line `width` px wide covers whole
  * device pixels. An even count of them is centred on a pixel edge; an odd count
@@ -106,16 +141,19 @@ export function trace(path, { x, y, width, height }, radius) {
 /** The light `elapsed` ms after the frame was taken.
  *   base      how strong the frame itself is, 0 to 1
  *   head      where the streak's head is, as a share of the perimeter, or null
+ *   lit       the share of the frame behind the head that is already at full
+ *             strength while it ignites (the rest stays at `base`)
  *   strength  how bright the streak is
  *   glow      how much of the still glow shows (reduced motion only)
- * The frame ignites at 35% with one streak clockwise in `edgeIgnite` ms, then
- * settles to full strength while a calm streak runs at a constant speed. */
+ * The frame ignites at 35% with one streak clockwise in `edgeIgnite` ms, full
+ * strength behind the streak's head, then settles to full strength while a calm streak runs at a constant speed. */
 export function light(elapsed, perimeter, { reduced = false } = {}) {
   const lap = lapOf(perimeter);
   if (reduced)
     return {
       phase: "still",
       base: clamp(elapsed / duration.fast, 0, 1),
+      lit: 0,
       head: null,
       strength: 0,
       glow: clamp(elapsed / duration.fast, 0, 1),
@@ -124,6 +162,7 @@ export function light(elapsed, perimeter, { reduced = false } = {}) {
     return {
       phase: "ignite",
       base: IGNITE_BASE,
+      lit: clamp(elapsed / timing.edgeIgnite, 0, 1),
       head: clamp(elapsed / timing.edgeIgnite, 0, 1),
       strength: 1,
       glow: 0,
@@ -133,6 +172,7 @@ export function light(elapsed, perimeter, { reduced = false } = {}) {
   return {
     phase: "calm",
     base: IGNITE_BASE + (1 - IGNITE_BASE) * settle,
+    lit: 0,
     head: (since / lap) % 1,
     strength: 1 - (1 - CALM) * settle,
     glow: 0,

@@ -2,8 +2,14 @@ import { test, expect } from "@playwright/test";
 import { launch } from "./support.mjs";
 import { background, shot, rgb, sleep } from "./helpers.mjs";
 import x11 from "x11";
-import { writeFileSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import {
+  writeFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+} from "node:fs";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PNG } from "pngjs";
@@ -139,142 +145,255 @@ test("the pick frame is exact: dark hairline, two rows of green, light hairline,
 /** Real pixels of the running light: a lossless grab of the frame while it
  * runs, then the place on the edge that differs most from that place's usual
  * look, frame by frame. */
-test("the running light goes clockwise round the real frame at a steady 500 px a second", async () => {
-  test.setTimeout(120000);
-  const { app } = await launch();
-  const FPS = 30;
-  const MARGIN = 12;
-  try {
-    await background(app);
-    await paint(app, "dark");
-    await sleep(400);
-    await take(app, AREA);
-    // Past the ignition, into the calm lap.
-    await sleep(1500);
-    const work = mkdtempSync(join(tmpdir(), "blinkling-light-"));
-    execFileSync(
-      "ffmpeg",
-      [
+// The light's core is white on a dark system theme and a deeper green on a
+// light one: the head must read on a page of its own theme either way.
+for (const theme of ["dark", "light"])
+  test(`the running light goes clockwise round the real frame at a steady 500 px a second on a ${theme} page`, async () => {
+    test.setTimeout(120000);
+    const { app } = await launch({ theme });
+    const tag = theme === "dark" ? "" : "_page";
+    await app
+      .windows()
+      .find((w) => w.url().endsWith("layer.html"))
+      .emulateMedia({ colorScheme: theme });
+    const FPS = 30;
+    const MARGIN = 12;
+    try {
+      await background(app);
+      await paint(app, theme);
+      await sleep(400);
+      await take(app, AREA);
+      // Past the ignition, into the calm lap.
+      await sleep(1500);
+      const work = mkdtempSync(join(tmpdir(), "blinkling-light-"));
+      // Every frame keeps the time it was really grabbed at, so a frame the
+      // machine dropped or doubled under load is not read as the light jumping.
+      const grabbed = spawnSync(
+        "ffmpeg",
+        [
+          "-v",
+          "info",
+          "-y",
+          "-f",
+          "x11grab",
+          "-framerate",
+          String(FPS),
+          "-video_size",
+          `${AREA.width + 2 * MARGIN}x${AREA.height + 2 * MARGIN}`,
+          "-i",
+          `${process.env.DISPLAY}+${AREA.x - MARGIN},${AREA.y - MARGIN}`,
+          "-t",
+          "3.6",
+          "-fps_mode",
+          "passthrough",
+          "-vf",
+          "showinfo",
+          join(work, "%04d.png"),
+        ],
+        { encoding: "utf8" },
+      );
+      const stamps = [...grabbed.stderr.matchAll(/pts_time:\s*([\d.]+)/g)].map(
+        (m) => Number(m[1]),
+      );
+      mkdirSync(r3, { recursive: true });
+      execFileSync("ffmpeg", [
         "-v",
         "error",
         "-y",
-        "-f",
-        "x11grab",
         "-framerate",
         String(FPS),
-        "-video_size",
-        `${AREA.width + 2 * MARGIN}x${AREA.height + 2 * MARGIN}`,
         "-i",
-        `${process.env.DISPLAY}+${AREA.x - MARGIN},${AREA.y - MARGIN}`,
-        "-t",
-        "3.6",
         join(work, "%04d.png"),
-      ],
-      { stdio: "inherit" },
-    );
-    mkdirSync(r3, { recursive: true });
-    execFileSync("ffmpeg", [
-      "-v",
-      "error",
-      "-y",
-      "-framerate",
-      String(FPS),
-      "-i",
-      join(work, "%04d.png"),
-      "-vf",
-      "fps=15,split[a][b];[a]palettegen[p];[b][p]paletteuse",
-      join(r3, "pick_frame_light.gif"),
-    ]);
-    const frames = [];
-    for (let n = 1; ; n++) {
-      try {
-        frames.push(
-          PNG.sync.read(
-            readFileSync(join(work, `${String(n).padStart(4, "0")}.png`)),
-          ),
-        );
-      } catch {
-        break;
-      }
-    }
-    expect(frames.length).toBeGreaterThan(FPS * 3);
-
-    // Places on the edge, clockwise from the top left corner, every 2 px: the
-    // sum of the four rows across the edge.
-    const { width: w, height: h } = AREA;
-    const total = 2 * (w + h);
-    const at = (s) => {
-      if (s < w) return [MARGIN + s, MARGIN, 0, 1];
-      if (s < w + h) return [MARGIN + w, MARGIN + (s - w), 1, 0];
-      if (s < 2 * w + h) return [MARGIN + w - (s - w - h), MARGIN + h, 0, 1];
-      return [MARGIN, MARGIN + h - (s - 2 * w - h), 1, 0];
-    };
-    const places = [];
-    for (let s = 12; s < total - 12; s += 2) places.push(s);
-    const level = (png, s) => {
-      const [x, y, nx, ny] = at(s);
-      let sum = 0;
-      for (let k = -2; k <= 1; k++) {
-        const i = ((y + k * ny) * png.width + (x + k * nx)) * 4;
-        sum += png.data[i] + png.data[i + 1] + png.data[i + 2];
-      }
-      return sum;
-    };
-    const levels = frames.map((png) => places.map((s) => level(png, s)));
-    const usual = places.map((_, i) => {
-      const column = levels.map((row) => row[i]).sort((a, b) => a - b);
-      return column[column.length >> 1];
-    });
-    // The head is the place with the most light above its usual, with a small
-    // window so one stray pixel is not taken for it.
-    const head = levels.map((row) => {
-      let best = 0,
-        where = 0;
-      for (let i = 4; i < row.length - 4; i++) {
-        let sum = 0;
-        for (let k = -4; k <= 4; k++)
-          sum += Math.abs(row[i + k] - usual[i + k]);
-        if (sum > best) {
-          best = sum;
-          where = i;
+        "-vf",
+        "fps=15,split[a][b];[a]palettegen[p];[b][p]paletteuse",
+        join(r3, `pick_frame_light${tag}.gif`),
+      ]);
+      const frames = [];
+      for (let n = 1; ; n++) {
+        try {
+          frames.push(
+            PNG.sync.read(
+              readFileSync(join(work, `${String(n).padStart(4, "0")}.png`)),
+            ),
+          );
+        } catch {
+          break;
         }
       }
-      return places[where];
-    });
-    // Unwrap the lap, then a straight line through it.
-    const path = [head[0]];
-    for (let i = 1; i < head.length; i++) {
-      let step = head[i] - head[i - 1];
-      if (step < -total / 2) step += total;
-      if (step > total / 2) step -= total;
-      path.push(path[i - 1] + step);
+      expect(frames.length).toBeGreaterThan(FPS * 3);
+      expect(stamps.length).toBeGreaterThanOrEqual(frames.length);
+
+      // Places on the edge, clockwise from the top left corner, every 2 px: the
+      // sum of the four rows across the edge.
+      const { width: w, height: h } = AREA;
+      const total = 2 * (w + h);
+      const at = (s) => {
+        if (s < w) return [MARGIN + s, MARGIN, 0, 1];
+        if (s < w + h) return [MARGIN + w, MARGIN + (s - w), 1, 0];
+        if (s < 2 * w + h) return [MARGIN + w - (s - w - h), MARGIN + h, 0, 1];
+        return [MARGIN, MARGIN + h - (s - 2 * w - h), 1, 0];
+      };
+      const places = [];
+      for (let s = 12; s < total - 12; s += 2) places.push(s);
+      const level = (png, s) => {
+        const [x, y, nx, ny] = at(s);
+        let sum = 0;
+        for (let k = -2; k <= 1; k++) {
+          const i = ((y + k * ny) * png.width + (x + k * nx)) * 4;
+          sum += png.data[i] + png.data[i + 1] + png.data[i + 2];
+        }
+        return sum;
+      };
+      const levels = frames.map((png) => places.map((s) => level(png, s)));
+      const usual = places.map((_, i) => {
+        const column = levels.map((row) => row[i]).sort((a, b) => a - b);
+        return column[column.length >> 1];
+      });
+      // The head is the place with the most light above its usual, with a small
+      // window so one stray pixel is not taken for it.
+      const head = levels.map((row) => {
+        let best = 0,
+          where = 0;
+        for (let i = 4; i < row.length - 4; i++) {
+          let sum = 0;
+          for (let k = -4; k <= 4; k++)
+            sum += Math.abs(row[i + k] - usual[i + k]);
+          if (sum > best) {
+            best = sum;
+            where = i;
+          }
+        }
+        return places[where];
+      });
+      // Unwrap the lap, then a straight line through it.
+      const path = [head[0]];
+      for (let i = 1; i < head.length; i++) {
+        let step = head[i] - head[i - 1];
+        if (step < -total / 2) step += total;
+        if (step > total / 2) step -= total;
+        path.push(path[i - 1] + step);
+      }
+      const n = path.length;
+      const t = stamps.slice(0, n);
+      const mt = t.reduce((a, b) => a + b) / n;
+      const mp = path.reduce((a, b) => a + b) / n;
+      const speed =
+        t.reduce((a, v, i) => a + (v - mt) * (path[i] - mp), 0) /
+        t.reduce((a, v) => a + (v - mt) ** 2, 0);
+      // Along the sides: at a corner the four rows across the edge overlap and
+      // the head cannot be told from the side it turns into, so the straight
+      // stretches between the corners are measured.
+      const corners = [0, w, w + h, 2 * w + h];
+      const turning = (v) =>
+        corners.some((c) => {
+          const d = Math.abs((((v - c) % total) + total) % total);
+          return Math.min(d, total - d) < 70;
+        });
+      const worst = Math.max(
+        ...path.map((v, i) =>
+          turning(v) ? 0 : Math.abs(v - (mp + speed * (t[i] - mt))),
+        ),
+      );
+      writeFileSync(
+        join(r3, `pick_frame_light${tag}.json`),
+        JSON.stringify({
+          frames: n,
+          speed: +speed.toFixed(1),
+          worst: +worst.toFixed(1),
+        }),
+      );
+      // Clockwise, at the lap the frame is meant to have, and without a jump.
+      expect(speed).toBeGreaterThan(430);
+      expect(speed).toBeLessThan(570);
+      expect(worst).toBeLessThan(16);
+    } finally {
+      await app.close();
     }
-    const n = path.length;
-    const t = path.map((_, i) => i / FPS);
-    const mt = t.reduce((a, b) => a + b) / n;
-    const mp = path.reduce((a, b) => a + b) / n;
-    const speed =
-      t.reduce((a, v, i) => a + (v - mt) * (path[i] - mp), 0) /
-      t.reduce((a, v) => a + (v - mt) ** 2, 0);
-    const worst = Math.max(
-      ...path.map((v, i) => Math.abs(v - (mp + speed * (t[i] - mt)))),
-    );
-    writeFileSync(
-      join(r3, "pick_frame_light.json"),
-      JSON.stringify({
-        frames: n,
-        speed: +speed.toFixed(1),
-        worst: +worst.toFixed(1),
-      }),
-    );
-    // Clockwise, at the lap the frame is meant to have, and without a jump.
-    expect(speed).toBeGreaterThan(430);
-    expect(speed).toBeLessThan(570);
-    expect(worst).toBeLessThan(40);
-  } finally {
-    await app.close();
-  }
-});
+  });
+
+for (const theme of ["dark", "light"])
+  test(`while it ignites the frame is at full strength behind the streak and 35% ahead of it, and the core reads on a ${theme} page`, async () => {
+    test.setTimeout(60000);
+    const { app } = await launch({ theme });
+    const FPS = 30;
+    const MARGIN = 12;
+    try {
+      await app
+        .windows()
+        .find((w) => w.url().endsWith("layer.html"))
+        .emulateMedia({ colorScheme: theme });
+      await background(app);
+      await paint(app, theme);
+      await sleep(400);
+      const work = mkdtempSync(join(tmpdir(), "blinkling-ignite-"));
+      const grab = spawn(
+        "ffmpeg",
+        [
+          "-v",
+          "error",
+          "-y",
+          "-f",
+          "x11grab",
+          "-framerate",
+          String(FPS),
+          "-video_size",
+          `${AREA.width + 2 * MARGIN}x${AREA.height + 2 * MARGIN}`,
+          "-i",
+          `${process.env.DISPLAY}+${AREA.x - MARGIN},${AREA.y - MARGIN}`,
+          "-t",
+          "2",
+          join(work, "%04d.png"),
+        ],
+        { stdio: "inherit" },
+      );
+      await sleep(400);
+      await take(app, AREA);
+      await new Promise((done) => grab.on("close", done));
+      const frames = readdirSync(work)
+        .sort()
+        .map((f) => PNG.sync.read(readFileSync(join(work, f))));
+      const ground = rgb(frames[0], 40, 40);
+      const far = (p, x, y) => {
+        const c = rgb(p, x, y);
+        return (
+          Math.abs(c[0] - ground[0]) +
+          Math.abs(c[1] - ground[1]) +
+          Math.abs(c[2] - ground[2])
+        );
+      };
+      // The middle of each side, on the green row.
+      const sides = [
+        [MARGIN + AREA.width / 2, MARGIN],
+        [MARGIN + AREA.width, MARGIN + AREA.height / 2],
+        [MARGIN + AREA.width / 2, MARGIN + AREA.height],
+        [MARGIN, MARGIN + AREA.height / 2],
+      ];
+      const strength = frames.map((p) =>
+        sides.map(([x, y]) =>
+          Math.max(far(p, x, y), far(p, x - 1, y - 1), far(p, x, y - 1)),
+        ),
+      );
+      const settled = Math.max(...strength.at(-1));
+      // At some frame a side the streak has reached is at full strength while a
+      // side ahead of it holds only the first 35%.
+      const both = strength.some(
+        (row) =>
+          Math.max(...row) > settled * 0.95 &&
+          Math.min(...row) > settled * 0.25 &&
+          Math.min(...row) < settled * 0.45,
+      );
+      expect(both).toBe(true);
+      // The head: the strongest edge pixel of the lap is darker than the white page
+      // behind it on a light theme and brighter on a dark one, never the same as the line.
+      let head = 0;
+      for (const p of frames.slice(-25))
+        for (let x = MARGIN; x < p.width - MARGIN; x++)
+          head = Math.max(head, far(p, x, MARGIN - 1), far(p, x, MARGIN));
+      expect(head).toBeGreaterThan(settled * 1.08);
+    } finally {
+      await app.close();
+    }
+  });
 
 const layerEval = (app, code) =>
   app.evaluate(
