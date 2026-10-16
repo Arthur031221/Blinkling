@@ -219,74 +219,93 @@ test("Guide: one click on the bubble says it is looking at once, draws the marks
   }
 });
 
-test("Auto explain: switching it on shows it is watching, a change on the screen is sent as a whole-screen picture within the detection budget, and the app never stands still", async () => {
-  test.setTimeout(150000);
-  const { app, page } = await launch();
-  const rec = record("auto_explain");
+/** Changes what the page behind Blink shows, so the screen differs as a whole. */
+const repaint = (app, colour, word) =>
+  app.evaluate(
+    (_, [colour, word]) =>
+      globalThis.bg.webContents.executeJavaScript(
+        `document.body.style.background=${JSON.stringify(colour)};document.querySelector('div').textContent=${JSON.stringify(word)}`,
+      ),
+    [colour, word],
+  );
+const turnCount = (app) => app.evaluate(() => globalThis.fakeTurns.length);
+const userPictures = (app) =>
+  cardPage(app)?.locator(".gl-user .gl-message-image").count();
+
+test("Auto explain: switching it on looks at the whole screen at once, puts the picture in the card and asks, then asks again only for each change, without the app standing still", async () => {
+  test.setTimeout(240000);
+  const { app, page } = await launch({ env: { BLINKLING_TEST_SLOW: "1" } });
+  const rec = record("auto_explain-321");
   try {
     const frame = await background(app);
-    await fakeSession(app, 300);
+    await spy(app);
     await place(app, "right", 0.5);
     await page.waitForTimeout(800);
     await reveal(page);
+    rec.frame("menu");
     await stall(app);
-    const state = () =>
-      app.evaluate(() => globalThis.blinklingTest.features.auto.shown);
     const clicked = await clickBubble(page, "auto-explain", frame);
+    // The first ask is at once: the user said yes by pressing, and does not
+    // have to hold still first.
+    await expect.poll(() => turnCount(app), { timeout: 8000 }).toBe(1);
+    const first = await app.evaluate(() => globalThis.fakeTurns[0]);
+    console.log(`auto: first ask ${first.at - clicked} ms after the press`);
+    expect(first.at - clicked).toBeLessThan(5000);
+    expect(first.source).toBe("auto-explain");
+    expect(first.text).toMatch(/few short paragraphs/);
+    const image = PNG.sync.read(
+      Buffer.from(first.attachments[0].data, "base64"),
+    );
+    expect([image.width, image.height]).toEqual([1280, 800]);
+    // The card opens by itself with the picture and the answer.
     await expect
-      .poll(async () => (await state()) ?? "", {
-        intervals: [10],
-        timeout: 3000,
-      })
-      .toContain("watching");
-    const feedback = Date.now() - clicked;
-    expect(feedback).toBeLessThan(500);
-    rec.frame("watching");
-    // Hands off, so the screen has been idle long enough, then the page changes.
-    move(30, 30);
-    // The first quiet sample is the baseline the change is measured from.
-    await expect
-      .poll(
-        () =>
-          app.evaluate(
-            () => !!globalThis.blinklingTest.features.auto.policy.baseline,
-          ),
-        { timeout: 15000, intervals: [250] },
-      )
+      .poll(() => cardShown(app), { timeout: 8000, intervals: [100] })
       .toBe(true);
-    await app.evaluate(() => {
-      return globalThis.bg.webContents.executeJavaScript(
-        "document.body.style.background='#e9d67d'",
-      );
-    });
-    const changed = Date.now();
-    // The detector wants the change to hold still for a sample or two.
     await expect
-      .poll(() => app.evaluate(() => globalThis.fakeTurns.length), {
-        timeout: 40000,
-        intervals: [100],
-      })
+      .poll(() => userPictures(app), { timeout: 8000 })
       .toBeGreaterThan(0);
-    const sentIn = await app.evaluate(
-      (_, changed) => globalThis.fakeTurns[0].at - changed,
-      changed,
+    rec.frame("first-ask");
+    await expect(cardPage(app).locator(".gl-assistant").last()).toContainText(
+      "First sentence",
+      { timeout: 8000 },
     );
-    console.log(
-      `auto: feedback ${feedback} ms, sent ${sentIn} ms after the change`,
-    );
-    // 2 quiet samples at the 3 s floor plus the capture itself.
-    expect(sentIn).toBeLessThan(10000);
-    rec.frame("sent");
+    rec.frame("first-answer");
+    move(30, 30);
+    // Nothing changed: nothing more is asked.
+    await page.waitForTimeout(9000);
+    expect(await turnCount(app)).toBe(1);
+    // Two changes of the screen, each asked about once after the cool-down.
+    await repaint(app, "#e9d67d", "A yellow page");
+    const firstChange = Date.now();
+    await expect.poll(() => turnCount(app), { timeout: 40000 }).toBe(2);
+    const second = await app.evaluate(() => globalThis.fakeTurns[1]);
+    console.log(`auto: change 1 asked ${second.at - firstChange} ms later`);
+    expect(second.at - firstChange).toBeLessThan(16000);
+    rec.frame("second-ask");
+    await expect
+      .poll(() => cardPage(app).locator(".gl-assistant").count(), {
+        timeout: 8000,
+      })
+      .toBeGreaterThan(1);
+    await page.waitForTimeout(1200);
+    rec.frame("second-answer");
+    await repaint(app, "#7dd6a8", "A green page");
+    const secondChange = Date.now();
+    await expect.poll(() => turnCount(app), { timeout: 40000 }).toBe(3);
+    const third = await app.evaluate(() => globalThis.fakeTurns[2]);
+    console.log(`auto: change 2 asked ${third.at - secondChange} ms later`);
+    expect(third.at - secondChange).toBeLessThan(16000);
+    expect(third.at - second.at).toBeGreaterThanOrEqual(11000);
+    await expect
+      .poll(() => cardPage(app).locator(".gl-assistant").count(), {
+        timeout: 8000,
+      })
+      .toBeGreaterThan(2);
+    await page.waitForTimeout(1200);
+    rec.frame("third-answer");
     const seen = await stalled(app);
     console.log(`auto: main stall ${JSON.stringify(seen)}`);
     expect(seen.worst).toBeLessThan(100);
-    // The picture that went out is the whole screen, not a sliver.
-    const turn = await app.evaluate(() => globalThis.fakeTurns[0]);
-    expect(turn.source).toBe("auto-explain");
-    const image = PNG.sync.read(
-      Buffer.from(turn.attachments[0].data, "base64"),
-    );
-    expect([image.width, image.height]).toEqual([1280, 800]);
   } finally {
     await rec.stop();
     await app.close();
@@ -355,7 +374,7 @@ test("Auto explain, the whole path: the tooltip reads, the picture is sent, the 
         timeout: 40000,
         intervals: [100],
       })
-      .toBe(1);
+      .toBeGreaterThan(0);
     const turn = await app.evaluate(() => globalThis.fakeTurns[0]);
     expect(turn.source).toBe("auto-explain");
     expect(turn.attachments).toHaveLength(1);

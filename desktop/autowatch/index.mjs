@@ -1,7 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { ChangePolicy, fingerprint, MIN_INTERVAL_MS } from "./policy.mjs";
+import { createDiff } from "./diff.mjs";
+import {
+  ChangePolicy,
+  difference,
+  fingerprint,
+  MIN_INTERVAL_MS,
+} from "./policy.mjs";
 /** A usage limit that did not say when it ends holds auto explain this long. */
 export const LIMIT_FALLBACK_MS = 30 * 60 * 1000;
+/** What every automatic explanation asks. This is the one prompt in the app
+ * that asks for a length: a few short paragraphs, because the card is read at a
+ * glance while the user works. */
+export const EXPLAIN_PROMPT =
+  "Only look and explain. Never click, type, control another app, edit files, or use tools. In a few short paragraphs, say what this window or screen is doing and what matters most on it. Write in the language shown on the screen. No preamble and no follow-up questions.";
 /** All producers share SessionBridge. Sampling itself never starts Claude.
  * Global idle time conservatively pauses on keyboard AND mouse activity, avoiding
  * an extra Accessibility permission or collecting the user's keystrokes. */
@@ -18,6 +29,7 @@ export class AutoWatch {
     now = Date.now,
     onState = () => {},
     policy = new ChangePolicy(),
+    diff,
   }) {
     if (intervalMs < 3000)
       throw Error("Auto explain sampling must be low rate");
@@ -34,7 +46,10 @@ export class AutoWatch {
       onState,
       policy,
     });
+    this.ownsDiff = !diff;
+    this.diff = diff ?? createDiff();
     this.enabled = false;
+    this.askNow = false;
     this.running = false;
     this.pending = null;
     this.generation = 0;
@@ -84,6 +99,7 @@ export class AutoWatch {
   disable() {
     this.enabled = false;
     this.resumeRequested = false;
+    this.askNow = false;
     this.holdUntil = null;
     this.generation++;
     clearInterval(this.timer);
@@ -92,6 +108,15 @@ export class AutoWatch {
   async resume() {
     this.enable();
     this.resumeRequested = true;
+    await this.tick();
+  }
+  /** Turned on by the user: look at the whole screen and ask at once, then
+   * watch for a change. The press itself said yes, so the three seconds of
+   * quiet that guard the automatic asks are not waited for this first time. */
+  async start() {
+    this.enable();
+    this.resumeRequested = true;
+    this.askNow = true;
     await this.tick();
   }
   async tick() {
@@ -105,7 +130,7 @@ export class AutoWatch {
       this.busy() ||
       this.capture.busy ||
       this.typing() ||
-      this.idleSeconds() < 3
+      (!this.askNow && this.idleSeconds() < 3)
     ) {
       this.policy.pause();
       return;
@@ -129,17 +154,30 @@ export class AutoWatch {
       }
       const sample = await this.sample(id);
       if (!this.enabled || generation !== this.generation) return;
+      const seen = fingerprint(sample);
+      // The change check runs in a worker thread: the verdicts come back here
+      // and the policy only reads them.
+      const verdicts = new Map();
+      if (!this.resumeRequested)
+        for (const before of [this.policy.baseline, this.policy.candidate])
+          if (before && !verdicts.has(before))
+            verdicts.set(before, await this.diff.compare(before, seen));
+      if (!this.enabled || generation !== this.generation) return;
       ok = this.permitted();
       if (typeof ok !== "boolean") ok = await ok;
       if (!ok) return;
       if (
         !this.resumeRequested &&
-        !this.policy.observe(fingerprint(sample), {
-          now: this.now(),
-          idleSeconds: this.idleSeconds(),
-          typing: this.typing(),
-          busy: this.busy(),
-        })
+        !this.policy.observe(
+          seen,
+          {
+            now: this.now(),
+            idleSeconds: this.idleSeconds(),
+            typing: this.typing(),
+            busy: this.busy(),
+          },
+          (a, b) => (b === seen && verdicts.get(a)) || difference(a, b),
+        )
       )
         return;
       ok = this.permitted();
@@ -154,7 +192,7 @@ export class AutoWatch {
         !this.enabled ||
         generation !== this.generation ||
         this.typing() ||
-        this.idleSeconds() < 3 ||
+        (!this.askNow && this.idleSeconds() < 3) ||
         this.busy()
       )
         return;
@@ -163,7 +201,7 @@ export class AutoWatch {
       if (!ok) return;
       const turn = {
         id: randomUUID(),
-        text: "只觀看並解說，不要操作其他程式，不要使用電腦控制、編輯或任何工具。用這個畫面的語言說明：這是什麼，以及最重要的內容。不要前言，不要追問。",
+        text: EXPLAIN_PROMPT,
         attachments: [capture.image],
         source: "auto-explain",
       };
@@ -171,7 +209,8 @@ export class AutoWatch {
       try {
         await this.session.send(turn);
         this.resumeRequested = false;
-        this.policy.sent(this.now());
+        this.askNow = false;
+        this.policy.sent(this.now(), seen);
       } catch (error) {
         this.pending = null;
         throw error;
@@ -203,5 +242,6 @@ export class AutoWatch {
     this.disable();
     this.unsubscribe?.();
     this.unsubscribe = null;
+    if (this.ownsDiff) this.diff.dispose();
   }
 }

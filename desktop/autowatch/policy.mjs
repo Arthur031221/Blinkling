@@ -107,7 +107,13 @@ export class ChangePolicy {
     this.candidate = null;
     this.stable = 0;
   }
-  observe(sample, { now, idleSeconds, busy = false, typing = false }) {
+  /** `compare(a, b)` is the difference check; the watcher hands in the answers a
+   * worker thread computed, and anything it did not precompute is checked here. */
+  observe(
+    sample,
+    { now, idleSeconds, busy = false, typing = false },
+    compare = difference,
+  ) {
     if (busy || typing || idleSeconds < 3) {
       this.pause();
       return false;
@@ -116,11 +122,11 @@ export class ChangePolicy {
       this.baseline = sample;
       return false;
     }
-    if (!difference(this.baseline, sample).substantial) {
+    if (!compare(this.baseline, sample).substantial) {
       this.pause();
       return false;
     }
-    if (this.candidate && !difference(this.candidate, sample).substantial)
+    if (this.candidate && !compare(this.candidate, sample).substantial)
       this.stable++;
     else this.stable = 1;
     this.candidate = sample;
@@ -129,9 +135,11 @@ export class ChangePolicy {
       this.stable >= this.settleSamples
     );
   }
-  sent(now) {
+  /** `seen` is the sample the explanation was taken from, when no change was
+   * watched for first (the very first ask). */
+  sent(now, seen = null) {
     this.lastSent = now;
-    this.baseline = this.candidate;
+    this.baseline = this.candidate ?? seen;
     this.candidate = null;
     this.stable = 0;
   }

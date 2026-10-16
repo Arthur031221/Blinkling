@@ -221,7 +221,7 @@ export function installCaptureGuide({
       if (action === "guide-retry") await startGuide(() => guide.retry());
       if (action === "auto-explain") {
         if (auto.enabled) auto.disable();
-        else auto.enable();
+        else await auto.start();
       }
       if (action.startsWith("guide-step-"))
         guide.step(Number(action.slice("guide-step-".length)) - 1);
