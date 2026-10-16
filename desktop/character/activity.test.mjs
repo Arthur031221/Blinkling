@@ -134,3 +134,15 @@ test("a usage limit with no reset time lasts until it is cleared", () => {
   state.accept({ type: "usage-limit", resetAt: null }, 1);
   assert.equal(state.read(1).face, "idle");
 });
+
+test("a failed action worries Blink for a few seconds only, so it can grumble again, but a blocked connection stays an error", () => {
+  const state = createActivityState();
+  state.accept({ type: "status", state: "connected" }, 0);
+  state.accept({ type: "activity", state: "error" }, 1000);
+  assert.equal(state.read(5000).expression, "error");
+  assert.equal(state.read(13_000).expression, "idle");
+  assert.equal(state.read(13_000).face, "idle");
+  state.accept({ type: "status", state: "blocked" }, 20_000);
+  assert.equal(state.read(20_000).expression, "error");
+  assert.equal(state.read(90_000).expression, "error");
+});
