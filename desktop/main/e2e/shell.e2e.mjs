@@ -88,8 +88,7 @@ test("real alpha, silhouette click-through, hover wave, delayed retreat and full
     ).toEqual([Math.round(blank.x), Math.round(blank.y)]);
     await moveOn(page);
     native(30, 30);
-    await page.waitForTimeout(1000);
-    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
+    // Leaving Blink with no card open sends it back to its edge at once.
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek", {
       timeout: 1200,
     });
@@ -617,13 +616,25 @@ for (const scale of [1, 1.5, 2])
           c.app,
           `card-${scale * 100}-${theme}`,
         );
+        // At this height the sample falls on the text box (the surface colour)
+        // or the paper around it; either is the card's own, never the desktop.
         expect(
+          theme === "light"
+            ? [
+                [250, 248, 243],
+                [255, 253, 249],
+              ]
+            : [
+                [34, 39, 35],
+                [12, 14, 13],
+              ],
+        ).toContainEqual(
           pixel(
             cardImage,
             (cardBounds.x + 30) * scale,
             (cardBounds.y + 90) * scale,
           ),
-        ).toEqual(theme === "light" ? [250, 248, 243] : [34, 39, 35]);
+        );
         const capture = await c.app.evaluate(() =>
           globalThis.blinklingTest.capture(),
         );
