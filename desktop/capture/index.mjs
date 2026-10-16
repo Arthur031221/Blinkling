@@ -137,6 +137,7 @@ export class DesktopCaptureService {
     onCapture = () => {},
     fullPage = captureFullPage,
     companion = () => false,
+    onStage = () => {},
     overlays = new CaptureOverlays(),
     list = windowsOn,
     permission,
@@ -152,6 +153,7 @@ export class DesktopCaptureService {
     this.onCapture = onCapture;
     this.fullPage = fullPage;
     this.companion = companion;
+    this.onStage = onStage;
     this.overlays = overlays;
     this.list = list;
     this.guard = new SurfaceGuard(() => [
@@ -354,6 +356,8 @@ export class DesktopCaptureService {
    * the click still gives the user something. The attachment is named for what
    * it is, "Visible part", so neither the user nor Claude takes it for the page. */
   async page({ capture, choice, source = "capture" }, signal) {
+    // Scrolling a long page takes a while: the reader is told it has begun.
+    this.onStage("page");
     try {
       const result = await this.fullPage(signal);
       if (!result?.companionRequired)

@@ -72,6 +72,10 @@ export function installCaptureGuide({
     onCapture,
     fullPage,
     companion,
+    onStage: () => {
+      spoke = true;
+      say("working", "pageWorking");
+    },
   });
   // The overlays exist, hidden, before anyone asks for a capture.
   const overlaysReady = capture.start().catch(() => {});
@@ -99,6 +103,8 @@ export function installCaptureGuide({
     onError: () => overlay.dismiss("capture-unavailable"),
   });
   let auto;
+  // Whether the page route has already told the reader it is reading.
+  let spoke = false;
   const makeAuto = (bridge) =>
     new AutoWatch({
       session: bridge,
@@ -129,25 +135,42 @@ export function installCaptureGuide({
       onState,
     });
   auto = makeAuto(session);
-  const reportError = (error) => {
-    const t = captureText(systemLocale({ app }));
-    onState({
-      state: "error",
-      message: t(error.code === "CAPTURE_BUSY" ? "busy" : "failed"),
-    });
-  };
+  const reportError = (error) =>
+    say("error", error.code === "CAPTURE_BUSY" ? "busy" : "failed");
   // A failed guide already reported itself as an error bubble with a retry.
   const startGuide = (run) => run().catch(() => {});
-  const take = (source) => {
-    if (!guard() || capture.busy) return Promise.resolve(null);
-    return capture.pick(displayId(), undefined, { source }).catch(reportError);
+  /** One line for the reader: what the capture is doing, or why it did not
+   * start. The card shows it and the picture that arrives takes it away. */
+  const say = (state, key) =>
+    onState({
+      state,
+      message: captureText(systemLocale({ app }))(key),
+    });
+  /** A press always answers: a refusal says why, a slow capture says it has
+   * begun, and a failure says so, never silence. When the capture ends without
+   * a failure, whatever was said is taken back with an "idle" state. */
+  const answering = async (run) => {
+    if (!guard() || capture.busy) return say("error", "busy");
+    spoke = false;
+    let failed = false;
+    const waiting = setTimeout(() => {
+      if (!spoke) say("working", "working");
+      spoke = true;
+    }, 400);
+    try {
+      return await run();
+    } catch (error) {
+      failed = true;
+      return reportError(error);
+    } finally {
+      clearTimeout(waiting);
+      if (!failed) onState({ state: "idle" });
+    }
   };
-  const takeLargest = (source) => {
-    if (!guard() || capture.busy) return Promise.resolve(null);
-    return capture
-      .largest(displayId(), undefined, { source })
-      .catch(reportError);
-  };
+  const take = (source) =>
+    answering(() => capture.pick(displayId(), undefined, { source }));
+  const takeLargest = (source) =>
+    answering(() => capture.largest(displayId(), undefined, { source }));
   const hotkey = new HotkeyRegistry({
     shortcuts: globalShortcut,
     initial: DEFAULT_HOTKEY[process.platform],

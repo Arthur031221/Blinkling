@@ -710,13 +710,24 @@ const send = (event) => {
   for (const win of windows()) {
     if (win === composer && !cardLoaded) {
       // The card's page is still loading: keep what matters for it.
-      if (["guide", "blink-say", "blink-offer"].includes(event.type))
+      if (
+        ["guide", "blink-say", "blink-offer", "capture-status"].includes(
+          event.type,
+        )
+      )
         heldEvents.push(shown);
       if (heldEvents.length > 50) heldEvents.shift();
     } else win.webContents.send("blinkling:event", shown);
   }
   // What Blink says on its own opens the card, and the reading rule closes it.
   if (event.type === "blink-say" || event.type === "blink-offer")
+    flow((m) => m.notice());
+  // A capture that is slow or failed says so in the card, which it opens.
+  else if (
+    event.type === "capture-status" &&
+    event.message &&
+    ["working", "error"].includes(event.state)
+  )
     flow((m) => m.notice());
   else if (event.type === "guide")
     flow((m) => {

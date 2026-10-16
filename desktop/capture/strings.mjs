@@ -10,6 +10,8 @@ export const strings = {
     pageChip: "Full page",
     busy: "A capture is already in progress.",
     failed: "The capture could not be completed. Please try again.",
+    working: "Taking the screenshot…",
+    pageWorking: "Reading the whole page…",
     permissionTitle: "Allow screen capture",
     permissionLead:
       "Turn on screen recording for Blinkling and the capture continues by itself.",
@@ -30,6 +32,8 @@ export const strings = {
     pageChip: "整頁",
     busy: "擷取正在進行。",
     failed: "擷取暫時無法完成，請再試一次。",
+    working: "正在截圖…",
+    pageWorking: "正在讀取整頁…",
     permissionTitle: "允許螢幕擷取",
     permissionLead: "開啟 Blinkling 的螢幕錄製權限，擷取會自動繼續。",
     permissionDemo: "動畫：開啟 Blinkling 的開關",
@@ -49,6 +53,8 @@ export const strings = {
     pageChip: "整页",
     busy: "正在截取中。",
     failed: "暂时无法完成截取，请再试一次。",
+    working: "正在截图…",
+    pageWorking: "正在读取整页…",
     permissionTitle: "允许屏幕截取",
     permissionLead: "开启 Blinkling 的屏幕录制权限，截取会自动继续。",
     permissionDemo: "动画：打开 Blinkling 的开关",
@@ -68,6 +74,8 @@ export const strings = {
     pageChip: "ページ全体",
     busy: "キャプチャ中です。",
     failed: "キャプチャを完了できませんでした。もう一度お試しください。",
+    working: "スクリーンショットを撮っています…",
+    pageWorking: "ページ全体を読み取っています…",
     permissionTitle: "画面の収録を許可",
     permissionLead:
       "Blinkling の画面収録をオンにすると、キャプチャが自動で続きます。",
@@ -88,6 +96,8 @@ export const strings = {
     pageChip: "전체 페이지",
     busy: "캡처가 이미 진행 중입니다.",
     failed: "캡처를 완료하지 못했습니다. 다시 시도해 주세요.",
+    working: "스크린샷을 찍는 중…",
+    pageWorking: "페이지 전체를 읽는 중…",
     permissionTitle: "화면 캡처 허용",
     permissionLead:
       "Blinkling의 화면 녹화 권한을 켜면 캡처가 자동으로 이어집니다.",
@@ -109,6 +119,8 @@ export const strings = {
     busy: "Es läuft bereits eine Aufnahme.",
     failed:
       "Die Aufnahme konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+    working: "Screenshot wird aufgenommen …",
+    pageWorking: "Die ganze Seite wird gelesen …",
     permissionTitle: "Bildschirmaufnahme erlauben",
     permissionLead:
       "Erlaube Blinkling die Bildschirmaufnahme, dann geht die Aufnahme von selbst weiter.",
@@ -129,6 +141,8 @@ export const strings = {
     pageChip: "Página completa",
     busy: "Ya hay una captura en curso.",
     failed: "No se pudo completar la captura. Inténtalo de nuevo.",
+    working: "Haciendo la captura…",
+    pageWorking: "Leyendo la página completa…",
     permissionTitle: "Permitir la captura de pantalla",
     permissionLead:
       "Activa la grabación de pantalla para Blinkling y la captura continuará sola.",
@@ -149,6 +163,8 @@ export const strings = {
     pageChip: "Page entière",
     busy: "Une capture est déjà en cours.",
     failed: "La capture n'a pas pu aboutir. Réessayez.",
+    working: "Capture en cours…",
+    pageWorking: "Lecture de la page entière…",
     permissionTitle: "Autoriser la capture d'écran",
     permissionLead:
       "Activez l'enregistrement de l'écran pour Blinkling et la capture reprend toute seule.",
@@ -169,6 +185,8 @@ export const strings = {
     pageChip: "Página inteira",
     busy: "Já há uma captura em andamento.",
     failed: "Não foi possível concluir a captura. Tente de novo.",
+    working: "Fazendo a captura…",
+    pageWorking: "Lendo a página inteira…",
     permissionTitle: "Permitir a captura de tela",
     permissionLead:
       "Ative a gravação de tela para o Blinkling e a captura continua sozinha.",

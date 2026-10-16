@@ -88,6 +88,7 @@ api.shell?.({ type: "state" }).then(
   () => {},
 );
 const FAILURE_ID = "guide-failure";
+const CAPTURE_ID = "capture-status";
 export const conversation = mountConversation({
   session: sessionFromDesktopAPI(api),
   cardHost: document.querySelector("#card"),
@@ -109,7 +110,10 @@ export const conversation = mountConversation({
   },
 });
 const unMark = api.onMarkClick?.(({ ref }) => conversation.card.reveal(ref));
-const unCapture = api.onCapture?.((capture) => conversation.capture(capture));
+const unCapture = api.onCapture?.((capture) => {
+  conversation.store.dismiss(CAPTURE_ID);
+  conversation.capture(capture);
+});
 window.addEventListener("resize", () => placeOrigin());
 const unSurface = api.onSurface?.((event) => {
   if (event.type === "open") {
@@ -127,6 +131,21 @@ const unSurface = api.onSurface?.((event) => {
   }
 });
 const unEvent = api.onEvent((event) => {
+  if (event.type === "capture-status") {
+    // The auto explain states share this channel and are not for the card.
+    if (!["working", "error", "idle"].includes(event.state)) return;
+    conversation.store.dismiss(CAPTURE_ID);
+    if (event.message && ["working", "error"].includes(event.state))
+      conversation.store.fail({
+        id: CAPTURE_ID,
+        text: event.message,
+        actions:
+          event.state === "error"
+            ? [{ id: "capture", label: tr("guide-retry") }]
+            : [],
+      });
+    return;
+  }
   if (event.type !== "guide") return;
   conversation.store.dismiss(FAILURE_ID);
   // A failed guide is one more message in the card, with its own actions.
