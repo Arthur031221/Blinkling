@@ -110,6 +110,12 @@ const overlayShown = (app) =>
   );
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
+const cardShown = (app) =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().some(
+      (w) => w.isVisible() && w.webContents.getURL().includes("surface=card"),
+    ),
+  );
 const guideText = (app) =>
   cardPage(app)
     ?.locator(".gl-guide")
@@ -119,7 +125,7 @@ const guideText = (app) =>
 test("Guide: one click on the bubble says it is looking at once, draws the marks, walks the steps and ends cleanly, without the app standing still", async () => {
   test.setTimeout(150000);
   const { app, page } = await launch();
-  const rec = record("guide_auto");
+  const rec = record("guide_auto-321");
   try {
     const frame = await background(app);
     await fakeSession(app, 1200);
@@ -165,9 +171,15 @@ test("Guide: one click on the bubble says it is looking at once, draws the marks
     await expect(cardButton("guide-next")).toHaveCount(0);
     rec.frame("finished");
     // The card's close button ends the guide: the marks go and the card is plain again.
+    const ended = Date.now();
     await cardButton("guide-dismiss").click();
     await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(false);
-    await expect(cardPage(app).locator(".gl-guide")).toBeHidden();
+    // The card the guide opened has nothing left in it, so it goes with the marks.
+    await expect
+      .poll(() => cardShown(app), { intervals: [50], timeout: 2000 })
+      .toBe(false);
+    console.log(`guide: card closed ${Date.now() - ended} ms after the end`);
+    expect(Date.now() - ended).toBeLessThan(2000);
     rec.frame("dismissed");
     const seen = await stalled(app);
     console.log(

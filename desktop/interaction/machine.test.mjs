@@ -427,17 +427,59 @@ test("a notice opens the card unfocused and closes it by the reading rule", () =
   assert.equal(read().card, false, "closed by itself");
 });
 
-test("a guide holds the card open and releases it after the reading time", () => {
+test("a guide holds the card open for as long as it runs", () => {
   const { m, at, go, read } = rig();
   m.guide(true, at.t);
   m.take();
   go(120_000);
   assert.equal(read().card, true, "open for the whole guide");
   m.guide(false, at.t);
-  go(timing.readMin - 500);
+  assert.equal(read().card, false, "the empty card goes with the guide");
+});
+
+test("ending a guide closes the card at once when the guide opened it and nothing else is in it", () => {
+  const { m, at, go, read } = rig();
+  m.guide(true, at.t);
+  m.take();
+  go(30_000);
+  m.pointer(on, at.t, true);
+  m.guide(false, at.t);
+  assert.equal(read().card, false, "closed the moment the guide ends");
+  assert.ok(
+    m.take().some((e) => e.type === "close-chat" && e.why === "guide-end"),
+  );
+});
+
+test("ending a guide keeps the card for the reading time when it holds an answer, a draft or a failure", () => {
+  const answered = rig();
+  answered.m.guide(true, answered.at.t);
+  answered.m.answerStart(answered.at.t);
+  answered.m.answerEnd(40, answered.at.t);
+  answered.m.guide(false, answered.at.t);
+  assert.equal(answered.read().card, true, "an answer is still being read");
+
+  const drafting = rig();
+  drafting.m.guide(true, drafting.at.t);
+  drafting.m.composer({ text: true }, drafting.at.t);
+  drafting.m.guide(false, drafting.at.t);
+  assert.equal(drafting.read().card, true, "a draft stays");
+
+  const failed = rig();
+  failed.m.guide(true, failed.at.t);
+  failed.m.notice(failed.at.t);
+  failed.m.guide(false, failed.at.t);
+  failed.m.take();
+  assert.equal(failed.read().card, true, "the failure is read first");
+});
+
+test("a card that was already open before the guide keeps the reading time", () => {
+  const { m, at, read } = rig();
+  m.pin(true, at.t);
+  m.pin(false, at.t);
+  m.notice(at.t);
+  m.guide(true, at.t);
+  m.guide(false, at.t);
   assert.equal(read().card, true);
-  go(timing.readMin + timing.retreat);
-  assert.equal(read().card, false);
 });
 
 test("a pinned card outlives a notice and a guide", () => {

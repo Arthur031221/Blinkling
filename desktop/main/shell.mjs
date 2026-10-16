@@ -693,8 +693,9 @@ const send = (event) => {
     flow((m) => m.notice());
   else if (event.type === "guide")
     flow((m) => {
-      m.guide(event.phase !== "dismissed" && event.phase !== "error");
+      // The failure is noticed first, so the card it opened is read, not closed.
       if (event.phase === "error") m.notice();
+      m.guide(event.phase !== "dismissed" && event.phase !== "error");
     });
 };
 const fakeClaude =

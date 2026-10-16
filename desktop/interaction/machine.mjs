@@ -66,6 +66,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     showUntil: 0,
     grumbling: false,
     guiding: false,
+    guideOnly: false,
     viewer: 0,
     panels: 0,
     composer: { focus: false, text: false, ime: false },
@@ -341,6 +342,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     /** The question went out; the card opens by itself to show the answer. */
     answerStart(t = clock()) {
       s.streaming = true;
+      s.guideOnly = false;
       s.answered = false;
       s.readUntil = null;
       s.hoverMenu = false;
@@ -363,6 +365,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
      * remark): the card opens without taking the keyboard and goes by the
      * reading rule. */
     notice(t = clock()) {
+      s.guideOnly = false;
       if (s.surface !== "chat") openChat(t, "answer");
       s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
       s.lastEngaged = t;
@@ -372,10 +375,16 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       if (s.guiding === Boolean(on)) return;
       s.guiding = Boolean(on);
       if (on) {
+        // A card the guide opened has nothing in it once the steps are gone.
+        s.guideOnly = s.surface !== "chat";
         if (s.surface !== "chat") openChat(t, "answer");
         s.readUntil = null;
-      } else if (s.surface === "chat" && !s.pinned)
-        s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
+      } else if (s.surface === "chat" && !s.pinned) {
+        if (s.guideOnly && !s.streaming && !s.composer.text && !s.composer.ime)
+          closeChat(t, "guide-end");
+        else s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
+        s.guideOnly = false;
+      } else s.guideOnly = false;
       s.lastEngaged = t;
     },
     tick(t = clock()) {
