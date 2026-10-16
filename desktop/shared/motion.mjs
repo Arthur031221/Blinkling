@@ -31,8 +31,8 @@ export const timing = Object.freeze({
   edgeSpeed: 500,
   // The genie into Blink's mouth: long enough to read as being sucked in, and
   // the wait that lets Blink open its mouth before the picture starts to move.
-  genie: 970,
-  eatLead: 400,
+  genie: 600,
+  eatLead: 260,
   // A capture that takes longer than this says it has begun.
   captureSlow: 400,
   // Launch: the wait that lets the window draw once before Blink steps in.

@@ -149,3 +149,8 @@ test("no timing, easing or spring literal and no animated layout property outsid
   assert.ok(files > 60, `scanned only ${files} files`);
   assert.deepEqual(found, []);
 });
+
+test("the eat is quick: the picture is in the mouth within 0.9 s of the press, before the card", () => {
+  assert.ok(timing.eatLead + timing.genie <= 900);
+  assert.ok(timing.genie >= 400, "still long enough to read as sucked in");
+});

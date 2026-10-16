@@ -103,10 +103,15 @@ function scan(png) {
     minY = Infinity,
     maxX = -1,
     maxY = -1,
-    count = 0;
+    count = 0,
+    paper = 0;
   for (let y = 0; y < png.height; y++)
     for (let x = 0; x < png.width; x++) {
       const i = (y * png.width + x) * 4;
+      // The card's paper: near white and a whole area of it, never the thin
+      // text of the desktop fixture.
+      if (png.data[i] > 225 && png.data[i + 1] > 225 && png.data[i + 2] > 215)
+        paper++;
       const px = [png.data[i], png.data[i + 1], png.data[i + 2]];
       const k = QUARTERS.findIndex((q) => near(px, q.rgb));
       if (k < 0) continue;
@@ -122,6 +127,7 @@ function scan(png) {
   const centre = (f) => f.n && { x: f.sx / f.n, y: f.sy / f.n };
   return {
     count,
+    paper,
     box: count && { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
     centre: Object.fromEntries(found.map((f) => [f.name, centre(f)])),
     mean: count && {
@@ -144,7 +150,7 @@ async function eat(app, region, label, tiles = 0) {
     async ({ screen }, [png, region, tiles]) => {
       const d = screen.getPrimaryDisplay();
       const tile = (id) => ({
-        image: { id, mediaType: "image/png", data: png },
+        image: { id, name: `${id}.png`, mediaType: "image/png", data: png },
         display: d,
         region,
       });
@@ -224,10 +230,17 @@ for (const edge of ["bottom", "left", "right"])
         expect(
           Math.hypot(last.mean.x - mouth.x, last.mean.y - mouth.y),
         ).toBeLessThan(60);
+        // The card comes after the picture is in: no card paper while it flies,
+        // and the card is there once it has gone in (the box a capture opens).
+        const cardAt = scans.findIndex((s) => s.paper > 12000);
+        console.log(JSON.stringify({ flightEnd: end, cardAt, edge, label }));
+        expect(cardAt, "the card opens after the eat").toBeGreaterThan(end - 1);
         // Nothing of it is left once it has gone in.
-        expect(scans.slice(end + 1, end + 5).every((s) => s.count < 5)).toBe(
-          true,
-        );
+        expect(
+          scans
+            .slice(end + 1, Math.min(end + 5, cardAt))
+            .every((s) => s.count < 5),
+        ).toBe(true);
         // The neck of a genie swells a little as the leading end runs ahead; the
         // picture is never bigger than half as much again.
         const area = shown.map((s) => s.count);

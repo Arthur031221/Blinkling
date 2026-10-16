@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { timing } from "../shared/motion.mjs";
 import { createPickController } from "./controller.mjs";
 import { createPicker } from "./picker.mjs";
 import { createGrouper } from "./group.mjs";
@@ -213,7 +214,13 @@ test("the card opens only after the grab and the flight, so Blink has the pictur
   await controller.raise();
   await pickAt(controller, local(200, 280));
   await controller.drop("release");
-  assert.deepEqual(log.order, ["grab", "caught", "wait 400", "flight", "card"]);
+  assert.deepEqual(log.order, [
+    "grab",
+    "caught",
+    `wait ${timing.eatLead}`,
+    "flight",
+    "card",
+  ]);
 });
 
 test("text arrives as a text attachment, not a picture of text", async () => {
@@ -377,7 +384,12 @@ test("Blink is told the moment the flight lands, before the card opens", async (
     },
   });
   assert.equal(log.caught, 1);
-  assert.deepEqual(log.order, ["caught", "wait 400", "flight", "card"]);
+  assert.deepEqual(log.order, [
+    "caught",
+    `wait ${timing.eatLead}`,
+    "flight",
+    "card",
+  ]);
 });
 
 test("the key stays held after a capture: hovering and dragging keep working and each pick is announced", async () => {
