@@ -278,6 +278,11 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     close(t = clock()) {
       closeChat(t, "close");
     },
+    /** A bubble was used to take a picture: the menu has done its job and
+     * must not sit over the composer that opens with the picture. */
+    menuUsed(t = clock()) {
+      closeMenu(t, "action");
+    },
     pin(value, t = clock()) {
       s.pinned = Boolean(value);
       if (value) openChat(t, "pin");

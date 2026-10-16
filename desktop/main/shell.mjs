@@ -675,6 +675,7 @@ ipcMain.handle("blinkling:action", async (event, action) => {
     }
     return result;
   }
+  if (action === "capture") flow((m) => m.menuUsed());
   return dispatchAction(action, { display, windows: surfaces(), openComposer });
 });
 const send = (event) => {

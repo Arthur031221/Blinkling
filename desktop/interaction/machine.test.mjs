@@ -447,3 +447,26 @@ test("a pinned card outlives a notice and a guide", () => {
   go(120_000);
   assert.equal(read().card, true);
 });
+
+test("using the capture bubble closes the menu, hover or sticky, and nothing else", () => {
+  const hovered = rig();
+  hovered.m.pointer(on, hovered.at.t, true);
+  hovered.go(timing.menuRest + 32);
+  assert.equal(hovered.read().menu, true);
+  hovered.m.menuUsed(hovered.at.t);
+  assert.equal(hovered.read().menu, false);
+  assert.ok(types(hovered.m.take()).includes("close-menu"));
+
+  const sticky = rig();
+  sticky.m.pointer(on, sticky.at.t, true);
+  sticky.m.click(sticky.at.t);
+  sticky.m.click(sticky.at.t);
+  assert.equal(sticky.read().menu, true);
+  sticky.m.menuUsed(sticky.at.t);
+  assert.equal(sticky.read().menu, false);
+  assert.equal(sticky.read().card, false);
+
+  const bare = rig();
+  bare.m.menuUsed(bare.at.t);
+  assert.deepEqual(bare.m.take(), []);
+});
