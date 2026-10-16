@@ -134,6 +134,13 @@ test("owned sessions disable tools, inherited MCP and hooks and explicitly expla
     /never click, type, control another app, or edit files/,
   );
 });
+test("the system prompt sets no length limit and no per-sentence bubbles", () => {
+  const prompt =
+    launchArguments()[launchArguments().indexOf("--system-prompt") + 1];
+  assert.doesNotMatch(prompt, /concise|short|brief|sentence|bubble|at most/i);
+  assert.match(prompt, /as fully as the question needs/);
+  assert.match(prompt, /never click, type, control another app, or edit files/);
+});
 test("out of order responses correlate, rejection propagates, shutdown rejects pending", async () => {
   const sent = [];
   const rpc = new ControlRequests((e) => sent.push(e));
