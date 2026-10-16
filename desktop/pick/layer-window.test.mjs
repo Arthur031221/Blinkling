@@ -147,6 +147,7 @@ test("a flight runs click-through on the display of the first thumbnail and ends
   ]);
   const message = win.sent.at(-1)[1];
   assert.equal(message.channel, "flight");
+  assert.deepEqual(layers.flying(), [win], "kept over Blink while it flies");
   assert.deepEqual(
     message.value.to,
     { x: 1280, y: 400 },
@@ -157,6 +158,7 @@ test("a flight runs click-through on the display of the first thumbnail and ends
     message.value.token,
   );
   await flying;
+  assert.deepEqual(layers.flying(), []);
   assert.deepEqual(win.calls.at(-1), ["hide"]);
 });
 

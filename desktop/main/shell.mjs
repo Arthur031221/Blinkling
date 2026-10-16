@@ -1270,6 +1270,7 @@ const stopStacking = await keepAbove(() =>
     card: composer,
     blink,
     viewer: viewer.isOpen() ? viewer.test.win : null,
+    flight: pick.flying(),
   }),
 );
 /** Whether a screen point is on anything Blinkling draws and takes clicks on. */
@@ -1409,6 +1410,7 @@ if (process.env.BLINKLING_E2E === "1")
     pointer: cursor,
     cardBounds: () => cardAt(),
     attachCapture,
+    mouth: () => mouthPoint(),
     openComposer,
     visualMasks,
     capture: () => captureScreen(display, surfaces()),

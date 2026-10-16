@@ -5,6 +5,8 @@ import {
   pathAt,
   cubicBezier,
   genieColumns,
+  mouthClip,
+  COLUMNS,
   genieSize,
   startAngle,
   turnedSize,
@@ -149,4 +151,41 @@ test("no column is ever missing or not a number", () => {
     for (const c of genie(Math.min(1, p)))
       for (const v of [c.x, c.y, c.angle, c.height, c.length, c.alpha])
         assert.ok(Number.isFinite(v));
+});
+
+test("the picture is clipped at the mouth on the side it arrives from, so it disappears into it", () => {
+  const to = { x: 640, y: 700 };
+  assert.deepEqual(mouthClip({ x: 400, y: 300, width: 300, height: 200 }, to), {
+    side: "above",
+    y: 700,
+  });
+  assert.deepEqual(mouthClip({ x: 400, y: 760, width: 300, height: 200 }, to), {
+    side: "below",
+    y: 700,
+  });
+});
+test("the picture is cut into enough columns for smooth edges", () => {
+  assert.ok(COLUMNS >= 40);
+  const turned = { width: 360, height: 240 };
+  const path = flightPath({
+    from: { x: 300, y: 160, width: 360, height: 240 },
+    to: { x: 640, y: 700 },
+  });
+  assert.equal(genieColumns(path, turned, 0.4).length, COLUMNS);
+});
+
+test("columns overlap across the wedge a bend opens, so no seam shows between them", () => {
+  const turned = { width: 360, height: 240 };
+  const path = flightPath({
+    from: { x: 300, y: 160, width: 360, height: 240 },
+    to: { x: 640, y: 700 },
+  });
+  const columns = genieColumns(path, turned, 0.4);
+  columns.slice(0, -1).forEach((c, i) => {
+    const next = columns[i + 1];
+    const reach = Math.hypot(next.x - c.x, next.y - c.y);
+    const wedge =
+      (Math.abs(next.angle - c.angle) * Math.max(c.height, next.height)) / 2;
+    assert.ok(c.length >= reach + wedge, `column ${i}`);
+  });
 });

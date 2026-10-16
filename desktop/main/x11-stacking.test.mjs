@@ -45,3 +45,16 @@ test("while the image viewer is up it is the only window kept on top, so nothing
     ["overlay", "guides", "card", "blink"],
   );
 });
+test("a flying capture is stacked above Blink so it is seen entering the mouth", () => {
+  const w = Object.fromEntries(
+    ["overlay", "guides", "card", "blink"].map((name) => [name, { name }]),
+  );
+  const order = stackOrder({ ...w, flight: [{ name: "flight" }] }).map(
+    (x) => x.name,
+  );
+  assert.deepEqual(order, ["overlay", "guides", "card", "blink", "flight"]);
+  assert.deepEqual(
+    stackOrder({ ...w, flight: [] }).map((x) => x.name),
+    ["overlay", "guides", "card", "blink"],
+  );
+});

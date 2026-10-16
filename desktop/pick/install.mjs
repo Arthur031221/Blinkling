@@ -376,6 +376,7 @@ export async function installPick({
       guard = next;
     },
     /** The same pieces, for tests that drive the flow without native input. */
+    flying: () => layer.flying(),
     test: { keys, controller, layer, mini, grouper, once, miniWindow },
     dispose() {
       disposed = true;

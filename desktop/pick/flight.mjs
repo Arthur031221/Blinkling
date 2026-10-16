@@ -62,6 +62,16 @@ export const pathAt = ({ start, control, end }, q) => {
   };
 };
 
+/** Columns the picture is cut into: enough that the bending edges look smooth. */
+export const COLUMNS = 40;
+
+/** Which half of the screen the picture is drawn in, cut at the mouth: it comes
+ * from one side and is only visible on that side, so it goes into the mouth. */
+export function mouthClip(from, to) {
+  const middle = from.y + from.height / 2;
+  return { side: middle <= to.y ? "above" : "below", y: to.y };
+}
+
 /** A macOS genie: the picture is cut into columns across the way it travels, and
  * the end nearest the mouth is pulled in first. The columns behind trail along
  * the same curve, stretched so no gap shows, and every column narrows to a sliver
@@ -71,7 +81,7 @@ export const pathAt = ({ start, control, end }, q) => {
  * drawn from the source slice `[index * width, 0, width, turned.height]` into a
  * box `length` long and `height` high, centred on (x, y), rotated by `angle`.
  * Progress 0 is the picture at rest; 1 has every column at the mouth. */
-export function genieColumns(path, turned, p, { count = 16 } = {}) {
+export function genieColumns(path, turned, p, { count = COLUMNS } = {}) {
   const width = turned.width / count;
   const columns = Array.from({ length: count }, (_, index) => {
     const along = (index + 0.5) / count;
@@ -95,9 +105,14 @@ export function genieColumns(path, turned, p, { count = 16 } = {}) {
     const next = columns[Math.min(i + 1, count - 1)];
     const prev = columns[Math.max(i - 1, 0)];
     const gap = i < count - 1 ? [c, next] : [prev, c];
+    // A bend between neighbours opens a wedge on its outer side: reach across it.
+    const wedge =
+      (Math.abs(gap[1].angle - gap[0].angle) *
+        Math.max(gap[0].height, gap[1].height)) /
+      2;
     c.length = Math.max(
       width,
-      Math.hypot(gap[1].x - gap[0].x, gap[1].y - gap[0].y) + 1.5,
+      Math.hypot(gap[1].x - gap[0].x, gap[1].y - gap[0].y) + wedge + 1.5,
     );
   });
   return columns;

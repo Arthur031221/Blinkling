@@ -31,6 +31,7 @@ export function createLayers({
   setTimer = setTimeout,
   clearTimer = clearTimeout,
 }) {
+  const flying = new Set();
   const layers = new Map(); // display id -> { win, display, ready, queue, active }
   let current = null;
   let token = 0;
@@ -168,8 +169,10 @@ export function createLayers({
       const id = `flight-${++token}`;
       const claims = layer.claims ?? 0;
       return new Promise((resolve) => {
+        flying.add(layer.win);
         const finish = () => {
           clearTimer(timer);
+          flying.delete(layer.win);
           waiting.delete(id);
           // A pick that started while the thumbnails were still landing owns the
           // layer now; the flight's end must not hide it.
@@ -193,5 +196,7 @@ export function createLayers({
       layers.clear();
     },
     count: () => layers.size,
+    /** Layers with a capture in flight; the stacking poll keeps them over Blink. */
+    flying: () => [...flying].filter((w) => !w.isDestroyed()),
   };
 }

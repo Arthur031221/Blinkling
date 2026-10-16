@@ -13,9 +13,18 @@ export function mayRaise(w, appearing = false) {
 /** The image viewer is modal: while it is up it is the only window kept on
  * top, so the others stay where they were, beneath it. Raising them over it
  * on every poll made the pointer cross between windows without end. */
-export function stackOrder({ overlay, guides, card, blink, viewer }) {
+export function stackOrder({
+  overlay,
+  guides,
+  card,
+  blink,
+  viewer,
+  flight = [],
+}) {
   if (viewer) return [viewer];
-  return [overlay, guides, card, blink].filter(Boolean);
+  // A capture on its way into the mouth is drawn on the pick layer, which
+  // has to stay over Blink for the whole flight or the picture hides behind it.
+  return [overlay, guides, card, blink, ...flight].filter(Boolean);
 }
 export async function keepAbove(windows) {
   if (process.platform !== "linux" || !process.env.DISPLAY) return () => {};

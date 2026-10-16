@@ -11,6 +11,7 @@ import {
   cubicBezier,
   flightPath,
   genieColumns,
+  mouthClip,
   genieSize,
   startAngle,
   turnedSize,
@@ -510,6 +511,7 @@ function fly({ items: picked, to, token }) {
       decoded,
       turned: { width: sheet.width, height: sheet.height },
       path,
+      clip: mouthClip(bounds, target),
       delay: index * stagger,
       done: false,
     };
@@ -537,6 +539,18 @@ function fly({ items: picked, to, token }) {
       const finished = run >= 1;
       const p = finished ? 1 : ease(run);
       const columns = genieColumns(thing.path, thing.turned, p);
+      genie.save();
+      genie.beginPath();
+      if (thing.clip.side === "above")
+        genie.rect(0, 0, window.innerWidth, thing.clip.y);
+      else
+        genie.rect(
+          0,
+          thing.clip.y,
+          window.innerWidth,
+          window.innerHeight - thing.clip.y,
+        );
+      genie.clip();
       for (const c of columns) {
         if (c.alpha <= 0.01) continue;
         genie.save();
@@ -556,6 +570,7 @@ function fly({ items: picked, to, token }) {
         );
         genie.restore();
       }
+      genie.restore();
       if (index === 0) {
         // The log wants a box: where the picture is now, its middle and its mean
         // size, which moves smoothly even while the ends stretch apart.
