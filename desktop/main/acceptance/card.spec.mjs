@@ -54,7 +54,7 @@ async function tailAndBody(app, page) {
   };
 }
 
-test("the card's tail ends within 12 px of Blink's body at the height of its mouth, wherever Blink rests, and the card follows Blink", async () => {
+test("the card's tail ends within 12 px of Blink's body and within 5 px of the height of its mouth, wherever Blink rests, and the card follows Blink", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
   const rec = record("card_follow");
@@ -77,9 +77,9 @@ test("the card's tail ends within 12 px of Blink's body at the height of its mou
         tail.x < body.x ? body.x - tail.x : tail.x - (body.x + body.width);
       expect(gap, `${edge} ${ratio} gap`).toBeLessThanOrEqual(12);
       expect(gap, `${edge} ${ratio} gap`).toBeGreaterThanOrEqual(-2);
-      const mouthY = body.y + body.height * 0.5;
-      expect(Math.abs(tail.y - mouthY), `${edge} ${ratio} level`).toBeLessThan(
-        40,
+      const mouth = await app.evaluate(() => globalThis.blinklingTest.mouth());
+      expect(Math.abs(tail.y - mouth.y), `${edge} ${ratio} level`).toBeLessThan(
+        5,
       );
       await app.evaluate(() =>
         globalThis.blinklingTest.nBlinkMenuFaces.escapeKeys.press(),

@@ -15,8 +15,8 @@ export const anchorOf = ({ display, position, drag }) => {
   return { x: at.x + display.bounds.x, y: at.y + display.bounds.y };
 };
 
-/** Keeps the tail clear of the card's rounded corners. */
-export const TAIL_INSET = 36;
+/** Keeps the tail clear of the card's 20 px rounded corners and its own half base. */
+export const TAIL_INSET = 27;
 /**
  * The tail that points the card at Blink's mouth: which side of the card it
  * grows from and how far along that side, in px from the card's top left. Card

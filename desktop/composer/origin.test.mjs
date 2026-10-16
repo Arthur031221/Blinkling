@@ -76,10 +76,15 @@ test("the tail grows from the side of the card that faces the mouth and keeps of
     at: 200,
   });
   assert.deepEqual(tailOf(card, { x: 40, y: 350 }), { side: "left", at: 250 });
-  assert.deepEqual(tailOf(card, { x: 560, y: 90 }), { side: "right", at: 36 });
+  assert.deepEqual(tailOf(card, { x: 560, y: 90 }), { side: "right", at: 27 });
   assert.deepEqual(tailOf(card, { x: 560, y: 900 }), {
     side: "right",
-    at: 464,
+    at: 473,
+  });
+  // Within the 20 px corner and half the tail's base, the mouth is followed to the pixel.
+  assert.deepEqual(tailOf(card, { x: 560, y: 570 }), {
+    side: "right",
+    at: 470,
   });
   assert.deepEqual(tailOf(card, { x: 300, y: 40 }), { side: "top", at: 200 });
   assert.deepEqual(tailOf(card, { x: 300, y: 700 }), {
