@@ -74,6 +74,23 @@ test("clicking the same spot again grows one level: sentence, paragraph, section
   ]);
 });
 
+test("a paragraph the accessibility tree calls a paragraph is read like text: sentence, then its own words", async () => {
+  const elements = samplePage().map((e) =>
+    e.id === "para-1" ? { ...e, kind: "paragraph" } : e,
+  );
+  const p = make({ stub: { elements } });
+  const first = await p.click(inPara);
+  assert.equal(first.item.level, "sentence");
+  assert.equal(first.item.taken.text, "Blink looks at your screen.");
+  const second = await p.click(inPara);
+  assert.equal(second.item.level, "paragraph");
+  assert.equal(second.item.taken.kind, "text");
+  assert.equal(
+    second.item.taken.text,
+    "Blink looks at your screen. It never clicks anything.",
+  );
+});
+
 test("growing past the top stays on the page and says so", async () => {
   const p = make();
   for (let i = 0; i < 4; i++) await p.click(inPara);

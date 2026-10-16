@@ -196,6 +196,22 @@ test("the smallest element under the point wins", async () => {
   assert.equal((await locator.locate({ x: 10, y: 700 })).kind, "window");
 });
 
+test("a pointer on a comma or a space between links lands on the paragraph, not on the mark", async () => {
+  const ax = fake("ax", [
+    raw("0", null, "window", [0, 0, 1000, 800]),
+    raw("1", "0", "paragraph", [60, 60, 300, 40], {
+      text: "See the chart, the table and more.",
+    }),
+    raw("2", "1", "text", [200, 60, 11, 18], { text: "، " }),
+    raw("3", "1", "text", [220, 60, 60, 18], { text: "table" }),
+  ]);
+  const { locator } = make({ ax, connected: false });
+  const mark = await locator.locate({ x: 205, y: 70 });
+  assert.equal(mark.kind, "paragraph");
+  assert.match(mark.text, /chart/);
+  assert.equal((await locator.locate({ x: 230, y: 70 })).text, "table");
+});
+
 test("secure fields are never returned, nor their text", async () => {
   const ax = fake("ax", [
     raw("0", null, "window", [0, 0, 1000, 800]),

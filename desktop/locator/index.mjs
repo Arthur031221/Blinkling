@@ -267,10 +267,15 @@ export function createLocator({
 
   const copy = (element) => ({ ...element, bounds: { ...element.bounds } });
 
+  // A run of text with no letter or digit in it, such as a comma or a space
+  // between two links, says nothing: the paragraph around it is what is meant.
+  const isMark = (element) =>
+    element.kind === "text" && !/[\p{L}\p{N}]/u.test(element.text ?? "");
+
   function smallestAt(list, point) {
     let best = null;
     for (const element of list.elements) {
-      if (!contains(element.bounds, point)) continue;
+      if (!contains(element.bounds, point) || isMark(element)) continue;
       if (!best || area(element.bounds) <= area(best.bounds)) best = element;
     }
     return best;

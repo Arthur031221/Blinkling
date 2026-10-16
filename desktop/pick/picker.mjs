@@ -31,6 +31,13 @@ export function createPicker({ locator, guard, display }) {
         }
       : {};
 
+  // An accessibility tree names a block of running text a paragraph; the
+  // picker reads it like any other text, by sentence and then as a whole.
+  const asText = (el) =>
+    el?.kind === "paragraph" && String(el.text ?? "").trim()
+      ? { ...el, kind: "text" }
+      : el;
+
   async function chainOf(el) {
     const chain = [el];
     for (
@@ -43,6 +50,7 @@ export function createPicker({ locator, guard, display }) {
   }
 
   async function takenFromElement(el) {
+    el = asText(el);
     const common = {
       bounds: el.bounds,
       elementId: el.id,
@@ -189,7 +197,7 @@ export function createPicker({ locator, guard, display }) {
         ],
         selection,
       };
-    const el = await locator.locate(point);
+    const el = asText(await locator.locate(point));
     if (!el) {
       const w = await locator.windowAt?.(point);
       return {

@@ -54,12 +54,42 @@ def is_secure(node):
         return False
 
 
-def text_of(node):
+EMBEDDED = "\ufffc"
+EMBEDDED_DEPTH = 3
+
+
+def text_of(node, depth=0):
+    """The text of a node. Where a link or another inline object sits in it the
+    accessibility bus puts a placeholder; the object's own words stand there."""
     try:
         if node.get_text_iface() is None:
             return ""
         count = Atspi.Text.get_character_count(node)
-        return Atspi.Text.get_text(node, 0, min(count, MAX_TEXT)) or ""
+        text = Atspi.Text.get_text(node, 0, min(count, MAX_TEXT)) or ""
+    except Exception:
+        return ""
+    if EMBEDDED not in text or depth >= EMBEDDED_DEPTH:
+        return text.replace(EMBEDDED, "")
+    out = []
+    for offset, char in enumerate(text):
+        out.append(embedded_text(node, offset, depth) if char == EMBEDDED else char)
+        if sum(map(len, out)) >= MAX_TEXT:
+            break
+    return "".join(out)[:MAX_TEXT]
+
+
+def embedded_text(node, offset, depth):
+    """The words of the object a placeholder at this offset stands for."""
+    try:
+        if node.get_hypertext_iface() is None:
+            return ""
+        index = Atspi.Hypertext.get_link_index(node, offset)
+        if index < 0:
+            return ""
+        inner = Atspi.Hyperlink.get_object(Atspi.Hypertext.get_link(node, index), 0)
+        if inner is None or inner.get_role_name() in SECURE_ROLES:
+            return ""
+        return text_of(inner, depth + 1) or (inner.get_name() or "")
     except Exception:
         return ""
 
