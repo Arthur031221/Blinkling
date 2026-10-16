@@ -137,6 +137,18 @@ const tile = (red, green, blue) => {
     pixelHeight: 500,
   };
 };
+/** The browser is the window in front, so the menu's bubble asks for a page. */
+const browserInFront = (app) =>
+  app.evaluate(() => {
+    globalThis.blinklingTest.features.capture.list = async () => [
+      {
+        id: "browser",
+        bounds: { x: 80, y: 50, width: 900, height: 600 },
+        title: "A long page - Google Chrome",
+        app: "Google Chrome",
+      },
+    ];
+  });
 /** A browser extension that scrolls three tiles (or says it cannot), made
  * known to the real host the way the real one does it. */
 async function companion(app, { tiles = 3, refuse = false } = {}) {
@@ -193,17 +205,7 @@ async function companion(app, { tiles = 3, refuse = false } = {}) {
     body: JSON.stringify({ method: "companion", url, token }),
   });
   expect(answer.ok).toBe(true);
-  // The browser is the window in front, so the menu's bubble asks for a page.
-  await app.evaluate(() => {
-    globalThis.blinklingTest.features.capture.list = async () => [
-      {
-        id: "browser",
-        bounds: { x: 80, y: 50, width: 900, height: 600 },
-        title: "A long page - Google Chrome",
-        app: "Google Chrome",
-      },
-    ];
-  });
+  await browserInFront(app);
   return { calls, close: () => server.close() };
 }
 /** How long the main process was unable to run a timer, at worst. */
@@ -317,6 +319,46 @@ test("when the extension cannot scroll the page the visible part is taken instea
     await expect.poll(() => mini(app)).toBe(true);
     rec.frame("note");
     fake.close();
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
+
+test("with no extension connected at all the visible part is taken and the same one line says why", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("fullpage_noext");
+  try {
+    const frame = await background(app);
+    await browserInFront(app);
+    await place(app, "right", 0.5);
+    await page.waitForTimeout(800);
+    await watch(page);
+    await reveal(page);
+    await expect.poll(async () => (await read(app)).menu).toBe(true);
+    await clickBubble(app, page, frame);
+    await expect
+      .poll(async () => (await played(page)).includes("eat"), {
+        timeout: 8000,
+      })
+      .toBe(true);
+    await expect
+      .poll(() => miniPage(app)?.locator(".mini-entry-image").count(), {
+        timeout: 8000,
+      })
+      .toBe(1);
+    const note = miniPage(app).locator(".mini-notice");
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("整頁需要瀏覽器擴充功能");
+    const oneLine = await note.evaluate(
+      (el) =>
+        el.getBoundingClientRect().height <=
+        parseFloat(getComputedStyle(el).lineHeight) * 1.5,
+    );
+    expect(oneLine).toBe(true);
+    await expect.poll(() => mini(app)).toBe(true);
+    rec.frame("noext");
   } finally {
     await rec.stop();
     await app.close();

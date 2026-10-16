@@ -272,6 +272,15 @@ export class DesktopCaptureService {
                 },
                 source,
               };
+            // A browser in front with no helper: the screen is what it gets,
+            // and the box says in one line that the page needed the helper.
+            if (browserOf(front))
+              return {
+                ...capture,
+                kind: "screen",
+                source,
+                notice: "visible-part",
+              };
             return { ...capture, kind: "screen", source };
           }
           if (kind !== "capture") return { ...capture, kind: "screen", source };
