@@ -23,29 +23,21 @@ test("auto explain samples the native desktop, pauses for real input and submits
         stop: async () => {},
       });
     });
-    await blink.evaluate(() => window.blinkling.action("auto-explain"));
-    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
-    expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(0);
-    await new Promise((r) => setTimeout(r, 3100));
-    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
+    // The desktop is yellow when auto explain is turned on.
     await app.evaluate(() =>
       globalThis.b3Background.webContents.executeJavaScript(
         "document.body.style.background='#e9d67d'",
       ),
     );
+    await blink.evaluate(() => window.blinkling.action("auto-explain"));
+    // Turning it on asks at once, without waiting for a change.
     await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
-    expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(0);
-    // An actual native keystroke resets the OS idle clock; no screen turn follows.
-    native(30, 30, [97]);
-    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
-    expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(0);
-    await new Promise((r) => setTimeout(r, 3100));
-    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
-    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
-    expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(1);
+    await expect
+      .poll(() => app.evaluate(() => globalThis.b3AutoTurns.length))
+      .toBe(1);
     const turn = await app.evaluate(() => globalThis.b3AutoTurns[0]);
     expect(turn.source).toBe("auto-explain");
-    expect(turn.text).toContain("這是什麼");
+    expect(turn.text).toContain("Never click, type");
     expect(turn.text).not.toMatch(/最多|兩句|每句/);
     const bytes = Buffer.from(turn.attachments[0].data, "base64"),
       image = PNG.sync.read(bytes);
@@ -61,14 +53,29 @@ test("auto explain samples the native desktop, pauses for real input and submits
       ),
     ).toEqual([233, 214, 125]);
     await writeFile(`${reports}/auto-explain.png`, bytes);
+    // An unchanged screen asks nothing more.
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
+    await new Promise((r) => setTimeout(r, 3100));
+    await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
+    expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(1);
     await app.evaluate(() =>
       globalThis.b3Background.webContents.executeJavaScript(
         "document.body.style.background='#204080'",
       ),
     );
     await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
+    // An actual native keystroke resets the OS idle clock; no screen turn follows.
+    native(30, 30, [97]);
     await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
     expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(1);
+    // Once the change has held still and the 12 s cooldown has passed, it asks again.
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 3100));
+      await app.evaluate(() => globalThis.blinklingTest.features.auto.tick());
+    }
+    await expect
+      .poll(() => app.evaluate(() => globalThis.b3AutoTurns.length))
+      .toBe(2);
     await blink.evaluate(() => window.blinkling.action("auto-explain"));
     expect(
       await app.evaluate(() => globalThis.blinklingTest.features.auto.enabled),
