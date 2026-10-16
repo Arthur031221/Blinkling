@@ -88,3 +88,19 @@ test("the tail grows from the side of the card that faces the mouth and keeps of
   });
   assert.equal(tailOf(card, { x: 300, y: 300 }), null);
 });
+
+test("while Blink is carried the card grows from where Blink is held, not from where it rests", () => {
+  const d = display();
+  const position = resolvePosition(d, { edge: "right", ratio: 0.5 });
+  assert.deepEqual(
+    anchorOf({ display: d, position, drag: { x: 300, y: 200 } }),
+    {
+      x: 300,
+      y: 200,
+    },
+  );
+  assert.deepEqual(anchorOf({ display: d, position, drag: null }), {
+    x: position.reveal.x,
+    y: position.reveal.y,
+  });
+});

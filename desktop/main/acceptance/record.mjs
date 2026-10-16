@@ -17,7 +17,7 @@ const grab = (args) =>
 
 /** Starts an x11grab of the whole display. `frame(label)` saves a PNG now;
  * `stop()` ends the video and, for the after phase, writes the GIF. */
-export function record(id, { fps = 15 } = {}) {
+export function record(id, { fps = 15, suffix = "" } = {}) {
   mkdirSync(r3, { recursive: true });
   const work = join(tmpdir(), `r3-${id}-${phase}`);
   rmSync(work, { recursive: true, force: true });
@@ -71,7 +71,7 @@ export function record(id, { fps = 15 } = {}) {
       if (!existsSync(video)) return null;
       const gif = join(
         r3,
-        phase === "after" ? `${id}.gif` : `${id}-before.gif`,
+        phase === "after" ? `${id}${suffix}.gif` : `${id}-before.gif`,
       );
       const palette = join(work, "palette.png");
       const filter = "fps=12,scale=720:-1:flags=lanczos";

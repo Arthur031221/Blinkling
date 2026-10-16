@@ -10,10 +10,10 @@ export function growOrigin(card, anchor) {
 }
 
 /** Blink's anchor in screen coordinates, from the shell's state snapshot. */
-export const anchorOf = ({ display, position }) => ({
-  x: position.reveal.x + display.bounds.x,
-  y: position.reveal.y + display.bounds.y,
-});
+export const anchorOf = ({ display, position, drag }) => {
+  const at = drag ?? position.reveal;
+  return { x: at.x + display.bounds.x, y: at.y + display.bounds.y };
+};
 
 /** Keeps the tail clear of the card's rounded corners. */
 export const TAIL_INSET = 36;

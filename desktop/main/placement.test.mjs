@@ -12,6 +12,7 @@ import {
   MOUTH,
   mouthOf,
   MOUTH_DROP,
+  carriedPosition,
 } from "./placement.mjs";
 import { menuLayout, menuTransform } from "../menu/layout.mjs";
 const display = {
@@ -342,4 +343,44 @@ test("a nudge moves the card at most 120 px from where it opens and never off th
   assert.deepEqual(clampNudge({ x: NaN, y: 1 }), { x: 0, y: 0 });
   assert.deepEqual(clampNudge(undefined), { x: 0, y: 0 });
   assert.deepEqual(cardBounds(screen, p, { x: 0, y: 0 }), home);
+});
+
+test("a carried Blink brings its card along: the same offset and the tail on the mouth at every point of the drag", () => {
+  const rest = resolvePosition(display, { edge: "right", ratio: 0.8 });
+  const start = { x: rest.reveal.x, y: rest.reveal.y };
+  const first = cardBounds(display, carriedPosition(rest, start));
+  // At the start of the carry nothing has moved.
+  assert.deepEqual(first, cardBounds(display, rest));
+  const firstMouth = mouthOf(start);
+  for (const [dx, dy] of [
+    [-60, 20],
+    [-300, -40],
+    [-420, 110],
+    [-200, -70],
+  ]) {
+    const at = { x: start.x + dx, y: start.y + dy };
+    const card = cardBounds(display, carriedPosition(rest, at));
+    const mouth = mouthOf(at);
+    assert.equal(card.x - first.x, dx, `${dx},${dy} sideways`);
+    assert.equal(card.y - first.y, dy, `${dx},${dy} upwards`);
+    assert.equal(mouth.x - card.x, firstMouth.x - first.x);
+    assert.equal(mouth.y - card.y, firstMouth.y - first.y);
+  }
+});
+
+test("a carried Blink keeps its resting edge, so the card does not jump to the nearest edge mid carry", () => {
+  const rest = resolvePosition(display, { edge: "right", ratio: 0.5 });
+  const carried = carriedPosition(rest, { x: 40, y: 400 });
+  assert.equal(carried.edge, "right");
+  assert.deepEqual(carried.reveal, { x: 40, y: 400 });
+  assert.deepEqual(carried.peek, { x: 40, y: 400 });
+});
+
+test("where the card cannot follow any further it stays on the screen and its tail still reaches the mouth", () => {
+  const rest = resolvePosition(display, { edge: "right", ratio: 0.8 });
+  const at = { x: rest.reveal.x - 300, y: 150 };
+  const card = cardBounds(display, carriedPosition(rest, at));
+  const mouth = mouthOf(at);
+  assert.ok(card.y >= display.workArea.y);
+  assert.ok(mouth.y >= card.y - 8 && mouth.y <= card.y + card.height + 8);
 });

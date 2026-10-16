@@ -85,6 +85,13 @@ export function resolvePosition(display, saved) {
     : { x, y: clamp(y, a.y + 150, a.y + a.height - 18) };
   return { ...p, peek, reveal, area: a };
 }
+/** Blink held in the air at `point` (display coordinates): it keeps the edge it
+ * came from, so its card stays on the same side of it and moves with it. */
+export const carriedPosition = (position, point) => ({
+  ...position,
+  peek: { x: point.x, y: point.y },
+  reveal: { x: point.x, y: point.y },
+});
 export function reconcileDisplay(displays, id) {
   return displays.find((d) => String(d.id) === String(id)) ?? displays[0];
 }

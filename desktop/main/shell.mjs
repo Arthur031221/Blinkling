@@ -38,6 +38,7 @@ import {
   cardBounds,
   clampNudge,
   mouthOf,
+  carriedPosition,
 } from "./placement.mjs";
 import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
@@ -221,8 +222,17 @@ const surfaces = () => [
   ...windows(),
   ...extraWindows.filter((w) => !w.isDestroyed()),
 ];
+/** Where Blink is now: at rest on its edge, or held in the air by the reader,
+ * and the card, its tail and the grow origin go with it either way. */
+const shown = () =>
+  drag?.active
+    ? carriedPosition(position, {
+        x: drag.anchor.x - display.bounds.x,
+        y: drag.anchor.y - display.bounds.y,
+      })
+    : position;
 /** The card's place: beside Blink, moved by what the reader nudged on this edge. */
-const cardAt = (at = position) =>
+const cardAt = (at = shown()) =>
   cardBounds(display, at, store.nudge(`card:${at.edge}`));
 const snapshot = () => ({
   display: {
@@ -232,7 +242,7 @@ const snapshot = () => ({
     scaleFactor: display.scaleFactor,
   },
   position,
-  mouth: mouthOf(position.reveal),
+  mouth: mouthOf(shown().reveal),
   nudge: store.nudge(`card:${position.edge}`),
   drag: drag?.active
     ? {
@@ -541,7 +551,7 @@ function useDisplay(next) {
 let placedAt = "";
 // The quick box goes with Blink too; it exists once the pick feature is up.
 let followBlink = () => {};
-function placeCard(at = position) {
+function placeCard(at = shown()) {
   const bounds = cardAt(at);
   const key = JSON.stringify(bounds);
   if (key === placedAt) return;
@@ -784,8 +794,8 @@ const nudges = {
   },
 };
 const blinkPoint = () => ({
-  x: position.reveal.x + display.bounds.x,
-  y: position.reveal.y + display.bounds.y,
+  x: shown().reveal.x + display.bounds.x,
+  y: shown().reveal.y + display.bounds.y,
 });
 const mouthPoint = () => mouthOf(blinkPoint());
 /** While the pick layer is up Blink's eyes follow the cursor. */
@@ -1349,7 +1359,7 @@ const poll = setInterval(() => {
       y: drag.origin.y + p.y - drag.start.y,
     };
     if (drag.active) {
-      placeCard(resolvePosition(display, snapPosition(display, drag.anchor)));
+      placeCard();
       followBlink(drag.anchor);
     }
     broadcast();
