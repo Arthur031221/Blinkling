@@ -17,6 +17,7 @@ import { MAX_STEPS } from "../overlay/schema.mjs";
 import { createPointing } from "../pointing/index.mjs";
 import { StalenessWatch } from "../overlay/staleness.mjs";
 import { maskBitmap } from "../overlay/change.mjs";
+import { middle, sample } from "./sample.mjs";
 import { AutoWatch } from "../autowatch/index.mjs";
 export const featureActions = new Set([
   "capture",
@@ -95,12 +96,9 @@ export function installCaptureGuide({
     windows,
     masks,
     decode: (data, size) =>
-      nativeImage
-        .createFromBuffer(Buffer.from(data, "base64"))
-        .resize(size)
-        .toBitmap(),
+      sample(nativeImage.createFromBuffer(Buffer.from(data, "base64")), size),
     grab: async (display, size) =>
-      (await screenImage(display, size)).resize(size).toBitmap(),
+      sample(await screenImage(display, middle(size)), size),
     onError: () => overlay.dismiss("capture-unavailable"),
   });
   let auto;

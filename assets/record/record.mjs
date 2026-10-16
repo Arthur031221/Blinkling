@@ -38,7 +38,14 @@ async function chipPoint(app, text) {
   throw new Error(`no ${text} button`);
 }
 
-const PAGE = "https://arxiv.org/abs/2501.12948";
+// A paper, a page in Arabic, and a page made hard to operate on purpose (the
+// W3C's "before" demonstration site).
+const PAGES = {
+  papers: "https://arxiv.org/abs/2501.12948",
+  arabic: "https://ar.wikipedia.org/wiki/ذكاء_اصطناعي",
+  hard: "https://www.w3.org/WAI/demos/bad/before/home.html",
+};
+const PAGE = PAGES[scene] ?? PAGES.papers;
 
 const home = mkdtempSync(join(tmpdir(), "blinkling-rec-"));
 // A neutral working folder: the session Blink starts inherits it, and the
@@ -54,6 +61,11 @@ const app = await electron.launch({
     BLINKLING_REMOTE: "0",
   },
 });
+// What the app says while it runs is kept beside the film, for finding out why
+// a take went wrong.
+const appLog = [];
+for (const stream of [app.process().stdout, app.process().stderr])
+  stream?.on("data", (chunk) => appLog.push(String(chunk)));
 await poll(
   () => app.evaluate(() => Boolean(globalThis.blinklingTest?.snapshot)),
   30000,
@@ -67,12 +79,19 @@ const browser = await chromium.launch({
     "--start-maximized",
     "--force-renderer-accessibility",
     "--lang=en-US",
+    "--disable-features=Translate,TranslateUI",
   ],
 });
 const context = await browser.newContext({ viewport: null, locale: "en-US" });
 const page = await context.newPage();
 await page.goto(PAGE, { waitUntil: "domcontentloaded" });
 await wait(3000);
+if (scene === "arabic") {
+  // Chrome offers to translate a page in another language; the recording shows
+  // Blink doing that, so the offer is closed before the film starts.
+  input([["move", 1200, 104], ["press"], ["release"], ["move", 640, 700]]);
+  await wait(800);
+}
 
 const ffmpeg = spawn(
   "ffmpeg",
@@ -105,7 +124,107 @@ const ffmpeg = spawn(
 await wait(1000);
 mark("start");
 
+/** Where a paragraph of the page is on the screen: its middle, inside the part
+ * that is visible. */
+async function paragraphPoint(selector) {
+  return page.evaluate((selector) => {
+    const chrome = window.outerHeight - window.innerHeight;
+    const node = [...document.querySelectorAll(selector)].find((p) => {
+      const r = p.getBoundingClientRect();
+      return (
+        p.textContent.trim().length > 120 &&
+        r.top > 40 &&
+        r.bottom < innerHeight - 40 &&
+        r.width > 300
+      );
+    });
+    if (!node) return null;
+    const r = node.getBoundingClientRect();
+    return {
+      x: Math.round(window.screenX + r.right - Math.min(r.width / 2, 200)),
+      y: Math.round(
+        window.screenY + chrome + r.top + Math.min(r.height / 2, 40),
+      ),
+    };
+  }, selector);
+}
+/** Screen position of an element in Blink's own window. */
+async function blinkPoint(selector) {
+  for (const w of app.windows()) {
+    const at = await w
+      .evaluate((selector) => {
+        const node = document.querySelector(selector);
+        if (!node || !window.desktop) return null;
+        const r = node.getBoundingClientRect();
+        return {
+          x: Math.round(r.x + r.width / 2),
+          y: Math.round(r.y + r.height / 2),
+        };
+      }, selector)
+      .catch(() => null);
+    if (at) return at;
+  }
+  return null;
+}
+
 const scenes = {
+  async papers() {
+    return this.pick();
+  },
+  async arabic() {
+    await page.mouse.wheel(0, 300);
+    await wait(1500);
+    const at = await paragraphPoint("#mw-content-text p");
+    if (!at) throw new Error("no paragraph on the Arabic page");
+    input([["move", at.x - 30, at.y - 20]]);
+    await wait(1200);
+    mark("ctrl-down");
+    input([["down", "ctrl"]]);
+    await wait(600);
+    input([["move", at.x, at.y]]);
+    await wait(1200);
+    mark("click");
+    input([["press"], ["release"]]);
+    await wait(600);
+    input([["up", "ctrl"]]);
+    await wait(4000);
+    mark("composer");
+    // The chip would send one word and leave the language to the model, so the
+    // request is typed out in full.
+    input(
+      [..."translate to english"].flatMap((c) => [
+        ["key", c === " " ? "space" : c],
+        ["wait", 70],
+      ]),
+    );
+    await wait(600);
+    mark("ask");
+    input([["key", "enter"]]);
+    await wait(14000);
+    mark("answer");
+    await wait(3000);
+  },
+  async hard() {
+    const body = await blinkPoint(".blink-body");
+    if (!body) throw new Error("no Blink");
+    input([["move", 640, 400]]);
+    await wait(1200);
+    mark("blink");
+    input([["move", body.x + 60, body.y]]);
+    await wait(1800);
+    input([["move", body.x, body.y]]);
+    await wait(1800);
+    mark("menu");
+    const guide = await blinkPoint('[data-action="guide"]');
+    if (!guide) throw new Error("no guide bubble");
+    input([["move", guide.x, guide.y]]);
+    await wait(900);
+    mark("guide");
+    input([["press"], ["release"]]);
+    await wait(26000);
+    mark("answer");
+    await wait(3000);
+  },
   async pick() {
     input([["move", 500, 560]]);
     await wait(1200);
@@ -126,7 +245,7 @@ const scenes = {
     await wait(800);
     mark("ask");
     input([["press"], ["release"]]);
-    await wait(32000);
+    await wait(14000);
     mark("answer");
     await wait(3000);
   },
@@ -184,5 +303,6 @@ writeFileSync(
   join(out, `${scene}.events.json`),
   JSON.stringify(events, null, 2),
 );
+writeFileSync(join(out, `${scene}.app.log`), appLog.join(""));
 await browser.close();
 await app.close();
