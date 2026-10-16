@@ -46,3 +46,39 @@ test("after a quiet minute Blink comes out, stands and grumbles in a bubble, the
     await app.close();
   }
 });
+
+test("left alone for a real minute, with the connection up and nothing running, Blink comes out and grumbles by itself", async () => {
+  test.setTimeout(180000);
+  const { app, page } = await launch();
+  const rec = record("grumble_idle", { suffix: "-321", fps: 4 });
+  try {
+    await background(app);
+    await app.evaluate(() =>
+      globalThis.blinklingTest.send({ type: "status", state: "connected" }),
+    );
+    move(20, 20);
+    await page.waitForTimeout(1500);
+    rec.frame("start");
+    const bubble = page.locator("#grumble");
+    await expect(bubble).toHaveAttribute("data-shown", "false");
+    // No shortcut: the quiet minute is waited out.
+    const began = Date.now();
+    await expect(bubble).toHaveAttribute("data-shown", "true", {
+      timeout: 90000,
+    });
+    expect(Date.now() - began).toBeGreaterThan(50_000);
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
+    await page.waitForTimeout(1500);
+    rec.frame("grumbling");
+    await expect(bubble).toHaveAttribute("data-shown", "false", {
+      timeout: 15000,
+    });
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek", {
+      timeout: 15000,
+    });
+    rec.frame("gone");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

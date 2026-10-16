@@ -73,19 +73,60 @@ test("Blink appears with a motion when it launches", async () => {
   }
 });
 
-test("Blink leaves with a motion when the app quits", async () => {
+test("Blink leaves with a motion when the app quits: it waves, jumps out of the picture and only then is the app gone", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch({ env: { BLINKLING_MOTIONS: "1" } });
-  const rec = record("motions_leave");
+  const rec = record("motions_leave", { suffix: "-321" });
   try {
     await background(app);
     await watch(page);
     await page.waitForTimeout(5500);
-    rec.frame("before");
+    const blink = await app.evaluate(() =>
+      globalThis.blinklingTest.blink.getBounds(),
+    );
+    const box = await page.evaluate(() => {
+      const r = document.querySelector(".blink-body").getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    });
+    // Blink and the room it jumps through, on the screen.
+    const crop = `${Math.round(box.width + 240)}:${Math.round(box.height + 300)}:${Math.max(0, Math.round(blink.x + box.x - 120))}:${Math.max(0, Math.round(blink.y + box.y - 200))}`;
+    const first = rec.frame("before", crop);
+    const gone = new Promise((done) => app.process().on("exit", done));
+    const quitAt = Date.now();
     void app.evaluate(({ app }) => app.quit());
     await sees(page, "leave", 3000);
-    await page.waitForTimeout(900);
-    rec.frame("after");
+    const seen = [];
+    for (const label of ["wave", "crouch", "jump", "out"]) {
+      await page.waitForTimeout(550).catch(() => {});
+      seen.push(rec.frame(label, crop));
+    }
+    await gone;
+    // The motion is played in full before the app is gone.
+    expect(Date.now() - quitAt).toBeGreaterThan(2000);
+    // Blink is drawn in the first frames and is out of the picture in the last.
+    const { PNG } = await import("pngjs");
+    const { readFileSync } = await import("node:fs");
+    const read = (f) => PNG.sync.read(readFileSync(f));
+    const differs = (a, b) => {
+      let n = 0;
+      for (let i = 0; i < a.data.length; i += 4)
+        if (
+          Math.abs(a.data[i] - b.data[i]) +
+            Math.abs(a.data[i + 1] - b.data[i + 1]) +
+            Math.abs(a.data[i + 2] - b.data[i + 2]) >
+          60
+        )
+          n++;
+      return n;
+    };
+    const frames = [first, ...seen].map(read);
+    const last = frames.at(-1);
+    expect(
+      differs(frames[0], last),
+      "Blink is gone at the end",
+    ).toBeGreaterThan(300);
+    // Every frame while it waves and jumps is a different picture.
+    expect(differs(frames[1], frames[3]), "it moves").toBeGreaterThan(150);
   } finally {
     await rec.stop();
     await app.close().catch(() => {});
