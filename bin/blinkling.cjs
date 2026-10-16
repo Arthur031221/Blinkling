@@ -43505,6 +43505,80 @@ var SlidingWindowLimiter = class {
   }
 };
 
+// bridge/src/sync-channel.ts
+var SYNC_INSTRUCTIONS = 'Events from the blinkling channel mirror a chat held in Blink, the desktop companion. role="user" is what the person typed there, role="assistant" is the answer Blink gave. They are informational: do not reply to them, do not run tools because of them, and end the turn without text. Use them only as context if the person asks about that chat.';
+var SYNC_COMMAND = "claude --dangerously-load-development-channels plugin:blinkling@blinkling";
+var SYNC_NOTE = `Sync line: what you type and read in this terminal already appears in Blink. To see Blink's chat here too, start Claude Code with: ${SYNC_COMMAND}`;
+var LIMIT = 8e3;
+var RETRY_MS = 4e3;
+function textOf(content) {
+  return (content ?? []).map(
+    (block) => block.type === "text" ? block.text ?? "" : block.type === "image" ? "[picture]" : ""
+  ).filter(Boolean).join("\n").trim().slice(0, LIMIT);
+}
+function mirrorLines() {
+  const answers = /* @__PURE__ */ new Map();
+  const sent = /* @__PURE__ */ new Set();
+  return (event) => {
+    if (event.type === "message" && event.id && event.origin !== "terminal") {
+      const text2 = textOf(event.content);
+      if (!text2) return [];
+      if (event.role === "assistant") {
+        answers.set(event.id, text2);
+        return [];
+      }
+      if (event.role === "user" && !sent.has(event.id)) {
+        sent.add(event.id);
+        return [{ id: event.id, role: "user", text: text2 }];
+      }
+      return [];
+    }
+    if (event.type === "done") {
+      const lines = [...answers].map(([id, text2]) => ({
+        id,
+        role: "assistant",
+        text: text2
+      }));
+      answers.clear();
+      return lines;
+    }
+    return [];
+  };
+}
+function startSyncChannel(server, { retryMs = RETRY_MS, discover = discoverDesktop } = {}) {
+  const stop = new AbortController();
+  void (async () => {
+    while (!stop.signal.aborted) {
+      try {
+        const found = await discover(void 0, { timeoutMs: 1500 });
+        if (found) {
+          const lines = mirrorLines();
+          await found.client.events(
+            (frame) => {
+              for (const line of lines(frame.event))
+                void server.server.notification({
+                  method: "notifications/claude/channel",
+                  params: {
+                    content: line.text,
+                    meta: {
+                      role: line.role,
+                      chat_id: line.id.replace(/\W/g, "_")
+                    }
+                  }
+                }).catch(() => void 0);
+            },
+            stop.signal,
+            Number.MAX_SAFE_INTEGER
+          );
+        }
+      } catch {
+      }
+      await new Promise((r) => setTimeout(r, retryMs).unref?.());
+    }
+  })();
+  return () => stop.abort();
+}
+
 // bridge/src/server.ts
 var targetSchema = external_exports.enum(["screen", "window", "region", "last_selection"]);
 async function createBlinkling(options = {}) {
@@ -43519,7 +43593,14 @@ async function createBlinkling(options = {}) {
   const helper = await new HelperServer({
     onClear: () => onClear()
   }).start();
-  const server = new McpServer({ name: "blinkling", version: "3.1.0" });
+  const server = new McpServer(
+    { name: "blinkling", version: "3.1.0" },
+    {
+      capabilities: { experimental: { "claude/channel": {} } },
+      instructions: SYNC_INSTRUCTIONS
+    }
+  );
+  let stopSync;
   let watchTimer;
   let watching = false, inCapture = false;
   const watchLimiter = new SlidingWindowLimiter(WATCH_LIMIT_PER_MINUTE, 6e4);
@@ -43840,7 +43921,8 @@ async function createBlinkling(options = {}) {
         await launchDesktop();
         return {
           content: [
-            { type: "text", text: "Blink is ready on your desktop." }
+            { type: "text", text: "Blink is ready on your desktop." },
+            { type: "text", text: SYNC_NOTE }
           ]
         };
       } catch (error43) {
@@ -43908,8 +43990,10 @@ async function createBlinkling(options = {}) {
     helper,
     async connect() {
       await server.connect(new StdioServerTransport());
+      stopSync = startSyncChannel(server);
     },
     async close() {
+      stopSync?.();
       await stopCaptures();
       await helper.close();
       history.clear();

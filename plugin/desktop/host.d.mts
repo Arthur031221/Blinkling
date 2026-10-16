@@ -59,6 +59,11 @@ export function startDesktopHost(options?: {
   session?: CompanionSession;
   onOpen?: () => unknown;
   onShutdown?: () => unknown;
+  onMirror?: (line: {
+    role: "user" | "assistant";
+    text: string;
+    id: string;
+  }) => unknown;
 }): Promise<{
   address: DesktopEndpoint;
   attachSession: (session: CompanionSession | undefined) => void;

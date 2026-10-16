@@ -38,9 +38,9 @@ export const joinSession = (directory, id, now = Date.now()) =>
 export const leaveSession = (directory, id, now = Date.now()) =>
   update(directory, now, (list) => list.filter((e) => e.id !== id));
 
-/** The session id Claude Code sends to a hook on stdin; empty when there is none. */
-export async function hookSessionId(stream = process.stdin, waitMs = 1000) {
-  if (stream.isTTY) return "";
+/** The JSON Claude Code sends to a hook on stdin; empty when there is none. */
+export async function hookPayload(stream = process.stdin, waitMs = 1000) {
+  if (stream.isTTY) return {};
   let text = "";
   const done = new Promise((resolve) => {
     stream.setEncoding("utf8");
@@ -56,11 +56,17 @@ export async function hookSessionId(stream = process.stdin, waitMs = 1000) {
   clearTimeout(timer);
   stream.destroy?.();
   try {
-    const id = JSON.parse(text).session_id;
-    return typeof id === "string" ? id : "";
+    const value = JSON.parse(text);
+    return value && typeof value === "object" ? value : {};
   } catch {
-    return "";
+    return {};
   }
+}
+
+/** The session id in the hook payload; empty when there is none. */
+export async function hookSessionId(stream = process.stdin, waitMs = 1000) {
+  const id = (await hookPayload(stream, waitMs)).session_id;
+  return typeof id === "string" ? id : "";
 }
 
 /** Ends one Claude Code session. The last one to leave quits Blink, and the

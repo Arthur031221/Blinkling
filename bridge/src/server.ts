@@ -18,6 +18,11 @@ import { normalizePng } from "./png.js";
 import { HelperServer } from "./helper-server.js";
 import { SlidingWindowLimiter } from "./limiter.js";
 import { cancelled } from "./errors.js";
+import {
+  SYNC_INSTRUCTIONS,
+  SYNC_NOTE,
+  startSyncChannel,
+} from "./sync-channel.js";
 
 type ServerOptions = {
   adapter?: CaptureAdapter;
@@ -37,7 +42,14 @@ export async function createBlinkling(options: ServerOptions = {}) {
   const helper = await new HelperServer({
     onClear: () => onClear(),
   }).start();
-  const server = new McpServer({ name: "blinkling", version: "3.1.0" });
+  const server = new McpServer(
+    { name: "blinkling", version: "3.1.0" },
+    {
+      capabilities: { experimental: { "claude/channel": {} } },
+      instructions: SYNC_INSTRUCTIONS,
+    },
+  );
+  let stopSync: (() => void) | undefined;
   let watchTimer: NodeJS.Timeout | undefined;
   let watching = false,
     inCapture = false;
@@ -397,6 +409,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
         return {
           content: [
             { type: "text" as const, text: "Blink is ready on your desktop." },
+            { type: "text" as const, text: SYNC_NOTE },
           ],
         };
       } catch (error) {
@@ -468,8 +481,10 @@ export async function createBlinkling(options: ServerOptions = {}) {
     helper,
     async connect() {
       await server.connect(new StdioServerTransport());
+      stopSync = startSyncChannel(server);
     },
     async close() {
+      stopSync?.();
       await stopCaptures();
       await helper.close();
       history.clear();

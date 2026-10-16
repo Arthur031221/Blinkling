@@ -97,6 +97,9 @@ function validateTiles(value) {
     page,
   };
 }
+/** The most a mirrored line may carry. */
+export const MIRROR_LIMIT = 20_000;
+
 /** Main-process-only adapter. The shell supplies its one durable SessionBridge.
  * No credentials, file APIs or renderer access are exposed through this transport.
  */
@@ -104,6 +107,7 @@ export async function startDesktopHost({
   session,
   onOpen = () => {},
   onShutdown = () => {},
+  onMirror = () => {},
   descriptor = endpointPath(),
   directory = runtimeDirectory(),
   version = "3.1.0",
@@ -200,6 +204,22 @@ export async function startDesktopHost({
         case "reconnect":
           json(res, 200, { ok: true });
           return;
+        case "mirror": {
+          // A line typed or answered in the terminal, to show in Blink's chat.
+          const { role, text, id } = message;
+          if (
+            (role !== "user" && role !== "assistant") ||
+            typeof text !== "string" ||
+            !text.trim() ||
+            text.length > MIRROR_LIMIT ||
+            typeof id !== "string" ||
+            !/^[\w.:-]{1,160}$/.test(id)
+          )
+            throw new Error("Invalid mirrored line");
+          onMirror({ role, text, id });
+          json(res, 200, { ok: true });
+          return;
+        }
         case "shutdown":
           // A deliberate quit also switches off the "keep Blink running"
           // marker; only a crash or restart should make callers wait for a return.

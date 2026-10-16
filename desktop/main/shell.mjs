@@ -968,6 +968,16 @@ const companionHost = await startDesktopHost({
   session,
   onOpen: () => blink.showInactive(),
   onShutdown: () => app.quit(),
+  // A line from the terminal session is shown in the chat and not kept in the
+  // owned session's history; `origin` keeps it from being sent back.
+  onMirror: ({ role, text, id }) =>
+    session.emit({
+      type: "message",
+      id: `terminal-${id}`,
+      role,
+      origin: "terminal",
+      content: [{ type: "text", text }],
+    }),
 });
 globalThis.blinklingCompanion = companionHost;
 // Opening Blink again while it runs brings it forward instead of doing nothing.
