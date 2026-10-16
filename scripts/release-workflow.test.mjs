@@ -103,6 +103,14 @@ describe("the release workflow", () => {
     expect(manifestJob).toContain("desktop/distribution/bundled.mjs");
   });
 
+  it("makes the pin commit as Arthur031221, with the private noreply address, not as a bot", () => {
+    expect(release).toContain('git config user.name "Arthur031221"');
+    expect(release).toContain(
+      'git config user.email "124417490+Arthur031221@users.noreply.github.com"',
+    );
+    expect(release).not.toMatch(/github-actions\[bot\]/);
+  });
+
   it("takes the release notes from docs/releases", () => {
     expect(release).toContain("docs/releases/${tag}.md");
   });

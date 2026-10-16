@@ -152,8 +152,8 @@ jobs:
         run: |
           cp release/desktop-assets/manifest.json plugin/desktop/manifest.json
           npm run build:extension && node scripts/build-plugin.mjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Arthur031221"
+          git config user.email "124417490+Arthur031221@users.noreply.github.com"
           git add -A bin plugin/desktop/manifest.json
           git commit -m "Pin the desktop builds for v${{ inputs.version }}"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
