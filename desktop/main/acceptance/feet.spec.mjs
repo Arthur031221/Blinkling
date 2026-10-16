@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { launch, move } from "./support.mjs";
+import { launch, move, native, bodyPoint } from "./support.mjs";
 import { background, reveal } from "./helpers.mjs";
 import { record } from "./record.mjs";
 
@@ -30,9 +30,9 @@ const watch = (page, ms) =>
           seen.push({
             angle: turn ? Number(turn[1]) : 0,
             clip: !!document.querySelector('#blink svg clipPath[id^="fcb"]'),
-            shoes: document.querySelectorAll(
-              "#blink svg .blink-shoe, #blink svg [data-leg]",
-            ).length,
+            // A shoe is a rounded rectangle in the shoe colour (rig.mjs).
+            shoes: document.querySelectorAll('#blink svg rect[fill="#121614"]')
+              .length,
           });
           if (performance.now() < end) requestAnimationFrame(step);
           else done(seen);
@@ -64,6 +64,11 @@ for (const edge of ["left", "right"])
       expect(early.length, "the turn was sampled").toBeGreaterThan(2);
       for (const s of early)
         expect(s.clip, `no clip at ${s.angle} degrees`).toBe(false);
+      // Both legs are drawn in every sampled frame of the turn.
+      const legs = out.at(-1).shoes;
+      expect(legs, "legs in the upright pose").toBeGreaterThanOrEqual(2);
+      for (const s of early)
+        expect(s.shoes, `legs at ${s.angle} degrees`).toBe(legs);
       // Out to peek: the pointer leaves and Blink retreats.
       move(640, 700);
       const back = await watch(page, 2600);
@@ -71,10 +76,52 @@ for (const edge of ["left", "right"])
         (s) => Math.abs(s.angle) > 0.5 && Math.abs(s.angle) < 36,
       );
       expect(mid.length, "the return was sampled").toBeGreaterThan(2);
-      for (const s of mid)
+      for (const s of mid) {
         expect(s.clip, `no clip at ${s.angle} degrees`).toBe(false);
+        expect(s.shoes, `legs at ${s.angle} degrees`).toBe(legs);
+      }
     } finally {
       await rec.stop();
       await app.close();
     }
   });
+
+test("the legs stay whole while Blink is picked up, carried and dropped", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("feet_carry");
+  try {
+    await background(app);
+    await place(app, "right", 0.5);
+    await page.waitForTimeout(1500);
+    await reveal(page);
+    const upright = (await watch(page, 100)).at(-1).shoes;
+    expect(upright).toBeGreaterThanOrEqual(2);
+    const grab = await bodyPoint(page);
+    native([
+      { type: "move", x: grab.x, y: grab.y },
+      { type: "down", wait: 0 },
+    ]);
+    const seen = watch(page, 2600);
+    native([
+      ...Array.from({ length: 40 }, (_, i) => ({
+        type: "move",
+        x: grab.x - 8 - i * 9,
+        y: grab.y - 40 + Math.sin(i / 5) * 60,
+        wait: 0.016,
+      })),
+      { type: "wait", seconds: 0.2 },
+      { type: "up" },
+    ]);
+    const frames = await seen;
+    rec.frame("dropped");
+    expect(frames.length).toBeGreaterThan(60);
+    for (const [i, f] of frames.entries())
+      expect(f.shoes, `legs in frame ${i}`).toBe(upright);
+    // While it is carried nothing of it is cut off by an edge.
+    expect(frames.slice(0, 40).some((f) => f.clip)).toBe(false);
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
