@@ -5,8 +5,12 @@
 /** Largest frame gap, in ms, that still belongs to the same animation run. A
  * longer pause is the surface at rest between two animations, not a dropped frame. */
 export const RUN_GAP = 250;
-/** A box moving more than this many CSS px between two frames has jumped. */
+/** A box moving more than this many CSS px between two frames may have jumped. */
 export const JUMP = 160;
+/** It has jumped only if that step is also this many times the step before it:
+ * a fast flight that eases in and out covers a lot of ground per frame at its
+ * peak, but its steps rise and fall smoothly, and a dropped frame doubles one. */
+export const SURGE = 1.5;
 /** The N6.8 limits: 95th percentile frame and the worst frame, in ms. */
 export const LIMITS = Object.freeze({ p95: 20, max: 50 });
 
@@ -17,20 +21,29 @@ export function measure(frames, surface = null) {
     .sort((a, b) => a.t - b.t);
   const gaps = [];
   const jumps = [];
+  let before = 0;
   for (let i = 1; i < mine.length; i++) {
     const gap = mine[i].t - mine[i - 1].t;
-    if (gap > RUN_GAP) continue;
+    if (gap > RUN_GAP) {
+      before = 0;
+      continue;
+    }
     gaps.push(gap);
     const a = mine[i - 1].box;
     const b = mine[i].box;
-    if (!a || !b) continue;
+    if (!a || !b) {
+      before = 0;
+      continue;
+    }
     const moved = Math.max(
       Math.abs(b.x - a.x),
       Math.abs(b.y - a.y),
       Math.abs(b.x + b.width - (a.x + a.width)),
       Math.abs(b.y + b.height - (a.y + a.height)),
     );
-    if (moved > JUMP)
+    const previous = before;
+    before = moved;
+    if (moved > JUMP && moved > previous * SURGE)
       jumps.push({
         surface: mine[i].surface,
         t: mine[i].t,

@@ -7,12 +7,13 @@ import {
   activeWindow,
   activate,
   typeKeys,
-  miniFocused,
-  miniPage,
 } from "./support.mjs";
 
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
+/** The card is on screen and holds the keyboard. */
+const cardFocused = (app) =>
+  app.evaluate(() => !!globalThis.blinklingTest.composer?.isFocused());
 const visible = (app) =>
   app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible());
 const png =
@@ -165,6 +166,7 @@ test("H-4 a focused empty card stays open until Esc", async () => {
 });
 
 const shot = {
+  region: { x: 300, y: 300, width: 160, height: 100 },
   image: {
     id: "shot",
     name: "capture.png",
@@ -189,7 +191,7 @@ for (const [label, setup] of [
   ],
   ["nothing else was focused", async () => () => {}],
 ])
-  test(`H-5 after a capture the mini composer and its text box have the keyboard (${label})`, async () => {
+  test(`H-5 after a capture the card and its text box have the keyboard (${label})`, async () => {
     const c = await launch();
     const cleanup = await setup();
     try {
@@ -197,19 +199,19 @@ for (const [label, setup] of [
         (_, capture) => globalThis.blinklingTest.attachCapture(capture),
         shot,
       );
-      await expect.poll(() => miniFocused(c.app)).toBe(true);
-      const mini = miniPage(c.app);
-      await expect(mini.locator(".mini-input")).toBeFocused();
-      await expect(mini.locator(".mini-entry-image")).toHaveCount(1);
+      await expect.poll(() => cardFocused(c.app)).toBe(true);
+      const card = cardPage(c.app);
+      await expect(card.locator(".gl-input")).toBeFocused();
+      await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
       typeKeys("hello blink");
-      await expect(mini.locator(".mini-input")).toHaveValue("hello blink");
+      await expect(card.locator(".gl-input")).toHaveValue("hello blink");
     } finally {
       cleanup();
       await c.close();
     }
   });
 
-test("H-5 after a real area capture the mini composer, not the closed selector, has the keyboard", async () => {
+test("H-5 after a real area capture the card, not the closed selector, has the keyboard", async () => {
   const c = await launch();
   try {
     // The overlay windows exist from the start and are shown on demand.
@@ -231,12 +233,12 @@ test("H-5 after a real area capture the mini composer, not the closed selector, 
     // Releasing the drag takes the area; the shot flies into Blink.
     await selector.mouse.up();
     await expect
-      .poll(() => miniPage(c.app)?.locator(".mini-entry-image").count())
+      .poll(() => cardPage(c.app)?.locator(".gl-attachment-chip").count())
       .toBe(1);
-    await expect.poll(() => miniFocused(c.app)).toBe(true);
-    await expect(miniPage(c.app).locator(".mini-input")).toBeFocused();
+    await expect.poll(() => cardFocused(c.app)).toBe(true);
+    await expect(cardPage(c.app).locator(".gl-input")).toBeFocused();
     typeKeys("typed after capture");
-    await expect(miniPage(c.app).locator(".mini-input")).toHaveValue(
+    await expect(cardPage(c.app).locator(".gl-input")).toHaveValue(
       "typed after capture",
     );
   } finally {
@@ -244,7 +246,7 @@ test("H-5 after a real area capture the mini composer, not the closed selector, 
   }
 });
 
-test("H-5 the mini composer wins the keyboard back when the window manager hands it to another window right after", async () => {
+test("H-5 the card wins the keyboard back when the window manager hands it to another window right after", async () => {
   const c = await launch();
   const other = spawn("xmessage", ["-geometry", "500x300+100+100", "other"]);
   try {
@@ -260,11 +262,9 @@ test("H-5 the mini composer wins the keyboard back when the window manager hands
     await new Promise((resolve) => setTimeout(resolve, 60));
     activate(external);
     await opened;
-    await expect.poll(() => miniFocused(c.app)).toBe(true);
+    await expect.poll(() => cardFocused(c.app)).toBe(true);
     typeKeys("recovered");
-    await expect(miniPage(c.app).locator(".mini-input")).toHaveValue(
-      "recovered",
-    );
+    await expect(cardPage(c.app).locator(".gl-input")).toHaveValue("recovered");
   } finally {
     other.kill();
     await c.close();

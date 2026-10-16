@@ -312,24 +312,8 @@ export async function background(app, fullscreen = false) {
   }, fullscreen);
 }
 /** A click on Blink while it waits on a permission request opens the full
- * card (N5.1); any other click opens the mini composer. */
+ * card (N5.1). */
 export const openCard = (page) =>
   page.evaluate(() =>
     window.blinkling.shell({ type: "click", permission: true }),
   );
-export const miniPage = (app) =>
-  app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
-export const miniBounds = (app) =>
-  app.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()
-      .find((w) => /\/mini\/index\.html$/.test(w.webContents.getURL()))
-      ?.getBounds(),
-  );
-/** The mini composer is on screen and holds the keyboard. */
-export const miniFocused = (app) =>
-  app.evaluate(({ BrowserWindow }) => {
-    const mini = BrowserWindow.getAllWindows().find((w) =>
-      /\/mini\/index\.html$/.test(w.webContents.getURL()),
-    );
-    return Boolean(mini?.isVisible() && mini.isFocused());
-  });

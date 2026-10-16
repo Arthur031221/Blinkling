@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { measure, recordFrames, verdict, JUMP } from "./frames.mjs";
+import { measure, recordFrames, verdict, JUMP, SURGE } from "./frames.mjs";
 
 const box = (x, y = 0, width = 40, height = 40) => ({ x, y, width, height });
 const run = (surface, gaps, boxes = () => box(0), start = 0) => {
@@ -54,6 +54,25 @@ test("a box that moves more than the limit between two frames is a jump, a smoot
     run("fan", [16, 16, 16], (i) => box(0, 0, i < 2 ? 40 : 400, 40)),
   );
   assert.equal(grown.jumps.length, 1);
+});
+
+test("a fast flight that eases in and out is not a jump, a doubled step is", () => {
+  const at = (steps) => {
+    let x = 0;
+    return (i) => box((x += steps[i - 1] ?? 0));
+  };
+  const eased = [3, 19, 67, 129, 162, 151, 123, 101, 80];
+  const smooth = measure(
+    run("flight", Array(eased.length).fill(16), at(eased)),
+  );
+  assert.ok(Math.max(...eased) > JUMP);
+  assert.deepEqual(smooth.jumps, []);
+  const dropped = [3, 19, 67, 129, 129, 290, 123, 101, 80];
+  assert.ok(290 > 129 * SURGE);
+  const doubled = measure(
+    run("flight", Array(dropped.length).fill(16), at(dropped)),
+  );
+  assert.equal(doubled.jumps.length, 1);
 });
 
 test("a frame with no box ends the comparison instead of faking a jump", () => {

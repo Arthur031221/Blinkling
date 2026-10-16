@@ -11,7 +11,6 @@ import {
   moveOn,
   rigPoint,
   background,
-  miniFocused,
 } from "./support.mjs";
 import { recordFrames, verdict } from "../../e2e/frames.mjs";
 import { input, poll } from "../../pick/e2e/support.mjs";
@@ -745,7 +744,7 @@ for (const scale of [1, 2]) {
         }
       });
       // The pick: a Ctrl+click on an image loops the outline, flies it into
-      // Blink, and opens the mini composer with it.
+      // Blink, and opens the card with it.
       const display = await c.app.evaluate(
         () => globalThis.blinklingTest.snapshot().display.bounds,
       );
@@ -765,7 +764,7 @@ for (const scale of [1, 2]) {
       const photo = await domRect(c.app, "#photo");
       await gate(
         "pick effects and flight",
-        ["pick-effect", "flight", "mini-composer"],
+        ["pick-effect", "flight", "card"],
         async () => {
           input([
             [
@@ -791,7 +790,13 @@ for (const scale of [1, 2]) {
             "the flight",
           );
           await expect
-            .poll(() => miniFocused(c.app), { timeout: 5000 })
+            .poll(
+              () =>
+                c.app.evaluate(
+                  () => !!globalThis.blinklingTest.composer?.isFocused(),
+                ),
+              { timeout: 5000 },
+            )
             .toBe(true);
           await pause(600);
         },

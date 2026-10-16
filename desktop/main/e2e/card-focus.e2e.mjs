@@ -58,16 +58,6 @@ async function browserForm() {
 
 for (const [label, open] of [
   ["a click at a permission request", (c) => openCard(c.page)],
-  [
-    "a click at a permission request after the card opened unfocused",
-    async (c) => {
-      await c.app.evaluate(() =>
-        globalThis.blinklingTest.openComposer({ focus: false }),
-      );
-      await expect.poll(() => cardPage(c.app)).toBeTruthy();
-      await openCard(c.page);
-    },
-  ],
 ]) {
   test(`E-1 opening the full composer from ${label} gives it the keyboard`, async () => {
     const c = await launch();
