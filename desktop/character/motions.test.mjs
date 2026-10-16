@@ -16,6 +16,7 @@ import {
   fileCaught,
   leaving,
   picking,
+  guiding,
   shrugging,
   turning,
   walking,
@@ -223,4 +224,20 @@ test("a turn is not hidden by a wave or a touch that starts while it plays", () 
   };
   play(blink, 5.2, () => o, 0.3);
   assert.equal(blink.key(), "turn");
+});
+
+test("guiding reaches the nearer arm toward the step and puts the stick along it", () => {
+  const right = guiding(1, { x: 1, y: 0 }),
+    left = guiding(1, { x: -1, y: 0 }),
+    down = guiding(1, { x: 0, y: 1 });
+  assert.ok(Math.abs(right.R[0] - 90) < 1e-6, "level to the right");
+  assert.deepEqual(right.L, [55, 0, 8, 0], "the other arm rests");
+  assert.ok(Math.abs(left.L[0] - 90) < 1e-6, "level to the left");
+  assert.ok(Math.abs(down.R[0]) < 1e-6, "straight down");
+  assert.ok(right.attach.includes("<circle"), "a stick with a ball at its end");
+  assert.notEqual(
+    guiding(1, { x: 1, y: 0 }).attach,
+    guiding(1.2, { x: 1, y: 0 }).attach,
+  );
+  assert.deepEqual(right.look, [1, 0]);
 });

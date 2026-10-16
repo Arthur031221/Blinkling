@@ -1,6 +1,7 @@
 import { placeCallouts } from "./layout.mjs";
 import { markShape } from "../pointing/shapes.mjs";
 import { badgeRect } from "../pointing/badge.mjs";
+import { rings, snapRing } from "../pick/frame.mjs";
 import { cssVariables, duration, easing, frameLog } from "../shared/motion.mjs";
 for (const declaration of cssVariables().split(";")) {
   const [name, value] = declaration.split(/:(.+)/);
@@ -13,6 +14,7 @@ const ns = "http://www.w3.org/2000/svg",
   labels = document.querySelector("#labels"),
   frames = frameLog(),
   still = matchMedia("(prefers-reduced-motion: reduce)");
+const FRAME_RADIUS = 8;
 let items = [],
   running = [];
 const ms = (token) => (still.matches ? 0 : duration[token]);
@@ -75,6 +77,19 @@ async function draw(view) {
     group.dataset.n = drawing.number;
     for (const d of shape.paths)
       group.append(path(d, shape.fill ? "stroke fill" : "stroke"));
+    if (shape.frame)
+      for (const ring of rings(r, FRAME_RADIUS)) {
+        const box = snapRing(ring, devicePixelRatio || 1);
+        const el = document.createElementNS(ns, "rect");
+        el.setAttribute("class", `frame ${ring.role}`);
+        el.setAttribute("x", box.x);
+        el.setAttribute("y", box.y);
+        el.setAttribute("width", box.width);
+        el.setAttribute("height", box.height);
+        el.setAttribute("rx", ring.radius);
+        el.setAttribute("stroke-width", ring.width);
+        group.append(el);
+      }
     svg.append(group);
     const badge = document.createElement("div");
     badge.className = "badge";

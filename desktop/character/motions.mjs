@@ -1,7 +1,7 @@
 // Blink's motions, ported from the approved motion sheet. Each one is a function of
 // time that returns a pose for drawBlink: joints only rotate, the body only moves,
 // tilts or turns, and no limb ever changes length.
-import { C, STAND, clamp, ease, f1, lerp, seg } from "./rig.mjs";
+import { C, STAND, armGeom, clamp, ease, f1, lerp, seg } from "./rig.mjs";
 
 export const REST = [55, 0, 8, 0];
 export const UP = [150, 10, 172, 10];
@@ -413,6 +413,36 @@ export function picking(t) {
     look: [0.9, 0.1],
     mouth: "smile",
     mp: 0.5,
+  };
+}
+
+/** Guiding: Blink holds a pointer stick out toward the step on the screen.
+ * `aim` is the unit direction from Blink to the step. The nearer arm reaches
+ * that way straight, and the stick carries on from the hand along it with a
+ * small ball at its end that bobs a little, as if tapping the spot. */
+export function guiding(t, aim) {
+  const len = Math.hypot(aim.x, aim.y) || 1,
+    dx = aim.x / len,
+    dy = aim.y / len;
+  const side = dx >= 0 ? 1 : -1;
+  const abd = (Math.atan2(side * dx, dy) * 180) / Math.PI;
+  const reach = [abd, 0, abd, 0];
+  const { tip } = armGeom(side, reach, 0);
+  const tap = 1 + 0.12 * Math.sin(t * 6),
+    sx = tip.x + dx * 54 * tap,
+    sy = tip.y + dy * 54 * tap;
+  const stick = `<g stroke-linecap="round"><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="${C.ink}" stroke-width="6.4"/><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="#f1c75b" stroke-width="3"/></g><circle cx="${f1(sx)}" cy="${f1(sy)}" r="5" fill="#e4574f" stroke="${C.ink}" stroke-width="2.4"/>`;
+  return {
+    x: 0,
+    yaw: 0,
+    y: breath(t, 2),
+    R: side > 0 ? reach : REST,
+    L: side > 0 ? REST : reach,
+    lid: 0.1,
+    look: [dx, dy],
+    mouth: "smile",
+    mp: 0.5,
+    attach: stick,
   };
 }
 

@@ -137,6 +137,8 @@ export class GuideController {
       phase: "step",
       index,
       total: this.guide.steps.length,
+      title: this.title(index),
+      aim: this.aim(index),
       bubbles: [this.guide.steps[index].note],
       canBack: index > 0,
       canNext: true,
@@ -153,6 +155,29 @@ export class GuideController {
     if (this.index >= this.guide.steps.length)
       this.step(this.guide.steps.length - 1);
     else if (this.index > 0) this.step(this.index - 1);
+  }
+  /** The label of the first region a step points at. */
+  title(index) {
+    const step = this.guide.steps[index];
+    return (
+      this.guide.sections.find((s) => s.id === step.regionIds[0])?.label ??
+      step.id
+    );
+  }
+  /** Where a step points on the screen, in screen coordinates: the middle of
+   * its first region, which is where Blink's pointer aims. */
+  aim(index) {
+    const display = this.capture_?.display;
+    const region = this.guide.sections.find(
+      (s) => s.id === this.guide.steps[index].regionIds[0],
+    );
+    if (!display || !region) return null;
+    const w = display.bounds.width / this.capture_.pixelWidth,
+      h = display.bounds.height / this.capture_.pixelHeight;
+    return {
+      x: display.bounds.x + (region.rect.x + region.rect.width / 2) * w,
+      y: display.bounds.y + (region.rect.y + region.rect.height / 2) * h,
+    };
   }
   /** A click on mark `n` shows the first step that is about it. */
   focusMark(n) {
@@ -171,6 +196,7 @@ export class GuideController {
     this.pointing.focus(null);
     this.onGuide({
       phase: "finished",
+      aim: null,
       index: total,
       total,
       bubbles: [closingMessage(this.language())],
@@ -196,13 +222,13 @@ export class GuideController {
       phase: "overview",
       index: -1,
       total: this.guide.steps.length,
-      bubbles: [
-        this.guide.purpose,
-        ...this.guide.sections.flatMap((s) => [
-          `${s.label}：${s.description}`,
-          ...s.paragraphs,
-        ]),
-      ],
+      aim: null,
+      bubbles: [this.guide.purpose],
+      // All steps: one line each, each a way into that step.
+      steps: this.guide.steps.map((step, i) => ({
+        title: this.title(i),
+        note: step.note,
+      })),
       canBack: false,
       canNext: this.guide.steps.length > 0,
     });

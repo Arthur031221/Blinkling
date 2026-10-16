@@ -49,6 +49,17 @@ let hit = [],
   picking = false,
   dragPointer = null,
   dropUntil = 0;
+/** Where the current guide step is on the screen, or null. */
+let guideTarget = null;
+/** The unit direction from Blink's body to that step, in window coordinates. */
+function guideAim() {
+  if (!guideTarget || !current) return null;
+  const { x: ox, y: oy } = shell.display.bounds;
+  const dx = guideTarget.x - ox - current.x,
+    dy = guideTarget.y - oy - (current.y - 62);
+  const len = Math.hypot(dx, dy);
+  return len < 40 ? null : { x: dx / len, y: dy / len };
+}
 /** The pose mode follows the machine in main: held, just dropped, out, peek. */
 const modeOf = (now) =>
   shell.interaction.held
@@ -214,6 +225,7 @@ async function action(id) {
       leaveAt,
       walking,
       picking,
+      guideAim: guideAim(),
       mode,
       waveAt,
       dropAt,
@@ -305,6 +317,8 @@ api.onShell((event) => {
   );
 });
 api.onEvent((event) => {
+  if (event.type === "guide")
+    guideTarget = event.phase === "step" && event.aim ? event.aim : null;
   activity.accept(event, performance.now());
   grumbler.touch(performance.now());
   window.dispatchEvent(

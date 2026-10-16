@@ -41,6 +41,19 @@ body {
 .mark .stroke.fill {
   fill: rgba(61, 220, 151, 0.18);
 }
+.mark .frame {
+  fill: none;
+  shape-rendering: crispEdges;
+}
+.mark .frame.line {
+  stroke: #43d896;
+}
+.mark .frame.outer {
+  stroke: rgba(0, 0, 0, 0.5);
+}
+.mark .frame.inner {
+  stroke: rgba(255, 255, 255, 0.75);
+}
 .mark {
   transform-box: fill-box;
   transform-origin: center;

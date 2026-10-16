@@ -41,6 +41,7 @@ import {
   looking,
   peek,
   picking,
+  guiding,
   shrugging,
   touched,
   turning,
@@ -228,6 +229,13 @@ export function mountBlink(host) {
         pose: plain(walking(time, o.walking)),
         blend: 0.2,
       };
+    if (o.guideAim) {
+      return {
+        key: "guide",
+        pose: plain(guiding(time, o.guideAim)),
+        blend: 0.18,
+      };
+    }
     if (o.picking) {
       const g = o.gaze;
       const m = g ? Math.hypot(g.x, g.y) || 1 : 1;

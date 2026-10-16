@@ -675,7 +675,7 @@ a:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  max-height: 140px;
+  max-height: 240px;
   overflow: auto;
   padding: 2px 4px;
 }
@@ -695,6 +695,32 @@ a:focus-visible {
     opacity: 0;
     transform: scale(0.96);
   }
+}
+.gl-guide > .gl-guide-head {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--type-xs);
+  font-weight: 600;
+  color: var(--gl-muted);
+}
+.gl-guide > .gl-guide-steps {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gl-guide > .gl-guide-steps > .gl-guide-step {
+  border: 1px solid var(--gl-border);
+  border-radius: var(--radius-m);
+  padding: 6px 11px;
+  background: var(--gl-input);
+  text-align: left;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .gl-guide > button,
 .gl-notice > button {

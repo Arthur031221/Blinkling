@@ -5,6 +5,8 @@
 export function mountGuidePanel({ host, tr, onAction }) {
   const bubbles = [];
   const buttons = new Map();
+  let headNode = null,
+    listNode = null;
 
   function bubble(index, text) {
     let node = bubbles[index];
@@ -30,6 +32,49 @@ export function mountGuidePanel({ host, tr, onAction }) {
     return node;
   }
 
+  /** "Step 2 of 5 · Heading": where the tour is, above the step's text. */
+  function head(text) {
+    if (!text) {
+      headNode?.remove();
+      headNode = null;
+      return;
+    }
+    if (!headNode) {
+      headNode = host.ownerDocument.createElement("p");
+      headNode.className = "gl-guide-head";
+    }
+    if (headNode.textContent !== text) headNode.textContent = text;
+    host.prepend(headNode);
+  }
+  /** All steps: one row per step, each a way into that step. */
+  function list(steps) {
+    if (!steps?.length) {
+      listNode?.remove();
+      listNode = null;
+      return;
+    }
+    if (!listNode) {
+      listNode = host.ownerDocument.createElement("ol");
+      listNode.className = "gl-guide-steps";
+    }
+    const rows = steps.map((step, i) => {
+      const row = button(
+        `step-${i}`,
+        `${i + 1}  ${step.title}`,
+        `guide-step-${i + 1}`,
+      );
+      row.className = "gl-guide-step";
+      row.title = step.note;
+      return row;
+    });
+    for (const key of [...buttons.keys()])
+      if (key.startsWith("step-") && !rows.includes(buttons.get(key))) {
+        buttons.get(key).remove();
+        buttons.delete(key);
+      }
+    listNode.replaceChildren(...rows);
+  }
+
   return {
     update(event) {
       host.hidden = event.phase === "dismissed";
@@ -38,9 +83,21 @@ export function mountGuidePanel({ host, tr, onAction }) {
         (event.phase === "thinking" ? [tr("guide-thinking")] : []);
       texts.forEach((text, index) => bubble(index, text));
       for (const node of bubbles.splice(texts.length)) node.remove();
+      head(
+        event.phase === "step" && event.title
+          ? `${tr("guide-step", { n: event.index + 1, total: event.total })} · ${event.title}`
+          : "",
+      );
+      list(event.phase === "overview" ? event.steps : null);
+      if (listNode) host.append(listNode);
 
       const wanted = [];
-      if (["overview", "step"].includes(event.phase))
+      if (event.phase === "overview")
+        wanted.push(
+          button("next", tr("guide-start"), "guide-next", event.canNext),
+          button("dismiss", tr("guide-dismiss"), "guide-dismiss"),
+        );
+      if (event.phase === "step")
         wanted.push(
           button("back", tr("guide-back"), "guide-back", event.canBack),
           button(
@@ -64,7 +121,7 @@ export function mountGuidePanel({ host, tr, onAction }) {
           button("close", tr("guide-close"), "guide-dismiss"),
         );
       for (const [key, node] of buttons)
-        if (!wanted.includes(node)) {
+        if (!key.startsWith("step-") && !wanted.includes(node)) {
           node.remove();
           buttons.delete(key);
         }

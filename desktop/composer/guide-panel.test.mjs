@@ -13,6 +13,8 @@ const labels = {
   "guide-dismiss": "End",
   "guide-retry": "Try again",
   "guide-close": "Close",
+  "guide-start": "Start",
+  "guide-step": "Step {n} of {total}",
 };
 const rig = () => {
   const { document } = new JSDOM("<section></section>").window;
@@ -20,7 +22,7 @@ const rig = () => {
   const actions = [];
   const panel = mountGuidePanel({
     host,
-    tr: (key) => labels[key],
+    tr: (key, v = {}) => labels[key].replace(/\{(\w+)\}/g, (_, k) => v[k]),
     onAction: (action) => actions.push(action),
   });
   return { host, panel, actions };
@@ -113,4 +115,34 @@ test("a guide line sits in the card flow and enters with transform and opacity o
   const frames = /@keyframes gl-guide-in \{([\s\S]*?)\n\}/.exec(css)?.[1];
   assert.match(frames, /opacity/);
   assert.doesNotMatch(frames, /width|height|margin|padding|top|left/);
+});
+
+test("a step shows where the tour is above its text, and the overview lists the steps", () => {
+  const { host, panel, actions } = rig();
+  panel.update(step({ index: 1, total: 4, title: "Results" }));
+  assert.equal(host.firstChild.className, "gl-guide-head");
+  assert.equal(host.firstChild.textContent, "Step 2 of 4 · Results");
+  panel.update({
+    type: "guide",
+    phase: "overview",
+    bubbles: ["A report."],
+    canNext: true,
+    steps: [
+      { title: "Intro", note: "Read it" },
+      { title: "Results", note: "Compare" },
+    ],
+  });
+  assert.equal(host.querySelector(".gl-guide-head"), null);
+  const rows = [...host.querySelectorAll(".gl-guide-step")];
+  assert.deepEqual(
+    rows.map((r) => [r.textContent, r.dataset.action]),
+    [
+      ["1  Intro", "guide-step-1"],
+      ["2  Results", "guide-step-2"],
+    ],
+  );
+  rows[1].click();
+  assert.deepEqual(actions, ["guide-step-2"]);
+  panel.update(step({ index: 0, total: 2, title: "Intro" }));
+  assert.equal(host.querySelectorAll(".gl-guide-step").length, 0);
 });

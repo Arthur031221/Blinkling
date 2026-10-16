@@ -1,4 +1,4 @@
-import { KINDS } from "../pointing/shapes.mjs";
+import { DRAWN } from "../pointing/shapes.mjs";
 /** A rectangle inside the display, copied. Avoid areas use it without a mark number. */
 export function validateRect(r, bounds) {
   if (
@@ -24,7 +24,7 @@ export function validateDrawing(d, bounds, i) {
   const n = d.n ?? i + 1;
   if (!Number.isInteger(n) || n < 1 || n > 99)
     throw Error("Invalid drawing number");
-  if (d.kind !== undefined && !KINDS.includes(d.kind))
+  if (d.kind !== undefined && !DRAWN.includes(d.kind))
     throw Error("Invalid drawing kind");
   if (d.seed !== undefined && !Number.isInteger(d.seed))
     throw Error("Invalid drawing seed");

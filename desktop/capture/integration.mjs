@@ -12,6 +12,7 @@ import { captureText } from "./strings.mjs";
 import { HotkeyRegistry, HotkeyStore, DEFAULT_HOTKEY } from "./hotkey.mjs";
 import { DesktopOverlayService } from "../overlay/index.mjs";
 import { GuideController } from "../overlay/guide.mjs";
+import { MAX_STEPS } from "../overlay/schema.mjs";
 import { createPointing } from "../pointing/index.mjs";
 import { StalenessWatch } from "../overlay/staleness.mjs";
 import { maskBitmap } from "../overlay/change.mjs";
@@ -25,6 +26,7 @@ export const featureActions = new Set([
   "guide-overview",
   "guide-dismiss",
   "guide-retry",
+  ...Array.from({ length: MAX_STEPS }, (_, i) => `guide-step-${i + 1}`),
 ]);
 /** Shell/composer/session builders bind only these service hooks. Feature IPC is
  * kept under the shell's existing trusted action channel, never a generic API.
@@ -197,6 +199,8 @@ export function installCaptureGuide({
         if (auto.enabled) auto.disable();
         else auto.enable();
       }
+      if (action.startsWith("guide-step-"))
+        guide.step(Number(action.slice("guide-step-".length)) - 1);
       if (action === "guide-next") guide.next();
       if (action === "guide-back") guide.back();
       if (action === "guide-overview") guide.overview();

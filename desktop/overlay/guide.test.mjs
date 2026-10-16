@@ -37,7 +37,8 @@ test("guide sends the image, draws numbered marks through pointing only and rend
   await r.controller.start("1");
   assert.equal(r.turns[0].source, "guide");
   assert.equal(r.turns[0].attachments[0].data, "pixels");
-  assert.match(r.turns[0].text, /EVERY main section/);
+  assert.doesNotMatch(r.turns[0].text, /concise/i);
+  assert.match(r.turns[0].text, /no more than 10 steps/);
   assert.doesNotMatch(
     r.turns[0].text,
     /arrow/i,
@@ -50,18 +51,24 @@ test("guide sends the image, draws numbered marks through pointing only and rend
       n: 1,
       rect: { x: 10, y: 10, width: 100, height: 80 },
       label: "Results",
-      kind: "outline",
+      kind: "frame",
     },
   ]);
   assert.equal(options.displayId, "1");
   assert.equal(options.capture, capture, "boxes are screenshot pixels");
   assert.equal(options.snap, false, "the guide's own boxes are not snapped");
-  assert.deepEqual(r.events.at(-1).bubbles, [
-    "Report overview.",
-    "Results：The main results.",
-    "Sales grew.",
+  assert.deepEqual(r.events.at(-1).bubbles, ["Report overview."]);
+  assert.deepEqual(r.events.at(-1).steps, [
+    { title: "Results", note: "Read the results." },
+    { title: "Results", note: "Compare them." },
   ]);
   r.controller.next();
+  assert.deepEqual(
+    r.events.at(-1).aim,
+    { x: 60, y: 50 },
+    "Blink aims at the region",
+  );
+  assert.equal(r.events.at(-1).title, "Results");
   assert.equal(r.events.at(-1).index, 0);
   r.controller.next();
   assert.equal(r.events.at(-1).index, 1);

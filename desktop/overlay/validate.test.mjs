@@ -33,3 +33,10 @@ test("a drawing refuses an unknown kind", () => {
     /Invalid drawing kind/,
   );
 });
+
+test("a drawing accepts the pick frame kind", () => {
+  assert.equal(
+    validateDrawing({ rect, kind: "frame" }, bounds, 0).kind,
+    "frame",
+  );
+});

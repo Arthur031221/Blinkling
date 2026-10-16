@@ -13,6 +13,8 @@ const KIND = {
   row: "box",
 };
 export const KINDS = Object.freeze(["underline", "circle", "outline", "box"]);
+/** Every kind a drawing may name: the pen marks and the exact pick frame. */
+export const DRAWN = Object.freeze([...KINDS, "frame"]);
 
 /** text → crayon underline; control or link → circle; image or figure →
  * rounded outline; table cell → soft box. Anything else gets the outline. */
@@ -142,6 +144,10 @@ function rounded(rect, rand, fill) {
 
 /** `{ paths, fill, bounds }` for one mark; `bounds` is the stroke's extent. */
 export function markShape(kind, rect, { seed = 1, lines } = {}) {
+  // The guide's frame is the pick frame: exact, drawn by the renderer from its
+  // rings, with no pen in it.
+  if (kind === "frame")
+    return { paths: [], fill: false, frame: true, bounds: grow(rect, 3) };
   const rand = random(seed);
   if (kind === "underline") return underline(rect, lines, rand);
   if (kind === "circle") return circle(rect, rand);

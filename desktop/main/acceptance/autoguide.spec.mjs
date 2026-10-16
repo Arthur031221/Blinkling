@@ -125,7 +125,7 @@ const guideText = (app) =>
 test("Guide: one click on the bubble says it is looking at once, draws the marks, walks the steps and ends cleanly, without the app standing still", async () => {
   test.setTimeout(150000);
   const { app, page } = await launch();
-  const rec = record("guide_auto-321");
+  const rec = record("guide_v1-321");
   try {
     const frame = await background(app);
     await fakeSession(app, 1200);
@@ -149,6 +149,10 @@ test("Guide: one click on the bubble says it is looking at once, draws the marks
       { timeout: 8000 },
     );
     rec.frame("overview");
+    // All steps: the overview is a short list, one row per step, not a pile of
+    // bubbles with the model's own sections.
+    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(2);
+    await expect(cardPage(app).locator(".gl-answer-bubble")).toHaveCount(1);
     const cardButton = (action) =>
       cardPage(app).locator(`.gl-guide button[data-action="${action}"]`);
     await cardButton("guide-next").click();
@@ -156,6 +160,19 @@ test("Guide: one click on the bubble says it is looking at once, draws the marks
       "Read the heading.",
     );
     rec.frame("step-1");
+    await expect(cardPage(app).locator(".gl-guide-head")).toContainText(/1.*2/);
+    await page.waitForTimeout(600);
+    rec.frame("step-1-pointing");
+    // A row of All steps goes straight to its step.
+    await cardButton("guide-overview").click();
+    await cardPage(app).locator(".gl-guide-step").nth(1).click();
+    await expect(cardPage(app).locator(".gl-guide")).toContainText(
+      "Look at the empty body.",
+    );
+    await expect(cardPage(app).locator(".gl-guide-head")).toContainText(/2.*2/);
+    await page.waitForTimeout(600);
+    rec.frame("step-2-pointing");
+    await cardButton("guide-back").click();
     await cardButton("guide-next").click();
     await expect(cardPage(app).locator(".gl-guide")).toContainText(
       "Look at the empty body.",

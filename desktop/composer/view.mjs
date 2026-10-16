@@ -451,7 +451,7 @@ export function mountComposer(
     sizing = 0;
     if (disposed || !visible) return;
     const wanted = wantedHeight({
-      card: card.offsetHeight,
+      card: Math.max(card.offsetHeight, card.scrollHeight),
       historyShown: history.clientHeight,
       historyContent: history.scrollHeight,
     });
