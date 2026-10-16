@@ -18,6 +18,10 @@ export function mirrorLine(payload) {
         ? ["assistant", payload.last_assistant_message]
         : [];
   if (!role || typeof text !== "string" || !text.trim()) return undefined;
+  // Blink's own chat reaches the terminal as a channel event, which the prompt
+  // hook sees as a prompt; sending it on would show every line twice.
+  if (role === "user" && /^\s*<channel source="blinkling"/.test(text))
+    return undefined;
   const session = String(payload.session_id ?? "").replace(/[^\w-]/g, "");
   if (!session) return undefined;
   const id = `${session.slice(0, 40)}-${role}-${createHash("sha256")

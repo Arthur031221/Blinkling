@@ -41,6 +41,25 @@ test("a prompt and a finished answer become lines, and nothing else does", () =>
   );
 });
 
+test("a line Blink sent to the terminal as a channel event is not mirrored back", () => {
+  const echoed = mirrorLine({
+    hook_event_name: "UserPromptSubmit",
+    session_id: "s1",
+    prompt:
+      '<channel source="blinkling" role="user" chat_id="m_1">fix the build</channel>',
+  });
+  assert.equal(echoed, undefined);
+  // A person who types the word channel is still mirrored.
+  assert.equal(
+    mirrorLine({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "s1",
+      prompt: "what is a <channel> tag?",
+    }).role,
+    "user",
+  );
+});
+
 test("only a session that opened Blink reaches it, and Blink refuses a bad line", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
   const lines = [];
