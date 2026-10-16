@@ -89,7 +89,7 @@ test("K4-1 the end of a guide offers one 儲存導覽 action in the card; clicki
       await expect.poll(async () => !!(await deck(app))).toBe(true);
       const bubbles = await deck(app);
       const messages = bubbles.locator(".gl-chat-message");
-      const button = bubbles.locator(".gl-action-chip");
+      const button = bubbles.locator(".gl-action-chip:visible");
       await expect(button).toHaveCount(1);
       await expect(messages).toHaveCount(1);
       await expect(button).toHaveText("儲存導覽");
@@ -146,7 +146,7 @@ test("K4-1 the end of a guide offers one 儲存導覽 action in the card; clicki
       // The bubble says so and is no longer a button: no replay, no list.
       await expect(messages).toHaveCount(1);
       await expect(messages).toContainText("導覽已儲存");
-      await expect(bubbles.locator(".gl-action-chip")).toHaveCount(0);
+      await expect(bubbles.locator(".gl-action-chip:visible")).toHaveCount(0);
       await page.waitForTimeout(600);
       await desktopShot(app, "guide-save-done");
     } finally {

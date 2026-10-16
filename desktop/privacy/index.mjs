@@ -66,7 +66,7 @@ export function installPrivacy({
   // Capture itself is refused, so nothing is read from a locked window at all.
   const capture = features?.capture;
   const originals = {};
-  for (const name of ["screen", "pick"]) {
+  for (const name of ["screen", "pick", "largest"]) {
     if (typeof capture?.[name] !== "function") continue;
     originals[name] = { own: Object.hasOwn(capture, name), fn: capture[name] };
     capture[name] = async (id, signal, options) => {

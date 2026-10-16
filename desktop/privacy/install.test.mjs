@@ -20,7 +20,7 @@ function rig(over = {}) {
   const sent = [];
   const listeners = new Set();
   const hooks = [];
-  const calls = { screen: 0, pick: 0, pause: [] };
+  const calls = { screen: 0, pick: 0, largest: 0, pause: [] };
   const focus = { value: chrome() };
   const session = {
     subscribe: (f) => (listeners.add(f), () => listeners.delete(f)),
@@ -30,6 +30,7 @@ function rig(over = {}) {
     capture: {
       screen: async () => (calls.screen++, { image: { data: "pixels" } }),
       pick: async () => (calls.pick++, { image: { data: "pixels" } }),
+      largest: async () => (calls.largest++, { image: { data: "pixels" } }),
     },
     auto: { enabled: true, pause: (until) => calls.pause.push(until) },
   };
@@ -65,7 +66,13 @@ test("PV-1: a secure field blocks capture and sending and Blink gets the lock", 
   r.focus.value = secure;
   assert.equal(await r.features.capture.screen("1"), null);
   assert.equal(await r.features.capture.pick("1"), null);
-  assert.equal(r.calls.screen + r.calls.pick, 0, "nothing was captured");
+  // The Screenshot bubble takes the largest area in one click.
+  assert.equal(await r.features.capture.largest("1"), null);
+  assert.equal(
+    r.calls.screen + r.calls.pick + r.calls.largest,
+    0,
+    "nothing was captured",
+  );
   const verdict = await r.admit(turn());
   assert.deepEqual(verdict, { ok: false, reason: "secure" });
   assert.deepEqual(
