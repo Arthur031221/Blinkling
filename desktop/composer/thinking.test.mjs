@@ -6,6 +6,7 @@ import { WORDS, wordAt, mountThinking } from "./thinking.mjs";
 const fakeDocument = () => {
   const make = (tag) => ({
     tag,
+    dataset: {},
     className: "",
     hidden: false,
     textContent: "",
@@ -59,10 +60,10 @@ test("the indicator shows with dots and a word, and stops cleanly", () => {
   think.start();
   assert.equal(root.hidden, false);
   assert.equal(root.children[0].children.length, 3);
-  assert.equal(root.children[1].textContent, "Thinking");
+  assert.equal(root.children[1].children[0].textContent, "Thinking");
   t = timing.thinkWord + 100;
   ticks();
-  assert.equal(root.children[1].textContent, "Pondering");
+  assert.equal(root.children[1].children[0].textContent, "Pondering");
   think.start();
   assert.equal(cleared, 0, "a second start keeps the same timer");
   think.stop();

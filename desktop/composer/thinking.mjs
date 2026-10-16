@@ -50,6 +50,11 @@ export function mountThinking(
   const word = doc.createElement("span");
   word.className = "gl-think-word";
   word.setAttribute("aria-hidden", "true");
+  const spelled = doc.createElement("span");
+  // A lighter copy of the word, drawn by the style sheet, sweeps across it.
+  const glint = doc.createElement("span");
+  glint.className = "gl-think-glint";
+  word.append(spelled, glint);
   root.append(dots, word);
   host.append(root);
   let timer = null,
@@ -57,7 +62,10 @@ export function mountThinking(
     seeing = false;
   const show = () => {
     const next = wordAt(now() - began, { seeing, every });
-    if (word.textContent !== next) word.textContent = next;
+    if (spelled.textContent !== next) {
+      spelled.textContent = next;
+      glint.dataset.word = next;
+    }
   };
   return {
     element: root,

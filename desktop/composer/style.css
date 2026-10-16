@@ -240,26 +240,49 @@ a:focus-visible {
     transform: translateY(-3px);
   }
 }
-/* A soft band of light moves across the word, which is only a few letters. */
+/* A soft band of light crosses the word, which is only a few letters. The band
+   holds a lighter copy of the word and moves one way while the copy moves the
+   other, so the letters stay still: transform only. */
 .gl-think-word {
-  color: transparent;
-  background: linear-gradient(
-      90deg,
-      var(--gl-muted) 35%,
-      var(--text) 50%,
-      var(--gl-muted) 65%
-    )
-    0 0 / 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: gl-shimmer calc(var(--motion-slow) * 5) linear infinite;
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  color: var(--gl-muted);
 }
-@keyframes gl-shimmer {
+.gl-think-glint {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  overflow: hidden;
+  color: var(--text);
+  mask-image: linear-gradient(90deg, transparent, #000 50%, transparent);
+  animation: gl-glint calc(var(--motion-slow) * 5) var(--ease-standard) infinite;
+}
+.gl-think-glint::before {
+  content: attr(data-word);
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  animation: gl-glint-text calc(var(--motion-slow) * 5) var(--ease-standard)
+    infinite;
+}
+@keyframes gl-glint {
   from {
-    background-position: 100% 0;
+    transform: translateX(-100%);
   }
   to {
-    background-position: 0 0;
+    transform: translateX(250%);
+  }
+}
+@keyframes gl-glint-text {
+  from {
+    transform: translateX(40%);
+  }
+  to {
+    transform: translateX(-100%);
   }
 }
 .gl-quick-asks {
