@@ -71,13 +71,11 @@ test("surface guard serializes captures and fades surfaces back in after failure
     showInactive: () => log.push(`show ${name}`),
     name,
   });
-  const guard = new SurfaceGuard(
-    () => [window("Blink"), window("chat"), window("hidden", false)],
-    {
-      ...quickly,
-      fade: async (w, to) => log.push(`fade ${to} ${w.name}`),
-    },
-  );
+  const all = [window("Blink"), window("chat"), window("hidden", false)];
+  const guard = new SurfaceGuard(() => all, {
+    ...quickly,
+    fade: async (w, to) => log.push(`fade ${to} ${w.name}`),
+  });
   const a = guard.run(async () => {
     log.push("capture 1");
     throw Error("portal cancelled");
@@ -102,19 +100,41 @@ test("surface guard serializes captures and fades surfaces back in after failure
   ]);
 });
 
+test("a surface shown while the first ones fade is faded before the capture and restored after", async () => {
+  const log = [];
+  let shown = false;
+  const surface = (name, visible) => ({
+    isDestroyed: () => false,
+    isVisible: visible,
+    name,
+  });
+  const all = [surface("Blink", () => true), surface("card", () => shown)];
+  const guard = new SurfaceGuard(() => all, {
+    ...quickly,
+    fade: async (w, to) => {
+      log.push(`fade ${to} ${w.name}`);
+      if (w.name === "Blink" && to === 0) shown = true;
+    },
+  });
+  await guard.run(async () => log.push("capture"));
+  assert.deepEqual(log, [
+    "fade 0 Blink",
+    "fade 0 card",
+    "capture",
+    "fade 1 Blink",
+    "fade 1 card",
+  ]);
+});
+
 test("abort while queued never fades surfaces and destroyed surfaces are not restored", async () => {
   const controller = new AbortController();
   const log = [];
   let destroyed = false;
-  const guard = new SurfaceGuard(
-    () => [
-      {
-        isDestroyed: () => destroyed,
-        isVisible: () => true,
-      },
-    ],
-    { ...quickly, fade: async (w, to) => log.push(`fade ${to}`) },
-  );
+  const surface = { isDestroyed: () => destroyed, isVisible: () => true };
+  const guard = new SurfaceGuard(() => [surface], {
+    ...quickly,
+    fade: async (w, to) => log.push(`fade ${to}`),
+  });
   const first = guard.run(async () => {
     controller.abort();
     destroyed = true;
@@ -130,16 +150,14 @@ test("abort while queued never fades surfaces and destroyed surfaces are not res
 
 test("a surface that fails to fade out does not fail the capture, and fades in anyway", async () => {
   const log = [];
-  const guard = new SurfaceGuard(
-    () => [{ isDestroyed: () => false, isVisible: () => true }],
-    {
-      ...quickly,
-      fade: async (w, to) => {
-        log.push(`fade ${to}`);
-        if (to === 0) throw Error("page is gone");
-      },
+  const surface = { isDestroyed: () => false, isVisible: () => true };
+  const guard = new SurfaceGuard(() => [surface], {
+    ...quickly,
+    fade: async (w, to) => {
+      log.push(`fade ${to}`);
+      if (to === 0) throw Error("page is gone");
     },
-  );
+  });
   assert.equal(await guard.run(async () => "taken"), "taken");
   assert.deepEqual(log, ["fade 0", "fade 1"]);
 });

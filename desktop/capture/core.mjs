@@ -135,22 +135,34 @@ export class SurfaceGuard {
   run(task, signal) {
     const result = this.#tail.then(async () => {
       aborted(signal);
-      const visible = this.windows().filter(
-        (w) => !w.isDestroyed() && w.isVisible(),
-      );
-      const fadeAll = (to) =>
-        Promise.all(
-          visible
-            .filter((w) => !w.isDestroyed())
-            .map((w) => Promise.resolve(this.fade(w, to)).catch(() => {})),
+      // Surfaces that are shown while the first ones fade (the card a guide or
+      // an ask opens at the same moment) are faded too, so none is in the image.
+      const faded = new Set();
+      const fadeVisible = async () => {
+        const fresh = this.windows().filter(
+          (w) => !w.isDestroyed() && w.isVisible() && !faded.has(w),
         );
+        for (const w of fresh) faded.add(w);
+        await Promise.all(
+          fresh.map((w) => Promise.resolve(this.fade(w, 0)).catch(() => {})),
+        );
+        return fresh.length;
+      };
       try {
-        await fadeAll(0);
-        await this.settle();
-        aborted(signal);
+        for (let round = 0; round < 3; round++) {
+          const count = await fadeVisible();
+          if (!count && round) break;
+          await this.settle();
+          aborted(signal);
+          if (!count) break;
+        }
         return await task();
       } finally {
-        await fadeAll(1);
+        await Promise.all(
+          [...faded]
+            .filter((w) => !w.isDestroyed())
+            .map((w) => Promise.resolve(this.fade(w, 1)).catch(() => {})),
+        );
       }
     });
     this.#tail = result.catch(() => {});

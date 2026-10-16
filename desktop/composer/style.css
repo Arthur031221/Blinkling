@@ -694,6 +694,7 @@ a:focus-visible {
   padding: 2px 4px;
 }
 .gl-guide > .gl-answer-bubble {
+  order: 1;
   flex-basis: 100%;
   margin: 0;
   padding: 7px 11px;
@@ -710,7 +711,10 @@ a:focus-visible {
     transform: scale(0.96);
   }
 }
+/* The buttons sit right under the step's text and the all steps list scrolls
+ * below them, so Previous, Next and End are in view however many steps. */
 .gl-guide > .gl-guide-head {
+  order: 0;
   flex-basis: 100%;
   margin: 0;
   font-size: var(--type-xs);
@@ -718,6 +722,7 @@ a:focus-visible {
   color: var(--gl-muted);
 }
 .gl-guide > .gl-guide-steps {
+  order: 3;
   flex-basis: 100%;
   display: flex;
   flex-direction: column;
@@ -735,6 +740,9 @@ a:focus-visible {
   white-space: pre;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.gl-guide > button {
+  order: 2;
 }
 .gl-guide > button,
 .gl-notice > button {
