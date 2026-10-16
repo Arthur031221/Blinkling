@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { launch, native, move, click, key } from "./support.mjs";
+import { launch, move, click, key } from "./support.mjs";
 import { background, onBlink, clickBlink } from "./helpers.mjs";
 import { record } from "./record.mjs";
 
