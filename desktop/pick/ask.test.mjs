@@ -60,7 +60,7 @@ test("text in the user's own language defaults to explain this", () => {
     locale: "zh-TW",
   });
   assert.equal(m.defaultId, "what");
-  assert.match(m.chips[0].prompt, /解釋|說明/);
+  assert.equal(m.chips[0].prompt, "這是什麼");
 });
 
 test("text in another language defaults to translate", () => {
@@ -157,7 +157,7 @@ test("with several items the first foreign text decides", () => {
   assert.equal(m.defaultId, "translate");
 });
 
-test("every chip has a prompt in the user's language and no placeholder sentence", () => {
+test("every chip sends exactly the words it shows, in the user's language, and has no placeholder sentence", () => {
   for (const locale of [
     "en",
     "zh-TW",
@@ -171,7 +171,8 @@ test("every chip has a prompt in the user's language and no placeholder sentence
   ]) {
     const m = askModel({ items: [{ kind: "image" }], locale });
     for (const c of m.chips) {
-      assert.ok(c.label && c.prompt, `${locale} ${c.id}`);
+      assert.ok(c.label, `${locale} ${c.id}`);
+      assert.equal(c.prompt, c.label);
       assert.doesNotMatch(c.prompt, OLD_NAME);
     }
     assert.equal(m.placeholder, undefined);

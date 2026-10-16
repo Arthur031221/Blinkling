@@ -23,6 +23,7 @@ export function mountConversation({
   openImage,
   onReference,
   onAction,
+  onQuick,
 } = {}) {
   const store = createMessageStream();
   const composer = createComposer({ session, selection });
@@ -40,6 +41,7 @@ export function mountConversation({
     onHold,
     onSize,
     onAction,
+    onQuick,
     onReference,
     copy,
     openLink,

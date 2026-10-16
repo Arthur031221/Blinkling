@@ -355,6 +355,20 @@ a:focus-visible {
 .gl-quick-chip:hover {
   border-color: var(--green);
 }
+/* The question Enter sends while the box is empty. */
+.gl-quick-chip[data-default="true"] {
+  border-color: var(--green);
+  font-weight: 600;
+}
+.gl-quick-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--gl-muted);
+  font-size: var(--type-xs);
+}
 .gl-composer {
   flex-shrink: 0;
   display: flex;

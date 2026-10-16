@@ -226,6 +226,10 @@ export class ChatRouter {
   get status() {
     return this.current.impl.status;
   }
+  /** Blink's own conversation is the one with a remote identity. */
+  identity() {
+    return this.main.identity?.();
+  }
   summary() {
     const others = [...this.chats.values()].some((c) => c.key !== MAIN);
     return {

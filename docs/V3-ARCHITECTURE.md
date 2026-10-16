@@ -249,8 +249,8 @@ on any change before changing it; the shell bucket owns edits to that file.
 | `desktop/distribution/`, `e2e/`            | Native package build and desktop verification.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 The fan menu is gated by `menu/gate.mjs::fanWanted`: it opens only when the
-pointer rests on Blink for 300 ms and neither the chat nor the mini composer is
-open (`shell.miniOpen`). The fan labels are shown on first use only, persisted
+pointer rests on Blink for 300 ms and the chat card is not
+open. The fan labels are shown on first use only, persisted
 as `fan-labels` in `ui-once.json`. The packaged app copies the master wordmark
 kit from `assets/brand/` over the dev stub in `desktop/shared/brand/`.
 

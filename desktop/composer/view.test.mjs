@@ -439,6 +439,123 @@ each(
   },
 );
 
+const attachText = (t, id = "t1") =>
+  t.composer.attach({
+    id,
+    name: "Text.txt",
+    mediaType: "text/plain",
+    data: "aGVsbG8=",
+  });
+
+each(
+  "a quick question from a capture shows the chips with the default marked, whatever was captured",
+  (locale) => {
+    const events = [];
+    const t = setup({ locale, onQuick: (e) => events.push(e) });
+    attachText(t);
+    assert.equal(t.q(".gl-quick-asks").hidden, true, "no question yet");
+    t.view.quick({
+      type: "quick",
+      active: true,
+      defaultId: "translate",
+      notice: "",
+      pause: "",
+      offer: null,
+    });
+    assert.equal(t.q(".gl-quick-asks").hidden, false);
+    const marked = [
+      ...t.host.querySelectorAll('.gl-quick-chip[data-default="true"]'),
+    ];
+    assert.deepEqual(
+      marked.map((b) => b.textContent),
+      [t.tr("quick-translate")],
+    );
+    t.dispose();
+  },
+);
+
+each(
+  "Enter on an empty box sends the highlighted chip's exact words",
+  async (locale) => {
+    const events = [];
+    const t = setup({ locale, onQuick: (e) => events.push(e) });
+    attachText(t);
+    t.view.quick({
+      type: "quick",
+      active: true,
+      defaultId: "keypoints",
+      notice: "",
+      pause: "",
+      offer: null,
+    });
+    t.key(t.q(".gl-input"), "Enter");
+    await new Promise((r) => setTimeout(r));
+    assert.equal(t.sent.at(-1).text, t.tr("quick-summary"));
+    assert.equal(t.sent.at(-1).source, "quick-ask");
+    assert.deepEqual(events.at(-1), { type: "end" }, "main is told it is over");
+    assert.equal(t.q(".gl-quick-asks").hidden, true);
+    t.dispose();
+  },
+);
+
+each("typed words win over the default chip on Enter", async (locale) => {
+  const t = setup({ locale });
+  attachText(t);
+  t.view.quick({
+    type: "quick",
+    active: true,
+    defaultId: "what",
+    notice: "",
+    pause: "",
+    offer: null,
+  });
+  t.composer.draft("only this");
+  t.key(t.q(".gl-input"), "Enter");
+  await new Promise((r) => setTimeout(r));
+  assert.equal(t.sent.at(-1).text, "only this");
+  assert.equal(t.sent.at(-1).source, "composer");
+  t.dispose();
+});
+
+each(
+  "removing a chip tells main, and the pause line and PDF offer show and act",
+  (locale) => {
+    const events = [];
+    const t = setup({ locale, onQuick: (e) => events.push(e) });
+    attachText(t);
+    t.view.quick({
+      type: "quick",
+      active: true,
+      defaultId: "what",
+      notice: "visible-part",
+      pause: "Auto explain is paused",
+      offer: { id: "pdf-reader", text: "Open the PDF" },
+    });
+    assert.equal(t.q(".gl-quick-pause").textContent, "Auto explain is paused");
+    assert.equal(
+      t.q(".gl-error, .gl-composer-error").textContent,
+      t.tr("error-visible-part"),
+    );
+    const offer = t.q(".gl-quick-line button");
+    assert.equal(offer.textContent, "Open the PDF");
+    offer.click();
+    assert.deepEqual(events.at(-1), { type: "offer", id: "pdf-reader" });
+    t.host.querySelector(".gl-attachment-chip button").click();
+    assert.deepEqual(events.at(-1), { type: "remove", id: "t1" });
+    t.dispose();
+  },
+);
+
+each("closing the card ends the quick question", (locale) => {
+  const events = [];
+  const t = setup({ locale, onQuick: (e) => events.push(e) });
+  attachText(t);
+  t.view.quick({ type: "quick", active: true, defaultId: "what" });
+  t.view.close();
+  assert.deepEqual(events.at(-1), { type: "end" });
+  t.dispose();
+});
+
 each("failures are shown translated, whatever raised them", (locale) => {
   const t = setup({ locale });
   const shown = () => t.q(".gl-composer-error");

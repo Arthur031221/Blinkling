@@ -279,7 +279,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       return api.click(t);
     },
     /** The card is wanted by something other than a click or an answer (a file
-     * dropped on Blink, a link, the mini box): the menu goes, the card comes. */
+     * dropped on Blink, a link, the quick chips): the menu goes, the card comes. */
     open(why = "request", t = clock()) {
       openChat(t, why);
     },

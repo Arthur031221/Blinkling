@@ -8,6 +8,7 @@ import {
 } from "electron";
 import { DesktopCaptureService, screenImage } from "./index.mjs";
 import { systemLocale } from "../shared/i18n.mjs";
+import { timing } from "../shared/motion.mjs";
 import { captureText } from "./strings.mjs";
 import { HotkeyRegistry, HotkeyStore, DEFAULT_HOTKEY } from "./hotkey.mjs";
 import { DesktopOverlayService } from "../overlay/index.mjs";
@@ -156,7 +157,7 @@ export function installCaptureGuide({
     const waiting = setTimeout(() => {
       if (!spoke) say("working", "working");
       spoke = true;
-    }, 400);
+    }, timing.captureSlow);
     try {
       return await run();
     } catch (error) {

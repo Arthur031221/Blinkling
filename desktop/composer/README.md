@@ -50,8 +50,8 @@ click-through, and hide both surfaces during native capture.
   (`claimFocus` in `main/card-hold.mjs`), because a window manager may hand it
   back to the window that was active. Esc, X and an unpinned send return it to
   the previous application. A click elsewhere after the settle period wins.
-- **Seed.** `seed = { conversationId, draft, attachments }` is the mini
-  composer's text and chips (picked regions are attachments). The shell checks
+- **Seed.** `seed = { conversationId, draft, attachments }` is a draft
+  and chips (picked regions are attachments). The shell checks
   it with `validSeed`; the card applies it with `composer.seed`, replacing the
   draft and chips in one step.
 - **What keeps it open.** Focus, a draft, a pending chip, an open file dialog

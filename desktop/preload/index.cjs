@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld(
     cardSize: (height) => ipcRenderer.send("blinkling:card-size", { height }),
     replay: () => ipcRenderer.send("blinkling:subscribe"),
     hold: (value) => ipcRenderer.send("blinkling:hold", value),
+    quick: (value) => ipcRenderer.send("blinkling:quick", value),
     nudge: (value) => ipcRenderer.send("blinkling:nudge", value),
     pin: (value) =>
       ipcRenderer.invoke("blinkling:shell", { type: "pin", value }),

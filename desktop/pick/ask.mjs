@@ -76,7 +76,8 @@ export function askModel({ items, locale }) {
     chips: IDS.map((id) => ({
       id,
       label: text(`chip.${id}`),
-      prompt: text(`prompt.${id}`),
+      // A chip sends exactly what it says, no more.
+      prompt: text(`chip.${id}`),
       highlighted: id === defaultId,
     })),
     defaultId,

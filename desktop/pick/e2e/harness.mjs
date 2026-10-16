@@ -19,7 +19,7 @@ const locatorSource = readFileSync(
 
 /** The shell's windows are override-redirect; under xfwm4 a managed window made
  * after them sits above them, which a real desktop with the shell's windows
- * "always on top" does not do. Raise the pick layer, the mini composer, the
+ * "always on top" does not do. Raise the pick layer, the card, the
  * composer and Blink over the fixture, as the stacking really is for the user. */
 export async function stack(app) {
   const ids = await app.evaluate(({ BrowserWindow }) =>
@@ -105,7 +105,7 @@ export function record(app) {
 export const log = (app) =>
   app.evaluate(() => JSON.parse(JSON.stringify(globalThis.__pickLog)));
 
-/** Every frame logged by the layer windows and the mini composer. */
+/** Every frame logged by the layer windows and the card. */
 export function frames(app) {
   return app.evaluate(async ({ BrowserWindow }) => {
     const all = [];
@@ -134,14 +134,15 @@ export function domRect(app, selector) {
 
 export const raised = (app) =>
   app.evaluate(() => globalThis.blinklingTest.pick.test.controller.isRaised());
+/** The quick question lives in the card's own composer: it is open while the
+ * card holds an attachment chip. */
 export const miniOpen = (app) =>
-  app.evaluate(() => globalThis.blinklingTest.pick.test.mini.isOpen);
+  miniEval(app, "!!document.querySelector('.gl-attachment-chip')").catch(
+    () => false,
+  );
 export const miniEval = (app, code) =>
   app.evaluate(
-    (_electron, code) =>
-      globalThis.blinklingTest.pick.test.miniWindow.webContents.executeJavaScript(
-        code,
-      ),
+    (_electron, code) => globalThis.blinklingTest.deck.cardEval(code),
     code,
   );
 export const near = (a, b, d = 2) => Math.abs(a - b) <= d;

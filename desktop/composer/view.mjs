@@ -37,6 +37,7 @@ export function mountComposer(
     onHold = () => {},
     onSize = () => {},
     onAction = () => {},
+    onQuick = () => {},
     onChat = () => {},
     onReference = () => {},
     copy,
@@ -137,6 +138,17 @@ export function mountComposer(
   history.setAttribute("aria-live", "polite");
   const quick = node("div", "gl-quick-asks");
   quick.setAttribute("aria-label", tr("quick-label"));
+  // What a capture adds to the question: why Auto explain is paused, and the
+  // one-time offer to open a PDF.
+  const quickLine = node("div", "gl-quick-line"),
+    quickPause = node("span", "gl-quick-pause"),
+    quickOffer = node("button", "gl-action-chip");
+  quickOffer.type = "button";
+  quickLine.hidden = quickOffer.hidden = true;
+  quickLine.append(quickPause, quickOffer);
+  // The quick question a capture opened: which chip Enter sends, and whether
+  // the card has to tell main how it ended.
+  let asking = { active: false, defaultId: null, offer: null };
   const attachments = node("div", "gl-attachments");
   attachments.setAttribute("aria-label", tr("attachments"));
   attachments.hidden = true;
@@ -191,7 +203,17 @@ export function mountComposer(
   guide.hidden = true;
   const guidePanel = mountGuidePanel({ host: guide, tr, onAction });
   const thinking = mountThinking(history, { label: tr("working") });
-  card.append(header, tabs, history, guide, notice, quick, form, error);
+  card.append(
+    header,
+    tabs,
+    history,
+    guide,
+    notice,
+    quick,
+    quickLine,
+    form,
+    error,
+  );
   host.append(card);
   let pinned = false,
     visible = true,
@@ -232,17 +254,43 @@ export function mountComposer(
             ],
           });
         onTyping(false);
+        endQuick();
       })
       .catch((e) => {
         if (!composer.state().error) fail(e);
       });
-  for (const key of quickAsks) {
+  const endQuick = () => {
+    if (!asking.active) return;
+    asking = { active: false, defaultId: null, offer: null };
+    paintQuick();
+    onQuick({ type: "end" });
+  };
+  const quickIds = ["what", "translate", "keypoints"];
+  for (const [i, key] of quickAsks.entries()) {
     const question = tr(key);
     const b = node("button", "gl-quick-chip", question);
     b.type = "button";
+    b.dataset.chip = quickIds[i];
+    // A chip sends exactly the words on it.
     listen(b, "click", () => submit(question, "quick-ask"));
     quick.append(b);
   }
+  listen(quickOffer, "click", () => {
+    if (asking.offer) onQuick({ type: "offer", id: asking.offer.id });
+  });
+  const paintQuick = () => {
+    for (const b of quick.children)
+      b.dataset.default = String(b.dataset.chip === asking.defaultId);
+    quickPause.textContent = asking.pause ?? "";
+    quickPause.hidden = !asking.pause;
+    quickOffer.textContent = asking.offer?.text ?? "";
+    quickOffer.hidden = !asking.offer;
+    quickLine.hidden = quickPause.hidden && quickOffer.hidden;
+    const images = composer
+      .state()
+      .attachments.some((a) => a.mediaType.startsWith("image/"));
+    quick.hidden = !(asking.active || images);
+  };
   const ingest = async (files) => {
     try {
       for (const f of files) composer.attach(await readAttachment(f));
@@ -287,7 +335,14 @@ export function mountComposer(
       e.keyCode !== 229
     ) {
       e.preventDefault();
-      submit();
+      // Nothing typed: Enter asks the highlighted quick question.
+      const state = composer.state();
+      const chip =
+        !text.value.trim() && state.attachments.length
+          ? quick.querySelector('[data-default="true"]')
+          : null;
+      if (asking.active && chip && !state.busy) chip.click();
+      else submit();
     }
   });
   listen(form, "submit", (e) => {
@@ -347,9 +402,7 @@ export function mountComposer(
     stop.hidden = !state.busy;
     stop.disabled = state.stopping;
     for (const b of quick.children) b.disabled = state.busy || state.selecting;
-    quick.hidden = !state.attachments.some((a) =>
-      a.mediaType.startsWith("image/"),
-    );
+    paintQuick();
     error.textContent = state.error
       ? tr(`error-${known(state.error) ? state.error : "generic"}`)
       : "";
@@ -371,7 +424,10 @@ export function mountComposer(
         chip.title = a.name;
         if (img) chip.append(img);
         chip.append(name, remove);
-        listen(remove, "click", () => composer.remove(a.id));
+        listen(remove, "click", () => {
+          composer.remove(a.id);
+          if (asking.active) onQuick({ type: "remove", id: a.id });
+        });
         attachments.append(chip);
         attachmentNodes.set(a.id, chip);
       }
@@ -509,6 +565,7 @@ export function mountComposer(
     },
     /** `quiet`: the shell closed the card and already knows. */
     close(quiet = false) {
+      endQuick();
       visible = false;
       card.dataset.open = "false";
       card.hidden = true;
@@ -525,6 +582,20 @@ export function mountComposer(
     capture(capture) {
       composer.capture(capture);
       view.open();
+    },
+    /** A capture opened or changed the quick question (see pick/quick.mjs). */
+    quick(event) {
+      asking = event.active
+        ? {
+            active: true,
+            defaultId: event.defaultId,
+            pause: event.pause,
+            offer: event.offer,
+          }
+        : { active: false, defaultId: null, offer: null };
+      paintQuick();
+      if (event.active && event.notice)
+        composer.error(known(event.notice) ? event.notice : "generic");
     },
     /** A guide event: its steps appear in the card. */
     guide(event) {

@@ -103,6 +103,7 @@ export const conversation = mountConversation({
   onSize: (height) => api.cardSize?.(height),
   openLink: (url) => api.openLink?.(url),
   openImage: (image) => api.viewImage?.(image),
+  onQuick: (value) => api.quick?.(value),
   onReference: ({ ref }) => api.referenceHover?.({ ref }),
   onAction: (action) => {
     if (action === "guide-dismiss") conversation.store.dismiss(FAILURE_ID);
@@ -144,6 +145,10 @@ const unEvent = api.onEvent((event) => {
             ? [{ id: "capture", label: tr("guide-retry") }]
             : [],
       });
+    return;
+  }
+  if (event.type === "quick") {
+    conversation.card.quick(event);
     return;
   }
   if (event.type !== "guide") return;

@@ -6,8 +6,8 @@ test("the real composer delivers PDF and UTF-8 files through the durable session
   try {
     const blink = await app.firstWindow();
     await expect(blink.getByRole("img", { name: "Blink" })).toBeVisible();
-    // A plain click opens the mini composer; the full card (where files are
-    // attached) opens when Blink is waiting on a permission request.
+    // The card, where files are attached, opens when Blink is waiting on a
+    // permission request.
     await blink.evaluate(() =>
       window.blinkling.shell({ type: "click", permission: true }),
     );

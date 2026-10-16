@@ -60,18 +60,18 @@ test("native menu screenshot reaches the composer and the shared answer session"
     nativeClick(Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2));
     // The bubble takes the largest area in one click: with no browser in front
     // that is the whole screen, so there is no selection step.
-    // A capture flies into Blink and opens the mini composer with the shot
-    // attached (K); the question is typed there and the answer lands in the card.
-    let mini;
+    // A capture flies into Blink and opens the card with the shot attached;
+    // the question is typed there and the answer lands in the same card.
+    let card;
     await expect
       .poll(() => {
-        mini = app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
-        return !!mini;
+        card = app.windows().find((p) => p.url().includes("surface=card"));
+        return !!card;
       })
       .toBe(true);
-    mini.on("pageerror", (error) => errors.push(error.message));
-    await expect(mini.locator(".mini-entry-image")).toHaveCount(1);
-    await expect(mini.locator(".mini-entry-image .mini-thumb")).toHaveCount(1);
+    card.on("pageerror", (error) => errors.push(error.message));
+    await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
+    await expect(card.locator(".gl-attachment-chip img")).toHaveCount(1);
     const question = "What color? One word.";
     await expect
       .poll(
@@ -90,8 +90,8 @@ test("native menu screenshot reaches the composer and the shared answer session"
               globalThis.sentImages.push(block.source.data);
       });
     });
-    await mini.locator(".mini-input").fill(question);
-    await mini.locator(".mini-input").press("Enter");
+    await card.locator(".gl-input").fill(question);
+    await card.locator(".gl-input").press("Enter");
     const deck = () =>
       app.windows().find((p) => p.url().includes("composer/index.html"));
     const expected = process.env.BLINKLING_LIVE === "1" ? /red/i : /OK\./;

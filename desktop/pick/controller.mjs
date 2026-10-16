@@ -12,7 +12,7 @@ const names = {
 };
 
 /** Electron-free orchestration of one pick: key raise → hover outline → click or
- * drag → effect → release → one screen grab, thumbnails fly to Blink, the mini
+ * drag → effect → release → one screen grab, thumbnails fly to Blink, the card
  * composer opens. Every side effect is injected so the whole flow is unit tested;
  * `install.mjs` supplies the real layer, grabber and composer. Points are screen
  * DIP; the layer window adds its display origin before it reports them. */
@@ -30,7 +30,7 @@ export function createPickController({
   pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   pickedWhileHeld = () => null,
   mouthPoint,
-  mini,
+  quick,
   reduced = () => false,
   onError = () => {},
 }) {
@@ -216,28 +216,16 @@ export function createPickController({
     } catch (error) {
       onError(error);
     }
-    await mini.open(entries);
+    await quick.open(entries);
   }
 
-  /** The mini composer answers the release, so it opens with what is already
-   * known: text is there, a picture is a chip still waiting for the grab. The grab,
-   * the flight into Blink and the chips filling in follow while it is open. */
+  /** What was picked goes into the card's composer once the picture is in
+   * Blink's mouth: text is known at once, a picture needs the grab first. The
+   * card opens after the flight, never before it. */
   async function deliverTaken(takens) {
     layer.hide();
     const group = grouper.join();
     const fresh = group.fresh ? Promise.resolve(newChat?.()) : null;
-    const early = takens.map((taken) => ({
-      taken,
-      entry: taken.text
-        ? entryFor(taken, null)
-        : {
-            id: globalThis.crypto.randomUUID(),
-            kind: taken.kind,
-            taken,
-            pending: true,
-          },
-    }));
-    const opened = mini.open(early.map((e) => e.entry));
     let shot = null;
     let release;
     grabbing = new Promise((resolve) => (release = resolve));
@@ -252,17 +240,13 @@ export function createPickController({
     } finally {
       release();
     }
+    const entries = [];
     const flightItems = [];
-    for (const { taken, entry } of early) {
+    for (const taken of takens) {
       const picture = thumbnail(shot, taken);
-      if (entry.pending) {
-        const full = entryFor(taken, picture);
-        if (full) mini.fill({ ...full, id: entry.id });
-        else {
-          mini.drop(entry.id);
-          continue;
-        }
-      }
+      const entry = entryFor(taken, picture);
+      if (!entry) continue;
+      entries.push(entry);
       flightItems.push({
         id: entry.id,
         kind: taken.kind,
@@ -276,7 +260,7 @@ export function createPickController({
     } catch (error) {
       onError(error);
     }
-    await opened;
+    if (entries.length) await quick.open(entries);
   }
 
   /** A capture's region is relative to its display; a pick's bounds are screen
@@ -308,7 +292,7 @@ export function createPickController({
         dataUrl: entries[0].thumb,
       },
     ]);
-    if (capture.notice) mini.note?.(capture.notice);
+    if (capture.notice) quick.note?.(capture.notice);
   }
 
   return {
@@ -330,7 +314,7 @@ export function createPickController({
       await deliverTaken(takens);
     },
     /** Picks (an array of Taken) and legacy captures (overlay, hotkey) take the
-     * same road: flight into Blink, then the mini composer. */
+     * same road: flight into Blink, then the card. */
     deliver: (input) =>
       Array.isArray(input) ? deliverTaken(input) : deliverCapture(input),
     isRaised: () => state !== null,

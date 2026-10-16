@@ -133,7 +133,6 @@ export type ShellState = {
   drag: { x: number; y: number; velocity: number } | null;
   pinned: boolean;
   chatOpen: boolean;
-  miniOpen: boolean;
   fanLabelsSeen: boolean;
   chatFocused: boolean;
   autoExplain: boolean;

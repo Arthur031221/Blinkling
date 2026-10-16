@@ -277,3 +277,10 @@ test("a chat read back from disk shows its history to a card that subscribed bef
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("the router hands out Blink's own remote identity, whichever chat is showing", async () => {
+  const t = await setup();
+  t.main.identity = () => ({ type: "identity", id: "remote-1" });
+  assert.deepEqual(t.router.identity(), { type: "identity", id: "remote-1" });
+  await t.close();
+});

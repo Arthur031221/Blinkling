@@ -8,16 +8,16 @@ The plugin's `/blinkling:blinkling` command runs the launcher in `plugin/desktop
 
 `desktop/main/` is the Electron shell. It owns the windows and wires the services together:
 
-| Folder                             | Job                                                                                            |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `renderer/`, `character/`, `menu/` | Blink in the corner, its state faces, the menu and the three-step welcome.                     |
-| `pick/`, `capture/`                | Ctrl and click, Ctrl and drag, the capture overlay, the global hotkey and full-page capture.   |
-| `composer/`, `mini/`               | The mini composer with the three quick asks, and the full composer with model, effort and pin. |
-| `messages/`, `overlay/`            | The chat card, scroll back, and the marks drawn on the screen for answers and guides.          |
-| `autowatch/`                       | Auto explain: low-rate change detection, off until the user turns it on.                       |
-| `privacy/`                         | Refuses capture while a secure field, a password manager or a private window has focus.        |
-| `session/`                         | One durable conversation with Claude Code: send, stop, retry, resume and Remote Control.       |
-| `distribution/`                    | The native packages built for macOS (arm64 and x64), Windows and Linux.                        |
+| Folder                             | Job                                                                                          |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- |
+| `renderer/`, `character/`, `menu/` | Blink in the corner, its state faces, the menu and the three-step welcome.                   |
+| `pick/`, `capture/`                | Ctrl and click, Ctrl and drag, the capture overlay, the global hotkey and full-page capture. |
+| `composer/`                        | The one composer: what a capture adds, the three quick asks, model, effort and pin.          |
+| `messages/`, `overlay/`            | The chat card, scroll back, and the marks drawn on the screen for answers and guides.        |
+| `autowatch/`                       | Auto explain: low-rate change detection, off until the user turns it on.                     |
+| `privacy/`                         | Refuses capture while a secure field, a password manager or a private window has focus.      |
+| `session/`                         | One durable conversation with Claude Code: send, stop, retry, resume and Remote Control.     |
+| `distribution/`                    | The native packages built for macOS (arm64 and x64), Windows and Linux.                      |
 
 A capture is a screenshot, a region or a picked element. Every capture, quick ask, typed message, guide and auto explain turn goes through the same session, so there is one conversation and one history. The session runs the signed-in `claude` command without a shell and reads the answer as a stream of events. Blink shows the sentences as they arrive.
 

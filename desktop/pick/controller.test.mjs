@@ -16,8 +16,6 @@ function setup(options = {}) {
     caught: 0,
     order: [],
     opened: [],
-    filled: [],
-    dropped: [],
     grabs: 0,
     newChats: 0,
     errors: [],
@@ -73,11 +71,9 @@ function setup(options = {}) {
     caught: () => void (log.caught++, log.order.push("caught")),
     pause: async (ms) => void log.order.push(`wait ${ms}`),
     mouthPoint: () => ({ x: 1280, y: 400 }),
-    mini: {
+    quick: {
       open: async (entries) =>
-        void (log.opened.push(entries), log.order.push("mini")),
-      fill: (entry) => void (log.filled.push(entry), log.order.push("fill")),
-      drop: (id) => void (log.dropped.push(id), log.order.push("drop")),
+        void (log.opened.push(entries), log.order.push("card")),
       note: (code) => void log.order.push(`note ${code}`),
     },
     pickedWhileHeld: options.pickedWhileHeld,
@@ -182,7 +178,7 @@ test("a drag shorter than 6 px is a click", async () => {
   assert.equal(log.sent.find(([c]) => c === "taken")[1].kind, "image");
 });
 
-test("release delivers: layer clears, the mini composer opens at once, the screen is grabbed once, thumbnails fly to Blink", async () => {
+test("release delivers: layer clears, the screen is grabbed once, thumbnails fly to Blink, then the card opens with every chip complete", async () => {
   const { controller, log } = setup();
   await controller.raise();
   await pickAt(controller, local(200, 280));
@@ -195,43 +191,29 @@ test("release delivers: layer clears, the mini composer opens at once, the scree
   assert.equal(log.opened.length, 1);
   const [entries] = log.opened;
   assert.equal(entries.length, 2);
-  assert.equal(entries[0].pending, true, "the picture is still being taken");
+  for (const entry of entries)
+    assert.equal(entry.pending, undefined, "nothing is half taken");
+  assert.equal(entries[0].attachment.mediaType, "image/png");
   assert.equal(
-    entries[1].pending,
-    undefined,
-    "a table is text, it is complete",
+    entries[0].thumb,
+    log.flights[0].items[0].dataUrl,
+    "the image chip shows the picture that flew",
   );
+  assert.match(entries[0].thumb, /^data:image\/png;base64,/);
   assert.equal(entries[1].kind, "table");
   assert.equal(entries[1].attachment.mediaType, "text/plain");
   assert.equal(
     Buffer.from(entries[1].attachment.data, "base64").toString().split("\n")[0],
     "| Item | Price |",
   );
-  const [filled] = log.filled;
-  assert.equal(filled.id, entries[0].id);
-  assert.equal(filled.attachment.mediaType, "image/png");
-  assert.equal(
-    filled.thumb,
-    log.flights[0].items[0].dataUrl,
-    "the image chip shows the picture that flew",
-  );
-  assert.match(filled.thumb, /^data:image\/png;base64,/);
-  assert.equal(log.filled.length, 1, "a table is text, it has no picture");
 });
 
-test("the mini composer opens before the screen grab starts, so it answers the release at once", async () => {
+test("the card opens only after the grab and the flight, so Blink has the picture in its mouth first", async () => {
   const { controller, log } = setup();
   await controller.raise();
   await pickAt(controller, local(200, 280));
   await controller.drop("release");
-  assert.deepEqual(log.order, [
-    "mini",
-    "grab",
-    "fill",
-    "caught",
-    "wait 400",
-    "flight",
-  ]);
+  assert.deepEqual(log.order, ["grab", "caught", "wait 400", "flight", "card"]);
 });
 
 test("text arrives as a text attachment, not a picture of text", async () => {
@@ -310,7 +292,7 @@ test("window captures within 60 s share a chat, a later one starts a new chat", 
   assert.equal(log.flights.length, 4);
 });
 
-test("a capture from the overlay or a hotkey goes through the same flight and mini composer", async () => {
+test("a capture from the overlay or a hotkey goes through the same flight and card", async () => {
   const { controller, log } = setup();
   await controller.deliver({
     id: "c1",
@@ -350,9 +332,8 @@ test("a failed screen grab still delivers the text that was picked, and drops wh
   const [entries] = failing.log.opened;
   assert.deepEqual(
     entries.map((e) => e.kind),
-    ["text", "image"],
+    ["text"],
   );
-  assert.deepEqual(failing.log.dropped, [entries[1].id]);
   assert.equal(failing.log.errors.length, 1);
 });
 
@@ -380,7 +361,7 @@ test("on a second display the crop is taken relative to that display, not the de
   assert.deepEqual(crops, [{ x: 100, y: 120, width: 200, height: 100 }]);
 });
 
-test("Blink is told the moment the flight lands, before the mini composer opens", async () => {
+test("Blink is told the moment the flight lands, before the card opens", async () => {
   const { controller, log } = setup();
   await controller.deliver({
     id: "c2",
@@ -396,7 +377,7 @@ test("Blink is told the moment the flight lands, before the mini composer opens"
     },
   });
   assert.equal(log.caught, 1);
-  assert.deepEqual(log.order, ["caught", "wait 400", "flight", "mini"]);
+  assert.deepEqual(log.order, ["caught", "wait 400", "flight", "card"]);
 });
 
 test("the key stays held after a capture: hovering and dragging keep working and each pick is announced", async () => {
@@ -433,7 +414,7 @@ test("a pick made while the key is held can say that more can follow", async () 
   assert.deepEqual(hints, ["Keep holding"]);
 });
 
-test("a capture that came as the visible part tells the box once the picture is in", async () => {
+test("a capture that came as the visible part tells the card once the picture is in", async () => {
   const { controller, log } = setup();
   const capture = (id, notice) => ({
     id,
@@ -446,7 +427,7 @@ test("a capture that came as the visible part tells the box once the picture is 
     notice,
   });
   await controller.deliver(capture("p1", "visible-part"));
-  assert.ok(log.order.indexOf("note visible-part") > log.order.indexOf("mini"));
+  assert.ok(log.order.indexOf("note visible-part") > log.order.indexOf("card"));
   const count = log.order.filter((x) => x.startsWith("note")).length;
   await controller.deliver(capture("p2"));
   assert.equal(log.order.filter((x) => x.startsWith("note")).length, count);

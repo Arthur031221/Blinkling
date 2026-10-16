@@ -33,6 +33,8 @@ export const timing = Object.freeze({
   // the wait that lets Blink open its mouth before the picture starts to move.
   genie: 970,
   eatLead: 400,
+  // A capture that takes longer than this says it has begun.
+  captureSlow: 400,
   // Launch: the wait that lets the window draw once before Blink steps in.
   appearLead: 600,
   // How long the wait indicator stays on one word.

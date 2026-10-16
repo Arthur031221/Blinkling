@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createLayers } from "./layer-window.mjs";
 import { createRaiser } from "./raise.mjs";
@@ -14,16 +13,12 @@ import { createGrouper } from "./group.mjs";
 import { createCropper } from "./crop.mjs";
 import { createOnce, fileStore } from "./once.mjs";
 import { createPickHint } from "./teach.mjs";
-import { askModel } from "./ask.mjs";
-import { textAttachment } from "./taken.mjs";
 import { t as pickText } from "./strings.mjs";
-import { createMiniController } from "../mini/index.mjs";
+import { createQuick } from "./quick.mjs";
 import { pickLocale } from "../shared/i18n.mjs";
 import { exposeTestHook } from "../shared/test-hooks.mjs";
 
 const here = (name) => fileURLToPath(new URL(name, import.meta.url));
-const miniFile = (name) =>
-  fileURLToPath(new URL(`../mini/${name}`, import.meta.url));
 
 /** Until the window locator and secure-field guard land, a pick sees no element
  * data: every click falls through to the screen under it and nothing is locked.
@@ -64,14 +59,14 @@ function pickKeySetting(file, env) {
 }
 
 /** Wires the pick (M4–M7, N1–N3): the global pick key, one layer window per
- * display, the controller, the mini composer. The shell calls this once and
- * routes every capture through the returned `deliver`.
+ * display, the controller, the quick question in the card's composer. The
+ * shell calls this once and routes every capture through the returned `deliver`.
  *
  * electron: {BrowserWindow, screen, ipcMain, nativeImage, systemPreferences?, dialog?}
  * shell: {userDataDir, windowOptions(bounds, focusable), secure(win), windows(), viewImage?(image),
  *   input, blinkPoint(), workArea(), session, autoExplain:{get, set},
  *   composer:{open, attach}, captureScreen(display, windows), newChat?, caught? (Blink bounces when the flight lands),
- *   miniChanged? (true while the mini composer is open),
+ *   quickShow?(event) (tells the card the quick question changed),
  *   locator?, guard?, env?, platform?} */
 export async function installPick({
   electron,
@@ -89,9 +84,7 @@ export async function installPick({
     ipcMain,
     nativeImage,
     systemPreferences,
-    nativeTheme,
     dialog,
-    shell: osShell,
   } = electron;
   const env = shell.env ?? process.env;
   // The shell resolves the system language once; the variable is for a bare run.
@@ -135,35 +128,6 @@ export async function installPick({
     if (text) layer.send("hint", { text });
   };
 
-  const miniWindow = new BrowserWindow({
-    ...shell.windowOptions({ x: 0, y: 0, width: 392, height: 140 }, true),
-    webPreferences: {
-      ...shell.windowOptions({}, true).webPreferences,
-      preload: miniFile("preload.cjs"),
-    },
-  });
-  shell.secure(miniWindow);
-  void miniWindow.loadFile(miniFile("index.html")).catch(onError);
-
-  let lastEntries = [];
-  const sendTurn = (turn) => shell.session.send(turn);
-  const translatePage = async () => {
-    const page = lastEntries.find(
-      (e) => e.taken?.kind === "page" && e.taken.browser,
-    );
-    if (!page) return;
-    const { chips } = askModel({
-      items: [{ kind: "text", text: page.taken.text }],
-      locale: "en",
-    });
-    const prompt = chips.find((c) => c.id === "translate")?.prompt;
-    await sendTurn({
-      id: globalThis.crypto.randomUUID(),
-      text: prompt,
-      attachments: [page.attachment],
-      source: "quick-ask",
-    });
-  };
   const openPdfReader = dialog
     ? async () => {
         const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -181,75 +145,18 @@ export async function installPick({
       }
     : undefined;
 
-  /** A chip's thumbnail opens the whole picture in the viewer (or, where the
-   * shell has none, the system's image viewer). */
-  const openImage = shell.viewImage
-    ? async (attachment) => {
-        await shell.viewImage({ ...attachment, name: attachment.name });
-      }
-    : osShell?.openPath
-      ? async (attachment) => {
-          const ext = { "image/jpeg": "jpg", "image/webp": "webp" }[
-            attachment.mediaType
-          ];
-          const file = join(
-            mkdtempSync(join(tmpdir(), "blink-image-")),
-            `Image.${ext ?? "png"}`,
-          );
-          writeFileSync(file, Buffer.from(attachment.data, "base64"), {
-            mode: 0o600,
-          });
-          const failed = await osShell.openPath(file);
-          if (failed) onError(new Error(failed));
-        }
-      : undefined;
-
-  const mini = createMiniController({
-    win: miniWindow,
-    ipc: ipcMain,
+  const quick = createQuick({
     locale,
-    // The window's own media query does not always follow the system theme.
-    theme: () => (nativeTheme?.shouldUseDarkColors ? "dark" : "light"),
-    focus: {
-      remember: async () => {
-        await shell.input?.rememberFocus();
-      },
-      activate: (win) => shell.input?.activate(win),
-      restore: () => shell.input?.restoreFocus(),
-    },
-    workArea: shell.workArea,
-    nudges: shell.nudges,
-    edge: shell.edge,
-    blinkPoint: shell.blinkPoint,
     once,
     autoExplain: shell.autoExplain.get,
-    pointer: () => shell.cursor(),
     host: {
-      send: sendTurn,
-      selection: () => shell.session.state?.selection ?? null,
-      select: (next) => shell.session.select(next),
-      openComposer: async (seed) => {
-        await shell.composer.open();
-        for (const attachment of seed.attachments ?? [])
-          await shell.composer.attach(attachment);
-        if (seed.text)
-          await shell.composer.attach(textAttachment(seed.text, "Message.txt"));
-      },
-      changed: (open) => shell.miniChanged?.(open),
+      attach: (attachment) => shell.composer.attach(attachment),
+      show: (event) => shell.quickShow?.(event),
       pauseAuto: () => void shell.autoExplain.set(false),
       resumeAuto: () => void shell.autoExplain.set(true),
-      translatePage,
       openPdfReader,
-      openImage,
     },
-    ...timers,
   });
-  const openMini = mini.open;
-  mini.open = (entries) => {
-    const opened = openMini(entries);
-    lastEntries = mini.entries();
-    return opened;
-  };
 
   const grouper = createGrouper(now ? { clock: now } : {});
   const cropper = createCropper({ nativeImage });
@@ -262,13 +169,8 @@ export async function installPick({
     layer,
     // The layer hides before the grab, and the surface guard hides the rest.
     settle: async () => {},
-    // The mini composer is already open when the pixels are taken; it is only
-    // hidden for the grab when it sits over what is being grabbed.
-    grab: (display, rects = []) =>
-      shell.captureScreen(display, [
-        ...shell.windows(),
-        ...(mini.covers(rects) ? [miniWindow] : []),
-      ]),
+    // The card is hidden for the grab and opens after it.
+    grab: (display) => shell.captureScreen(display, shell.windows()),
     crop: cropper,
     pickedWhileHeld: hint.onPick,
     grouper,
@@ -276,7 +178,7 @@ export async function installPick({
     caught: () => shell.caught?.(),
     // The pictures are drawn into Blink's mouth, not onto its feet.
     mouthPoint: shell.mouthPoint ?? shell.blinkPoint,
-    mini,
+    quick,
     reduced: () =>
       systemPreferences?.getAnimationSettings?.().prefersReducedMotion === true,
     onError,
@@ -349,11 +251,8 @@ export async function installPick({
     /** Everything that is taken goes this way: an array of Taken (a pick) or a
      * capture from the region selector, the full-page grab or the hotkey. */
     deliver: (input) => controller.deliver(input),
-    openMini: (entries) => mini.open(entries),
-    /** A press away from the box and Blink: an empty box closes. */
-    outsideMini: () => mini.outside(),
-    /** Blink moved: an open mini composer goes with it (`point` while carried). */
-    followBlink: (point) => mini.follow(point),
+    /** The quick question the card's composer is carrying. */
+    quick,
     setPickKey(name) {
       if (!PICK_KEY_NAMES.includes(name)) return false;
       pickKey = name;
@@ -380,16 +279,15 @@ export async function installPick({
     },
     /** The same pieces, for tests that drive the flow without native input. */
     flying: () => layer.flying(),
-    test: { keys, controller, layer, mini, grouper, once, miniWindow },
+    test: { keys, controller, layer, quick, grouper, once },
     dispose() {
       disposed = true;
       if (retry !== null) (timers.clearTimer ?? clearTimeout)(retry);
       source.stop();
       keys.dispose();
-      mini.dispose();
+      quick.dispose();
       layer.dispose();
       raiser.dispose();
-      if (!miniWindow.isDestroyed()) miniWindow.destroy();
     },
   };
   if (env.BLINKLING_E2E === "1") exposeTestHook("pick", api, env);

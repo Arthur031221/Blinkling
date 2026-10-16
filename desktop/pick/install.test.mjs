@@ -27,6 +27,7 @@ function setup(options = {}) {
     picking: [],
     newChats: 0,
     attached: [],
+    shown: [],
     opened: 0,
     grabs: [],
     errors: [],
@@ -97,6 +98,7 @@ function setup(options = {}) {
     picking: (on) => void log.picking.push(on),
     workArea: () => d1.bounds,
     session: { send: async (turn) => void log.turns.push(turn) },
+    quickShow: (event) => void log.shown.push(event),
     autoExplain: { get: () => false, set: async () => {} },
     composer: {
       open: async () => void log.opened++,
@@ -155,23 +157,22 @@ function setup(options = {}) {
 test("a Windows path with backslashes ends with the same tail as a POSIX one", () => {
   assert.equal(
     endsWithPath(
-      win32.join("C:\\app", "desktop", "mini", "index.html"),
-      "mini/index.html",
+      win32.join("C:\\app", "desktop", "pick", "layer.html"),
+      "pick/layer.html",
     ),
     true,
   );
   assert.equal(
-    endsWithPath("/app/desktop/mini/index.html", "pick/index.html"),
+    endsWithPath("/app/desktop/pick/layer.html", "pick/index.html"),
     false,
   );
 });
 
-test("at start one hidden layer per display and the hidden mini window exist, and the pick key source is listening", async () => {
+test("at start one hidden layer per display exists, and the pick key source is listening", async () => {
   const s = setup();
   const pick = await s.install();
-  assert.equal(s.log.windows.length, 2);
+  assert.equal(s.log.windows.length, 1);
   for (const w of s.log.windows) assert.equal(w.options.show, false);
-  assert.equal(endsWithPath(s.log.windows[1].file, "mini/index.html"), true);
   assert.equal(pick.started, true);
   assert.deepEqual(s.hooks.map(([t]) => t).sort(), [
     "keydown",
@@ -181,19 +182,15 @@ test("at start one hidden layer per display and the hidden mini window exist, an
   ]);
 });
 
-test("the layer windows load their own preload, the mini window its own, neither the shell's", async () => {
+test("the layer windows load their own preload, not the shell's", async () => {
   const s = setup();
   await s.install();
-  const [layer, mini] = s.log.windows;
+  const [layer] = s.log.windows;
   assert.equal(
     endsWithPath(
       layer.options.webPreferences.preload,
       "pick/layer-preload.cjs",
     ),
-    true,
-  );
-  assert.equal(
-    endsWithPath(mini.options.webPreferences.preload, "mini/preload.cjs"),
     true,
   );
 });
@@ -263,7 +260,7 @@ test("the pick hint speaks the one locale the shell resolved", async () => {
   pick.dispose();
 });
 
-test("a capture from the overlay or the hotkey goes through deliver, flies and opens the mini composer", async () => {
+test("a capture from the overlay or the hotkey goes through deliver, flies and opens the card's composer", async () => {
   const s = setup();
   const pick = await s.install();
   await pick.deliver({
@@ -276,9 +273,10 @@ test("a capture from the overlay or the hotkey goes through deliver, flies and o
       data: PNG,
     },
   });
-  assert.equal(pick.test.mini.isOpen, true);
+  assert.equal(s.log.attached.length, 1);
+  assert.equal(pick.quick.entries().length, 1);
   assert.equal(s.log.newChats, 1);
-  pick.test.mini.escape();
+  pick.quick.end();
 });
 
 test("captures within 60 s share a chat; one 65 s later starts a new one", async () => {
@@ -353,7 +351,7 @@ test("the test hook keeps another module's hook when both wait for the shell's o
   }
 });
 
-test("translating a page from the mini composer sends the page text as a quick ask", async () => {
+test("a capture puts its chip in the card's composer and tells the card which question Enter sends", async () => {
   const s = setup();
   const pick = await s.install();
   const text = "Bonjour tout le monde, voici une page entière.";
@@ -363,7 +361,7 @@ test("translating a page from the mini composer sends the page text as a quick a
     mediaType: "text/plain",
     data: Buffer.from(text).toString("base64"),
   };
-  await pick.openMini([
+  await pick.quick.open([
     {
       id: "p",
       kind: "page",
@@ -371,15 +369,13 @@ test("translating a page from the mini composer sends the page text as a quick a
       taken: { kind: "page", browser: true, text },
     },
   ]);
-  const win = s.log.windows[1];
-  assert.ok(win.sent.some(([c]) => c === "blinkling:mini-view"));
-  await s.log.handlers["blinkling:mini-offer"](
-    { sender: win.webContents },
-    "translate-page",
-  );
-  assert.equal(s.log.turns.length, 1);
-  assert.equal(s.log.turns[0].source, "quick-ask");
-  assert.deepEqual(s.log.turns[0].attachments, [attachment]);
+  assert.deepEqual(s.log.attached, [attachment]);
+  const view = s.log.shown.at(-1);
+  assert.equal(view.type, "quick");
+  assert.equal(view.active, true);
+  assert.equal(view.defaultId, "translate", "a foreign page offers Translate");
+  pick.quick.remove("p");
+  assert.deepEqual(s.log.shown.at(-1), { type: "quick", active: false });
 });
 
 test("a locator and guard plugged in later are used by the next pick", async () => {

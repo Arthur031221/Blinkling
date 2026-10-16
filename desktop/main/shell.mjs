@@ -135,7 +135,6 @@ let composer = null,
   drag = null,
   pinned = false,
   chatOpen = false,
-  miniOpen = false,
   autoExplain = false,
   quitting = false;
 // One owner for what Blink is doing and every retreat and close deadline.
@@ -255,7 +254,6 @@ const snapshot = () => ({
     : null,
   pinned,
   chatOpen,
-  miniOpen,
   interaction: machine.read(),
   fanLabelsSeen: uiOnce.seen("fan-labels"),
   chatFocused: !!composer && !composer.isDestroyed() && composer.isFocused(),
@@ -545,14 +543,11 @@ function useDisplay(next) {
       display.scaleFactor,
     );
   placeCard();
-  followBlink();
   broadcast();
 }
 /** The card goes where Blink goes. Called on every move of Blink, on drop and
  * on every display change. */
 let placedAt = "";
-// The quick box goes with Blink too; it exists once the pick feature is up.
-let followBlink = () => {};
 function placeCard(at = shown()) {
   const bounds = cardAt(at);
   const key = JSON.stringify(bounds);
@@ -668,7 +663,6 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       else if (process.platform === "win32") blink.setShape(regions);
       if (saved) await store.save(display.id, saved);
       placeCard();
-      followBlink();
     }
   } else if (command.type === "pin") {
     pinned = command.value;
@@ -711,9 +705,13 @@ const send = (event) => {
     if (win === composer && !cardLoaded) {
       // The card's page is still loading: keep what matters for it.
       if (
-        ["guide", "blink-say", "blink-offer", "capture-status"].includes(
-          event.type,
-        )
+        [
+          "guide",
+          "blink-say",
+          "blink-offer",
+          "capture-status",
+          "quick",
+        ].includes(event.type)
       )
         heldEvents.push(shown);
       if (heldEvents.length > 50) heldEvents.shift();
@@ -907,6 +905,18 @@ ipcMain.handle("blinkling:drop-files", async (event, attachments) => {
   claimKeyboard(composer);
   for (const image of valid)
     composer.webContents.send("blinkling:capture", { image });
+});
+/** The card tells the quick question what became of it: a chip was removed,
+ * the PDF reader offer was taken, or the question is over. */
+ipcMain.on("blinkling:quick", (event, value) => {
+  if (!trusted(event) || event.sender !== composer?.webContents) return;
+  const quick = pick?.quick;
+  if (!quick || typeof value?.type !== "string") return;
+  if (value.type === "end") quick.end();
+  else if (value.type === "remove" && typeof value.id === "string")
+    quick.remove(value.id);
+  else if (value.type === "offer" && typeof value.id === "string")
+    void quick.offer(value.id);
 });
 ipcMain.handle("blinkling:send", async (event, turn) => {
   requireView(event);
@@ -1200,10 +1210,7 @@ const pick = await installPick({
     },
     caught: () => motion("eat"),
     picking: tellPicking,
-    miniChanged: (open) => {
-      miniOpen = open;
-      broadcast();
-    },
+    quickShow: (event) => send(event),
     autoExplain: {
       get: () => autoExplain,
       set: async (enabled) => {
@@ -1231,7 +1238,6 @@ const pick = await installPick({
     },
   },
 });
-followBlink = (point) => pick.followBlink(point);
 // Privacy looks through whichever locator pick has now, so one that plugs in
 // later is used by both; its verdicts come back to pick as the open guard.
 const pickLocator = {
@@ -1386,7 +1392,6 @@ const poll = setInterval(() => {
     };
     if (drag.active) {
       placeCard();
-      followBlink(drag.anchor);
     }
     broadcast();
   }
@@ -1421,11 +1426,8 @@ const poll = setInterval(() => {
   const down = cursor.pressed();
   if (down !== null) {
     if (down && !outsideWasDown && !drag && !over(p)) {
-      // The quick box closes by the same press when it is empty; picking
-      // is a press too and never counts.
-      if (miniOpen) {
-        if (!pickingOn) pick.outsideMini();
-      } else flow((m) => m.outside());
+      // Picking is a press too and never counts.
+      if (!pickingOn) flow((m) => m.outside());
     }
     outsideWasDown = down;
   }
@@ -1546,6 +1548,7 @@ function installDeckTest() {
   globalThis.blinklingTest.deck = {
     markClick: (ref) => revealReference(ref),
     hovered: referenceHovered,
+    cardEval: (code) => composer?.webContents.executeJavaScript(code),
   };
 }
 installDeckTest();

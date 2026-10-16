@@ -242,7 +242,6 @@ async function action(id) {
     const busy =
       session.expression !== "idle" ||
       shell.chatOpen ||
-      shell.miniOpen ||
       !!shell.drag ||
       touched !== null ||
       (mode !== "peek" && grumbling === null) ||
