@@ -110,7 +110,7 @@ export async function startDesktopHost({
   onMirror = () => {},
   descriptor = endpointPath(),
   directory = runtimeDirectory(),
-  version = "3.1.0",
+  version = "3.2.0",
 } = {}) {
   await privateDirectory(directory);
   const token = randomBytes(32).toString("hex");

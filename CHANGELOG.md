@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.2.0 - 2026-10-16
+
+- The chat card is the one place answers appear. It points at Blink's mouth, sits close to its body, follows it, and can be dragged a short way by its header, with the spot remembered for each edge. It shows the thinking dots with a changing word, keeps messages tight with your side tinted green, fades at the top, and opens at the newest message. An answer opens it by itself.
+- Blink stays out while you read, scroll or type, and goes back to its edge only after a short quiet time. The old answer deck is gone, and every surface that could be left behind now closes by time, Esc, a click outside or leaving it.
+- A picture in the card opens in a viewer with wheel and pinch zoom from fit to 800 percent, drag to pan, a double click between fit and 100 percent, and Esc or a click on the backdrop to close. Settings, welcome and the quick box can be moved a short way by their header.
+- Capture is whole. The screenshot bubble and the full screen bubble take the picture, Blink eats it and the question opens with it. The picture flies into Blink's mouth above Blink the whole way and is cut at the mouth, so it visibly goes in. A whole page from the browser extension arrives as every tile. When the page cannot be scrolled, or no extension is connected, you get what is on the screen and one line says why.
+- A picked rectangle gets an exact rounded frame in Blink green with a light and a dark hairline, and one calm light runs round it clockwise at a steady speed.
+- Blink looks and moves better. The right edge matches the left, the bottom edge shows the eyes, cheeks and both hands, the legs stay whole when it turns upright, and its click area is its drawn shape plus a small margin. It now plays the missing motions: appear, leave, turn, walk, pick, catching a file, celebrate, shrug, whirl and dizzy.
+- Guide and Auto explain run to the end without holding the app. Whole screen pictures are compressed on a worker thread, and a measured pass at 100 and 200 percent shows no frame over 50 ms and no long task.
+- Starting is faster. An installed build is trusted by its fingerprint and Blink no longer waits for the archive check: 824 ms instead of 2168 ms.
+- The terminal session and Blink's chat follow each other. A prompt and a finished answer typed in the session that opened Blink appear in Blink's chat, and Blink's chat reaches a session started with the development channel flag. Lines are never sent back to where they came from.
+- Answers are no longer cut short by a length rule in the system prompt. All nine tools carry a title and the read only, destructive, idempotent and open world hints. Every README links the newest release notes.
+- The release job commits the pinned builds as Arthur031221 with the private noreply address, so the history no longer shows github-actions[bot] for new releases.
+
 ## 3.1.0 - 2026-10-16
 
 - The Screenshot bubble takes the largest area you can see in one click. With a browser in front and the companion connected it captures the whole page, including the parts above and below the scroll. Otherwise, or if the page grab fails, it captures the whole screen. The hotkey still opens the selection overlay.
