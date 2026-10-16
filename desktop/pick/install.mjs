@@ -213,6 +213,8 @@ export async function installPick({
       restore: () => shell.input?.restoreFocus(),
     },
     workArea: shell.workArea,
+    nudges: shell.nudges,
+    edge: shell.edge,
     blinkPoint: shell.blinkPoint,
     once,
     autoExplain: shell.autoExplain.get,

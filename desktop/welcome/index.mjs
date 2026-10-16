@@ -1,3 +1,4 @@
+import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { duration } from "../shared/motion.mjs";
 
 export const WELCOME_SIZE = Object.freeze({ width: 520, height: 600 });
@@ -22,6 +23,7 @@ export function createWelcomeController({
   once,
   focus,
   workArea,
+  nudges,
   loaded = Promise.resolve(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -46,13 +48,24 @@ export function createWelcomeController({
   const place = () => {
     const area = workArea();
     const { width, height } = WELCOME_SIZE;
-    win.setBounds({
+    const centred = {
       x: Math.round(area.x + (area.width - width) / 2),
       y: Math.round(area.y + (area.height - height) / 2),
       width,
       height,
-    });
+    };
+    win.setBounds(shift ? shift(centred, area) : centred);
   };
+  const shift =
+    nudges &&
+    bindPanelNudge({
+      ipc,
+      win,
+      channel: "blinkling:welcome-nudge",
+      key: () => "welcome",
+      nudges,
+      replace: () => open && place(),
+    });
 
   async function ask(action) {
     if (!ACTIONS.has(action)) return null;
@@ -89,7 +102,7 @@ export function createWelcomeController({
     win.showInactive();
     focus.activate(win);
     win.focus();
-    send("blinkling:welcome-open", {});
+    send("blinkling:welcome-open", { nudge: nudges?.get("welcome") });
   }
 
   ipc.handle("blinkling:welcome-ready", (event) =>

@@ -187,3 +187,10 @@ kbd[data-listening="true"] {
     transition-duration: 0ms;
   }
 }
+
+.settings-head {
+  cursor: grab;
+}
+.settings-head[data-nudging] {
+  cursor: grabbing;
+}

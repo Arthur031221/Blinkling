@@ -63,6 +63,8 @@ function setup(options = {}) {
         options.selection = next;
       },
     },
+    nudges: options.nudges,
+    edge: () => "right",
     autoExplain: () => false,
     setTimer: (fn, ms) => (timers.push({ fn, ms }), timers.length),
     clearTimer: () => {},
@@ -485,4 +487,26 @@ test("a thumbnail click hands that picture to the host to open in full", async (
   await Promise.resolve();
   assert.equal(log.images.length, 1);
   setLayer("mini", null);
+});
+
+test("the box can be dragged up to 120 px from where it opens, per edge, and is placed with that offset", async () => {
+  const saved = new Map();
+  const nudges = {
+    get: (key) => saved.get(key) ?? { x: 0, y: 0 },
+    set: (key, value) => saved.set(key, value),
+  };
+  const { controller, state, fire, sent } = setup({ nudges });
+  await controller.open(entries());
+  const home = { ...state.bounds };
+  fire("blinkling:mini-nudge", { x: -40, y: 30 });
+  assert.equal(state.bounds.x, home.x - 40);
+  assert.equal(state.bounds.y, home.y + 30);
+  fire("blinkling:mini-nudge", { x: -900, y: 0, commit: true });
+  assert.equal(home.x - state.bounds.x, 120);
+  assert.deepEqual(saved.get("mini:right"), { x: -120, y: 0 });
+  await controller.open(entries());
+  const open = sent.filter(([c]) => c === "blinkling:mini-open").at(-1)[1];
+  assert.deepEqual(open.nudge, { x: -120, y: 0 });
+  fire("blinkling:mini-nudge", { reset: true });
+  assert.equal(state.bounds.x, home.x);
 });

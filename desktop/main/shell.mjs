@@ -732,6 +732,14 @@ const locator = new Proxy(
 const cardBus = new EventEmitter();
 // The finished guide `{title, steps, explanation, shots}` for the saver.
 const guideEvents = new EventEmitter();
+/** What the reader nudged panels to, by panel: the preferences keep it. */
+const nudges = {
+  get: (key) => store.nudge(key),
+  set: (key, offset, commit) => {
+    store.nudges[key] = offset;
+    if (commit) void store.saveNudge(key, offset);
+  },
+};
 const blinkPoint = () => ({
   x: position.reveal.x + display.bounds.x,
   y: position.reveal.y + display.bounds.y,
@@ -1084,6 +1092,8 @@ const pick = await installPick({
     cursor: () => cursor.point(),
     blinkPoint,
     mouthPoint,
+    nudges,
+    edge: () => position.edge,
     workArea: () => display.workArea,
     session,
     captureScreen,
@@ -1142,6 +1152,7 @@ const secondary = {
   secure,
   input,
   workArea: () => display.workArea,
+  nudges,
   openExternal: (url) => externalShell.openExternal(url),
 };
 const welcome = installWelcome({

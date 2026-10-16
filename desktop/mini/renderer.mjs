@@ -5,6 +5,7 @@ import { strings as composerStrings } from "../composer/strings.mjs";
 import { readAttachment } from "../composer/index.mjs";
 import { translator } from "../shared/i18n.mjs";
 import { followShellTheme } from "../composer/theme.mjs";
+import { dragPanel } from "../shared/panel-drag.mjs";
 import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
 
 const api = window.miniAPI;
@@ -110,7 +111,9 @@ api.onView((view) => {
   report();
 });
 
-api.onOpen(({ origin } = {}) => {
+const drag = dragPanel(root, api);
+api.onOpen(({ origin, nudge } = {}) => {
+  drag.opened(nudge);
   const card = root.firstElementChild;
   if (!card) return;
   // The box grows out of Blink, which is where origin points.

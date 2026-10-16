@@ -3,6 +3,7 @@ import { mountBlink } from "../character/index.mjs";
 import { mountPickAnimation } from "../pick/teach.mjs";
 import { strings as safety } from "../shared/safety.mjs";
 import { drawWordmark } from "../shared/draw-wordmark.mjs";
+import { dragPanel } from "../shared/panel-drag.mjs";
 import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
 
 const api = window.welcomeAPI;
@@ -139,7 +140,9 @@ function adopt(next) {
   render();
 }
 api.onState(adopt);
-api.onOpen(() => {
+const drag = dragPanel(document.querySelector(".welcome-head"), api);
+api.onOpen(({ nudge } = {}) => {
+  drag.opened(nudge);
   step = 0;
   waveAt = performance.now() / 1000;
   render();

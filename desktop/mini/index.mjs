@@ -1,6 +1,7 @@
 import { createMini } from "./model.mjs";
 import { placeMini, blinkBody, MINI_WIDTH } from "./placement.mjs";
 import { duration } from "../shared/motion.mjs";
+import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { setLayer } from "../shared/escape.mjs";
 import { validateAttachment, attachmentLimits } from "../composer/index.mjs";
 import { efforts, permissionModes } from "../composer/models.mjs";
@@ -21,6 +22,8 @@ export function createMiniController({
   theme = () => "light",
   focus,
   workArea,
+  nudges,
+  edge = () => "bottom",
   blinkPoint,
   host,
   once,
@@ -70,8 +73,19 @@ export function createMiniController({
       workArea: workArea(),
       avoid: taken.map((t) => t.bounds).filter(Boolean),
     });
+    if (shift) placed = shift(placed, workArea());
     win.setBounds(placed);
   }
+  const shift =
+    nudges &&
+    bindPanelNudge({
+      ipc,
+      win,
+      channel: "blinkling:mini-nudge",
+      key: () => `mini:${edge()}`,
+      nudges,
+      replace: () => model && place(),
+    });
 
   /** Where the box grows from: Blink's body, relative to the box. */
   function origin() {
@@ -254,7 +268,10 @@ export function createMiniController({
       refresh();
       place();
       win.showInactive();
-      send("blinkling:mini-open", { origin: origin() });
+      send("blinkling:mini-open", {
+        origin: origin(),
+        nudge: nudges?.get(`mini:${edge()}`),
+      });
       await focus.remember();
       if (model !== mine) return;
       focus.activate(win);

@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("miniAPI", {
   offer: (id) => ipcRenderer.send("blinkling:mini-offer", String(id)),
   attach: (value) => ipcRenderer.send("blinkling:mini-attach", value),
   select: (value) => ipcRenderer.send("blinkling:mini-select", value),
+  nudge: (value) => ipcRenderer.send("blinkling:mini-nudge", value),
   escape: () => ipcRenderer.send("blinkling:mini-escape"),
   size: (height) => ipcRenderer.send("blinkling:mini-size", Number(height)),
 });

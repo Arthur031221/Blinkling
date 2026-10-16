@@ -176,3 +176,10 @@ button:focus-visible {
     transition-duration: 0ms;
   }
 }
+
+.welcome-head {
+  cursor: grab;
+}
+.welcome-head[data-nudging] {
+  cursor: grabbing;
+}

@@ -1,3 +1,4 @@
+import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { duration } from "../shared/motion.mjs";
 import { LANGUAGE_NAMES, LOCALES } from "../shared/i18n.mjs";
 
@@ -23,6 +24,7 @@ export function createSettingsController({
   host,
   focus,
   workArea,
+  nudges,
   loaded = Promise.resolve(),
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -51,13 +53,24 @@ export function createSettingsController({
   const place = () => {
     const area = workArea();
     const { width, height } = SETTINGS_SIZE;
-    win.setBounds({
+    const centred = {
       x: Math.round(area.x + (area.width - width) / 2),
       y: Math.round(area.y + (area.height - height) / 2),
       width,
       height,
-    });
+    };
+    win.setBounds(shift ? shift(centred, area) : centred);
   };
+  const shift =
+    nudges &&
+    bindPanelNudge({
+      ipc,
+      win,
+      channel: "blinkling:settings-nudge",
+      key: () => "settings",
+      nudges,
+      replace: () => open && place(),
+    });
 
   async function change(request) {
     const refuse = (reason = "invalid") => ({
@@ -144,7 +157,7 @@ export function createSettingsController({
       win.showInactive();
       focus.activate(win);
       win.focus();
-      send("blinkling:settings-open", {});
+      send("blinkling:settings-open", { nudge: nudges?.get("settings") });
     },
     close,
     dispose() {

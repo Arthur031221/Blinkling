@@ -2,6 +2,7 @@ import { settingsText } from "./strings.mjs";
 import { acceleratorFromKeyEvent, hotkeyLabel } from "./accelerator.mjs";
 import { strings as safety } from "../shared/safety.mjs";
 import { drawWordmark } from "../shared/draw-wordmark.mjs";
+import { dragPanel } from "../shared/panel-drag.mjs";
 import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
 
 const api = window.settingsAPI;
@@ -157,7 +158,9 @@ api.onState((next) => {
   t = settingsText(next.locale);
   render();
 });
-api.onOpen(() => {
+const drag = dragPanel(document.querySelector(".settings-head"), api);
+api.onOpen(({ nudge } = {}) => {
+  drag.opened(nudge);
   say("");
   requestAnimationFrame(() => {
     card.classList.add("is-open");
