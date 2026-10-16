@@ -240,29 +240,26 @@ a:focus-visible {
     transform: translateY(-3px);
   }
 }
+/* A soft band of light moves across the word, which is only a few letters. */
 .gl-think-word {
-  position: relative;
-  overflow: hidden;
-  color: var(--gl-muted);
-}
-/* A band of light crosses the word: transform only. */
-.gl-think-word::after {
-  content: "";
-  position: absolute;
-  inset: 0;
+  color: transparent;
   background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--text) 55%, transparent),
-    transparent
-  );
-  transform: translateX(-100%);
-  animation: gl-shimmer calc(var(--motion-slow) * 5) var(--ease-standard)
-    infinite;
+      90deg,
+      var(--gl-muted) 35%,
+      var(--text) 50%,
+      var(--gl-muted) 65%
+    )
+    0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: gl-shimmer calc(var(--motion-slow) * 5) linear infinite;
 }
 @keyframes gl-shimmer {
+  from {
+    background-position: 100% 0;
+  }
   to {
-    transform: translateX(100%);
+    background-position: 0 0;
   }
 }
 .gl-quick-asks {

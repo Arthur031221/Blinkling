@@ -469,7 +469,12 @@ let interactionKey = "";
 function closeComposer(restore = true) {
   cancelClaim?.();
   const focused = composer?.isFocused();
-  if (chatOpen) cardBus.emit("fade");
+  if (chatOpen) {
+    cardBus.emit("fade");
+    // The page forgets it was open, so the next opening starts at the newest.
+    if (composer && !composer.isDestroyed())
+      composer.webContents.send("blinkling:surface", { type: "close" });
+  }
   chatOpen = false;
   pinned = false;
   escapeKeys.set("mini", null);

@@ -170,7 +170,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     }
     // "slow:" streams a few sentences over about 1.2 s, so a test can tell the
     // moment the first sentence arrives from the moment the answer ends.
-    const slow = frame.message.content.at(-1).text?.startsWith("slow:");
+    // "think:" is the same after a wait of 1.8 s before the first word.
+    const think = frame.message.content.at(-1).text?.startsWith("think:");
+    const slow =
+      think || frame.message.content.at(-1).text?.startsWith("slow:");
     const pieces = slow
       ? ["First sentence. ", "Second one ", "is longer. ", "And a third."]
       : ["OK."];
@@ -223,6 +226,6 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       delta(pieces[index]);
       active = setTimeout(() => step(index + 1), slow ? 400 : 0);
     };
-    active = setTimeout(() => step(0), 25);
+    active = setTimeout(() => step(0), think ? 1800 : 25);
   }
 });

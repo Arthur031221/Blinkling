@@ -419,12 +419,13 @@ export function mountComposer(
       // A draft left behind by Esc still counts once the card is back.
       onTyping(Boolean(text.value));
     },
-    close() {
+    /** `quiet`: the shell closed the card and already knows. */
+    close(quiet = false) {
       visible = false;
       card.dataset.open = "false";
       card.hidden = true;
       onTyping(false);
-      onClose();
+      if (!quiet) onClose();
     },
     /** Escape closes the topmost thing: an open list first, then the card. */
     escape() {

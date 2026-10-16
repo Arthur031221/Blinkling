@@ -607,6 +607,20 @@ each("opening the card scrolls the history to the newest message", (locale) => {
   t.dispose();
 });
 
+test("a close the shell made forgets the card was open without telling the shell again", () => {
+  const closed = [];
+  const t = setup({ onClose: () => closed.push(1) });
+  const history = t.q(".gl-chat-history");
+  Object.defineProperty(history, "scrollHeight", { value: 900 });
+  t.view.open();
+  history.scrollTop = 5;
+  t.view.close(true);
+  assert.equal(closed.length, 0);
+  t.view.open();
+  assert.equal(history.scrollTop, 900, "the next opening starts at the newest");
+  t.dispose();
+});
+
 test("the message list ends above the composer and bubbles are tinted in both themes", () => {
   const history = blocks(".gl-chat-history").join(";");
   assert.match(history, /overflow-y:\s*auto/);

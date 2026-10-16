@@ -114,7 +114,7 @@ const unSurface = api.onSurface?.((event) => {
     watchFrames();
   }
   if (event.type === "close") {
-    conversation.card.close();
+    conversation.card.close(true);
     watchFrames();
   }
 });
