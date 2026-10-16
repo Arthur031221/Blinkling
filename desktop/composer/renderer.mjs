@@ -8,6 +8,7 @@ import {
 import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
 import { strings } from "./strings.mjs";
 import { followShellTheme } from "./theme.mjs";
+import { readerScroll } from "./reading.mjs";
 const api = window.blinkling;
 const log = frameLog();
 /** Frames of the grow and fold transition, for the end-to-end frame gate. */
@@ -199,7 +200,21 @@ const report = (kind) => {
   reportedAt[kind] = now;
   api.engage?.({ kind });
 };
-addEventListener("scroll", () => report("scroll"), true);
+// The card also scrolls itself, to the newest line as the history loads and an
+// answer streams in. That is not reading and must not hold Blink out.
+const reading = readerScroll();
+for (const type of ["wheel", "pointerdown", "touchstart", "keydown"])
+  addEventListener(type, () => reading.input(), {
+    capture: true,
+    passive: true,
+  });
+addEventListener(
+  "scroll",
+  () => {
+    if (reading.isReader()) report("scroll");
+  },
+  true,
+);
 addEventListener("wheel", () => report("scroll"), { passive: true });
 document.addEventListener("selectionchange", () => {
   if (!document.getSelection()?.isCollapsed) report("select");
