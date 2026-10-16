@@ -8,7 +8,7 @@ import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
 import { setDocumentLocale } from "../shared/i18n.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
-import { touchPart, sideOf, gazeAt } from "../character/touch.mjs";
+import { gazeAt } from "../character/touch.mjs";
 const api = window.blinkling;
 document.documentElement.style.cssText += cssVariables();
 let shell = await api.shell({ type: "state" });
@@ -197,13 +197,11 @@ async function action(id) {
         : 0;
     const touched =
       pointer?.point && pointer.blink && mode !== "drag" && mode !== "peek"
-        ? touchPart(pointer.point, current)
+        ? character.touchAt(pointer.point)
         : null;
     character.pose(now / 1000, {
       gaze: picking && pointer?.point ? gazeAt(pointer.point, current) : null,
-      touch: touched
-        ? { part: touched, side: sideOf(pointer.point, current) }
-        : null,
+      touch: touched,
       dizzyAt: at.dizzy,
       whirlAt: shell.interaction.held ? whirlAt : null,
       appearAt: at.appear,

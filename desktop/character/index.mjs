@@ -1,5 +1,7 @@
 import {
   BODY,
+  D2R,
+  FACE,
   LIMB_LINE,
   STAND,
   armGeom,
@@ -61,6 +63,11 @@ export const BOX = Object.freeze({
   footX: 74,
   footY: 142,
 });
+/** How far, in drawing units, a pointer may miss a cheek and still touch it: the
+ * cheeks are small, and they lie on the body, so nothing undrawn is reached. */
+const TOUCH_REACH = 4;
+/** The face and the body above it end here; the belly is below. */
+const FACE_BOTTOM = 106;
 export const FEET = Object.freeze({ x: 100, y: 190 });
 const VIEW = [
   FEET.x - BOX.footX / K,
@@ -123,6 +130,7 @@ export function mountBlink(host) {
     blendAt: 0,
     blendFor: BLEND,
     touchAt: 0,
+    rest: null,
     dragAt: -1,
     yaw: 0,
     peek: 0,
@@ -307,6 +315,7 @@ export function mountBlink(host) {
     out.attach = (out.attach ?? "") + dotSvg(o.dot);
     out.noShadow = true;
     ctx.last = out;
+    if (!ctx.key?.startsWith("touch:")) ctx.rest = out;
     const edge = EDGES[ctx.edge];
     ctx.outer = {
       angle: lerp(0, edge.angle, ease(lean)),
@@ -342,8 +351,8 @@ export function mountBlink(host) {
    * moved and tilted the figure, the edge has hidden what lies behind it and the
    * edge has turned it. Only what is drawn counts: the body outline, the arms, the
    * legs and the shoes. */
-  function shapes() {
-    const o = { ...STAND, ...ctx.last };
+  function shapes(drawn = ctx.last) {
+    const o = { ...STAND, ...drawn };
     const sil = silhouette(o.yaw);
     const half = BODY.line / 2;
     const body = boxPolygon(
@@ -376,6 +385,70 @@ export function mountBlink(host) {
         })),
       );
     }
+    // The parts a pointer can touch, each with the part and side it means.
+    const named = [];
+    const faceX = (x) =>
+      BODY.cx -
+      BODY.cx * sil.c +
+      (BODY.d / 2) * Math.sin(o.yaw * D2R) +
+      x * sil.c;
+    FACE.blushX.forEach((bx, i) => {
+      const k = Math.max(o.blush ?? 1, 1),
+        cx = faceX(bx),
+        rx = 11 * k * sil.c + TOUCH_REACH,
+        ry = 6.5 * k + TOUCH_REACH;
+      named.push({
+        part: "cheek",
+        side: i ? 1 : -1,
+        poly: ring(0, 0, 1, 16).map((v) => ({
+          x: cx + v.x * rx,
+          y: FACE.blushY + v.y * ry,
+        })),
+      });
+    });
+    const sides = [-1, 1];
+    sides.forEach((side, i) => {
+      for (const p of armGeom(side, o[i ? "R" : "L"], o.yaw).pts)
+        named.push({
+          part: "hand",
+          side,
+          poly: ring(p.x, p.y, p.r + LIMB_LINE / 2),
+        });
+    });
+    const flip = (poly) => poly.map((v) => ({ x: v.x, y: -v.y }));
+    named.push(
+      { part: "head", side: 0, poly: clipAbove(body, FACE_BOTTOM) },
+      {
+        part: "belly",
+        side: 0,
+        poly: flip(clipAbove(flip(body), -FACE_BOTTOM)),
+      },
+    );
+    sides.forEach((side, i) => {
+      const leg = legGeom(side, o[i ? "legR" : "legL"], o.yaw);
+      for (const p of leg.pts)
+        named.push({
+          part: "foot",
+          side,
+          poly: ring(p.x, p.y, p.r + LIMB_LINE / 2),
+        });
+      const shoe = shoeShape(leg, o.yaw),
+        turn = shoe.rot * D2R;
+      named.push({
+        part: "foot",
+        side,
+        poly: roundedRect(
+          -shoe.w / 2 + shoe.toe,
+          -shoe.h / 2,
+          shoe.w,
+          shoe.h,
+          shoe.h / 2,
+        ).map((v) => ({
+          x: shoe.cx + v.x * Math.cos(turn) - v.y * Math.sin(turn),
+          y: shoe.cy + v.x * Math.sin(turn) + v.y * Math.cos(turn),
+        })),
+      });
+    });
     const pivot = o.pivot ?? [100, 190];
     const a = (o.roll * Math.PI) / 180,
       c = Math.cos(a),
@@ -404,8 +477,32 @@ export function mountBlink(host) {
       const moved = poly.map(pose);
       return (o.clipY != null ? clipAbove(moved, o.clipY) : moved).map(turned);
     };
-    return { body: place(body), parts: parts.map(place) };
+    return {
+      body: place(body),
+      parts: parts.map(place),
+      named: named.map((n) => ({ ...n, poly: place(n.poly) })),
+    };
   }
+
+  const within = (poly, p) => {
+    let hit = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const u = poly[i],
+        v = poly[j];
+      if (
+        u.y > p.y !== v.y > p.y &&
+        p.x < ((v.x - u.x) * (p.y - u.y)) / (v.y - u.y) + u.x
+      )
+        hit = !hit;
+    }
+    return hit;
+  };
+  const partsAt = (point, drawn) => {
+    const screen = toScreen();
+    return shapes(drawn)
+      .named.map((n) => ({ ...n, poly: n.poly.map(screen) }))
+      .filter((n) => n.poly.length > 2 && within(n.poly, point));
+  };
 
   return {
     svg,
@@ -419,6 +516,20 @@ export function mountBlink(host) {
       return ctx.peek;
     },
     /** Clickable outlines in screen coordinates. */
+    /** The part of Blink under a screen point, as it is drawn now: where the
+     * pose put it, at the scale and turn of the edge it grips. Where a reaction
+     * moved its part away from the pointer, the part stays touched while the
+     * pointer is where it rested. */
+    touchAt(point) {
+      const now = partsAt(point, ctx.last)[0];
+      const held = ctx.key?.startsWith("touch:") ? ctx.key.slice(6) : null;
+      const rest = now
+        ? null
+        : held &&
+          partsAt(point, ctx.rest).find((n) => n.part + n.side === held);
+      const hit = now ?? rest;
+      return hit ? { part: hit.part, side: hit.side } : null;
+    },
     /** Which pose is playing now (held, dizzy, eat, walk...). */
     key: () => ctx.key,
     polygons() {

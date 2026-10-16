@@ -10,23 +10,6 @@ export function toUnits(point, feet) {
     y: FEET.y + (point.y - feet.y) / BLINK_SCALE,
   };
 }
-/** The parts, as areas in drawing units, nearest first: the cheeks sit on the
- * face, the hands hang at the sides of the body, the feet under it. */
-export function partAt(unit) {
-  const { x, y } = unit;
-  const ax = Math.abs(x);
-  if (y < 30 || y > 194 || ax > 92) return null;
-  if (y >= 174) return ax < 32 ? "foot" : null;
-  if (ax >= 62 && y >= 96 && y < 156) return "hand";
-  if (ax >= 62) return null;
-  if (ax >= 30 && y >= 106 && y <= 132) return "cheek";
-  if (y < 106) return "head";
-  return "belly";
-}
-export const touchPart = (point, feet) => partAt(toUnits(point, feet));
-/** Which side a point is on, for the hands: the left one is -1. */
-export const sideOf = (point, feet) => (point.x < feet.x ? -1 : 1);
-
 /** Where Blink looks to follow a point: each axis from -1 to 1, measured from the
  * eyes, which sit at y = 92 in the drawing. A point a few faces away already means
  * all the way to that side. */
