@@ -72,6 +72,17 @@ export function systemLocale({ app, env = process.env, chosen } = {}) {
   return resolved;
 }
 
+/** The language the user picked in settings takes effect now: resolve again
+ * (`chosen` is a locale or "system") and keep the answer for every later call. */
+export function changeSystemLocale(options = {}) {
+  resolved = undefined;
+  return systemLocale(options);
+}
+
+/** A setting a module reads on each use may be given as a function, so a
+ * later language choice is seen without rebuilding the module. */
+export const live = (value) => (typeof value === "function" ? value() : value);
+
 /** Forget the resolved locale. For tests; the app resolves once per run. */
 export function resetSystemLocale() {
   resolved = undefined;

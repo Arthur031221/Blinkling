@@ -27,31 +27,45 @@ export function mountConversation({
 } = {}) {
   const store = createMessageStream();
   const composer = createComposer({ session, selection });
-  const card = mountComposer(cardHost, {
-    composer,
-    store,
-    models,
-    efforts,
-    onPin,
-    onChat,
-    onNudge,
-    nudgeNow,
-    onClose,
-    onTyping,
-    onHold,
-    onSize,
-    onAction,
-    onQuick,
-    onReference,
-    copy,
-    openLink,
-    openImage,
-  });
+  const build = () =>
+    mountComposer(cardHost, {
+      composer,
+      store,
+      models,
+      efforts,
+      onPin,
+      onChat,
+      onNudge,
+      nudgeNow,
+      onClose,
+      onTyping,
+      onHold,
+      onSize,
+      onAction,
+      onQuick,
+      onReference,
+      copy,
+      openLink,
+      openImage,
+    });
+  let card = build();
   const unsubscribe = session.subscribe((event) => store.accept(event));
   return {
     store,
     composer,
-    card,
+    get card() {
+      return card;
+    },
+    /** The language changed (the page's locale already says so): the card's
+     * words are made again from the same chat and draft, closed or open as it
+     * was. */
+    relocalize() {
+      const { open, pinned } = { open: card.isOpen(), pinned: card.isPinned() };
+      card.dispose();
+      card = build();
+      card.setPinned(pinned);
+      if (!open) card.close(true);
+    },
     capture: (value) => card.capture(value),
     /** Carry the mini composer's text and chips into the card. */
     seed(value) {

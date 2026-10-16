@@ -170,3 +170,14 @@ test("there is no replay and no saved-guides list (N3.9)", async () => {
   );
   t.done();
 });
+
+test("the save bubble follows a language chosen while Blink runs", () => {
+  let language = "zh-TW";
+  const t = setup({ languages: () => [language] });
+  t.offer.offerSave(result({ language: undefined }));
+  language = "en";
+  t.offer.offerSave(result({ language: undefined }));
+  assert.equal(t.events[0].label, "儲存導覽");
+  assert.notEqual(t.events[1].label, "儲存導覽");
+  t.done();
+});

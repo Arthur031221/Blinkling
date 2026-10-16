@@ -36,8 +36,9 @@ const SETTLED = 0.002;
 export function mountMenu(
   host,
   onAction,
-  { text = menuText(), firstUse = false, onLabelsShown = () => {} } = {},
+  { text: given = menuText(), firstUse = false, onLabelsShown = () => {} } = {},
 ) {
+  let text = given;
   host.setAttribute("role", "toolbar");
   host.setAttribute("aria-label", text("toolbar"));
   let expanded = -1,
@@ -134,6 +135,18 @@ export function mountMenu(
             : (open ? i : shown - 1 - i) * steps,
         );
       }
+    },
+    /** The language changed: every bubble says its words again, where it stands. */
+    setText(next) {
+      text = next;
+      host.setAttribute("aria-label", text("toolbar"));
+      buttons.forEach((b, i) => {
+        const l = labels[i];
+        b.setAttribute("aria-label", text(l.name));
+        l.title.textContent = text(l.name);
+        l.detail.textContent = text(l.hint);
+      });
+      this.setAuto(buttons[AUTO].dataset.on === "true");
     },
     setAuto(value) {
       const b = buttons[AUTO],

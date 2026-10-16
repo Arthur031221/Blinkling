@@ -439,3 +439,22 @@ test("when the card takes the fan's place no bubble is drawn from the next frame
   assert.equal(gone.menu.open, true);
   assert.equal(drawn(gone.menu), true);
 });
+
+test("a new language changes every bubble's words where it stands, and keeps the Auto explain state", () => {
+  const { menu } = mount({ text: menuText("en") });
+  menu.setAuto(true);
+  const before = menu.buttons.slice();
+  menu.setText(menuText("ja"));
+  assert.deepEqual(
+    menu.buttons.map((b) => b.getAttribute("aria-label")),
+    ["capture", "guide", "autoExplain", "settings", "quit"].map((k) =>
+      menuText("ja")(k),
+    ),
+  );
+  assert.deepEqual(menu.buttons, before, "the same buttons, none rebuilt");
+  assert.equal(menu.buttons[2].getAttribute("aria-checked"), "true");
+  assert.match(
+    menu.buttons[2].textContent,
+    new RegExp(menuText("ja")("autoExplainOn")),
+  );
+});

@@ -36,8 +36,10 @@ export function channelText(message) {
     .join("\n\n");
 }
 
+let writes = 0;
 async function writeJson(file, value) {
-  const temporary = `${file}.${process.pid}.tmp`;
+  // One name per write: two saves in flight must not rename each other's file.
+  const temporary = `${file}.${process.pid}.${writes++}.tmp`;
   await writeFile(temporary, JSON.stringify(value), { mode: 0o600 });
   await rename(temporary, file);
 }

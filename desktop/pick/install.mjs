@@ -15,7 +15,7 @@ import { createOnce, fileStore } from "./once.mjs";
 import { createPickHint } from "./teach.mjs";
 import { t as pickText } from "./strings.mjs";
 import { createQuick } from "./quick.mjs";
-import { pickLocale } from "../shared/i18n.mjs";
+import { live, pickLocale } from "../shared/i18n.mjs";
 import { exposeTestHook } from "../shared/test-hooks.mjs";
 
 const here = (name) => fileURLToPath(new URL(name, import.meta.url));
@@ -88,11 +88,15 @@ export async function installPick({
   } = electron;
   const env = shell.env ?? process.env;
   // The shell resolves the system language once; the variable is for a bare run.
-  const locale = pickLocale(shell.locale ?? env.BLINKLING_LOCALE);
+  // `shell.locale` may be a function: a language chosen in settings applies at once.
+  const locale = () => pickLocale(live(shell.locale) ?? env.BLINKLING_LOCALE);
   const timers = setTimer ? { setTimer, clearTimer } : {};
 
   const once = createOnce(fileStore(join(shell.userDataDir, "pick-once.json")));
-  const hint = createPickHint({ once, t: pickText(locale) });
+  const hint = createPickHint({
+    once,
+    t: (key, vars) => pickText(locale())(key, vars),
+  });
   const settingsFile = join(shell.userDataDir, "pick-settings.json");
   let pickKey = pickKeySetting(settingsFile, env);
 

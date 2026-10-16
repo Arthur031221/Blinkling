@@ -24,9 +24,11 @@ export function installSettings({
 }) {
   const { BrowserWindow, ipcMain } = electron;
   const env = shell.env ?? process.env;
-  const locale = pickLocale(
-    [env.BLINKLING_LOCALE, ...(shell.locales ?? [])].filter(Boolean),
-  );
+  // Read on each use: a language chosen in settings applies at once.
+  const locale = () =>
+    pickLocale(
+      [env.BLINKLING_LOCALE, ...(shell.locales ?? [])].filter(Boolean),
+    );
   const win = new BrowserWindow({
     ...shell.windowOptions({ x: 0, y: 0, ...SETTINGS_SIZE }, true),
     webPreferences: {

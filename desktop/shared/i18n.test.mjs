@@ -168,3 +168,20 @@ test("only shared/i18n.mjs asks the system for a language (N3.10)", () => {
   walk(desktop);
   assert.deepEqual(hits, ["shared/i18n.mjs"]);
 });
+
+test("a language chosen later replaces the resolved one, and a setting given as a function is read on each use", async () => {
+  const { changeSystemLocale, systemLocale, resetSystemLocale, live } =
+    await import("./i18n.mjs");
+  resetSystemLocale();
+  assert.equal(systemLocale({ chosen: "fr", env: {} }), "fr");
+  assert.equal(systemLocale({ chosen: "de", env: {} }), "fr", "cached");
+  assert.equal(changeSystemLocale({ chosen: "de", env: {} }), "de");
+  assert.equal(systemLocale({ env: {} }), "de");
+  let now = "ja";
+  const read = () => now;
+  assert.equal(live(read), "ja");
+  now = "ko";
+  assert.equal(live(read), "ko");
+  assert.equal(live("en"), "en");
+  resetSystemLocale();
+});

@@ -101,3 +101,25 @@ test("a blank PDF window offers the reader once, and taking the offer opens it",
   await quick.open([entry("two", pdf)]);
   assert.equal(log.shown.at(-1).offer, null, "never offered a second time");
 });
+
+test("the pause line follows a language chosen while Blink runs", async () => {
+  let language = "en";
+  const shown = [];
+  const quick = createQuick({
+    locale: () => language,
+    autoExplain: () => true,
+    once: { take: () => true },
+    host: {
+      attach: async () => {},
+      show: (view) => void shown.push(view),
+      pauseAuto: () => {},
+      resumeAuto: () => {},
+    },
+  });
+  await quick.open([entry("one")]);
+  const english = shown.at(-1).pause;
+  language = "ja";
+  await quick.open([entry("two")]);
+  assert.ok(english);
+  assert.notEqual(shown.at(-1).pause, english);
+});

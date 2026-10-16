@@ -148,8 +148,18 @@ addEventListener("keydown", (e) => {
 
 // Listen before anything is awaited: the main process may open the overlay as
 // soon as it has asked for its text.
+/** The overlay is made once and shown many times, so its words are read again
+ * on each showing: a language chosen in settings applies at the next capture. */
+async function words() {
+  const initial = await window.captureUI.init();
+  document.documentElement.lang = initial.locale;
+  document.title = initial.text.title;
+  $("hint").textContent = initial.text.hint;
+  chip.textContent = initial.text.pageChip;
+}
 window.captureUI.onOpen(async (payload) => {
   document.body.dataset.ready = "";
+  void words();
   reset(payload);
   const at = payload.cursor;
   if (
@@ -165,8 +175,4 @@ window.captureUI.onOpen(async (payload) => {
   document.body.dataset.ready = "true";
   await window.captureUI.ready();
 });
-const initial = await window.captureUI.init();
-document.documentElement.lang = initial.locale;
-document.title = initial.text.title;
-$("hint").textContent = initial.text.hint;
-chip.textContent = initial.text.pageChip;
+await words();

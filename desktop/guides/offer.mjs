@@ -1,4 +1,4 @@
-import { pickLocale } from "../shared/i18n.mjs";
+import { live, pickLocale } from "../shared/i18n.mjs";
 import { guideStrings } from "./strings.mjs";
 import { saveGuide as writeGuide } from "./save.mjs";
 
@@ -24,9 +24,10 @@ export function createGuideOffer({
   ...options // documents, reveal, now: passed on to saveGuide
 }) {
   let pending, running;
-  const fallback = pickLocale(languages);
   const strings = (guide) =>
-    guideStrings(guide?.language ? [guide.language] : [fallback]);
+    guideStrings(
+      guide?.language ? [guide.language] : [pickLocale(live(languages))],
+    );
 
   const offer = (guide, note) =>
     send({

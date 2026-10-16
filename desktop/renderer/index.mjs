@@ -6,7 +6,8 @@ import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createComposer, readAttachment } from "../composer/index.mjs";
 import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
-import { setDocumentLocale } from "../shared/i18n.mjs";
+import { documentLocale, setDocumentLocale } from "../shared/i18n.mjs";
+import { menuText } from "../menu/strings.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
 import { gazeAt } from "../character/touch.mjs";
 const api = window.blinkling;
@@ -14,7 +15,7 @@ document.documentElement.style.cssText += cssVariables();
 let shell = await api.shell({ type: "state" });
 // Main sends the one system locale with the state; every string below follows it.
 setDocumentLocale(document, shell.locale);
-const text = windowText();
+let text = windowText();
 applyText(document, text);
 const logFrame = frameLog();
 const activity = createActivityState();
@@ -109,6 +110,16 @@ function accept(value) {
   document.documentElement.dataset.edge = shell.position.edge;
   document.documentElement.dataset.theme = shell.theme;
   menu?.setAuto(shell.autoExplain);
+  if (shell.locale !== documentLocale(document)) relocalize(shell.locale);
+}
+/** A language chosen in settings: the words change where they stand. Nothing
+ * is rebuilt, so no pose, motion or position is touched. */
+function relocalize(locale) {
+  setDocumentLocale(document, locale);
+  text = windowText(locale);
+  applyText(document, text);
+  menu?.setText(menuText(locale));
+  if (grumbling !== null) grumble.textContent = text(`grumble${grumbling + 1}`);
 }
 accept(shell);
 async function action(id) {

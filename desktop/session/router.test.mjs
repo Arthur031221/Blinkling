@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ChannelChat, ChatRouter, channelText } from "./router.mjs";
@@ -273,6 +273,24 @@ test("a chat read back from disk shows its history to a card that subscribed bef
     const late = [];
     again.subscribe((e) => e.type === "message" && late.push(e.id));
     assert.deepEqual(late, ["m1", "m2"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("two saves in flight at once both land and leave no temporary file", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-channel-"));
+  try {
+    const chat = new ChannelChat({ directory, deliver: () => true });
+    await chat.loaded;
+    chat.add({
+      id: "m1",
+      role: "user",
+      content: [{ type: "text", text: "hi" }],
+    });
+    await Promise.all([chat.save(), chat.save(), chat.save()]);
+    const files = await readdir(directory);
+    assert.deepEqual(files, ["channel.json"]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

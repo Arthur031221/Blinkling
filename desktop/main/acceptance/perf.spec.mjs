@@ -312,7 +312,12 @@ for (const scale of [1, 2])
       await app.evaluate(
         async ({ screen }, [data, region]) => {
           await globalThis.blinklingTest.attachCapture({
-            image: { id: "perf-eat", mediaType: "image/png", data },
+            image: {
+              id: "perf-eat",
+              name: "perf-eat.png",
+              mediaType: "image/png",
+              data,
+            },
             display: screen.getPrimaryDisplay(),
             region,
           });
@@ -323,6 +328,44 @@ for (const scale of [1, 2])
         ],
       );
       rows.eat = await collect([layer], "eat", []);
+
+      // 8. The language is changed in the settings page with the card open:
+      // every window changes its words in place, and nothing may stall.
+      const shown = () =>
+        app.evaluate(() => globalThis.blinklingTest.composer.isVisible());
+      // The eat opens the card by itself once the picture is in.
+      await page.waitForTimeout(2500);
+      if (!(await shown()))
+        await page.evaluate(() =>
+          window.blinkling.shell({ type: "click", permission: true }),
+        );
+      await expect.poll(shown).toBe(true);
+      await app.evaluate(() => globalThis.blinklingTest.settings.open());
+      await expect
+        .poll(() =>
+          app.windows().find((p) => p.url().includes("/settings/index.html")),
+        )
+        .toBeTruthy();
+      const settings = app
+        .windows()
+        .find((p) => p.url().includes("/settings/index.html"));
+      await page.waitForTimeout(1500);
+      for (const code of ["ja", "de", "en", "zh-TW"]) {
+        await install(settings);
+        await marks([...pages(), settings], "language");
+        await settings.locator("#language-select").selectOption(code);
+        await page.waitForTimeout(1200);
+        const stat = await collect([...pages(), settings], "language", []);
+        // The slowest of the four switches stands for the row.
+        const worst = rows.language;
+        rows.language =
+          !worst || stat.frame_p95_ms > worst.frame_p95_ms ? stat : worst;
+        if (worst)
+          rows.language.frame_max_ms = Math.max(
+            worst.frame_max_ms,
+            stat.frame_max_ms,
+          );
+      }
     } finally {
       await app.close();
     }

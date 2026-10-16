@@ -37,9 +37,8 @@ followShellTheme();
 const configuration = await api.configuration();
 // Main sends the one system locale; the page follows it and says so in `lang`.
 setDocumentLocale(document, configuration.locale);
-const locale = documentLocale(document);
-const tr = translator(strings, locale);
-document.documentElement.lang = locale;
+let tr = translator(strings, documentLocale(document));
+document.documentElement.lang = documentLocale(document);
 if (configuration.theme)
   document.documentElement.dataset.theme = configuration.theme;
 let shellState;
@@ -78,6 +77,14 @@ const unShell = api.onShell?.((event) => {
   if (event.type !== "state") return;
   document.documentElement.dataset.theme = event.state.theme;
   shellState = event.state;
+  // A language chosen in settings: the card says its words again, from the
+  // same chat and draft, without reloading the page.
+  if (event.state.locale !== documentLocale(document)) {
+    setDocumentLocale(document, event.state.locale);
+    document.documentElement.lang = documentLocale(document);
+    tr = translator(strings, documentLocale(document));
+    conversation.relocalize();
+  }
   placeOrigin();
 });
 api.shell?.({ type: "state" }).then(

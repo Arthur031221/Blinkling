@@ -1,5 +1,6 @@
 import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { duration } from "../shared/motion.mjs";
+import { live } from "../shared/i18n.mjs";
 
 export const WELCOME_SIZE = Object.freeze({ width: 520, height: 600 });
 const ACTIONS = new Set(["refresh", "request", "open"]);
@@ -39,7 +40,7 @@ export function createWelcomeController({
   };
   const status = () => (mac ? permission.status() : "unneeded");
   const view = () => ({
-    locale,
+    locale: live(locale),
     platform,
     keyName: mac ? (KEY_NAMES[pickKey.get()] ?? KEY_NAMES.control) : "Ctrl",
     permission: status(),

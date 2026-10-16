@@ -33,7 +33,7 @@ async function setup({
     pickKeys: [],
     welcome: 0,
     guide: 0,
-    restarts: 0,
+    languages: [],
     restored: 0,
     remembered: 0,
   };
@@ -46,7 +46,7 @@ async function setup({
       on: (channel, fn) => listeners.set(channel, fn),
       handle: (channel, fn) => handlers.set(channel, fn),
     },
-    locale: "zh-TW",
+    locale: () => log.languages.at(-1) ?? "zh-TW",
     platform,
     version: "3.0.0",
     store: createSettingsStore(join(dir, "settings.json")),
@@ -73,7 +73,7 @@ async function setup({
     host: {
       welcome: () => void log.welcome++,
       guide: () => void log.guide++,
-      languageChanged: () => void log.restarts++,
+      languageChanged: (value) => void log.languages.push(value),
     },
     focus: {
       remember: async () => void log.remembered++,
@@ -160,7 +160,7 @@ test("a new hotkey is registered and shown; a clash says why and keeps the old k
   assert.equal(invalid.reason, "invalid");
 });
 
-test("the language row lists the nine languages and a change restarts Blink once", async () => {
+test("the language row lists the nine languages and a change is applied in place, once, and the answer already speaks it", async () => {
   const { ask, timers, dir, log } = await setup();
   const view = await ask("blinkling:settings-ready");
   assert.equal(view.language, "system");
@@ -174,16 +174,15 @@ test("the language row lists the nine languages and a change restarts Blink once
     value: "system",
   });
   assert.equal(same.ok, true);
-  assert.equal(timers.length, 0, "no restart when nothing changed");
+  assert.deepEqual(log.languages, [], "nothing to apply when nothing changed");
   const changed = await ask("blinkling:settings-set", {
     key: "language",
     value: "de",
   });
   assert.equal(changed.state.language, "de");
-  assert.equal(timers.length, 1);
-  assert.equal(log.restarts, 0, "the answer goes out before the restart");
-  timers[0].fn();
-  assert.equal(log.restarts, 1);
+  assert.deepEqual(log.languages, ["de"]);
+  assert.equal(changed.state.locale, "de", "the answer is in the new language");
+  assert.equal(timers.length, 0, "no restart, no timer");
   const refused = await ask("blinkling:settings-set", {
     key: "language",
     value: "tlh",

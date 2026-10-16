@@ -39,3 +39,49 @@ test("a tab pressed in the card reaches the shell through the conversation", () 
   conversation.dispose();
   globalThis.AbortController = previous;
 });
+
+test("a new language rebuilds only the card's words: the chat, the draft and the closed state stay", () => {
+  const dom = new JSDOM("<body><div id='host'></div></body>", {
+    pretendToBeVisual: true,
+  });
+  const { window } = dom;
+  const previous = globalThis.AbortController;
+  globalThis.AbortController = window.AbortController;
+  let listener;
+  const doc = window.document;
+  doc.documentElement.dataset.locale = "en";
+  const conversation = mountConversation({
+    session: {
+      subscribe: (fn) => {
+        listener = fn;
+        return () => {};
+      },
+      send: async () => {},
+      select: async () => {},
+    },
+    cardHost: doc.querySelector("#host"),
+    selection: { model: "haiku", effort: "low" },
+  });
+  listener({
+    type: "message",
+    id: "m1",
+    role: "assistant",
+    content: [{ type: "text", text: "kept answer" }],
+  });
+  conversation.composer.draft("half a thought");
+  const placeholder = () => doc.querySelector(".gl-input").placeholder;
+  const english = placeholder();
+  conversation.card.close(true);
+  doc.documentElement.dataset.locale = "de";
+  conversation.relocalize();
+  assert.notEqual(placeholder(), english, "the box speaks German now");
+  assert.equal(doc.querySelectorAll(".gl-chat-card").length, 1);
+  assert.match(
+    doc.querySelector(".gl-chat-history").textContent,
+    /kept answer/,
+  );
+  assert.equal(doc.querySelector(".gl-input").value, "half a thought");
+  assert.equal(conversation.card.isOpen(), false, "still closed");
+  conversation.dispose();
+  globalThis.AbortController = previous;
+});

@@ -1,4 +1,4 @@
-import { pickLocale } from "../shared/i18n.mjs";
+import { live, pickLocale } from "../shared/i18n.mjs";
 import { LIMIT_FALLBACK_MS } from "../autowatch/index.mjs";
 import { createGuard } from "./guard.mjs";
 import { lockKey, say } from "./strings.mjs";
@@ -28,8 +28,8 @@ export function installPrivacy({
   renderer = () => {},
   now = Date.now,
 }) {
-  const locale = pickLocale(languages);
-  const t = say(locale);
+  const locale = () => pickLocale(live(languages));
+  const t = (key, vars) => say(locale())(key, vars);
   let override;
   const source = {
     focus: () => (override === undefined ? locator.focus() : override),
@@ -100,7 +100,7 @@ export function installPrivacy({
 
   const clock = (resetAt) => {
     const sameDay = resetAt - now() < SAME_DAY_MS;
-    return new Intl.DateTimeFormat(locale, {
+    return new Intl.DateTimeFormat(locale(), {
       ...(sameDay ? {} : { weekday: "short" }),
       hour: "numeric",
       minute: "2-digit",

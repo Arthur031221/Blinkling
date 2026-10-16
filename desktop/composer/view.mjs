@@ -615,6 +615,11 @@ export function mountComposer(
       });
       return true;
     },
+    /** Carry the pin over to a card built again in another language. */
+    setPinned(value) {
+      pinned = Boolean(value);
+      pin.setAttribute("aria-pressed", String(pinned));
+    },
     isPinned: () => pinned,
     isOpen: () => visible,
     dispose() {

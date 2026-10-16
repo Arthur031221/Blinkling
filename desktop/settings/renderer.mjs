@@ -39,6 +39,13 @@ function watchFrames() {
   requestAnimationFrame(frame);
 }
 
+// Once, not on each render: the language changes in place, so the page renders
+// again after every choice.
+language.addEventListener("change", async () => {
+  await apply("language", language.value);
+  render();
+});
+
 function say(text, kind = "info") {
   note.textContent = text;
   note.dataset.kind = kind;
@@ -65,10 +72,6 @@ function render() {
   pickRow
     .querySelector("[role=radiogroup]")
     .setAttribute("aria-label", t("pickKey"));
-  language.addEventListener("change", async () => {
-    await apply("language", language.value);
-    render();
-  });
   for (const button of pickRow.querySelectorAll("[data-pick]")) {
     const name = button.dataset.pick;
     button.textContent = t(
@@ -95,6 +98,7 @@ function render() {
 async function apply(key, value) {
   const result = await api.set(key, value);
   state = result.state;
+  t = settingsText(state.locale);
   return result;
 }
 

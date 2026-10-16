@@ -1,5 +1,6 @@
 import { askModel } from "./ask.mjs";
 import { t as pickText } from "./strings.mjs";
+import { live } from "../shared/i18n.mjs";
 import { attachmentLimits } from "../composer/index.mjs";
 
 const NOTICES = new Set([
@@ -24,12 +25,12 @@ export function createQuick({ locale, host, autoExplain = () => false, once }) {
   let notice = "";
   let paused = false;
   let offered = false;
-  const text = pickText(locale);
+  const text = (key, vars) => pickText(live(locale))(key, vars);
 
   const view = () => {
     const { defaultId } = askModel({
       items: list.map((e) => e.taken ?? { kind: e.kind }),
-      locale,
+      locale: live(locale),
     });
     const blank = list.find(
       (e) =>

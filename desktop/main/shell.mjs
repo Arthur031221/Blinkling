@@ -67,7 +67,7 @@ import { installWelcome } from "../welcome/install.mjs";
 import { installViewer } from "../viewer/install.mjs";
 import { createSettingsStore } from "../settings/store.mjs";
 import { installPrivacy } from "../privacy/index.mjs";
-import { systemLocale } from "../shared/i18n.mjs";
+import { changeSystemLocale, systemLocale } from "../shared/i18n.mjs";
 import { createGuideOffer, SAVE_ACTION } from "../guides/offer.mjs";
 import { armHardQuitDeadline, armQuitWatchdog } from "./quit.mjs";
 let features;
@@ -102,7 +102,7 @@ if (process.platform === "linux" && process.env.DISPLAY)
   app.commandLine.appendSwitch("ozone-platform", "x11");
 await app.whenReady();
 // Every surface speaks this one language, resolved here and sent out (N3.10).
-const locale = systemLocale({
+let locale = systemLocale({
   app,
   chosen: createSettingsStore(
     join(app.getPath("userData"), "settings.json"),
@@ -1160,7 +1160,7 @@ registerAction("companion-guide", openCompanionGuide);
 const revealedGuides = [];
 const guideOffer = createGuideOffer({
   send,
-  languages: [locale],
+  languages: () => [locale],
   // The e2e run must not open a file manager; it records the folder instead.
   ...(process.env.BLINKLING_E2E === "1"
     ? { reveal: (folder) => revealedGuides.push(folder) }
@@ -1192,7 +1192,9 @@ const pick = await installPick({
   },
   shell: {
     userDataDir: app.getPath("userData"),
-    locale,
+    get locale() {
+      return locale;
+    },
     locator,
     windowOptions,
     secure,
@@ -1251,9 +1253,12 @@ const pickLocator = {
 // Settings opens from the menu bubble; the welcome opens on the first start and
 // from Settings.
 const secondary = {
+  version: app.getVersion(),
   userDataDir: app.getPath("userData"),
   // The same locale the fan's own bubbles use (the only system ask is i18n).
-  locales: [locale],
+  get locales() {
+    return [locale];
+  },
   windowOptions,
   secure,
   input,
@@ -1268,7 +1273,7 @@ const welcome = installWelcome({
 });
 const settings = installSettings({
   electron: { BrowserWindow, ipcMain },
-  shell: { ...secondary, version: app.getVersion() },
+  shell: secondary,
   hotkey: {
     get: () => features.hotkey,
     set: (accelerator) => features.setHotkey(accelerator),
@@ -1283,11 +1288,11 @@ const settings = installSettings({
       void welcome.open();
     },
     guide: () => void openCompanionGuide(),
-    // The language is read at start, so a new one restarts Blink.
-    languageChanged: () => {
-      relaunching = true;
-      app.relaunch();
-      app.quit();
+    // Every window changes its words where it stands: the new language goes out
+    // with the state, and nothing is reloaded or restarted.
+    languageChanged: (chosen) => {
+      locale = changeSystemLocale({ app, chosen });
+      broadcast();
     },
   },
 });
@@ -1322,7 +1327,7 @@ const privacy = installPrivacy({
   features,
   locator: pickLocator,
   send,
-  languages: [locale],
+  languages: () => [locale],
   renderer: (listener) => {
     blink.webContents.on("did-finish-load", listener);
     return () => {
@@ -1456,7 +1461,6 @@ const showsMotions =
 if (showsMotions)
   setTimeout(() => motion("appear"), timing.appearLead).unref?.();
 let disposed = false;
-let relaunching = false;
 app.on("before-quit", (event) => {
   if (disposed) return;
   event.preventDefault();
@@ -1468,11 +1472,8 @@ app.on("before-quit", (event) => {
   if (leaving) motion("leave");
   Promise.allSettled([
     session.dispose(),
-    // Every linked terminal session is told Blink is gone, unless Blink is
-    // only starting again.
-    (relaunching ? Promise.resolve() : companionHost.announceQuit()).then(() =>
-      companionHost.close(),
-    ),
+    // Every linked terminal session is told Blink is gone.
+    companionHost.announceQuit().then(() => companionHost.close()),
     realLocator.close(),
     leaving
       ? new Promise((done) => setTimeout(done, LEAVE_FOR * 1000))

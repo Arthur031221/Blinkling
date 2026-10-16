@@ -1,6 +1,6 @@
 import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { duration } from "../shared/motion.mjs";
-import { LANGUAGE_NAMES, LOCALES } from "../shared/i18n.mjs";
+import { LANGUAGE_NAMES, LOCALES, live } from "../shared/i18n.mjs";
 
 export const SETTINGS_SIZE = Object.freeze({ width: 440, height: 640 });
 const PICK_KEYS = Object.freeze(["control", "option"]);
@@ -10,7 +10,8 @@ const HELP = new Set(["welcome", "guide"]);
  * win: {webContents, isDestroyed, isVisible, isFocused, setBounds, showInactive,
  *   hide, focus}; ipc: {on, handle}; store: settings store; hotkey: {get, set};
  * pickKey: {get, set} (used on macOS only); host: {welcome, guide,
- *   languageChanged}, where languageChanged restarts Blink in the new language;
+ *   languageChanged(value)}, where languageChanged puts every window into the
+ *   new language in place; `locale` may be a function, read on each use;
  * focus: {remember, activate, restore}. */
 export function createSettingsController({
   win,
@@ -39,7 +40,7 @@ export function createSettingsController({
     if (!win.isDestroyed()) win.webContents.send(channel, value);
   };
   const view = () => ({
-    locale,
+    locale: live(locale),
     platform,
     version,
     hotkey: hotkey.get(),
@@ -99,9 +100,9 @@ export function createSettingsController({
       if (key === "language") {
         const before = store.get().language;
         store.set({ language: value });
-        // Every window speaks the language it started with, so a new one
-        // takes a restart; the answer goes out first.
-        if (value !== before) setTimer(() => host.languageChanged?.(), 0);
+        // Every window changes its words in place; the state sent back is
+        // already in the new language.
+        if (value !== before) host.languageChanged?.(value);
         return { ok: true, state: view() };
       }
     } catch {
