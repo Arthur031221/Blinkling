@@ -12,13 +12,13 @@
 
 Formerly Glimpselet. Vindo do plugin antigo? Execute `/plugin uninstall glimpselet@glimpselet` e `/plugin marketplace remove glimpselet` e depois instale o Blinkling pelos passos abaixo.
 
-O Blinkling coloca o Blink, um pequeno companheiro verde, no canto da sua tela, acima de todos os apps. Segure **Ctrl** (Control no macOS) e clique no que quiser perguntar, ou arraste para pegar uma área. Ele voa para o Blink, você pergunta, e a resposta volta em balões ao lado do Blink.
+O Blinkling coloca o Blink, um pequeno companheiro verde, no canto da sua tela, acima de todos os apps. Segure **Ctrl** (Control no macOS) e clique no que quiser perguntar, ou arraste para pegar uma área. Ele voa para o Blink, você pergunta, e a resposta abre em um cartão de chat ao lado do Blink.
 
 > **Seguro por design:** O Blinkling só olha e explica. Nunca clica, digita nem controla seus apps.
 
 Usa o Claude Code em que você já está conectado neste computador.
 
-![Segure Ctrl e clique em um parágrafo de uma página web. Ele voa para o Blink, você pergunta, e a resposta aparece ao lado do Blink.](assets/pick.gif)
+![Segure Ctrl e clique em um parágrafo de uma página web. Ele voa para o Blink, você pergunta, e a resposta abre em um cartão de chat ao lado do Blink.](assets/pick.gif)
 
 ## Instalação
 
@@ -46,9 +46,9 @@ Você precisa do Claude Code com a sessão iniciada. Depois:
 - **Segure Ctrl e clique** em um parágrafo, botão ou imagem. O Blink o pega.
 - **Segure Ctrl e arraste** para pegar uma área.
 - Um pequeno campo se abre com três perguntas rápidas. Enter envia a destacada.
-- Clique no Blink quando quiser para conversar. As respostas chegam em balões ao lado do Blink.
+- Clique no Blink quando quiser para conversar. O cartão de chat abre ao lado do Blink com a sua conversa.
 
-![Clique no Blink, digite uma pergunta e a resposta volta em um balão.](assets/ask.gif)
+![Clique no Blink, digite uma pergunta e a resposta chega ao cartão de chat.](assets/ask.gif)
 
 - O menu do Blink tem captura, guia, Explicação automática (desligada até você ligar) e configurações.
 - O assistente opcional para Chrome ou Edge traz a estrutura da própria página, para o Blink saber qual parágrafo ou botão você apontou, além de captura da página inteira, tradução da página no lugar e um leitor de PDF. O botão da barra de ferramentas mostra se ele está conectado e acorda o Blink. Sem ele, o Blink continua funcionando em todas as janelas.
@@ -65,7 +65,7 @@ Escolha as teclas nas Configurações.
 
 ## Sessões e privacidade
 
-O Blink envia o que você escolheu ao seu próprio Claude Code com sessão iniciada e mostra a resposta em balões ao lado do Blink. Evite usar a mesma conversa em um terminal ao mesmo tempo.
+O Blink envia o que você escolheu ao seu próprio Claude Code com sessão iniciada e mostra a resposta no cartão de chat ao lado do Blink. A sessão de terminal que iniciou o Blink e o chat do Blink se acompanham: uma pergunta e uma resposta concluída digitadas em qualquer um dos dois aparecem nos dois.
 
 > [!IMPORTANT]
 > O assistente do navegador só lê uma página quando você a aponta. Ele nunca lê campos de senha ou de pagamento e só se comunica com o Blinkling no seu próprio computador. Explicação automática fica desligada até você ligar.

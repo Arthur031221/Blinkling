@@ -12,13 +12,13 @@
 
 Formerly Glimpselet. Coming from the old plugin? Run `/plugin uninstall glimpselet@glimpselet` and `/plugin marketplace remove glimpselet`, then install Blinkling below.
 
-Blinkling puts Blink, a small green companion, in the corner of your screen, above every app. Hold **Ctrl** (Control on macOS) and click anything you want to ask about, or drag to take an area. It flies into Blink, you ask, and the answer comes back as bubbles beside Blink.
+Blinkling puts Blink, a small green companion, in the corner of your screen, above every app. Hold **Ctrl** (Control on macOS) and click anything you want to ask about, or drag to take an area. It flies into Blink, you ask, and the answer opens in a chat card beside Blink.
 
 > **Safe by design:** Blinkling only looks and explains. It never clicks, types or controls your apps.
 
 Uses the Claude Code you are already signed in to on this computer.
 
-![Hold Ctrl and click a paragraph on a web page. It flies into Blink, you ask, and the answer appears beside Blink.](assets/pick.gif)
+![Hold Ctrl and click a paragraph on a web page. It flies into Blink, you ask, and the answer opens in a chat card beside Blink.](assets/pick.gif)
 
 ## Install
 
@@ -46,9 +46,9 @@ You need Claude Code, signed in. Then:
 - **Hold Ctrl and click** a paragraph, button or picture. Blink takes it.
 - **Hold Ctrl and drag** to take an area instead.
 - A small composer opens with three quick asks. Enter sends the highlighted one.
-- Click Blink any time to talk. Answers arrive as bubbles beside Blink.
+- Click Blink any time to talk. The chat card opens next to Blink with your conversation.
 
-![Click Blink, type a question, and the answer comes back as a bubble.](assets/ask.gif)
+![Click Blink, type a question, and the answer streams into the chat card.](assets/ask.gif)
 
 - Blink's menu has capture, guide, auto explain (off until you turn it on) and settings.
 - The optional browser helper for Chrome or Edge adds the page's own structure, so Blink knows which paragraph or button you pointed at, plus full-length page capture, translating the page in place and a reader for PDFs. Its toolbar button shows whether it is connected and wakes Blink. Without it Blink still works on every window.
@@ -65,7 +65,7 @@ Pick the keys in Settings.
 
 ## Sessions and privacy
 
-Blink sends what you picked to your own signed-in Claude Code and shows the answer in bubbles beside Blink. Avoid using the same conversation in a terminal at the same time.
+Blink sends what you picked to your own signed-in Claude Code and shows the answer in the chat card beside Blink. The terminal session that started Blink and Blink's chat follow each other, so a prompt and a finished answer typed in either place appear in both.
 
 > [!IMPORTANT]
 > The browser helper reads a page only when you point at it. Password and payment fields are never read, and it talks only to Blinkling on your own computer. Auto explain is off until you turn it on.

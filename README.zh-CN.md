@@ -12,13 +12,13 @@
 
 Formerly Glimpselet。从旧插件升级？请运行 `/plugin uninstall glimpselet@glimpselet` 与 `/plugin marketplace remove glimpselet`，再按下方步骤安装 Blinkling。
 
-Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上。按住 **Ctrl**（macOS 上为 Control）点击想问的东西，或拖动框出一个区域。内容会飞进 Blink，你来提问，答案以对话气泡出现在 Blink 旁边。
+Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上。按住 **Ctrl**（macOS 上为 Control）点击想问的东西，或拖动框出一个区域。内容会飞进 Blink，你来提问，答案会在 Blink 旁边的聊天卡片中打开。
 
 > **设计上就安全：** Blinkling 只看和讲解，绝不替你点击、打字或操作任何程序。
 
 使用这台电脑上你已登录的 Claude Code。
 
-![按住 Ctrl，在网页上单击一个段落。它会飞进 Blink，你来提问，答案出现在 Blink 旁边。](assets/pick.gif)
+![按住 Ctrl，在网页上单击一个段落。它会飞进 Blink，你来提问，答案会在 Blink 旁边的聊天卡片中打开。](assets/pick.gif)
 
 ## 安装
 
@@ -46,9 +46,9 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 - **按住 Ctrl 并单击**段落、按钮或图片，Blink 就会取下它。
 - **按住 Ctrl 并拖动**则改为取一个区域。
 - 会弹出一个小输入框，带三个快速提问，按 Enter 发送高亮的那一个。
-- 随时单击 Blink 即可对话。答案以气泡出现在 Blink 旁边。
+- 随时单击 Blink 即可对话。聊天卡片会在 Blink 旁边打开，接着你们的对话。
 
-![单击 Blink，输入问题，答案以气泡的形式回来。](assets/ask.gif)
+![单击 Blink，输入问题，答案会流入聊天卡片。](assets/ask.gif)
 
 - Blink 的菜单有截图、导览、自动解说（默认关闭）和设置。
 - 可选的 Chrome/Edge 浏览器小助手会提供网页本身的结构，让 Blink 知道你指的是哪一段或哪个按钮，另有整页截图、原地翻译网页和 PDF 阅读器。工具栏按钮会显示是否已连接，并可唤醒 Blink。没有它，Blink 在每个窗口仍可使用。
@@ -65,7 +65,7 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 
 ## 会话与隐私
 
-Blink 会把你选取的内容发送给你自己已登录的 Claude Code，并把答案以气泡显示在 Blink 旁边。请避免同时在终端中使用同一个对话。
+Blink 会把你选取的内容发送给你自己已登录的 Claude Code，并把答案显示在 Blink 旁边的聊天卡片中。启动 Blink 的终端会话与 Blink 的聊天会互相同步，在任何一处输入的提问和完成的答案，两边都会出现。
 
 > [!IMPORTANT]
 > 浏览器小助手只在你指向网页时读取该页。密码和支付字段一律不读取，并且只与你电脑上的 Blinkling 通信。自动解说在你开启之前保持关闭。

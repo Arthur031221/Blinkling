@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-15T21:02:15.000Z",
+  "recordedAt": "2026-10-16T13:26:36.000Z",
   "version": "3.2.0",
   "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
@@ -11,21 +11,22 @@
       "asset": "assets/pick.gif",
       "scene": "pick",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "d4f8af6965bd0d0c7941531091ddba86050146b6323974d1c77646ae76518af0",
+      "sha256": "0974179d3c233b7ba3c17ca2ed7067745fa5560518281ade06ad02e1e230f347",
       "segments": [[1, 22]],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "6ae66893f2730ecaf351c8ef68261084141e283fc575eddfa221f36078fcbb46",
+      "eventsSha256": "aea37c25b38778de071f0ab7931cdb44c2d865463a8ffd0829124ec37b9bb391",
       "turns": 1
     },
     {
       "asset": "assets/ask.gif",
       "scene": "ask",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "1694fe5a6f9df3a70ba12abca2f134f34ee62eebaf68c1796af2e7aab72776e2",
-      "segments": [[1.5, 26]],
+      "sha256": "de1a6918b11530c003c1871fd6b541e0c70a5b3e1c67a8ed2226084a57e5ef87",
+      "segments": [[1, 22]],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "23873da267ad2ef5969bc34d1d538a91ff9c7406b307523d6d61fbccf054fec8",
-      "turns": 1
+      "eventsSha256": "9b49040b77f7b0f61c6ac02b620ef759a8ce6771452fe4bd3c6530fd24eb2739",
+      "turns": 1,
+      "prompt": "what is reinforcement learning, in two lines"
     }
   ],
   "stills": [

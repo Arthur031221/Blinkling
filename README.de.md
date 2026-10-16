@@ -12,13 +12,13 @@
 
 Formerly Glimpselet. Vom alten Plugin? Führe `/plugin uninstall glimpselet@glimpselet` und `/plugin marketplace remove glimpselet` aus und installiere dann Blinkling mit den Schritten unten.
 
-Blinkling setzt Blink, einen kleinen grünen Begleiter, in die Ecke deines Bildschirms, über alle Apps. Halte **Ctrl** (unter macOS Control) gedrückt und klicke auf das, wonach du fragen willst, oder ziehe einen Bereich auf. Es fliegt in Blink hinein, du fragst, und die Antwort erscheint als Sprechblasen neben Blink.
+Blinkling setzt Blink, einen kleinen grünen Begleiter, in die Ecke deines Bildschirms, über alle Apps. Halte **Ctrl** (unter macOS Control) gedrückt und klicke auf das, wonach du fragen willst, oder ziehe einen Bereich auf. Es fliegt in Blink hinein, du fragst, und die Antwort öffnet sich in einer Chatkarte neben Blink.
 
 > **Sicher von Grund auf:** Blinkling schaut nur hin und erklärt. Es klickt, tippt und steuert nie Ihre Apps.
 
 Nutzt das Claude Code, bei dem du auf diesem Computer schon angemeldet bist.
 
-![Halte Strg gedrückt und klicke auf einen Absatz einer Webseite. Er fliegt in Blink hinein, du fragst, und die Antwort erscheint neben Blink.](assets/pick.gif)
+![Halte Strg gedrückt und klicke auf einen Absatz einer Webseite. Er fliegt in Blink hinein, du fragst, und die Antwort öffnet sich in einer Chatkarte neben Blink.](assets/pick.gif)
 
 ## Installation
 
@@ -46,9 +46,9 @@ Du brauchst Claude Code, angemeldet. Dann:
 - **Halte Strg gedrückt und klicke** auf einen Absatz, eine Schaltfläche oder ein Bild. Blink nimmt es auf.
 - **Halte Strg und ziehe**, um stattdessen einen Bereich aufzunehmen.
 - Ein kleines Eingabefeld öffnet sich mit drei Schnellfragen. Enter sendet die markierte.
-- Klicke jederzeit auf Blink, um zu sprechen. Antworten erscheinen als Sprechblasen neben Blink.
+- Klicke jederzeit auf Blink, um zu sprechen. Neben Blink öffnet sich die Chatkarte mit deinem Gespräch.
 
-![Klicke auf Blink, tippe eine Frage, und die Antwort kommt als Sprechblase zurück.](assets/ask.gif)
+![Klicke auf Blink, tippe eine Frage, und die Antwort läuft in die Chatkarte.](assets/ask.gif)
 
 - Das Menü von Blink bietet Aufnahme, Führung, Automatisch erklären (aus, bis du sie einschaltest) und Einstellungen.
 - Der optionale Browser-Helfer für Chrome oder Edge liefert die eigene Struktur der Seite, damit Blink weiß, auf welchen Absatz oder welche Schaltfläche du gezeigt hast, dazu eine Aufnahme der ganzen Seite, Übersetzung der Seite an Ort und Stelle und einen PDF-Reader. Seine Symbolleistenschaltfläche zeigt, ob er verbunden ist, und weckt Blink. Ohne ihn funktioniert Blink weiterhin in jedem Fenster.
@@ -65,7 +65,7 @@ Die Tasten wählst du in den Einstellungen.
 
 ## Sitzungen und Datenschutz
 
-Blink sendet, was du ausgewählt hast, an dein eigenes angemeldetes Claude Code und zeigt die Antwort als Sprechblasen neben Blink. Verwende dasselbe Gespräch nicht gleichzeitig in einem Terminal.
+Blink sendet, was du ausgewählt hast, an dein eigenes angemeldetes Claude Code und zeigt die Antwort in der Chatkarte neben Blink. Die Terminal-Sitzung, die Blink gestartet hat, und der Chat von Blink folgen einander: Eine Eingabe und eine fertige Antwort, die an einer der beiden Stellen entstehen, erscheinen an beiden.
 
 > [!IMPORTANT]
 > Der Browser-Helfer liest eine Seite nur, wenn du darauf zeigst. Passwort- und Zahlungsfelder werden nie gelesen, und er spricht nur mit Blinkling auf deinem eigenen Rechner. Automatisch erklären bleibt aus, bis du es einschaltest.

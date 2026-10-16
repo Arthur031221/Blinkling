@@ -13,7 +13,7 @@ The plugin's `/blinkling:blinkling` command runs the launcher in `plugin/desktop
 | `renderer/`, `character/`, `menu/` | Blink in the corner, its state faces, the menu and the three-step welcome.                     |
 | `pick/`, `capture/`                | Ctrl and click, Ctrl and drag, the capture overlay, the global hotkey and full-page capture.   |
 | `composer/`, `mini/`               | The mini composer with the three quick asks, and the full composer with model, effort and pin. |
-| `messages/`, `overlay/`            | Answer bubbles, scroll back, and the marks drawn on the screen for answers and guides.         |
+| `messages/`, `overlay/`            | The chat card, scroll back, and the marks drawn on the screen for answers and guides.          |
 | `autowatch/`                       | Auto explain: low-rate change detection, off until the user turns it on.                       |
 | `privacy/`                         | Refuses capture while a secure field, a password manager or a private window has focus.        |
 | `session/`                         | One durable conversation with Claude Code: send, stop, retry, resume and Remote Control.       |

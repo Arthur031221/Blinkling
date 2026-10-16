@@ -41,7 +41,10 @@ async function chipPoint(app, text) {
 const PAGE = "https://arxiv.org/abs/2501.12948";
 
 const home = mkdtempSync(join(tmpdir(), "blinkling-rec-"));
+// A neutral working folder: the session Blink starts inherits it, and the
+// answers on screen should not name the repository the recording was made in.
 const app = await electron.launch({
+  cwd: home,
   args: [join(root, "desktop"), "--no-sandbox", "--lang=en-US"],
   env: {
     ...process.env,
@@ -104,12 +107,12 @@ mark("start");
 
 const scenes = {
   async pick() {
-    input([["move", 500, 207]]);
+    input([["move", 500, 560]]);
     await wait(1200);
     mark("ctrl-down");
     input([["down", "ctrl"]]);
     await wait(600);
-    input([["move", 520, 209]]);
+    input([["move", 520, 575]]);
     await wait(1200);
     mark("click");
     input([["press"], ["release"]]);
@@ -146,7 +149,13 @@ const scenes = {
       input(
         [...text].map((c) => [
           "key",
-          c === " " ? "space" : c === "?" ? "question" : c,
+          c === " "
+            ? "space"
+            : c === "?"
+              ? "question"
+              : c === ","
+                ? "comma"
+                : c,
         ]),
       );
     input([["move", 700, 450]]);
@@ -159,7 +168,7 @@ const scenes = {
     input([["press"], ["release"]]);
     await wait(2500);
     mark("typing");
-    type("where do i download the pdf?");
+    type("what is reinforcement learning, in two lines");
     await wait(1200);
     mark("send");
     input([["key", "enter"]]);
