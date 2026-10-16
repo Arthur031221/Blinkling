@@ -981,7 +981,10 @@ ipcMain.on("blinkling:hold", (event, value) => {
   const hold = validHold(value);
   if (!trusted(event) || event.sender !== composer?.webContents || !hold)
     return;
-  flow((m) => m.panels(hold.chips || hold.dialog ? 1 : 0));
+  flow((m) => {
+    m.panels(hold.dialog ? 1 : 0);
+    m.chips(hold.chips);
+  });
 });
 /** The pointer on a cited phrase in the card pulses its mark on the screen. */
 ipcMain.on("blinkling:reference-hover", (event, value) => {

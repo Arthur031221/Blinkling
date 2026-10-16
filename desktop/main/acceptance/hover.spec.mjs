@@ -253,7 +253,7 @@ test("with the card open Blink stays above it and every menu bubble is clickable
   }
 });
 
-test("the card stays open while typing, holding a chip or a dialog, and closes on Esc and on a click outside when empty", async () => {
+test("a click outside closes the card with a draft or a chip in it and the page keeps them; an open dialog keeps it; Esc closes at once", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
   try {
@@ -272,18 +272,21 @@ test("the card stays open while typing, holding a chip or a dialog, and closes o
       away();
     };
     const settle = (ms = 3600) => page.waitForTimeout(ms);
-    // A non-empty draft keeps it, even without focus and with the pointer far away.
+    // A click outside closes the card even over a draft: the page keeps the text.
     await reveal(page);
     let card = await openCard(app, page);
     const box = card.getByRole("textbox", { name: "輸入問題" });
     await box.fill("a half written question");
     away();
-    await settle();
-    expect((await composerState(app)).visible).toBe(true);
-    await shot(app, "card-kept-draft");
-    expect(await box.inputValue()).toBe("a half written question");
-    // Emptying it releases it: the card then closes on a click outside.
-    await box.fill("");
+    await expect
+      .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
+      .toBe(false);
+    await reveal(page);
+    card = await openCard(app, page);
+    expect(
+      await card.getByRole("textbox", { name: "輸入問題" }).inputValue(),
+    ).toBe("a half written question");
+    await card.getByRole("textbox", { name: "輸入問題" }).fill("");
     await leave(card);
     await expect
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
@@ -300,7 +303,7 @@ test("the card stays open while typing, holding a chip or a dialog, and closes o
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
       .toBe(false);
 
-    // A pending chip keeps it (right after a capture the draft is empty).
+    // A pending chip does not hold the card open either, and is still there on return.
     await reveal(page);
     card = await openCard(app, page);
     await card.locator('input[type="file"]').setInputFiles({
@@ -310,9 +313,12 @@ test("the card stays open while typing, holding a chip or a dialog, and closes o
     });
     await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
     away();
-    await settle();
-    expect((await composerState(app)).visible).toBe(true);
-    await shot(app, "card-kept-chip");
+    await expect
+      .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
+      .toBe(false);
+    await reveal(page);
+    card = await openCard(app, page);
+    await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
     await card.getByRole("button", { name: /移除/ }).click();
     await card.mouse.move(-20, -20); // the click above was a synthetic pointer
     await leave(card);

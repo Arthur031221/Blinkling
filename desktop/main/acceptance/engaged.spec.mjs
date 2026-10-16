@@ -360,6 +360,7 @@ test("an app killed with the card and the menu on screen starts again with nothi
     data = first.data;
     await background(first.app);
     await place(first.app, "right", 0.5);
+    await first.page.waitForTimeout(500);
     await onBlink(first.page);
     await clickBlink(first.page);
     await expect.poll(async () => (await read(first.app)).card).toBe(true);

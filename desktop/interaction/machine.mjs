@@ -62,6 +62,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     held: false,
     streaming: false,
     dismissed: false,
+    leftAt: null,
     capture: 0,
     eatingUntil: 0,
     showUntil: 0,
@@ -70,6 +71,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     guideOnly: false,
     viewer: 0,
     panels: 0,
+    chips: false,
     composer: { focus: false, text: false, ime: false },
     scrollAt: -Infinity,
     selectAt: -Infinity,
@@ -94,13 +96,16 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     active(s.scrollAt, t) ||
     active(s.selectAt, t);
 
+  /** What keeps Blink out while the pointer is on Blink, on its menu or on the way. */
+  const pointerBound = () =>
+    s.pointerOver || s.inCorridor || s.overSurface || s.hoverMenu;
+
   function engaged(t) {
+    return pointerBound() || engagedBeyondPointer(t);
+  }
+  function engagedBeyondPointer(t) {
     return Boolean(
-      s.pointerOver ||
-        s.inCorridor ||
-        s.overSurface ||
-        s.surface !== "none" ||
-        s.hoverMenu ||
+      s.surface !== "none" ||
         s.panels > 0 ||
         s.composer.focus ||
         s.composer.text ||
@@ -133,7 +138,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.out = true;
       emit("out");
     }
-    s.lastEngaged = t;
+    engage(t);
   }
 
   function openChat(t, why) {
@@ -152,8 +157,15 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     s.pinned = false;
     s.readUntil = null;
     s.composer = { focus: false, text: false, ime: false };
-    s.lastEngaged = t;
+    s.chips = false;
+    engage(t);
     emit("close-chat", { why });
+  }
+  /** Something other than the pointer engaged Blink: it keeps the full 1.5 s
+   * before it retreats. */
+  function engage(t) {
+    s.lastEngaged = t;
+    s.leftAt = null;
   }
   /** A click on the background hides everything at once: with nothing left
    * that holds Blink out, it goes back to its edge together with the card. */
@@ -175,7 +187,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     s.surface = s.surface === "menu" ? "none" : s.surface;
     s.stickyMenu = false;
     s.hoverMenu = false;
-    s.lastEngaged = t;
+    engage(t);
     emit("close-menu", { why });
   }
 
@@ -229,6 +241,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.inCorridor = Boolean(blink && other) && inside(hull(blink, other), p);
       const now = s.pointerOver || s.inCorridor || s.overSurface;
       if (now) {
+        s.leftAt = null;
         s.lastEngaged = t;
         s.graceUntil = t + timing.grace;
         if (s.overSurface && s.surface === "chat") s.holdAt = t;
@@ -242,20 +255,23 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         s.overSince ??= t;
         if (!s.out && !s.held) pullOut(t);
       } else s.overSince = null;
-      if (!now && was) s.graceUntil = t + timing.grace;
+      if (!now && was) {
+        s.graceUntil = t + timing.grace;
+        s.leftAt = t;
+      }
       return api;
     },
     /** Pressed on Blink's drawn body. */
     press(p, t = clock()) {
       s.press = { x: p.x, y: p.y, at: t };
-      s.lastEngaged = t;
+      engage(t);
     },
     release(t = clock()) {
       const pressed = s.press;
       s.press = null;
       if (s.held) {
         s.held = false;
-        s.lastEngaged = t;
+        engage(t);
         emit("drop");
         return "drop";
       }
@@ -309,7 +325,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     composer(next, t = clock()) {
       s.composer = { ...s.composer, ...next };
       if (s.composer.focus || s.composer.text || s.composer.ime) {
-        s.lastEngaged = t;
+        engage(t);
         s.holdAt = t;
       }
     },
@@ -328,6 +344,11 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     panels(count) {
       s.panels = Math.max(0, count | 0);
     },
+    /** A picture waits in the composer. It keeps an answer's card from
+     * closing by reading time but never from a click outside. */
+    chips(value) {
+      s.chips = Boolean(value);
+    },
     viewer(open) {
       s.viewer = open ? 1 : 0;
     },
@@ -336,11 +357,11 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     capture(open, t = clock()) {
       s.capture = Math.max(0, s.capture + (open ? 1 : -1));
       if (open) pullOut(t);
-      else s.lastEngaged = t;
+      else engage(t);
     },
     eat(ms, t = clock()) {
       s.eatingUntil = t + ms;
-      s.lastEngaged = t;
+      engage(t);
     },
     /** A motion that has to be seen (appear, turn, celebrate, shrug, file
      * catch): Blink is out and stays out while it plays. */
@@ -354,7 +375,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       if (s.grumbling === on) return;
       s.grumbling = on;
       if (on) pullOut(t);
-      else s.lastEngaged = t;
+      else engage(t);
     },
     /** The question went out; the card opens by itself to show the answer. */
     answerStart(t = clock()) {
@@ -365,13 +386,13 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.readUntil = null;
       s.hoverMenu = false;
       if (s.surface !== "chat") openChat(t, "answer");
-      s.lastEngaged = t;
+      engage(t);
     },
     answerEnd(words, t = clock()) {
       s.streaming = false;
       s.dismissed = false;
       s.answered = true;
-      s.lastEngaged = t;
+      engage(t);
       s.readUntil = t + readingMs(words);
       emit("answer-done", { words });
     },
@@ -388,7 +409,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.guideOnly = false;
       if (s.surface !== "chat") openChat(t, "answer");
       s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
-      s.lastEngaged = t;
+      engage(t);
     },
     /** A guide keeps its steps in the card for as long as it runs. */
     guide(on, t = clock()) {
@@ -405,7 +426,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         else s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
         s.guideOnly = false;
       } else s.guideOnly = false;
-      s.lastEngaged = t;
+      engage(t);
     },
     tick(t = clock()) {
       if (s.press && !s.held && t - s.press.at >= timing.pickHold) held(t);
@@ -439,14 +460,26 @@ export function createMachine({ now: clock = () => 0 } = {}) {
           reading(t) ||
           s.streaming ||
           s.guiding ||
+          s.chips ||
           s.panels > 0 ||
           s.viewer > 0;
         if (hold) s.holdAt = t;
         if (!hold && t >= s.readUntil && t - s.holdAt >= timing.retreat)
           closeChat(t, "read");
       }
-      if (engaged(t)) s.lastEngaged = t;
-      else if (s.out && t - s.lastEngaged >= timing.retreat) {
+      if (engaged(t)) {
+        s.lastEngaged = t;
+        // Only the pointer is holding Blink out: leaving it can retreat at once.
+        if (!pointerBound() || engagedBeyondPointer(t)) s.leftAt = null;
+      }
+      // Blink that came out because the pointer touched it goes back as soon
+      // as the pointer has left and the corridor grace is over. Anything else
+      // that engaged it since (a motion, an answer, a card) keeps the 1.5 s.
+      else if (
+        s.out &&
+        (t - s.lastEngaged >= timing.retreat ||
+          (s.leftAt !== null && t >= s.graceUntil))
+      ) {
         s.out = false;
         emit("retreat");
       }

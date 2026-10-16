@@ -32,20 +32,64 @@ test("reading time is words over four per second, between 8 and 30 seconds", () 
   assert.equal(readingMs(NaN), 8000);
 });
 
-test("Blink retreats only after 1.5 s with nothing engaged", () => {
+test("leaving Blink with no card retreats after the corridor grace only, not after 1.5 s", () => {
   const { m, at, go, read } = rig();
   m.pointer(on, at.t, true);
   go(timing.menuRest + 32);
   assert.equal(read().state, "menu");
   m.pointer(away, at.t, false);
-  const fx = go(timing.retreat + timing.grace - 32);
-  assert.equal(types(fx).includes("retreat"), false);
+  const early = go(timing.grace - 32);
+  assert.equal(
+    types(early).includes("retreat"),
+    false,
+    "the grace lets the pointer cross to a bubble",
+  );
   assert.equal(read().out, true);
   assert.deepEqual(
     types(go(64)).filter((t) => t === "retreat"),
     ["retreat"],
   );
   assert.equal(read().state, "peek");
+  assert.ok(at.t < timing.retreat, "well before the old 1.5 s");
+});
+
+test("touching Blink without the menu and leaving retreats at once, and a pointer back on Blink in the grace cancels it", () => {
+  const { m, at, go, read } = rig();
+  m.pointer(on, at.t, true);
+  go(100);
+  m.pointer(away, at.t, false);
+  go(timing.grace - 64);
+  m.pointer(on, at.t, true);
+  go(500);
+  assert.equal(read().out, true, "still touching");
+  m.pointer(away, at.t, false);
+  go(timing.grace + 64);
+  assert.equal(read().out, false);
+});
+
+test("a retreat that follows a motion, an answer or a drop still waits 1.5 s", () => {
+  const { m, at, go, read } = rig();
+  m.pointer(on, at.t, true);
+  go(100);
+  m.pointer(away, at.t, false);
+  m.answerStart(at.t);
+  m.answerEnd(10, at.t);
+  m.close(at.t);
+  go(timing.grace + 200);
+  assert.equal(read().out, true);
+  go(timing.retreat);
+  assert.equal(read().out, false);
+});
+
+test("Blink retreats 1.5 s after a card closes by itself", () => {
+  const { m, at, go, read } = rig();
+  m.click(0);
+  m.close(0);
+  m.pointer(away, 0, false);
+  go(timing.retreat - 64);
+  assert.equal(read().out, true);
+  go(128);
+  assert.equal(read().out, false);
 });
 
 test("each engaged input blocks the retreat and releases it 1.5 s later", () => {
@@ -316,7 +360,7 @@ test("an answer that goes on streaming after the click outside does not open the
   assert.equal(read().card, true);
 });
 
-test("a click outside keeps a card that holds a chip, a file dialog or the viewer", () => {
+test("a click outside keeps a card that holds a file dialog or the viewer, and does not keep one that holds a chip", () => {
   const { m, read } = rig();
   m.click(0);
   m.panels(1);
@@ -327,6 +371,7 @@ test("a click outside keeps a card that holds a chip, a file dialog or the viewe
   m.outside(20);
   assert.equal(read().card, true);
   m.viewer(false);
+  m.chips(true);
   m.outside(30);
   assert.equal(read().card, false);
 });

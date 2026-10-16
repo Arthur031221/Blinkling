@@ -181,10 +181,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
       .poll(() => app.evaluate(() => globalThis.bg.isFocused()))
       .toBe(true);
     move(40, 40);
-    await page.waitForTimeout(900);
-    expect(await page.locator("#blink").getAttribute("data-mode")).toBe(
-      "hover",
-    );
+    // Nothing else holds Blink out: it goes back once the pointer has left.
     await page.waitForTimeout(900);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
     const capture = await app.evaluate(() =>
