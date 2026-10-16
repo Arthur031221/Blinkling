@@ -4,6 +4,7 @@ import { documentLocale, translator } from "../shared/i18n.mjs";
 import { strings } from "./strings.mjs";
 import { createSelectionPickers } from "./selection.mjs";
 import { mountThinking } from "./thinking.mjs";
+import { wantedHeight } from "./size.mjs";
 import { mountGuidePanel } from "./guide-panel.mjs";
 import {
   renderMarkdown,
@@ -34,6 +35,7 @@ export function mountComposer(
     onClose = () => {},
     onTyping = () => {},
     onHold = () => {},
+    onSize = () => {},
     onAction = () => {},
     onChat = () => {},
     onReference = () => {},
@@ -440,6 +442,39 @@ export function mountComposer(
     else thinking.stop();
     if (following) history.scrollTop = history.scrollHeight;
   });
+  // The window is as tall as the card's content asks for, so an empty card is
+  // short and grows with what it holds. Measured once a frame at most.
+  const cleanups = [];
+  let measured = 0,
+    sizing = 0;
+  const measure = () => {
+    sizing = 0;
+    if (disposed || !visible) return;
+    const wanted = wantedHeight({
+      card: card.offsetHeight,
+      historyShown: history.clientHeight,
+      historyContent: history.scrollHeight,
+    });
+    if (wanted && wanted !== measured) onSize((measured = wanted));
+  };
+  const resize = () => {
+    if (!sizing) sizing = doc.defaultView.requestAnimationFrame(measure);
+  };
+  const win = doc.defaultView;
+  if (win?.MutationObserver) {
+    const watch = new win.MutationObserver(resize);
+    watch.observe(card, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    cleanups.push(() => watch.disconnect());
+  }
+  if (win?.ResizeObserver) {
+    const watch = new win.ResizeObserver(resize);
+    watch.observe(card);
+    cleanups.push(() => watch.disconnect());
+  }
   // A reference badge in an answer lights its mark on the page.
   listen(history, "mouseover", (e) => {
     const ref = e.target.closest?.(".gl-ref")?.dataset.ref;
@@ -467,6 +502,7 @@ export function mountComposer(
         following = true;
         history.scrollTop = history.scrollHeight;
       }
+      resize();
       text.focus({ preventScroll: true });
       // A draft left behind by Esc still counts once the card is back.
       onTyping(Boolean(text.value));
@@ -512,6 +548,7 @@ export function mountComposer(
     isOpen: () => visible,
     dispose() {
       disposed = true;
+      for (const stop of cleanups) stop();
       controller.abort();
       unComposer();
       unMessages();

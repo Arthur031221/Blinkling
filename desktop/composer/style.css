@@ -55,6 +55,9 @@ a:focus-visible {
   position: absolute;
   inset: 12px 12px 16px;
   display: flex;
+  /* The card is as tall as its content and sits on the bottom, where the
+     window grows from. */
+  align-items: flex-end;
   pointer-events: none;
 }
 #answers {
@@ -66,14 +69,24 @@ a:focus-visible {
   min-width: 0;
   width: 100%;
   max-width: 520px;
-  height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  border: 1px solid var(--gl-border);
+  border: 1px solid transparent;
   border-radius: var(--radius-l);
-  background: var(--gl-paper);
+  /* The card fades out toward its top: a long soft fade of the paper and of
+     its outline, in both themes, with a quarter of the paper left at the very
+     top so the header still sits on something. */
+  background:
+    linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--gl-paper) 25%, transparent) 0,
+        var(--gl-paper) 55%
+      )
+      padding-box,
+    linear-gradient(to bottom, transparent 0, var(--gl-border) 55%) border-box;
   transform-origin: var(--gl-origin, 100% 100%);
   box-shadow: var(--shadow);
   /* The card grows out of Blink and folds back the same way. A transition, not
@@ -164,6 +177,15 @@ a:focus-visible {
   font-size: var(--type-xl);
   line-height: 1;
 }
+/* The pin and the close button sit on their own paper, so they read on the
+   faded top whatever lies behind the card. */
+.gl-card-header .gl-icon-button {
+  background: color-mix(in srgb, var(--gl-paper) 92%, transparent);
+  border: 1px solid var(--gl-border);
+}
+.gl-card-header .gl-brand {
+  text-shadow: 0 0 6px var(--gl-paper);
+}
 .gl-icon-button:hover {
   background: var(--gl-soft);
 }
@@ -172,7 +194,7 @@ a:focus-visible {
   color: var(--text-on-green);
 }
 .gl-chat-history {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -185,7 +207,7 @@ a:focus-visible {
      padding keeps the last streaming line above the composer. */
   padding: 20px 4px 14px;
   overflow-anchor: none;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 22px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 72px);
 }
 .gl-chat-message {
   max-width: 100%;

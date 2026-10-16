@@ -233,7 +233,9 @@ const shown = () =>
     : position;
 /** The card's place: beside Blink, moved by what the reader nudged on this edge. */
 const cardAt = (at = shown()) =>
-  cardBounds(display, at, store.nudge(`card:${at.edge}`));
+  cardBounds(display, at, store.nudge(`card:${at.edge}`), cardWanted);
+/** How tall the card's content wants it, as the card last said. */
+let cardWanted = Infinity;
 const snapshot = () => ({
   display: {
     id: String(display.id),
@@ -976,6 +978,16 @@ ipcMain.on("blinkling:engage", (event, value) => {
     flow((m) => m.composer({ ime: value.value }));
   else if (value?.kind === "viewer" && typeof value.value === "boolean")
     flow((m) => m.viewer(value.value));
+});
+/** The card says how tall its content is; the window follows, so an empty card
+ * is short and a long one reaches its most. */
+ipcMain.on("blinkling:card-size", (event, value) => {
+  const height = Math.round(Number(value?.height));
+  if (!trusted(event) || event.sender !== composer?.webContents) return;
+  if (!Number.isFinite(height) || height === cardWanted) return;
+  cardWanted = height;
+  placeCard();
+  broadcast();
 });
 ipcMain.on("blinkling:hold", (event, value) => {
   const hold = validHold(value);

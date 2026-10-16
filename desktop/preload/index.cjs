@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke("blinkling:drop-files", attachments),
     typing: (value) => ipcRenderer.send("blinkling:typing", value),
     engage: (value) => ipcRenderer.send("blinkling:engage", value),
+    cardSize: (height) => ipcRenderer.send("blinkling:card-size", { height }),
+    replay: () => ipcRenderer.send("blinkling:subscribe"),
     hold: (value) => ipcRenderer.send("blinkling:hold", value),
     nudge: (value) => ipcRenderer.send("blinkling:nudge", value),
     pin: (value) =>

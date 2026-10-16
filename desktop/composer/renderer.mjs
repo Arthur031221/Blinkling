@@ -99,6 +99,7 @@ export const conversation = mountConversation({
   onChat: (key) => api.switchChat?.(key),
   onTyping: (value) => api.typing?.(value),
   onHold: (value) => api.hold?.(value),
+  onSize: (height) => api.cardSize?.(height),
   openLink: (url) => api.openLink?.(url),
   openImage: (image) => api.viewImage?.(image),
   onReference: ({ ref }) => api.referenceHover?.({ ref }),
@@ -109,11 +110,14 @@ export const conversation = mountConversation({
 });
 const unMark = api.onMarkClick?.(({ ref }) => conversation.card.reveal(ref));
 const unCapture = api.onCapture?.((capture) => conversation.capture(capture));
+window.addEventListener("resize", () => placeOrigin());
 const unSurface = api.onSurface?.((event) => {
-  if (event.type === "new-chat") conversation.store.reset();
   if (event.type === "open") {
     if (event.seed) conversation.seed(event.seed);
     conversation.card.open(event.messageId);
+    // The history is always there on opening: a card that holds none asks
+    // for it again.
+    if (!conversation.store.state().messages.length) api.replay?.();
     placeOrigin();
     watchFrames();
   }

@@ -384,3 +384,24 @@ test("where the card cannot follow any further it stays on the screen and its ta
   assert.ok(card.y >= display.workArea.y);
   assert.ok(mouth.y >= card.y - 8 && mouth.y <= card.y + card.height + 8);
 });
+
+test("a card asked to be short is short, keeps its bottom where the full card had it and grows upward", () => {
+  const position = resolvePosition(display);
+  const full = cardBounds(display, position);
+  const short = cardBounds(display, position, { x: 0, y: 0 }, 200);
+  assert.equal(short.height, 200);
+  assert.equal(short.x, full.x);
+  assert.equal(short.y + short.height, full.y + full.height);
+  const taller = cardBounds(display, position, { x: 0, y: 0 }, 300);
+  assert.equal(taller.y + taller.height, short.y + short.height);
+  assert.ok(taller.y < short.y);
+  assert.equal(
+    cardBounds(display, position, { x: 0, y: 0 }, 9999).height,
+    full.height,
+    "never taller than the full card",
+  );
+  assert.ok(
+    cardBounds(display, position, { x: 0, y: 0 }, 10).height >= 120,
+    "never a sliver",
+  );
+});

@@ -156,13 +156,24 @@ export function nudged(bounds, nudge, area) {
  * the side away from its edge, narrowed when the display is too narrow for
  * the full width; stacked above or below Blink and its fan on a display too
  * narrow even for that. */
-export function cardBounds(display, position, nudge = { x: 0, y: 0 }) {
-  return nudged(placedCard(display, position), nudge, display.workArea);
+export function cardBounds(
+  display,
+  position,
+  nudge = { x: 0, y: 0 },
+  wanted = Infinity,
+) {
+  return nudged(placedCard(display, position, wanted), nudge, display.workArea);
 }
-function placedCard(display, position) {
+/** The card window is never shorter than this, so a card with nothing in it
+ * still shows its header and its composer whole. */
+export const CARD_SHORTEST = 120;
+function placedCard(display, position, wanted = Infinity) {
   const a = display.workArea,
     full = Math.min(440, a.width - 24),
-    height = Math.min(520, a.height - 24);
+    most = Math.min(520, a.height - 24),
+    height = Math.round(
+      Math.min(most, Math.max(CARD_SHORTEST, Number(wanted) || most)),
+    );
   const blink = characterBox(display, position);
   const anchor = {
     x: position.reveal.x + display.bounds.x,
