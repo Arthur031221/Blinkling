@@ -275,18 +275,45 @@ test("Esc, the close button and a click outside close an unpinned card", () => {
   }
 });
 
-test("a click outside never drops a streaming answer or a draft", () => {
+test("a click outside closes the card even over a streaming answer or a draft, and a draft is kept by the page", () => {
   const { m, read } = rig();
   m.answerStart(0);
-  m.outside(10);
-  assert.equal(read().card, true);
-  m.answerEnd(5, 20);
-  m.composer({ text: true }, 21);
-  m.outside(30);
-  assert.equal(read().card, true);
-  m.composer({ text: false }, 31);
-  m.outside(40);
+  const fx = (m.outside(10), m.take());
   assert.equal(read().card, false);
+  assert.equal(
+    fx.some((e) => e.type === "close-chat"),
+    true,
+  );
+  const again = rig();
+  again.m.click(0);
+  again.m.composer({ text: true }, 1);
+  again.m.outside(5);
+  assert.equal(again.read().card, false);
+});
+
+test("an answer that goes on streaming after the click outside does not open the card again and Blink goes back to its edge", () => {
+  const { m, at, go, read } = rig();
+  m.answerStart(0);
+  at.t = 10;
+  const closed = (m.outside(10), m.take());
+  assert.equal(
+    types(closed).includes("retreat"),
+    true,
+    "at once with the card",
+  );
+  assert.equal(read().card, false);
+  assert.equal(read().out, false, "Blink is back at its edge");
+  go(timing.retreat + 100);
+  assert.equal(read().state, "peek");
+  const fx = go(1000);
+  assert.equal(types(fx).includes("open-chat"), false);
+  m.answerEnd(40, at.t);
+  go(timing.retreat + 100);
+  assert.equal(read().card, false, "the finished answer waits in the history");
+  assert.equal(types(m.take()).includes("open-chat"), false);
+  // The next question opens the card as usual.
+  m.answerStart(at.t);
+  assert.equal(read().card, true);
 });
 
 test("a click outside keeps a card that holds a chip, a file dialog or the viewer", () => {

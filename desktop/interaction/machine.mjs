@@ -61,6 +61,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     press: null,
     held: false,
     streaming: false,
+    dismissed: false,
     capture: 0,
     eatingUntil: 0,
     showUntil: 0,
@@ -108,7 +109,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         active(s.selectAt, t) ||
         s.held ||
         s.press ||
-        s.streaming ||
+        (s.streaming && !s.dismissed) ||
         s.guiding ||
         s.capture > 0 ||
         s.viewer > 0 ||
@@ -121,7 +122,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
   function state(t) {
     if (s.held) return "held";
     if (t < s.eatingUntil) return "eating";
-    if (s.streaming) return "busy";
+    if (s.streaming && !s.dismissed) return "busy";
     if (s.surface === "chat") return "chat";
     if (s.surface === "menu" || s.hoverMenu) return "menu";
     return s.out ? "out" : "peek";
@@ -153,6 +154,14 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     s.composer = { focus: false, text: false, ime: false };
     s.lastEngaged = t;
     emit("close-chat", { why });
+  }
+  /** A click on the background hides everything at once: with nothing left
+   * that holds Blink out, it goes back to its edge together with the card. */
+  function retreatNow(t) {
+    if (s.out && !engaged(t)) {
+      s.out = false;
+      emit("retreat");
+    }
   }
   function openMenu(t) {
     s.surface = "menu";
@@ -266,15 +275,18 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     /** A click outside every Blinkling surface. */
     outside(t = clock()) {
       if (s.surface === "chat") {
-        const busy =
-          s.streaming ||
-          s.composer.text ||
-          s.composer.ime ||
-          s.panels > 0 ||
-          s.viewer > 0;
-        if (!s.pinned && !busy) closeChat(t, "outside");
-      } else if (s.surface === "menu" && s.stickyMenu && s.panels === 0)
+        // A streaming answer or a draft does not hold the card open: the
+        // answer goes on into the history and the draft stays in the page.
+        const busy = s.panels > 0 || s.viewer > 0;
+        if (!s.pinned && !busy) {
+          if (s.streaming) s.dismissed = true;
+          closeChat(t, "outside");
+          retreatNow(t);
+        }
+      } else if (s.surface === "menu" && s.stickyMenu && s.panels === 0) {
         closeMenu(t, "outside");
+        retreatNow(t);
+      }
     },
     escape(t = clock()) {
       if (s.viewer > 0) return;
@@ -347,6 +359,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     /** The question went out; the card opens by itself to show the answer. */
     answerStart(t = clock()) {
       s.streaming = true;
+      s.dismissed = false;
       s.guideOnly = false;
       s.answered = false;
       s.readUntil = null;
@@ -356,6 +369,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     },
     answerEnd(words, t = clock()) {
       s.streaming = false;
+      s.dismissed = false;
       s.answered = true;
       s.lastEngaged = t;
       s.readUntil = t + readingMs(words);
@@ -363,6 +377,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     },
     answerFailed(t = clock()) {
       s.streaming = false;
+      s.dismissed = false;
       s.readUntil = t + timing.readMin;
       emit("answer-failed");
     },
