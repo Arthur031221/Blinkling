@@ -60,9 +60,12 @@ const python = (e) =>
           ? `k=x.XKeysymToKeycode(d,${e.keysym});t.XTestFakeKeyEvent(d,k,1,0);t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.08)`
           : e.type === "keys"
             ? `for ch in ${JSON.stringify(e.text)}:\n  k=x.XKeysymToKeycode(d,ord(ch))\n  t.XTestFakeKeyEvent(d,k,1,0);t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.04)`
-            : `t.XTestFakeButtonEvent(d,1,${e.type === "down" ? 1 : 0},0);x.XFlush(d);time.sleep(.08)`;
-export function native(events) {
-  execFileSync("python3", [
+            : `t.XTestFakeButtonEvent(d,1,${e.type === "down" ? 1 : 0},0);x.XFlush(d);time.sleep(${e.wait ?? 0.08})`;
+/** Plays the events through XTest. With `stamp` it returns, for every move,
+ * press and release, the wall clock in ms at which that event reached the X
+ * server, so a test can time how long the app took to answer it. */
+export function native(events, { stamp = false } = {}) {
+  const out = execFileSync("python3", [
     "-c",
     `import ctypes,time
 x=ctypes.CDLL('libX11.so.6');t=ctypes.CDLL('libXtst.so.6');x.XOpenDisplay.restype=ctypes.c_void_p;d=x.XOpenDisplay(None)
@@ -73,9 +76,20 @@ t.XTestFakeButtonEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctyp
 t.XTestFakeKeyEvent.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_int,ctypes.c_ulong]
 x.XKeysymToKeycode.argtypes=[ctypes.c_void_p,ctypes.c_ulong]
 try:
- ${events.map(python).join("\n ")}
+ ${events
+   .map(python)
+   .map((line) =>
+     stamp && /^t\.XTestFake(Motion|Button)/.test(line)
+       ? line.replace(
+           ";time.sleep(",
+           ";print(int(time.time()*1000),flush=True);time.sleep(",
+         )
+       : line,
+   )
+   .join("\n ")}
 finally:x.XCloseDisplay(d)`,
   ]);
+  return String(out).split("\n").filter(Boolean).map(Number);
 }
 export const move = (x, y) => native([{ type: "move", x, y }]);
 export const click = (x, y) =>
