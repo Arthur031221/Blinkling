@@ -82,7 +82,7 @@ test("a retreat that follows a motion, an answer or a drop still waits 1.5 s", (
 });
 
 test("Blink retreats 1.5 s after a card closes by itself", () => {
-  const { m, at, go, read } = rig();
+  const { m, go, read } = rig();
   m.click(0);
   m.close(0);
   m.pointer(away, 0, false);
