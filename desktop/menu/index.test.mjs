@@ -408,3 +408,10 @@ test("closing on a display too short for Close starts at once: the bubble left o
     "the farthest bubble leaves first, with no empty turn before it",
   );
 });
+
+test("the tooltip keeps dark text on its light surface when its bubble is on", () => {
+  // A switched-on bubble sets white text for its own green face; the label is a
+  // child that sits on --surface, so it must set its own colour.
+  assert.match(rules('.action-bubble[aria-checked="true"]'), /text-on-green/);
+  assert.match(rules(".action-label"), /(?:^|[\s;])color:\s*var\(--text\)/);
+});

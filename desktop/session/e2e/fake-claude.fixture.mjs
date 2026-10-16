@@ -173,7 +173,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     // "think:" is the same after a wait of 1.8 s before the first word.
     const think = frame.message.content.at(-1).text?.startsWith("think:");
     const slow =
-      think || frame.message.content.at(-1).text?.startsWith("slow:");
+      think ||
+      process.env.BLINKLING_TEST_SLOW === "1" ||
+      frame.message.content.at(-1).text?.startsWith("slow:");
     const pieces = slow
       ? ["First sentence. ", "Second one ", "is longer. ", "And a third."]
       : ["OK."];

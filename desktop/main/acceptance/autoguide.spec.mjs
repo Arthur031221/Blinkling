@@ -263,3 +263,95 @@ test("Auto explain: switching it on shows it is watching, a change on the screen
     await app.close();
   }
 });
+
+/** Records every turn the real session is handed, then passes it on. */
+const spy = (app) =>
+  app.evaluate(() => {
+    const session = globalThis.blinklingTest.features.auto.session;
+    const send = session.send.bind(session);
+    globalThis.fakeTurns = [];
+    session.send = (turn) => {
+      globalThis.fakeTurns.push({ ...turn, at: Date.now() });
+      return send(turn);
+    };
+  });
+
+test("Auto explain, the whole path: the tooltip reads, the picture is sent, the card opens by itself and the answer streams in", async () => {
+  test.setTimeout(150000);
+  const { app, page } = await launch({ env: { BLINKLING_TEST_SLOW: "1" } });
+  const rec = record("auto_explain_path-321");
+  try {
+    const frame = await background(app);
+    await spy(app);
+    await place(app, "right", 0.5);
+    await page.waitForTimeout(800);
+    await reveal(page);
+    await clickBubble(page, "auto-explain", frame);
+    await expect(bubble(page, "auto-explain")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    // With auto explain on, the tooltip title is dark on its light surface.
+    const label = await bubble(page, "auto-explain")
+      .locator(".action-label")
+      .evaluate((el) => {
+        const strong = el.querySelector("strong");
+        return {
+          text: strong.textContent,
+          color: getComputedStyle(strong).color,
+          surface: getComputedStyle(el).backgroundColor,
+        };
+      });
+    console.log(`auto tooltip: ${JSON.stringify(label)}`);
+    expect(label.color).not.toBe(label.surface);
+    expect(label.color).not.toBe("rgb(255, 255, 255)");
+    rec.frame("tooltip");
+    move(30, 30);
+    await expect
+      .poll(
+        () =>
+          app.evaluate(
+            () => !!globalThis.blinklingTest.features.auto.policy.baseline,
+          ),
+        { timeout: 15000, intervals: [250] },
+      )
+      .toBe(true);
+    await app.evaluate(() =>
+      globalThis.bg.webContents.executeJavaScript(
+        "document.body.style.background='#e9d67d'",
+      ),
+    );
+    await expect
+      .poll(() => app.evaluate(() => globalThis.fakeTurns.length), {
+        timeout: 40000,
+        intervals: [100],
+      })
+      .toBe(1);
+    const turn = await app.evaluate(() => globalThis.fakeTurns[0]);
+    expect(turn.source).toBe("auto-explain");
+    expect(turn.attachments).toHaveLength(1);
+    expect(turn.attachments[0].mediaType).toBe("image/png");
+    rec.frame("sent");
+    // Nobody touches anything: the card opens on the first words of the answer.
+    await expect
+      .poll(() => cardPage(app)?.locator(".gl-assistant").count(), {
+        timeout: 8000,
+      })
+      .toBeGreaterThan(0);
+    const shown = () =>
+      cardPage(app)
+        .locator(".gl-assistant")
+        .last()
+        .innerText()
+        .catch(() => "");
+    await expect.poll(shown, { timeout: 8000 }).toContain("First sentence");
+    const early = await shown();
+    rec.frame("first-words");
+    await expect.poll(shown, { timeout: 8000 }).toContain("third");
+    expect((await shown()).length).toBeGreaterThan(early.length);
+    rec.frame("answer");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

@@ -93,6 +93,7 @@ button svg {
   position: absolute;
   top: 50%;
   display: flex;
+  color: var(--text);
   flex-direction: column;
   gap: 2px;
   width: max-content;
