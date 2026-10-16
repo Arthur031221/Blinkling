@@ -60,7 +60,7 @@ test("H-4 an empty card stays when the pointer leaves and closes on a click outs
   }
 });
 
-test("H-4 a non-empty draft keeps the card open through a click outside", async () => {
+test("H-4 a click outside closes the card with a draft in it, and the draft is still there when it reopens", async () => {
   const c = await launch();
   try {
     const card = await hoverOpen(c);
@@ -68,16 +68,18 @@ test("H-4 a non-empty draft keeps the card open through a click outside", async 
     await unfocus(c);
     await leave(c);
     await clickOutside(c);
-    expect(await visible(c.app)).toBe(true);
-    await card.locator(".gl-input").fill("");
-    await clickOutside(c);
     await expect.poll(() => visible(c.app)).toBe(false);
+    await c.app.evaluate(() =>
+      globalThis.blinklingTest.nBlinkMenuFaces.openCard(false),
+    );
+    await expect.poll(() => visible(c.app)).toBe(true);
+    await expect(card.locator(".gl-input")).toHaveValue("half a thought");
   } finally {
     await c.close();
   }
 });
 
-test("H-4 a pending attachment chip keeps the card open through a click outside", async () => {
+test("H-4 a click outside closes the card with a pending attachment, and the chip is still there when it reopens", async () => {
   const c = await launch();
   try {
     const card = await hoverOpen(c);
@@ -95,11 +97,12 @@ test("H-4 a pending attachment chip keeps the card open through a click outside"
     await unfocus(c);
     await leave(c);
     await clickOutside(c);
-    expect(await visible(c.app)).toBe(true);
-    await card.getByRole("button", { name: "移除 capture.png" }).click();
-    await pointerAway(card);
-    await clickOutside(c);
     await expect.poll(() => visible(c.app)).toBe(false);
+    await c.app.evaluate(() =>
+      globalThis.blinklingTest.nBlinkMenuFaces.openCard(false),
+    );
+    await expect.poll(() => visible(c.app)).toBe(true);
+    await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
   } finally {
     await c.close();
   }
