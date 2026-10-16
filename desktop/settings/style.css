@@ -190,6 +190,8 @@ kbd[data-listening="true"] {
 
 .settings-head {
   cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .settings-head[data-nudging] {
   cursor: grabbing;

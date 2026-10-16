@@ -179,6 +179,8 @@ button:focus-visible {
 
 .welcome-head {
   cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .welcome-head[data-nudging] {
   cursor: grabbing;

@@ -96,6 +96,13 @@ test("a window opened from the chat (settings, welcome) can be dragged by its he
         })
         .toEqual([0, 0]);
       rec.frame(`${name}-reset`);
+      // Dragging and double clicking the header must not select its title.
+      expect(
+        await pageOf(app, name).evaluate(() =>
+          String(window.getSelection()).trim(),
+        ),
+        `${name}: nothing selected`,
+      ).toBe("");
       await app.evaluate(
         (_, hook) => globalThis.blinklingTest[hook].close(),
         hook,

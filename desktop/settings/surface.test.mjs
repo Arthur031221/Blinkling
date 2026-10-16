@@ -44,3 +44,14 @@ for (const name of windows) {
     assert.match(csp, /object-src 'none'/);
   });
 }
+
+for (const name of windows)
+  test(`${name}: the header that drags the window never selects its text`, () => {
+    const css = read(`../${name}/style.css`);
+    const rule = new RegExp(`\\.${name}-head\\s*\\{[^}]*\\}`, "g");
+    const heads = css.match(rule) ?? [];
+    assert.ok(
+      heads.some((r) => /user-select:\s*none/.test(r)),
+      "user-select: none on the header",
+    );
+  });
