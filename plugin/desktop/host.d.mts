@@ -71,6 +71,8 @@ export function startDesktopHost(options?: {
   elements: (query?: {
     point?: { x: number; y: number };
     signal?: AbortSignal;
+    /** Skip the helper's short cache, for the read a click depends on. */
+    fresh?: boolean;
   }) => Promise<PageElements | null>;
   translatePage: (options?: {
     on?: boolean;

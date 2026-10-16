@@ -43495,12 +43495,22 @@ async function createBlinkling(options = {}) {
       }
     ]
   });
-  server.tool(
+  server.registerTool(
     "screen_capture",
-    "Capture the screen, a supported window or region, or repeat the last selected region. This runs only when explicitly requested.",
     {
-      target: targetSchema,
-      long_edge: external_exports.number().int().positive().max(4096).optional()
+      title: "Capture the screen",
+      description: "Capture the screen, a supported window or region, or repeat the last selected region. This runs only when explicitly requested.",
+      inputSchema: {
+        target: targetSchema,
+        long_edge: external_exports.number().int().positive().max(4096).optional()
+      },
+      annotations: {
+        title: "Capture the screen",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false
+      }
     },
     async ({ target, long_edge }, extra) => imageResult(
       await capture(
@@ -43511,10 +43521,19 @@ async function createBlinkling(options = {}) {
       )
     )
   );
-  server.tool(
+  server.registerTool(
     "screen_latest",
-    "Return the latest capture with its time, dimensions, source, and PNG image.",
-    {},
+    {
+      title: "Show the latest capture",
+      description: "Return the latest capture with its time, dimensions, source, and PNG image.",
+      inputSchema: {},
+      annotations: {
+        title: "Show the latest capture",
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
     async () => {
       const item = history.latest();
       return item ? imageResult(item) : {
@@ -43527,10 +43546,19 @@ async function createBlinkling(options = {}) {
       };
     }
   );
-  server.tool(
+  server.registerTool(
     "screen_history",
-    "List recent capture metadata and notes. History stays in memory and expires after ten minutes.",
-    {},
+    {
+      title: "List recent captures",
+      description: "List recent capture metadata and notes. History stays in memory and expires after ten minutes.",
+      inputSchema: {},
+      annotations: {
+        title: "List recent captures",
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
     async () => ({
       content: [
         {
@@ -43542,10 +43570,22 @@ async function createBlinkling(options = {}) {
       ]
     })
   );
-  server.tool(
+  server.registerTool(
     "screen_watch_start",
-    "Explicitly start serial screen watching. Captures only changed frames and retains at most six per minute. No model calls are made.",
-    { interval_seconds: external_exports.number().int().min(5).max(60).optional() },
+    {
+      title: "Start screen watching",
+      description: "Explicitly start serial screen watching. Captures only changed frames and retains at most six per minute. No model calls are made.",
+      inputSchema: {
+        interval_seconds: external_exports.number().int().min(5).max(60).optional()
+      },
+      annotations: {
+        title: "Start screen watching",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
     async ({ interval_seconds }, extra) => {
       if (watching)
         return {
@@ -43603,22 +43643,42 @@ async function createBlinkling(options = {}) {
       };
     }
   );
-  server.tool(
+  server.registerTool(
     "screen_watch_stop",
-    "Stop explicit screen watching.",
-    {},
+    {
+      title: "Stop screen watching",
+      description: "Stop explicit screen watching.",
+      inputSchema: {},
+      annotations: {
+        title: "Stop screen watching",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
     async () => {
       await stopCaptures();
       return { content: [{ type: "text", text: "Screen watch stopped." }] };
     }
   );
-  server.tool(
+  server.registerTool(
     "screen_notes",
-    "Add or read the bounded user and assistant narration notes attached to the running screen timeline.",
     {
-      action: external_exports.enum(["add", "list"]),
-      text: external_exports.string().max(2e3).optional(),
-      role: external_exports.enum(["user", "assistant"]).optional()
+      title: "Add or read notes",
+      description: "Add or read the bounded user and assistant narration notes attached to the running screen timeline.",
+      inputSchema: {
+        action: external_exports.enum(["add", "list"]),
+        text: external_exports.string().max(2e3).optional(),
+        role: external_exports.enum(["user", "assistant"]).optional()
+      },
+      annotations: {
+        title: "Add or read notes",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false
+      }
     },
     async ({ action, text: text2, role }) => {
       if (action === "add") {
@@ -43646,10 +43706,20 @@ async function createBlinkling(options = {}) {
       };
     }
   );
-  server.tool(
+  server.registerTool(
     "desktop_open",
-    "Download, verify and launch Blink on the desktop, or reconnect the running instance. No browser extension is required.",
-    {},
+    {
+      title: "Open Blink on the desktop",
+      description: "Download, verify and launch Blink on the desktop, or reconnect the running instance. No browser extension is required.",
+      inputSchema: {},
+      annotations: {
+        title: "Open Blink on the desktop",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true
+      }
+    },
     async () => {
       try {
         await launchDesktop();
@@ -43671,10 +43741,20 @@ async function createBlinkling(options = {}) {
       }
     }
   );
-  server.tool(
+  server.registerTool(
     "extension_install",
-    "Install the optional companion browser extension and open its short guide.",
-    {},
+    {
+      title: "Install the browser extension",
+      description: "Install the optional companion browser extension and open its short guide.",
+      inputSchema: {},
+      annotations: {
+        title: "Install the browser extension",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
     async () => ({
       content: [
         {
@@ -43684,10 +43764,20 @@ async function createBlinkling(options = {}) {
       ]
     })
   );
-  server.tool(
+  server.registerTool(
     "screen_clear",
-    "Clear in-memory captures and notes.",
-    {},
+    {
+      title: "Clear captures and notes",
+      description: "Clear in-memory captures and notes.",
+      inputSchema: {},
+      annotations: {
+        title: "Clear captures and notes",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
     async () => {
       await stopCaptures();
       await helper.clearAll();
