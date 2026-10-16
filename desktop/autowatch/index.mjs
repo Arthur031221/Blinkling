@@ -163,7 +163,7 @@ export class AutoWatch {
       if (!ok) return;
       const turn = {
         id: randomUUID(),
-        text: "只觀看並解說，不要操作其他程式，不要使用電腦控制、編輯或任何工具。用這個畫面的語言，最多兩句短句說明：這是什麼，以及最重要的內容。每句獨立一段，不要前言，不要追問。",
+        text: "只觀看並解說，不要操作其他程式，不要使用電腦控制、編輯或任何工具。用這個畫面的語言說明：這是什麼，以及最重要的內容。不要前言，不要追問。",
         attachments: [capture.image],
         source: "auto-explain",
       };

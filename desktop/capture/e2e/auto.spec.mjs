@@ -45,7 +45,8 @@ test("auto explain samples the native desktop, pauses for real input and submits
     expect(await app.evaluate(() => globalThis.b3AutoTurns.length)).toBe(1);
     const turn = await app.evaluate(() => globalThis.b3AutoTurns[0]);
     expect(turn.source).toBe("auto-explain");
-    expect(turn.text).toContain("最多兩句");
+    expect(turn.text).toContain("這是什麼");
+    expect(turn.text).not.toMatch(/最多|兩句|每句/);
     const bytes = Buffer.from(turn.attachments[0].data, "base64"),
       image = PNG.sync.read(bytes);
     expect(image.width).toBe(1280);

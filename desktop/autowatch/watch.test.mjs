@@ -424,7 +424,7 @@ test("PV-4: a scroll nudge never explains, the next section does, within the det
     watch.dispose();
   }
 });
-test("PV-4: the prompt asks for at most two short sentences", async () => {
+test("PV-4: the prompt sets no length limit and no per-sentence paragraphs", async () => {
   const { watch, turns, state } = rig();
   try {
     watch.enable();
@@ -432,8 +432,8 @@ test("PV-4: the prompt asks for at most two short sentences", async () => {
     state.page = "docSection2";
     await watch.tick();
     await watch.tick();
-    assert.match(turns[0].text, /最多兩句/);
-    assert.doesNotMatch(turns[0].text, /兩到三句/);
+    assert.doesNotMatch(turns[0].text, /最多|兩句|兩到三句|每句|簡短|短句/);
+    assert.match(turns[0].text, /這是什麼/);
   } finally {
     watch.dispose();
   }

@@ -14,7 +14,7 @@ The optional companion reads the structure and text of the page under the pointe
 
 Page text and pixels are untrusted data, never instructions. Answers are sanitized before they are shown, and marks drawn on the screen come from validated data, not from model-written HTML.
 
-Auto explain starts off. Once on, a screen change can trigger a short explanation, at most two bubbles. It stays paused while a secure field, a password manager or a private window has focus. Hide private content or turn it off before sharing the screen.
+Auto explain starts off. Once on, a screen change can trigger an explanation of what the screen is and what matters most. It stays paused while a secure field, a password manager or a private window has focus. Hide private content or turn it off before sharing the screen.
 
 ## Desktop app: what is never captured, and what is kept
 
