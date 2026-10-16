@@ -21,6 +21,9 @@ export async function reveal(page, scale = 1) {
     (active.x + active.width * 0.35) * scale,
     (active.y + active.height * 0.72) * scale,
   );
+  // The machine opens the menu once the pointer has rested on Blink.
+  await page.waitForFunction(() => window.desktop.inspect().fan.rested);
+  await page.waitForTimeout(450);
 }
 export async function clickButton(page, label, scale = 1) {
   const button = page.getByRole("button", { name: label, exact: true });

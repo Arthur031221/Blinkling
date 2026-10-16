@@ -204,6 +204,26 @@ if (configuration.surface === "bubbles") {
   };
   shapes();
 } else {
+  // Reading keeps the card: scroll, selection and an IME composition tell the
+  // machine in main. Scroll and selection report at most every 250 ms.
+  let reportedAt = { scroll: -Infinity, select: -Infinity };
+  const report = (kind) => {
+    const now = performance.now();
+    if (now - reportedAt[kind] < 250) return;
+    reportedAt[kind] = now;
+    api.engage?.({ kind });
+  };
+  addEventListener("scroll", () => report("scroll"), true);
+  addEventListener("wheel", () => report("scroll"), { passive: true });
+  document.addEventListener("selectionchange", () => {
+    if (!document.getSelection()?.isCollapsed) report("select");
+  });
+  addEventListener("compositionstart", () =>
+    api.engage?.({ kind: "ime", value: true }),
+  );
+  addEventListener("compositionend", () =>
+    api.engage?.({ kind: "ime", value: false }),
+  );
   addEventListener("keydown", (event) => {
     // One Escape closes one thing: an open list first, then the card.
     if (event.key === "Escape" && !event.isComposing)

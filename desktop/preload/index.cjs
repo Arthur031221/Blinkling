@@ -8,7 +8,8 @@ contextBridge.exposeInMainWorld(
   "blinkling",
   Object.freeze({
     action: (action) => ipcRenderer.invoke("blinkling:action", action),
-    interactive: (regions) => ipcRenderer.send("blinkling:regions", regions),
+    interactive: (regions, parts) =>
+      ipcRenderer.send("blinkling:regions", regions, parts),
     shell: (command) => ipcRenderer.invoke("blinkling:shell", command),
     onShell: (listener) => subscribe("blinkling:shell", listener),
     onEvent: (listener) => {
@@ -29,6 +30,7 @@ contextBridge.exposeInMainWorld(
     onCatch: (listener) => subscribe("blinkling:catch", listener),
     activity: (value) => ipcRenderer.send("blinkling:activity", value),
     typing: (value) => ipcRenderer.send("blinkling:typing", value),
+    engage: (value) => ipcRenderer.send("blinkling:engage", value),
     hold: (value) => ipcRenderer.send("blinkling:hold", value),
     pin: (value) =>
       ipcRenderer.invoke("blinkling:shell", { type: "pin", value }),

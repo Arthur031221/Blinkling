@@ -1,13 +1,10 @@
 import { mountBlink } from "../character/index.mjs";
 import { createActivityState } from "../character/activity.mjs";
-import { BlinkState, spring } from "../character/state.mjs";
+import { spring } from "../character/state.mjs";
 import { scanlines, roundedRect } from "../character/silhouette.mjs";
 import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createMessageStream } from "../messages/index.mjs";
 import { createComposer } from "../composer/index.mjs";
-import { createRest } from "../menu/rest.mjs";
-import { fanWanted } from "../menu/gate.mjs";
-import { createGesture } from "./gesture.mjs";
 import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
 import { setDocumentLocale } from "../shared/i18n.mjs";
@@ -22,7 +19,6 @@ setDocumentLocale(document, shell.locale);
 const text = windowText();
 applyText(document, text);
 const logFrame = frameLog();
-const state = new BlinkState();
 const activity = createActivityState();
 const grumbler = createGrumbler({ count: GRUMBLES });
 const spin = createSpinDetector();
@@ -44,7 +40,16 @@ let character = null,
   pointer = null,
   picking = false,
   dragPointer = null,
-  dragStarting = false;
+  dropUntil = 0;
+/** The pose mode follows the machine in main: held, just dropped, out, peek. */
+const modeOf = (now) =>
+  shell.interaction.held
+    ? "drag"
+    : now < dropUntil
+      ? "drop"
+      : shell.interaction.out
+        ? "hover"
+        : "peek";
 /** Put the thought bubble above Blink's head, leaning toward the screen's
  * inside; a Blink hanging from the top edge gets it below. */
 function placeGrumble(node, feet, position) {
@@ -67,29 +72,6 @@ function placeGrumble(node, feet, position) {
   node.dataset.side = inward ? "left" : "right";
   node.dataset.edge = top ? "top" : "bottom";
 }
-/** Is the pointer on Blink? Blink slides out from under a pointer resting on
- * its peeking edge, so the ground it covers between peek and reveal counts
- * too; a pointer over the card or the deck never does. */
-function onBlink(cursor, position) {
-  if (!cursor) return false;
-  if (cursor.blink) return true;
-  if (cursor.hit || !cursor.point) return false;
-  const { peek, reveal } = position,
-    near = {
-      left: Math.min(peek.x, reveal.x) - 74,
-      right: Math.max(peek.x, reveal.x) + 74,
-      top: Math.min(peek.y, reveal.y) - 142,
-      bottom: Math.max(peek.y, reveal.y) + 10,
-    };
-  return (
-    cursor.point.x >= near.left &&
-    cursor.point.x <= near.right &&
-    cursor.point.y >= near.top &&
-    cursor.point.y <= near.bottom
-  );
-}
-const rest = createRest(),
-  gesture = createGesture();
 const host = document.querySelector("#blink");
 const permission = document.querySelector("#permission-alert");
 permission.addEventListener("click", () =>
@@ -104,20 +86,14 @@ function accept(value) {
     value.display.bounds.height !== shell.display.bounds.height
   )
     current = null;
-  if (value.chatOpen && !shell.chatOpen) state.openChat();
   shell = value;
   document.documentElement.dataset.edge = shell.position.edge;
   document.documentElement.dataset.theme = shell.theme;
-  state.pinned = shell.pinned;
-  state.chatOpen = shell.chatOpen;
   menu?.setAuto(shell.autoExplain);
 }
 accept(shell);
 async function action(id) {
   const result = await api.action(id);
-  if (result.ok && id !== "auto-explain") {
-    state.hover(false, performance.now());
-  }
   window.dispatchEvent(
     new CustomEvent("blinkling:action-result", {
       detail: { action: id, ...result },
@@ -131,9 +107,10 @@ async function action(id) {
     onLabelsShown: () => api.shell({ type: "fan-labels-seen" }),
   });
   menu.setAuto(shell.autoExplain);
+  // Main decides what a press is: more than 4 px or 250 ms picks Blink up,
+  // anything shorter is a click.
   host.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
-    gesture.down({ x: event.screenX, y: event.screenY });
     dragPointer = {
       id: event.pointerId,
       ready: api.shell({
@@ -144,50 +121,14 @@ async function action(id) {
     host.setPointerCapture(event.pointerId);
     event.preventDefault();
   });
-  host.addEventListener("pointermove", async (event) => {
-    if (
-      !dragPointer ||
-      gesture.move({ x: event.screenX, y: event.screenY }) !== "drag-start"
-    )
-      return;
-    dragStarting = true;
-    state.startDrag();
-    menu.setOpen(false, performance.now() / 1000, { together: true });
-    host.dataset.drag = "true";
-    try {
-      await dragPointer.ready;
-    } finally {
-      dragStarting = false;
-      if (!dragPointer) await api.shell({ type: "drag", phase: "end" });
-    }
-  });
   async function release(event) {
     if (!dragPointer) return;
-    // A press that travelled more than 4 px is a drop; anything less is a click.
-    const result = event.type === "pointercancel" ? null : gesture.up();
-    if (result === null) gesture.cancel();
     const ready = dragPointer.ready;
     dragPointer = null;
-    host.dataset.drag = "false";
     if (host.hasPointerCapture(event.pointerId))
       host.releasePointerCapture(event.pointerId);
     await ready;
-    if (result === "drop") {
-      if (!dragStarting)
-        accept(await api.shell({ type: "drag", phase: "end" }));
-      dropAt = performance.now() / 1000;
-      if (spin.dizzy) dizzyAt = dropAt;
-      spin.reset();
-      grumbler.touch(performance.now());
-      state.drop(performance.now());
-    } else {
-      await api.shell({ type: "drag", phase: "end" });
-      if (result === "click")
-        await api.shell({
-          type: "click",
-          permission: activity.read(performance.now()).face === "permission",
-        });
-    }
+    accept(await api.shell({ type: "drag", phase: "end" }));
   }
   host.addEventListener("pointerup", release);
   host.addEventListener("pointercancel", release);
@@ -197,16 +138,9 @@ async function action(id) {
     frameTimes.push(now - last);
     if (frameTimes.length > 600) frameTimes.shift();
     last = now;
-    const was = state.mode;
-    state.tick(now);
-    if (
-      state.mode === "peek" &&
-      was !== "peek" &&
-      !state.pinned &&
-      shell.chatOpen
-    )
-      api.shell({ type: "visibility", value: false });
-    const revealed = state.mode !== "peek",
+    const mode = modeOf(now);
+    host.dataset.drag = String(shell.interaction.held);
+    const revealed = mode !== "peek",
       target =
         shell.drag ?? (revealed ? shell.position.reveal : shell.position.peek);
     const area = shell.position.area;
@@ -241,16 +175,13 @@ async function action(id) {
         width: 148,
         height: 152,
       });
-    host.dataset.mode = state.mode;
+    host.dataset.mode = mode;
     const session = activity.read(now);
     host.dataset.expression = session.expression;
     // Held and swung round in circles twice, Blink is dizzy once it is let go.
     if (shell.drag) spin.add({ x: shell.drag.x, y: shell.drag.y }, now);
     const touched =
-      pointer?.point &&
-      pointer.blink &&
-      state.mode !== "drag" &&
-      state.mode !== "peek"
+      pointer?.point && pointer.blink && mode !== "drag" && mode !== "peek"
         ? touchPart(pointer.point, current)
         : null;
     character.pose(now / 1000, {
@@ -259,7 +190,7 @@ async function action(id) {
         ? { part: touched, side: sideOf(pointer.point, current) }
         : null,
       dizzyAt,
-      mode: state.mode,
+      mode,
       waveAt,
       dropAt,
       velocity: shell.drag?.velocity ?? 0,
@@ -279,7 +210,7 @@ async function action(id) {
       shell.miniOpen ||
       !!shell.drag ||
       touched !== null ||
-      state.mode !== "peek" ||
+      mode !== "peek" ||
       menu.open;
     const line = grumbler.tick(now, busy);
     if (line !== grumbling) {
@@ -288,36 +219,28 @@ async function action(id) {
       grumble.dataset.shown = String(line !== null);
     }
     if (line !== null) placeGrumble(grumble, current, shell.position);
-    // The fan opens only after the pointer has rested on Blink; once open it
-    // stays while Blink stays revealed, so crossing the gaps between bubbles
-    // does not close it. A wake without the pointer never opens it (N2.1).
-    const stay = revealed && state.mode !== "drag" && state.mode !== "drop";
-    pointerOver = onBlink(pointer, shell.position);
-    rest.update(pointerOver && stay, now, { keep: stay && menu.open });
-    const wanted = fanWanted({
-      ready: rest.ready,
-      stay,
-      chatOpen: shell.chatOpen,
-      miniOpen: shell.miniOpen,
-    });
-    menu.setOpen(wanted, now / 1000, {
-      together: state.mode === "drag" || state.mode === "drop",
+    // The machine in main decides when the fan shows: after the pointer has
+    // rested on Blink, never over an open card.
+    pointerOver = Boolean(pointer?.blink);
+    menu.setOpen(shell.interaction.menu, now / 1000, {
+      together: mode === "drag" || mode === "drop",
     });
     menu.frame(now / 1000, dt, area, current);
     permission.hidden =
-      session.expression !== "permission" ||
-      shell.chatOpen ||
-      state.mode === "drag";
+      session.expression !== "permission" || shell.chatOpen || mode === "drag";
     permission.style.left = `${Math.max(8, Math.min(innerWidth - 188, current.x - 90))}px`;
     permission.style.top = `${Math.max(8, Math.min(innerHeight - 52, current.y - 120))}px`;
-    const polygons = [...character.polygons(), ...menu.polygons()];
+    const size = { width: innerWidth, height: innerHeight };
+    const body = scanlines(character.polygons(), size),
+      fan = scanlines(menu.polygons(), size),
+      all = [...body, ...fan];
     if (!permission.hidden) {
       const r = permission.getBoundingClientRect();
-      polygons.push(roundedRect(r.x, r.y, r.width, r.height, 20));
+      all.push(
+        ...scanlines([roundedRect(r.x, r.y, r.width, r.height, 20)], size),
+      );
     }
-    api.interactive(
-      scanlines(polygons, { width: innerWidth, height: innerHeight }),
-    );
+    api.interactive(all, { blink: body, menu: fan });
     workTimes.push(performance.now() - began);
     if (workTimes.length > 600) workTimes.shift();
     frameId = requestAnimationFrame(frame);
@@ -328,24 +251,23 @@ api.onShell((event) => {
   if (event.type === "state") {
     const dragging = !!shell.drag;
     accept(event.state);
-    if (!dragging && shell.drag) state.startDrag();
     if (dragging && !shell.drag) {
       dropAt = performance.now() / 1000;
-      state.drop(performance.now());
+      dropUntil = performance.now() + 500;
+      if (spin.dizzy) dizzyAt = dropAt;
+      spin.reset();
+      grumbler.touch(performance.now());
     }
   }
   if (event.type === "picking") picking = event.on === true;
   if (event.type === "cursor") {
-    const before = state.over;
+    const before = pointerOver;
     pointer = { point: event.point, hit: event.hit, blink: event.blink };
-    state.hover(event.hit, performance.now());
-    if (event.hit && !before) {
+    if (event.blink && !before) {
       waveAt = performance.now() / 1000;
       window.dispatchEvent(new CustomEvent("blinkling:recall-answer"));
     }
   }
-  if (event.type === "chat-blur") state.hover(false, performance.now());
-  if (event.type === "chat-activity") state.activity(performance.now());
   if (event.type === "capture") composer.attach(event.capture.image);
   window.dispatchEvent(
     new CustomEvent("blinkling:shell-event", { detail: event }),
@@ -369,12 +291,11 @@ export const desktop = {
   get shell() {
     return shell;
   },
-  state,
   talking: false,
   inspect: () => ({
-    mode: state.mode,
+    mode: modeOf(performance.now()),
     anchor: current ? { x: current.x, y: current.y - 62 } : null,
-    fan: { open: menu.open, rested: rest.ready, over: pointerOver },
+    fan: { open: menu.open, rested: shell.interaction.menu, over: pointerOver },
     activity: activity.read(performance.now()),
     shell: {
       ...shell,

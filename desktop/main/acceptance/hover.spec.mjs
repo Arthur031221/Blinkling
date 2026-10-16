@@ -216,18 +216,32 @@ test("with bubbles present Blink stays above the deck and every menu bubble is c
     await reveal(page);
     await page.waitForTimeout(500);
     await clickBlink(page);
-    await expect.poll(() => miniState(app)).toBe(true);
+    await expect
+      .poll(() => composerState(app).then((s) => s.visible))
+      .toBe(true);
   } finally {
     await app.close();
   }
 });
 
-test("the card stays open while typing, holding a chip or a dialog, and still closes on Esc and on leave when empty", async () => {
+test("the card stays open while typing, holding a chip or a dialog, and closes on Esc and on a click outside when empty", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
   try {
     await background(app);
     const away = () => click(40, 40);
+    // A click outside Blinkling takes the keyboard away from a focused card.
+    const leave = async (card) => {
+      const box = await card.getByRole("textbox").boundingBox();
+      const at = await app.evaluate(() =>
+        globalThis.blinklingTest.composer.getBounds(),
+      );
+      click(at.x + box.x + box.width / 2, at.y + box.y + box.height / 2);
+      await expect
+        .poll(() => composerState(app).then((s) => s.focused))
+        .toBe(true);
+      away();
+    };
     const settle = (ms = 3600) => page.waitForTimeout(ms);
     // A non-empty draft keeps it, even without focus and with the pointer far away.
     await reveal(page);
@@ -239,8 +253,9 @@ test("the card stays open while typing, holding a chip or a dialog, and still cl
     expect((await composerState(app)).visible).toBe(true);
     await shot(app, "card-kept-draft");
     expect(await box.inputValue()).toBe("a half written question");
-    // Emptying it releases it: the card then closes on leave.
+    // Emptying it releases it: the card then closes on a click outside.
     await box.fill("");
+    await leave(card);
     await expect
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
       .toBe(false);
@@ -251,7 +266,7 @@ test("the card stays open while typing, holding a chip or a dialog, and still cl
     move(60, 60);
     await settle();
     expect(await composerState(app)).toEqual({ visible: true, focused: true });
-    away();
+    await leave(card);
     await expect
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
       .toBe(false);
@@ -271,7 +286,7 @@ test("the card stays open while typing, holding a chip or a dialog, and still cl
     await shot(app, "card-kept-chip");
     await card.getByRole("button", { name: /移除/ }).click();
     await card.mouse.move(-20, -20); // the click above was a synthetic pointer
-    away();
+    await leave(card);
     await expect
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
       .toBe(false);
@@ -287,7 +302,7 @@ test("the card stays open while typing, holding a chip or a dialog, and still cl
     await settle();
     expect((await composerState(app)).visible).toBe(true);
     await dialog.setFiles([]);
-    away();
+    await leave(card);
     await expect
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 5000 })
       .toBe(false);

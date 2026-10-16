@@ -14,6 +14,12 @@ export const springs = Object.freeze({ crisp: 18, soft: 12 });
 /** Behaviour timings the spec names, kept beside the motion tokens. */
 export const timing = Object.freeze({
   pickHold: 250,
+  // The interaction machine (desktop/interaction): the only place that decides when Blink retreats or a card closes.
+  retreat: 1500,
+  grace: 400,
+  activity: 2000,
+  readMin: 8000,
+  readCap: 30000,
   menuRest: 300,
   thinkingFace: 100,
   settle: 8000,

@@ -128,20 +128,20 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     await page.evaluate(() =>
       window.blinkling.shell({ type: "pin", value: false }),
     );
+    await page.evaluate(() => window.blinkling.shell({ type: "close-chat" }));
     move(b.x + stand.x, b.y + stand.y);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
     const focusBefore = await app.evaluate(() => globalThis.bg.isFocused());
     expect(focusBefore).toBe(true);
     click(b.x + stand.x, b.y + stand.y);
-    // A click on Blink opens the mini composer, which holds the keyboard; Escape
+    // A click on Blink opens the chat card, which holds the keyboard; Escape
     // gives it back to the application that had it.
     const miniFocused = () =>
-      app.evaluate(({ BrowserWindow }) => {
-        const mini = BrowserWindow.getAllWindows().find((w) =>
-          /\/mini\/index\.html$/.test(w.webContents.getURL()),
-        );
-        return Boolean(mini?.isVisible() && mini.isFocused());
-      });
+      app.evaluate(
+        () =>
+          globalThis.blinklingTest.composer.isVisible() &&
+          globalThis.blinklingTest.composer.isFocused(),
+      );
     await expect.poll(miniFocused).toBe(true);
     key(0xff1b);
     await expect.poll(miniFocused).toBe(false);
@@ -161,7 +161,7 @@ test("native cutout alpha, moving limbs, delayed retreat, fullscreen, clean capt
     const before = await page.locator("#blink svg").innerHTML();
     await page.waitForTimeout(180);
     expect(await page.locator("#blink svg").innerHTML()).not.toBe(before);
-    // A click on the limb is a click on Blink: it opened the mini composer again.
+    // A click on the limb is a click on Blink: it opened the chat card again.
     await expect.poll(miniFocused).toBe(true);
     key(0xff1b);
     await expect.poll(miniFocused).toBe(false);
@@ -460,6 +460,7 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
   }
 });
 test("native drops peek from all four edges and three corners with a visible eye and a bounded menu", async () => {
+  test.setTimeout(120000);
   const { app, page } = await launch();
   try {
     const b = await background(app);
@@ -490,7 +491,8 @@ test("native drops peek from all four edges and three corners with a visible eye
         window.blinkling.shell({ type: "pin", value: false }),
       );
       native([{ type: "up" }, { type: "move", x: 400, y: 700 }]);
-      await page.waitForTimeout(900);
+      // Blink stays out for the retreat delay, then settles into its peek.
+      await page.waitForTimeout(2300);
       const dropped = await page.evaluate(() => window.desktop.inspect());
       expect(dropped.shell.edge).toBe(edge);
       expect(dropped.mode).toBe("peek");
@@ -594,11 +596,23 @@ test("rounded card opens by intent, pin holds it, unpin dismisses and restores a
       window.blinkling.shell({ type: "pin", value: false }),
     );
     await page.waitForTimeout(1900);
-    // The unsent draft keeps the unpinned card open; it dismisses once emptied.
+    // The unsent draft keeps the unpinned card open; once emptied, a click
+    // outside Blinkling dismisses it.
     expect(
       await app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
     ).toBe(true);
     await cardPage.getByRole("textbox").fill("");
+    const box = await cardPage.getByRole("textbox").boundingBox();
+    const now = await app.evaluate(() =>
+      globalThis.blinklingTest.composer.getBounds(),
+    );
+    click(now.x + box.x + box.width / 2, now.y + box.y + box.height / 2);
+    await expect
+      .poll(() =>
+        app.evaluate(() => globalThis.blinklingTest.composer.isFocused()),
+      )
+      .toBe(true);
+    click(40, 40);
     await expect
       .poll(
         () => app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),

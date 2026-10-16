@@ -1,49 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  cardHeld,
-  claimFocus,
-  leaveCloses,
-  noHold,
-  sendCloses,
-  validHold,
-} from "./card-hold.mjs";
-
-const idle = {
-  pointer: false,
-  open: true,
-  pinned: false,
-  leaving: true,
-  focused: false,
-  draft: false,
-  chips: false,
-  dialog: false,
-};
-test("an empty, unfocused, unpinned card closes on leave", () => {
-  assert.equal(leaveCloses(idle), true);
-});
-for (const reason of [
-  "focused",
-  "draft",
-  "chips",
-  "dialog",
-  "pointer",
-  "pinned",
-])
-  test(`${reason} keeps the card open on leave`, () => {
-    assert.equal(leaveCloses({ ...idle, [reason]: true }), false);
-  });
-test("without a leave the card stays", () => {
-  assert.equal(leaveCloses({ ...idle, leaving: false }), false);
-});
-test("a closed card has nothing to close", () => {
-  assert.equal(leaveCloses({ ...idle, open: false }), false);
-});
-test("cardHeld is the union of focus, draft, chip, dialog and pointer", () => {
-  assert.equal(cardHeld({}), false);
-  for (const key of ["focused", "draft", "chips", "dialog", "pointer"])
-    assert.equal(cardHeld({ [key]: true }), true);
-});
+import { claimFocus, noHold, validHold } from "./card-hold.mjs";
 test("hold reports from the card are validated", () => {
   assert.deepEqual(validHold({ chips: true, dialog: false, x: 1 }), {
     chips: true,
@@ -65,50 +22,6 @@ test("hold reports from the card are validated", () => {
     assert.equal(validHold(bad), null);
   assert.deepEqual(noHold, { chips: false, dialog: false, pointer: false });
 });
-
-test("unpinning with the pointer on the card keeps it; away from it the card goes", () => {
-  const unpinned = { ...idle, pinned: false, leaving: true };
-  assert.equal(leaveCloses({ ...unpinned, pointer: true }), false);
-  assert.equal(leaveCloses({ ...unpinned, pointer: false }), true);
-});
-
-test("an open composer with the keyboard or a draft survives the pointer leaving", () => {
-  assert.equal(leaveCloses({ ...idle, focused: true }), false);
-  assert.equal(leaveCloses({ ...idle, draft: true }), false);
-});
-
-test("an outside click with an empty draft closes the card, with a draft it stays", () => {
-  const afterClick = { ...idle, focused: false };
-  assert.equal(leaveCloses(afterClick), true);
-  assert.equal(leaveCloses({ ...afterClick, draft: true }), false);
-});
-
-test("a typed send closes an unpinned card unless the pointer is on it", () => {
-  assert.equal(
-    sendCloses({ pinned: false, pointer: false, source: "composer" }),
-    true,
-  );
-  assert.equal(
-    sendCloses({ pinned: false, pointer: true, source: "composer" }),
-    false,
-  );
-  assert.equal(
-    sendCloses({ pinned: true, pointer: false, source: "composer" }),
-    false,
-  );
-});
-
-test("a quick ask closes an unpinned card even though the pointer is on it", () => {
-  assert.equal(
-    sendCloses({ pinned: false, pointer: true, source: "quick-ask" }),
-    true,
-  );
-  assert.equal(
-    sendCloses({ pinned: true, pointer: true, source: "quick-ask" }),
-    false,
-  );
-});
-
 /** A manual clock so the retry loop is deterministic. */
 function clock() {
   let time = 0;

@@ -83,23 +83,25 @@ test("real compositor alpha, native click-through, clean capture and aligned ove
     const clicks = await app.evaluate(async () => ({
       clicks:
         await globalThis.testBackground.webContents.executeJavaScript("clicks"),
-      focus: globalThis.testBackground.isFocused(),
     }));
     expect(clicks.clicks).toEqual([
       [50, 50],
       [bounds.x + 5, bounds.y + 5],
     ]);
-    // The click was Blink's, not the page's: it opened the mini composer and
+    // The click was Blink's, not the page's: it opened the chat card and
     // that took the keyboard from the page underneath (N5.1).
-    expect(clicks.focus).toBe(false);
-    const miniFocus = () =>
-      app.evaluate(({ BrowserWindow }) => {
-        const mini = BrowserWindow.getAllWindows().find((w) =>
-          /\/mini\/index\.html$/.test(w.webContents.getURL()),
-        );
-        return Boolean(mini?.isVisible() && mini.isFocused());
-      });
-    await expect.poll(miniFocus).toBe(true);
+    await expect
+      .poll(() =>
+        app.evaluate(
+          () =>
+            globalThis.blinklingTest.composer.isVisible() &&
+            globalThis.blinklingTest.composer.isFocused(),
+        ),
+      )
+      .toBe(true);
+    expect(
+      await app.evaluate(() => globalThis.testBackground.isFocused()),
+    ).toBe(false);
     const capture = await app.evaluate(() =>
       globalThis.blinklingTest.capture(),
     );

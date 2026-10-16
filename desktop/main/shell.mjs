@@ -10,19 +10,14 @@ import {
 import { EventEmitter } from "node:events";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
-import {
-  claimFocus,
-  leaveCloses,
-  noHold,
-  sendCloses,
-  validHold,
-} from "./card-hold.mjs";
+import { claimFocus, validHold } from "./card-hold.mjs";
+import { createMachine } from "../interaction/machine.mjs";
 import { validSeed } from "../composer/index.mjs";
 import { timing } from "../shared/motion.mjs";
 import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
-import { contains } from "./geometry.mjs";
+import { boundsOf, contains } from "./geometry.mjs";
 import {
   resolvePosition,
   snapPosition,
@@ -112,14 +107,19 @@ let composer = null,
   typing = false,
   overlay = null,
   regions = [],
+  blinkRegions = [],
+  // Where the peek was when the pointer pulled Blink out: the pointer stays
+  // "on Blink" there while Blink steps out from under it.
+  rim = [],
+  menuRegions = [],
   drag = null,
   pinned = false,
   chatOpen = false,
   miniOpen = false,
-  cardHold = noHold,
-  leaving = false,
   autoExplain = false,
   quitting = false;
+// One owner for what Blink is doing and every retreat and close deadline.
+const machine = createMachine({ now: () => performance.now() });
 let previousCursor = "",
   previousFocused = null,
   ignoring = true;
@@ -220,6 +220,7 @@ const snapshot = () => ({
   pinned,
   chatOpen,
   miniOpen,
+  interaction: machine.read(),
   fanLabelsSeen: uiOnce.seen("fan-labels"),
   chatFocused: !!composer && !composer.isDestroyed() && composer.isFocused(),
   autoExplain,
@@ -269,19 +270,14 @@ async function ensureComposer() {
   win.on("close", (event) => {
     if (!quitting) {
       event.preventDefault();
-      closeComposer();
+      flow((m) => m.close());
     }
   });
   win.on("focus", () => {
     shapeComposer();
-    broadcast();
+    flow((m) => m.composer({ focus: true }));
   });
-  win.on("blur", () => {
-    broadcast();
-    if (!pinned)
-      blink.webContents.send("blinkling:shell", { type: "chat-blur" });
-    leaveIfIdle();
-  });
+  win.on("blur", () => flow((m) => m.blurred()));
   let timer;
   const ready = new Promise((resolve, reject) => {
     timer = setTimeout(
@@ -338,7 +334,7 @@ async function openComposer({ focus = true, seed } = {}) {
   }
   const win = await ensureComposer();
   chatOpen = true;
-  escapeKeys.set("mini", closeComposer);
+  escapeKeys.set("mini", () => flow((m) => m.escape()));
   bubbles?.hide();
   win.webContents.send("blinkling:surface", {
     type: "open",
@@ -358,25 +354,6 @@ async function openComposer({ focus = true, seed } = {}) {
     claimKeyboard(win, 250);
   } else if (!win.isVisible()) win.showInactive();
 }
-/** Click on Blink (N5.1): the mini composer on the last conversation, with
- * nothing attached. At a permission request the full card opens instead. */
-const openMini = () => pick.openMini([]);
-const openChat = () => openComposer({ focus: true });
-/** Blink asked to close the card because the pointer left, but something held
- * it. Close it as soon as nothing does, without waiting for another leave. */
-function leaveIfIdle() {
-  if (
-    leaveCloses({
-      open: chatOpen,
-      pinned,
-      leaving,
-      focused: composer?.isFocused(),
-      draft: typing,
-      ...cardHold,
-    })
-  )
-    closeComposer();
-}
 /** A window manager may hand the keyboard to another window just after the
  * card opens (the window that closed, a focus revert). For a short settle
  * period, ask again whenever the card does not have it; after that a click
@@ -395,9 +372,34 @@ function claimKeyboard(win, settle = 600) {
     },
   });
 }
+/** Run a change on the machine, then act on whatever it decided. */
+function flow(change) {
+  const result = change?.(machine);
+  act(machine.take());
+  return result;
+}
+function act(effects) {
+  for (const effect of effects) {
+    if (effect.type === "open-chat") void openComposer({ focus: effect.focus });
+    else if (effect.type === "close-chat") closeComposer();
+    else if (effect.type === "out") rim = blinkRegions;
+    else if (effect.type === "retreat") rim = [];
+    else if (effect.type === "open-menu" && !effect.hover) closeComposer(false);
+    else if (effect.type === "pick-up" && drag) {
+      rim = [];
+      drag.active = true;
+      tellDeck({ type: "drag", value: true }); // the stack steps aside while Blink is carried
+    }
+  }
+  const key = JSON.stringify(machine.read());
+  if (key !== interactionKey) {
+    interactionKey = key;
+    broadcast();
+  }
+}
+let interactionKey = "";
 function closeComposer(restore = true) {
   cancelClaim?.();
-  leaving = false;
   const focused = composer?.isFocused();
   chatOpen = false;
   pinned = false;
@@ -497,14 +499,20 @@ const trusted = (event) =>
       event.sender === w.webContents &&
       event.senderFrame === w.webContents.mainFrame,
   );
-ipcMain.on("blinkling:regions", (event, value) => {
+ipcMain.on("blinkling:regions", (event, value, parts = {}) => {
   if (
     event.sender !== blink.webContents ||
     !trusted(event) ||
-    !validRegions(value, blink.getBounds())
+    !validRegions(value, blink.getBounds()) ||
+    !(
+      parts?.blink === undefined || validRegions(parts.blink, blink.getBounds())
+    ) ||
+    !(parts?.menu === undefined || validRegions(parts.menu, blink.getBounds()))
   )
     return;
   regions = value;
+  blinkRegions = parts.blink ?? [];
+  menuRegions = parts.menu ?? [];
   if (input) {
     if (ignoring) blink.setIgnoreMouseEvents(false);
     if (!drag) input.setRegions(blink, regions, display.scaleFactor);
@@ -543,6 +551,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
         lastX: p.x,
         velocity: 0,
       };
+      flow((m) => m.press(p));
       // Keep the native pointer capture alive while the rig moves under it.
       // The window remains nonfocusable; ordinary hit testing resumes on release.
       const full = [
@@ -556,6 +565,8 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       if (input) input.setRegions(blink, full, display.scaleFactor);
       else if (process.platform === "win32") blink.setShape(full);
     } else if (drag) {
+      // The machine tells a click from a drop: a short press is a click.
+      flow((m) => m.release());
       const saved = drag.active ? snapPosition(display, drag.anchor) : null;
       if (saved) position = resolvePosition(display, saved);
       const carried = drag.active;
@@ -570,44 +581,14 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
   } else if (command.type === "pin") {
     pinned = command.value;
     tellDeck({ type: "pin", value: pinned });
-    if (pinned) await openComposer({ focus: false });
-    else {
-      // Unpinning dismisses the card, but never over an unsent draft or an
-      // open file dialog; it closes as soon as nothing holds it.
-      leaving = true;
-      if (
-        leaveCloses({
-          open: chatOpen,
-          pinned,
-          leaving,
-          draft: typing,
-          ...cardHold,
-        })
-      )
-        closeComposer();
-    }
-  } else if (command.type === "close-chat") closeComposer();
+    flow((m) => m.pin(pinned));
+  } else if (command.type === "close-chat") flow((m) => m.close());
   else if (command.type === "click") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
-    // A click is never a drag (the renderer's gesture decides). It opens the
-    // mini composer on the last conversation, or the chat when Blink is
-    // waiting for permission, and takes the keyboard (N5.1).
-    if (command.permission) await openChat();
-    else await openMini();
-  } else if (command.type === "visibility") {
-    // Hovering Blink never opens the card; it only cancels a pending leave.
-    if (command.value) leaving = false;
-    else if (!command.value && !pinned && chatOpen) {
-      leaving = true;
-      leaveIfIdle();
-    }
+    flow((m) => m.click());
   } else if (command.type === "fan-labels-seen") {
     if (!fromBlink) throw new Error("Invalid fan label report");
     uiOnce.take("fan-labels");
-  } else if (command.type === "activity") {
-    if (fromBlink || event.sender !== composer?.webContents)
-      throw new Error("Invalid composer activity");
-    blink.webContents.send("blinkling:shell", { type: "chat-activity" });
   }
   broadcast();
   return snapshot();
@@ -695,6 +676,19 @@ const answers = createAnswerPointing({
   display: () => display,
   window: async () => (await locator.windowAt?.(blinkPoint())) ?? null,
 });
+// An answer opens the card by itself and closes it by the reading rule.
+let answerWords = 0;
+session.subscribe(
+  (event) => {
+    if (event.type === "delta") {
+      answerWords += String(event.text ?? "")
+        .split(/\s+/)
+        .filter(Boolean).length;
+      if (!machine.read().streaming) flow((m) => m.answerStart());
+    } else if (event.type === "done") flow((m) => m.answerEnd(answerWords));
+  },
+  { visible: false },
+);
 session.subscribe(
   (event) =>
     answers
@@ -741,9 +735,14 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
     throw new Error("Invalid composer sender");
   // Blink shows its thinking face the moment a message goes out (N4).
   send({ type: "sending" });
-  await session.send(await answers.ask(turn));
-  if (sendCloses({ pinned, pointer: cardHold.pointer, source: turn.source }))
-    closeComposer();
+  answerWords = 0;
+  flow((m) => m.answerStart());
+  try {
+    await session.send(await answers.ask(turn));
+  } catch (error) {
+    flow((m) => m.answerFailed());
+    throw error;
+  }
 });
 ipcMain.handle("blinkling:select", (event, selection) => {
   requireView(event);
@@ -777,15 +776,24 @@ ipcMain.on("blinkling:typing", (event, value) => {
   )
     return;
   typing = value;
-  blink.webContents.send("blinkling:shell", { type: "chat-activity" });
-  leaveIfIdle();
+  flow((m) => m.composer({ text: value }));
+});
+/** What the card tells the machine it is doing: reading by scroll or
+ * selection, an IME composition, the image viewer. Nothing else crosses. */
+ipcMain.on("blinkling:engage", (event, value) => {
+  if (!trusted(event) || event.sender !== composer?.webContents) return;
+  if (value?.kind === "scroll") flow((m) => m.scrolled());
+  else if (value?.kind === "select") flow((m) => m.selected());
+  else if (value?.kind === "ime" && typeof value.value === "boolean")
+    flow((m) => m.composer({ ime: value.value }));
+  else if (value?.kind === "viewer" && typeof value.value === "boolean")
+    flow((m) => m.viewer(value.value));
 });
 ipcMain.on("blinkling:hold", (event, value) => {
   const hold = validHold(value);
   if (!trusted(event) || event.sender !== composer?.webContents || !hold)
     return;
-  cardHold = hold;
-  leaveIfIdle();
+  flow((m) => m.panels(hold.chips || hold.dialog ? 1 : 0));
 });
 ipcMain.on("blinkling:activity", (event, value) => {
   // The answer window reports as it is torn down at quit; showing it again
@@ -1140,13 +1148,7 @@ const poll = setInterval(() => {
 
   const p = cursor.point();
   if (drag) {
-    if (
-      !drag.active &&
-      Math.hypot(p.x - drag.start.x, p.y - drag.start.y) >= 4
-    ) {
-      drag.active = true;
-      tellDeck({ type: "drag", value: true }); // the stack steps aside while Blink is carried
-    }
+    flow((m) => m.pointer(p));
     const next = screen.getDisplayNearestPoint(p);
     if (next.id !== display.id) useDisplay(next);
     drag.velocity = (p.x - drag.lastX) / 0.016;
@@ -1163,6 +1165,30 @@ const poll = setInterval(() => {
   }
   const local = { x: p.x - display.bounds.x, y: p.y - display.bounds.y };
   const hit = regions.some((r) => contains(r, local));
+  const onBlink =
+    (blinkRegions.length ? blinkRegions : regions).some((r) =>
+      contains(r, local),
+    ) ||
+    (machine.read().out && rim.some((r) => contains(r, local)));
+  if (!drag) {
+    const card = composer?.isVisible() ? composer.getBounds() : null;
+    machine.geometry({
+      blink: boundsOf(blinkRegions, display.bounds),
+      card: card && {
+        x: card.x + 12,
+        y: card.y + 12,
+        width: card.width - 24,
+        height: card.height - 24,
+      },
+      menu: boundsOf(menuRegions, display.bounds),
+    });
+    flow((m) => {
+      m.pointer(p, performance.now(), onBlink);
+    });
+  }
+  flow((m) => {
+    m.tick();
+  });
   const overCard = composer?.isVisible() && contains(composer.getBounds(), p);
   const bubbleBounds = bubbles.getBounds();
   const overBubbles =
@@ -1183,7 +1209,7 @@ const poll = setInterval(() => {
       type: "cursor",
       point: local,
       hit: hit || !!overCard || overBubbles,
-      blink: hit,
+      blink: onBlink,
     });
     if (!input && !drag && ignoring === hit) {
       ignoring = !hit;

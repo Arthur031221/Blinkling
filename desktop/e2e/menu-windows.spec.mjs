@@ -184,7 +184,7 @@ test("first use names all its bubbles once; Settings opens, changes the hotkey a
   }
 });
 
-test("the welcome opens by itself on the first start only, and the fan closes over the mini composer", async () => {
+test("the welcome opens by itself on the first start only, and the fan closes over the chat card", async () => {
   test.setTimeout(120000);
   process.env.BLINKLING_TEST_DATA = await mkdtemp(
     join(tmpdir(), "blinkling-mw-"),
@@ -213,19 +213,21 @@ test("the welcome opens by itself on the first start only, and the fan closes ov
         () => globalThis.blinklingTest.welcome.test.controller.isOpen,
       ),
     ).toBe(false);
-    // NS-3: with the mini composer open the fan stays shut while Blink is hovered.
+    // With the chat card open the fan stays shut while Blink is hovered.
     const point = await rest(page);
     expect((await shown(page)).map((b) => b.named)).toEqual(
       Array(5).fill(true),
     );
     native(point.x, point.y, "click");
-    await page.waitForFunction(() => window.desktop.inspect().shell.miniOpen);
+    await page.waitForFunction(
+      () => window.desktop.inspect().shell.interaction.card,
+    );
     await page.waitForTimeout(800);
     await page.waitForFunction(() => !window.desktop.inspect().fan.open);
     expect(await page.evaluate(() => window.desktop.inspect().fan.open)).toBe(
       false,
     );
-    await desktopShot(app, "menu-windows-mini-no-fan");
+    await desktopShot(app, "menu-windows-card-no-fan");
   } finally {
     delete process.env.BLINKLING_WELCOME;
     await app.close();

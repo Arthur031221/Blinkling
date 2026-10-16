@@ -6,6 +6,26 @@ export function contains(rect, point) {
     point.y < rect.y + rect.height
   );
 }
+/** The box round a list of rectangles, moved by `origin`; null when empty. */
+export function boundsOf(rects, origin = { x: 0, y: 0 }) {
+  if (!rects?.length) return null;
+  let left = Infinity,
+    top = Infinity,
+    right = -Infinity,
+    bottom = -Infinity;
+  for (const r of rects) {
+    left = Math.min(left, r.x);
+    top = Math.min(top, r.y);
+    right = Math.max(right, r.x + r.width);
+    bottom = Math.max(bottom, r.y + r.height);
+  }
+  return {
+    x: left + origin.x,
+    y: top + origin.y,
+    width: right - left,
+    height: bottom - top,
+  };
+}
 export function pixelRectToDip(rect, capture) {
   const sx = capture.region.width / capture.pixelWidth;
   const sy = capture.region.height / capture.pixelHeight;
