@@ -572,6 +572,40 @@ a:focus-visible {
     padding: 6px 9px;
   }
 }
+/* A short display (a 1280x800 panel at 200% is 400 DIP tall): the card cannot
+   grow, so the composer gives up its labels and spare padding instead of
+   leaving the text box and toolbar hanging below the card. */
+@media (max-height: 460px) {
+  .gl-chat-card {
+    gap: 4px;
+    padding: 10px;
+  }
+  .gl-composer {
+    gap: 6px;
+    padding: 8px;
+  }
+  .gl-input {
+    min-height: 32px;
+  }
+  .gl-chat-history {
+    padding: 8px 4px 2px;
+  }
+  .gl-attachments {
+    gap: 6px;
+    padding-top: 0;
+  }
+  .gl-attachment-chip {
+    width: 56px;
+    gap: 0;
+  }
+  .gl-attachment-chip .gl-message-image,
+  .gl-attachment-chip .gl-file-icon {
+    height: 48px;
+  }
+  .gl-attachment-name {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -112,7 +112,8 @@ export function mountComposer(
     text = node("textarea", "gl-input");
   text.setAttribute("aria-label", tr("input"));
   text.placeholder = tr("placeholder");
-  text.rows = 2;
+  // Two lines, one on a short display where the card has no room to spare.
+  text.rows = globalThis.matchMedia?.("(max-height: 460px)").matches ? 1 : 2;
   const controller = new AbortController(),
     signal = controller.signal;
   const { model, effort, permission, ...pickers } = createSelectionPickers(
