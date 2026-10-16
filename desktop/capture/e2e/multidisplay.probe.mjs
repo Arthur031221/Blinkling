@@ -216,12 +216,25 @@ for (const scale of [1, 1.5, 2]) {
       const overlayPNG = PNG.sync.read(Buffer.from(shot, "base64"));
       const sx = overlayPNG.width / display.bounds.width,
         sy = overlayPNG.height / display.bounds.height;
-      const index =
-        (Math.round(140 * sy) * overlayPNG.width + Math.round(100 * sx)) * 4;
-      assert.deepEqual(
-        [...overlayPNG.data.subarray(index, index + 3)],
-        [61, 220, 151],
+      const at = (x, y) => {
+        const k =
+          (Math.round(y * sy) * overlayPNG.width + Math.round(x * sx)) * 4;
+        return [...overlayPNG.data.subarray(k, k + 3)];
+      };
+      // The crisp frame is drawn just outside the marked rectangle (100, 100,
+      // 120 by 80): on the middle of its left side the stroke is green a few
+      // pixels before the rectangle's edge, and the captured red result starts
+      // at the edge itself.
+      const stroke = [67, 216, 150];
+      const near = (pixel, want) =>
+        pixel.every((channel, c) => Math.abs(channel - want[c]) <= 8);
+      assert.ok(
+        [92, 93, 94, 95, 96].some((x) => near(at(x, 140), stroke)),
         "native guide border must align with captured content",
+      );
+      assert.ok(
+        near(at(104, 140), [232, 73, 73]),
+        "the captured content shows inside the frame",
       );
       await writeFile(
         join(reports, `multi-guide-${scale}-${i + 1}.png`),
