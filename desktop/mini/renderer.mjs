@@ -61,6 +61,7 @@ api.onInit(({ locale, theme }) => {
       openImage: (id) => api.openImage(id),
       offer: (id) => api.offer(id),
       escape: () => api.escape(),
+      dialog: (open) => api.dialog(open),
       select: (wanted) => api.select(wanted),
       attach: addFile,
       resize: report,

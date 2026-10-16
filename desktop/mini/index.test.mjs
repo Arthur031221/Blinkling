@@ -16,7 +16,10 @@ function setup(options = {}) {
   const timers = [];
   const wc = { send: (channel, value) => sent.push([channel, value]) };
   const state = { visible: false, focused: false, bounds: null, hides: 0 };
+  const onWin = new Map();
+  const clock = { t: 1_000_000 };
   const win = {
+    on: (event, fn) => onWin.set(event, fn),
     webContents: wc,
     isDestroyed: () => false,
     isVisible: () => state.visible,
@@ -66,12 +69,14 @@ function setup(options = {}) {
     nudges: options.nudges,
     edge: () => "right",
     autoExplain: () => false,
+    now: () => clock.t,
+    pointer: () => options.pointer ?? null,
     setTimer: (fn, ms) => (timers.push({ fn, ms }), timers.length),
     clearTimer: () => {},
   });
   const fire = (channel, value, sender = wc) =>
     handlers.get(channel)({ sender }, value);
-  return { controller, sent, state, log, fire, timers, wc };
+  return { controller, sent, state, log, fire, timers, wc, onWin, clock };
 }
 const entries = () => [
   { id: "i1", kind: "image", attachment: image, taken: { kind: "image" } },
@@ -86,8 +91,8 @@ test("opening shows the view, places the window beside Blink and takes the keybo
   const view = sent.find(([c]) => c === "blinkling:mini-view")[1];
   assert.equal(view.chips.length, 3);
   assert.ok(sent.some(([c]) => c === "blinkling:mini-open"));
-  assert.equal(topLayer(), "mini");
-  setLayer("mini", null);
+  assert.equal(topLayer(), "box");
+  setLayer("box", null);
 });
 
 test("the box follows Blink while it is carried and settles where Blink lands", async () => {
@@ -175,7 +180,7 @@ test("messages from any other sender are ignored", async () => {
 test("the shared Escape closes the mini composer when it is the top layer", async () => {
   const { controller, log } = setup();
   await controller.open(entries());
-  assert.equal(escape(), "mini");
+  assert.equal(escape(), "box");
   assert.deepEqual(log.closed, ["escape"]);
 });
 
@@ -204,7 +209,7 @@ test("opening shows the window before the previous app's focus has been remember
   remembered();
   await opening;
   assert.equal(log.activated, 1);
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("pixels that arrive after the window opened are filled into their chip", async () => {
@@ -222,7 +227,7 @@ test("pixels that arrive after the window opened are filled into their chip", as
   const view = sent.filter(([c]) => c === "blinkling:mini-view").at(-1)[1];
   assert.equal(view.entries[0].thumb, "data:y");
   assert.equal(view.entries[0].pending, undefined);
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("when the last waiting pick turns out to have no pixels the mini closes", async () => {
@@ -267,7 +272,7 @@ test("a pick on a different display than Blink's still opens beside Blink, on Bl
   const box = state.bounds;
   const area = second.workArea;
   assert.ok(box.x >= area.x && box.x + box.width <= area.x + area.width);
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("on the same display it keeps off Blink's body as well as the pick", async () => {
@@ -279,7 +284,7 @@ test("on the same display it keeps off Blink's body as well as the pick", async 
     hits(state.bounds, { x: 1206, y: 258, width: 148, height: 152 }),
     false,
   );
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("it grows out of Blink: the open message says where from, relative to the box", async () => {
@@ -288,7 +293,7 @@ test("it grows out of Blink: the open message says where from, relative to the b
   const open = sent.find(([c]) => c === "blinkling:mini-open")[1];
   assert.equal(open.origin.x, 1280 - state.bounds.x);
   assert.ok(Number.isFinite(open.origin.y));
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("it says whether it sits over any of the given rectangles", async () => {
@@ -304,7 +309,7 @@ test("it says whether it sits over any of the given rectangles", async () => {
     controller.covers([{ x: 0, y: 0, width: 10, height: 10 }]),
     false,
   );
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("the window is told the shell's theme with every open, since its own media query does not follow it", async () => {
@@ -336,7 +341,7 @@ test("the view carries the session's selection, and a pick is applied through th
   assert.deepEqual(viewOf(sent).selection, next);
   assert.equal(viewOf(sent).selecting, false);
   assert.equal(viewOf(sent).notice, "");
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("a pick the session refuses leaves the old selection and says so", async () => {
@@ -346,7 +351,7 @@ test("a pick the session refuses leaves the old selection and says so", async ()
   await new Promise((r) => setTimeout(r));
   assert.deepEqual(viewOf(sent).selection, selection);
   assert.equal(viewOf(sent).notice, "switch-failed");
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("a malformed pick never reaches the host", async () => {
@@ -362,7 +367,7 @@ test("a malformed pick never reaches the host", async () => {
     fire("blinkling:mini-select", bad);
   await new Promise((r) => setTimeout(r));
   assert.deepEqual(log.selected, []);
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("an attachment from the box becomes a chip with its preview; a bad one becomes a notice", async () => {
@@ -391,7 +396,7 @@ test("an attachment from the box becomes a chip with its preview; a bad one beco
   assert.equal(viewOf(sent).notice, "too-large");
   fire("blinkling:mini-attach", { error: "something <b>else</b>" });
   assert.equal(viewOf(sent).notice, "unreadable");
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("a preview that is not a small image data URL is dropped", async () => {
@@ -414,7 +419,7 @@ test("a preview that is not a small image data URL is dropped", async () => {
     });
   }
   assert.ok(viewOf(sent).entries.every((e) => e.thumb === undefined));
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 const nextPick = () => [
@@ -444,7 +449,7 @@ test("picks made while the box is open join its chips and keep the typed text", 
   );
   // Joining is not closing: the host never hears the box shut and open again.
   assert.deepEqual(log.changes, [true]);
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("a box that was closed starts over with only the new picks", async () => {
@@ -457,7 +462,7 @@ test("a box that was closed starts over with only the new picks", async () => {
     ["i2"],
   );
   assert.equal(viewOf(sent).text, "");
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("joining past the attachment limit keeps the newest", async () => {
@@ -474,7 +479,7 @@ test("joining past the attachment limit keeps the newest", async () => {
   const ids = viewOf(sent).entries.map((e) => e.id);
   assert.ok(ids.length <= 10, `${ids.length} chips`);
   assert.equal(ids.at(-1), "p11");
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("a thumbnail click hands that picture to the host to open in full", async () => {
@@ -486,7 +491,7 @@ test("a thumbnail click hands that picture to the host to open in full", async (
   fire("blinkling:mini-open-image", "nope");
   await Promise.resolve();
   assert.equal(log.images.length, 1);
-  setLayer("mini", null);
+  setLayer("box", null);
 });
 
 test("the box can be dragged up to 120 px from where it opens, per edge, and is placed with that offset", async () => {
@@ -548,4 +553,106 @@ test("pictures that join an open box keep their thumbnails", async () => {
       ["t3", true],
     ],
   );
+});
+
+const settle = (clock, ms = 600) => (clock.t += ms);
+
+test("a press away from an empty box closes it, but not while it is still opening and not with a draft", async () => {
+  const opening = setup();
+  await opening.controller.open(entries());
+  assert.equal(opening.controller.outside(), false, "the opening press");
+  settle(opening.clock);
+  assert.equal(opening.controller.outside(), true);
+  assert.deepEqual(opening.log.closed, ["outside"]);
+
+  const drafted = setup();
+  await drafted.controller.open(entries());
+  drafted.fire("blinkling:mini-input", "half a question");
+  settle(drafted.clock);
+  assert.equal(drafted.controller.outside(), false);
+  assert.deepEqual(drafted.log.closed, []);
+  drafted.controller.escape();
+
+  const closed = setup();
+  assert.equal(closed.controller.outside(), false, "nothing open");
+});
+
+const idleOf = (timers) => timers.filter((x) => x.ms >= 1000).at(-1);
+
+test("an empty box closes by itself after the reading cap, a draft or the pointer keeps it, and use restarts the clock", async () => {
+  const idle = setup();
+  await idle.controller.open(entries());
+  assert.equal(idleOf(idle.timers).ms, 30_000);
+  settle(idle.clock, 30_000);
+  idleOf(idle.timers).fn();
+  assert.deepEqual(idle.log.closed, ["idle"]);
+
+  const typed = setup();
+  await typed.controller.open(entries());
+  typed.fire("blinkling:mini-input", "still thinking");
+  settle(typed.clock, 30_000);
+  idleOf(typed.timers).fn();
+  assert.deepEqual(typed.log.closed, [], "a draft is never thrown away");
+  typed.controller.escape();
+
+  const watched = setup();
+  await watched.controller.open(entries());
+  const b = watched.state.bounds;
+  watched.pointer = { x: b.x + 10, y: b.y + 10 };
+  const held = setup({ pointer: { x: b.x + 10, y: b.y + 10 } });
+  await held.controller.open(entries());
+  settle(held.clock, 30_000);
+  idleOf(held.timers).fn();
+  assert.deepEqual(held.log.closed, [], "the pointer on the box keeps it");
+  held.controller.escape();
+  watched.controller.escape();
+
+  const used = setup();
+  await used.controller.open(entries());
+  settle(used.clock, 20_000);
+  used.fire("blinkling:mini-remove", "nothing");
+  settle(used.clock, 20_000);
+  idleOf(used.timers).fn();
+  assert.deepEqual(used.log.closed, [], "20 s after the last use is not idle");
+  settle(used.clock, 10_000);
+  idleOf(used.timers).fn();
+  assert.deepEqual(used.log.closed, ["idle"]);
+});
+
+test("losing the keyboard ends an empty box once it has settled, except while its own file dialog is open", async () => {
+  const opening = setup();
+  await opening.controller.open(entries());
+  opening.onWin.get("blur")();
+  assert.deepEqual(opening.log.closed, [], "the window manager's first move");
+  settle(opening.clock);
+  opening.onWin.get("blur")();
+  assert.deepEqual(opening.log.closed, ["blur"]);
+
+  const dialog = setup();
+  await dialog.controller.open(entries());
+  settle(dialog.clock);
+  dialog.fire("blinkling:mini-dialog", true);
+  dialog.onWin.get("blur")();
+  assert.deepEqual(dialog.log.closed, [], "choosing a file");
+  dialog.fire("blinkling:mini-dialog", false);
+  dialog.onWin.get("blur")();
+  assert.deepEqual(dialog.log.closed, ["blur"]);
+
+  const typed = setup();
+  await typed.controller.open(entries());
+  typed.fire("blinkling:mini-input", "a draft");
+  settle(typed.clock);
+  typed.onWin.get("blur")();
+  assert.deepEqual(typed.log.closed, []);
+  typed.controller.escape();
+});
+
+test("the box and the card are separate Esc layers: closing one leaves the other", async () => {
+  const { controller } = setup();
+  setLayer("mini", () => {});
+  await controller.open(entries());
+  assert.equal(topLayer(), "box");
+  controller.escape();
+  assert.equal(topLayer(), "mini", "the card is still the top layer");
+  setLayer("mini", null);
 });

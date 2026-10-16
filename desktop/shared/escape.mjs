@@ -1,6 +1,14 @@
 /** Esc closes only the topmost thing (N5.3): the capture overlay, then the
- * mini composer, then guide mode, then the marks. Main process only. */
-export const LAYERS = Object.freeze(["overlay", "mini", "guide", "marks"]);
+ * quick box, then the chat card, then guide mode, then the marks. The box and
+ * the card are separate layers, so closing one never clears the other. Main
+ * process only. */
+export const LAYERS = Object.freeze([
+  "overlay",
+  "box",
+  "mini",
+  "guide",
+  "marks",
+]);
 const open = new Map();
 
 export function setLayer(name, close) {

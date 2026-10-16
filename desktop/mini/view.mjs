@@ -54,6 +54,12 @@ export function mountMini(root, { t, tp, tc, on }) {
     d.textContent = "·";
     return d;
   };
+  const close = el("button", "mini-close", {
+    type: "button",
+    "aria-label": t("mini.close"),
+    title: t("mini.close"),
+  });
+  close.textContent = "×";
   toolbar.append(
     add,
     file,
@@ -62,6 +68,7 @@ export function mountMini(root, { t, tp, tc, on }) {
     pickers.effort.element,
     dot(),
     pickers.permission.element,
+    close,
   );
   // A list opens below the toolbar and the card makes room for it, so the
   // window grows to fit it instead of clipping it.
@@ -103,8 +110,15 @@ export function mountMini(root, { t, tp, tc, on }) {
     }
   });
   send.addEventListener("click", () => on.submit());
-  add.addEventListener("click", () => file.click());
+  close.addEventListener("click", () => on.escape());
+  // The file dialog takes the keyboard from the box; tell the box why.
+  add.addEventListener("click", () => {
+    on.dialog?.(true);
+    file.click();
+  });
+  file.addEventListener("cancel", () => on.dialog?.(false));
   file.addEventListener("change", async () => {
+    on.dialog?.(false);
     const chosen = [...file.files];
     file.value = "";
     for (const f of chosen) await on.attach(f);

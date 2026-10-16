@@ -223,6 +223,7 @@ export async function installPick({
     blinkPoint: shell.blinkPoint,
     once,
     autoExplain: shell.autoExplain.get,
+    pointer: () => shell.cursor(),
     host: {
       send: sendTurn,
       selection: () => shell.session.state?.selection ?? null,
@@ -349,6 +350,8 @@ export async function installPick({
      * capture from the region selector, the full-page grab or the hotkey. */
     deliver: (input) => controller.deliver(input),
     openMini: (entries) => mini.open(entries),
+    /** A press away from the box and Blink: an empty box closes. */
+    outsideMini: () => mini.outside(),
     /** Blink moved: an open mini composer goes with it (`point` while carried). */
     followBlink: (point) => mini.follow(point),
     setPickKey(name) {

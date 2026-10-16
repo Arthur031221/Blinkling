@@ -1,6 +1,6 @@
 import { createMini } from "./model.mjs";
 import { placeMini, blinkBody, MINI_WIDTH } from "./placement.mjs";
-import { duration } from "../shared/motion.mjs";
+import { duration, timing } from "../shared/motion.mjs";
 import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { setLayer } from "../shared/escape.mjs";
 import { validateAttachment, attachmentLimits } from "../composer/index.mjs";
@@ -28,6 +28,7 @@ export function createMiniController({
   host,
   once,
   autoExplain,
+  pointer = () => null,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   now = Date.now,
@@ -40,6 +41,12 @@ export function createMiniController({
   // What the user was last told went wrong, as an error code the box translates.
   let notice = "";
   let selecting = false;
+  // The box closes by itself once nobody has used it for the reading cap, and
+  // by a press elsewhere or by losing the keyboard; a draft keeps it open.
+  let idleTimer = null;
+  let touched = 0;
+  let openedAt = 0;
+  let dialog = false;
   const send = (channel, value) => {
     if (!win.isDestroyed()) win.webContents.send(channel, value);
   };
@@ -94,6 +101,34 @@ export function createMiniController({
       x: Math.round(body.x + body.width / 2 - placed.x),
       y: Math.round(body.y + body.height / 2 - placed.y),
     };
+  }
+
+  const drafted = () => Boolean(model?.snapshot().text.length);
+  const pointerOver = () => {
+    const at = pointer();
+    return Boolean(
+      at &&
+        placed &&
+        at.x >= placed.x &&
+        at.x < placed.x + placed.width &&
+        at.y >= placed.y &&
+        at.y < placed.y + placed.height,
+    );
+  };
+  /** Anything the user does with the box restarts its idle clock. */
+  function touch() {
+    touched = now();
+    clearTimer(idleTimer);
+    idleTimer = model ? setTimer(idle, timing.readCap) : null;
+  }
+  function idle() {
+    idleTimer = null;
+    if (!model) return;
+    const waiting = model.snapshot().entries.some((e) => e.pending);
+    if (drafted() || waiting || pointerOver() || selecting) return touch();
+    const left = touched + timing.readCap - now();
+    if (left > 0) idleTimer = setTimer(idle, left);
+    else model.leave("idle");
   }
 
   function claimKeyboard(until = now() + FOCUS_WINDOW) {
@@ -186,7 +221,10 @@ export function createMiniController({
       hideTimer = null;
       if (!model && !win.isDestroyed()) win.hide();
     }, duration.base);
-    setLayer("mini", null);
+    setLayer("box", null);
+    clearTimer(idleTimer);
+    idleTimer = null;
+    dialog = false;
     if (closing) {
       host.closed?.(reason);
       // Replacing the contents of an open composer leaves it open.
@@ -198,7 +236,7 @@ export function createMiniController({
   }
 
   for (const [channel, handler] of Object.entries({
-    "blinkling:mini-input": (text) => model?.setText(String(text)),
+    "blinkling:mini-input": (text) => (touch(), model?.setText(String(text))),
     "blinkling:mini-submit": () => model?.submit({}).catch(() => {}),
     "blinkling:mini-chip": (id) => model?.chip(id).catch(() => {}),
     "blinkling:mini-remove": (id) => (model?.remove(id), refresh()),
@@ -213,6 +251,10 @@ export function createMiniController({
     "blinkling:mini-attach": attach,
     "blinkling:mini-select": (next) => void select(next),
     "blinkling:mini-escape": () => model?.escape(),
+    "blinkling:mini-dialog": (open) => {
+      dialog = open === true;
+      touch();
+    },
     "blinkling:mini-size": (value) => {
       if (Number.isFinite(value) && value > 0 && value !== height) {
         height = Math.min(Math.ceil(value), 600);
@@ -221,8 +263,18 @@ export function createMiniController({
     },
   }))
     ipc.on(channel, (event, value) => {
-      if (trusted(event)) handler(value);
+      if (!trusted(event)) return;
+      if (model && channel !== "blinkling:mini-size") touch();
+      handler(value);
     });
+  // Losing the keyboard once the opening has settled ends an empty box. A file
+  // dialog opened from the box is the one reason it may lose it and stay.
+  win.on?.("focus", () => model && touch());
+  win.on?.("blur", () => {
+    if (!model || dialog || selecting || drafted()) return;
+    if (now() - openedAt < FOCUS_WINDOW) return;
+    model.leave("blur");
+  });
 
   return {
     get isOpen() {
@@ -270,7 +322,9 @@ export function createMiniController({
         host: { ...host, close },
       });
       const mine = model;
-      setLayer("mini", () => model?.escape());
+      setLayer("box", () => model?.escape());
+      openedAt = now();
+      touch();
       // The window answers first; the previous app is remembered right after,
       // before the keyboard moves, which is the only order that matters.
       send("blinkling:mini-init", { locale, theme: theme() });
@@ -308,6 +362,7 @@ export function createMiniController({
     /** The pixels of a pick that opened without them. */
     fill(entry) {
       if (!model) return;
+      touch();
       if (entry.thumb) thumbs.set(entry.id, entry.thumb);
       model.fill(entry);
       refresh();
@@ -322,7 +377,16 @@ export function createMiniController({
       else model.escape();
     },
     escape: () => model?.escape(),
+    /** A press the shell saw away from the box and Blink: an empty box that has
+     * settled closes, one with a draft stays. True when it closed. */
+    outside() {
+      if (!model || drafted()) return false;
+      if (now() - openedAt < FOCUS_WINDOW) return false;
+      model.leave("outside");
+      return true;
+    },
     dispose() {
+      clearTimer(idleTimer);
       clearTimer(hideTimer);
       model?.dispose();
     },

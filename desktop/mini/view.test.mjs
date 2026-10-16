@@ -298,3 +298,18 @@ test("text typed before more picks joined the box is put back, and typing is nev
   mini.update(view({ text: "what is this" }));
   assert.equal(input.value, "what is this, and that");
 });
+
+test("the box has a close button that asks to close, and the add button tells the box a file dialog is open", () => {
+  const { mini, calls, doc } = setup();
+  mini.update(view());
+  const close = doc.querySelector(".mini-close");
+  assert.ok(close, "a close button");
+  assert.equal(close.getAttribute("aria-label"), t("zh-TW")("mini.close"));
+  close.click();
+  assert.ok(calls.some(([name]) => name === "escape"));
+  doc.querySelector(".mini-add").click();
+  assert.deepEqual(
+    calls.find(([name]) => name === "dialog"),
+    ["dialog", true],
+  );
+});

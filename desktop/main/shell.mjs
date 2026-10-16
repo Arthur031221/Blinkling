@@ -1341,8 +1341,13 @@ const poll = setInterval(() => {
   // native pointer reports the button, and a lost focus covers the rest.
   const down = cursor.pressed();
   if (down !== null) {
-    if (down && !outsideWasDown && !drag && !miniOpen && !over(p))
-      flow((m) => m.outside());
+    if (down && !outsideWasDown && !drag && !over(p)) {
+      // The quick box closes by the same press when it is empty; picking
+      // is a press too and never counts.
+      if (miniOpen) {
+        if (!pickingOn) pick.outsideMini();
+      } else flow((m) => m.outside());
+    }
     outsideWasDown = down;
   }
   const key = `${p.x},${p.y},${hit},${overCard},${chatOpen}`;

@@ -125,7 +125,7 @@ test("Blink stays out while the reader is engaged, retreats 1.5 s after the last
 test("no surface stays on screen without a way to close it: the card closes by reading time, Esc and a click outside, the menu when the pointer leaves", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("stuck");
+  const rec = record("stuck_card-321");
   try {
     await background(app);
     await place(app, "right", 0.5);
@@ -196,6 +196,156 @@ test("no surface stays on screen without a way to close it: the card closes by r
       ]),
     );
     rec.frame("only-blink");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
+
+const PIXEL =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const miniPage = (app) =>
+  app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
+const miniShown = (app) =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().some(
+      (w) =>
+        /\/mini\/index\.html/.test(w.webContents.getURL()) && w.isVisible(),
+    ),
+  );
+const miniBounds = (app) =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((w) => /\/mini\/index\.html/.test(w.webContents.getURL()))
+      ?.getBounds(),
+  );
+/** The quick box as a picture taken from the screen opens it, empty. */
+async function openBox(app, rec) {
+  await app.evaluate(async ({ screen }, data) => {
+    const d = screen.getPrimaryDisplay();
+    await globalThis.blinklingTest.attachCapture({
+      image: { id: "stuck-pixel", mediaType: "image/png", data },
+      display: d,
+      region: { x: 600, y: 620, width: 200, height: 120 },
+    });
+  }, PIXEL);
+  await expect.poll(() => miniShown(app), { timeout: 8000 }).toBe(true);
+  await new Promise((r) => setTimeout(r, 900));
+  rec?.frame("box");
+}
+
+test("the quick box always has a way out: its close button, a press outside while it is empty, 30 s of nothing, and a draft is never thrown away", async () => {
+  test.setTimeout(240000);
+  const { app, page } = await launch();
+  const rec = record("stuck-321");
+  try {
+    await background(app);
+    await place(app, "right", 0.5);
+    await page.waitForTimeout(500);
+
+    // The close button.
+    await openBox(app, rec);
+    await miniPage(app).locator(".mini-close").click();
+    await expect.poll(() => miniShown(app), { timeout: 3000 }).toBe(false);
+
+    // A press anywhere else closes an empty box.
+    await openBox(app);
+    click(40, 40);
+    await expect.poll(() => miniShown(app), { timeout: 3000 }).toBe(false);
+    rec.frame("closed-by-press");
+
+    // With a draft the same press leaves it, and Esc ends it.
+    await openBox(app);
+    await miniPage(app).locator(".mini-input").fill("a half written question");
+    click(40, 40);
+    await page.waitForTimeout(1200);
+    expect(await miniShown(app)).toBe(true);
+    rec.frame("draft-kept");
+    // Esc is the box's own key and needs its focus; the button does not.
+    const at = await miniBounds(app);
+    const field = await miniPage(app).locator(".mini-input").boundingBox();
+    click(at.x + field.x + field.width / 2, at.y + field.y + field.height / 2);
+    await page.waitForTimeout(500);
+    key(0xff1b);
+    await expect.poll(() => miniShown(app), { timeout: 3000 }).toBe(false);
+
+    // Blink moving to another edge takes the open box along.
+    await openBox(app);
+    await place(app, "left", 0.3);
+    await page.waitForTimeout(900);
+    expect(await miniShown(app)).toBe(true);
+    const moved = await miniBounds(app);
+    const edge = await app.evaluate(
+      ({ screen }) => screen.getPrimaryDisplay().workArea,
+    );
+    expect(moved.x).toBeLessThan(edge.x + 300);
+    expect(moved.x).toBeGreaterThanOrEqual(edge.x);
+    rec.frame("edge-change");
+    await miniPage(app).locator(".mini-close").click();
+    await expect.poll(() => miniShown(app), { timeout: 3000 }).toBe(false);
+
+    // Nobody touches it: it goes by itself after the reading time cap.
+    await place(app, "right", 0.5);
+    await openBox(app);
+    move(40, 40);
+    const opened = Date.now();
+    await expect
+      .poll(() => miniShown(app), { timeout: 40000, intervals: [500] })
+      .toBe(false);
+    const stayed = Date.now() - opened;
+    expect(stayed).toBeGreaterThan(25000);
+    expect(stayed).toBeLessThan(36000);
+    rec.frame("closed-by-time");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
+
+test("the permission bubble does not outlive its question: it stays inside the screen on every edge, opening the card or an answer takes it away", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("stuck_permission-321");
+  const emit = (event) =>
+    app.evaluate((_e, event) => globalThis.blinklingTest.send(event), event);
+  try {
+    await background(app);
+    for (const [edge, ratio] of [
+      ["right", 0.5],
+      ["left", 0.1],
+      ["right", 0.92],
+      ["left", 0.9],
+    ]) {
+      await place(app, edge, ratio);
+      await page.waitForTimeout(500);
+      await emit({ type: "activity", state: "permission" });
+      await expect(page.locator("#permission-alert")).toBeVisible();
+      expect(
+        await page.locator("#permission-alert").evaluate((e) => {
+          const r = e.getBoundingClientRect();
+          return (
+            r.x >= 0 &&
+            r.y >= 0 &&
+            r.right <= innerWidth &&
+            r.bottom <= innerHeight
+          );
+        }),
+      ).toBe(true);
+      rec.frame(`permission-${edge}-${ratio}`);
+      // The question is answered in the terminal: Blink goes on working.
+      await emit({ type: "activity", state: "thinking" });
+      await expect(page.locator("#permission-alert")).toBeHidden();
+    }
+    // Opening the card answers the bubble too.
+    await place(app, "right", 0.5);
+    await page.waitForTimeout(500);
+    await emit({ type: "activity", state: "permission" });
+    await expect(page.locator("#permission-alert")).toBeVisible();
+    await onBlink(page);
+    await clickBlink(page);
+    await expect.poll(async () => (await read(app)).card).toBe(true);
+    await expect(page.locator("#permission-alert")).toBeHidden();
+    rec.frame("card-opened");
   } finally {
     await rec.stop();
     await app.close();

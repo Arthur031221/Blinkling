@@ -185,6 +185,23 @@ body {
 .mini-add:focus-visible {
   background: var(--gl-soft);
 }
+.mini-close {
+  width: 28px;
+  height: 28px;
+  margin-inline-start: auto;
+  padding: 0;
+  font-size: var(--type-l);
+  line-height: 1;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+.mini-close:hover,
+.mini-close:focus-visible {
+  background: var(--gl-soft);
+}
 .mini-notice {
   font-size: var(--type-xs);
   color: var(--warn);

@@ -194,6 +194,8 @@ export function createMini({
       else await host.openPdfReader();
     },
     escape: () => close("escape"),
+    /** The box ends itself: idle, a press elsewhere, losing the keyboard. */
+    leave: (reason) => close(reason),
     dispose: () => close("dispose"),
   };
 }
