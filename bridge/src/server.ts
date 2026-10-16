@@ -173,7 +173,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
       },
       annotations: {
         title: "Capture the screen",
-        readOnlyHint: false,
+        readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: false,
         openWorldHint: false,
@@ -199,6 +199,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
       annotations: {
         title: "Show the latest capture",
         readOnlyHint: true,
+        destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,
       },
@@ -227,6 +228,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
       annotations: {
         title: "List recent captures",
         readOnlyHint: true,
+        destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,
       },
@@ -355,7 +357,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
       },
       annotations: {
         title: "Add or read notes",
-        readOnlyHint: false,
+        readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: false,
         openWorldHint: false,

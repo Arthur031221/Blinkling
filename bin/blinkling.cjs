@@ -43755,7 +43755,7 @@ async function createBlinkling(options = {}) {
       },
       annotations: {
         title: "Capture the screen",
-        readOnlyHint: false,
+        readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: false,
         openWorldHint: false
@@ -43779,6 +43779,7 @@ async function createBlinkling(options = {}) {
       annotations: {
         title: "Show the latest capture",
         readOnlyHint: true,
+        destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false
       }
@@ -43804,6 +43805,7 @@ async function createBlinkling(options = {}) {
       annotations: {
         title: "List recent captures",
         readOnlyHint: true,
+        destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false
       }
@@ -43923,7 +43925,7 @@ async function createBlinkling(options = {}) {
       },
       annotations: {
         title: "Add or read notes",
-        readOnlyHint: false,
+        readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: false,
         openWorldHint: false

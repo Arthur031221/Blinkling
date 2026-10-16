@@ -23,17 +23,17 @@ async function tools() {
 }
 
 const expected: Record<string, Record<string, boolean>> = {
-  screen_capture: { readOnlyHint: false, destructiveHint: false },
-  screen_latest: { readOnlyHint: true },
-  screen_history: { readOnlyHint: true },
+  screen_capture: { readOnlyHint: true, destructiveHint: false },
+  screen_latest: { readOnlyHint: true, destructiveHint: false },
+  screen_history: { readOnlyHint: true, destructiveHint: false },
   screen_watch_start: { readOnlyHint: false, destructiveHint: false },
   screen_watch_stop: { readOnlyHint: false, destructiveHint: false },
-  screen_notes: { readOnlyHint: false, destructiveHint: false },
+  screen_notes: { readOnlyHint: true, destructiveHint: false },
   desktop_open: { readOnlyHint: false, openWorldHint: true },
   extension_install: { readOnlyHint: false, destructiveHint: false },
   screen_clear: { readOnlyHint: false, destructiveHint: true },
   blinkling_reply: { readOnlyHint: false, destructiveHint: false },
-  blinkling_chat_images: { readOnlyHint: true },
+  blinkling_chat_images: { readOnlyHint: true, destructiveHint: false },
 };
 
 it("every tool carries a title and all four behaviour hints", async () => {
@@ -51,12 +51,26 @@ it("every tool carries a title and all four behaviour hints", async () => {
       "openWorldHint",
     ] as const)
       expect(typeof a?.[hint], `${tool.name} ${hint}`).toBe("boolean");
-    // A read-only tool leaves destructiveHint unset; every other one states it.
-    if (a?.readOnlyHint === false)
-      expect(typeof a.destructiveHint, `${tool.name} destructive`).toBe(
-        "boolean",
-      );
+    // Every tool states destructiveHint, read-only ones included.
+    expect(typeof a?.destructiveHint, `${tool.name} destructive`).toBe(
+      "boolean",
+    );
   }
+});
+
+it("the capture and notes tools are read only as the account holder listed them, the captures and notes living in memory only", async () => {
+  const byName = new Map((await tools()).map((tool) => [tool.name, tool]));
+  for (const name of [
+    "screen_capture",
+    "screen_notes",
+    "screen_latest",
+    "screen_history",
+    "blinkling_chat_images",
+  ])
+    expect(byName.get(name)?.annotations, name).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
 });
 
 it("each tool states the hints that match what it does", async () => {
