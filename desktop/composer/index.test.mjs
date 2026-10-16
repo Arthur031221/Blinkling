@@ -53,6 +53,30 @@ test("capture quick ask sends actual attachment immediately and clears only afte
   c.dispose();
 });
 
+test("a question left open in one chat does not hold the box of the chat the card moves to", async () => {
+  const bridge = session();
+  const c = createComposer({ session: bridge });
+  bridge.emit({ type: "chat", key: "a", chats: [{ key: "a", label: "a" }] });
+  await c.send("anyone there");
+  assert.equal(c.state().busy, true);
+  bridge.emit({
+    type: "chat",
+    key: "b",
+    chats: [
+      { key: "a", label: "a" },
+      { key: "b", label: "b" },
+    ],
+  });
+  assert.equal(c.state().busy, false);
+  await c.send("and here");
+  assert.equal(bridge.turns.length, 2);
+  // The same chat announced again (a new tab joined) changes nothing.
+  bridge.emit({ type: "delta", id: "x", text: "…" });
+  bridge.emit({ type: "chat", key: "b", chats: [{ key: "b", label: "b" }] });
+  assert.equal(c.state().busy, true);
+  c.dispose();
+});
+
 test("capture includes removable window text and sends only the retained chips", async () => {
   const bridge = session();
   const c = createComposer({ session: bridge });

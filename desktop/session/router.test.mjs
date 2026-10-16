@@ -207,6 +207,24 @@ test("a closed terminal session says so instead of waiting for an answer", async
   await t.close();
 });
 
+test("a terminal session that goes away with a question open answers it as closed, so the card does not wait for ever", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  await t.router.send(turn("anyone there"));
+  t.events.length = 0;
+  t.router.unlink("s1");
+  const last = t.events.filter((e) => e.type === "message").at(-1);
+  assert.equal(last?.role, "assistant");
+  assert.match(last.content[0].text, /closed/);
+  assert.equal(t.events.filter((e) => e.type === "done").length, 1);
+  // A session that never had a question open adds nothing.
+  t.events.length = 0;
+  t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
+  t.router.unlink("s2");
+  assert.equal(t.events.filter((e) => e.type === "message").length, 0);
+  await t.close();
+});
+
 test("channelText names pictures and files and never carries markup", () => {
   const text = channelText({
     content: [

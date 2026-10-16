@@ -23,14 +23,16 @@ export const SYNC_NOTE = syncNote(false);
 
 const RETRY_MS = 4000;
 
-/** Whether a command line is Claude Code started with the Blinkling channel,
- * by either flag Claude Code takes for it. */
+/** Whether a command line is Claude Code started with the Blinkling channel.
+ * Only the development flag counts: the plain `--channels` flag takes only
+ * allowlisted channels, and Claude Code 2.1.301 answers this plugin with "not
+ * on the approved channels allowlist", so a session started that way would
+ * never receive a message from Blink. */
 export function channelFlagged(commandLine: string): boolean {
   const words = commandLine.split(/[\s\0]+/);
   return words.some(
     (word, i) =>
-      (word === "--dangerously-load-development-channels" ||
-        word === "--channels") &&
+      word === "--dangerously-load-development-channels" &&
       words.slice(i + 1, i + 8).some((w) => /(^|:)blinkling(@|$)/.test(w)),
   );
 }

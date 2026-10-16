@@ -126,21 +126,28 @@ export class ChannelChat {
       text: channelText(message),
     });
     if (!taken) {
-      this.settle();
-      this.add({
-        id: `closed-${turn.id}`,
-        role: "assistant",
-        content: [
-          {
-            type: "text",
-            text: "The Claude Code session for this chat is closed. Start it again, or open Blink from another session.",
-          },
-        ],
-      });
+      this.closed();
       throw Object.assign(new Error("The terminal session is closed"), {
         code: "TERMINAL_CLOSED",
       });
     }
+  }
+  /** The session is gone: a question still open is answered with that, so the
+   * card does not wait for ever. */
+  closed() {
+    if (this.active === undefined) return;
+    const turnId = this.active;
+    this.settle();
+    this.add({
+      id: `closed-${turnId}`,
+      role: "assistant",
+      content: [
+        {
+          type: "text",
+          text: "The Claude Code session for this chat is closed. Start it again, or open Blink from another session.",
+        },
+      ],
+    });
   }
   /** The pictures of the latest question, for the terminal session to look at. */
   latestImages() {
@@ -336,6 +343,7 @@ export class ChatRouter {
     const chat = this.chats.get(session);
     if (!chat) return;
     chat.live = false;
+    chat.impl.closed?.();
     this.announce();
   }
   labelFor(session, cwd) {

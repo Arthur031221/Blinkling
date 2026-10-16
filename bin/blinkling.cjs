@@ -43529,7 +43529,7 @@ var RETRY_MS = 4e3;
 function channelFlagged(commandLine) {
   const words = commandLine.split(/[\s\0]+/);
   return words.some(
-    (word, i) => (word === "--dangerously-load-development-channels" || word === "--channels") && words.slice(i + 1, i + 8).some((w) => /(^|:)blinkling(@|$)/.test(w))
+    (word, i) => word === "--dangerously-load-development-channels" && words.slice(i + 1, i + 8).some((w) => /(^|:)blinkling(@|$)/.test(w))
   );
 }
 function commandLineOf(pid) {

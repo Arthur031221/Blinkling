@@ -17,10 +17,15 @@ describe("telling whether Claude Code was started with the channel", () => {
     ).toBe(true);
     expect(channelFlagged(SYNC_COMMAND)).toBe(true);
   });
-  it("sees the plain channels flag too", () => {
+  it("does not take the plain channels flag: Claude Code 2.1.301 refuses it for this plugin (not on the approved channels allowlist), so no event would ever arrive", () => {
     expect(channelFlagged("claude --channels plugin:blinkling@blinkling")).toBe(
-      true,
+      false,
     );
+    expect(
+      channelFlagged(
+        "claude --channels plugin:blinkling@blinkling --dangerously-load-development-channels plugin:blinkling@blinkling",
+      ),
+    ).toBe(true);
   });
   it("does not take another plugin's channel, or no flag, for ours", () => {
     expect(

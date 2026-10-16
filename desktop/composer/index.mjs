@@ -135,6 +135,7 @@ export function createComposer({
     stopping = false,
     error = "",
     pendingId,
+    chatKey,
     tail = Promise.resolve(),
     disposed = false;
   const state = () => ({
@@ -158,6 +159,15 @@ export function createComposer({
     return p;
   };
   const unsubscribe = session?.subscribe((event) => {
+    // A question left open in the chat the card has left is not this chat's.
+    if (event.type === "chat" && event.key !== chatKey) {
+      if (chatKey !== undefined) {
+        busy = false;
+        stopping = false;
+        pendingId = undefined;
+      }
+      chatKey = event.key;
+    }
     if (event.type === "delta") busy = true;
     if (event.type === "done" && (!pendingId || event.turnId === pendingId)) {
       busy = false;
