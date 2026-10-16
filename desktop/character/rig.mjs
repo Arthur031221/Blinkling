@@ -94,6 +94,61 @@ export function boxPath(x1, x2, y1, y2) {
   );
 }
 
+/** The outline of boxPath as points, for the click area: the same corner curves,
+ * sampled. */
+export function boxPolygon(x1, x2, y1, y2, steps = 6) {
+  const { rx, ryTop: t, ryBot: b } = BODY;
+  const r = Math.min(rx, (x2 - x1) / 2);
+  const curve = (p0, p1, p2, p3) =>
+    Array.from({ length: steps }, (_, i) => {
+      const u = (i + 1) / steps,
+        v = 1 - u;
+      return {
+        x:
+          v * v * v * p0[0] +
+          3 * v * v * u * p1[0] +
+          3 * v * u * u * p2[0] +
+          u * u * u * p3[0],
+        y:
+          v * v * v * p0[1] +
+          3 * v * v * u * p1[1] +
+          3 * v * u * u * p2[1] +
+          u * u * u * p3[1],
+      };
+    });
+  return [
+    { x: x1 + r, y: y1 },
+    { x: x2 - r, y: y1 },
+    ...curve(
+      [x2 - r, y1],
+      [x2 - r * 0.31, y1],
+      [x2, y1 + t * 0.31],
+      [x2, y1 + t],
+    ),
+    { x: x2, y: y2 - b },
+    ...curve(
+      [x2, y2 - b],
+      [x2, y2 - b * 0.33],
+      [x2 - r * 0.31, y2],
+      [x2 - r, y2],
+    ),
+    { x: x1 + r, y: y2 },
+    ...curve(
+      [x1 + r, y2],
+      [x1 + r * 0.31, y2],
+      [x1, y2 - b * 0.33],
+      [x1, y2 - b],
+    ),
+    { x: x1, y: y1 + t },
+    ...curve(
+      [x1, y1 + t],
+      [x1, y1 + t * 0.31],
+      [x1 + r * 0.31, y1],
+      [x1 + r, y1],
+    ),
+  ];
+}
+
 export function silhouette(yaw) {
   const c = Math.cos(yaw * D2R),
     s = Math.abs(Math.sin(yaw * D2R));
@@ -160,7 +215,9 @@ function blobs(pts, line, fill, extra = "") {
   return `<g${extra}><path d="${d.ink}" fill="${C.ink}" stroke="${C.ink}" stroke-width="${line}" stroke-linejoin="round"/><path d="${d.fill}" fill="${fill}"/></g>`;
 }
 
-function shoe(g, yaw, sole) {
+/** Where a shoe sits and how big it is: one description for drawing it and for
+ * the click area. */
+export function shoeShape(g, yaw) {
   const vx = g.a.x - g.h.x,
     vy = g.a.y - g.h.y;
   const len = Math.hypot(vx, vy),
@@ -170,9 +227,18 @@ function shoe(g, yaw, sole) {
     h = LEG.shoeH + 6 * (1 - c);
   const ux = len > 2 ? vx / len : 0,
     uy = len > 2 ? vy / len : 1;
-  const cx = g.a.x + ux * 4.5 * c,
-    cy = g.a.y + uy * 4.5 * c + (1 - c) * 3;
-  const toe = Math.sin(yaw * D2R) * 4;
+  return {
+    cx: g.a.x + ux * 4.5 * c,
+    cy: g.a.y + uy * 4.5 * c + (1 - c) * 3,
+    rot,
+    w,
+    h,
+    toe: Math.sin(yaw * D2R) * 4,
+  };
+}
+
+function shoe(g, yaw, sole) {
+  const { cx, cy, rot, w, h, toe } = shoeShape(g, yaw);
   const body = `<rect x="${f1(-w / 2 + toe)}" y="${f1(-h / 2)}" width="${f1(w)}" height="${f1(h)}" rx="${f1(h / 2)}" fill="${C.shoe}"/>`;
   const tread = sole
     ? `<rect x="${f1(-w / 2 + 4 + toe)}" y="${f1(-h / 2 + 3)}" width="${f1(w - 8)}" height="${f1(h - 6)}" rx="${f1((h - 6) / 2)}" fill="#2b302d"/>`

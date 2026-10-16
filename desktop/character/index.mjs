@@ -1,15 +1,16 @@
 import {
   BODY,
-  LEG,
   LIMB_LINE,
   STAND,
   armGeom,
+  boxPolygon,
   clamp,
   drawBlink,
   ease,
   f1,
   lerp,
   legGeom,
+  shoeShape,
   silhouette,
 } from "./rig.mjs";
 import {
@@ -32,8 +33,10 @@ import {
   greeting,
 } from "./motions.mjs";
 import { BLINK_SCALE as K } from "./size.mjs";
-import { roundedRect } from "./silhouette.mjs";
+import { clipAbove, roundedRect } from "./silhouette.mjs";
 export { CATCH_FOR, DIZZY_FOR };
+/** How far outside its drawn shape Blink still takes a click, hover or press. */
+export const HIT_MARGIN = 6;
 
 /** The box the renderer gives Blink, and where its feet stand in it. The drawing is
  * 200 units wide; K pixels to the unit, with the feet at (100, 190) in the drawing
@@ -272,30 +275,42 @@ export function mountBlink(host) {
   }
 
   /** Every shape that takes a click, in the drawing's coordinates after the pose has
-   * moved and tilted the figure and the edge has turned it. */
+   * moved and tilted the figure, the edge has hidden what lies behind it and the
+   * edge has turned it. Only what is drawn counts: the body outline, the arms, the
+   * legs and the shoes. */
   function shapes() {
     const o = { ...STAND, ...ctx.last };
     const sil = silhouette(o.yaw);
-    const out = {
-      body: roundedRect(
-        sil.x1 - BODY.line / 2,
-        BODY.top - BODY.line / 2,
-        sil.x2 - sil.x1 + BODY.line,
-        BODY.bottom - BODY.top + BODY.line,
-        BODY.rx,
-      ),
-      parts: [],
-    };
+    const half = BODY.line / 2;
+    const body = boxPolygon(
+      sil.x1 - half,
+      sil.x2 + half,
+      BODY.top - half,
+      BODY.bottom + half,
+    );
+    const parts = [];
     for (const [key, side] of [
       ["L", -1],
       ["R", 1],
     ]) {
       for (const p of armGeom(side, o[key], o.yaw).pts)
-        out.parts.push(ring(p.x, p.y, p.r + LIMB_LINE / 2));
+        parts.push(ring(p.x, p.y, p.r + LIMB_LINE / 2));
       const leg = legGeom(side, o["leg" + key], o.yaw);
-      for (const p of leg.pts)
-        out.parts.push(ring(p.x, p.y, p.r + LIMB_LINE / 2));
-      out.parts.push(ring(leg.a.x, leg.a.y + 2, LEG.shoeW / 2, 10));
+      for (const p of leg.pts) parts.push(ring(p.x, p.y, p.r + LIMB_LINE / 2));
+      const shoe = shoeShape(leg, o.yaw),
+        turn = (shoe.rot * Math.PI) / 180;
+      parts.push(
+        roundedRect(
+          -shoe.w / 2 + shoe.toe,
+          -shoe.h / 2,
+          shoe.w,
+          shoe.h,
+          shoe.h / 2,
+        ).map((v) => ({
+          x: shoe.cx + v.x * Math.cos(turn) - v.y * Math.sin(turn),
+          y: shoe.cy + v.x * Math.sin(turn) + v.y * Math.cos(turn),
+        })),
+      );
     }
     const pivot = o.pivot ?? [100, 190];
     const a = (o.roll * Math.PI) / 180,
@@ -305,22 +320,27 @@ export function mountBlink(host) {
       b = (outer.angle * Math.PI) / 180,
       bc = Math.cos(b),
       bs = Math.sin(b);
-    const place = (p) => {
+    const pose = (p) => {
       const dx = p.x - pivot[0],
         dy = p.y - pivot[1];
-      const x = pivot[0] + dx * c - dy * s + o.x,
-        y = pivot[1] + dx * s + dy * c + o.y;
-      const ex = x - FEET.x,
-        ey = y - PEEK_EDGE;
+      return {
+        x: pivot[0] + dx * c - dy * s + o.x,
+        y: pivot[1] + dx * s + dy * c + o.y,
+      };
+    };
+    const turned = (p) => {
+      const ex = p.x - FEET.x,
+        ey = p.y - PEEK_EDGE;
       return {
         x: outer.x + ex * bc - ey * bs,
         y: outer.y + ex * bs + ey * bc,
       };
     };
-    return {
-      body: out.body.map(place),
-      parts: out.parts.map((r) => r.map(place)),
+    const place = (poly) => {
+      const moved = poly.map(pose);
+      return (o.clipY != null ? clipAbove(moved, o.clipY) : moved).map(turned);
     };
+    return { body: place(body), parts: parts.map(place) };
   }
 
   return {
@@ -340,8 +360,10 @@ export function mountBlink(host) {
         { body, parts } = shapes();
       return [body, ...parts]
         .map((poly) => poly.map(screen))
-        .filter((poly) =>
-          poly.every((v) => Number.isFinite(v.x) && Number.isFinite(v.y)),
+        .filter(
+          (poly) =>
+            poly.length > 2 &&
+            poly.every((v) => Number.isFinite(v.x) && Number.isFinite(v.y)),
         );
     },
     /** The body's bounding box on the screen. */

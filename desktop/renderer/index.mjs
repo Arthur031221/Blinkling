@@ -1,7 +1,7 @@
-import { mountBlink } from "../character/index.mjs";
+import { HIT_MARGIN, mountBlink } from "../character/index.mjs";
 import { createActivityState } from "../character/activity.mjs";
 import { spring } from "../character/state.mjs";
-import { scanlines, roundedRect } from "../character/silhouette.mjs";
+import { grow, scanlines, roundedRect } from "../character/silhouette.mjs";
 import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createMessageStream } from "../messages/index.mjs";
 import { createComposer } from "../composer/index.mjs";
@@ -28,7 +28,8 @@ let dizzyAt = -100,
   grumbling = null;
 const composer = createComposer(),
   messages = createMessageStream();
-let character = null,
+let hit = [],
+  character = null,
   menu = null,
   frameId = 0,
   last = performance.now(),
@@ -231,7 +232,7 @@ async function action(id) {
     permission.style.left = `${Math.max(8, Math.min(innerWidth - 188, current.x - 90))}px`;
     permission.style.top = `${Math.max(8, Math.min(innerHeight - 52, current.y - 120))}px`;
     const size = { width: innerWidth, height: innerHeight };
-    const body = scanlines(character.polygons(), size),
+    const body = grow(scanlines(character.polygons(), size), HIT_MARGIN, size),
       fan = scanlines(menu.polygons(), size),
       all = [...body, ...fan];
     if (!permission.hidden) {
@@ -240,6 +241,7 @@ async function action(id) {
         ...scanlines([roundedRect(r.x, r.y, r.width, r.height, 20)], size),
       );
     }
+    hit = body;
     api.interactive(all, { blink: body, menu: fan });
     workTimes.push(performance.now() - began);
     if (workTimes.length > 600) workTimes.shift();
@@ -292,6 +294,8 @@ export const desktop = {
     return shell;
   },
   talking: false,
+  /** The click area of Blink's drawn shape, as the last frame reported it. */
+  hit: () => hit,
   inspect: () => ({
     mode: modeOf(performance.now()),
     anchor: current ? { x: current.x, y: current.y - 62 } : null,
