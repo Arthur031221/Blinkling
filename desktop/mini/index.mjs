@@ -73,10 +73,10 @@ export function createMiniController({
       workArea: workArea(),
       avoid: taken.map((t) => t.bounds).filter(Boolean),
     });
-    if (shift) placed = shift(placed, workArea());
+    if (moveBy) placed = moveBy(placed, workArea());
     win.setBounds(placed);
   }
-  const shift =
+  const moveBy =
     nudges &&
     bindPanelNudge({
       ipc,

@@ -54,9 +54,9 @@ export function createWelcomeController({
       width,
       height,
     };
-    win.setBounds(shift ? shift(centred, area) : centred);
+    win.setBounds(moveBy ? moveBy(centred, area) : centred);
   };
-  const shift =
+  const moveBy =
     nudges &&
     bindPanelNudge({
       ipc,
