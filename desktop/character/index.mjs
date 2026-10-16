@@ -229,7 +229,9 @@ export function mountBlink(host) {
         },
         ease(lean),
       );
-      // The edge hides the rest of Blink only once it is gripping it.
+      // The edge hides the rest of Blink only once it is gripping it; the blend
+      // would otherwise carry the peek's clip line into the whole turn.
+      delete out.clipY;
       if (lean > 0.4)
         out.clipY = lerp(320, PEEK_EDGE, ease((lean - 0.4) / 0.6));
       out.armsOver = lean > 0.5;
