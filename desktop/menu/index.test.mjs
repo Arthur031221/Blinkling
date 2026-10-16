@@ -415,3 +415,27 @@ test("the tooltip keeps dark text on its light surface when its bubble is on", (
   assert.match(rules('.action-bubble[aria-checked="true"]'), /text-on-green/);
   assert.match(rules(".action-label"), /(?:^|[\s;])color:\s*var\(--text\)/);
 });
+
+test("when the card takes the fan's place no bubble is drawn from the next frame on; a plain close still settles over time", () => {
+  const drawn = (menu) => menu.shown;
+  const gone = mount();
+  run(gone.menu, 1, true);
+  assert.equal(drawn(gone.menu), true);
+  gone.menu.setOpen(false, 1, { instant: true });
+  gone.menu.frame(1, 1 / 60, area, anchor);
+  assert.equal(drawn(gone.menu), false, "the card and the fan never share");
+  assert.equal(gone.menu.open, false);
+  assert.ok(gone.menu.buttons.every((b) => Number(b.style.opacity) === 0));
+
+  const plain = mount();
+  run(plain.menu, 1, true);
+  plain.menu.setOpen(false, 1);
+  plain.menu.frame(1, 1 / 60, area, anchor);
+  assert.equal(drawn(plain.menu), true, "an ordinary close takes its time");
+
+  // The fan can come out again straight after.
+  gone.menu.setOpen(true, 2, { instant: true });
+  for (let t = 2; t < 3; t += 1 / 60) gone.menu.frame(t, 1 / 60, area, anchor);
+  assert.equal(gone.menu.open, true);
+  assert.equal(drawn(gone.menu), true);
+});

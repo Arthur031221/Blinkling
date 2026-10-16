@@ -251,6 +251,7 @@ async function action(id) {
     pointerOver = Boolean(pointer?.blink);
     menu.setOpen(shell.interaction.menu, now / 1000, {
       together: mode === "drag" || mode === "drop",
+      instant: shell.interaction.card || shell.chatOpen,
     });
     menu.frame(now / 1000, dt, area, current);
     permission.hidden =
@@ -326,7 +327,12 @@ export const desktop = {
   inspect: () => ({
     mode: modeOf(performance.now()),
     anchor: current ? { x: current.x, y: current.y - 62 } : null,
-    fan: { open: menu.open, rested: shell.interaction.menu, over: pointerOver },
+    fan: {
+      open: menu.open,
+      shown: menu.shown,
+      rested: shell.interaction.menu,
+      over: pointerOver,
+    },
     activity: activity.read(performance.now()),
     shell: {
       ...shell,

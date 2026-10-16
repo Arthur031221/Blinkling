@@ -253,6 +253,11 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       if (!pressed) return null;
       return api.click(t);
     },
+    /** The card is wanted by something other than a click or an answer (a file
+     * dropped on Blink, a link, the mini box): the menu goes, the card comes. */
+    open(why = "request", t = clock()) {
+      openChat(t, why);
+    },
     click(t = clock()) {
       if (s.surface === "chat") openMenu(t);
       else openChat(t, "click");

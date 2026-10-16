@@ -104,9 +104,21 @@ export function mountMenu(
     get open() {
       return open;
     },
+    /** Whether any bubble is drawn, however far along it is. */
+    get shown() {
+      return values.some((v, i) => rects[i] && v.value > 0.015);
+    },
     /** `together` skips the stagger: a fan that closes because Blink was
      * picked up shrinks as one, so no bubble slides across another. */
-    setOpen(value, now, { together = false } = {}) {
+    setOpen(value, now, { together = false, instant = false } = {}) {
+      // The card takes the fan's place: the bubbles go at once, so the two
+      // never share the screen (the card is the one that grows).
+      if (instant && !value && (open || this.shown)) {
+        open = false;
+        values.forEach((_, i) => (values[i] = { value: 0, velocity: 0 }));
+        changedAt = now;
+        return;
+      }
       if (open !== value) {
         open = value;
         changedAt = now;

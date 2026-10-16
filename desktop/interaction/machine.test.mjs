@@ -512,3 +512,28 @@ test("using the capture bubble closes the menu, hover or sticky, and nothing els
   bare.m.menuUsed(bare.at.t);
   assert.deepEqual(bare.m.take(), []);
 });
+
+test("a card opened by anything but a click (a dropped file, a link, the mini box) takes the menu's place, hover or sticky", () => {
+  const hovered = rig();
+  hovered.m.pointer(on, hovered.at.t, true);
+  hovered.go(timing.menuRest + 32);
+  assert.equal(hovered.read().menu, true);
+  hovered.m.open("request", hovered.at.t);
+  assert.equal(hovered.read().card, true);
+  assert.equal(hovered.read().menu, false, "the card and the menu never share");
+  assert.deepEqual(
+    types(hovered.m.take()).filter((x) => x === "open-chat"),
+    ["open-chat"],
+  );
+
+  const sticky = rig();
+  sticky.m.click(sticky.at.t);
+  sticky.m.click(sticky.at.t);
+  assert.equal(sticky.read().menu, true);
+  sticky.m.open("request", sticky.at.t);
+  assert.equal(sticky.read().card, true);
+  assert.equal(sticky.read().menu, false);
+  // The card the call opened closes by the same rules: Esc and a click away.
+  sticky.m.escape(sticky.at.t);
+  assert.equal(sticky.read().card, false);
+});

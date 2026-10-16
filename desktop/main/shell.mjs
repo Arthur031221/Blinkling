@@ -384,7 +384,16 @@ ipcMain.on("blinkling:composer-ready", (event) => {
 /** Open the card. `focus` gives it the keyboard; `seed` is what the mini
  * composer was holding ({ conversationId, draft, attachments }), carried into
  * the card as it grows. */
-async function openComposer({ focus = true, seed } = {}) {
+async function openComposer(options = {}) {
+  // The card is one of the machine's two surfaces: a card that opens by any
+  // other road (a dropped file, a link, the mini box) must still turn the menu
+  // off and be closed by the same rules. The machine's effect comes back here.
+  if (!machine.read().card) {
+    wanted = options;
+    flow((m) => m.open(options.focus === false ? "answer" : "request"));
+    return opening;
+  }
+  const { focus = true, seed } = options;
   const carried = seed === undefined ? undefined : validSeed(seed);
   if (!composer?.isVisible() || (focus && !composer?.isFocused())) {
     previousFocused = BrowserWindow.getFocusedWindow();
@@ -441,10 +450,15 @@ function flow(change) {
   act(machine.take());
   return result;
 }
+let wanted = null;
+let opening = Promise.resolve();
 function act(effects) {
   for (const effect of effects) {
-    if (effect.type === "open-chat") void openComposer({ focus: effect.focus });
-    else if (effect.type === "close-chat") closeComposer();
+    if (effect.type === "open-chat") {
+      opening = openComposer(wanted ?? { focus: effect.focus });
+      wanted = null;
+      void opening;
+    } else if (effect.type === "close-chat") closeComposer();
     else if (effect.type === "out") rim = blinkRegions;
     else if (effect.type === "retreat") rim = [];
     else if (effect.type === "answer-done" || effect.type === "answer-failed") {
