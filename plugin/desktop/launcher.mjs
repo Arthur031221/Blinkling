@@ -1,7 +1,15 @@
 import { createHash } from "node:crypto";
 import { spawn, execFile } from "node:child_process";
 import { openSync, closeSync } from "node:fs";
-import { readFile, cp, rename, rm, mkdir, lstat } from "node:fs/promises";
+import {
+  readFile,
+  cp,
+  rename,
+  rm,
+  mkdir,
+  lstat,
+  appendFile,
+} from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import pinnedManifest from "./manifest.json" with { type: "json" };
@@ -10,6 +18,7 @@ import {
   privateDirectory,
   atomicJson,
   withLock,
+  treeFingerprint,
 } from "./install.mjs";
 import { discoverDesktop } from "./client.mjs";
 import { runtimeDirectory, endpointPath } from "./paths.mjs";
@@ -145,6 +154,38 @@ export async function replaceHungDesktop(
   await rm(descriptor, { force: true }).catch(() => {});
   return ended;
 }
+/** The full check of an installed build, run once Blink is already up: it
+ * reads and hashes everything the fast start trusted a fingerprint for. A tree
+ * that fails it loses its stamp, so the next start puts it right. */
+export async function verifyInstalled(options = {}) {
+  const directory = options.runtime || runtimeDirectory();
+  try {
+    await installDesktop(options.manifest || pinnedManifest, {
+      ...options,
+      full: true,
+    });
+    return true;
+  } catch (error) {
+    await appendFile(
+      join(directory, "blinkling.log"),
+      `Blinkling: ${error.message}\n`,
+    ).catch(() => {});
+    return false;
+  }
+}
+/** What the macOS copy in ~/Applications was made from, and how it looked. */
+const macMarker = (target) => `${target}.source.json`;
+async function macCopyIsCurrent(target, installed) {
+  try {
+    const marker = JSON.parse(await readFile(macMarker(target), "utf8"));
+    return (
+      marker.source === installed.fingerprint &&
+      marker.copy === (await treeFingerprint(target))
+    );
+  } catch {
+    return false;
+  }
+}
 export async function launchDesktop(options = {}) {
   const directory = options.runtime || runtimeDirectory();
   await privateDirectory(directory);
@@ -189,24 +230,32 @@ export async function launchDesktop(options = {}) {
         throw new Error("Applications must be a real directory");
       const target = join(applications, "Blinkling.app"),
         stage = `${target}.staging`;
-      macPrevious = `${target}.previous`;
-      await rm(stage, { recursive: true, force: true });
-      await cp(source, stage, {
-        recursive: true,
-        dereference: false,
-        verbatimSymlinks: true,
-      });
-      await rm(macPrevious, { recursive: true, force: true });
-      try {
-        await rename(target, macPrevious);
-      } catch (e) {
-        if (e.code !== "ENOENT") throw e;
-      }
-      try {
-        await rename(stage, target);
-      } catch (error) {
-        await rename(macPrevious, target).catch(() => {});
-        throw error;
+      // The same build is already there, untouched: copying a few hundred
+      // megabytes again would only delay Blink.
+      if (!(await macCopyIsCurrent(target, installed))) {
+        macPrevious = `${target}.previous`;
+        await rm(stage, { recursive: true, force: true });
+        await cp(source, stage, {
+          recursive: true,
+          dereference: false,
+          verbatimSymlinks: true,
+        });
+        await rm(macPrevious, { recursive: true, force: true });
+        try {
+          await rename(target, macPrevious);
+        } catch (e) {
+          if (e.code !== "ENOENT") throw e;
+        }
+        try {
+          await rename(stage, target);
+        } catch (error) {
+          await rename(macPrevious, target).catch(() => {});
+          throw error;
+        }
+        await atomicJson(macMarker(target), {
+          source: installed.fingerprint,
+          copy: await treeFingerprint(target),
+        }).catch(() => {});
       }
       entry = join(
         target,
@@ -270,9 +319,18 @@ export async function launchDesktop(options = {}) {
             await rm(macPrevious, { recursive: true, force: true }).catch(
               () => {},
             );
-          return { ...running.status, alreadyRunning: false };
+          const result = { ...running.status, alreadyRunning: false };
+          if (installed.fast) {
+            // Blink is on screen; what the fast start took on trust is
+            // checked now. A hook that must not linger asks for it to be run
+            // as a separate process instead.
+            if (options.deferVerification)
+              Object.defineProperty(result, "verifyLater", { value: true });
+            else void verifyInstalled(options);
+          }
+          return result;
         }
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 40));
       }
       throw new Error(
         "Blink did not finish starting. The previous verified build is preserved.",

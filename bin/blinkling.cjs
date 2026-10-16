@@ -19264,6 +19264,41 @@ async function cacheMatches(entries, directory) {
     throw error43;
   }
 }
+async function treeFingerprint(directory) {
+  const hash2 = (0, import_node_crypto.createHash)("sha256");
+  const walk = async (path) => {
+    const names = (await (0, import_promises2.readdir)((0, import_node_path2.join)(directory, path))).sort();
+    const stats = await Promise.all(
+      names.map((name) => (0, import_promises2.lstat)((0, import_node_path2.join)(directory, path, name)))
+    );
+    for (const [i, name] of names.entries()) {
+      const key = path ? `${path}/${name}` : name, stat3 = stats[i];
+      const kind = stat3.isSymbolicLink() ? "l" : stat3.isDirectory() ? "d" : "f";
+      hash2.update(
+        `${key}\0${kind}\0${kind === "d" ? 0 : stat3.size}\0${Math.round(stat3.mtimeMs)}\0${stat3.mode & 511}\0${kind === "l" ? await (0, import_promises2.readlink)((0, import_node_path2.join)(directory, key)) : ""}
+`
+      );
+      if (kind === "d") await walk(key);
+    }
+  };
+  await walk("");
+  return hash2.digest("hex");
+}
+var stampPath = (directory) => `${directory}.verified.json`;
+async function readStamp(directory) {
+  try {
+    return JSON.parse(await (0, import_promises2.readFile)(stampPath(directory), "utf8"));
+  } catch {
+    return void 0;
+  }
+}
+async function installedEntry(directory, build) {
+  const entry = await (0, import_promises2.realpath)((0, import_node_path2.join)(directory, build.entry));
+  const rel = (0, import_node_path2.relative)(await (0, import_promises2.realpath)(directory), entry);
+  if (rel.startsWith("..") || (0, import_node_path2.isAbsolute)(rel))
+    throw new Error("Executable escapes installation");
+  return entry;
+}
 async function clearMarkOfTheWeb(directory, entries, unlink = import_promises2.unlink) {
   for (const entry of entries) {
     if (entry.type !== "file") continue;
@@ -19284,6 +19319,29 @@ async function installDesktop(manifest, options = {}) {
   await privateDirectory(root);
   for (const folder of ["archives", "versions"])
     await privateDirectory((0, import_node_path2.join)(root, folder));
+  const directory = (0, import_node_path2.join)(
+    root,
+    "versions",
+    `${manifest.version}-${platform}-${arch}-${build.sha256.slice(0, 16)}`
+  );
+  if (!options.full) {
+    const stamp = await readStamp(directory);
+    if (stamp?.sha256 === build.sha256 && stamp.version === manifest.version && stamp.fingerprint === await treeFingerprint(directory).catch(() => "")) {
+      const entry = await installedEntry(directory, build).catch(
+        () => void 0
+      );
+      if (entry)
+        return {
+          entry,
+          directory,
+          root,
+          version: manifest.version,
+          build,
+          fingerprint: stamp.fingerprint,
+          fast: true
+        };
+    }
+  }
   return withLock((0, import_node_path2.join)(root, "install.lock"), async () => {
     const archivePath = (0, import_node_path2.join)(root, "archives", build.sha256);
     let bytes;
@@ -19294,7 +19352,12 @@ async function installDesktop(manifest, options = {}) {
       bytes = await (0, import_promises2.readFile)(archivePath);
       verifyArchive(bytes, build);
     } catch (error43) {
+      if (options.full && error43.code === "ENOENT") return { skipped: true };
       if (error43.code !== "ENOENT") await (0, import_promises2.rm)(archivePath, { force: true });
+      if (options.full) {
+        await (0, import_promises2.rm)(stampPath(directory), { force: true });
+        throw error43;
+      }
       const temp = `${archivePath}.${(0, import_node_crypto.randomUUID)()}.tmp`;
       try {
         await download(build, options, temp);
@@ -19316,11 +19379,12 @@ async function installDesktop(manifest, options = {}) {
       ]
     ) : readArchive(bytes, build.archive, options);
     verifyExecutable(entries, build);
-    const directory = (0, import_node_path2.join)(
-      root,
-      "versions",
-      `${manifest.version}-${platform}-${arch}-${build.sha256.slice(0, 16)}`
-    );
+    if (options.full && !await cacheMatches(entries, directory)) {
+      await (0, import_promises2.rm)(stampPath(directory), { force: true });
+      throw new Error(
+        "The installed Blink does not match its pinned build; it is put right the next time Blink starts"
+      );
+    }
     if (!await cacheMatches(entries, directory)) {
       const staging = `${directory}.${(0, import_node_crypto.randomUUID)()}.staging`, previous = `${directory}.${(0, import_node_crypto.randomUUID)()}.previous`;
       try {
@@ -19367,11 +19431,22 @@ async function installDesktop(manifest, options = {}) {
         await (0, import_promises2.rm)(staging, { recursive: true, force: true });
       }
     }
-    const entry = await (0, import_promises2.realpath)((0, import_node_path2.join)(directory, build.entry));
-    const rel = (0, import_node_path2.relative)(await (0, import_promises2.realpath)(directory), entry);
-    if (rel.startsWith("..") || (0, import_node_path2.isAbsolute)(rel))
-      throw new Error("Executable escapes installation");
-    return { entry, directory, root, version: manifest.version, build };
+    const entry = await installedEntry(directory, build);
+    const fingerprint = await treeFingerprint(directory);
+    await atomicJson(stampPath(directory), {
+      version: manifest.version,
+      sha256: build.sha256,
+      fingerprint
+    }).catch(() => {
+    });
+    return {
+      entry,
+      directory,
+      root,
+      version: manifest.version,
+      build,
+      fingerprint
+    };
   });
 }
 
@@ -19601,6 +19676,33 @@ async function replaceHungDesktop(descriptor, {
   });
   return ended;
 }
+async function verifyInstalled(options = {}) {
+  const directory = options.runtime || runtimeDirectory();
+  try {
+    await installDesktop(options.manifest || manifest_default, {
+      ...options,
+      full: true
+    });
+    return true;
+  } catch (error43) {
+    await (0, import_promises5.appendFile)(
+      (0, import_node_path5.join)(directory, "blinkling.log"),
+      `Blinkling: ${error43.message}
+`
+    ).catch(() => {
+    });
+    return false;
+  }
+}
+var macMarker = (target) => `${target}.source.json`;
+async function macCopyIsCurrent(target, installed) {
+  try {
+    const marker = JSON.parse(await (0, import_promises5.readFile)(macMarker(target), "utf8"));
+    return marker.source === installed.fingerprint && marker.copy === await treeFingerprint(target);
+  } catch {
+    return false;
+  }
+}
 async function launchDesktop(options = {}) {
   const directory = options.runtime || runtimeDirectory();
   await privateDirectory(directory);
@@ -19633,25 +19735,32 @@ async function launchDesktop(options = {}) {
       if (!(await (0, import_promises5.lstat)(applications)).isDirectory())
         throw new Error("Applications must be a real directory");
       const target = (0, import_node_path5.join)(applications, "Blinkling.app"), stage = `${target}.staging`;
-      macPrevious = `${target}.previous`;
-      await (0, import_promises5.rm)(stage, { recursive: true, force: true });
-      await (0, import_promises5.cp)(source, stage, {
-        recursive: true,
-        dereference: false,
-        verbatimSymlinks: true
-      });
-      await (0, import_promises5.rm)(macPrevious, { recursive: true, force: true });
-      try {
-        await (0, import_promises5.rename)(target, macPrevious);
-      } catch (e) {
-        if (e.code !== "ENOENT") throw e;
-      }
-      try {
-        await (0, import_promises5.rename)(stage, target);
-      } catch (error43) {
-        await (0, import_promises5.rename)(macPrevious, target).catch(() => {
+      if (!await macCopyIsCurrent(target, installed)) {
+        macPrevious = `${target}.previous`;
+        await (0, import_promises5.rm)(stage, { recursive: true, force: true });
+        await (0, import_promises5.cp)(source, stage, {
+          recursive: true,
+          dereference: false,
+          verbatimSymlinks: true
         });
-        throw error43;
+        await (0, import_promises5.rm)(macPrevious, { recursive: true, force: true });
+        try {
+          await (0, import_promises5.rename)(target, macPrevious);
+        } catch (e) {
+          if (e.code !== "ENOENT") throw e;
+        }
+        try {
+          await (0, import_promises5.rename)(stage, target);
+        } catch (error43) {
+          await (0, import_promises5.rename)(macPrevious, target).catch(() => {
+          });
+          throw error43;
+        }
+        await atomicJson(macMarker(target), {
+          source: installed.fingerprint,
+          copy: await treeFingerprint(target)
+        }).catch(() => {
+        });
       }
       entry = (0, import_node_path5.join)(
         target,
@@ -19709,9 +19818,15 @@ async function launchDesktop(options = {}) {
               () => {
               }
             );
-          return { ...running.status, alreadyRunning: false };
+          const result = { ...running.status, alreadyRunning: false };
+          if (installed.fast) {
+            if (options.deferVerification)
+              Object.defineProperty(result, "verifyLater", { value: true });
+            else void verifyInstalled(options);
+          }
+          return result;
         }
-        await new Promise((resolve5) => setTimeout(resolve5, 100));
+        await new Promise((resolve5) => setTimeout(resolve5, 40));
       }
       throw new Error(
         "Blink did not finish starting. The previous verified build is preserved."

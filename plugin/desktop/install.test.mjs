@@ -9,13 +9,20 @@ import {
   symlink,
   readdir,
   stat,
+  utimes,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { gzipSync, deflateRawSync, crc32 } from "node:zlib";
-import { installDesktop, readArchive, withLock } from "./install.mjs";
-import { launchDesktop } from "./launcher.mjs";
+import {
+  installDesktop,
+  readArchive,
+  withLock,
+  treeFingerprint,
+} from "./install.mjs";
+import { launchDesktop, verifyInstalled } from "./launcher.mjs";
+import { startDesktopHost } from "./host.mjs";
 import { EventEmitter } from "node:events";
 
 // Real tar records: parsing and extraction operate on bytes, not mocked listings.
@@ -637,6 +644,140 @@ test("a Windows install removes any Zone.Identifier stream from the extracted ex
     );
     assert.ok(installed.entry.endsWith("Blinkling-3.0.0-win-x64.exe"));
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+const freshRoot = async () => {
+  const root = await mkdtemp(join(tmpdir(), "glimpse-fast-"));
+  let downloads = 0;
+  const options = {
+    root,
+    platform: "linux",
+    arch: "x64",
+    fetch: async () => {
+      downloads++;
+      return new Response(archive);
+    },
+  };
+  return { root, options, downloads: () => downloads };
+};
+const archiveFile = (root) => join(root, "archives", manifest.builds[0].sha256);
+
+test("a build verified once is trusted by its fingerprint: the next start reads no archive and downloads nothing", async () => {
+  const { root, options, downloads } = await freshRoot();
+  try {
+    const first = await installDesktop(manifest, options);
+    assert.equal(first.fast, undefined, "the first install is the full one");
+    // Without the archive, only the fingerprint can vouch for the tree.
+    await rm(archiveFile(root));
+    const second = await installDesktop(manifest, options);
+    assert.equal(second.fast, true);
+    assert.equal(second.entry, first.entry);
+    assert.equal(second.fingerprint, first.fingerprint);
+    assert.equal(downloads(), 1);
+    // Touching the tree withdraws the trust: it is verified and repaired again.
+    await writeFile(join(first.directory, "app/resources/data"), "damaged");
+    const third = await installDesktop(manifest, options);
+    assert.equal(third.fast, undefined);
+    assert.equal(downloads(), 2);
+    assert.equal(
+      await readFile(join(first.directory, "app/resources/data"), "utf8"),
+      "original",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the full check behind a started Blink catches what the fingerprint cannot, and withdraws the trust without touching the tree", async () => {
+  const { root, options, downloads } = await freshRoot();
+  try {
+    const first = await installDesktop(manifest, options);
+    const data = join(first.directory, "app/resources/data");
+    const { atime, mtime } = await stat(data);
+    // Same size, same mtime: only reading the bytes can tell.
+    await writeFile(data, "ORIGINAL");
+    await utimes(data, atime, mtime);
+    assert.equal(
+      await treeFingerprint(first.directory),
+      first.fingerprint,
+      "the fingerprint is blind to it",
+    );
+    assert.equal((await installDesktop(manifest, options)).fast, true);
+    await assert.rejects(
+      installDesktop(manifest, { ...options, full: true }),
+      /does not match/,
+    );
+    assert.equal(
+      await readFile(data, "utf8"),
+      "ORIGINAL",
+      "a running Blink's files are not replaced underneath it",
+    );
+    assert.equal(downloads(), 1);
+    // The next start has no trust left and repairs the tree.
+    const next = await installDesktop(manifest, options);
+    assert.equal(next.fast, undefined);
+    assert.equal(await readFile(data, "utf8"), "original");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the full check never downloads: with no cached archive it stands down", async () => {
+  const { root, options, downloads } = await freshRoot();
+  try {
+    await installDesktop(manifest, options);
+    await rm(archiveFile(root));
+    assert.deepEqual(
+      await installDesktop(manifest, { ...options, full: true }),
+      { skipped: true },
+    );
+    assert.equal(downloads(), 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a start on an installed build does not wait for the archive: Blink is up, and the full check is left for afterwards", async () => {
+  const { root, options } = await freshRoot();
+  const runtime = join(root, "runtime");
+  const hosts = [];
+  const spawnBlink = () => {
+    const child = new EventEmitter();
+    child.unref = () => {};
+    child.kill = () => {};
+    startDesktopHost({
+      directory: runtime,
+      descriptor: join(runtime, "desktop.json"),
+      version: "3.0.0",
+    }).then((host) => hosts.push(host));
+    return child;
+  };
+  try {
+    await installDesktop(manifest, options);
+    await rm(archiveFile(root));
+    const failing = {
+      ...options,
+      runtime,
+      manifest,
+      spawn: spawnBlink,
+      fetch: async () => {
+        throw new Error("the archive must not be needed");
+      },
+    };
+    const began = performance.now();
+    const result = await launchDesktop({ ...failing, deferVerification: true });
+    const took = performance.now() - began;
+    assert.equal(result.alreadyRunning, false);
+    assert.equal(result.verifyLater, true);
+    assert.ok(!Object.keys(result).includes("verifyLater"));
+    assert.ok(took < 1000, `took ${took} ms`);
+    // The check itself, run apart from the start, finds the tree sound or
+    // stands down for want of an archive; it never throws into the session.
+    assert.equal(await verifyInstalled({ ...failing, runtime }), true);
+  } finally {
+    await Promise.all(hosts.map((h) => h.close()));
     await rm(root, { recursive: true, force: true });
   }
 });

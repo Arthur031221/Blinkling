@@ -111,3 +111,20 @@ test("the slash command still starts Blink when the background start is off", as
     });
   }
 });
+
+test("--verify is the check a fast start leaves for afterwards: quiet, successful, and it never starts Blink", async () => {
+  const on = await home('{"schemaVersion":1,"startWithClaudeCode":true}');
+  try {
+    const result = await run(on.root, on.runtime, ["--verify"]);
+    assert.equal(result.code, 0);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+  } finally {
+    await rm(on.root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 200,
+    });
+  }
+});

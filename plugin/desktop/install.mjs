@@ -566,6 +566,47 @@ async function cacheMatches(entries, directory) {
     throw error;
   }
 }
+/** A short name for the state of an installed tree: every path with its kind,
+ * size, mtime, mode and link target, read without opening a single file. Taken
+ * right after the tree was verified byte for byte, it says later whether
+ * anything in the tree has been touched since. */
+export async function treeFingerprint(directory) {
+  const hash = createHash("sha256");
+  const walk = async (path) => {
+    const names = (await readdir(join(directory, path))).sort();
+    const stats = await Promise.all(
+      names.map((name) => lstat(join(directory, path, name))),
+    );
+    for (const [i, name] of names.entries()) {
+      const key = path ? `${path}/${name}` : name,
+        stat = stats[i];
+      const kind = stat.isSymbolicLink() ? "l" : stat.isDirectory() ? "d" : "f";
+      hash.update(
+        `${key}\0${kind}\0${kind === "d" ? 0 : stat.size}\0${Math.round(stat.mtimeMs)}\0${stat.mode & 0o777}\0${kind === "l" ? await readlink(join(directory, key)) : ""}\n`,
+      );
+      if (kind === "d") await walk(key);
+    }
+  };
+  await walk("");
+  return hash.digest("hex");
+}
+const stampPath = (directory) => `${directory}.verified.json`;
+async function readStamp(directory) {
+  try {
+    return JSON.parse(await readFile(stampPath(directory), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+/** The executable of a verified tree, which must stay inside it. */
+async function installedEntry(directory, build) {
+  const entry = await realpath(join(directory, build.entry));
+  // The install directory itself may sit behind a symlink (/var on macOS).
+  const rel = relative(await realpath(directory), entry);
+  if (rel.startsWith("..") || isAbsolute(rel))
+    throw new Error("Executable escapes installation");
+  return entry;
+}
 /** SmartScreen keys off the Zone.Identifier stream Windows attaches to files that
  * arrive from the internet. Files we verified and wrote ourselves must not
  * carry it; an extractor or antivirus hook may have added one. */
@@ -596,6 +637,37 @@ export async function installDesktop(manifest, options = {}) {
   await privateDirectory(root);
   for (const folder of ["archives", "versions"])
     await privateDirectory(join(root, folder));
+  const directory = join(
+    root,
+    "versions",
+    `${manifest.version}-${platform}-${arch}-${build.sha256.slice(0, 16)}`,
+  );
+  // A tree that was verified byte for byte and has not been touched since
+  // needs neither the archive read, nor inflated, nor hashed again: starting
+  // Blink must not wait for work whose answer is already known. A full check
+  // follows once Blink is up (`full`).
+  if (!options.full) {
+    const stamp = await readStamp(directory);
+    if (
+      stamp?.sha256 === build.sha256 &&
+      stamp.version === manifest.version &&
+      stamp.fingerprint === (await treeFingerprint(directory).catch(() => ""))
+    ) {
+      const entry = await installedEntry(directory, build).catch(
+        () => undefined,
+      );
+      if (entry)
+        return {
+          entry,
+          directory,
+          root,
+          version: manifest.version,
+          build,
+          fingerprint: stamp.fingerprint,
+          fast: true,
+        };
+    }
+  }
   return withLock(join(root, "install.lock"), async () => {
     const archivePath = join(root, "archives", build.sha256);
     let bytes;
@@ -606,7 +678,14 @@ export async function installDesktop(manifest, options = {}) {
       bytes = await readFile(archivePath);
       verifyArchive(bytes, build);
     } catch (error) {
+      // The check that runs behind a started Blink never downloads and never
+      // replaces what is running; it only says whether the tree can be trusted.
+      if (options.full && error.code === "ENOENT") return { skipped: true };
       if (error.code !== "ENOENT") await rm(archivePath, { force: true });
+      if (options.full) {
+        await rm(stampPath(directory), { force: true });
+        throw error;
+      }
       const temp = `${archivePath}.${randomUUID()}.tmp`;
       try {
         await download(build, options, temp);
@@ -629,11 +708,12 @@ export async function installDesktop(manifest, options = {}) {
           ]
         : readArchive(bytes, build.archive, options);
     verifyExecutable(entries, build);
-    const directory = join(
-      root,
-      "versions",
-      `${manifest.version}-${platform}-${arch}-${build.sha256.slice(0, 16)}`,
-    );
+    if (options.full && !(await cacheMatches(entries, directory))) {
+      await rm(stampPath(directory), { force: true });
+      throw new Error(
+        "The installed Blink does not match its pinned build; it is put right the next time Blink starts",
+      );
+    }
     if (!(await cacheMatches(entries, directory))) {
       const staging = `${directory}.${randomUUID()}.staging`,
         previous = `${directory}.${randomUUID()}.previous`;
@@ -686,11 +766,20 @@ export async function installDesktop(manifest, options = {}) {
         await rm(staging, { recursive: true, force: true });
       }
     }
-    const entry = await realpath(join(directory, build.entry));
-    // The install directory itself may sit behind a symlink (/var on macOS).
-    const rel = relative(await realpath(directory), entry);
-    if (rel.startsWith("..") || isAbsolute(rel))
-      throw new Error("Executable escapes installation");
-    return { entry, directory, root, version: manifest.version, build };
+    const entry = await installedEntry(directory, build);
+    const fingerprint = await treeFingerprint(directory);
+    await atomicJson(stampPath(directory), {
+      version: manifest.version,
+      sha256: build.sha256,
+      fingerprint,
+    }).catch(() => {});
+    return {
+      entry,
+      directory,
+      root,
+      version: manifest.version,
+      build,
+      fingerprint,
+    };
   });
 }
