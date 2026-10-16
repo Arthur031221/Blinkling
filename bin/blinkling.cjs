@@ -19524,9 +19524,18 @@ var DesktopClient = class {
       signal
     })).json();
   }
-  async events(onEvent, signal, after = 0, onReady = () => {
+  /** Holds the line a Claude Code session keeps open to Blink. Resolves when
+   * it ends; `onEvent` gets each frame Blink sends this session. */
+  link(params, onEvent, signal, onReady = () => {
   }) {
-    const response = await this.request(`/events?after=${after}`, { signal });
+    const query = new URLSearchParams(
+      Object.entries(params).map(([k, v]) => [k, String(v)])
+    );
+    return this.events(onEvent, signal, 0, onReady, `/link?${query}`);
+  }
+  async events(onEvent, signal, after = 0, onReady = () => {
+  }, path = `/events?after=${after}`) {
+    const response = await this.request(path, { signal });
     onReady();
     const reader = response.body.getReader(), decoder = new TextDecoder();
     let pending = "";
@@ -19710,7 +19719,9 @@ async function launchDesktop(options = {}) {
   return withLock((0, import_node_path5.join)(directory, "launch.lock"), async () => {
     const previous = await discoverDesktop(descriptor);
     if (previous) {
-      await previous.client.rpc(options.background ? "reconnect" : "open");
+      await previous.client.rpc(options.background ? "reconnect" : "open", {
+        session: options.session
+      });
       await atomicJson((0, import_node_path5.join)(directory, "enabled.json"), { enabled: true });
       return { ...previous.status, alreadyRunning: true };
     }
@@ -19806,7 +19817,9 @@ async function launchDesktop(options = {}) {
         if (running) {
           if (running.status.version !== installed.version)
             throw new Error("A different Blink version is running");
-          await running.client.rpc(options.background ? "reconnect" : "open");
+          await running.client.rpc(options.background ? "reconnect" : "open", {
+            session: options.session
+          });
           await atomicJson((0, import_node_path5.join)(directory, "enabled.json"), { enabled: true });
           await atomicJson((0, import_node_path5.join)(installed.root, "current.json"), {
             version: installed.version,
@@ -43506,77 +43519,115 @@ var SlidingWindowLimiter = class {
 };
 
 // bridge/src/sync-channel.ts
-var SYNC_INSTRUCTIONS = 'Events from the blinkling channel mirror a chat held in Blink, the desktop companion. role="user" is what the person typed there, role="assistant" is the answer Blink gave. They are informational: do not reply to them, do not run tools because of them, and end the turn without text. Use them only as context if the person asks about that chat.';
+var import_node_fs5 = require("node:fs");
+var import_node_child_process6 = require("node:child_process");
+var SYNC_INSTRUCTIONS = 'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once with the answer as plain text, and write nothing else in this terminal. If the message says pictures are attached, call blinkling_chat_images first and look at them. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
 var SYNC_COMMAND = "claude --dangerously-load-development-channels plugin:blinkling@blinkling";
-var SYNC_NOTE = `Sync line: what you type and read in this terminal already appears in Blink. To see Blink's chat here too, start Claude Code with: ${SYNC_COMMAND}`;
-var LIMIT = 8e3;
+var syncNote = (channel) => channel ? "Sync line: this session answers the chat you hold in Blink, and what you type here appears there." : `Sync line: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with: ${SYNC_COMMAND}`;
+var SYNC_NOTE = syncNote(false);
 var RETRY_MS = 4e3;
-function textOf(content) {
-  return (content ?? []).map(
-    (block) => block.type === "text" ? block.text ?? "" : block.type === "image" ? "[picture]" : ""
-  ).filter(Boolean).join("\n").trim().slice(0, LIMIT);
+function channelFlagged(commandLine) {
+  const words = commandLine.split(/[\s\0]+/);
+  return words.some(
+    (word, i) => (word === "--dangerously-load-development-channels" || word === "--channels") && words.slice(i + 1, i + 8).some((w) => /(^|:)blinkling(@|$)/.test(w))
+  );
 }
-function mirrorLines() {
-  const answers = /* @__PURE__ */ new Map();
-  const sent = /* @__PURE__ */ new Set();
-  return (event) => {
-    if (event.type === "message" && event.id && event.origin !== "terminal") {
-      const text2 = textOf(event.content);
-      if (!text2) return [];
-      if (event.role === "assistant") {
-        answers.set(event.id, text2);
-        return [];
-      }
-      if (event.role === "user" && !sent.has(event.id)) {
-        sent.add(event.id);
-        return [{ id: event.id, role: "user", text: text2 }];
-      }
-      return [];
-    }
-    if (event.type === "done") {
-      const lines = [...answers].map(([id, text2]) => ({
-        id,
-        role: "assistant",
-        text: text2
-      }));
-      answers.clear();
-      return lines;
-    }
-    return [];
+function commandLineOf(pid) {
+  try {
+    if (process.platform === "linux")
+      return (0, import_node_fs5.readFileSync)(`/proc/${pid}/cmdline`, "utf8");
+    if (process.platform === "win32")
+      return (0, import_node_child_process6.spawnSync)(
+        "powershell",
+        [
+          "-NoProfile",
+          "-Command",
+          `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`
+        ],
+        { encoding: "utf8", timeout: 4e3, windowsHide: true }
+      ).stdout ?? "";
+    return (0, import_node_child_process6.spawnSync)("ps", ["-o", "command=", "-p", String(pid)], {
+      encoding: "utf8",
+      timeout: 2e3
+    }).stdout ?? "";
+  } catch {
+    return "";
+  }
+}
+function syncIdentity(env = process.env, ppid = process.ppid, readCommand = commandLineOf) {
+  const pid = ppid;
+  const session = (env.CLAUDE_CODE_SESSION_ID ?? "").replace(/[^\w-]/g, "");
+  return {
+    session: session || `pid-${pid}`,
+    pid,
+    cwd: env.CLAUDE_PROJECT_DIR || process.cwd(),
+    channel: channelFlagged(readCommand(pid))
   };
 }
-function startSyncChannel(server, { retryMs = RETRY_MS, discover = discoverDesktop } = {}) {
+function channelNotification(frame) {
+  const text2 = String(frame.text ?? "").trim();
+  if (!text2) return void 0;
+  if (frame.type === "notice")
+    return { content: text2, meta: { kind: "notice" } };
+  if (frame.type === "turn")
+    return {
+      content: text2,
+      meta: {
+        kind: "question",
+        turn: String(frame.turn ?? "").replace(/[^\w-]/g, "")
+      }
+    };
+  return void 0;
+}
+function startSyncChannel(server, {
+  retryMs = RETRY_MS,
+  discover = discoverDesktop,
+  identity = syncIdentity()
+} = {}) {
   const stop = new AbortController();
   void (async () => {
     while (!stop.signal.aborted) {
       try {
         const found = await discover(void 0, { timeoutMs: 1500 });
-        if (found) {
-          const lines = mirrorLines();
-          await found.client.events(
+        if (found)
+          await found.client.link(
+            {
+              session: identity.session,
+              pid: identity.pid,
+              cwd: identity.cwd,
+              channel: identity.channel ? 1 : 0
+            },
             (frame) => {
-              for (const line of lines(frame.event))
+              const note = channelNotification(frame);
+              if (note)
                 void server.server.notification({
                   method: "notifications/claude/channel",
-                  params: {
-                    content: line.text,
-                    meta: {
-                      role: line.role,
-                      chat_id: line.id.replace(/\W/g, "_")
-                    }
-                  }
+                  params: note
                 }).catch(() => void 0);
             },
-            stop.signal,
-            Number.MAX_SAFE_INTEGER
+            stop.signal
           );
-        }
       } catch {
       }
       await new Promise((r) => setTimeout(r, retryMs).unref?.());
     }
   })();
-  return () => stop.abort();
+  const call = async (method, value) => {
+    const found = await discover(void 0, { timeoutMs: 1500 });
+    if (!found) throw new Error("Blink is not running.");
+    return await found.client.rpc(method, {
+      session: identity.session,
+      ...value
+    });
+  };
+  return {
+    identity,
+    stop: () => stop.abort(),
+    /** The answer to a chat held in Blink. */
+    reply: (text2, turn) => call("reply", { text: text2, ...turn ? { turn } : {} }),
+    /** The pictures of the chat's latest question. */
+    images: async () => (await call("chat-images", {})).images ?? []
+  };
 }
 
 // bridge/src/server.ts
@@ -43600,7 +43651,9 @@ async function createBlinkling(options = {}) {
       instructions: SYNC_INSTRUCTIONS
     }
   );
-  let stopSync;
+  let sync;
+  let who;
+  const identity = () => who ??= syncIdentity();
   let watchTimer;
   let watching = false, inCapture = false;
   const watchLimiter = new SlidingWindowLimiter(WATCH_LIMIT_PER_MINUTE, 6e4);
@@ -43918,11 +43971,11 @@ async function createBlinkling(options = {}) {
     },
     async () => {
       try {
-        await launchDesktop();
+        await launchDesktop({ session: identity().session });
         return {
           content: [
             { type: "text", text: "Blink is ready on your desktop." },
-            { type: "text", text: SYNC_NOTE }
+            { type: "text", text: syncNote(identity().channel) }
           ]
         };
       } catch (error43) {
@@ -43932,6 +43985,91 @@ async function createBlinkling(options = {}) {
             {
               type: "text",
               text: error43 instanceof Error ? error43.message : "Blink could not start."
+            }
+          ]
+        };
+      }
+    }
+  );
+  server.registerTool(
+    "blinkling_reply",
+    {
+      title: "Answer the chat held in Blink",
+      description: "Send the answer to a message the person typed in Blink. Only for events that arrive from the blinkling channel. The answer shows in Blink's chat as the assistant's.",
+      inputSchema: {
+        text: external_exports.string().min(1).max(2e4),
+        turn: external_exports.string().max(100).optional()
+      },
+      annotations: {
+        title: "Answer the chat held in Blink",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false
+      }
+    },
+    async ({ text: text2, turn }) => {
+      try {
+        if (!sync) throw new Error("Blink is not linked to this session.");
+        if (!identity().channel)
+          throw new Error(
+            "This session was not started with the channel flag, so Blink answers its own chat."
+          );
+        const result = await sync.reply(text2, turn);
+        if (result.ok !== true)
+          throw new Error("Blink had no open question for this session.");
+        return { content: [{ type: "text", text: "Sent to Blink." }] };
+      } catch (error43) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: error43 instanceof Error ? error43.message : "Blink is not reachable."
+            }
+          ]
+        };
+      }
+    }
+  );
+  server.registerTool(
+    "blinkling_chat_images",
+    {
+      title: "Look at the pictures in Blink's chat",
+      description: "Return the pictures attached to the latest message the person typed in Blink, as images. Call it when a channel event says pictures are attached.",
+      inputSchema: {},
+      annotations: {
+        title: "Look at the pictures in Blink's chat",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    async () => {
+      try {
+        if (!sync) throw new Error("Blink is not linked to this session.");
+        const images = await sync.images();
+        if (!images.length)
+          return {
+            content: [
+              { type: "text", text: "No pictures are attached." }
+            ]
+          };
+        return {
+          content: images.map((image) => ({
+            type: "image",
+            data: image.data,
+            mimeType: image.mediaType
+          }))
+        };
+      } catch (error43) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: error43 instanceof Error ? error43.message : "Blink is not reachable."
             }
           ]
         };
@@ -43990,10 +44128,10 @@ async function createBlinkling(options = {}) {
     helper,
     async connect() {
       await server.connect(new StdioServerTransport());
-      stopSync = startSyncChannel(server);
+      sync = startSyncChannel(server, { identity: identity() });
     },
     async close() {
-      stopSync?.();
+      sync?.stop();
       await stopCaptures();
       await helper.close();
       history.clear();

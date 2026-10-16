@@ -96,8 +96,22 @@ export class DesktopClient {
       })
     ).json();
   }
-  async events(onEvent, signal, after = 0, onReady = () => {}) {
-    const response = await this.request(`/events?after=${after}`, { signal });
+  /** Holds the line a Claude Code session keeps open to Blink. Resolves when
+   * it ends; `onEvent` gets each frame Blink sends this session. */
+  link(params, onEvent, signal, onReady = () => {}) {
+    const query = new URLSearchParams(
+      Object.entries(params).map(([k, v]) => [k, String(v)]),
+    );
+    return this.events(onEvent, signal, 0, onReady, `/link?${query}`);
+  }
+  async events(
+    onEvent,
+    signal,
+    after = 0,
+    onReady = () => {},
+    path = `/events?after=${after}`,
+  ) {
+    const response = await this.request(path, { signal });
     onReady();
     const reader = response.body.getReader(),
       decoder = new TextDecoder();

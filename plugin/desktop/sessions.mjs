@@ -35,6 +35,33 @@ export const joinSession = (directory, id, now = Date.now()) =>
     ...list.filter((e) => e.id !== id),
     { id, at: now },
   ]);
+/** What the turn now running in a session began with: a line Blink sent as a
+ * channel event, or something typed in the terminal. The Stop hook reads it. */
+export const markTurn = (directory, id, channel, now = Date.now()) =>
+  update(directory, now, (list) =>
+    list.map((e) =>
+      e.id === id ? { ...e, turn: channel ? "channel" : "typed" } : e,
+    ),
+  );
+/** Blink was closed: every session that did not take the news as a channel
+ * event is told at its next prompt, by the notice hook. */
+export const markQuit = (directory, except, now = Date.now()) =>
+  update(directory, now, (list) =>
+    list.map((e) => (except.includes(e.id) ? e : { ...e, quit: now })),
+  );
+/** Whether the session was left behind by a closed Blink; the mark is taken
+ * away, so each close is told once. */
+export async function takeQuit(directory, id, now = Date.now()) {
+  let was = false;
+  await update(directory, now, (list) =>
+    list.map((e) => {
+      if (e.id !== id || !e.quit) return e;
+      was = true;
+      return { id: e.id, at: e.at, ...(e.turn ? { turn: e.turn } : {}) };
+    }),
+  );
+  return was;
+}
 export const leaveSession = (directory, id, now = Date.now()) =>
   update(directory, now, (list) => list.filter((e) => e.id !== id));
 

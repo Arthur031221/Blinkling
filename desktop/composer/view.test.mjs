@@ -636,3 +636,37 @@ test("the message list ends above the composer and bubbles are tinted in both th
     "tokens only, so both themes follow",
   );
 });
+
+each(
+  "tabs name each linked terminal chat, switch by a press, and a terminal chat has no model picker",
+  (locale) => {
+    const switched = [];
+    const t = setup({ locale, onChat: (key) => switched.push(key) });
+    const tabs = t.q(".gl-chat-tabs");
+    const chat = (key, chats, channel = false) =>
+      t.store.accept({ type: "chat", key, channel, chats });
+    chat("blink", [{ key: "blink", label: "Blink", live: true }]);
+    assert.equal(tabs.hidden, true, "one chat needs no tabs");
+    const both = [
+      { key: "blink", label: "Blink", live: true },
+      { key: "s1", label: "alpha", live: true },
+      { key: "s2", label: "alpha #2", live: false },
+    ];
+    chat("s1", both, true);
+    assert.equal(tabs.hidden, false);
+    assert.deepEqual(
+      [...tabs.querySelectorAll(".gl-chat-tab")].map((b) => b.textContent),
+      ["Blink", "alpha", "alpha #2"],
+    );
+    assert.equal(
+      tabs.querySelector('[aria-selected="true"]').dataset.chat,
+      "s1",
+    );
+    assert.equal(t.q(".gl-chat-card").dataset.channel, "true");
+    tabs.querySelector('[data-chat="s1"]').click();
+    assert.deepEqual(switched, [], "the open chat is not a switch");
+    tabs.querySelector('[data-chat="s2"]').click();
+    assert.deepEqual(switched, ["s2"]);
+    t.dispose();
+  },
+);

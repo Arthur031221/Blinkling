@@ -113,6 +113,8 @@ test(
     assert.deepEqual(
       tools,
       [
+        "blinkling_chat_images",
+        "blinkling_reply",
         "desktop_open",
         "extension_install",
         "screen_capture",

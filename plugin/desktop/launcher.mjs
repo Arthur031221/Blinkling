@@ -195,7 +195,9 @@ export async function launchDesktop(options = {}) {
   return withLock(join(directory, "launch.lock"), async () => {
     const previous = await discoverDesktop(descriptor);
     if (previous) {
-      await previous.client.rpc(options.background ? "reconnect" : "open");
+      await previous.client.rpc(options.background ? "reconnect" : "open", {
+        session: options.session,
+      });
       await atomicJson(join(directory, "enabled.json"), { enabled: true });
       return { ...previous.status, alreadyRunning: true };
     }
@@ -308,7 +310,9 @@ export async function launchDesktop(options = {}) {
         if (running) {
           if (running.status.version !== installed.version)
             throw new Error("A different Blink version is running");
-          await running.client.rpc(options.background ? "reconnect" : "open");
+          await running.client.rpc(options.background ? "reconnect" : "open", {
+            session: options.session,
+          });
           await atomicJson(join(directory, "enabled.json"), { enabled: true });
           await atomicJson(join(installed.root, "current.json"), {
             version: installed.version,

@@ -1,121 +1,179 @@
+import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { discoverDesktop } from "../../plugin/desktop/client.mjs";
 
-/** What Claude Code is told about the channel. Blink answers its own chat, so
- * these events only keep this session informed. */
+/** What Claude Code is told about the channel. A session started with the
+ * channel flag answers the chat held in Blink itself, through the reply tool;
+ * the person reads the answer in Blink. */
 export const SYNC_INSTRUCTIONS =
-  'Events from the blinkling channel mirror a chat held in Blink, the desktop companion. role="user" is what the person typed there, role="assistant" is the answer Blink gave. They are informational: do not reply to them, do not run tools because of them, and end the turn without text. Use them only as context if the person asks about that chat.';
+  'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once with the answer as plain text, and write nothing else in this terminal. If the message says pictures are attached, call blinkling_chat_images first and look at them. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
 
-/** What the person types to see Blink's chat in the terminal too. Claude Code
- * takes a channel only when it starts, so a session already open cannot. */
+/** What the person types to start Claude Code so Blink's chat reaches it.
+ * Claude Code takes a channel only when it starts, so a session already open
+ * cannot. */
 export const SYNC_COMMAND =
   "claude --dangerously-load-development-channels plugin:blinkling@blinkling";
-export const SYNC_NOTE = `Sync line: what you type and read in this terminal already appears in Blink. To see Blink's chat here too, start Claude Code with: ${SYNC_COMMAND}`;
+/** The line the open tool adds, by whether this session took the channel. */
+export const syncNote = (channel: boolean) =>
+  channel
+    ? "Sync line: this session answers the chat you hold in Blink, and what you type here appears there."
+    : `Sync line: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with: ${SYNC_COMMAND}`;
+export const SYNC_NOTE = syncNote(false);
 
-const LIMIT = 8000;
 const RETRY_MS = 4000;
 
-type Block = { type?: string; text?: string };
-type Line = { id: string; role: "user" | "assistant"; text: string };
-export type SyncEvent = {
-  type?: string;
-  id?: string;
-  role?: string;
-  origin?: string;
-  turnId?: string;
-  content?: Block[];
-};
-
-/** The text of a chat message; a picture is named, not sent. */
-export function textOf(content: Block[] | undefined): string {
-  return (content ?? [])
-    .map((block) =>
-      block.type === "text"
-        ? (block.text ?? "")
-        : block.type === "image"
-          ? "[picture]"
-          : "",
-    )
-    .filter(Boolean)
-    .join("\n")
-    .trim()
-    .slice(0, LIMIT);
+/** Whether a command line is Claude Code started with the Blinkling channel,
+ * by either flag Claude Code takes for it. */
+export function channelFlagged(commandLine: string): boolean {
+  const words = commandLine.split(/[\s\0]+/);
+  return words.some(
+    (word, i) =>
+      (word === "--dangerously-load-development-channels" ||
+        word === "--channels") &&
+      words.slice(i + 1, i + 8).some((w) => /(^|:)blinkling(@|$)/.test(w)),
+  );
 }
 
-/** Turns Blink's stream of chat events into the lines to mirror: what was
- * typed at once, and an answer when it is done. Lines that came from the
- * terminal are never sent back. */
-export function mirrorLines() {
-  const answers = new Map<string, string>();
-  const sent = new Set<string>();
-  return (event: SyncEvent): Line[] => {
-    if (event.type === "message" && event.id && event.origin !== "terminal") {
-      const text = textOf(event.content);
-      if (!text) return [];
-      if (event.role === "assistant") {
-        answers.set(event.id, text);
-        return [];
-      }
-      if (event.role === "user" && !sent.has(event.id)) {
-        sent.add(event.id);
-        return [{ id: event.id, role: "user", text }];
-      }
-      return [];
-    }
-    if (event.type === "done") {
-      const lines = [...answers].map(([id, text]) => ({
-        id,
-        role: "assistant" as const,
-        text,
-      }));
-      answers.clear();
-      return lines;
-    }
-    return [];
+/** The command line of a process, or "" when it cannot be read. */
+export function commandLineOf(pid: number): string {
+  try {
+    if (process.platform === "linux")
+      return readFileSync(`/proc/${pid}/cmdline`, "utf8");
+    if (process.platform === "win32")
+      return (
+        spawnSync(
+          "powershell",
+          [
+            "-NoProfile",
+            "-Command",
+            `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`,
+          ],
+          { encoding: "utf8", timeout: 4000, windowsHide: true },
+        ).stdout ?? ""
+      );
+    return (
+      spawnSync("ps", ["-o", "command=", "-p", String(pid)], {
+        encoding: "utf8",
+        timeout: 2000,
+      }).stdout ?? ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+export type SyncIdentity = {
+  session: string;
+  pid: number;
+  cwd: string;
+  channel: boolean;
+};
+
+/** Which Claude Code session loaded this server, as the plugin host and the
+ * hooks name it. */
+export function syncIdentity(
+  env: NodeJS.ProcessEnv = process.env,
+  ppid = process.ppid,
+  readCommand: (pid: number) => string = commandLineOf,
+): SyncIdentity {
+  // The parent is Claude Code itself. CLAUDE_PID is not read: a Claude Code
+  // started inside another one inherits the outer one's value.
+  const pid = ppid;
+  const session = (env.CLAUDE_CODE_SESSION_ID ?? "").replace(/[^\w-]/g, "");
+  return {
+    session: session || `pid-${pid}`,
+    pid,
+    cwd: env.CLAUDE_PROJECT_DIR || process.cwd(),
+    channel: channelFlagged(readCommand(pid)),
   };
 }
 
-/** Keeps pushing Blink's chat into the Claude Code session that loaded this
- * server as a channel. Without the startup flag Claude Code drops the events,
- * so this is harmless in any other session. Returns a stop function. */
+type Frame = { type?: string; turn?: string; text?: string };
+
+/** The channel notification for one frame from Blink. */
+export function channelNotification(frame: Frame) {
+  const text = String(frame.text ?? "").trim();
+  if (!text) return undefined;
+  if (frame.type === "notice")
+    return { content: text, meta: { kind: "notice" } };
+  if (frame.type === "turn")
+    return {
+      content: text,
+      meta: {
+        kind: "question",
+        turn: String(frame.turn ?? "").replace(/[^\w-]/g, ""),
+      },
+    };
+  return undefined;
+}
+
+/** Keeps this session linked to Blink: it holds one line open, so Blink knows
+ * the session is alive and whether it answers by channel, and what Blink sends
+ * arrives as channel events. Without the startup flag Claude Code drops the
+ * events, so Blink is told not to send any. Returns the controls. */
 export function startSyncChannel(
   server: McpServer,
-  { retryMs = RETRY_MS, discover = discoverDesktop } = {},
+  {
+    retryMs = RETRY_MS,
+    discover = discoverDesktop,
+    identity = syncIdentity(),
+  }: {
+    retryMs?: number;
+    discover?: typeof discoverDesktop;
+    identity?: SyncIdentity;
+  } = {},
 ) {
   const stop = new AbortController();
   void (async () => {
     while (!stop.signal.aborted) {
       try {
         const found = await discover(undefined, { timeoutMs: 1500 });
-        if (found) {
-          const lines = mirrorLines();
-          // After a number no frame has yet: only what happens from now on,
-          // never the history Blink replays when it reconnects.
-          await found.client.events(
-            (frame: { event: SyncEvent }) => {
-              for (const line of lines(frame.event))
+        if (found)
+          await found.client.link(
+            {
+              session: identity.session,
+              pid: identity.pid,
+              cwd: identity.cwd,
+              channel: identity.channel ? 1 : 0,
+            },
+            (frame: Frame) => {
+              const note = channelNotification(frame);
+              if (note)
                 void server.server
                   .notification({
                     method: "notifications/claude/channel",
-                    params: {
-                      content: line.text,
-                      meta: {
-                        role: line.role,
-                        chat_id: line.id.replace(/\W/g, "_"),
-                      },
-                    },
+                    params: note,
                   })
                   .catch(() => undefined);
             },
             stop.signal,
-            Number.MAX_SAFE_INTEGER,
           );
-        }
       } catch {
         /* Blink is not running or went away: look again shortly. */
       }
       await new Promise((r) => setTimeout(r, retryMs).unref?.());
     }
   })();
-  return () => stop.abort();
+  const call = async (method: string, value: Record<string, unknown>) => {
+    const found = await discover(undefined, { timeoutMs: 1500 });
+    if (!found) throw new Error("Blink is not running.");
+    return (await found.client.rpc(method, {
+      session: identity.session,
+      ...value,
+    })) as Record<string, unknown>;
+  };
+  return {
+    identity,
+    stop: () => stop.abort(),
+    /** The answer to a chat held in Blink. */
+    reply: (text: string, turn?: string) =>
+      call("reply", { text, ...(turn ? { turn } : {}) }),
+    /** The pictures of the chat's latest question. */
+    images: async () =>
+      ((await call("chat-images", {})).images ?? []) as {
+        mediaType: string;
+        data: string;
+      }[],
+  };
 }

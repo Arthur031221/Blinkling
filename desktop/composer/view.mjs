@@ -35,6 +35,7 @@ export function mountComposer(
     onTyping = () => {},
     onHold = () => {},
     onAction = () => {},
+    onChat = () => {},
     onReference = () => {},
     copy,
     openLink,
@@ -99,6 +100,35 @@ export function mountComposer(
   dot.hidden = true;
   pin.setAttribute("aria-pressed", "false");
   header.append(brand, dot, pin, close);
+  // One tab for each Claude Code session Blink holds a chat with; only there
+  // when there is more than one to choose from.
+  const tabs = node("div", "gl-chat-tabs");
+  tabs.setAttribute("role", "tablist");
+  tabs.setAttribute("aria-label", tr("chats"));
+  tabs.hidden = true;
+  let tabSignature = "";
+  const showTabs = (state) => {
+    const wanted = state.chats.length > 1 ? state.chats : [];
+    const signature = JSON.stringify([wanted, state.chatKey]);
+    if (signature === tabSignature) return;
+    tabSignature = signature;
+    tabs.hidden = !wanted.length;
+    tabs.replaceChildren(
+      ...wanted.map((chat) => {
+        const tab = node("button", "gl-chat-tab", chat.label);
+        tab.type = "button";
+        tab.setAttribute("role", "tab");
+        tab.dataset.chat = chat.key;
+        tab.dataset.live = String(chat.live);
+        tab.setAttribute("aria-selected", String(chat.key === state.chatKey));
+        tab.title = chat.label;
+        tab.addEventListener("click", () => {
+          if (chat.key !== state.chatKey) onChat(chat.key);
+        });
+        return tab;
+      }),
+    );
+  };
   const history = node("div", "gl-chat-history");
   history.setAttribute("role", "log");
   history.setAttribute("aria-label", tr("history"));
@@ -159,7 +189,7 @@ export function mountComposer(
   guide.hidden = true;
   const guidePanel = mountGuidePanel({ host: guide, tr, onAction });
   const thinking = mountThinking(history, { label: tr("working") });
-  card.append(header, history, guide, notice, quick, form, error);
+  card.append(header, tabs, history, guide, notice, quick, form, error);
   host.append(card);
   let pinned = false,
     visible = true,
@@ -350,6 +380,9 @@ export function mountComposer(
     }
   });
   const unMessages = store.subscribe((state) => {
+    showTabs(state);
+    // A terminal's chat is answered by that session: it has no model to pick.
+    card.dataset.channel = String(state.channel);
     dot.hidden = healthy.has(state.status);
     dot.dataset.state = state.status;
     dot.setAttribute("aria-label", tr(statusKey(state.status)));

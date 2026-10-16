@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld(
     sendTurn: (turn) => ipcRenderer.invoke("blinkling:send", turn),
     select: (selection) => ipcRenderer.invoke("blinkling:select", selection),
     stop: () => ipcRenderer.invoke("blinkling:stop"),
+    switchChat: (key) => ipcRenderer.invoke("blinkling:chat-switch", key),
     onCapture: (listener) => {
       const remove = subscribe("blinkling:capture", listener);
       ipcRenderer.send("blinkling:composer-ready");

@@ -32,6 +32,8 @@ const expected: Record<string, Record<string, boolean>> = {
   desktop_open: { readOnlyHint: false, openWorldHint: true },
   extension_install: { readOnlyHint: false, destructiveHint: false },
   screen_clear: { readOnlyHint: false, destructiveHint: true },
+  blinkling_reply: { readOnlyHint: false, destructiveHint: false },
+  blinkling_chat_images: { readOnlyHint: true },
 };
 
 it("every tool carries a title and all four behaviour hints", async () => {

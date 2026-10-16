@@ -137,3 +137,27 @@ test("a new chat empties the history and a second one starts clean", () => {
   assert.equal(s.snapshot().length, 1);
   s.dispose();
 });
+
+test("another chat on show clears the list and its own history replays; the chat list is kept", () => {
+  const s = createMessageStream();
+  const chats = [
+    { key: "blink", label: "Blink", live: true },
+    { key: "s1", label: "alpha", live: true },
+  ];
+  s.accept({ type: "chat", key: "blink", channel: false, chats });
+  s.accept(say("a", "From Blink."));
+  s.accept({ type: "chat", key: "s1", channel: true, chats });
+  assert.equal(s.snapshot().length, 0);
+  assert.equal(s.state().channel, true);
+  assert.equal(s.state().chatKey, "s1");
+  s.accept({ ...say("b", "From the terminal."), replay: true });
+  assert.deepEqual(
+    s.snapshot().map((m) => m.id),
+    ["b"],
+  );
+  // The same chat announced again keeps what it shows.
+  s.accept({ type: "chat", key: "s1", channel: true, chats });
+  assert.equal(s.snapshot().length, 1);
+  s.accept({ type: "chat", key: 5, chats });
+  assert.equal(s.state().chatKey, "s1");
+});

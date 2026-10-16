@@ -56,6 +56,7 @@ import {
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { OwnedSession, SessionBridge } from "../session/index.mjs";
+import { ChannelChat, ChatRouter } from "../session/router.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
 import { createOnce, fileStore } from "../pick/once.mjs";
@@ -718,8 +719,7 @@ const fakeClaude =
         new URL("../session/e2e/fake-claude.fixture.mjs", import.meta.url),
       )
     : null;
-const session = new SessionBridge({
-  userDataDir: app.getPath("userData"),
+const bridgeOptions = {
   cwd:
     process.env.BLINKLING_CWD ??
     (process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"
@@ -734,6 +734,27 @@ const session = new SessionBridge({
           new OwnedSession({ executableArgs: [fakeClaude] }),
       }
     : {}),
+};
+const bridgeFor = (userDataDir, cwd) =>
+  new SessionBridge({
+    ...bridgeOptions,
+    userDataDir,
+    ...(cwd && !process.env.BLINKLING_CWD && !fakeClaude ? { cwd } : {}),
+  });
+// Blink's own chat, and one chat for each Claude Code session that joins: a
+// session started with the channel flag answers its chat itself, any other
+// is answered by an owned session of its own.
+const ownSession = bridgeFor(app.getPath("userData"));
+let companionHost;
+const session = new ChatRouter({
+  main: ownSession,
+  makeBridge: (id, cwd) =>
+    bridgeFor(join(app.getPath("userData"), "chats", id), cwd),
+  makeChannel: (id) =>
+    new ChannelChat({
+      directory: join(app.getPath("userData"), "chats", id),
+      deliver: (frame) => companionHost?.toSession(id, frame) ?? false,
+    }),
 });
 session.subscribe(send, { visible: true });
 // Pointing, the pick layer and the privacy guard share one locator. It is
@@ -887,6 +908,12 @@ ipcMain.handle("blinkling:select", (event, selection) => {
   requireView(event);
   return session.select(selection);
 });
+ipcMain.handle("blinkling:chat-switch", (event, key) => {
+  requireView(event);
+  if (typeof key !== "string" || key.length > 200)
+    throw new Error("Invalid chat");
+  return session.switchTo(key);
+});
 ipcMain.handle("blinkling:stop", (event) => {
   requireView(event);
   return session.stop();
@@ -971,7 +998,7 @@ await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
 );
 blink.showInactive();
-const companionHost = await startDesktopHost({
+companionHost = await startDesktopHost({
   ...(process.env.BLINKLING_E2E === "1"
     ? (() => {
         const directory =
@@ -981,18 +1008,19 @@ const companionHost = await startDesktopHost({
       })()
     : {}),
   session,
-  onOpen: () => blink.showInactive(),
+  onOpen: ({ session: id }) => {
+    session.open(id);
+    blink.showInactive();
+  },
+  onLink: (link) => session.link(link),
+  onUnlink: (link) => session.unlink(link.session),
+  onReply: (reply) => session.reply(reply),
+  onTurnEnd: (end) => session.turnEnd(end),
+  chatImages: async ({ session: id }) => session.images(id),
   onShutdown: () => app.quit(),
   // A line from the terminal session is shown in the chat and not kept in the
   // owned session's history; `origin` keeps it from being sent back.
-  onMirror: ({ role, text, id }) =>
-    session.emit({
-      type: "message",
-      id: `terminal-${id}`,
-      role,
-      origin: "terminal",
-      content: [{ type: "text", text }],
-    }),
+  onMirror: (line) => session.mirror(line),
 });
 globalThis.blinklingCompanion = companionHost;
 // Opening Blink again while it runs brings it forward instead of doing nothing.
@@ -1212,6 +1240,7 @@ const settings = installSettings({
     guide: () => void openCompanionGuide(),
     // The language is read at start, so a new one restarts Blink.
     languageChanged: () => {
+      relaunching = true;
       app.relaunch();
       app.quit();
     },
@@ -1385,6 +1414,7 @@ const showsMotions =
 if (showsMotions)
   setTimeout(() => motion("appear"), timing.appearLead).unref?.();
 let disposed = false;
+let relaunching = false;
 app.on("before-quit", (event) => {
   if (disposed) return;
   event.preventDefault();
@@ -1396,7 +1426,11 @@ app.on("before-quit", (event) => {
   if (leaving) motion("leave");
   Promise.allSettled([
     session.dispose(),
-    companionHost.close(),
+    // Every linked terminal session is told Blink is gone, unless Blink is
+    // only starting again.
+    (relaunching ? Promise.resolve() : companionHost.announceQuit()).then(() =>
+      companionHost.close(),
+    ),
     realLocator.close(),
     leaving
       ? new Promise((done) => setTimeout(done, LEAVE_FOR * 1000))

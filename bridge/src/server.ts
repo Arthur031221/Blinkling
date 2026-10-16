@@ -20,7 +20,8 @@ import { SlidingWindowLimiter } from "./limiter.js";
 import { cancelled } from "./errors.js";
 import {
   SYNC_INSTRUCTIONS,
-  SYNC_NOTE,
+  syncIdentity,
+  syncNote,
   startSyncChannel,
 } from "./sync-channel.js";
 
@@ -49,7 +50,10 @@ export async function createBlinkling(options: ServerOptions = {}) {
       instructions: SYNC_INSTRUCTIONS,
     },
   );
-  let stopSync: (() => void) | undefined;
+  let sync: ReturnType<typeof startSyncChannel> | undefined;
+  let who: ReturnType<typeof syncIdentity> | undefined;
+  /** Which Claude Code session loaded this server; read once, when first needed. */
+  const identity = () => (who ??= syncIdentity());
   let watchTimer: NodeJS.Timeout | undefined;
   let watching = false,
     inCapture = false;
@@ -405,11 +409,11 @@ export async function createBlinkling(options: ServerOptions = {}) {
     },
     async () => {
       try {
-        await launchDesktop();
+        await launchDesktop({ session: identity().session });
         return {
           content: [
             { type: "text" as const, text: "Blink is ready on your desktop." },
-            { type: "text" as const, text: SYNC_NOTE },
+            { type: "text" as const, text: syncNote(identity().channel) },
           ],
         };
       } catch (error) {
@@ -422,6 +426,99 @@ export async function createBlinkling(options: ServerOptions = {}) {
                 error instanceof Error
                   ? error.message
                   : "Blink could not start.",
+            },
+          ],
+        };
+      }
+    },
+  );
+  server.registerTool(
+    "blinkling_reply",
+    {
+      title: "Answer the chat held in Blink",
+      description:
+        "Send the answer to a message the person typed in Blink. Only for events that arrive from the blinkling channel. The answer shows in Blink's chat as the assistant's.",
+      inputSchema: {
+        text: z.string().min(1).max(20_000),
+        turn: z.string().max(100).optional(),
+      },
+      annotations: {
+        title: "Answer the chat held in Blink",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ text, turn }) => {
+      try {
+        if (!sync) throw new Error("Blink is not linked to this session.");
+        if (!identity().channel)
+          throw new Error(
+            "This session was not started with the channel flag, so Blink answers its own chat.",
+          );
+        const result = await sync.reply(text, turn);
+        if (result.ok !== true)
+          throw new Error("Blink had no open question for this session.");
+        return { content: [{ type: "text" as const, text: "Sent to Blink." }] };
+      } catch (error) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text:
+                error instanceof Error
+                  ? error.message
+                  : "Blink is not reachable.",
+            },
+          ],
+        };
+      }
+    },
+  );
+  server.registerTool(
+    "blinkling_chat_images",
+    {
+      title: "Look at the pictures in Blink's chat",
+      description:
+        "Return the pictures attached to the latest message the person typed in Blink, as images. Call it when a channel event says pictures are attached.",
+      inputSchema: {},
+      annotations: {
+        title: "Look at the pictures in Blink's chat",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      try {
+        if (!sync) throw new Error("Blink is not linked to this session.");
+        const images = await sync.images();
+        if (!images.length)
+          return {
+            content: [
+              { type: "text" as const, text: "No pictures are attached." },
+            ],
+          };
+        return {
+          content: images.map((image) => ({
+            type: "image" as const,
+            data: image.data,
+            mimeType: image.mediaType,
+          })),
+        };
+      } catch (error) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text:
+                error instanceof Error
+                  ? error.message
+                  : "Blink is not reachable.",
             },
           ],
         };
@@ -481,10 +578,10 @@ export async function createBlinkling(options: ServerOptions = {}) {
     helper,
     async connect() {
       await server.connect(new StdioServerTransport());
-      stopSync = startSyncChannel(server);
+      sync = startSyncChannel(server, { identity: identity() });
     },
     async close() {
-      stopSync?.();
+      sync?.stop();
       await stopCaptures();
       await helper.close();
       history.clear();

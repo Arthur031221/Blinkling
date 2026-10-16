@@ -46,9 +46,18 @@ test("a line Blink sent to the terminal as a channel event is not mirrored back"
     hook_event_name: "UserPromptSubmit",
     session_id: "s1",
     prompt:
-      '<channel source="blinkling" role="user" chat_id="m_1">fix the build</channel>',
+      '<channel source="plugin:blinkling:blinkling" kind="question" turn="m_1">fix the build</channel>',
   });
   assert.equal(echoed, undefined);
+  // A server added by hand names itself without the plugin prefix.
+  assert.equal(
+    mirrorLine({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "s1",
+      prompt: '<channel source="blinkling" turn="m_1">fix the build</channel>',
+    }),
+    undefined,
+  );
   // A person who types the word channel is still mirrored.
   assert.equal(
     mirrorLine({
@@ -122,6 +131,58 @@ test("without Blink running the hook does nothing and does not fail", async () =
       false,
     );
   } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("the answer to a turn that began as a Blink channel event is not mirrored back but ends the turn in Blink, and the next typed turn is mirrored", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
+  const lines = [];
+  const ends = [];
+  const host = await startDesktopHost({
+    directory,
+    descriptor: join(directory, "desktop.json"),
+    onMirror: (line) => lines.push([line.role, line.text]),
+    onTurnEnd: (end) => ends.push([end.session, end.text]),
+  });
+  try {
+    await writeFile(
+      join(directory, "sessions.json"),
+      JSON.stringify([{ id: "mine", at: Date.now() }]),
+    );
+    const prompt = (text) => ({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "mine",
+      prompt: text,
+    });
+    const stop = (text) => ({
+      hook_event_name: "Stop",
+      session_id: "mine",
+      last_assistant_message: text,
+    });
+    // A turn typed in the terminal: both sides are mirrored.
+    await mirror(prompt("typed question"), directory);
+    await mirror(stop("typed answer"), directory);
+    // A turn Blink started: the prompt hook skips it and so does the Stop hook.
+    await mirror(
+      prompt(
+        '<channel source="plugin:blinkling:blinkling" kind="question" turn="t1">from blink</channel>',
+      ),
+      directory,
+    );
+    assert.equal(await mirror(stop("answer to blink"), directory), true);
+    assert.deepEqual(ends, [["mine", "answer to blink"]]);
+    // Back in the terminal.
+    await mirror(prompt("typed again"), directory);
+    assert.equal(await mirror(stop("answer again"), directory), true);
+    assert.deepEqual(lines, [
+      ["user", "typed question"],
+      ["assistant", "typed answer"],
+      ["user", "typed again"],
+      ["assistant", "answer again"],
+    ]);
+  } finally {
+    await host.close();
     await rm(directory, { recursive: true, force: true });
   }
 });

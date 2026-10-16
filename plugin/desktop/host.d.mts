@@ -52,21 +52,45 @@ export type CompanionSession = Pick<
   SessionBridge,
   "subscribe" | "select" | "send" | "stop"
 >;
+export type LinkedSession = {
+  session: string;
+  pid: number;
+  cwd: string;
+  /** Started with the channel flag: it can answer Blink's chat itself. */
+  channel: boolean;
+};
 export function startDesktopHost(options?: {
   directory?: string;
   descriptor?: string;
   version?: string;
   session?: CompanionSession;
-  onOpen?: () => unknown;
+  onOpen?: (from: { session: string }) => unknown;
   onShutdown?: () => unknown;
   onMirror?: (line: {
     role: "user" | "assistant";
     text: string;
     id: string;
+    session: string;
   }) => unknown;
+  onLink?: (link: LinkedSession) => unknown;
+  onUnlink?: (link: { session: string }) => unknown;
+  onReply?: (reply: { session: string; turn: string; text: string }) => unknown;
+  onTurnEnd?: (end: { session: string; text: string }) => unknown;
+  chatImages?: (from: {
+    session: string;
+  }) => Promise<{ mediaType: string; data: string }[]>;
 }): Promise<{
   address: DesktopEndpoint;
   attachSession: (session: CompanionSession | undefined) => void;
+  /** The linked Claude Code sessions, oldest first. */
+  links: () => LinkedSession[];
+  /** One frame to a session started with the channel flag; false if it is not. */
+  toSession: (session: string, frame: Record<string, unknown>) => boolean;
+  /** Blink is closing: a notice event to each channel session and a mark for
+   * every other linked session; how many channel sessions took it. */
+  announceQuit: () => Promise<number>;
+  /** The same frame to every channel session; how many took it. */
+  toChannels: (frame: Record<string, unknown>) => number;
   openCompanionGuide: () => Promise<void>;
   fullPage: (
     signal?: AbortSignal,

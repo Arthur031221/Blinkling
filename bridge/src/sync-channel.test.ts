@@ -1,55 +1,116 @@
 import { describe, expect, it } from "vitest";
-import { mirrorLines, textOf } from "./sync-channel.js";
+import {
+  SYNC_COMMAND,
+  SYNC_INSTRUCTIONS,
+  channelFlagged,
+  channelNotification,
+  syncIdentity,
+  syncNote,
+} from "./sync-channel.js";
 
-const say = (id: string, role: string, text: string, origin?: string) => ({
-  type: "message",
-  id,
-  role,
-  ...(origin ? { origin } : {}),
-  content: [{ type: "text", text }],
-});
-
-describe("mirroring Blink's chat to the terminal", () => {
-  it("sends what was typed at once and the answer when it is done", () => {
-    const next = mirrorLines();
-    expect(next(say("u", "user", "hi"))).toEqual([
-      { id: "u", role: "user", text: "hi" },
-    ]);
-    expect(next(say("a", "assistant", "He"))).toEqual([]);
-    expect(next(say("a", "assistant", "Hello"))).toEqual([]);
-    expect(next({ type: "done", turnId: "u" })).toEqual([
-      { id: "a", role: "assistant", text: "Hello" },
-    ]);
-    expect(next({ type: "done", turnId: "u" })).toEqual([]);
+describe("telling whether Claude Code was started with the channel", () => {
+  it("sees the development flag naming this plugin", () => {
+    expect(
+      channelFlagged(
+        "claude\0--dangerously-load-development-channels\0plugin:blinkling@blinkling\0",
+      ),
+    ).toBe(true);
+    expect(channelFlagged(SYNC_COMMAND)).toBe(true);
   });
-  it("sends a message once even when Blink replays it", () => {
-    const next = mirrorLines();
-    expect(next(say("u", "user", "hi"))).toHaveLength(1);
-    expect(next(say("u", "user", "hi"))).toEqual([]);
-  });
-  it("never sends a terminal line back to the terminal", () => {
-    const next = mirrorLines();
-    expect(next(say("t", "user", "from the terminal", "terminal"))).toEqual([]);
-    expect(next(say("t2", "assistant", "answer", "terminal"))).toEqual([]);
-    expect(next({ type: "done", turnId: "t" })).toEqual([]);
-  });
-  it("names a picture and keeps the text, and caps a long message", () => {
-    expect(textOf([{ type: "text", text: "look" }, { type: "image" }])).toBe(
-      "look\n[picture]",
+  it("sees the plain channels flag too", () => {
+    expect(channelFlagged("claude --channels plugin:blinkling@blinkling")).toBe(
+      true,
     );
-    expect(textOf([{ type: "text", text: "x".repeat(20000) }])).toHaveLength(
-      8000,
-    );
-    expect(textOf(undefined)).toBe("");
+  });
+  it("does not take another plugin's channel, or no flag, for ours", () => {
+    expect(
+      channelFlagged(
+        "claude --dangerously-load-development-channels plugin:other@market",
+      ),
+    ).toBe(false);
+    expect(channelFlagged("claude --resume abc")).toBe(false);
+    expect(channelFlagged("")).toBe(false);
   });
 });
 
-describe("the command offered to the person", () => {
-  it("is the documented flag naming this plugin, and the note carries it", async () => {
-    const { SYNC_COMMAND, SYNC_NOTE } = await import("./sync-channel.js");
+describe("what Blink sends a linked session", () => {
+  it("is a question with its turn, and a notice with its kind", () => {
+    expect(
+      channelNotification({ type: "turn", turn: "t-1", text: "what is this?" }),
+    ).toEqual({
+      content: "what is this?",
+      meta: { kind: "question", turn: "t-1" },
+    });
+    expect(
+      channelNotification({ type: "notice", text: "Blink was closed." }),
+    ).toEqual({ content: "Blink was closed.", meta: { kind: "notice" } });
+  });
+  it("carries only identifier characters in its meta and drops empty frames", () => {
+    expect(
+      channelNotification({ type: "turn", turn: 'a"b c', text: "x" })?.meta
+        .turn,
+    ).toBe("abc");
+    expect(channelNotification({ type: "turn", text: "  " })).toBeUndefined();
+    expect(channelNotification({ type: "other", text: "x" })).toBeUndefined();
+  });
+});
+
+describe("naming the session that loaded the server", () => {
+  it("uses the ids Claude Code puts in the environment", () => {
+    const read = (pid: number) =>
+      pid === 4242
+        ? "claude --dangerously-load-development-channels plugin:blinkling@blinkling"
+        : "";
+    expect(
+      syncIdentity(
+        {
+          CLAUDE_CODE_SESSION_ID: "abc-123",
+          CLAUDE_PROJECT_DIR: "/work/alpha",
+        },
+        4242,
+        read,
+      ),
+    ).toEqual({
+      session: "abc-123",
+      pid: 4242,
+      cwd: "/work/alpha",
+      channel: true,
+    });
+  });
+  it("reads the parent process, never a CLAUDE_PID that an outer Claude Code left in the environment", () => {
+    // A Claude Code started inside another one inherits the outer one's pid.
+    const read = (pid: number) =>
+      pid === 1111
+        ? "claude --dangerously-load-development-channels plugin:blinkling@blinkling"
+        : "claude";
+    const identity = syncIdentity(
+      { CLAUDE_PID: "1111", CLAUDE_CODE_SESSION_ID: "inner" },
+      2222,
+      read,
+    );
+    expect(identity.pid).toBe(2222);
+    expect(identity.channel).toBe(false);
+  });
+  it("falls back to the parent process and says no channel when the command is unreadable", () => {
+    const identity = syncIdentity({}, 77, () => "");
+    expect(identity.pid).toBe(77);
+    expect(identity.session).toBe("pid-77");
+    expect(identity.channel).toBe(false);
+  });
+});
+
+describe("what the person and Claude are told", () => {
+  it("names the documented command, by whether the session took the channel", () => {
     expect(SYNC_COMMAND).toBe(
       "claude --dangerously-load-development-channels plugin:blinkling@blinkling",
     );
-    expect(SYNC_NOTE).toContain(SYNC_COMMAND);
+    expect(syncNote(false)).toContain(SYNC_COMMAND);
+    expect(syncNote(true)).not.toContain(SYNC_COMMAND);
+  });
+  it("tells Claude to answer through the reply tool and to show notices in one line", () => {
+    expect(SYNC_INSTRUCTIONS).toMatch(/blinkling_reply/);
+    expect(SYNC_INSTRUCTIONS).toMatch(/blinkling_chat_images/);
+    expect(SYNC_INSTRUCTIONS).toMatch(/notice/);
+    expect(SYNC_INSTRUCTIONS).toMatch(/one short line/);
   });
 });

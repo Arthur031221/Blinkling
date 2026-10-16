@@ -4,6 +4,7 @@ import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { privateDirectory, atomicJson } from "./install.mjs";
 import { endpointPath, runtimeDirectory } from "./paths.mjs";
+import { markQuit } from "./sessions.mjs";
 
 const MAX_BODY = 24 * 1024 * 1024;
 const turnIdValid = (id) =>
@@ -108,6 +109,11 @@ export async function startDesktopHost({
   onOpen = () => {},
   onShutdown = () => {},
   onMirror = () => {},
+  onLink = () => {},
+  onUnlink = () => {},
+  onReply = () => {},
+  onTurnEnd = () => {},
+  chatImages = async () => [],
   descriptor = endpointPath(),
   directory = runtimeDirectory(),
   version = "3.2.0",
@@ -125,6 +131,18 @@ export async function startDesktopHost({
     identity,
     selection;
   const streams = new Set();
+  /** The Claude Code sessions that are linked to Blink: one open stream each,
+   * held by that session's plugin server. `channel` says the session was
+   * started with the channel flag, so Blink's chat can be answered by it. */
+  const links = new Map();
+  const sessionId = (value) =>
+    typeof value === "string" && /^[\w-]{1,80}$/.test(value) ? value : "";
+  const toLink = (session, frame) => {
+    const link = links.get(session);
+    if (!link?.channel || link.res.destroyed) return false;
+    link.res.write(JSON.stringify(frame) + "\n");
+    return true;
+  };
   // Stop can arrive on another connection before the image body is fully read.
   // Keep bounded, short-lived UUID tombstones without interrupting other turns.
   const cancelledUploads = new Map();
@@ -191,6 +209,43 @@ export async function startDesktopHost({
         });
         return;
       }
+      if (req.method === "GET" && /^\/link\?/.test(req.url || "")) {
+        const query = new URL(req.url, address.url).searchParams;
+        const id = sessionId(query.get("session"));
+        if (!id) throw new Error("Invalid session");
+        const link = {
+          session: id,
+          pid: Number.isSafeInteger(Number(query.get("pid")))
+            ? Number(query.get("pid"))
+            : 0,
+          cwd: String(query.get("cwd") ?? "").slice(0, 500),
+          channel: query.get("channel") === "1",
+          res,
+        };
+        res.writeHead(200, {
+          "Content-Type": "application/x-ndjson",
+          "Cache-Control": "no-store",
+        });
+        res.flushHeaders();
+        links.get(id)?.res.end();
+        links.set(id, link);
+        res.write(JSON.stringify({ type: "linked" }) + "\n");
+        onLink({
+          session: id,
+          pid: link.pid,
+          cwd: link.cwd,
+          channel: link.channel,
+        });
+        const heartbeat = setInterval(() => res.write("\n"), 10_000);
+        res.on("close", () => {
+          clearInterval(heartbeat);
+          if (links.get(id) === link) {
+            links.delete(id);
+            onUnlink({ session: id });
+          }
+        });
+        return;
+      }
       if (req.method !== "POST" || req.url !== "/rpc") {
         json(res, 404, { error: "Unknown desktop request" });
         return;
@@ -198,9 +253,48 @@ export async function startDesktopHost({
       const message = await body(req);
       switch (message.method) {
         case "open":
-          await onOpen();
+          await onOpen({ session: sessionId(message.session) });
           json(res, 200, { ok: true });
           return;
+        case "reply": {
+          // The terminal session's answer to a chat held in Blink.
+          const text = typeof message.text === "string" ? message.text : "";
+          if (
+            !sessionId(message.session) ||
+            !text.trim() ||
+            text.length > MIRROR_LIMIT
+          )
+            throw new Error("Invalid reply");
+          json(res, 200, {
+            ok: await onReply({
+              session: message.session,
+              turn: typeof message.turn === "string" ? message.turn : "",
+              text,
+            }),
+          });
+          return;
+        }
+        case "turn-end": {
+          // A Stop hook: the turn in a linked session ended with this text.
+          if (!sessionId(message.session)) throw new Error("Invalid session");
+          json(res, 200, {
+            ok: await onTurnEnd({
+              session: message.session,
+              text:
+                typeof message.text === "string"
+                  ? message.text.slice(0, MIRROR_LIMIT)
+                  : "",
+            }),
+          });
+          return;
+        }
+        case "chat-images": {
+          if (!sessionId(message.session)) throw new Error("Invalid session");
+          json(res, 200, {
+            images: await chatImages({ session: message.session }),
+          });
+          return;
+        }
         case "reconnect":
           json(res, 200, { ok: true });
           return;
@@ -216,7 +310,7 @@ export async function startDesktopHost({
             !/^[\w.:-]{1,160}$/.test(id)
           )
             throw new Error("Invalid mirrored line");
-          onMirror({ role, text, id });
+          onMirror({ role, text, id, session: sessionId(message.session) });
           json(res, 200, { ok: true });
           return;
         }
@@ -394,6 +488,37 @@ export async function startDesktopHost({
   return {
     address,
     attachSession: attach,
+    /** The linked sessions, oldest first. */
+    links: () =>
+      [...links.values()].map(({ session, pid, cwd, channel }) => ({
+        session,
+        pid,
+        cwd,
+        channel,
+      })),
+    /** Sends one frame to a session started with the channel flag; false when
+     * that session is not linked that way. */
+    toSession: toLink,
+    /** Blink is closing: sessions started with the channel flag get a notice
+     * event, every other linked session is marked for the notice hook. */
+    async announceQuit() {
+      const channels = [...links.values()]
+        .filter((l) => l.channel)
+        .map((l) => l.session);
+      for (const id of channels)
+        toLink(id, {
+          type: "notice",
+          text: "Blink was closed. Its chat cannot reach this session until Blink is started again with /blinkling.",
+        });
+      await markQuit(directory, channels).catch(() => {});
+      return channels.length;
+    },
+    /** The same frame to every session that can take it. */
+    toChannels(frame) {
+      let count = 0;
+      for (const id of links.keys()) if (toLink(id, frame)) count++;
+      return count;
+    },
     /** Whether the helper answers right now. A registration is made once, so
      * the endpoint is asked again, and one that is gone is forgotten. */
     async companionConnected({ timeout = 400 } = {}) {
@@ -498,6 +623,7 @@ export async function startDesktopHost({
     async close() {
       unsubscribe?.();
       for (const res of streams) res.end();
+      for (const link of links.values()) link.res.end();
       await new Promise((resolve) => {
         server.close(resolve);
         server.closeAllConnections();

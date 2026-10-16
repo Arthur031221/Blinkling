@@ -29,6 +29,19 @@ export class DesktopClient {
     signal: AbortSignal,
     after?: number,
     onReady?: () => void,
+    path?: string,
+  ): Promise<void>;
+  /** Holds the line a Claude Code session keeps open to Blink. */
+  link(
+    params: {
+      session: string;
+      pid: number;
+      cwd: string;
+      channel: 0 | 1;
+    },
+    onEvent: (frame: Record<string, unknown>) => void,
+    signal: AbortSignal,
+    onReady?: () => void,
   ): Promise<void>;
 }
 export function discoverDesktop(

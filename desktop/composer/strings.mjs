@@ -5,6 +5,7 @@ export const strings = {
   en: {
     card: "Chat with Blink",
     pin: "Pin chat",
+    chats: "Chats",
     close: "Close chat",
     history: "Conversation",
     working: "Blink is working",
@@ -58,6 +59,7 @@ export const strings = {
   "zh-TW": {
     card: "與 Blink 對話",
     pin: "釘選對話",
+    chats: "對話",
     close: "收起對話",
     history: "對話紀錄",
     working: "Blink 正在處理",
@@ -110,6 +112,7 @@ export const strings = {
   "zh-CN": {
     card: "与 Blink 对话",
     pin: "固定对话",
+    chats: "对话",
     close: "收起对话",
     history: "对话记录",
     working: "Blink 正在处理",
@@ -162,6 +165,7 @@ export const strings = {
   ja: {
     card: "Blink とチャット",
     pin: "チャットを固定",
+    chats: "チャット",
     close: "チャットを閉じる",
     history: "会話履歴",
     working: "Blink が作業中です",
@@ -217,6 +221,7 @@ export const strings = {
   ko: {
     card: "Blink와 대화",
     pin: "대화 고정",
+    chats: "대화",
     close: "대화 닫기",
     history: "대화 기록",
     working: "Blink가 작업 중입니다",
@@ -272,6 +277,7 @@ export const strings = {
   de: {
     card: "Chat mit Blink",
     pin: "Chat anheften",
+    chats: "Chats",
     close: "Chat schließen",
     history: "Unterhaltung",
     working: "Blink arbeitet",
@@ -327,6 +333,7 @@ export const strings = {
   es: {
     card: "Chat con Blink",
     pin: "Fijar el chat",
+    chats: "Chats",
     close: "Cerrar el chat",
     history: "Conversación",
     working: "Blink está trabajando",
@@ -382,6 +389,7 @@ export const strings = {
   fr: {
     card: "Discuter avec Blink",
     pin: "Épingler la discussion",
+    chats: "Discussions",
     close: "Fermer la discussion",
     history: "Conversation",
     working: "Blink travaille",
@@ -438,6 +446,7 @@ export const strings = {
   "pt-BR": {
     card: "Conversa com o Blink",
     pin: "Fixar a conversa",
+    chats: "Conversas",
     close: "Fechar a conversa",
     history: "Conversa",
     working: "Blink está trabalhando",

@@ -6,6 +6,14 @@ import { fileURLToPath } from "node:url";
 import { discoverDesktop } from "./client.mjs";
 import { runtimeDirectory } from "./paths.mjs";
 import { MIRROR_LIMIT } from "./host.mjs";
+import { markTurn } from "./sessions.mjs";
+
+/** A prompt that is Blink's own chat coming back as a channel event. An
+ * installed plugin's events carry source="plugin:blinkling:blinkling"; a
+ * server added by hand carries the bare name. */
+export const isChannelPrompt = (text) =>
+  typeof text === "string" &&
+  /^\s*<channel\s+source="(?:plugin:blinkling:|)blinkling"/.test(text);
 
 /** What a terminal turn adds to Blink's chat, from a hook payload: the prompt
  * typed, or the answer Claude Code just finished. Nothing for other events. */
@@ -20,8 +28,7 @@ export function mirrorLine(payload) {
   if (!role || typeof text !== "string" || !text.trim()) return undefined;
   // Blink's own chat reaches the terminal as a channel event, which the prompt
   // hook sees as a prompt; sending it on would show every line twice.
-  if (role === "user" && /^\s*<channel source="blinkling"/.test(text))
-    return undefined;
+  if (role === "user" && isChannelPrompt(text)) return undefined;
   const session = String(payload.session_id ?? "").replace(/[^\w-]/g, "");
   if (!session) return undefined;
   const id = `${session.slice(0, 40)}-${role}-${createHash("sha256")
@@ -36,27 +43,54 @@ export function mirrorLine(payload) {
   };
 }
 
-/** Only a session that opened Blink is mirrored, so no other terminal's text
- * ever reaches the screen. */
-export async function mirrors(directory, session) {
+/** The entry of a session that opened Blink, or nothing: no other terminal's
+ * text ever reaches the screen. */
+export async function opened(directory, session) {
   try {
     const list = JSON.parse(
       await readFile(join(directory, "sessions.json"), "utf8"),
     );
-    return Array.isArray(list) && list.some((e) => e?.id === session);
+    return (
+      (Array.isArray(list) && list.find((e) => e?.id === session)) || undefined
+    );
   } catch {
-    return false;
+    return undefined;
   }
 }
+export const mirrors = async (directory, session) =>
+  Boolean(await opened(directory, session));
 
 export async function mirror(payload, directory = runtimeDirectory()) {
   const line = mirrorLine(payload);
-  if (!line || !(await mirrors(directory, line.session))) return false;
+  const event = payload?.hook_event_name;
+  const session = payload?.session_id;
+  const channelTurn = isChannelPrompt(payload?.prompt);
+  // Each prompt says what the turn it starts is. A turn that began as Blink's
+  // own channel event is answered in Blink through the reply tool.
+  if (event === "UserPromptSubmit" && typeof session === "string")
+    await markTurn(directory, session, channelTurn).catch(() => {});
+  if (!line && !(event === "Stop" && typeof session === "string")) return false;
+  const entry = await opened(directory, line?.session ?? session);
+  if (!entry) return false;
   const found = await discoverDesktop(join(directory, "desktop.json"), {
     timeoutMs: 1500,
   });
   if (!found) return false;
+  if (event === "Stop" && entry.turn === "channel") {
+    // The terminal's turn for a chat in Blink ended. If the answer came as
+    // plain text and not through the reply tool, Blink shows it from here.
+    await found.client.rpc("turn-end", {
+      session,
+      text:
+        typeof payload.last_assistant_message === "string"
+          ? payload.last_assistant_message
+          : "",
+    });
+    return true;
+  }
+  if (!line) return false;
   await found.client.rpc("mirror", {
+    session: line.session,
     role: line.role,
     id: line.id,
     text: line.text,

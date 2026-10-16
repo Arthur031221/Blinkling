@@ -8,7 +8,12 @@ export function createMessageStream() {
     // A turn is out and no answer text has arrived yet (the thinking wait).
     working = false,
     seeing = false,
-    status = "starting";
+    status = "starting",
+    // The chats Blink holds (one for each linked Claude Code session) and the
+    // one on show.
+    chats = [],
+    chatKey = "",
+    channel = false;
   const snapshot = () => structuredClone([...messages.values()]);
   const state = () => ({
     messages: snapshot(),
@@ -16,6 +21,9 @@ export function createMessageStream() {
     working: working && !speaking,
     seeing,
     status,
+    chats: structuredClone(chats),
+    chatKey,
+    channel,
   });
   const notify = () => {
     for (const listener of listeners) listener(state());
@@ -69,7 +77,26 @@ export function createMessageStream() {
     state,
     accept(event) {
       if (event.type === "status") status = event.state;
-      else if (event.type === "sending") {
+      else if (event.type === "chat") {
+        if (typeof event.key !== "string" || !Array.isArray(event.chats))
+          return;
+        chats = event.chats
+          .filter((c) => typeof c?.key === "string")
+          .map((c) => ({
+            key: c.key,
+            label: String(c.label ?? "").slice(0, 80),
+            live: c.live !== false,
+          }));
+        channel = Boolean(event.channel);
+        if (event.key !== chatKey) {
+          // Another chat is on show: it replays its own history next.
+          messages.clear();
+          speaking = false;
+          working = false;
+          seeing = false;
+          chatKey = event.key;
+        }
+      } else if (event.type === "sending") {
         working = true;
         seeing = Boolean(event.seeing);
       } else if (event.type === "activity") {

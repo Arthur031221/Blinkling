@@ -96,6 +96,7 @@ export const conversation = mountConversation({
   onNudge: (value) => api.nudge?.(value),
   nudgeNow: () => shellState?.nudge,
   onClose: () => api.close?.(),
+  onChat: (key) => api.switchChat?.(key),
   onTyping: (value) => api.typing?.(value),
   onHold: (value) => api.hold?.(value),
   openLink: (url) => api.openLink?.(url),

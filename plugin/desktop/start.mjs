@@ -39,6 +39,7 @@ try {
     const id = await hookSessionId();
     if (id) await joinSession(runtimeDirectory(), id).catch(() => {});
     const result = await launchDesktop({
+      session: id || undefined,
       background,
       deferVerification: true,
     });

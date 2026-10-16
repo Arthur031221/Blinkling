@@ -105,6 +105,38 @@ a:focus-visible {
 .gl-card-header[data-nudging] {
   cursor: grabbing;
 }
+.gl-chat-tabs {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0 6px;
+}
+.gl-chat-tab {
+  border: 1px solid var(--gl-border);
+  background: transparent;
+  color: inherit;
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  font-size: var(--type-xs);
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gl-chat-tab[aria-selected="true"] {
+  background: var(--green);
+  border-color: transparent;
+  color: var(--text-on-green);
+}
+.gl-chat-tab[data-live="false"] {
+  opacity: 0.55;
+}
+.gl-chat-card[data-channel="true"] .gl-picker,
+.gl-chat-card[data-channel="true"] .gl-picker-dot {
+  display: none;
+}
 .gl-brand {
   font-size: var(--type-m);
   font-weight: 650;
