@@ -12,14 +12,9 @@
       "scene": "papers",
       "url": "https://arxiv.org/abs/2501.12948",
       "sha256": "55201622779e6b0cb7b9585a562c8e80bfa2a17896b60f33cdd86090cc7a651f",
-      "segments": [
-        [
-          2.5,
-          22.5
-        ]
-      ],
+      "segments": [[2.5, 22.5]],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "2f4ac1cc6b5d8c8ade2b4bba99fe15c874e7e5facc4c756b74ed1d3b5fc776e3",
+      "eventsSha256": "b264af0a55f32b427d47e97e1f7614d5b6c9eb717b2941f1d3c7ed1fa1c6bec6",
       "turns": 1
     },
     {
@@ -27,14 +22,9 @@
       "scene": "ask",
       "url": "https://arxiv.org/abs/2501.12948",
       "sha256": "fb9525b223bf94c0bbf149378958662c5a46a75f7339ec9c2ae7814375b6de69",
-      "segments": [
-        [
-          2.5,
-          17.5
-        ]
-      ],
+      "segments": [[2.5, 17.5]],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "251ca9e9a08379854aadb41bd7ec759a7e6621a4f00db23d6ac2e72dd4aa0d9b",
+      "eventsSha256": "6d831525e7f9d760bcc04b81fdae6b2fe5cd07bb2a0dd7278e6d094d29b62a83",
       "turns": 1,
       "prompt": "what is reinforcement learning, in two lines"
     },
@@ -43,14 +33,9 @@
       "scene": "arabic",
       "url": "https://ar.wikipedia.org/wiki/ذكاء_اصطناعي",
       "sha256": "9972dc71805816922cf27ac55e7a9a69458f6e50b44ddead5bf5959182b95edc",
-      "segments": [
-        [
-          2.5,
-          22.5
-        ]
-      ],
+      "segments": [[2.5, 22.5]],
       "events": "assets/record/events/translate.events.json",
-      "eventsSha256": "154cd4cb9bcaae9917be035a3ab0fcfc117f6b014d9c7fc0775337b954d2a559",
+      "eventsSha256": "e3a0de3fa166bebea9d08d49ca9d2bca485d6415f2ecf1cc5a1b327e83e8e4fc",
       "turns": 1,
       "prompt": "Translate"
     },
@@ -60,21 +45,12 @@
       "url": "https://www.w3.org/WAI/demos/bad/before/home.html",
       "sha256": "27212e6298a1e5c6bc0015d9d3a93cf7b5831f557840f71e0429ee300c8eae68",
       "segments": [
-        [
-          4.6,
-          9.6
-        ],
-        [
-          19.6,
-          22.6
-        ],
-        [
-          25.6,
-          37.6
-        ]
+        [4.6, 9.6],
+        [19.6, 22.6],
+        [25.6, 37.6]
       ],
       "events": "assets/record/events/tour.events.json",
-      "eventsSha256": "f50b382bddaa59b16379c0d890d3426f3e0b401a1502022669da982f9ce547de",
+      "eventsSha256": "e2e39da6299d3746daaaaa3ab3ff86fbc036887b30621200e6f2b97a6c7bd74e",
       "turns": 1
     }
   ],
