@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { launch, bodyPoint } from "./support.mjs";
-import { background, onBlink, reveal, clickBlink } from "./helpers.mjs";
+import { background, reveal, clickBlink } from "./helpers.mjs";
 import { record } from "./record.mjs";
 
 const PNG =
@@ -64,14 +64,12 @@ async function overlap(app, page) {
     return on;
   };
   let longest = 0,
-    began = null,
-    last = 0;
+    began = null;
   for (const [t, shown] of menus) {
     if (shown && cardAt(t)) {
       began ??= t;
       longest = Math.max(longest, t - began);
     } else began = null;
-    last = t;
   }
   return Math.round(longest);
 }
