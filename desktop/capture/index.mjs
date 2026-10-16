@@ -20,7 +20,9 @@ import { IntentStore, PermissionRecovery } from "./permission.mjs";
 import { browserOf } from "./window-hit.mjs";
 import { CaptureOverlays, permissionWindow } from "./windows.mjs";
 import { fitWindows, listWindows } from "./window-list.mjs";
-export async function screenImage(display, size) {
+import { createPngEncoder } from "./png.mjs";
+const pngEncoder = createPngEncoder();
+async function screenThumbnail(display, size) {
   const sources = await desktopCapturer.getSources({
     types: ["screen"],
     thumbnailSize: size ?? {
@@ -37,13 +39,32 @@ export async function screenImage(display, size) {
     throw Object.assign(new Error("Screen capture unavailable"), {
       code: "CAPTURE_UNAVAILABLE",
     });
+  return source.thumbnail;
+}
+export async function screenImage(display, size) {
   // Flatten the native representation to the actual encoded PNG dimensions.
-  return nativeImage.createFromBuffer(source.thumbnail.toPNG());
+  return nativeImage.createFromBuffer(
+    (await screenThumbnail(display, size)).toPNG(),
+  );
+}
+/** The whole screen as a PNG without holding up the main thread: the pixels
+ * are copied out and compressed on another thread, and the picture is never
+ * encoded, decoded and encoded again as it once was. */
+async function screenPng(display) {
+  const thumbnail = await screenThumbnail(display);
+  const size = thumbnail.getSize();
+  try {
+    return {
+      size,
+      data: await pngEncoder.encode({ bitmap: thumbnail.toBitmap(), ...size }),
+    };
+  } catch {
+    return { size, data: thumbnail.toPNG().toString("base64") };
+  }
 }
 export async function readScreen(display) {
   const snapshot = freezeDisplay(display);
-  const image = await screenImage(snapshot);
-  const size = image.getSize();
+  const { size, data } = await screenPng(snapshot);
   return {
     id: randomUUID(),
     display: snapshot,
@@ -60,7 +81,7 @@ export async function readScreen(display) {
       id: randomUUID(),
       name: "Screenshot.png",
       mediaType: "image/png",
-      data: image.toPNG().toString("base64"),
+      data,
     },
   };
 }
