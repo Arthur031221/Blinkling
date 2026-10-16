@@ -241,20 +241,27 @@ export function dizzy(k) {
 
 /** Peeking over a screen edge: both hands grip it, the head is tilted and glances
  * to each side. The edge line is PEEK_EDGE; the rest of the figure lies below it. */
-export function peek(t) {
+export function peek(t, edge = "left") {
   const u = t % 5.6;
+  const side = edge === "right" ? -1 : 1;
   const left = ease(seg(u, 1.2, 1.5)) - ease(seg(u, 2.2, 2.5));
   const right = ease(seg(u, 2.6, 2.9)) - ease(seg(u, 3.6, 3.9));
+  // Above the bottom edge the head rises past the eyes and the hands lie on the line.
+  const ledge = edge === "bottom";
+  const arm = ledge ? [65, 0, 80, 0] : [168, 40, 20, 50];
   return {
-    y: 36 + breath(t, 1.6) * 0.8,
-    roll: -6,
+    y: (ledge ? 26 : 36) + breath(t, 1.6) * 0.8,
+    roll: ledge ? 0 : -6 * side,
     pivot: [100, 120],
     clipY: PEEK_EDGE,
     armsOver: true,
-    look: [0.9 * (right - left), 0.1 + 0.15 * (1 - Math.abs(right - left))],
+    look: [
+      0.9 * (right - left) * side,
+      0.1 + 0.15 * (1 - Math.abs(right - left)),
+    ],
     open: blinkAt(u, 3.2),
-    L: [168, 40, 20, 50],
-    R: [168, 40, 20, 50],
+    L: arm,
+    R: arm,
   };
 }
 

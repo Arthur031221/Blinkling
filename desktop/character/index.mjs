@@ -222,7 +222,11 @@ export function mountBlink(host) {
           : facePose(o.face ?? "idle", time);
       out = blendPose(
         out,
-        { ...peek(time), ...pick(face, FACE_FIELDS), ...gripGaze(o.gaze) },
+        {
+          ...peek(time, ctx.edge),
+          ...pick(face, FACE_FIELDS),
+          ...gripGaze(o.gaze),
+        },
         ease(lean),
       );
       // The edge hides the rest of Blink only once it is gripping it.

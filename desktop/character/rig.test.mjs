@@ -5,6 +5,7 @@ import {
   BODY,
   STAND,
   armGeom,
+  FACE,
   dir,
   drawBlink,
   legGeom,
@@ -123,6 +124,38 @@ test("peeking grips the edge with both hands and keeps both eyes in view", () =>
   assert.deepEqual(p.L, p.R);
   assert.ok(p.R[0] > 150, "the arms reach up over the edge");
   assert.ok(Math.abs(p.roll) > 3, "the head is tilted");
+});
+
+test("the right edge peek is the exact mirror of the left, roll and gaze included", () => {
+  for (let t = 0; t < 6; t += 0.25) {
+    const l = peek(t, "left"),
+      r = peek(t, "right");
+    assert.equal(r.roll, -l.roll, `t=${t}: roll mirrors`);
+    assert.equal(r.look[0] + 0, -l.look[0] + 0, `t=${t}: gaze mirrors`);
+    assert.equal(r.look[1], l.look[1]);
+    assert.deepEqual(r.L, l.L);
+    assert.equal(r.y, l.y);
+  }
+  assert.ok(Math.abs(peek(0, "left").roll) > 3, "the left edge keeps its tilt");
+});
+
+test("the bottom peek shows the head below the eyes with both hands on the line", () => {
+  const p = peek(0, "bottom"),
+    side = peek(0, "left");
+  const eyeBottom = FACE.eyeY + FACE.eyeRy + p.y;
+  assert.ok(
+    eyeBottom + 8 < PEEK_EDGE,
+    "the eyes and the cheeks clear the edge",
+  );
+  assert.ok(p.y < side.y, "the figure sits higher than on the side edges");
+  for (const key of ["L", "R"]) {
+    const g = armGeom(key === "L" ? -1 : 1, p[key], 0);
+    const y = g.tip.y + p.y;
+    assert.ok(
+      Math.abs(y - PEEK_EDGE) <= 8,
+      `${key} hand grips the line (${y})`,
+    );
+  }
 });
 
 test("dizzy shows spiral eyes and stars, then recovers", () => {
