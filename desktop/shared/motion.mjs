@@ -63,7 +63,7 @@ export const cssVariables = () =>
 
 /** Frame log for the end-to-end gate (N6.8). Animated surfaces call the
  * returned function once per frame with one of: peek, fan, pick-effect,
- * flight, mini-composer, pointing. */
+ * flight, mini-composer, card, pointing. */
 export function frameLog(target = globalThis) {
   const log = (target.__blinklingFrames ??= []);
   return (surface, box) =>

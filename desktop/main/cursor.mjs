@@ -10,6 +10,7 @@ export function cursorSource({
   staleMs = 250,
 }) {
   let latest = null,
+    down = null,
     at = -Infinity,
     inflight = false;
   const refresh = () => {
@@ -25,10 +26,12 @@ export function cursorSource({
       .then(
         (point) => {
           latest = point ?? null;
+          down = typeof point?.down === "boolean" ? point.down : null;
           at = clock();
         },
         () => {
           latest = null;
+          down = null;
         },
       )
       .finally(() => {
@@ -40,9 +43,15 @@ export function cursorSource({
     get source() {
       return latest && clock() - at <= staleMs ? "x11" : "electron";
     },
+    /** Whether the primary button is down, or null where nothing native says. */
+    pressed() {
+      return latest && clock() - at <= staleMs ? down : null;
+    },
     point() {
       refresh();
-      return latest && clock() - at <= staleMs ? toDip(latest) : fallback();
+      return latest && clock() - at <= staleMs
+        ? toDip({ x: latest.x, y: latest.y })
+        : fallback();
     },
   };
 }

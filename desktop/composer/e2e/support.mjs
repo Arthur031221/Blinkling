@@ -88,7 +88,7 @@ export async function bounds(page) {
   return page.evaluate(() => {
     const errors = [];
     for (const n of document.querySelectorAll(
-      ".gl-chat-card,.gl-composer,.gl-composer-toolbar,.gl-quick-asks,.gl-attachment-chip,.gl-answer-bubble,.gl-markdown,.gl-icon-button,.gl-picker",
+      ".gl-chat-card,.gl-composer,.gl-composer-toolbar,.gl-quick-asks,.gl-attachment-chip,.gl-markdown,.gl-icon-button,.gl-picker",
     )) {
       const r = n.getBoundingClientRect();
       if (!r.width || !r.height || getComputedStyle(n).visibility === "hidden")
@@ -128,10 +128,7 @@ export async function bounds(page) {
           visible.bottom > innerHeight + 0.5)
       )
         errors.push({ kind: "window", tag: n.className, rect: r.toJSON() });
-      if (
-        !n.closest(".gl-chat-history,.gl-bubble-deck") &&
-        n.scrollWidth > n.clientWidth + 2
-      )
+      if (!n.closest(".gl-chat-history") && n.scrollWidth > n.clientWidth + 2)
         errors.push({
           kind: "overflow",
           tag: n.className,

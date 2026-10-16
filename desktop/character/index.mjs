@@ -20,7 +20,6 @@ import {
   DIZZY_FOR,
   EAT_FOR,
   FILE_FOR,
-  LEAVE_FOR,
   PEEK_EDGE,
   SHRUG_FOR,
   TURN_FOR,

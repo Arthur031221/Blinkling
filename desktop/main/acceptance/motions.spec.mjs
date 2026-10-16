@@ -270,7 +270,7 @@ test("a long answer is celebrated and an empty one is shrugged at", async () => 
     await watch(page);
     const say = (id, words) =>
       app.evaluate(
-        ({}, [id, words]) => {
+        (_electron, [id, words]) => {
           const { session } = globalThis.blinklingTest;
           if (words)
             session.emit({

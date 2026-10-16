@@ -114,9 +114,12 @@ let position = resolvePosition(display, store.positions[String(display.id)]);
 let composer = null,
   composerOpening = null,
   composerReady = null,
-  bubbles = null,
-  bubbleRegions = [],
-  answersVisible = false,
+  // What the page of a card that is still loading is owed, and whether it has
+  // been told a new chat began while it did not exist.
+  cardLoaded = false,
+  heldEvents = [],
+  freshChat = false,
+  outsideWasDown = false,
   typing = false,
   overlay = null,
   regions = [],
@@ -207,7 +210,7 @@ const blink = new BrowserWindow(windowOptions(display.bounds, false));
 secure(blink);
 blink.setIgnoreMouseEvents(true, { forward: true });
 const windows = () =>
-  [composer, bubbles, overlay, blink].filter((w) => w && !w.isDestroyed());
+  [composer, overlay, blink].filter((w) => w && !w.isDestroyed());
 // Settings and the welcome are Blinkling's own windows too: kept out of captures
 // and masked while visible, but without the privileges of the Blink windows.
 const extraWindows = [];
@@ -309,10 +312,17 @@ async function ensureComposer() {
     }
   });
   win.on("focus", () => {
+    escapeKeys.set("mini", () => flow((m) => m.escape()));
     shapeComposer();
     flow((m) => m.composer({ focus: true }));
   });
-  win.on("blur", () => flow((m) => m.blurred()));
+  // A window manager handing the keyboard away while the card settles in is
+  // not the reader leaving it; the claim below takes it back.
+  win.on("blur", () =>
+    flow((m) =>
+      Date.now() < claimUntil ? m.composer({ focus: false }) : m.blurred(),
+    ),
+  );
   let timer;
   const ready = new Promise((resolve, reject) => {
     timer = setTimeout(
@@ -337,6 +347,14 @@ async function ensureComposer() {
     );
     await ready;
     shapeComposer();
+    cardLoaded = true;
+    // What Blink said while the page was loading reaches it now.
+    for (const held of heldEvents.splice(0))
+      win.webContents.send("blinkling:event", held);
+    if (freshChat) {
+      freshChat = false;
+      tellCard({ type: "new-chat" });
+    }
     return win;
   })()
     .catch((error) => {
@@ -367,10 +385,13 @@ async function openComposer({ focus = true, seed } = {}) {
     previousFocused = BrowserWindow.getFocusedWindow();
     await input?.rememberFocus();
   }
+  if (focus) claimUntil = Date.now() + timing.composerStartup;
   const win = await ensureComposer();
+  if (!chatOpen) cardBus.emit("revive");
   chatOpen = true;
-  escapeKeys.set("mini", () => flow((m) => m.escape()));
-  bubbles?.hide();
+  // Esc belongs to the card only once the reader is in it: a card that opened
+  // by itself for an answer or a guide must not stand above the guide's Esc.
+  if (focus) escapeKeys.set("mini", () => flow((m) => m.escape()));
   win.webContents.send("blinkling:surface", {
     type: "open",
     ...(carried && { seed: carried }),
@@ -394,8 +415,10 @@ async function openComposer({ focus = true, seed } = {}) {
  * period, ask again whenever the card does not have it; after that a click
  * elsewhere is the user's decision and wins. */
 let cancelClaim = null;
+let claimUntil = 0;
 function claimKeyboard(win, settle = 600) {
   cancelClaim?.();
+  claimUntil = Date.now() + settle + 100;
   cancelClaim = claimFocus({
     settle,
     focused: () => win.isFocused(),
@@ -430,7 +453,6 @@ function act(effects) {
     else if (effect.type === "pick-up" && drag) {
       rim = [];
       drag.active = true;
-      tellDeck({ type: "drag", value: true }); // the stack steps aside while Blink is carried
     }
   }
   const key = JSON.stringify(machine.read());
@@ -443,11 +465,11 @@ let interactionKey = "";
 function closeComposer(restore = true) {
   cancelClaim?.();
   const focused = composer?.isFocused();
+  if (chatOpen) cardBus.emit("fade");
   chatOpen = false;
   pinned = false;
   escapeKeys.set("mini", null);
   composer?.hide();
-  if (answersVisible) bubbles?.showInactive();
   if (restore && focused) {
     if (previousFocused && !previousFocused.isDestroyed()) {
       previousFocused.focus();
@@ -460,30 +482,12 @@ function closeComposer(restore = true) {
   }
   broadcast();
 }
-/** What the answer deck needs to know that only the shell sees. */
-const tellDeck = (message) => {
-  if (bubbles && !bubbles.isDestroyed())
-    bubbles.webContents.send("blinkling:surface", message);
+/** What the card needs to know that only the shell sees. */
+const tellCard = (message) => {
+  if (cardLoaded && composer && !composer.isDestroyed())
+    composer.webContents.send("blinkling:surface", message);
 };
-/** The fan menu (if the shell reports one) in the deck window's own space. */
-function tellMenu() {
-  const menu = snapshot().menu ?? null;
-  const at = bubbles?.getBounds();
-  tellDeck({
-    type: "menu",
-    rect:
-      menu && at
-        ? {
-            x: menu.x + display.bounds.x - at.x,
-            y: menu.y + display.bounds.y - at.y,
-            width: menu.width,
-            height: menu.height,
-          }
-        : null,
-  });
-}
 function useDisplay(next) {
-  const moved = display?.id !== next.id;
   display = next;
   position = resolvePosition(display, store.positions[String(display.id)]);
   regions = [];
@@ -505,12 +509,10 @@ function useDisplay(next) {
     );
   placeCard();
   followBlink();
-  if (moved) tellDeck({ type: "display" }); // answers stay on the display they were said on
-  tellMenu();
   broadcast();
 }
-/** The card and the answer deck share one rectangle; move them together.
- * Called on every move of Blink, on drop and on every display change. */
+/** The card goes where Blink goes. Called on every move of Blink, on drop and
+ * on every display change. */
 let placedAt = "";
 // The quick box goes with Blink too; it exists once the pick feature is up.
 let followBlink = () => {};
@@ -520,7 +522,6 @@ function placeCard(at = position) {
   if (key === placedAt) return;
   placedAt = key;
   composer?.setBounds(bounds);
-  bubbles?.setBounds(bounds);
   shapeComposer();
 }
 /** Both ways a carried Blink is put down end here. A drop that followed two
@@ -533,7 +534,7 @@ function endDrag() {
 }
 function displaysChanged() {
   const next = reconcileDisplay(screen.getAllDisplays(), display.id);
-  if (endDrag()) tellDeck({ type: "drag", value: false });
+  endDrag();
   overlay?.close();
   overlay = null;
   useDisplay(next);
@@ -621,7 +622,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       const saved = drag.active ? snapPosition(display, drag.anchor) : null;
       const before = position.edge;
       if (saved) position = resolvePosition(display, saved);
-      const carried = endDrag();
+      endDrag();
       if (saved && position.edge !== before)
         motion("turn", {
           dir: position.edge === "right" || position.edge === "bottom" ? 1 : -1,
@@ -631,11 +632,9 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       if (saved) await store.save(display.id, saved);
       placeCard();
       followBlink();
-      if (carried) tellDeck({ type: "drag", value: false });
     }
   } else if (command.type === "pin") {
     pinned = command.value;
-    tellDeck({ type: "pin", value: pinned });
     flow((m) => m.pin(pinned));
   } else if (command.type === "close-chat") flow((m) => m.close());
   else if (command.type === "grumble") {
@@ -670,7 +669,22 @@ ipcMain.handle("blinkling:action", async (event, action) => {
 });
 const send = (event) => {
   const shown = hidePointing(event);
-  for (const win of windows()) win.webContents.send("blinkling:event", shown);
+  for (const win of windows()) {
+    if (win === composer && !cardLoaded) {
+      // The card's page is still loading: keep what matters for it.
+      if (["guide", "blink-say", "blink-offer"].includes(event.type))
+        heldEvents.push(shown);
+      if (heldEvents.length > 50) heldEvents.shift();
+    } else win.webContents.send("blinkling:event", shown);
+  }
+  // What Blink says on its own opens the card, and the reading rule closes it.
+  if (event.type === "blink-say" || event.type === "blink-offer")
+    flow((m) => m.notice());
+  else if (event.type === "guide")
+    flow((m) => {
+      m.guide(event.phase !== "dismissed" && event.phase !== "error");
+      if (event.phase === "error") m.notice();
+    });
 };
 const fakeClaude =
   process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"
@@ -709,8 +723,9 @@ const locator = new Proxy(
         : undefined,
   },
 );
-// The bubbles window's settle timer, as events the marks listen to (N6.6).
-const bubblesBus = new EventEmitter();
+// The card opening and closing, as events the marks listen to: they fade with
+// the answer they point out.
+const cardBus = new EventEmitter();
 // The finished guide `{title, steps, explanation, shots}` for the saver.
 const guideEvents = new EventEmitter();
 const blinkPoint = () => ({
@@ -739,6 +754,14 @@ const answers = createAnswerPointing({
   display: () => display,
   window: async () => (await locator.windowAt?.(blinkPoint())) ?? null,
 });
+const referenceHovered = [];
+/** A click on a mark brings the card up at the sentence that cites it. */
+function revealReference(ref) {
+  flow((m) => m.notice());
+  void openComposer({ focus: false }).then(() =>
+    composer.webContents.send("blinkling:mark-click", { ref }),
+  );
+}
 // An answer opens the card by itself and closes it by the reading rule.
 let answerWords = 0;
 session.subscribe(
@@ -767,16 +790,12 @@ session.subscribe(
   { visible: false },
 );
 const requireView = (event) => {
-  if (
-    !trusted(event) ||
-    ![composer?.webContents, bubbles?.webContents].includes(event.sender)
-  )
+  if (!trusted(event) || event.sender !== composer?.webContents)
     throw new Error("Invalid conversation sender");
 };
 ipcMain.handle("blinkling:configuration", (event) => {
   requireView(event);
   return {
-    surface: event.sender === bubbles?.webContents ? "bubbles" : "card",
     selection: session.state?.selection,
     theme: snapshot().theme,
     locale,
@@ -813,10 +832,14 @@ ipcMain.handle("blinkling:drop-files", async (event, attachments) => {
 });
 ipcMain.handle("blinkling:send", async (event, turn) => {
   requireView(event);
-  if (event.sender !== composer?.webContents)
-    throw new Error("Invalid composer sender");
-  // Blink shows its thinking face the moment a message goes out (N4).
-  send({ type: "sending" });
+  // Blink shows its thinking face the moment a message goes out (N4), and
+  // the card shows the dots; a question with a picture says it is looking.
+  send({
+    type: "sending",
+    seeing: Boolean(
+      turn?.attachments?.some?.((a) => a?.mediaType?.startsWith("image/")),
+    ),
+  });
   answerWords = 0;
   flow((m) => m.answerStart());
   try {
@@ -877,55 +900,18 @@ ipcMain.on("blinkling:hold", (event, value) => {
     return;
   flow((m) => m.panels(hold.chips || hold.dialog ? 1 : 0));
 });
-ipcMain.on("blinkling:activity", (event, value) => {
-  // The answer window reports as it is torn down at quit; showing it again
-  // while it closes stalls the quit natively.
-  if (
-    quitting ||
-    !trusted(event) ||
-    event.sender !== bubbles?.webContents ||
-    typeof value?.visible !== "boolean" ||
-    typeof value?.speaking !== "boolean"
-  )
-    return;
-  if (value.visible !== answersVisible)
-    bubblesBus.emit(value.visible ? "revive" : "fade");
-  answersVisible = value.visible;
-  if (answersVisible && !chatOpen) bubbles.showInactive();
-  else bubbles.hide();
-  blink.webContents.send("blinkling:shell", {
-    type: "answer-activity",
-    ...value,
-  });
-});
-ipcMain.on("blinkling:bubble-regions", (event, value) => {
-  if (
-    !trusted(event) ||
-    event.sender !== bubbles?.webContents ||
-    !validRegions(value, bubbles.getBounds())
-  )
-    return;
-  bubbleRegions = value;
-  if (input) input.setRegions(bubbles, value, display.scaleFactor);
-  else if (process.platform === "win32") bubbles.setShape(value);
-});
-ipcMain.on("blinkling:bubble-hover", (event, value) => {
+/** The pointer on a cited phrase in the card pulses its mark on the screen. */
+ipcMain.on("blinkling:reference-hover", (event, value) => {
   const ref = value?.ref;
   if (
     !trusted(event) ||
-    event.sender !== bubbles?.webContents ||
+    event.sender !== composer?.webContents ||
     !(ref === null || (typeof ref === "string" && ref.length <= 200))
   )
     return;
-  blink.webContents.send("blinkling:shell", { type: "bubble-hover", ref });
   features?.pointing.pulse(features.pointing.numberOf(ref));
-});
-bubbles = new BrowserWindow(
-  windowOptions(cardBounds(display, position), false),
-);
-secure(bubbles);
-bubbles.setIgnoreMouseEvents(!input && process.platform !== "win32", {
-  forward: true,
+  referenceHovered.push(ref);
+  referenceHovered.splice(0, referenceHovered.length - 20);
 });
 // Tests reach Blink as soon as the window exists; the rest is added below.
 if (process.env.BLINKLING_E2E === "1")
@@ -937,9 +923,6 @@ if (process.env.BLINKLING_E2E === "1")
   };
 await blink.loadFile(
   fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
-);
-await bubbles.loadFile(
-  fileURLToPath(new URL("../composer/index.html", import.meta.url)),
 );
 blink.showInactive();
 const companionHost = await startDesktopHost({
@@ -968,9 +951,7 @@ const visualMasks = () =>
       const shape =
         w === blink
           ? regions
-          : w === bubbles
-            ? bubbleRegions
-            : [{ x: 0, y: 0, width: b.width, height: b.height }];
+          : [{ x: 0, y: 0, width: b.width, height: b.height }];
       return shape.map((r) => ({
         ...r,
         x: r.x + b.x - display.bounds.x,
@@ -999,19 +980,18 @@ features = installCaptureGuide({
   busy: () => typing || !!session.active,
   onCapture: attachCapture,
   locator,
-  bubbles: bubblesBus,
+  card: cardBus,
   cursor: () => cursor.point(),
   onEnd: (finished) => guideEvents.emit("end", finished),
   onGuide: (guide) => {
-    send({ type: "guide", ...guide });
-    guideArrows(["step", "overview", "finished"].includes(guide.phase));
     escapeKeys.set(
       "guide",
       guide.phase === "dismissed"
         ? null
         : () => features.handle("guide-dismiss"),
     );
-    if (guide.phase !== "dismissed" && !chatOpen) bubbles.showInactive();
+    send({ type: "guide", ...guide });
+    guideArrows(["step", "overview", "finished"].includes(guide.phase));
   },
   onState: (state) => send({ type: "capture-status", ...state }),
   fullPage: (signal, progress) => companionHost.fullPage(signal, progress),
@@ -1021,13 +1001,13 @@ for (const action of featureActions)
   registerAction(action, () => features.handle(action));
 // Marks are click-through, so a click on one arrives from the overlay through
 // pointing. In a guide it focuses that step; on an answer it scrolls the
-// bubbles to the bubble that cites it.
+// card to the sentence that cites it.
 features.overlay.on("dismissed", () => escapeKeys.set("marks", null));
 features.pointing.onMarkClick((n) => {
   if (features.guide.guide) features.guide.focusMark(n);
   else {
     const ref = answers.refOf(n);
-    if (ref) bubbles?.webContents.send("blinkling:mark-click", { ref });
+    if (ref) revealReference(ref);
   }
 });
 actions.add("companion-guide");
@@ -1091,7 +1071,10 @@ const pick = await installPick({
     workArea: () => display.workArea,
     session,
     captureScreen,
-    newChat: () => tellDeck({ type: "new-chat" }),
+    newChat: () => {
+      if (cardLoaded) tellCard({ type: "new-chat" });
+      else freshChat = true;
+    },
     caught: () => motion("eat"),
     picking: tellPicking,
     miniChanged: (open) => {
@@ -1217,14 +1200,24 @@ if (process.env.BLINKLING_E2E !== "1" || process.env.BLINKLING_WELCOME === "1")
 void features
   .resume()
   .catch(() => send({ type: "capture-status", state: "retrying" }));
+// Blink is on screen; the card's page loads behind it so it opens at once.
+void ensureComposer().catch(() => {});
 const stopStacking = await keepAbove(() =>
   stackOrder({
     overlay,
     guides: features.overlay.window,
-    bubbles,
+    card: composer,
     blink,
   }),
 );
+/** Whether a screen point is on anything Blinkling draws and takes clicks on. */
+function over(p) {
+  const local = { x: p.x - display.bounds.x, y: p.y - display.bounds.y };
+  if (regions.some((r) => contains(r, local))) return true;
+  return [composer, ...extraWindows].some(
+    (w) => w && !w.isDestroyed() && w.isVisible() && contains(w.getBounds(), p),
+  );
+}
 const poll = setInterval(() => {
   if (blink.isDestroyed() || !blink.isVisible()) return;
 
@@ -1280,25 +1273,21 @@ const poll = setInterval(() => {
   // tick() hands back what it decided (a long press picks Blink up).
   act(machine.tick());
   const overCard = composer?.isVisible() && contains(composer.getBounds(), p);
-  const bubbleBounds = bubbles.getBounds();
-  const overBubbles =
-    bubbles.isVisible() &&
-    bubbleRegions.some((r) =>
-      contains(r, { x: p.x - bubbleBounds.x, y: p.y - bubbleBounds.y }),
-    );
-  if (!input && process.platform !== "win32")
-    bubbles.setIgnoreMouseEvents(!overBubbles, { forward: true });
-  const key = `${p.x},${p.y},${hit},${overCard},${overBubbles},${chatOpen}`;
+  // A press anywhere that is not Blinkling's own ends an answered card; the
+  // native pointer reports the button, and a lost focus covers the rest.
+  const down = cursor.pressed();
+  if (down !== null) {
+    if (down && !outsideWasDown && !drag && !miniOpen && !over(p))
+      flow((m) => m.outside());
+    outsideWasDown = down;
+  }
+  const key = `${p.x},${p.y},${hit},${overCard},${chatOpen}`;
   if (key !== previousCursor) {
     previousCursor = key;
-    bubbles.webContents.send("blinkling:surface", {
-      type: "hover",
-      value: hit || !!overCard || overBubbles,
-    });
     blink.webContents.send("blinkling:shell", {
       type: "cursor",
       point: local,
-      hit: hit || !!overCard || overBubbles,
+      hit: hit || !!overCard,
       blink: onBlink,
     });
     if (!input && !drag && ignoring === hit) {
@@ -1349,7 +1338,6 @@ if (process.env.BLINKLING_E2E === "1")
     features,
     session,
     picking: tellPicking,
-    bubbles,
     send,
     guideOffer,
     revealedGuides,
@@ -1382,20 +1370,26 @@ if (process.env.BLINKLING_E2E === "1")
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {
     escapeKeys,
-    openCard: (focus = false) => openComposer({ focus }),
+    /** Opens the card through the machine, so the close rules apply to it. */
+    openCard: (focus = false) => {
+      if (machine.read().card) return openComposer({ focus });
+      flow((m) => {
+        if (focus) m.click();
+        else {
+          m.answerStart();
+          m.answerEnd(0);
+        }
+      });
+    },
+    interaction: () => machine.read(),
     titles: () => BrowserWindow.getAllWindows().map((w) => w.getTitle()),
   };
-/** Deck hooks live under blinklingTest.deck so the literal above stays shared. */
+/** Card hooks live under blinklingTest.deck so the literal above stays shared. */
 function installDeckTest() {
   if (process.env.BLINKLING_E2E !== "1") return;
   globalThis.blinklingTest.deck = {
-    markClick: (ref) =>
-      bubbles.webContents.send("blinkling:mark-click", { ref }),
-    hovered: [],
-    menu: (rect) => tellDeck({ type: "menu", rect }),
+    markClick: (ref) => revealReference(ref),
+    hovered: referenceHovered,
   };
-  ipcMain.on("blinkling:bubble-hover", (_event, value) =>
-    globalThis.blinklingTest.deck.hovered.push(value?.ref ?? null),
-  );
 }
 installDeckTest();

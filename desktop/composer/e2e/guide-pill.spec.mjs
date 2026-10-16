@@ -2,13 +2,11 @@ import { test, expect } from "@playwright/test";
 import { launch, shot } from "./support.mjs";
 
 const thinking = { type: "guide", phase: "thinking" };
-const bubblesPage = async (app) => (await app.windows())[1];
 
-test("the guide pill is as wide as its text plus padding and is not rebuilt", async () => {
-  const { app, errors } = await launch();
+test("the guide line sits inside the card and is not rebuilt", async () => {
+  const { app, card, errors } = await launch();
   try {
-    await app.evaluate(() => globalThis.conversationTest.bubbles());
-    const page = await bubblesPage(app);
+    const page = card;
     await app.evaluate(
       (_e, ev) => globalThis.conversationTest.emit(ev),
       thinking,
@@ -16,21 +14,12 @@ test("the guide pill is as wide as its text plus padding and is not rebuilt", as
     const pill = page.locator(".gl-guide .gl-answer-bubble");
     await expect(pill).toBeVisible();
     await page.waitForTimeout(600);
-    const measure = () =>
-      pill.evaluate((el) => {
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const text = range.getBoundingClientRect().width;
-        const style = getComputedStyle(el);
-        const pad =
-          parseFloat(style.paddingLeft) +
-          parseFloat(style.paddingRight) +
-          parseFloat(style.borderLeftWidth) +
-          parseFloat(style.borderRightWidth);
-        return { box: el.getBoundingClientRect().width, text, pad };
-      });
-    const first = await measure();
-    expect(Math.abs(first.box - (first.text + first.pad))).toBeLessThan(1.5);
+    const inside = await pill.evaluate((el) => {
+      const guide = el.closest(".gl-guide").getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      return box.left >= guide.left - 0.5 && box.right <= guide.right + 0.5;
+    });
+    expect(inside).toBe(true);
     await shot(app, "guide-pill");
     // The same event again must update the pill where it is, not replace it.
     const handle = await pill.elementHandle();

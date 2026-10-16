@@ -28,8 +28,9 @@ export const featureActions = new Set([
 ]);
 /** Shell/composer/session builders bind only these service hooks. Feature IPC is
  * kept under the shell's existing trusted action channel, never a generic API.
- * `locator` finds the elements marks point at and `bubbles` emits the settle
- * timer's `fade` and `revive` (see pointing/index.mjs); `onEnd` gets the
+ * `locator` finds the elements marks point at and `card` emits `revive` and
+ * `fade` as the chat card opens and closes (see pointing/index.mjs);
+ * `onEnd` gets the
  * finished guide for the saver.
  * `onCapture(taken)` gets `taken.kind` (screen, area, window, page) and
  * `taken.source` (capture, hotkey, page). `fullPage(signal, progress)` and
@@ -43,7 +44,7 @@ export function installCaptureGuide({
   onGuide,
   onEnd,
   locator = { elements: () => [], windowAt: () => null },
-  bubbles,
+  card,
   cursor,
   onState = () => {},
   pageText,
@@ -63,7 +64,7 @@ export function installCaptureGuide({
     String(screen.getDisplayMatching(blink.getBounds()).id);
   // Esc belongs to the shell's layer stack (N5.3), not to the overlay.
   const overlay = new DesktopOverlayService({ windows, masks, escape: null });
-  const pointing = createPointing({ locator, overlay, bubbles, cursor });
+  const pointing = createPointing({ locator, overlay, card, cursor });
   const capture = new DesktopCaptureService({
     windows: () => [...windows(), overlay.window].filter(Boolean),
     onCapture,

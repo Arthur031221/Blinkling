@@ -19,8 +19,8 @@ const live =
     ? await (await import("./live-session.mjs")).liveSession(emit)
     : null;
 if (live) selection = await live.select(selection);
-ipcMain.handle("test:configuration", (event) => ({
-  surface: event.sender === windows[1]?.webContents ? "bubbles" : "card",
+ipcMain.handle("test:configuration", () => ({
+  surface: "card",
   selection,
   quietMs: 850,
 }));
@@ -82,13 +82,12 @@ ipcMain.on("test:activity", (_event, value) => activities.push(value));
 ipcMain.on("test:typing", (_event, value) => typing.push(value));
 ipcMain.on("test:pin", (_event, value) => controls.push({ pin: value }));
 ipcMain.on("test:open-chat", (_event, id) => {
-  windows[1].hide();
   windows[0].show();
   windows[0].webContents.send("test:surface", { type: "open", messageId: id });
 });
 ipcMain.on("test:close", () => {});
 const bounds = screen.getPrimaryDisplay().workArea;
-for (const surface of ["card", "bubbles"]) {
+{
   const w = new BrowserWindow({
     x: Math.max(bounds.x, bounds.x + bounds.width - 450),
     y: bounds.y + 30,
@@ -100,7 +99,6 @@ for (const surface of ["card", "bubbles"]) {
     hasShadow: false,
     alwaysOnTop: true,
     show: false,
-    focusable: surface === "card",
     webPreferences: {
       preload: fileURLToPath(new URL("./preload.cjs", import.meta.url)),
       sandbox: true,
@@ -114,7 +112,7 @@ for (const surface of ["card", "bubbles"]) {
   w.webContents.on("will-navigate", (e) => e.preventDefault());
   await w.loadFile(fileURLToPath(new URL("../index.html", import.meta.url)));
 }
-// A real native window beneath both surfaces makes per-pixel transparency
+// A real native window beneath the card makes per-pixel transparency
 // observable in desktopCapturer, rather than blending black with a black root.
 const background = new BrowserWindow({
   ...screen.getPrimaryDisplay().bounds,
@@ -155,12 +153,7 @@ globalThis.conversationTest = {
     windows.forEach((w) =>
       w.webContents.send("test:surface", { type: "hover", value }),
     ),
-  bubbles: () => {
-    windows[0].hide();
-    windows[1].showInactive();
-  },
   card: () => {
-    windows[1].hide();
     windows[0].show();
     windows[0].webContents.send("test:surface", { type: "open" });
   },

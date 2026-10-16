@@ -3,7 +3,6 @@ import { createActivityState } from "../character/activity.mjs";
 import { spring } from "../character/state.mjs";
 import { grow, scanlines, roundedRect } from "../character/silhouette.mjs";
 import { mountMenu, menuActions } from "../menu/index.mjs";
-import { createMessageStream } from "../messages/index.mjs";
 import { createComposer, readAttachment } from "../composer/index.mjs";
 import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
@@ -36,8 +35,7 @@ const at = {
 let leaveAt = null,
   whirlAt = null,
   turnDir = 1;
-const composer = createComposer(),
-  messages = createMessageStream();
+const composer = createComposer();
 let hit = [],
   character = null,
   menu = null,
@@ -300,10 +298,7 @@ api.onShell((event) => {
   if (event.type === "cursor") {
     const before = pointerOver;
     pointer = { point: event.point, hit: event.hit, blink: event.blink };
-    if (event.blink && !before) {
-      waveAt = performance.now() / 1000;
-      window.dispatchEvent(new CustomEvent("blinkling:recall-answer"));
-    }
+    if (event.blink && !before) waveAt = performance.now() / 1000;
   }
   if (event.type === "capture") composer.attach(event.capture.image);
   window.dispatchEvent(
@@ -313,7 +308,6 @@ api.onShell((event) => {
 api.onEvent((event) => {
   activity.accept(event, performance.now());
   grumbler.touch(performance.now());
-  messages.accept(event);
   window.dispatchEvent(
     new CustomEvent("blinkling:session-event", { detail: event }),
   );
@@ -321,7 +315,6 @@ api.onEvent((event) => {
 export const desktop = {
   character,
   menuActions,
-  messages,
   composer,
   grumbler,
   get shell() {

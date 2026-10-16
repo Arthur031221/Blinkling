@@ -65,6 +65,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     eatingUntil: 0,
     showUntil: 0,
     grumbling: false,
+    guiding: false,
     viewer: 0,
     panels: 0,
     composer: { focus: false, text: false, ime: false },
@@ -107,6 +108,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         s.held ||
         s.press ||
         s.streaming ||
+        s.guiding ||
         s.capture > 0 ||
         s.viewer > 0 ||
         s.grumbling ||
@@ -172,6 +174,8 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     s.held = true;
     s.press = { ...s.press, picked: true };
     s.hoverMenu = false;
+    // The rest that counts starts again once Blink is put down.
+    s.overSince = null;
     emit("pick-up");
     pullOut(t);
   }
@@ -256,7 +260,12 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     /** A click outside every Blinkling surface. */
     outside(t = clock()) {
       if (s.surface === "chat") {
-        const busy = s.streaming || s.composer.text || s.composer.ime;
+        const busy =
+          s.streaming ||
+          s.composer.text ||
+          s.composer.ime ||
+          s.panels > 0 ||
+          s.viewer > 0;
         if (!s.pinned && !busy) closeChat(t, "outside");
       } else if (s.surface === "menu" && s.stickyMenu && s.panels === 0)
         closeMenu(t, "outside");
@@ -345,6 +354,25 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.readUntil = t + timing.readMin;
       emit("answer-failed");
     },
+    /** Something Blink has to say outside an answer (a failure, an offer, a
+     * remark): the card opens without taking the keyboard and goes by the
+     * reading rule. */
+    notice(t = clock()) {
+      if (s.surface !== "chat") openChat(t, "answer");
+      s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
+      s.lastEngaged = t;
+    },
+    /** A guide keeps its steps in the card for as long as it runs. */
+    guide(on, t = clock()) {
+      if (s.guiding === Boolean(on)) return;
+      s.guiding = Boolean(on);
+      if (on) {
+        if (s.surface !== "chat") openChat(t, "answer");
+        s.readUntil = null;
+      } else if (s.surface === "chat" && !s.pinned)
+        s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
+      s.lastEngaged = t;
+    },
     tick(t = clock()) {
       if (s.press && !s.held && t - s.press.at >= timing.pickHold) held(t);
       // Hover shows the menu once the pointer has rested on Blink, never on
@@ -373,7 +401,12 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         emit("close-menu", { why: "leave" });
       }
       if (s.surface === "chat" && !s.pinned && s.readUntil !== null) {
-        const hold = reading(t) || s.streaming || s.panels > 0 || s.viewer > 0;
+        const hold =
+          reading(t) ||
+          s.streaming ||
+          s.guiding ||
+          s.panels > 0 ||
+          s.viewer > 0;
         if (hold) s.holdAt = t;
         if (!hold && t >= s.readUntil && t - s.holdAt >= timing.retreat)
           closeChat(t, "read");

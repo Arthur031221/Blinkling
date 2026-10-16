@@ -29,13 +29,15 @@ async function hoverOpen(c) {
   await expect.poll(() => cardPage(c.app)).toBeTruthy();
   return cardPage(c.app);
 }
-/** Pointer leaves Blink and the card, and Blink goes back to peek. */
+/** Pointer leaves Blink and the card. Nothing retreats the card for that. */
 async function leave(c) {
   native(20, 20);
-  await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "peek", {
-    timeout: 4000,
-  });
-  await c.page.waitForTimeout(800);
+  await c.page.waitForTimeout(2600);
+}
+/** A click on the desktop, outside every Blinkling surface. */
+async function clickOutside(c) {
+  native(20, 20, "click");
+  await c.page.waitForTimeout(300);
 }
 /** Playwright clicks move a synthetic pointer inside the card; take it away the way the real pointer leaves. */
 const pointerAway = (card) => card.mouse.move(-20, -20);
@@ -45,33 +47,37 @@ async function unfocus(c) {
   });
 }
 
-test("H-4 an empty card opened by hover closes when the pointer leaves", async () => {
+test("H-4 an empty card stays when the pointer leaves and closes on a click outside", async () => {
   const c = await launch();
   try {
     await hoverOpen(c);
     await leave(c);
+    expect(await visible(c.app)).toBe(true);
+    await clickOutside(c);
     await expect.poll(() => visible(c.app)).toBe(false);
   } finally {
     await c.close();
   }
 });
 
-test("H-4 a non-empty draft keeps the card open after the pointer leaves", async () => {
+test("H-4 a non-empty draft keeps the card open through a click outside", async () => {
   const c = await launch();
   try {
     const card = await hoverOpen(c);
     await card.locator(".gl-input").fill("half a thought");
     await unfocus(c);
     await leave(c);
+    await clickOutside(c);
     expect(await visible(c.app)).toBe(true);
     await card.locator(".gl-input").fill("");
+    await clickOutside(c);
     await expect.poll(() => visible(c.app)).toBe(false);
   } finally {
     await c.close();
   }
 });
 
-test("H-4 a pending attachment chip keeps the card open after the pointer leaves", async () => {
+test("H-4 a pending attachment chip keeps the card open through a click outside", async () => {
   const c = await launch();
   try {
     const card = await hoverOpen(c);
@@ -88,16 +94,18 @@ test("H-4 a pending attachment chip keeps the card open after the pointer leaves
     await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
     await unfocus(c);
     await leave(c);
+    await clickOutside(c);
     expect(await visible(c.app)).toBe(true);
     await card.getByRole("button", { name: "移除 capture.png" }).click();
     await pointerAway(card);
+    await clickOutside(c);
     await expect.poll(() => visible(c.app)).toBe(false);
   } finally {
     await c.close();
   }
 });
 
-test("H-4 an open file dialog keeps the card open after the pointer leaves", async () => {
+test("H-4 an open file dialog keeps the card open through a click outside", async () => {
   const c = await launch();
   try {
     const card = await hoverOpen(c);
@@ -109,12 +117,14 @@ test("H-4 an open file dialog keeps the card open after the pointer leaves", asy
     await pointerAway(card);
     await unfocus(c);
     await leave(c);
+    await clickOutside(c);
     expect(await visible(c.app)).toBe(true);
     await card.evaluate(() =>
       document
         .querySelector("input[type=file]")
         .dispatchEvent(new Event("cancel")),
     );
+    await clickOutside(c);
     await expect.poll(() => visible(c.app)).toBe(false);
   } finally {
     await c.close();
@@ -138,6 +148,11 @@ test("H-4 a focused empty card stays open until Esc", async () => {
       .toBe(true);
     await leave(c);
     expect(await visible(c.app)).toBe(true);
+    // Blink stays out beside a focused card: it never retreats while engaged.
+    await expect(c.page.locator("#blink")).not.toHaveAttribute(
+      "data-mode",
+      "peek",
+    );
     await card.locator(".gl-input").fill("keep me");
     await card.keyboard.press("Escape");
     await expect.poll(() => visible(c.app)).toBe(false);

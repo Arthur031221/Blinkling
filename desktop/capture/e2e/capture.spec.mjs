@@ -412,8 +412,8 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
       expect(
         await app.evaluate(
           () =>
-            globalThis.blinklingTest.bubbles.isDestroyed() ||
-            !globalThis.blinklingTest.bubbles.isVisible(),
+            globalThis.blinklingTest.composer?.isDestroyed() ||
+            !globalThis.blinklingTest.composer?.isVisible(),
         ),
       ).toBe(true);
     } finally {
@@ -785,7 +785,7 @@ test("capturing the screen fades own windows in place: none is hidden or moved",
     const result = await app.evaluate(async ({ screen }) => {
       const t = globalThis.blinklingTest;
       const own = () =>
-        [t.blink, t.bubbles, t.composer].filter((w) => w && !w.isDestroyed());
+        [t.blink, t.composer].filter((w) => w && !w.isDestroyed());
       const known = own();
       const state = () => known.map((w) => [w.isVisible(), w.getBounds()]);
       const before = state();

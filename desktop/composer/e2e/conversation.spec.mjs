@@ -39,11 +39,6 @@ test("capture, three quick asks, image payload, streamed formatting, stop, Enter
     expect(
       (await app.evaluate(() => globalThis.conversationTest.turns)).at(-1).text,
     ).toBe("第一行\n第二行");
-    expect(
-      (await app.evaluate(() => globalThis.conversationTest.activities)).some(
-        (a) => a.speaking,
-      ),
-    ).toBe(true);
     expect(errors).toEqual([]);
     await shot(app, "capture-and-chat");
   } finally {
@@ -183,83 +178,9 @@ test("captured window text has its own chip and removal excludes it from the sen
   }
 });
 
-test("bubbles stream upward, fade by height, retain wheel history, revive after quiet and open full chat", async () => {
-  const { app, card } = await launch();
+test("a full-page capture raises no in-card notice: progress, truncation and failure leave the card without a notice (N3.1)", async () => {
+  const { app, card: bubble } = await launch();
   try {
-    await app.evaluate(() => globalThis.conversationTest.bubbles());
-    const bubble = (await app.windows())[1];
-    const answer =
-      "First sentence. Second sentence. Third sentence. Fourth sentence. Fifth sentence. Sixth sentence. Seventh sentence. Eighth sentence.\n\n- **Point**: Keep structure\n\n```js\nconsole.log('Blink');\n```";
-    await app.evaluate((_electron, text) => {
-      const t = globalThis.conversationTest;
-      t.emit({ type: "delta", id: "older", text: "Earlier answer. " });
-      t.emit({ type: "done", turnId: "previous" });
-      t.emit({ type: "delta", id: "current", text });
-      t.hover(true);
-    }, answer);
-    await expect(bubble.locator(".gl-answer-bubble")).toHaveCount(12);
-    await expect(
-      bubble.getByRole("button", { name: "在對話中開啟" }),
-    ).toBeVisible();
-    // Older bubbles fade by opacity alone, in order of their distance (BD-3).
-    await expect
-      .poll(() =>
-        bubble.locator(".gl-answer-bubble").evaluateAll((nodes) => {
-          const opacity = nodes.map((n) => Number(getComputedStyle(n).opacity));
-          return (
-            opacity.at(-1) === 1 &&
-            opacity[0] < 1 &&
-            opacity.every((o, i) => i === 0 || o >= opacity[i - 1])
-          );
-        }),
-      )
-      .toBe(true);
-    await bubble.locator(".gl-bubble-deck").hover();
-    await bubble.mouse.wheel(0, -1800);
-    await expect(
-      bubble.getByText("Earlier answer.", { exact: true }),
-    ).toBeVisible();
-    await app.evaluate(() => {
-      const t = globalThis.conversationTest;
-      t.emit({ type: "done", turnId: "current" });
-      t.hover(false);
-    });
-    await bubble.mouse.move(2, 2);
-    await expect(bubble.locator(".gl-bubble-deck")).toHaveAttribute(
-      "data-visible",
-      "false",
-    );
-    await app.evaluate(() => globalThis.conversationTest.hover(true));
-    await expect(bubble.locator(".gl-bubble-deck")).toHaveAttribute(
-      "data-visible",
-      "true",
-    );
-    await expect(bubble.locator(".gl-bubble-deck")).toHaveCSS("opacity", "1");
-    await bubble.locator(".gl-bubble-deck").hover();
-    await app.evaluate(() => globalThis.conversationTest.hover(false));
-    await bubble.waitForTimeout(950);
-    await expect(bubble.locator(".gl-bubble-deck")).toHaveAttribute(
-      "data-visible",
-      "true",
-    );
-    await bubble.waitForTimeout(300);
-    await shot(app, "bubble-history");
-    await bubble.screenshot({ path: `${report}/bubble-history-surface.png` });
-    await bubble
-      .locator(".gl-bubble-deck")
-      .evaluate((n) => (n.scrollTop = n.scrollHeight));
-    await bubble.getByRole("button", { name: "在對話中開啟" }).click();
-    await expect(card.getByRole("textbox", { name: "輸入問題" })).toBeVisible();
-  } finally {
-    await app.close();
-  }
-});
-
-test("a full-page capture raises no in-card notice: progress, truncation and failure leave the bubble surface empty (N3.1)", async () => {
-  const { app } = await launch();
-  try {
-    await app.evaluate(() => globalThis.conversationTest.bubbles());
-    const bubble = (await app.windows())[1];
     const notice = bubble.locator(".gl-notice");
     const status = (event) =>
       app.evaluate(
@@ -292,7 +213,7 @@ test("a full-page capture raises no in-card notice: progress, truncation and fai
 
 for (const scale of [1, 1.5, 2])
   for (const theme of ["light", "dark"]) {
-    test(`card, bubble bounds and streamed motion at ${scale * 100}% ${theme}, 320/420/520 DIP`, async () => {
+    test(`card bounds and streamed motion at ${scale * 100}% ${theme}, 320/420/520 DIP`, async () => {
       const { app, card, errors } = await launch(scale);
       try {
         await card.emulateMedia({ colorScheme: theme });
@@ -407,91 +328,6 @@ for (const scale of [1, 1.5, 2])
         await expect(
           card.getByRole("button", { name: "停止回答" }),
         ).toBeHidden();
-        await app.evaluate(() => {
-          const t = globalThis.conversationTest;
-          t.bubbles();
-          t.hover(true);
-          t.emit({
-            type: "delta",
-            id: "bubble-motion",
-            text: "Starting here. ",
-          });
-        });
-        const bubble = (await app.windows())[1];
-        expect(
-          await app.evaluate(
-            () =>
-              globalThis.conversationTest.windows[1].webContents
-                .backgroundThrottling,
-          ),
-        ).toBe(false);
-        expect(await bubble.evaluate(() => document.visibilityState)).toBe(
-          "visible",
-        );
-        await bubble.emulateMedia({ colorScheme: theme });
-        const first = bubble.locator('[data-id="bubble-motion:0"]');
-        await expect(first).toBeVisible();
-        await bubble.waitForTimeout(350);
-        const before = await first.boundingBox();
-        await app.evaluate(() =>
-          globalThis.conversationTest.emit({
-            type: "delta",
-            id: "bubble-motion",
-            text: "Moving upward. ",
-          }),
-        );
-        await expect(
-          bubble.locator('[data-id="bubble-motion:1"]'),
-        ).toBeVisible();
-        await bubble.waitForTimeout(350);
-        expect((await first.boundingBox()).y).toBeLessThan(before.y - 20);
-        await app.evaluate(() => {
-          const t = globalThis.conversationTest;
-          let count = 0;
-          const timer = setInterval(() => {
-            t.emit({
-              type: "delta",
-              id: "bubble-motion",
-              text: `Short point ${++count}. `,
-            });
-            if (count === 12) {
-              clearInterval(timer);
-              t.emit({ type: "done", turnId: "bubble-motion" });
-            }
-          }, 80);
-        });
-        const frames = await bubble.evaluate(async () => {
-          const times = [];
-          let previous;
-          await new Promise((resolve) => {
-            const start = performance.now();
-            function frame(t) {
-              if (previous !== undefined) times.push(t - previous);
-              previous = t;
-              if (t - start < 1000) requestAnimationFrame(frame);
-              else resolve();
-            }
-            requestAnimationFrame(frame);
-          });
-          return times;
-        });
-        expect(frames.length).toBeGreaterThan(40);
-        expect(frames.filter((t) => t > 50).length).toBeLessThan(4);
-        await writeFile(
-          `${report}/bubble-frames-${scale * 100}-${theme}.json`,
-          JSON.stringify({ scale, theme, samples: frames }, null, 2),
-        );
-        await expect(
-          bubble
-            .locator(".gl-answer-bubble")
-            .last()
-            .getByRole("button", { name: "在對話中開啟" }),
-        ).toBeVisible();
-        await bubble.waitForTimeout(350);
-        await shot(app, `bubbles-${scale * 100}-${theme}`);
-        await bubble.screenshot({
-          path: `${report}/bubbles-${scale * 100}-${theme}-surface.png`,
-        });
         expect(errors).toEqual([]);
       } finally {
         await app.close();

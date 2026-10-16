@@ -61,7 +61,7 @@ test("native menu screenshot reaches the composer and the shared answer session"
     // The bubble takes the largest area in one click: with no browser in front
     // that is the whole screen, so there is no selection step.
     // A capture flies into Blink and opens the mini composer with the shot
-    // attached (K); the question is typed there and the answer lands in the deck.
+    // attached (K); the question is typed there and the answer lands in the card.
     let mini;
     await expect
       .poll(() => {
@@ -93,18 +93,12 @@ test("native menu screenshot reaches the composer and the shared answer session"
     await mini.locator(".mini-input").fill(question);
     await mini.locator(".mini-input").press("Enter");
     const deck = () =>
-      app
-        .windows()
-        .find(
-          (p) =>
-            p.url().includes("composer/index.html") &&
-            !p.url().includes("surface=card"),
-        );
+      app.windows().find((p) => p.url().includes("composer/index.html"));
     const expected = process.env.BLINKLING_LIVE === "1" ? /red/i : /OK\./;
     await expect
       .poll(
         async () =>
-          (await deck()?.locator(".gl-answer-bubble").allTextContents())?.join(
+          (await deck()?.locator(".gl-assistant").allTextContents())?.join(
             " ",
           ) ?? "",
         { timeout: 60000 },
@@ -172,9 +166,9 @@ test("native menu screenshot reaches the composer and the shared answer session"
       await expect
         .poll(
           async () =>
-            (
-              await deck()?.locator(".gl-answer-bubble").allTextContents()
-            )?.join(" ") ?? "",
+            (await deck()?.locator(".gl-assistant").allTextContents())?.join(
+              " ",
+            ) ?? "",
           { timeout: 60000 },
         )
         .toContain(remote.answer);

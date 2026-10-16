@@ -10,9 +10,6 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       await page.evaluate(() => Object.keys(window.blinkling).sort()),
     ).toEqual([
       "action",
-      "activity",
-      "bubbleHover",
-      "bubbleRegions",
       "close",
       "configuration",
       "dropFiles",
@@ -27,13 +24,14 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       "openChat",
       "openLink",
       "pin",
+      "referenceHover",
       "select",
       "sendTurn",
       "shell",
       "stop",
       "typing",
     ]);
-    // The test hook is installed once startup (bubbles, companion host) finishes.
+    // The test hook is installed once startup (the card, companion host) finishes.
     await expect
       .poll(() => app.evaluate(() => Boolean(globalThis.blinklingTest)))
       .toBe(true);

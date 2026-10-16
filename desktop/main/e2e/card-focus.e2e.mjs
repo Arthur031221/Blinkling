@@ -11,8 +11,6 @@ import {
   activeWindow,
   typeKeys,
   openCard,
-  miniFocused,
-  miniPage,
   rigPoint,
 } from "./support.mjs";
 
@@ -61,25 +59,6 @@ async function browserForm() {
 for (const [label, open] of [
   ["a click at a permission request", (c) => openCard(c.page)],
   [
-    "open in chat",
-    async (c) => {
-      await c.app.evaluate(() =>
-        globalThis.blinklingTest.send({
-          type: "delta",
-          id: "answer",
-          text: "One sentence. Another sentence.",
-        }),
-      );
-      const answers = async () => {
-        for (const w of c.app.windows())
-          if (await w.locator(".gl-bubble-deck").count()) return w;
-        return null;
-      };
-      await expect.poll(async () => !!(await answers())).toBe(true);
-      await (await answers()).evaluate(() => window.blinkling.openChat());
-    },
-  ],
-  [
     "a click at a permission request after the card opened unfocused",
     async (c) => {
       await c.app.evaluate(() =>
@@ -111,18 +90,18 @@ for (const [label, open] of [
   });
 }
 
-test("E-1 a real click on Blink gives the mini composer the keyboard while a browser form had it", async () => {
+test("E-1 a real click on Blink gives the card the keyboard while a browser form had it", async () => {
   const c = await launch();
   const other = await browserForm();
   try {
     await moveOn(c.page);
     const p = await rigPoint(c.page);
     native(p.x, p.y, "click");
-    await expect.poll(() => miniFocused(c.app)).toBe(true);
-    const mini = miniPage(c.app);
-    await expect(mini.locator(".mini-input")).toBeFocused();
+    await expect.poll(() => composerFocused(c.app)).toBe(true);
+    const input = cardPage(c.app).locator(".gl-input");
+    await expect(input).toBeFocused();
     typeKeys("typed here");
-    await expect(mini.locator(".mini-input")).toHaveValue("typed here");
+    await expect(input).toHaveValue("typed here");
     expect(activeWindow()).not.toBe(other.id);
   } finally {
     other.stop();
@@ -244,7 +223,7 @@ test("E-1 a bad seed is refused and opens nothing", async () => {
   }
 });
 
-test("E-1 sending from the card closes it and hands the keyboard back to the previous application", async () => {
+test("E-1 sending from the card keeps it open for the answer and Esc hands the keyboard back", async () => {
   const c = await launch();
   const other = await otherApp();
   try {
@@ -255,13 +234,14 @@ test("E-1 sending from the card closes it and hands the keyboard back to the pre
     const card = cardPage(c.app);
     typeKeys("hello");
     await expect(card.locator(".gl-input")).toHaveValue("hello");
-    native(20, 20);
     await card.locator(".gl-input").press("Enter");
-    await expect
-      .poll(() =>
-        c.app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible()),
-      )
-      .toBe(false);
+    await expect(card.locator(".gl-input")).toHaveValue("");
+    expect(
+      await c.app.evaluate(
+        () => !!globalThis.blinklingTest.composer?.isVisible(),
+      ),
+    ).toBe(true);
+    await card.keyboard.press("Escape");
     await expect.poll(activeWindow, { timeout: 1500 }).toBe(other.id);
   } finally {
     other.stop();

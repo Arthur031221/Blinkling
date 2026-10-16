@@ -1,5 +1,6 @@
-import { markdown } from "./parts.mjs";
+import { Marked } from "./vendor/marked.mjs";
 import { translatorFor } from "./strings.mjs";
+const markdown = new Marked({ gfm: true, breaks: true });
 export const imageURL = (image) => {
   const source = image.source ?? {
     media_type: image.mediaType,

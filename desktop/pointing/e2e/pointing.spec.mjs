@@ -130,16 +130,10 @@ for (const scale of [1, 2]) {
 }
 
 async function findDeck(app) {
-  for (const page of app.windows()) {
-    if (!/\/composer\//.test(page.url())) continue;
-    const surface = await page
-      .evaluate(() => document.body.dataset.surface)
-      .catch(() => null);
-    if (surface === "bubbles") return page;
-  }
+  return app.windows().find((page) => page.url().includes("surface=card"));
 }
 // Everything a pointing test needs: the answer drawn, the cursor off the card,
-// and the bubble deck's page.
+// and the card's page.
 async function drawn(scale = 1) {
   const run = await launch(scale);
   await run.app.firstWindow();
@@ -166,7 +160,7 @@ const pulsing = (app, n) =>
       a.effect.getKeyframes().some((k) => /scale\\(1\\.12\\)/.test(k.transform ?? "")))`,
   );
 
-test("hovering a bubble's number pulses that mark and nothing else", async () => {
+test("hovering a reference number in the card pulses that mark and nothing else", async () => {
   const { app, deck, close } = await drawn();
   try {
     await deck
@@ -184,16 +178,15 @@ test("hovering a bubble's number pulses that mark and nothing else", async () =>
   }
 });
 
-test("clicking a mark scrolls the deck to the bubble that carries its number", async () => {
+test("clicking a mark scrolls the card to the sentence that carries its number", async () => {
   const { app, deck, close } = await drawn();
   try {
     const offscreen = () =>
       deck.evaluate(() => {
         const ref = document.querySelector(".gl-ref");
-        const bubble = ref.closest(".gl-answer-bubble");
-        const box = bubble.getBoundingClientRect();
-        const deckBox = bubble.parentElement.getBoundingClientRect();
-        return box.bottom <= deckBox.top || box.top >= deckBox.bottom;
+        const box = ref.getBoundingClientRect();
+        const list = ref.closest(".gl-chat-history").getBoundingClientRect();
+        return box.bottom <= list.top || box.top >= list.bottom;
       });
     await expect.poll(offscreen).toBe(true);
     await overlayEval(
@@ -229,8 +222,8 @@ test("marks never take the mouse: only a badge under the cursor does", async () 
   }
 });
 
-test("marks fade with the bubbles on their settle timer and come back with them", async () => {
-  const { app, deck, close } = await drawn();
+test("marks fade when the card closes and come back when it opens again", async () => {
+  const { app, close } = await drawn();
   try {
     const faded = () =>
       overlayEval(
@@ -238,8 +231,13 @@ test("marks fade with the bubbles on their settle timer and come back with them"
         `document.querySelector("#stage").classList.contains("faded")`,
       );
     expect(await faded()).toBe(false);
-    await expect.poll(faded, { timeout: 20000 }).toBe(true);
-    await deck.evaluate(() => window.conversation.hover(true));
+    await app.evaluate(() =>
+      globalThis.blinklingTest.nBlinkMenuFaces.escapeKeys.press(),
+    );
+    await expect.poll(faded, { timeout: 10000 }).toBe(true);
+    await app.evaluate(() =>
+      globalThis.blinklingTest.nBlinkMenuFaces.openCard(),
+    );
     await expect.poll(faded).toBe(false);
   } finally {
     await close();

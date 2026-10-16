@@ -2,30 +2,31 @@ import { test, expect } from "@playwright/test";
 import x11 from "x11";
 import { cardBounds } from "../placement.mjs";
 import { launch, native, move, click, wheel, keys } from "./support.mjs";
-import { reveal, clickBlink, bubble, background, shot } from "./helpers.mjs";
+import {
+  reveal,
+  onBlink,
+  clickBlink,
+  bubble,
+  background,
+  shot,
+} from "./helpers.mjs";
 
-const bubblesPage = (app) =>
-  app
-    .windows()
-    .find(
-      (p) =>
-        p.url().includes("composer/index.html") &&
-        !p.url().includes("surface=card"),
-    );
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
-const fillDeck = (app, count = 14) =>
+/** Messages for the history, then a streaming answer so the card opens by itself. */
+const fillHistory = (app, count = 14) =>
   app.evaluate((_electron, count) => {
-    for (let i = 0; i < count; i++) {
-      const text = `Answer sentence number ${i} for the deck.`;
-      globalThis.blinklingTest.send({
+    const { session } = globalThis.blinklingTest;
+    for (let i = 0; i < count; i++)
+      session.emit({
         type: "message",
-        id: `deck-${i}`,
-        role: "assistant",
-        content: [{ type: "text", text }],
-        complete: true,
+        id: `history-${i}`,
+        role: i % 2 ? "assistant" : "user",
+        content: [
+          { type: "text", text: `Message number ${i} in the history.` },
+        ],
       });
-    }
+    session.emit({ type: "delta", id: "latest", text: "The newest line." });
   }, count);
 const composerState = (app) =>
   app.evaluate(() => {
@@ -48,16 +49,31 @@ const nativeId = (app, name) =>
       globalThis.blinklingTest[name].getNativeWindowHandle().readUInt32LE(0),
     name,
   );
-/** Root children, bottom to top, as the X server stacks them. */
-function rootStack() {
+/** Where a window sits among the root's children, bottom to top, as the X
+ * server stacks them. A window the manager framed counts as its frame. */
+function stackIndex(...ids) {
   return new Promise((resolve, reject) => {
     const client = x11.createClient((error, display) => {
       if (error) return reject(error);
-      client.QueryTree(display.screen[0].root, (error, tree) => {
-        client.terminate();
-        if (error) reject(error);
-        else resolve(tree.children);
-      });
+      const query = (window) =>
+        new Promise((done, fail) =>
+          client.QueryTree(window, (e, tree) => (e ? fail(e) : done(tree))),
+        );
+      (async () => {
+        const root = await query(display.screen[0].root);
+        const framed = new Map();
+        for (const child of root.children) {
+          const tree = await query(child).catch(() => ({ children: [] }));
+          framed.set(child, tree.children);
+        }
+        return ids.map((id) =>
+          root.children.findIndex(
+            (child) => child === id || framed.get(child).includes(id),
+          ),
+        );
+      })()
+        .then(resolve, reject)
+        .finally(() => client.terminate());
     });
     client.on("error", reject);
   });
@@ -83,7 +99,7 @@ const png = Buffer.from(
   "base64",
 );
 
-test("on X11 hover ends and the wheel scrolls the deck even when Electron's cursor point is stale", async () => {
+test("on X11 hover ends and the wheel scrolls the card history even when Electron's cursor point is stale", async () => {
   const { app, page } = await launch();
   try {
     await background(app);
@@ -97,31 +113,33 @@ test("on X11 hover ends and the wheel scrolls the deck even when Electron's curs
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek", {
       timeout: 2500,
     });
-    await fillDeck(app);
-    const bubbles = bubblesPage(app);
+    await fillHistory(app, 40);
+    await expect.poll(() => !!cardPage(app)).toBe(true);
+    const card = cardPage(app);
     await expect
-      .poll(() => bubbles.locator(".gl-answer-bubble").count())
-      .toBeGreaterThan(8);
-    const target = await bubbles.evaluate(() => {
-      const deck = document.querySelector(".gl-bubble-deck");
-      const r = [...deck.querySelectorAll(".gl-answer-bubble")]
-        .map((n) => n.getBoundingClientRect())
-        .find((r) => r.top > 40 && r.bottom < innerHeight - 40);
-      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-    });
-    const origin = await app.evaluate(() => {
-      const b = globalThis.blinklingTest.bubbles.getBounds();
-      return { x: b.x, y: b.y };
-    });
+      .poll(() =>
+        app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
+      )
+      .toBe(true);
     const top = () =>
-      bubbles.evaluate(
-        () => document.querySelector(".gl-bubble-deck").scrollTop,
-      );
+      card.evaluate(() => document.querySelector(".gl-chat-history").scrollTop);
+    await expect
+      .poll(() =>
+        card.evaluate(() => {
+          const n = document.querySelector(".gl-chat-history");
+          return n.scrollHeight - n.clientHeight - n.scrollTop;
+        }),
+      )
+      .toBeLessThan(3);
+    const origin = await app.evaluate(() => {
+      const b = globalThis.blinklingTest.composer.getBounds();
+      return { x: b.x + b.width / 2, y: b.y + b.height / 3 };
+    });
     const before = await top();
-    // Let the pointer settle on the deck first, as a person's hand would.
-    move(origin.x + target.x, origin.y + target.y);
+    // Let the pointer settle on the card first, as a person's hand would.
+    move(origin.x, origin.y);
     await page.waitForTimeout(300);
-    wheel(origin.x + target.x, origin.y + target.y, -4);
+    wheel(origin.x, origin.y, -4);
     await expect.poll(top).toBeLessThan(before - 20);
     expect(
       await app.evaluate(() => globalThis.blinklingTest.pointer.source),
@@ -131,18 +149,18 @@ test("on X11 hover ends and the wheel scrolls the deck even when Electron's curs
   }
 });
 
-test("the deck follows Blink to each of the four edges", async () => {
+test("the card follows Blink to each of the four edges", async () => {
   const { app, page } = await launch();
   try {
     const b = await background(app);
-    await fillDeck(app, 4);
+    await fillHistory(app, 4);
     for (const [edge, x, y] of [
       ["bottom", 640, 790],
       ["left", 10, 400],
       ["right", 1270, 400],
       ["top", 640, 10],
     ]) {
-      await reveal(page);
+      await onBlink(page);
       await page.waitForTimeout(700);
       const s = await page.evaluate(() => window.desktop.inspect());
       native([
@@ -167,17 +185,17 @@ test("the deck follows Blink to each of the four edges", async () => {
       );
       const expected = cardBounds(display, position);
       expect(
-        await app.evaluate(() => globalThis.blinklingTest.bubbles.getBounds()),
-        `deck at the ${edge} edge`,
+        await app.evaluate(() => globalThis.blinklingTest.composer.getBounds()),
+        `card at the ${edge} edge`,
       ).toEqual(expected);
-      await shot(app, `deck-follows-${edge}`);
+      await shot(app, `card-follows-${edge}`);
     }
   } finally {
     await app.close();
   }
 });
 
-test("with bubbles present Blink stays above the deck and every menu bubble is clickable", async () => {
+test("with the card open Blink stays above it and every menu bubble is clickable", async () => {
   const { app, page } = await launch();
   try {
     const b = await background(app);
@@ -189,22 +207,26 @@ test("with bubbles present Blink stays above the deck and every menu bubble is c
           return { ok: true, enabled: action === "auto-explain" };
         });
     });
-    await fillDeck(app, 10);
+    await fillHistory(app, 10);
     await expect
       .poll(() =>
-        app.evaluate(() => globalThis.blinklingTest.bubbles.isVisible()),
+        app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
       )
       .toBe(true);
-    await reveal(page);
     await page.waitForTimeout(700);
-    const [blink, bubbles] = await Promise.all([
+    const [blink, composer] = await Promise.all([
       nativeId(app, "blink"),
-      nativeId(app, "bubbles"),
+      nativeId(app, "composer"),
     ]);
-    const stack = await rootStack();
-    expect(stack.indexOf(bubbles)).toBeGreaterThan(-1);
-    expect(stack.indexOf(blink)).toBeGreaterThan(stack.indexOf(bubbles));
-    await shot(app, "menu-over-deck");
+    const [blinkAt, composerAt] = await stackIndex(blink, composer);
+    expect(composerAt).toBeGreaterThan(-1);
+    expect(blinkAt).toBeGreaterThan(composerAt);
+    // A click on Blink swaps the card for the menu; the card is not covered by it.
+    await onBlink(page);
+    await clickBlink(page);
+    await page.waitForFunction(() => window.desktop.inspect().fan.rested);
+    await page.waitForTimeout(450);
+    await shot(app, "menu-over-card");
     let count = 0;
     for (const action of ["capture", "guide", "auto-explain", "settings"]) {
       const r = await bubble(page, action).boundingBox();
@@ -213,7 +235,6 @@ test("with bubbles present Blink stays above the deck and every menu bubble is c
         .poll(() => app.evaluate(() => globalThis.actions.length))
         .toBe(++count);
     }
-    await reveal(page);
     await page.waitForTimeout(500);
     await clickBlink(page);
     await expect

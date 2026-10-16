@@ -42,14 +42,19 @@ export async function nativeInput() {
             );
           }
           resolve({
-            /** Root pointer in physical pixels. Electron's own point is stale on
-             * X11 while the pointer is over another client's window. */
+            /** Root pointer in physical pixels, and whether the primary button
+             * is down. Electron's own point is stale on X11 while the pointer
+             * is over another client's window. */
             pointer: () =>
               new Promise((resolve, reject) =>
                 client.QueryPointer(root, (error, result) =>
                   error
                     ? reject(error)
-                    : resolve({ x: result.rootX, y: result.rootY }),
+                    : resolve({
+                        x: result.rootX,
+                        y: result.rootY,
+                        down: Boolean(result.keyMask & 0x100),
+                      }),
                 ),
               ),
             activate: (win) =>

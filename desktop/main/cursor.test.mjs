@@ -94,3 +94,22 @@ test("the source reports where the point came from", async () => {
   now += 400;
   assert.equal(source.source, "electron");
 });
+test("the primary button state comes from the native query only", async () => {
+  let button = false;
+  const native = cursorSource({
+    query: async () => ({ x: 1, y: 2, down: button }),
+    fallback: () => ({ x: 0, y: 0 }),
+  });
+  assert.equal(native.pressed(), null, "unknown before the first answer");
+  native.point();
+  await tick();
+  assert.equal(native.pressed(), false);
+  button = true;
+  native.point();
+  await tick();
+  assert.equal(native.pressed(), true);
+  assert.deepEqual(native.point(), { x: 1, y: 2 });
+  const plain = cursorSource({ fallback: () => ({ x: 0, y: 0 }) });
+  plain.point();
+  assert.equal(plain.pressed(), null);
+});

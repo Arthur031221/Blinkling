@@ -594,10 +594,13 @@ each("opening the card scrolls the history to the newest message", (locale) => {
   const t = setup({ locale });
   const history = t.q(".gl-chat-history");
   Object.defineProperty(history, "scrollHeight", { value: 900 });
+  t.view.close();
   history.scrollTop = 0;
   t.view.open();
   assert.equal(history.scrollTop, 900);
   history.scrollTop = 10;
+  t.view.open();
+  assert.equal(history.scrollTop, 10, "a refocus keeps the reader's place");
   t.view.close();
   t.view.open();
   assert.equal(history.scrollTop, 900);

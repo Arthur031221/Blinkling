@@ -150,12 +150,10 @@ export function mountComposer(
   let pointer = false;
   listen(card, "mouseenter", () => {
     pointer = true;
-    store.hover(true, "card");
     hold();
   });
   listen(card, "mouseleave", () => {
     pointer = false;
-    store.hover(false, "card");
     hold();
   });
   const submit = (question = undefined, source = "composer") =>
@@ -398,6 +396,7 @@ export function mountComposer(
     element: card,
     notice,
     open(messageId) {
+      const wasOpen = visible;
       visible = true;
       card.hidden = false;
       card.dataset.open = "true";
@@ -405,9 +404,10 @@ export function mountComposer(
         messageNodes
           .get(messageId)
           ?.scrollIntoView({ block: "start", behavior: "smooth" });
-      else {
+      else if (!wasOpen) {
         // Every opening continues the history: the newest message, right
-        // above the composer.
+        // above the composer. A refocus of a card already open leaves the
+        // reader where they are.
         following = true;
         history.scrollTop = history.scrollHeight;
       }
@@ -428,9 +428,6 @@ export function mountComposer(
       if (!visible) return false;
       view.close();
       return true;
-    },
-    quiet() {
-      if (!pinned && !dialogOpen && !pointer && !doc.hasFocus()) view.close();
     },
     capture(capture) {
       composer.capture(capture);
@@ -459,7 +456,6 @@ export function mountComposer(
     dispose() {
       disposed = true;
       controller.abort();
-      store.hover(false, "card");
       unComposer();
       unMessages();
       thinking.dispose();

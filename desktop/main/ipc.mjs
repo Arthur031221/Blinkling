@@ -5,7 +5,6 @@ const types = new Set([
   "visibility",
   "click",
   "close-chat",
-  "activity",
   "fan-labels-seen",
   "grumble",
 ]);

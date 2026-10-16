@@ -668,7 +668,7 @@ async function showAgain(app, start) {
 }
 async function bubbleText(app) {
   return app.evaluate(() =>
-    globalThis.blinklingTest.bubbles.webContents.executeJavaScript(
+    globalThis.blinklingTest.composer.webContents.executeJavaScript(
       "document.body.innerText",
     ),
   );

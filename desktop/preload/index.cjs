@@ -29,7 +29,6 @@ contextBridge.exposeInMainWorld(
     onSurface: (listener) => subscribe("blinkling:surface", listener),
     dropFiles: (attachments) =>
       ipcRenderer.invoke("blinkling:drop-files", attachments),
-    activity: (value) => ipcRenderer.send("blinkling:activity", value),
     typing: (value) => ipcRenderer.send("blinkling:typing", value),
     engage: (value) => ipcRenderer.send("blinkling:engage", value),
     hold: (value) => ipcRenderer.send("blinkling:hold", value),
@@ -39,9 +38,8 @@ contextBridge.exposeInMainWorld(
     openChat: (messageId) =>
       ipcRenderer.invoke("blinkling:open-chat", messageId),
     openLink: (url) => ipcRenderer.invoke("blinkling:open-link", url),
-    bubbleRegions: (regions) =>
-      ipcRenderer.send("blinkling:bubble-regions", regions),
-    bubbleHover: (value) => ipcRenderer.send("blinkling:bubble-hover", value),
+    referenceHover: (value) =>
+      ipcRenderer.send("blinkling:reference-hover", value),
     onMarkClick: (listener) => subscribe("blinkling:mark-click", listener),
   }),
 );

@@ -3,7 +3,8 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import { move, click, report, bodyBox } from "./support.mjs";
-export async function reveal(page, scale = 1) {
+/** The pointer rests on Blink's body: Blink is out, no menu is asked for. An open card stays as it is. */
+export async function onBlink(page, scale = 1) {
   await page.waitForFunction(() => window.desktop.inspect().anchor);
   await page.waitForTimeout(100);
   const point = await page.evaluate(() => {
@@ -16,6 +17,9 @@ export async function reveal(page, scale = 1) {
   move(point.x * scale, point.y * scale);
   await expect(page.locator("#blink")).toHaveAttribute("data-mode", "hover");
   await page.waitForTimeout(650);
+}
+export async function reveal(page, scale = 1) {
+  await onBlink(page, scale);
   const active = await bodyBox(page);
   move(
     (active.x + active.width * 0.35) * scale,

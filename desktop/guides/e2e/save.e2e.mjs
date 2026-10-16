@@ -72,11 +72,11 @@ async function withHome(run) {
 
 const deck = async (app) => {
   for (const w of await app.windows())
-    if (await w.locator(".gl-bubble-deck").count()) return w;
+    if (w.url().includes("surface=card")) return w;
   return null;
 };
 
-test("K4-1 the end of a guide offers one 儲存導覽 bubble; clicking it writes Documents/Blinkling Guides and reveals the folder", async () => {
+test("K4-1 the end of a guide offers one 儲存導覽 action in the card; clicking it writes Documents/Blinkling Guides and reveals the folder", async () => {
   await withHome(async (home) => {
     expect(process.env.BLINKLING_REMOTE).toBe("0");
     const c = await launch();
@@ -88,17 +88,18 @@ test("K4-1 the end of a guide offers one 儲存導覽 bubble; clicking it writes
       );
       await expect.poll(async () => !!(await deck(app))).toBe(true);
       const bubbles = await deck(app);
-      const offers = bubbles.locator('.gl-answer-bubble[data-kind="offer"]');
-      await expect(offers).toHaveCount(1);
-      await expect(bubbles.locator(".gl-answer-bubble")).toHaveCount(1);
-      const button = offers.locator("button");
+      const messages = bubbles.locator(".gl-chat-message");
+      const button = bubbles.locator(".gl-action-chip");
+      await expect(button).toHaveCount(1);
+      await expect(messages).toHaveCount(1);
       await expect(button).toHaveText("儲存導覽");
       // Offering again (a second guide end) still leaves one bubble.
       await app.evaluate(
         (_e, result) => globalThis.blinklingTest.guideOffer.offerSave(result),
         guide(),
       );
-      await expect(bubbles.locator(".gl-answer-bubble")).toHaveCount(1);
+      await expect(messages).toHaveCount(1);
+      await expect(button).toHaveCount(1);
       await moveOn(page);
       await desktopShot(app, "guide-save-offer");
       expect(
@@ -109,7 +110,7 @@ test("K4-1 the end of a guide offers one 儲存導覽 bubble; clicking it writes
       // A real pointer click, through the bubble window's click-through shape.
       const box = await button.boundingBox();
       const origin = await app.evaluate(() => {
-        const b = globalThis.blinklingTest.bubbles.getBounds();
+        const b = globalThis.blinklingTest.composer.getBounds();
         return { x: b.x, y: b.y };
       });
       const at = [
@@ -143,11 +144,9 @@ test("K4-1 the end of a guide offers one 儲存導覽 bubble; clicking it writes
         .toEqual([join(root, folder)]);
 
       // The bubble says so and is no longer a button: no replay, no list.
-      await expect(bubbles.locator(".gl-answer-bubble")).toHaveCount(1);
-      await expect(bubbles.locator(".gl-answer-bubble")).toContainText(
-        "導覽已儲存",
-      );
-      await expect(bubbles.locator(".gl-answer-bubble button")).toHaveCount(0);
+      await expect(messages).toHaveCount(1);
+      await expect(messages).toContainText("導覽已儲存");
+      await expect(bubbles.locator(".gl-action-chip")).toHaveCount(0);
       await page.waitForTimeout(600);
       await desktopShot(app, "guide-save-done");
     } finally {

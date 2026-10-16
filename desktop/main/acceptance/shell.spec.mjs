@@ -13,7 +13,14 @@ import {
   bodyPoint,
   limbTip,
 } from "./support.mjs";
-import { reveal, clickBlink, background, shot, rgb } from "./helpers.mjs";
+import {
+  reveal,
+  onBlink,
+  clickBlink,
+  background,
+  shot,
+  rgb,
+} from "./helpers.mjs";
 
 const cardWindow = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
@@ -319,9 +326,10 @@ for (const scale of [1, 1.5, 2])
       ).toBe(true);
       await shot(app, `permission-peek-${scale * 100}`);
       expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
-      const opening = app.waitForEvent("window");
+      await onBlink(page, scale);
       await clickBlink(page, scale);
-      const cardPage = await opening;
+      await expect.poll(() => cardWindow(app)).toBeTruthy();
+      const cardPage = cardWindow(app);
       await cardPage.waitForURL("**/composer/index.html?surface=card");
       await expect(
         cardPage.getByRole("textbox", { name: "輸入問題" }),
@@ -407,7 +415,13 @@ test("native drag squish, bounce, edge persistence, display transfer and hotplug
       window.blinkling.shell({ type: "pin", value: false }),
     );
     native([{ type: "up" }]);
-    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "drop");
+    // The drop pose lasts half a second, so poll faster than the default backoff.
+    await expect
+      .poll(() => page.locator("#blink").getAttribute("data-mode"), {
+        intervals: [20],
+        timeout: 5000,
+      })
+      .toBe("drop");
     await shot(app, "drop-bounce");
     await page.waitForTimeout(750);
     await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");

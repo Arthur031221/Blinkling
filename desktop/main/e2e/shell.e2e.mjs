@@ -15,8 +15,6 @@ import {
   moveOn,
   background,
   activeWindow,
-  miniFocused,
-  miniPage,
 } from "./support.mjs";
 test("real alpha, silhouette click-through, hover wave, delayed retreat and fullscreen focus", async () => {
   const c = await launch();
@@ -219,8 +217,16 @@ test("native drag squishes, snaps and persists; pin/click focus is intentional a
     ).toBeCloseTo(saved.ratio, 6);
     await background(c.app);
     await moveOn(c.page);
-    // The pin beside Blink is gone (N3); pinning lives in the full composer and
-    // reaches the shell as the same command.
+    // The pin beside Blink is gone (N3); pinning lives in the card and reaches
+    // the shell as the same command. The card opens by itself, unfocused.
+    await c.app.evaluate(() =>
+      globalThis.blinklingTest.nBlinkMenuFaces.openCard(false),
+    );
+    await expect
+      .poll(() =>
+        c.app.evaluate(() => globalThis.blinklingTest.composer?.isVisible()),
+      )
+      .toBe(true);
     await c.page.evaluate(() =>
       window.blinkling.shell({ type: "pin", value: true }),
     );
@@ -313,7 +319,7 @@ test("native drag squishes, snaps and persists; pin/click focus is intentional a
   }
 });
 
-test("closing the mini composer restores a separate application's native focus", async () => {
+test("closing the card restores a separate application's native focus", async () => {
   const c = await launch();
   const probe = spawn(
     "xmessage",
@@ -346,23 +352,21 @@ test("closing the mini composer restores a separate application's native focus",
     await moveOn(c.page);
     expect(activeWindow()).toBe(external);
     const blink = await rigPoint(c.page);
-    await progress("opening the mini composer");
+    await progress("opening the card");
     native(blink.x, blink.y, "click");
-    await expect.poll(() => miniFocused(c.app)).toBe(true);
-    await expect(miniPage(c.app).locator(".mini-input")).toBeFocused();
+    const cardFocused = () =>
+      c.app.evaluate(() => !!globalThis.blinklingTest.composer?.isFocused());
+    await expect.poll(cardFocused).toBe(true);
+    const card = () =>
+      c.app.windows().find((p) => p.url().includes("surface=card"));
+    await expect(card().locator(".gl-input")).toBeFocused();
     await expect.poll(activeWindow).not.toBe(external);
     await progress("restoring external focus");
-    await miniPage(c.app).keyboard.press("Escape");
+    await card().keyboard.press("Escape");
     await expect.poll(activeWindow).toBe(external);
     await expect
       .poll(() =>
-        c.app.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows().some(
-            (w) =>
-              w.isVisible() &&
-              /\/mini\/index\.html$/.test(w.webContents.getURL()),
-          ),
-        ),
+        c.app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible()),
       )
       .toBe(false);
     await progress("waiting for settled peek");
@@ -571,13 +575,21 @@ for (const scale of [1, 1.5, 2])
             }),
           ),
         ).rejects.toThrow(/Invalid shell command/);
-        // A plain click opens the mini composer; Esc closes it again. At a permission request the click opens the card.
+        // A click opens the card; Esc closes it again, and the next click
+        // opens it once more.
+        const cardFocused = () =>
+          c.app.evaluate(
+            () => !!globalThis.blinklingTest.composer?.isFocused(),
+          );
         await c.page.evaluate(() =>
           window.blinkling.shell({ type: "click", permission: false }),
         );
-        await expect.poll(() => miniFocused(c.app)).toBe(true);
-        await miniPage(c.app).keyboard.press("Escape");
-        await expect.poll(() => miniFocused(c.app)).toBe(false);
+        await expect.poll(cardFocused).toBe(true);
+        await c.app
+          .windows()
+          .find((p) => p.url().includes("surface=card"))
+          .keyboard.press("Escape");
+        await expect.poll(cardFocused).toBe(false);
         await c.page.evaluate(() =>
           window.blinkling.shell({ type: "click", permission: true }),
         );

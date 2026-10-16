@@ -1,137 +1,27 @@
-export { bubbleParts } from "./parts.mjs";
-import { bubbleParts } from "./parts.mjs";
-import { createCalm } from "./calm.mjs";
-
-/** One normalized store for desktop turns, remote messages and replay. The
- * answer deck shows what arrived since the last fade; calm.mjs owns the one
- * timer that decides when that is (N6.6). */
-export function createMessageStream({
-  settleMs,
-  quietMs, // the composer's older name for settleMs
-  maxPeekParts = 7,
-  now = Date.now,
-  schedule = setTimeout,
-  cancel = clearTimeout,
-} = {}) {
+/** One normalized store for desktop turns, remote messages and replay. The chat
+ * card is the only surface that shows it; when the card closes is decided by
+ * the interaction machine, not here. */
+export function createMessageStream() {
   const messages = new Map(),
-    listeners = new Set(),
-    hoverSources = new Set(),
-    calm = createCalm({
-      settleMs: settleMs ?? quietMs,
-      now,
-      setTimer: (run, ms) => {
-        const id = schedule(() => {
-          cancel(id); // a fired timer is released like any other
-          run();
-        }, ms);
-        id?.unref?.();
-        return () => cancel(id);
-      },
-    });
+    listeners = new Set();
   let speaking = false,
     // A turn is out and no answer text has arrived yet (the thinking wait).
     working = false,
     seeing = false,
-    visible = false,
-    floor = 0, // messages before this index belong to an answer that already faded
     status = "starting";
   const snapshot = () => structuredClone([...messages.values()]);
-  const bubbles = () =>
-    [...messages.values()]
-      .slice(floor)
-      .filter((m) => m.role === "assistant")
-      .flatMap((m) => {
-        if (m.failure)
-          return [
-            {
-              kind: "failure",
-              markdown: m.text,
-              complete: true,
-              id: `${m.id}:0`,
-              messageId: m.id,
-              actions: structuredClone(m.failure.actions),
-            },
-          ];
-        if (m.offer)
-          return [
-            {
-              kind: "offer",
-              label: m.offer.label,
-              action: m.offer.action,
-              id: `${m.id}:0`,
-              messageId: m.id,
-            },
-          ];
-        if (m.plain)
-          return [
-            {
-              kind: "say",
-              markdown: m.text,
-              complete: true,
-              id: `${m.id}:0`,
-              messageId: m.id,
-            },
-          ];
-        const parts = bubbleParts(m.text, m.complete).map((p, i) => ({
-          ...p,
-          id: `${m.id}:${i}`,
-          messageId: m.id,
-        }));
-        const images = m.content
-          .filter((b) => b.type === "image")
-          .map((b, i) => ({
-            kind: "image",
-            id: `${m.id}:image:${i}`,
-            messageId: m.id,
-            image: b,
-          }));
-        const result = [...parts, ...images];
-        if (parts.length > maxPeekParts || m.text.length > 900)
-          result.push({
-            kind: "open-chat",
-            id: `${m.id}:chat`,
-            messageId: m.id,
-          });
-        return result;
-      });
   const state = () => ({
     messages: snapshot(),
-    bubbles: bubbles(),
     speaking,
     working: working && !speaking,
     seeing,
-    visible,
     status,
   });
   const notify = () => {
     for (const listener of listeners) listener(state());
   };
-  /** The timer waits while Blink speaks or any surface is under the pointer. */
-  const holding = () => calm.hold(speaking || hoverSources.size > 0);
-  /** The last answer: everything after the last user message, or the one
-   * plain line Blink said. */
-  const lastAnswer = () => {
-    const all = [...messages.values()];
-    let start = all.length;
-    while (start > 0 && all[start - 1].role === "assistant") {
-      start--;
-      if (all[start].plain) return start === all.length - 1 ? start : start + 1;
-    }
-    return start;
-  };
-  calm.on("fade", () => {
-    visible = false;
-    floor = messages.size;
-    notify();
-  });
-  calm.on("revive", () => {
-    floor = lastAnswer();
-    visible = true;
-    notify();
-  });
   const upsert = (message, { live = true } = {}) => {
     if (!message?.id || !["user", "assistant"].includes(message.role)) return;
-    const old = messages.get(message.id);
     const content = Array.isArray(message.content)
       ? structuredClone(message.content)
       : [];
@@ -148,34 +38,19 @@ export function createMessageStream({
       ...(message.failure ? { failure: message.failure } : {}),
       ...(message.offer ? { offer: message.offer } : {}),
     });
-    if (!live) {
-      floor = messages.size;
-      return;
-    }
+    if (!live) return;
     if (message.role === "user") {
       working = true;
-      seeing = content.some(
-        (b) => b.type === "image" || b.type === "document",
-      );
-    } else if (message.role === "assistant" && messages.get(message.id).text)
-      working = false;
-    if (
-      message.role === "assistant" &&
-      (!old || old.text !== messages.get(message.id).text)
-    ) {
-      visible = true;
-      calm.settle(message.id);
-    }
+      seeing = content.some((b) => b.type === "image" || b.type === "document");
+    } else if (messages.get(message.id).text) working = false;
   };
-  const bringBack = () => calm.hover();
   return {
     append(message) {
       upsert(message);
-      holding();
       notify();
     },
-    /** Something went wrong and Blink says so: one plain bubble with its
-     * action chips. It settles, fades and is recalled like every other bubble. */
+    /** Something went wrong and Blink says so: one plain message with its
+     * action chips. */
     fail({ id, text, actions = [] }) {
       upsert({
         id,
@@ -184,29 +59,13 @@ export function createMessageStream({
         plain: true,
         failure: { actions },
       });
-      visible = true;
-      calm.settle(id);
-      holding();
       notify();
     },
-    /** The reader acted on a failure (or the problem went away): drop it, for
-     * good, so neither the timer nor a hover brings it back. */
+    /** The reader acted on a failure (or the problem went away): drop it. */
     dismiss(id) {
-      const at = [...messages.keys()].indexOf(id);
-      if (at < 0) return;
-      messages.delete(id);
-      if (at < floor) floor--;
-      notify();
+      if (messages.delete(id)) notify();
     },
-    /** Called when the deck fades (N6.6), so marks on the page can go with it. */
-    onSettle(listener) {
-      calm.on("fade", listener);
-      return () => calm.off("fade", listener);
-    },
-    /** The one way back for a faded answer: it shows again, then settles again. */
-    bringBack,
     snapshot,
-    bubbles,
     state,
     accept(event) {
       if (event.type === "status") status = event.state;
@@ -235,8 +94,6 @@ export function createMessageStream({
         });
         speaking = true;
         working = false;
-        visible = true;
-        calm.settle(event.id);
       } else if (event.type === "message")
         upsert(event, { live: !event.replay });
       else if (event.type === "blink-say" && typeof event.text === "string")
@@ -265,37 +122,15 @@ export function createMessageStream({
           if (m.role === "assistant") m.complete = true;
         speaking = false;
         working = false;
-        // The wait starts when the turn ends, but only for an answer on show.
-        if (calm.turnId !== undefined && !calm.faded)
-          calm.settle(event.turnId ?? calm.turnId);
       } else return;
-      holding();
       notify();
     },
-    /** Idempotent: the shell repeats it with every pointer move. Entering
-     * brings the last answer back; leaving hands the timer back to calm. */
-    hover(value, source = "blink") {
-      const had = hoverSources.has(source);
-      if (value) hoverSources.add(source);
-      else hoverSources.delete(source);
-      if (Boolean(value) === had) return;
-      holding();
-      if (value && source !== "bubbles") bringBack();
-    },
-    pin: (on) => calm.pin(on),
-    /** Blink moved to another display; its answers stay behind. */
-    leaveDisplay() {
-      calm.leave();
-    },
-    /** A new chat (a pick sixty quiet seconds after the last one): the deck
-     * starts empty and the old answers are not brought back by hovering. */
+    /** A new chat (a pick sixty quiet seconds after the last one): the card
+     * starts empty. */
     reset() {
       messages.clear();
-      floor = 0;
       speaking = false;
-      visible = false;
-      calm.leave();
-      holding();
+      working = false;
       notify();
     },
     subscribe(listener) {
@@ -304,7 +139,6 @@ export function createMessageStream({
       return () => listeners.delete(listener);
     },
     dispose() {
-      calm.dispose();
       listeners.clear();
     },
   };

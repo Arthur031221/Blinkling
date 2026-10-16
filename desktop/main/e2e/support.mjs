@@ -29,7 +29,7 @@ try:
  x.XQueryPointer.argtypes=[ctypes.c_void_p,ctypes.c_ulong,ctypes.POINTER(ctypes.c_ulong),ctypes.POINTER(ctypes.c_ulong),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_int),ctypes.POINTER(ctypes.c_uint)]
  root=ctypes.c_ulong();child=ctypes.c_ulong();rx=ctypes.c_int();ry=ctypes.c_int();wx=ctypes.c_int();wy=ctypes.c_int();mask=ctypes.c_uint()
  x.XQueryPointer(d,x.XDefaultRootWindow(d),ctypes.byref(root),ctypes.byref(child),ctypes.byref(rx),ctypes.byref(ry),ctypes.byref(wx),ctypes.byref(wy),ctypes.byref(mask))
- ${button === null ? "pass" : button === "click" ? "t.XTestFakeButtonEvent(d,1,1,0);x.XFlush(d);time.sleep(.05);t.XTestFakeButtonEvent(d,1,0,0)" : `t.XTestFakeButtonEvent(d,1,${button === "down" ? 1 : 0},0)`}
+ ${button === null ? "pass" : button === "slide" ? `t.XTestFakeButtonEvent(d,1,1,0);x.XFlush(d);time.sleep(.04);t.XTestFakeMotionEvent(d,-1,${Math.round(x) + 3},${Math.round(y)},0);x.XFlush(d);time.sleep(.04);t.XTestFakeButtonEvent(d,1,0,0)` : button === "click" ? "t.XTestFakeButtonEvent(d,1,1,0);x.XFlush(d);time.sleep(.05);t.XTestFakeButtonEvent(d,1,0,0)" : `t.XTestFakeButtonEvent(d,1,${button === "down" ? 1 : 0},0)`}
  x.XFlush(d);time.sleep(.05)
  x.XGetInputFocus.argtypes=[ctypes.c_void_p,ctypes.POINTER(ctypes.c_ulong),ctypes.POINTER(ctypes.c_int)];focus=ctypes.c_ulong();revert=ctypes.c_int();x.XGetInputFocus(d,ctypes.byref(focus),ctypes.byref(revert))
  print(child.value,mask.value,focus.value)

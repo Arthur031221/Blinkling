@@ -47,47 +47,52 @@ for (const scale of [1, 1.5])
     }
   });
 
-test("H-1 the native wheel scrolls the bubble deck and the deck keeps working after the pointer left Blink", async () => {
+test("H-1 the native wheel scrolls the card history and the card keeps working after the pointer left Blink", async () => {
   const c = await launch();
   const { app, page } = c;
   const other = await otherApp();
   try {
-    const sentences = Array.from(
-      { length: 16 },
-      (_, i) => `Sentence ${i + 1}.`,
-    );
-    await app.evaluate((_, text) => {
-      const { send } = globalThis.blinklingTest;
-      send({ type: "delta", id: "answer", text });
-    }, sentences.join(" "));
-    const deck = async () => {
-      for (const w of await app.windows()) {
-        const el = w.locator(".gl-bubble-deck");
-        if (await el.count()) return { page: w, el };
-      }
+    await app.evaluate(() => {
+      const { session } = globalThis.blinklingTest;
+      for (let i = 1; i <= 24; i++)
+        session.emit({
+          type: "message",
+          id: `m${i}`,
+          role: i % 2 ? "user" : "assistant",
+          content: [{ type: "text", text: `Message ${i}.` }],
+        });
+      // The newest answer is what opens the card.
+      session.emit({ type: "delta", id: "latest", text: "Latest answer." });
+    });
+    const card = async () => {
+      for (const w of await app.windows())
+        if (w.url().includes("surface=card")) return w;
       return null;
     };
-    await expect.poll(async () => !!(await deck())).toBe(true);
-    const { page: bubbles, el } = await deck();
+    await expect.poll(async () => !!(await card())).toBe(true);
+    const cardPage = await card();
+    const list = cardPage.locator(".gl-chat-history");
+    await expect(cardPage.locator(".gl-chat-message")).toHaveCount(25);
     await expect
-      .poll(() => bubbles.locator(".gl-answer-bubble").count())
-      .toBeGreaterThanOrEqual(16);
-    await moveOn(page);
-    const box = await el.evaluate((node) => {
+      .poll(() =>
+        list.evaluate((node) => node.scrollHeight > node.clientHeight),
+      )
+      .toBe(true);
+    const box = await list.evaluate((node) => {
       const r = node.getBoundingClientRect();
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     });
     const origin = await app.evaluate(() => {
-      const b = globalThis.blinklingTest.bubbles.getBounds();
+      const b = globalThis.blinklingTest.composer.getBounds();
       return { x: b.x, y: b.y };
     });
-    // Park the pointer on the other client first, then come back onto the deck.
+    // Park the pointer on the other client first, then come back onto the card.
     native(300, 300);
     await page.waitForTimeout(300);
-    const before = await el.evaluate((node) => node.scrollTop);
+    const before = await list.evaluate((node) => node.scrollTop);
     wheel(origin.x + box.x, origin.y + box.y, 8);
     await expect
-      .poll(() => el.evaluate((node) => node.scrollTop))
+      .poll(() => list.evaluate((node) => node.scrollTop))
       .toBeLessThan(before);
   } finally {
     other.kill();
@@ -102,10 +107,22 @@ const edges = [
   ["bottom", 640, 796],
 ];
 for (const [edge, x, y] of edges)
-  test(`H-2 dragging Blink to the ${edge} edge moves the answer deck with the card`, async () => {
+  test(`H-2 dragging Blink to the ${edge} edge moves the open card with it`, async () => {
     const c = await launch();
     const { app, page } = c;
     try {
+      await app.evaluate(() =>
+        globalThis.blinklingTest.session.emit({
+          type: "delta",
+          id: "answer",
+          text: "Hello.",
+        }),
+      );
+      await expect
+        .poll(() =>
+          app.evaluate(() => globalThis.blinklingTest.composer?.isVisible()),
+        )
+        .toBe(true);
       await moveOn(page);
       const p = await rigPoint(page);
       native(p.x, p.y, "down");
@@ -124,7 +141,7 @@ for (const [edge, x, y] of edges)
       );
       await expect
         .poll(() =>
-          app.evaluate(() => globalThis.blinklingTest.bubbles.getBounds()),
+          app.evaluate(() => globalThis.blinklingTest.composer.getBounds()),
         )
         .toEqual(card);
     } finally {
@@ -132,7 +149,7 @@ for (const [edge, x, y] of edges)
     }
   });
 
-test("H-3 every menu bubble is clickable while answer bubbles are on screen", async () => {
+test("H-3 every menu bubble is clickable while the card is open", async () => {
   const c = await launch();
   const { app, page } = c;
   try {
@@ -155,25 +172,28 @@ test("H-3 every menu bubble is clickable while answer bubbles are on screen", as
           globalThis.pillCalls.push(id);
         });
       const text = Array.from({ length: 12 }, (_, i) => `Sentence ${i + 1}.`);
-      globalThis.blinklingTest.send({
+      globalThis.blinklingTest.session.emit({
         type: "delta",
         id: "answer",
         text: text.join(" "),
       });
     }, actions);
     await expect
-      .poll(async () => {
-        for (const w of await app.windows())
-          if (await w.locator(".gl-answer-bubble").count()) return true;
-        return false;
-      })
+      .poll(() =>
+        app.evaluate(() => globalThis.blinklingTest.composer?.isVisible()),
+      )
       .toBe(true);
+    const shown = (pill) =>
+      pill.evaluate((el) => Number(getComputedStyle(el).opacity));
     for (const action of actions) {
       await moveOn(page);
       const pill = page.locator(`[data-action="${action}"]`);
-      await expect
-        .poll(() => pill.evaluate((el) => Number(getComputedStyle(el).opacity)))
-        .toBeGreaterThan(0.95);
+      // One click on Blink swaps the open card for the menu bubbles.
+      if ((await shown(pill)) < 0.5) {
+        const p = await rigPoint(page);
+        native(p.x, p.y, "click");
+      }
+      await expect.poll(() => shown(pill)).toBeGreaterThan(0.95);
       const r = await pill.boundingBox();
       native(r.x + r.width / 2, r.y + r.height / 2, "click");
       await expect

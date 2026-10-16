@@ -93,9 +93,6 @@ test("real Claude Remote Control session: confirmed controls, image and UTF-8 fi
         text: t.text,
         contentTypes: t.content.map((c) => c.type),
       })),
-      mouthMoved: globalThis.conversationTest.activities.some(
-        (a) => a.speaking,
-      ),
     }));
     if (env.BLINKLING_REMOTE !== "0")
       expect(evidence.remoteUrl).toMatch(/^https:\/\/claude\.ai\/code\//);
@@ -103,7 +100,6 @@ test("real Claude Remote Control session: confirmed controls, image and UTF-8 fi
       ["image"],
       ["document"],
     ]);
-    expect(evidence.mouthMoved).toBe(true);
     evidence.answers = await card.locator(".gl-assistant").allInnerTexts();
     await writeFile(
       `${report}/live-session.json`,

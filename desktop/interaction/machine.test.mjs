@@ -193,6 +193,21 @@ test("a press that moves 4 px picks Blink up", () => {
   );
 });
 
+test("a grab that lands before the rest ends does not bring the menu back at the drop", () => {
+  const { m, at, go, read } = rig();
+  m.pointer(on, at.t, true);
+  go(timing.menuRest - 100);
+  m.press(on, at.t);
+  m.pointer({ x: on.x + MOVE_SLOP, y: on.y }, at.t, true);
+  go(40);
+  m.release(at.t);
+  m.pointer({ x: on.x + MOVE_SLOP, y: on.y }, at.t, true);
+  go(80);
+  assert.equal(read().menu, false);
+  go(timing.menuRest);
+  assert.equal(read().menu, true);
+});
+
 test("Blink never retreats while held, however long", () => {
   const { m, go, read } = rig();
   m.press(on, 0);
@@ -271,6 +286,21 @@ test("a click outside never drops a streaming answer or a draft", () => {
   assert.equal(read().card, true);
   m.composer({ text: false }, 31);
   m.outside(40);
+  assert.equal(read().card, false);
+});
+
+test("a click outside keeps a card that holds a chip, a file dialog or the viewer", () => {
+  const { m, read } = rig();
+  m.click(0);
+  m.panels(1);
+  m.outside(10);
+  assert.equal(read().card, true);
+  m.panels(0);
+  m.viewer(true);
+  m.outside(20);
+  assert.equal(read().card, true);
+  m.viewer(false);
+  m.outside(30);
   assert.equal(read().card, false);
 });
 
@@ -383,4 +413,37 @@ test("a pick in progress brings Blink out and holds it until the pick ends", () 
     types(go(200)).filter((t) => t === "retreat"),
     ["retreat"],
   );
+});
+
+test("a notice opens the card unfocused and closes it by the reading rule", () => {
+  const { m, at, go, read } = rig();
+  m.notice(at.t);
+  const open = m.take().find((e) => e.type === "open-chat");
+  assert.equal(open.focus, false);
+  assert.equal(read().card, true);
+  go(timing.readMin - 500);
+  assert.equal(read().card, true, "still readable");
+  go(timing.readMin + timing.retreat);
+  assert.equal(read().card, false, "closed by itself");
+});
+
+test("a guide holds the card open and releases it after the reading time", () => {
+  const { m, at, go, read } = rig();
+  m.guide(true, at.t);
+  m.take();
+  go(120_000);
+  assert.equal(read().card, true, "open for the whole guide");
+  m.guide(false, at.t);
+  go(timing.readMin - 500);
+  assert.equal(read().card, true);
+  go(timing.readMin + timing.retreat);
+  assert.equal(read().card, false);
+});
+
+test("a pinned card outlives a notice and a guide", () => {
+  const { m, at, go, read } = rig();
+  m.pin(true, at.t);
+  m.notice(at.t);
+  go(120_000);
+  assert.equal(read().card, true);
 });

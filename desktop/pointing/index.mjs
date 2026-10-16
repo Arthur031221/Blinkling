@@ -32,12 +32,12 @@ function trim(rect, size) {
  * same kinds, numbering, snapping and labels.
  *
  * `overlay` is the overlay service (show, command, setInteractive, dismiss and
- * its `mark-click` / `dismissed` events). `bubbles` emits `fade` and `revive`
- * from the bubbles' settle timer, which is the only settle timer there is. */
+ * its `mark-click` / `dismissed` events). `card` emits `revive` when the chat
+ * card opens and `fade` when it closes, so marks never outlive their answer. */
 export function createPointing({
   locator,
   overlay,
-  bubbles,
+  card,
   cursor = () => null,
   poll = POLL,
   log = () => {},
@@ -82,8 +82,8 @@ export function createPointing({
   overlay.on("mark-click", (n) => {
     for (const fn of [...clicks]) fn(n);
   });
-  bubbles?.on("fade", () => state && overlay.command("fade"));
-  bubbles?.on("revive", () => state && overlay.command("revive"));
+  card?.on("fade", () => state && overlay.command("fade"));
+  card?.on("revive", () => state && overlay.command("revive"));
 
   async function resolve(ref, ctx) {
     const base = { n: ref.n, number: ref.n, label: ref.label ?? "", steps: [] };

@@ -11,9 +11,7 @@ import {
   moveOn,
   rigPoint,
   background,
-  miniBounds,
   miniFocused,
-  miniPage,
 } from "./support.mjs";
 import { recordFrames, verdict } from "../../e2e/frames.mjs";
 import { input, poll } from "../../pick/e2e/support.mjs";
@@ -32,6 +30,12 @@ const composerOpen = (c) =>
   c.app.evaluate(() => !!globalThis.blinklingTest.composer?.isVisible());
 const emit = (c, event) =>
   c.app.evaluate((_, event) => globalThis.blinklingTest.send(event), event);
+/** An answer as the session delivers it: it opens the card by itself. */
+const answer = (c, event) =>
+  c.app.evaluate(
+    (_, event) => globalThis.blinklingTest.session.emit(event),
+    event,
+  );
 
 /** Highest number of bubbles that were at least a little visible at any frame
  * of the next `ms`, so a fan that flashes open and shut is still caught. */
@@ -140,7 +144,7 @@ test("the fan opens after a 300 ms rest, not on a pass-by or a wake", async () =
     // Blink waking for a permission request or an answer does not open it.
     const waking = sampleOpen(c.page, 1500);
     await emit(c, { type: "activity", state: "permission" });
-    await emit(c, { type: "delta", id: "wake", text: "Hello there." });
+    await answer(c, { type: "delta", id: "wake", text: "Hello there." });
     expect(await waking).toBe(0);
   } finally {
     await c.close();
@@ -205,14 +209,14 @@ test("while picking, Blink's eyes follow the cursor, and they let go when pickin
         axis,
       );
     await c.app.evaluate(() => globalThis.blinklingTest.picking(true));
-    // Blink grips the right edge with its head turned a quarter turn, so a
-    // pointer far to its left is "up" for its eyes, and one far above is "forward".
+    // Blink stands upright at the right edge, so the eyes turn toward the
+    // pointer as the screen sees it.
     native(20, 400);
-    await expect.poll(look(1)).toBeLessThan(-0.4);
+    await expect.poll(look(0)).toBeLessThan(-0.4);
     native(1100, 10);
-    await expect.poll(look(0)).toBeGreaterThan(0.4);
+    await expect.poll(look(1)).toBeLessThan(-0.4);
     await c.app.evaluate(() => globalThis.blinklingTest.picking(false));
-    await expect.poll(look(0)).toBeLessThan(0.4);
+    await expect.poll(look(0)).toBeGreaterThan(-0.4);
   } finally {
     await c.close();
   }
@@ -273,21 +277,18 @@ test("after a quiet minute Blink thinks out loud in a bubble that never takes a 
   }
 });
 
-test("a click on Blink opens the focused mini composer; a drag past 4 px does not", async () => {
+test("a click on Blink opens the focused card; a drag past 4 px does not", async () => {
   const c = await launch();
   try {
     await background(c.app);
     await moveOn(c.page);
     const p = await rigPoint(c.page);
-    // A press that travels 3 px is still a click.
-    native(p.x, p.y, "down");
-    native(p.x + 3, p.y);
-    native(p.x + 3, p.y, "up");
-    await expect.poll(() => miniFocused(c.app)).toBe(true);
-    await expect(miniPage(c.app).locator(".mini-input")).toBeFocused();
-    expect(await composerOpen(c)).toBe(false);
-    await miniPage(c.app).keyboard.press("Escape");
-    await expect.poll(() => miniFocused(c.app)).toBe(false);
+    // A quick press that travels 3 px is still a click.
+    native(p.x, p.y, "slide");
+    await expect.poll(() => composerOpen(c)).toBe(true);
+    await expect(cardPage(c).locator(".gl-input")).toBeFocused();
+    await cardPage(c).keyboard.press("Escape");
+    await expect.poll(() => composerOpen(c)).toBe(false);
     await moveOn(c.page);
     const q = await rigPoint(c.page);
     native(q.x, q.y, "down");
@@ -295,57 +296,13 @@ test("a click on Blink opens the focused mini composer; a drag past 4 px does no
     await expect(c.page.locator("#blink")).toHaveAttribute("data-mode", "drag");
     native(q.x + 30, q.y - 10, "up");
     await c.page.waitForTimeout(400);
-    expect(await miniFocused(c.app)).toBe(false);
     expect(await composerOpen(c)).toBe(false);
   } finally {
     await c.close();
   }
 });
 
-test("the mini composer has the add button, model, effort and permission lists, and a pick reaches the session", async () => {
-  const c = await launch();
-  try {
-    await background(c.app);
-    await moveOn(c.page);
-    const p = await rigPoint(c.page);
-    native(p.x, p.y, "down");
-    native(p.x, p.y, "up");
-    await expect.poll(() => miniFocused(c.app)).toBe(true);
-    const mini = miniPage(c.app);
-    await expect(mini.locator(".mini-add")).toBeVisible();
-    const triggers = mini.locator(".mini-toolbar .gl-picker-trigger");
-    await expect(triggers).toHaveCount(3);
-    // The session answers once connected; until then the lists are shut.
-    await expect(triggers.nth(2)).toBeEnabled({ timeout: 20000 });
-    await expect(triggers.nth(2)).toContainText(/Ask first|先詢問/);
-    const before = await mini.locator(".mini-card").boundingBox();
-    await triggers.nth(2).click();
-    const menu = mini.locator(".mini-toolbar .gl-picker-menu:visible");
-    await expect(menu).toBeVisible();
-    // The window grew to hold the list instead of clipping it.
-    const box = await menu.boundingBox();
-    const viewport = await mini.evaluate(() => window.innerHeight);
-    expect(box.y + box.height).toBeLessThanOrEqual(viewport);
-    expect(
-      (await mini.locator(".mini-card").boundingBox()).height,
-    ).toBeGreaterThan(before.height);
-    await mini.screenshot({ path: "test-results/mini-toolbar.png" });
-    await menu.locator('[data-value="plan"]').click();
-    await expect(triggers.nth(2)).toContainText(/Plan only|只做規劃/);
-    await expect(mini.locator(".mini-notice")).toBeHidden();
-    // A list is closed by Escape before the box is.
-    await triggers.nth(0).click();
-    await mini.keyboard.press("Escape");
-    expect(await miniFocused(c.app)).toBe(true);
-    await mini.locator(".mini-input").focus();
-    await mini.keyboard.press("Escape");
-    await expect.poll(() => miniFocused(c.app)).toBe(false);
-  } finally {
-    await c.close();
-  }
-});
-
-test("the mini composer stays at Blink's mouth when Blink moves", async () => {
+test("the card stays at Blink's mouth when Blink moves", async () => {
   const c = await launch();
   try {
     await background(c.app);
@@ -355,33 +312,33 @@ test("the mini composer stays at Blink's mouth when Blink moves", async () => {
     const p = await rigPoint(c.page);
     native(p.x, p.y, "down");
     native(p.x, p.y, "up");
-    await expect.poll(() => miniFocused(c.app)).toBe(true);
-    // The mouth sits 108 px below the top of Blink's box; the box rises from 40 px under it.
-    const bottomWanted = () =>
+    await expect.poll(() => composerOpen(c)).toBe(true);
+    const gap = () =>
       c.app.evaluate(() => {
-        const s = globalThis.blinklingTest.snapshot();
-        return Math.round(
-          s.position.reveal.y + s.display.bounds.y - 142 + 108 + 40,
-        );
+        const t = globalThis.blinklingTest;
+        return {
+          card: t.composer.getBounds(),
+          want: t.cardBounds(t.snapshot()),
+        };
       });
-    const bottom = async () => {
-      const b = await miniBounds(c.app);
-      return b.y + b.height;
-    };
-    await expect.poll(bottom).toBe(await bottomWanted());
-    const low = await bottom();
+    await expect
+      .poll(async () => (await gap()).card)
+      .toEqual((await gap()).want);
+    const low = (await gap()).card;
     await place(c, "right", 0.5);
-    await expect.poll(bottom).not.toBe(low);
-    await expect.poll(bottom).toBe(await bottomWanted());
-    const b = await miniBounds(c.app);
+    await expect.poll(async () => (await gap()).card).not.toEqual(low);
+    await expect
+      .poll(async () => (await gap()).card)
+      .toEqual((await gap()).want);
+    const { card } = await gap();
     const rig = await rigPoint(c.page);
-    expect(b.x + b.width).toBeLessThanOrEqual(rig.x);
+    expect(card.x + card.width).toBeLessThanOrEqual(rig.x);
   } finally {
     await c.close();
   }
 });
 
-test("Esc closes only the topmost layer: the mini composer, then guide mode", async () => {
+test("Esc closes only the topmost layer: the card, then guide mode", async () => {
   const c = await launch();
   try {
     await background(c.app);
@@ -529,21 +486,21 @@ test("dropping Blink with the fan open leaves no overlapping frame", async () =>
   }
 });
 
-test("the answer deck follows Blink after a drag and after a display change", async () => {
+test("the answer card follows Blink after a drag and after a display change", async () => {
   const c = await launch();
   try {
     await background(c.app);
-    await emit(c, { type: "delta", id: "answer", text: "One. Two. Three." });
+    await answer(c, { type: "delta", id: "answer", text: "One. Two. Three." });
     await expect
       .poll(() =>
-        c.app.evaluate(() => globalThis.blinklingTest.bubbles.isVisible()),
+        c.app.evaluate(() => globalThis.blinklingTest.composer?.isVisible()),
       )
       .toBe(true);
     const expected = () =>
       c.app.evaluate(() => {
         const t = globalThis.blinklingTest,
           s = t.snapshot();
-        return { deck: t.bubbles.getBounds(), want: t.cardBounds(s) };
+        return { deck: t.composer.getBounds(), want: t.cardBounds(s) };
       });
     const same = async () => {
       const { deck, want } = await expected();
@@ -714,7 +671,7 @@ for (const scale of [1, 2])
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 for (const scale of [1, 2]) {
-  test(`the motion gate at ${scale * 100}%: peek, fan, pick effects, flight, mini composer and pointing keep their frames`, async () => {
+  test(`the motion gate at ${scale * 100}%: peek, fan, pick effects, flight, card and pointing keep their frames`, async () => {
     const c = await launch(scale);
     const seen = {};
     const gate = async (name, surfaces, action) => {
@@ -743,20 +700,22 @@ for (const scale of [1, 2]) {
         native(20, 20);
         await c.page.waitForTimeout(900);
       });
-      await gate("mini composer", ["mini-composer"], async () => {
+      await gate("card", ["card"], async () => {
         const p = await rigPoint(c.page);
         native(p.x * scale, p.y * scale);
-        await c.page.waitForTimeout(550);
+        await c.page.waitForTimeout(150);
         // Blink has come out of the edge: the click goes where it stands now.
         const q = await rigPoint(c.page);
         native(q.x * scale, q.y * scale, "down");
         native(q.x * scale, q.y * scale, "up");
-        await expect.poll(() => miniFocused(c.app)).toBe(true);
+        await expect.poll(() => composerOpen(c)).toBe(true);
         await c.page.waitForTimeout(600);
-        await miniPage(c.app).keyboard.press("Escape");
-        await expect.poll(() => miniFocused(c.app)).toBe(false);
-        await c.page.waitForTimeout(400);
+        // Esc goes to the focused card wherever the pointer is; away from
+        // Blink, no hover menu follows the fold.
         native(20, 20);
+        await cardPage(c).keyboard.press("Escape");
+        await expect.poll(() => composerOpen(c)).toBe(false);
+        await c.page.waitForTimeout(400);
       });
       // One arrival is only about fifteen frames, and a 95th percentile of that
       // few is just its slowest frame: step through three marks in one overlay.
@@ -954,7 +913,7 @@ test("the fan reverses from where it is when the pointer grabs Blink mid-open", 
       await c.page.waitForFunction(() => window.__fanTrace.seen, null, {
         polling: "raf",
       });
-      const stand = await c.page.evaluate(() => window.__fanTrace.stand);
+      const stand = await rigPoint(c.page);
       await interrupter.fire(stand.x, stand.y);
       await c.page.waitForTimeout(900);
       const samples = await finishTrace(c.page);

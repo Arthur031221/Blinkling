@@ -17,15 +17,15 @@ const refs = [
 function rig(options = {}) {
   const locator = options.locator ?? createPointingLocator();
   const overlay = createOverlayFake();
-  const bubbles = new EventEmitter();
+  const card = new EventEmitter();
   const cursor = { point: { x: -1, y: -1 } };
   const pointing = createPointing({
     locator,
     overlay,
-    bubbles,
+    card,
     cursor: () => cursor.point,
   });
-  return { locator, overlay, bubbles, cursor, pointing };
+  return { locator, overlay, card, cursor, pointing };
 }
 
 test("an answer naming two elements draws two numbered marks of the right kind", async () => {
@@ -256,17 +256,17 @@ test("numberOf maps the ref a hovered bubble carries to its mark", async () => {
   assert.equal(pointing.numberOf(null), null);
 });
 
-test("marks fade and revive with the bubbles, on the bubbles' one settle timer", async () => {
-  const { overlay, bubbles, pointing } = rig();
+test("marks fade and revive as the chat card closes and opens", async () => {
+  const { overlay, card, pointing } = rig();
   await pointing.show(refs, { displayId: "1" });
-  bubbles.emit("fade");
-  bubbles.emit("revive");
+  card.emit("fade");
+  card.emit("revive");
   assert.deepEqual(overlay.commands, [
     ["fade", undefined],
     ["revive", undefined],
   ]);
   pointing.clear("done");
-  bubbles.emit("fade");
+  card.emit("fade");
   assert.equal(overlay.commands.length, 2);
 });
 

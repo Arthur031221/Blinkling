@@ -1,4 +1,4 @@
-/** The guide's bubbles and buttons in the bubble surface. Each guide event
+/** The guide's bubbles and buttons in the chat card. Each guide event
  * updates what is already there: a bubble whose text is unchanged is the same
  * node, so it does not play its entrance again, and only a bubble that is new
  * grows in. */
