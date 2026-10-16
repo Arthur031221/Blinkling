@@ -510,3 +510,42 @@ test("the box can be dragged up to 120 px from where it opens, per edge, and is 
   fire("blinkling:mini-nudge", { reset: true });
   assert.equal(state.bounds.x, home.x);
 });
+
+test("a note says in the open box why a page came as its visible part, and a closed box ignores it", async () => {
+  const { controller, sent } = setup();
+  const lastView = () =>
+    sent.filter(([c]) => c === "blinkling:mini-view").at(-1)[1];
+  controller.note("visible-part");
+  assert.equal(sent.filter(([c]) => c === "blinkling:mini-view").length, 0);
+  await controller.open(entries());
+  assert.equal(lastView().notice, "");
+  controller.note("visible-part");
+  assert.equal(lastView().notice, "visible-part");
+  controller.note("nonsense");
+  assert.equal(lastView().notice, "visible-part");
+  await controller.open(entries());
+  assert.equal(lastView().notice, "", "a new picture clears the note");
+});
+
+test("pictures that join an open box keep their thumbnails", async () => {
+  const { controller, sent } = setup();
+  const last = () =>
+    sent.filter(([c]) => c === "blinkling:mini-view").at(-1)[1];
+  const one = (id) => ({
+    id,
+    kind: "area",
+    attachment: { ...image, id },
+    thumb: "data:image/png;base64,AAAA",
+  });
+  await controller.open([one("t1")]);
+  await controller.open([one("t2")]);
+  await controller.open([one("t3")]);
+  assert.deepEqual(
+    last().entries.map((e) => [e.id, Boolean(e.thumb)]),
+    [
+      ["t1", true],
+      ["t2", true],
+      ["t3", true],
+    ],
+  );
+});

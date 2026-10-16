@@ -1388,6 +1388,7 @@ app.on("window-all-closed", () => app.quit());
 if (process.env.BLINKLING_E2E === "1")
   Object.assign(globalThis.blinklingTest, {
     features,
+    companionHost,
     session,
     picking: tellPicking,
     send,

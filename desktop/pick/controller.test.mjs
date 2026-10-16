@@ -78,6 +78,7 @@ function setup(options = {}) {
         void (log.opened.push(entries), log.order.push("mini")),
       fill: (entry) => void (log.filled.push(entry), log.order.push("fill")),
       drop: (id) => void (log.dropped.push(id), log.order.push("drop")),
+      note: (code) => void log.order.push(`note ${code}`),
     },
     pickedWhileHeld: options.pickedWhileHeld,
     reduced: () => false,
@@ -430,4 +431,23 @@ test("a pick made while the key is held can say that more can follow", async () 
   await pickAt(controller, local(200, 280));
   const hints = log.sent.filter(([c]) => c === "hint").map(([, v]) => v.text);
   assert.deepEqual(hints, ["Keep holding"]);
+});
+
+test("a capture that came as the visible part tells the box once the picture is in", async () => {
+  const { controller, log } = setup();
+  const capture = (id, notice) => ({
+    id,
+    kind: "screen",
+    display: DISPLAY,
+    region: { x: 0, y: 0, width: 300, height: 200 },
+    pixelWidth: 300,
+    pixelHeight: 200,
+    image: { id, name: "Visible part.png", mediaType: "image/png", data: PNG },
+    notice,
+  });
+  await controller.deliver(capture("p1", "visible-part"));
+  assert.ok(log.order.indexOf("note visible-part") > log.order.indexOf("mini"));
+  const count = log.order.filter((x) => x.startsWith("note")).length;
+  await controller.deliver(capture("p2"));
+  assert.equal(log.order.filter((x) => x.startsWith("note")).length, count);
 });

@@ -329,13 +329,16 @@ export class DesktopCaptureService {
     } catch (error) {
       if (signal.aborted) throw error;
     }
+    // The reader asked for the whole page: the box says in one line why this
+    // is only what was in view.
     if (choice.fallback === "screen")
-      return [{ ...capture, kind: "screen", source }];
+      return [{ ...capture, kind: "screen", source, notice: "visible-part" }];
     return [
       {
         ...cropped(capture, choice.rect, "Visible part.png"),
         kind: "window",
         source: "page",
+        notice: "visible-part",
       },
     ];
   }

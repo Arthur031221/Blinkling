@@ -115,6 +115,7 @@ export function createMiniController({
     "unreadable",
     "too-many-files",
     "total-too-large",
+    "visible-part",
   ]);
   /** A file or image from the + button: checked here like any attachment, then
    * a chip. The box makes the small preview; only a small image is accepted. */
@@ -227,6 +228,13 @@ export function createMiniController({
     get isOpen() {
       return !!model;
     },
+    /** A one-line word for the open box, such as why a page came as its
+     * visible part. Nothing happens when the box is closed. */
+    note(code) {
+      if (!model || !KNOWN_NOTICES.has(code)) return;
+      notice = code;
+      refresh();
+    },
     /** The chips the open box holds, oldest first. */
     entries: () => model?.snapshot().entries ?? [],
     /** entries: [{id, kind, attachment, taken?, thumb?, pending?}] */
@@ -238,13 +246,14 @@ export function createMiniController({
       const entries = [...prior.entries, ...added].slice(
         -attachmentLimits.count,
       );
+      // Closing the old contents forgets its thumbnails: keep them first.
+      const kept = wasOpen ? thumbs : new Map();
       reopening = wasOpen;
       if (model) model.dispose();
       reopening = false;
       clearTimer(hideTimer);
       hideTimer = null;
       notice = "";
-      const kept = wasOpen ? thumbs : new Map();
       thumbs = new Map(
         [
           ...kept,

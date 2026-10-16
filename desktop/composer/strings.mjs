@@ -35,6 +35,8 @@ export const strings = {
     "error-unsupported-file": "This file type is not supported",
     "error-too-large": "The attachment is too large. Choose a file under 20 MB",
     "error-unreadable": "The attachment could not be read",
+    "error-visible-part":
+      "Full page needs the browser extension, so this is the visible part",
     "error-too-many-files": "You can add up to 8 attachments",
     "error-total-too-large": "The attachments together are over 32 MB",
     "error-busy": "Wait for the answer to finish",
@@ -86,6 +88,7 @@ export const strings = {
     "error-unsupported-file": "不支援這個檔案格式",
     "error-too-large": "附件太大，請選擇 20 MB 以下的檔案",
     "error-unreadable": "無法讀取附件",
+    "error-visible-part": "整頁需要瀏覽器擴充功能，這次只截到可見的部分",
     "error-too-many-files": "最多可加入 8 個附件",
     "error-total-too-large": "附件總大小超過 32 MB",
     "error-busy": "請等回答完成",
@@ -137,6 +140,7 @@ export const strings = {
     "error-unsupported-file": "不支持这种文件格式",
     "error-too-large": "附件太大，请选择 20 MB 以下的文件",
     "error-unreadable": "无法读取附件",
+    "error-visible-part": "整页需要浏览器扩展，这次只截到了可见部分",
     "error-too-many-files": "最多可添加 8 个附件",
     "error-total-too-large": "附件总大小超过 32 MB",
     "error-busy": "请等回答完成",
@@ -189,6 +193,8 @@ export const strings = {
     "error-too-large":
       "ファイルが大きすぎます。20 MB 以下のファイルを選んでください",
     "error-unreadable": "ファイルを読み込めませんでした",
+    "error-visible-part":
+      "ページ全体にはブラウザ拡張機能が必要なため、見えている部分だけ撮影しました",
     "error-too-many-files": "添付できるのは 8 件までです",
     "error-total-too-large": "添付ファイルの合計が 32 MB を超えています",
     "error-busy": "回答が終わるまでお待ちください",
@@ -242,6 +248,8 @@ export const strings = {
     "error-too-large":
       "첨부 파일이 너무 큽니다. 20 MB 이하의 파일을 선택하세요",
     "error-unreadable": "첨부 파일을 읽을 수 없습니다",
+    "error-visible-part":
+      "전체 페이지에는 브라우저 확장 프로그램이 필요해서 보이는 부분만 캡처했습니다",
     "error-too-many-files": "첨부 파일은 최대 8개까지 추가할 수 있습니다",
     "error-total-too-large": "첨부 파일의 총 크기가 32 MB를 넘습니다",
     "error-busy": "답변이 끝날 때까지 기다려 주세요",
@@ -294,6 +302,8 @@ export const strings = {
     "error-unsupported-file": "Dieses Dateiformat wird nicht unterstützt",
     "error-too-large": "Der Anhang ist zu groß. Wähle eine Datei unter 20 MB",
     "error-unreadable": "Der Anhang konnte nicht gelesen werden",
+    "error-visible-part":
+      "Die ganze Seite braucht die Browser-Erweiterung, darum nur der sichtbare Teil",
     "error-too-many-files": "Du kannst bis zu 8 Anhänge hinzufügen",
     "error-total-too-large": "Die Anhänge sind zusammen größer als 32 MB",
     "error-busy": "Warte, bis die Antwort fertig ist",
@@ -348,6 +358,8 @@ export const strings = {
     "error-too-large":
       "El archivo es demasiado grande. Elige uno de menos de 20 MB",
     "error-unreadable": "No se pudo leer el archivo adjunto",
+    "error-visible-part":
+      "La página completa necesita la extensión del navegador, se capturó la parte visible",
     "error-too-many-files": "Puedes adjuntar hasta 8 archivos",
     "error-total-too-large": "Los archivos adjuntos suman más de 32 MB",
     "error-busy": "Espera a que termine la respuesta",
@@ -401,6 +413,8 @@ export const strings = {
     "error-too-large":
       "La pièce jointe est trop volumineuse. Choisissez un fichier de moins de 20 Mo",
     "error-unreadable": "Impossible de lire la pièce jointe",
+    "error-visible-part":
+      "La page entière nécessite l'extension du navigateur, seule la partie visible a été capturée",
     "error-too-many-files": "Vous pouvez ajouter jusqu'à 8 pièces jointes",
     "error-total-too-large": "Les pièces jointes dépassent 32 Mo au total",
     "error-busy": "Attendez la fin de la réponse",
@@ -455,6 +469,8 @@ export const strings = {
     "error-too-large":
       "O anexo é grande demais. Escolha um arquivo com menos de 20 MB",
     "error-unreadable": "Não foi possível ler o anexo",
+    "error-visible-part":
+      "A página inteira precisa da extensão do navegador, foi capturada a parte visível",
     "error-too-many-files": "Você pode adicionar até 8 anexos",
     "error-total-too-large": "Os anexos somam mais de 32 MB",
     "error-busy": "Aguarde a resposta terminar",

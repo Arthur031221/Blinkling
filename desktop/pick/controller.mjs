@@ -298,6 +298,7 @@ export function createPickController({
       [entry],
       [{ id: entry.id, kind: "area", bounds: capture.region, dataUrl }],
     );
+    if (capture.notice) mini.note?.(capture.notice);
   }
 
   return {
