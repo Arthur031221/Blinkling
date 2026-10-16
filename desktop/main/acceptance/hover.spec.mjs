@@ -228,7 +228,8 @@ test("with the card open Blink stays above it and every menu bubble is clickable
     await page.waitForTimeout(450);
     await shot(app, "menu-over-card");
     let count = 0;
-    for (const action of ["capture", "guide", "auto-explain", "settings"]) {
+    // The full screen bubble closes the menu when it is used, so it goes last.
+    for (const action of ["guide", "auto-explain", "settings", "capture"]) {
       const r = await bubble(page, action).boundingBox();
       click(b.x + r.x + r.width / 2, b.y + r.y + r.height / 2);
       await expect
@@ -236,6 +237,13 @@ test("with the card open Blink stays above it and every menu bubble is clickable
         .toBe(++count);
     }
     await page.waitForTimeout(500);
+    expect(
+      (
+        await app.evaluate(() =>
+          globalThis.blinklingTest.nBlinkMenuFaces.interaction(),
+        )
+      ).menu,
+    ).toBe(false);
     await clickBlink(page);
     await expect
       .poll(() => composerState(app).then((s) => s.visible))

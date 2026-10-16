@@ -42,7 +42,8 @@ test("registered services receive native menu actions and auto switch reflects t
     });
     await reveal(page);
     let count = 0;
-    for (const action of ["capture", "guide", "auto-explain", "settings"]) {
+    // The full screen bubble closes the menu when it is used, so it goes last.
+    for (const action of ["guide", "auto-explain", "settings", "capture"]) {
       const r = await page.locator(`[data-action="${action}"]`).boundingBox();
       click(b.x + r.x + r.width / 2, b.y + r.y + r.height / 2);
       await expect
@@ -58,10 +59,10 @@ test("registered services receive native menu actions and auto switch reflects t
       () => globalThis.blinklingTest.snapshot().display.id,
     );
     expect(actions.map((a) => a.action)).toEqual([
-      "capture",
       "guide",
       "auto-explain",
       "settings",
+      "capture",
     ]);
     expect(actions.every((a) => a.displayId === displayId)).toBe(true);
     expect(await app.evaluate(() => globalThis.bg.isFocused())).toBe(true);
