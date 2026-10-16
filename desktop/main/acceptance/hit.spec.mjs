@@ -202,3 +202,69 @@ test("a real click in the margin ring is Blink's and one a hand's breadth outsid
     await app.close();
   }
 });
+
+/** The drawn pixel of a peeking Blink nearest the screen edge: the tip of the
+ * head, which is what a hand reaches first. */
+async function tip(page, edge) {
+  await page.addStyleTag({
+    content: "#menu,#grumble,#permission-alert{display:none!important}",
+  });
+  const { width, height, data } = PNG.sync.read(
+    await page.screenshot({ omitBackground: true }),
+  );
+  let top = 0;
+  for (let i = 0; i < width * height; i++) top = Math.max(top, data[i * 4 + 3]);
+  const nearness = {
+    left: (x) => -x,
+    right: (x) => x,
+    top: (_x, y) => -y,
+    bottom: (_x, y) => y,
+  }[edge];
+  let best = null;
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++)
+      if (data[(y * width + x) * 4 + 3] >= top / 2) {
+        const n = nearness(x, y);
+        if (!best || n > best.n) best = { x, y, n };
+      }
+  return best;
+}
+
+test("touching the peeking head where it is drawn wakes Blink on every edge", async () => {
+  test.setTimeout(240000);
+  const { app, page } = await launch();
+  const rec = record("peek_hit", { suffix: "-321" });
+  try {
+    await background(app);
+    for (const edge of ["left", "right", "top", "bottom"]) {
+      await place(app, edge, 0.5);
+      move(640, 400);
+      await page.waitForTimeout(1700);
+      await expect(page.locator("#blink")).not.toHaveAttribute(
+        "data-mode",
+        "hover",
+      );
+      const at = await tip(page, edge);
+      // A little inside the tip, so the pointer is on the drawing itself.
+      const inward = {
+        left: [4, 0],
+        right: [-4, 0],
+        top: [0, 4],
+        bottom: [0, -4],
+      }[edge];
+      rec.frame(`${edge}-before-touch`);
+      move(at.x + inward[0], at.y + inward[1]);
+      await expect(
+        page.locator("#blink"),
+        `${edge}: the touch woke Blink`,
+      ).toHaveAttribute("data-mode", "hover");
+      await page.waitForTimeout(500);
+      rec.frame(`${edge}-touched`);
+      move(640, 400);
+      await page.waitForTimeout(2000);
+    }
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

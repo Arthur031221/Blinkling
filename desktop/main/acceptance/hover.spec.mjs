@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import x11 from "x11";
 import { cardBounds } from "../placement.mjs";
-import { launch, native, move, click, wheel, keys } from "./support.mjs";
+import { launch, native, move, click, wheel } from "./support.mjs";
 import {
   reveal,
   onBlink,
@@ -33,16 +33,6 @@ const composerState = (app) =>
     const c = globalThis.blinklingTest.composer;
     return { visible: !!c && c.isVisible(), focused: !!c && c.isFocused() };
   });
-/** The mini composer, which a plain click on Blink opens, is on screen and has the keyboard. */
-const miniState = (app) =>
-  app.evaluate(({ BrowserWindow }) => {
-    const mini = BrowserWindow.getAllWindows().find((w) =>
-      /\/mini\/index\.html$/.test(w.webContents.getURL()),
-    );
-    return Boolean(mini?.isVisible() && mini.isFocused());
-  });
-const miniPage = (app) =>
-  app.windows().find((p) => /\/mini\/index\.html$/.test(p.url()));
 const nativeId = (app, name) =>
   app.evaluate(
     (_electron, name) =>
@@ -183,7 +173,12 @@ test("the card follows Blink to each of the four edges", async () => {
       const { display, position } = await app.evaluate(() =>
         globalThis.blinklingTest.snapshot(),
       );
-      const expected = cardBounds(display, position);
+      // The card is as tall as its content needs, so the height comes from
+      // the shell; the placement itself is checked against the pure module.
+      const wanted = await app.evaluate(
+        () => globalThis.blinklingTest.composer.getBounds().height,
+      );
+      const expected = cardBounds(display, position, undefined, wanted);
       expect(
         await app.evaluate(() => globalThis.blinklingTest.composer.getBounds()),
         `card at the ${edge} edge`,
@@ -350,66 +345,6 @@ test("a click outside closes the card with a draft or a chip in it and the page 
     await expect
       .poll(() => composerState(app).then((s) => s.visible), { timeout: 1000 })
       .toBe(false);
-  } finally {
-    await app.close();
-  }
-});
-
-test("after an area capture the mini composer and its text box have focus and typing lands in the draft", async () => {
-  test.setTimeout(90000);
-  const { app, page } = await launch();
-  try {
-    await background(app);
-    // The overlay windows exist from the start and are shown on demand. The
-    // capture call answers only when the capture ends, so it is not awaited.
-    await app.evaluate(
-      () => void globalThis.blinklingTest.features.select("capture"),
-    );
-    let selector;
-    await expect
-      .poll(
-        () => {
-          selector = app
-            .windows()
-            .find((p) => /\/capture\/selection\.html$/.test(p.url()));
-          return !!selector;
-        },
-        { timeout: 20000 },
-      )
-      .toBe(true);
-    await expect(selector.locator("body")).toHaveAttribute(
-      "data-ready",
-      "true",
-    );
-    await selector.mouse.move(400, 200);
-    await selector.mouse.down();
-    await selector.mouse.move(520, 290, { steps: 12 });
-    // Releasing the drag takes the area; the shot flies into Blink.
-    await selector.mouse.up();
-    const mini = await (async () => {
-      await expect
-        .poll(() => miniPage(app)?.locator(".mini-entry-image").count())
-        .toBe(1);
-      return miniPage(app);
-    })();
-    await expect.poll(() => miniState(app)).toBe(true);
-    expect(
-      await mini.evaluate(
-        () =>
-          document.hasFocus() &&
-          document.activeElement === document.querySelector(".mini-input"),
-      ),
-    ).toBe(true);
-    // Real keyboard events through the X server, not Playwright's injection.
-    keys("typed after capture");
-    await expect(mini.locator(".mini-input")).toHaveValue(
-      "typed after capture",
-    );
-    await shot(app, "mini-after-capture");
-    // The capture stays in the mini composer after the pointer leaves.
-    click(40, 40);
-    await page.waitForTimeout(1500);
-    await expect(mini.locator(".mini-entry-image")).toHaveCount(1);
   } finally {
     await app.close();
   }

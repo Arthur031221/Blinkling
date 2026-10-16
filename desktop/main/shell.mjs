@@ -31,6 +31,7 @@ import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
 import { boundsOf, contains } from "./geometry.mjs";
+import { localPoint, pointerHit } from "./hit.mjs";
 import {
   resolvePosition,
   snapPosition,
@@ -192,6 +193,9 @@ function windowOptions(bounds, focusable) {
     alwaysOnTop: true,
     focusable,
     resizable: false,
+    // macOS otherwise keeps a window off the menu bar and the Dock, which moves
+    // the drawing away from where the pointer is read.
+    enableLargerThanScreen: true,
     skipTaskbar: true,
     show: false,
     webPreferences,
@@ -210,6 +214,9 @@ function secure(win) {
   );
 }
 const blink = new BrowserWindow(windowOptions(display.bounds, false));
+/** Where Blink's window really is. The drawing, the pointer test and the card all
+ * measure from this frame, never from the display's corner. */
+const frame = () => blink.getBounds();
 secure(blink);
 blink.setIgnoreMouseEvents(true, { forward: true });
 const windows = () =>
@@ -226,8 +233,8 @@ const surfaces = () => [
 const shown = () =>
   drag?.active
     ? carriedPosition(position, {
-        x: drag.anchor.x - display.bounds.x,
-        y: drag.anchor.y - display.bounds.y,
+        x: drag.anchor.x - frame().x,
+        y: drag.anchor.y - frame().y,
       })
     : position;
 /** The card's place: beside Blink, moved by what the reader nudged on this edge. */
@@ -247,8 +254,8 @@ const snapshot = () => ({
   nudge: store.nudge(`card:${position.edge}`),
   drag: drag?.active
     ? {
-        x: drag.anchor.x - display.bounds.x,
-        y: drag.anchor.y - display.bounds.y,
+        x: drag.anchor.x - frame().x,
+        y: drag.anchor.y - frame().y,
         velocity: drag.velocity,
       }
     : null,
@@ -613,11 +620,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     if (!fromBlink) throw new Error("Invalid shell gesture");
     const p = cursor.point();
     if (command.phase === "start") {
-      if (
-        !regions.some((r) =>
-          contains(r, { x: p.x - display.bounds.x, y: p.y - display.bounds.y }),
-        )
-      )
+      if (!regions.some((r) => contains(r, localPoint(p, frame()))))
         throw new Error("Drag must start on Blink");
       drag = {
         active: false,
@@ -627,8 +630,8 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
           y: (command.anchor?.y ?? position.reveal.y) + display.bounds.y,
         },
         anchor: {
-          x: (command.anchor?.x ?? position.reveal.x) + display.bounds.x,
-          y: (command.anchor?.y ?? position.reveal.y) + display.bounds.y,
+          x: (command.anchor?.x ?? position.reveal.x) + frame().x,
+          y: (command.anchor?.y ?? position.reveal.y) + frame().y,
         },
         lastX: p.x,
         velocity: 0,
@@ -805,8 +808,8 @@ const nudges = {
   },
 };
 const blinkPoint = () => ({
-  x: shown().reveal.x + display.bounds.x,
-  y: shown().reveal.y + display.bounds.y,
+  x: shown().reveal.x + frame().x,
+  y: shown().reveal.y + frame().y,
 });
 const mouthPoint = () => mouthOf(blinkPoint());
 /** While the pick layer is up Blink's eyes follow the cursor. */
@@ -1084,8 +1087,8 @@ const visualMasks = () =>
           : [{ x: 0, y: 0, width: b.width, height: b.height }];
       return shape.map((r) => ({
         ...r,
-        x: r.x + b.x - display.bounds.x,
-        y: r.y + b.y - display.bounds.y,
+        x: r.x + b.x - frame().x,
+        y: r.y + b.y - frame().y,
       }));
     });
 // The guide's overlay has no focused window, so Left and Right are global
@@ -1361,7 +1364,7 @@ const stopStacking = await keepAbove(() =>
 );
 /** Whether a screen point is on anything Blinkling draws and takes clicks on. */
 function over(p) {
-  const local = { x: p.x - display.bounds.x, y: p.y - display.bounds.y };
+  const local = localPoint(p, frame());
   if (regions.some((r) => contains(r, local))) return true;
   return [composer, ...extraWindows].some(
     (w) => w && !w.isDestroyed() && w.isVisible() && contains(w.getBounds(), p),
@@ -1395,24 +1398,25 @@ const poll = setInterval(() => {
     }
     broadcast();
   }
-  const local = { x: p.x - display.bounds.x, y: p.y - display.bounds.y };
-  const hit = regions.some((r) => contains(r, local));
-  const onBlink =
-    (blinkRegions.length ? blinkRegions : regions).some((r) =>
-      contains(r, local),
-    ) ||
-    (machine.read().out && rim.some((r) => contains(r, local)));
+  const { local, hit, onBlink } = pointerHit({
+    point: p,
+    frame: frame(),
+    regions,
+    blinkRegions,
+    rim,
+    out: machine.read().out,
+  });
   if (!drag) {
     const card = composer?.isVisible() ? composer.getBounds() : null;
     machine.geometry({
-      blink: boundsOf(blinkRegions, display.bounds),
+      blink: boundsOf(blinkRegions, frame()),
       card: card && {
         x: card.x + 12,
         y: card.y + 12,
         width: card.width - 24,
         height: card.height - 24,
       },
-      menu: boundsOf(menuRegions, display.bounds),
+      menu: boundsOf(menuRegions, frame()),
     });
     flow((m) => {
       m.pointer(p, performance.now(), onBlink);
