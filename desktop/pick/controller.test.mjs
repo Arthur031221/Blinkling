@@ -451,3 +451,56 @@ test("a capture that came as the visible part tells the box once the picture is 
   await controller.deliver(capture("p2"));
   assert.equal(log.order.filter((x) => x.startsWith("note")).length, count);
 });
+
+test("a full page arrives as tiles: one flight from the browser's rectangle, one box with a chip per tile", async () => {
+  const { controller, log } = setup();
+  const tile = (id) => ({
+    id,
+    kind: "page",
+    source: "page",
+    display: DISPLAY,
+    region: { x: 100, y: 50, width: 800, height: 600 },
+    pixelWidth: 1600,
+    pixelHeight: 1200,
+    image: { id, name: "Page.png", mediaType: "image/png", data: PNG },
+  });
+  const first = tile("t1");
+  await controller.deliver({ ...first, rest: [tile("t2"), tile("t3")] });
+  assert.equal(log.flights.length, 1, "the tiles fly in once");
+  assert.equal(log.caught, 1, "Blink eats once, not once per tile");
+  assert.equal(log.flights[0].items.length, 1);
+  assert.deepEqual(log.flights[0].items[0].bounds, {
+    x: 100,
+    y: 50,
+    width: 800,
+    height: 600,
+  });
+  assert.equal(log.flights[0].items[0].dataUrl, `data:image/png;base64,${PNG}`);
+  assert.equal(log.opened.length, 1, "the box opens once");
+  assert.deepEqual(
+    log.opened[0].map((e) => e.id),
+    ["t1", "t2", "t3"],
+  );
+});
+
+test("a capture on a second display flies from its screen position", async () => {
+  const { controller, log } = setup();
+  const second = {
+    ...DISPLAY,
+    bounds: { x: 1280, y: 0, width: 1280, height: 800 },
+  };
+  await controller.deliver({
+    id: "c",
+    display: second,
+    region: { x: 10, y: 20, width: 300, height: 200 },
+    pixelWidth: 300,
+    pixelHeight: 200,
+    image: { id: "i", name: "S.png", mediaType: "image/png", data: PNG },
+  });
+  assert.deepEqual(log.flights[0].items[0].bounds, {
+    x: 1290,
+    y: 20,
+    width: 300,
+    height: 200,
+  });
+});

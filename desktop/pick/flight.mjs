@@ -27,14 +27,12 @@ export function flightPath({ from, to }) {
 
 const LEAD = 0.7;
 const SLIVER = 0.04;
-const GENIE_MAX = 360;
 
-/** The size a pick starts at when it is sucked in: its own, down to a cap. */
+/** The size a capture starts at when it is sucked in: its own, as taken. */
 export function genieSize(bounds) {
-  const k = Math.min(1, GENIE_MAX / Math.max(bounds.width, bounds.height, 1));
   return {
-    width: Math.max(MIN_THUMBNAIL, Math.round(bounds.width * k)),
-    height: Math.max(MIN_THUMBNAIL, Math.round(bounds.height * k)),
+    width: Math.max(MIN_THUMBNAIL, Math.round(bounds.width)),
+    height: Math.max(MIN_THUMBNAIL, Math.round(bounds.height)),
   };
 }
 
@@ -65,11 +63,38 @@ export const pathAt = ({ start, control, end }, q) => {
 /** Columns the picture is cut into: enough that the bending edges look smooth. */
 export const COLUMNS = 40;
 
-/** Which half of the screen the picture is drawn in, cut at the mouth: it comes
- * from one side and is only visible on that side, so it goes into the mouth. */
-export function mouthClip(from, to) {
-  const middle = from.y + from.height / 2;
-  return { side: middle <= to.y ? "above" : "below", y: to.y };
+/** What the mouth hides. The picture comes in along the path and is cut by the
+ * line through the mouth that is square to the way the path arrives, on whatever
+ * edge Blink sits. `slack` is how far the picture's start reaches beyond that
+ * line, so the cut can begin out of the way and close in as the picture arrives. */
+export function mouthClip(path, from) {
+  const arrive = pathAt(path, 1);
+  const dir = { x: Math.cos(arrive.angle), y: Math.sin(arrive.angle) };
+  const corners = [
+    [from.x, from.y],
+    [from.x + from.width, from.y],
+    [from.x, from.y + from.height],
+    [from.x + from.width, from.y + from.height],
+  ];
+  const slack = Math.max(
+    0,
+    ...corners.map(
+      ([x, y]) => (x - path.end.x) * dir.x + (y - path.end.y) * dir.y,
+    ),
+  );
+  return { end: { ...path.end }, dir, slack };
+}
+
+/** Where the cut lies at progress p: out at the picture's start, on the mouth
+ * once the leading end has arrived. */
+export function clipLine(clip, p) {
+  const lead = Math.min(1, Math.max(0, p) * (1 + LEAD));
+  const offset = clip.slack * (1 - lead) ** 2;
+  return {
+    x: clip.end.x + clip.dir.x * offset,
+    y: clip.end.y + clip.dir.y * offset,
+    dir: clip.dir,
+  };
 }
 
 /** A macOS genie: the picture is cut into columns across the way it travels, and
@@ -106,10 +131,13 @@ export function genieColumns(path, turned, p, { count = COLUMNS } = {}) {
     const prev = columns[Math.max(i - 1, 0)];
     const gap = i < count - 1 ? [c, next] : [prev, c];
     // A bend between neighbours opens a wedge on its outer side: reach across it.
-    const wedge =
-      (Math.abs(gap[1].angle - gap[0].angle) *
-        Math.max(gap[0].height, gap[1].height)) /
-      2;
+    // The turn between them is the short way round: a path heading left
+    // flips between just under +pi and just over -pi.
+    const turn = Math.atan2(
+      Math.sin(gap[1].angle - gap[0].angle),
+      Math.cos(gap[1].angle - gap[0].angle),
+    );
+    const wedge = (Math.abs(turn) * Math.max(gap[0].height, gap[1].height)) / 2;
     c.length = Math.max(
       width,
       Math.hypot(gap[1].x - gap[0].x, gap[1].y - gap[0].y) + wedge + 1.5,

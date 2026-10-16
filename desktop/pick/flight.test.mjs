@@ -6,6 +6,7 @@ import {
   cubicBezier,
   genieColumns,
   mouthClip,
+  clipLine,
   COLUMNS,
   genieSize,
   startAngle,
@@ -94,14 +95,15 @@ test("the spring is stable for a long frame", () => {
 const genie = (p, turned = { width: 160, height: 100 }) =>
   genieColumns(flightPath({ from, to }), turned, p, { count: 8 });
 
-test("a pick is sucked in at its own size, down to a cap", () => {
+test("a capture is sucked in at its own size, never shrunk first", () => {
   assert.deepEqual(genieSize({ x: 0, y: 0, width: 200, height: 100 }), {
     width: 200,
     height: 100,
   });
-  const big = genieSize({ x: 0, y: 0, width: 1800, height: 900 });
-  assert.ok(big.width <= 360 && big.height <= 180);
-  assert.ok(Math.abs(big.width / big.height - 2) < 0.05);
+  assert.deepEqual(genieSize({ x: 0, y: 0, width: 1800, height: 900 }), {
+    width: 1800,
+    height: 900,
+  });
 });
 
 test("turning the picture to the path keeps its area and swaps a quarter turn", () => {
@@ -153,16 +155,49 @@ test("no column is ever missing or not a number", () => {
         assert.ok(Number.isFinite(v));
 });
 
-test("the picture is clipped at the mouth on the side it arrives from, so it disappears into it", () => {
-  const to = { x: 640, y: 700 };
-  assert.deepEqual(mouthClip({ x: 400, y: 300, width: 300, height: 200 }, to), {
-    side: "above",
-    y: 700,
+const dot = (a, b) => a.x * b.x + a.y * b.y;
+test("the cut is square to the way the picture arrives, on every edge", () => {
+  const screen = { x: 0, y: 0, width: 1920, height: 1080 };
+  for (const mouth of [
+    { x: 1900, y: 800 }, // right edge, low
+    { x: 20, y: 300 }, // left edge, high
+    { x: 960, y: 1060 }, // bottom edge
+  ]) {
+    const path = flightPath({ from: screen, to: mouth });
+    const clip = mouthClip(path, screen);
+    const arrive = pathAt(path, 1);
+    assert.ok(Math.abs(clip.dir.x - Math.cos(arrive.angle)) < 1e-9);
+    // At the start the cut is out past every corner: nothing of the picture is hidden.
+    const line0 = clipLine(clip, 0);
+    for (const c of [
+      { x: 0, y: 0 },
+      { x: 1920, y: 0 },
+      { x: 0, y: 1080 },
+      { x: 1920, y: 1080 },
+    ])
+      assert.ok(
+        dot({ x: c.x - line0.x, y: c.y - line0.y }, clip.dir) <= 1e-6,
+        "a corner of the picture is cut from the first frame",
+      );
+    // When the leading end arrives the cut lies on the mouth.
+    const done = clipLine(clip, 1);
+    assert.ok(Math.hypot(done.x - mouth.x, done.y - mouth.y) < 1e-9);
+  }
+});
+test("the cut only closes in: it never moves back out as the picture flies", () => {
+  const path = flightPath({
+    from: { x: 100, y: 100, width: 800, height: 500 },
+    to: { x: 1900, y: 700 },
   });
-  assert.deepEqual(mouthClip({ x: 400, y: 760, width: 300, height: 200 }, to), {
-    side: "below",
-    y: 700,
-  });
+  const clip = mouthClip(path, { x: 100, y: 100, width: 800, height: 500 });
+  let last = Infinity;
+  for (let p = 0; p <= 1.0001; p += 0.05) {
+    const line = clipLine(clip, p);
+    const d =
+      (line.x - path.end.x) * clip.dir.x + (line.y - path.end.y) * clip.dir.y;
+    assert.ok(d <= last + 1e-9);
+    last = d;
+  }
 });
 test("the picture is cut into enough columns for smooth edges", () => {
   assert.ok(COLUMNS >= 40);
@@ -188,4 +223,18 @@ test("columns overlap across the wedge a bend opens, so no seam shows between th
       (Math.abs(next.angle - c.angle) * Math.max(c.height, next.height)) / 2;
     assert.ok(c.length >= reach + wedge, `column ${i}`);
   });
+});
+
+test("a picture flying left, where the heading wraps from pi to -pi, keeps its columns short", () => {
+  const box = { x: 300, y: 160, width: 360, height: 240 };
+  const path = flightPath({ from: box, to: { x: 90, y: 366 } });
+  const turned = turnedSize(box, startAngle(path));
+  for (let p = 0.005; p < 1; p += 0.005) {
+    const columns = genieColumns(path, turned, p);
+    for (const c of columns)
+      assert.ok(
+        c.length < turned.width / COLUMNS + 0.5 * c.height + 40,
+        `a column is ${Math.round(c.length)} px long at ${p.toFixed(2)}`,
+      );
+  }
 });

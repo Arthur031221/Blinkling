@@ -12,6 +12,7 @@ import {
   flightPath,
   genieColumns,
   mouthClip,
+  clipLine,
   genieSize,
   startAngle,
   turnedSize,
@@ -446,6 +447,7 @@ function clearAll() {
   painted = null;
 }
 
+const MAX_SHEET = 8192;
 const stagger = Math.round(duration.fast / 8);
 
 /** Thumbnails of what was taken are sucked into Blink's mouth along a lifted arc,
@@ -459,18 +461,26 @@ function fly({ items: picked, to, token }) {
     const angle = startAngle(path);
     const turned = turnedSize(size, angle);
     // The picture turned so the path leaves along +x: its columns are cut across the way it travels.
+    // Drawn at device resolution (within what a canvas can hold), so the picture
+    // is as sharp in the air as it was on the screen.
+    const scale = Math.min(
+      dpr,
+      MAX_SHEET / Math.max(turned.width, turned.height, 1),
+    );
     const sheet = document.createElement("canvas");
-    sheet.width = Math.max(1, Math.round(turned.width));
-    sheet.height = Math.max(1, Math.round(turned.height));
+    sheet.width = Math.max(1, Math.round(turned.width * scale));
+    sheet.height = Math.max(1, Math.round(turned.height * scale));
     const paint = sheet.getContext("2d");
+    paint.imageSmoothingQuality = "high";
     paint.translate(sheet.width / 2, sheet.height / 2);
+    paint.scale(scale, scale);
     paint.rotate(-angle);
     const draw = (img) => {
       paint.clearRect(
-        -sheet.width,
-        -sheet.height,
-        2 * sheet.width,
-        2 * sheet.height,
+        -turned.width,
+        -turned.height,
+        2 * turned.width,
+        2 * turned.height,
       );
       paint.fillStyle = colors.surface;
       paint.fillRect(
@@ -509,9 +519,10 @@ function fly({ items: picked, to, token }) {
     return {
       sheet,
       decoded,
-      turned: { width: sheet.width, height: sheet.height },
+      turned,
+      scale: sheet.width / turned.width,
       path,
-      clip: mouthClip(bounds, target),
+      clip: mouthClip(path, bounds),
       delay: index * stagger,
       done: false,
     };
@@ -540,16 +551,22 @@ function fly({ items: picked, to, token }) {
       const p = finished ? 1 : ease(run);
       const columns = genieColumns(thing.path, thing.turned, p);
       genie.save();
+      // Everything beyond the mouth is cut, so the picture goes in.
+      const cut = clipLine(thing.clip, p);
+      const far = 20000;
+      const side = { x: -cut.dir.y * far, y: cut.dir.x * far };
       genie.beginPath();
-      if (thing.clip.side === "above")
-        genie.rect(0, 0, window.innerWidth, thing.clip.y);
-      else
-        genie.rect(
-          0,
-          thing.clip.y,
-          window.innerWidth,
-          window.innerHeight - thing.clip.y,
-        );
+      genie.moveTo(cut.x + side.x, cut.y + side.y);
+      genie.lineTo(cut.x - side.x, cut.y - side.y);
+      genie.lineTo(
+        cut.x - side.x - cut.dir.x * far,
+        cut.y - side.y - cut.dir.y * far,
+      );
+      genie.lineTo(
+        cut.x + side.x - cut.dir.x * far,
+        cut.y + side.y - cut.dir.y * far,
+      );
+      genie.closePath();
       genie.clip();
       for (const c of columns) {
         if (c.alpha <= 0.01) continue;
@@ -559,9 +576,9 @@ function fly({ items: picked, to, token }) {
         genie.rotate(c.angle);
         genie.drawImage(
           thing.sheet,
-          c.index * c.sourceWidth,
+          c.index * c.sourceWidth * thing.scale,
           0,
-          c.sourceWidth,
+          c.sourceWidth * thing.scale,
           thing.sheet.height,
           -c.length / 2,
           -c.height / 2,

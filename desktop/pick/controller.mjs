@@ -279,25 +279,35 @@ export function createPickController({
     await opened;
   }
 
+  /** A capture's region is relative to its display; a pick's bounds are screen
+   * coordinates, which is what the flight starts from. */
+  const screenRect = (capture) => {
+    const origin = capture.display?.bounds ?? { x: 0, y: 0 };
+    return {
+      ...capture.region,
+      x: capture.region.x + origin.x,
+      y: capture.region.y + origin.y,
+    };
+  };
+
   async function deliverCapture(capture) {
-    const { image } = capture;
-    const dataUrl = `data:${image.mediaType};base64,${image.data}`;
-    const entry = {
+    // A page arrives as tiles: one chip each, one flight for the first.
+    const parts = [capture, ...(capture.rest ?? [])];
+    const entries = parts.map(({ image, display, region }) => ({
       id: image.id ?? globalThis.crypto.randomUUID(),
       kind: "area",
-      taken: {
-        source: "capture",
-        display: capture.display,
-        kind: "area",
-        bounds: capture.region,
-      },
+      taken: { source: "capture", display, kind: "area", bounds: region },
       attachment: image,
-      thumb: dataUrl,
-    };
-    await finish(
-      [entry],
-      [{ id: entry.id, kind: "area", bounds: capture.region, dataUrl }],
-    );
+      thumb: `data:${image.mediaType};base64,${image.data}`,
+    }));
+    await finish(entries, [
+      {
+        id: entries[0].id,
+        kind: "area",
+        bounds: screenRect(capture),
+        dataUrl: entries[0].thumb,
+      },
+    ]);
     if (capture.notice) mini.note?.(capture.notice);
   }
 

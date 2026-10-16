@@ -338,9 +338,15 @@ export class DesktopCaptureService {
     }
     // Delivery happens after busy has cleared: a card that is slow, closing or
     // gone must never leave later captures answering "capture in progress".
-    if (attach)
-      for (const capture of captures)
-        await deliverCapture(this.onCapture, capture, this.limits.delivery);
+    // The tiles of one page are one delivery: one flight, one box.
+    if (attach && captures.length)
+      await deliverCapture(
+        this.onCapture,
+        captures.length > 1
+          ? { ...captures[0], rest: captures.slice(1) }
+          : captures[0],
+        this.limits.delivery,
+      );
     return captures[0] ?? null;
   }
   /** The whole page from the companion, one capture per tile. If the companion
@@ -351,10 +357,14 @@ export class DesktopCaptureService {
     try {
       const result = await this.fullPage(signal);
       if (!result?.companionRequired)
+        // Every tile carries where the page sits on its display, so the
+        // capture can fly into Blink from the browser's own rectangle.
         return (result.tiles ?? [result]).map((tile) => ({
           ...tile,
           kind: "page",
           source: "page",
+          display: capture.display,
+          region: { ...choice.rect },
         }));
     } catch (error) {
       if (signal.aborted) throw error;

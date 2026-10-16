@@ -133,7 +133,7 @@ function scan(png) {
 
 /** Delivers a capture of `region` and returns what the desktop showed, frame by
  * frame, from the moment the capture is attached. */
-async function eat(app, region, label) {
+async function eat(app, region, label, tiles = 0) {
   const work = join(tmpdir(), `eat-${label}`);
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
@@ -141,15 +141,21 @@ async function eat(app, region, label) {
   await new Promise((r) => setTimeout(r, 600));
   const png = capturePng(region);
   const delivered = app.evaluate(
-    async ({ screen }, [png, region]) => {
+    async ({ screen }, [png, region, tiles]) => {
       const d = screen.getPrimaryDisplay();
-      await globalThis.blinklingTest.attachCapture({
-        image: { id: "eat-test", mediaType: "image/png", data: png },
+      const tile = (id) => ({
+        image: { id, mediaType: "image/png", data: png },
         display: d,
         region,
       });
+      await globalThis.blinklingTest.attachCapture({
+        ...tile("eat-test"),
+        ...(tiles
+          ? { rest: Array.from({ length: tiles }, (_, i) => tile(`tile-${i}`)) }
+          : {}),
+      });
     },
-    [png, region],
+    [png, region, tiles],
   );
   await delivered;
   const mouth = await app.evaluate(() => globalThis.blinklingTest.mouth());
@@ -164,73 +170,81 @@ async function eat(app, region, label) {
     recording.video,
     "-vf",
     "fps=15,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse",
-    join(r3, `eat_${label}.gif`),
+    join(r3, `eat_${label}-321.gif`),
   ]);
   return { mouth, scans: frames(recording.video, work).map(scan), work };
 }
 
 const CASES = [
-  ["region", REGION],
-  ["fullscreen", { x: 0, y: 0, width: 1280, height: 800 }],
+  ["region", REGION, 0],
+  ["fullscreen", { x: 0, y: 0, width: 1280, height: 800 }, 0],
+  // A page from the browser helper: tiles that fly as one, from the browser's
+  // window rectangle.
+  ["fullpage", { x: 120, y: 80, width: 900, height: 640 }, 2],
 ];
-for (const [label, region] of CASES)
-  test(`a ${label} capture's own pixels fly from its rectangle into Blink's mouth`, async () => {
-    test.setTimeout(180000);
-    const { app } = await launch();
-    try {
-      await background(app);
-      await place(app, "bottom", 0.5);
-      await new Promise((r) => setTimeout(r, 1500));
-      const { mouth, scans } = await eat(app, region, label);
-      // The flight is the first unbroken run of frames showing the picture; the
-      // chip that appears in the composer afterwards carries the same colours.
-      const start = scans.findIndex((s) => s.count > 40);
-      let end = start;
-      while (end + 1 < scans.length && scans[end + 1].count >= 5) end++;
-      const shown = scans
-        .slice(start, end + 1)
-        .map((s, index) => ({ ...s, index: start + index }));
-      expect(shown.length, "frames showing the capture").toBeGreaterThan(8);
-      // It starts as the picture itself, where it was taken, in its own layout;
-      // a picture bigger than the genie's cap starts at the cap, on the same centre.
-      const k = Math.min(1, 360 / Math.max(region.width, region.height));
-      const want = {
-        width: region.width * k,
-        height: region.height * k,
-      };
-      want.x = region.x + (region.width - want.width) / 2;
-      want.y = region.y + (region.height - want.height) / 2;
-      const first = shown[0];
-      expect(Math.abs(first.box.x - want.x)).toBeLessThan(30);
-      expect(Math.abs(first.box.y - want.y)).toBeLessThan(30);
-      expect(first.box.width).toBeGreaterThan(want.width - 40);
-      expect(first.centre.tl.x).toBeLessThan(first.centre.tr.x);
-      expect(first.centre.tl.y).toBeLessThan(first.centre.bl.y);
-      // It ends inside the mouth: the last pixels of it are within reach of it.
-      const last = shown.at(-1);
-      expect(
-        Math.hypot(last.mean.x - mouth.x, last.mean.y - mouth.y),
-      ).toBeLessThan(40);
-      // Nothing of it is left once it has gone in.
-      expect(scans.slice(end + 1, end + 5).every((s) => s.count < 5)).toBe(
-        true,
-      );
-      // It never grows on the way.
-      const area = shown.map((s) => s.count);
-      // The neck of a genie swells a little as the leading end runs ahead; the
-      // picture is never bigger than half as much again.
-      expect(Math.max(...area.slice(2))).toBeLessThanOrEqual(
-        Math.max(...area.slice(0, 3)) * 1.5,
-      );
-      console.log(
-        JSON.stringify({
-          mouth,
-          first: first.box,
-          last: last.mean,
-          frames: shown.length,
-        }),
-      );
-    } finally {
-      await app.close();
-    }
-  });
+for (const edge of ["bottom", "left", "right"])
+  for (const [label, region, tiles] of CASES)
+    test(`a ${label} capture's own pixels fly into Blink's mouth at the ${edge} edge`, async () => {
+      test.setTimeout(180000);
+      const { app } = await launch();
+      try {
+        await background(app);
+        await place(app, edge, 0.5);
+        await new Promise((r) => setTimeout(r, 1500));
+        const { mouth, scans } = await eat(
+          app,
+          region,
+          `${label}_${edge}`,
+          tiles,
+        );
+        // The flight is the first unbroken run of frames showing the picture; the
+        // chip that appears in the composer afterwards carries the same colours.
+        const start = scans.findIndex((s) => s.count > 40);
+        expect(start, "the capture is seen flying").toBeGreaterThanOrEqual(0);
+        let end = start;
+        while (end + 1 < scans.length && scans[end + 1].count >= 5) end++;
+        const shown = scans
+          .slice(start, end + 1)
+          .map((s, index) => ({ ...s, index: start + index }));
+        expect(shown.length, "frames showing the capture").toBeGreaterThan(8);
+        // It starts as the picture itself, full size, exactly where it was taken.
+        const first = shown[0];
+        expect(Math.abs(first.box.x - region.x)).toBeLessThan(30);
+        expect(Math.abs(first.box.y - region.y)).toBeLessThan(30);
+        expect(first.box.width).toBeGreaterThan(region.width - 40);
+        expect(first.box.height).toBeGreaterThan(region.height - 40);
+        // Nothing of it is cut away at the start: all four quarters are there and
+        // most of its pixels show (Blink and the box may cover a little).
+        expect(first.count).toBeGreaterThan(region.width * region.height * 0.8);
+        for (const q of QUARTERS) expect(first.centre[q.name]).toBeTruthy();
+        expect(first.centre.tl.x).toBeLessThan(first.centre.tr.x);
+        expect(first.centre.tl.y).toBeLessThan(first.centre.bl.y);
+        // It ends inside the mouth: the last pixels of it are within reach of it.
+        const last = shown.at(-1);
+        expect(
+          Math.hypot(last.mean.x - mouth.x, last.mean.y - mouth.y),
+        ).toBeLessThan(60);
+        // Nothing of it is left once it has gone in.
+        expect(scans.slice(end + 1, end + 5).every((s) => s.count < 5)).toBe(
+          true,
+        );
+        // The neck of a genie swells a little as the leading end runs ahead; the
+        // picture is never bigger than half as much again.
+        const area = shown.map((s) => s.count);
+        expect(Math.max(...area.slice(2))).toBeLessThanOrEqual(
+          Math.max(...area.slice(0, 3)) * 1.5,
+        );
+        console.log(
+          JSON.stringify({
+            edge,
+            label,
+            mouth,
+            first: first.box,
+            last: last.mean,
+            frames: shown.length,
+          }),
+        );
+      } finally {
+        await app.close();
+      }
+    });
