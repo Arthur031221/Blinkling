@@ -960,15 +960,32 @@ test("K2 a second pick within 60 s stays in the chat; one 66 s later opens a new
       };
     });
     const photo = await domRect(app, "#photo");
+    const chips = async () =>
+      Number(
+        await miniEval(
+          app,
+          "document.querySelectorAll('.gl-attachment-chip').length",
+        ),
+      );
+    const cardShown = () =>
+      app.evaluate(() => globalThis.blinklingTest.composer.isVisible());
     const once = async () => {
       const seen = (await app.evaluate(() => globalThis.__fresh.length)) + 1;
+      const had = await chips();
       await hold(app, { x: photo.x + 40, y: photo.y + 40 });
       click();
       await waitFor(app, "taken", seen);
       release();
-      await poll(() => miniOpen(app), 6000, "the mini composer");
+      // The picture goes into the card's own box, and Esc there closes the
+      // card; the picture stays in the draft.
+      await poll(
+        async () => (await chips()) > had,
+        6000,
+        "the picture in the card",
+      );
+      await miniEval(app, "document.querySelector('textarea').focus()");
       input([["key", "esc"]]);
-      await poll(async () => !(await miniOpen(app)), 3000, "closed");
+      await poll(async () => !(await cardShown()), 3000, "the card closes");
       await pause(300);
     };
     await once();
