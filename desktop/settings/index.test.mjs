@@ -10,6 +10,7 @@ async function setup({
   platform = "linux",
   hotkey = "Alt+Shift+X",
   loaded,
+  onChange,
 } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "blinkling-settings-ui-"));
   const sent = [];
@@ -42,6 +43,7 @@ async function setup({
   const controller = createSettingsController({
     win,
     loaded,
+    onChange,
     ipc: {
       on: (channel, fn) => listeners.set(channel, fn),
       handle: (channel, fn) => handlers.set(channel, fn),
@@ -101,6 +103,18 @@ test("opening shows the window centred in the work area and sends the state", as
   assert.equal(y + height / 2, 400);
   assert.ok(sent.some(([c]) => c === "blinkling:settings-open"));
   assert.equal(controller.isOpen, true);
+});
+
+test("the shell is told when settings opens and closes", async () => {
+  const told = [];
+  const { controller, fire } = await setup({
+    onChange: (open) => told.push(open),
+  });
+  await controller.open();
+  await controller.open();
+  fire("blinkling:settings-close");
+  fire("blinkling:settings-close");
+  assert.deepEqual(told, [true, false]);
 });
 
 test("the state has the hotkey, the start setting and the system language", async () => {

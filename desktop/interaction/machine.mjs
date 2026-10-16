@@ -71,6 +71,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     guideOnly: false,
     viewer: 0,
     panels: 0,
+    windows: 0,
     chips: false,
     composer: { focus: false, text: false, ime: false },
     scrollAt: -Infinity,
@@ -107,6 +108,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     return Boolean(
       s.surface !== "none" ||
         s.panels > 0 ||
+        s.windows > 0 ||
         s.composer.focus ||
         s.composer.text ||
         s.composer.ime ||
@@ -344,6 +346,10 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     },
     panels(count) {
       s.panels = Math.max(0, count | 0);
+    },
+    /** Settings or the welcome is open: Blink stays out beside it. */
+    windows(count) {
+      s.windows = Math.max(0, count | 0);
     },
     /** A picture waits in the composer. It keeps an answer's card from
      * closing by reading time but never from a click outside. */

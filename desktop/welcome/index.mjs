@@ -26,6 +26,7 @@ export function createWelcomeController({
   workArea,
   nudges,
   loaded = Promise.resolve(),
+  onChange = () => {},
   setTimer = setTimeout,
   clearTimer = clearTimeout,
 }) {
@@ -78,6 +79,7 @@ export function createWelcomeController({
   function close() {
     if (!open) return;
     open = false;
+    onChange(false);
     send("blinkling:welcome-close", {});
     clearTimer(hideTimer);
     hideTimer = setTimer(() => {
@@ -90,6 +92,7 @@ export function createWelcomeController({
   async function show() {
     if (open) return;
     open = true;
+    onChange(true);
     clearTimer(hideTimer);
     hideTimer = null;
     // The page registers its listeners while it loads; a message sent earlier

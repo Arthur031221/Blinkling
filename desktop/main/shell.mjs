@@ -1264,6 +1264,14 @@ const secondary = {
   input,
   workArea: () => display.workArea,
   nudges,
+  // While either window is open Blink stays out beside it.
+  windowOpen: () =>
+    flow((m) =>
+      m.windows(
+        Number(welcome.test.controller.isOpen) +
+          Number(settings.test.controller.isOpen),
+      ),
+    ),
   openExternal: (url) => externalShell.openExternal(url),
 };
 const welcome = installWelcome({

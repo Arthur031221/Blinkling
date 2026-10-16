@@ -27,6 +27,7 @@ export function createSettingsController({
   workArea,
   nudges,
   loaded = Promise.resolve(),
+  onChange = () => {},
   setTimer = setTimeout,
   clearTimer = clearTimeout,
 }) {
@@ -114,6 +115,7 @@ export function createSettingsController({
   function close() {
     if (!open) return;
     open = false;
+    onChange(false);
     send("blinkling:settings-close", {});
     // The window stays long enough for the reverse transition, unless reopened.
     clearTimer(hideTimer);
@@ -145,6 +147,7 @@ export function createSettingsController({
     async open() {
       if (open) return;
       open = true;
+      onChange(true);
       clearTimer(hideTimer);
       hideTimer = null;
       // The page registers its listeners while it loads; a message sent earlier

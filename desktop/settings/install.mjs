@@ -45,6 +45,7 @@ export function installSettings({
   const controller = createSettingsController({
     win,
     loaded,
+    onChange: (open) => shell.windowOpen?.(open),
     ipc: ipcMain,
     locale,
     platform: shell.platform ?? process.platform,

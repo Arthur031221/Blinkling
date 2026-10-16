@@ -9,6 +9,7 @@ function setup({
   pick = "control",
   status = "granted",
   loaded,
+  onChange,
 } = {}) {
   const sent = [];
   const handlers = new Map();
@@ -31,6 +32,7 @@ function setup({
   const controller = createWelcomeController({
     win,
     loaded,
+    onChange,
     ipc: {
       on: (channel, fn) => listeners.set(channel, fn),
       handle: (channel, fn) => handlers.set(channel, fn),
@@ -98,6 +100,16 @@ test("the first start opens the welcome once, centred, and never again", async (
   t.timers[0].fn();
   assert.equal(await t.controller.openFirstTime(), false);
   assert.equal(t.state.visible, false);
+});
+
+test("the shell is told when the welcome opens and closes", async () => {
+  const told = [];
+  const t = setup({ onChange: (open) => told.push(open) });
+  await t.controller.open();
+  await t.controller.open();
+  t.tell("blinkling:welcome-close");
+  t.tell("blinkling:welcome-close");
+  assert.deepEqual(told, [true, false]);
 });
 
 test("a later replay opens it again whether or not the first start happened", async () => {

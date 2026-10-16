@@ -43,6 +43,7 @@ export function installWelcome({
   const controller = createWelcomeController({
     win,
     loaded,
+    onChange: (open) => shell.windowOpen?.(open),
     ipc: ipcMain,
     locale,
     platform: shell.platform ?? process.platform,

@@ -102,6 +102,7 @@ test("each engaged input blocks the retreat and releases it 1.5 s later", () => 
     "answer streaming": (m) => m.answerStart(0),
     "capture in progress": (m) => m.capture(true),
     "image viewer": (m) => m.viewer(true),
+    "settings or welcome window": (m) => m.windows(1),
   };
   for (const [name, engage] of Object.entries(cases)) {
     const { m, go, read } = rig();
@@ -113,6 +114,19 @@ test("each engaged input blocks the retreat and releases it 1.5 s later", () => 
     go(10000);
     assert.equal(read().out, true, `${name} keeps Blink out`);
   }
+});
+
+test("Blink stays out while the welcome or settings window is open and retreats 1.5 s after it closes", () => {
+  const { m, go, read } = rig();
+  m.click(0);
+  m.close(0);
+  m.pointer(away, 0, false);
+  m.windows(1);
+  go(30000);
+  assert.equal(read().out, true);
+  m.windows(0);
+  go(timing.retreat + 128);
+  assert.equal(read().out, false);
 });
 
 test("scroll and selection engage for two seconds, then the retreat clock runs", () => {
