@@ -22,6 +22,7 @@ const activity = createActivityState();
 const grumbler = createGrumbler({ count: GRUMBLES });
 const grumble = document.querySelector("#grumble");
 let grumbling = null;
+const status = document.querySelector("#status");
 // When each one-off motion last started. Main decides when one plays and sends
 // it as a motion event; the pose picks the newest that is still running.
 const at = {
@@ -93,6 +94,17 @@ function placeGrumble(node, feet, position) {
   node.style.transform = `translate(${x}px,${y}px)`;
   node.dataset.side = inward ? "left" : "right";
   node.dataset.edge = top ? "top" : "bottom";
+}
+/** The progress bubble sits at Blink's mouth, on the side toward the screen's
+ * inside, where the card will open. */
+function placeStatus(node, feet) {
+  const width = node.offsetWidth,
+    height = node.offsetHeight;
+  const right = feet.x < innerWidth / 2;
+  const x = right ? feet.x + 52 : feet.x - 52 - width;
+  const y = feet.y - 62 - height / 2;
+  node.style.transform = `translate(${Math.max(8, Math.min(innerWidth - width - 8, x))}px,${Math.max(8, Math.min(innerHeight - height - 8, y))}px)`;
+  node.dataset.side = right ? "right" : "left";
 }
 const host = document.querySelector("#blink");
 const permission = document.querySelector("#permission-alert");
@@ -287,6 +299,7 @@ async function action(id) {
       void api.shell({ type: "grumble", value: line !== null }).catch(() => {});
     }
     if (line !== null) placeGrumble(grumble, current, shell.position);
+    if (status.dataset.shown === "true") placeStatus(status, current);
     // The machine in main decides when the fan shows: after the pointer has
     // rested on Blink, never over an open card.
     pointerOver = Boolean(pointer?.blink);
@@ -348,6 +361,11 @@ api.onShell((event) => {
   );
 });
 api.onEvent((event) => {
+  if (event.type === "capture-status") {
+    const on = event.state === "working" && Boolean(event.message);
+    if (on) status.textContent = event.message;
+    status.dataset.shown = String(on);
+  }
   if (event.type === "guide")
     guideTarget = event.phase === "step" && event.aim ? event.aim : null;
   activity.accept(event, performance.now());

@@ -68,14 +68,20 @@ test("the full page bubble always answers: a slow page says it has begun, a fail
       });
     });
     await page.waitForTimeout(800);
-    // 1. A page that takes three seconds: the card opens with the line.
+    // 1. A page that takes three seconds: a bubble beside Blink says so and
+    // the card stays shut.
     await browser(app, { ms: 3000 });
     await reveal(page);
     rec.frame("menu");
     await press(page, frame);
-    await expect
-      .poll(() => cardText(app), { intervals: [50], timeout: 3000 })
-      .toMatch(line("pageWorking"));
+    await expect(page.locator("#status")).toHaveText(line("pageWorking"), {
+      timeout: 3000,
+    });
+    expect(await cardText(app)).not.toMatch(line("pageWorking"));
+    expect(
+      await app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
+      "the card is not opened for progress",
+    ).toBe(false);
     rec.frame("working");
     // A second press while it works says so, never silence.
     await page.evaluate(() => void window.blinkling.action("capture"));
@@ -94,7 +100,10 @@ test("the full page bubble always answers: a slow page says it has begun, a fail
     await expect
       .poll(() => cardText(app), { timeout: 5000 })
       .not.toMatch(line("busy"));
-    expect(await cardText(app)).not.toMatch(line("pageWorking"));
+    await expect(page.locator("#status")).toHaveAttribute(
+      "data-shown",
+      "false",
+    );
     rec.frame("delivered");
     // 2. A grab that fails still gives the screen, so nothing is lost.
     await sleep(500);

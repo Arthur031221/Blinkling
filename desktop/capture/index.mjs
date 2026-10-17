@@ -286,12 +286,16 @@ export class DesktopCaptureService {
             return { ...capture, kind: "screen", source };
           }
           if (kind !== "capture") return { ...capture, kind: "screen", source };
+          // The reader is choosing: that is not Blink working, so nothing is
+          // said about progress until the choice is made.
+          this.onStage("select");
           const choice = await this.overlays.open(
             display.id,
             { capture, windows, companion: !!companion },
             controller.signal,
           );
           if (!choice) return null;
+          this.onStage("selected");
           aborted(controller.signal);
           if (choice.kind === "screen")
             return { ...capture, kind: "screen", source };

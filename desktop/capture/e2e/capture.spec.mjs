@@ -406,7 +406,7 @@ test("the 整頁 chip needs a browser window and a connected companion, and deli
       expect((await taken(app))[2].kind).toBe("window");
       await idle(app);
       const events = await blink.evaluate(() => window.events);
-      // The "working" lines are the card saying a grab has begun; nothing else.
+      // The "working" lines are Blink's bubble saying a grab has begun; nothing else.
       expect(
         events.filter(
           (e) =>

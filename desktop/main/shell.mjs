@@ -714,6 +714,13 @@ ipcMain.handle("blinkling:action", async (event, action) => {
   if (action === "capture") flow((m) => m.menuUsed());
   return dispatchAction(action, { display, windows: surfaces(), openComposer });
 });
+/** Blink stays out for as long as a capture reports progress. */
+let working = false;
+const capturing = (on) => {
+  if (on === working) return;
+  working = on;
+  flow((m) => m.capture(on));
+};
 const send = (event) => {
   const shown = hidePointing(event);
   for (const win of windows()) {
@@ -735,14 +742,13 @@ const send = (event) => {
   // What Blink says on its own opens the card, and the reading rule closes it.
   if (event.type === "blink-say" || event.type === "blink-offer")
     flow((m) => m.notice());
-  // A capture that is slow or failed says so in the card, which it opens.
-  else if (
-    event.type === "capture-status" &&
-    event.message &&
-    ["working", "error"].includes(event.state)
-  )
-    flow((m) => m.notice());
-  else if (event.type === "guide")
+  // A capture that failed says so in the card, which it opens. One that is
+  // only slow says so in a bubble beside Blink, which stays out meanwhile; the
+  // card opens when the picture has been eaten, not before.
+  else if (event.type === "capture-status") {
+    if (event.message && event.state === "error") flow((m) => m.notice());
+    capturing(event.state === "working");
+  } else if (event.type === "guide")
     flow((m) => {
       // The failure is noticed first, so the card it opened is read, not closed.
       if (event.phase === "error") m.notice();

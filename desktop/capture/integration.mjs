@@ -10,6 +10,7 @@ import { DesktopCaptureService, screenImage } from "./index.mjs";
 import { systemLocale } from "../shared/i18n.mjs";
 import { timing } from "../shared/motion.mjs";
 import { captureText } from "./strings.mjs";
+import { createProgress } from "./progress.mjs";
 import { HotkeyRegistry, HotkeyStore, DEFAULT_HOTKEY } from "./hotkey.mjs";
 import { DesktopOverlayService } from "../overlay/index.mjs";
 import { GuideController } from "../overlay/guide.mjs";
@@ -71,13 +72,15 @@ export function installCaptureGuide({
   const pointing = createPointing({ locator, overlay, card, cursor });
   const capture = new DesktopCaptureService({
     windows: () => [...windows(), overlay.window].filter(Boolean),
-    onCapture,
+    // The picture is here: whatever was said about progress goes before Blink
+    // starts to eat, so nothing is left standing beside it.
+    onCapture: (taken) => {
+      progress.delivered();
+      return onCapture(taken);
+    },
     fullPage,
     companion,
-    onStage: () => {
-      spoke = true;
-      say("working", "pageWorking");
-    },
+    onStage: (stage) => progress.stage(stage),
   });
   // The overlays exist, hidden, before anyone asks for a capture.
   const overlaysReady = capture.start().catch(() => {});
@@ -102,8 +105,17 @@ export function installCaptureGuide({
     onError: () => overlay.dismiss("capture-unavailable"),
   });
   let auto;
-  // Whether the page route has already told the reader it is reading.
-  let spoke = false;
+  const progress = createProgress({
+    slow: timing.captureSlow,
+    say: (key) =>
+      onState({
+        state: "working",
+        message: captureText(systemLocale({ app }))(
+          key === "page" ? "pageWorking" : "working",
+        ),
+      }),
+    take: () => onState({ state: "idle" }),
+  });
   const makeAuto = (bridge) =>
     new AutoWatch({
       session: bridge,
@@ -150,19 +162,15 @@ export function installCaptureGuide({
    * a failure, whatever was said is taken back with an "idle" state. */
   const answering = async (run) => {
     if (!guard() || capture.busy) return say("error", "busy");
-    spoke = false;
     let failed = false;
-    const waiting = setTimeout(() => {
-      if (!spoke) say("working", "working");
-      spoke = true;
-    }, timing.captureSlow);
+    progress.begin();
     try {
       return await run();
     } catch (error) {
       failed = true;
       return reportError(error);
     } finally {
-      clearTimeout(waiting);
+      progress.end();
       if (!failed) onState({ state: "idle" });
     }
   };

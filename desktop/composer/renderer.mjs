@@ -147,14 +147,12 @@ const unEvent = api.onEvent((event) => {
     // The auto explain states share this channel and are not for the card.
     if (!["working", "error", "idle"].includes(event.state)) return;
     conversation.store.dismiss(CAPTURE_ID);
-    if (event.message && ["working", "error"].includes(event.state))
+    // Progress is Blink's bubble, not a message in the card.
+    if (event.message && event.state === "error")
       conversation.store.fail({
         id: CAPTURE_ID,
         text: event.message,
-        actions:
-          event.state === "error"
-            ? [{ id: "capture", label: tr("guide-retry") }]
-            : [],
+        actions: [{ id: "capture", label: tr("guide-retry") }],
       });
     return;
   }

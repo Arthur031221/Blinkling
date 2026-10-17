@@ -220,6 +220,53 @@ button svg {
   bottom: auto;
   top: -27px;
 }
+/* What a slow capture is doing, in a small bubble beside Blink's mouth while
+ * the card stays shut. Only opacity and transform change. */
+#status {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 220px;
+  padding: 8px 14px;
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-size: var(--type-s);
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+#status[data-shown="true"] {
+  opacity: 1;
+  transition: opacity var(--motion-base) var(--ease-enter);
+}
+#status[data-shown="false"] {
+  transition: opacity var(--motion-base) var(--ease-exit);
+}
+#status::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transform: rotate(45deg);
+}
+#status[data-side="right"]::after {
+  left: -6px;
+  border-right: 0;
+  border-top: 0;
+}
+#status[data-side="left"]::after {
+  right: -6px;
+  border-left: 0;
+  border-bottom: 0;
+}
 #permission-alert {
   position: absolute;
   padding: 10px 16px;
