@@ -241,3 +241,12 @@ test("guiding reaches the nearer arm toward the step and puts the stick along it
   );
   assert.deepEqual(right.look, [1, 0]);
 });
+
+test("the guide stick reaches far enough past the hand to be seen pointing", () => {
+  const { attach } = guiding(0, { x: 0, y: -1 });
+  const [x1, y1, x2, y2] = attach
+    .match(/M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)/)
+    .slice(1)
+    .map(Number);
+  assert.ok(Math.hypot(x2 - x1, y2 - y1) >= 80, "at least 80 px long");
+});

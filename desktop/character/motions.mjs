@@ -420,6 +420,9 @@ export function picking(t) {
  * `aim` is the unit direction from Blink to the step. The nearer arm reaches
  * that way straight, and the stick carries on from the hand along it with a
  * small ball at its end that bobs a little, as if tapping the spot. */
+/** How far the stick reaches past the hand: long enough to clear the card's
+ * tail and be seen pointing, not just a stub at Blink's side. */
+export const STICK = 84;
 export function guiding(t, aim) {
   const len = Math.hypot(aim.x, aim.y) || 1,
     dx = aim.x / len,
@@ -429,8 +432,8 @@ export function guiding(t, aim) {
   const reach = [abd, 0, abd, 0];
   const { tip } = armGeom(side, reach, 0);
   const tap = 1 + 0.12 * Math.sin(t * 6),
-    sx = tip.x + dx * 54 * tap,
-    sy = tip.y + dy * 54 * tap;
+    sx = tip.x + dx * STICK * tap,
+    sy = tip.y + dy * STICK * tap;
   const stick = `<g stroke-linecap="round"><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="${C.ink}" stroke-width="6.4"/><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="#f1c75b" stroke-width="3"/></g><circle cx="${f1(sx)}" cy="${f1(sy)}" r="5" fill="#e4574f" stroke="${C.ink}" stroke-width="2.4"/>`;
   return {
     x: 0,

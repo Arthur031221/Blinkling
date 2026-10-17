@@ -209,6 +209,12 @@ a:focus-visible {
   overflow-anchor: none;
   mask-image: linear-gradient(to bottom, transparent 0, #000 72px);
 }
+/* A guide step starts with its header, which must stay solid: the card's own
+   faded paper is the only fade it sits in. */
+.gl-chat-history:has(.gl-guide) {
+  mask-image: none;
+  padding-top: 4px;
+}
 .gl-chat-message {
   max-width: 100%;
   min-width: 0;
@@ -715,11 +721,20 @@ a:focus-visible {
  * below them, so Previous, Next and End are in view however many steps. */
 .gl-guide > .gl-guide-head {
   order: 0;
-  flex-basis: 100%;
+  flex-basis: auto;
   margin: 0;
+  padding: 3px 10px;
   font-size: var(--type-xs);
   font-weight: 600;
-  color: var(--gl-muted);
+  color: var(--gl-ink);
+  /* The step header sits on its own paper, like the pin and close, so it reads
+     whatever lies behind the faded top of the card. */
+  background: var(--gl-paper);
+  border: 1px solid var(--gl-border);
+  border-radius: 999px;
+}
+.gl-guide {
+  align-items: flex-start;
 }
 .gl-guide > .gl-guide-steps {
   order: 3;
