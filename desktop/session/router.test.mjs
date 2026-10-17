@@ -370,7 +370,23 @@ test("two saves in flight at once both land and leave no temporary file", async 
       role: "user",
       content: [{ type: "text", text: "hi" }],
     });
+    // However many saves are asked for, the file is written by one at a time.
+    const write = chat.write.bind(chat);
+    let running = 0,
+      most = 0,
+      calls = 0;
+    chat.write = async () => {
+      calls++;
+      most = Math.max(most, ++running);
+      try {
+        await write();
+      } finally {
+        running--;
+      }
+    };
     await Promise.all([chat.save(), chat.save(), chat.save(), chat.flush()]);
+    assert.ok(calls >= 3, "every save is written");
+    assert.equal(most, 1, "never two writes at once");
     const files = await readdir(directory);
     assert.deepEqual(files, ["channel.json"]);
   } finally {

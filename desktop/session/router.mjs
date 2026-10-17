@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { chatMessage } from "./normalize.mjs";
 import { userMessage } from "./protocol.mjs";
@@ -42,8 +42,14 @@ let writes = 0;
 async function writeJson(file, value) {
   // One name per write: two saves in flight must not rename each other's file.
   const temporary = `${file}.${process.pid}.${writes++}.tmp`;
-  await writeFile(temporary, JSON.stringify(value), { mode: 0o600 });
-  await rename(temporary, file);
+  try {
+    await writeFile(temporary, JSON.stringify(value), { mode: 0o600 });
+    await rename(temporary, file);
+  } catch (error) {
+    // Windows refuses a rename while another handle holds the file: never leave the temporary behind.
+    await rm(temporary, { force: true });
+    throw error;
+  }
 }
 
 /** A chat that a Claude Code terminal session answers itself. It speaks the
@@ -92,9 +98,15 @@ export class ChannelChat {
       /* A new chat has nothing yet. */
     }
   }
-  async save() {
+  async write() {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     await writeJson(this.file, { messages: this.messages.slice(-KEEP) });
+  }
+  /** Saves run one after another, so a later one never lands before an earlier one
+   * and two never rename onto the file at once. */
+  save() {
+    this.saving = this.saving.then(() => this.write()).catch(() => {});
+    return this.saving;
   }
   /** Resolves when every save so far has reached the disk. */
   flush() {
@@ -127,9 +139,7 @@ export class ChannelChat {
     if (this.messages.length > KEEP)
       this.messages.splice(0, this.messages.length - KEEP);
     this.emit({ type: "message", ...message });
-    // Saves run one after another, so a later one never lands before an earlier one.
-    if (persist)
-      this.saving = this.saving.then(() => this.save()).catch(() => {});
+    if (persist) this.save();
   }
   async send(turn) {
     await this.loaded;
