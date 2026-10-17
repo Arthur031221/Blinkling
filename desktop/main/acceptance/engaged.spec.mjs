@@ -66,7 +66,7 @@ async function untilPeek(app, limit) {
 test("Blink stays out while the reader is engaged, retreats 1.5 s after the last engagement, and one click on Blink turns the card and the menu into each other", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("stay_out");
+  const rec = record("stay_out", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "right", 0.5);
@@ -125,7 +125,7 @@ test("Blink stays out while the reader is engaged, retreats 1.5 s after the last
 test("no surface stays on screen without a way to close it: the card closes by reading time, Esc and a click outside, the menu when the pointer leaves", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("stuck_card-321");
+  const rec = record("stuck_card", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "right", 0.5);
@@ -205,7 +205,7 @@ test("no surface stays on screen without a way to close it: the card closes by r
 test("the permission bubble does not outlive its question: it stays inside the screen on every edge, opening the card or an answer takes it away", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("stuck_permission-321");
+  const rec = record("stuck_permission", { suffix: "-324" });
   const emit = (event) =>
     app.evaluate((_e, event) => globalThis.blinklingTest.send(event), event);
   try {

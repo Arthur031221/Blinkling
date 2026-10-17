@@ -51,6 +51,7 @@ import {
   greeting,
 } from "./motions.mjs";
 import { costumePlay, playFor, worn } from "./costume.mjs";
+import { pieceBoxes } from "./costume-pieces.mjs";
 import { edgeTransform, poseTransform } from "./transform.mjs";
 import { BLINK_SCALE as K } from "./size.mjs";
 import { clipAbove, roundedRect } from "./silhouette.mjs";
@@ -359,10 +360,12 @@ export function mountBlink(host) {
     // The model's piece stays on while that model is chosen, whatever Blink is
     // doing. A model scene draws the piece itself, so it is not added twice.
     if (o.outfit && lean < 0.5 && !(ctx.play && o.costume?.what === "model")) {
+      ctx.wearing = o.outfit;
       const wear = worn(o.outfit, { yaw: out.yaw ?? 0, t: time });
       out.faceExtra = (out.faceExtra ?? "") + wear.faceExtra;
       out.attach = (out.attach ?? "") + wear.attach;
     }
+    if (!(o.outfit && lean < 0.5)) ctx.wearing = null;
     out.attach = (out.attach ?? "") + dotSvg(o.dot);
     out.noShadow = true;
     ctx.last = out;
@@ -589,7 +592,10 @@ export function mountBlink(host) {
       const out = [];
       // What a costume play draws beyond the body: boxes in the drawing.
       const placed = edgeTransform(ctx.outer, FEET.x, PEEK_EDGE);
-      for (const [x1, y1, x2, y2] of ctx.play?.bounds ?? [])
+      for (const [x1, y1, x2, y2] of [
+        ...(ctx.play?.bounds ?? []),
+        ...(ctx.wearing ? pieceBoxes(ctx.wearing) : []),
+      ])
         out.push(
           [
             { x: x1, y: y1 },

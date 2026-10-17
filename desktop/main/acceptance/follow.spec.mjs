@@ -35,7 +35,7 @@ async function both(app, page) {
 test("an open card follows Blink while it is carried, keeping its offset, and the carry does not close it", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("card_follow_drag", { suffix: "-321" });
+  const rec = record("card_follow_drag", { suffix: "-324" });
   try {
     const b = await background(app);
     await place(app, "right", 0.8);

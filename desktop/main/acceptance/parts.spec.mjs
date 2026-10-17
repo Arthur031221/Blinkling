@@ -66,7 +66,7 @@ const PARTS = [
 test("the pointer touches the part that is drawn under it, on every edge", async () => {
   test.setTimeout(300000);
   const { app, page } = await launch();
-  const rec = record("hover_parts", { suffix: "-321", fps: 8 });
+  const rec = record("hover_parts", { suffix: "-324", fps: 8 });
   try {
     await background(app);
     await watch(page);

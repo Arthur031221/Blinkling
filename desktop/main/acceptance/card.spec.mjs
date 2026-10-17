@@ -57,7 +57,7 @@ async function tailAndBody(app, page) {
 test("the card's tail ends within 12 px of Blink's body and within 5 px of the height of its mouth, wherever Blink rests, and the card follows Blink", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("card_follow");
+  const rec = record("card_follow", { suffix: "-324" });
   try {
     await background(app);
     for (const [edge, ratio] of [
@@ -125,7 +125,7 @@ async function dragTitle(app, dx, dy) {
 test("the card can be dragged up to 120 px from where it opens, remembered per edge, and a double click on the header puts it back", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("card_nudge");
+  const rec = record("card_nudge", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "right", 0.5);

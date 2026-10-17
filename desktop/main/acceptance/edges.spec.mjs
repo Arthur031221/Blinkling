@@ -41,7 +41,7 @@ const rows = ({ width, height, on }) => {
 test("the right edge peek is the mirror of the left, and the bottom shows the head past the eyes", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("edge_tilt");
+  const rec = record("edge_tilt", { suffix: "-324" });
   try {
     await background(app);
     const shots = {};

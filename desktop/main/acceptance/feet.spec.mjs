@@ -46,7 +46,7 @@ for (const edge of ["left", "right"])
   test(`turning upright on the ${edge} edge keeps the legs whole`, async () => {
     test.setTimeout(120000);
     const { app, page } = await launch();
-    const rec = record(`feet_${edge}`);
+    const rec = record(`feet_${edge}`, { suffix: "-324" });
     try {
       await background(app);
       await place(app, edge, 0.5);
@@ -89,7 +89,7 @@ for (const edge of ["left", "right"])
 test("the legs stay whole while Blink is picked up, carried and dropped", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("feet_carry");
+  const rec = record("feet_carry", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "right", 0.5);

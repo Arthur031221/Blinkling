@@ -42,7 +42,7 @@ const panels = [
 test("a window opened from the chat (settings, welcome) can be dragged by its header up to 120 px, is remembered, and a double click puts it back", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("panel_nudge");
+  const rec = record("panel_nudge", { suffix: "-324" });
   try {
     await background(app);
     await reveal(page);

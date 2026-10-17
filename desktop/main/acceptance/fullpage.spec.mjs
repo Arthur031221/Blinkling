@@ -57,7 +57,7 @@ const press = async (page, frame) => {
 test("the full page bubble always answers: a slow page says it has begun, a failure says so with a retry, a second press says it is busy, and the picture takes the line away", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("fullpage_button-321");
+  const rec = record("fullpage_button", { suffix: "-324" });
   try {
     const frame = await background(app);
     await app.evaluate(() => {

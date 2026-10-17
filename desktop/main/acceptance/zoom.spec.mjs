@@ -113,7 +113,7 @@ const openViewer = async (app, page) => {
 test("a picture in the card opens in a viewer that zooms from fit to 800% with the wheel, pans by dragging, toggles fit and 100% on a double click, and closes with Esc, the backdrop or the button", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("zoom");
+  const rec = record("zoom", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "right", 0.5);
@@ -275,7 +275,7 @@ const historyEnds = (app) =>
 test("the wheel zooms around an off-centre pointer, and once the viewer is closed the newest answer is whole above the composer, also after a picture joins it", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("zoom_close", { suffix: "-323" });
+  const rec = record("zoom_close", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "right", 0.5);

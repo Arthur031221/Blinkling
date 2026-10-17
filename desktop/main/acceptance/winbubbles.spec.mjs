@@ -17,7 +17,7 @@ const shapeOnWindows = (app) =>
 test("the progress bubble and the grumble bubble are in the shape Windows clips Blink's window to, at rest and after they go", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("win_bubbles", { suffix: "-323" });
+  const rec = record("win_bubbles", { suffix: "-324" });
   try {
     await background(app);
     move(20, 20);

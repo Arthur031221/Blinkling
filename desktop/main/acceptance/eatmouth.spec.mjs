@@ -101,7 +101,7 @@ for (const [kind, label] of [
     const started = Date.now();
     const rec = record(kind === "page" ? "fullpage_button" : "eat_mouth", {
       fps: 30,
-      suffix: "-323",
+      suffix: "-324",
     });
     try {
       await background(app);

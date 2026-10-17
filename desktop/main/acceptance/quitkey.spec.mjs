@@ -13,7 +13,7 @@ const CTRL = 0xffe3,
 test("the quit key ends Blink within about a second from a hung renderer, and tells the linked terminal session", async () => {
   test.setTimeout(60000);
   const { app, data } = await launch();
-  const rec = record("quitkey", { suffix: "-323", fps: 6 });
+  const rec = record("quitkey", { suffix: "-324", fps: 6 });
   const exited = new Promise((done) =>
     app.process().once("exit", () => done(Date.now())),
   );

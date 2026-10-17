@@ -98,3 +98,14 @@ export function piece(family, { s = 1, yaw = 0, t = 0 } = {}) {
 }
 
 export const PIECES = ["opus", "sonnet", "haiku", "fable"];
+
+/** Where each kept piece reaches beyond the body, as boxes in the drawing
+ * (x1, y1, x2, y2). Where the system clips Blink's window to a shape, these keep
+ * the crown's points, the glasses' arms, the hat's tip and the plane inside it. */
+const REACH = {
+  opus: [[59, -5, 141, 45]],
+  sonnet: [[37, 63, 163, 121]],
+  haiku: [[147, 17, 195, 57]],
+  fable: [[47, -23, 153, 53]],
+};
+export const pieceBoxes = (family) => REACH[family] ?? [];

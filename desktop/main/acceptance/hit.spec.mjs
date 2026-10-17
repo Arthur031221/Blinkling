@@ -19,7 +19,7 @@ const place = (app, edge, ratio) =>
 /** Compares what is really drawn with what takes the click: every drawn pixel
  * is in the click area, and nothing farther than the margin (plus a few pixels of
  * antialiasing) from the drawing is. */
-async function compare(page, label) {
+async function compare(app, page, label) {
   await page.addStyleTag({
     content: "#menu,#grumble,#permission-alert{display:none!important}",
   });
@@ -34,6 +34,12 @@ async function compare(page, label) {
   const area = new Uint8Array(width * height);
   for (const r of await page.evaluate(() => window.desktop.hit()))
     for (let x = r.x; x < r.x + r.width; x++) area[r.y * width + x] = 1;
+  const shaped = new Uint8Array(width * height);
+  for (const r of await app.evaluate(() =>
+    globalThis.blinklingTest.shapeFor("win32"),
+  ))
+    for (let y = r.y; y < r.y + r.height; y++)
+      for (let x = r.x; x < r.x + r.width; x++) shaped[y * width + x] = 1;
   if (process.env.HIT_DEBUG) {
     const xs = [],
       ys = [];
@@ -81,11 +87,19 @@ async function compare(page, label) {
       const at = y * width + x;
       if (drawn[at]) {
         seen++;
-        if (!area[at]) missed++;
+        // A prop takes no click, but Windows clips the window to its shape, so
+        // everything drawn is in that.
+        if (!area[at] && !shaped[at]) {
+          missed++;
+          if (process.env.HIT_DEBUG) console.log("MISS", label, x, y);
+        }
       } else if (area[at] && !near(x, y)) stray++;
     }
   expect(seen, `${label}: something is drawn`).toBeGreaterThan(800);
-  expect(missed, `${label}: drawn pixels outside the click area`).toBe(0);
+  expect(
+    missed,
+    `${label}: drawn pixels outside what Blink's window keeps (click area and props)`,
+  ).toBe(0);
   expect(
     stray,
     `${label}: click area farther than the margin from the drawing`,
@@ -95,7 +109,7 @@ async function compare(page, label) {
 test("the click area is the drawn shape plus a margin, on every edge and pose", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("hit_area");
+  const rec = record("hit_area", { suffix: "-324" });
   try {
     await background(app);
     for (const edge of ["left", "right", "top", "bottom"]) {
@@ -103,11 +117,11 @@ test("the click area is the drawn shape plus a margin, on every edge and pose", 
       move(640, 400);
       await page.waitForTimeout(1700);
       rec.frame(`${edge}-peek`);
-      await compare(page, `${edge} peek`);
+      await compare(app, page, `${edge} peek`);
       await reveal(page);
       await page.waitForTimeout(1800);
       rec.frame(`${edge}-out`);
-      await compare(page, `${edge} out`);
+      await compare(app, page, `${edge} out`);
       move(640, 400);
       await page.waitForTimeout(2200);
     }
@@ -233,7 +247,7 @@ async function tip(page, edge) {
 test("touching the peeking head where it is drawn wakes Blink on every edge", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("peek_hit", { suffix: "-323" });
+  const rec = record("peek_hit", { suffix: "-324" });
   try {
     await background(app);
     for (const edge of ["left", "right", "top", "bottom"]) {

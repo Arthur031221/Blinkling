@@ -79,7 +79,7 @@ const greenish = ([r, g, b]) => g > r + 40 && g > b + 15;
 test("the pick frame is exact: dark hairline, two rows of green, light hairline, on every page", async () => {
   test.setTimeout(120000);
   const { app } = await launch();
-  const rec = record("pick_frame");
+  const rec = record("pick_frame", { suffix: "-324" });
   try {
     await background(app);
     for (const name of ["light", "dark", "photo"]) {

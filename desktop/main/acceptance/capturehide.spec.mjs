@@ -51,7 +51,7 @@ for (const [mode, env, label] of [
   test(`a capture ${label}: Blink is gone for no longer than the read, or not at all`, async () => {
     test.setTimeout(120000);
     const { app, page } = await launch({ env });
-    const rec = record(`capture_hide_${mode}`, { fps: 30, suffix: "-323" });
+    const rec = record(`capture_hide_${mode}`, { fps: 30, suffix: "-324" });
     try {
       await background(app);
       await app.evaluate(({ screen }) => {

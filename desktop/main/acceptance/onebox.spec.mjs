@@ -41,7 +41,7 @@ const capture = (app, id) =>
 test("one composer on screen: a capture goes into the card's own box, Enter on an empty box sends the highlighted chip, typed words win", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("one_composer-321");
+  const rec = record("one_composer", { suffix: "-324" });
   try {
     await background(app);
     await page.waitForTimeout(800);
@@ -62,7 +62,14 @@ test("one composer on screen: a capture goes into the card's own box, Enter on a
       card.locator('.gl-quick-chip[data-default="true"]'),
     ).toHaveCount(1);
     // Enter on the empty box sends the highlighted chip's exact words.
-    const said = () => card.locator(".gl-user").allInnerTexts();
+    const said = () =>
+      card.locator(".gl-user").evaluateAll((rows) =>
+        rows.map((row) => {
+          const copy = row.cloneNode(true);
+          copy.querySelector(".gl-message-meta")?.remove();
+          return copy.textContent;
+        }),
+      );
     await expect
       .poll(async () => (await said()).length, { timeout: 30000 })
       .toBe(0);
@@ -92,7 +99,7 @@ test("one composer on screen: a capture goes into the card's own box, Enter on a
 test("clicking Blink opens the one card and never a second surface, with or without a capture", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("one_composer", { suffix: "-323", fps: 6 });
+  const rec = record("one_composer", { suffix: "-324", fps: 6 });
   try {
     await background(app);
     await page.waitForTimeout(800);

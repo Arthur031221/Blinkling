@@ -60,7 +60,7 @@ const watch = (page) =>
 test("the debug view draws the hit regions and the parts over Blink on every edge, and the pointer reacts inside them", async () => {
   test.setTimeout(300000);
   const { app, page } = await launch({ env: { BLINKLING_DEBUG_HIT: "1" } });
-  const rec = record("hover_parts", { suffix: "-323", fps: 8 });
+  const rec = record("hover_parts", { suffix: "-324", fps: 8 });
   try {
     await background(app);
     await watch(page);

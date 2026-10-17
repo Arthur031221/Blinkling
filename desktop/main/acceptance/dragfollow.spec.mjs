@@ -138,7 +138,7 @@ test("while Blink is dragged the card is placed from the same pointer events, wi
 test("a continuous drag across the screen, recorded, never leaves the card behind", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("card_follow_drag", { fps: 30, suffix: "-323" });
+  const rec = record("card_follow_drag", { fps: 30, suffix: "-324" });
   try {
     const b = await background(app);
     await place(app, "right", 0.6);
@@ -362,7 +362,7 @@ async function readWatch(app, page, from, to) {
 test("after a drop the card glides with Blink to its place, and is never ahead of it", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("card_follow_drop", { fps: 30, suffix: "-323" });
+  const rec = record("card_follow_drop", { fps: 30, suffix: "-324" });
   try {
     const b = await background(app);
     await place(app, "right", 0.4);
@@ -441,7 +441,7 @@ test("after a drop the card glides with Blink to its place, and is never ahead o
 test("at the top of the screen the tail stays on the mouth in every frame", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("card_follow_top", { fps: 30, suffix: "-323" });
+  const rec = record("card_follow_top", { fps: 30, suffix: "-324" });
   try {
     const b = await background(app);
     await place(app, "right", 0.5);

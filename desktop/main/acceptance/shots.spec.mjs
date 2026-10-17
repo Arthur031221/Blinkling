@@ -41,7 +41,7 @@ const cardFocused = (app) =>
 test("the full screen bubble takes the whole screen, plays eat, clears the menu and asks in the card's own box with the picture attached", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("fullscreen_shot");
+  const rec = record("fullscreen_shot", { suffix: "-324" });
   try {
     const origin = await background(app);
     await place(app, "right", 0.5);
@@ -236,7 +236,7 @@ async function clickBubble(app, page, origin) {
 test("with the browser extension the screenshot bubble takes the whole page, plays eat and asks with every tile attached, and the app never stalls while it scrolls", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("fullpage_shot");
+  const rec = record("fullpage_shot", { suffix: "-324" });
   let fake;
   try {
     const frame = await background(app);
@@ -288,7 +288,7 @@ test("with the browser extension the screenshot bubble takes the whole page, pla
 test("when the extension cannot scroll the page the visible part is taken instead and one line says why", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("fullpage_note");
+  const rec = record("fullpage_note", { suffix: "-324" });
   try {
     const frame = await background(app);
     const fake = await companion(app, { refuse: true });
@@ -329,7 +329,7 @@ test("when the extension cannot scroll the page the visible part is taken instea
 test("with no extension connected at all the visible part is taken and the same one line says why", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("fullpage_noext");
+  const rec = record("fullpage_noext", { suffix: "-324" });
   try {
     const frame = await background(app);
     await browserInFront(app);

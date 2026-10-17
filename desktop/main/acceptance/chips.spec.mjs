@@ -29,7 +29,7 @@ const capture = (app, id) =>
 test("each quick chip sends exactly the words on it, with no length words added", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("chips_exact", { suffix: "-323" });
+  const rec = record("chips_exact", { suffix: "-324" });
   try {
     await background(app);
     await page.waitForTimeout(800);
@@ -47,9 +47,15 @@ test("each quick chip sends exactly the words on it, with no length words added"
       await card.locator(".gl-quick-chip", { hasText: word }).click();
       await expect(card.locator(".gl-user")).toHaveCount(i + 1);
       // The line in the chat is the chip's words and nothing else.
-      expect((await card.locator(".gl-user").last().innerText()).trim()).toBe(
-        word,
-      );
+      const line = await card
+        .locator(".gl-user")
+        .last()
+        .evaluate((el) => {
+          const copy = el.cloneNode(true);
+          copy.querySelector(".gl-message-meta")?.remove();
+          return copy.textContent;
+        });
+      expect(line.trim()).toBe(word);
       await expect(card.locator(".gl-assistant")).toHaveCount(i + 1, {
         timeout: 30000,
       });
@@ -65,7 +71,7 @@ test("each quick chip sends exactly the words on it, with no length words added"
 test("a full page capture is one page chip in the composer and its tiles still go out as pictures", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("full_page_chip", { suffix: "-323" });
+  const rec = record("full_page_chip", { suffix: "-324" });
   try {
     await background(app);
     await page.waitForTimeout(800);
@@ -105,7 +111,7 @@ test("a full page capture is one page chip in the composer and its tiles still g
 test("a new capture takes the marks of the last answer off the screen before the card opens", async () => {
   test.setTimeout(60000);
   const { app, page } = await launch();
-  const rec = record("marks_cleared", { suffix: "-323" });
+  const rec = record("marks_cleared", { suffix: "-324" });
   try {
     await background(app);
     await page.waitForTimeout(800);

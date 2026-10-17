@@ -30,7 +30,7 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
   const { app, page } = await launch({
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
-  const rec = record("session_fresh", { suffix: "-323", fps: 2 });
+  const rec = record("session_fresh", { suffix: "-324", fps: 2 });
   try {
     await background(app);
     await reveal(page);

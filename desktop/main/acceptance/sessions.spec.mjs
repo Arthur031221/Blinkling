@@ -35,7 +35,9 @@ const shown = (card, selector) =>
     .first()
     .evaluate((el) => {
       const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && getComputedStyle(el).display !== "none";
+      return (
+        r.width > 0 && r.height > 0 && getComputedStyle(el).display !== "none"
+      );
     });
 
 async function open(app, page) {
@@ -63,7 +65,9 @@ test("picker_buttons: the model picker, the effort picker and the quick chips ar
       ".gl-input",
     ])
       expect(await shown(card, selector), selector).toBe(true);
-    expect(await card.locator(".gl-picker-trigger").count()).toBeGreaterThanOrEqual(2);
+    expect(
+      await card.locator(".gl-picker-trigger").count(),
+    ).toBeGreaterThanOrEqual(2);
     expect(await card.locator(".gl-quick-chip").count()).toBe(3);
     rec.frame("session-one");
     // A second, newer session: its chat has them too.

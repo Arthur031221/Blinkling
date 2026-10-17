@@ -19,7 +19,7 @@ const differing = (a, b) => a.reduce((n, v, i) => n + (v === b[i] ? 0 : 1), 0);
 test("switching the language in the settings page changes every window in place: no reload, no restart, no cut legs, no replayed jump or wave", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("language_switch", { suffix: "-323" });
+  const rec = record("language_switch", { suffix: "-324" });
   try {
     await background(app);
     await reveal(page);
@@ -93,7 +93,7 @@ test("switching the language in the settings page changes every window in place:
 test("the chat card and the Settings panel never overlap, whichever opens first", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("panel_card", { suffix: "-323" });
+  const rec = record("panel_card", { suffix: "-324" });
   const rects = () =>
     app.evaluate(({ BrowserWindow }) => {
       const find = (part) =>

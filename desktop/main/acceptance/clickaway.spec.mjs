@@ -26,7 +26,7 @@ const mode = (page) => page.locator("#blink").getAttribute("data-mode");
 test("a click on the background closes the card and Blink peeks, also while an answer streams on; a pinned card stays", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("click_away", { suffix: "-323" });
+  const rec = record("click_away", { suffix: "-324" });
   try {
     const b = await background(app);
     await reveal(page);
@@ -113,7 +113,7 @@ test("a click on the background closes the card and Blink peeks, also while an a
 test("a card that opened by itself, without focus, closes on a click on the background", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("click_away_unfocused", { suffix: "-323" });
+  const rec = record("click_away_unfocused", { suffix: "-324" });
   try {
     const b = await background(app);
     await reveal(page);
@@ -136,7 +136,7 @@ test("a card that opened by itself, without focus, closes on a click on the back
 test("a click inside Settings, or on its language list, does not close the card", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("click_in_settings", { suffix: "-323" });
+  const rec = record("click_in_settings", { suffix: "-324" });
   try {
     await background(app);
     await reveal(page);
@@ -176,7 +176,7 @@ test("a click inside Settings, or on its language list, does not close the card"
 test("a click on the background puts away the menu bubbles and the progress bubble and Blink retreats; the idle grumble is left alone", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("click_away_bubbles", { suffix: "-323", fps: 6 });
+  const rec = record("click_away_bubbles", { suffix: "-324", fps: 6 });
   try {
     const b = await background(app);
     const send = (event) =>

@@ -44,7 +44,7 @@ const link = async (app) => {
 test("what is typed and answered in the terminal session appears in Blink's chat, as it happened", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("sync");
+  const rec = record("sync", { suffix: "-324" });
   let unlink;
   try {
     await background(app);
@@ -105,7 +105,7 @@ test("what is typed and answered in the terminal session appears in Blink's chat
 test("a question the linked terminal session never takes is answered by Blink with one line saying so, and the late terminal answer is dropped", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("sync", { suffix: "-323" });
+  const rec = record("sync", { suffix: "-324" });
   let unlink;
   try {
     await background(app);

@@ -38,6 +38,18 @@ test("with a model chosen, Blink wears only that model's piece, with no scene pl
   assert.equal(seen.size, FAMILIES.length);
 });
 
+test("a worn piece is among the ornaments, so a window clipped to a shape keeps the crown, the hat and the plane", () => {
+  for (const family of FAMILIES) {
+    const blink = rig();
+    run(blink, { outfit: null }, 0, 1);
+    assert.equal(blink.ornaments().length, 0, `${family} not yet`);
+    run(blink, { outfit: family }, 1, 2);
+    assert.ok(blink.ornaments().length > 0, `${family} reaches past the body`);
+    run(blink, { outfit: null }, 2, 3);
+    assert.equal(blink.ornaments().length, 0, `${family} taken off`);
+  }
+});
+
 test("with no model, or the switch off, Blink wears nothing", () => {
   const blink = rig();
   run(blink, { outfit: null }, 0, 2);
@@ -58,7 +70,14 @@ test("a model scene plays once, then only the piece stays, and the scene is not 
     assert.ok(blink.ornaments().length > 0, `${family} has props to keep`);
     run(blink, o, 1 + SCENE_FOR * 0.3, 1 + SCENE_FOR + 1);
     assert.deepEqual(marks(blink), [family], family);
-    assert.deepEqual(blink.ornaments(), [], `${family} leaves props behind`);
+    // Only the piece is left, which reaches as far as it does when just worn.
+    const worn = rig();
+    run(worn, { outfit: family }, 0, 1);
+    assert.deepEqual(
+      blink.ornaments(),
+      worn.ornaments(),
+      `${family} leaves props behind`,
+    );
     assert.equal(
       blink.svg.innerHTML.split(MARK[family]).length - 1,
       blink.svg.innerHTML.split(MARK[family]).length - 1,

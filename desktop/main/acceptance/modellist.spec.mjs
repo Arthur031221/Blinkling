@@ -16,7 +16,7 @@ const picture = () => {
 test("the model list offers Opus, Sonnet, Haiku and Fable, each with its version, and a pick shows its version on the line", async () => {
   test.setTimeout(90000);
   const { app, page } = await launch();
-  const rec = record("model_list", { suffix: "-323", fps: 6 });
+  const rec = record("model_list", { suffix: "-324", fps: 6 });
   try {
     await background(app);
     await page.waitForTimeout(1500);

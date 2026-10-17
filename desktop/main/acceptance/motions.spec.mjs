@@ -54,7 +54,7 @@ const PNG =
 test("Blink appears with a motion when it launches", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch({ env: { BLINKLING_MOTIONS: "1" } });
-  const rec = record("motions_appear");
+  const rec = record("motions_appear", { suffix: "-324" });
   try {
     await background(app);
     await watch(page);
@@ -76,7 +76,7 @@ test("Blink appears with a motion when it launches", async () => {
 test("Blink leaves with a motion when the app quits: it waves, jumps out of the picture and only then is the app gone", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch({ env: { BLINKLING_MOTIONS: "1" } });
-  const rec = record("motions_leave", { suffix: "-321" });
+  const rec = record("motions_leave", { suffix: "-324" });
   try {
     await background(app);
     await watch(page);
@@ -136,7 +136,7 @@ test("Blink leaves with a motion when the app quits: it waves, jumps out of the 
 test("a picked-up Blink turns when the edge changes", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("motions_turn");
+  const rec = record("motions_turn", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "right", 0.5);
@@ -168,7 +168,7 @@ test("a picked-up Blink turns when the edge changes", async () => {
 test("Blink walks when it moves along its edge", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("motions_walk");
+  const rec = record("motions_walk", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "bottom", 0.2);
@@ -189,7 +189,7 @@ test("Blink walks when it moves along its edge", async () => {
 test("two loops while held whirl Blink in the air and leave it dizzy on the drop", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("motions_dizzy");
+  const rec = record("motions_dizzy", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "bottom", 0.5);
@@ -239,7 +239,7 @@ test("one loop is only a drag: no whirl and no dizziness", async () => {
 test("Blink picks while the capture pick is on", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("motions_pick");
+  const rec = record("motions_pick", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "bottom", 0.5);
@@ -260,7 +260,7 @@ test("Blink picks while the capture pick is on", async () => {
 test("a file dropped on Blink is caught and goes into the card", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("motions_file");
+  const rec = record("motions_file", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "bottom", 0.5);
@@ -303,7 +303,7 @@ test("a file dropped on Blink is caught and goes into the card", async () => {
 test("a long answer is celebrated and an empty one is shrugged at", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("motions_react");
+  const rec = record("motions_react", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "bottom", 0.5);
@@ -341,7 +341,7 @@ test("a long answer is celebrated and an empty one is shrugged at", async () => 
 test("a capture is sucked into Blink's mouth while Blink eats it", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("eat");
+  const rec = record("eat", { suffix: "-324" });
   try {
     await background(app);
     await place(app, "bottom", 0.5);

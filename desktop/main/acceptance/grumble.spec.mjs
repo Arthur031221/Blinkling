@@ -37,7 +37,7 @@ for (const edge of ["bottom", "right", "top", "left"])
   test(`after a quiet minute Blink grumbles from the ${edge} edge: the bubble is beside the peeking head and Blink does not come out`, async () => {
     test.setTimeout(120000);
     const { app, page } = await launch();
-    const rec = record("grumble", { suffix: `-323-${edge}`, fps: 6 });
+    const rec = record("grumble", { suffix: `-324-${edge}`, fps: 6 });
     try {
       await background(app);
       await place(app, edge, 0.5);
@@ -102,7 +102,7 @@ for (const edge of ["bottom", "right", "top", "left"])
 test("left alone for a real minute, with the connection up and nothing running, Blink grumbles by itself from its edge", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("grumble_idle", { suffix: "-323", fps: 4 });
+  const rec = record("grumble_idle", { suffix: "-324", fps: 4 });
   try {
     await background(app);
     await app.evaluate(() =>

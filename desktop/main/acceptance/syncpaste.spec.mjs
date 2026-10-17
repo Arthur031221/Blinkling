@@ -28,7 +28,7 @@ test("a paste typed in a real terminal reaches Blink as the words pasted, and th
   const { app, page } = await launch({
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
-  const rec = record("sync_paste", { suffix: "-323", fps: 2 });
+  const rec = record("sync_paste", { suffix: "-324", fps: 2 });
   try {
     await background(app);
     await reveal(page);
