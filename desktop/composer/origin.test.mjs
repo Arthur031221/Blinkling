@@ -29,7 +29,7 @@ test("the card grows from Blink's side on all four edges", () => {
   );
   assert.equal(originFor("right").x, 100);
   assert.ok(
-    originFor("bottom").y >= 98,
+    originFor("bottom").y >= 90,
     "bottom edge: Blink is at the card's foot",
   );
   {

@@ -68,7 +68,7 @@ a:focus-visible {
   pointer-events: auto;
   min-width: 0;
   width: 100%;
-  max-width: 520px;
+  max-width: 100%;
   max-height: 100%;
   display: flex;
   flex-direction: column;
@@ -851,4 +851,70 @@ a:focus-visible {
   left: calc(var(--gl-tail-at) - 7px);
   border-top: 0;
   border-left: 0;
+}
+
+/* Resize handles: a band just inside each edge of the card, wider at the
+   corners, so a drag from the rim changes the size. */
+.gl-resize {
+  position: absolute;
+  z-index: 5;
+  touch-action: none;
+}
+.gl-resize[data-edge="n"],
+.gl-resize[data-edge="s"] {
+  left: 16px;
+  right: 16px;
+  height: 7px;
+  cursor: ns-resize;
+}
+.gl-resize[data-edge="e"],
+.gl-resize[data-edge="w"] {
+  top: 16px;
+  bottom: 16px;
+  width: 7px;
+  cursor: ew-resize;
+}
+.gl-resize[data-edge="n"] {
+  top: 0;
+}
+.gl-resize[data-edge="s"] {
+  bottom: 0;
+}
+.gl-resize[data-edge="e"] {
+  right: 0;
+}
+.gl-resize[data-edge="w"] {
+  left: 0;
+}
+.gl-resize[data-edge="ne"],
+.gl-resize[data-edge="nw"],
+.gl-resize[data-edge="se"],
+.gl-resize[data-edge="sw"] {
+  width: 16px;
+  height: 16px;
+}
+.gl-resize[data-edge="ne"] {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+.gl-resize[data-edge="sw"] {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+.gl-resize[data-edge="nw"] {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.gl-resize[data-edge="se"] {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+
+/* A card the reader sized fills its window, whatever its content asks. */
+html[data-sized="true"] .gl-chat-card {
+  height: 100%;
 }

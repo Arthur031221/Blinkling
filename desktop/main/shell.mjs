@@ -47,6 +47,7 @@ import {
   clearOfCard,
 } from "./placement.mjs";
 import { PositionStore } from "./preferences.mjs";
+import { EDGES, resizedSize, fractionsOf, sizeFrom } from "./card-size.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
 import { createEscapeKeys } from "./escape-keys.mjs";
 import { createHookedPress, outsidePress } from "./clickaway.mjs";
@@ -269,7 +270,13 @@ const cardAt = (at = shown()) =>
     store.nudge(`card:${at.edge}`),
     cardWanted,
     guideRects,
+    cardSize(),
   );
+/** The size the reader gave the card: the drag in progress, else the one kept. */
+const cardSize = () =>
+  resizing?.size ?? sizeFrom(store.cardSize, display.workArea);
+/** A card resize in progress: the edge, the size it began with and the nudge. */
+let resizing = null;
 /** What the guide step on show is about, in screen DIP: the card keeps off it. */
 let guideRects = [];
 /** How tall the card's content wants it, as the card last said. */
@@ -284,6 +291,7 @@ const snapshot = () => ({
   position,
   mouth: mouthOf(shown().reveal),
   nudge: store.nudge(`card:${position.edge}`),
+  cardSized: Boolean(cardSize()),
   drag: drag?.active
     ? {
         x: drag.anchor.x - frame().x,
@@ -1133,6 +1141,52 @@ ipcMain.on("blinkling:nudge", (event, message) => {
   broadcast();
   if (message?.commit || message?.reset) void store.saveNudge(key, next);
 });
+/** The reader drags a card edge or corner: the size follows the pointer within
+ * the limits, a bottom edge keeps the card's top where it was by moving the
+ * nudge with it, and the size the drag ends on is remembered. A double click
+ * on a handle puts the card back to sizing itself. */
+ipcMain.on("blinkling:card-resize", (event, message) => {
+  if (!trusted(event) || event.sender !== composer?.webContents) return;
+  const key = `card:${position.edge}`;
+  const area = display.workArea;
+  if (message?.phase === "reset") {
+    resizing = null;
+    store.nudges[key] = { x: 0, y: 0 };
+    void store.saveCardSize(null);
+    void store.saveNudge(key, { x: 0, y: 0 });
+    placeCard();
+    broadcast();
+    return;
+  }
+  if (!EDGES.includes(message?.edge)) return;
+  if (message.phase === "start") {
+    const b = composer.getBounds();
+    resizing = {
+      edge: message.edge,
+      base: { width: b.width, height: b.height },
+      nudge: store.nudge(key),
+    };
+    return;
+  }
+  if (!resizing || resizing.edge !== message.edge) return;
+  const dx = Number(message.dx),
+    dy = Number(message.dy);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+  const size = resizedSize(resizing.base, resizing.edge, dx, dy, area);
+  resizing.size = size;
+  if (resizing.edge.includes("s"))
+    store.nudges[key] = clampNudge({
+      x: resizing.nudge.x,
+      y: resizing.nudge.y + size.height - resizing.base.height,
+    });
+  placeCard();
+  broadcast();
+  if (message.phase === "end") {
+    resizing = null;
+    void store.saveCardSize(fractionsOf(size, area));
+    void store.saveNudge(key, store.nudge(key));
+  }
+});
 ipcMain.on("blinkling:typing", (event, value) => {
   if (
     !trusted(event) ||
@@ -1281,6 +1335,7 @@ features = installCaptureGuide({
       store.nudge(`card:${shown().edge}`),
       Infinity,
       [],
+      cardSize(),
     );
     const area = display.workArea;
     return [{ ...card, y: area.y, height: area.height }];

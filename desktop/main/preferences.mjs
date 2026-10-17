@@ -8,6 +8,8 @@ export class PositionStore {
     /** How far the reader moved each surface from where it opens, by name and
      * edge ("card:right"), so it opens there again. */
     this.nudges = {};
+    /** The size the reader gave the card, as fractions of the work area, or null. */
+    this.cardSize = null;
     this.pending = Promise.resolve();
   }
   async load() {
@@ -25,6 +27,9 @@ export class PositionStore {
           for (const [key, n] of Object.entries(value.nudges))
             if (Number.isFinite(n?.x) && Number.isFinite(n?.y))
               this.nudges[key] = { x: n.x, y: n.y };
+        const c = value.cardSize;
+        if (c && c.width > 0 && c.width <= 1 && c.height > 0 && c.height <= 1)
+          this.cardSize = { width: c.width, height: c.height };
       }
     } catch (error) {
       if (error.code !== "ENOENT" && !(error instanceof SyntaxError))
@@ -46,12 +51,20 @@ export class PositionStore {
     else this.nudges[key] = { x: offset.x, y: offset.y };
     return this.write();
   }
+  /** Remembers the card's size as fractions of the work area; null forgets it. */
+  saveCardSize(fractions) {
+    this.cardSize = fractions
+      ? { width: fractions.width, height: fractions.height }
+      : null;
+    return this.write();
+  }
   write() {
     const data = JSON.stringify({
       version: 1,
       positions: this.positions,
       lastDisplay: this.lastDisplay,
       nudges: this.nudges,
+      cardSize: this.cardSize,
     });
     this.pending = this.pending
       .catch(() => {})

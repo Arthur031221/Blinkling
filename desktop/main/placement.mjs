@@ -21,20 +21,33 @@ export const TAIL_REACH = 27;
 /** How far past the work area a card may slip to keep its tail on a mouth that
  * a carried Blink has taken near the top or bottom edge. */
 export const SLIP_MAX = 160;
+/** How far the card window keeps off the top and the bottom of the work area.
+ * The window has 12 px of shadow room above the card and 16 below, so with 0
+ * above and -10 below (the window may spill 10 px past the area) the card
+ * itself stands 12 px under the top and 6 px over the bottom: it reaches the
+ * real bottom of the work area, above the Dock, whatever the Dock does. */
+export const CARD_REACH = Object.freeze({ top: 0, bottom: -10 });
 /** Where a panel of this height starts so that it is anchored to the mouth of
  * the Blink in `box`, kept inside `area` less `margin`. Only a mouth too near
  * the edge for the tail to reach lets it slip out, by as little as that takes. */
-export function anchoredTop(box, height, area, margin = 0) {
+export function anchoredTop(box, height, area, margin = 0, snap = 0) {
   const mouth = box.y + MOUTH.y;
   const edge = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-  const top = area.y + margin,
-    bottom = area.y + area.height - margin;
+  const { top: above, bottom: below } =
+    typeof margin === "number" ? { top: margin, bottom: margin } : margin;
+  const top = area.y + above,
+    bottom = area.y + area.height - below;
   const lo = top - edge(top - (mouth - TAIL_REACH), 0, SLIP_MAX),
     hi = bottom - height + edge(mouth + TAIL_REACH - bottom, 0, SLIP_MAX);
-  return Math.round(
-    Math.max(lo, Math.min(hi, box.y + MOUTH.y + MOUTH_DROP - height)),
-  );
+  const want = box.y + MOUTH.y + MOUTH_DROP - height;
+  // With `snap`, a Blink standing low gets a card that reaches the bottom of
+  // the area, not one that stops a few pixels short of it.
+  const gap = bottom - (want + height);
+  const reaches = gap >= 0 && gap < snap ? bottom - height : want;
+  return Math.round(Math.max(lo, Math.min(hi, reaches)));
 }
+/** A card whose bottom would stop this close to the bottom of the area goes down to it. */
+export const BOTTOM_SNAP = 40;
 const valid = (p) =>
   p &&
   ["left", "right", "top", "bottom"].includes(p.edge) &&
@@ -150,7 +163,7 @@ export function clampNudge(nudge, max = NUDGE_MAX) {
   return { x: Math.round(x * scale), y: Math.round(y * scale) };
 }
 /** `bounds` moved by a nudge, kept inside the work area. */
-export function nudged(bounds, nudge, area) {
+export function nudged(bounds, nudge, area, reach = CARD_REACH) {
   const n = clampNudge(nudge);
   return {
     ...bounds,
@@ -158,7 +171,11 @@ export function nudged(bounds, nudge, area) {
       clamp(bounds.x + n.x, area.x, area.x + area.width - bounds.width),
     ),
     y: Math.round(
-      clamp(bounds.y + n.y, area.y, area.y + area.height - bounds.height),
+      clamp(
+        bounds.y + n.y,
+        area.y + reach.top,
+        area.y + area.height - reach.bottom - bounds.height,
+      ),
     ),
   };
 }
@@ -236,8 +253,9 @@ export function cardBounds(
   nudge = { x: 0, y: 0 },
   wanted = Infinity,
   avoid = [],
+  size = null,
 ) {
-  const placed = placedCard(display, position, wanted);
+  const placed = placedCard(display, position, wanted, size);
   const area = display.workArea;
   const moved = nudged(placed, nudge, area);
   // A card that slipped out to keep its tail on the mouth keeps where it is.
@@ -255,12 +273,17 @@ export function cardBounds(
 /** The card window is never shorter than this, so a card with nothing in it
  * still shows its header and its composer whole. */
 export const CARD_SHORTEST = 120;
-function placedCard(display, position, wanted = Infinity) {
+function placedCard(display, position, wanted = Infinity, size = null) {
   const a = display.workArea,
-    full = Math.min(440, a.width - 24),
-    most = Math.min(520, a.height - 24),
+    reach = a.height - CARD_REACH.top - CARD_REACH.bottom,
+    // A card the reader sized keeps that size: its width, and its height
+    // whatever the content asks. Otherwise the card is as tall as its content.
+    full = size ? size.width : Math.min(440, a.width - 24),
+    most = size ? size.height : Math.min(520, reach),
     height = Math.round(
-      Math.min(most, Math.max(CARD_SHORTEST, Number(wanted) || most)),
+      size
+        ? Math.min(size.height, reach)
+        : Math.min(most, Math.max(CARD_SHORTEST, Number(wanted) || most)),
     );
   const blink = characterBox(display, position);
   const anchor = {
@@ -268,7 +291,7 @@ function placedCard(display, position, wanted = Infinity) {
     y: position.reveal.y + display.bounds.y,
   };
   const centre = blink.x + blink.width / 2;
-  const y = anchoredTop(blink, height, a, 12);
+  const y = anchoredTop(blink, height, a, CARD_REACH, BOTTOM_SNAP);
   // Beside Blink, away from its edge. On a top or bottom edge, or in a corner,
   // take whichever side has room so the card never lands on top of Blink.
   const room = {
@@ -299,8 +322,12 @@ function placedCard(display, position, wanted = Infinity) {
     y: r.y + display.bounds.y,
   }));
   const keepClear = union([blink, ...fan]);
-  const above = keepClear.y - CARD_GAP - (a.y + 12),
-    below = a.y + a.height - 12 - (keepClear.y + keepClear.height + CARD_GAP);
+  const above = keepClear.y - CARD_GAP - (a.y + CARD_REACH.top),
+    below =
+      a.y +
+      a.height -
+      CARD_REACH.bottom -
+      (keepClear.y + keepClear.height + CARD_GAP);
   const tall = Math.min(height, Math.max(above, below));
   return {
     x: Math.round(

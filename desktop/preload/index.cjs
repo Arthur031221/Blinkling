@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld(
     hold: (value) => ipcRenderer.send("blinkling:hold", value),
     quick: (value) => ipcRenderer.send("blinkling:quick", value),
     nudge: (value) => ipcRenderer.send("blinkling:nudge", value),
+    cardResize: (value) => ipcRenderer.send("blinkling:card-resize", value),
     pin: (value) =>
       ipcRenderer.invoke("blinkling:shell", { type: "pin", value }),
     close: () => ipcRenderer.invoke("blinkling:shell", { type: "close-chat" }),

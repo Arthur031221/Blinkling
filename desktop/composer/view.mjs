@@ -1,4 +1,5 @@
 import { attachNudge } from "../shared/nudge.mjs";
+import { attachResize } from "../shared/resize.mjs";
 import { readAttachment } from "./index.mjs";
 import { documentLocale, translator } from "../shared/i18n.mjs";
 import { strings } from "./strings.mjs";
@@ -31,6 +32,7 @@ export function mountComposer(
     efforts,
     onPin = () => {},
     onNudge = () => {},
+    onResize = () => {},
     nudgeNow = () => ({ x: 0, y: 0 }),
     onClose = () => {},
     onTyping = () => {},
@@ -166,6 +168,7 @@ export function mountComposer(
   );
   const listen = (n, type, fn) => n.addEventListener(type, fn, { signal });
   attachNudge(header, { send: onNudge, current: nudgeNow, signal });
+  attachResize(card, { send: onResize, signal });
   const toolbar = node("div", "gl-composer-toolbar"),
     add = button(tr("add"), "+"),
     file = node("input"),

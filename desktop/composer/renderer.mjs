@@ -77,6 +77,7 @@ function placeOrigin() {
 const unShell = api.onShell?.((event) => {
   if (event.type !== "state") return;
   document.documentElement.dataset.theme = event.state.theme;
+  document.documentElement.dataset.sized = String(!!event.state.cardSized);
   const viewed = shellState?.interaction?.viewing;
   shellState = event.state;
   // The image viewer closed: the answer it was opened from is back in view.
@@ -106,6 +107,7 @@ export const conversation = mountConversation({
   ...configuration,
   onPin: (value) => api.pin?.(value),
   onNudge: (value) => api.nudge?.(value),
+  onResize: (value) => api.cardResize?.(value),
   nudgeNow: () => shellState?.nudge,
   onClose: () => api.close?.(),
   onChat: (key) => api.switchChat?.(key),

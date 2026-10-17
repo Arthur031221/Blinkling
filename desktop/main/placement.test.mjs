@@ -18,6 +18,7 @@ import {
   TAIL_REACH,
   SLIP_MAX,
   dodgeCard,
+  CARD_REACH,
 } from "./placement.mjs";
 import { menuLayout, menuTransform } from "../menu/layout.mjs";
 const display = {
@@ -121,7 +122,14 @@ for (const scale of [1, 1.5])
         );
       if (p.edge === "top" || p.edge === "bottom")
         assert.ok(inside({ ...body(p.reveal), y: area.y }, area));
-      assert.ok(inside(cardBounds(d, p), d.workArea), "card");
+      const card = cardBounds(d, p);
+      assert.ok(
+        inside(
+          { ...card, height: card.height + CARD_REACH.bottom },
+          d.workArea,
+        ),
+        "card",
+      );
       for (const rect of menuLayout(area, p.reveal)) {
         const shown = menuTransform(area, p.reveal, rect, 1);
         const w = rect.width * shown.scale,
@@ -187,7 +195,10 @@ for (const [scale, screen] of Object.entries(panels))
       const position = resolvePosition(screen, saved);
       const card = cardBounds(screen, position);
       assert.ok(card.x >= a.x && card.x + card.width <= a.x + a.width);
-      assert.ok(card.y >= a.y && card.y + card.height <= a.y + a.height);
+      assert.ok(
+        card.y >= a.y &&
+          card.y + card.height <= a.y + a.height - CARD_REACH.bottom,
+      );
       // The revealed character, its menu column and its card never overlap.
       const anchor = {
         x: position.reveal.x + screen.bounds.x,
@@ -294,7 +305,8 @@ for (const [name, d] of Object.entries({
         );
         assert.ok(card.y >= d.workArea.y, `${edge} ${ratio} top`);
         assert.ok(
-          card.y + card.height <= d.workArea.y + d.workArea.height,
+          card.y + card.height <=
+            d.workArea.y + d.workArea.height - CARD_REACH.bottom,
           `${edge} ${ratio} bottom`,
         );
         assert.ok(card.height >= 200, `${edge} ${ratio} stays usable`);
@@ -343,7 +355,10 @@ test("a nudge moves the card at most 120 px from where it opens and never off th
   assert.equal(home.x - far.x, NUDGE_MAX);
   const corner = resolvePosition(screen, { edge: "right", ratio: 1 });
   const down = cardBounds(screen, corner, { x: 0, y: 120 });
-  assert.ok(down.y + down.height <= screen.workArea.y + screen.workArea.height);
+  assert.ok(
+    down.y + down.height <=
+      screen.workArea.y + screen.workArea.height - CARD_REACH.bottom,
+  );
   assert.deepEqual(clampNudge({ x: 300, y: 400 }), { x: 72, y: 96 });
   assert.deepEqual(clampNudge({ x: NaN, y: 1 }), { x: 0, y: 0 });
   assert.deepEqual(clampNudge(undefined), { x: 0, y: 0 });
@@ -507,5 +522,79 @@ test("dodgeCard slides past the tail's reach when the target is otherwise covere
     dodgeCard(card, [cover], wide, 200).y,
     card.y,
     "no better place",
+  );
+});
+
+/** The card reaches the real bottom of the work area wherever the Dock is: the
+ * work area is what the system says is free, so the cases below are different
+ * work areas of one 1440 x 900 display, a display left of the primary with a
+ * negative origin, and a retina scale. The card stands 16 px inside its window,
+ * so its visible bottom is the window's less 16. */
+const SHADOW_BELOW = 16;
+const docks = {
+  "Dock at the bottom": {
+    bounds: { x: 0, y: 0, width: 1440, height: 900 },
+    workArea: { x: 0, y: 25, width: 1440, height: 790 },
+    scaleFactor: 2,
+  },
+  "Dock on the left": {
+    bounds: { x: 0, y: 0, width: 1440, height: 900 },
+    workArea: { x: 70, y: 25, width: 1370, height: 875 },
+    scaleFactor: 2,
+  },
+  "Dock hidden": {
+    bounds: { x: 0, y: 0, width: 1440, height: 900 },
+    workArea: { x: 0, y: 25, width: 1440, height: 875 },
+    scaleFactor: 2,
+  },
+  "a display at (-1440, -300) with the Dock on it": {
+    bounds: { x: -1440, y: -300, width: 1440, height: 900 },
+    workArea: { x: -1440, y: -275, width: 1440, height: 790 },
+    scaleFactor: 2,
+  },
+};
+for (const [name, d] of Object.entries(docks))
+  test(`${name}: a card beside a Blink low on the screen reaches the bottom of the work area, its tail on the mouth`, () => {
+    const display = { id: 1, ...d };
+    const bottom = d.workArea.y + d.workArea.height;
+    for (const edge of ["left", "right"]) {
+      const position = resolvePosition(display, { edge, ratio: 1 });
+      const card = cardBounds(display, position, undefined, Infinity);
+      const visible = card.y + card.height - SHADOW_BELOW;
+      assert.ok(visible <= bottom, `${name} ${edge}: stays above the Dock`);
+      assert.ok(
+        bottom - visible <= 8,
+        `${name} ${edge}: reaches the bottom (${bottom - visible} px short)`,
+      );
+      assert.ok(card.y >= d.workArea.y, "and the top of the area");
+      const mouth = mouthOf(position.reveal).y + display.bounds.y;
+      assert.ok(
+        mouth >= card.y + 12 && mouth <= card.y + card.height - SHADOW_BELOW,
+        "the mouth is beside the card",
+      );
+    }
+  });
+
+test("a card the reader sized keeps its width and height, above the 520 px cap, and a Blink at the edge does not shrink it", () => {
+  const display = { id: 1, ...docks["Dock hidden"] };
+  const position = resolvePosition(display, { edge: "right", ratio: 0.5 });
+  const auto = cardBounds(display, position, undefined, 9999);
+  assert.ok(auto.height <= 520 && auto.width <= 440);
+  const big = cardBounds(display, position, undefined, 120, [], {
+    width: 600,
+    height: 700,
+  });
+  assert.equal(big.width, 600);
+  assert.equal(big.height, 700, "its height holds whatever the content asks");
+  assert.ok(big.y >= display.workArea.y);
+  assert.ok(
+    big.y + big.height <=
+      display.workArea.y + display.workArea.height - CARD_REACH.bottom,
+  );
+  const blink = resolvePosition(display, { edge: "right", ratio: 0.5 });
+  assert.ok(
+    big.x + big.width <= blink.reveal.x + display.bounds.x - 38 ||
+      big.x >= blink.reveal.x + display.bounds.x + 38,
+    "never over Blink's body",
   );
 });

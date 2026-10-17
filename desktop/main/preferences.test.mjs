@@ -55,3 +55,27 @@ test("nudges are remembered per surface and edge, and a nudge of nothing is forg
     await rm(dir, { recursive: true });
   }
 });
+test("the size the reader gave the card is remembered as fractions, and forgotten on reset", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "blink-card-size-"));
+  try {
+    const path = join(dir, "positions.json");
+    const store = await new PositionStore(path).load();
+    assert.equal(store.cardSize, null);
+    await store.saveCardSize({ width: 0.4, height: 0.6 });
+    const restored = await new PositionStore(path).load();
+    assert.deepEqual(restored.cardSize, { width: 0.4, height: 0.6 });
+    await restored.saveCardSize(null);
+    assert.equal((await new PositionStore(path).load()).cardSize, null);
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        positions: {},
+        cardSize: { width: 4, height: -1 },
+      }),
+    );
+    assert.equal((await new PositionStore(path).load()).cardSize, null);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
