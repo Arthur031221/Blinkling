@@ -23,8 +23,11 @@ const FIRST_FRAME = { screen: 0.045, region: 0.4, coverage: 0.3 };
  * where the overlay's drawing cancels out. Masks of both frames are unioned so
  * a bubble that grows while streaming is ignored in either position. */
 export class DriftDetector {
-  constructor({ display, reference }) {
-    Object.assign(this, { display, reference });
+  /** `checkReference` false adopts the first live frame without comparing it
+   * with the model's screenshot: where the system scales a thumbnail in its own
+   * way (macOS), that comparison reads as a changed screen on a still one. */
+  constructor({ display, reference, checkReference = true }) {
+    Object.assign(this, { display, reference, checkReference });
     this.baseline = null;
     this.baselineMasks = [];
     this.previous = null;
@@ -48,11 +51,13 @@ export class DriftDetector {
     if (!this.baseline) {
       // Both drawings are masked; the lenient limits only react to a region
       // that is mostly different.
+      const fromReference = !this.previous;
       const before = this.previous ?? { frame: this.reference, masks: [] };
       const all = [...before.masks, ...masks];
       this.previous = null;
       this.baseline = Buffer.from(frame);
       this.baselineMasks = masks;
+      if (fromReference && !this.checkReference) return null;
       return contentMoved(
         maskBitmap(before.frame, w, h, display, all),
         maskBitmap(frame, w, h, display, all),

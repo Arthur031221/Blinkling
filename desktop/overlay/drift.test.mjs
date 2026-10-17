@@ -75,6 +75,15 @@ test("a window that moved before the overlay appeared is caught on the first liv
   });
   assert.equal(d.observe(live(moved), masksFor(80), rects), "content-changed");
 });
+test("without the reference check the first live frame is adopted, and later moves are still caught", () => {
+  const d = new DriftDetector({ display, reference, checkReference: false });
+  const moved = desktop({
+    window: { x: 330, y: 160, width: 900, height: 600 },
+  });
+  assert.equal(d.observe(live(moved), masksFor(80), rects), null);
+  assert.equal(d.observe(live(moved), masksFor(80), rects), null);
+  assert.equal(d.observe(live(screen), masksFor(80), rects), "content-changed");
+});
 test("a region that is almost entirely masked cannot dismiss the guide on the first live frame", () => {
   // A small target covered by its own label and arrow: only a one-cell edge is
   // left unmasked and it holds the overlay's soft shadow, not page content.

@@ -17,8 +17,10 @@ export class StalenessWatch {
     onError = () => {},
     decode,
     grab,
+    checkReference = true,
   }) {
     Object.assign(this, {
+      checkReference,
       overlay,
       windows,
       masks,
@@ -47,6 +49,7 @@ export class StalenessWatch {
     this.detector = new DriftDetector({
       display: capture.display,
       reference: this.decode(capture.image.data, size),
+      checkReference: this.checkReference,
     });
     this.timer = setInterval(() => this.tick(), this.intervalMs);
     this.timer.unref();

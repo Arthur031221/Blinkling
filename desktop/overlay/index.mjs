@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { OverlayService } from "./service.mjs";
 import { exactX11Bounds } from "./x11-bounds.mjs";
 import { validateDrawing, validateRect } from "./validate.mjs";
+import { overlayWindowOptions } from "./window-options.mjs";
 /** One hidden window per display, kept and reused (N6.4). `entries` maps a
  * window's webContents id to {win, view, displayId}; `pool` holds the idle ones. */
 const entries = new Map();
@@ -58,24 +59,15 @@ function drawn(win, seq) {
 let sequence = 0;
 async function build(display) {
   initialHandlers();
-  const win = new BrowserWindow({
-    ...display.bounds,
-    title: "Blinkling",
-    transparent: true,
-    frame: false,
-    hasShadow: false,
-    alwaysOnTop: true,
-    focusable: false,
-    show: false,
-    resizable: false,
-    webPreferences: {
-      preload: fileURLToPath(new URL("./preload.cjs", import.meta.url)),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-      backgroundThrottling: false,
-    },
-  });
+  const win = new BrowserWindow(
+    overlayWindowOptions(
+      display,
+      fileURLToPath(new URL("./preload.cjs", import.meta.url)),
+    ),
+  );
+  // macOS keeps a window under the menu bar unless it is told otherwise, which
+  // would draw every mark that far above where it belongs.
+  win.setBounds(display.bounds);
   win.on("page-title-updated", (event) => event.preventDefault());
   win.setAlwaysOnTop(true, "screen-saver");
   if (process.platform === "darwin")

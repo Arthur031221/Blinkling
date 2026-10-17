@@ -103,6 +103,9 @@ export function installCaptureGuide({
     grab: async (display, size) =>
       sample(await screenImage(display, middle(size)), size),
     onError: () => overlay.dismiss("capture-unavailable"),
+    // macOS scales a thumbnail its own way, so the model's screenshot and the
+    // first live frame never match: later frames are compared with that one.
+    checkReference: process.platform !== "darwin",
   });
   let auto;
   const progress = createProgress({
