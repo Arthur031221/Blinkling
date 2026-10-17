@@ -52,6 +52,7 @@ async function setup({ settleMs = 5 } = {}) {
   const frames = [];
   let taken = true;
   const bridges = new Map();
+  const channels = [];
   const router = new ChatRouter({
     main,
     makeBridge: (session) => {
@@ -59,15 +60,18 @@ async function setup({ settleMs = 5 } = {}) {
       bridges.set(session, b);
       return b;
     },
-    makeChannel: (session) =>
-      new ChannelChat({
+    makeChannel: (session) => {
+      const channel = new ChannelChat({
         directory: join(dir, session),
         settleMs,
         deliver: (frame) => {
           frames.push({ session, ...frame });
           return taken;
         },
-      }),
+      });
+      channels.push(channel);
+      return channel;
+    },
   });
   const events = [];
   router.subscribe((e) => events.push(e), { visible: true });
@@ -78,7 +82,11 @@ async function setup({ settleMs = 5 } = {}) {
     frames,
     events,
     bridges,
-    close: () => rm(dir, { recursive: true, force: true }),
+    // A save still in flight would make its folder again under the removal.
+    close: async () => {
+      await Promise.all(channels.map((channel) => channel.flush()));
+      await rm(dir, { recursive: true, force: true });
+    },
     refuse: () => (taken = false),
   };
 }

@@ -64,6 +64,7 @@ export class ChannelChat {
     this.active = undefined;
     this.replies = 0;
     this.loaded = this.load();
+    this.saving = Promise.resolve();
   }
   async load() {
     try {
@@ -82,6 +83,10 @@ export class ChannelChat {
   async save() {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     await writeJson(this.file, { messages: this.messages.slice(-KEEP) });
+  }
+  /** Resolves when every save so far has reached the disk. */
+  flush() {
+    return this.saving;
   }
   connect() {
     return this.loaded;
@@ -110,7 +115,9 @@ export class ChannelChat {
     if (this.messages.length > KEEP)
       this.messages.splice(0, this.messages.length - KEEP);
     this.emit({ type: "message", ...message });
-    if (persist) void this.save().catch(() => {});
+    // Saves run one after another, so a later one never lands before an earlier one.
+    if (persist)
+      this.saving = this.saving.then(() => this.save()).catch(() => {});
   }
   async send(turn) {
     await this.loaded;
