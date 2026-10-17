@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { launch } from "./support.mjs";
 import { background, reveal, sleep } from "./helpers.mjs";
 import { record } from "./record.mjs";
@@ -15,6 +16,23 @@ const FOLDER = "/tmp/blink-live/alpha";
 const SAVE =
   process.env.BLINKLING_LIVE_DIR ??
   "/home/levi/oss-engine/reports/glimpse-v3/r3";
+
+// The plugin replaces a running Blink whose version is not the one its pinned
+// manifest names, and the manifest keeps the last release until the release
+// pins the next. The tree under test is the next one, so for this run the pin
+// in the manifest and in the bundle the MCP server runs names it, and both
+// files are put back afterwards.
+const here = (path) => fileURLToPath(new URL(path, import.meta.url));
+const PINS = [
+  [here("../../../plugin/desktop/manifest.json"), /("version":\s*")[^"]+/],
+  [
+    here("../../../bin/blinkling.cjs"),
+    /(var manifest_default = \{\s*schemaVersion: \d+,\s*version: ")[^"]+/,
+  ],
+];
+const TREE_VERSION = JSON.parse(
+  await readFile(here("../../package.json"), "utf8"),
+).version;
 
 const tmux = (...args) =>
   execFileSync("tmux", args, { encoding: "utf8" }).toString();
@@ -61,6 +79,12 @@ test.skip(!LIVE, "needs live claude terminals: set BLINKLING_LIVE=1");
 test("a Claude Code session Blink has not met opens a brand new chat, and neither Blink nor the terminal inherits the earlier one", async () => {
   test.setTimeout(480000);
   const runtime = await mkdtemp(join(tmpdir(), "blink-live-rt-"));
+  const pins = [];
+  for (const [file, pattern] of PINS) {
+    const text = await readFile(file, "utf8");
+    pins.push([file, text]);
+    await writeFile(file, text.replace(pattern, `$1${TREE_VERSION}`));
+  }
   const { app, page } = await launch({
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
@@ -199,5 +223,6 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
     }
     await rec.stop();
     await app.close().catch(() => {});
+    for (const [file, text] of pins) await writeFile(file, text);
   }
 });
