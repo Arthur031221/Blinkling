@@ -51,6 +51,7 @@ import { createAnswerPointing } from "../pointing/answers.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
 import { captureScreen, screenImage, windowsOn } from "../capture/index.mjs";
 import { exclude } from "../capture/exclusion.mjs";
+import { windowShape } from "./shape.mjs";
 import { createLocator } from "../locator/index.mjs";
 import { createCaptureAccess } from "../locator/access.mjs";
 import { createOverlay } from "../overlay/index.mjs";
@@ -135,6 +136,7 @@ let composer = null,
   typing = false,
   overlay = null,
   regions = [],
+  bubbleRegions = [],
   blinkRegions = [],
   // Where the peek was when the pointer pulled Blink out: the pointer stays
   // "on Blink" there while Blink steps out from under it.
@@ -549,6 +551,7 @@ function useDisplay(next) {
   clearTimeout(glideTimer);
   position = resolvePosition(display, store.positions[String(display.id)]);
   regions = [];
+  bubbleRegions = [];
   blink.setBounds(display.bounds);
   if (input)
     input.setRegions(
@@ -568,6 +571,9 @@ function useDisplay(next) {
   placeCard();
   broadcast();
 }
+/** What Blink's window is clipped to, where the system does the clipping. */
+const shapeNow = (platform = process.platform) =>
+  windowShape(platform, regions, bubbleRegions);
 /** The card goes where Blink goes. Called on every move of Blink, on drop and
  * on every display change. */
 let placedAt = "";
@@ -649,10 +655,17 @@ ipcMain.on("blinkling:regions", (event, value, parts = {}) => {
     !(
       parts?.blink === undefined || validRegions(parts.blink, blink.getBounds())
     ) ||
-    !(parts?.menu === undefined || validRegions(parts.menu, blink.getBounds()))
+    !(
+      parts?.menu === undefined || validRegions(parts.menu, blink.getBounds())
+    ) ||
+    !(
+      parts?.bubbles === undefined ||
+      validRegions(parts.bubbles, blink.getBounds())
+    )
   )
     return;
   regions = value;
+  bubbleRegions = parts.bubbles ?? [];
   blinkRegions = parts.blink ?? [];
   menuRegions = parts.menu ?? [];
   if (input) {
@@ -660,7 +673,7 @@ ipcMain.on("blinkling:regions", (event, value, parts = {}) => {
     if (!drag) input.setRegions(blink, regions, display.scaleFactor);
     ignoring = false;
   } else if (!drag && process.platform === "win32" && regions.length)
-    blink.setShape(regions);
+    blink.setShape(shapeNow());
 });
 ipcMain.handle("blinkling:shell", async (event, command) => {
   if (!trusted(event) || !validCommand(command, blink.getBounds()))
@@ -744,7 +757,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
           dir: position.edge === "right" || position.edge === "bottom" ? 1 : -1,
         });
       if (input) input.setRegions(blink, regions, display.scaleFactor);
-      else if (process.platform === "win32") blink.setShape(regions);
+      else if (process.platform === "win32") blink.setShape(shapeNow());
       if (saved) await store.save(display.id, saved);
       placeCard();
     }
@@ -1624,6 +1637,7 @@ if (process.env.BLINKLING_E2E === "1")
     cursor: () => cursor.point(),
     pointer: cursor,
     cardBounds: () => cardAt(),
+    shapeFor: shapeNow,
     attachCapture,
     mouth: () => mouthPoint(),
     openComposer,

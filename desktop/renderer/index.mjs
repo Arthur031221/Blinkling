@@ -5,7 +5,12 @@ import { grow, scanlines, roundedRect } from "../character/silhouette.mjs";
 import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createComposer, readAttachment } from "../composer/index.mjs";
 import { applyText, windowText, GRUMBLES } from "./strings.mjs";
-import { cssVariables, frameLog, springs } from "../shared/motion.mjs";
+import {
+  cssVariables,
+  duration,
+  frameLog,
+  springs,
+} from "../shared/motion.mjs";
 import { documentLocale, setDocumentLocale } from "../shared/i18n.mjs";
 import { menuText } from "../menu/strings.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
@@ -94,6 +99,7 @@ function placeGrumble(node, feet, position) {
   node.style.transform = `translate(${x}px,${y}px)`;
   node.dataset.side = inward ? "left" : "right";
   node.dataset.edge = top ? "top" : "bottom";
+  return { x, y, width, height };
 }
 /** The progress bubble sits at Blink's mouth, on the side toward the screen's
  * inside, where the card will open. */
@@ -103,8 +109,44 @@ function placeStatus(node, feet) {
   const right = feet.x < innerWidth / 2;
   const x = right ? feet.x + 52 : feet.x - 52 - width;
   const y = feet.y - 62 - height / 2;
-  node.style.transform = `translate(${Math.max(8, Math.min(innerWidth - width - 8, x))}px,${Math.max(8, Math.min(innerHeight - height - 8, y))}px)`;
+  const at = {
+    x: Math.max(8, Math.min(innerWidth - width - 8, x)),
+    y: Math.max(8, Math.min(innerHeight - height - 8, y)),
+  };
+  node.style.transform = `translate(${at.x}px,${at.y}px)`;
   node.dataset.side = right ? "right" : "left";
+  return { ...at, width, height };
+}
+/** The bubbles are drawn inside Blink's window, so where the system clips the
+ * window to a shape they have to be in it: their boxes, with room for the
+ * shadow, kept while they fade out. */
+const BUBBLE_PAD = 8;
+const bubbleBoxes = new Map();
+function bubbleShapes(now, bubbles) {
+  const shapes = [];
+  for (const [node, box] of bubbles) {
+    const seen = bubbleBoxes.get(node);
+    if (box) bubbleBoxes.set(node, { box, at: now });
+    const kept = box ? { box, at: now } : seen;
+    if (!kept || now - kept.at > duration.slow) continue;
+    const x = Math.max(0, Math.floor(kept.box.x - BUBBLE_PAD)),
+      y = Math.max(0, Math.floor(kept.box.y - BUBBLE_PAD));
+    shapes.push({
+      x,
+      y,
+      width:
+        Math.min(
+          innerWidth,
+          Math.ceil(kept.box.x + kept.box.width + BUBBLE_PAD),
+        ) - x,
+      height:
+        Math.min(
+          innerHeight,
+          Math.ceil(kept.box.y + kept.box.height + BUBBLE_PAD),
+        ) - y,
+    });
+  }
+  return shapes;
 }
 const host = document.querySelector("#blink");
 const permission = document.querySelector("#permission-alert");
@@ -312,8 +354,16 @@ async function action(id) {
       grumble.dataset.shown = String(line !== null);
       void api.shell({ type: "grumble", value: line !== null }).catch(() => {});
     }
-    if (line !== null) placeGrumble(grumble, current, shell.position);
-    if (status.dataset.shown === "true") placeStatus(status, current);
+    const bubbles = [
+      [
+        grumble,
+        line !== null ? placeGrumble(grumble, current, shell.position) : null,
+      ],
+      [
+        status,
+        status.dataset.shown === "true" ? placeStatus(status, current) : null,
+      ],
+    ];
     // The machine in main decides when the fan shows: after the pointer has
     // rested on Blink, never over an open card.
     pointerOver = Boolean(pointer?.blink);
@@ -337,7 +387,11 @@ async function action(id) {
       );
     }
     hit = body;
-    api.interactive(all, { blink: body, menu: fan });
+    api.interactive(all, {
+      blink: body,
+      menu: fan,
+      bubbles: bubbleShapes(now, bubbles),
+    });
     workTimes.push(performance.now() - began);
     if (workTimes.length > 600) workTimes.shift();
     frameId = requestAnimationFrame(frame);
