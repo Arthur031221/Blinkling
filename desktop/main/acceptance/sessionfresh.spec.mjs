@@ -154,15 +154,15 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
     rec.frame("back-to-A");
     await sleep(1500);
 
-    // Both terminals end, then a third session starts in the same folder. It
-    // is a brand new chat as well: none of the two earlier talks come back.
+    // The first terminal ends (the last one to end takes Blink with it, so B
+    // stays), then a third session starts in the same folder. It is a brand
+    // new chat as well: none of the two earlier talks come back.
     type("blinkA", "/exit");
-    type("blinkB", "/exit");
     await expect
       .poll(() => mine.locator('.gl-chat-tab[data-live="false"]').count(), {
         timeout: 30000,
       })
-      .toBe(2);
+      .toBe(1);
     start("blinkC", FOLDER);
     await ready("blinkC");
     const third = cardPage(app);
