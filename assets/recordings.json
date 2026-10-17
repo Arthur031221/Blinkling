@@ -43,14 +43,14 @@
       "asset": "assets/tour.gif",
       "scene": "hard",
       "url": "https://www.w3.org/WAI/demos/bad/before/home.html",
-      "sha256": "27212e6298a1e5c6bc0015d9d3a93cf7b5831f557840f71e0429ee300c8eae68",
+      "sha256": "1e808e4d5392280efc57e1142c5534407e8ec1d11402c7f5527a9f909552fd13",
       "segments": [
-        [4.6, 9.6],
-        [19.6, 22.6],
-        [25.6, 37.6]
+        [4.7, 9.7],
+        [20.7, 23.7],
+        [26.7, 38.7]
       ],
       "events": "assets/record/events/tour.events.json",
-      "eventsSha256": "e2e39da6299d3746daaaaa3ab3ff86fbc036887b30621200e6f2b97a6c7bd74e",
+      "eventsSha256": "91d6827d6b196ba72585d86045a0968f5e1410ecea3cc5e5ad8cf5bba1c3dee8",
       "turns": 1
     }
   ],
