@@ -1,112 +1,40 @@
 import { test, expect } from "@playwright/test";
-import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { launch } from "./support.mjs";
 import { background, reveal, sleep } from "./helpers.mjs";
 import { record } from "./record.mjs";
+import {
+  FOLDER,
+  LIVE,
+  SAVE,
+  cardPage,
+  endTerminals,
+  lines,
+  pane,
+  pinToTree,
+  ready,
+  startTerminal,
+  type,
+  waitFor,
+} from "./live.mjs";
 
-/** Two real Claude Code terminal sessions in tmux, linked to the real Blink.
- * It needs a signed in claude, the installed plugin in the two project folders
- * and network, so it runs only when BLINKLING_LIVE=1. */
-const LIVE = process.env.BLINKLING_LIVE === "1";
-const FOLDER = "/tmp/blink-live/alpha";
-const SAVE =
-  process.env.BLINKLING_LIVE_DIR ??
-  "/home/levi/oss-engine/reports/glimpse-v3/r3";
-
-// The plugin replaces a running Blink whose version is not the one its pinned
-// manifest names, and the manifest keeps the last release until the release
-// pins the next. The tree under test is the next one, so for this run the pin
-// in the manifest and in the bundle the MCP server runs names it, and both
-// files are put back afterwards.
-const here = (path) => fileURLToPath(new URL(path, import.meta.url));
-const PINS = [
-  [here("../../../plugin/desktop/manifest.json"), /("version":\s*")[^"]+/],
-  [
-    here("../../../bin/blinkling.cjs"),
-    /(var manifest_default = \{\s*schemaVersion: \d+,\s*version: ")[^"]+/,
-  ],
-];
-const TREE_VERSION = JSON.parse(
-  await readFile(here("../../package.json"), "utf8"),
-).version;
-
-const tmux = (...args) =>
-  execFileSync("tmux", args, { encoding: "utf8" }).toString();
-const pane = (name) => tmux("capture-pane", "-p", "-J", "-t", name);
-const type = (name, text) => {
-  tmux("send-keys", "-t", name, "-l", text);
-  tmux("send-keys", "-t", name, "Enter");
-};
-/** Presses through the start up questions of a claude terminal until its
- * input line is there. */
-const ready = async (name) => {
-  for (let i = 0; i < 60; i++) {
-    const text = pane(name);
-    if (/local development|Loading development channels/i.test(text))
-      tmux("send-keys", "-t", name, "Enter");
-    else if (/trust this folder|Yes, I trust/i.test(text))
-      tmux("send-keys", "-t", name, "Enter");
-    else if (/^❯/m.test(text) && /Claude Code v/.test(text)) return text;
-    await sleep(1000);
-  }
-  throw new Error(`${name} never showed its input line:\n${pane(name)}`);
-};
-/** Waits for text to show in the pane, allowing the permission questions of a
- * tool call to be answered with Enter. */
-const waitFor = async (name, pattern, seconds = 90) => {
-  for (let i = 0; i < seconds; i++) {
-    const text = pane(name);
-    if (pattern.test(text)) return text;
-    if (/Do you want to|Yes, and don't ask again|1\. Yes/i.test(text))
-      tmux("send-keys", "-t", name, "Enter");
-    await sleep(1000);
-  }
-  throw new Error(`${name} never showed ${pattern}:\n${pane(name)}`);
-};
-const cardPage = (app) =>
-  app.windows().find((p) => p.url().includes("surface=card"));
-const lines = (card) =>
-  card
-    .locator(".gl-chat-message")
-    .evaluateAll((els) => els.map((el) => el.textContent.trim()));
+// Three real Claude Code terminal sessions in tmux, one after the other.
+const names = ["blinkA", "blinkB", "blinkC"];
 
 test.skip(!LIVE, "needs live claude terminals: set BLINKLING_LIVE=1");
 
 test("a Claude Code session Blink has not met opens a brand new chat, and neither Blink nor the terminal inherits the earlier one", async () => {
   test.setTimeout(480000);
-  const runtime = await mkdtemp(join(tmpdir(), "blink-live-rt-"));
-  const pins = [];
-  for (const [file, pattern] of PINS) {
-    const text = await readFile(file, "utf8");
-    pins.push([file, text]);
-    await writeFile(file, text.replace(pattern, `$1${TREE_VERSION}`));
-  }
+  const { runtime, restore } = await pinToTree();
   const { app, page } = await launch({
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
   const rec = record("session_fresh", { suffix: "-323", fps: 2 });
-  const names = ["blinkA", "blinkB", "blinkC"];
   try {
     await background(app);
     await reveal(page);
-    const start = (name, folder) =>
-      tmux(
-        "new-session",
-        "-d",
-        "-s",
-        name,
-        "-x",
-        "140",
-        "-y",
-        "45",
-        "-c",
-        folder,
-        `env BLINKLING_RUNTIME_DIR=${runtime} claude --model haiku --dangerously-load-development-channels plugin:blinkling@blinkling`,
-      );
+    const start = (name, folder) => startTerminal(name, folder, runtime);
     // Terminal A: the first session. It opens Blink and has a short talk.
     start("blinkA", FOLDER);
     await ready("blinkA");
@@ -214,15 +142,9 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
     rec.frame("session-C-chat");
     await sleep(1500);
   } finally {
-    for (const name of names) {
-      try {
-        tmux("kill-session", "-t", name);
-      } catch {
-        /* the session was never started */
-      }
-    }
+    endTerminals(names);
     await rec.stop();
     await app.close().catch(() => {});
-    for (const [file, text] of pins) await writeFile(file, text);
+    await restore();
   }
 });
