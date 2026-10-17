@@ -5,6 +5,7 @@ import { launch } from "./support.mjs";
 import { background, sleep } from "./helpers.mjs";
 import { record } from "./record.mjs";
 import { strings } from "../../capture/strings.mjs";
+import { strings as composerStrings } from "../../composer/strings.mjs";
 
 const line = (key) =>
   new RegExp(
@@ -98,9 +99,9 @@ for (const [kind, label] of [
     test.setTimeout(120000);
     const { app, page } = await launch();
     const started = Date.now();
-    const rec = record(kind === "page" ? "eat_mouth" : "eat_mouth_hotkey", {
+    const rec = record(kind === "page" ? "fullpage_button" : "eat_mouth", {
       fps: 30,
-      suffix: "-322",
+      suffix: "-323",
     });
     try {
       await background(app);
@@ -147,6 +148,18 @@ for (const [kind, label] of [
         "the card stays shut until the eat is over",
       ).toBeGreaterThan(400);
       await sleep(500);
+      if (kind === "page") {
+        // The card holds the whole page as one chip with a picture on it.
+        const card = app
+          .windows()
+          .find((p) => p.url().includes("surface=card"));
+        await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
+        await expect(card.locator(".gl-attachment-chip img")).toHaveCount(1);
+        await expect(card.locator(".gl-attachment-name")).toHaveText(
+          composerStrings["zh-TW"]["page-chip"].replace("{count}", "3"),
+        );
+        await sleep(600);
+      }
       await rec.stop();
       // No frame of the recording before the picture was handed over shows a
       // card: the bubble is small, the card is big.
