@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mirror, mirrorLine } from "./mirror.mjs";
+import { isNotice, mirror, mirrorLine } from "./mirror.mjs";
 import { startDesktopHost, MIRROR_LIMIT } from "./host.mjs";
 import { discoverDesktop } from "./client.mjs";
 
@@ -209,4 +209,94 @@ test("the markers Claude Code puts for a pasted picture or text are not mirrored
   );
   assert.equal(line("[Image #1]"), undefined, "nothing typed, nothing to show");
   assert.equal(line("no marker here").text, "no marker here");
+});
+
+test("a long paste reaches Blink as the words pasted, with its line breaks, and not as the tag Claude Code wraps it in", () => {
+  const line = (prompt) =>
+    mirrorLine({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "s1",
+      prompt,
+    });
+  const pasted =
+    'check this [Pasted text #2 +3 lines] <pasted_content id="a798">\nline 1: one\nline 2: two\n\nline 4: four\n</pasted_content id="a798">';
+  const shown = line(pasted).text;
+  assert.equal(shown, "check this line 1: one\nline 2: two\n\nline 4: four");
+  assert.doesNotMatch(shown, /pasted_content/);
+  assert.equal(
+    line('<pasted_content id="b1">only paste</pasted_content>').text,
+    "only paste",
+  );
+  assert.equal(
+    line('<pasted_content id="b1">\n\n</pasted_content>'),
+    undefined,
+    "an empty paste is nothing to show",
+  );
+});
+
+test("a notice Claude Code made itself is not a person's message, and neither is the answer to it", async () => {
+  for (const prompt of [
+    "<task-notification>\n<task-id>b1</task-id>\n<output-file>/tmp/x.output</output-file>\n<status>completed</status>\n</task-notification>",
+    "<system-reminder>be brief</system-reminder>",
+    "<local-command-stdout>ok</local-command-stdout>",
+    "<command-name>/clear</command-name>",
+  ]) {
+    assert.equal(isNotice(prompt), true, prompt);
+    assert.equal(
+      mirrorLine({
+        hook_event_name: "UserPromptSubmit",
+        session_id: "s1",
+        prompt,
+      }),
+      undefined,
+    );
+  }
+  assert.equal(isNotice("what does <task-notification> mean?"), false);
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
+  const lines = [];
+  const host = await startDesktopHost({
+    directory,
+    descriptor: join(directory, "desktop.json"),
+    onMirror: (l) => lines.push([l.role, l.text]),
+  });
+  try {
+    await writeFile(
+      join(directory, "sessions.json"),
+      JSON.stringify([{ id: "mine", at: Date.now() }]),
+    );
+    const hook = (extra) => ({ session_id: "mine", ...extra });
+    await mirror(
+      hook({
+        hook_event_name: "UserPromptSubmit",
+        prompt:
+          "<task-notification><status>completed</status></task-notification>",
+      }),
+      directory,
+    );
+    assert.equal(
+      await mirror(
+        hook({
+          hook_event_name: "Stop",
+          last_assistant_message: "the build finished",
+        }),
+        directory,
+      ),
+      false,
+    );
+    await mirror(
+      hook({ hook_event_name: "UserPromptSubmit", prompt: "thanks" }),
+      directory,
+    );
+    await mirror(
+      hook({ hook_event_name: "Stop", last_assistant_message: "welcome" }),
+      directory,
+    );
+    assert.deepEqual(lines, [
+      ["user", "thanks"],
+      ["assistant", "welcome"],
+    ]);
+  } finally {
+    await host.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });

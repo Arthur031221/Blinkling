@@ -15,17 +15,36 @@ export const isChannelPrompt = (text) =>
   typeof text === "string" &&
   /^\s*<channel\s+source="(?:plugin:blinkling:|)blinkling"/.test(text);
 
+/** A prompt Claude Code made itself: a finished background task, a reminder, or
+ * the echo of a slash command. The person did not type it, so it never reaches
+ * Blink's chat, and neither does the answer to it. */
+export const isNotice = (text) =>
+  typeof text === "string" &&
+  /^\s*<(?:task-notification|system-reminder|local-command-[\w-]+|command-(?:name|message|args)|bash-(?:input|stdout|stderr))\b/.test(
+    text,
+  );
+
+/** Claude Code hands a hook a long paste in its expanded form, wrapped in a
+ * `<pasted_content id="...">` tag. The words inside are what the person pasted,
+ * so they stay, with their line breaks, and the tag goes. */
+export const unwrapPasted = (text) =>
+  text.replace(
+    /<pasted_content\b[^>]*>\s*?\n?([\s\S]*?)\n?\s*<\/pasted_content\b[^>]*>/gi,
+    "$1",
+  );
+
 /** Claude Code stands in for a pasted picture or a long paste with a marker in
  * the prompt, such as `[Image #1]` or `[Pasted text #2 +40 lines]`. Blink's chat
  * cannot show what the marker stands for, so a mirrored prompt keeps the words
  * the person typed and drops the markers. */
 export const withoutMarkers = (text) =>
-  text
+  unwrapPasted(text)
     .replace(
       /\[(?:Image|Pasted text|Pasted image|Image\/PDF)\s*#\d+[^\]\n]*\]/gi,
       "",
     )
     .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
 /** What a terminal turn adds to Blink's chat, from a hook payload: the prompt
@@ -47,6 +66,7 @@ export function mirrorLine(payload) {
   // Blink's own chat reaches the terminal as a channel event, which the prompt
   // hook sees as a prompt; sending it on would show every line twice.
   if (role === "user" && isChannelPrompt(text)) return undefined;
+  if (role === "user" && isNotice(payload.prompt)) return undefined;
   const session = String(payload.session_id ?? "").replace(/[^\w-]/g, "");
   if (!session) return undefined;
   const id = `${session.slice(0, 40)}-${role}-${createHash("sha256")
@@ -84,9 +104,14 @@ export async function mirror(payload, directory = runtimeDirectory()) {
   const session = payload?.session_id;
   const channelTurn = isChannelPrompt(payload?.prompt);
   // Each prompt says what the turn it starts is. A turn that began as Blink's
-  // own channel event is answered in Blink through the reply tool.
+  // own channel event is answered in Blink through the reply tool, and one
+  // Claude Code started on its own is not Blink's business at all.
   if (event === "UserPromptSubmit" && typeof session === "string")
-    await markTurn(directory, session, channelTurn).catch(() => {});
+    await markTurn(
+      directory,
+      session,
+      channelTurn ? "channel" : isNotice(payload.prompt) ? "notice" : "typed",
+    ).catch(() => {});
   const started = event === "UserPromptSubmit" && channelTurn;
   if (!line && !started && !(event === "Stop" && typeof session === "string"))
     return false;
@@ -102,6 +127,7 @@ export async function mirror(payload, directory = runtimeDirectory()) {
     await found.client.rpc("turn-start", { session });
     return true;
   }
+  if (event === "Stop" && entry.turn === "notice") return false;
   if (event === "Stop" && entry.turn === "channel") {
     // The terminal's turn for a chat in Blink ended. If the answer came as
     // plain text and not through the reply tool, Blink shows it from here.

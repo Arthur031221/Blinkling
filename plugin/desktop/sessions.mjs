@@ -36,11 +36,22 @@ export const joinSession = (directory, id, now = Date.now()) =>
     { id, at: now },
   ]);
 /** What the turn now running in a session began with: a line Blink sent as a
- * channel event, or something typed in the terminal. The Stop hook reads it. */
+ * channel event, something typed in the terminal, or a notice Claude Code made
+ * itself. The Stop hook reads it. */
 export const markTurn = (directory, id, channel, now = Date.now()) =>
   update(directory, now, (list) =>
     list.map((e) =>
-      e.id === id ? { ...e, turn: channel ? "channel" : "typed" } : e,
+      e.id === id
+        ? {
+            ...e,
+            turn:
+              typeof channel === "string"
+                ? channel
+                : channel
+                  ? "channel"
+                  : "typed",
+          }
+        : e,
     ),
   );
 /** Blink was closed: every session that did not take the news as a channel
