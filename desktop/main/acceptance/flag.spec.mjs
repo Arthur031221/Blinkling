@@ -10,7 +10,7 @@ const pageOf = (app, name) => app.windows().find((p) => p.url().includes(name));
 test("Settings help shows the start command and the one plain line, in the language you pick", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("flag", { suffix: "-321" });
+  const rec = record("flag", { suffix: "-323" });
   try {
     await background(app);
     await reveal(page);

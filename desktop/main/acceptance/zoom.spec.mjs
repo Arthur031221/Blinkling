@@ -275,7 +275,7 @@ const historyEnds = (app) =>
 test("the wheel zooms around an off-centre pointer, and once the viewer is closed the newest answer is whole above the composer, also after a picture joins it", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("zoom_close", { suffix: "-321" });
+  const rec = record("zoom_close", { suffix: "-323" });
   try {
     await background(app);
     await place(app, "right", 0.5);

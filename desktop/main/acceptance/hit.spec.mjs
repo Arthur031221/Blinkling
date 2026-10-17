@@ -233,7 +233,7 @@ async function tip(page, edge) {
 test("touching the peeking head where it is drawn wakes Blink on every edge", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("peek_hit", { suffix: "-321" });
+  const rec = record("peek_hit", { suffix: "-323" });
   try {
     await background(app);
     for (const edge of ["left", "right", "top", "bottom"]) {

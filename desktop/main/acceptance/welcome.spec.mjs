@@ -66,7 +66,7 @@ test("the welcome has no empty page, and its connect page shows the start comman
   const { app, page: blink } = await launch({
     env: { BLINKLING_LOCALE: "en" },
   });
-  const rec = record("flag_default", { suffix: "-322" });
+  const rec = record("flag_default", { suffix: "-323" });
   try {
     await background(app);
     await reveal(blink);

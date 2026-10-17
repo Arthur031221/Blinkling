@@ -19,7 +19,7 @@ async function leaveTime(app, page, away) {
 test("leaving Blink with no card open retreats at once, with or without the menu, and not when a card is open", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("leave_retreat", { suffix: "-321" });
+  const rec = record("leave_retreat", { suffix: "-323" });
   try {
     const b = await background(app);
     const away = { x: b.x + 200, y: b.y + 200 };

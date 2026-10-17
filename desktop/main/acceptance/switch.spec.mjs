@@ -78,7 +78,7 @@ const settle = (page, ms = 1200) => page.waitForTimeout(ms);
 test("the menu and the card never share the screen: each click on Blink, a dropped file and Esc hand over from one to the other", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("menu_card-321");
+  const rec = record("menu_card", { suffix: "-323" });
   try {
     await background(app);
     await place(app, "right", 0.6);

@@ -26,7 +26,7 @@ const mode = (page) => page.locator("#blink").getAttribute("data-mode");
 test("a click on the background closes the card and Blink peeks, also while an answer streams on; a pinned card stays", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("click_away", { suffix: "-322" });
+  const rec = record("click_away", { suffix: "-323" });
   try {
     const b = await background(app);
     await reveal(page);
@@ -113,7 +113,7 @@ test("a click on the background closes the card and Blink peeks, also while an a
 test("a card that opened by itself, without focus, closes on a click on the background", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("click_away_unfocused", { suffix: "-322" });
+  const rec = record("click_away_unfocused", { suffix: "-323" });
   try {
     const b = await background(app);
     await reveal(page);

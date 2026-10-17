@@ -58,7 +58,7 @@ function changed(a, b) {
 test("while the answer is on its way Blink thinks: it looks up and aside and its thought bubbles blink on the real screen, with the pointer far away", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("think_motion", { suffix: "-321" });
+  const rec = record("think_motion", { suffix: "-323" });
   try {
     await background(app);
     await place(app, "right", 0.5);
