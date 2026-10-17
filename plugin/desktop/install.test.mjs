@@ -140,7 +140,7 @@ test("serializes concurrent installs and refuses corrupt downloads without repla
     assert.equal(downloads, 1);
     const next = {
       ...manifest,
-      version: "3.2.1",
+      version: "3.2.2",
       builds: [{ ...manifest.builds[0], sha256: "a".repeat(64) }],
     };
     await assert.rejects(installDesktop(next, options), /checksum/);

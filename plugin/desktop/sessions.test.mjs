@@ -48,7 +48,7 @@ async function fakeBlink(directory) {
     req.on("end", () => {
       calls.push(body);
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify({ ok: true, version: "3.2.1" }));
+      res.end(JSON.stringify({ ok: true, version: "3.2.2" }));
     });
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
@@ -60,7 +60,7 @@ async function fakeBlink(directory) {
       host: url,
       token,
       pid: process.pid,
-      version: "3.2.1",
+      version: "3.2.2",
     }),
     { mode: 0o600 },
   );

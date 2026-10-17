@@ -14,7 +14,7 @@
       "sha256": "bd760ebd3d9f1c776fac4cfc09a98bcc8dce13767718ef1593c06954b8cec270",
       "segments": [[2.5, 22.5]],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "6bc67a04e89c5bae695067dd228c98e85b1e69ad7bcc889124b919b9af24c11e",
+      "eventsSha256": "f404fa02cbd4126c0400abef6901a8c2f5d074a496faf61726ffe6329f9e4173",
       "turns": 1
     },
     {
@@ -24,7 +24,7 @@
       "sha256": "f38f596c97d2b822f3d403c32932c64b2f401871ae8ec625a8937fdbbc1aa7aa",
       "segments": [[2.5, 17.5]],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "cd9425b150928189f76fe112fb347aef58d7a1df90edf7189db48d1d81c73dab",
+      "eventsSha256": "8808ce821116ec17eb6c8db0592190afdcbac3a40bc4770d1f6f5a589a783fed",
       "turns": 1,
       "prompt": "what is reinforcement learning, in two lines"
     },
@@ -35,7 +35,7 @@
       "sha256": "b4ade6ede26692b7833a9b141c56959fba4c65a9683944c64aa702737ea7c2f5",
       "segments": [[1.4, 21.4]],
       "events": "assets/record/events/translate.events.json",
-      "eventsSha256": "5772b23c35a07d513cdeb66b717b792fee126d65daec57283e5c64ceeb48b572",
+      "eventsSha256": "149254f779bd9322288bc3966642684082a8a5f5925a98c4d9cb6ef4725f3c44",
       "turns": 1,
       "prompt": "Translate"
     },
@@ -50,7 +50,7 @@
         [23.7, 35.7]
       ],
       "events": "assets/record/events/tour.events.json",
-      "eventsSha256": "e627d3db2713556c108fdf6dde6e2e1ba6a16fa25130a32120b1de48967a769f",
+      "eventsSha256": "2afc9f5201135cca65a6ed6978915ee9ff746b0edad60fc709f01772cac38267",
       "turns": 1
     }
   ],
