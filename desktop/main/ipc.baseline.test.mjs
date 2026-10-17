@@ -47,3 +47,18 @@ test("drag starts carry only a finite anchor inside the window margins", () => {
     assert.equal(validCommand({ type: "drag-start", anchor }, bounds), false);
   assert.equal(validCommand({ type: "drag-start" }, bounds), false);
 });
+test("drag moves are checked like drag starts, so the card can follow each pointer event", () => {
+  const bounds = { width: 600, height: 400 };
+  assert.equal(
+    validCommand({ type: "drag-move", anchor: { x: 300, y: 200 } }, bounds),
+    true,
+  );
+  for (const anchor of [
+    null,
+    { x: NaN, y: 0 },
+    { x: 761, y: 0 },
+    { x: 0, y: 0, extra: 1 },
+  ])
+    assert.equal(validCommand({ type: "drag-move", anchor }, bounds), false);
+  assert.equal(validCommand({ type: "drag-move" }, bounds), false);
+});

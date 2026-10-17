@@ -616,6 +616,18 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     command = { type: "drag", phase: "start", anchor: command.anchor };
   if (command.type === "drag-end") command = { type: "drag", phase: "end" };
   const fromBlink = event.sender === blink.webContents;
+  if (command.type === "drag-move") {
+    // The pointer events of the held press arrive in Blink's window with no poll
+    // in between: where they put Blink is where the card goes, in the same turn.
+    if (!fromBlink || !drag) return;
+    drag.anchor = {
+      x: command.anchor.x + frame().x,
+      y: command.anchor.y + frame().y,
+    };
+    drag.movedAt = performance.now();
+    if (drag.active) placeCard();
+    return;
+  }
   if (command.type === "drag") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
     const p = cursor.point();
@@ -1405,10 +1417,12 @@ const poll = setInterval(() => {
     }
     drag.velocity = (p.x - drag.lastX) / 0.016;
     drag.lastX = p.x;
-    drag.anchor = {
-      x: drag.origin.x + p.x - drag.start.x,
-      y: drag.origin.y + p.y - drag.start.y,
-    };
+    // Pointer events from Blink's own window are fresher than this poll.
+    if (!(performance.now() - (drag.movedAt ?? -Infinity) < 100))
+      drag.anchor = {
+        x: drag.origin.x + p.x - drag.start.x,
+        y: drag.origin.y + p.y - drag.start.y,
+      };
     if (drag.active) {
       placeCard();
     }

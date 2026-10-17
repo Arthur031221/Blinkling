@@ -10,7 +10,7 @@ const types = new Set([
 ]);
 export function validCommand(command, bounds) {
   if (command?.type === "drag-end") return Object.keys(command).length === 1;
-  if (command?.type === "drag-start") {
+  if (command?.type === "drag-start" || command?.type === "drag-move") {
     const p = command.anchor;
     return Boolean(
       bounds &&

@@ -368,6 +368,33 @@ test("a carried Blink brings its card along: the same offset and the tail on the
   }
 });
 
+test("a carried Blink is never covered by its card, over the whole screen and at every resting edge", () => {
+  const a = display.workArea;
+  for (const edge of ["left", "right", "top", "bottom"]) {
+    const rest = resolvePosition(display, { edge, ratio: 0.5 });
+    for (
+      let x = a.x - display.bounds.x + 20;
+      x <= a.x - display.bounds.x + a.width - 20;
+      x += 40
+    )
+      for (let y = 160; y <= a.height - 10; y += 30) {
+        const at = carriedPosition(rest, { x, y });
+        const card = cardBounds(display, at);
+        const blink = {
+          x: x + display.bounds.x - BODY_HALF,
+          y: y + display.bounds.y - 142,
+          width: 2 * BODY_HALF,
+          height: 152,
+        };
+        assert.ok(!overlaps(card, blink), `${edge} ${x},${y} covers Blink`);
+        assert.ok(
+          card.y >= a.y && card.y + card.height <= a.y + a.height,
+          `${edge} ${x},${y} inside`,
+        );
+      }
+  }
+});
+
 test("a carried Blink keeps its resting edge, so the card does not jump to the nearest edge mid carry", () => {
   const rest = resolvePosition(display, { edge: "right", ratio: 0.5 });
   const carried = carriedPosition(rest, { x: 40, y: 400 });

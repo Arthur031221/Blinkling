@@ -49,6 +49,8 @@ let hit = [],
   pointer = null,
   picking = false,
   dragPointer = null,
+  /** Where the held pointer puts Blink, read from its own events. */
+  held = null,
   dropUntil = 0;
 /** Where the current guide step is on the screen, or null. */
 let guideTarget = null;
@@ -104,8 +106,10 @@ function accept(value) {
     value.display.id !== shell.display.id ||
     value.display.bounds.width !== shell.display.bounds.width ||
     value.display.bounds.height !== shell.display.bounds.height
-  )
+  ) {
     current = null;
+    held = null;
+  }
   shell = value;
   document.documentElement.dataset.edge = shell.position.edge;
   document.documentElement.dataset.theme = shell.theme;
@@ -141,6 +145,11 @@ async function action(id) {
   // anything shorter is a click.
   host.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    held = {
+      from: { x: event.clientX, y: event.clientY },
+      at: { x: current.x, y: current.y },
+      point: null,
+    };
     dragPointer = {
       id: event.pointerId,
       ready: api.shell({
@@ -151,6 +160,14 @@ async function action(id) {
     host.setPointerCapture(event.pointerId);
     event.preventDefault();
   });
+  host.addEventListener("pointermove", (event) => {
+    if (!dragPointer || !held) return;
+    held.point = {
+      x: held.at.x + event.clientX - held.from.x,
+      y: held.at.y + event.clientY - held.from.y,
+    };
+    if (shell.drag) api.shell({ type: "drag-move", anchor: held.point });
+  });
   async function release(event) {
     if (!dragPointer) return;
     const ready = dragPointer.ready;
@@ -158,7 +175,9 @@ async function action(id) {
     if (host.hasPointerCapture(event.pointerId))
       host.releasePointerCapture(event.pointerId);
     await ready;
-    accept(await api.shell({ type: "drag", phase: "end" }));
+    const done = await api.shell({ type: "drag", phase: "end" });
+    held = null;
+    accept(done);
   }
   host.addEventListener("pointerup", release);
   host.addEventListener("pointercancel", release);
@@ -172,7 +191,9 @@ async function action(id) {
     host.dataset.drag = String(shell.interaction.held);
     const revealed = mode !== "peek" || leaveAt !== null,
       target =
-        shell.drag ?? (revealed ? shell.position.reveal : shell.position.peek);
+        (shell.drag && held?.point) ||
+        shell.drag ||
+        (revealed ? shell.position.reveal : shell.position.peek);
     const area = shell.position.area;
     if (!current)
       current = { x: target.x, y: target.y, vx: 0, vy: 0, alpha: 0.4, va: 0 };

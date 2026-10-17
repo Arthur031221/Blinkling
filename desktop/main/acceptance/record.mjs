@@ -1,5 +1,5 @@
 import { spawn, execFileSync } from "node:child_process";
-import { mkdirSync, existsSync, rmSync } from "node:fs";
+import { mkdirSync, existsSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -64,6 +64,16 @@ export function record(id, { fps = 15, suffix = "" } = {}) {
       ]);
       frames.push(file);
       return file;
+    },
+    /** After stop(): every recorded frame as a PNG, in order. */
+    sequence() {
+      const dir = join(work, "frames");
+      rmSync(dir, { recursive: true, force: true });
+      mkdirSync(dir, { recursive: true });
+      grab(["-i", video, join(dir, "%05d.png")]);
+      return readdirSync(dir)
+        .sort()
+        .map((f) => join(dir, f));
     },
     async stop() {
       run.stdin.write("q");
