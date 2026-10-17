@@ -18,7 +18,7 @@
 - The capture progress bubble and the idle grumble bubble draw on Windows too. Blink is hidden from the capture itself on macOS and Windows, and on Linux it hides for as short a time as it can.
 - Smaller: a new capture clears the old pointing marks, the card title sits on solid paper, and a terminal session started with the channel flag whose events are dropped is told about the quit through the notice hook like any other session. The open command says nothing about the start command when there is no Sync line.
 - Pressing Esc to close the card no longer sends Blink to its edge as if you had clicked away: the blur that follows is only the hidden card giving up the keyboard. The guide stick is kept out of the screen watch like Blink itself, and a capture waits long enough for a hidden surface to be gone before the screen is read. The guide's screen watch skips a frame taken just after Blink's own windows moved, so moving the card to the next step cannot end the tour by itself.
-- The four README recordings are made again from this build.
+- The four demos are recorded again from this build at twice the pixels and 30 frames a second. The READMEs show animated WebP files 1280 px wide, and the site plays H.264 MP4 and WebM video at 1920 px with a sharp poster, at its natural size.
 
 ## 3.2.2 - 2026-10-17
 
