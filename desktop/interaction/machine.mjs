@@ -121,7 +121,6 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         s.guiding ||
         s.capture > 0 ||
         s.viewer > 0 ||
-        s.grumbling ||
         t < s.showUntil ||
         t < s.eatingUntil,
     );
@@ -381,13 +380,10 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.showUntil = Math.max(s.showUntil, t + ms);
       pullOut(t);
     },
-    /** The idle grumble is drawn standing, so Blink is out for as long as it
-     * lasts and then retreats by the usual rule. */
-    grumble(on, t = clock()) {
-      if (s.grumbling === on) return;
+    /** The idle grumble is said from the edge: Blink stays peeking and does
+     * not come out, so this only remembers that the bubble is up. */
+    grumble(on) {
       s.grumbling = on;
-      if (on) pullOut(t);
-      else engage(t);
     },
     /** The question went out; the card opens by itself to show the answer. */
     answerStart(t = clock()) {

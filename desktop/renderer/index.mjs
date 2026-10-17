@@ -84,27 +84,36 @@ const modeOf = (now) =>
       : shell.interaction.out
         ? "hover"
         : "peek";
-/** Put the thought bubble above Blink's head, leaning toward the screen's
- * inside; a Blink hanging from the top edge gets it below. */
-function placeGrumble(node, feet, position) {
+/** Put the thought bubble beside the peeking head, on the side toward the
+ * screen's inside, level with the part of the head that shows. */
+function placeGrumble(node) {
   const width = node.offsetWidth,
     height = node.offsetHeight;
-  const inward = feet.x < innerWidth / 2;
+  const body = document.querySelector(".blink-body").getBoundingClientRect();
+  const seen = {
+    left: Math.max(0, body.left),
+    right: Math.min(innerWidth, body.right),
+    top: Math.max(0, body.top),
+    bottom: Math.min(innerHeight, body.bottom),
+  };
+  const inward = (seen.left + seen.right) / 2 < innerWidth / 2;
+  const gap = 30;
   const x = Math.max(
     8,
-    Math.min(innerWidth - width - 8, inward ? feet.x - 8 : feet.x - width + 8),
+    Math.min(
+      innerWidth - width - 8,
+      inward ? seen.right + gap : seen.left - gap - width,
+    ),
   );
-  const top = position.edge === "top";
   const y = Math.max(
     8,
     Math.min(
       innerHeight - height - 8,
-      top ? feet.y + 14 : feet.y - 112 - height,
+      (seen.top + seen.bottom) / 2 - height / 2,
     ),
   );
   node.style.transform = `translate(${x}px,${y}px)`;
   node.dataset.side = inward ? "left" : "right";
-  node.dataset.edge = top ? "top" : "bottom";
   return { x, y, width, height };
 }
 /** The progress bubble sits at Blink's mouth, on the side toward the screen's
@@ -363,10 +372,7 @@ async function action(id) {
       void api.shell({ type: "grumble", value: line !== null }).catch(() => {});
     }
     const bubbles = [
-      [
-        grumble,
-        line !== null ? placeGrumble(grumble, current, shell.position) : null,
-      ],
+      [grumble, line !== null ? placeGrumble(grumble) : null],
       [
         status,
         status.dataset.shown === "true" ? placeStatus(status, current) : null,

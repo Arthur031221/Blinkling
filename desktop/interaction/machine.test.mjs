@@ -479,17 +479,13 @@ test("a motion that must be seen pulls Blink out and holds it until it ends", ()
   );
 });
 
-test("the standing grumble holds Blink out until it stops, then the retreat clock runs", () => {
-  const { m, go, at } = rig();
+test("the idle grumble is said from the edge: Blink does not come out, and the bubble does not hold it", () => {
+  const { m, go } = rig();
   m.grumble(true, 0);
-  assert.deepEqual(types(m.take()), ["out"]);
-  assert.equal(types(go(30000)).includes("retreat"), false);
-  m.grumble(false, at.t);
-  assert.equal(types(go(timing.retreat - 64)).includes("retreat"), false);
-  assert.deepEqual(
-    types(go(200)).filter((t) => t === "retreat"),
-    ["retreat"],
-  );
+  assert.deepEqual(types(m.take()), []);
+  assert.equal(types(go(30000)).includes("out"), false);
+  m.grumble(false);
+  assert.equal(types(go(timing.retreat + 200)).includes("retreat"), false);
 });
 
 test("a failed answer is reported once and ends the streaming state", () => {
