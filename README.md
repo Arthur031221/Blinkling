@@ -18,18 +18,20 @@ Blinkling puts Blink, a small green companion, in the corner of your screen, abo
 
 Uses the Claude Code you are already signed in to on this computer.
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Ctrl and click a paragraph on an arXiv page. Its snapshot flies into Blink's mouth, the chat card opens and the answer streams in."></td>
-<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="On an Arabic Wikipedia page, a picked passage goes into Blink, the Translate chip is pressed and the answer explains the passage in English."></td>
-<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="On a dense public web page, Guide marks the parts of the page. Blink holds a pointer stick at the current step while Next moves through the steps."></td>
-</tr>
-<tr>
-<td align="center">Paper: Ctrl and click a paragraph, then read the answer.</td>
-<td align="center">Translate: an Arabic passage, explained in English.</td>
-<td align="center">Guide: a hard page, one step at a time.</td>
-</tr>
-</table>
+<p align="center">
+<img src="assets/pick.webp" alt="Ctrl and click a paragraph on an arXiv page. Its snapshot flies into Blink's mouth, the chat card opens and the answer streams in."><br>
+Paper: Ctrl and click a paragraph, then read the answer.
+</p>
+
+<p align="center">
+<img src="assets/translate.webp" alt="On an Arabic Wikipedia page, a picked passage goes into Blink, the Translate chip is pressed and the answer explains the passage in English."><br>
+Translate: an Arabic passage, explained in English.
+</p>
+
+<p align="center">
+<img src="assets/tour.webp" alt="On a dense public web page, Guide marks the parts of the page. Blink holds a pointer stick at the current step while Next moves through the steps."><br>
+Guide: a hard page, one step at a time.
+</p>
 
 ## Install
 
@@ -67,7 +69,7 @@ You need Claude Code, signed in. Then:
 - A small composer opens with three quick asks. Enter sends the highlighted one.
 - Click Blink any time to talk. The chat card opens next to Blink with your conversation.
 
-![Click Blink, type a question, and the answer streams into the chat card.](assets/ask.gif)
+![Click Blink, type a question, and the answer streams into the chat card.](assets/ask.webp)
 
 - Blink's menu has capture, guide, auto explain (off until you turn it on) and settings.
 - The optional browser helper for Chrome or Edge adds the page's own structure, so Blink knows which paragraph or button you pointed at, plus full-length page capture, translating the page in place and a reader for PDFs. Its toolbar button shows whether it is connected and wakes Blink. Without it Blink still works on every window.

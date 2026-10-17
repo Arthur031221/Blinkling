@@ -18,18 +18,20 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
 
 このコンピュータでログイン済みの Claude Code を使います。
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="arXiv のページで Ctrl を押しながら段落をクリックします。そのスナップショットが Blink の口に飛び込み、チャットカードが開いて答えが流れます。"></td>
-<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="アラビア語版ウィキペディアのページで選んだ一節を Blink に送り、翻訳を押すと、答えがその一節を英語で説明します。"></td>
-<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="情報が密集した公開ページでガイドを押すと、ページの各部分に印が付きます。Blink は指示棒で現在のステップを指し、次へで進みます。"></td>
-</tr>
-<tr>
-<td align="center">論文：Ctrl を押しながら段落をクリックし、答えを読む。</td>
-<td align="center">翻訳：アラビア語の一節を英語で説明。</td>
-<td align="center">ガイド：操作しにくいページを一歩ずつ。</td>
-</tr>
-</table>
+<p align="center">
+<img src="assets/pick.webp" alt="arXiv のページで Ctrl を押しながら段落をクリックします。そのスナップショットが Blink の口に飛び込み、チャットカードが開いて答えが流れます。"><br>
+論文：Ctrl を押しながら段落をクリックし、答えを読む。
+</p>
+
+<p align="center">
+<img src="assets/translate.webp" alt="アラビア語版ウィキペディアのページで選んだ一節を Blink に送り、翻訳を押すと、答えがその一節を英語で説明します。"><br>
+翻訳：アラビア語の一節を英語で説明。
+</p>
+
+<p align="center">
+<img src="assets/tour.webp" alt="情報が密集した公開ページでガイドを押すと、ページの各部分に印が付きます。Blink は指示棒で現在のステップを指し、次へで進みます。"><br>
+ガイド：操作しにくいページを一歩ずつ。
+</p>
 
 ## インストール
 
@@ -67,7 +69,7 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
 - 小さな入力欄が開き、3 つのクイック質問が並びます。Enter でハイライトされたものを送信します。
 - Blink をクリックすればいつでも話せます。Blink の横にチャットカードが開き、会話が続きます。
 
-![Blink をクリックして質問を入力すると、答えがチャットカードに流れ込みます。](assets/ask.gif)
+![Blink をクリックして質問を入力すると、答えがチャットカードに流れ込みます。](assets/ask.webp)
 
 - Blink のメニューには、キャプチャ、ガイド、自動解説（オンにするまでオフ）、設定があります。
 - 任意の Chrome/Edge 用ブラウザーヘルパーは、ページ自体の構造を提供するので、Blink は指した段落やボタンを把握できます。さらにページ全体のキャプチャ、ページのその場翻訳、PDF リーダーも使えます。ツールバーのボタンで接続状態を確認でき、Blink を呼び起こせます。ヘルパーがなくても、Blink はすべてのウィンドウで使えます。

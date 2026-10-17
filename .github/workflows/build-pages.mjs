@@ -23,7 +23,11 @@ await writeFile("dist/wordmark.css", `${WORDMARK_CSS}\n`);
 await cp("demo/demo.css", "dist/demo.css");
 await mkdir("dist/demo-assets", { recursive: true });
 for (const name of ["pick", "ask", "translate", "tour"]) {
-  await cp(`assets/${name}.gif`, `dist/demo-assets/${name}.gif`);
+  for (const extension of ["mp4", "webm", "png"])
+    await cp(
+      `assets/site/${name}.${extension}`,
+      `dist/demo-assets/${name}.${extension}`,
+    );
 }
 
 // The install guide, with the animated wordmark files it shows as its title.

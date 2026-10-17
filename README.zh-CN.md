@@ -18,18 +18,20 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 
 使用这台电脑上你已登录的 Claude Code。
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="在 arXiv 页面按住 Ctrl 单击一个段落。它的截图飞进 Blink 的嘴里，聊天卡片打开，答案逐字出现。"></td>
-<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="在阿拉伯文维基百科页面选一段文字，送进 Blink，点击翻译，答案用英文说明这段文字。"></td>
-<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="在内容密集的公开网页点击导览，Blink 标出页面各部分，拿着指示棒指向当前这一步，再用下一步往下走。"></td>
-</tr>
-<tr>
-<td align="center">论文：按住 Ctrl 单击一段，读答案。</td>
-<td align="center">翻译：阿拉伯文段落，用英文说明。</td>
-<td align="center">导览：难操作的页面，一步一步看。</td>
-</tr>
-</table>
+<p align="center">
+<img src="assets/pick.webp" alt="在 arXiv 页面按住 Ctrl 单击一个段落。它的截图飞进 Blink 的嘴里，聊天卡片打开，答案逐字出现。"><br>
+论文：按住 Ctrl 单击一段，读答案。
+</p>
+
+<p align="center">
+<img src="assets/translate.webp" alt="在阿拉伯文维基百科页面选一段文字，送进 Blink，点击翻译，答案用英文说明这段文字。"><br>
+翻译：阿拉伯文段落，用英文说明。
+</p>
+
+<p align="center">
+<img src="assets/tour.webp" alt="在内容密集的公开网页点击导览，Blink 标出页面各部分，拿着指示棒指向当前这一步，再用下一步往下走。"><br>
+导览：难操作的页面，一步一步看。
+</p>
 
 ## 安装
 
@@ -67,7 +69,7 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 - 会弹出一个小输入框，带三个快速提问，按 Enter 发送高亮的那一个。
 - 随时单击 Blink 即可对话。聊天卡片会在 Blink 旁边打开，接着你们的对话。
 
-![单击 Blink，输入问题，答案会流入聊天卡片。](assets/ask.gif)
+![单击 Blink，输入问题，答案会流入聊天卡片。](assets/ask.webp)
 
 - Blink 的菜单有截图、导览、自动解说（默认关闭）和设置。
 - 可选的 Chrome/Edge 浏览器小助手会提供网页本身的结构，让 Blink 知道你指的是哪一段或哪个按钮，另有整页截图、原地翻译网页和 PDF 阅读器。工具栏按钮会显示是否已连接，并可唤醒 Blink。没有它，Blink 在每个窗口仍可使用。

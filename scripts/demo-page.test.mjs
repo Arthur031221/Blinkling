@@ -39,22 +39,40 @@ describe("demo page", () => {
 
   it("ships only the recordings made from the desktop app", () => {
     const shipped = JSON.parse(readFileSync("assets/recordings.json", "utf8"));
-    const names = shipped.recordings.map((r) => r.asset.split("/").pop());
-    const used = [...html.matchAll(/<img[^>]+src="([^"]+\.gif)"/g)].map((m) =>
-      m[1].split("/").pop(),
+    const names = shipped.recordings.map((r) =>
+      r.asset
+        .split("/")
+        .pop()
+        .replace(/\.webp$/, ""),
     );
-    assert.ok(used.length > 0);
-    for (const gif of used)
-      assert.ok(names.includes(gif), `${gif} is a v2 file`);
+    const used = [
+      ...html.matchAll(/<source src="demo-assets\/(\w+)\.mp4"/g),
+    ].map((m) => m[1]);
+    assert.deepEqual([...used].sort(), [...names].sort());
+    for (const name of used) {
+      assert.ok(html.includes(`demo-assets/${name}.webm`), `${name} has WebM`);
+      assert.ok(html.includes(`poster="demo-assets/${name}.png"`), name);
+      assert.ok(
+        pages.includes(`"${name}"`),
+        `${name} is copied by build-pages.mjs`,
+      );
+    }
     assert.equal(
       shipped.version,
       JSON.parse(readFileSync("package.json", "utf8")).version,
     );
-    for (const gif of names)
-      assert.ok(
-        pages.includes(`"${gif.replace(/\.gif$/, "")}"`),
-        `${gif} is copied by build-pages.mjs`,
-      );
+  });
+
+  it("plays each demo as a muted looping video at its recorded size", () => {
+    const videos = html.match(/<video[\s\S]*?<\/video>/g) ?? [];
+    assert.equal(videos.length, 4);
+    for (const video of videos) {
+      for (const attribute of ["autoplay", "muted", "loop", "playsinline"])
+        assert.match(video, new RegExp(`\\b${attribute}\\b`));
+      assert.match(video, /width="1920"\s+height="1200"/);
+    }
+    assert.doesNotMatch(html, /demo-assets\/\w+\.gif/);
+    assert.match(css, /\.screens video[^}]*max-width: 1920px/s);
   });
 
   it("teaches Blink: Ctrl and click, Ctrl and drag, the mini composer", () => {

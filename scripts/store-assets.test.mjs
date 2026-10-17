@@ -70,10 +70,10 @@ describe("real recordings and store images", () => {
     for (const item of [...shipped.recordings, ...(shipped.stills ?? [])])
       assert.ok(tracked.includes(item.asset), item.asset);
     assert.deepEqual(shipped.recordings.map((item) => item.asset).sort(), [
-      "assets/ask.gif",
-      "assets/pick.gif",
-      "assets/tour.gif",
-      "assets/translate.gif",
+      "assets/ask.webp",
+      "assets/pick.webp",
+      "assets/tour.webp",
+      "assets/translate.webp",
     ]);
   });
 

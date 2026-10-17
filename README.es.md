@@ -18,18 +18,20 @@ Blinkling pone a Blink, un pequeño compañero verde, en la esquina de tu pantal
 
 Usa el Claude Code en el que ya iniciaste sesión en este equipo.
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Ctrl y clic en un párrafo de una página de arXiv. Su captura vuela a la boca de Blink, se abre la tarjeta de chat y la respuesta llega poco a poco."></td>
-<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="En una página de Wikipedia en árabe, un pasaje elegido entra en Blink, se pulsa Traducir y la respuesta explica el pasaje en inglés."></td>
-<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="En una página pública muy densa, la guía marca las partes de la página. Blink sostiene un puntero sobre el paso actual y Siguiente avanza por los pasos."></td>
-</tr>
-<tr>
-<td align="center">Artículo: Ctrl y clic en un párrafo, y lee la respuesta.</td>
-<td align="center">Traducir: un pasaje en árabe, explicado en inglés.</td>
-<td align="center">Guía: una página difícil, paso a paso.</td>
-</tr>
-</table>
+<p align="center">
+<img src="assets/pick.webp" alt="Ctrl y clic en un párrafo de una página de arXiv. Su captura vuela a la boca de Blink, se abre la tarjeta de chat y la respuesta llega poco a poco."><br>
+Artículo: Ctrl y clic en un párrafo, y lee la respuesta.
+</p>
+
+<p align="center">
+<img src="assets/translate.webp" alt="En una página de Wikipedia en árabe, un pasaje elegido entra en Blink, se pulsa Traducir y la respuesta explica el pasaje en inglés."><br>
+Traducir: un pasaje en árabe, explicado en inglés.
+</p>
+
+<p align="center">
+<img src="assets/tour.webp" alt="En una página pública muy densa, la guía marca las partes de la página. Blink sostiene un puntero sobre el paso actual y Siguiente avanza por los pasos."><br>
+Guía: una página difícil, paso a paso.
+</p>
 
 ## Instalación
 
@@ -67,7 +69,7 @@ Necesitas Claude Code con la sesión iniciada. Después:
 - Se abre un pequeño cuadro con tres preguntas rápidas. Enter envía la resaltada.
 - Haz clic en Blink cuando quieras para hablar. La tarjeta de chat se abre junto a Blink con tu conversación.
 
-![Haz clic en Blink, escribe una pregunta y la respuesta llega a la tarjeta de chat.](assets/ask.gif)
+![Haz clic en Blink, escribe una pregunta y la respuesta llega a la tarjeta de chat.](assets/ask.webp)
 
 - El menú de Blink tiene captura, guía, Explicar automáticamente (desactivado hasta que la actives) y ajustes.
 - El ayudante opcional para Chrome o Edge aporta la estructura propia de la página, de modo que Blink sabe qué párrafo o botón señalaste, además de captura de página completa, traducción de la página en su sitio y un lector de PDF. Su botón de la barra muestra si está conectado y despierta a Blink. Sin él, Blink sigue funcionando en todas las ventanas.

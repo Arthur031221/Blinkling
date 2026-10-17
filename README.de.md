@@ -18,18 +18,20 @@ Blinkling setzt Blink, einen kleinen grünen Begleiter, in die Ecke deines Bilds
 
 Nutzt das Claude Code, bei dem du auf diesem Computer schon angemeldet bist.
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Strg und Klick auf einen Absatz einer arXiv-Seite. Sein Schnappschuss fliegt in Blinks Mund, die Chatkarte öffnet sich und die Antwort läuft ein."></td>
-<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="Auf einer arabischen Wikipedia-Seite geht ein gewählter Absatz in Blink, der Chip Übersetzen wird gedrückt und die Antwort erklärt den Absatz auf Englisch."></td>
-<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="Auf einer dichten öffentlichen Webseite markiert die Anleitung die Teile der Seite. Blink hält einen Zeigestab auf den aktuellen Schritt, Weiter geht die Schritte durch."></td>
-</tr>
-<tr>
-<td align="center">Paper: Strg und Klick auf einen Absatz, dann die Antwort lesen.</td>
-<td align="center">Übersetzen: ein arabischer Absatz, auf Englisch erklärt.</td>
-<td align="center">Anleitung: eine schwer bedienbare Seite, Schritt für Schritt.</td>
-</tr>
-</table>
+<p align="center">
+<img src="assets/pick.webp" alt="Strg und Klick auf einen Absatz einer arXiv-Seite. Sein Schnappschuss fliegt in Blinks Mund, die Chatkarte öffnet sich und die Antwort läuft ein."><br>
+Paper: Strg und Klick auf einen Absatz, dann die Antwort lesen.
+</p>
+
+<p align="center">
+<img src="assets/translate.webp" alt="Auf einer arabischen Wikipedia-Seite geht ein gewählter Absatz in Blink, der Chip Übersetzen wird gedrückt und die Antwort erklärt den Absatz auf Englisch."><br>
+Übersetzen: ein arabischer Absatz, auf Englisch erklärt.
+</p>
+
+<p align="center">
+<img src="assets/tour.webp" alt="Auf einer dichten öffentlichen Webseite markiert die Anleitung die Teile der Seite. Blink hält einen Zeigestab auf den aktuellen Schritt, Weiter geht die Schritte durch."><br>
+Anleitung: eine schwer bedienbare Seite, Schritt für Schritt.
+</p>
 
 ## Installation
 
@@ -67,7 +69,7 @@ Du brauchst Claude Code, angemeldet. Dann:
 - Ein kleines Eingabefeld öffnet sich mit drei Schnellfragen. Enter sendet die markierte.
 - Klicke jederzeit auf Blink, um zu sprechen. Neben Blink öffnet sich die Chatkarte mit deinem Gespräch.
 
-![Klicke auf Blink, tippe eine Frage, und die Antwort läuft in die Chatkarte.](assets/ask.gif)
+![Klicke auf Blink, tippe eine Frage, und die Antwort läuft in die Chatkarte.](assets/ask.webp)
 
 - Das Menü von Blink bietet Aufnahme, Führung, Automatisch erklären (aus, bis du sie einschaltest) und Einstellungen.
 - Der optionale Browser-Helfer für Chrome oder Edge liefert die eigene Struktur der Seite, damit Blink weiß, auf welchen Absatz oder welche Schaltfläche du gezeigt hast, dazu eine Aufnahme der ganzen Seite, Übersetzung der Seite an Ort und Stelle und einen PDF-Reader. Seine Symbolleistenschaltfläche zeigt, ob er verbunden ist, und weckt Blink. Ohne ihn funktioniert Blink weiterhin in jedem Fenster.

@@ -134,6 +134,15 @@ img {
   max-width: 100%;
   height: auto;
 }
+.screens video {
+  display: block;
+  width: 100%;
+  max-width: 1920px;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
 .install-steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

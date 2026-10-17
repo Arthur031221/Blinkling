@@ -47,18 +47,21 @@ require(f"## {version} - " in (ROOT / "CHANGELOG.md").read_text(), "Missing chan
 recordings = read_json("assets/recordings.json")
 require(recordings["version"] == version, "Demo recordings use another extension version")
 assets = {item["asset"] for item in recordings["recordings"]}
-require({"assets/pick.gif", "assets/ask.gif", "assets/translate.gif", "assets/tour.gif"} <= assets, "Missing a real demo recording")
+require({"assets/pick.webp", "assets/ask.webp", "assets/translate.webp", "assets/tour.webp"} <= assets, "Missing a real demo recording")
 for item in recordings["recordings"] + recordings.get("stills", []):
     data = (ROOT / item["asset"]).read_bytes()
-    if item["asset"].endswith(".gif"):
-        require(data[:6] in [b"GIF87a", b"GIF89a"], f"Not a GIF: {item['asset']}")
+    if item["asset"].endswith(".webp"):
+        require(data[:4] == b"RIFF" and data[8:12] == b"WEBP" and b"ANIM" in data[:64], f"Not an animated WebP: {item['asset']}")
+        require(len(data) <= 8_000_000, f"Demo is over 8 MB: {item['asset']}")
         require(sha256(data).hexdigest() == item["sha256"], f"Demo checksum mismatch: {item['asset']}")
         require(item["url"].startswith("https://") and item["turns"] >= 1, f"Incomplete public-page recording: {item['asset']}")
+        for site in item["site"]:
+            require(sha256((ROOT / site["file"]).read_bytes()).hexdigest() == site["sha256"], f"Site file checksum mismatch: {site['file']}")
     events = (ROOT / item["events"]).read_bytes()
     require(sha256(events).hexdigest() == item["eventsSha256"], f"Recording log mismatch: {item['events']}")
     names = [event["name"] for event in json.loads(events)]
     require(names[0] == "start" and names[-1] == "end", f"Recording log is incomplete: {item['events']}")
-    if item["asset"].endswith(".gif"):
+    if item["asset"].endswith(".webp"):
         require("answer" in names, f"Recording never reached an answer: {item['asset']}")
 
 readmes = sorted(ROOT.glob("README*.md"))
@@ -67,7 +70,7 @@ for path in readmes:
     content = path.read_text()
     require(content.splitlines()[-1] == "Assisted by Claude/Codex.", f"Wrong final line: {path.name}")
     first_screen = content.split("\n## ", 1)[0]
-    for image in ["assets/logo.svg", "assets/pick.gif", "assets/translate.gif", "assets/tour.gif"]:
+    for image in ["assets/logo.svg", "assets/pick.webp", "assets/translate.webp", "assets/tour.webp"]:
         require(image in first_screen, f"Missing first-screen image: {path.name}: {image}")
     for target in re.findall(r"\]\(([^\s)]+)\)", content):
         if not re.match(r"https?://|#", target):

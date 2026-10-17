@@ -18,18 +18,20 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
 
 이 컴퓨터에 로그인된 Claude Code를 사용합니다.
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="arXiv 페이지에서 Ctrl을 누른 채 문단을 클릭합니다. 스냅샷이 Blink의 입으로 날아들고 채팅 카드가 열리며 답이 흘러나옵니다."></td>
-<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="아랍어 위키백과 페이지에서 고른 문단을 Blink에 보내고 번역을 누르면, 답이 그 문단을 영어로 설명합니다."></td>
-<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="내용이 빽빽한 공개 웹 페이지에서 안내를 누르면 페이지의 각 부분에 표시가 붙습니다. Blink는 지시봉으로 현재 단계를 가리키고, 다음으로 넘어갑니다."></td>
-</tr>
-<tr>
-<td align="center">논문: Ctrl을 누르고 문단을 클릭해 답을 읽습니다.</td>
-<td align="center">번역: 아랍어 문단을 영어로 설명합니다.</td>
-<td align="center">안내: 다루기 어려운 페이지를 한 단계씩.</td>
-</tr>
-</table>
+<p align="center">
+<img src="assets/pick.webp" alt="arXiv 페이지에서 Ctrl을 누른 채 문단을 클릭합니다. 스냅샷이 Blink의 입으로 날아들고 채팅 카드가 열리며 답이 흘러나옵니다."><br>
+논문: Ctrl을 누르고 문단을 클릭해 답을 읽습니다.
+</p>
+
+<p align="center">
+<img src="assets/translate.webp" alt="아랍어 위키백과 페이지에서 고른 문단을 Blink에 보내고 번역을 누르면, 답이 그 문단을 영어로 설명합니다."><br>
+번역: 아랍어 문단을 영어로 설명합니다.
+</p>
+
+<p align="center">
+<img src="assets/tour.webp" alt="내용이 빽빽한 공개 웹 페이지에서 안내를 누르면 페이지의 각 부분에 표시가 붙습니다. Blink는 지시봉으로 현재 단계를 가리키고, 다음으로 넘어갑니다."><br>
+안내: 다루기 어려운 페이지를 한 단계씩.
+</p>
 
 ## 설치
 
@@ -67,7 +69,7 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
 - 작은 입력창이 열리고 빠른 질문 세 개가 나타납니다. Enter는 강조된 질문을 보냅니다.
 - Blink를 클릭하면 언제든 대화할 수 있습니다. Blink 옆에 채팅 카드가 열리고 대화가 이어집니다.
 
-![Blink를 클릭하고 질문을 입력하면 답이 채팅 카드로 흘러 들어옵니다.](assets/ask.gif)
+![Blink를 클릭하고 질문을 입력하면 답이 채팅 카드로 흘러 들어옵니다.](assets/ask.webp)
 
 - Blink 메뉴에는 캡처, 가이드, 자동 설명(켜기 전까지 꺼짐), 설정이 있습니다.
 - 선택 사항인 Chrome/Edge 브라우저 도우미는 페이지 자체의 구조를 제공해 Blink가 가리킨 문단이나 버튼을 알게 하고, 전체 페이지 캡처, 페이지 제자리 번역, PDF 리더도 더해 줍니다. 도구 모음 버튼은 연결 여부를 보여 주고 Blink를 깨웁니다. 도우미가 없어도 Blink는 모든 창에서 작동합니다.

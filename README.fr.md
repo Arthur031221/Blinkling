@@ -18,18 +18,20 @@ Blinkling place Blink, un petit compagnon vert, dans un coin de votre écran, au
 
 Utilise le Claude Code déjà connecté sur cet ordinateur.
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="assets/pick.gif" width="320" alt="Ctrl et clic sur un paragraphe d’une page arXiv. Sa capture s’envole dans la bouche de Blink, la carte de discussion s’ouvre et la réponse arrive au fil de l’eau."></td>
-<td width="33%" align="center"><img src="assets/translate.gif" width="320" alt="Sur une page de Wikipédia en arabe, un passage choisi entre dans Blink, on appuie sur Traduire et la réponse explique le passage en anglais."></td>
-<td width="33%" align="center"><img src="assets/tour.gif" width="320" alt="Sur une page publique très dense, le guide marque les parties de la page. Blink tient un bâton pointeur sur l’étape en cours et Suivant parcourt les étapes."></td>
-</tr>
-<tr>
-<td align="center">Article : Ctrl et clic sur un paragraphe, puis lisez la réponse.</td>
-<td align="center">Traduire : un passage en arabe, expliqué en anglais.</td>
-<td align="center">Guide : une page difficile, pas à pas.</td>
-</tr>
-</table>
+<p align="center">
+<img src="assets/pick.webp" alt="Ctrl et clic sur un paragraphe d’une page arXiv. Sa capture s’envole dans la bouche de Blink, la carte de discussion s’ouvre et la réponse arrive au fil de l’eau."><br>
+Article : Ctrl et clic sur un paragraphe, puis lisez la réponse.
+</p>
+
+<p align="center">
+<img src="assets/translate.webp" alt="Sur une page de Wikipédia en arabe, un passage choisi entre dans Blink, on appuie sur Traduire et la réponse explique le passage en anglais."><br>
+Traduire : un passage en arabe, expliqué en anglais.
+</p>
+
+<p align="center">
+<img src="assets/tour.webp" alt="Sur une page publique très dense, le guide marque les parties de la page. Blink tient un bâton pointeur sur l’étape en cours et Suivant parcourt les étapes."><br>
+Guide : une page difficile, pas à pas.
+</p>
 
 ## Installation
 
@@ -67,7 +69,7 @@ Il vous faut Claude Code, connecté. Ensuite :
 - Un petit champ de saisie s'ouvre avec trois questions rapides. Entrée envoie celle qui est en surbrillance.
 - Cliquez sur Blink à tout moment pour parler. La carte de discussion s'ouvre à côté de Blink avec votre conversation.
 
-![Cliquez sur Blink, tapez une question, et la réponse arrive dans la carte de discussion.](assets/ask.gif)
+![Cliquez sur Blink, tapez une question, et la réponse arrive dans la carte de discussion.](assets/ask.webp)
 
 - Le menu de Blink propose capture, visite guidée, Explication automatique (désactivée tant que vous ne l'activez pas) et réglages.
 - L'assistant facultatif pour Chrome ou Edge apporte la structure propre de la page, pour que Blink sache quel paragraphe ou bouton vous avez désigné, ainsi que la capture de page entière, la traduction de la page sur place et un lecteur de PDF. Son bouton de barre d'outils indique s'il est connecté et réveille Blink. Sans lui, Blink fonctionne toujours sur toutes les fenêtres.

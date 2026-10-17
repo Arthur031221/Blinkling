@@ -62,6 +62,8 @@ const mime = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
   ".ttf": "font/ttf",
 };
 const server = createServer(async (request, response) => {
@@ -85,10 +87,27 @@ const server = createServer(async (request, response) => {
   }
   try {
     const data = await readFile(path);
+    const type = mime[extname(path)] || "application/octet-stream";
+    // Like GitHub Pages, a media player may ask for a byte range.
+    const range = /^bytes=(\d+)-(\d*)$/.exec(request.headers.range ?? "");
+    if (range && Number(range[1]) < data.length) {
+      const start = Number(range[1]);
+      const end = Math.min(
+        Number(range[2] || data.length - 1),
+        data.length - 1,
+      );
+      response
+        .writeHead(206, {
+          "content-type": type,
+          "accept-ranges": "bytes",
+          "content-range": `bytes ${start}-${end}/${data.length}`,
+          "content-length": end - start + 1,
+        })
+        .end(data.subarray(start, end + 1));
+      return;
+    }
     response
-      .writeHead(200, {
-        "content-type": mime[extname(path)] || "application/octet-stream",
-      })
+      .writeHead(200, { "content-type": type, "accept-ranges": "bytes" })
       .end(data);
   } catch {
     response.writeHead(404).end();
@@ -120,7 +139,11 @@ async function checkInstallGuide(browser) {
     page.on("console", (message) => {
       if (message.type() === "error") failures.push(message.text());
     });
-    page.on("requestfailed", (request) => failures.push(request.url()));
+    page.on("requestfailed", (request) => {
+      // A player that has enough of a video drops the rest of the transfer.
+      if (request.resourceType() === "media") return;
+      failures.push(request.url());
+    });
     page.on("response", (response) => {
       if (response.status() >= 400)
         failures.push(`${response.status()} ${response.url()}`);
@@ -206,7 +229,11 @@ try {
     page.on("console", (message) => {
       if (message.type() === "error") failures.push(message.text());
     });
-    page.on("requestfailed", (request) => failures.push(request.url()));
+    page.on("requestfailed", (request) => {
+      // A player that has enough of a video drops the rest of the transfer.
+      if (request.resourceType() === "media") return;
+      failures.push(request.url());
+    });
     page.on("response", (response) => {
       if (response.status() >= 400)
         failures.push(`${response.status()} ${response.url()}`);
@@ -224,6 +251,31 @@ try {
           ),
         )
         .toBe(true);
+    }
+    // The demos are video files played at their own size: loaded, playing,
+    // never drawn larger than they were recorded.
+    const videos = page.locator("video");
+    assert.equal(await videos.count(), 4, "Expected the four demo videos");
+    for (const video of await videos.all()) {
+      await video.scrollIntoViewIfNeeded();
+      await expect
+        .poll(() =>
+          video.evaluate(
+            (element) =>
+              element.readyState >= 2 &&
+              element.videoWidth >= 1920 &&
+              element.currentTime > 0,
+          ),
+        )
+        .toBe(true);
+      const shown = await video.evaluate((element) => ({
+        drawn: element.getBoundingClientRect().width,
+        natural: element.videoWidth,
+        poster: element.poster,
+      }));
+      assert.ok(shown.drawn <= shown.natural, "A demo video is scaled up");
+      const poster = await page.request.get(shown.poster);
+      assert.equal(poster.status(), 200, `Missing poster ${shown.poster}`);
     }
     const localLinks = await page
       .locator("a[href]")
