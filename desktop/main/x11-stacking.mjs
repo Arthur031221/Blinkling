@@ -26,6 +26,14 @@ export function stackOrder({
   // has to stay over Blink for the whole flight or the picture hides behind it.
   return [overlay, guides, card, blink, ...flight].filter(Boolean);
 }
+/** macOS and Windows keep windows of one level in the order they were last
+ * raised, and the guide's marks window is made after the card: it would stand
+ * over the card and draw a frame across its text. The windows are raised again
+ * in stacking order (bottom to top), so the card and Blink end up over the marks. */
+export function raiseInOrder(windows) {
+  for (const w of windows)
+    if (w && !w.isDestroyed() && w.isVisible()) w.moveTop();
+}
 export async function keepAbove(windows) {
   if (process.platform !== "linux" || !process.env.DISPLAY) return () => {};
   return new Promise((resolve, reject) => {

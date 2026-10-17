@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mayRaise, stackOrder } from "./x11-stacking.mjs";
+import { mayRaise, raiseInOrder, stackOrder } from "./x11-stacking.mjs";
 
 test("Blink is raised after the chat card so the card never covers a menu pill", () => {
   const w = Object.fromEntries(
@@ -57,4 +57,22 @@ test("a flying capture is stacked above Blink so it is seen entering the mouth",
     stackOrder({ ...w, flight: [] }).map((x) => x.name),
     ["overlay", "guides", "card", "blink"],
   );
+});
+test("the other systems raise the windows again from the bottom up, skipping gone ones", () => {
+  const calls = [];
+  const win = (name, over = {}) => ({
+    isDestroyed: () => false,
+    isVisible: () => true,
+    moveTop: () => calls.push(name),
+    ...over,
+  });
+  raiseInOrder(
+    stackOrder({
+      guides: win("guides"),
+      card: win("card", { isVisible: () => false }),
+      blink: win("blink"),
+      flight: [win("gone", { isDestroyed: () => true })],
+    }),
+  );
+  assert.deepEqual(calls, ["guides", "blink"]);
 });

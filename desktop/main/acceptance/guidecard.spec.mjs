@@ -112,7 +112,7 @@ async function startGuide(app, page) {
 test("during a guide the card keeps off the step's target, fits its window and takes a real click on End tour", async () => {
   test.setTimeout(150000);
   const { app, page } = await launch();
-  const rec = record("guide_card", { suffix: "-323" });
+  const rec = record("guide_card", { suffix: "-324" });
   try {
     await startGuide(app, page);
     const button = (action) =>

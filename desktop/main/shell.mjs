@@ -32,7 +32,7 @@ import {
 } from "../character/motions.mjs";
 import { costumeChange, playFor } from "../character/costume.mjs";
 import { families, familyOf } from "../composer/models.mjs";
-import { keepAbove, stackOrder } from "./x11-stacking.mjs";
+import { keepAbove, raiseInOrder, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
 import { boundsOf, contains } from "./geometry.mjs";
@@ -1378,7 +1378,18 @@ features = installCaptureGuide({
         : () => features.handle("guide-dismiss"),
     );
     send({ type: "guide", ...guide });
-    guideArrows(["step", "overview", "finished"].includes(guide.phase));
+    const marked = ["step", "overview", "finished"].includes(guide.phase);
+    guideArrows(marked);
+    // Linux restacks on its own (keepAbove); the other systems keep the order of
+    // the last raise, so the card and Blink are lifted over the marks here.
+    if (marked && process.platform !== "linux")
+      raiseInOrder(
+        stackOrder({
+          guides: features.overlay.window,
+          card: composer,
+          blink,
+        }),
+      );
   },
   onState: (state) => send({ type: "capture-status", ...state }),
   fullPage: (signal, progress) => companionHost.fullPage(signal, progress),

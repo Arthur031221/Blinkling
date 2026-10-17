@@ -18,6 +18,10 @@ export const MOUTH_DROP = 40;
 /** The least of its side a card must have beside the mouth for its tail to
  * reach the mouth. */
 export const TAIL_REACH = 27;
+/** How far past the card's edge the mouth may be when the card slides off a
+ * target: farther than this the tail no longer reads as pointing at Blink, so
+ * the card stays nearer and covers part of the target instead. */
+export const TAIL_FAR = 160;
 /** How far past the work area a card may slip to keep its tail on a mouth that
  * a carried Blink has taken near the top or bottom edge. */
 export const SLIP_MAX = 160;
@@ -239,7 +243,7 @@ export function dodgeCard(card, avoid, area, mouthY) {
       .sort((p, q) => p.hidden - q.hidden || p.moved - q.moved)[0];
   };
   const tail = reach(TAIL_REACH);
-  const best = tail?.hidden === 0 ? tail : (reach(-Infinity) ?? tail);
+  const best = tail?.hidden === 0 ? tail : (reach(-TAIL_FAR) ?? tail);
   return best && best.hidden < hidden(card.y) ? { ...card, y: best.y } : card;
 }
 /** The card's rectangle. It never covers Blink's body, wherever Blink rests:

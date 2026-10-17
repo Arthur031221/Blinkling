@@ -16,6 +16,7 @@ import {
   carriedPosition,
   anchoredTop,
   TAIL_REACH,
+  TAIL_FAR,
   SLIP_MAX,
   dodgeCard,
   CARD_REACH,
@@ -523,6 +524,17 @@ test("dodgeCard slides past the tail's reach when the target is otherwise covere
     card.y,
     "no better place",
   );
+});
+test("dodgeCard never carries the card so far from the mouth that its tail stops pointing at Blink", () => {
+  const area = { x: 0, y: 0, width: 1280, height: 2000 };
+  const card = { x: 128, y: 100, width: 440, height: 300 };
+  // A target that runs far down the screen: clear of it is 1700 px from the mouth.
+  const target = { x: 100, y: 90, width: 600, height: 1800 };
+  const mouth = 250;
+  const moved = dodgeCard(card, [target], area, mouth);
+  const gap = Math.max(moved.y - mouth, mouth - (moved.y + card.height), 0);
+  assert.ok(gap <= TAIL_FAR, `the mouth is ${gap} px from the card`);
+  assert.ok(moved.y >= area.y && moved.y + card.height <= area.height);
 });
 
 /** The card reaches the real bottom of the work area wherever the Dock is: the
