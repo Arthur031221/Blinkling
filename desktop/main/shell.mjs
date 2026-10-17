@@ -1083,6 +1083,7 @@ companionHost = await startDesktopHost({
   onLink: (link) => session.link(link),
   onUnlink: (link) => session.unlink(link.session),
   onReply: (reply) => session.reply(reply),
+  onTurnStart: (start) => session.turnStart(start),
   onTurnEnd: (end) => session.turnEnd(end),
   chatImages: async ({ session: id }) => session.images(id),
   onShutdown: () => app.quit(),

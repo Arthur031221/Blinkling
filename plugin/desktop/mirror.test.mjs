@@ -139,7 +139,9 @@ test("the answer to a turn that began as a Blink channel event is not mirrored b
   const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
   const lines = [];
   const ends = [];
+  const starts = [];
   const host = await startDesktopHost({
+    onTurnStart: (start) => starts.push(start.session),
     directory,
     descriptor: join(directory, "desktop.json"),
     onMirror: (line) => lines.push([line.role, line.text]),
@@ -170,6 +172,8 @@ test("the answer to a turn that began as a Blink channel event is not mirrored b
       ),
       directory,
     );
+    // Blink is told the terminal took the question.
+    assert.deepEqual(starts, ["mine"]);
     assert.equal(await mirror(stop("answer to blink"), directory), true);
     assert.deepEqual(ends, [["mine", "answer to blink"]]);
     // Back in the terminal.
@@ -185,4 +189,24 @@ test("the answer to a turn that began as a Blink channel event is not mirrored b
     await host.close();
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("the markers Claude Code puts for a pasted picture or text are not mirrored into Blink's chat", () => {
+  const line = (prompt) =>
+    mirrorLine({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "s1",
+      prompt,
+    });
+  assert.equal(line("[Image #1] what is this").text, "what is this");
+  assert.equal(
+    line("look [Image #2] and [Image #3] please").text,
+    "look and please",
+  );
+  assert.equal(
+    line("[Pasted text #1 +42 lines] summarize this").text,
+    "summarize this",
+  );
+  assert.equal(line("[Image #1]"), undefined, "nothing typed, nothing to show");
+  assert.equal(line("no marker here").text, "no marker here");
 });

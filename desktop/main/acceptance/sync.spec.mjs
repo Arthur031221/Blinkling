@@ -100,3 +100,54 @@ test("what is typed and answered in the terminal session appears in Blink's chat
     await app.close();
   }
 });
+
+test("a question the linked terminal session never takes is answered by Blink with one line saying so, and the late terminal answer is dropped", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("sync", { suffix: "-322" });
+  let unlink;
+  try {
+    await background(app);
+    await reveal(page);
+    await expect.poll(() => cardPage(app)).toBeTruthy();
+    unlink = await link(app);
+    await rpc(app, { method: "open", session: SESSION });
+    await page.evaluate(() =>
+      window.blinkling.shell({ type: "click", permission: true }),
+    );
+    await expect.poll(() => cardOpen(app)).toBe(true);
+    const card = cardPage(app);
+    await card.waitForTimeout(600);
+    // The line is open, but the terminal session never starts on the question.
+    const input = card.locator(".gl-input");
+    await input.fill("what is on my screen?");
+    await input.press("Enter");
+    await card.waitForTimeout(800);
+    rec.frame("waiting");
+    await expect(card.locator(".gl-assistant").first()).toContainText(
+      "Claude Code did not pick this up",
+      { timeout: 20000 },
+    );
+    await expect(card.locator(".gl-assistant")).toHaveCount(2, {
+      timeout: 15000,
+    });
+    await expect(card.locator(".gl-assistant").last()).toContainText("OK.");
+    rec.frame("answered");
+    // The terminal answers late: Blink does not show a second answer.
+    const count = await card.locator(".gl-assistant").count();
+    await rpc(app, {
+      method: "reply",
+      session: SESSION,
+      turn: "",
+      text: "Late.",
+    });
+    await card.waitForTimeout(900);
+    expect(await card.locator(".gl-assistant").count()).toBe(count);
+    await expect(card.locator(".gl-input")).toBeEnabled();
+    rec.frame("one answer");
+  } finally {
+    unlink?.();
+    await rec.stop();
+    await app.close();
+  }
+});

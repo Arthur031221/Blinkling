@@ -113,6 +113,7 @@ export async function startDesktopHost({
   onUnlink = () => {},
   onReply = () => {},
   onTurnEnd = () => {},
+  onTurnStart = () => {},
   chatImages = async () => [],
   descriptor = endpointPath(),
   directory = runtimeDirectory(),
@@ -271,6 +272,14 @@ export async function startDesktopHost({
               turn: typeof message.turn === "string" ? message.turn : "",
               text,
             }),
+          });
+          return;
+        }
+        case "turn-start": {
+          // A prompt hook: the linked session took Blink's question.
+          if (!sessionId(message.session)) throw new Error("Invalid session");
+          json(res, 200, {
+            ok: await onTurnStart({ session: message.session }),
           });
           return;
         }

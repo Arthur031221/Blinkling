@@ -9,6 +9,8 @@ import { userMessage } from "./protocol.mjs";
 const INTERNAL = new Set(["guide", "companion"]);
 const KEEP = 40;
 const SETTLE_MS = 1500;
+/** How long a question may go without the terminal session starting on it. */
+const DELIVERY_MS = 10000;
 const MAIN = "blink";
 
 /** What a terminal session is shown of a message typed in Blink: the words, a
@@ -48,12 +50,22 @@ async function writeJson(file, value) {
  * same surface as the session bridge: the card cannot tell the two apart.
  * `deliver(frame)` sends a frame to that session and says whether it took it. */
 export class ChannelChat {
-  constructor({ directory, deliver, settleMs = SETTLE_MS, now = Date.now }) {
+  constructor({
+    directory,
+    deliver,
+    settleMs = SETTLE_MS,
+    deliveryMs = DELIVERY_MS,
+    now = Date.now,
+  }) {
     this.directory = directory;
     this.file = join(directory, "channel.json");
     this.deliver = deliver;
     this.settleMs = settleMs;
+    this.deliveryMs = deliveryMs;
     this.now = now;
+    // Called with the turn when the session never took it (see `send`).
+    this.onUndelivered = undefined;
+    this.abandoned = undefined;
     this.listeners = new Set();
     this.messages = [];
     this.status = { type: "status", state: "connected" };
@@ -127,6 +139,7 @@ export class ChannelChat {
     this.active = turn.id;
     this.turn = turn.id;
     this.replied = false;
+    this.abandoned = undefined;
     const taken = this.deliver({
       type: "turn",
       turn: turn.id,
@@ -138,6 +151,27 @@ export class ChannelChat {
         code: "TERMINAL_CLOSED",
       });
     }
+    // The line to the session was open but nothing came back: it may be busy
+    // or the channel may be off. The question is then answered by Blink's own
+    // session, once, and anything the terminal says to it later is dropped.
+    clearTimeout(this.waiting);
+    if (this.onUndelivered) {
+      this.waiting = setTimeout(() => this.giveUp(turn), this.deliveryMs);
+      this.waiting.unref?.();
+    }
+  }
+  /** The session began on the question (a prompt hook) or answered it. */
+  started() {
+    clearTimeout(this.waiting);
+    return this.active !== undefined;
+  }
+  giveUp(turn) {
+    if (this.active !== turn.id) return;
+    this.abandoned = turn.id;
+    // No "done" here: the answer that follows ends the wait on the card.
+    clearTimeout(this.timer);
+    this.active = undefined;
+    this.onUndelivered?.(turn);
   }
   /** The session is gone: a question still open is answered with that, so the
    * card does not wait for ever. */
@@ -166,6 +200,10 @@ export class ChannelChat {
   /** The terminal session's answer. */
   reply(text) {
     if (!text?.trim()) return false;
+    // Blink's own session already answered this question.
+    if (this.abandoned !== undefined && this.abandoned === this.turn)
+      return false;
+    clearTimeout(this.waiting);
     this.replied = true;
     this.replies++;
     this.add({
@@ -189,6 +227,7 @@ export class ChannelChat {
   }
   settle() {
     clearTimeout(this.timer);
+    clearTimeout(this.waiting);
     const turnId = this.active;
     if (turnId === undefined) return;
     this.active = undefined;
@@ -202,6 +241,7 @@ export class ChannelChat {
   }
   dispose() {
     clearTimeout(this.timer);
+    clearTimeout(this.waiting);
     this.listeners.clear();
     return Promise.resolve();
   }
@@ -336,6 +376,7 @@ export class ChatRouter {
         ? this.makeChannel(session)
         : this.makeBridge(session, cwd);
       chat = { key: session, label, live: true, channel, impl };
+      if (channel) impl.onUndelivered = (turn) => this.fallback(session, turn);
       this.chats.set(session, chat);
     }
     chat.live = true;
@@ -385,6 +426,39 @@ export class ChatRouter {
   reply({ session, text }) {
     const chat = this.chats.get(session);
     return chat?.impl instanceof ChannelChat ? chat.impl.reply(text) : false;
+  }
+  turnStart({ session }) {
+    const chat = this.chats.get(session);
+    return chat?.impl instanceof ChannelChat ? chat.impl.started() : false;
+  }
+  /** A terminal session never took the question. Blink's own session answers
+   * it, in Blink's chat, with one line saying why. */
+  fallback(session, turn) {
+    const note = {
+      id: `undelivered-${turn.id}`,
+      role: "assistant",
+      content: [
+        {
+          type: "text",
+          text: "Claude Code did not pick this up, so Blink answered it here.",
+        },
+      ],
+    };
+    const chat = this.chats.get(session);
+    const main = this.chats.get(MAIN);
+    // The card moves to Blink's chat first, so the line is shown there once
+    // and is only kept in the terminal's chat.
+    if (this.currentKey === session) this.switchTo(MAIN);
+    chat?.impl.add(note);
+    // Nobody awaits this: a failure ends the wait on the card. The line comes
+    // after the question it explains.
+    return main.impl
+      .send(turn)
+      .then(() => {
+        main.lines = [...(main.lines ?? []), note].slice(-KEEP);
+        main.impl.emit({ type: "message", ...note });
+      })
+      .catch(() => main.impl.emit({ type: "done", turnId: turn.id }));
   }
   turnEnd({ session, text }) {
     const chat = this.chats.get(session);

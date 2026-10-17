@@ -15,13 +15,31 @@ export const isChannelPrompt = (text) =>
   typeof text === "string" &&
   /^\s*<channel\s+source="(?:plugin:blinkling:|)blinkling"/.test(text);
 
+/** Claude Code stands in for a pasted picture or a long paste with a marker in
+ * the prompt, such as `[Image #1]` or `[Pasted text #2 +40 lines]`. Blink's chat
+ * cannot show what the marker stands for, so a mirrored prompt keeps the words
+ * the person typed and drops the markers. */
+export const withoutMarkers = (text) =>
+  text
+    .replace(
+      /\[(?:Image|Pasted text|Pasted image|Image\/PDF)\s*#\d+[^\]\n]*\]/gi,
+      "",
+    )
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
 /** What a terminal turn adds to Blink's chat, from a hook payload: the prompt
  * typed, or the answer Claude Code just finished. Nothing for other events. */
 export function mirrorLine(payload) {
   const event = payload?.hook_event_name;
   const [role, text] =
     event === "UserPromptSubmit"
-      ? ["user", payload.prompt]
+      ? [
+          "user",
+          typeof payload.prompt === "string"
+            ? withoutMarkers(payload.prompt)
+            : payload.prompt,
+        ]
       : event === "Stop"
         ? ["assistant", payload.last_assistant_message]
         : [];
@@ -69,13 +87,21 @@ export async function mirror(payload, directory = runtimeDirectory()) {
   // own channel event is answered in Blink through the reply tool.
   if (event === "UserPromptSubmit" && typeof session === "string")
     await markTurn(directory, session, channelTurn).catch(() => {});
-  if (!line && !(event === "Stop" && typeof session === "string")) return false;
+  const started = event === "UserPromptSubmit" && channelTurn;
+  if (!line && !started && !(event === "Stop" && typeof session === "string"))
+    return false;
   const entry = await opened(directory, line?.session ?? session);
   if (!entry) return false;
   const found = await discoverDesktop(join(directory, "desktop.json"), {
     timeoutMs: 1500,
   });
   if (!found) return false;
+  if (started) {
+    // The terminal took Blink's question and began on it. Blink stops waiting
+    // to hear that it arrived.
+    await found.client.rpc("turn-start", { session });
+    return true;
+  }
   if (event === "Stop" && entry.turn === "channel") {
     // The terminal's turn for a chat in Blink ended. If the answer came as
     // plain text and not through the reply tool, Blink shows it from here.

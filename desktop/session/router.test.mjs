@@ -46,7 +46,7 @@ const png = {
   data: "iVBORw0KGgo=",
 };
 
-async function setup({ settleMs = 5 } = {}) {
+async function setup({ settleMs = 5, deliveryMs = 60000 } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "router-"));
   const main = fakeBridge("main");
   const frames = [];
@@ -64,6 +64,7 @@ async function setup({ settleMs = 5 } = {}) {
       const channel = new ChannelChat({
         directory: join(dir, session),
         settleMs,
+        deliveryMs,
         deliver: (frame) => {
           frames.push({ session, ...frame });
           return taken;
@@ -230,6 +231,61 @@ test("a terminal session that goes away with a question open answers it as close
   t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
   t.router.unlink("s2");
   assert.equal(t.events.filter((e) => e.type === "message").length, 0);
+  await t.close();
+});
+
+test("a question the terminal session never starts on is answered by Blink's own session, once, with one line saying so", async () => {
+  const t = await setup({ deliveryMs: 20 });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  const q = turn("are you there");
+  await t.router.send(q);
+  assert.equal(t.frames.length, 1);
+  await new Promise((r) => setTimeout(r, 80));
+  assert.equal(t.main.sent.length, 1, "Blink's session got the question");
+  assert.equal(t.main.sent[0].id, q.id);
+  assert.equal(t.router.currentKey, "blink");
+  const notes = t.events.filter(
+    (e) =>
+      e.type === "message" && /did not pick this up/.test(e.content?.[0]?.text),
+  );
+  assert.equal(notes.length, 1);
+  // The terminal answers late: that answer is dropped, so there is one answer.
+  assert.equal(t.router.reply({ session: "s1", text: "Late answer." }), false);
+  assert.equal(
+    t.router.turnEnd({ session: "s1", text: "Late answer." }),
+    false,
+  );
+  assert.equal(
+    t.events.filter(
+      (e) => e.type === "message" && e.content?.[0]?.text === "Late answer.",
+    ).length,
+    0,
+  );
+  // A later question to that chat is delivered to the terminal again.
+  t.router.switchTo("s1");
+  await t.router.send(turn("again"));
+  assert.equal(t.frames.length, 2);
+  await t.close();
+});
+
+test("a question the terminal session starts on in time, however slowly it then answers, is not taken over", async () => {
+  const t = await setup({ deliveryMs: 30 });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  await t.router.send(turn("long task"));
+  assert.equal(t.router.turnStart({ session: "s1" }), true);
+  await new Promise((r) => setTimeout(r, 90));
+  assert.equal(t.main.sent.length, 0);
+  assert.ok(t.router.reply({ session: "s1", text: "Done." }));
+  await t.close();
+});
+
+test("an answer inside the delivery time clears the wait", async () => {
+  const t = await setup({ deliveryMs: 30 });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  await t.router.send(turn("quick"));
+  assert.ok(t.router.reply({ session: "s1", text: "Yes." }));
+  await new Promise((r) => setTimeout(r, 90));
+  assert.equal(t.main.sent.length, 0);
   await t.close();
 });
 
