@@ -430,12 +430,12 @@ ipcMain.on("blinkling:composer-ready", (event) => {
   )
     composerReady?.();
 });
-/** Open the card. `focus` gives it the keyboard; `seed` is what the mini
- * composer was holding ({ conversationId, draft, attachments }), carried into
- * the card as it grows. */
+/** Open the card, the one window that holds the composer. `focus` gives it the
+ * keyboard; `seed` is a draft to start from ({ conversationId, draft,
+ * attachments }). */
 async function openComposer(options = {}) {
   // The card is one of the machine's two surfaces: a card that opens by any
-  // other road (a dropped file, a link, the mini box) must still turn the menu
+  // other road (a dropped file or a link) must still turn the menu
   // off and be closed by the same rules. The machine's effect comes back here.
   if (!machine.read().card) {
     wanted = options;
@@ -1240,7 +1240,7 @@ function guideArrows(wanted) {
     else globalShortcut.unregister(key);
 }
 // Every capture, from the region selector, the hotkey or a pick, flies into
-// Blink and opens the mini composer.
+// Blink and then opens the card.
 const attachCapture = async (taken) => pick.deliver(taken);
 features = installCaptureGuide({
   blink,

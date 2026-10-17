@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { PNG } from "pngjs";
 import { launch } from "./support.mjs";
-import { background, sleep } from "./helpers.mjs";
+import { background, clickBlink, onBlink, sleep } from "./helpers.mjs";
 import { record } from "./record.mjs";
 import { strings } from "../../composer/strings.mjs";
 
@@ -83,6 +83,61 @@ test("one composer on screen: a capture goes into the card's own box, Enter on a
     expect((await said())[1]).toContain("What is the green?");
     await sleep(600);
     rec.frame("typed");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
+
+test("clicking Blink opens the one card and never a second surface, with or without a capture", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("one_composer", { suffix: "-323", fps: 6 });
+  try {
+    await background(app);
+    await page.waitForTimeout(800);
+    const seen = new Set();
+    const watch = async () => {
+      for (const w of await boxes(app)) if (w.visible) seen.add(w.url);
+    };
+    await onBlink(page);
+    await watch();
+    expect(seen.size, "nothing has a text box before the click").toBe(0);
+    await clickBlink(page);
+    await expect.poll(() => !!cardPage(app), { timeout: 8000 }).toBe(true);
+    const card = cardPage(app);
+    await expect(card.locator("textarea:visible")).toHaveCount(1);
+    for (let i = 0; i < 6; i++) {
+      await watch();
+      await sleep(150);
+    }
+    rec.frame("click");
+    // A capture while the card is open goes into the same box.
+    await capture(app, "inside");
+    await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
+    await expect(card.locator(".gl-quick-chip")).toHaveCount(3);
+    for (let i = 0; i < 6; i++) {
+      await watch();
+      await sleep(150);
+    }
+    rec.frame("capture");
+    // Blink is a click away again: still no second surface.
+    await clickBlink(page);
+    await sleep(600);
+    await watch();
+    rec.frame("again");
+    expect([...seen], "one window holds the composer").toHaveLength(1);
+    expect(
+      await app.evaluate(
+        ({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().filter(
+            (w) =>
+              !w.isDestroyed() &&
+              w.isVisible() &&
+              /mini|quick/.test(w.webContents.getURL()),
+          ).length,
+      ),
+    ).toBe(0);
   } finally {
     await rec.stop();
     await app.close();

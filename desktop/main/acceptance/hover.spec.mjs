@@ -71,7 +71,7 @@ function stackIndex(...ids) {
 async function openCard(app, page) {
   // The card window is created once and then reused.
   // A click on Blink while it waits on a permission request opens the full
-  // card; a plain click opens the mini composer (N5.1).
+  // card; a plain click opens the card too (N5.1).
   await page.evaluate(() =>
     window.blinkling.shell({ type: "click", permission: true }),
   );
