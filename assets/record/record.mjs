@@ -259,7 +259,7 @@ const scenes = {
     await wait(4000);
     mark("composer");
     // The quick box offers "What is this?" as a chip; click it where it is.
-    const chip = await chipPoint(app, "What is this");
+    const chip = await chipPoint(app, "What is this?");
     input([["move", chip.x, chip.y]]);
     await wait(800);
     mark("ask");
