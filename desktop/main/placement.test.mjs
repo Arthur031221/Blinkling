@@ -17,6 +17,7 @@ import {
   anchoredTop,
   TAIL_REACH,
   SLIP_MAX,
+  dodgeCard,
 } from "./placement.mjs";
 import { menuLayout, menuTransform } from "../menu/layout.mjs";
 const display = {
@@ -482,4 +483,29 @@ test("a carried Blink at the top of the screen keeps its card's place off the wo
   const mouth = mouthOf(held.reveal).y;
   assert.ok(card.y < 0, "the card slipped");
   assert.ok(mouth >= card.y + TAIL_REACH, "the tail reaches the mouth");
+});
+test("dodgeCard slides the card off a step's target, tail kept on the mouth when that is enough", () => {
+  const area = { x: 0, y: 0, width: 1280, height: 800 };
+  const card = { x: 128, y: 200, width: 440, height: 300 };
+  assert.equal(dodgeCard(card, [], area, 350), card);
+  const target = { x: 200, y: 180, width: 100, height: 100 };
+  const moved = dodgeCard(card, [target], area, 350);
+  assert.ok(moved.y >= 280 || moved.y + 300 <= 180, "clear of the target");
+  assert.ok(moved.y <= 350 - TAIL_REACH, "the tail still reaches the mouth");
+  assert.equal(moved.x, card.x);
+});
+test("dodgeCard slides past the tail's reach when the target is otherwise covered, and never leaves the area", () => {
+  const area = { x: 0, y: 0, width: 1280, height: 800 };
+  const card = { x: 128, y: 230, width: 440, height: 300 };
+  const target = { x: 330, y: 300, width: 330, height: 180 };
+  const moved = dodgeCard(card, [target], area, 380);
+  assert.ok(moved.y >= 480 || moved.y + 300 <= 300, "clear of the target");
+  assert.ok(moved.y >= area.y && moved.y + 300 <= area.y + area.height);
+  const wide = { x: 0, y: 0, width: 1280, height: 400 };
+  const cover = { x: 0, y: 0, width: 1280, height: 400 };
+  assert.equal(
+    dodgeCard(card, [cover], wide, 200).y,
+    card.y,
+    "no better place",
+  );
 });

@@ -191,6 +191,40 @@ export function clearOfCard(panel, card, area, gap = 12) {
     .sort((a, b) => a.away - b.away);
   return options[0]?.r ?? panel;
 }
+/** A card slid up or down to where it covers as little as it can of `avoid` (a
+ * guide step's targets). It keeps its tail on the mouth where that clears the
+ * targets; where it cannot it slides on, its tail then pointing at the mouth
+ * from the nearest corner of its side. The card window's own margin is the
+ * clearance. Nothing to avoid, or no better place, leaves it where it is. */
+export function dodgeCard(card, avoid, area, mouthY) {
+  if (!avoid?.length) return card;
+  // A card that slipped out to keep its tail on the mouth has no room to slide.
+  if (card.y < area.y || card.y + card.height > area.y + area.height)
+    return card;
+  const hidden = (y) =>
+    avoid.reduce((sum, r) => {
+      const w =
+          Math.min(card.x + card.width, r.x + r.width) - Math.max(card.x, r.x),
+        h = Math.min(y + card.height, r.y + r.height) - Math.max(y, r.y);
+      return sum + (w > 0 && h > 0 ? w * h : 0);
+    }, 0);
+  const reach = (span) => {
+    const lowest = Math.max(area.y, mouthY + span - card.height),
+      highest = Math.min(area.y + area.height - card.height, mouthY - span);
+    const tops = [
+      card.y,
+      ...avoid.flatMap((r) => [r.y + r.height, r.y - card.height]),
+    ]
+      .map((y) => Math.round(clamp(y, lowest, highest)))
+      .filter(() => lowest <= highest);
+    return tops
+      .map((y) => ({ y, hidden: hidden(y), moved: Math.abs(y - card.y) }))
+      .sort((p, q) => p.hidden - q.hidden || p.moved - q.moved)[0];
+  };
+  const tail = reach(TAIL_REACH);
+  const best = tail?.hidden === 0 ? tail : (reach(-Infinity) ?? tail);
+  return best && best.hidden < hidden(card.y) ? { ...card, y: best.y } : card;
+}
 /** The card's rectangle. It never covers Blink's body, wherever Blink rests:
  * beside Blink with its tail a few pixels from the body at mouth height, on
  * the side away from its edge, narrowed when the display is too narrow for
@@ -201,14 +235,22 @@ export function cardBounds(
   position,
   nudge = { x: 0, y: 0 },
   wanted = Infinity,
+  avoid = [],
 ) {
   const placed = placedCard(display, position, wanted);
   const area = display.workArea;
   const moved = nudged(placed, nudge, area);
   // A card that slipped out to keep its tail on the mouth keeps where it is.
-  return placed.y < area.y || placed.y + placed.height > area.y + area.height
-    ? { ...moved, y: placed.y }
-    : moved;
+  const settled =
+    placed.y < area.y || placed.y + placed.height > area.y + area.height
+      ? { ...moved, y: placed.y }
+      : moved;
+  return dodgeCard(
+    settled,
+    avoid,
+    area,
+    characterBox(display, position).y + MOUTH.y,
+  );
 }
 /** The card window is never shorter than this, so a card with nothing in it
  * still shows its header and its composer whole. */

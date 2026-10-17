@@ -255,7 +255,15 @@ const shown = () =>
       : position;
 /** The card's place: beside Blink, moved by what the reader nudged on this edge. */
 const cardAt = (at = shown()) =>
-  cardBounds(display, at, store.nudge(`card:${at.edge}`), cardWanted);
+  cardBounds(
+    display,
+    at,
+    store.nudge(`card:${at.edge}`),
+    cardWanted,
+    guideRects,
+  );
+/** What the guide step on show is about, in screen DIP: the card keeps off it. */
+let guideRects = [];
 /** How tall the card's content wants it, as the card last said. */
 let cardWanted = Infinity;
 const snapshot = () => ({
@@ -831,12 +839,18 @@ const send = (event) => {
   else if (event.type === "capture-status") {
     if (event.message && event.state === "error") flow((m) => m.notice());
     capturing(event.state === "working");
-  } else if (event.type === "guide")
+  } else if (event.type === "guide") {
+    const rects = Array.isArray(event.rects) ? event.rects : [];
+    if (JSON.stringify(rects) !== JSON.stringify(guideRects)) {
+      guideRects = rects;
+      placeCard();
+    }
     flow((m) => {
       // The failure is noticed first, so the card it opened is read, not closed.
       if (event.phase === "error") m.notice();
       m.guide(event.phase !== "dismissed" && event.phase !== "error");
     });
+  }
 };
 const fakeClaude =
   process.env.BLINKLING_E2E === "1" && process.env.BLINKLING_LIVE !== "1"

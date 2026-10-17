@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { placeCallouts } from "./layout.mjs";
+import { placeCallouts, leaderFor } from "./layout.mjs";
 // 1280x720 at 150%: Electron reports 853x480 DIP.
 const W = 853,
   H = 480;
@@ -127,4 +127,18 @@ test("a label stays beside its target when a section outlines most of the screen
       false,
       `label ${i} covers its target`,
     );
+});
+test("a label beside its mark has no leader line; a far one has, unless it would cross the card", () => {
+  const rect = { x: 100, y: 200, width: 100, height: 60 };
+  const near = { x: 100, y: 160, width: 80, height: 24 };
+  assert.equal(leaderFor(rect, near), null);
+  const far = { x: 100, y: 20, width: 80, height: 24 };
+  const line = leaderFor(rect, far);
+  assert.ok(line);
+  assert.ok(line.y1 >= far.y && line.y1 <= far.y + far.height);
+  assert.ok(line.x2 >= rect.x && line.x2 <= rect.x + rect.width);
+  assert.ok(line.y2 >= rect.y && line.y2 <= rect.y + rect.height);
+  const card = { x: 90, y: 80, width: 200, height: 60 };
+  assert.equal(leaderFor(rect, far, [card]), null);
+  assert.ok(leaderFor(rect, far, [{ x: 500, y: 80, width: 50, height: 50 }]));
 });

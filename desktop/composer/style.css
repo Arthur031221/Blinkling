@@ -209,11 +209,14 @@ a:focus-visible {
   overflow-anchor: none;
   mask-image: linear-gradient(to bottom, transparent 0, #000 72px);
 }
-/* A guide step starts with its header, which must stay solid: the card's own
-   faded paper is the only fade it sits in. */
-.gl-chat-history:has(.gl-guide) {
-  mask-image: none;
-  padding-top: 4px;
+/* A tour shows the step and its buttons: the card drops the rest for as long
+   as it runs, so it is short and keeps off the step's target. */
+.gl-touring > .gl-chat-tabs,
+.gl-touring > .gl-chat-history,
+.gl-touring > .gl-quick-asks,
+.gl-touring > .gl-quick-line,
+.gl-touring .gl-attachments {
+  display: none;
 }
 .gl-chat-message {
   max-width: 100%;

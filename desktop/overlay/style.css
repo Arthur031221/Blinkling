@@ -41,6 +41,12 @@ body {
 .mark .stroke.fill {
   fill: rgba(61, 220, 151, 0.18);
 }
+.mark .leader {
+  stroke: #43d896;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+}
 .mark .frame {
   fill: none;
   shape-rendering: crispEdges;

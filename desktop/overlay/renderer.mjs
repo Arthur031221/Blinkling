@@ -1,4 +1,4 @@
-import { placeCallouts } from "./layout.mjs";
+import { placeCallouts, leaderFor } from "./layout.mjs";
 import { markShape } from "../pointing/shapes.mjs";
 import { badgeRect } from "../pointing/badge.mjs";
 import { rings, snapRing } from "../pick/frame.mjs";
@@ -150,6 +150,13 @@ async function draw(view) {
     }
     Object.assign(item.label.style, { left: `${p.x}px`, top: `${p.y}px` });
     masks.push(p);
+    const line = leaderFor(item.drawing.rect, p, view.avoid);
+    if (line) {
+      const el = document.createElementNS(ns, "line");
+      el.setAttribute("class", "leader");
+      for (const [k, v] of Object.entries(line)) el.setAttribute(k, v);
+      item.group.append(el);
+    }
   });
   // Native viewports can be fractionally wider than Electron's integer DIP
   // bounds. Stretch drawings and pills over the same frozen coordinate plane.

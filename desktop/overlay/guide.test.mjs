@@ -496,3 +496,24 @@ test("every locale has every guide sentence, with Blinkling kept as written", ()
       assert.doesNotMatch(text, /布林克林|ブリンクリング/, locale);
   }
 });
+test("a step carries the screen rectangles of its regions, and ending the tour frees a held capture", async () => {
+  const r = rig([fixture], { capture: { run: async () => bigCapture } });
+  await r.controller.start("1");
+  r.controller.step(0);
+  const step = r.events.at(-1);
+  assert.ok(step.rects.length >= 1);
+  for (const rect of step.rects)
+    assert.ok(rect.width > 0 && rect.x >= 0 && rect.y >= 0);
+  r.controller.overview();
+  assert.equal(
+    r.events.at(-1).rects.length,
+    r.controller.guide.sections.length,
+  );
+  r.controller.finish();
+  assert.deepEqual(r.events.at(-1).rects, []);
+  let dismissed = null;
+  r.overlay.capture = { id: 1 };
+  r.overlay.dismiss = (reason) => (dismissed = reason);
+  r.controller.dismiss();
+  assert.equal(dismissed, "user", "the capture is let go");
+});

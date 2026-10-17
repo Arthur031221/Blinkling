@@ -22,7 +22,7 @@ const masks = rects.map((r) => ({
   borderOnly: true,
 }));
 const capture = { display, scaleFactor: 1, image: { data: "ref" } };
-function rig({ frames, onError } = {}) {
+function rig({ frames, onError, windowMasks } = {}) {
   const logs = [],
     reasons = [],
     shortcuts = new Map();
@@ -51,7 +51,8 @@ function rig({ frames, onError } = {}) {
   const grabbed = [];
   const watch = new StalenessWatch({
     overlay,
-    masks: () => [{ x: 1200, y: 100, width: 320, height: 200 }],
+    masks:
+      windowMasks ?? (() => [{ x: 1200, y: 100, width: 320, height: 200 }]),
     intervalMs: 1_000_000,
     decode: () => sample(desktop()),
     grab: async () => {
@@ -148,5 +149,30 @@ test("closing the guide window and replacing a guide each log their own reason",
   await show(r);
   assert.deepEqual(r.reasons, ["closed", "replaced"]);
   assert.equal(r.logs.length, 2);
+  r.watch.dispose();
+});
+test("Blink's windows are read before and after the screenshot, and both places are masked", async () => {
+  const seen = [];
+  const reads = [
+    [{ x: 1200, y: 100, width: 320, height: 200 }],
+    [{ x: 900, y: 500, width: 320, height: 200 }],
+  ];
+  let read = 0;
+  const r = rig({
+    frames: [still()],
+    windowMasks: () => (seen.push(read), reads[read++ % 2]),
+  });
+  await show(r);
+  r.watch.detector = {
+    observe: (_, masks) => (seen.push(masks.map((m) => m.x)), null),
+  };
+  seen.length = 0;
+  read = 0;
+  await r.watch.tick();
+  assert.deepEqual(seen.slice(0, 2), [0, 1], "read on both sides of the grab");
+  assert.ok(
+    seen[2].includes(1200) && seen[2].includes(900),
+    "masked where it was and where it went",
+  );
   r.watch.dispose();
 });

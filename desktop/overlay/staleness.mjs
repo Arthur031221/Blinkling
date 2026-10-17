@@ -43,6 +43,7 @@ export class StalenessWatch {
     const capture = this.overlay.capture;
     if (!capture?.image) return;
     this.failures = 0;
+    this.recent = [];
     this.detector = new DriftDetector({
       display: capture.display,
       reference: this.decode(capture.image.data, size),
@@ -56,24 +57,34 @@ export class StalenessWatch {
     const { capture, window: win } = this.overlay,
       { detector, epoch } = this;
     try {
-      const masks = [
+      const overlayMasks = [
         ...(await win.webContents.executeJavaScript(
           "window.overlayMasks || []",
         )),
       ];
-      if (this.masks) masks.push(...this.masks());
-      else
-        for (const w of this.windows())
-          if (!w.isDestroyed() && w.isVisible()) {
-            const b = w.getBounds();
-            masks.push({
-              x: b.x - capture.display.bounds.x,
-              y: b.y - capture.display.bounds.y,
-              width: b.width,
-              height: b.height,
-            });
-          }
+      // Blink's windows are read before and after the screenshot: a card that
+      // moves while it is taken is masked where it was and where it went.
+      const windowMasks = () =>
+        this.masks
+          ? this.masks()
+          : this.windows()
+              .filter((w) => !w.isDestroyed() && w.isVisible())
+              .map((w) => {
+                const b = w.getBounds();
+                return {
+                  x: b.x - capture.display.bounds.x,
+                  y: b.y - capture.display.bounds.y,
+                  width: b.width,
+                  height: b.height,
+                };
+              });
+      const before = windowMasks();
       const frame = await this.grab(capture.display, size);
+      const now = [...before, ...windowMasks()];
+      // A window the system is still moving may be drawn where it was a moment
+      // ago: the last tick's places stay masked for one more tick.
+      const masks = [...overlayMasks, ...now, ...(this.recent ?? [])];
+      this.recent = now;
       this.failures = 0;
       if (
         this.overlay.capture !== capture ||

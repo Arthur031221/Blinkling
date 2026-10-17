@@ -139,6 +139,7 @@ export class GuideController {
       total: this.guide.steps.length,
       title: this.title(index),
       aim: this.aim(index),
+      rects: this.rects(index),
       bubbles: [this.guide.steps[index].note],
       canBack: index > 0,
       canNext: true,
@@ -179,6 +180,26 @@ export class GuideController {
       y: display.bounds.y + (region.rect.y + region.rect.height / 2) * h,
     };
   }
+  /** The screen rectangles of the regions a step points at (all of them with no
+   * step), so the card can keep off what the step is about. */
+  rects(index = null) {
+    const display = this.capture_?.display;
+    if (!display || !this.guide) return [];
+    const w = display.bounds.width / this.capture_.pixelWidth,
+      h = display.bounds.height / this.capture_.pixelHeight;
+    const ids =
+      index === null
+        ? this.guide.sections.map((s) => s.id)
+        : this.guide.steps[index].regionIds;
+    return this.guide.sections
+      .filter((s) => ids.includes(s.id))
+      .map((s) => ({
+        x: Math.round(display.bounds.x + s.rect.x * w),
+        y: Math.round(display.bounds.y + s.rect.y * h),
+        width: Math.round(s.rect.width * w),
+        height: Math.round(s.rect.height * h),
+      }));
+  }
   /** A click on mark `n` shows the first step that is about it. */
   focusMark(n) {
     if (!this.guide) return;
@@ -197,6 +218,7 @@ export class GuideController {
     this.onGuide({
       phase: "finished",
       aim: null,
+      rects: [],
       index: total,
       total,
       bubbles: [closingMessage(this.language())],
@@ -223,6 +245,7 @@ export class GuideController {
       index: -1,
       total: this.guide.steps.length,
       aim: null,
+      rects: this.rects(),
       bubbles: [this.guide.purpose],
       // All steps: one line each, each a way into that step.
       steps: this.guide.steps.map((step, i) => ({
@@ -236,6 +259,8 @@ export class GuideController {
   dismiss() {
     this.controller?.abort();
     this.pointing.clear("user");
+    // A capture still held would keep Auto explain busy: end it here.
+    if (this.overlay.capture) this.overlay.dismiss("user");
     this.guide = null;
     if (this.failed) {
       this.failed = false;

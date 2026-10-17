@@ -98,3 +98,54 @@ export function placeCallouts({ width, height, items, avoid = [] }) {
     return null;
   });
 }
+const LEADER_MIN = 24;
+const clampTo = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const hits = (a, b, d) => {
+  // Does the segment a-b cross the rectangle d?
+  let lo = 0,
+    hi = 1;
+  for (const [p, q, min, max] of [
+    [a.x, b.x, d.x, d.x + d.width],
+    [a.y, b.y, d.y, d.y + d.height],
+  ]) {
+    const v = q - p;
+    if (v === 0) {
+      if (p < min || p > max) return false;
+      continue;
+    }
+    let t0 = (min - p) / v,
+      t1 = (max - p) / v;
+    if (t0 > t1) [t0, t1] = [t1, t0];
+    lo = Math.max(lo, t0);
+    hi = Math.min(hi, t1);
+  }
+  return lo <= hi;
+};
+/** The short line that joins a label to its mark when it sits far from it:
+ * from the label's nearest point to the mark's nearest edge point. Null when
+ * the label is close enough to read as belonging to the mark, or when the line
+ * would run across one of the `avoid` rectangles (the card). */
+export function leaderFor(rect, box, avoid = []) {
+  if (!rect || !box) return null;
+  const gapX = Math.max(
+      rect.x - (box.x + box.width),
+      box.x - (rect.x + rect.width),
+      0,
+    ),
+    gapY = Math.max(
+      rect.y - (box.y + box.height),
+      box.y - (rect.y + rect.height),
+      0,
+    );
+  if (Math.hypot(gapX, gapY) <= LEADER_MIN) return null;
+  const to = {
+    x: clampTo(box.x + box.width / 2, rect.x, rect.x + rect.width),
+    y: clampTo(box.y + box.height / 2, rect.y, rect.y + rect.height),
+  };
+  const from = {
+    x: clampTo(to.x, box.x, box.x + box.width),
+    y: clampTo(to.y, box.y, box.y + box.height),
+  };
+  if (avoid.some((a) => hits(from, to, a))) return null;
+  return { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+}

@@ -633,6 +633,12 @@ export function mountComposer(
     /** A guide event: its steps appear in the card. */
     guide(event) {
       guidePanel.update(event);
+      // A tour shows the step and its buttons and nothing else, so the card is
+      // short enough to stay clear of what the step points at.
+      card.classList.toggle(
+        "gl-touring",
+        event.phase !== "dismissed" && event.phase !== "error",
+      );
       notice.hidden = true;
     },
     /** Show the reference badge a mark on the page cites. */
