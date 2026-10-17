@@ -193,8 +193,9 @@ for (const scale of [1, 2])
 
       // 6. A click elsewhere puts the menu away and Blink goes back to the edge.
       key(0xff1b);
-      click(120 * scale, 720 * scale);
+      // The click puts Blink away at once, so the frames are counted from before it.
       await start("retreat");
+      click(120 * scale, 720 * scale);
       await expect
         .poll(async () => (await read(app)).state, { timeout: 12000 })
         .toBe("peek");
