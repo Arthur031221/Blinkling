@@ -1,7 +1,8 @@
 import { parseRefs } from "../messages/refs.mjs";
 
+// A quick-ask chip sends exactly its own words: nothing rides along with it.
 const isScreenQuestion = (turn) =>
-  ["composer", "quick-ask"].includes(turn?.source) &&
+  turn?.source === "composer" &&
   turn.attachments?.some((a) => a?.mediaType?.startsWith("image/"));
 
 const textOf = (message) =>

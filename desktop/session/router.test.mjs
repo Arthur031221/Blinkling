@@ -5,7 +5,12 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { say } from "./strings.mjs";
-import { ChannelChat, ChatRouter, channelText } from "./router.mjs";
+import {
+  ChannelChat,
+  ChatRouter,
+  channelAttachments,
+  channelText,
+} from "./router.mjs";
 
 const fakeBridge = (name) => {
   const listeners = new Set();
@@ -108,8 +113,8 @@ test("a session started with the flag has its question answered by that session,
   await t.router.send(q);
   assert.equal(t.frames.length, 1);
   assert.equal(t.frames[0].turn, q.id);
-  assert.match(t.frames[0].text, /what is this\?/);
-  assert.match(t.frames[0].text, /blinkling_chat_images/);
+  assert.equal(t.frames[0].text, "what is this?", "exactly the words typed");
+  assert.equal(t.frames[0].pictures, 1);
   // Blink's own session never also gets the turn.
   assert.equal(t.main.sent.length, 0);
   assert.equal(t.router.images("s1").length, 1);
@@ -302,18 +307,20 @@ test("an answer inside the delivery time clears the wait", async () => {
   await t.close();
 });
 
-test("channelText names pictures and files and never carries markup", () => {
-  const text = channelText({
+test("channelText is exactly the words typed; pictures and files travel as attributes", () => {
+  const message = {
     content: [
       { type: "image", source: {} },
       { type: "image", source: {} },
       { type: "document", title: "a.pdf" },
-      { type: "text", text: "look" },
+      { type: "text", text: "這是什麼" },
     ],
+  };
+  assert.equal(channelText(message), "這是什麼");
+  assert.deepEqual(channelAttachments(message), {
+    pictures: 2,
+    files: ["a.pdf"],
   });
-  assert.match(text, /^look/);
-  assert.match(text, /2 pictures/);
-  assert.match(text, /a\.pdf/);
 });
 
 test("the first session to join takes the card from an empty Blink chat; the empty one leaves the list", async () => {

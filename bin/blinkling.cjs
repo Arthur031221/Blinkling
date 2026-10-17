@@ -43521,7 +43521,7 @@ var SlidingWindowLimiter = class {
 // bridge/src/sync-channel.ts
 var import_node_fs5 = require("node:fs");
 var import_node_child_process6 = require("node:child_process");
-var SYNC_INSTRUCTIONS = 'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal, not even a closing remark. If the message says pictures are attached, call blinkling_chat_images first and look at them. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
+var SYNC_INSTRUCTIONS = 'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal, not even a closing remark. If the event has a pictures attribute, call blinkling_chat_images first and look at them; a files attribute names files attached in Blink. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
 var SYNC_COMMAND = "claude --dangerously-load-development-channels plugin:blinkling@blinkling";
 var syncNote = (channel) => channel ? "Sync line: this session answers the chat you hold in Blink, and what you type here appears there." : `Sync line: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with: ${SYNC_COMMAND}`;
 var SYNC_NOTE = syncNote(false);
@@ -43565,7 +43565,8 @@ function syncIdentity(env = process.env, ppid = process.ppid, readCommand = comm
   };
 }
 function channelNotification(frame) {
-  const text2 = String(frame.text ?? "").trim();
+  const pictures = Math.max(0, Math.min(99, Number(frame.pictures) || 0));
+  const text2 = String(frame.text ?? "").trim() || (pictures ? "(picture)" : "");
   if (!text2) return void 0;
   if (frame.type === "notice")
     return { content: text2, meta: { kind: "notice" } };
@@ -43574,7 +43575,9 @@ function channelNotification(frame) {
       content: text2,
       meta: {
         kind: "question",
-        turn: String(frame.turn ?? "").replace(/[^\w-]/g, "")
+        turn: String(frame.turn ?? "").replace(/[^\w-]/g, ""),
+        ...pictures ? { pictures: String(pictures) } : {},
+        ...Array.isArray(frame.files) && frame.files.length ? { files: frame.files.slice(0, 8).join(", ") } : {}
       }
     };
   return void 0;
@@ -44047,7 +44050,7 @@ async function createBlinkling(options = {}) {
     "blinkling_chat_images",
     {
       title: "Look at the pictures in Blink's chat",
-      description: "Return the pictures attached to the latest message the person typed in Blink, as images. Call it when a channel event says pictures are attached.",
+      description: "Return the pictures attached to the latest message the person typed in Blink, as images. Call it when a channel event has a pictures attribute.",
       inputSchema: {},
       annotations: {
         title: "Look at the pictures in Blink's chat",

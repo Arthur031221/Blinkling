@@ -493,7 +493,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
     {
       title: "Look at the pictures in Blink's chat",
       description:
-        "Return the pictures attached to the latest message the person typed in Blink, as images. Call it when a channel event says pictures are attached.",
+        "Return the pictures attached to the latest message the person typed in Blink, as images. Call it when a channel event has a pictures attribute.",
       inputSchema: {},
       annotations: {
         title: "Look at the pictures in Blink's chat",

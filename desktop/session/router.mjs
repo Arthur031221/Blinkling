@@ -19,29 +19,26 @@ const BUSY_WAIT_MS = 180000;
 const BUSY_FRESH_MS = 600000;
 const MAIN = "blink";
 
-/** What a terminal session is shown of a message typed in Blink: the words, a
- * count of pictures (it fetches them with a tool), and the name of anything
- * it cannot read. */
+/** What a terminal session is shown of a message typed in Blink: exactly the
+ * words, nothing added. A picture or file travels as an attribute of the
+ * event (see channelAttachments), so a chip's text arrives as the chip says it. */
 export function channelText(message) {
-  const text = message.content
+  return message.content
     .filter((b) => b.type === "text")
     .map((b) => b.text)
     .join("\n\n")
     .trim();
-  const pictures = message.content.filter((b) => b.type === "image").length;
-  const files = message.content
-    .filter((b) => b.type === "document")
-    .map((b) => b.title)
-    .filter(Boolean);
-  return [
-    text,
-    pictures
-      ? `(${pictures} ${pictures === 1 ? "picture" : "pictures"} attached in Blink: call blinkling_chat_images to look at ${pictures === 1 ? "it" : "them"})`
-      : "",
-    files.length ? `(files attached in Blink: ${files.join(", ")})` : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+}
+/** How many pictures and which files a message carries, for the event's
+ * attributes: the terminal fetches the pictures with a tool. */
+export function channelAttachments(message) {
+  return {
+    pictures: message.content.filter((b) => b.type === "image").length,
+    files: message.content
+      .filter((b) => b.type === "document")
+      .map((b) => b.title)
+      .filter(Boolean),
+  };
 }
 
 let writes = 0;
@@ -170,6 +167,7 @@ export class ChannelChat {
       type: "turn",
       turn: turn.id,
       text: channelText(message),
+      ...channelAttachments(message),
     });
     if (!taken) {
       this.closed();

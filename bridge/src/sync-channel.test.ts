@@ -56,6 +56,19 @@ describe("what Blink sends a linked session", () => {
         .turn,
     ).toBe("abc");
     expect(channelNotification({ type: "turn", text: "  " })).toBeUndefined();
+    // The words arrive as typed; pictures and files are attributes.
+    expect(
+      channelNotification({
+        type: "turn",
+        turn: "t",
+        text: "這是什麼",
+        pictures: 2,
+        files: ["a.pdf"],
+      }),
+    ).toEqual({
+      content: "這是什麼",
+      meta: { kind: "question", turn: "t", pictures: "2", files: "a.pdf" },
+    });
     expect(channelNotification({ type: "other", text: "x" })).toBeUndefined();
   });
 });

@@ -54,6 +54,13 @@ test("a screen question carries the element list; a plain one does not", async (
     attachments: [shot],
   });
   assert.equal(guide.text, "Map", "the guide has its own prompt");
+  const chip = await r.answers.ask({
+    id: "t4",
+    source: "quick-ask",
+    text: "這是什麼",
+    attachments: [shot],
+  });
+  assert.equal(chip.text, "這是什麼", "a chip sends exactly its own words");
 });
 
 test("the finished answer is drawn as marks, one per element it named", async () => {

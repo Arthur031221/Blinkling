@@ -157,8 +157,8 @@ test(
     await until(() => s.events.length >= 1);
     assert.equal(s.events[0].meta.kind, "question");
     assert.equal(s.events[0].meta.turn, turnId);
-    assert.match(s.events[0].content, /what is on my screen\?/);
-    assert.match(s.events[0].content, /blinkling_chat_images/);
+    assert.equal(s.events[0].content, "what is on my screen?");
+    assert.equal(s.events[0].meta.pictures, "1");
 
     // The terminal Claude looks at the picture and answers through the tool.
     const images = await s.parent.callTool({
