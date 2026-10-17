@@ -302,6 +302,8 @@ export async function installPick({
     },
     /** The same pieces, for tests that drive the flow without native input. */
     flying: () => layer.flying(),
+    /** Whether the pick layer is really up, whatever a flag says. */
+    layerUp: () => layer.up(),
     test: { keys, controller, layer, quick, grouper, once },
     dispose() {
       disposed = true;

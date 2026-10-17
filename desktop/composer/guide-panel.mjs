@@ -77,15 +77,25 @@ export function mountGuidePanel({ host, tr, onAction }) {
 
   return {
     update(event) {
-      host.hidden = event.phase === "dismissed";
+      const offer = event.phase === "dismissed" && event.again;
+      host.hidden = event.phase === "dismissed" && !offer;
       const texts =
         event.bubbles ??
-        (event.phase === "thinking" ? [tr("guide-thinking")] : []);
+        (event.phase === "thinking"
+          ? [tr("guide-thinking")]
+          : offer
+            ? [tr("guide-again-note")]
+            : []);
       texts.forEach((text, index) => bubble(index, text));
       for (const node of bubbles.splice(texts.length)) node.remove();
       head(
-        event.phase === "step" && event.title
-          ? `${tr("guide-step", { n: event.index + 1, total: event.total })} · ${event.title}`
+        event.phase === "step"
+          ? [
+              tr("guide-step", { n: event.index + 1, total: event.total }),
+              event.title,
+            ]
+              .filter(Boolean)
+              .join(" · ")
           : "",
       );
       list(event.phase === "overview" ? event.steps : null);
@@ -115,6 +125,8 @@ export function mountGuidePanel({ host, tr, onAction }) {
           button("overview", tr("guide-overview"), "guide-overview"),
           button("dismiss", tr("guide-dismiss"), "guide-dismiss"),
         );
+      if (offer)
+        wanted.push(button("again", tr("guide-again"), "guide-again"));
       if (event.phase === "error")
         wanted.push(
           button("retry", tr("guide-retry"), "guide-retry"),

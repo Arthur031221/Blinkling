@@ -344,6 +344,16 @@ test("Esc, the close button and a click outside close an unpinned card", () => {
   }
 });
 
+test("a click outside says whether it ended anything, so a guide goes with it", () => {
+  const { m } = rig();
+  m.click(0);
+  assert.equal(m.outside(10), true);
+  const held = rig();
+  held.m.click(0);
+  held.m.panels(1);
+  assert.equal(held.m.outside(10), false, "a dialog holds the card");
+});
+
 test("a click outside closes the card even over a streaming answer or a draft, and a draft is kept by the page", () => {
   const { m, read } = rig();
   m.answerStart(0);
@@ -620,6 +630,17 @@ test("a guide holds the card open for as long as it runs", () => {
   assert.equal(read().card, true, "open for the whole guide");
   m.guide(false, at.t);
   assert.equal(read().card, false, "the empty card goes with the guide");
+});
+
+test("ending a guide that can be shown again keeps the card for the offer, then lets it go", () => {
+  const { m, at, go, read } = rig();
+  m.guide(true, at.t);
+  m.take();
+  go(30_000);
+  m.guide(false, at.t, true);
+  assert.equal(read().card, true, "the offer is readable");
+  go(timing.readMin + timing.retreat);
+  assert.equal(read().card, false, "closed by itself later");
 });
 
 test("ending a guide closes the card at once when the guide opened it and nothing else is in it", () => {

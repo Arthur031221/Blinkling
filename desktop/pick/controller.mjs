@@ -112,8 +112,14 @@ export function createPickController({
     });
   }
 
+  // A key released while the layer still waits for the last grab has nothing
+  // to drop yet; the raise that is waiting must not show the layer afterwards.
+  let raises = 0,
+    cancelled = 0;
   async function raise() {
+    const mine = ++raises;
     await grabbing;
+    if (cancelled >= mine) return;
     const point = cursor();
     const display = displayAt(point);
     state = {
@@ -310,7 +316,10 @@ export function createPickController({
     async drop(reason) {
       const current = state;
       state = null;
-      if (!current) return;
+      if (!current) {
+        cancelled = raises;
+        return;
+      }
       current.gesture.cancel();
       const takens = reason === "release" ? current.picker.drain() : [];
       current.picker.clear();

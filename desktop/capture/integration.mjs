@@ -29,6 +29,7 @@ export const featureActions = new Set([
   "guide-overview",
   "guide-dismiss",
   "guide-retry",
+  "guide-again",
   ...Array.from({ length: MAX_STEPS }, (_, i) => `guide-step-${i + 1}`),
 ]);
 /** Shell/composer/session builders bind only these service hooks. Feature IPC is
@@ -234,6 +235,7 @@ export function installCaptureGuide({
         else await startGuide(() => guide.start(displayId()));
       }
       if (action === "guide-retry") await startGuide(() => guide.retry());
+      if (action === "guide-again") await guide.reopen();
       if (action === "auto-explain") {
         if (auto.enabled) auto.disable();
         else

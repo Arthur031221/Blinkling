@@ -235,3 +235,38 @@ test("a click on the background puts away the menu bubbles and the progress bubb
     await app.close();
   }
 });
+
+test("after a click inside Settings, and after Settings closes, a click on the background closes the card again", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("recheck323_live", { suffix: "-324" });
+  try {
+    const b = await background(app);
+    await reveal(page);
+    await clickBlink(page);
+    await expect.poll(() => cardOpen(app), { timeout: 8000 }).toBe(true);
+    await app.evaluate(() => globalThis.blinklingTest.settings.open());
+    await page.waitForTimeout(1200);
+    const win = await app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find((w) =>
+        w.webContents.getURL().includes("/settings/index.html"),
+      );
+      return w.getBounds();
+    });
+    native([
+      { type: "move", x: win.x + 30, y: win.y + win.height - 30, wait: 0.2 },
+      { type: "down" },
+      { type: "up", wait: 0.1 },
+    ]);
+    await page.waitForTimeout(800);
+    expect(await cardOpen(app), "stays after the click in Settings").toBe(true);
+    rec.frame("settings-clicked");
+    // A click on the background with Settings still open closes the card.
+    clickAway(b);
+    await expect.poll(() => cardOpen(app), { timeout: 3000 }).toBe(false);
+    rec.frame("closed-by-background");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

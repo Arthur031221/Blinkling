@@ -92,6 +92,8 @@ body {
   font-size: 13px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+  pointer-events: auto;
+  cursor: default;
 }
 [hidden] {
   display: none !important;

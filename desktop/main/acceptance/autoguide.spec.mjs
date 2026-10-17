@@ -142,29 +142,28 @@ test("Guide: one click on the bubble says it is looking at once, draws the marks
     const feedback = Date.now() - clicked;
     expect(feedback).toBeLessThan(400);
     rec.frame("looking");
-    // The answer arrives; the marks are drawn and the overview is in the card.
+    // The answer arrives; the marks are drawn and step 1 is in the card.
     await expect.poll(() => overlayShown(app), { timeout: 8000 }).toBe(true);
-    await expect(cardPage(app).locator(".gl-guide")).toContainText(
-      "A blue page with a sentence on it.",
-      { timeout: 8000 },
-    );
-    rec.frame("overview");
-    // All steps: the overview is a short list, one row per step, not a pile of
-    // bubbles with the model's own sections.
-    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(2);
-    await expect(cardPage(app).locator(".gl-answer-bubble")).toHaveCount(1);
     const cardButton = (action) =>
       cardPage(app).locator(`.gl-guide button[data-action="${action}"]`);
-    await cardButton("guide-next").click();
+    // Step 1 comes first, with its place in the tour; every step at once is a choice.
     await expect(cardPage(app).locator(".gl-guide")).toContainText(
       "Read the heading.",
     );
+    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(0);
+    await expect(cardButton("guide-overview")).toBeVisible();
     rec.frame("step-1");
     await expect(cardPage(app).locator(".gl-guide-head")).toContainText(/1.*2/);
     await page.waitForTimeout(600);
     rec.frame("step-1-pointing");
-    // A row of All steps goes straight to its step.
+    // A row of Show all steps goes straight to its step.
     await cardButton("guide-overview").click();
+    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(2);
+    await expect(cardPage(app).locator(".gl-guide")).toContainText(
+      "A blue page with a sentence on it.",
+    );
+    await expect(cardPage(app).locator(".gl-answer-bubble")).toHaveCount(1);
+    rec.frame("overview");
     await cardPage(app).locator(".gl-guide-step").nth(1).click();
     await expect(cardPage(app).locator(".gl-guide")).toContainText(
       "Look at the empty body.",
@@ -191,12 +190,20 @@ test("Guide: one click on the bubble says it is looking at once, draws the marks
     const ended = Date.now();
     await cardButton("guide-dismiss").click();
     await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(false);
-    // The card the guide opened has nothing left in it, so it goes with the marks.
-    await expect
-      .poll(() => cardShown(app), { intervals: [50], timeout: 2000 })
-      .toBe(false);
-    console.log(`guide: card closed ${Date.now() - ended} ms after the end`);
+    // The card stays with one line and one button: the same guide again, with
+    // no new run of the model.
+    await expect(cardButton("guide-again")).toBeVisible({ timeout: 3000 });
+    console.log(`guide: offer shown ${Date.now() - ended} ms after the end`);
     expect(Date.now() - ended).toBeLessThan(2000);
+    const asked = await turnCount(app);
+    await cardButton("guide-again").click();
+    await expect(cardPage(app).locator(".gl-guide")).toContainText(
+      "Read the heading.",
+    );
+    await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(true);
+    expect(await turnCount(app), "no new AI run").toBe(asked);
+    await cardButton("guide-dismiss").click();
+    await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(false);
     rec.frame("dismissed");
     const seen = await stalled(app);
     console.log(

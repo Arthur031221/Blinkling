@@ -104,7 +104,7 @@ async function startGuide(app, page) {
   move(at.x, at.y);
   await page.waitForTimeout(300);
   click(at.x, at.y);
-  await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(3, {
+  await expect(cardPage(app).locator(".gl-guide-head")).toContainText(/1.*3/, {
     timeout: 10000,
   });
 }
@@ -120,7 +120,7 @@ test("during a guide the card keeps off the step's target, fits its window and t
     const covered = [];
     const clipped = [];
     for (let i = 0; i < REGIONS.length; i++) {
-      await button("guide-next").click();
+      if (i > 0) await button("guide-next").click();
       await expect(cardPage(app).locator(".gl-guide")).toContainText(
         `Look at the ${REGIONS[i].label}.`,
       );

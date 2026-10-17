@@ -147,10 +147,9 @@ for (const scale of [1, 2])
           await expect.poll(() => overlay(), { timeout: 8000 }).toBeTruthy();
           await install(overlay());
           await marks([overlay()], "guide");
-          await expect(card().locator(".gl-guide-step")).toHaveCount(2, {
+          await expect(card().locator(".gl-guide-head")).toContainText(/1.*2/, {
             timeout: 8000,
           });
-          await card().locator('[data-action="guide-next"]').click();
           await page.waitForTimeout(1200);
           await card().locator('[data-action="guide-next"]').click();
           await page.waitForTimeout(1200);

@@ -19,11 +19,27 @@ function initialHandlers() {
   if (installed) return;
   installed = true;
   ipcMain.handle("blinkling:overlay:init", (e) => entryFor(e).view);
+  ipcMain.on("blinkling:overlay:regions", (e, list) => {
+    entryFor(e).regions = regionsOf(list);
+  });
   ipcMain.on("blinkling:overlay:mark-click", (e, n) => {
     const entry = entryFor(e);
     if (Number.isInteger(n) && n >= 1 && n <= 99)
       entry.win.emit("mark-click", n);
   });
+}
+const KINDS = new Set(["badge", "label", "mark"]);
+const finite = (n) => Number.isFinite(n) && Math.abs(n) < 100000;
+/** What the renderer says it drew, as [kind, x, y, width, height] in display
+ * coordinates. */
+function regionsOf(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .slice(0, 400)
+    .filter(
+      (r) => Array.isArray(r) && KINDS.has(r[0]) && r.slice(1, 5).every(finite),
+    )
+    .map(([kind, x, y, width, height]) => ({ kind, x, y, width, height }));
 }
 function viewFor(display, drawings, { theme = "system", avoid = [] }, seq) {
   if (!Array.isArray(drawings) || drawings.length > 24)
@@ -140,7 +156,26 @@ export function releaseOverlay(win) {
   if (!entry || pool.has(entry.displayId)) return win.close();
   win.setIgnoreMouseEvents(true, { forward: true });
   win.hide();
+  entry.regions = [];
   pool.set(entry.displayId, entry);
+}
+/** Everything a visible overlay draws that takes or marks a click, in screen
+ * DIP; `only` narrows it to the kinds that take the mouse. */
+export function overlayRegions(only) {
+  const out = [];
+  for (const entry of entries.values()) {
+    if (entry.win.isDestroyed() || !entry.win.isVisible()) continue;
+    for (const r of entry.regions ?? [])
+      if (!only || only.includes(r.kind))
+        out.push({
+          kind: r.kind,
+          x: r.x + entry.bounds.x,
+          y: r.y + entry.bounds.y,
+          width: r.width,
+          height: r.height,
+        });
+  }
+  return out;
 }
 /** The Electron-bound service; service.mjs holds the logic so it runs in node. */
 export class DesktopOverlayService extends OverlayService {
@@ -152,5 +187,8 @@ export class DesktopOverlayService extends OverlayService {
       displays: screen,
       ...options,
     });
+  }
+  regions(only) {
+    return overlayRegions(only);
   }
 }

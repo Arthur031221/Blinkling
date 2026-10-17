@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { captureMatchesDisplay } from "./schema.mjs";
-const COMMANDS = ["pulse", "focus", "fade", "revive"];
+const COMMANDS = ["pulse", "focus", "solo", "fade", "revive"];
 export class OverlayService extends EventEmitter {
   constructor({
     onDismiss = () => {},

@@ -864,7 +864,11 @@ const send = (event) => {
     flow((m) => {
       // The failure is noticed first, so the card it opened is read, not closed.
       if (event.phase === "error") m.notice();
-      m.guide(event.phase !== "dismissed" && event.phase !== "error");
+      m.guide(
+        event.phase !== "dismissed" && event.phase !== "error",
+        undefined,
+        Boolean(event.again),
+      );
     });
   }
 };
@@ -947,7 +951,9 @@ const blinkPoint = () => ({
 });
 const mouthPoint = () => mouthOf(blinkPoint());
 /** While the pick layer is up Blink's eyes follow the cursor. */
-let pickingOn = false;
+let pickingOn = false,
+  forcedPicking = false,
+  staleSince = null;
 const tellPicking = (on) => {
   if (on !== pickingOn) {
     pickingOn = on;
@@ -1584,11 +1590,21 @@ hookedPress = createHookedPress({
   over: (p) => over(p),
   dragging: () => !!drag,
   picking: () => pickingOn,
-  outside: () => flow((m) => m.outside()),
+  outside: () => backgroundPress(),
 });
+/** A press on the background ends what is up: the card, the bubbles, and a guide
+ * whether it still looks at the screen, shows its marks or its steps. */
+function backgroundPress() {
+  const closed = flow((m) => m.outside());
+  const guide = features?.guide;
+  if (closed !== false && (guide?.controller || guide?.guide))
+    void features.handle("guide-dismiss");
+}
 function over(p) {
   const local = localPoint(p, frame());
   if (regions.some((r) => contains(r, local))) return true;
+  // The guide's marks, number badges and label pills are Blinkling's own.
+  if (features?.overlay.regions?.().some((r) => contains(r, p))) return true;
   return [composer, ...extraWindows].some(
     (w) => w && !w.isDestroyed() && w.isVisible() && contains(w.getBounds(), p),
   );
@@ -1652,6 +1668,14 @@ const poll = setInterval(() => {
   }
   // tick() hands back what it decided (a long press picks Blink up).
   act(machine.tick());
+  // A pick flag with no layer behind it must not swallow the clicks away.
+  if (pickingOn && !forcedPicking && !pick.layerUp?.()) {
+    staleSince ??= performance.now();
+    if (performance.now() - staleSince > 500) {
+      tellPicking(false);
+      staleSince = null;
+    }
+  } else staleSince = null;
   const overCard = composer?.isVisible() && contains(composer.getBounds(), p);
   // A press anywhere that is not Blinkling's own ends an answered card; the
   // native pointer reports the button, and a lost focus covers the rest.
@@ -1663,7 +1687,7 @@ const poll = setInterval(() => {
       !outsideWasDown &&
       outsidePress({ over: over(p), dragging: !!drag, picking: pickingOn })
     )
-      flow((m) => m.outside());
+      backgroundPress();
     outsideWasDown = down;
   }
   const key = `${p.x},${p.y},${hit},${overCard},${chatOpen}`;
@@ -1724,7 +1748,10 @@ if (process.env.BLINKLING_E2E === "1")
     features,
     companionHost,
     session,
-    picking: tellPicking,
+    picking: (on) => {
+      forcedPicking = on;
+      tellPicking(on);
+    },
     send,
     guideOffer,
     revealedGuides,

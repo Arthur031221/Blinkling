@@ -11,5 +11,6 @@ contextBridge.exposeInMainWorld(
     onDraw: subscribe("blinkling:overlay:draw"),
     onCommand: subscribe("blinkling:overlay:command"),
     markClick: (n) => ipcRenderer.send("blinkling:overlay:mark-click", n),
+    regions: (list) => ipcRenderer.send("blinkling:overlay:regions", list),
   }),
 );

@@ -544,3 +544,30 @@ test("a capture on a second display flies from its screen position", async () =>
     height: 200,
   });
 });
+
+test("a pick key released while the layer still waits for the last grab never leaves the layer up", async () => {
+  let finish;
+  const slow = new Promise((resolve) => (finish = resolve));
+  const { controller, log } = setup({
+    grab: async () => {
+      await slow;
+      return {
+        image: { data: PNG },
+        pixelWidth: 1280,
+        pixelHeight: 800,
+        region: DISPLAY.bounds,
+      };
+    },
+  });
+  await controller.raise();
+  await pickAt(controller, local(200, 280));
+  const delivering = controller.drop("release");
+  await new Promise((r) => setImmediate(r));
+  const raising = controller.raise();
+  await new Promise((r) => setImmediate(r));
+  await controller.drop("release");
+  finish();
+  await Promise.all([delivering, raising]);
+  const shown = log.shown.length;
+  assert.equal(log.hidden >= shown, true, "every layer shown was hidden");
+});

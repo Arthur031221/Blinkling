@@ -109,12 +109,12 @@ test("the pointer stick aims at the box of the step being shown, on every step",
     move(at.x, at.y);
     await page.waitForTimeout(300);
     click(at.x, at.y);
-    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(3, {
-      timeout: 10000,
-    });
+    await expect(cardPage(app).locator(".gl-guide-head")).toContainText(
+      /1.*3/,
+      { timeout: 10000 },
+    );
     const button = (action) =>
       cardPage(app).locator(`.gl-guide button[data-action="${action}"]`);
-    await button("guide-next").click();
     // The step header is readable: solid paper of its own, and no mask from the
     // history's top fade over it.
     const head = await cardPage(app).evaluate(() => {

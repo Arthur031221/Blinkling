@@ -291,11 +291,11 @@ export function createMachine({ now: clock = () => 0 } = {}) {
      * the viewer stay, and Blink stays with them. The idle grumble is the
      * renderer's and is left alone. */
     outside(t = clock()) {
-      if (s.panels > 0 || s.viewer > 0) return;
+      if (s.panels > 0 || s.viewer > 0) return false;
       if (s.surface === "chat") {
         if (s.pinned) {
           emit("bubbles-clear");
-          return;
+          return false;
         }
         // A streaming answer or a draft does not hold the card open: the
         // answer goes on into the history and the draft stays in the page.
@@ -309,6 +309,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         s.leftAt = null;
         emit("retreat");
       }
+      return true;
     },
     escape(t = clock()) {
       if (s.viewer > 0) return;
@@ -425,8 +426,9 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
       engage(t);
     },
-    /** A guide keeps its steps in the card for as long as it runs. */
-    guide(on, t = clock()) {
+    /** A guide keeps its steps in the card for as long as it runs; `offer` keeps
+     * the card a while after it for the "show it again" button. */
+    guide(on, t = clock(), offer = false) {
       if (s.guiding === Boolean(on)) return;
       s.guiding = Boolean(on);
       if (on) {
@@ -435,7 +437,14 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         if (s.surface !== "chat") openChat(t, "answer");
         s.readUntil = null;
       } else if (s.surface === "chat" && !s.pinned) {
-        if (s.guideOnly && !s.streaming && !s.composer.text && !s.composer.ime)
+        // An offer to show the guide again keeps the card for the reading time.
+        if (
+          s.guideOnly &&
+          !offer &&
+          !s.streaming &&
+          !s.composer.text &&
+          !s.composer.ime
+        )
           closeChat(t, "guide-end");
         else s.readUntil = Math.max(s.readUntil ?? 0, t + timing.readMin);
         s.guideOnly = false;

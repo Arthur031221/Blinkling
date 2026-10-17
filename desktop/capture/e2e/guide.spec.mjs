@@ -389,8 +389,7 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     expect(PNG.sync.read(Buffer.from(sent.image, "base64")).width).toBe(1280);
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).phase))
-      .toBe("overview");
-    await blink.evaluate(() => window.blinkling.action("guide-next"));
+      .toBe("step");
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).index))
       .toBe(0);
@@ -432,11 +431,7 @@ test("guide session image/steps, Escape/Blink exit and content movement invalida
     await showAgain(app, start);
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).phase))
-      .toBe("overview");
-    native(30, 30, [0xff53]);
-    await expect
-      .poll(() => blink.evaluate(() => window.guides.at(-1).index))
-      .toBe(0);
+      .toBe("step");
     native(30, 30, [0xff53]);
     await expect
       .poll(() => blink.evaluate(() => window.guides.at(-1).index))
@@ -748,8 +743,6 @@ test("the last step is drawn, Blink closes the tour, and every control keeps wor
         () => globalThis.blinklingTest.features.overlay.drawings?.length ?? -1,
       );
     await nextWindow(app, () => act("guide"));
-    await expect.poll(phase).toBe("overview");
-    await act("guide-next");
     await expect.poll(phase).toBe("step");
     await act("guide-next");
     await expect
@@ -806,7 +799,7 @@ test("a failed guide turn names its reason and offers a retry that reruns the gu
     await desktopShot(app, "guide-error");
     expect(await app.evaluate(() => globalThis.b3Sends)).toBe(1);
     await nextWindow(app, () => act("guide-retry"));
-    await expect.poll(phase).toBe("overview");
+    await expect.poll(phase).toBe("step");
     expect(await app.evaluate(() => globalThis.b3Sends)).toBe(2);
     await act("guide-dismiss");
   } finally {
@@ -834,8 +827,8 @@ test("the recorded haiku reply at low effort draws as numbered marks", async () 
       blink.evaluate((n) => window.blinkling.action(n), name);
     const phase = () => blink.evaluate(() => window.guides.at(-1).phase);
     await nextWindow(app, () => act("guide"));
-    // The reply that used to fail every time now reaches the overview.
-    await expect.poll(phase).toBe("overview");
+    // The reply that used to fail every time now reaches its first step.
+    await expect.poll(phase).toBe("step");
     const marks = await app.evaluate(
       () => globalThis.blinklingTest.features.overlay.drawings?.length ?? -1,
     );

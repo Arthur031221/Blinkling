@@ -60,12 +60,25 @@ function clear() {
   labels.replaceChildren();
   stage.classList.remove("faded");
 }
+/** The four edges of a mark's box as [x, y, width, height], thick enough to
+ * land a click on. */
+function outlineStrips({ x, y, width, height }, t = 10) {
+  return [
+    [x - t / 2, y - t / 2, width + t, t],
+    [x - t / 2, y + height - t / 2, width + t, t],
+    [x - t / 2, y - t / 2, t, height + t],
+    [x + width - t / 2, y - t / 2, t, height + t],
+  ];
+}
 async function draw(view) {
   clear();
   document.documentElement.dataset.theme = view.theme;
   svg.setAttribute("viewBox", `0 0 ${view.width} ${view.height}`);
   svg.setAttribute("preserveAspectRatio", "none");
   const masks = [];
+  // What the overlay draws and a click must not treat as the background: the
+  // number badges and the label pills take the click, the outlines are Blink's.
+  const regions = [];
   for (const drawing of view.drawings) {
     const r = drawing.rect;
     const shape = markShape(drawing.kind, r, {
@@ -101,6 +114,9 @@ async function draw(view) {
       window.guideOverlay.markClick(drawing.number),
     );
     labels.append(badge);
+    regions.push(["badge", b.x, b.y, b.width, b.height, drawing.number]);
+    for (const strip of outlineStrips(shape.bounds))
+      regions.push(["mark", ...strip, drawing.number]);
     masks.push(
       { ...b },
       {
@@ -150,6 +166,7 @@ async function draw(view) {
     }
     Object.assign(item.label.style, { left: `${p.x}px`, top: `${p.y}px` });
     masks.push(p);
+    regions.push(["label", p.x, p.y, p.width, p.height, item.drawing.number]);
     const line = leaderFor(item.drawing.rect, p, view.avoid);
     if (line) {
       const el = document.createElementNS(ns, "line");
@@ -160,9 +177,21 @@ async function draw(view) {
   });
   // Native viewports can be fractionally wider than Electron's integer DIP
   // bounds. Stretch drawings and pills over the same frozen coordinate plane.
+  const sx = innerWidth / view.width,
+    sy = innerHeight / view.height;
   labels.style.transformOrigin = "0 0";
   labels.style.transform = `scale(${innerWidth / view.width}, ${innerHeight / view.height})`;
   window.overlayMasks = masks;
+  reported = regions.map(([kind, x, y, w, h, n]) => [
+    kind,
+    x * sx,
+    y * sy,
+    w * sx,
+    h * sy,
+    n,
+  ]);
+  hidden = new Set();
+  report();
   for (const { group, badge, label } of items)
     for (const el of [group, badge, label].filter(Boolean))
       animate(
@@ -176,6 +205,16 @@ async function draw(view) {
       );
   document.body.dataset.dropped = dropped;
   document.body.dataset.drawn = view.seq;
+}
+// What a click must not treat as the background: only what is on show.
+let reported = [],
+  hidden = new Set();
+function report() {
+  window.guideOverlay.regions(
+    reported
+      .filter((r) => !hidden.has(r[5]))
+      .map(([kind, x, y, w, h]) => [kind, x, y, w, h]),
+  );
 }
 const numbers = (arg) =>
   arg === null || arg === undefined
@@ -201,9 +240,28 @@ const commands = {
     const set = numbers(arg);
     for (const item of items) {
       const dim = set !== null && !set.has(item.drawing.number);
-      for (const el of [item.group, item.badge, item.label].filter(Boolean))
+      for (const el of [item.group, item.badge, item.label].filter(Boolean)) {
         animate(el, [{ opacity: dim ? 0.25 : 1 }], "base");
+        el.style.pointerEvents = "";
+      }
     }
+    hidden.clear();
+    report();
+    document.body.dataset.focus = set ? [...set].join(",") : "";
+  },
+  // Only the marks in the focus stay; the rest are put away until all show.
+  solo(arg) {
+    const set = numbers(arg);
+    for (const item of items) {
+      const hide = set !== null && !set.has(item.drawing.number);
+      if (hide) hidden.add(item.drawing.number);
+      else hidden.delete(item.drawing.number);
+      for (const el of [item.group, item.badge, item.label].filter(Boolean)) {
+        animate(el, [{ opacity: hide ? 0 : 1 }], "base");
+        el.style.pointerEvents = hide ? "none" : "";
+      }
+    }
+    report();
     document.body.dataset.focus = set ? [...set].join(",") : "";
   },
   fade() {

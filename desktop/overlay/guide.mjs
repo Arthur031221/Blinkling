@@ -9,6 +9,8 @@ import {
 import { collectTurn } from "./turn.mjs";
 import { guideStrings } from "./strings.mjs";
 import { pickLocale } from "../shared/i18n.mjs";
+/** How long a finished guide stays on offer for a second showing. */
+export const REOPEN_MS = 15 * 60 * 1000;
 const FULL_WIDTH = new Set(["zh-TW", "zh-CN", "ja"]);
 /** The one sentence a failure bubble shows: what went wrong, in plain words and
  * in the user's language (`locale` is a tag or a locale list). */
@@ -43,6 +45,7 @@ export class GuideController {
     pageText = async () => "",
     language = () => "",
     timeoutMs,
+    now = () => Date.now(),
   }) {
     Object.assign(this, {
       session,
@@ -54,10 +57,16 @@ export class GuideController {
       pageText,
       language,
       timeoutMs,
+      now,
     });
-    this.dismissed = () => {
+    this.last = null;
+    this.dismissals = 0;
+    this.dismissed = (reason) => {
       this.guide = null;
-      this.onGuide({ phase: "dismissed" });
+      // A guide the page has outgrown is not offered again.
+      if (reason && reason !== "user" && reason !== "closed") this.last = null;
+      this.dismissals++;
+      this.onGuide({ phase: "dismissed", again: this.canReopen() });
     };
     overlay.on("dismissed", this.dismissed);
   }
@@ -106,8 +115,10 @@ export class GuideController {
       this.guide = guide;
       this.capture_ = capture;
       this.ended = false;
+      this.last = { guide, capture, at: this.now(), displayId };
+      // Step 1 first; every step at once is the reader's choice.
       this.index = -1;
-      this.overview();
+      this.step(0);
       return guide;
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -132,7 +143,7 @@ export class GuideController {
     )
       return;
     this.index = index;
-    this.pointing.focus(stepNumbers(this.guide, index));
+    this.pointing.focus(stepNumbers(this.guide, index), { solo: true });
     this.onGuide({
       phase: "step",
       index,
@@ -230,6 +241,40 @@ export class GuideController {
       this.onEnd(guideEnd(this.guide, this.capture_));
     }
   }
+  /** Whether the last finished guide of the screen can be shown again without
+   * a new run: it is kept until the page changes, a new guide runs, or it is
+   * old. */
+  canReopen() {
+    return !!this.last && this.now() - this.last.at < REOPEN_MS;
+  }
+  /** Shows the kept guide again from its first step; no AI run. */
+  async reopen() {
+    if (!this.canReopen()) return false;
+    const { guide, capture } = this.last;
+    this.dismiss();
+    this.onGuide({ phase: "thinking" });
+    let drawn = false;
+    try {
+      drawn = await this.pointing.show(guideRefs(guide), {
+        displayId: capture.display.id,
+        capture,
+        snap: false,
+      });
+    } catch (error) {
+      this.fail(error, "draw");
+      return false;
+    }
+    if (!drawn) {
+      this.fail(Error("nothing to draw"), "draw");
+      return false;
+    }
+    this.guide = guide;
+    this.capture_ = capture;
+    this.ended = true;
+    this.index = -1;
+    this.step(0);
+    return true;
+  }
   /** Reruns the failed guide on a fresh capture of the same display. */
   retry() {
     return this.lastDisplay === undefined
@@ -257,14 +302,19 @@ export class GuideController {
     });
   }
   dismiss() {
+    const had = !!(this.controller || this.guide || this.failed);
+    const seen = this.dismissals;
     this.controller?.abort();
+    this.controller = null;
     this.pointing.clear("user");
     // A capture still held would keep Auto explain busy: end it here.
     if (this.overlay.capture) this.overlay.dismiss("user");
     this.guide = null;
-    if (this.failed) {
-      this.failed = false;
-      this.onGuide({ phase: "dismissed" });
+    this.failed = false;
+    // Whatever the card showed (the looking, an error, a step) goes with it.
+    if (had && this.dismissals === seen) {
+      this.dismissals++;
+      this.onGuide({ phase: "dismissed", again: this.canReopen() });
     }
   }
   dispose() {

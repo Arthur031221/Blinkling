@@ -205,6 +205,8 @@ export function createLayers({
       layers.clear();
     },
     count: () => layers.size,
+    /** Whether a layer is raised and taking the pointer for a pick. */
+    up: () => [...layers.values()].some((l) => l.active && !l.win.isDestroyed()),
     /** Layers with a capture in flight; the stacking poll keeps them over Blink. */
     flying: () => [...flying].filter((w) => !w.isDestroyed()),
   };

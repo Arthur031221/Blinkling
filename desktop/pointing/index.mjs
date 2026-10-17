@@ -192,8 +192,8 @@ export function createPointing({
       if (state && Number.isInteger(n)) overlay.command("pulse", n);
     },
     /** One number, a list (a guide step names several marks) or null for all. */
-    focus(which) {
-      if (state) overlay.command("focus", which);
+    focus(which, { solo = false } = {}) {
+      if (state) overlay.command(solo && which !== null ? "solo" : "focus", which);
     },
     clear(reason = "user") {
       generation++;
@@ -217,7 +217,11 @@ export function createPointing({
     poll() {
       const point = state && cursor();
       if (!point) return;
-      const over = badges().some((b) => contains(b, point));
+      const over =
+        badges().some((b) => contains(b, point)) ||
+        (overlay.regions?.(["badge", "label"]) ?? []).some((r) =>
+          contains(r, point),
+        );
       if (over === interactive) return;
       interactive = over;
       overlay.setInteractive?.(over);
