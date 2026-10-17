@@ -1,4 +1,5 @@
 import { duration, easing, timing } from "../shared/motion.mjs";
+import { excluded } from "./exclusion.mjs";
 export function aborted(signal) {
   signal?.throwIfAborted();
 }
@@ -67,7 +68,10 @@ export const fadeDuration = (reduced) => (reduced ? 0 : duration.fast);
  * opacity 1 to 0; playing it backwards fades in from wherever it stopped, so a
  * capture that starts during a fade-in reverses it instead of jumping. Resolves
  * once the target opacity is on screen. */
-export function fadeScript(to, { duration: ms, easing: curve, reduced }) {
+export function fadeScript(
+  to,
+  { duration: ms, easing: curve, reduced, instant = false },
+) {
   return `(() => {
   const root = document.documentElement;
   const name = "blinkling-surface-fade";
@@ -86,7 +90,7 @@ export function fadeScript(to, { duration: ms, easing: curve, reduced }) {
     fade.pause();
     fade.currentTime = 0;
   }
-  if (reduced) {
+  if (reduced || (${instant ? "true" : "false"} && ${to} === 0)) {
     fade.playbackRate = 1;
     if (${to} === 0) fade.finish();
     else fade.cancel();
@@ -104,12 +108,14 @@ export function fadeScript(to, { duration: ms, easing: curve, reduced }) {
 }
 
 /** Fades one own window's page to opacity 0 or 1. The window itself is never
- * hidden, moved or re-shown, so nothing pops and nothing is re-activated. */
+ * hidden, moved or re-shown, so nothing pops and nothing is re-activated. Out
+ * is at once, because every frame Blink is gone is seen; back in is a fade. */
 export function fadeWindow(win, to, reduced = false) {
   const script = fadeScript(to, {
     duration: fadeDuration(reduced),
     easing: easing.standard,
     reduced,
+    instant: true,
   });
   return win.webContents.executeJavaScript(script, false);
 }
@@ -124,10 +130,13 @@ export class SurfaceGuard {
     windows,
     {
       fade = (win, to) => fadeWindow(win, to),
-      // The fade has finished; let the compositor present the last frame.
-      settle = () => frames(3),
+      // The page is clear; let the compositor present that frame and no more.
+      settle = () => frames(2),
+      // A window the system keeps out of every screen read needs no hiding.
+      keep = excluded,
     } = {},
   ) {
+    this.keep = keep;
     this.windows = windows;
     this.fade = fade;
     this.settle = settle;
@@ -140,7 +149,8 @@ export class SurfaceGuard {
       const faded = new Set();
       const fadeVisible = async () => {
         const fresh = this.windows().filter(
-          (w) => !w.isDestroyed() && w.isVisible() && !faded.has(w),
+          (w) =>
+            !w.isDestroyed() && w.isVisible() && !faded.has(w) && !this.keep(w),
         );
         for (const w of fresh) faded.add(w);
         await Promise.all(
@@ -151,10 +161,10 @@ export class SurfaceGuard {
       try {
         for (let round = 0; round < 3; round++) {
           const count = await fadeVisible();
-          if (!count && round) break;
+          // Nothing was hidden, so there is no frame to wait for.
+          if (!count) break;
           await this.settle();
           aborted(signal);
-          if (!count) break;
         }
         return await task();
       } finally {

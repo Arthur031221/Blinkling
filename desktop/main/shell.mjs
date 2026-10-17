@@ -50,6 +50,7 @@ import { hidePointing } from "../pointing/elements.mjs";
 import { createAnswerPointing } from "../pointing/answers.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
 import { captureScreen, screenImage, windowsOn } from "../capture/index.mjs";
+import { exclude } from "../capture/exclusion.mjs";
 import { createLocator } from "../locator/index.mjs";
 import { createCaptureAccess } from "../locator/access.mjs";
 import { createOverlay } from "../overlay/index.mjs";
@@ -103,6 +104,9 @@ app.commandLine.appendSwitch("enable-transparent-visuals");
 // Absolute desktop placement needs XWayland on Linux; native Wayland forbids it.
 if (process.platform === "linux" && process.env.DISPLAY)
   app.commandLine.appendSwitch("ozone-platform", "x11");
+// Where the system can keep a window out of a screen read, every window of
+// Blink's is kept out, so none has to be hidden for one.
+app.on("browser-window-created", (_event, win) => exclude(win));
 await app.whenReady();
 // Every surface speaks this one language, resolved here and sent out (N3.10).
 let locale = systemLocale({
