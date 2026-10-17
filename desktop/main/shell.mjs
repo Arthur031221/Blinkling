@@ -172,6 +172,7 @@ app.on("before-quit", () => {
 const uiOnce = createOnce(
   fileStore(join(app.getPath("userData"), "ui-once.json")),
 );
+let hookedPress;
 const input = await nativeInput();
 const cursor = cursorSource({
   query: input?.pointer,
@@ -1306,7 +1307,7 @@ const pick = await installPick({
     input,
     cursor: () => cursor.point(),
     // A mouse button went down somewhere on the desktop (macOS, Windows).
-    mousedown: () => hookedPress(),
+    mousedown: () => hookedPress?.(),
     blinkPoint,
     mouthPoint,
     nudges,
@@ -1487,7 +1488,7 @@ const stopStacking = await keepAbove(() =>
   }),
 );
 /** Whether a screen point is on anything Blinkling draws and takes clicks on. */
-const hookedPress = createHookedPress({
+hookedPress = createHookedPress({
   point: () => cursor.point(),
   over: (p) => over(p),
   dragging: () => !!drag,
@@ -1550,6 +1551,9 @@ const poll = setInterval(() => {
         height: card.height - 24,
       },
       menu: boundsOf(menuRegions, frame()),
+      panels: extraWindows
+        .filter((w) => w && !w.isDestroyed() && w.isVisible())
+        .map((w) => w.getBounds()),
     });
     flow((m) => {
       m.pointer(p, performance.now(), onBlink);

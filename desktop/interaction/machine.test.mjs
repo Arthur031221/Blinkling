@@ -452,6 +452,19 @@ test("losing focus to a Blinkling panel or with the pointer on Blink keeps the c
   assert.equal(panel.read().card, true);
 });
 
+test("losing focus to a click in Settings, the welcome or the viewer keeps the card", () => {
+  const { m, at, read } = rig();
+  m.click(0);
+  m.composer({ focus: true }, 1);
+  m.geometry({ panels: [{ x: 900, y: 100, width: 300, height: 400 }] });
+  m.pointer({ x: 1000, y: 200 }, at.t, false);
+  m.blurred(50);
+  assert.equal(read().card, true);
+  m.pointer(away, at.t, false);
+  m.blurred(60);
+  assert.equal(read().card, false);
+});
+
 test("a motion that must be seen pulls Blink out and holds it until it ends", () => {
   const { m, go } = rig();
   m.showFor(3000, 0);

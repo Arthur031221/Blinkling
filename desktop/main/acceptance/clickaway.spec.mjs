@@ -132,3 +132,43 @@ test("a card that opened by itself, without focus, closes on a click on the back
     await app.close();
   }
 });
+
+test("a click inside Settings, or on its language list, does not close the card", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("click_in_settings", { suffix: "-323" });
+  try {
+    await background(app);
+    await reveal(page);
+    await clickBlink(page);
+    await expect.poll(() => cardOpen(app), { timeout: 8000 }).toBe(true);
+    await app.evaluate(() => globalThis.blinklingTest.settings.open());
+    await page.waitForTimeout(1200);
+    const box = () =>
+      app.evaluate(({ BrowserWindow }) => {
+        const w = BrowserWindow.getAllWindows().find((w) =>
+          w.webContents.getURL().includes("/settings/index.html"),
+        );
+        return w.getBounds();
+      });
+    const win = await box();
+    rec.frame("settings-open");
+    // An empty spot of the panel, low down on its left.
+    native([
+      { type: "move", x: win.x + 30, y: win.y + win.height - 30, wait: 0.2 },
+      { type: "down" },
+      { type: "up", wait: 0.1 },
+    ]);
+    for (let i = 0; i < 6; i++) {
+      await page.waitForTimeout(250);
+      expect(
+        await cardOpen(app),
+        "the card stays after a click in Settings",
+      ).toBe(true);
+    }
+    rec.frame("after-click");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

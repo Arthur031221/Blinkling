@@ -495,6 +495,10 @@ test("on macOS a refused helper asks for Accessibility once and a fresh helper s
   const asked = [];
   const helper = fakeHelper(() => (allowed ? "ready active\n" : "denied\n"));
   const s = setup();
+  const notes = [];
+  s.electron.dialog = {
+    showMessageBox: async (options) => void notes.push(options),
+  };
   s.electron.systemPreferences = {
     isTrustedAccessibilityClient: (ask) => {
       asked.push(ask);
@@ -507,6 +511,9 @@ test("on macOS a refused helper asks for Accessibility once and a fresh helper s
   const pick = await s.install();
   assert.equal(pick.started, false);
   assert.deepEqual(asked, [false, true]);
+  assert.equal(notes.length, 1, "the note comes once, before the prompt");
+  assert.match(notes[0].message, /Blinkling/);
+  assert.ok(notes[0].detail.length > 20);
   const poll = async () => {
     const next = s.timers.filter((t) => t.ms === 2000).at(-1);
     await next.fn();

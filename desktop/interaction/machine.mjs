@@ -54,6 +54,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     stickyMenu: false,
     pointerOver: false,
     overSurface: false,
+    overPanel: false,
     inCorridor: false,
     graceUntil: 0,
     overSince: null,
@@ -231,6 +232,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       if (!s.geometry.card && !s.geometry.menu) {
         s.inCorridor = false;
         s.overSurface = false;
+        s.overPanel = false;
       }
     },
     /** `over` is the hit test against Blink's drawn shape. Everything else is
@@ -240,6 +242,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       const was = s.pointerOver || s.inCorridor || s.overSurface;
       s.pointerOver = Boolean(over);
       s.overSurface = inside(card, p) || inside(menu, p);
+      s.overPanel = (s.geometry.panels ?? []).some((r) => inside(r, p));
       const other = card ?? menu;
       s.inCorridor = Boolean(blink && other) && inside(hull(blink, other), p);
       const now = s.pointerOver || s.inCorridor || s.overSurface;
@@ -332,10 +335,12 @@ export function createMachine({ now: clock = () => 0 } = {}) {
         s.holdAt = t;
       }
     },
-    /** The card lost focus: with the pointer away from Blinkling that is a click outside. */
+    /** The card lost focus: with the pointer away from Blinkling that is a click outside.
+     * A click in Settings, the welcome or the viewer is Blinkling's own. */
     blurred(t = clock()) {
       api.composer({ focus: false }, t);
-      const near = s.pointerOver || s.overSurface || s.inCorridor;
+      const near =
+        s.pointerOver || s.overSurface || s.inCorridor || s.overPanel;
       if (!near && s.panels === 0 && s.viewer === 0) api.outside(t);
     },
     scrolled(t = clock()) {

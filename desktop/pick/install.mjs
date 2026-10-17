@@ -242,7 +242,20 @@ export async function installPick({
     platform === "darwin" &&
     started.error?.code !== "MISSING"
   ) {
-    if (trusted(false) === false) trusted(true);
+    if (trusted(false) === false) {
+      // Said once, in the reader's language, before the system's own prompt.
+      if (dialog && once.take("keys-denied")) {
+        const text = pickText(locale());
+        await dialog
+          .showMessageBox({
+            type: "info",
+            message: text("keys.denied"),
+            detail: text("keys.deniedNote"),
+          })
+          .catch(onError);
+      }
+      trusted(true);
+    }
     const setTimer = timers.setTimer ?? setTimeout;
     const poll = () => {
       retry = setTimer(async () => {
