@@ -61,6 +61,7 @@ const MAC = { Command: "⌘", Control: "⌃", Alt: "⌥", Shift: "⇧" };
 const ARROWS = { Up: "↑", Down: "↓", Left: "←", Right: "→" };
 
 export function hotkeyLabel(accelerator, platform = process.platform) {
+  if (!accelerator) return "";
   const parts = String(accelerator).split("+");
   if (platform === "darwin")
     return parts.map((part) => MAC[part] ?? ARROWS[part] ?? part).join(" ");

@@ -66,7 +66,7 @@ Necesitas Claude Code con la sesión iniciada. Después:
 
 - **Mantén Ctrl y haz clic** en un párrafo, botón o imagen. Blink lo toma.
 - **Mantén Ctrl y arrastra** para tomar un área.
-- Se abre un pequeño cuadro con tres preguntas rápidas. Enter envía la resaltada.
+- La tarjeta de chat se abre junto a Blink con lo que tomaste, tres preguntas rápidas y las listas de modelo, esfuerzo y permiso. Enter envía la resaltada.
 - Haz clic en Blink cuando quieras para hablar. La tarjeta de chat se abre junto a Blink con tu conversación.
 
 ![Haz clic en Blink, escribe una pregunta y la respuesta llega a la tarjeta de chat.](assets/ask.webp)

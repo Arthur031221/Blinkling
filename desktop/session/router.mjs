@@ -19,15 +19,29 @@ const BUSY_WAIT_MS = 180000;
 const BUSY_FRESH_MS = 600000;
 const MAIN = "blink";
 
-/** What a terminal session is shown of a message typed in Blink: exactly the
- * words, nothing added. A picture or file travels as an attribute of the
- * event (see channelAttachments), so a chip's text arrives as the chip says it. */
+/** The longest picked or attached text a terminal session is given in one event. */
+const CHANNEL_TEXT_MAX = 100000;
+
+/** What a terminal session is shown of a message typed in Blink: the words, and
+ * under them the text of a picked paragraph or a text file, each under its name,
+ * because a terminal has no tool to read an attachment of Blink's. A picture or
+ * a PDF travels as an attribute of the event (see channelAttachments), so a
+ * chip's text arrives as the chip says it. */
 export function channelText(message) {
-  return message.content
+  const words = message.content
     .filter((b) => b.type === "text")
     .map((b) => b.text)
     .join("\n\n")
     .trim();
+  const attached = message.content
+    .filter((b) => b.type === "document" && b.source?.type === "text")
+    .map((b) => {
+      const text = String(b.source.data ?? "").trim();
+      const cut =
+        text.length > CHANNEL_TEXT_MAX ? text.slice(0, CHANNEL_TEXT_MAX) : text;
+      return `--- ${b.title || "Selection.txt"} ---\n${cut}`;
+    });
+  return [words, ...attached].filter(Boolean).join("\n\n");
 }
 /** How many pictures and which files a message carries, for the event's
  * attributes: the terminal fetches the pictures with a tool. */
@@ -156,7 +170,11 @@ export class ChannelChat {
     else this.messages.push(message);
     if (this.messages.length > KEEP)
       this.messages.splice(0, this.messages.length - KEEP);
-    this.emit({ type: "message", ...message, ...(via ? { viaMain: true } : {}) });
+    this.emit({
+      type: "message",
+      ...message,
+      ...(via ? { viaMain: true } : {}),
+    });
     if (persist) this.save();
   }
   async send(turn) {
@@ -481,9 +499,7 @@ export class ChatRouter {
     const base = (cwd && this.basenameOf(cwd)) || "Claude Code";
     const taken = [...this.chats.values()].filter(
       (c) =>
-        c.key !== session &&
-        c.live &&
-        c.label.replace(/ #\d+$/, "") === base,
+        c.key !== session && c.live && c.label.replace(/ #\d+$/, "") === base,
     ).length;
     return taken ? `${base} #${taken + 1}` : base;
   }

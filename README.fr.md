@@ -66,7 +66,7 @@ Il vous faut Claude Code, connecté. Ensuite :
 
 - **Maintenez Ctrl et cliquez** sur un paragraphe, un bouton ou une image. Blink le prend.
 - **Maintenez Ctrl et faites glisser** pour prendre une zone.
-- Un petit champ de saisie s'ouvre avec trois questions rapides. Entrée envoie celle qui est en surbrillance.
+- La carte de discussion s'ouvre à côté de Blink avec ce que vous avez pris, trois questions rapides et les listes de modèle, d'effort et d'autorisation. Entrée envoie celle qui est en surbrillance.
 - Cliquez sur Blink à tout moment pour parler. La carte de discussion s'ouvre à côté de Blink avec votre conversation.
 
 ![Cliquez sur Blink, tapez une question, et la réponse arrive dans la carte de discussion.](assets/ask.webp)

@@ -5,6 +5,7 @@ import { BOX, FEET, mountBlink } from "../character/index.mjs";
 import { BLINK_SCALE as K } from "../character/size.mjs";
 import { grow, scanlines } from "../character/silhouette.mjs";
 import { pointerHit } from "./hit.mjs";
+import { cursorSource } from "./cursor.mjs";
 
 const MARGIN = 6;
 const inside = (poly, p) => {
@@ -77,22 +78,41 @@ for (const edge of ["bottom", "top", "left", "right"])
   for (const [name, o] of Object.entries(POSES))
     for (const scale of SCALES)
       for (const origin of ORIGINS)
-        test(`${name} on the ${edge} edge at ${scale}x, work area at ${origin.x},${origin.y}: the pointer reacts where Blink is drawn and not beyond its margin`, () => {
+        test(`${name} on the ${edge} edge at ${scale}x, work area at ${origin.x},${origin.y}: the pointer reacts where Blink is drawn and not beyond its margin`, async () => {
           const blink = figure(edge, o);
           const shape = blink.polygons();
           const regions = grow(scanlines(shape, size), MARGIN, size);
           // The window sits at the bottom of the work area; it is the origin of the drawing.
           const frame = { x: 800 + origin.x, y: 300 + origin.y };
+          let real, device;
+          const macPointer = cursorSource({
+            fallback: () => real,
+            toDip: () => assert.fail("a Mac pointer is already in points"),
+          });
+          const other = cursorSource({
+            query: () => device,
+            // Until the first native answer arrives, Electron's own value stands in.
+            fallback: () => null,
+            toDip: (d) => ({ x: d.x / scale, y: d.y / scale }),
+            clock: () => 0,
+          });
           let checked = 0;
           for (let x = 0; x < size.width; x += 4)
             for (let y = 0; y < size.height; y += 4) {
-              // What the system reports for the pointer: points on a Mac, device pixels on
-              // X11 and Windows, which main turns into points by the display's scale.
-              const device = {
-                x: (frame.x + x) * scale,
-                y: (frame.y + y) * scale,
-              };
-              const point = { x: device.x / scale, y: device.y / scale };
+              // What the system reports for the pointer, read the way main reads it:
+              // points on a Mac (Electron's own query, no native one), device pixels
+              // on X11 and Windows, which the cursor source turns into points by the
+              // display's scale.
+              real = { x: frame.x + x, y: frame.y + y };
+              device = { x: real.x * scale, y: real.y * scale };
+              const mac = macPointer.point();
+              other.point();
+              for (let k = 0; k < 4; k++) await Promise.resolve();
+              const point = other.point();
+              // The read above starts the next query: let it land before the pointer moves.
+              for (let k = 0; k < 4; k++) await Promise.resolve();
+              assert.deepEqual(mac, real, "the Mac path moved the pointer");
+              assert.deepEqual(point, real, "the device path missed the scale");
               const drawn = shape.some((p) => inside(p, { x, y }));
               const { hit } = pointerHit({
                 point,

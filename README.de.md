@@ -66,7 +66,7 @@ Du brauchst Claude Code, angemeldet. Dann:
 
 - **Halte Strg gedrückt und klicke** auf einen Absatz, eine Schaltfläche oder ein Bild. Blink nimmt es auf.
 - **Halte Strg und ziehe**, um stattdessen einen Bereich aufzunehmen.
-- Ein kleines Eingabefeld öffnet sich mit drei Schnellfragen. Enter sendet die markierte.
+- Die Chatkarte öffnet sich neben Blink mit deiner Auswahl, drei Schnellfragen und den Auswahllisten für Modell, Aufwand und Berechtigung. Enter sendet die markierte Frage.
 - Klicke jederzeit auf Blink, um zu sprechen. Neben Blink öffnet sich die Chatkarte mit deinem Gespräch.
 
 ![Klicke auf Blink, tippe eine Frage, und die Antwort läuft in die Chatkarte.](assets/ask.webp)

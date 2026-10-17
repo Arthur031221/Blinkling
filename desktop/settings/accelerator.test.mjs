@@ -76,4 +76,5 @@ test("the label reads naturally per platform", () => {
   assert.equal(hotkeyLabel("Command+Alt+Shift+X", "darwin"), "⌘ ⌥ ⇧ X");
   assert.equal(hotkeyLabel("Alt+Shift+X", "linux"), "Alt + Shift + X");
   assert.equal(hotkeyLabel("Control+Up", "linux"), "Ctrl + ↑");
+  assert.equal(hotkeyLabel(null, "linux"), "");
 });

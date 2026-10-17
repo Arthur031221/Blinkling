@@ -34,6 +34,9 @@ export const strings = {
     syncTitle: "Terminal sync",
     syncLine:
       "The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.",
+    hotkeyNone: "Not set",
+    quitKeyOff:
+      "The quit key could not be registered. Another app may hold it. Press Change and pick another key.",
     quitHelp:
       "Press {key} anywhere to close Blink at once, even if it is stuck.",
     version: "Version {version}",
@@ -70,6 +73,9 @@ export const strings = {
     syncTitle: "終端機同步",
     syncLine:
       "這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。",
+    hotkeyNone: "未設定",
+    quitKeyOff:
+      "結束快捷鍵註冊失敗，可能被其他程式佔用。按「變更」換一組按鍵。",
     quitHelp: "在任何地方按 {key}，就能立刻關閉 Blink，就算它卡住也一樣。",
     version: "版本 {version}",
   },
@@ -105,6 +111,8 @@ export const strings = {
     syncTitle: "终端同步",
     syncLine:
       "这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。",
+    hotkeyNone: "未设置",
+    quitKeyOff: "结束快捷键注册失败，可能被其他程序占用。点“更改”换一组按键。",
     quitHelp: "在任何地方按 {key}，就能立即关闭 Blink，即使它卡住了也一样。",
     version: "版本 {version}",
   },
@@ -142,6 +150,9 @@ export const strings = {
     syncTitle: "ターミナルとの同期",
     syncLine:
       "このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。",
+    hotkeyNone: "未設定",
+    quitKeyOff:
+      "終了キーを登録できませんでした。ほかのアプリが使っているかもしれません。「変更」を押して別のキーを選んでください。",
     quitHelp:
       "どこでも {key} を押すと、固まっていてもすぐに Blink を閉じます。",
     version: "バージョン {version}",
@@ -181,6 +192,9 @@ export const strings = {
     syncTitle: "터미널 동기화",
     syncLine:
       "이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.",
+    hotkeyNone: "설정 안 됨",
+    quitKeyOff:
+      "종료 키를 등록하지 못했습니다. 다른 앱이 쓰고 있을 수 있습니다. 변경을 눌러 다른 키를 고르세요.",
     quitHelp: "어디서든 {key}을(를) 누르면 멈춰 있어도 Blink가 바로 닫힙니다.",
     version: "버전 {version}",
   },
@@ -219,6 +233,9 @@ export const strings = {
     syncTitle: "Terminal-Sync",
     syncLine:
       "Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.",
+    hotkeyNone: "Nicht gesetzt",
+    quitKeyOff:
+      "Die Beenden-Taste konnte nicht registriert werden. Vielleicht belegt sie eine andere App. Wähle mit „Ändern“ eine andere Taste.",
     quitHelp:
       "Drücke überall {key}, um Blink sofort zu schließen, auch wenn es hängt.",
     version: "Version {version}",
@@ -258,6 +275,9 @@ export const strings = {
     syncTitle: "Sincronizar con la terminal",
     syncLine:
       "La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.",
+    hotkeyNone: "Sin definir",
+    quitKeyOff:
+      "No se pudo registrar la tecla de salida. Puede que otra app la use. Pulsa Cambiar y elige otra tecla.",
     quitHelp:
       "Pulsa {key} en cualquier lugar para cerrar Blink al instante, aunque esté bloqueado.",
     version: "Versión {version}",
@@ -300,6 +320,9 @@ export const strings = {
     syncTitle: "Synchronisation du terminal",
     syncLine:
       "L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
+    hotkeyNone: "Non définie",
+    quitKeyOff:
+      "La touche pour quitter n'a pas pu être enregistrée. Une autre app l'utilise peut-être. Appuyez sur Modifier et choisissez-en une autre.",
     quitHelp:
       "Appuyez sur {key} n'importe où pour fermer Blink aussitôt, même s'il est bloqué.",
     version: "Version {version}",
@@ -341,6 +364,9 @@ export const strings = {
     syncTitle: "Sincronização com o terminal",
     syncLine:
       "A opção faz o chat do Blink chegar a esta sessão. O Claude Code pede uma confirmação, uma só vez. Sem ela, o Blink continua funcionando e responde pela própria sessão.",
+    hotkeyNone: "Não definida",
+    quitKeyOff:
+      "Não foi possível registrar a tecla de saída. Outro app pode estar usando. Toque em Mudar e escolha outra tecla.",
     quitHelp:
       "Pressione {key} em qualquer lugar para fechar o Blink na hora, mesmo que esteja travado.",
     version: "Versão {version}",

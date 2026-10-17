@@ -50,6 +50,28 @@ test("the default is registered at start, and the stored choice wins", async () 
   assert.equal(b.stored(), "Control+Alt+Shift+Q");
 });
 
+test("when the system refuses the key at start it is unset, not the word null, and another key can be picked", async () => {
+  let open = false;
+  const registered = new Map();
+  const { key } = setup({
+    shortcuts: {
+      register: (k, run) => open && (registered.set(k, run), true),
+      unregister: (k) => registered.delete(k),
+    },
+  });
+  const started = await key.start();
+  assert.deepEqual(started, { ok: false, reason: "unavailable" });
+  assert.equal(key.current, null);
+  assert.deepEqual(await key.set("Control+Alt+Shift+Q"), {
+    ok: false,
+    reason: "unavailable",
+  });
+  open = true;
+  assert.deepEqual(await key.set("Control+Alt+Shift+Q"), { ok: true });
+  assert.equal(key.current, "Control+Alt+Shift+Q");
+  assert.ok(registered.has("Control+Alt+Shift+Q"));
+});
+
 test("pressing it tells the sessions, starts the quit and arms a one second hard exit", async () => {
   const t = setup();
   await t.key.start();

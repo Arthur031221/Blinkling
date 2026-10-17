@@ -66,7 +66,7 @@ You need Claude Code, signed in. Then:
 
 - **Hold Ctrl and click** a paragraph, button or picture. Blink takes it.
 - **Hold Ctrl and drag** to take an area instead.
-- A small composer opens with three quick asks. Enter sends the highlighted one.
+- The chat card opens beside Blink with your pick, three quick asks and the model, effort and permission pickers. Enter sends the highlighted ask.
 - Click Blink any time to talk. The chat card opens next to Blink with your conversation.
 
 ![Click Blink, type a question, and the answer streams into the chat card.](assets/ask.webp)

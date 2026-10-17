@@ -1549,7 +1549,11 @@ const quitKey = createQuitKey({
   quit: () => app.quit(),
   exit: () => app.exit(0),
 });
-void quitKey.start();
+// A refused registration leaves the key unset; Settings says so and offers another.
+void Promise.resolve(quitKey.start()).then((started) => {
+  if (!started?.ok)
+    console.warn("The quit key could not be registered:", started?.reason);
+});
 const welcome = installWelcome({
   electron: { BrowserWindow, ipcMain, systemPreferences, desktopCapturer },
   shell: secondary,
@@ -1649,9 +1653,11 @@ if (
       `Blinkling: the session did not start: ${error?.message ?? error}`,
     );
   });
-// The first start opens the welcome; end-to-end runs skip it unless asked.
+// The first start opens the welcome; end-to-end runs skip it unless asked. It is
+// never waited for: the quit key, the click hook and the cursor poll below start
+// whether or not the welcome (or a system permission notice) ever answers.
 if (process.env.BLINKLING_E2E !== "1" || process.env.BLINKLING_WELCOME === "1")
-  void welcome.openFirstTime();
+  void welcome.openFirstTime().catch(() => {});
 void features
   .resume()
   .catch(() => send({ type: "capture-status", state: "retrying" }));

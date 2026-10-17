@@ -264,7 +264,11 @@ test("a question the terminal session never starts on is answered by Blink's own
   assert.equal(t.main.sent.length, 1, "Blink's session got the question");
   assert.equal(t.main.sent[0].id, q.id);
   assert.deepEqual(dropped, ["s1"], "the host is told the channel dropped it");
-  assert.equal(t.router.currentKey, "s1", "the card stays in the session's chat");
+  assert.equal(
+    t.router.currentKey,
+    "s1",
+    "the card stays in the session's chat",
+  );
   const notes = t.events.filter(
     (e) =>
       e.type === "message" && e.content?.[0]?.text === say("en")("undelivered"),
@@ -328,6 +332,52 @@ test("channelText is exactly the words typed; pictures and files travel as attri
     pictures: 2,
     files: ["a.pdf"],
   });
+});
+
+test("a picked paragraph or a text file reaches the terminal as its text under its name", () => {
+  const picked = {
+    content: [
+      { type: "text", text: "這段在說什麼" },
+      {
+        type: "document",
+        title: "Selection.txt",
+        source: {
+          type: "text",
+          media_type: "text/plain",
+          data: "第一行\n第二行",
+        },
+      },
+      { type: "document", title: "a.pdf", source: { type: "base64" } },
+    ],
+  };
+  assert.equal(
+    channelText(picked),
+    "這段在說什麼\n\n--- Selection.txt ---\n第一行\n第二行",
+  );
+  assert.deepEqual(channelAttachments(picked).files, [
+    "Selection.txt",
+    "a.pdf",
+  ]);
+  const only = {
+    content: [
+      {
+        type: "document",
+        title: "Selection.txt",
+        source: { type: "text", data: "just this" },
+      },
+    ],
+  };
+  assert.equal(channelText(only), "--- Selection.txt ---\njust this");
+  const huge = {
+    content: [
+      {
+        type: "document",
+        title: "b.txt",
+        source: { type: "text", data: "x".repeat(300000) },
+      },
+    ],
+  };
+  assert.ok(channelText(huge).length < 100100);
 });
 
 test("the first session to join takes the card from an empty Blink chat; the empty one leaves the list", async () => {
@@ -557,10 +607,18 @@ test("only chats of sessions that are open are listed, and a session that ends l
   const listed = () => t.router.summary().chats.map((c) => c.key);
   assert.deepEqual(listed(), ["blink"]);
   t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
-  assert.deepEqual(listed(), ["s1"], "one open session: one chat, no Blink chat");
+  assert.deepEqual(
+    listed(),
+    ["s1"],
+    "one open session: one chat, no Blink chat",
+  );
   t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
   assert.deepEqual(listed(), ["s1", "s2"]);
-  assert.equal(t.router.currentKey, "s2", "the later session has the card at once");
+  assert.equal(
+    t.router.currentKey,
+    "s2",
+    "the later session has the card at once",
+  );
   t.router.unlink("s2");
   assert.deepEqual(listed(), ["s1"]);
   assert.equal(t.router.currentKey, "s1", "the card leaves a chat that ended");

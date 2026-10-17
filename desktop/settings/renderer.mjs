@@ -76,14 +76,20 @@ function render() {
     const on = listening === key;
     row.label.textContent = on
       ? t("hotkeyListening")
-      : hotkeyLabel(state[key], state.platform);
+      : state[key]
+        ? hotkeyLabel(state[key], state.platform)
+        : t("hotkeyNone");
     row.label.dataset.listening = String(on);
     row.change.textContent = t("hotkeyChange");
     row.change.setAttribute("aria-pressed", String(on));
   }
-  $("#quit-help").textContent = t("quitHelp", {
-    key: hotkeyLabel(state.quitKey, state.platform),
-  });
+  // A quit key that could not be registered has no name to show: the row says so
+  // where it can be seen, and Change still picks another one.
+  $("#quit-help").textContent = state.quitKey
+    ? t("quitHelp", { key: hotkeyLabel(state.quitKey, state.platform) })
+    : "";
+  if (!state.quitKey && !rows.quitKey.note.textContent)
+    say(t("quitKeyOff"), "error", "quitKey");
   start.setAttribute("aria-checked", String(state.startWithClaudeCode));
   start.setAttribute("aria-label", t("startWithClaude"));
   costume.setAttribute("aria-checked", String(state.costumeEffects));

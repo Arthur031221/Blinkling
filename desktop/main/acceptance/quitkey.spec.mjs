@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { launch, chord } from "./support.mjs";
 import { background } from "./helpers.mjs";
 import { record } from "./record.mjs";
@@ -62,4 +63,48 @@ test("the quit key ends Blink within about a second from a hung renderer, and te
     await app.close().catch(() => {});
   }
   void data;
+});
+
+test("a quit key the system refuses is shown as not set, never as null, and another key can be picked", async () => {
+  test.setTimeout(90000);
+  // Another client holds Control+Alt+Shift+B before Blink starts.
+  const holder = spawn(
+    "python3",
+    [fileURLToPath(new URL("./grabkey.py", import.meta.url))],
+    { stdio: ["ignore", "pipe", "inherit"] },
+  );
+  await new Promise((done) => holder.stdout.once("data", done));
+  const { app } = await launch();
+  const rec = record("quit_unavailable", { suffix: "-324", fps: 6 });
+  try {
+    await background(app);
+    await app.evaluate(() => globalThis.blinklingTest.settings.open());
+    await expect
+      .poll(() => app.windows().find((p) => p.url().includes("/settings/")))
+      .toBeTruthy();
+    const settings = app
+      .windows()
+      .find((p) => p.url().includes("/settings/index.html"));
+    await expect(settings.locator("#quit-label")).toHaveText("未設定");
+    await expect(settings.locator("#quit-note")).toContainText("註冊失敗");
+    for (const text of [
+      await settings.locator("#quit-label").innerText(),
+      await settings.locator("#quit-note").innerText(),
+    ])
+      expect(text).not.toMatch(/null|undefined/);
+    rec.frame("not-set");
+    // The holder lets go and the user picks another chord.
+    holder.kill();
+    await settings.locator("#quit-change").click();
+    await settings.keyboard.press("Control+Alt+Shift+Q");
+    await expect(settings.locator("#quit-label")).toHaveText(
+      "Ctrl + Alt + Shift + Q",
+    );
+    await expect(settings.locator("#quit-help")).toContainText("Ctrl");
+    rec.frame("picked");
+  } finally {
+    holder.kill();
+    await rec.stop();
+    await app.close().catch(() => {});
+  }
 });

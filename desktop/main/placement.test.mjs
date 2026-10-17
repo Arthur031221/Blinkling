@@ -598,3 +598,34 @@ test("a card the reader sized keeps its width and height, above the 520 px cap, 
     "never over Blink's body",
   );
 });
+test("the card and Blink measure from the same origin: moving the display moves the card by exactly as much", () => {
+  const at = (x, y, bar) => ({
+    id: 1,
+    scaleFactor: 2,
+    bounds: { x, y, width: 1440, height: 900 },
+    workArea: { x, y: y + bar, width: 1440, height: 900 - bar },
+  });
+  const home = at(0, 0, 25);
+  for (const edge of ["left", "right", "top", "bottom"])
+    for (const ratio of [0.1, 0.5, 0.9])
+      for (const [x, y] of [
+        [1440, 0],
+        [-1440, -300],
+        [0, 900],
+        [-2560, 120],
+      ]) {
+        const there = at(x, y, 25);
+        const a = cardBounds(home, resolvePosition(home, { edge, ratio })),
+          b = cardBounds(there, resolvePosition(there, { edge, ratio }));
+        const where = `${edge} ${ratio} at ${x},${y}`;
+        assert.deepEqual(
+          { x: b.x - x, y: b.y - y, w: b.width, h: b.height },
+          { x: a.x, y: a.y, w: a.width, h: a.height },
+          where,
+        );
+        // Blink's window is the display's bounds, so the reveal is a point in it.
+        const p = resolvePosition(there, { edge, ratio });
+        assert.ok(p.reveal.x >= 0 && p.reveal.x <= there.bounds.width, where);
+        assert.ok(p.reveal.y >= 0 && p.reveal.y <= there.bounds.height, where);
+      }
+});
