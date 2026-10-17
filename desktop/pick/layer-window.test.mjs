@@ -31,6 +31,9 @@ function fakes(displays, extra = {}) {
     setBounds(b) {
       this.calls.push(["bounds", b]);
     }
+    getBounds() {
+      return extra.placed?.(this) ?? this.options;
+    }
     isDestroyed() {
       return this.destroyed;
     }
@@ -55,7 +58,9 @@ function fakes(displays, extra = {}) {
     onPointer: (p) => pointer.push(p),
     setTimer: (fn, ms) => (log.timers.push({ fn, ms }), log.timers.length),
     clearTimer: () => {},
-    ...extra,
+    ...Object.fromEntries(
+      Object.entries(extra).filter(([k]) => k !== "placed"),
+    ),
   });
   const ready = (win) =>
     log.handlers["blinkling:pick-ready"]({ sender: win.webContents });
@@ -114,7 +119,10 @@ test("messages sent before the page is ready are delivered when it is", () => {
   layers.show(d1, { x: 1, y: 2 });
   assert.equal(log.windows[0].sent.length, 0);
   ready(log.windows[0]);
-  assert.equal(log.windows[0].sent.length, 1);
+  assert.deepEqual(
+    log.windows[0].sent.map(([, m]) => m.channel),
+    ["origin", "cursor"],
+  );
 });
 
 test("pointer events from the page reach the controller only while raised, and only from a layer", () => {
@@ -253,4 +261,19 @@ test("each time a layer rises it is put back on top of the X stack", () => {
   layers.show(d2, { x: 1400, y: 200 });
   layers.show(d2, { x: 1400, y: 200 });
   assert.deepEqual(raised, [[log.windows[1]], [log.windows[1]]]);
+});
+
+test("the page is told where its window really is, so a window held under the menu bar still lands pictures on the mouth", () => {
+  const { log, layers, ready } = fakes([d1], {
+    placed: (win) => ({ ...win.options, y: 25 }),
+  });
+  ready(log.windows[0]);
+  layers.show(d1, { x: 5, y: 5 });
+  const origins = log.windows[0].sent.filter(([, m]) => m.channel === "origin");
+  assert.deepEqual(origins.at(-1)[1].value, { x: 0, y: 25 });
+  assert.ok(
+    log.windows[0].sent.findIndex(([, m]) => m.channel === "origin") <
+      log.windows[0].sent.findIndex(([, m]) => m.channel === "cursor"),
+    "the origin comes before the first point is mapped",
+  );
 });

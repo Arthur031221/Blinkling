@@ -203,9 +203,11 @@ export function createPickController({
 
   /** Blink opens its mouth first; the picture is sucked in once it is wide. */
   async function feed(items) {
-    caught();
+    // Blink answers with the moment it has swallowed; the card waits for it.
+    const swallowed = Promise.resolve(caught());
     await pause(timing.eatLead);
     await layer.flight(items, mouthPoint());
+    await swallowed;
   }
 
   async function finish(entries, flightItems) {

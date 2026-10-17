@@ -6,6 +6,7 @@ import {
   APPEAR_FOR,
   CELEBRATE_FOR,
   EAT_FOR,
+  EAT_SWALLOWED,
   FILE_FOR,
   LEAVE_FOR,
   SHRUG_FOR,
@@ -249,4 +250,12 @@ test("the guide stick reaches far enough past the hand to be seen pointing", () 
     .slice(1)
     .map(Number);
   assert.ok(Math.hypot(x2 - x1, y2 - y1) >= 80, "at least 80 px long");
+});
+
+test("the swallow ends where the gulp ends, so the card can open on it", () => {
+  const at = (k) => eating(k);
+  assert.ok(EAT_SWALLOWED < EAT_FOR);
+  // Chewing and gulping stop at the same moment: the body is at rest after it.
+  assert.notEqual(at(EAT_SWALLOWED - 0.05).y, 0);
+  assert.equal(at(EAT_SWALLOWED + 0.01).mouth, "smile");
 });

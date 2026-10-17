@@ -659,6 +659,9 @@ api.onInit((init) => {
 
 api.onMessage(({ channel, value }) => {
   switch (channel) {
+    case "origin":
+      origin = value;
+      break;
     case "cursor":
       cursor = toClientPoint(value);
       placeBadge();

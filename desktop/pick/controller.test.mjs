@@ -69,7 +69,11 @@ function setup(options = {}) {
       })(),
     }),
     newChat: async () => void log.newChats++,
-    caught: () => void (log.caught++, log.order.push("caught")),
+    caught: () => (
+      log.caught++,
+      log.order.push("caught"),
+      options.swallowed?.(log)
+    ),
     pause: async (ms) => void log.order.push(`wait ${ms}`),
     mouthPoint: () => ({ x: 1280, y: 400 }),
     quick: {
@@ -221,6 +225,25 @@ test("the card opens only after the grab and the flight, so Blink has the pictur
     "flight",
     "card",
   ]);
+});
+
+test("the card opens only after Blink has swallowed, not when the picture lands in its mouth", async () => {
+  let swallow;
+  const { controller, log } = setup({
+    swallowed: (l) =>
+      new Promise((resolve) => {
+        swallow = () => (l.order.push("swallowed"), resolve());
+      }),
+  });
+  await controller.raise();
+  await pickAt(controller, local(200, 280));
+  const dropped = controller.drop("release");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(log.order.includes("flight"), "the picture has flown in");
+  assert.ok(!log.order.includes("card"), "but the card waits for the swallow");
+  swallow();
+  await dropped;
+  assert.deepEqual(log.order.slice(-2), ["swallowed", "card"]);
 });
 
 test("text arrives as a text attachment, not a picture of text", async () => {

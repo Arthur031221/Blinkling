@@ -22,6 +22,7 @@ import {
   CELEBRATE_FOR,
   DIZZY_FOR,
   EAT_FOR,
+  EAT_SWALLOWED,
   FILE_FOR,
   LEAVE_FOR,
   SHRUG_FOR,
@@ -1334,7 +1335,13 @@ const pick = await installPick({
       if (cardLoaded) tellCard({ type: "new-chat" });
       else freshChat = true;
     },
-    caught: () => motion("eat"),
+    // Blink bites; the promise is the end of the gulp, when the card may open.
+    caught: () => {
+      motion("eat");
+      return new Promise((resolve) =>
+        setTimeout(resolve, EAT_SWALLOWED * 1000),
+      );
+    },
     picking: tellPicking,
     quickShow: (event) => send(event),
     autoExplain: {

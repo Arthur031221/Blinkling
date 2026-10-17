@@ -18,6 +18,8 @@ export const DIZZY_FOR = SWAY_FOR + FALL_FOR;
  * picture is shown; ours starts at the moment the mouth begins to open. */
 export const EAT_FOR = 4.2;
 const EAT_LEAD = 0.6;
+/** When, in the same clock, the gulp is over: the card may open then. */
+export const EAT_SWALLOWED = 3.4 - EAT_LEAD;
 /** How long each of the other one-off motions lasts, in seconds. */
 export const APPEAR_FOR = 4.4;
 export const LEAVE_FOR = 2.4;

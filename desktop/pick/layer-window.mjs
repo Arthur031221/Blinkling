@@ -119,10 +119,19 @@ export function createLayers({
 
   const layerFor = (display) => layers.get(String(display.id));
 
+  /** Where the window really is. macOS keeps a window under the menu bar even
+   * when it was asked for the whole display, so the page's origin is the
+   * window's own corner and not the display's. */
+  const originOf = (layer) => {
+    const { x, y } = layer.win.getBounds?.() ?? layer.display.bounds;
+    return { x, y };
+  };
+
   function raiseWindow(layer, interactive) {
     layer.win.setIgnoreMouseEvents(!interactive);
     layer.active = interactive;
     layer.win.showInactive();
+    send(layer, "origin", originOf(layer));
     raise([layer.win]);
   }
 
@@ -142,8 +151,8 @@ export function createLayers({
       if (!layer) return;
       current = layer;
       layer.claims = (layer.claims ?? 0) + 1;
-      send(layer, "cursor", cursor);
       raiseWindow(layer, true);
+      send(layer, "cursor", cursor);
     },
     hide() {
       hideLayer(current);
