@@ -336,12 +336,15 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       }
     },
     /** The card lost focus: with the pointer away from Blinkling that is a click outside.
-     * A click in Settings, the welcome or the viewer is Blinkling's own. */
+     * A click in Settings, the welcome or the viewer is Blinkling's own. With
+     * nothing open the blur is only the hidden card giving the keyboard up
+     * (after Esc, say), and Blink keeps its grace. */
     blurred(t = clock()) {
       api.composer({ focus: false }, t);
       const near =
         s.pointerOver || s.overSurface || s.inCorridor || s.overPanel;
-      if (!near && s.panels === 0 && s.viewer === 0) api.outside(t);
+      if (s.surface !== "none" && !near && s.panels === 0 && s.viewer === 0)
+        api.outside(t);
     },
     scrolled(t = clock()) {
       s.scrollAt = t;

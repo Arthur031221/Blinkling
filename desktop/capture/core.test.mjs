@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  SETTLE_FRAMES,
   SurfaceGuard,
   fadeScript,
   fadeDuration,
@@ -9,7 +10,7 @@ import {
   deliverCapture,
   freezeDisplay,
 } from "./core.mjs";
-import { duration } from "../shared/motion.mjs";
+import { duration, timing } from "../shared/motion.mjs";
 
 test("crop uses captured pixel size, including fractional scale and negative origins", () => {
   for (const scale of [1, 1.5, 2]) {
@@ -236,4 +237,17 @@ test("deadline does not keep the process alive after the work finishes", async (
   const started = Date.now();
   await deadline(Promise.resolve(), 60_000, "X");
   assert.ok(Date.now() - started < 1000);
+});
+
+test("a faded surface is given long enough to be presented before the screen is read", async () => {
+  const guard = new SurfaceGuard(
+    () => [{ isDestroyed: () => false, isVisible: () => true }],
+    { fade: async () => {} },
+  );
+  const marks = [];
+  await guard.run(async () => marks.push(Date.now()));
+  const began = Date.now();
+  await guard.run(async () => marks.push(Date.now() - began));
+  assert.ok(SETTLE_FRAMES >= 8);
+  assert.ok(marks[1] >= SETTLE_FRAMES * timing.frame * 0.9, `${marks[1]} ms`);
 });

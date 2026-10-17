@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.2.3 - 2026-10-17
+
+- A capture lands in Blink's mouth, and the card opens only after the swallow, on every edge and at every display scale. The picture is aimed from the same transform that draws Blink.
+- A quick chip sends exactly the words on the button, with no added line about length or brevity, in Blink's own session and through the channel to the terminal session.
+- There is one dialog box. The small quick window is gone, a capture goes into the big card's own box, and clicking Blink while the card is open never makes a second surface.
+- The Guide is the first version again: the parts of the page are framed and named, the card has Back, Done, All steps and End tour, and Blink holds the guide stick and points at the framed part as the steps change.
+- Auto explain takes the whole screen and asks what it is. The card shows only the picture and the answer, never the prompt, and it stays until you close it. It asks again only when the screen has changed enough.
+- The full page button shows a progress bubble, the page flies into Blink's mouth like any capture, and then the card opens with one full page chip and its thumbnail.
+- The idle grumble stays at the edge: Blink does not come out, and the bubble shows beside the peeking head.
+- A Claude Code session that Blink has not met starts a brand new chat. The card follows it as soon as it links and starts empty, nothing of an earlier session is replayed into it, and the older chats stay in the switcher.
+- A click on the desktop background closes the menu bubbles, the progress bubble, speech bubbles and the card in one go, and Blink goes back to its edge. A pinned card stays, and the idle grumble bubble is left alone.
+- A quit key ends Blink within about a second from any state, even when a window is hung, and tells the linked terminal sessions that Blink was closed. It is Ctrl+Alt+Shift+B on Windows and Linux and Ctrl+Option+Command+B on macOS, and it can be changed in Settings.
+- Changing the model or the effort dresses Blink for a few seconds: a crown and cape for Opus, glasses and a notebook for Sonnet, a scarf and a paper plane for Haiku, a storyteller's hat for Fable. The effort picks the move, from a small nod to a spin with sparkles. Nothing plays at start up or when the same value is picked again.
+- The model list has Opus, Sonnet, Haiku and Fable, and every model is shown with its version, such as Opus 5.5 or Fable 5.1, in the list and on the selected value. A stored alias shows the version it stands for now.
+- Pointing at a part of Blink triggers that part's reaction where the part is drawn. The hit zones and the drawing share one transform, with tests at scale 1 and 2, work area offsets and every edge. Setting BLINKLING_DEBUG_HIT=1 draws the zones.
+- The capture progress bubble and the idle grumble bubble draw on Windows too. Blink is hidden from the capture itself on macOS and Windows, and on Linux it hides for as short a time as it can.
+- Smaller: a new capture clears the old pointing marks, the card title sits on solid paper, and a terminal session started with the channel flag whose events are dropped is told about the quit through the notice hook like any other session. The open command says nothing about the start command when there is no Sync line.
+- The four README recordings are made again from this build.
+
 ## 3.2.2 - 2026-10-17
 
 - Start Claude Code with `claude --dangerously-load-development-channels plugin:blinkling@blinkling`, then type `/blinkling:blinkling`. The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.

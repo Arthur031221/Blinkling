@@ -448,6 +448,24 @@ test("losing focus with the pointer away from Blinkling is a click outside", () 
   assert.equal(read().card, false);
 });
 
+test("the blur that follows Esc closing the card is not a click outside: Blink waits out its grace", () => {
+  const { m, at, go, read } = rig();
+  m.pointer(on, at.t, true);
+  m.click(at.t);
+  m.composer({ focus: true }, at.t + 1);
+  assert.equal(read().out, true);
+  m.pointer(away, at.t, false);
+  m.escape(at.t);
+  assert.equal(read().card, false);
+  // The hidden card gives up the keyboard.
+  m.blurred(at.t + 5);
+  assert.equal(read().out, true);
+  go(900);
+  assert.equal(read().out, true);
+  go(1500);
+  assert.equal(read().out, false);
+});
+
 test("losing focus to a Blinkling panel or with the pointer on Blink keeps the card", () => {
   const near = rig();
   near.m.click(0);

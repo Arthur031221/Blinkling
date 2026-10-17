@@ -436,7 +436,7 @@ export function guiding(t, aim) {
   const tap = 1 + 0.12 * Math.sin(t * 6),
     sx = tip.x + dx * STICK * tap,
     sy = tip.y + dy * STICK * tap;
-  const stick = `<g stroke-linecap="round"><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="${C.ink}" stroke-width="6.4"/><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="#f1c75b" stroke-width="3"/></g><circle cx="${f1(sx)}" cy="${f1(sy)}" r="5" fill="#e4574f" stroke="${C.ink}" stroke-width="2.4"/>`;
+  const stick = `<g class="guide-stick" stroke-linecap="round"><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="${C.ink}" stroke-width="6.4"/><path d="M${f1(tip.x)} ${f1(tip.y)}L${f1(sx)} ${f1(sy)}" stroke="#f1c75b" stroke-width="3"/></g><circle cx="${f1(sx)}" cy="${f1(sy)}" r="5" fill="#e4574f" stroke="${C.ink}" stroke-width="2.4"/>`;
   return {
     x: 0,
     yaw: 0,

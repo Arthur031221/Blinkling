@@ -411,6 +411,7 @@ async function action(id) {
     }
     api.interactive(all, {
       blink: body,
+      drawn: scanlines(character.ornaments(), size),
       menu: fan,
       bubbles: bubbleShapes(now, bubbles),
     });

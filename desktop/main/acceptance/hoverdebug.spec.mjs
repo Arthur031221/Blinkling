@@ -28,8 +28,8 @@ const spot = (page, part, side) =>
       const c = window.desktop.character,
         r = document.querySelector(".blink-body").getBoundingClientRect();
       const hits = [];
-      for (let x = r.x - 60; x < r.x + r.w + 60; x += 2)
-        for (let y = r.y - 60; y < r.y + r.h + 100; y += 2) {
+      for (let x = r.x - 60; x < r.x + r.width + 60; x += 2)
+        for (let y = r.y - 60; y < r.y + r.height + 100; y += 2) {
           const t = c.touchAt({ x, y });
           if (t && t.part === part && t.side === side) hits.push({ x, y });
         }

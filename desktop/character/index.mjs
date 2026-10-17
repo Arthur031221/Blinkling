@@ -42,6 +42,7 @@ import {
   peek,
   picking,
   guiding,
+  STICK,
   shrugging,
   touched,
   turning,
@@ -116,6 +117,23 @@ const ring = (x, y, r, n = 12) =>
     x: x + Math.cos((i / n) * Math.PI * 2) * r,
     y: y + Math.sin((i / n) * Math.PI * 2) * r,
   }));
+
+/** The convex hull of a set of points (Andrew's monotone chain). */
+function convexHull(points) {
+  const pts = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o, a, b) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const half = (list) => {
+    const out = [];
+    for (const p of list) {
+      while (out.length > 1 && cross(out.at(-2), out.at(-1), p) <= 0) out.pop();
+      out.push(p);
+    }
+    out.pop();
+    return out;
+  };
+  return [...half(pts), ...half([...pts].reverse())];
+}
 
 /** The status dot: shown only while the connection is in trouble. */
 const dotSvg = (dot) =>
@@ -563,6 +581,29 @@ export function mountBlink(host) {
             poly.length > 2 &&
             poly.every((v) => Number.isFinite(v.x) && Number.isFinite(v.y)),
         );
+    },
+    /** What is drawn on Blink's window but takes no click: the guide stick, as
+     * far as it swings. The screen watch masks it with the body, so its tap is
+     * not read as the screen changing. */
+    ornaments() {
+      const m = ctx.last?.attach?.match(
+        /class="guide-stick"[^>]*><path d="M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)"/,
+      );
+      if (!m) return [];
+      const [x1, y1, x2, y2] = m.slice(1).map(Number);
+      const len = Math.hypot(x2 - x1, y2 - y1) || 1,
+        reach = STICK * 1.12 + 10;
+      const far = {
+        x: x1 + ((x2 - x1) / len) * reach,
+        y: y1 + ((y2 - y1) / len) * reach,
+      };
+      // A capsule: the hull of a round end at the hand and one at the far reach.
+      const hull = convexHull([
+        ...ring(x1, y1, 10, 16),
+        ...ring(far.x, far.y, 10, 16),
+      ]);
+      const screen = toScreen();
+      return [hull.map((v) => screen(figurePoint(v)))];
     },
     /** Each touchable part as a polygon on the screen, for the debug view. */
     partShapes() {

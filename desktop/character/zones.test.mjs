@@ -96,3 +96,22 @@ test("the hand on the left is side -1 and the other +1", () => {
   for (const p of hands)
     assert.equal(blink.touchAt(p).side, p.x < mid ? -1 : 1);
 });
+
+test("the guide stick is masked for the screen watch but takes no click", () => {
+  const { blink } = settle("out", "bottom", { guideAim: { x: 1, y: -0.4 } });
+  const still = settle("out", "bottom").blink;
+  assert.deepEqual(still.ornaments(), []);
+  const [stick] = blink.ornaments();
+  assert.ok(stick.length > 8, "the stick has an outline");
+  // The ball at the end of the stick, wherever the tap has it, is inside.
+  const m = blink.last.attach.match(
+    /<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="5"/,
+  );
+  const [vx, vy] = blink.svg.getAttribute("viewBox").split(" ").map(Number);
+  const at = blink.figurePoint({ x: Number(m[1]), y: Number(m[2]) });
+  const ball = { x: at.x - vx, y: at.y - vy };
+  assert.ok(inside(stick, ball), "the ball is inside the mask");
+  // It is not a hit region: the pointer goes through it.
+  assert.equal(drawn(blink, ball), false);
+  assert.equal(blink.touchAt(ball), null);
+});

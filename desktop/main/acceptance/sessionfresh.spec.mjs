@@ -11,10 +11,7 @@ import { record } from "./record.mjs";
  * It needs a signed in claude, the installed plugin in the two project folders
  * and network, so it runs only when BLINKLING_LIVE=1. */
 const LIVE = process.env.BLINKLING_LIVE === "1";
-const FOLDERS = {
-  alpha: "/tmp/blink-live/alpha",
-  beta: "/tmp/blink-live/beta",
-};
+const FOLDER = "/tmp/blink-live/alpha";
 const SAVE =
   process.env.BLINKLING_LIVE_DIR ??
   "/home/levi/oss-engine/reports/glimpse-v3/r3";
@@ -68,7 +65,7 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
   const rec = record("session_fresh", { suffix: "-323", fps: 2 });
-  const names = ["blinkA", "blinkB"];
+  const names = ["blinkA", "blinkB", "blinkC"];
   try {
     await background(app);
     await reveal(page);
@@ -87,7 +84,7 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
         `env BLINKLING_RUNTIME_DIR=${runtime} claude --model haiku --dangerously-load-development-channels plugin:blinkling@blinkling`,
       );
     // Terminal A: the first session. It opens Blink and has a short talk.
-    start("blinkA", FOLDERS.alpha);
+    start("blinkA", FOLDER);
     await ready("blinkA");
     type("blinkA", "/blinkling:blinkling");
     await waitFor("blinkA", /Blink|desktop_open/i);
@@ -107,7 +104,7 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
     await sleep(1500);
 
     // Terminal B: a session Blink has not met. It opens Blink too.
-    start("blinkB", FOLDERS.beta);
+    start("blinkB", FOLDER);
     await ready("blinkB");
     // The moment the session has linked, before it opens Blink itself, the
     // card has already moved to it and shows an empty chat.
@@ -118,7 +115,7 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
           follows.locator('.gl-chat-tab[aria-selected="true"]').textContent(),
         { timeout: 15000 },
       )
-      .toContain("beta");
+      .toContain("alpha #2");
     expect((await lines(follows)).join("|")).not.toContain("MANGO");
     type("blinkB", "/blinkling:blinkling");
     await waitFor("blinkB", /Blink|desktop_open/i);
@@ -155,6 +152,42 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
       .toContain("MANGO");
     expect((await lines(mine)).join("|")).not.toContain("PAPAYA");
     rec.frame("back-to-A");
+    await sleep(1500);
+
+    // Both terminals end, then a third session starts in the same folder. It
+    // is a brand new chat as well: none of the two earlier talks come back.
+    type("blinkA", "/exit");
+    type("blinkB", "/exit");
+    await expect
+      .poll(() => mine.locator('.gl-chat-tab[data-live="false"]').count(), {
+        timeout: 30000,
+      })
+      .toBe(2);
+    start("blinkC", FOLDER);
+    await ready("blinkC");
+    const third = cardPage(app);
+    await expect
+      .poll(
+        () => third.locator('.gl-chat-tab[aria-selected="true"]').textContent(),
+        { timeout: 15000 },
+      )
+      .toContain("alpha #3");
+    type("blinkC", "/blinkling:blinkling");
+    await waitFor("blinkC", /Blink|desktop_open/i);
+    await sleep(4000);
+    const now = (await lines(third)).join("|");
+    expect(now).not.toContain("MANGO");
+    expect(now).not.toContain("PAPAYA");
+    expect(pane("blinkC")).not.toMatch(/MANGO|PAPAYA/);
+    rec.frame("session-C-fresh");
+    type("blinkC", "Reply with the single word KIWI and nothing else.");
+    await waitFor("blinkC", /●\s*KIWI/);
+    await expect
+      .poll(async () => (await lines(third)).join("|"), { timeout: 30000 })
+      .toContain("KIWI");
+    expect(await mine.locator(".gl-chat-tab").count()).toBe(3);
+    await writeFile(join(SAVE, "session_fresh-terminal-C.txt"), pane("blinkC"));
+    rec.frame("session-C-chat");
     await sleep(1500);
   } finally {
     for (const name of names) {

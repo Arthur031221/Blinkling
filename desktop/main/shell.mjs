@@ -143,6 +143,7 @@ let composer = null,
   regions = [],
   bubbleRegions = [],
   blinkRegions = [],
+  drawnRegions = [],
   // Where the peek was when the pointer pulled Blink out: the pointer stays
   // "on Blink" there while Blink steps out from under it.
   rim = [],
@@ -569,6 +570,7 @@ function useDisplay(next) {
   position = resolvePosition(display, store.positions[String(display.id)]);
   regions = [];
   bubbleRegions = [];
+  drawnRegions = [];
   blink.setBounds(display.bounds);
   if (input)
     input.setRegions(
@@ -673,6 +675,9 @@ ipcMain.on("blinkling:regions", (event, value, parts = {}) => {
       parts?.blink === undefined || validRegions(parts.blink, blink.getBounds())
     ) ||
     !(
+      parts?.drawn === undefined || validRegions(parts.drawn, blink.getBounds())
+    ) ||
+    !(
       parts?.menu === undefined || validRegions(parts.menu, blink.getBounds())
     ) ||
     !(
@@ -684,6 +689,7 @@ ipcMain.on("blinkling:regions", (event, value, parts = {}) => {
   regions = value;
   bubbleRegions = parts.bubbles ?? [];
   blinkRegions = parts.blink ?? [];
+  drawnRegions = parts.drawn ?? [];
   menuRegions = parts.menu ?? [];
   if (input) {
     if (ignoring) blink.setIgnoreMouseEvents(false);
@@ -1222,7 +1228,7 @@ const visualMasks = () =>
       const b = w.getBounds();
       const shape =
         w === blink
-          ? regions
+          ? [...regions, ...drawnRegions]
           : [{ x: 0, y: 0, width: b.width, height: b.height }];
       return shape.map((r) => ({
         ...r,

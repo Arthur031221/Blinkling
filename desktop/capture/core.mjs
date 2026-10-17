@@ -119,6 +119,10 @@ export function fadeWindow(win, to, reduced = false) {
   });
   return win.webContents.executeJavaScript(script, false);
 }
+/** Frames the compositor is given to present a faded window before the screen
+ * is read: a virtual display at twice the scale needs more than a few, and a
+ * card left in the picture is read as a screen that changed. */
+export const SETTLE_FRAMES = 8;
 const frames = (count) =>
   new Promise((resolve) => setTimeout(resolve, count * timing.frame));
 /** Includes temporary windows supplied by feature services. A failed capture
@@ -130,8 +134,8 @@ export class SurfaceGuard {
     windows,
     {
       fade = (win, to) => fadeWindow(win, to),
-      // The page is clear; let the compositor present that frame and no more.
-      settle = () => frames(2),
+      // The page is clear; let the compositor present that frame before the read.
+      settle = () => frames(SETTLE_FRAMES),
       // A window the system keeps out of every screen read needs no hiding.
       keep = excluded,
     } = {},

@@ -173,16 +173,24 @@ test("the card follows Blink to each of the four edges", async () => {
       const { display, position } = await app.evaluate(() =>
         globalThis.blinklingTest.snapshot(),
       );
-      // The card is as tall as its content needs, so the height comes from
-      // the shell; the placement itself is checked against the pure module.
-      const wanted = await app.evaluate(
-        () => globalThis.blinklingTest.composer.getBounds().height,
-      );
-      const expected = cardBounds(display, position, undefined, wanted);
-      expect(
-        await app.evaluate(() => globalThis.blinklingTest.composer.getBounds()),
-        `card at the ${edge} edge`,
-      ).toEqual(expected);
+      // The card glides to its new place; it is as tall as its content needs,
+      // so the height comes from the shell and the placement is checked
+      // against the pure module once the glide has ended.
+      await expect
+        .poll(
+          async () => {
+            const bounds = await app.evaluate(() =>
+              globalThis.blinklingTest.composer.getBounds(),
+            );
+            return JSON.stringify(
+              cardBounds(display, position, undefined, bounds.height),
+            ) === JSON.stringify(bounds)
+              ? "placed"
+              : bounds;
+          },
+          { message: `card at the ${edge} edge`, timeout: 5000 },
+        )
+        .toBe("placed");
       await shot(app, `card-follows-${edge}`);
     }
   } finally {
