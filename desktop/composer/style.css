@@ -76,17 +76,24 @@ a:focus-visible {
   padding: 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-l);
-  /* The card fades out toward its top: a long soft fade of the paper and of
-     its outline, in both themes, with a quarter of the paper left at the very
-     top so the header still sits on something. */
+  /* The card fades out toward its top: a soft fade of the paper and of its
+     outline, in both themes, with a quarter of the paper left at the very top
+     so the header still sits on something. The fade ends where the message
+     list starts (view.mjs sets --gl-fade to that offset), so the paper is solid
+     under every line of an answer and the page behind never mixes into it. */
   background:
     linear-gradient(
         to bottom,
         color-mix(in srgb, var(--gl-paper) 25%, transparent) 0,
-        var(--gl-paper) 55%
+        var(--gl-paper) var(--gl-fade, 64px)
       )
       padding-box,
-    linear-gradient(to bottom, transparent 0, var(--gl-border) 55%) border-box;
+    linear-gradient(
+        to bottom,
+        transparent 0,
+        var(--gl-border) var(--gl-fade, 64px)
+      )
+      border-box;
   transform-origin: var(--gl-origin, 100% 100%);
   box-shadow: var(--shadow);
   /* The card grows out of Blink and folds back the same way. A transition, not

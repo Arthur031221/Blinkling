@@ -126,6 +126,7 @@ test("the card fades out toward its top in both themes, and the pin and close st
           width: r.width,
           height: r.height,
           pin: { x: pin.x + 4, y: pin.y + 4 },
+          list: document.querySelector(".gl-chat-history").offsetTop,
           // The inside edge of the title's own paper, left of its first letter.
           brand: { x: brand.x + 3, y: brand.y + brand.height / 2 },
         };
@@ -142,6 +143,13 @@ test("the card fades out toward its top in both themes, and the pin and close st
         away(low) - away(top),
         `${theme}: the top shows more of the page behind than the bottom`,
       ).toBeGreaterThan(25);
+      // The paper is solid by the first row of the message list, so no line of
+      // an answer sits on the page behind.
+      const list = at(mid, rect.y + rect.list + 2);
+      expect(
+        Math.abs(away(list) - away(low)),
+        `${theme}: the paper under the message list is solid`,
+      ).toBeLessThan(18);
       // The pin sits on its own paper: a clear step from the faded card behind.
       const pin = at(rect.pin.x, rect.pin.y);
       expect(away(pin), `${theme}: the pin is drawn solid`).toBeGreaterThan(

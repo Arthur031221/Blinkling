@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-17T14:07:13.487Z",
+  "recordedAt": "2026-10-17T17:04:29.748Z",
   "version": "3.2.3",
   "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
@@ -11,61 +11,61 @@
       "asset": "assets/pick.webp",
       "scene": "papers",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "ca2143805158c12a62a9a836f41b7b6d48ff2dfab32dcc6a052903e1b0da6825",
-      "segments": [[2.5, 19]],
+      "sha256": "1f43a40be27054042b3070a6084a8e9bc622f305dfd5eb70a93281fc61cf29fc",
+      "segments": [[2.5, 24]],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "079352060cf12a2914ba36708b8af26576018f29264194a95424d62d1ad86d49",
+      "eventsSha256": "096f7a43369e5f4855b36bde138c887162240d08550b018746774c2cf27ceb37",
       "turns": 1,
-      "bytes": 3606072,
+      "bytes": 3944828,
       "width": 1280,
       "fps": 30,
       "site": [
         {
           "file": "assets/site/pick.mp4",
-          "sha256": "6f52792d63ddc059dc93556eeffe2d73503552947d272d28723861bb669b1558",
-          "bytes": 1512722
+          "sha256": "fe3a4180bf06740bc176686245b4bb7a872d46203fa8622b45f8e9e0efebff4b",
+          "bytes": 2082996
         },
         {
           "file": "assets/site/pick.webm",
-          "sha256": "e415a76fea09cc4016ae1b716a25e0d4547fd8b77fd2c32a016560b9d80c5b69",
-          "bytes": 2179465
+          "sha256": "3b5ec853d2ed52e16fbb0e892bf99db6337ebd79d6c4f66b001c7e6d0ec99ddc",
+          "bytes": 2924264
         },
         {
           "file": "assets/site/pick.png",
-          "sha256": "4d77ac37fccd9d9118fbf07cb9cb109e3e1a409f92726a5c550cb1086ea0971c",
-          "bytes": 1335368
+          "sha256": "2ed3e3d3419481537b763127556846c486ea5b5af799235de15030b71bad4107",
+          "bytes": 1235890
         }
       ],
-      "posterSecond": 15
+      "posterSecond": 20.5
     },
     {
       "asset": "assets/ask.webp",
       "scene": "ask",
       "url": "https://arxiv.org/abs/2501.12948",
-      "sha256": "5f801487968c4d4adc20ef003c5808eacbf73a0d88081bc88d0b8e4e638f0a43",
-      "segments": [[4.5, 18]],
+      "sha256": "1fb3aba809dde260bd7c1be808c317d74e26907b6e0712617a856c4e38d19456",
+      "segments": [[4.9, 18.5]],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "33ac5f849c0a789ee72baf2e6562e08e2fc2185cae61316377f98d9c7bc705e9",
+      "eventsSha256": "e85e4ce294cbfc41815418f19b8c64e688b7523d173182bf26d12181e565f63a",
       "turns": 1,
       "prompt": "what is reinforcement learning, in two lines",
-      "bytes": 1741694,
+      "bytes": 1349784,
       "width": 1280,
       "fps": 30,
       "site": [
         {
           "file": "assets/site/ask.mp4",
-          "sha256": "ae4a78f1aeaee1be087ff05608638a69e1e2f60118c5df0b68190e45d6abeff5",
-          "bytes": 1171342
+          "sha256": "59bcafb0aca03d0895eb9fc556c0c1f80647da286932ab931f6776df540f0cd1",
+          "bytes": 1140231
         },
         {
           "file": "assets/site/ask.webm",
-          "sha256": "e05f1bf2d261818dc8bfc137990b6b03e9355dd2b24fb8797a3ff0bf01a6f6e7",
-          "bytes": 1848039
+          "sha256": "cdd84aaeeec06ee867c93a367b16d9cc5f9a5ea734be3b8329809485fb1f1cfb",
+          "bytes": 1816814
         },
         {
           "file": "assets/site/ask.png",
-          "sha256": "37e7cdeba860f801cca205645386d94e490ca4d76570a6b44556820687d5bb1f",
-          "bytes": 1375438
+          "sha256": "b1f91f45b6bcfcff22033495f43c555430d5c8daf5b0ab2b018f325e996e2321",
+          "bytes": 1319413
         }
       ],
       "posterSecond": 12
@@ -74,33 +74,33 @@
       "asset": "assets/translate.webp",
       "scene": "arabic",
       "url": "https://ar.wikipedia.org/wiki/ذكاء_اصطناعي",
-      "sha256": "5813cfcc36b688b57fa71808d8978f97473e946663c585d92fc0d538ebdae3cf",
+      "sha256": "dc72c04864bdf639ef012519b94307d00ef9d2a24364b8684b61320296b45d13",
       "segments": [
-        [3.5, 15],
-        [23, 28.4]
+        [4.5, 16],
+        [23.5, 28.4]
       ],
       "events": "assets/record/events/translate.events.json",
-      "eventsSha256": "91be08e565f322a1a21514a5a041010323aea2233b99d3b75897452a1201ece9",
+      "eventsSha256": "babedb9902bdbd74c3f0ad3eccbbc1e1c4f8b8e0f54b66b3d65eaf95b5160b61",
       "turns": 1,
       "prompt": "Translate",
-      "bytes": 3833430,
+      "bytes": 3360808,
       "width": 1280,
       "fps": 30,
       "site": [
         {
           "file": "assets/site/translate.mp4",
-          "sha256": "cb244843d5bfddcaba964ea5a5160b28e1f258b7aa2d9ca13172835f8f5ca5fe",
-          "bytes": 1741882
+          "sha256": "730f76b8ff90594a763b84af51b8c623a4bf4c6e374a3d93bff4a2dddda6b04c",
+          "bytes": 1560399
         },
         {
           "file": "assets/site/translate.webm",
-          "sha256": "3a8221ee9cffaf9f652e84053ce2167c246a51bb6b8a62325421691ea369319b",
-          "bytes": 1753052
+          "sha256": "6872995fa78dc10af66502b4ed95ad0a134321796ed7416aab98337ce08bc0f2",
+          "bytes": 1537350
         },
         {
           "file": "assets/site/translate.png",
-          "sha256": "a3ab2cc24e9c20c5bb11ded203228aa84a933d5b9ab7cbd2c7db9fa14dcdc772",
-          "bytes": 1073884
+          "sha256": "8e6af60266caae7c0ad8cd5fd3c86f0b314ef772023eb87240b8167741567fc1",
+          "bytes": 1018588
         }
       ],
       "posterSecond": 15.5
@@ -109,35 +109,35 @@
       "asset": "assets/tour.webp",
       "scene": "hard",
       "url": "https://www.w3.org/WAI/demos/bad/before/home.html",
-      "sha256": "f5d00656e01c31eee2ee07655cb94588e9fd737e795991f7449177c8d8fbc77c",
+      "sha256": "f6a153edea7f3d8f6eb0fbcb5148f42a163bc0063c907db906bb1fe8a3517e02",
       "segments": [
         [1, 10],
-        [19, 38.9]
+        [25.5, 44.1]
       ],
       "events": "assets/record/events/tour.events.json",
-      "eventsSha256": "783459c40ace99acf60bdbb45861a73e9c3feb1a990c9b6067faacb2569838e0",
+      "eventsSha256": "57c9af245d389c6521a804cadda997ec0c11325df76c2923a3af761b6d40bb7d",
       "turns": 1,
-      "bytes": 2793070,
+      "bytes": 2582568,
       "width": 1280,
       "fps": 30,
       "site": [
         {
           "file": "assets/site/tour.mp4",
-          "sha256": "f6dd4772d948bdcdfca83d3298ccf5acd8b3246ae0f59dff14595b0f273fc1e7",
-          "bytes": 1815995
+          "sha256": "b3dd954bb2aae97911803c4eb22b57fa059e99c89d5ca92b38b9d8b9872cde9d",
+          "bytes": 1667367
         },
         {
           "file": "assets/site/tour.webm",
-          "sha256": "e8b1026290a14b60bad50bc29cc282d8cd3e96ee01fb605d019806eed29bcfee",
-          "bytes": 2052414
+          "sha256": "55fd222f1c3021456b23ffc45ddb2ac532c4889f5a75a2cd6d9702c7daff69b8",
+          "bytes": 2002568
         },
         {
           "file": "assets/site/tour.png",
-          "sha256": "a7e264f47570b1d4efa0b3d398b5ac4012e70a76b630472b5e4dcd4377495d48",
-          "bytes": 1349274
+          "sha256": "7744c9ae0e09b318c0072085d11123ba4347b7e041d35114f2132156a73cbab6",
+          "bytes": 1055644
         }
       ],
-      "posterSecond": 12
+      "posterSecond": 25
     }
   ],
   "stills": [

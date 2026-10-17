@@ -527,6 +527,10 @@ export function mountComposer(
   const measure = () => {
     sizing = 0;
     if (disposed || !visible) return;
+    // The paper's top fade ends where the message list begins.
+    const fade = `${history.offsetTop}px`;
+    if (card.style.getPropertyValue("--gl-fade") !== fade)
+      card.style.setProperty("--gl-fade", fade);
     const wanted = wantedHeight({
       card: Math.max(card.offsetHeight, card.scrollHeight),
       historyShown: history.clientHeight,

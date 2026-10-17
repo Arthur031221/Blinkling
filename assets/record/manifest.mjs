@@ -9,24 +9,24 @@ const sha = (file) =>
 const path = "assets/recordings.json";
 const manifest = JSON.parse(readFileSync(path, "utf8"));
 const raw = {
-  pick: "/tmp/hq/pick/pick.events.json",
-  ask: "/tmp/hq/ask/ask.events.json",
-  translate: "/tmp/hq/arabic/arabic.events.json",
-  tour: "/tmp/hq/hard2/hard.events.json",
+  pick: "/tmp/hq3/pick/pick.events.json",
+  ask: "/tmp/hq3/ask/ask.events.json",
+  translate: "/tmp/hq3/arabic/arabic.events.json",
+  tour: "/tmp/hq3/hard/hard.events.json",
 };
 const cuts = {
-  pick: [[2.5, 19]],
-  ask: [[4.5, 18]],
+  pick: [[2.5, 24]],
+  ask: [[4.9, 18.5]],
   translate: [
-    [3.5, 15],
-    [23, 28.4],
+    [4.5, 16],
+    [23.5, 28.4],
   ],
   tour: [
     [1, 10],
-    [19, 38.9],
+    [25.5, 44.1],
   ],
 };
-const posters = { pick: 15, ask: 12, translate: 15.5, tour: 12 };
+const posters = { pick: 20.5, ask: 12, translate: 15.5, tour: 25 };
 
 manifest.recordedAt = new Date().toISOString();
 manifest.capture =
