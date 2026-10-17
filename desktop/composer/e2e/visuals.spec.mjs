@@ -170,9 +170,10 @@ test("the model picker opens inside the card without a blank entry", async () =>
     const list = card.getByRole("listbox", { name: "模型" });
     await expect(list).toBeVisible();
     await expect(list.getByRole("option")).toHaveText([
-      "Opus",
-      "Sonnet",
-      "Haiku",
+      "Opus 5.5",
+      "Sonnet 5.5",
+      "Haiku 4.5",
+      "Fable 5.1",
     ]);
     const inside = await card.evaluate(() => {
       const r = document

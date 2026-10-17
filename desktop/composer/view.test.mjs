@@ -108,11 +108,16 @@ each(
   (locale) => {
     const t = setup({ locale });
     assert.equal(t.host.querySelectorAll("select, option").length, 0);
-    assert.deepEqual(t.options(t.tr("model")), ["opus", "sonnet", "haiku"]);
+    assert.deepEqual(t.options(t.tr("model")), [
+      "opus",
+      "sonnet",
+      "haiku",
+      "fable",
+    ]);
     assert.deepEqual(t.options(t.tr("effort")), efforts);
     for (const option of t.host.querySelectorAll(".gl-picker-option"))
       assert.notEqual(option.textContent.trim(), "");
-    assert.equal(t.trigger(t.tr("model")).textContent, "Haiku");
+    assert.equal(t.trigger(t.tr("model")).textContent, "Haiku 4.5");
     assert.equal(t.trigger(t.tr("effort")).textContent, t.tr("effort-low"));
     t.dispose();
   },
@@ -143,7 +148,12 @@ each(
     for (let round = 0; round < 5; round++)
       for (const [model, effort] of applied)
         t.emit({ type: "selection", applied: { model, effort } });
-    assert.deepEqual(t.options(t.tr("model")), ["opus", "sonnet", "haiku"]);
+    assert.deepEqual(t.options(t.tr("model")), [
+      "opus",
+      "sonnet",
+      "haiku",
+      "fable",
+    ]);
     assert.deepEqual(t.options(t.tr("effort")), efforts);
     t.emit({
       type: "selection",
@@ -162,6 +172,7 @@ each(
       "opus",
       "sonnet",
       "haiku",
+      "fable",
       "mystery-model",
     ]);
     assert.equal(
@@ -368,7 +379,8 @@ each(
     });
     assert.equal(t.trigger(model).textContent, rows().sonnet);
     assert.equal(rows().sonnet, "Sonnet 5.5");
-    assert.equal(rows().haiku, "Haiku", "an unknown version is not invented");
+    assert.equal(rows().haiku, "Haiku 4.5");
+    assert.equal(rows().fable, "Fable 5.1");
     t.emit({
       type: "selection",
       applied: { model: "claude-opus-4-1-20250805", effort: "low" },

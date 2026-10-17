@@ -98,13 +98,14 @@ test("plus, paste, drop, remove, text files and acknowledged picker rejection", 
     const options = card.getByRole("listbox", { name: "模型" });
     // No blank entry and no duplicate rows.
     await expect(options.getByRole("option")).toHaveText([
-      "Opus",
-      "Sonnet",
-      "Haiku",
+      "Opus 5.5",
+      "Sonnet 5.5",
+      "Haiku 4.5",
+      "Fable 5.1",
     ]);
-    await options.getByRole("option", { name: "Sonnet" }).click();
+    await options.getByRole("option", { name: "Sonnet 5.5" }).click();
     // The selection is only shown once Claude confirms it.
-    await expect(modelPicker).toHaveAttribute("aria-label", "模型: Haiku");
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型: Haiku 4.5");
     await expect(modelPicker).toHaveAttribute("aria-label", "模型: Sonnet 5.5");
     await effortPicker.click();
     await card
@@ -113,7 +114,7 @@ test("plus, paste, drop, remove, text files and acknowledged picker rejection", 
       .click();
     await expect(effortPicker).toHaveAttribute("aria-label", "思考程度: 高");
     await modelPicker.click();
-    await options.getByRole("option", { name: "Opus" }).click();
+    await options.getByRole("option", { name: "Opus 5.5" }).click();
     await expect(card.getByRole("alert")).toBeVisible();
     await expect(modelPicker).toHaveAttribute("aria-label", "模型: Sonnet 5.5");
     await expect(effortPicker).toHaveAttribute("aria-label", "思考程度: 高");

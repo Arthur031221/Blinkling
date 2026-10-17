@@ -44,7 +44,7 @@ test("no display text is written in the view, the composer or the stylesheet", (
 });
 
 test("a model id reads the same wherever it is shown", () => {
-  assert.equal(modelLabel("opus"), "Opus");
+  assert.equal(modelLabel("opus"), "Opus 5.5");
   assert.equal(modelLabel("claude-opus-5-5-20260101"), "Opus 5.5");
   assert.equal(modelLabel("claude-sonnet-5-5"), "Sonnet 5.5");
   assert.equal(modelLabel("claude-haiku-4-5-20251001"), "Haiku 4.5");

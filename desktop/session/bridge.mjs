@@ -10,6 +10,7 @@ import {
   usageLimit,
 } from "./normalize.mjs";
 import { permissionModes, userMessage } from "./protocol.mjs";
+import { families } from "../composer/models.mjs";
 
 const INTERNAL_SOURCES = new Set(["guide", "companion"]);
 
@@ -753,7 +754,6 @@ function scrubbed(message) {
 function modelMatches(requested, actual) {
   return (
     requested === actual ||
-    (["haiku", "sonnet", "opus"].includes(requested) &&
-      actual.startsWith(`claude-${requested}-`))
+    (families.includes(requested) && actual.startsWith(`claude-${requested}-`))
   );
 }
