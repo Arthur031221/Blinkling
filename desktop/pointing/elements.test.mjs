@@ -61,6 +61,15 @@ test("the instructions teach the badge syntax only when there is something to po
   assert.match(text, /\[\[n:box:x,y,width,height\|label\]\]/);
 });
 
+test("the instructions keep the name in the sentence and the mark after it", () => {
+  const text = pointingInstructions(["a:1:1 control Save"]);
+  assert.match(text, /keep its name in the sentence/);
+  assert.match(text, /right after that name/);
+  assert.match(text, /never write a mark in place of a name/);
+  // The example shows a name followed by the mark, not a mark alone.
+  assert.match(text, /the address bar \[\[1:a:1:1\|address bar\]\]/);
+});
+
 test("the instructions never show in the user's own message", () => {
   const block = pointingInstructions(["a:1:1 control Save"]);
   const event = {

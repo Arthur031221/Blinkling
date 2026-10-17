@@ -36,11 +36,12 @@ export function pointingInstructions(lines) {
     "Elements on the screen, one per line as `id kind name`:",
     ...lines,
     "",
-    "When your answer refers to one of these, write [[n:id|short label]] right",
-    "after the words, numbering from 1 in the order you mention them, e.g.",
-    "[[1:" +
+    "When your answer refers to one of these, keep its name in the sentence and",
+    "put [[n:id|short label]] right after that name, numbering from 1 in the",
+    "order you mention them, e.g. the address bar [[1:" +
       lines[0].split(" ")[0] +
-      "|the label]]. Use only ids from the list.",
+      "|address bar]]. A mark shows as a small number, so the sentence must read",
+    "well without it: never write a mark in place of a name. Use only ids from the list.",
     "If nothing in the list fits, you may use a pixel box of the screenshot:",
     "[[n:box:x,y,width,height|label]]. Do not mention this syntax to the user.",
     CLOSE,
