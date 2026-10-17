@@ -9,7 +9,7 @@ const bounds = { x: 0, y: 0, width: 1280, height: 800 };
 const display = { id: "1", bounds, scaleFactor: 1 };
 const drawings = [{ n: 1, rect: { x: 10, y: 10, width: 50, height: 20 } }];
 
-function rig({ escape } = {}) {
+function rig({ escape, reserve, created = [] } = {}) {
   const sent = [],
     released = [],
     shortcuts = new Map();
@@ -25,7 +25,11 @@ function rig({ escape } = {}) {
     getAllDisplays: () => [{ id: 1, scaleFactor: 1, bounds }],
   });
   const overlay = new OverlayService({
-    create: async () => window,
+    create: async (...args) => {
+      created.push(args);
+      return window;
+    },
+    reserve,
     release: (w) => released.push(w),
     escape:
       escape === null
@@ -110,4 +114,15 @@ test("the staleness watch leaves live marks alone: there is no screenshot to com
   assert.equal(decoded, 0);
   assert.equal(watch.detector ?? null, null);
   watch.dispose();
+});
+
+test("labels keep off the room a window will take, as well as off windows now up", async () => {
+  const created = [];
+  const r = rig({
+    created,
+    reserve: () => [{ x: 700, y: 40, width: 440, height: 520 }],
+  });
+  await r.overlay.show({ display }, drawings);
+  const [, , options] = created[0];
+  assert.deepEqual(options.avoid, [{ x: 700, y: 40, width: 440, height: 520 }]);
 });

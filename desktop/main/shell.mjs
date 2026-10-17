@@ -1260,6 +1260,20 @@ features = installCaptureGuide({
   windows: surfaces,
   session,
   masks: visualMasks,
+  // The card grows once a guide's overview is in it and slides up or down to
+  // keep off the marks, so the labels keep off the whole column it can stand in,
+  // not only off the small card standing there while they are laid out.
+  reserve: () => {
+    const card = cardBounds(
+      display,
+      shown(),
+      store.nudge(`card:${shown().edge}`),
+      Infinity,
+      [],
+    );
+    const area = display.workArea;
+    return [{ ...card, y: area.y, height: area.height }];
+  },
   busy: () => typing || !!session.active,
   onCapture: attachCapture,
   locator,

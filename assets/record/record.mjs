@@ -6,11 +6,26 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { input, poll } from "../../desktop/pick/e2e/support.mjs";
+import { input as xInput, poll } from "../../desktop/pick/e2e/support.mjs";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const out = process.env.OUT_DIR;
 const scene = process.env.SCENE;
+// REC_SCALE 2 records a 2560x1600 desktop that shows a 1280x800 scene at device
+// scale 2, so every edge is drawn with twice the pixels. The scene scripts speak
+// in scene pixels; X wants physical ones.
+const SCALE = Number(process.env.REC_SCALE ?? 1);
+const FPS = process.env.REC_FPS ?? "25";
+const input = (steps) =>
+  xInput(
+    steps.map(([op, ...a]) =>
+      op === "move"
+        ? [op, a[0] * SCALE, a[1] * SCALE]
+        : op === "drag"
+          ? [op, ...a.slice(0, 4).map((n) => n * SCALE), a[4]]
+          : [op, ...a],
+    ),
+  );
 const events = [];
 const t0 = Date.now();
 const mark = (name, extra = {}) => {
@@ -55,7 +70,12 @@ const home = mkdtempSync(join(tmpdir(), "blinkling-rec-"));
 // answers on screen should not name the repository the recording was made in.
 const app = await electron.launch({
   cwd: home,
-  args: [join(root, "desktop"), "--no-sandbox", "--lang=en-US"],
+  args: [
+    join(root, "desktop"),
+    "--no-sandbox",
+    "--lang=en-US",
+    ...(SCALE === 1 ? [] : [`--force-device-scale-factor=${SCALE}`]),
+  ],
   env: {
     ...process.env,
     XDG_CONFIG_HOME: join(home, "config"),
@@ -83,6 +103,7 @@ const browser = await chromium.launch({
     "--force-renderer-accessibility",
     "--lang=en-US",
     "--disable-features=Translate,TranslateUI",
+    ...(SCALE === 1 ? [] : [`--force-device-scale-factor=${SCALE}`]),
   ],
 });
 const context = await browser.newContext({ viewport: null, locale: "en-US" });
@@ -105,11 +126,11 @@ const ffmpeg = spawn(
     "-f",
     "x11grab",
     "-framerate",
-    "25",
+    FPS,
     "-draw_mouse",
     "1",
     "-video_size",
-    "1280x800",
+    `${1280 * SCALE}x${800 * SCALE}`,
     "-i",
     process.env.DISPLAY,
     "-c:v",

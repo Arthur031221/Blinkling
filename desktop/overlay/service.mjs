@@ -10,6 +10,7 @@ export class OverlayService extends EventEmitter {
     displays,
     windows = () => [],
     masks,
+    reserve,
     log = (line) => console.info(line),
   } = {}) {
     super();
@@ -22,6 +23,7 @@ export class OverlayService extends EventEmitter {
       displays,
       windows,
       masks,
+      reserve,
       log,
     });
     this.invalidate = () => {
@@ -80,7 +82,15 @@ export class OverlayService extends EventEmitter {
             };
           })
           .filter((r) => r.width > 0 && r.height > 0);
-      const avoid = occupied
+      // Room a window will take once the marks are up (the card at its
+      // tallest), in screen coordinates: labels keep off it as well.
+      const reserved = (this.reserve?.() ?? []).map((r) => ({
+        x: r.x - b.x,
+        y: r.y - b.y,
+        width: r.width,
+        height: r.height,
+      }));
+      const avoid = [...occupied, ...reserved]
         .map((r) => {
           const x = Math.max(0, r.x),
             y = Math.max(0, r.y);

@@ -54,6 +54,7 @@ export function installCaptureGuide({
   onState = () => {},
   pageText,
   masks,
+  reserve,
   busy = () => false,
   fullPage,
   companion = () => false,
@@ -68,7 +69,12 @@ export function installCaptureGuide({
   const displayId = () =>
     String(screen.getDisplayMatching(blink.getBounds()).id);
   // Esc belongs to the shell's layer stack (N5.3), not to the overlay.
-  const overlay = new DesktopOverlayService({ windows, masks, escape: null });
+  const overlay = new DesktopOverlayService({
+    windows,
+    masks,
+    reserve,
+    escape: null,
+  });
   const pointing = createPointing({ locator, overlay, card, cursor });
   const capture = new DesktopCaptureService({
     windows: () => [...windows(), overlay.window].filter(Boolean),

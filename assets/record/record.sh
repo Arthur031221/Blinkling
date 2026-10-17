@@ -6,7 +6,8 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 export OUT_DIR="${2:?output directory}" SCENE="${1:?pick, ask, area, papers, arabic or hard}"
 mkdir -p "$OUT_DIR"
-exec xvfb-run -a -s '-screen 0 1280x800x24 +extension Composite' \
+scale="${REC_SCALE:-1}"
+exec xvfb-run -a -s "-screen 0 $((1280 * scale))x$((800 * scale))x24 +extension Composite" \
   dbus-run-session -- bash -c '
     xfwm4 --compositor=on >"$OUT_DIR/wm.log" 2>&1 &
     wm=$!
