@@ -265,12 +265,12 @@ test("with the browser extension the screenshot bubble takes the whole page, pla
       .poll(() => cardPage(app)?.locator(".gl-attachment-chip").count(), {
         timeout: 8000,
       })
-      .toBe(3);
+      .toBe(1);
     await expect.poll(() => cardFocused(app)).toBe(true);
     expect(fake.calls.fullPage).toBe(1);
-    // Every tile keeps its picture in the box, not only the last one.
+    // The tiles show as one page chip that still holds a picture.
     await expect(cardPage(app).locator(".gl-attachment-chip img")).toHaveCount(
-      3,
+      1,
       {
         timeout: 10000,
       },
