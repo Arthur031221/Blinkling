@@ -95,7 +95,7 @@ test("every effort has its own move and the legs stay whole", () => {
   assert.equal(keys.size, EFFORTS.length);
 });
 
-test("xhigh and max spin round and throw sparkles, the lower efforts stay facing front", () => {
+test("xhigh and max spin round and throw stars, the lower efforts stay facing front", () => {
   const swings = {};
   for (const e of ["xhigh", "max"]) {
     let top = 0,
