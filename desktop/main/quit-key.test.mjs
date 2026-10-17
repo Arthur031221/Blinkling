@@ -90,7 +90,11 @@ test("a quit that never finishes is ended after about a second, with the main th
     { stdio: "ignore" },
   );
   const started = Date.now();
-  const code = await new Promise((done) => child.on("exit", (c, s) => done(s)));
-  assert.equal(code, "SIGKILL");
+  const [code, signal] = await new Promise((done) =>
+    child.on("exit", (c, s) => done([c, s])),
+  );
+  // Windows has no signals: the process is ended outright and reports a code.
+  if (process.platform === "win32") assert.notEqual(code, 0);
+  else assert.equal(signal, "SIGKILL");
   assert.ok(Date.now() - started < 3000);
 });
