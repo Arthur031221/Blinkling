@@ -570,3 +570,16 @@ test("PV-2: auto explain samples and captures only the active display, at a low 
     watch.dispose();
   }
 });
+
+test("pressing Auto explain with no Claude session says so instead of doing nothing", async () => {
+  const watch = new AutoWatch({
+    session: null,
+    capture: { screen: async () => null },
+    displayId: () => "1",
+    sample: async () => new Uint8Array(4),
+    idleSeconds: () => 10,
+  });
+  await assert.rejects(() => watch.start(), /session is starting/);
+  assert.equal(watch.enabled, false);
+  watch.dispose();
+});

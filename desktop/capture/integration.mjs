@@ -230,7 +230,15 @@ export function installCaptureGuide({
       if (action === "guide-retry") await startGuide(() => guide.retry());
       if (action === "auto-explain") {
         if (auto.enabled) auto.disable();
-        else await auto.start();
+        else
+          try {
+            await auto.start();
+          } catch (error) {
+            // Never silence: the press gets a failure line and stays off.
+            auto.disable();
+            reportError(error);
+            return { ok: false };
+          }
       }
       if (action.startsWith("guide-step-"))
         guide.step(Number(action.slice("guide-step-".length)) - 1);

@@ -114,6 +114,8 @@ export class AutoWatch {
    * watch for a change. The press itself said yes, so the three seconds of
    * quiet that guard the automatic asks are not waited for this first time. */
   async start() {
+    // A press that cannot start must say so; the caller shows the reason.
+    if (!this.session) throw Error("Claude session is starting");
     this.enable();
     this.resumeRequested = true;
     this.askNow = true;
