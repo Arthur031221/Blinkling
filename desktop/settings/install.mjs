@@ -62,6 +62,7 @@ export function installSettings({
       restore: () => shell.input?.restoreFocus(),
     },
     workArea: shell.workArea,
+    avoid: shell.avoid,
     nudges: shell.nudges,
   });
   return {

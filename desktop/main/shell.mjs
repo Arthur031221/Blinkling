@@ -40,6 +40,7 @@ import {
   clampNudge,
   mouthOf,
   carriedPosition,
+  clearOfCard,
 } from "./placement.mjs";
 import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
@@ -442,6 +443,7 @@ async function openComposer(options = {}) {
     win.webContents.send("blinkling:surface", { type: "open" });
     claimKeyboard(win, 250);
   } else if (!win.isVisible()) win.showInactive();
+  clearPanels();
 }
 /** A window manager may hand the keyboard to another window just after the
  * card opens (the window that closed, a focus revert). For a short settle
@@ -563,6 +565,23 @@ function placeCard(at = shown()) {
   placedAt = key;
   composer?.setBounds(bounds);
   shapeComposer();
+  // A panel that is open moves off the card once the card has settled.
+  if (!drag) clearPanels();
+}
+/** Settings and welcome never sit under the card. */
+function cardRect() {
+  return composer?.isVisible() ? composer.getBounds() : null;
+}
+let panelWindows = () => [];
+function clearPanels() {
+  const card = cardRect();
+  if (!card) return;
+  for (const win of panelWindows()) {
+    if (!win || win.isDestroyed() || !win.isVisible()) continue;
+    const at = win.getBounds();
+    const next = clearOfCard(at, card, display.workArea);
+    if (next !== at) win.setBounds(next);
+  }
 }
 /** Both ways a carried Blink is put down end here. A drop that followed two
  * loops leaves it dizzy. Returns whether it had been picked up. */
@@ -1285,6 +1304,7 @@ const secondary = {
   secure,
   input,
   workArea: () => display.workArea,
+  avoid: cardRect,
   nudges,
   // While either window is open Blink stays out beside it.
   windowOpen: () =>
@@ -1342,6 +1362,7 @@ const viewer = installViewer({
   },
 });
 extraWindows.push(welcome.test.win, settings.test.win, viewer.test.win);
+panelWindows = () => [settings.test.win, welcome.test.win];
 ipcMain.on("blinkling:view-image", (event, image) => {
   if (!trusted(event) || event.sender !== composer?.webContents) return;
   void viewer.open(image);

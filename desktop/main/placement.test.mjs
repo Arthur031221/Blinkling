@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  clearOfCard,
   snapPosition,
   resolvePosition,
   reconcileDisplay,
@@ -431,4 +432,29 @@ test("a card asked to be short is short, keeps its bottom where the full card ha
     cardBounds(display, position, { x: 0, y: 0 }, 10).height >= 120,
     "never a sliver",
   );
+});
+
+test("a panel the card would cover is moved the shortest way off it and stays on the display", () => {
+  const area = { x: 0, y: 0, width: 1280, height: 800 };
+  const panel = { x: 436, y: 80, width: 410, height: 640 };
+  const card = { x: 725, y: 340, width: 415, height: 355 };
+  const moved = clearOfCard(panel, card, area);
+  assert.equal(moved.y, panel.y, "sideways first");
+  assert.ok(moved.x + moved.width <= card.x, "clear of the card on its left");
+  assert.ok(moved.x >= area.x);
+  // A panel that does not touch the card stays where it is.
+  const apart = { x: 20, y: 80, width: 410, height: 640 };
+  assert.equal(clearOfCard(apart, card, area), apart);
+  assert.equal(clearOfCard(panel, null, area), panel);
+  // No room on any side: it is left alone rather than pushed off the display.
+  const tight = { x: 0, y: 0, width: 500, height: 400 };
+  const fill = { x: 100, y: 100, width: 300, height: 200 };
+  assert.equal(
+    clearOfCard(tight, fill, { x: 0, y: 0, width: 500, height: 400 }),
+    tight,
+  );
+  // The card to the left of the middle sends the panel to its right.
+  const left = { x: 100, y: 340, width: 415, height: 355 };
+  const right = clearOfCard({ ...panel, x: 300 }, left, area);
+  assert.ok(right.x >= left.x + left.width);
 });

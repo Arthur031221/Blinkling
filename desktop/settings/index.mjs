@@ -1,3 +1,4 @@
+import { clearOfCard } from "../main/placement.mjs";
 import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { duration } from "../shared/motion.mjs";
 import { LANGUAGE_NAMES, LOCALES, live } from "../shared/i18n.mjs";
@@ -25,6 +26,7 @@ export function createSettingsController({
   host,
   focus,
   workArea,
+  avoid = () => null,
   nudges,
   loaded = Promise.resolve(),
   onChange = () => {},
@@ -61,7 +63,9 @@ export function createSettingsController({
       width,
       height,
     };
-    win.setBounds(moveBy ? moveBy(centred, area) : centred);
+    win.setBounds(
+      clearOfCard(moveBy ? moveBy(centred, area) : centred, avoid(), area),
+    );
   };
   const moveBy =
     nudges &&

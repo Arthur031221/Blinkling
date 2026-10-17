@@ -89,3 +89,61 @@ test("switching the language in the settings page changes every window in place:
     await app.close();
   }
 });
+
+test("the chat card and the Settings panel never overlap, whichever opens first", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("panel_card", { suffix: "-322" });
+  const rects = () =>
+    app.evaluate(({ BrowserWindow }) => {
+      const find = (part) =>
+        BrowserWindow.getAllWindows().find(
+          (w) =>
+            !w.isDestroyed() &&
+            w.isVisible() &&
+            w.webContents.getURL().includes(part),
+        );
+      return {
+        card: find("surface=card")?.getBounds() ?? null,
+        settings: find("/settings/index.html")?.getBounds() ?? null,
+      };
+    });
+  const apart = (a, b) =>
+    a.x + a.width <= b.x ||
+    b.x + b.width <= a.x ||
+    a.y + a.height <= b.y ||
+    b.y + b.height <= a.y;
+  try {
+    await background(app);
+    await reveal(page);
+    // Settings first, then the card opens beside it.
+    await app.evaluate(() => globalThis.blinklingTest.settings.open());
+    await expect.poll(() => pageOf(app, "/settings/index.html")).toBeTruthy();
+    await sleep(900);
+    await page.evaluate(() =>
+      window.blinkling.shell({ type: "click", permission: true }),
+    );
+    await expect
+      .poll(() =>
+        app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
+      )
+      .toBe(true);
+    await sleep(900);
+    let now = await rects();
+    expect(now.card && now.settings).toBeTruthy();
+    expect(apart(now.card, now.settings)).toBe(true);
+    rec.frame("card-opened-second");
+    // Close Settings and open it again while the card is up.
+    await app.evaluate(() => globalThis.blinklingTest.settings.close?.());
+    await sleep(600);
+    await app.evaluate(() => globalThis.blinklingTest.settings.open());
+    await sleep(900);
+    now = await rects();
+    expect(now.settings).toBeTruthy();
+    expect(apart(now.card, now.settings)).toBe(true);
+    rec.frame("settings-opened-second");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

@@ -151,6 +151,35 @@ export function nudged(bounds, nudge, area) {
     ),
   };
 }
+const overlaps = (a, b) =>
+  a.x < b.x + b.width &&
+  b.x < a.x + a.width &&
+  a.y < b.y + b.height &&
+  b.y < a.y + a.height;
+/** A panel (settings, welcome) moved the shortest way off the chat card, so
+ * the two never overlap. It moves sideways first, then up or down, and stays
+ * on the display; with no room on any side it is left where it is. */
+export function clearOfCard(panel, card, area, gap = 12) {
+  if (!card || !overlaps(panel, card)) return panel;
+  const inside = (r) =>
+    r.x >= area.x &&
+    r.y >= area.y &&
+    r.x + r.width <= area.x + area.width &&
+    r.y + r.height <= area.y + area.height;
+  const options = [
+    { ...panel, x: card.x - gap - panel.width },
+    { ...panel, x: card.x + card.width + gap },
+    { ...panel, y: card.y - gap - panel.height },
+    { ...panel, y: card.y + card.height + gap },
+  ]
+    .filter(inside)
+    .map((r) => ({
+      r,
+      away: Math.abs(r.x - panel.x) + Math.abs(r.y - panel.y),
+    }))
+    .sort((a, b) => a.away - b.away);
+  return options[0]?.r ?? panel;
+}
 /** The card's rectangle. It never covers Blink's body, wherever Blink rests:
  * beside Blink with its tail a few pixels from the body at mouth height, on
  * the side away from its edge, narrowed when the display is too narrow for
