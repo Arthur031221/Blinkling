@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { open, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -81,6 +81,79 @@ export function mirrorLine(payload) {
   };
 }
 
+const TRANSCRIPT_TAIL = 2_000_000;
+const textOf = (content) =>
+  typeof content === "string"
+    ? content
+    : Array.isArray(content)
+      ? content
+          .filter((b) => b?.type === "text" && typeof b.text === "string")
+          .map((b) => b.text)
+          .join("\n")
+      : "";
+/** What Claude Code said for the prompt typed in the terminal while a question
+ * from Blink arrived in the middle of that turn: the text it wrote after the
+ * typed prompt and before it answered Blink. The hook hands over only the last
+ * message of the turn, which by then is about Blink's question, so the rest is
+ * read from the session's transcript. */
+export async function typedAnswers(path) {
+  if (typeof path !== "string" || !path) return [];
+  let rows;
+  try {
+    const file = await open(path, "r");
+    try {
+      const { size } = await file.stat();
+      const length = Math.min(size, TRANSCRIPT_TAIL);
+      const buffer = Buffer.alloc(length);
+      await file.read(buffer, 0, length, size - length);
+      rows = buffer
+        .toString("utf8")
+        .split("\n")
+        .slice(size > length ? 1 : 0);
+    } finally {
+      await file.close();
+    }
+  } catch {
+    return [];
+  }
+  const entries = [];
+  for (const row of rows) {
+    try {
+      entries.push(JSON.parse(row));
+    } catch {
+      /* A half line at the cut, or one Claude Code is still writing. */
+    }
+  }
+  const typed = (e) => {
+    if (e?.type !== "user" || e.isMeta) return false;
+    const content = e.message?.content;
+    if (
+      Array.isArray(content) &&
+      content.some((b) => b?.type === "tool_result")
+    )
+      return false;
+    const text = textOf(content);
+    return Boolean(text.trim()) && !isChannelPrompt(text) && !isNotice(text);
+  };
+  const from = entries.findLastIndex(typed);
+  if (from < 0) return [];
+  const answers = [];
+  for (const e of entries.slice(from + 1)) {
+    if (e?.type !== "assistant") continue;
+    const blocks = Array.isArray(e.message?.content) ? e.message.content : [];
+    const text = textOf(blocks).trim();
+    if (text) answers.push({ uuid: String(e.uuid ?? ""), text });
+    // From the first answer to Blink on, the turn is about Blink's question.
+    if (
+      blocks.some(
+        (b) => b?.type === "tool_use" && /blinkling_reply$/.test(b.name),
+      )
+    )
+      break;
+  }
+  return answers;
+}
+
 /** The entry of a session that opened Blink, or nothing: no other terminal's
  * text ever reaches the screen. */
 export async function opened(directory, session) {
@@ -106,11 +179,23 @@ export async function mirror(payload, directory = runtimeDirectory()) {
   // Each prompt says what the turn it starts is. A turn that began as Blink's
   // own channel event is answered in Blink through the reply tool, and one
   // Claude Code started on its own is not Blink's business at all.
+  const before =
+    event === "UserPromptSubmit" && typeof session === "string"
+      ? await opened(directory, session)
+      : undefined;
   if (event === "UserPromptSubmit" && typeof session === "string")
     await markTurn(
       directory,
       session,
-      channelTurn ? "channel" : isNotice(payload.prompt) ? "notice" : "typed",
+      channelTurn
+        ? // Blink's question that arrives while a typed prompt is still being
+          // answered shares its turn: both are answered, and both are shown.
+          before?.turn === "typed" || before?.turn === "mixed"
+          ? "mixed"
+          : "channel"
+        : isNotice(payload.prompt)
+          ? "notice"
+          : "typed",
     ).catch(() => {});
   const started = event === "UserPromptSubmit" && channelTurn;
   const hooked =
@@ -119,6 +204,10 @@ export async function mirror(payload, directory = runtimeDirectory()) {
   if (!line && !started && !hooked) return false;
   const entry = await opened(directory, line?.session ?? session);
   if (!entry) return false;
+  // A turn that ended leaves nothing behind: a question from Blink that comes
+  // next starts a turn of its own.
+  if (event === "Stop")
+    await markTurn(directory, session, "idle").catch(() => {});
   const found = await discoverDesktop(join(directory, "desktop.json"), {
     timeoutMs: 1500,
   });
@@ -136,6 +225,32 @@ export async function mirror(payload, directory = runtimeDirectory()) {
     return true;
   }
   if (event === "Stop" && entry.turn === "notice") return false;
+  if (event === "Stop" && entry.turn === "mixed") {
+    // A prompt typed in the terminal and a question from Blink were answered in
+    // one turn. What was written for the typed prompt goes to the chat, and
+    // the rest ends Blink's turn as it does for a question of its own.
+    for (const answer of await typedAnswers(payload.transcript_path)) {
+      await found.client.rpc("mirror", {
+        session,
+        role: "assistant",
+        id: `${String(session)
+          .replace(/[^\w-]/g, "")
+          .slice(0, 40)}-assistant-${createHash("sha256")
+          .update(answer.uuid + answer.text)
+          .digest("hex")
+          .slice(0, 16)}`,
+        text: answer.text.slice(0, MIRROR_LIMIT),
+      });
+    }
+    await found.client.rpc("turn-end", {
+      session,
+      text:
+        typeof payload.last_assistant_message === "string"
+          ? payload.last_assistant_message
+          : "",
+    });
+    return true;
+  }
   if (event === "Stop" && entry.turn === "channel") {
     // The terminal's turn for a chat in Blink ended. If the answer came as
     // plain text and not through the reply tool, Blink shows it from here.

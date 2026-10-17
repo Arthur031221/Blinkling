@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isNotice, mirror, mirrorLine } from "./mirror.mjs";
+import { isNotice, mirror, mirrorLine, typedAnswers } from "./mirror.mjs";
 import { startDesktopHost, MIRROR_LIMIT } from "./host.mjs";
 import { discoverDesktop } from "./client.mjs";
 
@@ -339,6 +339,129 @@ test("a prompt and a stop tell Blink whether the terminal is at work, notices an
     ]);
   } finally {
     await host.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+const transcript = (...rows) => rows.map((r) => JSON.stringify(r)).join("\n");
+const said = (uuid, ...blocks) => ({
+  type: "assistant",
+  uuid,
+  message: { content: blocks },
+});
+const says = (text) => ({ type: "text", text });
+const calls = (name) => ({ type: "tool_use", name, input: {} });
+
+test("a question from Blink in the middle of a typed turn leaves what was written for the typed prompt in the chat", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
+  const lines = [];
+  const ends = [];
+  const host = await startDesktopHost({
+    directory,
+    descriptor: join(directory, "desktop.json"),
+    onMirror: (line) => lines.push([line.role, line.text]),
+    onTurnEnd: (end) => ends.push([end.session, end.text]),
+  });
+  try {
+    await writeFile(
+      join(directory, "sessions.json"),
+      JSON.stringify([{ id: "mine", at: Date.now() }]),
+    );
+    const path = join(directory, "transcript.jsonl");
+    await writeFile(
+      path,
+      transcript(
+        { type: "user", message: { content: "an older prompt" } },
+        said("a0", says("an older answer")),
+        { type: "user", message: { content: "run it, then say done" } },
+        said("a1", calls("Bash")),
+        {
+          type: "user",
+          message: { content: [{ type: "tool_result", content: "ok" }] },
+        },
+        said("a2", says("done")),
+        said("a3", calls("mcp__plugin_blinkling_blinkling__blinkling_reply")),
+        said("a4", says("I also answered the Blink question.")),
+      ),
+    );
+    const prompt = (text) => ({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "mine",
+      prompt: text,
+    });
+    await mirror(prompt("run it, then say done"), directory);
+    await mirror(
+      prompt(
+        '<channel source="plugin:blinkling:blinkling" kind="question" turn="t1">eight plus five</channel>',
+      ),
+      directory,
+    );
+    assert.equal(
+      await mirror(
+        {
+          hook_event_name: "Stop",
+          session_id: "mine",
+          transcript_path: path,
+          last_assistant_message: "I also answered the Blink question.",
+        },
+        directory,
+      ),
+      true,
+    );
+    assert.deepEqual(lines, [
+      ["user", "run it, then say done"],
+      ["assistant", "done"],
+    ]);
+    assert.deepEqual(ends, [["mine", "I also answered the Blink question."]]);
+    // The next question from Blink, on its own, is not taken for a typed turn.
+    await mirror(
+      prompt(
+        '<channel source="plugin:blinkling:blinkling" kind="question" turn="t2">again</channel>',
+      ),
+      directory,
+    );
+    await mirror(
+      {
+        hook_event_name: "Stop",
+        session_id: "mine",
+        transcript_path: path,
+        last_assistant_message: "only for Blink",
+      },
+      directory,
+    );
+    assert.equal(lines.length, 2, "nothing more reached the chat");
+    assert.equal(ends.length, 2);
+  } finally {
+    await host.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("the typed prompt's answers are read from the transcript up to the first answer to Blink, and a missing transcript gives none", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
+  try {
+    const path = join(directory, "t.jsonl");
+    await writeFile(
+      path,
+      transcript(
+        { type: "user", message: { content: [{ type: "text", text: "go" }] } },
+        said("x1", says("first"), calls("Bash")),
+        {
+          type: "user",
+          message: { content: "<task-notification>done</task-notification>" },
+        },
+        said("x2", says("second")),
+        said("x3", calls("blinkling_reply")),
+        said("x4", says("after")),
+      ) + "\n{half a line",
+    );
+    assert.deepEqual(
+      (await typedAnswers(path)).map((a) => a.text),
+      ["first", "second"],
+    );
+    assert.deepEqual(await typedAnswers(join(directory, "none.jsonl")), []);
+    assert.deepEqual(await typedAnswers(undefined), []);
+  } finally {
     await rm(directory, { recursive: true, force: true });
   }
 });
