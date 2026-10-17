@@ -172,3 +172,66 @@ test("a click inside Settings, or on its language list, does not close the card"
     await app.close();
   }
 });
+
+test("a click on the background puts away the menu bubbles and the progress bubble and Blink retreats; the idle grumble is left alone", async () => {
+  test.setTimeout(240000);
+  const { app, page } = await launch();
+  const rec = record("click_away_bubbles", { suffix: "-323", fps: 6 });
+  try {
+    const b = await background(app);
+    const send = (event) =>
+      app.evaluate((_e, event) => globalThis.blinklingTest.send(event), event);
+    const shown = (id) => page.locator(id).getAttribute("data-shown");
+    // The menu bubbles.
+    await reveal(page);
+    await expect.poll(() => machine(app).then((m) => m.state)).toBe("menu");
+    rec.frame("menu");
+    clickAway(b);
+    await expect
+      .poll(() => machine(app).then((m) => m.state), { timeout: 3000 })
+      .not.toBe("menu");
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek", {
+      timeout: 3000,
+    });
+    rec.frame("menu-away");
+    // The progress bubble beside Blink while a slow capture is under way.
+    await reveal(page);
+    await send({
+      type: "capture-status",
+      state: "working",
+      message: "Reading the page",
+    });
+    await expect.poll(() => shown("#status")).toBe("true");
+    rec.frame("progress");
+    clickAway(b);
+    await expect.poll(() => shown("#status"), { timeout: 3000 }).toBe("false");
+    await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek", {
+      timeout: 3000,
+    });
+    // More progress from the same capture does not bring it back.
+    await send({
+      type: "capture-status",
+      state: "working",
+      message: "Still reading",
+    });
+    await page.waitForTimeout(600);
+    expect(await shown("#status")).toBe("false");
+    rec.frame("progress-away");
+    await send({ type: "capture-status", state: "done" });
+    // The idle grumble stays through a click on the background.
+    await page.evaluate(() =>
+      window.desktop.grumbler.touch(performance.now() - 61_000),
+    );
+    await expect.poll(() => shown("#grumble")).toBe("true");
+    await page.waitForTimeout(800);
+    rec.frame("grumble");
+    clickAway(b);
+    await page.waitForTimeout(900);
+    expect(await shown("#grumble")).toBe("true");
+    expect(await mode(page)).toBe("peek");
+    rec.frame("grumble-stays");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

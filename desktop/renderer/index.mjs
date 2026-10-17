@@ -452,9 +452,19 @@ api.onShell((event) => {
     new CustomEvent("blinkling:shell-event", { detail: event }),
   );
 });
+// A click on the background puts the progress bubble away; it stays away until
+// that capture is over. The idle grumble is not part of this.
+let statusPutAway = false;
 api.onEvent((event) => {
+  if (event.type === "bubbles-clear") {
+    statusPutAway = status.dataset.shown === "true" || statusPutAway;
+    status.dataset.shown = "false";
+    return;
+  }
   if (event.type === "capture-status") {
-    const on = event.state === "working" && Boolean(event.message);
+    if (event.state !== "working") statusPutAway = false;
+    const on =
+      event.state === "working" && Boolean(event.message) && !statusPutAway;
     if (on) status.textContent = event.message;
     status.dataset.shown = String(on);
   }

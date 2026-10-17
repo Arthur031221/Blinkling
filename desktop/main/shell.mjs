@@ -511,6 +511,7 @@ function act(effects) {
     } else if (effect.type === "close-chat") closeComposer();
     else if (effect.type === "out") rim = blinkRegions;
     else if (effect.type === "retreat") rim = [];
+    else if (effect.type === "bubbles-clear") send({ type: "bubbles-clear" });
     else if (effect.type === "answer-done" || effect.type === "answer-failed") {
       const name = reactionFor({
         words: effect.words,

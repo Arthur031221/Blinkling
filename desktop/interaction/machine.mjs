@@ -169,14 +169,6 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     s.lastEngaged = t;
     s.leftAt = null;
   }
-  /** A click on the background hides everything at once: with nothing left
-   * that holds Blink out, it goes back to its edge together with the card. */
-  function retreatNow(t) {
-    if (s.out && !engaged(t)) {
-      s.out = false;
-      emit("retreat");
-    }
-  }
   function openMenu(t) {
     s.surface = "menu";
     s.stickyMenu = true;
@@ -293,20 +285,29 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       else openChat(t, "click");
       return "click";
     },
-    /** A click outside every Blinkling surface. */
+    /** A click outside every Blinkling surface, at any moment: the menu, the
+     * bubbles and the card go, and Blink retreats at once, whatever holds it
+     * out (a capture, a guide, a streaming answer). A pinned card, a panel or
+     * the viewer stay, and Blink stays with them. The idle grumble is the
+     * renderer's and is left alone. */
     outside(t = clock()) {
+      if (s.panels > 0 || s.viewer > 0) return;
       if (s.surface === "chat") {
+        if (s.pinned) {
+          emit("bubbles-clear");
+          return;
+        }
         // A streaming answer or a draft does not hold the card open: the
         // answer goes on into the history and the draft stays in the page.
-        const busy = s.panels > 0 || s.viewer > 0;
-        if (!s.pinned && !busy) {
-          if (s.streaming) s.dismissed = true;
-          closeChat(t, "outside");
-          retreatNow(t);
-        }
-      } else if (s.surface === "menu" && s.stickyMenu && s.panels === 0) {
-        closeMenu(t, "outside");
-        retreatNow(t);
+        if (s.streaming) s.dismissed = true;
+        closeChat(t, "outside");
+      } else closeMenu(t, "outside");
+      s.showUntil = 0;
+      emit("bubbles-clear");
+      if (s.out) {
+        s.out = false;
+        s.leftAt = null;
+        emit("retreat");
       }
     },
     escape(t = clock()) {

@@ -488,6 +488,67 @@ test("the idle grumble is said from the edge: Blink does not come out, and the b
   assert.equal(types(go(timing.retreat + 200)).includes("retreat"), false);
 });
 
+test("a click outside clears the bubbles and sends Blink back at once, whatever it is doing", () => {
+  const cases = {
+    "out with nothing open": (m) => m.showFor(60000, 0),
+    "a capture in progress": (m) => m.capture(true, 0),
+    "a guide running": (m) => m.guide(true, 0),
+    "an answer streaming": (m) => m.answerStart(0),
+    "a menu opened by a click": (m) => (m.click(0), m.click(1)),
+  };
+  for (const [name, start] of Object.entries(cases)) {
+    const { m, read } = rig();
+    start(m);
+    m.take();
+    m.outside(100);
+    const fx = types(m.take());
+    assert.equal(read().out, false, name);
+    assert.equal(read().card, false, name);
+    assert.equal(fx.includes("retreat"), true, `${name}: retreats`);
+    assert.equal(fx.includes("bubbles-clear"), true, `${name}: bubbles`);
+  }
+});
+
+test("a click outside closes the hover menu too", () => {
+  const { m, at, go, read } = rig();
+  m.pointer(on, at.t, true);
+  go(timing.menuRest + 32);
+  assert.equal(read().state, "menu");
+  m.pointer(away, at.t, false);
+  m.outside(at.t);
+  assert.equal(read().state === "menu", false);
+  assert.equal(types(m.take()).includes("bubbles-clear"), true);
+});
+
+test("a click outside leaves a pinned card and a card with a panel open, and Blink stays out for them", () => {
+  const pinned = rig();
+  pinned.m.click(0);
+  pinned.m.pin(true, 1);
+  pinned.m.take();
+  pinned.m.outside(100);
+  assert.equal(pinned.read().card, true);
+  assert.equal(pinned.read().out, true);
+  const panel = rig();
+  panel.m.click(0);
+  panel.m.panels(1);
+  panel.m.take();
+  panel.m.outside(100);
+  assert.equal(panel.read().card, true);
+  assert.equal(panel.read().out, true);
+});
+
+test("the idle grumble is not touched by a click outside", () => {
+  const { m, read } = rig();
+  m.grumble(true);
+  m.take();
+  m.outside(100);
+  assert.deepEqual(
+    types(m.take()).filter((t) => t !== "bubbles-clear"),
+    [],
+  );
+  assert.equal(read().out, false);
+});
+
 test("a failed answer is reported once and ends the streaming state", () => {
   const { m, read } = rig();
   m.answerStart(0);
