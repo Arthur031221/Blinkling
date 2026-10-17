@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-17T13:51:20.860Z",
+  "recordedAt": "2026-10-17T14:07:13.487Z",
   "version": "3.2.3",
   "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
@@ -14,7 +14,7 @@
       "sha256": "ca2143805158c12a62a9a836f41b7b6d48ff2dfab32dcc6a052903e1b0da6825",
       "segments": [[2.5, 19]],
       "events": "assets/record/events/pick.events.json",
-      "eventsSha256": "053f2415bdc68255dd39819946efad0255b8e64538b5909c184bfa14af5353c2",
+      "eventsSha256": "079352060cf12a2914ba36708b8af26576018f29264194a95424d62d1ad86d49",
       "turns": 1,
       "bytes": 3606072,
       "width": 1280,
@@ -45,7 +45,7 @@
       "sha256": "5f801487968c4d4adc20ef003c5808eacbf73a0d88081bc88d0b8e4e638f0a43",
       "segments": [[4.5, 18]],
       "events": "assets/record/events/ask.events.json",
-      "eventsSha256": "1c1d6a27c22ed77140ea4be97797fa26db50f54394cb973b0e91b36e726aaeb8",
+      "eventsSha256": "33ac5f849c0a789ee72baf2e6562e08e2fc2185cae61316377f98d9c7bc705e9",
       "turns": 1,
       "prompt": "what is reinforcement learning, in two lines",
       "bytes": 1741694,
@@ -80,7 +80,7 @@
         [23, 28.4]
       ],
       "events": "assets/record/events/translate.events.json",
-      "eventsSha256": "adbeae3a141ef21a8c6342662b36a6966111c330754f44db528d9540924ebc36",
+      "eventsSha256": "91be08e565f322a1a21514a5a041010323aea2233b99d3b75897452a1201ece9",
       "turns": 1,
       "prompt": "Translate",
       "bytes": 3833430,
@@ -115,7 +115,7 @@
         [19, 38.9]
       ],
       "events": "assets/record/events/tour.events.json",
-      "eventsSha256": "551dc3d8bedced09138b61c52bbacfd9b4bb777f7796d2547ee81c48fabc9f63",
+      "eventsSha256": "783459c40ace99acf60bdbb45861a73e9c3feb1a990c9b6067faacb2569838e0",
       "turns": 1,
       "bytes": 2793070,
       "width": 1280,

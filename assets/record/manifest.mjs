@@ -1,7 +1,8 @@
 // Rewrites assets/recordings.json from the files the recorder and media.sh made.
 // Usage: node assets/record/manifest.mjs
 import { createHash } from "node:crypto";
-import { copyFileSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { format } from "prettier";
 
 const sha = (file) =>
   createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -41,7 +42,10 @@ for (const item of manifest.recordings) {
   item.width = 1280;
   item.fps = 30;
   item.segments = cuts[name];
-  copyFileSync(raw[name], item.events);
+  writeFileSync(
+    item.events,
+    await format(readFileSync(raw[name], "utf8"), { parser: "json" }),
+  );
   item.eventsSha256 = sha(item.events);
   item.site = ["mp4", "webm", "png"].map((extension) => {
     const file = `assets/site/${name}.${extension}`;
@@ -49,4 +53,4 @@ for (const item of manifest.recordings) {
   });
   item.posterSecond = posters[name];
 }
-writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+writeFileSync(path, await format(JSON.stringify(manifest), { parser: "json" }));
