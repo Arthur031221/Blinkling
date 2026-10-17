@@ -1,14 +1,20 @@
 import { translator } from "../shared/i18n.mjs";
 
-/** The welcome has exactly three steps (N1.6): hello, screen permission, hold the
- * pick key and click. "Blinkling" is never translated; {key} is the pick key. */
+/** The command that starts Claude Code with Blink's chat reaching it; the same
+ * string as config/flag.json, which a test holds it to. */
+export const START_COMMAND =
+  "claude --dangerously-load-development-channels plugin:blinkling@blinkling";
+
+/** The welcome has the steps hello, screen permission (only where the system asks
+ * for it), connect Claude Code, and hold the pick key and click.
+ * "Blinkling" is never translated; {key} is the pick key. */
 export const strings = {
   en: {
     close: "Close",
     next: "Next",
     back: "Back",
     done: "Got it",
-    step: "Step {n} of 3",
+    step: "Step {n} of {total}",
     helloTitle: "Hi, I'm Blink",
     helloBody:
       "I live in the corner of your screen and help with whatever you are looking at.",
@@ -24,13 +30,20 @@ export const strings = {
     tryBody:
       "Click what you want to ask about. Hold {key} and drag to take an area.",
     drag: "drag",
+    connectTitle: "Connect Claude Code",
+    connectLead: "Start Claude Code with this command:",
+    connectThen: "Then type /blinkling:blinkling.",
+    connectLine:
+      "The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.",
+    connectCopy: "Copy",
+    connectCopied: "Copied",
   },
   "zh-TW": {
     close: "關閉",
     next: "下一步",
     back: "上一步",
     done: "知道了",
-    step: "第 {n} 步，共 3 步",
+    step: "第 {n} 步，共 {total} 步",
     helloTitle: "嗨，我是 Blink",
     helloBody: "我住在你螢幕的角落，你看到什麼，我就幫你看。",
     permissionTitle: "讓我看看你的螢幕",
@@ -43,13 +56,20 @@ export const strings = {
     tryTitle: "按住 {key} 再點一下",
     tryBody: "點你想問的東西。按住 {key} 拖曳可以框選一個區域。",
     drag: "拖曳",
+    connectTitle: "連接 Claude Code",
+    connectLead: "用這個指令啟動 Claude Code：",
+    connectThen: "然後輸入 /blinkling:blinkling。",
+    connectLine:
+      "這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。",
+    connectCopy: "複製",
+    connectCopied: "已複製",
   },
   "zh-CN": {
     close: "关闭",
     next: "下一步",
     back: "上一步",
     done: "知道了",
-    step: "第 {n} 步，共 3 步",
+    step: "第 {n} 步，共 {total} 步",
     helloTitle: "嗨，我是 Blink",
     helloBody: "我住在你屏幕的角落，你看到什么，我就帮你看。",
     permissionTitle: "让我看看你的屏幕",
@@ -62,13 +82,20 @@ export const strings = {
     tryTitle: "按住 {key} 再点一下",
     tryBody: "点你想问的东西。按住 {key} 拖动可以框选一个区域。",
     drag: "拖动",
+    connectTitle: "连接 Claude Code",
+    connectLead: "用这个命令启动 Claude Code：",
+    connectThen: "然后输入 /blinkling:blinkling。",
+    connectLine:
+      "这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。",
+    connectCopy: "复制",
+    connectCopied: "已复制",
   },
   ja: {
     close: "閉じる",
     next: "次へ",
     back: "戻る",
     done: "わかった",
-    step: "ステップ {n} / 3",
+    step: "ステップ {n} / {total}",
     helloTitle: "こんにちは、Blink です",
     helloBody: "画面の隅にいて、あなたが見ているものを一緒に見ます。",
     permissionTitle: "画面を見せてください",
@@ -83,13 +110,20 @@ export const strings = {
     tryBody:
       "聞きたいものをクリック。{key} を押しながらドラッグすると範囲を選べます。",
     drag: "ドラッグ",
+    connectTitle: "Claude Code とつなぐ",
+    connectLead: "次のコマンドで Claude Code を起動します:",
+    connectThen: "その後 /blinkling:blinkling と入力します。",
+    connectLine:
+      "このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。",
+    connectCopy: "コピー",
+    connectCopied: "コピーしました",
   },
   ko: {
     close: "닫기",
     next: "다음",
     back: "이전",
     done: "알겠어요",
-    step: "{n} / 3단계",
+    step: "{n} / {total}단계",
     helloTitle: "안녕하세요, Blink예요",
     helloBody: "화면 구석에 살면서 보고 있는 것을 함께 봐 드려요.",
     permissionTitle: "화면을 보여 주세요",
@@ -103,13 +137,20 @@ export const strings = {
     tryBody:
       "묻고 싶은 것을 클릭하세요. {key}을(를) 누른 채 드래그하면 영역을 고를 수 있어요.",
     drag: "드래그",
+    connectTitle: "Claude Code 연결",
+    connectLead: "다음 명령으로 Claude Code를 시작하세요:",
+    connectThen: "그다음 /blinkling:blinkling 을 입력하세요.",
+    connectLine:
+      "이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.",
+    connectCopy: "복사",
+    connectCopied: "복사됨",
   },
   de: {
     close: "Schließen",
     next: "Weiter",
     back: "Zurück",
     done: "Verstanden",
-    step: "Schritt {n} von 3",
+    step: "Schritt {n} von {total}",
     helloTitle: "Hallo, ich bin Blink",
     helloBody:
       "Ich wohne in der Ecke deines Bildschirms und helfe bei allem, was du gerade ansiehst.",
@@ -125,13 +166,20 @@ export const strings = {
     tryBody:
       "Klicke auf das, wonach du fragen willst. Mit {key} und Ziehen wählst du einen Bereich.",
     drag: "ziehen",
+    connectTitle: "Claude Code verbinden",
+    connectLead: "Starte Claude Code mit diesem Befehl:",
+    connectThen: "Gib danach /blinkling:blinkling ein.",
+    connectLine:
+      "Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.",
+    connectCopy: "Kopieren",
+    connectCopied: "Kopiert",
   },
   es: {
     close: "Cerrar",
     next: "Siguiente",
     back: "Atrás",
     done: "Entendido",
-    step: "Paso {n} de 3",
+    step: "Paso {n} de {total}",
     helloTitle: "Hola, soy Blink",
     helloBody:
       "Vivo en la esquina de tu pantalla y te ayudo con lo que estés mirando.",
@@ -147,13 +195,20 @@ export const strings = {
     tryBody:
       "Haz clic en lo que quieras preguntar. Mantén {key} y arrastra para tomar un área.",
     drag: "arrastrar",
+    connectTitle: "Conecta Claude Code",
+    connectLead: "Inicia Claude Code con este comando:",
+    connectThen: "Luego escribe /blinkling:blinkling.",
+    connectLine:
+      "La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.",
+    connectCopy: "Copiar",
+    connectCopied: "Copiado",
   },
   fr: {
     close: "Fermer",
     next: "Suivant",
     back: "Retour",
     done: "Compris",
-    step: "Étape {n} sur 3",
+    step: "Étape {n} sur {total}",
     helloTitle: "Salut, je suis Blink",
     helloBody:
       "Je vis dans le coin de ton écran et je t'aide avec ce que tu regardes.",
@@ -169,13 +224,20 @@ export const strings = {
     tryBody:
       "Clique sur ce que tu veux demander. Maintiens {key} et glisse pour prendre une zone.",
     drag: "glisser",
+    connectTitle: "Connecter Claude Code",
+    connectLead: "Lancez Claude Code avec cette commande :",
+    connectThen: "Puis tapez /blinkling:blinkling.",
+    connectLine:
+      "L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
+    connectCopy: "Copier",
+    connectCopied: "Copié",
   },
   "pt-BR": {
     close: "Fechar",
     next: "Próximo",
     back: "Voltar",
     done: "Entendi",
-    step: "Passo {n} de 3",
+    step: "Passo {n} de {total}",
     helloTitle: "Oi, eu sou o Blink",
     helloBody:
       "Moro no canto da sua tela e ajudo com o que você estiver olhando.",
@@ -191,6 +253,13 @@ export const strings = {
     tryBody:
       "Clique no que quiser perguntar. Segure {key} e arraste para pegar uma área.",
     drag: "arrastar",
+    connectTitle: "Conectar o Claude Code",
+    connectLead: "Inicie o Claude Code com este comando:",
+    connectThen: "Depois digite /blinkling:blinkling.",
+    connectLine:
+      "A opção faz o chat do Blink chegar a esta sessão. O Claude Code pede uma confirmação, uma só vez. Sem ela, o Blink continua funcionando e responde pela própria sessão.",
+    connectCopy: "Copiar",
+    connectCopied: "Copiado",
   },
 };
 /** The locale comes from main (shared/i18n.mjs asks the system once). */

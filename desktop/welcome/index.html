@@ -24,13 +24,13 @@
       </header>
 
       <div class="welcome-stage">
-        <section class="welcome-step" data-step="1">
+        <section class="welcome-step" data-step="hello">
           <div id="blink-host" class="welcome-blink" aria-hidden="true"></div>
           <h1 data-text="helloTitle" id="welcome-title"></h1>
           <p data-text="helloBody"></p>
         </section>
 
-        <section class="welcome-step" data-step="2">
+        <section class="welcome-step" data-step="permission">
           <h1 data-text="permissionTitle"></h1>
           <p id="permission-body"></p>
           <p id="permission-status" role="status" aria-live="polite"></p>
@@ -49,7 +49,19 @@
           <p data-safety class="welcome-safety"></p>
         </section>
 
-        <section class="welcome-step" data-step="3">
+        <section class="welcome-step" data-step="connect">
+          <h1 data-text="connectTitle"></h1>
+          <p data-text="connectLead"></p>
+          <div class="welcome-command">
+            <code id="connect-command"></code>
+            <button type="button" id="connect-copy"></button>
+          </div>
+          <p data-text="connectThen"></p>
+          <p data-text="connectLine"></p>
+          <p data-safety class="welcome-safety"></p>
+        </section>
+
+        <section class="welcome-step" data-step="try">
           <h1 id="try-title"></h1>
           <p id="try-body"></p>
           <div id="pick-host"></div>
@@ -59,6 +71,7 @@
       <footer class="welcome-foot">
         <button type="button" id="welcome-back" data-text="back"></button>
         <ol class="welcome-dots" id="welcome-dots" aria-label="">
+          <li></li>
           <li></li>
           <li></li>
           <li></li>

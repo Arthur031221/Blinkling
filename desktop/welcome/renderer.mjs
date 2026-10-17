@@ -1,10 +1,10 @@
-import { welcomeText } from "./strings.mjs";
+import { welcomeText, START_COMMAND } from "./strings.mjs";
 import { mountBlink } from "../character/index.mjs";
 import { mountPickAnimation } from "../pick/teach.mjs";
 import { strings as safety } from "../shared/safety.mjs";
 import { drawWordmark } from "../shared/draw-wordmark.mjs";
 import { dragPanel } from "../shared/panel-drag.mjs";
-import { cssVariables, duration, frameLog } from "../shared/motion.mjs";
+import { cssVariables, duration, frameLog, timing } from "../shared/motion.mjs";
 
 const api = window.welcomeAPI;
 const log = frameLog();
@@ -16,12 +16,21 @@ for (const declaration of cssVariables().split(";")) {
 
 const $ = (selector) => document.querySelector(selector);
 const card = $("#welcome");
-const steps = [...document.querySelectorAll("[data-step]")];
+const panels = [...document.querySelectorAll("[data-step]")];
 const dots = [...document.querySelectorAll("#welcome-dots li")];
 const back = $("#welcome-back");
 const next = $("#welcome-next");
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
+/** The steps that are shown: the permission step only where the system asks. */
+const visible = () =>
+  panels.filter(
+    (panel) =>
+      !(
+        panel.dataset.step === "permission" && state?.permission === "unneeded"
+      ),
+  );
+const nameOf = () => visible()[step]?.dataset.step;
 let t = welcomeText("en");
 let state = null;
 let step = 0;
@@ -29,6 +38,7 @@ let demo = null;
 let demoFor = "";
 let waveAt = -100;
 let frame = 0;
+let copied = false;
 
 const blink = mountBlink($("#blink-host"));
 
@@ -79,18 +89,31 @@ function render() {
   close.setAttribute("aria-label", t("close"));
   $("#try-title").textContent = t("tryTitle", { key: state.keyName });
   $("#try-body").textContent = t("tryBody", { key: state.keyName });
+  const steps = visible();
+  step = Math.min(step, steps.length - 1);
   next.textContent = step === steps.length - 1 ? t("done") : t("next");
   back.hidden = step === 0;
-  $("#welcome-dots").setAttribute("aria-label", t("step", { n: step + 1 }));
-  steps.forEach((panel, index) => {
+  $("#welcome-dots").setAttribute(
+    "aria-label",
+    t("step", { n: step + 1, total: steps.length }),
+  );
+  panels.forEach((panel) => {
+    const index = steps.indexOf(panel);
     panel.classList.toggle("is-current", index === step);
     panel.toggleAttribute("inert", index !== step);
     panel.setAttribute("aria-hidden", String(index !== step));
+    panel.hidden = index < 0;
   });
-  dots.forEach((dot, index) =>
-    dot.classList.toggle("is-current", index === step),
-  );
-  $("[data-safety]").textContent = (safety[state.locale] ?? safety.en).safety;
+  dots.forEach((dot, index) => {
+    dot.hidden = index >= steps.length;
+    dot.classList.toggle("is-current", index === step);
+  });
+  for (const line of document.querySelectorAll("[data-safety]"))
+    line.textContent = (safety[state.locale] ?? safety.en).safety;
+  $("#connect-command").textContent = START_COMMAND;
+  $("#connect-copy").textContent = copied
+    ? t("connectCopied")
+    : t("connectCopy");
   permissionLines();
   // Mounted once per key and language, so a re-render never restarts the loop.
   const shown = `${state.keyName}|${state.locale}`;
@@ -105,7 +128,7 @@ function render() {
 }
 
 function go(to) {
-  step = Math.max(0, Math.min(steps.length - 1, to));
+  step = Math.max(0, Math.min(visible().length - 1, to));
   if (step === 0) waveAt = performance.now() / 1000;
   render();
 }
@@ -119,16 +142,28 @@ async function refresh(action = "refresh") {
 }
 
 next.addEventListener("click", () => {
-  if (step === steps.length - 1) api.close();
+  if (step === visible().length - 1) api.close();
   else go(step + 1);
 });
 back.addEventListener("click", () => go(step - 1));
+$("#connect-copy").addEventListener("click", async () => {
+  // The command is also selectable by hand if the clipboard is refused.
+  copied = await navigator.clipboard
+    .writeText(START_COMMAND)
+    .then(() => true)
+    .catch(() => false);
+  render();
+  setTimeout(() => {
+    copied = false;
+    render();
+  }, timing.copiedHold);
+});
 $("#permission-allow").addEventListener("click", () => refresh("request"));
 $("#permission-open").addEventListener("click", () => refresh("open"));
 $("#welcome-close").addEventListener("click", () => api.close());
 // Back from System Settings: look again.
 window.addEventListener("focus", () => {
-  if (step === 1) refresh();
+  if (nameOf() === "permission") refresh();
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") api.close();

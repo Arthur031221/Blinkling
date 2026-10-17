@@ -161,12 +161,13 @@ test("first use names all its bubbles once; Settings opens, changes the hotkey a
     const welcome = find(app, /\/welcome\/index\.html$/);
     watch(welcome, errors);
     await expect(welcome.locator("#welcome")).toHaveClass(/is-open/);
-    await expect(welcome.locator("section.welcome-step")).toHaveCount(3);
+    await expect(welcome.locator("section.welcome-step")).toHaveCount(4);
     await expect(welcome.locator("[data-wordmark] *").first()).toBeAttached();
     await welcome.waitForTimeout(600);
     await desktopShot(app, "menu-windows-welcome-1");
     await welcome.locator("#welcome-next").click();
-    await expect(welcome.locator('section[data-step="2"]')).toHaveClass(
+    // Where the system asks for nothing there is no permission page.
+    await expect(welcome.locator('section[data-step="connect"]')).toHaveClass(
       /is-current/,
     );
     await expect(welcome.locator("[data-safety]")).not.toBeEmpty();

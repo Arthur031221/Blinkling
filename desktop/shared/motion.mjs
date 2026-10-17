@@ -35,6 +35,8 @@ export const timing = Object.freeze({
   eatLead: 260,
   // A capture that takes longer than this says it has begun.
   captureSlow: 400,
+  // How long a button says it copied before it says Copy again.
+  copiedHold: 1600,
   // Launch: the wait that lets the window draw once before Blink steps in.
   appearLead: 600,
   // How long the wait indicator stays on one word.

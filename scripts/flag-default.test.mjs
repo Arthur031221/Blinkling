@@ -74,6 +74,26 @@ describe("the install guide on the Pages site", () => {
   });
 });
 
+describe("the plugin command", () => {
+  it("does not say that no launch flag is needed, which would make the model drop the Sync line", () => {
+    const text = read("commands/blinkling.md");
+    expect(text).not.toMatch(/no launch flag/i);
+    expect(text).toMatch(/Sync line must not be dropped/);
+  });
+});
+
+describe("the in-app welcome", () => {
+  it("shows the command and the one line, in all nine languages", async () => {
+    const { START_COMMAND, strings } = await import(
+      "../desktop/welcome/strings.mjs"
+    );
+    expect(START_COMMAND).toBe(flag.command);
+    for (const [name, locale] of Object.entries(READMES))
+      expect(strings[locale].connectLine, name).toBe(flag.line[locale]);
+    expect(read("desktop/welcome/index.html")).toContain("connect-command");
+  });
+});
+
 describe("the other places that tell a person how to start", () => {
   const files = [
     "docs/INSTALL.md",
