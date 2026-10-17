@@ -43656,7 +43656,7 @@ async function createBlinkling(options = {}) {
     onClear: () => onClear()
   }).start();
   const server = new McpServer(
-    { name: "blinkling", version: "3.2.3" },
+    { name: "blinkling", version: "3.2.4" },
     {
       capabilities: { experimental: { "claude/channel": {} } },
       instructions: SYNC_INSTRUCTIONS

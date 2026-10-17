@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.2.4 - 2026-10-18
+
+- The card's paper is solid where the message list starts, so an answer's text never mixes with the page behind the card, and the four demos are recorded again with it.
+
 ## 3.2.3 - 2026-10-17
 
 - A capture lands in Blink's mouth, and the card opens only after the swallow, on every edge and at every display scale. The picture is aimed from the same transform that draws Blink.
