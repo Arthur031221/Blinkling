@@ -6,7 +6,7 @@ import { difference, fingerprint } from "./policy.mjs";
 
 const flat = (value) => fingerprint(Buffer.alloc(32 * 18 * 4, value));
 
-function rig() {
+function rig(extra = {}) {
   const turns = [];
   const state = { value: 20, idle: 0, now: 0, done: null, screens: 0 };
   const watch = new AutoWatch({
@@ -28,6 +28,7 @@ function rig() {
     sample: async () => Buffer.alloc(32 * 18 * 4, state.value),
     idleSeconds: () => state.idle,
     now: () => state.now,
+    ...extra,
   });
   return { watch, turns, state };
 }
@@ -42,6 +43,33 @@ test("turning it on looks at the whole screen and asks at once, without waiting 
     assert.equal(turns[0].attachments.length, 1);
   } finally {
     watch.dispose();
+  }
+});
+
+test("turning it on asks even with a draft in the card or an answer streaming, and only a guide on screen holds it", async () => {
+  const { watch, turns, state } = rig({ busy: () => true, typing: () => true });
+  try {
+    await watch.start();
+    assert.equal(turns.length, 1, "the press said yes");
+    state.done({ type: "done", turnId: turns[0].id });
+    state.value = 230;
+    state.idle = 10;
+    state.now = 60000;
+    await watch.tick();
+    assert.equal(turns.length, 1, "its own looks still wait for a free card");
+  } finally {
+    watch.dispose();
+  }
+  const guided = rig({ quiet: () => true });
+  try {
+    await guided.watch.start();
+    assert.equal(
+      guided.turns.length,
+      0,
+      "a guide on screen holds even a press",
+    );
+  } finally {
+    guided.watch.dispose();
   }
 });
 

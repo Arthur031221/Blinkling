@@ -82,6 +82,31 @@ export function createPointing({
   overlay.on("mark-click", (n) => {
     for (const fn of [...clicks]) fn(n);
   });
+  // The card sits above the marks; what lies under it is cut out of the overlay.
+  let cardAt = null,
+    covering = false;
+  const cover = () => {
+    if (!state || (!cardAt && !covering)) return;
+    covering = Boolean(cardAt);
+    const o = state.capture.display.bounds;
+    overlay.command(
+      "cover",
+      cardAt
+        ? [
+            {
+              x: cardAt.x - o.x,
+              y: cardAt.y - o.y,
+              width: cardAt.width,
+              height: cardAt.height,
+            },
+          ]
+        : [],
+    );
+  };
+  card?.on("bounds", (rect) => {
+    cardAt = rect;
+    cover();
+  });
   card?.on("fade", () => state && overlay.command("fade"));
   card?.on("revive", () => state && overlay.command("revive"));
 
@@ -179,6 +204,8 @@ export function createPointing({
       });
       if (shown === false || mine !== generation) return false;
       state = { capture: shownCapture, drawings, window };
+      covering = false;
+      cover();
       clearInterval(cursorTimer);
       clearInterval(watchTimer);
       cursorTimer = setInterval(api.poll, poll.cursorMs);
@@ -193,7 +220,8 @@ export function createPointing({
     },
     /** One number, a list (a guide step names several marks) or null for all. */
     focus(which, { solo = false } = {}) {
-      if (state) overlay.command(solo && which !== null ? "solo" : "focus", which);
+      if (state)
+        overlay.command(solo && which !== null ? "solo" : "focus", which);
     },
     clear(reason = "user") {
       generation++;

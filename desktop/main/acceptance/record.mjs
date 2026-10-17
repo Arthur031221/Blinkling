@@ -18,6 +18,7 @@ const grab = (args) =>
 /** Starts an x11grab of the whole display. `frame(label)` saves a PNG now;
  * `stop()` ends the video and, for the after phase, writes the GIF. */
 export function record(id, { fps = 15, suffix = "" } = {}) {
+  let stopped = null;
   mkdirSync(r3, { recursive: true });
   const work = join(tmpdir(), `r3-${id}-${phase}`);
   rmSync(work, { recursive: true, force: true });
@@ -76,6 +77,12 @@ export function record(id, { fps = 15, suffix = "" } = {}) {
         .map((f) => join(dir, f));
     },
     async stop() {
+      // A second stop (a test that ends the clip early, then stops in finally)
+      // gets the file of the first.
+      if (stopped) return stopped;
+      return (stopped = this.finish());
+    },
+    async finish() {
       run.stdin.write("q");
       await new Promise((done) => run.on("close", done));
       if (!existsSync(video)) return null;

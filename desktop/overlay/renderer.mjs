@@ -264,6 +264,18 @@ const commands = {
     report();
     document.body.dataset.focus = set ? [...set].join(",") : "";
   },
+  // The card is above the marks: whatever of them lies under it is not drawn.
+  // `arg` is the rectangles in display coordinates; none shows everything.
+  cover(arg) {
+    const boxes = (Array.isArray(arg) ? arg : []).filter(
+      (r) => r && [r.x, r.y, r.width, r.height].every(Number.isFinite),
+    );
+    document.body.style.clipPath = boxes.length
+      ? `path(evenodd, "M0 0H${innerWidth}V${innerHeight}H0Z ${boxes
+          .map((r) => `M${r.x} ${r.y}h${r.width}v${r.height}h${-r.width}Z`)
+          .join(" ")}")`
+      : "";
+  },
   fade() {
     stage.classList.add("faded");
     trace(ms("slow"));

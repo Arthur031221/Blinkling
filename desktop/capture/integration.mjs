@@ -152,7 +152,8 @@ export function installCaptureGuide({
         return maskBitmap(bitmap, 32, 18, display, excluded);
       },
       idleSeconds: () => powerMonitor.getSystemIdleTime(),
-      busy: () => busy() || !!guide.controller || !!overlay.capture,
+      busy,
+      quiet: () => !!guide.controller || !!overlay.capture,
       onState,
     });
   auto = makeAuto(session);

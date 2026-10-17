@@ -3,7 +3,7 @@
  * fraction of the work area so it still makes sense on another display, and it
  * is held to sensible limits each time it is used. */
 export const CARD_WIDTH_MIN = 320;
-export const CARD_HEIGHT_MIN = 280;
+export const CARD_HEIGHT_MIN = 240;
 /** The most the card takes of the work area, either way. */
 export const CARD_AREA_MAX = 0.9;
 export const EDGES = Object.freeze([
@@ -45,13 +45,33 @@ export function resizedSize(base, edge, dx, dy, area) {
     west = edge.includes("w"),
     north = edge.includes("n"),
     south = edge.includes("s");
-  return clampSize(
-    {
-      width: base.width + (east ? dx : west ? -dx : 0),
-      height: base.height + (south ? dy : north ? -dy : 0),
-    },
-    area,
-  );
+  const l = sizeLimits(area);
+  // An axis the edge does not touch keeps the size it has, even when the card
+  // sizes itself shorter than the limit; a pulled axis stops at the limit, or at
+  // the size it started from when that is already smaller, so a press never
+  // makes the card jump.
+  const axis = (start, delta, moved, lo, hi) =>
+    Math.round(
+      moved
+        ? clamp(start + delta, Math.min(lo, start), hi)
+        : clamp(start, 1, hi),
+    );
+  return {
+    width: axis(
+      base.width,
+      east ? dx : -dx,
+      east || west,
+      l.minWidth,
+      l.maxWidth,
+    ),
+    height: axis(
+      base.height,
+      south ? dy : -dy,
+      north || south,
+      l.minHeight,
+      l.maxHeight,
+    ),
+  };
 }
 /** What is kept: the size as a fraction of the work area. */
 export const fractionsOf = (size, area) => ({

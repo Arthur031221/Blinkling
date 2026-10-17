@@ -326,3 +326,19 @@ test("elementsForPrompt asks the locator about the window the question is about"
   assert.ok(lines.includes("img-1 image Photo of a lake"));
   assert.deepEqual(await pointing.elementsForPrompt(null), []);
 });
+
+test("what the card covers is cut out of the marks, and the cut goes when the card does", async () => {
+  const { overlay, card, pointing } = rig();
+  card.emit("bounds", { x: 140, y: 222, width: 416, height: 354 });
+  assert.deepEqual(overlay.commands, [], "no marks yet, nothing to cut");
+  await pointing.show(refs, { displayId: "1" });
+  assert.deepEqual(overlay.commands.at(-1), [
+    "cover",
+    [{ x: 140, y: 222, width: 416, height: 354 }],
+  ]);
+  card.emit("bounds", null);
+  assert.deepEqual(overlay.commands.at(-1), ["cover", []]);
+  const sent = overlay.commands.length;
+  card.emit("bounds", null);
+  assert.equal(overlay.commands.length, sent, "nothing new to say");
+});

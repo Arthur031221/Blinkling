@@ -131,7 +131,7 @@ test("the card is resized by dragging its edges and corners, within limits, and 
     rec.frame("edges");
     // Limits: pulled in far, it stops at the smallest, pulled out far at the largest.
     await drag(app, "se", -2000, -2000);
-    expect(await sizeOf(app)).toEqual([320, 280]);
+    expect(await sizeOf(app)).toEqual([320, 240]);
     rec.frame("smallest");
     const area = await app.evaluate(
       ({ screen }) => screen.getPrimaryDisplay().workArea,
@@ -213,6 +213,91 @@ test("the card reaches the bottom of the work area with a Dock or a taskbar taki
       }
       await closeCard(app);
     }
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
+
+test("card_resize_clicks: a press or a drag on any edge or corner is never a background click and never nudges the card or moves Blink", async () => {
+  test.setTimeout(240000);
+  const { app, page } = await launch();
+  const rec = record("card_resize_clicks", { suffix: "-324" });
+  const blinkBox = () =>
+    app.evaluate(({ BrowserWindow }, url) => {
+      const w = BrowserWindow.getAllWindows().find(
+        (w) => w.webContents.getURL() === url,
+      );
+      return w.getBounds();
+    }, page.url());
+  const machine = () =>
+    app.evaluate(() => globalThis.blinklingTest.nBlinkMenuFaces.interaction());
+  try {
+    const b = await background(app);
+    await show(app, page, "right", 0.5);
+    const blink0 = await blinkBox();
+    rec.frame("open");
+    for (const edge of ["n", "s", "e", "w", "ne", "nw", "se", "sw"]) {
+      // A press and release on the handle, no movement at all.
+      const before = await cardBox(app);
+      const at = await handleAt(app, edge);
+      native([
+        { type: "move", ...at },
+        { type: "down", wait: 0.15 },
+        { type: "up", wait: 0.3 },
+      ]);
+      await new Promise((r) => setTimeout(r, 700));
+      expect(
+        await cardBox(app),
+        `${edge}: a bare press changes nothing`,
+      ).toEqual(before);
+      // A real drag outwards: only the pulled sides change.
+      const dx = edge.includes("e") ? 30 : edge.includes("w") ? -30 : 0;
+      const dy = edge.includes("s") ? 24 : edge.includes("n") ? -24 : 0;
+      await drag(app, edge, dx, dy);
+      const after = await cardBox(app);
+      expect(after.width - before.width, `${edge} width`).toBe(Math.abs(dx));
+      expect(after.height - before.height, `${edge} height`).toBe(Math.abs(dy));
+      if (!edge.includes("w") && !edge.includes("e"))
+        expect([after.x, after.width], `${edge}: x untouched`).toEqual([
+          before.x,
+          before.width,
+        ]);
+      if (!edge.includes("n") && !edge.includes("s"))
+        expect([after.y, after.height], `${edge}: y untouched`).toEqual([
+          before.y,
+          before.height,
+        ]);
+      if (edge.includes("w"))
+        expect(after.x + after.width, `${edge}: right side fixed`).toBe(
+          before.x + before.width,
+        );
+      if (edge.includes("n"))
+        expect(after.y + after.height, `${edge}: bottom fixed`).toBe(
+          before.y + before.height,
+        );
+      const m = await machine();
+      expect(m.card, `${edge}: the card is still open`).toBe(true);
+      expect(m.out, `${edge}: Blink is still out`).toBe(true);
+      expect(await blinkBox(), `${edge}: Blink did not move`).toEqual(blink0);
+      rec.frame(`edge-${edge}`);
+    }
+    // After all of that a real background click still closes the card.
+    native([
+      { type: "move", x: b.x + 140, y: b.y + 160, wait: 0.3 },
+      { type: "down" },
+      { type: "up", wait: 0.1 },
+    ]);
+    await expect
+      .poll(
+        () =>
+          app.evaluate(() =>
+            Boolean(globalThis.blinklingTest.composer.isVisible()),
+          ),
+        { timeout: 4000 },
+      )
+      .toBe(false);
+    rec.frame("closed-by-background");
   } finally {
     await rec.stop();
     await app.close();

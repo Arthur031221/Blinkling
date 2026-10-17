@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { captureMatchesDisplay } from "./schema.mjs";
-const COMMANDS = ["pulse", "focus", "solo", "fade", "revive"];
+const COMMANDS = ["pulse", "focus", "solo", "fade", "revive", "cover"];
 export class OverlayService extends EventEmitter {
   constructor({
     onDismiss = () => {},
@@ -139,7 +139,7 @@ export class OverlayService extends EventEmitter {
       this.window.webContents.send("blinkling:overlay:step", index);
     this.emit("step", index);
   }
-  /** pulse, focus, fade and revive drive the marks that are already drawn. */
+  /** pulse, focus, solo, fade, revive and cover drive the marks that are already drawn. */
   command(name, arg) {
     if (!COMMANDS.includes(name))
       throw Error(`Unknown overlay command ${name}`);

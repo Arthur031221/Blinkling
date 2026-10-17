@@ -55,7 +55,7 @@ Reduced motion: no show and no scene; the piece appears, and one still frame of 
 
 ## Card size (card_resize)
 
-The card has eight resize handles (four edges, four corners). Minimum 320 x 280, maximum 90 percent of the work area. The size is saved per user and the tail and follow logic use the real size.
+The card has eight resize handles (four edges, four corners). Minimum 320 x 240, maximum 90 percent of the work area. The size is saved per user and the tail and follow logic use the real size.
 
 ## Changes after review
 

@@ -25,6 +25,7 @@ export class AutoWatch {
     idleSeconds,
     typing = () => false,
     busy = () => false,
+    quiet = () => false,
     intervalMs = MIN_INTERVAL_MS,
     now = Date.now,
     onState = () => {},
@@ -41,6 +42,7 @@ export class AutoWatch {
       idleSeconds,
       typing,
       busy,
+      quiet,
       intervalMs,
       now,
       onState,
@@ -121,6 +123,16 @@ export class AutoWatch {
     this.askNow = true;
     await this.tick();
   }
+  /** What keeps the next look from happening. A draft in the card, an answer
+   * still streaming and the first three seconds of quiet only hold the looks
+   * Auto explain makes by itself: the press that turned it on said yes, and the
+   * session queues that ask behind any answer. What is shown over the screen
+   * (a guide) holds both. */
+  held() {
+    if (this.quiet()) return true;
+    if (this.askNow) return false;
+    return this.busy() || this.typing() || this.idleSeconds() < 3;
+  }
   async tick() {
     if (!this.enabled || this.running || this.pending || !this.session) return;
     if (this.holdUntil !== null) {
@@ -128,12 +140,7 @@ export class AutoWatch {
       this.holdUntil = null;
       this.report({ enabled: true, state: "watching" });
     }
-    if (
-      this.busy() ||
-      this.capture.busy ||
-      this.typing() ||
-      (!this.askNow && this.idleSeconds() < 3)
-    ) {
+    if (this.held() || this.capture.busy) {
       this.policy.pause();
       return;
     }
@@ -193,9 +200,7 @@ export class AutoWatch {
         !capture ||
         !this.enabled ||
         generation !== this.generation ||
-        this.typing() ||
-        (!this.askNow && this.idleSeconds() < 3) ||
-        this.busy()
+        this.held()
       )
         return;
       ok = this.permitted();

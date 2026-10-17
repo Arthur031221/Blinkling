@@ -612,6 +612,8 @@ const shapeNow = (platform = process.platform) =>
 let placedAt = "";
 function placeCard(at = shown()) {
   const bounds = cardAt(at);
+  // The guide's marks keep out from under the card, wherever it stands.
+  cardBus.emit("bounds", composer?.isVisible() ? bounds : null);
   const key = JSON.stringify(bounds);
   if (key === placedAt) return;
   placedAt = key;
@@ -1200,6 +1202,11 @@ ipcMain.on("blinkling:card-resize", (event, message) => {
   const dx = Number(message.dx),
     dy = Number(message.dy);
   if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+  // A press that never moved is not a resize: nothing is sized or kept.
+  if (message.phase === "end" && !resizing.size && !dx && !dy) {
+    resizing = null;
+    return;
+  }
   const size = resizedSize(resizing.base, resizing.edge, dx, dy, area);
   resizing.size = size;
   if (resizing.edge.includes("s"))

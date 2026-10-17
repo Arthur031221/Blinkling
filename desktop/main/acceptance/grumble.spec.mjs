@@ -63,11 +63,17 @@ for (const edge of ["bottom", "right", "top", "left"])
       await page.waitForTimeout(1500);
       rec.frame("grumbling");
       await expect(page.locator("#blink")).toHaveAttribute("data-mode", "peek");
-      const pose = await page.evaluate(() => ({
-        key: window.desktop.character.last.key,
-        lid: window.desktop.character.last.lid,
-      }));
-      expect(pose.lid).toBeGreaterThan(0.2);
+      // The lid is read over a second: one reading can fall between two of
+      // the frames the grumble is drawn in.
+      let lid = 0;
+      for (let i = 0; i < 10; i++) {
+        lid = Math.max(
+          lid,
+          await page.evaluate(() => window.desktop.character.last.lid),
+        );
+        await page.waitForTimeout(100);
+      }
+      expect(lid).toBeGreaterThan(0.2);
       const { head, bubble: b, screen } = await boxes(page);
       expect(head.right - head.left, "some of the head shows").toBeGreaterThan(
         10,
