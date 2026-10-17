@@ -1,0 +1,170 @@
+import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { launch } from "./support.mjs";
+import { background, reveal, sleep } from "./helpers.mjs";
+import { record } from "./record.mjs";
+
+/** Two real Claude Code terminal sessions in tmux, linked to the real Blink.
+ * It needs a signed in claude, the installed plugin in the two project folders
+ * and network, so it runs only when BLINKLING_LIVE=1. */
+const LIVE = process.env.BLINKLING_LIVE === "1";
+const FOLDERS = {
+  alpha: "/tmp/blink-live/alpha",
+  beta: "/tmp/blink-live/beta",
+};
+const SAVE =
+  process.env.BLINKLING_LIVE_DIR ??
+  "/home/levi/oss-engine/reports/glimpse-v3/r3";
+
+const tmux = (...args) =>
+  execFileSync("tmux", args, { encoding: "utf8" }).toString();
+const pane = (name) => tmux("capture-pane", "-p", "-J", "-t", name);
+const type = (name, text) => {
+  tmux("send-keys", "-t", name, "-l", text);
+  tmux("send-keys", "-t", name, "Enter");
+};
+/** Presses through the start up questions of a claude terminal until its
+ * input line is there. */
+const ready = async (name) => {
+  for (let i = 0; i < 60; i++) {
+    const text = pane(name);
+    if (/local development|Loading development channels/i.test(text))
+      tmux("send-keys", "-t", name, "Enter");
+    else if (/trust this folder|Yes, I trust/i.test(text))
+      tmux("send-keys", "-t", name, "Enter");
+    else if (/^❯/m.test(text) && /Claude Code v/.test(text)) return text;
+    await sleep(1000);
+  }
+  throw new Error(`${name} never showed its input line:\n${pane(name)}`);
+};
+/** Waits for text to show in the pane, allowing the permission questions of a
+ * tool call to be answered with Enter. */
+const waitFor = async (name, pattern, seconds = 90) => {
+  for (let i = 0; i < seconds; i++) {
+    const text = pane(name);
+    if (pattern.test(text)) return text;
+    if (/Do you want to|Yes, and don't ask again|1\. Yes/i.test(text))
+      tmux("send-keys", "-t", name, "Enter");
+    await sleep(1000);
+  }
+  throw new Error(`${name} never showed ${pattern}:\n${pane(name)}`);
+};
+const cardPage = (app) =>
+  app.windows().find((p) => p.url().includes("surface=card"));
+const lines = (card) =>
+  card
+    .locator(".gl-chat-message")
+    .evaluateAll((els) => els.map((el) => el.textContent.trim()));
+
+test.skip(!LIVE, "needs live claude terminals: set BLINKLING_LIVE=1");
+
+test("a Claude Code session Blink has not met opens a brand new chat, and neither Blink nor the terminal inherits the earlier one", async () => {
+  test.setTimeout(480000);
+  const runtime = await mkdtemp(join(tmpdir(), "blink-live-rt-"));
+  const { app, page } = await launch({
+    env: { BLINKLING_RUNTIME_DIR: runtime },
+  });
+  const rec = record("session_fresh", { suffix: "-323", fps: 2 });
+  const names = ["blinkA", "blinkB"];
+  try {
+    await background(app);
+    await reveal(page);
+    const start = (name, folder) =>
+      tmux(
+        "new-session",
+        "-d",
+        "-s",
+        name,
+        "-x",
+        "140",
+        "-y",
+        "45",
+        "-c",
+        folder,
+        `env BLINKLING_RUNTIME_DIR=${runtime} claude --model haiku --dangerously-load-development-channels plugin:blinkling@blinkling`,
+      );
+    // Terminal A: the first session. It opens Blink and has a short talk.
+    start("blinkA", FOLDERS.alpha);
+    await ready("blinkA");
+    type("blinkA", "/blinkling:blinkling");
+    await waitFor("blinkA", /Blink|desktop_open/i);
+    await sleep(4000);
+    type("blinkA", "Reply with the single word MANGO and nothing else.");
+    await waitFor("blinkA", /●\s*MANGO/);
+    await writeFile(join(SAVE, "session_fresh-terminal-A.txt"), pane("blinkA"));
+    await page.evaluate(() =>
+      window.blinkling.shell({ type: "click", permission: true }),
+    );
+    await expect.poll(() => !!cardPage(app), { timeout: 15000 }).toBe(true);
+    const card = cardPage(app);
+    await expect
+      .poll(async () => (await lines(card)).join("|"), { timeout: 30000 })
+      .toContain("MANGO");
+    rec.frame("session-A-chat");
+    await sleep(1500);
+
+    // Terminal B: a session Blink has not met. It opens Blink too.
+    start("blinkB", FOLDERS.beta);
+    await ready("blinkB");
+    // The moment the session has linked, before it opens Blink itself, the
+    // card has already moved to it and shows an empty chat.
+    const follows = cardPage(app);
+    await expect
+      .poll(
+        () =>
+          follows.locator('.gl-chat-tab[aria-selected="true"]').textContent(),
+        { timeout: 15000 },
+      )
+      .toContain("beta");
+    expect((await lines(follows)).join("|")).not.toContain("MANGO");
+    type("blinkB", "/blinkling:blinkling");
+    await waitFor("blinkB", /Blink|desktop_open/i);
+    await sleep(5000);
+    // The card follows the new session and its chat starts empty.
+    const mine = cardPage(app);
+    await expect
+      .poll(async () => (await lines(mine)).join("|"), { timeout: 20000 })
+      .not.toContain("MANGO");
+    // Only the new session's own words are in it, none of the first talk.
+    expect((await lines(mine)).join("|")).not.toContain("MANGO");
+    rec.frame("session-B-fresh");
+    // The older chat is still in the switcher and still holds its talk.
+    const tabs = mine.locator(".gl-chat-tab");
+    await expect
+      .poll(() => tabs.count(), { timeout: 10000 })
+      .toBeGreaterThan(1);
+    rec.frame("switcher");
+    // The terminal does not carry A's words either: B has not heard MANGO.
+    expect(pane("blinkB")).not.toMatch(/MANGO/);
+    type("blinkB", "Reply with the single word PAPAYA and nothing else.");
+    await waitFor("blinkB", /●\s*PAPAYA/);
+    await expect
+      .poll(async () => (await lines(mine)).join("|"), { timeout: 30000 })
+      .toContain("PAPAYA");
+    expect((await lines(mine)).join("|")).not.toContain("MANGO");
+    await writeFile(join(SAVE, "session_fresh-terminal-B.txt"), pane("blinkB"));
+    rec.frame("session-B-chat");
+    await sleep(1500);
+    // Going back to the first chat shows its own talk, not B's.
+    await tabs.first().click();
+    await expect
+      .poll(async () => (await lines(mine)).join("|"), { timeout: 10000 })
+      .toContain("MANGO");
+    expect((await lines(mine)).join("|")).not.toContain("PAPAYA");
+    rec.frame("back-to-A");
+    await sleep(1500);
+  } finally {
+    for (const name of names) {
+      try {
+        tmux("kill-session", "-t", name);
+      } catch {
+        /* the session was never started */
+      }
+    }
+    await rec.stop();
+    await app.close().catch(() => {});
+  }
+});
