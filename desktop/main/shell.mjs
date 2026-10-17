@@ -76,6 +76,8 @@ import { installPrivacy } from "../privacy/index.mjs";
 import { changeSystemLocale, systemLocale } from "../shared/i18n.mjs";
 import { createGuideOffer, SAVE_ACTION } from "../guides/offer.mjs";
 import { armHardQuitDeadline, armQuitWatchdog } from "./quit.mjs";
+import { createQuitKey } from "./quit-key.mjs";
+import { HotkeyStore } from "../capture/hotkey.mjs";
 let features;
 const companionModule = new URL("../companion/host.mjs", import.meta.url);
 const companionDirectory = existsSync(fileURLToPath(companionModule))
@@ -1403,6 +1405,19 @@ const secondary = {
     ),
   openExternal: (url) => externalShell.openExternal(url),
 };
+// The quit key lives in this process, so it answers when a window is hung. It
+// quits without the goodbye wave, which alone takes longer than its deadline.
+let quickQuit = false;
+const quitKey = createQuitKey({
+  shortcuts: globalShortcut,
+  store: new HotkeyStore(join(app.getPath("userData"), "quit-hotkey.json")),
+  reserved: () => [features.hotkey].filter(Boolean),
+  announce: () => companionHost.announceQuit(),
+  onQuit: () => (quickQuit = true),
+  quit: () => app.quit(),
+  exit: () => app.exit(0),
+});
+void quitKey.start();
 const welcome = installWelcome({
   electron: { BrowserWindow, ipcMain, systemPreferences, desktopCapturer },
   shell: secondary,
@@ -1413,7 +1428,14 @@ const settings = installSettings({
   shell: secondary,
   hotkey: {
     get: () => features.hotkey,
-    set: (accelerator) => features.setHotkey(accelerator),
+    set: (accelerator) =>
+      accelerator === quitKey.current
+        ? { ok: false, reason: "clash" }
+        : features.setHotkey(accelerator),
+  },
+  quitKey: {
+    get: () => quitKey.current,
+    set: (accelerator) => quitKey.set(accelerator),
   },
   pickKey: {
     get: () => pick.pickKey(),
@@ -1624,7 +1646,7 @@ app.on("before-quit", (event) => {
   // here and a quit that stalls after disposal.
   features.dispose();
   // Blink waves goodbye while the rest shuts down.
-  const leaving = showsMotions && blink.isVisible();
+  const leaving = showsMotions && !quickQuit && blink.isVisible();
   if (leaving) motion("leave");
   Promise.allSettled([
     session.dispose(),

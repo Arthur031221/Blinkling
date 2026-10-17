@@ -56,11 +56,14 @@ const python = (e) =>
       : e.type === "wheel"
         ? // Buttons 4 and 5 are the X11 wheel; one press is one notch.
           `for _ in range(${Math.abs(e.notches)}):\n  t.XTestFakeButtonEvent(d,${e.notches < 0 ? 4 : 5},1,0);x.XFlush(d);time.sleep(.03);t.XTestFakeButtonEvent(d,${e.notches < 0 ? 4 : 5},0,0);x.XFlush(d);time.sleep(.05)`
-        : e.type === "key"
-          ? `k=x.XKeysymToKeycode(d,${e.keysym});t.XTestFakeKeyEvent(d,k,1,0);t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.08)`
-          : e.type === "keys"
-            ? `for ch in ${JSON.stringify(e.text)}:\n  k=x.XKeysymToKeycode(d,ord(ch))\n  t.XTestFakeKeyEvent(d,k,1,0);t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.04)`
-            : `t.XTestFakeButtonEvent(d,1,${e.type === "down" ? 1 : 0},0);x.XFlush(d);time.sleep(${e.wait ?? 0.08})`;
+        : e.type === "chord"
+          ? // Every key goes down in order, then up in reverse: a held chord.
+            `ks=[x.XKeysymToKeycode(d,s) for s in ${JSON.stringify(e.keysyms)}]\n for k in ks:\n  t.XTestFakeKeyEvent(d,k,1,0);x.XFlush(d);time.sleep(.03)\n for k in reversed(ks):\n  t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.03)`
+          : e.type === "key"
+            ? `k=x.XKeysymToKeycode(d,${e.keysym});t.XTestFakeKeyEvent(d,k,1,0);t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.08)`
+            : e.type === "keys"
+              ? `for ch in ${JSON.stringify(e.text)}:\n  k=x.XKeysymToKeycode(d,ord(ch))\n  t.XTestFakeKeyEvent(d,k,1,0);t.XTestFakeKeyEvent(d,k,0,0);x.XFlush(d);time.sleep(.04)`
+              : `t.XTestFakeButtonEvent(d,1,${e.type === "down" ? 1 : 0},0);x.XFlush(d);time.sleep(${e.wait ?? 0.08})`;
 /** Plays the events through XTest. With `stamp` it returns, for every move,
  * press and release, the wall clock in ms at which that event reached the X
  * server, so a test can time how long the app took to answer it. */
@@ -101,6 +104,7 @@ export const wheel = (x, y, notches) =>
   ]);
 export const keys = (text) => native([{ type: "keys", text }]);
 export const key = (keysym) => native([{ type: "key", keysym }]);
+export const chord = (...keysyms) => native([{ type: "chord", keysyms }]);
 /** Where Blink's body is drawn, in page pixels. An SVG shape has no CSS box,
  * so the page measures it instead of asking Playwright. */
 export const bodyBox = (page) =>

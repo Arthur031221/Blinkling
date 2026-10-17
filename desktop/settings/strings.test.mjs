@@ -42,3 +42,13 @@ test("Help tells every language the start command and what the flag does", () =>
   assert.match(html, /data-text="syncLine"/);
   assert.ok(html.includes(flag.command));
 });
+
+test("the quit key help names the key in every language", () => {
+  for (const locale of LOCALES) {
+    const line = settingsText(locale)("quitHelp", {
+      key: "Ctrl + Alt + Shift + B",
+    });
+    assert.match(line, /Ctrl \+ Alt \+ Shift \+ B/, locale);
+    assert.doesNotMatch(line, /\{key\}/, locale);
+  }
+});

@@ -31,6 +31,7 @@ async function setup({
   };
   const log = {
     hotkeys: [],
+    quitKeys: [],
     pickKeys: [],
     welcome: 0,
     guide: 0,
@@ -40,6 +41,7 @@ async function setup({
   };
   let currentHotkey = hotkey;
   let currentPick = "control";
+  let currentQuit = "Control+Alt+Shift+B";
   const controller = createSettingsController({
     win,
     loaded,
@@ -60,6 +62,15 @@ async function setup({
           return { ok: false, reason: "clash" };
         if (accelerator === "F") return { ok: false, reason: "invalid" };
         currentHotkey = accelerator;
+        return { ok: true };
+      },
+    },
+    quitKey: {
+      get: () => currentQuit,
+      set: async (accelerator) => {
+        log.quitKeys.push(accelerator);
+        if (accelerator === "F") return { ok: false, reason: "invalid" };
+        currentQuit = accelerator;
         return { ok: true };
       },
     },
@@ -172,6 +183,28 @@ test("a new hotkey is registered and shown; a clash says why and keeps the old k
     value: "F",
   });
   assert.equal(invalid.reason, "invalid");
+});
+
+test("the quit key is changed and shown, and cannot be the capture hotkey", async () => {
+  const { ask } = await setup();
+  const view = await ask("blinkling:settings-ready");
+  assert.equal(view.quitKey, "Control+Alt+Shift+B");
+  const ok = await ask("blinkling:settings-set", {
+    key: "quitKey",
+    value: "Control+Alt+Shift+Q",
+  });
+  assert.deepEqual([ok.ok, ok.state.quitKey], [true, "Control+Alt+Shift+Q"]);
+  const same = await ask("blinkling:settings-set", {
+    key: "quitKey",
+    value: "Alt+Shift+X",
+  });
+  assert.deepEqual([same.ok, same.reason], [false, "clash"]);
+  const invalid = await ask("blinkling:settings-set", {
+    key: "quitKey",
+    value: "F",
+  });
+  assert.equal(invalid.reason, "invalid");
+  assert.equal(invalid.state.quitKey, "Control+Alt+Shift+Q");
 });
 
 test("the language row lists the nine languages and a change is applied in place, once, and the answer already speaks it", async () => {

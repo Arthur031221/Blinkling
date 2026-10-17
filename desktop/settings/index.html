@@ -39,6 +39,23 @@
         ></p>
       </section>
 
+      <section class="settings-row" id="row-quit">
+        <div class="settings-text">
+          <h2 data-text="quitKey"></h2>
+          <p data-text="quitKeyHint"></p>
+        </div>
+        <div class="settings-control">
+          <kbd id="quit-label"></kbd>
+          <button type="button" id="quit-change"></button>
+        </div>
+        <p
+          class="settings-note"
+          id="quit-note"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </section>
+
       <section class="settings-row" id="row-pick" hidden>
         <div class="settings-text">
           <h2 data-text="pickKey"></h2>
@@ -95,6 +112,7 @@
           <code class="settings-command">claude --dangerously-load-development-channels plugin:blinkling@blinkling</code>
           <p data-text="syncLine"></p>
         </div>
+        <p id="quit-help" class="settings-quit-help"></p>
         <div class="settings-about" aria-labelledby="about-title">
           <h3 id="about-title" data-text="helpAbout"></h3>
           <div data-wordmark></div>

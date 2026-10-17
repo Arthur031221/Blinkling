@@ -12,12 +12,13 @@ const file = (name) => fileURLToPath(new URL(`./${name}`, import.meta.url));
  * electron: {BrowserWindow, ipcMain}
  * shell: {userDataDir, locales, windowOptions(bounds, focusable), secure(win),
  *   workArea(), input, env?, platform?, version}
- * hotkey: {get(), set(accelerator)}; pickKey: {get(), set(name)};
+ * hotkey: {get(), set(accelerator)}; quitKey: {get(), set(accelerator)}; pickKey: {get(), set(name)};
  * host: {welcome(), guide()} */
 export function installSettings({
   electron,
   shell,
   hotkey,
+  quitKey,
   pickKey,
   host,
   onError = () => {},
@@ -52,6 +53,7 @@ export function installSettings({
     version: shell.version,
     store,
     hotkey,
+    quitKey,
     pickKey,
     host,
     focus: {

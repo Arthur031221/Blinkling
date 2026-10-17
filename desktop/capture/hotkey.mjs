@@ -207,7 +207,16 @@ export function validateHotkey(accelerator, platform = process.platform) {
  * is released, so a refusal leaves the working key in place. */
 export class HotkeyRegistry {
   current = null;
-  constructor({ shortcuts, platform = process.platform, initial, run }) {
+  constructor({
+    shortcuts,
+    platform = process.platform,
+    initial,
+    run,
+    defaults = DEFAULT_HOTKEY,
+    reserved = () => [],
+  }) {
+    this.defaults = defaults;
+    this.reserved = reserved;
     this.shortcuts = shortcuts;
     this.platform = platform;
     this.initial = initial;
@@ -223,7 +232,7 @@ export class HotkeyRegistry {
   start() {
     const stored = validateHotkey(this.initial, this.platform).ok
       ? this.initial
-      : DEFAULT_HOTKEY[this.platform];
+      : this.defaults[this.platform];
     if (!this.#register(stored)) return { ok: false, reason: "unavailable" };
     this.current = stored;
     return { ok: true };
@@ -231,6 +240,15 @@ export class HotkeyRegistry {
   set(accelerator) {
     const check = validateHotkey(accelerator, this.platform);
     if (!check.ok) return check;
+    // The key another feature already owns is refused, so one press never
+    // starts two things.
+    const same = normalizeHotkey(accelerator, this.platform);
+    if (
+      this.reserved().some(
+        (key) => normalizeHotkey(key, this.platform) === same,
+      )
+    )
+      return { ok: false, reason: "clash" };
     if (accelerator === this.current) return { ok: true };
     if (!this.#register(accelerator))
       return { ok: false, reason: "unavailable" };

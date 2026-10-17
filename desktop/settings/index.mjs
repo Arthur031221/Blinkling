@@ -9,7 +9,7 @@ const HELP = new Set(["welcome", "guide"]);
 
 /** The settings window: one hidden window made at start and reused (N6.4).
  * win: {webContents, isDestroyed, isVisible, isFocused, setBounds, showInactive,
- *   hide, focus}; ipc: {on, handle}; store: settings store; hotkey: {get, set};
+ *   hide, focus}; ipc: {on, handle}; store: settings store; hotkey: {get, set}; quitKey: {get, set};
  * pickKey: {get, set} (used on macOS only); host: {welcome, guide,
  *   languageChanged(value)}, where languageChanged puts every window into the
  *   new language in place; `locale` may be a function, read on each use;
@@ -22,6 +22,7 @@ export function createSettingsController({
   version,
   store,
   hotkey,
+  quitKey,
   pickKey,
   host,
   focus,
@@ -47,6 +48,7 @@ export function createSettingsController({
     platform,
     version,
     hotkey: hotkey.get(),
+    quitKey: quitKey.get(),
     pickKey: mac ? pickKey.get() : null,
     pickKeys: mac ? [...PICK_KEYS] : null,
     startWithClaudeCode: store.get().startWithClaudeCode,
@@ -90,6 +92,15 @@ export function createSettingsController({
       if (key === "hotkey") {
         if (typeof value !== "string" || !value) return refuse();
         const result = await hotkey.set(value);
+        return result.ok
+          ? { ok: true, state: view() }
+          : refuse(result.reason ?? "unavailable");
+      }
+      if (key === "quitKey") {
+        if (typeof value !== "string" || !value) return refuse();
+        // The capture hotkey and the quit key are never the same chord.
+        if (value === hotkey.get()) return refuse("clash");
+        const result = await quitKey.set(value);
         return result.ok
           ? { ok: true, state: view() }
           : refuse(result.reason ?? "unavailable");

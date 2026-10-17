@@ -16,6 +16,8 @@ export const strings = {
     pickKeyHint: "Hold it and click to take what is under the pointer",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "Quit hotkey",
+    quitKeyHint: "Closes Blink at once, even if it is stuck.",
     startWithClaude: "Start with Claude Code",
     startWithClaudeHint: "Open Blink when a Claude Code session starts",
     language: "Language",
@@ -29,6 +31,8 @@ export const strings = {
     syncTitle: "Terminal sync",
     syncLine:
       "The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.",
+    quitHelp:
+      "Press {key} anywhere to close Blink at once, even if it is stuck.",
     version: "Version {version}",
   },
   "zh-TW": {
@@ -46,6 +50,8 @@ export const strings = {
     pickKeyHint: "按住它再點一下，就能取用指標下的內容",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "結束快速鍵",
+    quitKeyHint: "立刻關閉 Blink，就算它卡住也一樣。",
     startWithClaude: "隨 Claude Code 啟動",
     startWithClaudeHint: "Claude Code 開始工作階段時自動開啟 Blink",
     language: "語言",
@@ -58,6 +64,7 @@ export const strings = {
     syncTitle: "終端機同步",
     syncLine:
       "這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。",
+    quitHelp: "在任何地方按 {key}，就能立刻關閉 Blink，就算它卡住也一樣。",
     version: "版本 {version}",
   },
   "zh-CN": {
@@ -75,6 +82,8 @@ export const strings = {
     pickKeyHint: "按住它再点一下，就能取用指针下的内容",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "退出快捷键",
+    quitKeyHint: "立即关闭 Blink，即使它卡住了也一样。",
     startWithClaude: "随 Claude Code 启动",
     startWithClaudeHint: "Claude Code 开始会话时自动打开 Blink",
     language: "语言",
@@ -87,6 +96,7 @@ export const strings = {
     syncTitle: "终端同步",
     syncLine:
       "这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。",
+    quitHelp: "在任何地方按 {key}，就能立即关闭 Blink，即使它卡住了也一样。",
     version: "版本 {version}",
   },
   ja: {
@@ -106,6 +116,8 @@ export const strings = {
     pickKeyHint: "押したままクリックすると、ポインタの下のものを取り込みます",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "終了ショートカット",
+    quitKeyHint: "固まっていても、すぐに Blink を閉じます。",
     startWithClaude: "Claude Code と一緒に起動",
     startWithClaudeHint: "Claude Code のセッション開始時に Blink を開きます",
     language: "言語",
@@ -118,6 +130,8 @@ export const strings = {
     syncTitle: "ターミナルとの同期",
     syncLine:
       "このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。",
+    quitHelp:
+      "どこでも {key} を押すと、固まっていてもすぐに Blink を閉じます。",
     version: "バージョン {version}",
   },
   ko: {
@@ -138,6 +152,8 @@ export const strings = {
     pickKeyHint: "누른 채 클릭하면 포인터 아래의 내용을 가져옵니다",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "종료 단축키",
+    quitKeyHint: "멈춰 있어도 Blink를 바로 닫습니다.",
     startWithClaude: "Claude Code와 함께 시작",
     startWithClaudeHint: "Claude Code 세션이 시작되면 Blink를 엽니다",
     language: "언어",
@@ -150,6 +166,7 @@ export const strings = {
     syncTitle: "터미널 동기화",
     syncLine:
       "이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.",
+    quitHelp: "어디서든 {key}을(를) 누르면 멈춰 있어도 Blink가 바로 닫힙니다.",
     version: "버전 {version}",
   },
   de: {
@@ -170,6 +187,8 @@ export const strings = {
     pickKeyHint: "Halten und klicken, um zu nehmen, was unter dem Zeiger liegt",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "Beenden-Kürzel",
+    quitKeyHint: "Schließt Blink sofort, auch wenn es hängt.",
     startWithClaude: "Mit Claude Code starten",
     startWithClaudeHint: "Blink öffnen, wenn eine Claude-Code-Sitzung beginnt",
     language: "Sprache",
@@ -182,6 +201,8 @@ export const strings = {
     syncTitle: "Terminal-Sync",
     syncLine:
       "Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.",
+    quitHelp:
+      "Drücke überall {key}, um Blink sofort zu schließen, auch wenn es hängt.",
     version: "Version {version}",
   },
   es: {
@@ -201,6 +222,8 @@ export const strings = {
     pickKeyHint: "Mantenla y haz clic para tomar lo que hay bajo el puntero",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "Atajo para salir",
+    quitKeyHint: "Cierra Blink al instante, aunque esté bloqueado.",
     startWithClaude: "Iniciar con Claude Code",
     startWithClaudeHint: "Abrir Blink cuando empiece una sesión de Claude Code",
     language: "Idioma",
@@ -214,6 +237,8 @@ export const strings = {
     syncTitle: "Sincronizar con la terminal",
     syncLine:
       "La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.",
+    quitHelp:
+      "Pulsa {key} en cualquier lugar para cerrar Blink al instante, aunque esté bloqueado.",
     version: "Versión {version}",
   },
   fr: {
@@ -236,6 +261,8 @@ export const strings = {
       "Maintenez-la et cliquez pour prendre ce qui est sous le pointeur",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "Raccourci pour quitter",
+    quitKeyHint: "Ferme Blink aussitôt, même s'il est bloqué.",
     startWithClaude: "Démarrer avec Claude Code",
     startWithClaudeHint: "Ouvrir Blink au début d'une session Claude Code",
     language: "Langue",
@@ -249,6 +276,8 @@ export const strings = {
     syncTitle: "Synchronisation du terminal",
     syncLine:
       "L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
+    quitHelp:
+      "Appuyez sur {key} n'importe où pour fermer Blink aussitôt, même s'il est bloqué.",
     version: "Version {version}",
   },
   "pt-BR": {
@@ -269,6 +298,8 @@ export const strings = {
     pickKeyHint: "Segure e clique para pegar o que está sob o ponteiro",
     pickKeyControl: "Control",
     pickKeyOption: "Option",
+    quitKey: "Atalho para sair",
+    quitKeyHint: "Fecha o Blink na hora, mesmo que ele esteja travado.",
     startWithClaude: "Iniciar com o Claude Code",
     startWithClaudeHint:
       "Abrir o Blink quando uma sessão do Claude Code começar",
@@ -283,6 +314,8 @@ export const strings = {
     syncTitle: "Sincronização com o terminal",
     syncLine:
       "A opção faz o chat do Blink chegar a esta sessão. O Claude Code pede uma confirmação, uma só vez. Sem ela, o Blink continua funcionando e responde pela própria sessão.",
+    quitHelp:
+      "Pressione {key} em qualquer lugar para fechar o Blink na hora, mesmo que esteja travado.",
     version: "Versão {version}",
   },
 };

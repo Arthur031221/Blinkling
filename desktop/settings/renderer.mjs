@@ -15,16 +15,27 @@ for (const declaration of cssVariables().split(";")) {
 
 const $ = (selector) => document.querySelector(selector);
 const card = $("#settings");
-const label = $("#hotkey-label");
-const change = $("#hotkey-change");
-const note = $("#hotkey-note");
+// Two rows pick a key the same way: the capture hotkey and the quit key.
+const rows = {
+  hotkey: {
+    label: $("#hotkey-label"),
+    change: $("#hotkey-change"),
+    note: $("#hotkey-note"),
+  },
+  quitKey: {
+    label: $("#quit-label"),
+    change: $("#quit-change"),
+    note: $("#quit-note"),
+  },
+};
+const change = rows.hotkey.change;
 const start = $("#start-switch");
 const pickRow = $("#row-pick");
 const language = $("#language-select");
 
 let t = settingsText("en");
 let state = null;
-let listening = false;
+let listening = null;
 
 /** Frames of the appear/disappear transition, for the end-to-end frame gate. */
 function watchFrames() {
@@ -46,9 +57,9 @@ language.addEventListener("change", async () => {
   render();
 });
 
-function say(text, kind = "info") {
-  note.textContent = text;
-  note.dataset.kind = kind;
+function say(text, kind = "info", key = listening ?? "hotkey") {
+  rows[key].note.textContent = text;
+  rows[key].note.dataset.kind = kind;
 }
 
 function render() {
@@ -60,12 +71,18 @@ function render() {
   close.setAttribute("aria-label", t("close"));
   for (const element of document.querySelectorAll("[data-text]"))
     element.textContent = t(element.dataset.text);
-  label.textContent = listening
-    ? t("hotkeyListening")
-    : hotkeyLabel(state.hotkey, state.platform);
-  label.dataset.listening = String(listening);
-  change.textContent = t("hotkeyChange");
-  change.setAttribute("aria-pressed", String(listening));
+  for (const [key, row] of Object.entries(rows)) {
+    const on = listening === key;
+    row.label.textContent = on
+      ? t("hotkeyListening")
+      : hotkeyLabel(state[key], state.platform);
+    row.label.dataset.listening = String(on);
+    row.change.textContent = t("hotkeyChange");
+    row.change.setAttribute("aria-pressed", String(on));
+  }
+  $("#quit-help").textContent = t("quitHelp", {
+    key: hotkeyLabel(state.quitKey, state.platform),
+  });
   start.setAttribute("aria-checked", String(state.startWithClaudeCode));
   start.setAttribute("aria-label", t("startWithClaude"));
   pickRow.hidden = !state.pickKeys;
@@ -109,7 +126,7 @@ const reasons = {
 };
 
 function stopListening() {
-  listening = false;
+  listening = null;
   document.removeEventListener("keydown", onCapture, true);
   render();
 }
@@ -123,24 +140,29 @@ async function onCapture(event) {
   }
   const accelerator = acceleratorFromKeyEvent(event, state.platform);
   if (!accelerator) return; // a modifier on its own: keep listening
-  const result = await apply("hotkey", accelerator);
+  const key = listening;
+  const result = await apply(key, accelerator);
   stopListening();
   say(
     result.ok ? t("hotkeySaved") : t(reasons[result.reason] ?? "hotkeyInvalid"),
     result.ok ? "info" : "error",
+    key,
   );
 }
 
-change.addEventListener("click", () => {
-  if (listening) {
+for (const [key, row] of Object.entries(rows))
+  row.change.addEventListener("click", () => {
+    const same = listening === key;
+    if (listening) {
+      say("");
+      stopListening();
+    }
+    if (same) return;
+    listening = key;
     say("");
-    return stopListening();
-  }
-  listening = true;
-  say("");
-  document.addEventListener("keydown", onCapture, true);
-  render();
-});
+    document.addEventListener("keydown", onCapture, true);
+    render();
+  });
 start.addEventListener("click", async () => {
   await apply("startWithClaudeCode", !state.startWithClaudeCode);
   render();
