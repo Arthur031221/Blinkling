@@ -314,7 +314,7 @@ test("two saves in flight at once both land and leave no temporary file", async 
       role: "user",
       content: [{ type: "text", text: "hi" }],
     });
-    await Promise.all([chat.save(), chat.save(), chat.save()]);
+    await Promise.all([chat.save(), chat.save(), chat.save(), chat.flush()]);
     const files = await readdir(directory);
     assert.deepEqual(files, ["channel.json"]);
   } finally {
