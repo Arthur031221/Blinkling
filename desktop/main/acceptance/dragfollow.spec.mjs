@@ -390,7 +390,7 @@ test("after a drop the card glides with Blink to its place, and is never ahead o
     const dropped = Date.now();
     native([{ type: "up" }]);
     await page.waitForTimeout(900);
-    const { samples, rows } = await readWatch(
+    const { rows } = await readWatch(
       app,
       page,
       dropped - 50,
