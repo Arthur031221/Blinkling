@@ -23,11 +23,13 @@ export function chatMessage(event) {
   const id =
     event.type === "assistant" ? (event.message.id ?? event.uuid) : event.uuid;
   if (!id) return null;
+  const at = Date.parse(event.timestamp);
   return {
     type: "message",
     id,
     role: event.type,
     content: structuredClone(content),
+    ...(Number.isFinite(at) ? { at } : {}),
   };
 }
 

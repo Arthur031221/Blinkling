@@ -115,6 +115,7 @@ export const conversation = mountConversation({
   onHold: (value) => api.hold?.(value),
   onSize: (height) => api.cardSize?.(height),
   openLink: (url) => api.openLink?.(url),
+  copy: (text) => api.copy(text),
   openImage: (image) => api.viewImage?.(image),
   onQuick: (value) => api.quick?.(value),
   onReference: ({ ref }) => api.referenceHover?.({ ref }),

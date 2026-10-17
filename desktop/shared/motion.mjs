@@ -37,6 +37,8 @@ export const timing = Object.freeze({
   captureSlow: 400,
   // How long a button says it copied before it says Copy again.
   copiedHold: 1600,
+  // How often the "6 minutes ago" under a message is read again.
+  clockTick: 60000,
   // Launch: the wait that lets the window draw once before Blink steps in.
   appearLead: 600,
   // How long the wait indicator stays on one word.

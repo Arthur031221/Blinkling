@@ -7,6 +7,7 @@ import {
   globalShortcut,
   nativeTheme,
   shell as externalShell,
+  clipboard,
 } from "electron";
 import { EventEmitter } from "node:events";
 import { fileURLToPath } from "node:url";
@@ -1128,6 +1129,15 @@ ipcMain.handle("blinkling:open-link", async (event, url) => {
   if (typeof url !== "string" || url.length > 4096 || !/^https?:\/\//.test(url))
     throw new Error("Invalid link");
   await externalShell.openExternal(new URL(url).href);
+});
+/** Copy buttons in the card write the system clipboard from here: the page's
+ * own clipboard is refused in a window that does not hold focus. */
+ipcMain.handle("blinkling:copy", (event, text) => {
+  if (!trusted(event) || event.sender !== composer?.webContents)
+    throw new Error("Untrusted copy");
+  if (typeof text !== "string" || text.length > 1_000_000)
+    throw new Error("Invalid copy");
+  clipboard.writeText(text);
 });
 /** The reader drags the card by its header: it moves up to 120 px from where
  * it opens, a drag in progress is held in memory, and the final place (or a

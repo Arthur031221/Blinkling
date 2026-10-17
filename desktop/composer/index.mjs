@@ -240,9 +240,14 @@ export function createComposer({
       error = value;
       notify();
     },
-    send(text = draft, source = "composer") {
+    /** `bare` sends the words alone and leaves the box as it is: asking an
+     * earlier question again must not take what is being written. */
+    send(text = draft, source = "composer", { bare = false } = {}) {
       // Freeze the draft and attachments at the user's gesture, before queued controls.
-      const t = turn(uuid(), text, source);
+      const t = {
+        ...turn(uuid(), text, source),
+        ...(bare && { attachments: [] }),
+      };
       const draftAtGesture = draft;
       return enqueue(async () => {
         if (busy) throw failure("busy");
@@ -257,7 +262,7 @@ export function createComposer({
           for (const a of t.attachments)
             if (attachments.get(a.id)?.data === a.data)
               attachments.delete(a.id);
-          if (draft === draftAtGesture) draft = "";
+          if (!bare && draft === draftAtGesture) draft = "";
           notify();
           return t;
         } catch (e) {

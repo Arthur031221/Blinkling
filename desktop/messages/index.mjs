@@ -33,10 +33,16 @@ export function createMessageStream() {
     const content = Array.isArray(message.content)
       ? structuredClone(message.content)
       : [];
+    // When it was said: from the transcript when it has the time, else now
+    // for what happens live, and unknown for a replay that carries none.
+    const at = Number.isFinite(message.at)
+      ? message.at
+      : (messages.get(message.id)?.at ?? (live ? Date.now() : undefined));
     messages.set(message.id, {
       id: message.id,
       role: message.role,
       content,
+      ...(at === undefined ? {} : { at }),
       text: content
         .filter((b) => b.type === "text" && typeof b.text === "string")
         .map((b) => b.text)
@@ -117,6 +123,7 @@ export function createMessageStream() {
           role: "assistant",
           text,
           content: [{ type: "text", text }],
+          at: old?.at ?? Date.now(),
           complete: false,
         });
         speaking = true;

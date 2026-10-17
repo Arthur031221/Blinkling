@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke("blinkling:open-chat", messageId),
     viewImage: (image) => ipcRenderer.send("blinkling:view-image", image),
     openLink: (url) => ipcRenderer.invoke("blinkling:open-link", url),
+    copy: (text) => ipcRenderer.invoke("blinkling:copy", text),
     referenceHover: (value) =>
       ipcRenderer.send("blinkling:reference-hover", value),
     onMarkClick: (listener) => subscribe("blinkling:mark-click", listener),

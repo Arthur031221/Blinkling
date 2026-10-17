@@ -7,6 +7,9 @@ import { createSelectionPickers } from "./selection.mjs";
 import { mountThinking } from "./thinking.mjs";
 import { wantedHeight } from "./size.mjs";
 import { mountGuidePanel } from "./guide-panel.mjs";
+import { timing } from "../shared/motion.mjs";
+import { buildRow, refreshTimes } from "./message-actions.mjs";
+import { createSpeaker, spokenText } from "./speech.mjs";
 import {
   renderMarkdown,
   renderImage,
@@ -50,6 +53,10 @@ export function mountComposer(
 ) {
   const doc = host.ownerDocument;
   const tr = translator(strings, locale);
+  /** Every copy button writes the system clipboard through main; the page's
+   * own is the fallback where there is no desktop around it. */
+  const copyText =
+    copy ?? ((text) => doc.defaultView.navigator.clipboard.writeText(text));
   /** A picture in the card opens in the viewer, where it can be zoomed. */
   const zoomable = (img, image) => {
     if (!img || !openImage) return img;
@@ -224,6 +231,8 @@ export function mountComposer(
     disposed = false;
   const messageNodes = new Map(),
     attachmentNodes = new Map();
+  let busyNow = false;
+  const speaker = createSpeaker(doc.defaultView, locale);
   let attachmentGroups = new Map();
   // The composer carries a code; anything without a known one reads generically.
   const known = (code) => strings.en[`error-${code}`] !== undefined;
@@ -237,9 +246,9 @@ export function mountComposer(
     pointer = false;
     hold();
   });
-  const submit = (question = undefined, source = "composer") =>
+  const submit = (question = undefined, source = "composer", options) =>
     composer
-      .send(question, source)
+      .send(question, source, options)
       .then((turn) => {
         // Admission may already have delivered the canonical user event. Keep
         // its document/image blocks rather than replacing them with a preview.
@@ -263,6 +272,45 @@ export function mountComposer(
       .catch((e) => {
         if (!composer.state().error) fail(e);
       });
+  /** Ask the question before an answer once more, as a new turn. */
+  const retry = (message) => {
+    const list = store.snapshot(),
+      at = list.findIndex((m) => m.id === message.id);
+    const question = list
+      .slice(0, Math.max(at, 0))
+      .reverse()
+      .find((m) => m.role === "user" && m.text.trim());
+    if (question) submit(question.text, "composer", { bare: true });
+  };
+  /** Put a sent message back in the box, words and pictures, to change and
+   * send again. Nothing is taken out of the chat. */
+  const edit = (message) => {
+    const pictures = message.content
+      .filter((b) => b.type === "image")
+      .map((b) => ({
+        id: globalThis.crypto.randomUUID(),
+        name: b.name ?? "image",
+        mediaType: b.mediaType ?? b.source?.media_type,
+        data: b.data ?? b.source?.data,
+      }));
+    try {
+      composer.seed({ draft: message.text, attachments: pictures });
+    } catch (e) {
+      fail(e);
+      return;
+    }
+    text.focus({ preventScroll: true });
+    text.setSelectionRange(text.value.length, text.value.length);
+  };
+  const read = async (message, setState) => {
+    const n = messageNodes.get(message.id);
+    if (!n) return "unavailable";
+    const result = await speaker.toggle(message.id, spokenText(n), () =>
+      setState(false),
+    );
+    setState(result === "started");
+    return result;
+  };
   const endQuick = () => {
     if (!asking.active) return;
     asking = { active: false, defaultId: null, offer: null };
@@ -399,6 +447,9 @@ export function mountComposer(
     const locked = state.busy || state.selecting || !state.selection;
     pickers.setDisabled(locked);
     model.trigger.setAttribute("aria-busy", String(state.selecting));
+    busyNow = state.busy;
+    for (const b of history.querySelectorAll('[data-act="retry"]'))
+      b.disabled = state.busy;
     send.hidden = state.busy;
     send.disabled =
       state.selecting || (!state.draft.trim() && !state.attachments.length);
@@ -485,12 +536,14 @@ export function mountComposer(
         message.content,
         message.failure,
         message.offer,
+        message.complete,
+        message.at,
       ]);
       if (n.dataset.signature !== signature) {
         n.replaceChildren();
         for (const b of message.content) {
           if (b.type === "text")
-            n.append(renderMarkdown(doc, b.text, { copy, openLink }));
+            n.append(renderMarkdown(doc, b.text, { copy: copyText, openLink }));
           if (b.type === "image") {
             const img = zoomable(renderImage(doc, b), b);
             if (img) n.append(img);
@@ -514,6 +567,14 @@ export function mountComposer(
           }
           n.append(row);
         }
+        const meta = buildRow(doc, {
+          message,
+          tr,
+          locale,
+          busy: busyNow,
+          on: { copy: copyText, retry, edit, read },
+        });
+        if (meta) n.append(meta);
         n.dataset.signature = signature;
       }
     }
@@ -524,6 +585,15 @@ export function mountComposer(
   // The window is as tall as the card's content asks for, so an empty card is
   // short and grows with what it holds. Measured once a frame at most.
   const cleanups = [];
+  // "6 minutes ago" keeps counting while the card stays open.
+  const clock = doc.defaultView.setInterval(
+    () => refreshTimes(history, Date.now(), locale),
+    timing.clockTick,
+  );
+  cleanups.push(
+    () => doc.defaultView.clearInterval(clock),
+    () => speaker.stop(),
+  );
   let measured = 0,
     sizing = 0;
   const measure = () => {

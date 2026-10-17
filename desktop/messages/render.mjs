@@ -1,6 +1,7 @@
 import { Marked } from "./vendor/marked.mjs";
 import { translatorFor } from "./strings.mjs";
 import { highlight } from "./highlight.mjs";
+import { timing } from "../shared/motion.mjs";
 const markdown = new Marked({ gfm: true, breaks: true });
 export const imageURL = (image) => {
   const source = image.source ?? {
@@ -160,11 +161,15 @@ export function renderMarkdown(
         button.setAttribute("aria-label", tr("copyCode"));
         button.addEventListener("click", async () => {
           try {
-            await copy(t.text);
+            await copy(restore(t.text));
             button.textContent = tr("copied");
           } catch {
             button.textContent = tr("retry");
           }
+          doc.defaultView.setTimeout(
+            () => (button.textContent = tr("copy")),
+            timing.copiedHold,
+          );
         });
         for (const [type, piece] of highlight(restore(t.text), t.lang)) {
           if (type === "plain") code.append(doc.createTextNode(piece));
