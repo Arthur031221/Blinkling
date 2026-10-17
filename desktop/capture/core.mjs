@@ -121,8 +121,12 @@ export function fadeWindow(win, to, reduced = false) {
 }
 /** Frames the compositor is given to present a faded window before the screen
  * is read: a virtual display at twice the scale needs more than a few, and a
- * card left in the picture is read as a screen that changed. */
-export const SETTLE_FRAMES = 8;
+ * card left in the picture is read as a screen that changed. X11 presents the
+ * cleared page in two (a read after two frames still showed the card in the
+ * picture, after three it was clean), so there it waits for four, which keeps
+ * Blink out of sight for as short a time as the read allows. */
+export const SETTLE_FRAMES =
+  process.platform === "linux" && !process.env.WAYLAND_DISPLAY ? 4 : 8;
 const frames = (count) =>
   new Promise((resolve) => setTimeout(resolve, count * timing.frame));
 /** Includes temporary windows supplied by feature services. A failed capture
