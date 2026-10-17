@@ -57,6 +57,7 @@ async function setup({
   deliveryMs = 60000,
   busyWaitMs,
   locale = "en",
+  onChannelDropped,
 } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "router-"));
   const main = fakeBridge("main");
@@ -67,6 +68,7 @@ async function setup({
   const router = new ChatRouter({
     main,
     locale: () => locale,
+    onChannelDropped,
     makeBridge: (session) => {
       const b = fakeBridge(session);
       bridges.set(session, b);
@@ -249,7 +251,11 @@ test("a terminal session that goes away with a question open answers it as close
 });
 
 test("a question the terminal session never starts on is answered by Blink's own session, once, with one line saying so", async () => {
-  const t = await setup({ deliveryMs: 20 });
+  const dropped = [];
+  const t = await setup({
+    deliveryMs: 20,
+    onChannelDropped: (id) => dropped.push(id),
+  });
   t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
   const q = turn("are you there");
   await t.router.send(q);
@@ -257,6 +263,7 @@ test("a question the terminal session never starts on is answered by Blink's own
   await new Promise((r) => setTimeout(r, 80));
   assert.equal(t.main.sent.length, 1, "Blink's session got the question");
   assert.equal(t.main.sent[0].id, q.id);
+  assert.deepEqual(dropped, ["s1"], "the host is told the channel dropped it");
   assert.equal(t.router.currentKey, "blink");
   const notes = t.events.filter(
     (e) =>

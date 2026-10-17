@@ -297,6 +297,17 @@ test("an unpinned card closes after the reading time from the end of the answer"
   assert.equal(read().card, false);
 });
 
+test("an answer to an Auto explain keeps the card up until the reader closes it", () => {
+  const { m, at, go, read } = rig();
+  m.answerStart(0);
+  go(2000);
+  m.answerEnd(10, at.t, { keep: true });
+  go(readingMs(10) + 3 * timing.retreat);
+  assert.equal(read().card, true, "no timer closes it");
+  m.close(at.t);
+  assert.equal(read().card, false, "the reader still can");
+});
+
 test("reading time waits while the pointer is on the card or a scroll is recent", () => {
   const { m, at, go, read } = rig();
   m.geometry({ card });

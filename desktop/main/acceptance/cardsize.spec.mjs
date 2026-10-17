@@ -117,12 +117,17 @@ test("the card fades out toward its top in both themes, and the pin and close st
         const pin = document
           .querySelector(".gl-card-header .gl-icon-button")
           .getBoundingClientRect();
+        const brand = document
+          .querySelector(".gl-card-header .gl-brand")
+          .getBoundingClientRect();
         return {
           x: r.x,
           y: r.y,
           width: r.width,
           height: r.height,
           pin: { x: pin.x + 4, y: pin.y + 4 },
+          // The inside edge of the title's own paper, left of its first letter.
+          brand: { x: brand.x + 3, y: brand.y + brand.height / 2 },
         };
       });
       const screen = await shot(app, `fade-${theme}`);
@@ -140,6 +145,11 @@ test("the card fades out toward its top in both themes, and the pin and close st
       // The pin sits on its own paper: a clear step from the faded card behind.
       const pin = at(rect.pin.x, rect.pin.y);
       expect(away(pin), `${theme}: the pin is drawn solid`).toBeGreaterThan(
+        away(top),
+      );
+      // The title sits on its own paper as well, not on the fade.
+      const title = at(rect.brand.x, rect.brand.y);
+      expect(away(title), `${theme}: the title is drawn solid`).toBeGreaterThan(
         away(top),
       );
     }

@@ -183,8 +183,12 @@ a:focus-visible {
   background: color-mix(in srgb, var(--gl-paper) 92%, transparent);
   border: 1px solid var(--gl-border);
 }
+/* The title sits on its own paper too, so it never reads through the fade. */
 .gl-card-header .gl-brand {
-  text-shadow: 0 0 6px var(--gl-paper);
+  padding: 3px 10px;
+  background: var(--gl-paper);
+  border: 1px solid var(--gl-border);
+  border-radius: 999px;
 }
 .gl-icon-button:hover {
   background: var(--gl-soft);

@@ -80,6 +80,13 @@ describe("the plugin command", () => {
     expect(text).not.toMatch(/no launch flag/i);
     expect(text).toMatch(/Sync line must not be dropped/);
   });
+
+  it("tells the model to say nothing about the start command when the result has no Sync line", () => {
+    const text = read("commands/blinkling.md");
+    expect(text).toMatch(
+      /has no Sync line, say nothing about the start command/,
+    );
+  });
 });
 
 describe("the in-app welcome", () => {

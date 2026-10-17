@@ -397,12 +397,14 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       if (s.surface !== "chat") openChat(t, "answer");
       engage(t);
     },
-    answerEnd(words, t = clock()) {
+    /** `keep`: an Auto explain answer nobody asked for stays up until the
+     * reader closes it, so it is never taken away in the middle of reading. */
+    answerEnd(words, t = clock(), { keep = false } = {}) {
       s.streaming = false;
       s.dismissed = false;
       s.answered = true;
       engage(t);
-      s.readUntil = t + readingMs(words);
+      s.readUntil = keep ? null : t + readingMs(words);
       emit("answer-done", { words });
     },
     answerFailed(t = clock()) {

@@ -75,6 +75,42 @@ test("closing Blink tells a channel session by event and a plain session at its 
   }
 });
 
+test("a flagged session whose channel events were dropped is told at its next prompt, not by an event it never reads", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-quit-"));
+  const descriptor = join(directory, "desktop.json");
+  const host = await startDesktopHost({ directory, descriptor });
+  try {
+    await joinSession(directory, "flag");
+    const { client } = await discoverDesktop(descriptor);
+    const frames = [];
+    const stop = new AbortController();
+    void client
+      .link(
+        { session: "flag", pid: 1, cwd: "/work/a", channel: 1 },
+        (frame) => frames.push(frame),
+        stop.signal,
+      )
+      .catch(() => {});
+    await until(() => host.links().length === 1);
+    // Blink asked this session a question and it never took it.
+    host.dropChannel("flag");
+    assert.equal(await host.announceQuit(), 0);
+    await sleep(150);
+    assert.equal(
+      frames.some((f) => f.type === "notice"),
+      false,
+    );
+    stop.abort();
+    await host.close();
+    assert.deepEqual(await notice({ session_id: "flag" }, directory), {
+      systemMessage: QUIT_NOTICE,
+    });
+  } finally {
+    await host.close().catch(() => {});
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("a session that finds Blink running again is not told it was closed", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-quit-"));
   const descriptor = join(directory, "desktop.json");

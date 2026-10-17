@@ -68,6 +68,17 @@ export class DesktopSessionBridge {
     }
     return () => this.listeners.delete(target);
   }
+  /** Blink's own words for an Auto explain are not the reader's message: the
+   * chat shows the picture that was sent and the answer, not the prompt. */
+  withoutAutoPrompt(message) {
+    if (message.role !== "user") return message;
+    const turn = this.state?.turns.find((item) => item.turn.id === message.id);
+    if (turn?.turn.source !== "auto-explain") return message;
+    return {
+      ...message,
+      content: message.content.filter((block) => block.type !== "text"),
+    };
+  }
   internalTurn(turnId) {
     const turn = this.state?.turns.find((item) => item.turn.id === turnId);
     return INTERNAL_SOURCES.has(turn?.turn.source);
@@ -288,8 +299,8 @@ export class DesktopSessionBridge {
         return;
       }
       const item = { turn: copy, state: "queued", digest: digest(copy) };
-      const message = chatMessage(userMessage(copy));
       this.state.turns.push(item);
+      const message = this.withoutAutoPrompt(chatMessage(userMessage(copy)));
       this.upsert(message);
       try {
         await this.store.save(this.state);
@@ -451,6 +462,7 @@ export class DesktopSessionBridge {
   }
   upsert(message, emit = false) {
     if (!message) return;
+    message = this.withoutAutoPrompt(message);
     const index = this.state.messages.findIndex(
       (item) => item.id === message.id,
     );

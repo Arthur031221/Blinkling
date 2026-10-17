@@ -101,3 +101,28 @@ test("a full page capture is one page chip in the composer and its tiles still g
     await app.close();
   }
 });
+
+test("a new capture takes the marks of the last answer off the screen before the card opens", async () => {
+  test.setTimeout(60000);
+  const { app, page } = await launch();
+  try {
+    await background(app);
+    await page.waitForTimeout(800);
+    await app.evaluate(() => {
+      const { features } = globalThis.blinklingTest;
+      globalThis.cleared = [];
+      const clear = features.pointing.clear.bind(features.pointing);
+      features.pointing.clear = (reason) => {
+        globalThis.cleared.push(reason);
+        return clear(reason);
+      };
+    });
+    await capture(app, "marks");
+    await expect.poll(() => !!cardPage(app), { timeout: 8000 }).toBe(true);
+    expect(await app.evaluate(() => globalThis.cleared)).toContain(
+      "new-capture",
+    );
+  } finally {
+    await app.close();
+  }
+});

@@ -717,6 +717,8 @@ test("guide and companion turns never reach visible subscribers, live or from hi
   assert.match(text, /composer prompt/);
   assert.match(text, /composer reply/);
   assert.match(text, /auto-explain reply/);
+  // The words Blink asks for an Auto explain are not the reader's message.
+  assert.doesNotMatch(text, /auto-explain prompt/);
   for (const source of ["guide", "companion"])
     assert.ok(
       !visible.some(

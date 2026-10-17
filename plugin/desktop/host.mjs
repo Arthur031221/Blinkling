@@ -521,10 +521,17 @@ export async function startDesktopHost({
      * that session is not linked that way. */
     toSession: toLink,
     /** Blink is closing: sessions started with the channel flag get a notice
-     * event, every other linked session is marked for the notice hook. */
+     * event, every other linked session (and a flagged one whose events are
+     * dropped) is marked for the notice hook. */
+    /** A session started with the channel flag never took a question sent to
+     * it: its events are dropped, so it is told like any other session. */
+    dropChannel(session) {
+      const link = links.get(session);
+      if (link) link.dropped = true;
+    },
     async announceQuit() {
       const channels = [...links.values()]
-        .filter((l) => l.channel)
+        .filter((l) => l.channel && !l.dropped)
         .map((l) => l.session);
       for (const id of channels)
         toLink(id, {

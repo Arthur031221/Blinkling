@@ -896,6 +896,7 @@ let companionHost;
 const session = new ChatRouter({
   main: ownSession,
   locale: () => locale,
+  onChannelDropped: (id) => companionHost?.dropChannel(id),
   makeBridge: (id, cwd) =>
     bridgeFor(join(app.getPath("userData"), "chats", id), cwd),
   makeChannel: (id) =>
@@ -976,7 +977,7 @@ session.subscribe(
         .filter(Boolean).length;
       if (!machine.read().streaming) flow((m) => m.answerStart());
     } else if (event.type === "done") {
-      flow((m) => m.answerEnd(answerWords));
+      flow((m) => m.answerEnd(answerWords, undefined, { keep: autoExplain }));
       answerWords = 0;
     }
   },
@@ -1242,7 +1243,12 @@ function guideArrows(wanted) {
 }
 // Every capture, from the region selector, the hotkey or a pick, flies into
 // Blink and then opens the card.
-const attachCapture = async (taken) => pick.deliver(taken);
+// The marks of an earlier answer belong to that answer: a new capture takes
+// them off the screen before the card opens over them.
+const attachCapture = async (taken) => {
+  features?.pointing.clear("new-capture");
+  return pick.deliver(taken);
+};
 features = installCaptureGuide({
   blink,
   windows: surfaces,

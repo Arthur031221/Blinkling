@@ -303,8 +303,10 @@ export class ChatRouter {
     deliver,
     basenameOf = basename,
     locale = () => "en",
+    onChannelDropped = () => {},
   }) {
     this.locale = locale;
+    this.onChannelDropped = onChannelDropped;
     this.main = main;
     this.makeBridge = makeBridge;
     this.makeChannel = makeChannel;
@@ -494,6 +496,7 @@ export class ChatRouter {
   /** A terminal session never took the question. Blink's own session answers
    * it, in Blink's chat, with one line saying why. */
   fallback(session, turn) {
+    this.onChannelDropped(session);
     const note = {
       id: `undelivered-${turn.id}`,
       role: "assistant",
