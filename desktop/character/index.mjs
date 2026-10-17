@@ -49,9 +49,15 @@ import {
   whirled,
   greeting,
 } from "./motions.mjs";
+import {
+  COSTUME_FOR,
+  costumeMove,
+  costumeOutfit,
+  moveFor,
+} from "./costume.mjs";
 import { BLINK_SCALE as K } from "./size.mjs";
 import { clipAbove, roundedRect } from "./silhouette.mjs";
-export { DIZZY_FOR, EAT_FOR };
+export { COSTUME_FOR, DIZZY_FOR, EAT_FOR };
 /** How far outside its drawn shape Blink still takes a click, hover or press. */
 export const HIT_MARGIN = 6;
 
@@ -97,7 +103,7 @@ const FACE_FIELDS = [
   "attach",
   "front",
 ];
-const SCENE = ["front", "back", "attach", "faceExtra"];
+const SCENE = ["front", "back", "attach", "faceExtra", "behind"];
 const NS = "http://www.w3.org/2000/svg";
 
 const pick = (pose, keys) =>
@@ -220,6 +226,15 @@ export function mountBlink(host) {
         blend: BLEND,
       };
     }
+    const dressed = time - (o.costumeAt ?? -100);
+    if (o.costume && dressed >= 0 && dressed < moveFor(o.costume.effort))
+      return {
+        key: `costume:${o.costume.effort}`,
+        pose: plain(
+          costumeMove(o.costume.effort, dressed, o.costume.reduced === true),
+        ),
+        blend: 0.2,
+      };
     const waved = time - (o.waveAt ?? -100);
     if (waved >= 0 && waved < 1.5)
       return { key: "wave", pose: plain(greeting(time, waved)), blend: 0.3 };
@@ -319,6 +334,16 @@ export function mountBlink(host) {
         out.clipY = lerp(320, PEEK_EDGE, ease((lean - 0.4) / 0.6));
       out.armsOver = lean > 0.5;
       if (lean > 0.5) out.back = "";
+    }
+    // The outfit stays on for its whole time, whatever Blink is doing.
+    const worn = o.costume
+      ? costumeOutfit(o.costume.family, time - (o.costumeAt ?? -100))
+      : null;
+    if (worn && lean < 0.5) {
+      out.behind = worn.behind;
+      out.faceExtra = (out.faceExtra ?? "") + worn.faceExtra;
+      out.front = (out.front ?? "") + worn.front;
+      out.attach = (out.attach ?? "") + worn.attach;
     }
     out.attach = (out.attach ?? "") + dotSvg(o.dot);
     out.noShadow = true;

@@ -38,7 +38,11 @@ const at = {
   shrug: -100,
   turn: -100,
   dizzy: -100,
+  costume: -100,
 };
+// The outfit and effort move of the last model or effort change.
+let costume = null;
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let leaveAt = null,
   whirlAt = null,
   turnDir = 1;
@@ -321,6 +325,8 @@ async function action(id) {
       celebrateAt: at.celebrate,
       shrugAt: at.shrug,
       turnAt: at.turn,
+      costumeAt: at.costume,
+      costume: costume && { ...costume, reduced: reducedMotion.matches },
       turnDir,
       leaveAt,
       walking,
@@ -415,6 +421,8 @@ api.onShell((event) => {
     if (event.name === "leave") leaveAt = now;
     else if (event.name === "whirl") whirlAt = now;
     else if (event.name in at) at[event.name] = now;
+    if (event.name === "costume")
+      costume = { family: event.family, effort: event.effort };
     if (event.name === "turn") turnDir = event.dir === -1 ? -1 : 1;
     grumbler.touch(performance.now());
   }

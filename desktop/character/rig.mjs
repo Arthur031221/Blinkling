@@ -359,7 +359,8 @@ export const STAND = {
 };
 
 // Draw one frame. o = pose fields; scene = { back, mid, front } extra SVG in scene space,
-// o.attach = extra SVG that moves with the body (sweat drop, cheek puff).
+// o.attach = extra SVG that moves with the body (sweat drop, cheek puff); o.behind is
+// the same but drawn under the body (a cape).
 export function drawBlink(o, uid) {
   o = Object.assign({}, STAND, o);
   const yaw = o.yaw,
@@ -452,6 +453,7 @@ export function drawBlink(o, uid) {
   const figureCore =
     pick("back") +
     legBack +
+    (o.behind || "") +
     bodySvg +
     bodyLine +
     (o.armsOver ? "" : pick("side")) +

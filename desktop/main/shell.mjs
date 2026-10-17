@@ -28,6 +28,8 @@ import {
   SHRUG_FOR,
   TURN_FOR,
 } from "../character/motions.mjs";
+import { COSTUME_FOR, costumeChange } from "../character/costume.mjs";
+import { families, familyOf } from "../composer/models.mjs";
 import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
 import { cursorSource } from "./cursor.mjs";
@@ -305,6 +307,7 @@ const PLAYS = {
   shrug: SHRUG_FOR,
   turn: TURN_FOR,
   dizzy: DIZZY_FOR,
+  costume: COSTUME_FOR,
   leave: LEAVE_FOR,
 };
 function motion(name, extra = {}) {
@@ -1060,9 +1063,20 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
     throw error;
   }
 });
-ipcMain.handle("blinkling:select", (event, selection) => {
+/** The model family and effort of a selection, as the costume reads them. */
+const costumeKey = (s) =>
+  s && {
+    family: familyOf(s.model) ?? (families.includes(s.model) ? s.model : null),
+    effort: s.effort,
+  };
+ipcMain.handle("blinkling:select", async (event, selection) => {
   requireView(event);
-  return session.select(selection);
+  const before = costumeKey(session.state?.selection);
+  const applied = await session.select(selection);
+  // Only a real change dresses Blink: not the first value, not the same value.
+  const change = costumeChange(before, costumeKey(applied));
+  if (change) motion("costume", change);
+  return applied;
 });
 ipcMain.handle("blinkling:chat-switch", (event, key) => {
   requireView(event);
