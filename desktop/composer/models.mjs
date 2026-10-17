@@ -8,7 +8,7 @@ export const permissionModes = Object.freeze(["default", "plan"]);
 export const modelVersions = Object.freeze({
   opus: "5.5",
   sonnet: "5.5",
-  haiku: "4.5",
+  haiku: "5.5",
   fable: "5.1",
 });
 export const families = Object.freeze(Object.keys(modelVersions));

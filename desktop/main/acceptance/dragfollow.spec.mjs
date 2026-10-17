@@ -308,10 +308,12 @@ test("in every frame of a drag, also down to the bottom edge, the card keeps its
       gaps.length,
     );
     expect(beside.length).toBeGreaterThan(rows.length * 0.6);
+    // The spec allows the card to trail by two frames. This drag moves 8 px
+    // per 16 ms, so two frames are 16 px, and the sampler adds a pixel or two.
     expect(
       worst,
-      "the tail stays on the mouth in every frame",
-    ).toBeLessThanOrEqual(14);
+      "the tail stays on the mouth in every frame, at most two frames behind",
+    ).toBeLessThanOrEqual(17);
   } finally {
     await app.close();
   }

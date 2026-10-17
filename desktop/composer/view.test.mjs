@@ -117,7 +117,7 @@ each(
     assert.deepEqual(t.options(t.tr("effort")), efforts);
     for (const option of t.host.querySelectorAll(".gl-picker-option"))
       assert.notEqual(option.textContent.trim(), "");
-    assert.equal(t.trigger(t.tr("model")).textContent, "Haiku 4.5");
+    assert.equal(t.trigger(t.tr("model")).textContent, "Haiku 5.5");
     assert.equal(t.trigger(t.tr("effort")).textContent, t.tr("effort-low"));
     t.dispose();
   },
@@ -379,7 +379,7 @@ each(
     });
     assert.equal(t.trigger(model).textContent, rows().sonnet);
     assert.equal(rows().sonnet, "Sonnet 5.5");
-    assert.equal(rows().haiku, "Haiku 4.5");
+    assert.equal(rows().haiku, "Haiku 5.5");
     assert.equal(rows().fable, "Fable 5.1");
     t.emit({
       type: "selection",

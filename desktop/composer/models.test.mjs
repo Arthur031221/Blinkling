@@ -14,14 +14,14 @@ test("the version table names the current four models", () => {
     {
       opus: "Opus 5.5",
       sonnet: "Sonnet 5.5",
-      haiku: "Haiku 4.5",
+      haiku: "Haiku 5.5",
       fable: "Fable 5.1",
     },
   );
   assert.deepEqual(modelVersions, {
     opus: "5.5",
     sonnet: "5.5",
-    haiku: "4.5",
+    haiku: "5.5",
     fable: "5.1",
   });
 });

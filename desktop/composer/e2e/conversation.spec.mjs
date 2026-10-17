@@ -100,7 +100,7 @@ test("plus, paste, drop, remove, text files and acknowledged picker rejection", 
     await expect(options.getByRole("option")).toHaveText([
       "Opus 5.5",
       "Sonnet 5.5",
-      "Haiku 4.5",
+      "Haiku 5.5",
       "Fable 5.1",
     ]);
     await options.getByRole("option", { name: "Sonnet 5.5" }).click();

@@ -173,7 +173,8 @@ export function mountComposer(
     doc,
     { tr, signal, models, efforts, onChoose: (wanted) => choose(wanted) },
   );
-  const listen = (n, type, fn) => n.addEventListener(type, fn, { signal });
+  const listen = (n, type, fn, capture = false) =>
+    n.addEventListener(type, fn, { signal, capture });
   attachNudge(header, { send: onNudge, current: nudgeNow, signal });
   attachResize(card, { send: onResize, signal });
   const toolbar = node("div", "gl-composer-toolbar"),
@@ -436,7 +437,20 @@ export function mountComposer(
   listen(close, "click", () => {
     view.close();
   });
+  // Our own scroll to the newest message fires its scroll event after the
+  // layout may have grown again. That event is not the reader moving, so it
+  // must not end the following.
+  let expected = null;
+  const toEnd = () => {
+    history.scrollTop = history.scrollHeight;
+    expected = history.scrollTop;
+  };
   listen(history, "scroll", () => {
+    if (expected !== null && history.scrollTop === expected) {
+      expected = null;
+      return;
+    }
+    expected = null;
     following =
       history.scrollHeight - history.clientHeight - history.scrollTop < 32;
   });
@@ -580,7 +594,7 @@ export function mountComposer(
     }
     if (state.working) thinking.start({ seeing: state.seeing });
     else thinking.stop();
-    if (following) history.scrollTop = history.scrollHeight;
+    if (following) toEnd();
   });
   // The window is as tall as the card's content asks for, so an empty card is
   // short and grows with what it holds. Measured once a frame at most.
@@ -615,7 +629,12 @@ export function mountComposer(
   };
   const win = doc.defaultView;
   if (win?.MutationObserver) {
-    const watch = new win.MutationObserver(resize);
+    const watch = new win.MutationObserver(() => {
+      resize();
+      // A row or a note added after the render still counts for a reader who
+      // is at the newest message.
+      if (following && visible) toEnd();
+    });
     watch.observe(card, {
       childList: true,
       subtree: true,
@@ -629,12 +648,21 @@ export function mountComposer(
     // one who scrolled up is left where they are.
     const watch = new win.ResizeObserver(() => {
       resize();
-      if (following && visible) history.scrollTop = history.scrollHeight;
+      if (following && visible) toEnd();
     });
     watch.observe(card);
     watch.observe(history);
     cleanups.push(() => watch.disconnect());
   }
+  // A picture that finishes loading makes its message taller after the render.
+  listen(
+    history,
+    "load",
+    () => {
+      if (following && visible) toEnd();
+    },
+    true,
+  );
   // A reference badge in an answer lights its mark on the page.
   listen(history, "mouseover", (e) => {
     const ref = e.target.closest?.(".gl-ref")?.dataset.ref;
@@ -660,7 +688,7 @@ export function mountComposer(
         // above the composer. A refocus of a card already open leaves the
         // reader where they are.
         following = true;
-        history.scrollTop = history.scrollHeight;
+        toEnd();
       }
       resize();
       text.focus({ preventScroll: true });
@@ -679,7 +707,7 @@ export function mountComposer(
     /** Back on the newest message, as after the image viewer closed. */
     toNewest() {
       following = true;
-      history.scrollTop = history.scrollHeight;
+      toEnd();
     },
     /** Escape closes the topmost thing: an open list first, then the card. */
     escape() {

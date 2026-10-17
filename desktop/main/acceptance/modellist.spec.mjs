@@ -38,7 +38,7 @@ test("the model list offers Opus, Sonnet, Haiku and Fable, each with its version
     await expect(list.getByRole("option")).toHaveText([
       "Opus 5.5",
       "Sonnet 5.5",
-      "Haiku 4.5",
+      "Haiku 5.5",
       "Fable 5.1",
     ]);
     await sleep(1200);
