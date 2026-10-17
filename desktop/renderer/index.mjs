@@ -15,6 +15,7 @@ import { documentLocale, setDocumentLocale } from "../shared/i18n.mjs";
 import { menuText } from "../menu/strings.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
 import { gazeAt } from "../character/touch.mjs";
+import { createHitOverlay } from "./debug-hit.mjs";
 const api = window.blinkling;
 document.documentElement.style.cssText += cssVariables();
 let shell = await api.shell({ type: "state" });
@@ -47,7 +48,8 @@ let leaveAt = null,
   whirlAt = null,
   turnDir = 1;
 const composer = createComposer();
-let hit = [],
+let hitOverlay = null,
+  hit = [],
   character = null,
   menu = null,
   frameId = 0,
@@ -393,6 +395,14 @@ async function action(id) {
       );
     }
     hit = body;
+    if (shell.debugHit) {
+      hitOverlay ??= createHitOverlay(document.body);
+      hitOverlay.draw({
+        regions: body,
+        parts: character.partShapes(),
+        pointer: pointer?.point,
+      });
+    }
     api.interactive(all, {
       blink: body,
       menu: fan,

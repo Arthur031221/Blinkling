@@ -55,6 +55,7 @@ import {
   costumeOutfit,
   moveFor,
 } from "./costume.mjs";
+import { edgeTransform, poseTransform } from "./transform.mjs";
 import { BLINK_SCALE as K } from "./size.mjs";
 import { clipAbove, roundedRect } from "./silhouette.mjs";
 export { COSTUME_FOR, DIZZY_FOR, EAT_FOR };
@@ -355,8 +356,7 @@ export function mountBlink(host) {
       x: lerp(FEET.x, edge.x, ease(lean)),
       y: lerp(PEEK_EDGE, edge.y, ease(lean)),
     };
-    const { angle, x, y } = ctx.outer;
-    const frame = `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(angle)}) translate(${-FEET.x} ${-PEEK_EDGE})">${drawBlink(out, "b")}</g>`;
+    const frame = `<g transform="${edgeTransform(ctx.outer, FEET.x, PEEK_EDGE).svg}">${drawBlink(out, "b")}</g>`;
     if (frame !== ctx.drawn) {
       svg.innerHTML = frame;
       ctx.drawn = frame;
@@ -482,30 +482,8 @@ export function mountBlink(host) {
         })),
       });
     });
-    const pivot = o.pivot ?? [100, 190];
-    const a = (o.roll * Math.PI) / 180,
-      c = Math.cos(a),
-      s = Math.sin(a);
-    const outer = ctx.outer,
-      b = (outer.angle * Math.PI) / 180,
-      bc = Math.cos(b),
-      bs = Math.sin(b);
-    const pose = (p) => {
-      const dx = p.x - pivot[0],
-        dy = p.y - pivot[1];
-      return {
-        x: pivot[0] + dx * c - dy * s + o.x,
-        y: pivot[1] + dx * s + dy * c + o.y,
-      };
-    };
-    const turned = (p) => {
-      const ex = p.x - FEET.x,
-        ey = p.y - PEEK_EDGE;
-      return {
-        x: outer.x + ex * bc - ey * bs,
-        y: outer.y + ex * bs + ey * bc,
-      };
-    };
+    const pose = poseTransform(o).apply;
+    const turned = edgeTransform(ctx.outer, FEET.x, PEEK_EDGE).apply;
     const place = (poly) => {
       const moved = poly.map(pose);
       return (o.clipY != null ? clipAbove(moved, o.clipY) : moved).map(turned);
@@ -537,9 +515,19 @@ export function mountBlink(host) {
       .filter((n) => n.poly.length > 2 && within(n.poly, point));
   };
 
+  /** Where a point of the drawing lands once the pose and the edge have placed
+   * Blink: the same two transforms the drawing is written with. */
+  function figurePoint(p, drawn = ctx.last) {
+    const o = { ...STAND, ...drawn };
+    return edgeTransform(ctx.outer, FEET.x, PEEK_EDGE).apply(
+      poseTransform(o).apply(p),
+    );
+  }
+
   return {
     svg,
     pose,
+    figurePoint,
     /** The last pose that was drawn. */
     get last() {
       return ctx.last;
@@ -575,6 +563,15 @@ export function mountBlink(host) {
             poly.length > 2 &&
             poly.every((v) => Number.isFinite(v.x) && Number.isFinite(v.y)),
         );
+    },
+    /** Each touchable part as a polygon on the screen, for the debug view. */
+    partShapes() {
+      const screen = toScreen();
+      return shapes().named.map((n) => ({
+        part: n.part,
+        side: n.side,
+        poly: n.poly.map(screen),
+      }));
     },
     /** The body's bounding box on the screen. */
     bodyRect() {

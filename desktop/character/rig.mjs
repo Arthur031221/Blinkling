@@ -2,6 +2,7 @@
 // Every constant below comes from the standing pose and never changes: poses only
 // rotate joints (shoulder, elbow, hip) and move or turn the whole body, so arm and
 // leg lengths stay fixed and the body is a rigid box that is never stretched.
+import { poseTransform } from "./transform.mjs";
 export const C = {
   ink: "#121614",
   fill: "#43d896",
@@ -449,7 +450,7 @@ export function drawBlink(o, uid) {
   const bodyLine = `<path d="${body}" fill="none" stroke="${C.ink}" stroke-width="${BODY.line}" stroke-linejoin="round"/>`;
 
   const pivot = o.pivot || [100, 190];
-  const T = `translate(${f1(o.x)} ${f1(o.y)}) rotate(${f1(o.roll)} ${pivot[0]} ${pivot[1]})`;
+  const T = poseTransform({ ...o, pivot }).svg;
   const figureCore =
     pick("back") +
     legBack +

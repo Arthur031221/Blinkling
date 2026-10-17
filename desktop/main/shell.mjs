@@ -294,6 +294,7 @@ const snapshot = () => ({
   fanLabelsSeen: uiOnce.seen("fan-labels"),
   chatFocused: !!composer && !composer.isDestroyed() && composer.isFocused(),
   autoExplain,
+  debugHit: process.env.BLINKLING_DEBUG_HIT === "1",
   theme: nativeTheme.shouldUseDarkColors ? "dark" : "light",
   locale,
 });
