@@ -31,7 +31,7 @@ const LONG =
 test("an empty card is short and grows with what it holds, bottom fixed; the history is there on every opening, newest in view", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("empty_card", { suffix: "-321" });
+  const rec = record("empty_card", { suffix: "-323" });
   try {
     await background(app);
     await reveal(page);
@@ -91,7 +91,7 @@ test("an empty card is short and grows with what it holds, bottom fixed; the his
 test("the card fades out toward its top in both themes, and the pin and close stay readable", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("card_fade", { suffix: "-321" });
+  const rec = record("card_fade", { suffix: "-323" });
   try {
     await background(app);
     await reveal(page);

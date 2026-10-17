@@ -105,9 +105,33 @@ test("a full page capture is one page chip in the composer and its tiles still g
 test("a new capture takes the marks of the last answer off the screen before the card opens", async () => {
   test.setTimeout(60000);
   const { app, page } = await launch();
+  const rec = record("marks_cleared", { suffix: "-323" });
   try {
     await background(app);
     await page.waitForTimeout(800);
+    // An earlier answer's mark is on the screen.
+    const drawn = await app.evaluate(({ screen }) =>
+      globalThis.blinklingTest.features.pointing.show(
+        [
+          {
+            n: 1,
+            rect: { x: 260, y: 200, width: 380, height: 160 },
+            label: "Search",
+          },
+        ],
+        { displayId: screen.getPrimaryDisplay().id, snap: false },
+      ),
+    );
+    expect(drawn).toBe(true);
+    await expect
+      .poll(() =>
+        app.evaluate(
+          () => globalThis.blinklingTest.features.pointing.badges().length,
+        ),
+      )
+      .toBe(1);
+    await sleep(1200);
+    rec.frame("mark-up");
     await app.evaluate(() => {
       const { features } = globalThis.blinklingTest;
       globalThis.cleared = [];
@@ -122,7 +146,15 @@ test("a new capture takes the marks of the last answer off the screen before the
     expect(await app.evaluate(() => globalThis.cleared)).toContain(
       "new-capture",
     );
+    expect(
+      await app.evaluate(
+        () => globalThis.blinklingTest.features.pointing.badges().length,
+      ),
+    ).toBe(0);
+    await sleep(1200);
+    rec.frame("card-open-no-mark");
   } finally {
+    await rec.stop();
     await app.close();
   }
 });
