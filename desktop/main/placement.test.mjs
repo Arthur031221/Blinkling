@@ -14,6 +14,9 @@ import {
   mouthOf,
   MOUTH_DROP,
   carriedPosition,
+  anchoredTop,
+  TAIL_REACH,
+  SLIP_MAX,
 } from "./placement.mjs";
 import { menuLayout, menuTransform } from "../menu/layout.mjs";
 const display = {
@@ -457,4 +460,26 @@ test("a panel the card would cover is moved the shortest way off it and stays on
   const left = { x: 100, y: 340, width: 415, height: 355 };
   const right = clearOfCard({ ...panel, x: 300 }, left, area);
   assert.ok(right.x >= left.x + left.width);
+});
+test("a card slips past the top of the work area only as far as its tail needs to reach a mouth near it", () => {
+  const area = { x: 0, y: 0, width: 1280, height: 800 };
+  const at = (mouth) => ({ x: 0, y: mouth - MOUTH.y, width: 148, height: 152 });
+  // Room for the tail: the card keeps its margin from the top.
+  assert.equal(anchoredTop(at(300), 205, area, 12), 300 + MOUTH_DROP - 205);
+  assert.equal(anchoredTop(at(60), 205, area, 12), 12);
+  // The mouth is nearer the edge than the tail reaches: the card goes up with it.
+  assert.equal(anchoredTop(at(0), 205, area, 12), -TAIL_REACH);
+  assert.equal(anchoredTop(at(-100), 205, area, 12), -100 - TAIL_REACH);
+  // Never further than the slip allows, and the same at the bottom.
+  assert.equal(anchoredTop(at(-1000), 205, area, 12), 12 - SLIP_MAX);
+  assert.equal(anchoredTop(at(800), 205, area, 12), 800 + TAIL_REACH - 205);
+});
+test("a carried Blink at the top of the screen keeps its card's place off the work area", () => {
+  const area = { x: 0, y: 0, width: 1280, height: 800 };
+  const screen = { id: 1, bounds: area, workArea: area, scaleFactor: 1 };
+  const held = carriedPosition(resolvePosition(screen), { x: 1100, y: 20 });
+  const card = cardBounds(screen, held, { x: 0, y: 0 }, 205);
+  const mouth = mouthOf(held.reveal).y;
+  assert.ok(card.y < 0, "the card slipped");
+  assert.ok(mouth >= card.y + TAIL_REACH, "the tail reaches the mouth");
 });

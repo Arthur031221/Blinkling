@@ -15,11 +15,22 @@ export const mouthOf = (feet) => ({
 });
 /** How far below the mouth a panel's bottom edge sits: panels rise from it. */
 export const MOUTH_DROP = 40;
+/** The least of its side a card must have beside the mouth for its tail to
+ * reach the mouth. */
+export const TAIL_REACH = 27;
+/** How far past the work area a card may slip to keep its tail on a mouth that
+ * a carried Blink has taken near the top or bottom edge. */
+export const SLIP_MAX = 160;
 /** Where a panel of this height starts so that it is anchored to the mouth of
- * the Blink in `box`, kept inside `area` less `margin`. */
+ * the Blink in `box`, kept inside `area` less `margin`. Only a mouth too near
+ * the edge for the tail to reach lets it slip out, by as little as that takes. */
 export function anchoredTop(box, height, area, margin = 0) {
-  const lo = area.y + margin,
-    hi = area.y + area.height - margin - height;
+  const mouth = box.y + MOUTH.y;
+  const edge = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const top = area.y + margin,
+    bottom = area.y + area.height - margin;
+  const lo = top - edge(top - (mouth - TAIL_REACH), 0, SLIP_MAX),
+    hi = bottom - height + edge(mouth + TAIL_REACH - bottom, 0, SLIP_MAX);
   return Math.round(
     Math.max(lo, Math.min(hi, box.y + MOUTH.y + MOUTH_DROP - height)),
   );
@@ -191,7 +202,13 @@ export function cardBounds(
   nudge = { x: 0, y: 0 },
   wanted = Infinity,
 ) {
-  return nudged(placedCard(display, position, wanted), nudge, display.workArea);
+  const placed = placedCard(display, position, wanted);
+  const area = display.workArea;
+  const moved = nudged(placed, nudge, area);
+  // A card that slipped out to keep its tail on the mouth keeps where it is.
+  return placed.y < area.y || placed.y + placed.height > area.y + area.height
+    ? { ...moved, y: placed.y }
+    : moved;
 }
 /** The card window is never shorter than this, so a card with nothing in it
  * still shows its header and its composer whole. */

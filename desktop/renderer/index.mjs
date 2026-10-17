@@ -189,10 +189,13 @@ async function action(id) {
     await ready;
     const done = await api.shell({ type: "drag", phase: "end" });
     held = null;
+    // From here Blink glides to its place, and the card is told where it is.
+    gliding = true;
     accept(done);
   }
   host.addEventListener("pointerup", release);
   host.addEventListener("pointercancel", release);
+  let gliding = false;
   function frame(now) {
     const began = performance.now(),
       dt = (now - last) / 1000;
@@ -227,6 +230,17 @@ async function action(id) {
     }
     host.style.transform = `translate(${current.x - 74}px,${current.y - 142}px)`;
     host.style.opacity = String(current.alpha);
+    if (gliding && !shell.drag) {
+      const arrived =
+        Math.abs(current.x - target.x) <= 0.5 &&
+        Math.abs(current.y - target.y) <= 0.5;
+      api.shell(
+        arrived
+          ? { type: "glide-end" }
+          : { type: "glide", anchor: { x: current.x, y: current.y } },
+      );
+      if (arrived) gliding = false;
+    }
     if (
       Math.abs(current.x - target.x) > 0.5 ||
       Math.abs(current.y - target.y) > 0.5 ||

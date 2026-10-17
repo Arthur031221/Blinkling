@@ -137,6 +137,10 @@ let composer = null,
   rim = [],
   menuRegions = [],
   drag = null,
+  // Where Blink is drawn while it glides to its resting place after a drop, as
+  // the renderer last said: the card goes with it instead of ahead of it.
+  glide = null,
+  glideTimer = null,
   pinned = false,
   chatOpen = false,
   autoExplain = false,
@@ -239,7 +243,9 @@ const shown = () =>
         x: drag.anchor.x - frame().x,
         y: drag.anchor.y - frame().y,
       })
-    : position;
+    : glide
+      ? carriedPosition(position, glide)
+      : position;
 /** The card's place: beside Blink, moved by what the reader nudged on this edge. */
 const cardAt = (at = shown()) =>
   cardBounds(display, at, store.nudge(`card:${at.edge}`), cardWanted);
@@ -535,6 +541,8 @@ const tellCard = (message) => {
 };
 function useDisplay(next) {
   display = next;
+  glide = null;
+  clearTimeout(glideTimer);
   position = resolvePosition(display, store.positions[String(display.id)]);
   regions = [];
   blink.setBounds(display.bounds);
@@ -584,10 +592,30 @@ function clearPanels() {
     if (next !== at) win.setBounds(next);
   }
 }
+/** Blink is drawn at `at` on its way to rest: the card follows it there. */
+function glideTo(at) {
+  glide = at;
+  clearTimeout(glideTimer);
+  // The renderer says when Blink has arrived; a silent one is not waited for.
+  glideTimer = setTimeout(() => glideTo(null), timing.glideLapse);
+  glideTimer.unref?.();
+  if (!at) {
+    clearTimeout(glideTimer);
+    glideTimer = null;
+    placeCard();
+    broadcast();
+  }
+}
 /** Both ways a carried Blink is put down end here. A drop that followed two
  * loops leaves it dizzy. Returns whether it had been picked up. */
 function endDrag() {
   const done = drag;
+  // The drop is where Blink is drawn now; it glides on from there.
+  if (done?.active)
+    glideTo({
+      x: done.anchor.x - frame().x,
+      y: done.anchor.y - frame().y,
+    });
   drag = null;
   if (done?.whirled) motion("dizzy");
   return Boolean(done?.active);
@@ -637,6 +665,17 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     command = { type: "drag", phase: "start", anchor: command.anchor };
   if (command.type === "drag-end") command = { type: "drag", phase: "end" };
   const fromBlink = event.sender === blink.webContents;
+  if (command.type === "glide" || command.type === "glide-end") {
+    if (!fromBlink) return;
+    if (command.type === "glide-end") {
+      if (glide) glideTo(null);
+    } else if (glide && !drag) {
+      glideTo({ x: command.anchor.x, y: command.anchor.y });
+      placeCard();
+      broadcast();
+    }
+    return;
+  }
   if (command.type === "drag-move") {
     // The pointer events of the held press arrive in Blink's window with no poll
     // in between: where they put Blink is where the card goes, in the same turn.
@@ -646,7 +685,11 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
       y: command.anchor.y + frame().y,
     };
     drag.movedAt = performance.now();
-    if (drag.active) placeCard();
+    if (drag.active) {
+      placeCard();
+      // The tail aims at the mouth as it is now, not at the last poll's.
+      broadcast();
+    }
     return;
   }
   if (command.type === "drag") {
@@ -655,6 +698,7 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     if (command.phase === "start") {
       if (!regions.some((r) => contains(r, localPoint(p, frame()))))
         throw new Error("Drag must start on Blink");
+      if (glide) glideTo(null);
       drag = {
         active: false,
         start: p,

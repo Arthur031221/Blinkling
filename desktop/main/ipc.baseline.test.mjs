@@ -62,3 +62,15 @@ test("drag moves are checked like drag starts, so the card can follow each point
     assert.equal(validCommand({ type: "drag-move", anchor }, bounds), false);
   assert.equal(validCommand({ type: "drag-move" }, bounds), false);
 });
+test("a glide report is checked like a drag move, and its end carries nothing", () => {
+  const bounds = { width: 600, height: 400 };
+  assert.equal(
+    validCommand({ type: "glide", anchor: { x: 300, y: 200 } }, bounds),
+    true,
+  );
+  for (const anchor of [null, { x: NaN, y: 0 }, { x: 0, y: 0, extra: 1 }])
+    assert.equal(validCommand({ type: "glide", anchor }, bounds), false);
+  assert.equal(validCommand({ type: "glide" }, bounds), false);
+  assert.equal(validCommand({ type: "glide-end" }, bounds), true);
+  assert.equal(validCommand({ type: "glide-end", anchor: {} }, bounds), false);
+});

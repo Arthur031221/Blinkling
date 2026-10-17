@@ -41,6 +41,8 @@ export const timing = Object.freeze({
   appearLead: 600,
   // How long the wait indicator stays on one word.
   thinkWord: 2400,
+  // A glide that the renderer does not report on is let go after this long.
+  glideLapse: 400,
   // The card's offset from its anchored spot, at most this far.
   nudgeMax: 120,
   sameChat: 60000,

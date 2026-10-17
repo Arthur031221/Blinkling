@@ -9,8 +9,13 @@ const types = new Set([
   "grumble",
 ]);
 export function validCommand(command, bounds) {
-  if (command?.type === "drag-end") return Object.keys(command).length === 1;
-  if (command?.type === "drag-start" || command?.type === "drag-move") {
+  if (command?.type === "drag-end" || command?.type === "glide-end")
+    return Object.keys(command).length === 1;
+  if (
+    command?.type === "drag-start" ||
+    command?.type === "drag-move" ||
+    command?.type === "glide"
+  ) {
     const p = command.anchor;
     return Boolean(
       bounds &&
