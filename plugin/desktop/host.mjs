@@ -114,6 +114,7 @@ export async function startDesktopHost({
   onReply = () => {},
   onTurnEnd = () => {},
   onTurnStart = () => {},
+  onBusy = () => {},
   chatImages = async () => [],
   descriptor = endpointPath(),
   directory = runtimeDirectory(),
@@ -266,13 +267,13 @@ export async function startDesktopHost({
             text.length > MIRROR_LIMIT
           )
             throw new Error("Invalid reply");
-          json(res, 200, {
-            ok: await onReply({
-              session: message.session,
-              turn: typeof message.turn === "string" ? message.turn : "",
-              text,
-            }),
+          const result = await onReply({
+            session: message.session,
+            turn: typeof message.turn === "string" ? message.turn : "",
+            text,
           });
+          // "late": Blink's own session already answered that question.
+          json(res, 200, { ok: Boolean(result), late: result === "late" });
           return;
         }
         case "turn-start": {
@@ -280,6 +281,17 @@ export async function startDesktopHost({
           if (!sessionId(message.session)) throw new Error("Invalid session");
           json(res, 200, {
             ok: await onTurnStart({ session: message.session }),
+          });
+          return;
+        }
+        case "busy": {
+          // A prompt or Stop hook: the linked session is at work or free.
+          if (!sessionId(message.session)) throw new Error("Invalid session");
+          json(res, 200, {
+            ok: await onBusy({
+              session: message.session,
+              busy: message.busy === true,
+            }),
           });
           return;
         }

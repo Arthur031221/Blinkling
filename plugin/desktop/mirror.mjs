@@ -113,14 +113,22 @@ export async function mirror(payload, directory = runtimeDirectory()) {
       channelTurn ? "channel" : isNotice(payload.prompt) ? "notice" : "typed",
     ).catch(() => {});
   const started = event === "UserPromptSubmit" && channelTurn;
-  if (!line && !started && !(event === "Stop" && typeof session === "string"))
-    return false;
+  const hooked =
+    (event === "UserPromptSubmit" || event === "Stop") &&
+    typeof session === "string";
+  if (!line && !started && !hooked) return false;
   const entry = await opened(directory, line?.session ?? session);
   if (!entry) return false;
   const found = await discoverDesktop(join(directory, "desktop.json"), {
     timeoutMs: 1500,
   });
   if (!found) return false;
+  // A turn running or done tells Blink whether the terminal can take a question
+  // now. An older Blink that does not know the word is not a reason to stop.
+  if (hooked)
+    await found.client
+      .rpc("busy", { session, busy: event === "UserPromptSubmit" })
+      .catch(() => {});
   if (started) {
     // The terminal took Blink's question and began on it. Blink stops waiting
     // to hear that it arrived.

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { say } from "./strings.mjs";
 import { ChannelChat, ChatRouter, channelText } from "./router.mjs";
 
 const fakeBridge = (name) => {
@@ -46,7 +47,12 @@ const png = {
   data: "iVBORw0KGgo=",
 };
 
-async function setup({ settleMs = 5, deliveryMs = 60000 } = {}) {
+async function setup({
+  settleMs = 5,
+  deliveryMs = 60000,
+  busyWaitMs,
+  locale = "en",
+} = {}) {
   const dir = await mkdtemp(join(tmpdir(), "router-"));
   const main = fakeBridge("main");
   const frames = [];
@@ -55,6 +61,7 @@ async function setup({ settleMs = 5, deliveryMs = 60000 } = {}) {
   const channels = [];
   const router = new ChatRouter({
     main,
+    locale: () => locale,
     makeBridge: (session) => {
       const b = fakeBridge(session);
       bridges.set(session, b);
@@ -65,6 +72,8 @@ async function setup({ settleMs = 5, deliveryMs = 60000 } = {}) {
         directory: join(dir, session),
         settleMs,
         deliveryMs,
+        busyWaitMs,
+        note: (key) => say(locale)(key),
         deliver: (frame) => {
           frames.push({ session, ...frame });
           return taken;
@@ -246,11 +255,15 @@ test("a question the terminal session never starts on is answered by Blink's own
   assert.equal(t.router.currentKey, "blink");
   const notes = t.events.filter(
     (e) =>
-      e.type === "message" && /did not pick this up/.test(e.content?.[0]?.text),
+      e.type === "message" && e.content?.[0]?.text === say("en")("undelivered"),
   );
   assert.equal(notes.length, 1);
   // The terminal answers late: that answer is dropped, so there is one answer.
-  assert.equal(t.router.reply({ session: "s1", text: "Late answer." }), false);
+  assert.equal(
+    t.router.reply({ session: "s1", text: "Late answer." }),
+    "late",
+    "told so the terminal can stop",
+  );
   assert.equal(
     t.router.turnEnd({ session: "s1", text: "Late answer." }),
     false,
@@ -398,5 +411,95 @@ test("the router hands out Blink's own remote identity, whichever chat is showin
   const t = await setup();
   t.main.identity = () => ({ type: "identity", id: "remote-1" });
   assert.deepEqual(t.router.identity(), { type: "identity", id: "remote-1" });
+  await t.close();
+});
+
+test("one question has one answer: a later reply takes the place of the earlier one", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  const q = turn("slow one");
+  await t.router.send(q);
+  assert.ok(t.router.reply({ session: "s1", turn: q.id, text: "Running it." }));
+  assert.ok(t.router.reply({ session: "s1", turn: q.id, text: "It is 42." }));
+  const chat = t.router.chats.get("s1").impl;
+  const answers = chat.messages.filter((m) => m.role === "assistant");
+  assert.equal(answers.length, 1);
+  assert.equal(answers[0].content[0].text, "It is 42.");
+  // The wait ended, and an answer that comes after it still replaces in place.
+  await new Promise((r) => setTimeout(r, 30));
+  assert.ok(
+    t.router.reply({ session: "s1", turn: q.id, text: "It is 42, checked." }),
+  );
+  assert.equal(chat.messages.filter((m) => m.role === "assistant").length, 1);
+  await t.close();
+});
+
+test("a late reply names its question and never becomes the answer to the next one", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  const first = turn("first");
+  const second = turn("second");
+  await t.router.send(first);
+  assert.ok(t.router.reply({ session: "s1", turn: first.id, text: "One." }));
+  await t.router.send(second);
+  assert.ok(
+    t.router.reply({ session: "s1", turn: first.id, text: "One, again." }),
+  );
+  const chat = t.router.chats.get("s1").impl;
+  const bubble = (id) => chat.messages.find((m) => m.id === `reply-${id}`);
+  assert.equal(bubble(first.id).content[0].text, "One, again.");
+  assert.equal(bubble(second.id), undefined, "the second is still unanswered");
+  assert.ok(chat.active === second.id, "its wait did not end");
+  assert.equal(
+    t.router.reply({ session: "s1", turn: "never-asked", text: "Who?" }),
+    false,
+  );
+  await t.close();
+});
+
+test("a terminal that is busy keeps the question, and Blink answers only when the wait is over", async () => {
+  const t = await setup({ deliveryMs: 25, busyWaitMs: 140 });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  t.router.busy({ session: "s1", busy: true });
+  await t.router.send(turn("while you work"));
+  await new Promise((r) => setTimeout(r, 90));
+  assert.equal(t.main.sent.length, 0, "still waiting for the busy terminal");
+  // The terminal took it after all.
+  assert.equal(t.router.turnStart({ session: "s1" }), true);
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(t.main.sent.length, 0, "taken, so never answered twice");
+  await t.close();
+});
+
+test("a busy terminal that never takes the question is given up on once it is free or the wait runs out", async () => {
+  const free = await setup({ deliveryMs: 25, busyWaitMs: 5000 });
+  free.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  free.router.busy({ session: "s1", busy: true });
+  await free.router.send(turn("free soon"));
+  await new Promise((r) => setTimeout(r, 70));
+  assert.equal(free.main.sent.length, 0);
+  free.router.busy({ session: "s1", busy: false });
+  await new Promise((r) => setTimeout(r, 70));
+  assert.equal(free.main.sent.length, 1, "free and silent: Blink answers");
+  await free.close();
+  const long = await setup({ deliveryMs: 25, busyWaitMs: 60 });
+  long.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  long.router.busy({ session: "s1", busy: true });
+  await long.router.send(turn("too long"));
+  await new Promise((r) => setTimeout(r, 140));
+  assert.equal(long.main.sent.length, 1, "the wait has a limit");
+  await long.close();
+});
+
+test("the line that says why Blink answered is in the language the person reads", async () => {
+  const t = await setup({ deliveryMs: 20, locale: "zh-TW" });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  await t.router.send(turn("在嗎"));
+  await new Promise((r) => setTimeout(r, 80));
+  const note = t.events.find(
+    (e) => e.type === "message" && e.id === `undelivered-${t.main.sent[0].id}`,
+  );
+  assert.equal(note.content[0].text, say("zh-TW")("undelivered"));
+  assert.notEqual(note.content[0].text, say("en")("undelivered"));
   await t.close();
 });

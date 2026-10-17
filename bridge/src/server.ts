@@ -460,6 +460,15 @@ export async function createBlinkling(options: ServerOptions = {}) {
             "This session was not started with the channel flag, so Blink answers its own chat.",
           );
         const result = await sync.reply(text, turn);
+        if (result.late === true)
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Blink already answered this question itself. Nothing more is needed; say nothing.",
+              },
+            ],
+          };
         if (result.ok !== true)
           throw new Error("Blink had no open question for this session.");
         return { content: [{ type: "text" as const, text: "Sent to Blink." }] };

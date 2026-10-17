@@ -300,3 +300,45 @@ test("a notice Claude Code made itself is not a person's message, and neither is
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("a prompt and a stop tell Blink whether the terminal is at work, notices and Blink's own questions included", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
+  const busy = [];
+  const host = await startDesktopHost({
+    directory,
+    descriptor: join(directory, "desktop.json"),
+    onBusy: (state) => busy.push([state.session, state.busy]),
+  });
+  try {
+    await writeFile(
+      join(directory, "sessions.json"),
+      JSON.stringify([{ id: "mine", at: Date.now() }]),
+    );
+    const hook = (extra) => ({ session_id: "mine", ...extra });
+    for (const prompt of [
+      "typed",
+      "<task-notification><status>completed</status></task-notification>",
+      '<channel source="plugin:blinkling:blinkling" kind="question" turn="t1">q</channel>',
+    ]) {
+      await mirror(
+        hook({ hook_event_name: "UserPromptSubmit", prompt }),
+        directory,
+      );
+      await mirror(
+        hook({ hook_event_name: "Stop", last_assistant_message: "a" }),
+        directory,
+      );
+    }
+    assert.deepEqual(busy, [
+      ["mine", true],
+      ["mine", false],
+      ["mine", true],
+      ["mine", false],
+      ["mine", true],
+      ["mine", false],
+    ]);
+  } finally {
+    await host.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

@@ -7,7 +7,7 @@ import { discoverDesktop } from "../../plugin/desktop/client.mjs";
  * channel flag answers the chat held in Blink itself, through the reply tool;
  * the person reads the answer in Blink. */
 export const SYNC_INSTRUCTIONS =
-  'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once with the answer as plain text, and write nothing else in this terminal. If the message says pictures are attached, call blinkling_chat_images first and look at them. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
+  'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal, not even a closing remark. If the message says pictures are attached, call blinkling_chat_images first and look at them. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
 
 /** What the person types to start Claude Code so Blink's chat reaches it.
  * Claude Code takes a channel only when it starts, so a session already open

@@ -43521,7 +43521,7 @@ var SlidingWindowLimiter = class {
 // bridge/src/sync-channel.ts
 var import_node_fs5 = require("node:fs");
 var import_node_child_process6 = require("node:child_process");
-var SYNC_INSTRUCTIONS = 'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once with the answer as plain text, and write nothing else in this terminal. If the message says pictures are attached, call blinkling_chat_images first and look at them. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
+var SYNC_INSTRUCTIONS = 'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal, not even a closing remark. If the message says pictures are attached, call blinkling_chat_images first and look at them. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
 var SYNC_COMMAND = "claude --dangerously-load-development-channels plugin:blinkling@blinkling";
 var syncNote = (channel) => channel ? "Sync line: this session answers the chat you hold in Blink, and what you type here appears there." : `Sync line: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with: ${SYNC_COMMAND}`;
 var SYNC_NOTE = syncNote(false);
@@ -44018,6 +44018,15 @@ async function createBlinkling(options = {}) {
             "This session was not started with the channel flag, so Blink answers its own chat."
           );
         const result = await sync.reply(text2, turn);
+        if (result.late === true)
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Blink already answered this question itself. Nothing more is needed; say nothing."
+              }
+            ]
+          };
         if (result.ok !== true)
           throw new Error("Blink had no open question for this session.");
         return { content: [{ type: "text", text: "Sent to Blink." }] };

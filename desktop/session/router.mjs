@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { chatMessage } from "./normalize.mjs";
 import { userMessage } from "./protocol.mjs";
+import { say } from "./strings.mjs";
 
 /** Turns Blink runs for itself: they are answered by its own session and
  * never held in a chat. */
@@ -11,6 +12,11 @@ const KEEP = 40;
 const SETTLE_MS = 1500;
 /** How long a question may go without the terminal session starting on it. */
 const DELIVERY_MS = 10000;
+/** A terminal that is busy takes the question when it is done, so Blink waits
+ * for it that long at most before it answers by itself. */
+const BUSY_WAIT_MS = 180000;
+/** A busy mark with no word since is stale: an interrupted turn sends no Stop. */
+const BUSY_FRESH_MS = 600000;
 const MAIN = "blink";
 
 /** What a terminal session is shown of a message typed in Blink: the words, a
@@ -61,6 +67,8 @@ export class ChannelChat {
     deliver,
     settleMs = SETTLE_MS,
     deliveryMs = DELIVERY_MS,
+    busyWaitMs = BUSY_WAIT_MS,
+    note = (key) => say("en")(key),
     now = Date.now,
   }) {
     this.directory = directory;
@@ -68,10 +76,16 @@ export class ChannelChat {
     this.deliver = deliver;
     this.settleMs = settleMs;
     this.deliveryMs = deliveryMs;
+    this.busyWaitMs = busyWaitMs;
+    this.note = note;
     this.now = now;
+    this.busy = false;
+    this.busyAt = 0;
+    this.sentAt = 0;
+    this.turns = new Set();
     // Called with the turn when the session never took it (see `send`).
     this.onUndelivered = undefined;
-    this.abandoned = undefined;
+    this.abandoned = new Set();
     this.listeners = new Set();
     this.messages = [];
     this.status = { type: "status", state: "connected" };
@@ -80,7 +94,6 @@ export class ChannelChat {
       messages: this.messages,
     };
     this.active = undefined;
-    this.replies = 0;
     this.loaded = this.load();
     this.saving = Promise.resolve();
   }
@@ -149,7 +162,10 @@ export class ChannelChat {
     this.active = turn.id;
     this.turn = turn.id;
     this.replied = false;
-    this.abandoned = undefined;
+    this.turns.add(turn.id);
+    if (this.turns.size > KEEP)
+      this.turns.delete(this.turns.values().next().value);
+    this.sentAt = this.now();
     const taken = this.deliver({
       type: "turn",
       turn: turn.id,
@@ -161,14 +177,31 @@ export class ChannelChat {
         code: "TERMINAL_CLOSED",
       });
     }
-    // The line to the session was open but nothing came back: it may be busy
-    // or the channel may be off. The question is then answered by Blink's own
-    // session, once, and anything the terminal says to it later is dropped.
+    this.arm(turn);
+  }
+  /** The line to the session was open but nothing came back: the channel may
+   * be off, or the terminal may be at work on something else. A busy terminal
+   * takes the question when it is done, so it is waited for. When the channel
+   * is off the question is answered by Blink's own session, once, and anything
+   * the terminal says to it later is dropped. */
+  arm(turn) {
     clearTimeout(this.waiting);
-    if (this.onUndelivered) {
-      this.waiting = setTimeout(() => this.giveUp(turn), this.deliveryMs);
-      this.waiting.unref?.();
-    }
+    if (!this.onUndelivered) return;
+    this.waiting = setTimeout(() => {
+      if (this.working() && this.now() - this.sentAt < this.busyWaitMs)
+        this.arm(turn);
+      else this.giveUp(turn);
+    }, this.deliveryMs);
+    this.waiting.unref?.();
+  }
+  /** Whether the terminal is in the middle of a turn, from its hooks. */
+  working() {
+    return this.busy && this.now() - this.busyAt < BUSY_FRESH_MS;
+  }
+  setBusy(busy) {
+    this.busy = Boolean(busy);
+    this.busyAt = this.now();
+    return true;
   }
   /** The session began on the question (a prompt hook) or answered it. */
   started() {
@@ -177,7 +210,7 @@ export class ChannelChat {
   }
   giveUp(turn) {
     if (this.active !== turn.id) return;
-    this.abandoned = turn.id;
+    this.abandoned.add(turn.id);
     // No "done" here: the answer that follows ends the wait on the card.
     clearTimeout(this.timer);
     this.active = undefined;
@@ -195,7 +228,7 @@ export class ChannelChat {
       content: [
         {
           type: "text",
-          text: "The Claude Code session for this chat is closed. Start it again, or open Blink from another session.",
+          text: this.note("closed"),
         },
       ],
     });
@@ -208,19 +241,23 @@ export class ChannelChat {
     }));
   }
   /** The terminal session's answer. */
-  reply(text) {
+  reply(text, turn) {
     if (!text?.trim()) return false;
-    // Blink's own session already answered this question.
-    if (this.abandoned !== undefined && this.abandoned === this.turn)
-      return false;
-    clearTimeout(this.waiting);
-    this.replied = true;
-    this.replies++;
+    const target = turn || this.turn;
+    // A question Blink's own session already answered, or one never asked here.
+    if (target === undefined || !this.turns.has(target)) return false;
+    if (this.abandoned.has(target)) return "late";
+    // One question has one answer: a later word on it takes the place of the
+    // earlier one, and never adds a bubble next to it.
     this.add({
-      id: `reply-${this.turn ?? "x"}-${this.replies}`,
+      id: `reply-${target}`,
       role: "assistant",
       content: [{ type: "text", text: text.trim() }],
     });
+    // The answer to an earlier question changes that answer only.
+    if (target !== this.turn) return true;
+    clearTimeout(this.waiting);
+    this.replied = true;
     // Another reply may follow in the same turn; the turn's end ends the wait.
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.settle(), this.settleMs);
@@ -267,7 +304,9 @@ export class ChatRouter {
     makeChannel,
     deliver,
     basenameOf = basename,
+    locale = () => "en",
   }) {
+    this.locale = locale;
     this.main = main;
     this.makeBridge = makeBridge;
     this.makeChannel = makeChannel;
@@ -433,9 +472,16 @@ export class ChatRouter {
     return true;
   }
   /** What the terminal session answers through the reply tool. */
-  reply({ session, text }) {
+  reply({ session, turn, text }) {
     const chat = this.chats.get(session);
-    return chat?.impl instanceof ChannelChat ? chat.impl.reply(text) : false;
+    return chat?.impl instanceof ChannelChat
+      ? chat.impl.reply(text, turn || undefined)
+      : false;
+  }
+  /** The terminal session began or ended a turn: it is busy or free. */
+  busy({ session, busy }) {
+    const chat = this.chats.get(session);
+    return chat?.impl instanceof ChannelChat ? chat.impl.setBusy(busy) : false;
   }
   turnStart({ session }) {
     const chat = this.chats.get(session);
@@ -447,12 +493,7 @@ export class ChatRouter {
     const note = {
       id: `undelivered-${turn.id}`,
       role: "assistant",
-      content: [
-        {
-          type: "text",
-          text: "Claude Code did not pick this up, so Blink answered it here.",
-        },
-      ],
+      content: [{ type: "text", text: say(this.locale())("undelivered") }],
     };
     const chat = this.chats.get(session);
     const main = this.chats.get(MAIN);

@@ -61,6 +61,7 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { OwnedSession, SessionBridge } from "../session/index.mjs";
 import { ChannelChat, ChatRouter } from "../session/router.mjs";
+import { say as chatSay } from "../session/strings.mjs";
 import { companionConnected } from "../capture/companion.mjs";
 import { installPick } from "../pick/install.mjs";
 import { createOnce, fileStore } from "../pick/once.mjs";
@@ -810,12 +811,14 @@ const ownSession = bridgeFor(app.getPath("userData"));
 let companionHost;
 const session = new ChatRouter({
   main: ownSession,
+  locale: () => locale,
   makeBridge: (id, cwd) =>
     bridgeFor(join(app.getPath("userData"), "chats", id), cwd),
   makeChannel: (id) =>
     new ChannelChat({
       directory: join(app.getPath("userData"), "chats", id),
       deliver: (frame) => companionHost?.toSession(id, frame) ?? false,
+      note: (key) => chatSay(locale)(key),
     }),
 });
 session.subscribe(send, { visible: true });
@@ -1103,6 +1106,7 @@ companionHost = await startDesktopHost({
   onUnlink: (link) => session.unlink(link.session),
   onReply: (reply) => session.reply(reply),
   onTurnStart: (start) => session.turnStart(start),
+  onBusy: (state) => session.busy(state),
   onTurnEnd: (end) => session.turnEnd(end),
   chatImages: async ({ session: id }) => session.images(id),
   onShutdown: () => app.quit(),
