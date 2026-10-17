@@ -200,8 +200,7 @@ export async function captureFullPage(
   });
   check(signal);
   const metrics = original[0]?.result;
-  if (!metrics || metrics.width * metrics.height > 90_000_000)
-    throw new Error("page_too_large");
+  if (!metrics) throw new Error("capture_failed");
   if (metrics.viewportWidth <= 0 || metrics.viewportHeight <= 0)
     throw new Error("capture_failed");
   const plan = planTiles(
@@ -209,6 +208,9 @@ export async function captureFullPage(
     metrics.height,
     metrics.devicePixelRatio,
   );
+  // A very long page is cut at the tile limit, so only what is captured counts.
+  if (metrics.width * plan.capturedHeight > 90_000_000)
+    throw new Error("page_too_large");
   const steps = (length: number, view: number, total: number) => [
     ...new Set(
       Array.from({ length: Math.ceil(length / view) }, (_, i) =>

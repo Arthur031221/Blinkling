@@ -347,8 +347,7 @@ async function captureFullPage(tab, options = {}) {
   });
   check(signal);
   const metrics = original[0]?.result;
-  if (!metrics || metrics.width * metrics.height > 9e7)
-    throw new Error("page_too_large");
+  if (!metrics) throw new Error("capture_failed");
   if (metrics.viewportWidth <= 0 || metrics.viewportHeight <= 0)
     throw new Error("capture_failed");
   const plan = planTiles(
@@ -356,6 +355,8 @@ async function captureFullPage(tab, options = {}) {
     metrics.height,
     metrics.devicePixelRatio
   );
+  if (metrics.width * plan.capturedHeight > 9e7)
+    throw new Error("page_too_large");
   const steps = (length, view, total2) => [
     ...new Set(
       Array.from(

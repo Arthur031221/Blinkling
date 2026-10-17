@@ -141,6 +141,28 @@ describe("full-page capture", () => {
     expect(encoded).toEqual(Array(8).fill("1280x4096"));
   });
 
+  it("cuts a very long page at the tile limit instead of refusing it", async () => {
+    // A long specification: 977 x 130386 is over the area limit as a whole, but
+    // only the first eight tiles are ever drawn.
+    setup({
+      ...base,
+      width: 977,
+      height: 130_386,
+      viewportWidth: 977,
+      frameWidth: 977,
+      viewportHeight: 669,
+      frameHeight: 669,
+    });
+    const result = await run(captureFullPage(tab));
+    expect(result.images).toHaveLength(8);
+    expect(result.truncated).toBe(true);
+  });
+
+  it("still refuses a page whose captured part is too big to draw", async () => {
+    setup({ ...base, width: 40_000, height: 4000 });
+    await expect(run(captureFullPage(tab))).rejects.toThrow("page_too_large");
+  });
+
   it("restores the layout and the original scroll when it is done", async () => {
     const { scrolls, executeScript } = setup();
     await run(captureFullPage(tab));
