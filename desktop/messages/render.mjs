@@ -1,5 +1,6 @@
 import { Marked } from "./vendor/marked.mjs";
 import { translatorFor } from "./strings.mjs";
+import { highlight } from "./highlight.mjs";
 const markdown = new Marked({ gfm: true, breaks: true });
 export const imageURL = (image) => {
   const source = image.source ?? {
@@ -165,7 +166,15 @@ export function renderMarkdown(
             button.textContent = tr("retry");
           }
         });
-        code.textContent = restore(t.text);
+        for (const [type, piece] of highlight(restore(t.text), t.lang)) {
+          if (type === "plain") code.append(doc.createTextNode(piece));
+          else {
+            const span = el(doc, "span", `gl-tok-${type}`);
+            span.textContent = piece;
+            code.append(span);
+          }
+        }
+        if (t.lang) wrap.dataset.lang = t.lang.split(/\s/)[0];
         pre.append(code);
         toolbar.append(label, button);
         wrap.append(toolbar, pre);
@@ -194,6 +203,7 @@ export function renderMarkdown(
           tr = el(doc, "tr");
         for (const cell of t.header) {
           const th = el(doc, "th");
+          if (cell.align) th.style.textAlign = cell.align;
           inline(th, cell.tokens);
           tr.append(th);
         }
@@ -202,6 +212,7 @@ export function renderMarkdown(
           const r = el(doc, "tr");
           for (const cell of row) {
             const td = el(doc, "td");
+            if (cell.align) td.style.textAlign = cell.align;
             inline(td, cell.tokens);
             r.append(td);
           }

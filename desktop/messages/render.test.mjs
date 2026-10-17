@@ -128,3 +128,67 @@ test("an unfinished reference stays hidden while streaming and code keeps its br
   );
   window.close();
 });
+const render = (source, options = {}) => {
+  const { window } = new JSDOM();
+  return renderMarkdown(window.document, source, options);
+};
+test("an answer keeps the shapes Claude gives it: headings, nested lists, quotes, tables with alignment, rules and emphasis", () => {
+  const root = render(
+    [
+      "# One",
+      "## Two",
+      "### Three",
+      "",
+      "1. first",
+      "   - nested *italic* and **bold**",
+      "     1. deep",
+      "2. second",
+      "",
+      "> quoted **line**",
+      "",
+      "| L | R |",
+      "| :-- | --: |",
+      "| a | b |",
+      "",
+      "---",
+    ].join("\n"),
+  );
+  assert.deepEqual(
+    ["h1", "h2", "h3"].map((t) => root.querySelectorAll(t).length),
+    [1, 1, 1],
+  );
+  assert.equal(root.querySelectorAll("ol").length, 2);
+  assert.equal(root.querySelectorAll("ul").length, 1);
+  assert.ok(root.querySelector("ol > li > ul > li > ol"), "three levels deep");
+  assert.equal(root.querySelector("em").textContent, "italic");
+  assert.equal(root.querySelector("blockquote strong").textContent, "line");
+  const cells = [...root.querySelectorAll("th, td")].map((c) => [
+    c.tagName,
+    c.style.textAlign,
+  ]);
+  assert.deepEqual(cells, [
+    ["TH", "left"],
+    ["TH", "right"],
+    ["TD", "left"],
+    ["TD", "right"],
+  ]);
+  assert.ok(root.querySelector("hr"));
+});
+test("fenced code is highlighted, names its language, and still copies exactly its source", async () => {
+  let copied;
+  const source = 'const n = 42; // answer\nconsole.log("hi");';
+  const root = render("```js\n" + source + "\n```", {
+    copy: async (s) => (copied = s),
+  });
+  const code = root.querySelector(".gl-code");
+  assert.equal(code.dataset.lang, "js");
+  assert.equal(code.querySelector("pre code").textContent, source);
+  for (const type of ["keyword", "number", "comment", "string", "function"])
+    assert.ok(code.querySelector(`.gl-tok-${type}`), type);
+  code.querySelector("button").click();
+  await Promise.resolve();
+  assert.equal(copied, source);
+  const plain = render("```\nno language\n```").querySelector(".gl-code");
+  assert.equal(plain.querySelector("[class^=gl-tok]"), null);
+  assert.equal(plain.dataset.lang, undefined);
+});
