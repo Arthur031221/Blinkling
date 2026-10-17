@@ -275,13 +275,18 @@ export function createPickController({
   };
 
   async function deliverCapture(capture) {
-    // A page arrives as tiles: one chip each, one flight for the first.
+    // A page arrives as tiles: one picture each, shown as one page chip, one
+    // flight for the first.
     const parts = [capture, ...(capture.rest ?? [])];
-    const entries = parts.map(({ image, display, region }) => ({
+    const page = parts.length > 1 ? globalThis.crypto.randomUUID() : null;
+    const entries = parts.map(({ image, display, region }, index) => ({
       id: image.id ?? globalThis.crypto.randomUUID(),
       kind: "area",
       taken: { source: "capture", display, kind: "area", bounds: region },
-      attachment: image,
+      // The composer shows the tiles of one page as one chip.
+      attachment: page
+        ? { ...image, page: { id: page, index, total: parts.length } }
+        : image,
       thumb: `data:${image.mediaType};base64,${image.data}`,
     }));
     await finish(entries, [

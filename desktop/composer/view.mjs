@@ -221,6 +221,7 @@ export function mountComposer(
     disposed = false;
   const messageNodes = new Map(),
     attachmentNodes = new Map();
+  let attachmentGroups = new Map();
   // The composer carries a code; anything without a known one reads generically.
   const known = (code) => strings.en[`error-${code}`] !== undefined;
   const fail = (e) => composer.error(known(e?.code) ? e.code : "generic");
@@ -407,30 +408,50 @@ export function mountComposer(
       ? tr(`error-${known(state.error) ? state.error : "generic"}`)
       : "";
     error.hidden = !state.error;
-    const keep = new Set(state.attachments.map((a) => a.id));
-    for (const [id, n] of attachmentNodes)
-      if (!keep.has(id)) {
+    // The tiles of one page are one chip; each tile is still its own picture.
+    const groups = new Map();
+    for (const a of state.attachments) {
+      const key = a.page?.id ?? a.id;
+      groups.set(key, [...(groups.get(key) ?? []), a]);
+    }
+    attachmentGroups = groups;
+    for (const [key, n] of attachmentNodes)
+      if (!groups.has(key)) {
         n.remove();
-        attachmentNodes.delete(id);
+        attachmentNodes.delete(key);
       }
-    for (const a of state.attachments)
-      if (!attachmentNodes.has(a.id)) {
-        const chip = node("div", "gl-attachment-chip"),
-          img = a.mediaType.startsWith("image/")
-            ? zoomable(renderImage(doc, a), a)
-            : node("span", "gl-file-icon", "▤"),
-          name = node("span", "gl-attachment-name", a.name),
-          remove = button(tr("remove", { name: a.name }), "×");
-        chip.title = a.name;
-        if (img) chip.append(img);
-        chip.append(name, remove);
-        listen(remove, "click", () => {
-          composer.remove(a.id);
-          if (asking.active) onQuick({ type: "remove", id: a.id });
-        });
-        attachments.append(chip);
-        attachmentNodes.set(a.id, chip);
+    for (const [key, items] of groups) {
+      const a = items[0],
+        whole = Boolean(a.page),
+        label = whole
+          ? tr("page-chip", {
+              count: Math.max(a.page.total ?? 0, items.length),
+            })
+          : a.name;
+      const existing = attachmentNodes.get(key);
+      if (existing) {
+        existing.title = label;
+        existing.querySelector(".gl-attachment-name").textContent = label;
+        continue;
       }
+      const chip = node("div", "gl-attachment-chip"),
+        img = a.mediaType.startsWith("image/")
+          ? zoomable(renderImage(doc, a), a)
+          : node("span", "gl-file-icon", "▤"),
+        name = node("span", "gl-attachment-name", label),
+        remove = button(tr("remove", { name: label }), "×");
+      chip.title = label;
+      if (img) chip.append(img);
+      chip.append(name, remove);
+      listen(remove, "click", () => {
+        for (const { id } of attachmentGroups.get(key) ?? []) {
+          composer.remove(id);
+          if (asking.active) onQuick({ type: "remove", id });
+        }
+      });
+      attachments.append(chip);
+      attachmentNodes.set(key, chip);
+    }
     attachments.hidden = !state.attachments.length;
     if (chips !== Boolean(state.attachments.length)) {
       chips = Boolean(state.attachments.length);

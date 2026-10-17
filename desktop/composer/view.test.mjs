@@ -450,6 +450,41 @@ const attachText = (t, id = "t1") =>
   });
 
 each(
+  "the tiles of one page are one chip, and removing it removes every tile",
+  (locale) => {
+    const events = [];
+    const t = setup({ locale, onQuick: (e) => events.push(e) });
+    for (const [i, id] of ["p1", "p2", "p3"].entries())
+      t.composer.attach({
+        id,
+        name: "Page.png",
+        mediaType: "image/png",
+        data: "aGVsbG8=",
+        page: { id: "page", index: i, total: 3 },
+      });
+    const chips = t.host.querySelectorAll(".gl-attachment-chip");
+    assert.equal(chips.length, 1, "one chip for the page");
+    assert.equal(
+      chips[0].querySelector(".gl-attachment-name").textContent,
+      t.tr("page-chip", { count: 3 }),
+    );
+    assert.equal(
+      t.composer.state().attachments.length,
+      3,
+      "all three are kept",
+    );
+    chips[0].querySelector("button").click();
+    assert.equal(t.composer.state().attachments.length, 0);
+    assert.deepEqual(
+      events.filter((e) => e.type === "remove").map((e) => e.id),
+      [],
+      "no quick question is open, so none is told",
+    );
+    t.dispose();
+  },
+);
+
+each(
   "a quick question from a capture shows the chips with the default marked, whatever was captured",
   (locale) => {
     const events = [];

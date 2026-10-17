@@ -61,3 +61,43 @@ test("each quick chip sends exactly the words on it, with no length words added"
     await app.close();
   }
 });
+
+test("a full page capture is one page chip in the composer and its tiles still go out as pictures", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("full_page_chip", { suffix: "-322" });
+  try {
+    await background(app);
+    await page.waitForTimeout(800);
+    await app.evaluate(async ({ screen }, data) => {
+      const display = screen.getPrimaryDisplay();
+      const tile = (id) => ({
+        id: `capture-${id}`,
+        kind: "page",
+        source: "page",
+        display,
+        region: { x: 300, y: 100, width: 600, height: 500 },
+        image: { id, name: "Page.png", mediaType: "image/png", data },
+      });
+      await globalThis.blinklingTest.attachCapture({
+        ...tile("t0"),
+        rest: [tile("t1"), tile("t2")],
+      });
+    }, picture());
+    await expect.poll(() => !!cardPage(app), { timeout: 8000 }).toBe(true);
+    const card = cardPage(app);
+    await expect(card.locator(".gl-attachment-chip")).toHaveCount(1);
+    await expect(card.locator(".gl-attachment-name")).toHaveText(
+      strings["zh-TW"]["page-chip"].replace("{count}", "3"),
+    );
+    await sleep(600);
+    rec.frame("one-chip");
+    await card.locator(".gl-quick-chip").first().click();
+    await expect(card.locator(".gl-user .gl-message-image")).toHaveCount(3);
+    await sleep(600);
+    rec.frame("sent");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});

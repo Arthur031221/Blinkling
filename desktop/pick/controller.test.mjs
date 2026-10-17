@@ -474,6 +474,30 @@ test("a full page arrives as tiles: one flight from the browser's rectangle, one
     log.opened[0].map((e) => e.id),
     ["t1", "t2", "t3"],
   );
+  // The three pictures are marked as one page, so the composer shows one chip.
+  const pages = log.opened[0].map((e) => e.attachment.page);
+  assert.equal(new Set(pages.map((p) => p.id)).size, 1);
+  assert.deepEqual(
+    pages.map((p) => [p.index, p.total]),
+    [
+      [0, 3],
+      [1, 3],
+      [2, 3],
+    ],
+  );
+});
+
+test("a single capture is not marked as a page", async () => {
+  const { controller, log } = setup();
+  await controller.deliver({
+    id: "one",
+    kind: "area",
+    source: "capture",
+    display: DISPLAY,
+    region: { x: 0, y: 0, width: 100, height: 100 },
+    image: { id: "one", name: "A.png", mediaType: "image/png", data: PNG },
+  });
+  assert.equal(log.opened[0][0].attachment.page, undefined);
 });
 
 test("a capture on a second display flies from its screen position", async () => {
