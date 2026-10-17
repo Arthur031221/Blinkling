@@ -563,3 +563,34 @@ test("the shell hears when picking starts and ends, so Blink can watch the curso
   assert.deepEqual(s.log.picking, [true, false]);
   pick.dispose();
 });
+
+test("a mouse button pressed anywhere on macOS reaches the shell through the key tap helper", async () => {
+  const helper = fakeHelper(() => "ready listen\n");
+  const s = setup();
+  s.shell.platform = "darwin";
+  s.shell.keytap = "/app/Resources/blinkling-keytap";
+  let presses = 0;
+  s.shell.mousedown = () => void presses++;
+  s.spawn = helper.spawn;
+  const pick = await s.install();
+  helper.spawned[0].proc.stdout.emit("data", "md 0\n");
+  assert.equal(presses, 1);
+  // A key is not a press.
+  helper.spawned[0].proc.stdout.emit("data", "kd 29\n");
+  assert.equal(presses, 1);
+  pick.dispose();
+});
+
+test("a mouse button pressed anywhere on Windows reaches the shell through the global hook", async () => {
+  const s = setup();
+  s.shell.platform = "win32";
+  let presses = 0;
+  s.shell.mousedown = () => void presses++;
+  const pick = await s.install();
+  const down = s.hooks.find(([type]) => type === "mousedown")[1];
+  down({ button: 1, x: 10, y: 10 });
+  assert.equal(presses, 1);
+  s.hooks.find(([type]) => type === "keydown")[1]({ keycode: 30 });
+  assert.equal(presses, 1);
+  pick.dispose();
+});

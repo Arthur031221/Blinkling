@@ -26,7 +26,7 @@ const mode = (page) => page.locator("#blink").getAttribute("data-mode");
 test("a click on the background closes the card and Blink peeks, also while an answer streams on; a pinned card stays", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("click_away", { suffix: "-321" });
+  const rec = record("click_away", { suffix: "-322" });
   try {
     const b = await background(app);
     await reveal(page);
@@ -104,6 +104,29 @@ test("a click on the background closes the card and Blink peeks, also while an a
     await page.evaluate(() =>
       window.blinkling.shell({ type: "pin", value: false }),
     );
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
+
+test("a card that opened by itself, without focus, closes on a click on the background", async () => {
+  test.setTimeout(120000);
+  const { app, page } = await launch();
+  const rec = record("click_away_unfocused", { suffix: "-322" });
+  try {
+    const b = await background(app);
+    await reveal(page);
+    await emit(app, { type: "blink-say", text: "This card opened by itself." });
+    await expect.poll(() => cardOpen(app), { timeout: 8000 }).toBe(true);
+    const focused = await app.evaluate(() =>
+      globalThis.blinklingTest.composer.isFocused(),
+    );
+    rec.frame(`card-open-focused-${focused}`);
+    await page.waitForTimeout(800);
+    clickAway(b);
+    await expect.poll(() => cardOpen(app), { timeout: 3000 }).toBe(false);
+    rec.frame("closed");
   } finally {
     await rec.stop();
     await app.close();

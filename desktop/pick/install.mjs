@@ -188,6 +188,12 @@ export async function installPick({
     onError,
   });
 
+  // A button press anywhere on the desktop is also the shell's to hear: the
+  // card ends its reading on a click away from Blinkling, focused or not.
+  const heard = (event) => {
+    if (event.type === "mousedown") shell.mousedown?.();
+    keys.handle(event);
+  };
   const keys = createPickKeys({
     pickKey: () => pickKey,
     /** The window locator and the secure-field guard plug in here; each pick reads
@@ -213,11 +219,11 @@ export async function installPick({
               appDir: fileURLToPath(new URL("..", import.meta.url)),
             }),
           spawn,
-          handle: keys.handle,
+          handle: heard,
           onError,
           ...timers,
         })
-      : createKeySource({ load: loadKeys, handle: keys.handle, onError });
+      : createKeySource({ load: loadKeys, handle: heard, onError });
   const started =
     env.BLINKLING_PICK_KEYS === "0" ? { ok: false } : await source.start();
 

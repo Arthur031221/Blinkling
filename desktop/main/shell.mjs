@@ -44,6 +44,7 @@ import {
 import { PositionStore } from "./preferences.mjs";
 import { validCommand, validRegions } from "./ipc.mjs";
 import { createEscapeKeys } from "./escape-keys.mjs";
+import { createHookedPress, outsidePress } from "./clickaway.mjs";
 import { hidePointing } from "../pointing/elements.mjs";
 import { createAnswerPointing } from "../pointing/answers.mjs";
 import { dispatchAction, registerAction } from "./services.mjs";
@@ -1219,6 +1220,8 @@ const pick = await installPick({
     windows: surfaces,
     input,
     cursor: () => cursor.point(),
+    // A mouse button went down somewhere on the desktop (macOS, Windows).
+    mousedown: () => hookedPress(),
     blinkPoint,
     mouthPoint,
     nudges,
@@ -1397,6 +1400,13 @@ const stopStacking = await keepAbove(() =>
   }),
 );
 /** Whether a screen point is on anything Blinkling draws and takes clicks on. */
+const hookedPress = createHookedPress({
+  point: () => cursor.point(),
+  over: (p) => over(p),
+  dragging: () => !!drag,
+  picking: () => pickingOn,
+  outside: () => flow((m) => m.outside()),
+});
 function over(p) {
   const local = localPoint(p, frame());
   if (regions.some((r) => contains(r, local))) return true;
@@ -1465,10 +1475,13 @@ const poll = setInterval(() => {
   // native pointer reports the button, and a lost focus covers the rest.
   const down = cursor.pressed();
   if (down !== null) {
-    if (down && !outsideWasDown && !drag && !over(p)) {
-      // Picking is a press too and never counts.
-      if (!pickingOn) flow((m) => m.outside());
-    }
+    // Picking is a press too and never counts.
+    if (
+      down &&
+      !outsideWasDown &&
+      outsidePress({ over: over(p), dragging: !!drag, picking: pickingOn })
+    )
+      flow((m) => m.outside());
     outsideWasDown = down;
   }
   const key = `${p.x},${p.y},${hit},${overCard},${chatOpen}`;
