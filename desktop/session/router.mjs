@@ -150,13 +150,13 @@ export class ChannelChat {
     }
   }
   /** The chat lines that came from the terminal or from the terminal's answer. */
-  add(message, { persist = true } = {}) {
+  add(message, { persist = true, via = false } = {}) {
     const old = this.messages.findIndex((m) => m.id === message.id);
     if (old >= 0) this.messages[old] = message;
     else this.messages.push(message);
     if (this.messages.length > KEEP)
       this.messages.splice(0, this.messages.length - KEEP);
-    this.emit({ type: "message", ...message });
+    this.emit({ type: "message", ...message, ...(via ? { viaMain: true } : {}) });
     if (persist) this.save();
   }
   async send(turn) {
@@ -408,7 +408,14 @@ export class ChatRouter {
     entry.offs = [];
     if (announce || entry.visible) listener(this.summary());
     const impl = this.current.impl;
-    entry.offs.push(this.attach(listener, impl, entry.visible));
+    // What Blink's own session answered into a chat reaches a listener that
+    // hears Blink's session itself directly, never a second time.
+    const hear = entry.visible
+      ? listener
+      : (event) => {
+          if (!event.viaMain) listener(event);
+        };
+    entry.offs.push(this.attach(hear, impl, entry.visible));
     for (const line of this.current.lines ?? [])
       listener({ ...line, type: "message", replay: true });
     // A listener that collects Blink's own turns keeps hearing the main session
@@ -538,21 +545,23 @@ export class ChatRouter {
     let live = false;
     let stop = () => {};
     let ended = false;
+    chat.viaMain = turn.id;
     const finish = () => {
       if (ended) return;
       ended = true;
       stop();
-      chat.impl.emit({ type: "done", turnId: turn.id });
+      if (chat.viaMain === turn.id) chat.viaMain = undefined;
+      chat.impl.emit({ type: "done", turnId: turn.id, viaMain: true });
     };
     stop = main.impl.subscribe((event) => {
       if (!live) return;
       if (event.type === "message" && event.role === "assistant")
-        chat.impl.add({
-          id: event.id,
-          role: "assistant",
-          content: event.content,
-        });
-      else if (event.type === "delta") chat.impl.emit(event);
+        chat.impl.add(
+          { id: event.id, role: "assistant", content: event.content },
+          { via: true },
+        );
+      else if (event.type === "delta")
+        chat.impl.emit({ ...event, viaMain: true });
       else if (event.type === "done" && event.turnId === turn.id) finish();
     });
     live = true;
@@ -603,8 +612,16 @@ export class ChatRouter {
   select(selection) {
     return this.current.impl.select(selection);
   }
-  stop() {
-    return this.current.impl.stop();
+  /** Stops the turn of the chat on screen. A turn Blink's own session runs
+   * for that chat, or one Blink ran for itself (`own`: the guide), is stopped
+   * in Blink's session too, or it would keep every later question waiting. */
+  async stop({ own = false } = {}) {
+    const chat = this.current;
+    const stops = [];
+    if (!own || chat.key === MAIN) stops.push(chat.impl.stop());
+    if (chat.key !== MAIN && (own || chat.viaMain))
+      stops.push(this.main.stop());
+    await Promise.all(stops);
   }
   emit(event) {
     return this.current.impl.emit(event);

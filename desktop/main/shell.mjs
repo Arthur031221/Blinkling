@@ -1,3 +1,4 @@
+import { draftHolds } from "../autowatch/draft.mjs";
 import {
   app,
   BrowserWindow,
@@ -139,6 +140,7 @@ let composer = null,
   freshChat = false,
   outsideWasDown = false,
   typing = false,
+  typingAt = 0,
   overlay = null,
   regions = [],
   bubbleRegions = [],
@@ -1133,6 +1135,7 @@ ipcMain.on("blinkling:typing", (event, value) => {
   )
     return;
   typing = value;
+  if (value) typingAt = Date.now();
   flow((m) => m.composer({ text: value }));
 });
 /** What the card tells the machine it is doing: reading by scroll or
@@ -1276,7 +1279,8 @@ features = installCaptureGuide({
     const area = display.workArea;
     return [{ ...card, y: area.y, height: area.height }];
   },
-  busy: () => typing || !!session.active,
+  busy: () =>
+    draftHolds({ typing, typingAt, now: Date.now() }) || !!session.active,
   onCapture: attachCapture,
   locator,
   card: cardBus,

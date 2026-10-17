@@ -646,3 +646,34 @@ test("auto explain stays inside Blink: no terminal is asked, and one answer show
   assert.ok(t.events.some((e) => e.type === "done" && e.turnId === q.id));
   await t.close();
 });
+
+test("a listener that hears Blink's own session hears an auto explain answer once, not again from the chat it was written into", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  const heard = [];
+  t.router.subscribe((e) => heard.push(e));
+  const q = { ...turn("look"), source: "auto-explain" };
+  await t.router.send(q);
+  t.main.emit({ type: "delta", id: "a1", text: "word " });
+  t.main.emit({ type: "done", turnId: q.id });
+  assert.equal(heard.filter((e) => e.type === "delta").length, 1);
+  assert.equal(heard.filter((e) => e.type === "done").length, 1);
+  await t.close();
+});
+
+test("stopping an auto explain in a terminal's chat, or the guide's own turn, stops Blink's session too", async () => {
+  const t = await setup();
+  let stops = 0;
+  t.main.stop = async () => {
+    stops++;
+  };
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  await t.router.stop();
+  assert.equal(stops, 0, "a terminal's own turn is not Blink's to stop");
+  await t.router.send({ ...turn("look"), source: "auto-explain" });
+  await t.router.stop();
+  assert.equal(stops, 1, "an auto explain in this chat is");
+  await t.router.stop({ own: true });
+  assert.equal(stops, 2, "so is the guide's turn");
+  await t.close();
+});

@@ -17,7 +17,7 @@ export function collectTurn(session, turn, { signal, timeoutMs = 90000 } = {}) {
     };
     const abort = () => {
       end(signal.reason);
-      void session.stop().catch(() => {});
+      void session.stop({ own: true }).catch(() => {});
     };
     if (signal?.aborted) {
       end(signal.reason);
@@ -39,7 +39,7 @@ export function collectTurn(session, turn, { signal, timeoutMs = 90000 } = {}) {
     });
     timer = setTimeout(() => {
       end(Error("Guide response timed out"));
-      void session.stop().catch(() => {});
+      void session.stop({ own: true }).catch(() => {});
     }, timeoutMs);
     signal?.addEventListener("abort", abort, { once: true });
     Promise.resolve()
