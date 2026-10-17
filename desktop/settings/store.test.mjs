@@ -14,7 +14,18 @@ test("start with Claude Code is on until the user turns it off", async () => {
   assert.deepEqual(store.get(), {
     startWithClaudeCode: true,
     language: "system",
+    costumeEffects: true,
   });
+});
+
+test("costume effects are on until turned off, and the choice is kept", async () => {
+  const dir = await home();
+  const file = join(dir, "settings.json");
+  assert.equal(createSettingsStore(file).get().costumeEffects, true);
+  createSettingsStore(file).set({ costumeEffects: false });
+  assert.equal(createSettingsStore(file).get().costumeEffects, false);
+  assert.throws(() => createSettingsStore(file).set({ costumeEffects: "no" }));
+  assert.equal(createSettingsStore(file).get().costumeEffects, false);
 });
 
 test("a change is written where the launcher reads it", async () => {
@@ -30,6 +41,7 @@ test("a change is written where the launcher reads it", async () => {
     schemaVersion: 1,
     startWithClaudeCode: true,
     language: "system",
+    costumeEffects: true,
   });
 });
 

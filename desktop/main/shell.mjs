@@ -30,7 +30,7 @@ import {
   SHRUG_FOR,
   TURN_FOR,
 } from "../character/motions.mjs";
-import { COSTUME_FOR, costumeChange } from "../character/costume.mjs";
+import { costumeChange, playFor } from "../character/costume.mjs";
 import { families, familyOf } from "../composer/models.mjs";
 import { keepAbove, stackOrder } from "./x11-stacking.mjs";
 import { nativeInput } from "./native-input.mjs";
@@ -306,6 +306,7 @@ const snapshot = () => ({
   fanLabelsSeen: uiOnce.seen("fan-labels"),
   chatFocused: !!composer && !composer.isDestroyed() && composer.isFocused(),
   autoExplain,
+  costume: costumeWorn(),
   debugHit: process.env.BLINKLING_DEBUG_HIT === "1",
   theme: nativeTheme.shouldUseDarkColors ? "dark" : "light",
   locale,
@@ -320,12 +321,12 @@ const PLAYS = {
   shrug: SHRUG_FOR,
   turn: TURN_FOR,
   dizzy: DIZZY_FOR,
-  costume: COSTUME_FOR,
   leave: LEAVE_FOR,
 };
 function motion(name, extra = {}) {
   if (quitting && name !== "leave") return;
-  if (name in PLAYS) flow((m) => m.showFor(PLAYS[name] * 1000));
+  const length = name === "costume" ? playFor(extra) : PLAYS[name];
+  if (length) flow((m) => m.showFor(length * 1000));
   if (!blink.isDestroyed())
     blink.webContents.send("blinkling:shell", {
       type: "motion",
@@ -603,7 +604,7 @@ function useDisplay(next) {
 }
 /** What Blink's window is clipped to, where the system does the clipping. */
 const shapeNow = (platform = process.platform) =>
-  windowShape(platform, regions, bubbleRegions);
+  windowShape(platform, regions, bubbleRegions, drawnRegions);
 /** The card goes where Blink goes. Called on every move of Blink, on drop and
  * on every display change. */
 let placedAt = "";
@@ -1089,6 +1090,14 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
     throw error;
   }
 });
+/** The costume switch in Settings: on, Blink wears the chosen model's piece and
+ * plays a scene when the model or the effort changes. */
+let costumeEffects = true;
+/** The family whose piece Blink wears now, or null. */
+const costumeWorn = () =>
+  costumeEffects
+    ? (costumeKey(session.state?.selection)?.family ?? null)
+    : null;
 /** The model family and effort of a selection, as the costume reads them. */
 const costumeKey = (s) =>
   s && {
@@ -1099,8 +1108,12 @@ ipcMain.handle("blinkling:select", async (event, selection) => {
   requireView(event);
   const before = costumeKey(session.state?.selection);
   const applied = await session.select(selection);
-  // Only a real change dresses Blink: not the first value, not the same value.
-  const change = costumeChange(before, costumeKey(applied));
+  // Only a real change plays: not the first value, not the same value, and
+  // nothing at all while the costume switch in Settings is off.
+  const change = costumeEffects
+    ? costumeChange(before, costumeKey(applied))
+    : null;
+  broadcast();
   if (change) motion("costume", change);
   return applied;
 });
@@ -1568,12 +1581,17 @@ const settings = installSettings({
     guide: () => void openCompanionGuide(),
     // Every window changes its words where it stands: the new language goes out
     // with the state, and nothing is reloaded or restarted.
+    costumeEffectsChanged: (on) => {
+      costumeEffects = on;
+      broadcast();
+    },
     languageChanged: (chosen) => {
       locale = changeSystemLocale({ app, chosen });
       broadcast();
     },
   },
 });
+costumeEffects = settings.store.get().costumeEffects !== false;
 // The image viewer covers the display Blink is on; while it is up the machine
 // knows, so Blink holds still behind it.
 const viewer = installViewer({

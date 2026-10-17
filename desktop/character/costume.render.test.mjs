@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 import { mountBlink } from "./index.mjs";
-import { COSTUME_FOR, FAMILIES, EFFORTS, moveFor } from "./costume.mjs";
+import { EFFORTS, FAMILIES, SCENE_FOR, SHOW_FOR } from "./costume.mjs";
 
 function rig() {
   const { window } = new JSDOM("<body><div id='h'></div></body>");
@@ -18,48 +18,68 @@ const run = (blink, o, from, to) => {
 
 const MARK = {
   opus: "#c9374d",
-  sonnet: 'fill-opacity=".18"',
+  sonnet: 'fill-opacity=".12"',
   haiku: "#ee6a56",
   fable: "#7c5fc4",
 };
-const worn = (blink) =>
-  Object.values(MARK).filter((m) => blink.svg.innerHTML.includes(m));
+const marks = (blink) =>
+  Object.entries(MARK)
+    .filter(([, m]) => blink.svg.innerHTML.includes(m))
+    .map(([f]) => f);
 
-test("each model's outfit shows on Blink and is gone after the costume time", () => {
+test("with a model chosen, Blink wears only that model's piece, with no scene played", () => {
   const seen = new Set();
   for (const family of FAMILIES) {
     const blink = rig();
-    const o = { costumeAt: 1, costume: { family, effort: "medium" } };
-    run(blink, o, 0, 1 + moveFor("medium") + 0.5);
-    assert.deepEqual(worn(blink), [MARK[family]], family);
+    run(blink, { outfit: family }, 0, 1);
+    assert.deepEqual(marks(blink), [family], family);
     seen.add(blink.svg.innerHTML);
-    run(blink, o, 1 + COSTUME_FOR, 1 + COSTUME_FOR + 1.5);
-    assert.deepEqual(worn(blink), [], `${family} is not taken off`);
   }
   assert.equal(seen.size, FAMILIES.length);
 });
 
-test("Blink wears nothing without a change", () => {
+test("with no model, or the switch off, Blink wears nothing", () => {
   const blink = rig();
-  run(blink, { costumeAt: -100 }, 0, 2);
-  assert.deepEqual(worn(blink), []);
-  run(blink, { costumeAt: -100, costume: null }, 2, 3);
-  assert.deepEqual(worn(blink), []);
+  run(blink, { outfit: null }, 0, 2);
+  assert.deepEqual(marks(blink), []);
+  run(blink, {}, 2, 3);
+  assert.deepEqual(marks(blink), []);
 });
 
-test("every effort plays its own move, and the reduced version holds still", () => {
-  const MOVING = ["yaw", "L", "R", "legL", "legR", "front", "eyes", "mouth"];
+test("a model scene plays once, then only the piece stays, and the scene is not drawn twice", () => {
+  for (const family of FAMILIES) {
+    const blink = rig();
+    const o = {
+      outfit: family,
+      costumeAt: 1,
+      costume: { what: "model", family, effort: "high" },
+    };
+    run(blink, o, 0, 1 + SCENE_FOR * 0.3);
+    assert.ok(blink.ornaments().length > 0, `${family} has props to keep`);
+    run(blink, o, 1 + SCENE_FOR * 0.3, 1 + SCENE_FOR + 1);
+    assert.deepEqual(marks(blink), [family], family);
+    assert.deepEqual(blink.ornaments(), [], `${family} leaves props behind`);
+    assert.equal(
+      blink.svg.innerHTML.split(MARK[family]).length - 1,
+      blink.svg.innerHTML.split(MARK[family]).length - 1,
+    );
+  }
+});
+
+test("every effort plays its own show, and the reduced version holds still", () => {
+  const MOVING = ["yaw", "L", "R", "legL", "legR", "front", "back", "eyes"];
   for (const reduced of [false, true]) {
     const looks = new Set();
     for (const effort of EFFORTS) {
       const blink = rig();
       const o = {
+        outfit: "sonnet",
         costumeAt: 1,
-        costume: { family: "sonnet", effort, reduced },
+        costume: { what: "effort", family: "sonnet", effort, reduced },
       };
-      run(blink, o, 0, 1 + moveFor(effort) * 0.4);
-      const a = blink.pose(1 + moveFor(effort) * 0.4, o);
-      const b = blink.pose(1 + moveFor(effort) * 0.6, o);
+      run(blink, o, 0, 1 + SHOW_FOR[effort] * 0.4);
+      const a = blink.pose(1 + SHOW_FOR[effort] * 0.4, o);
+      const b = blink.pose(1 + SHOW_FOR[effort] * 0.6, o);
       looks.add(JSON.stringify(MOVING.map((k) => a[k])));
       if (reduced)
         assert.deepEqual(
@@ -69,5 +89,18 @@ test("every effort plays its own move, and the reduced version holds still", () 
         );
     }
     assert.equal(looks.size, EFFORTS.length, `reduced=${reduced}`);
+  }
+});
+
+test("a show keeps the model's piece on", () => {
+  for (const effort of EFFORTS) {
+    const blink = rig();
+    const o = {
+      outfit: "opus",
+      costumeAt: 1,
+      costume: { what: "effort", family: "opus", effort },
+    };
+    run(blink, o, 0, 1 + SHOW_FOR[effort] / 2);
+    assert.ok(marks(blink).includes("opus"), effort);
   }
 });

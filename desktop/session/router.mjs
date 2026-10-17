@@ -91,10 +91,10 @@ export class ChannelChat {
     // decide what Blink itself runs and how Blink dresses.
     this.shared = undefined;
     const own = { model: "terminal", effort: "medium" };
-    const chat = this;
+    const selection = () => this.shared?.state?.selection ?? own;
     this.state = {
       get selection() {
-        return chat.shared?.state?.selection ?? own;
+        return selection();
       },
       messages: this.messages,
     };

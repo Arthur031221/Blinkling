@@ -52,6 +52,7 @@ export function createSettingsController({
     pickKey: mac ? pickKey.get() : null,
     pickKeys: mac ? [...PICK_KEYS] : null,
     startWithClaudeCode: store.get().startWithClaudeCode,
+    costumeEffects: store.get().costumeEffects,
     language: store.get().language,
     languages: LOCALES.map((code) => ({ code, name: LANGUAGE_NAMES[code] })),
   });
@@ -111,6 +112,12 @@ export function createSettingsController({
       }
       if (key === "startWithClaudeCode") {
         store.set({ startWithClaudeCode: value });
+        return { ok: true, state: view() };
+      }
+      if (key === "costumeEffects") {
+        if (typeof value !== "boolean") return refuse();
+        store.set({ costumeEffects: value });
+        host.costumeEffectsChanged?.(value);
         return { ok: true, state: view() };
       }
       if (key === "language") {

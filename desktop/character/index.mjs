@@ -50,16 +50,11 @@ import {
   whirled,
   greeting,
 } from "./motions.mjs";
-import {
-  COSTUME_FOR,
-  costumeMove,
-  costumeOutfit,
-  moveFor,
-} from "./costume.mjs";
+import { costumePlay, playFor, worn } from "./costume.mjs";
 import { edgeTransform, poseTransform } from "./transform.mjs";
 import { BLINK_SCALE as K } from "./size.mjs";
 import { clipAbove, roundedRect } from "./silhouette.mjs";
-export { COSTUME_FOR, DIZZY_FOR, EAT_FOR };
+export { DIZZY_FOR, EAT_FOR };
 /** How far outside its drawn shape Blink still takes a click, hover or press. */
 export const HIT_MARGIN = 6;
 
@@ -164,10 +159,12 @@ export function mountBlink(host) {
     edge: "right",
     outer: { angle: 0, x: FEET.x, y: PEEK_EDGE },
     drawn: "",
+    play: null,
   };
 
   /** The pose the app asks for right now, and the motion it belongs to. */
   function choose(time, o) {
+    ctx.play = null;
     const face = o.face ?? "idle";
     const grumble = o.grumbling && face === "idle";
     let base = { ...idle(time), ...facePose(face, time) };
@@ -246,14 +243,19 @@ export function mountBlink(host) {
       };
     }
     const dressed = time - (o.costumeAt ?? -100);
-    if (o.costume && dressed >= 0 && dressed < moveFor(o.costume.effort))
-      return {
-        key: `costume:${o.costume.effort}`,
-        pose: plain(
-          costumeMove(o.costume.effort, dressed, o.costume.reduced === true),
-        ),
-        blend: 0.2,
-      };
+    if (o.costume && dressed >= 0 && dressed < playFor(o.costume)) {
+      const play = costumePlay(o.costume, dressed, o.costume.reduced === true);
+      if (play) {
+        ctx.play = play;
+        const fields = { ...play };
+        delete fields.bounds;
+        return {
+          key: `costume:${o.costume.what}:${o.costume.what === "model" ? o.costume.family : o.costume.effort}`,
+          pose: plain(fields),
+          blend: 0.2,
+        };
+      }
+    }
     const waved = time - (o.waveAt ?? -100);
     if (waved >= 0 && waved < 1.5)
       return { key: "wave", pose: plain(greeting(time, waved)), blend: 0.3 };
@@ -354,15 +356,12 @@ export function mountBlink(host) {
       out.armsOver = lean > 0.5;
       if (lean > 0.5) out.back = "";
     }
-    // The outfit stays on for its whole time, whatever Blink is doing.
-    const worn = o.costume
-      ? costumeOutfit(o.costume.family, time - (o.costumeAt ?? -100))
-      : null;
-    if (worn && lean < 0.5) {
-      out.behind = worn.behind;
-      out.faceExtra = (out.faceExtra ?? "") + worn.faceExtra;
-      out.front = (out.front ?? "") + worn.front;
-      out.attach = (out.attach ?? "") + worn.attach;
+    // The model's piece stays on while that model is chosen, whatever Blink is
+    // doing. A model scene draws the piece itself, so it is not added twice.
+    if (o.outfit && lean < 0.5 && !(ctx.play && o.costume?.what === "model")) {
+      const wear = worn(o.outfit, { yaw: out.yaw ?? 0, t: time });
+      out.faceExtra = (out.faceExtra ?? "") + wear.faceExtra;
+      out.attach = (out.attach ?? "") + wear.attach;
     }
     out.attach = (out.attach ?? "") + dotSvg(o.dot);
     out.noShadow = true;
@@ -586,10 +585,23 @@ export function mountBlink(host) {
      * far as it swings. The screen watch masks it with the body, so its tap is
      * not read as the screen changing. */
     ornaments() {
+      const screen = toScreen();
+      const out = [];
+      // What a costume play draws beyond the body: boxes in the drawing.
+      const placed = edgeTransform(ctx.outer, FEET.x, PEEK_EDGE);
+      for (const [x1, y1, x2, y2] of ctx.play?.bounds ?? [])
+        out.push(
+          [
+            { x: x1, y: y1 },
+            { x: x2, y: y1 },
+            { x: x2, y: y2 },
+            { x: x1, y: y2 },
+          ].map((v) => screen(placed.apply(v))),
+        );
       const m = ctx.last?.attach?.match(
         /class="guide-stick"[^>]*><path d="M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)"/,
       );
-      if (!m) return [];
+      if (!m) return out;
       const [x1, y1, x2, y2] = m.slice(1).map(Number);
       const len = Math.hypot(x2 - x1, y2 - y1) || 1,
         reach = STICK * 1.12 + 10;
@@ -602,8 +614,8 @@ export function mountBlink(host) {
         ...ring(x1, y1, 10, 16),
         ...ring(far.x, far.y, 10, 16),
       ]);
-      const screen = toScreen();
-      return [hull.map((v) => screen(figurePoint(v)))];
+      out.push(hull.map((v) => screen(figurePoint(v))));
+      return out;
     },
     /** Each touchable part as a polygon on the screen, for the debug view. */
     partShapes() {

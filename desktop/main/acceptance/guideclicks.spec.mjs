@@ -3,8 +3,6 @@ import { launch, move, click } from "./support.mjs";
 import { background, reveal, bubble } from "./helpers.mjs";
 import { record } from "./record.mjs";
 
-const read = (app) =>
-  app.evaluate(() => globalThis.blinklingTest.nBlinkMenuFaces.interaction());
 const place = (app, edge, ratio) =>
   app.evaluate(
     async ({ screen }, [edge, ratio]) => {

@@ -20,6 +20,9 @@ export const strings = {
     quitKeyHint: "Closes Blink at once, even if it is stuck.",
     startWithClaude: "Start with Claude Code",
     startWithClaudeHint: "Open Blink when a Claude Code session starts",
+    costumeEffects: "Costume effects",
+    costumeEffectsHint:
+      "Blink wears a piece for the chosen model and plays a short scene when it changes",
     language: "Language",
     languageHint:
       "Every Blink window changes to the language you choose at once",
@@ -54,6 +57,9 @@ export const strings = {
     quitKeyHint: "立刻關閉 Blink，就算它卡住也一樣。",
     startWithClaude: "隨 Claude Code 啟動",
     startWithClaudeHint: "Claude Code 開始工作階段時自動開啟 Blink",
+    costumeEffects: "服裝特效",
+    costumeEffectsHint:
+      "依所選模型讓 Blink 穿上一件配件，切換時播放短短的變身動畫",
     language: "語言",
     languageHint: "選擇後所有 Blink 視窗會立刻改用該語言",
     languageSystem: "跟隨電腦",
@@ -86,6 +92,9 @@ export const strings = {
     quitKeyHint: "立即关闭 Blink，即使它卡住了也一样。",
     startWithClaude: "随 Claude Code 启动",
     startWithClaudeHint: "Claude Code 开始会话时自动打开 Blink",
+    costumeEffects: "服装特效",
+    costumeEffectsHint:
+      "按所选模型让 Blink 穿上一件配饰，切换时播放简短的变身动画",
     language: "语言",
     languageHint: "选择后所有 Blink 窗口会立刻改用该语言",
     languageSystem: "跟随电脑",
@@ -120,6 +129,9 @@ export const strings = {
     quitKeyHint: "固まっていても、すぐに Blink を閉じます。",
     startWithClaude: "Claude Code と一緒に起動",
     startWithClaudeHint: "Claude Code のセッション開始時に Blink を開きます",
+    costumeEffects: "コスチューム演出",
+    costumeEffectsHint:
+      "選んだモデルに合わせて Blink が小物を身につけ、切り替え時に短い変身シーンを流します",
     language: "言語",
     languageHint: "選ぶと Blink のすべてのウィンドウがすぐにその言語になります",
     languageSystem: "コンピューターに合わせる",
@@ -156,6 +168,9 @@ export const strings = {
     quitKeyHint: "멈춰 있어도 Blink를 바로 닫습니다.",
     startWithClaude: "Claude Code와 함께 시작",
     startWithClaudeHint: "Claude Code 세션이 시작되면 Blink를 엽니다",
+    costumeEffects: "의상 효과",
+    costumeEffectsHint:
+      "선택한 모델에 맞는 소품을 Blink가 착용하고, 바꿀 때 짧은 변신 장면을 보여 줍니다",
     language: "언어",
     languageHint: "선택하면 Blink의 모든 창이 바로 그 언어로 바뀝니다",
     languageSystem: "컴퓨터와 같게",
@@ -191,6 +206,9 @@ export const strings = {
     quitKeyHint: "Schließt Blink sofort, auch wenn es hängt.",
     startWithClaude: "Mit Claude Code starten",
     startWithClaudeHint: "Blink öffnen, wenn eine Claude-Code-Sitzung beginnt",
+    costumeEffects: "Kostümeffekte",
+    costumeEffectsHint:
+      "Blink trägt ein Teil zum gewählten Modell und spielt beim Wechsel eine kurze Szene",
     language: "Sprache",
     languageHint: "Alle Blink-Fenster wechseln sofort in die gewählte Sprache",
     languageSystem: "Wie der Computer",
@@ -226,6 +244,9 @@ export const strings = {
     quitKeyHint: "Cierra Blink al instante, aunque esté bloqueado.",
     startWithClaude: "Iniciar con Claude Code",
     startWithClaudeHint: "Abrir Blink cuando empiece una sesión de Claude Code",
+    costumeEffects: "Efectos de disfraz",
+    costumeEffectsHint:
+      "Blink lleva una pieza del modelo elegido y muestra una escena corta al cambiar",
     language: "Idioma",
     languageHint:
       "Todas las ventanas de Blink cambian al instante al idioma que elijas",
@@ -265,6 +286,9 @@ export const strings = {
     quitKeyHint: "Ferme Blink aussitôt, même s'il est bloqué.",
     startWithClaude: "Démarrer avec Claude Code",
     startWithClaudeHint: "Ouvrir Blink au début d'une session Claude Code",
+    costumeEffects: "Effets de costume",
+    costumeEffectsHint:
+      "Blink porte une pièce du modèle choisi et joue une courte scène au changement",
     language: "Langue",
     languageHint:
       "Toutes les fenêtres de Blink passent aussitôt à la langue choisie",
@@ -303,6 +327,9 @@ export const strings = {
     startWithClaude: "Iniciar com o Claude Code",
     startWithClaudeHint:
       "Abrir o Blink quando uma sessão do Claude Code começar",
+    costumeEffects: "Efeitos de fantasia",
+    costumeEffectsHint:
+      "O Blink usa uma peça do modelo escolhido e mostra uma cena curta ao trocar",
     language: "Idioma",
     languageHint:
       "Todas as janelas do Blink mudam na hora para o idioma escolhido",

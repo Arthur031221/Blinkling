@@ -30,6 +30,7 @@ const rows = {
 };
 const change = rows.hotkey.change;
 const start = $("#start-switch");
+const costume = $("#costume-switch");
 const pickRow = $("#row-pick");
 const language = $("#language-select");
 
@@ -85,10 +86,16 @@ function render() {
   });
   start.setAttribute("aria-checked", String(state.startWithClaudeCode));
   start.setAttribute("aria-label", t("startWithClaude"));
+  costume.setAttribute("aria-checked", String(state.costumeEffects));
+  costume.setAttribute("aria-label", t("costumeEffects"));
   pickRow.hidden = !state.pickKeys;
   pickRow
     .querySelector("[role=radiogroup]")
     .setAttribute("aria-label", t("pickKey"));
+  costume.addEventListener("click", async () => {
+    await apply("costumeEffects", !state.costumeEffects);
+    render();
+  });
   for (const button of pickRow.querySelectorAll("[data-pick]")) {
     const name = button.dataset.pick;
     button.textContent = t(

@@ -41,7 +41,7 @@ const at = {
   dizzy: -100,
   costume: -100,
 };
-// The outfit and effort move of the last model or effort change.
+// The scene or show of the last model or effort change.
 let costume = null;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let leaveAt = null,
@@ -338,6 +338,7 @@ async function action(id) {
       turnAt: at.turn,
       costumeAt: at.costume,
       costume: costume && { ...costume, reduced: reducedMotion.matches },
+      outfit: shell.costume ?? null,
       turnDir,
       leaveAt,
       walking,
@@ -439,7 +440,11 @@ api.onShell((event) => {
     else if (event.name === "whirl") whirlAt = now;
     else if (event.name in at) at[event.name] = now;
     if (event.name === "costume")
-      costume = { family: event.family, effort: event.effort };
+      costume = {
+        family: event.family,
+        effort: event.effort,
+        what: event.what === "model" ? "model" : "effort",
+      };
     if (event.name === "turn") turnDir = event.dir === -1 ? -1 : 1;
     grumbler.touch(performance.now());
   }

@@ -6,12 +6,14 @@ import { LOCALES } from "../shared/i18n.mjs";
 // `language` is "system" (follow the computer) or one of the shipped locales.
 const DEFAULTS = Object.freeze({
   startWithClaudeCode: true,
+  costumeEffects: true,
   language: "system",
 });
 const isBoolean = (value) => typeof value === "boolean";
 const isLanguage = (value) => value === "system" || LOCALES.includes(value);
 const CHECKS = Object.freeze({
   startWithClaudeCode: isBoolean,
+  costumeEffects: isBoolean,
   language: isLanguage,
 });
 

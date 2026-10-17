@@ -11,6 +11,17 @@ test("on Windows the bubbles are in the shape the window is clipped to, beside B
   assert.deepEqual(windowShape("win32", body), body);
 });
 
+test("on Windows what is drawn on Blink without taking a click is in the shape too, so props and the guide stick are not cut", () => {
+  const prop = [{ x: 120, y: 0, width: 30, height: 12 }];
+  assert.deepEqual(windowShape("win32", body, bubble, prop), [
+    ...body,
+    ...prop,
+    ...bubble,
+  ]);
+  for (const platform of ["darwin", "linux"])
+    assert.deepEqual(windowShape(platform, body, bubble, prop), body);
+});
+
 test("elsewhere the shape stays Blink's own, so a bubble never takes a press", () => {
   for (const platform of ["darwin", "linux"])
     assert.deepEqual(windowShape(platform, body, bubble), body);
