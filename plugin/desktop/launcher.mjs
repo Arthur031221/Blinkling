@@ -186,6 +186,12 @@ async function macCopyIsCurrent(target, installed) {
     return false;
   }
 }
+/** A running Blink of another build than the one this plugin ships: left alone
+ * it would keep answering with its own, older, screens. */
+export function isOtherBuild(running, manifest) {
+  const have = running?.status?.version;
+  return Boolean(have && manifest?.version && have !== manifest.version);
+}
 export async function launchDesktop(options = {}) {
   const directory = options.runtime || runtimeDirectory();
   await privateDirectory(directory);
@@ -193,7 +199,15 @@ export async function launchDesktop(options = {}) {
     options.descriptor ||
     (options.runtime ? join(directory, "desktop.json") : endpointPath());
   return withLock(join(directory, "launch.lock"), async () => {
-    const previous = await discoverDesktop(descriptor);
+    let previous = await discoverDesktop(descriptor);
+    // A build left running from an earlier version is replaced, not reused.
+    if (
+      previous &&
+      isOtherBuild(previous, options.manifest || pinnedManifest)
+    ) {
+      await replaceHungDesktop(descriptor, options.hung);
+      previous = null;
+    }
     if (previous) {
       await previous.client.rpc(options.background ? "reconnect" : "open", {
         session: options.session,
