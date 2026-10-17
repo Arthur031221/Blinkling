@@ -170,7 +170,9 @@ test("first use names all its bubbles once; Settings opens, changes the hotkey a
     await expect(welcome.locator('section[data-step="connect"]')).toHaveClass(
       /is-current/,
     );
-    await expect(welcome.locator("[data-safety]")).not.toBeEmpty();
+    await expect(
+      welcome.locator('section[data-step="connect"] [data-safety]'),
+    ).not.toBeEmpty();
     await welcome.waitForTimeout(600);
     await desktopShot(app, "menu-windows-welcome-2");
     await welcome.locator("#welcome-next").click();
