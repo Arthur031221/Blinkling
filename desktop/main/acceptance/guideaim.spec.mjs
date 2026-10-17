@@ -94,7 +94,7 @@ const apart = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
 test("the pointer stick aims at the box of the step being shown, on every step", async () => {
   test.setTimeout(150000);
   const { app, page } = await launch();
-  const rec = record("guide_v1", { suffix: "-322" });
+  const rec = record("guide_aim", { suffix: "-323" });
   try {
     const frame = await background(app);
     await fakeSession(app);

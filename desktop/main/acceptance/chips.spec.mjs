@@ -29,7 +29,7 @@ const capture = (app, id) =>
 test("each quick chip sends exactly the words on it, with no length words added", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("chips_exact", { suffix: "-322" });
+  const rec = record("chips_exact", { suffix: "-323" });
   try {
     await background(app);
     await page.waitForTimeout(800);
@@ -65,7 +65,7 @@ test("each quick chip sends exactly the words on it, with no length words added"
 test("a full page capture is one page chip in the composer and its tiles still go out as pictures", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("full_page_chip", { suffix: "-322" });
+  const rec = record("full_page_chip", { suffix: "-323" });
   try {
     await background(app);
     await page.waitForTimeout(800);

@@ -138,7 +138,7 @@ test("while Blink is dragged the card is placed from the same pointer events, wi
 test("a continuous drag across the screen, recorded, never leaves the card behind", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("card_follow_drag", { fps: 30, suffix: "-322" });
+  const rec = record("card_follow_drag", { fps: 30, suffix: "-323" });
   try {
     const b = await background(app);
     await place(app, "right", 0.6);
@@ -396,18 +396,24 @@ test("after a drop the card glides with Blink to its place, and is never ahead o
     // on its mouth in every frame, and the card moves with it, not ahead of it.
     const after = rows.filter((r) => r.t >= dropped);
     const mouthDrop = MOUTH.y - CHARACTER.foot;
-    const off = after.filter((r) => {
+    // The two windows are read one after the other while Blink falls, so a
+    // row may be a step apart: that step is allowed on top of the slack.
+    const off = after.filter((r, i) => {
       const mouth = r.y + FEET_ABOVE + mouthDrop;
+      const skew = Math.abs(r.y - (after[i - 1]?.y ?? r.y));
       return (
-        mouth < r.card.y + TAIL_REACH - SLACK ||
-        mouth > r.card.y + r.card.height - TAIL_REACH + SLACK
+        mouth < r.card.y + TAIL_REACH - SLACK - skew ||
+        mouth > r.card.y + r.card.height - TAIL_REACH + SLACK + skew
       );
     });
     const ys = new Set(after.map((r) => r.card.y));
     if (process.env.DEBUG_ROWS)
       console.log(
         after
-          .map((r) => `${r.t - dropped} y${Math.round(r.y)} card${r.card.y}`)
+          .map(
+            (r) =>
+              `${r.t - dropped} y${Math.round(r.y)} card${r.card.y} h${r.card.height}`,
+          )
           .join("\n"),
       );
     console.log(

@@ -125,7 +125,7 @@ const guideText = (app) =>
 test("Guide: one click on the bubble says it is looking at once, draws the marks, walks the steps and ends cleanly, without the app standing still", async () => {
   test.setTimeout(150000);
   const { app, page } = await launch();
-  const rec = record("guide_v1-321");
+  const rec = record("guide_v1", { suffix: "-323" });
   try {
     const frame = await background(app);
     await fakeSession(app, 1200);
@@ -235,7 +235,7 @@ const userPictures = (app) =>
 test("Auto explain: switching it on looks at the whole screen at once, puts the picture in the card and asks, then asks again only for each change, without the app standing still", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch({ env: { BLINKLING_TEST_SLOW: "1" } });
-  const rec = record("auto_explain-321");
+  const rec = record("auto_explain", { suffix: "-323" });
   try {
     const frame = await background(app);
     await spy(app);
@@ -327,7 +327,7 @@ const spy = (app) =>
 test("Auto explain, the whole path: the tooltip reads, the picture is sent, the card opens by itself and the answer streams in", async () => {
   test.setTimeout(150000);
   const { app, page } = await launch({ env: { BLINKLING_TEST_SLOW: "1" } });
-  const rec = record("auto_explain_path-321");
+  const rec = record("auto_explain_path", { suffix: "-323" });
   try {
     const frame = await background(app);
     await spy(app);

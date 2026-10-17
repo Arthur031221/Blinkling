@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { launch } from "./support.mjs";
 import { background, reveal } from "./helpers.mjs";
 import { record } from "./record.mjs";
+import { say } from "../../session/strings.mjs";
 
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
@@ -104,7 +105,7 @@ test("what is typed and answered in the terminal session appears in Blink's chat
 test("a question the linked terminal session never takes is answered by Blink with one line saying so, and the late terminal answer is dropped", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("sync", { suffix: "-322" });
+  const rec = record("sync", { suffix: "-323" });
   let unlink;
   try {
     await background(app);
@@ -125,7 +126,7 @@ test("a question the linked terminal session never takes is answered by Blink wi
     await card.waitForTimeout(800);
     rec.frame("waiting");
     await expect(card.locator(".gl-assistant").first()).toContainText(
-      "Claude Code did not pick this up",
+      say("zh-TW")("undelivered"),
       { timeout: 20000 },
     );
     await expect(card.locator(".gl-assistant")).toHaveCount(2, {
