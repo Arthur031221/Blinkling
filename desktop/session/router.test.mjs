@@ -335,6 +335,22 @@ test("the first session to join takes the card from an empty Blink chat; the emp
   await t.close();
 });
 
+test("a new Claude Code session opens a brand new chat, and an older chat stays in the switcher", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  await t.router.send(turn("first question"));
+  t.router.link({ session: "s2", cwd: "/work/alpha", channel: true });
+  const summary = t.events.filter((e) => e.type === "chat").at(-1);
+  assert.equal(summary.key, "s2", "the card follows the new session");
+  assert.equal(t.router.state.messages?.length ?? 0, 0, "and starts empty");
+  assert.ok(summary.chats.some((c) => c.key === "s1"));
+  // The same session reconnecting does not pull the card back or reset it.
+  t.router.open("s1");
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  assert.equal(t.router.currentKey, "s1");
+  await t.close();
+});
+
 test("the same project folder in two sessions gets numbered labels", async () => {
   const t = await setup();
   t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });

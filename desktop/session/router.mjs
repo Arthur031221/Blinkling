@@ -418,6 +418,7 @@ export class ChatRouter {
       this.chats.delete(session);
       chat = undefined;
     }
+    const fresh = !chat;
     if (!chat) {
       const impl = channel
         ? this.makeChannel(session)
@@ -428,8 +429,13 @@ export class ChatRouter {
     }
     chat.live = true;
     chat.label = label;
-    // The first session to join takes the card from an empty Blink chat.
-    if (this.currentKey === MAIN && !this.main.state?.messages?.length)
+    // A Claude Code session Blink has not met starts a brand new chat and the
+    // card follows it; the older chats stay in the switcher. A session that
+    // only reconnects keeps the card where the reader left it.
+    if (
+      fresh ||
+      (this.currentKey === MAIN && !this.main.state?.messages?.length)
+    )
       this.switchTo(session);
     else this.announce();
     return chat;
