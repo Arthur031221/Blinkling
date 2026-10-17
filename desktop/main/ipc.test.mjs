@@ -10,6 +10,7 @@ test("shell IPC admits only narrow gestures and boolean state, never arbitrary p
     { type: "click", permission: false },
     { type: "click", permission: true },
     { type: "fan-labels-seen" },
+    { type: "swallowed" },
   ])
     assert.equal(validCommand(c), true);
   for (const c of [
@@ -21,6 +22,7 @@ test("shell IPC admits only narrow gestures and boolean state, never arbitrary p
     { type: "click", permission: true, x: 4 },
     { type: "state", file: "/etc/passwd" },
     { type: "fan-labels-seen", value: true },
+    { type: "swallowed", at: 3 },
     null,
     [],
   ])

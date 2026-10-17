@@ -323,6 +323,8 @@ const PLAYS = {
   dizzy: DIZZY_FOR,
   leave: LEAVE_FOR,
 };
+// Settles the promise of the bite in flight, when the renderer reports the gulp.
+let swallowedNow = null;
 function motion(name, extra = {}) {
   if (quitting && name !== "leave") return;
   const length = name === "costume" ? playFor(extra) : PLAYS[name];
@@ -806,6 +808,9 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
   } else if (command.type === "click") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
     flow((m) => m.click());
+  } else if (command.type === "swallowed") {
+    if (!fromBlink) throw new Error("Invalid swallow report");
+    swallowedNow?.();
   } else if (command.type === "fan-labels-seen") {
     if (!fromBlink) throw new Error("Invalid fan label report");
     uiOnce.take("fan-labels");
@@ -1483,9 +1488,18 @@ const pick = await installPick({
     // Blink bites; the promise is the end of the gulp, when the card may open.
     caught: () => {
       motion("eat");
-      return new Promise((resolve) =>
-        setTimeout(resolve, EAT_SWALLOWED * 1000),
-      );
+      return new Promise((resolve) => {
+        // The renderer says when the gulp is down; the timer only bounds a
+        // renderer that never does.
+        const done = () => {
+          clearTimeout(bound);
+          if (swallowedNow === done) swallowedNow = null;
+          resolve();
+        };
+        const bound = setTimeout(done, (EAT_SWALLOWED + 1) * 1000);
+        swallowedNow?.();
+        swallowedNow = done;
+      });
     },
     picking: tellPicking,
     quickShow: (event) => send(event),

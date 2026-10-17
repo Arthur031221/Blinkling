@@ -1,6 +1,7 @@
 import { HIT_MARGIN, mountBlink } from "../character/index.mjs";
 import { createActivityState } from "../character/activity.mjs";
 import { spring } from "../character/state.mjs";
+import { EAT_SWALLOWED } from "../character/motions.mjs";
 import { grow, scanlines, roundedRect } from "../character/silhouette.mjs";
 import { mountMenu, menuActions } from "../menu/index.mjs";
 import { createComposer, readAttachment } from "../composer/index.mjs";
@@ -47,6 +48,7 @@ const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let leaveAt = null,
   whirlAt = null,
   turnDir = 1;
+let swallowedSent = true;
 const composer = createComposer();
 let hitOverlay = null,
   hit = [],
@@ -325,6 +327,11 @@ async function action(id) {
       pointer?.point && pointer.blink && mode !== "drag" && mode !== "peek"
         ? character.touchAt(pointer.point)
         : null;
+    // The eat's own clock tells main when the gulp is down; the card opens then.
+    if (!swallowedSent && at.eat > 0 && now / 1000 - at.eat >= EAT_SWALLOWED) {
+      swallowedSent = true;
+      void api.shell({ type: "swallowed" }).catch(() => {});
+    }
     character.pose(now / 1000, {
       gaze: picking && pointer?.point ? gazeAt(pointer.point, current) : null,
       touch: touched,
@@ -439,6 +446,7 @@ api.onShell((event) => {
     if (event.name === "leave") leaveAt = now;
     else if (event.name === "whirl") whirlAt = now;
     else if (event.name in at) at[event.name] = now;
+    if (event.name === "eat") swallowedSent = false;
     if (event.name === "costume")
       costume = {
         family: event.family,

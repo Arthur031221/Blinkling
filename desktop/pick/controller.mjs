@@ -211,9 +211,13 @@ export function createPickController({
   async function feed(items) {
     // Blink answers with the moment it has swallowed; the card waits for it.
     const swallowed = Promise.resolve(caught());
-    await pause(timing.eatLead);
-    await layer.flight(items, mouthPoint());
-    await swallowed;
+    try {
+      await pause(timing.eatLead);
+      await layer.flight(items, mouthPoint());
+    } finally {
+      // A flight that failed still leaves Blink mid-bite: the card waits for it.
+      await swallowed;
+    }
   }
 
   async function finish(entries, flightItems) {

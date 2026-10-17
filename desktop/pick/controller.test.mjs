@@ -27,8 +27,11 @@ function setup(options = {}) {
     show: (display, cursor) => void log.shown.push({ display, cursor }),
     hide: () => void log.hidden++,
     send: (channel, value) => void log.sent.push([channel, value]),
-    flight: async (items, to) =>
-      void (log.flights.push({ items, to }), log.order.push("flight")),
+    flight: async (items, to) => {
+      log.flights.push({ items, to });
+      log.order.push("flight");
+      if (options.flightFails) throw new Error("the flight failed");
+    },
   };
   const controller = createPickController({
     displays: () => [DISPLAY],
@@ -244,6 +247,31 @@ test("the card opens only after Blink has swallowed, not when the picture lands 
   swallow();
   await dropped;
   assert.deepEqual(log.order.slice(-2), ["swallowed", "card"]);
+});
+
+test("a flight that fails still waits for the swallow before the card opens", async () => {
+  let swallow;
+  const { controller, log } = setup({
+    flightFails: true,
+    swallowed: (l) =>
+      new Promise((resolve) => {
+        swallow = () => (l.order.push("swallowed"), resolve());
+      }),
+  });
+  await controller.raise();
+  await pickAt(controller, local(200, 280));
+  const dropped = controller.drop("release");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(
+    log.errors.length,
+    0,
+    "the error is held until the gulp is down",
+  );
+  assert.ok(!log.order.includes("card"));
+  swallow();
+  await dropped;
+  assert.deepEqual(log.order.slice(-2), ["swallowed", "card"]);
+  assert.equal(log.errors.length, 1);
 });
 
 test("text arrives as a text attachment, not a picture of text", async () => {

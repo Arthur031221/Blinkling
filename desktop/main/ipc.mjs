@@ -7,6 +7,7 @@ const types = new Set([
   "close-chat",
   "fan-labels-seen",
   "grumble",
+  "swallowed",
 ]);
 export function validCommand(command, bounds) {
   if (command?.type === "drag-end" || command?.type === "glide-end")
