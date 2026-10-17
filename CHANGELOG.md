@@ -17,6 +17,7 @@
 - Pointing at a part of Blink triggers that part's reaction where the part is drawn. The hit zones and the drawing share one transform, with tests at scale 1 and 2, work area offsets and every edge. Setting BLINKLING_DEBUG_HIT=1 draws the zones.
 - The capture progress bubble and the idle grumble bubble draw on Windows too. Blink is hidden from the capture itself on macOS and Windows, and on Linux it hides for as short a time as it can.
 - Smaller: a new capture clears the old pointing marks, the card title sits on solid paper, and a terminal session started with the channel flag whose events are dropped is told about the quit through the notice hook like any other session. The open command says nothing about the start command when there is no Sync line.
+- Pressing Esc to close the card no longer sends Blink to its edge as if you had clicked away: the blur that follows is only the hidden card giving up the keyboard. The guide stick is kept out of the screen watch like Blink itself, and a capture waits long enough for a hidden surface to be gone before the screen is read. The guide's screen watch skips a frame taken just after Blink's own windows moved, so moving the card to the next step cannot end the tour by itself.
 - The four README recordings are made again from this build.
 
 ## 3.2.2 - 2026-10-17

@@ -176,3 +176,29 @@ test("Blink's windows are read before and after the screenshot, and both places 
   );
   r.watch.dispose();
 });
+test("a frame taken after Blink's windows moved since the last tick is skipped, but never for long", async () => {
+  let y = 230;
+  const r = rig({
+    frames: [still(), still(), still(), still(), still(), still()],
+    windowMasks: () => [{ x: 128, y, width: 440, height: 306 }],
+  });
+  await show(r);
+  let looked = 0;
+  r.watch.detector = { observe: () => (looked++, null) };
+  await r.watch.tick();
+  assert.equal(looked, 1, "a window that stood still is judged");
+  y = 480;
+  await r.watch.tick();
+  assert.equal(looked, 1, "it moved since the last tick: the frame is skipped");
+  await r.watch.tick();
+  assert.equal(looked, 2, "it stood still since: the frame is judged again");
+  for (let moving = 1; moving <= 2; moving++) {
+    y += 100;
+    await r.watch.tick();
+    assert.equal(looked, 2, `moving again, skipped (${moving})`);
+  }
+  y += 100;
+  await r.watch.tick();
+  assert.equal(looked, 3, "a window that never stops does not hide a change");
+  r.watch.dispose();
+});

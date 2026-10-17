@@ -8,6 +8,7 @@ export { maskBitmap } from "./change.mjs";
 /** `decode(base64, size)` and `grab(display, size)` return BGRA bitmaps; the
  * Electron-backed versions live in capture/integration.mjs. */
 const size = { width: SAMPLE_WIDTH, height: SAMPLE_HEIGHT };
+const MOVING_TICKS = 2;
 export class StalenessWatch {
   constructor({
     overlay,
@@ -45,7 +46,11 @@ export class StalenessWatch {
     const capture = this.overlay.capture;
     if (!capture?.image) return;
     this.failures = 0;
-    this.recent = [];
+    // The first frame can be taken after a window has moved but before the
+    // system has drawn it there: where it stood now stays masked for that tick.
+    this.recent = this.places(capture);
+    this.last = JSON.stringify(this.recent);
+    this.waited = 0;
     this.detector = new DriftDetector({
       display: capture.display,
       reference: this.decode(capture.image.data, size),
@@ -53,6 +58,21 @@ export class StalenessWatch {
     });
     this.timer = setInterval(() => this.tick(), this.intervalMs);
     this.timer.unref();
+  }
+  places(capture) {
+    return this.masks
+      ? this.masks()
+      : this.windows()
+          .filter((w) => !w.isDestroyed() && w.isVisible())
+          .map((w) => {
+            const b = w.getBounds();
+            return {
+              x: b.x - capture.display.bounds.x,
+              y: b.y - capture.display.bounds.y,
+              width: b.width,
+              height: b.height,
+            };
+          });
   }
   async tick() {
     if (this.busy || !this.overlay.window || !this.detector) return;
@@ -67,28 +87,26 @@ export class StalenessWatch {
       ];
       // Blink's windows are read before and after the screenshot: a card that
       // moves while it is taken is masked where it was and where it went.
-      const windowMasks = () =>
-        this.masks
-          ? this.masks()
-          : this.windows()
-              .filter((w) => !w.isDestroyed() && w.isVisible())
-              .map((w) => {
-                const b = w.getBounds();
-                return {
-                  x: b.x - capture.display.bounds.x,
-                  y: b.y - capture.display.bounds.y,
-                  width: b.width,
-                  height: b.height,
-                };
-              });
-      const before = windowMasks();
+      const before = this.places(capture);
       const frame = await this.grab(capture.display, size);
-      const now = [...before, ...windowMasks()];
+      const after = this.places(capture);
+      const now = [...before, ...after];
       // A window the system is still moving may be drawn where it was a moment
       // ago: the last tick's places stay masked for one more tick.
       const masks = [...overlayMasks, ...now, ...(this.recent ?? [])];
       this.recent = now;
       this.failures = 0;
+      // Blink's windows moved since the last tick (the card follows a step):
+      // the system may not have drawn them in the new place yet, so this frame
+      // says nothing about the screen. It is skipped, but never more than
+      // MOVING_TICKS in a row, so a window that never stops cannot hide a change.
+      const stood = this.last;
+      this.last = JSON.stringify(after);
+      if (JSON.stringify(before) !== stood && this.waited < MOVING_TICKS) {
+        this.waited++;
+        return;
+      }
+      this.waited = 0;
       if (
         this.overlay.capture !== capture ||
         this.overlay.window !== win ||

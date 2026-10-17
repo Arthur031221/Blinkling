@@ -74,11 +74,12 @@ Você precisa do Claude Code com a sessão iniciada. Depois:
 
 ## Atalhos
 
-| Atalho                   | Ação                                      |
-| ------------------------ | ----------------------------------------- |
-| Ctrl + clique            | Perguntar sobre o que está sob o ponteiro |
-| Ctrl + arrastar          | Pegar uma área                            |
-| Atalho nas Configurações | Abrir a sobreposição de captura           |
+| Atalho                   | Ação                                                |
+| ------------------------ | --------------------------------------------------- |
+| Ctrl + clique            | Perguntar sobre o que está sob o ponteiro           |
+| Ctrl + arrastar          | Pegar uma área                                      |
+| Atalho nas Configurações | Abrir a sobreposição de captura                     |
+| Ctrl + Alt + Shift + B   | Sair do Blink (no Mac, Ctrl + Option + Command + B) |
 
 Escolha as teclas nas Configurações.
 
@@ -89,6 +90,6 @@ O Blink envia o que você escolheu ao seu próprio Claude Code com sessão inici
 > [!IMPORTANT]
 > O assistente do navegador só lê uma página quando você a aponta. Ele nunca lê campos de senha ou de pagamento e só se comunica com o Blinkling no seu próprio computador. Explicação automática fica desligada até você ligar.
 
-Sem telemetria nem serviço de respostas operado pelo editor. O que você escolhe vai para o seu Claude Code; valem os termos e os custos de uso do provedor. As configurações do navegador, as lojas de extensões e o visualizador de PDF do próprio navegador são páginas protegidas: ali o Blink responde a partir da tela. [Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v3.2.2.md)
+Sem telemetria nem serviço de respostas operado pelo editor. O que você escolhe vai para o seu Claude Code; valem os termos e os custos de uso do provedor. As configurações do navegador, as lojas de extensões e o visualizador de PDF do próprio navegador são páginas protegidas: ali o Blink responde a partir da tela. [Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v3.2.3.md)
 
 Assisted by Claude/Codex.

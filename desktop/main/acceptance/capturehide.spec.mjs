@@ -111,8 +111,8 @@ for (const [mode, env, label] of [
       else
         expect(
           found.longest,
-          "Blink is gone for the read and two frames, with no fade out before it",
-        ).toBeLessThanOrEqual(220);
+          "Blink is gone for the read and the settle frames, with no fade out before it",
+        ).toBeLessThanOrEqual(300);
     } finally {
       await app.close();
     }

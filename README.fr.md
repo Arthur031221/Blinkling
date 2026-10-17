@@ -74,11 +74,12 @@ Il vous faut Claude Code, connecté. Ensuite :
 
 ## Raccourcis
 
-| Raccourci              | Action                                 |
-| ---------------------- | -------------------------------------- |
-| Ctrl + clic            | Interroger ce qui est sous le pointeur |
-| Ctrl + glisser         | Prendre une zone                       |
-| Raccourci des Réglages | Ouvrir la superposition de capture     |
+| Raccourci              | Action                                                |
+| ---------------------- | ----------------------------------------------------- |
+| Ctrl + clic            | Interroger ce qui est sous le pointeur                |
+| Ctrl + glisser         | Prendre une zone                                      |
+| Raccourci des Réglages | Ouvrir la superposition de capture                    |
+| Ctrl + Alt + Shift + B | Quitter Blink (sur Mac, Ctrl + Option + Commande + B) |
 
 Choisissez les touches dans les Réglages.
 
@@ -89,6 +90,6 @@ Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et af
 > [!IMPORTANT]
 > L'assistant du navigateur ne lit une page que lorsque vous la désignez. Il ne lit jamais les champs de mot de passe ni de paiement, et ne communique qu'avec Blinkling sur votre propre ordinateur. Explication automatique reste désactivée tant que vous ne l'activez pas.
 
-Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.2.md)
+Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.3.md)
 
 Assisted by Claude/Codex.

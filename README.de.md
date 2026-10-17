@@ -74,11 +74,12 @@ Du brauchst Claude Code, angemeldet. Dann:
 
 ## Tastenkürzel
 
-| Tastenkürzel                      | Aktion                                      |
-| --------------------------------- | ------------------------------------------- |
-| Strg + Klick                      | Nach dem fragen, was unter dem Zeiger liegt |
-| Strg + Ziehen                     | Einen Bereich aufnehmen                     |
-| Tastenkürzel in den Einstellungen | Aufnahme-Overlay öffnen                     |
+| Tastenkürzel                      | Aktion                                                 |
+| --------------------------------- | ------------------------------------------------------ |
+| Strg + Klick                      | Nach dem fragen, was unter dem Zeiger liegt            |
+| Strg + Ziehen                     | Einen Bereich aufnehmen                                |
+| Tastenkürzel in den Einstellungen | Aufnahme-Overlay öffnen                                |
+| Ctrl + Alt + Shift + B            | Blink beenden (auf dem Mac Ctrl + Option + Befehl + B) |
 
 Die Tasten wählst du in den Einstellungen.
 
@@ -89,6 +90,6 @@ Blink sendet, was du ausgewählt hast, an dein eigenes angemeldetes Claude Code 
 > [!IMPORTANT]
 > Der Browser-Helfer liest eine Seite nur, wenn du darauf zeigst. Passwort- und Zahlungsfelder werden nie gelesen, und er spricht nur mit Blinkling auf deinem eigenen Rechner. Automatisch erklären bleibt aus, bis du es einschaltest.
 
-Keine Telemetrie und kein vom Herausgeber betriebener Antwortdienst. Was du auswählst, geht an dein Claude Code; es gelten die Bedingungen und Nutzungsgebühren des Anbieters. Browsereinstellungen, Erweiterungsshops und der eingebaute PDF-Viewer des Browsers sind geschützte Seiten: Dort antwortet Blink anhand des Bildschirms. [Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v3.2.2.md)
+Keine Telemetrie und kein vom Herausgeber betriebener Antwortdienst. Was du auswählst, geht an dein Claude Code; es gelten die Bedingungen und Nutzungsgebühren des Anbieters. Browsereinstellungen, Erweiterungsshops und der eingebaute PDF-Viewer des Browsers sind geschützte Seiten: Dort antwortet Blink anhand des Bildschirms. [Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v3.2.3.md)
 
 Assisted by Claude/Codex.
