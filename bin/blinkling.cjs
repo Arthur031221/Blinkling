@@ -19712,12 +19712,20 @@ async function macCopyIsCurrent(target, installed) {
     return false;
   }
 }
+function isOtherBuild(running, manifest) {
+  const have = running?.status?.version;
+  return Boolean(have && manifest?.version && have !== manifest.version);
+}
 async function launchDesktop(options = {}) {
   const directory = options.runtime || runtimeDirectory();
   await privateDirectory(directory);
   const descriptor = options.descriptor || (options.runtime ? (0, import_node_path5.join)(directory, "desktop.json") : endpointPath());
   return withLock((0, import_node_path5.join)(directory, "launch.lock"), async () => {
-    const previous = await discoverDesktop(descriptor);
+    let previous = await discoverDesktop(descriptor);
+    if (previous && isOtherBuild(previous, options.manifest || manifest_default)) {
+      await replaceHungDesktop(descriptor, options.hung);
+      previous = null;
+    }
     if (previous) {
       await previous.client.rpc(options.background ? "reconnect" : "open", {
         session: options.session
@@ -43648,7 +43656,7 @@ async function createBlinkling(options = {}) {
     onClear: () => onClear()
   }).start();
   const server = new McpServer(
-    { name: "blinkling", version: "3.2.2" },
+    { name: "blinkling", version: "3.2.3" },
     {
       capabilities: { experimental: { "claude/channel": {} } },
       instructions: SYNC_INSTRUCTIONS

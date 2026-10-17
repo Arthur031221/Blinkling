@@ -11,14 +11,17 @@ import { createServer, request as httpRequest } from "node:http";
 import { startDesktopHost } from "./host.mjs";
 import { discoverDesktop, DesktopClient } from "./client.mjs";
 import { launchDesktop } from "./launcher.mjs";
+import pinned from "./manifest.json" with { type: "json" };
 
 test("authenticated discovery and repeated launch reach one instance without installing or stealing focus", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-host-"));
   const descriptor = join(directory, "desktop.json");
   let opens = 0;
+  // The running build is the one the plugin pins, so it is reused, not replaced.
   const host = await startDesktopHost({
     directory,
     descriptor,
+    version: pinned.version,
     onOpen: () => opens++,
   });
   try {

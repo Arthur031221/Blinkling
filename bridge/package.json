@@ -1,6 +1,6 @@
 {
   "name": "@arthur031221/blinkling-bridge",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "description": "Local MCP bridge for already-redacted Blinkling captures",
   "type": "module",
   "bin": {

@@ -110,6 +110,7 @@ describe("the other places that tell a person how to start", () => {
     "install.ps1",
     "docs/releases/v3.2.1.md",
     "docs/releases/v3.2.2.md",
+    "docs/releases/v3.2.3.md",
   ];
   for (const path of files)
     it(path, () => {
