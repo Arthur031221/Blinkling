@@ -57,13 +57,15 @@ async function tailAndBody(app, page) {
 test("the card's tail ends within 12 px of Blink's body and within 5 px of the height of its mouth, wherever Blink rests, and the card follows Blink", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("card_follow", { suffix: "-324" });
+  const rec = record("card_tail", { suffix: "-324", also: ["card_follow"] });
   try {
     await background(app);
     for (const [edge, ratio] of [
       ["right", 0.88],
       ["right", 0.3],
       ["left", 0.5],
+      ["top", 0.5],
+      ["bottom", 0.5],
     ]) {
       await place(app, edge, ratio);
       await page.waitForTimeout(500);
@@ -73,14 +75,16 @@ test("the card's tail ends within 12 px of Blink's body and within 5 px of the h
       await page.waitForTimeout(900);
       rec.frame(`${edge}-${ratio}`);
       const { tail, body } = await tailAndBody(app, page);
+      const mouth = await app.evaluate(() => globalThis.blinklingTest.mouth());
       const gap =
         tail.x < body.x ? body.x - tail.x : tail.x - (body.x + body.width);
       expect(gap, `${edge} ${ratio} gap`).toBeLessThanOrEqual(12);
       expect(gap, `${edge} ${ratio} gap`).toBeGreaterThanOrEqual(-2);
-      const mouth = await app.evaluate(() => globalThis.blinklingTest.mouth());
-      expect(Math.abs(tail.y - mouth.y), `${edge} ${ratio} level`).toBeLessThan(
-        5,
+      const level = tail.y - mouth.y;
+      console.log(
+        `card tail: ${edge} ${ratio}: gap ${gap.toFixed(1)} px, level ${Math.abs(level).toFixed(1)} px`,
       );
+      expect(Math.abs(level), `${edge} ${ratio} level`).toBeLessThan(5);
       await app.evaluate(() =>
         globalThis.blinklingTest.nBlinkMenuFaces.escapeKeys.press(),
       );

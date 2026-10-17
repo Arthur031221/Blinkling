@@ -3,6 +3,7 @@ import { documentLocale, translator } from "../shared/i18n.mjs";
 export const strings = {
   en: {
     permission: "Blink needs your OK",
+    dismiss: "Dismiss",
     grumble1: "Blink is so bored...",
     grumble2: "Anything to show Blink?",
     grumble3: "Blink is hungry. A screenshot would do.",
@@ -15,6 +16,7 @@ export const strings = {
   },
   "zh-TW": {
     permission: "需要你的允許",
+    dismiss: "關閉提示",
     grumble1: "Blink 好無聊……",
     grumble2: "有沒有東西要給 Blink 看看呀……",
     grumble3: "Blink 肚子餓餓，想吃截圖",
@@ -26,6 +28,7 @@ export const strings = {
   },
   "zh-CN": {
     permission: "需要你的允许",
+    dismiss: "关闭提示",
     grumble1: "Blink 好无聊……",
     grumble2: "有没有东西要给 Blink 看看呀……",
     grumble3: "Blink 肚子饿饿，想吃截图",
@@ -37,6 +40,7 @@ export const strings = {
   },
   ja: {
     permission: "許可が必要です",
+    dismiss: "閉じる",
     grumble1: "Blink はひまだなあ……",
     grumble2: "Blink に見せたいものはない？",
     grumble3: "Blink はおなかがすいたよ。スクリーンショットが食べたいな",
@@ -48,6 +52,7 @@ export const strings = {
   },
   ko: {
     permission: "허락이 필요해요",
+    dismiss: "닫기",
     grumble1: "Blink 너무 심심해요……",
     grumble2: "Blink 한테 보여줄 거 없어요?",
     grumble3: "Blink 배고파요, 스크린샷이 먹고 싶어요",
@@ -59,6 +64,7 @@ export const strings = {
   },
   de: {
     permission: "Blink braucht dein OK",
+    dismiss: "Schließen",
     grumble1: "Blink ist so gelangweilt...",
     grumble2: "Gibt es etwas, das Blink sich ansehen soll?",
     grumble3: "Blink hat Hunger. Ein Screenshot wäre schön.",
@@ -71,6 +77,7 @@ export const strings = {
   },
   es: {
     permission: "Blink necesita tu permiso",
+    dismiss: "Cerrar",
     grumble1: "Blink se aburre mucho...",
     grumble2: "¿Hay algo que enseñarle a Blink?",
     grumble3: "Blink tiene hambre. Le vendría bien una captura.",
@@ -82,6 +89,7 @@ export const strings = {
   },
   fr: {
     permission: "Blink a besoin de ton accord",
+    dismiss: "Fermer",
     grumble1: "Blink s'ennuie tellement...",
     grumble2: "Y a-t-il quelque chose à montrer à Blink ?",
     grumble3: "Blink a faim. Une capture d'écran ferait l'affaire.",
@@ -93,6 +101,7 @@ export const strings = {
   },
   "pt-BR": {
     permission: "Blink precisa da sua permissão",
+    dismiss: "Fechar",
     grumble1: "O Blink está tão entediado...",
     grumble2: "Tem algo para mostrar ao Blink?",
     grumble3: "O Blink está com fome. Uma captura de tela serve.",

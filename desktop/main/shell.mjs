@@ -470,6 +470,7 @@ async function openComposer(options = {}) {
   // Esc belongs to the card only once the reader is in it: a card that opened
   // by itself for an answer or a guide must not stand above the guide's Esc.
   if (focus) escapeKeys.set("mini", () => flow((m) => m.escape()));
+  else escapeKeys.set("idle-card", () => flow((m) => m.escape()));
   win.webContents.send("blinkling:surface", {
     type: "open",
     ...(carried && { seed: carried }),
@@ -559,6 +560,7 @@ function closeComposer(restore = true) {
   chatOpen = false;
   pinned = false;
   escapeKeys.set("mini", null);
+  escapeKeys.set("idle-card", null);
   composer?.hide();
   if (restore && focused) {
     if (previousFocused && !previousFocused.isDestroyed()) {
@@ -803,10 +805,24 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
   } else if (command.type === "pin") {
     pinned = command.value;
     flow((m) => m.pin(pinned));
+    // A card the reader keeps does not hold Esc for the whole system.
+    escapeKeys.set(
+      "idle-card",
+      !pinned && chatOpen && !composer?.isFocused()
+        ? () => flow((m) => m.escape())
+        : null,
+    );
   } else if (command.type === "close-chat") flow((m) => m.close());
   else if (command.type === "grumble") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
     flow((m) => m.grumble(command.value));
+  } else if (command.type === "alert") {
+    // The permission bubble is up: Esc puts it away, focus or not.
+    if (!fromBlink) throw new Error("Invalid shell gesture");
+    escapeKeys.set(
+      "alert",
+      command.value ? () => send({ type: "bubbles-clear", alert: true }) : null,
+    );
   } else if (command.type === "click") {
     if (!fromBlink) throw new Error("Invalid shell gesture");
     flow((m) => m.click());

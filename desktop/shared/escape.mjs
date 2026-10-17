@@ -1,13 +1,17 @@
 /** Esc closes only the topmost thing (N5.3): the capture overlay, then the
  * quick box, then the chat card, then guide mode, then the marks. The box and
- * the card are separate layers, so closing one never clears the other. Main
- * process only. */
+ * the card are separate layers, so closing one never clears the other. Two
+ * layers sit below the marks: the permission bubble, and a card that opened by
+ * itself and has no focus; neither may stand above a guide's Esc. Main process
+ * only. */
 export const LAYERS = Object.freeze([
   "overlay",
   "box",
   "mini",
   "guide",
   "marks",
+  "alert",
+  "idle-card",
 ]);
 const open = new Map();
 

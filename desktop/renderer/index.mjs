@@ -167,9 +167,17 @@ function bubbleShapes(now, bubbles) {
 }
 const host = document.querySelector("#blink");
 const permission = document.querySelector("#permission-alert");
+const permissionClose = document.querySelector("#permission-close");
 permission.addEventListener("click", () =>
   api.shell({ type: "click", permission: true }),
 );
+// The bubble goes away by Esc, a click on the background or its own close
+// button, and stays away until the question is over; the next one shows again.
+let permissionPutAway = false;
+let permissionShown = false;
+permissionClose.addEventListener("click", () => {
+  permissionPutAway = true;
+});
 const frameTimes = [],
   workTimes = [];
 function accept(value) {
@@ -394,8 +402,17 @@ async function action(id) {
       instant: shell.interaction.card || shell.chatOpen,
     });
     menu.frame(now / 1000, dt, area, current);
+    if (session.expression !== "permission") permissionPutAway = false;
     permission.hidden =
-      session.expression !== "permission" || shell.chatOpen || mode === "drag";
+      session.expression !== "permission" ||
+      shell.chatOpen ||
+      mode === "drag" ||
+      permissionPutAway;
+    permissionClose.hidden = permission.hidden;
+    if (!permission.hidden !== permissionShown) {
+      permissionShown = !permission.hidden;
+      void api.shell({ type: "alert", value: permissionShown }).catch(() => {});
+    }
     permission.style.left = `${Math.max(8, Math.min(innerWidth - 188, current.x - 90))}px`;
     permission.style.top = `${Math.max(8, Math.min(innerHeight - 52, current.y - 120))}px`;
     const size = { width: innerWidth, height: innerHeight };
@@ -404,8 +421,12 @@ async function action(id) {
       all = [...body, ...fan];
     if (!permission.hidden) {
       const r = permission.getBoundingClientRect();
+      permissionClose.style.left = `${Math.min(innerWidth - 26, r.right - 12)}px`;
+      permissionClose.style.top = `${Math.max(2, r.top - 12)}px`;
+      const x = permissionClose.getBoundingClientRect();
       all.push(
         ...scanlines([roundedRect(r.x, r.y, r.width, r.height, 20)], size),
+        ...scanlines([roundedRect(x.x, x.y, x.width, x.height, 12)], size),
       );
     }
     hit = body;
@@ -473,6 +494,7 @@ api.onEvent((event) => {
   if (event.type === "bubbles-clear") {
     statusPutAway = status.dataset.shown === "true" || statusPutAway;
     status.dataset.shown = "false";
+    if (!permission.hidden) permissionPutAway = true;
     return;
   }
   if (event.type === "capture-status") {

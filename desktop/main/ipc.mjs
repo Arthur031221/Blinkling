@@ -7,6 +7,7 @@ const types = new Set([
   "close-chat",
   "fan-labels-seen",
   "grumble",
+  "alert",
   "swallowed",
 ]);
 export function validCommand(command, bounds) {
@@ -47,7 +48,8 @@ export function validCommand(command, bounds) {
   if (
     command.type === "pin" ||
     command.type === "visibility" ||
-    command.type === "grumble"
+    command.type === "grumble" ||
+    command.type === "alert"
   )
     return (
       typeof command.value === "boolean" &&

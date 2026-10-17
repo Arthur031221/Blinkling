@@ -267,6 +267,17 @@ button svg {
   color: var(--text);
   border: 1px solid var(--line);
 }
+#permission-close {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  line-height: 1;
+}
 [hidden] {
   display: none !important;
 }

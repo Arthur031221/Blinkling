@@ -61,3 +61,18 @@ test("a layer closed from elsewhere frees the key", () => {
   assert.equal(registered.at(-1)[0], "off");
   assert.equal(escape(), null);
 });
+
+test("the permission bubble and a card without focus hold the global key, below a guide and its marks", () => {
+  const { keys, registered } = setup();
+  keys.set("idle-card", () => {});
+  assert.deepEqual(registered.at(-1), ["on", "Escape"]);
+  keys.set("alert", () => {});
+  assert.equal(topLayer(), "alert", "the bubble goes before the card");
+  keys.set("guide", () => {});
+  assert.equal(topLayer(), "guide", "a guide's Esc comes first");
+  keys.set("guide", null);
+  assert.equal(keys.press(), "alert");
+  assert.equal(registered.at(-1)[0], "on", "the card still holds it");
+  assert.equal(keys.press(), "idle-card");
+  assert.equal(registered.at(-1)[0], "off");
+});

@@ -1,5 +1,11 @@
 import { spawn, execFileSync } from "node:child_process";
-import { mkdirSync, existsSync, rmSync, readdirSync } from "node:fs";
+import {
+  mkdirSync,
+  existsSync,
+  rmSync,
+  readdirSync,
+  copyFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -16,8 +22,10 @@ const grab = (args) =>
   execFileSync("ffmpeg", ["-v", "error", "-y", ...args], { stdio: "ignore" });
 
 /** Starts an x11grab of the whole display. `frame(label)` saves a PNG now;
- * `stop()` ends the video and, for the after phase, writes the GIF. */
-export function record(id, { fps = 15, suffix = "" } = {}) {
+ * `stop()` ends the video and, for the after phase, writes the GIF. A clip
+ * that proves more than one row of the checklist names the others in `also`
+ * and is written under each of their ids too. */
+export function record(id, { fps = 15, suffix = "", also = [] } = {}) {
   let stopped = null;
   mkdirSync(r3, { recursive: true });
   const work = join(tmpdir(), `r3-${id}-${phase}`);
@@ -102,6 +110,9 @@ export function record(id, { fps = 15, suffix = "" } = {}) {
         `${filter}[x];[x][1:v]paletteuse`,
         gif,
       ]);
+      if (phase === "after")
+        for (const other of also)
+          copyFileSync(gif, join(r3, `${other}${suffix}.gif`));
       return gif;
     },
   };
