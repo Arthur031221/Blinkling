@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import { launch, chord } from "./support.mjs";
 import { background } from "./helpers.mjs";
 import { record } from "./record.mjs";
@@ -46,6 +47,13 @@ test("the quit key ends Blink within about a second from a hung renderer, and te
     }
     expect(heard).toMatch(/Blink was closed/);
     const ended = await exited;
+    // The X server holds no window of the app once it has exited, so the
+    // dim shape that can linger in a recording is only an unrepainted ghost.
+    await new Promise((done) => setTimeout(done, 400));
+    const tree = execFileSync("xwininfo", ["-root", "-tree"], {
+      encoding: "utf8",
+    });
+    expect(tree).not.toMatch(/Blinkling|Blink\b|electron/i);
     rec.frame("gone");
     process.stdout.write(`quit key to exit: ${ended - started} ms\n`);
     expect(ended - started).toBeLessThan(1800);
