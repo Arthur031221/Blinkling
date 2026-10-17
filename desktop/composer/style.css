@@ -77,14 +77,14 @@ a:focus-visible {
   border: 1px solid transparent;
   border-radius: var(--radius-l);
   /* The card fades out toward its top: a soft fade of the paper and of its
-     outline, in both themes, with a quarter of the paper left at the very top
-     so the header still sits on something. The fade ends where the message
+     outline, in both themes, with most of the paper kept at the very top so
+     page text behind the header stays faint. The fade ends where the message
      list starts (view.mjs sets --gl-fade to that offset), so the paper is solid
      under every line of an answer and the page behind never mixes into it. */
   background:
     linear-gradient(
         to bottom,
-        color-mix(in srgb, var(--gl-paper) 25%, transparent) 0,
+        color-mix(in srgb, var(--gl-paper) 66%, transparent) 0,
         var(--gl-paper) var(--gl-fade, 64px)
       )
       padding-box,
@@ -153,10 +153,6 @@ a:focus-visible {
 .gl-chat-tab[data-live="false"] {
   opacity: 0.55;
 }
-.gl-chat-card[data-channel="true"] .gl-picker,
-.gl-chat-card[data-channel="true"] .gl-picker-dot {
-  display: none;
-}
 .gl-brand {
   font-size: var(--type-m);
   font-weight: 650;
@@ -187,7 +183,7 @@ a:focus-visible {
 /* The pin and the close button sit on their own paper, so they read on the
    faded top whatever lies behind the card. */
 .gl-card-header .gl-icon-button {
-  background: color-mix(in srgb, var(--gl-paper) 92%, transparent);
+  background: color-mix(in srgb, var(--gl-paper) 66%, transparent);
   border: 1px solid var(--gl-border);
 }
 /* The title sits on its own paper too, so it never reads through the fade. */
@@ -218,7 +214,7 @@ a:focus-visible {
      padding keeps the last streaming line above the composer. */
   padding: 20px 4px 14px;
   overflow-anchor: none;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 72px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 48px);
 }
 /* A tour shows the step and its buttons: the card drops the rest for as long
    as it runs, so it is short and keeps off the step's target. */

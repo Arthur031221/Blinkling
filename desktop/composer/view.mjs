@@ -287,10 +287,9 @@ export function mountComposer(
     quickOffer.textContent = asking.offer?.text ?? "";
     quickOffer.hidden = !asking.offer;
     quickLine.hidden = quickPause.hidden && quickOffer.hidden;
-    const images = composer
-      .state()
-      .attachments.some((a) => a.mediaType.startsWith("image/"));
-    quick.hidden = !(asking.active || images);
+    // The chips are in every chat, waiting or not: a chip with nothing
+    // captured sends its words as they are.
+    quick.hidden = false;
   };
   const ingest = async (files) => {
     try {

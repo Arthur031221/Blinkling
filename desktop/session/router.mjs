@@ -86,8 +86,16 @@ export class ChannelChat {
     this.listeners = new Set();
     this.messages = [];
     this.status = { type: "status", state: "connected" };
+    // A terminal session's own model is not Blink's to change, so the model
+    // and effort on the card belong to Blink's own session (`shared`): they
+    // decide what Blink itself runs and how Blink dresses.
+    this.shared = undefined;
+    const own = { model: "terminal", effort: "medium" };
+    const chat = this;
     this.state = {
-      selection: { model: "terminal", effort: "medium" },
+      get selection() {
+        return chat.shared?.state?.selection ?? own;
+      },
       messages: this.messages,
     };
     this.active = undefined;
@@ -279,6 +287,7 @@ export class ChannelChat {
     this.emit({ type: "done", turnId });
   }
   select(selection) {
+    if (this.shared) return this.shared.select(selection);
     return Promise.resolve({ ...this.state.selection, ...selection });
   }
   async stop() {
@@ -316,6 +325,7 @@ export class ChatRouter {
       [MAIN, { key: MAIN, label: "Blink", live: true, impl: main }],
     ]);
     this.currentKey = MAIN;
+    this.opened = 0;
     this.listeners = new Map();
     this.hooks = new Set();
   }
@@ -335,24 +345,34 @@ export class ChatRouter {
   identity() {
     return this.main.identity?.();
   }
+  /** The Claude Code sessions that are open now, the oldest first. */
+  liveSessions() {
+    return [...this.chats.values()]
+      .filter((c) => c.key !== MAIN && c.live)
+      .sort((a, b) => a.opened - b.opened);
+  }
+  /** The session opened last: the one a capture belongs to. */
+  newest() {
+    return this.liveSessions().at(-1);
+  }
   summary() {
-    const others = [...this.chats.values()].some((c) => c.key !== MAIN);
+    const sessions = this.liveSessions();
     return {
       type: "chat",
       key: this.currentKey,
       channel: this.current.impl instanceof ChannelChat,
-      // Blink's own chat drops out of the list once a session has one and it
-      // has nothing in it.
-      chats: [...this.chats.values()]
-        .filter(
-          (c) =>
-            c.key !== MAIN ||
-            !others ||
-            c.key === this.currentKey ||
-            this.main.state?.messages?.length,
-        )
-        .map(({ key, label, live }) => ({ key, label, live })),
+      // Only chats of sessions that are open are listed. Blink's own chat is
+      // the one left when no session is.
+      chats: (sessions.length ? sessions : [this.chats.get(MAIN)]).map(
+        ({ key, label, live }) => ({ key, label, live }),
+      ),
     };
+  }
+  /** A capture, a pick or a menu action belongs to the session opened last:
+   * the card moves to its chat. */
+  follow() {
+    const chat = this.newest();
+    return chat ? this.switchTo(chat.key) : false;
   }
   /** Connects a listener to one chat. What the chat replays on subscribing is
    * history, marked so no view treats it as new. */
@@ -425,21 +445,19 @@ export class ChatRouter {
       const impl = channel
         ? this.makeChannel(session)
         : this.makeBridge(session, cwd);
-      chat = { key: session, label, live: true, channel, impl };
+      chat = { key: session, label, live: true, channel, impl, opened: 0 };
+      if (channel) impl.shared = this.main;
       if (channel) impl.onUndelivered = (turn) => this.fallback(session, turn);
       this.chats.set(session, chat);
     }
+    const wasLive = chat.live && chat.opened > 0;
     chat.live = true;
     chat.label = label;
-    // A Claude Code session Blink has not met starts a brand new chat and the
-    // card follows it; the older chats stay in the switcher. A session that
-    // only reconnects keeps the card where the reader left it.
-    if (
-      fresh ||
-      (this.currentKey === MAIN && !this.main.state?.messages?.length)
-    )
-      this.switchTo(session);
-    else this.announce();
+    if (!wasLive) chat.opened = ++this.opened;
+    // A session that joins gets a chat of its own at once and the card follows
+    // it. A session that only reconnects keeps the card where the reader left it.
+    if (fresh || !wasLive || this.currentKey === MAIN) this.switchTo(session);
+    this.announce();
     return chat;
   }
   unlink(session) {
@@ -447,12 +465,18 @@ export class ChatRouter {
     if (!chat) return;
     chat.live = false;
     chat.impl.closed?.();
+    // A chat of a session that is gone leaves the card: the newest open
+    // session has it, else Blink's own chat.
+    if (this.currentKey === session) this.switchTo(this.newest()?.key ?? MAIN);
     this.announce();
   }
   labelFor(session, cwd) {
     const base = (cwd && this.basenameOf(cwd)) || "Claude Code";
     const taken = [...this.chats.values()].filter(
-      (c) => c.key !== session && c.label.replace(/ #\d+$/, "") === base,
+      (c) =>
+        c.key !== session &&
+        c.live &&
+        c.label.replace(/ #\d+$/, "") === base,
     ).length;
     return taken ? `${base} #${taken + 1}` : base;
   }
@@ -494,29 +518,49 @@ export class ChatRouter {
     return chat?.impl instanceof ChannelChat ? chat.impl.started() : false;
   }
   /** A terminal session never took the question. Blink's own session answers
-   * it, in Blink's chat, with one line saying why. */
+   * it and the answer is written into that session's chat, with one line
+   * saying why: the card stays where it is, and Blink's own chat is not used. */
   fallback(session, turn) {
     this.onChannelDropped(session);
-    const note = {
+    const chat = this.chats.get(session);
+    if (!chat) return Promise.resolve();
+    chat.impl.add({
       id: `undelivered-${turn.id}`,
       role: "assistant",
       content: [{ type: "text", text: say(this.locale())("undelivered") }],
-    };
-    const chat = this.chats.get(session);
+    });
+    return this.viaMain(chat, turn).catch(() => {});
+  }
+  /** Blink's own session answers a turn and the answer is written into `chat`
+   * as it arrives, so the chat on screen shows it and no terminal is asked. */
+  viaMain(chat, turn) {
     const main = this.chats.get(MAIN);
-    // The card moves to Blink's chat first, so the line is shown there once
-    // and is only kept in the terminal's chat.
-    if (this.currentKey === session) this.switchTo(MAIN);
-    chat?.impl.add(note);
-    // Nobody awaits this: a failure ends the wait on the card. The line comes
-    // after the question it explains.
-    return main.impl
-      .send(turn)
-      .then(() => {
-        main.lines = [...(main.lines ?? []), note].slice(-KEEP);
-        main.impl.emit({ type: "message", ...note });
-      })
-      .catch(() => main.impl.emit({ type: "done", turnId: turn.id }));
+    let live = false;
+    let stop = () => {};
+    let ended = false;
+    const finish = () => {
+      if (ended) return;
+      ended = true;
+      stop();
+      chat.impl.emit({ type: "done", turnId: turn.id });
+    };
+    stop = main.impl.subscribe((event) => {
+      if (!live) return;
+      if (event.type === "message" && event.role === "assistant")
+        chat.impl.add({
+          id: event.id,
+          role: "assistant",
+          content: event.content,
+        });
+      else if (event.type === "delta") chat.impl.emit(event);
+      else if (event.type === "done" && event.turnId === turn.id) finish();
+    });
+    live = true;
+    // Nobody awaits the answer: a failure ends the wait on the card.
+    return main.impl.send(turn).catch((error) => {
+      finish();
+      throw error;
+    });
   }
   turnEnd({ session, text }) {
     const chat = this.chats.get(session);
@@ -547,6 +591,10 @@ export class ChatRouter {
   }
   async send(turn) {
     await this.admit(turn);
+    // Auto explain is Blink's own question: a terminal session is never asked
+    // it. Its answer is written into the chat on screen.
+    if (turn?.source === "auto-explain" && this.current.key !== MAIN)
+      return this.viaMain(this.current, turn);
     const chat = INTERNAL.has(turn?.source)
       ? this.chats.get(MAIN)
       : this.current;

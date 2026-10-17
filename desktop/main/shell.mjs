@@ -1253,6 +1253,8 @@ function guideArrows(wanted) {
 // them off the screen before the card opens over them.
 const attachCapture = async (taken) => {
   features?.pointing.clear("new-capture");
+  // A capture belongs to the session opened last.
+  session.follow();
   return pick.deliver(taken);
 };
 features = installCaptureGuide({

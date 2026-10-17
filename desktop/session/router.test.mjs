@@ -264,7 +264,7 @@ test("a question the terminal session never starts on is answered by Blink's own
   assert.equal(t.main.sent.length, 1, "Blink's session got the question");
   assert.equal(t.main.sent[0].id, q.id);
   assert.deepEqual(dropped, ["s1"], "the host is told the channel dropped it");
-  assert.equal(t.router.currentKey, "blink");
+  assert.equal(t.router.currentKey, "s1", "the card stays in the session's chat");
   const notes = t.events.filter(
     (e) =>
       e.type === "message" && e.content?.[0]?.text === say("en")("undelivered"),
@@ -531,5 +531,118 @@ test("the line that says why Blink answered is in the language the person reads"
   );
   assert.equal(note.content[0].text, say("zh-TW")("undelivered"));
   assert.notEqual(note.content[0].text, say("en")("undelivered"));
+  await t.close();
+});
+
+test("a chat shows the model and effort of Blink's own session, and changing them changes that session", async () => {
+  const t = await setup();
+  const chosen = [];
+  t.main.select = async (s) => {
+    chosen.push(s);
+    t.main.state.selection = { ...t.main.state.selection, ...s };
+    return t.main.state.selection;
+  };
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  assert.equal(t.router.currentKey, "s1");
+  assert.deepEqual(t.router.state.selection, { model: "haiku", effort: "low" });
+  const applied = await t.router.select({ effort: "max" });
+  assert.deepEqual(chosen, [{ effort: "max" }]);
+  assert.deepEqual(applied, { model: "haiku", effort: "max" });
+  assert.equal(t.router.state.selection.effort, "max");
+  await t.close();
+});
+
+test("only chats of sessions that are open are listed, and a session that ends leaves the list", async () => {
+  const t = await setup();
+  const listed = () => t.router.summary().chats.map((c) => c.key);
+  assert.deepEqual(listed(), ["blink"]);
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  assert.deepEqual(listed(), ["s1"], "one open session: one chat, no Blink chat");
+  t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
+  assert.deepEqual(listed(), ["s1", "s2"]);
+  assert.equal(t.router.currentKey, "s2", "the later session has the card at once");
+  t.router.unlink("s2");
+  assert.deepEqual(listed(), ["s1"]);
+  assert.equal(t.router.currentKey, "s1", "the card leaves a chat that ended");
+  t.router.unlink("s1");
+  assert.deepEqual(listed(), ["blink"]);
+  assert.equal(t.router.currentKey, "blink");
+  await t.close();
+});
+
+test("a capture goes to the session opened last, whichever tab was on screen", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
+  t.router.switchTo("s1");
+  assert.equal(t.router.currentKey, "s1");
+  t.router.follow();
+  assert.equal(t.router.currentKey, "s2");
+  t.router.unlink("s2");
+  assert.equal(t.router.follow(), false);
+  assert.equal(t.router.currentKey, "s1");
+  await t.close();
+});
+
+test("a session that came back after it ended has its chat listed again, and the card follows it", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
+  t.router.unlink("s1");
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  assert.deepEqual(
+    t.router.summary().chats.map((c) => c.key),
+    ["s2", "s1"],
+  );
+  assert.equal(t.router.follow() || t.router.currentKey, t.router.currentKey);
+  assert.equal(t.router.currentKey, "s1");
+  await t.close();
+});
+
+test("the answer to a dropped question lands in that session's chat and not in Blink's", async () => {
+  const t = await setup({ deliveryMs: 20 });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
+  t.router.switchTo("s1");
+  const q = turn("dropped");
+  await t.router.send(q);
+  await new Promise((r) => setTimeout(r, 80));
+  assert.equal(t.router.currentKey, "s1");
+  t.main.emit({
+    type: "message",
+    id: "a1",
+    role: "assistant",
+    content: [{ type: "text", text: "Here it is." }],
+  });
+  t.main.emit({ type: "done", turnId: q.id });
+  const seen = t.events.filter(
+    (e) => e.type === "message" && e.content?.[0]?.text === "Here it is.",
+  );
+  assert.equal(seen.length, 1, "shown once, in the chat on screen");
+  assert.ok(t.events.some((e) => e.type === "done" && e.turnId === q.id));
+  await t.close();
+});
+
+test("auto explain stays inside Blink: no terminal is asked, and one answer shows in the chat on screen", async () => {
+  const t = await setup({ deliveryMs: 20 });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  const q = { ...turn("what is on screen"), source: "auto-explain" };
+  await t.router.send(q);
+  assert.equal(t.frames.length, 0, "the terminal got nothing");
+  assert.equal(t.main.sent.length, 1);
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(t.main.sent.length, 1, "no second answer from the fallback");
+  t.main.emit({
+    type: "message",
+    id: "a1",
+    role: "assistant",
+    content: [{ type: "text", text: "A settings page." }],
+  });
+  t.main.emit({ type: "done", turnId: q.id });
+  const shown = t.events.filter(
+    (e) => e.type === "message" && e.content?.[0]?.text === "A settings page.",
+  );
+  assert.equal(shown.length, 1);
+  assert.ok(t.events.some((e) => e.type === "done" && e.turnId === q.id));
   await t.close();
 });

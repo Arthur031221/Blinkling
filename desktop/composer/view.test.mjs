@@ -502,7 +502,7 @@ each(
     const events = [];
     const t = setup({ locale, onQuick: (e) => events.push(e) });
     attachText(t);
-    assert.equal(t.q(".gl-quick-asks").hidden, true, "no question yet");
+    assert.equal(t.q(".gl-quick-asks").hidden, false, "chips are always there");
     t.view.quick({
       type: "quick",
       active: true,
@@ -542,7 +542,7 @@ each(
     assert.equal(t.sent.at(-1).text, t.tr("quick-summary"));
     assert.equal(t.sent.at(-1).source, "quick-ask");
     assert.deepEqual(events.at(-1), { type: "end" }, "main is told it is over");
-    assert.equal(t.q(".gl-quick-asks").hidden, true);
+    assert.equal(t.q(".gl-quick-asks").hidden, false);
     t.dispose();
   },
 );
