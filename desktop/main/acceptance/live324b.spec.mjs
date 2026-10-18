@@ -114,7 +114,11 @@ test("a question asked in Blink while the terminal is busy with its own prompt",
   const { app, page } = await launch({
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
-  const rec = record("busy_terminal", { suffix: "-324", fps: 2 });
+  const rec = record("busy_terminal", {
+    suffix: "-324",
+    fps: 2,
+    also: ["one_session_one_chat"],
+  });
   try {
     const card = await pair(app, page, runtime, rec);
     // busy_terminal: the terminal works on its own prompt for 40 seconds; a
@@ -270,6 +274,82 @@ test("Auto explain stays inside Blink beside linked sessions, and both sessions 
     throw error;
   } finally {
     endTerminals(NAMES);
+    await rec.stop();
+    await app.close().catch(() => {});
+    await restore();
+  }
+});
+
+test("a flagged session that does not take the question: the same chat, no old messages, one note, one answer", async () => {
+  test.setTimeout(600000);
+  const { runtime, restore } = await pinToTree();
+  const { app, page } = await launch({
+    env: { BLINKLING_RUNTIME_DIR: runtime },
+  });
+  const rec = record("channel_fallback", { suffix: "-324", fps: 2 });
+  try {
+    await background(app);
+    await reveal(page);
+    startTerminal("liveA", FOLDER, runtime);
+    await ready("liveA");
+    type("liveA", "/blinkling:blinkling");
+    await waitFor("liveA", /Blink|desktop_open/i);
+    await sleep(5000);
+    await idle("liveA");
+    const card = await openCard(app, page);
+    // Some history first, so that "no old messages" means something.
+    await ask(card, "Reply with the single word ONE and nothing else.");
+    await expect.poll(() => said(card), { timeout: 90000 }).toMatch(/ONE/);
+    const answers = await card.locator(".gl-assistant").count();
+    rec.frame("before");
+    // The terminal is busy with a command of its own, so it does not take the
+    // channel event within the delivery time.
+    await send(
+      "liveA",
+      'Run this shell command: python3 -c "import time; time.sleep(40)" and when it is finished reply with the single word DONE-40.',
+    );
+    await sleep(4000);
+    await ask(card, "Reply with the single word TWO and nothing else.");
+    // The terminal's own answer comes first; Blink then answers the question
+    // the terminal did not take, with one line saying so.
+    await expect
+      .poll(() => card.locator(".gl-assistant").count(), { timeout: 150000 })
+      .toBe(answers + 3);
+    await sleep(8000);
+    rec.frame("note-and-answer");
+    const bubbles = await card
+      .locator(".gl-assistant")
+      .evaluateAll((els) => els.map((el) => el.textContent));
+    stamp(`new bubbles: ${JSON.stringify(bubbles.slice(-3))}`);
+    expect(bubbles.length, "its own answer, one note, one answer").toBe(
+      answers + 3,
+    );
+    expect(bubbles.at(-3), "the terminal's own answer").toMatch(/DONE-40/);
+    expect(bubbles.at(-2), "the note").toMatch(/Blink/);
+    expect(bubbles.at(-1), "the answer").toMatch(/^TWO/);
+    expect(
+      (await card.locator(".gl-user").allTextContents()).filter((t) =>
+        t.startsWith("Reply with the single word ONE"),
+      ).length,
+      "the earlier question once, no replayed history",
+    ).toBe(1);
+    expect(
+      (await said(card)).split("\n").filter((t) => t.startsWith("TWO")).length,
+      "Blink's answer once",
+    ).toBe(1);
+    await save("channel_fallback-324-chat.txt", await text(card));
+    await save("channel_fallback-324-terminal-A.txt", pane("liveA"));
+    rec.frame("after-terminal-answer");
+  } catch (error) {
+    console.log(`live324b FAIL ${String(error.message).slice(0, 600)}`);
+    await save("live324b-debug-A.txt", pane("liveA")).catch(() => {});
+    await save(
+      "live324b-debug-card.txt",
+      await text(cardPage(app)).catch(() => ""),
+    ).catch(() => {});
+    throw error;
+  } finally {
+    endTerminals(["liveA"]);
     await rec.stop();
     await app.close().catch(() => {});
     await restore();
