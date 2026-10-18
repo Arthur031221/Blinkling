@@ -18786,43 +18786,43 @@ var import_node_os4 = require("node:os");
 // plugin/desktop/manifest.json
 var manifest_default = {
   schemaVersion: 1,
-  version: "3.2.5",
+  version: "3.2.6",
   builds: [
     {
       os: "darwin",
       arch: "arm64",
       archive: "zip",
       entry: "Blinkling.app/Contents/MacOS/Blinkling",
-      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.5/Blinkling-3.2.5-mac-arm64.zip",
-      sha256: "cb78222c4d3f0382283e4c06496231431e6535c23d57462c1d72c9f728931c43",
-      size: 129175780
+      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-mac-arm64.zip",
+      sha256: "48353511d0f49f5a55f9bfb40d96661a664b4365dbf6fe3689d4b6a10a5210e4",
+      size: 129179086
     },
     {
       os: "darwin",
       arch: "x64",
       archive: "zip",
       entry: "Blinkling.app/Contents/MacOS/Blinkling",
-      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.5/Blinkling-3.2.5-mac-x64.zip",
-      sha256: "d1fc0d2063fd17714950ae2bb179de033ec2299582c824fd16b0614fc8d7f74e",
-      size: 134598804
+      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-mac-x64.zip",
+      sha256: "4ef4fa222c92d193b38eb62c74dd68c3009dd1e3a9e4b693087aa721401134ff",
+      size: 134602134
     },
     {
       os: "win32",
       arch: "x64",
       archive: "file",
-      entry: "Blinkling-3.2.5-win-x64.exe",
-      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.5/Blinkling-3.2.5-win-x64.exe",
-      sha256: "0b9a5d4f2ea54cc0975c0380fc7712963879bfe9e0bf1e2deb68fa282f8bf7ef",
-      size: 110077289
+      entry: "Blinkling-3.2.6-win-x64.exe",
+      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-win-x64.exe",
+      sha256: "a4982257be9e5f360460e0030f2cd488eccf4ae2f275db30423cbf015174bb20",
+      size: 110075970
     },
     {
       os: "linux",
       arch: "x64",
       archive: "file",
-      entry: "Blinkling-3.2.5-linux-x64.AppImage",
-      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.5/Blinkling-3.2.5-linux-x64.AppImage",
-      sha256: "04cb49a34d3219470d4b04a73a651a07e75de2582a0c8016ac9ca19527514d9e",
-      size: 126354797
+      entry: "Blinkling-3.2.6-linux-x64.AppImage",
+      url: "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-linux-x64.AppImage",
+      sha256: "3ab63c1a2a1e48826830e64f71943c0c370fb62d70ac356de2d45035e6e9fd11",
+      size: 126354988
     }
   ]
 };
