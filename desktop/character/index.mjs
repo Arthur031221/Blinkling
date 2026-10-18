@@ -359,13 +359,13 @@ export function mountBlink(host) {
     }
     // The model's piece stays on while that model is chosen, whatever Blink is
     // doing. A model scene draws the piece itself, so it is not added twice.
-    if (o.outfit && lean < 0.5 && !(ctx.play && o.costume?.what === "model")) {
+    if (o.outfit && !(ctx.play && o.costume?.what === "model")) {
       ctx.wearing = o.outfit;
       const wear = worn(o.outfit, { yaw: out.yaw ?? 0, t: time });
       out.faceExtra = (out.faceExtra ?? "") + wear.faceExtra;
       out.attach = (out.attach ?? "") + wear.attach;
     }
-    if (!(o.outfit && lean < 0.5)) ctx.wearing = null;
+    if (!o.outfit) ctx.wearing = null;
     out.attach = (out.attach ?? "") + dotSvg(o.dot);
     out.noShadow = true;
     ctx.last = out;

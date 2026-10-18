@@ -123,3 +123,12 @@ test("a show keeps the model's piece on", () => {
     assert.ok(marks(blink).includes("opus"), effort);
   }
 });
+
+test("the piece stays on while Blink grips an edge and peeks, on every edge", () => {
+  for (const family of FAMILIES)
+    for (const edge of ["left", "right", "top", "bottom"]) {
+      const blink = rig();
+      run(blink, { outfit: family, mode: "peek", edge }, 0, 2);
+      assert.deepEqual(marks(blink), [family], `${family} at the ${edge} edge`);
+    }
+});
