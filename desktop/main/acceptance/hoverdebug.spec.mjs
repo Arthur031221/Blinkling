@@ -108,6 +108,8 @@ for (const scale of [1, 2])
         const png = await shot(app, `hoverdebug-${scale}x-${edge}`, 300);
         const body = await page.evaluate(() => ({
           polys: window.desktop.character.polygons(),
+          // What a costume wears takes no click, it is drawn inside these boxes.
+          worn: window.desktop.character.ornaments(),
           rect: (() => {
             const r = document
               .querySelector(".blink-body")
@@ -168,7 +170,8 @@ for (const scale of [1, 2])
                 [0, 2, -2].some((dy) => inside(p, { x: x + dx, y: y + dy })),
               ),
             );
-            if (!near) stray.push([x, y]);
+            if (!near && !body.worn.some((p) => inside(p, { x, y })))
+              stray.push([x, y]);
           }
         // And the other way: the inside of every region is drawn, nothing reaches into empty air.
         for (const poly of body.polys)
