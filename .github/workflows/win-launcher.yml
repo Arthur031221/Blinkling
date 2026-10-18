@@ -29,11 +29,11 @@ jobs:
       - name: Build the stub
         shell: bash
         run: |
-          gcc -O2 -Wall -municode -s -o "$RUNNER_TEMP/blinkling-run.exe" native/win-launcher/blinkling-run.c
-          sha256sum "$RUNNER_TEMP/blinkling-run.exe"
+          gcc -O2 -Wall -municode -s -o bin/blinkling-run.exe native/win-launcher/blinkling-run.c
+          sha256sum bin/blinkling-run.exe
       - name: Spawn the stub without a shell and finish an MCP handshake
         shell: bash
-        run: node scripts/check-win-launcher.mjs spawn "$RUNNER_TEMP/blinkling-run.exe"
+        run: node scripts/check-win-launcher.mjs spawn "$PWD/bin/blinkling-run.exe"
       - name: Stub finds no Node.js and exits 1 for mcp
         shell: cmd
         run: |
@@ -43,14 +43,12 @@ jobs:
           set "LOCALAPPDATA=%RUNNER_TEMP%\none"
           set "USERPROFILE=%RUNNER_TEMP%\none"
           set "NVM_SYMLINK="
-          copy /y "%RUNNER_TEMP%\blinkling-run.exe" bin\blinkling-run.exe
           bin\blinkling-run.exe mcp x.cjs
           if not errorlevel 1 exit /b 1
           if errorlevel 2 exit /b 1
       - name: Record the source hash
         shell: bash
         run: |
-          cp "$RUNNER_TEMP/blinkling-run.exe" bin/blinkling-run.exe
           node scripts/check-win-launcher.mjs source --record
       - uses: actions/upload-artifact@v4
         with:
