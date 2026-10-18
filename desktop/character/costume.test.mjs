@@ -199,3 +199,18 @@ test("reduced motion gives one still pose with no props moving", () => {
     costumePlay(effort("max"), 0.1, true),
   );
 });
+
+test("at the right edge the pieces drawn on one side of Blink are mirrored, so the right edge is the left edge's mirror image", async () => {
+  const { flipX } = await import("./costume-pieces.mjs");
+  assert.equal(flipX("<a/>", 0), "<a/>");
+  assert.match(flipX("<a/>", 1), /scale\(-1 1\)/);
+  assert.match(flipX("<a/>", 0.5), /scale\(0 1\)/);
+  for (const family of ["haiku", "fable"]) {
+    const left = worn(family, { mirror: 0 }).attach;
+    const right = worn(family, { mirror: 1 }).attach;
+    assert.notEqual(right, left, `${family} is mirrored at the right edge`);
+    assert.match(right, /scale\(-1 1\)/);
+  }
+  // A piece that is the same on both sides is left alone.
+  assert.equal(worn("opus", { mirror: 1 }).attach, worn("opus").attach);
+});

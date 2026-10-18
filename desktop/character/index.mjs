@@ -361,7 +361,13 @@ export function mountBlink(host) {
     // doing. A model scene draws the piece itself, so it is not added twice.
     if (o.outfit && !(ctx.play && o.costume?.what === "model")) {
       ctx.wearing = o.outfit;
-      const wear = worn(o.outfit, { yaw: out.yaw ?? 0, t: time });
+      // At the right edge the figure turns the other way, so what sits on one
+      // side of it is mirrored to keep that edge the left edge's mirror image.
+      const wear = worn(o.outfit, {
+        yaw: out.yaw ?? 0,
+        t: time,
+        mirror: ctx.edge === "right" ? ease(lean) : 0,
+      });
       out.faceExtra = (out.faceExtra ?? "") + wear.faceExtra;
       out.attach = (out.attach ?? "") + wear.attach;
     }

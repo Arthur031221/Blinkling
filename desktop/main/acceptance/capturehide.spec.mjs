@@ -190,7 +190,11 @@ test("a read taken after the settle frames of this system has neither Blink nor 
     const used = await leaks(app, null);
     console.log("as shipped:", used);
     expect(used, "nothing of Blink or the card in the read").toBe(found[8]);
-    expect(found[3], "the margin over the least that works").toBe(found[8]);
+    // Two frames still show Blink, three usually do not and sometimes do (the
+    // compositor's timing), four never did: the shipped number is the first
+    // one that is always clean.
+    expect(found[2], "two frames are not enough").toBeGreaterThan(found[8]);
+    expect(found[4], "the shipped number of frames is clean").toBe(found[8]);
   } finally {
     await rec.stop();
     await app.close();

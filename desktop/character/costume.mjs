@@ -56,7 +56,7 @@ export function costumePlay(change, k, reduced = false) {
 /** The piece Blink keeps on for a model, as rig fields; none for an unknown name.
  * `yaw` is how far Blink is turned (the scarf follows the body's outline) and `t`
  * the clock for the small things that bob. */
-export function worn(family, { yaw = 0, t = 0 } = {}) {
-  const out = piece(family, { s: 1, yaw, t });
+export function worn(family, { yaw = 0, t = 0, mirror = 0 } = {}) {
+  const out = piece(family, { s: 1, yaw, t, mirror });
   return { behind: "", attach: "", faceExtra: "", front: "", ...out };
 }
