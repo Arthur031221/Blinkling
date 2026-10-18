@@ -43,7 +43,10 @@ test("with the extension paired the full page bubble captures the whole page int
   const { app, page } = await launch({
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
-  const rec = record("fullpage_extension", { suffix: "-324", fps: 4 });
+  // The walk recording is only made where a report directory is asked for.
+  const rec = process.env.BLINKLING_R3_DIR
+    ? record("fullpage_extension", { suffix: "-324", fps: 4 })
+    : { frame: () => {}, stop: async () => {} };
   try {
     await expect.poll(async () => !!(await discoverDesktop())).toBe(true);
     bridge = await new HelperServer({
