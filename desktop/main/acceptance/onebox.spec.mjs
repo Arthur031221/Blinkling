@@ -99,7 +99,7 @@ test("one composer on screen: a capture goes into the card's own box, Enter on a
 test("clicking Blink opens the one card and never a second surface, with or without a capture", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("one_composer", { suffix: "-324", fps: 6 });
+  const rec = record("one_card", { suffix: "-324", fps: 6 });
   try {
     await background(app);
     await page.waitForTimeout(800);

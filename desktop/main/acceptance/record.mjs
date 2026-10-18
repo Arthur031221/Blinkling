@@ -111,8 +111,14 @@ export function record(id, { fps = 15, suffix = "", also = [] } = {}) {
         gif,
       ]);
       if (phase === "after")
-        for (const other of also)
-          copyFileSync(gif, join(r3, `${other}${suffix}.gif`));
+        for (const other of also) {
+          // "id|case" names one case of a row: <id><suffix>-<case>.gif
+          const [row, kind] = other.split("|");
+          copyFileSync(
+            gif,
+            join(r3, `${row}${suffix}${kind ? `-${kind}` : ""}.gif`),
+          );
+        }
       return gif;
     },
   };

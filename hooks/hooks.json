@@ -52,6 +52,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__plugin_blinkling_blinkling__blinkling_reply",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/quiet.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

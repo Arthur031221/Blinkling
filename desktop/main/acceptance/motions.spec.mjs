@@ -76,7 +76,10 @@ test("Blink appears with a motion when it launches", async () => {
 test("Blink leaves with a motion when the app quits: it waves, jumps out of the picture and only then is the app gone", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch({ env: { BLINKLING_MOTIONS: "1" } });
-  const rec = record("motions_leave", { suffix: "-324" });
+  const rec = record("leave_motion", {
+    suffix: "-324",
+    also: ["motions_leave"],
+  });
   try {
     await background(app);
     await watch(page);

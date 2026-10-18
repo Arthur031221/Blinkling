@@ -239,7 +239,10 @@ test("a click on the background puts away the menu bubbles and the progress bubb
 test("after a click inside Settings, and after Settings closes, a click on the background closes the card again", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("recheck323_live", { suffix: "-324" });
+  const rec = record("bgclick_after_settings", {
+    suffix: "-324",
+    also: ["recheck323_live"],
+  });
   try {
     const b = await background(app);
     await reveal(page);

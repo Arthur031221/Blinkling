@@ -66,7 +66,10 @@ async function untilPeek(app, limit) {
 test("Blink stays out while the reader is engaged, retreats 1.5 s after the last engagement, and one click on Blink turns the card and the menu into each other", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
-  const rec = record("stay_out", { suffix: "-324" });
+  const rec = record("click_blink_toggle", {
+    suffix: "-324",
+    also: ["retreat_rule", "stay_out"],
+  });
   try {
     await background(app);
     await place(app, "right", 0.5);

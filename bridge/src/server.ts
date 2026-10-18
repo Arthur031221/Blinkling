@@ -439,7 +439,7 @@ export async function createBlinkling(options: ServerOptions = {}) {
     {
       title: "Answer the chat held in Blink",
       description:
-        "Send the answer to a message the person typed in Blink. Only for events that arrive from the blinkling channel. The answer shows in Blink's chat as the assistant's.",
+        "Send the answer to a message the person typed in Blink. Only for events that arrive from the blinkling channel. The answer shows in Blink's chat as the assistant's. Write no text before or after the call.",
       inputSchema: {
         text: z.string().min(1).max(20_000),
         turn: z.string().max(100).optional(),
@@ -471,7 +471,14 @@ export async function createBlinkling(options: ServerOptions = {}) {
           };
         if (result.ok !== true)
           throw new Error("Blink had no open question for this session.");
-        return { content: [{ type: "text" as const, text: "Sent to Blink." }] };
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Delivered. Stop now and write nothing at all in this terminal: no summary, no confirmation, no closing remark.",
+            },
+          ],
+        };
       } catch (error) {
         return {
           isError: true,

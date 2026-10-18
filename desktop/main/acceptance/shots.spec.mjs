@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 import { PNG } from "pngjs";
-import { launch, move, click } from "./support.mjs";
+import { launch, move, click, key } from "./support.mjs";
 import { background, reveal, bubble } from "./helpers.mjs";
 import { record } from "./record.mjs";
 
@@ -360,6 +360,98 @@ test("with no extension connected at all the visible part is taken and the same 
     expect(oneLine).toBe(true);
     await expect.poll(() => cardFocused(app)).toBe(true);
     rec.frame("noext");
+  } finally {
+    await rec.stop();
+    await app.close();
+  }
+});
+
+test("with five chips in the composer the full page note still draws inside the card", async () => {
+  test.setTimeout(150000);
+  const { app, page } = await launch();
+  const rec = record("notice_in_card", { suffix: "-324" });
+  try {
+    const frame = await background(app);
+    await browserInFront(app);
+    await place(app, "right", 0.5);
+    await page.waitForTimeout(800);
+    // Five captures first: the card holds five chips.
+    for (let i = 0; i < 5; i++) {
+      await app.evaluate(
+        async ({ screen }, [data, id]) => {
+          await globalThis.blinklingTest.attachCapture({
+            image: {
+              id,
+              name: `Selection ${id}.png`,
+              mediaType: "image/png",
+              data,
+            },
+            display: screen.getPrimaryDisplay(),
+            region: { x: 300, y: 200, width: 360, height: 240 },
+          });
+        },
+        [tile(30, 140, 90).image.data, `n${i}`],
+      );
+      await page.waitForTimeout(600);
+    }
+    await expect
+      .poll(() => cardPage(app)?.locator(".gl-attachment-chip").count(), {
+        timeout: 8000,
+      })
+      .toBe(5);
+    rec.frame("five-chips");
+    // Put the card away (the chips stay in the draft), then ask for a full
+    // page with no extension at all.
+    key(0xff1b);
+    await expect
+      .poll(() =>
+        app.evaluate(() => globalThis.blinklingTest.composer.isVisible()),
+      )
+      .toBe(false);
+    await page.waitForTimeout(600);
+    await watch(page);
+    await reveal(page);
+    await expect.poll(async () => (await read(app)).menu).toBe(true);
+    await clickBubble(app, page, frame);
+    await expect
+      .poll(() => cardPage(app)?.locator(".gl-attachment-chip").count(), {
+        timeout: 12000,
+      })
+      .toBe(6);
+    const card = cardPage(app);
+    const note = card.locator(".gl-composer-error");
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("整頁需要瀏覽器擴充功能");
+    await page.waitForTimeout(500);
+    const where = await note.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        top: r.top,
+        bottom: r.bottom,
+        left: r.left,
+        right: r.right,
+        height: innerHeight,
+        width: innerWidth,
+      };
+    });
+    console.log(`notice in card: ${JSON.stringify(where)}`);
+    expect(where.top).toBeGreaterThanOrEqual(0);
+    expect(where.bottom).toBeLessThanOrEqual(where.height);
+    expect(where.left).toBeGreaterThanOrEqual(0);
+    expect(where.right).toBeLessThanOrEqual(where.width);
+    // The card window itself stays on the screen, the note inside it.
+    const inside = await app.evaluate(({ screen }) => {
+      const b = globalThis.blinklingTest.cardBounds();
+      const a = screen.getPrimaryDisplay().workArea;
+      return (
+        b.x >= a.x &&
+        b.y >= a.y &&
+        b.x + b.width <= a.x + a.width &&
+        b.y + b.height <= a.y + a.height
+      );
+    });
+    expect(inside, "card on the screen").toBe(true);
+    rec.frame("note-inside");
   } finally {
     await rec.stop();
     await app.close();

@@ -102,6 +102,7 @@ for (const [kind, label] of [
     const rec = record(kind === "page" ? "fullpage_button" : "eat_mouth", {
       fps: 30,
       suffix: "-324",
+      also: [`capture_progress|${kind}`, `eat_swallow_event|${kind}`],
     });
     try {
       await background(app);

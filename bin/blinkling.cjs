@@ -43529,9 +43529,9 @@ var SlidingWindowLimiter = class {
 // bridge/src/sync-channel.ts
 var import_node_fs5 = require("node:fs");
 var import_node_child_process6 = require("node:child_process");
-var SYNC_INSTRUCTIONS = 'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal, not even a closing remark. If the event has a pictures attribute, call blinkling_chat_images first and look at them; a files attribute names files attached in Blink. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
+var SYNC_INSTRUCTIONS = 'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal: no sentence before the call, and after the tool returns stop at once, with no summary, no confirmation and no closing remark, because nobody reads this terminal for the answer. If the event has a pictures attribute, call blinkling_chat_images first and look at them; a files attribute names files attached in Blink. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
 var SYNC_COMMAND = "claude --dangerously-load-development-channels plugin:blinkling@blinkling";
-var syncNote = (channel) => channel ? "Sync line: this session answers the chat you hold in Blink, and what you type here appears there." : `Sync line: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with: ${SYNC_COMMAND}`;
+var syncNote = (channel) => channel ? "Say this once in your reply, as plain text with no label: this session answers the chat you hold in Blink, and what you type here appears there." : `Say this once in your reply, as plain text with no label: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with the command on its own line: ${SYNC_COMMAND}`;
 var SYNC_NOTE = syncNote(false);
 var RETRY_MS = 4e3;
 function channelFlagged(commandLine) {
@@ -43583,6 +43583,7 @@ function channelNotification(frame) {
       content: text2,
       meta: {
         kind: "question",
+        reply: "Answer with the blinkling_reply tool, then end the turn without writing any text.",
         turn: String(frame.turn ?? "").replace(/[^\w-]/g, ""),
         ...pictures ? { pictures: String(pictures) } : {},
         ...Array.isArray(frame.files) && frame.files.length ? { files: frame.files.slice(0, 8).join(", ") } : {}
@@ -44008,7 +44009,7 @@ async function createBlinkling(options = {}) {
     "blinkling_reply",
     {
       title: "Answer the chat held in Blink",
-      description: "Send the answer to a message the person typed in Blink. Only for events that arrive from the blinkling channel. The answer shows in Blink's chat as the assistant's.",
+      description: "Send the answer to a message the person typed in Blink. Only for events that arrive from the blinkling channel. The answer shows in Blink's chat as the assistant's. Write no text before or after the call.",
       inputSchema: {
         text: external_exports.string().min(1).max(2e4),
         turn: external_exports.string().max(100).optional()
@@ -44040,7 +44041,14 @@ async function createBlinkling(options = {}) {
           };
         if (result.ok !== true)
           throw new Error("Blink had no open question for this session.");
-        return { content: [{ type: "text", text: "Sent to Blink." }] };
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Delivered. Stop now and write nothing at all in this terminal: no summary, no confirmation, no closing remark."
+            }
+          ]
+        };
       } catch (error43) {
         return {
           isError: true,

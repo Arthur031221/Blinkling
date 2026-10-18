@@ -13,7 +13,11 @@ const CTRL = 0xffe3,
 test("the quit key ends Blink within about a second from a hung renderer, and tells the linked terminal session", async () => {
   test.setTimeout(60000);
   const { app, data } = await launch();
-  const rec = record("quitkey", { suffix: "-324", fps: 6 });
+  const rec = record("quit_hotkey", {
+    suffix: "-324",
+    fps: 6,
+    also: ["quitkey"],
+  });
   const exited = new Promise((done) =>
     app.process().once("exit", () => done(Date.now())),
   );
@@ -75,7 +79,11 @@ test("a quit key the system refuses is shown as not set, never as null, and anot
   );
   await new Promise((done) => holder.stdout.once("data", done));
   const { app } = await launch();
-  const rec = record("quit_unavailable", { suffix: "-324", fps: 6 });
+  const rec = record("quitkey_unavailable", {
+    suffix: "-324",
+    fps: 6,
+    also: ["quit_unavailable"],
+  });
   try {
     await background(app);
     await app.evaluate(() => globalThis.blinklingTest.settings.open());

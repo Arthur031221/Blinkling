@@ -7,7 +7,7 @@ import { discoverDesktop } from "../../plugin/desktop/client.mjs";
  * channel flag answers the chat held in Blink itself, through the reply tool;
  * the person reads the answer in Blink. */
 export const SYNC_INSTRUCTIONS =
-  'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal, not even a closing remark. If the event has a pictures attribute, call blinkling_chat_images first and look at them; a files attribute names files attached in Blink. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
+  'Only when events from the blinkling channel arrive: each one is a message the person typed in Blink, the desktop companion, and the person reads your answer in Blink, not here. Answer it by calling the blinkling_reply tool once, with the answer as plain text and the turn value of the event as turn, and write nothing else in this terminal: no sentence before the call, and after the tool returns stop at once, with no summary, no confirmation and no closing remark, because nobody reads this terminal for the answer. If the event has a pictures attribute, call blinkling_chat_images first and look at them; a files attribute names files attached in Blink. An event with kind="notice" is a short fact, such as Blink having been closed: tell the person in one short line and call no tool.';
 
 /** What the person types to start Claude Code so Blink's chat reaches it.
  * Claude Code takes a channel only when it starts, so a session already open
@@ -17,8 +17,8 @@ export const SYNC_COMMAND =
 /** The line the open tool adds, by whether this session took the channel. */
 export const syncNote = (channel: boolean) =>
   channel
-    ? "Sync line: this session answers the chat you hold in Blink, and what you type here appears there."
-    : `Sync line: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with: ${SYNC_COMMAND}`;
+    ? "Say this once in your reply, as plain text with no label: this session answers the chat you hold in Blink, and what you type here appears there."
+    : `Say this once in your reply, as plain text with no label: what you type and read in this terminal already appears in Blink, and Blink answers its own chat from its own session. To let this session answer Blink's chat itself, start Claude Code with the command on its own line: ${SYNC_COMMAND}`;
 export const SYNC_NOTE = syncNote(false);
 
 const RETRY_MS = 4000;
@@ -112,6 +112,8 @@ export function channelNotification(frame: Frame) {
       content: text,
       meta: {
         kind: "question",
+        reply:
+          "Answer with the blinkling_reply tool, then end the turn without writing any text.",
         turn: String(frame.turn ?? "").replace(/[^\w-]/g, ""),
         ...(pictures ? { pictures: String(pictures) } : {}),
         ...(Array.isArray(frame.files) && frame.files.length

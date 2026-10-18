@@ -100,7 +100,10 @@ const layout = (app) =>
 test("an answer opens the card by itself with the thinking indicator, the card is the only surface, and the conversation sits tight with the newest above the composer", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
-  const rec = record("answer_layout", { suffix: "-324" });
+  const rec = record("answer_layout", {
+    suffix: "-324",
+    also: ["card_surface"],
+  });
   try {
     await background(app);
     await place(app, "right", 0.5);

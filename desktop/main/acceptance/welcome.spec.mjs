@@ -18,7 +18,10 @@ for (const [name, hook] of [
   test(`${name}: the window stays open while the pointer rests on it, and Blink stays out beside it until it is closed`, async () => {
     test.setTimeout(HOLD + 90000);
     const { app, page } = await launch();
-    const rec = record(`${name}_stays`, { suffix: "-324" });
+    const rec = record(name === "welcome" ? "welcome" : "settings_stays", {
+      suffix: "-324",
+      also: name === "welcome" ? ["welcome_stays"] : [],
+    });
     try {
       await background(app);
       await reveal(page);
@@ -66,7 +69,10 @@ test("the welcome has no empty page, and its connect page shows the start comman
   const { app, page: blink } = await launch({
     env: { BLINKLING_LOCALE: "en" },
   });
-  const rec = record("flag_default", { suffix: "-324" });
+  const rec = record("welcome_pages", {
+    suffix: "-324",
+    also: ["flag_default"],
+  });
   try {
     await background(app);
     await reveal(blink);

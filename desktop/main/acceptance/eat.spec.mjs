@@ -176,7 +176,7 @@ async function eat(app, region, label, tiles = 0) {
     recording.video,
     "-vf",
     "fps=15,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse",
-    join(r3, `eat_${label}-321.gif`),
+    join(r3, `eat_edges-324-${label}.gif`),
   ]);
   return { mouth, scans: frames(recording.video, work).map(scan), work };
 }

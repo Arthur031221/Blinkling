@@ -44,7 +44,11 @@ describe("what Blink sends a linked session", () => {
       channelNotification({ type: "turn", turn: "t-1", text: "what is this?" }),
     ).toEqual({
       content: "what is this?",
-      meta: { kind: "question", turn: "t-1" },
+      meta: {
+        kind: "question",
+        reply: expect.stringContaining("blinkling_reply"),
+        turn: "t-1",
+      },
     });
     expect(
       channelNotification({ type: "notice", text: "Blink was closed." }),
@@ -67,7 +71,13 @@ describe("what Blink sends a linked session", () => {
       }),
     ).toEqual({
       content: "這是什麼",
-      meta: { kind: "question", turn: "t", pictures: "2", files: "a.pdf" },
+      meta: {
+        kind: "question",
+        reply: expect.stringContaining("blinkling_reply"),
+        turn: "t",
+        pictures: "2",
+        files: "a.pdf",
+      },
     });
     expect(channelNotification({ type: "other", text: "x" })).toBeUndefined();
   });
