@@ -97,6 +97,8 @@ export class ChannelChat {
     // Called with the turn when the session never took it (see `send`).
     this.onUndelivered = undefined;
     this.abandoned = new Set();
+    // The questions whose reply has arrived: the first one is the answer.
+    this.answered = new Set();
     this.listeners = new Set();
     this.messages = [];
     this.status = { type: "status", state: "connected" };
@@ -272,8 +274,11 @@ export class ChannelChat {
     // A question Blink's own session already answered, or one never asked here.
     if (target === undefined || !this.turns.has(target)) return false;
     if (this.abandoned.has(target)) return "late";
-    // One question has one answer: a later word on it takes the place of the
-    // earlier one, and never adds a bubble next to it.
+    // One question has one answer: the first reply is final. A second one, from
+    // a model that wrote a progress note first or answers again, is told it came
+    // late and changes nothing on screen.
+    if (this.answered.has(target)) return "late";
+    this.answered.add(target);
     this.add({
       id: `reply-${target}`,
       role: "assistant",

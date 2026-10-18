@@ -548,23 +548,32 @@ test("the router hands out Blink's own remote identity, whichever chat is showin
   await t.close();
 });
 
-test("one question has one answer: a later reply takes the place of the earlier one", async () => {
+test("one question has one answer: the first reply is final and a later one changes nothing", async () => {
   const t = await setup();
   t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
   const q = turn("slow one");
   await t.router.send(q);
-  assert.ok(t.router.reply({ session: "s1", turn: q.id, text: "Running it." }));
-  assert.ok(t.router.reply({ session: "s1", turn: q.id, text: "It is 42." }));
+  assert.equal(
+    t.router.reply({ session: "s1", turn: q.id, text: "It is 42." }),
+    true,
+  );
+  assert.equal(
+    t.router.reply({ session: "s1", turn: q.id, text: "Running it." }),
+    "late",
+  );
   const chat = t.router.chats.get("s1").impl;
   const answers = chat.messages.filter((m) => m.role === "assistant");
   assert.equal(answers.length, 1);
   assert.equal(answers[0].content[0].text, "It is 42.");
-  // The wait ended, and an answer that comes after it still replaces in place.
+  // After the wait ended the answer is still the first one.
   await new Promise((r) => setTimeout(r, 30));
-  assert.ok(
+  assert.equal(
     t.router.reply({ session: "s1", turn: q.id, text: "It is 42, checked." }),
+    "late",
   );
-  assert.equal(chat.messages.filter((m) => m.role === "assistant").length, 1);
+  const kept = chat.messages.filter((m) => m.role === "assistant");
+  assert.equal(kept.length, 1);
+  assert.equal(kept[0].content[0].text, "It is 42.");
   await t.close();
 });
 
@@ -576,12 +585,13 @@ test("a late reply names its question and never becomes the answer to the next o
   await t.router.send(first);
   assert.ok(t.router.reply({ session: "s1", turn: first.id, text: "One." }));
   await t.router.send(second);
-  assert.ok(
+  assert.equal(
     t.router.reply({ session: "s1", turn: first.id, text: "One, again." }),
+    "late",
   );
   const chat = t.router.chats.get("s1").impl;
   const bubble = (id) => chat.messages.find((m) => m.id === `reply-${id}`);
-  assert.equal(bubble(first.id).content[0].text, "One, again.");
+  assert.equal(bubble(first.id).content[0].text, "One.");
   assert.equal(bubble(second.id), undefined, "the second is still unanswered");
   assert.ok(chat.active === second.id, "its wait did not end");
   assert.equal(

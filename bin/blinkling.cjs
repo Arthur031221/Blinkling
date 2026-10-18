@@ -44035,7 +44035,7 @@ async function createBlinkling(options = {}) {
             content: [
               {
                 type: "text",
-                text: "Blink already answered this question itself. Nothing more is needed; say nothing."
+                text: "This question already has its answer. Nothing more is needed; say nothing."
               }
             ]
           };
