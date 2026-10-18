@@ -2,7 +2,8 @@
 
 ## 3.2.6 - unreleased
 
-- A Mac without Node.js now gets a working install. Every plugin command starts through `bin/blinkling-run.cmd`, which finds Node.js 22 or newer (PATH, Homebrew, Volta, asdf, mise, nvm, fnm) or fetches a private, SHA-256 checked copy into `~/.blinkling/runtime/node`. Hooks exit quietly without Node.js and say so once. A test runs every hook command and the MCP handshake with a PATH that has no node.
+- A Mac without Node.js now gets a working install. Every plugin command starts through `bin/blinkling-run` (a shell script, with a small `blinkling-run.exe` stub and a `.cmd` file for the Windows MCP server), which finds Node.js 22 or newer (PATH, Homebrew, Volta, asdf, mise, nvm, fnm) or fetches a private, SHA-256 checked copy into `~/.blinkling/runtime/node`. Hooks exit quietly without Node.js and say so once. A test runs every hook command and the MCP handshake with a PATH that has no node.
+- The README no longer says Node.js is not required on Windows. Windows needs Node.js 22 or newer from nodejs.org, while macOS and Linux fetch a private copy. The Windows MCP server starts through `bin/blinkling-run.exe`, a stub built in CI and checked by a test that spawns it without a shell. This is not yet proven inside Claude Code itself.
 - A card, its tail and a dropped Blink are measured from Blink's real window frame, so they stay together where the frame starts below the display's corner.
 - One question has one answer: the first reply is final. A later reply is told it came late and changes nothing.
 - On macOS a click away from Blinkling is heard before Input Monitoring is allowed, by a second helper mode that only reads the mouse buttons and stops once the key tap is up.

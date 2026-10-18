@@ -1,6 +1,6 @@
 {
   "recordedAt": "2026-10-18T09:33:15.361Z",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
   "model": "haiku",
