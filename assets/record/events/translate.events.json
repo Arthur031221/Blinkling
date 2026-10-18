@@ -1,30 +1,31 @@
 [
   {
     "name": "start",
-    "at": 7.07
+    "at": 7.419
   },
   {
     "name": "ctrl-down",
-    "at": 9.817
+    "at": 10.169
   },
   {
     "name": "click",
-    "at": 11.704
+    "at": 12.059
   },
   {
     "name": "composer",
-    "at": 16.414
+    "at": 16.759
   },
   {
     "name": "ask",
-    "at": 17.484
+    "at": 17.778
   },
   {
     "name": "answer",
-    "at": 31.575
+    "at": 31.881,
+    "text": "Page: Artificial intelligence, Arabic Wikipedia (ar.wikipedia.org)\n\nLead\n\nArtificial intelligence (Arabic: الذكاء الاصطناعي, also written الذكاء الصناعي or الذكاء الصنعي; English: Artificial Intelligence, abbreviated AI) is the ability of computer systems to perform tasks usually associated with human intelligence, such as learning, reasoning, problem solving, perception, and decision making. It is a research field within engineering, mathematics, and computer science. It develops and studies methods and software that enable machines to perceive their environment, and uses learning and reasoning to take actions that improve their chances of reaching specific goals.\n\nApplications\n\nProminent AI applications include advanced web search engines, chatbots, virtual assistants, self-driving vehicles, and game playing and analysis in strategy games such as chess and Go. Since the 2020s, generative AI has become widely available for creating images, sound, and video from text prompts.\n\nGoals\n\nTraditional goals of AI research include learning, reasoning, knowledge representation, planning, natural language processing, perception, and support for robotics.\n\nTo achieve these goals, AI researchers have used many techniques, including:\n\nsearch in state space\n\nmathematical optimization\n\nformal logic\n\nneural networks\n\nAI also draws on statistics, operations research, economics, psychology, linguistics, philosophy, neuroscience, and other fields.\n\nSome companies, such as OpenAI, Google, DeepMind, and Meta, aim to build artificial general intelligence (AGI): AI that can perform almost any cognitive task at a level no lower than a human's.\n\nHistory\n\nAI was founded as an academic discipline in 1956. The field has gone through several waves of optimism, each followed by disappointment and reduced funding, known as \"AI winters.\"\n\nFunding and interest grew sharply after 2012, when graphics processing units (GPUs) began being used to speed up neural networks, and deep learning outperformed earlier AI techniques. This growth accelerated after 2017 with the introduction of the Transformer architecture.\n\nInfobox (sidebar)\n\nArtificial Intelligence, part of a series on AI\n\nSection\tMeaning\nMain goals\tMain goals\nApproach\tApproach\nApplications\tApplications\nPhilosophy\tPhilosophy\nHistory\tHistory\nGlossary\tGlossary\nTable of contents (sidebar)\n\nIntroduction\n\nGoals\n\nDefinition of AI\n\nControversy\n\nHistory of AI research\n\nPhilosophy of AI\n\nTypes of AI\n\nProblems of AI\n\nApproaches to AI\n\nAI research tools\n\nApplications of AI\n\nAI in myth, fiction, and speculation\n\nCopy answer\nAsk again\nRead aloud\nnow"
   },
   {
     "name": "end",
-    "at": 34.585
+    "at": 34.882
   }
 ]

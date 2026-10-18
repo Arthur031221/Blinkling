@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { input as xInput, poll } from "../../desktop/pick/e2e/support.mjs";
+import { readsAsEnglish } from "./language.mjs";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const out = process.env.OUT_DIR;
@@ -33,6 +34,16 @@ const mark = (name, extra = {}) => {
   console.log(name);
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** The text of the newest answer in the card. */
+async function lastAnswer(app) {
+  for (const page of app.windows()) {
+    const answer = page.locator(".gl-chat-message.gl-assistant").last();
+    if (await answer.isVisible().catch(() => false))
+      return (await answer.innerText()).trim();
+  }
+  return "";
+}
 
 /** Screen position of a button in one of the app's windows. */
 async function chipPoint(app, text, scope = "body") {
@@ -80,6 +91,9 @@ const app = await electron.launch({
     ...process.env,
     XDG_CONFIG_HOME: join(home, "config"),
     BLINKLING_E2E: "1",
+    // The captions are English; the app must not take the recorder's system
+    // language and answer in it.
+    BLINKLING_LOCALE: "en",
     BLINKLING_LIVE: "1",
     BLINKLING_REMOTE: "0",
   },
@@ -221,7 +235,14 @@ const scenes = {
     mark("ask");
     input([["press"], ["release"]]);
     await wait(14000);
-    mark("answer");
+    // The caption says the answer is English: keep its text with the film and
+    // refuse a take that answered in another language.
+    const text = await lastAnswer(app);
+    if (!readsAsEnglish(text))
+      throw new Error(
+        `the translate answer is not English: ${text.slice(0, 80)}`,
+      );
+    mark("answer", { text });
     await wait(3000);
   },
   async hard() {

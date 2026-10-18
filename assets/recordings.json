@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-17T17:04:29.748Z",
+  "recordedAt": "2026-10-18T09:33:15.361Z",
   "version": "3.2.5",
   "recorder": "assets/record/record.sh",
   "provider": "Signed-in Claude Code CLI",
@@ -74,33 +74,33 @@
       "asset": "assets/translate.webp",
       "scene": "arabic",
       "url": "https://ar.wikipedia.org/wiki/ذكاء_اصطناعي",
-      "sha256": "dc72c04864bdf639ef012519b94307d00ef9d2a24364b8684b61320296b45d13",
+      "sha256": "c896e492244b16b20c2a59672a437c1d16efd6114f9f676e785b125a104d4eb7",
       "segments": [
         [4.5, 16],
         [23.5, 28.4]
       ],
       "events": "assets/record/events/translate.events.json",
-      "eventsSha256": "babedb9902bdbd74c3f0ad3eccbbc1e1c4f8b8e0f54b66b3d65eaf95b5160b61",
+      "eventsSha256": "2e534aba24614fb69ffd97ad49380ea155e04f45edb0c751a6069af897e15930",
       "turns": 1,
       "prompt": "Translate",
-      "bytes": 3360808,
+      "bytes": 3000742,
       "width": 1280,
       "fps": 30,
       "site": [
         {
           "file": "assets/site/translate.mp4",
-          "sha256": "730f76b8ff90594a763b84af51b8c623a4bf4c6e374a3d93bff4a2dddda6b04c",
-          "bytes": 1560399
+          "sha256": "6b58a1260d49a25175a3b54a26506f4182d435fac7bf9d079687918d19ae891f",
+          "bytes": 1594388
         },
         {
           "file": "assets/site/translate.webm",
-          "sha256": "6872995fa78dc10af66502b4ed95ad0a134321796ed7416aab98337ce08bc0f2",
-          "bytes": 1537350
+          "sha256": "58e4551319c82fe9b38f299ec17c55c412f57e39b5a6cdde41c12a64cc2605b6",
+          "bytes": 1531260
         },
         {
           "file": "assets/site/translate.png",
-          "sha256": "8e6af60266caae7c0ad8cd5fd3c86f0b314ef772023eb87240b8167741567fc1",
-          "bytes": 1018588
+          "sha256": "16d2b362febb26930dffc74f83b99becf25309d8d698f5356b57ef8fe8f1d58f",
+          "bytes": 966950
         }
       ],
       "posterSecond": 15.5
