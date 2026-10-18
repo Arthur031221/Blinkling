@@ -38,6 +38,7 @@ import { cursorSource } from "./cursor.mjs";
 import { boundsOf, contains } from "./geometry.mjs";
 import { localPoint, pointerHit } from "./hit.mjs";
 import {
+  placedOn,
   resolvePosition,
   snapPosition,
   reconcileDisplay,
@@ -241,6 +242,10 @@ const blink = new BrowserWindow(windowOptions(display.bounds, false));
 /** Where Blink's window really is. The drawing, the pointer test and the card all
  * measure from this frame, never from the display's corner. */
 const frame = () => blink.getBounds();
+/** The display as Blink's window covers it: every place the card, the tail and
+ * a drop are worked out from Blink's position starts here. */
+const placed = () => placedOn(display, frame());
+position = resolvePosition(placed(), store.positions[String(display.id)]);
 secure(blink);
 blink.setIgnoreMouseEvents(true, { forward: true });
 const windows = () =>
@@ -266,7 +271,7 @@ const shown = () =>
 /** The card's place: beside Blink, moved by what the reader nudged on this edge. */
 const cardAt = (at = shown()) =>
   cardBounds(
-    display,
+    placed(),
     at,
     store.nudge(`card:${at.edge}`),
     cardWanted,
@@ -285,7 +290,7 @@ let cardWanted = Infinity;
 const snapshot = () => ({
   display: {
     id: String(display.id),
-    bounds: display.bounds,
+    bounds: placed().bounds,
     workArea: display.workArea,
     scaleFactor: display.scaleFactor,
   },
@@ -583,11 +588,11 @@ function useDisplay(next) {
   display = next;
   glide = null;
   clearTimeout(glideTimer);
-  position = resolvePosition(display, store.positions[String(display.id)]);
+  blink.setBounds(display.bounds);
+  position = resolvePosition(placed(), store.positions[String(display.id)]);
   regions = [];
   bubbleRegions = [];
   drawnRegions = [];
-  blink.setBounds(display.bounds);
   if (input)
     input.setRegions(
       blink,
@@ -761,8 +766,8 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
         active: false,
         start: p,
         origin: {
-          x: (command.anchor?.x ?? position.reveal.x) + display.bounds.x,
-          y: (command.anchor?.y ?? position.reveal.y) + display.bounds.y,
+          x: (command.anchor?.x ?? position.reveal.x) + frame().x,
+          y: (command.anchor?.y ?? position.reveal.y) + frame().y,
         },
         anchor: {
           x: (command.anchor?.x ?? position.reveal.x) + frame().x,
@@ -789,9 +794,9 @@ ipcMain.handle("blinkling:shell", async (event, command) => {
     } else if (drag) {
       // The machine tells a click from a drop: a short press is a click.
       flow((m) => m.release());
-      const saved = drag.active ? snapPosition(display, drag.anchor) : null;
+      const saved = drag.active ? snapPosition(placed(), drag.anchor) : null;
       const before = position.edge;
-      if (saved) position = resolvePosition(display, saved);
+      if (saved) position = resolvePosition(placed(), saved);
       endDrag();
       if (saved && position.edge !== before)
         motion("turn", {
@@ -1381,7 +1386,7 @@ features = installCaptureGuide({
   // not only off the small card standing there while they are laid out.
   reserve: () => {
     const card = cardBounds(
-      display,
+      placed(),
       shown(),
       store.nudge(`card:${shown().edge}`),
       Infinity,

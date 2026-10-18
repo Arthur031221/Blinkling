@@ -20,6 +20,8 @@ import {
   SLIP_MAX,
   dodgeCard,
   CARD_REACH,
+  placedOn,
+  characterBox,
 } from "./placement.mjs";
 import { menuLayout, menuTransform } from "../menu/layout.mjs";
 const display = {
@@ -669,3 +671,59 @@ test("the card and Blink measure from the same origin: moving the display moves 
         assert.ok(p.reveal.y >= 0 && p.reveal.y <= there.bounds.height, where);
       }
 });
+
+// The window the system really gives Blink can start below the display's own
+// corner (a menu bar, a frame rounded to whole pixels). The drawing, the pointer
+// and the flight measure from that frame, so the card and the tail must too.
+for (const top of [25, 38])
+  test(`the card follows Blink's real window frame, ${top} px below the display's corner`, () => {
+    const d = {
+      id: 3,
+      bounds: { x: 0, y: 0, width: 1440, height: 900 },
+      workArea: { x: 0, y: top, width: 1440, height: 900 - top },
+      scaleFactor: 2,
+    };
+    const frame = { x: 0, y: top, width: 1440, height: 900 - top };
+    const real = placedOn(d, frame);
+    for (const edge of ["left", "right", "top", "bottom"]) {
+      const at = { edge, ratio: 0.5 };
+      const p = resolvePosition(real, at);
+      // Where Blink's mouth is on the desktop: its window-local spot plus the
+      // window's own corner, as the shell draws it.
+      const mouth = mouthOf({
+        x: p.reveal.x + frame.x,
+        y: p.reveal.y + frame.y,
+      });
+      const card = cardBounds(real, p);
+      assert.deepEqual(
+        card,
+        cardBounds(placedOn(d, frame), resolvePosition(real, at)),
+      );
+      // Where the card measures Blink from is where the window draws it. Measured
+      // from the display's corner instead, the two differ by the offset.
+      const box = characterBox(real, p);
+      const drawn = characterBox(
+        { bounds: { x: frame.x, y: frame.y } },
+        resolvePosition(real, at),
+      );
+      assert.deepEqual(box, drawn);
+      const old = characterBox(d, resolvePosition(d, at));
+      const oldDrawn = characterBox(
+        { bounds: { x: frame.x, y: frame.y } },
+        resolvePosition(d, at),
+      );
+      assert.equal(oldDrawn.y - old.y, top, `${edge}: the old origin is off`);
+      assert.equal(real.bounds.y, top);
+      if (edge === "left" || edge === "right") {
+        assert.ok(
+          card.y >= real.workArea.y - 1 &&
+            card.y + card.height <= real.workArea.y + real.workArea.height + 1,
+          `${edge}: the card stays inside the work area`,
+        );
+        assert.ok(
+          mouth.y > card.y + 40 && mouth.y < card.y + card.height - 30,
+          `${edge}: the mouth is level with the card`,
+        );
+      }
+    }
+  });

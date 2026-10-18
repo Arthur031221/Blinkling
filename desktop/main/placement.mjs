@@ -84,6 +84,15 @@ export function snapPosition(display, point) {
       ratio * along < CORNER ? 0 : (1 - ratio) * along < CORNER ? 1 : ratio,
   };
 }
+/**
+ * The display as Blink's window really covers it. The drawing, the pointer test
+ * and the flight all measure from the window's own frame, so the card, the tail
+ * and a drop must too: a window the system pushed below the menu bar, or a
+ * frame rounded to whole pixels, would otherwise put the card and Blink on two
+ * origins. `bounds` becomes that frame, everything else stays the display's.
+ */
+export const placedOn = (display, frame) =>
+  frame ? { ...display, bounds: { ...frame } } : display;
 export function resolvePosition(display, saved) {
   const a = {
     ...display.workArea,
