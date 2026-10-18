@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("welcomeAPI", {
     ipcRenderer.invoke("blinkling:welcome-permission", String(action)),
   close: () => ipcRenderer.send("blinkling:welcome-close"),
   nudge: (value) => ipcRenderer.send("blinkling:welcome-nudge", value),
+  onKept: on("blinkling:welcome-nudge-kept"),
   onState: on("blinkling:welcome-state"),
   onOpen: on("blinkling:welcome-open"),
   onClose: on("blinkling:welcome-close"),

@@ -12,6 +12,9 @@ body {
   color: var(--text);
 }
 main {
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
   background: var(--surface);
   border: 2px solid var(--text);
   border-radius: var(--radius-l);
@@ -231,4 +234,11 @@ button {
       transform: rotate(5deg);
     }
   }
+}
+
+main[data-nudging] {
+  cursor: grabbing;
+}
+main button {
+  cursor: pointer;
 }

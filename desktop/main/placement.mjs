@@ -175,9 +175,20 @@ export function clampNudge(nudge, max = NUDGE_MAX) {
   const scale = Math.min(1, max / (Math.hypot(x, y) || 1));
   return { x: Math.round(x * scale), y: Math.round(y * scale) };
 }
+/** A first-start or settings window goes anywhere in the work area, so its
+ * offset is only held to a size no screen reaches. */
+export const PANEL_NUDGE_MAX = 5000;
+/** The whole work area is reachable: nothing is hidden behind a bar. */
+export const PANEL_REACH = Object.freeze({ top: 0, bottom: 0 });
 /** `bounds` moved by a nudge, kept inside the work area. */
-export function nudged(bounds, nudge, area, reach = CARD_REACH) {
-  const n = clampNudge(nudge);
+export function nudged(
+  bounds,
+  nudge,
+  area,
+  reach = CARD_REACH,
+  max = NUDGE_MAX,
+) {
+  const n = clampNudge(nudge, max);
   return {
     ...bounds,
     x: Math.round(

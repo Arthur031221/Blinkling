@@ -197,7 +197,10 @@ api.onState((next) => {
   t = settingsText(next.locale);
   render();
 });
-const drag = dragPanel(document.querySelector(".settings-head"), api);
+// The whole card moves the window; controls and the text to copy stay theirs.
+const NO_DRAG =
+  "button, a, input, textarea, select, label, code, pre, kbd, [role=button], [role=switch], [contenteditable], [data-no-drag]";
+const drag = dragPanel(card, api, { ignore: NO_DRAG });
 api.onOpen(({ nudge } = {}) => {
   drag.opened(nudge);
   say("");

@@ -207,11 +207,23 @@ kbd[data-listening="true"] {
   }
 }
 
-.settings-head {
+#settings {
   cursor: grab;
   -webkit-user-select: none;
   user-select: none;
 }
-.settings-head[data-nudging] {
+#settings[data-nudging] {
   cursor: grabbing;
+}
+#settings
+  :is(button, a, input, select, label, [role="button"], [role="switch"]) {
+  cursor: pointer;
+}
+#settings :is(code, pre, kbd, input) {
+  cursor: text;
+}
+
+.settings-head {
+  -webkit-user-select: none;
+  user-select: none;
 }

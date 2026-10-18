@@ -208,11 +208,23 @@ button:focus-visible {
   }
 }
 
-.welcome-head {
+#welcome {
   cursor: grab;
   -webkit-user-select: none;
   user-select: none;
 }
-.welcome-head[data-nudging] {
+#welcome[data-nudging] {
   cursor: grabbing;
+}
+#welcome
+  :is(button, a, input, select, label, [role="button"], [role="switch"]) {
+  cursor: pointer;
+}
+#welcome :is(code, pre, kbd, input) {
+  cursor: text;
+}
+
+.welcome-head {
+  -webkit-user-select: none;
+  user-select: none;
 }

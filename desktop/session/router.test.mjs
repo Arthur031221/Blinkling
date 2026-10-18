@@ -103,8 +103,14 @@ async function setup({
     bridges,
     // A save still in flight would make its folder again under the removal.
     close: async () => {
+      await Promise.all(channels.map((channel) => channel.dispose()));
       await Promise.all(channels.map((channel) => channel.flush()));
-      await rm(dir, { recursive: true, force: true });
+      await rm(dir, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 20,
+      });
     },
     refuse: () => (taken = false),
   };

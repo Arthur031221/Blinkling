@@ -1,4 +1,5 @@
 import { cssVariables } from "../shared/motion.mjs";
+import { dragPanel } from "../shared/panel-drag.mjs";
 
 document.documentElement.style.cssText += cssVariables();
 const initial = await window.captureUI.init();
@@ -20,4 +21,8 @@ document.querySelector("#settings").onclick = () => window.captureUI.settings();
 document.querySelector("#cancel").onclick = () => window.captureUI.cancel();
 addEventListener("keydown", (e) => {
   if (e.key === "Escape") window.captureUI.cancel();
+});
+// The whole window moves; the buttons keep their clicks.
+dragPanel(document.querySelector("main"), window.captureUI, {
+  ignore: "button, a, [role=button]",
 });

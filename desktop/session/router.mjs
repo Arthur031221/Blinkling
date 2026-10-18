@@ -143,8 +143,13 @@ export class ChannelChat {
     return this.saving;
   }
   /** Resolves when every save so far has reached the disk. */
-  flush() {
-    return this.saving;
+  async flush() {
+    // A save that a finished one queued is waited for too.
+    let seen;
+    do {
+      seen = this.saving;
+      await seen;
+    } while (seen !== this.saving);
   }
   connect() {
     return this.loaded;

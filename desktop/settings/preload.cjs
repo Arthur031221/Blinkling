@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   help: (name) => ipcRenderer.send("blinkling:settings-help", String(name)),
   close: () => ipcRenderer.send("blinkling:settings-close"),
   nudge: (value) => ipcRenderer.send("blinkling:settings-nudge", value),
+  onKept: on("blinkling:settings-nudge-kept"),
   onState: on("blinkling:settings-state"),
   onOpen: on("blinkling:settings-open"),
   onClose: on("blinkling:settings-close"),

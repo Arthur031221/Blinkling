@@ -62,6 +62,7 @@ import { windowShape } from "./shape.mjs";
 import { createLocator } from "../locator/index.mjs";
 import { createCaptureAccess } from "../locator/access.mjs";
 import { createOverlay } from "../overlay/index.mjs";
+import { permissionWindow } from "../capture/windows.mjs";
 import {
   installCaptureGuide,
   featureActions,
@@ -1925,6 +1926,11 @@ if (process.env.BLINKLING_E2E === "1")
     welcome,
     viewer,
     uiOnce,
+    // The macOS permission guide, for the window drag test on any platform.
+    permissionGuide: async () => {
+      const guide = await permissionWindow(display, undefined, () => {});
+      return guide.win.webContents.id;
+    },
   });
 if (globalThis.blinklingTest)
   globalThis.blinklingTest.nBlinkMenuFaces = {

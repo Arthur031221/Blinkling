@@ -2,13 +2,19 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { bindPanelNudge } from "./panel-nudge.mjs";
 
+const area = { x: 0, y: 0, width: 1000, height: 800 };
+const box = { x: 300, y: 300, width: 200, height: 100 };
+
 function setup() {
   const handlers = new Map();
-  const win = { webContents: { id: 1 } };
+  const kept = [];
+  const win = { webContents: { id: 1, send: (c, v) => kept.push([c, v]) } };
   const store = new Map();
   const saved = [];
   let replaced = 0;
-  const apply = bindPanelNudge({
+  // Placing the panel again is what keeps the offset that fits.
+  let apply;
+  apply = bindPanelNudge({
     ipc: { on: (c, fn) => handlers.set(c, fn) },
     win,
     channel: "n",
@@ -20,14 +26,15 @@ function setup() {
         if (commit) saved.push(v);
       },
     },
-    replace: () => replaced++,
+    replace: () => {
+      replaced++;
+      apply?.(box, area);
+    },
   });
   const send = (message, sender = win.webContents) =>
     handlers.get("n")({ sender }, message);
-  return { apply, send, saved, replaced: () => replaced };
+  return { apply, send, saved, kept, replaced: () => replaced };
 }
-const area = { x: 0, y: 0, width: 1000, height: 800 };
-const box = { x: 300, y: 300, width: 200, height: 100 };
 
 test("a drag moves the panel and places it again; only the end is remembered", () => {
   const p = setup();
@@ -39,12 +46,23 @@ test("a drag moves the panel and places it again; only the end is remembered", (
   assert.equal(p.saved.length, 1);
 });
 
-test("the offset is held to 120 px and to the work area", () => {
+test("a panel goes anywhere in the work area and no further, and the page hears what was kept", () => {
   const p = setup();
-  p.send({ x: 900, y: 0 });
-  assert.equal(p.apply(box, area).x, 420);
-  p.send({ x: -120, y: 0 });
-  assert.equal(p.apply({ ...box, x: 10 }, area).x, 0);
+  p.send({ x: 900, y: 0, commit: true });
+  assert.equal(p.apply(box, area).x, 800, "the right edge of the work area");
+  assert.deepEqual(p.kept.at(-1), ["n-kept", { x: 500, y: 0 }]);
+  p.send({ x: -2000, y: -2000, commit: true });
+  const top = p.apply({ ...box, x: 10 }, area);
+  assert.deepEqual([top.x, top.y], [0, 0], "the top left corner");
+  p.send({ x: 5000, y: 5000 });
+  const far = p.apply(box, area);
+  assert.deepEqual([far.x + far.width, far.y + far.height], [1000, 800]);
+});
+
+test("a drag that has not ended tells the page nothing", () => {
+  const p = setup();
+  p.send({ x: 30, y: 30 });
+  assert.equal(p.kept.length, 0);
 });
 
 test("a reset puts it back and is remembered; other senders are ignored", () => {
@@ -55,4 +73,5 @@ test("a reset puts it back and is remembered; other senders are ignored", () => 
   p.send({ reset: true });
   assert.deepEqual(p.apply(box, area), box);
   assert.deepEqual(p.saved.at(-1), { x: 0, y: 0 });
+  assert.deepEqual(p.kept.at(-1), ["n-kept", { x: 0, y: 0 }]);
 });

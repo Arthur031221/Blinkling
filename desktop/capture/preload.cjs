@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.on("blinkling:capture-ui:open", (_event, payload) =>
         listener(payload),
       ),
+    nudge: (value) => ipcRenderer.send("blinkling:capture-ui:nudge", value),
+    onKept: (listener) =>
+      ipcRenderer.on("blinkling:capture-ui:nudge-kept", (_event, value) =>
+        listener(value),
+      ),
     ready: () => ipcRenderer.invoke("blinkling:capture-ui:ready"),
     finish: (choice) =>
       ipcRenderer.invoke("blinkling:capture-ui:finish", choice),

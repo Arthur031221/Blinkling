@@ -13,9 +13,10 @@ export function dragPanel(handle, api, { ignore } = {}) {
       api.nudge(value);
     },
   });
-  return {
-    opened: (offset) => {
-      current = offset ? { x: offset.x, y: offset.y } : { x: 0, y: 0 };
-    },
+  const opened = (offset) => {
+    current = offset ? { x: offset.x, y: offset.y } : { x: 0, y: 0 };
   };
+  // What the main process kept when a drag ended: the next drag starts there.
+  api.onKept?.(opened);
+  return { opened };
 }

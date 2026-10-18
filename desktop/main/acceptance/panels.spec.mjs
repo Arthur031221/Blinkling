@@ -39,7 +39,7 @@ const panels = [
   ["welcome", ".welcome-head", "welcome"],
 ];
 
-test("a window opened from the chat (settings, welcome) can be dragged by its header up to 120 px, is remembered, and a double click puts it back", async () => {
+test("a window opened from the chat (settings, welcome) can be dragged by its header anywhere in the work area, is remembered, and a double click puts it back", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
   const rec = record("panel_nudge", { suffix: "-324" });
@@ -62,9 +62,12 @@ test("a window opened from the chat (settings, welcome) can be dragged by its he
       await dragHead(app, name, head, -500, -400);
       const far = await boundsOf(app, name);
       rec.frame(`${name}-limit`);
-      const reach = Math.hypot(far.x - home.x, far.y - home.y);
-      expect(reach).toBeLessThanOrEqual(120.5);
-      expect(reach).toBeGreaterThan(110);
+      const area = await app.evaluate(
+        ({ screen }) => screen.getPrimaryDisplay().workArea,
+      );
+      expect(far.x).toBeGreaterThanOrEqual(area.x);
+      expect(far.y).toBeGreaterThanOrEqual(area.y);
+      expect(Math.hypot(far.x - home.x, far.y - home.y)).toBeGreaterThan(120.5);
       // Closed and opened again, it opens where it was left.
       await app.evaluate(
         (_, hook) => globalThis.blinklingTest[hook].close(),

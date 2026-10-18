@@ -1,3 +1,4 @@
+import { bindPanelNudge } from "../shared/panel-nudge.mjs";
 import { BrowserWindow, ipcMain, shell, app, screen } from "electron";
 import { fileURLToPath } from "node:url";
 import { aborted, deadline, fadeWindow } from "./core.mjs";
@@ -240,14 +241,31 @@ export async function createPermissionWindow(
   installHandlers();
   const width = Math.min(520, display.workArea.width),
     height = Math.min(420, display.workArea.height);
-  const win = secureWindow({
-    width,
-    height,
+  const centred = {
     x: Math.round(display.workArea.x + (display.workArea.width - width) / 2),
     y: Math.round(display.workArea.y + (display.workArea.height - height) / 2),
-    focusable: true,
-  });
+    width,
+    height,
+  };
+  const win = secureWindow({ ...centred, focusable: true });
   lock(win);
+  // The reader may move this window anywhere on the display, like the welcome.
+  let offset = { x: 0, y: 0 };
+  const moveBy = bindPanelNudge({
+    ipc: {
+      on: (channel, listener) => {
+        ipcMain.on(channel, listener);
+        win.once("closed", () => ipcMain.removeListener(channel, listener));
+      },
+    },
+    win,
+    channel: "blinkling:capture-ui:nudge",
+    key: () => "permission",
+    nudges: { get: () => offset, set: (_key, next) => (offset = next) },
+    replace: () => {
+      if (!win.isDestroyed()) win.setBounds(moveBy(centred, display.workArea));
+    },
+  });
   let settled = false,
     resolve,
     reject;
