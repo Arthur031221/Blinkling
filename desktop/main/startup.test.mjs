@@ -19,3 +19,15 @@ test("the first-start notice never holds back the quit key, the click hook or th
   const between = source.slice(first, poll);
   assert.doesNotMatch(between, /await\s+(welcome|dialog|systemPreferences)/);
 });
+
+test("a press that arrives before the click hook is built is ignored, never thrown", () => {
+  // The variable is declared before anything can call it, and the callers
+  // reach it with an optional call, so an early press does nothing.
+  const declared = source.indexOf("let hookedPress;");
+  const firstUse = source.indexOf("hookedPress?.(");
+  const built = source.indexOf("hookedPress = createHookedPress");
+  assert.ok(declared > 0 && declared < firstUse && firstUse < built);
+  assert.doesNotMatch(source, /[^?.\w]hookedPress\(/);
+  let hookedPress;
+  assert.doesNotThrow(() => hookedPress?.());
+});
