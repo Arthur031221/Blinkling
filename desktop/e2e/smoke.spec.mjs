@@ -10,9 +10,11 @@ test("sandboxed Blink opens frameless and exposes only narrow IPC", async () => 
       await page.evaluate(() => Object.keys(window.blinkling).sort()),
     ).toEqual([
       "action",
+      "cardResize",
       "cardSize",
       "close",
       "configuration",
+      "copy",
       "dropFiles",
       "engage",
       "hold",

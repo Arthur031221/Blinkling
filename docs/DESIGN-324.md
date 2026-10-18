@@ -24,12 +24,12 @@ Setting "Costume effects" (default on). Off: no scene, no outfit.
 
 On: a change of model plays that model's scene once (about 2.8 s), then Blink keeps only the signature piece for as long as the model is chosen (also after a restart, with no scene). The scene is a pose plus drawings that sit behind, in front of and on the body. The rig is not stretched: arms and legs rotate, the body moves as a unit.
 
-| Model | Scene | Signature piece kept |
-|---|---|---|
-| Opus | A glass phone booth drops in around Blink, the door shuts, a flash and a spin hide it, the booth lifts away, Blink strikes a hero pose in the cape | the crown |
-| Sonnet | A wooden chest slides in, Blink digs in it (leans, arms down inside), glasses fly up, Blink catches and puts them on, closes the lid | round glasses |
-| Haiku | A gust: wind lines, a scarf flies in, wraps the lower body in two turns and snaps tight, a paper plane loops once round Blink | the scarf (round the belly base, below the mouth) and a small paper plane |
-| Fable | A big storybook opens in front of Blink, glowing, stars pour out, a pointed hat rises out of it and lands on Blink's head | the storyteller's hat with stars |
+| Model  | Scene                                                                                                                                              | Signature piece kept                                                      |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Opus   | A glass phone booth drops in around Blink, the door shuts, a flash and a spin hide it, the booth lifts away, Blink strikes a hero pose in the cape | the crown                                                                 |
+| Sonnet | A wooden chest slides in, Blink digs in it (leans, arms down inside), glasses fly up, Blink catches and puts them on, closes the lid               | round glasses                                                             |
+| Haiku  | A gust: wind lines, a scarf flies in, wraps the lower body in two turns and snaps tight, a paper plane loops once round Blink                      | the scarf (round the belly base, below the mouth) and a small paper plane |
+| Fable  | A big storybook opens in front of Blink, glowing, stars pour out, a pointed hat rises out of it and lands on Blink's head                          | the storyteller's hat with stars                                          |
 
 Nothing covers the eyes or the mouth. The Haiku scarf is a band at y 140 to 156 that follows the body outline, so it hugs the body. All props are inside the window shape on Windows (F2).
 
@@ -37,13 +37,13 @@ Nothing covers the eyes or the mouth. The Haiku scarf is a band at y 140 to 156 
 
 One show, played once, on an effort change, with the worn piece kept on. The model scene ends with a flourish whose size follows the current effort.
 
-| Effort | Show | Props | Energy |
-|---|---|---|---|
-| low | Tea break: eyes close, Blink sips from a small cup, steam curls | cup, steam | calm, 2.2 s |
-| medium | Juggling: three balls arc between the hands in a steady rhythm | three balls | light, 2.6 s |
-| high | Weight lift: dumbbell comes up from the ground, Blink lifts it twice, sweat drops, feet apart | dumbbell | strong, 3 s |
-| xhigh | Guitar solo: an electric guitar, head bangs, lightning flickers, music notes burst | guitar, bolts, notes | loud, 3.4 s |
-| max | Rocket launch: a rocket pack lights, shaking, flame, shock rings spread, fireworks burst in four places, a star ring orbits | pack, flame, rings, fireworks | peak, 4 s |
+| Effort | Show                                                                                                                        | Props                         | Energy       |
+| ------ | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------ |
+| low    | Tea break: eyes close, Blink sips from a small cup, steam curls                                                             | cup, steam                    | calm, 2.2 s  |
+| medium | Juggling: three balls arc between the hands in a steady rhythm                                                              | three balls                   | light, 2.6 s |
+| high   | Weight lift: dumbbell comes up from the ground, Blink lifts it twice, sweat drops, feet apart                               | dumbbell                      | strong, 3 s  |
+| xhigh  | Guitar solo: an electric guitar, head bangs, lightning flickers, music notes burst                                          | guitar, bolts, notes          | loud, 3.4 s  |
+| max    | Rocket launch: a rocket pack lights, shaking, flame, shock rings spread, fireworks burst in four places, a star ring orbits | pack, flame, rings, fireworks | peak, 4 s    |
 
 Reduced motion: no show and no scene; the piece appears, and one still frame of the show's pose holds for a moment.
 

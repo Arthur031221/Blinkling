@@ -125,8 +125,7 @@ export function mountGuidePanel({ host, tr, onAction }) {
           button("overview", tr("guide-overview"), "guide-overview"),
           button("dismiss", tr("guide-dismiss"), "guide-dismiss"),
         );
-      if (offer)
-        wanted.push(button("again", tr("guide-again"), "guide-again"));
+      if (offer) wanted.push(button("again", tr("guide-again"), "guide-again"));
       if (event.phase === "error")
         wanted.push(
           button("retry", tr("guide-retry"), "guide-retry"),
