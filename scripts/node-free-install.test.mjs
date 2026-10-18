@@ -231,6 +231,19 @@ describe("finding node", () => {
   });
 });
 
+describe("the MCP configuration", () => {
+  it("starts the extensionless launcher on every system", () => {
+    const server = JSON.parse(readFileSync(".mcp.json", "utf8")).mcpServers
+      .blinkling;
+    const command = server.command.replace("${CLAUDE_PLUGIN_ROOT}", repo);
+    expect(command).toBe(wrapper);
+    expect(existsSync(command)).toBe(true);
+    // Windows resolves the same name to the exe stub, which sits next to it.
+    expect(existsSync(`${command}.exe`)).toBe(true);
+    expect(existsSync(`${command}.cmd`)).toBe(true);
+  });
+});
+
 describe("the MCP server without node", () => {
   it("says one clear line and fails when node cannot be fetched", () => {
     const box = sandbox("nofetch");

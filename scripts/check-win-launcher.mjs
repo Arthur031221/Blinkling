@@ -1,6 +1,7 @@
 // Checks the Windows launcher stub.
 //   node scripts/check-win-launcher.mjs source            the committed exe was built from the current C source
 //   node scripts/check-win-launcher.mjs spawn <command>   start <command> with no shell and finish an MCP handshake
+//   node scripts/check-win-launcher.mjs mcp-json          the same, with the command and arguments of .mcp.json
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -39,9 +40,12 @@ function checkSource() {
   console.log("launcher exe matches its source");
 }
 
-function checkSpawn(command) {
+function checkSpawn(
+  command,
+  args = ["mcp", join(repo, "bin", "blinkling.cjs")],
+) {
   if (!command) fail("usage: check-win-launcher.mjs spawn <command>");
-  const child = spawn(command, ["mcp", join(repo, "bin", "blinkling.cjs")], {
+  const child = spawn(command, args, {
     shell: false,
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
@@ -89,7 +93,17 @@ function checkSpawn(command) {
   );
 }
 
+// Starts the server exactly as .mcp.json names it, without a shell. On
+// Windows the extensionless command has to resolve to bin/blinkling-run.exe.
+function checkMcpJson() {
+  const server = JSON.parse(readFileSync(join(repo, ".mcp.json"), "utf8"))
+    .mcpServers.blinkling;
+  const fill = (text) => text.replaceAll("${CLAUDE_PLUGIN_ROOT}", repo);
+  checkSpawn(fill(server.command), server.args.map(fill));
+}
+
 const mode = process.argv[2];
 if (mode === "source") checkSource();
 else if (mode === "spawn") checkSpawn(process.argv[3]);
-else fail("usage: check-win-launcher.mjs source|spawn");
+else if (mode === "mcp-json") checkMcpJson();
+else fail("usage: check-win-launcher.mjs source|spawn|mcp-json");

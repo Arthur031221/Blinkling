@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "blinkling": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd",
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run",
       "args": ["mcp", "${CLAUDE_PLUGIN_ROOT}/bin/blinkling.cjs"]
     }
   }

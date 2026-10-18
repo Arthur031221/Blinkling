@@ -7,6 +7,7 @@ on:
       - "native/win-launcher/**"
       - "bin/blinkling-run*"
       - "scripts/check-win-launcher.mjs"
+      - ".mcp.json"
       - ".github/workflows/win-launcher.yml"
   pull_request:
     paths:
@@ -34,6 +35,9 @@ jobs:
       - name: Spawn the stub without a shell and finish an MCP handshake
         shell: bash
         run: node scripts/check-win-launcher.mjs spawn "$PWD/bin/blinkling-run.exe"
+      - name: Spawn the command of .mcp.json without a shell
+        shell: bash
+        run: node scripts/check-win-launcher.mjs mcp-json
       - name: Stub passes the exit code of the launcher through
         shell: cmd
         run: |
@@ -41,6 +45,15 @@ jobs:
           if errorlevel 2 exit /b 1
           if not errorlevel 1 exit /b 1
           exit /b 0
+      - name: Claude Code itself connects to the plugin's MCP server
+        shell: bash
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+          claude plugin marketplace add "$PWD"
+          claude plugin install blinkling@blinkling
+          claude mcp list 2>&1 | tee mcp-list.txt
+          grep -E "blinkling.*Connected" mcp-list.txt
       - name: Record the source hash
         shell: bash
         run: |
