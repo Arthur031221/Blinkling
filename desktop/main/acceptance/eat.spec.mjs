@@ -165,7 +165,8 @@ async function eat(app, region, label, tiles = 0) {
   );
   await delivered;
   const mouth = await app.evaluate(() => globalThis.blinklingTest.mouth());
-  await new Promise((r) => setTimeout(r, 800));
+  // Long enough for the card, which a busy machine opens late, to be seen.
+  await new Promise((r) => setTimeout(r, 1600));
   await recording.stop();
   mkdirSync(r3, { recursive: true });
   execFileSync("ffmpeg", [

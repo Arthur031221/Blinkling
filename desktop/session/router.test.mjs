@@ -17,6 +17,8 @@ const fakeBridge = (name) => {
   const sent = [];
   const bridge = {
     name,
+    // The real bridge keeps this as a flag, not a method.
+    closed: false,
     sent,
     state: { messages: [], selection: { model: "haiku", effort: "low" } },
     status: { type: "status", state: "connected" },
@@ -247,6 +249,15 @@ test("a terminal session that goes away with a question open answers it as close
   t.router.link({ session: "s2", cwd: "/work/beta", channel: true });
   t.router.unlink("s2");
   assert.equal(t.events.filter((e) => e.type === "message").length, 0);
+  await t.close();
+});
+
+test("a terminal session without the channel that goes away leaves the card without an error", async () => {
+  const t = await setup();
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: false });
+  assert.equal(t.router.currentKey, "s1");
+  assert.doesNotThrow(() => t.router.unlink("s1"));
+  assert.notEqual(t.router.currentKey, "s1");
   await t.close();
 });
 

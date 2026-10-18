@@ -102,3 +102,34 @@ describe("release checks", () => {
     }
   });
 });
+
+describe("the README demo guard", () => {
+  const probe = (width, frameMs, frames) => {
+    const code = `
+import struct, sys
+sys.path.insert(0, ".github/workflows")
+from webp_guard import webp_problem
+def chunk(kind, body):
+    return kind + struct.pack("<I", len(body)) + body + (b"\\0" if len(body) & 1 else b"")
+canvas = (${width} - 1).to_bytes(3, "little") + (799).to_bytes(3, "little")
+body = chunk(b"VP8X", b"\\x12\\0\\0\\0" + canvas) + chunk(b"ANIM", b"\\0" * 6)
+for _ in range(${frames}):
+    body += chunk(b"ANMF", b"\\0" * 12 + (${frameMs}).to_bytes(3, "little") + b"\\0")
+data = b"RIFF" + struct.pack("<I", len(body) + 4) + b"WEBP" + body
+print(webp_problem(data, "x.webp"))
+`;
+    return execFileSync("python3", ["-I", "-c", code], {
+      encoding: "utf8",
+    }).trim();
+  };
+
+  it("accepts a 1280 px wide demo at 29 fps", () => {
+    assert.equal(probe(1280, 34, 30), "None");
+  });
+
+  it("fails a demo that is too small or at the wrong rate", () => {
+    assert.match(probe(960, 34, 30), /960 px wide/);
+    assert.match(probe(1280, 100, 30), /fps/);
+    assert.match(probe(1280, 20, 30), /fps/);
+  });
+});

@@ -9,6 +9,7 @@ import struct
 from zipfile import ZipFile
 
 from bundle_manifest import check_bundle_manifest
+from webp_guard import webp_problem
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -53,6 +54,8 @@ for item in recordings["recordings"] + recordings.get("stills", []):
     if item["asset"].endswith(".webp"):
         require(data[:4] == b"RIFF" and data[8:12] == b"WEBP" and b"ANIM" in data[:64], f"Not an animated WebP: {item['asset']}")
         require(len(data) <= 8_000_000, f"Demo is over 8 MB: {item['asset']}")
+        problem = webp_problem(data, item["asset"])
+        require(problem is None, problem)
         require(sha256(data).hexdigest() == item["sha256"], f"Demo checksum mismatch: {item['asset']}")
         require(item["url"].startswith("https://") and item["turns"] >= 1, f"Incomplete public-page recording: {item['asset']}")
         for site in item["site"]:

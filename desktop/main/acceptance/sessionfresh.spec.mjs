@@ -108,13 +108,13 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
 
     // The first terminal ends (the last one to end takes Blink with it, so B
     // stays), then a third session starts in the same folder. It is a brand
-    // new chat as well: none of the two earlier talks come back.
+    // new chat as well: none of the two earlier talks come back. The chat list
+    // shows the open sessions only, so the first one leaves it and the switcher
+    // is gone while one session is left.
     type("blinkA", "/exit");
     await expect
-      .poll(() => mine.locator('.gl-chat-tab[data-live="false"]').count(), {
-        timeout: 30000,
-      })
-      .toBe(1);
+      .poll(() => mine.locator(".gl-chat-tab").count(), { timeout: 30000 })
+      .toBe(0);
     start("blinkC", FOLDER);
     await ready("blinkC");
     const third = cardPage(app);
@@ -123,7 +123,7 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
         () => third.locator('.gl-chat-tab[aria-selected="true"]').textContent(),
         { timeout: 15000 },
       )
-      .toContain("alpha #3");
+      .toContain("alpha #2");
     type("blinkC", "/blinkling:blinkling");
     await waitFor("blinkC", /Blink|desktop_open/i);
     await sleep(4000);
@@ -137,7 +137,7 @@ test("a Claude Code session Blink has not met opens a brand new chat, and neithe
     await expect
       .poll(async () => (await lines(third)).join("|"), { timeout: 30000 })
       .toContain("KIWI");
-    expect(await mine.locator(".gl-chat-tab").count()).toBe(3);
+    expect(await mine.locator(".gl-chat-tab").count()).toBe(2);
     await writeFile(join(SAVE, "session_fresh-terminal-C.txt"), pane("blinkC"));
     rec.frame("session-C-chat");
     await sleep(1500);

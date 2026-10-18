@@ -322,29 +322,57 @@ test("the mouth is straight above the feet, where the drawing puts it", () => {
   assert.ok(700 - mouth.y < 64);
 });
 
+function assertTailOnMouth(d, label = "") {
+  for (const edge of ["left", "right", "top", "bottom"])
+    for (const ratio of [0, 0.1, 0.5, 0.9, 1]) {
+      const p = resolvePosition(d, { edge, ratio });
+      const card = cardBounds(d, p);
+      const mouth = mouthOf({
+        x: p.reveal.x + d.bounds.x,
+        y: p.reveal.y + d.bounds.y,
+      });
+      if (card.x < mouth.x && mouth.x < card.x + card.width) continue;
+      const left = card.x + card.width < mouth.x;
+      const tip = left
+        ? card.x + card.width - 12 + TAIL.length
+        : card.x + 12 - TAIL.length;
+      const gap = Math.abs(tip - mouth.x) - BODY_HALF;
+      assert.ok(gap >= 0 && gap <= 12, `${label}${edge} ${ratio} gap ${gap}`);
+      assert.ok(
+        mouth.y > card.y + 40 && mouth.y < card.y + card.height - 30,
+        `${label}${edge} ${ratio} the mouth is level with the card`,
+      );
+    }
+}
+
 test("the card's tail stops within 12 px of Blink's body, at the height of its mouth, wherever Blink rests", () => {
-  for (const d of Object.values(panels))
-    for (const edge of ["left", "right", "top", "bottom"])
-      for (const ratio of [0, 0.1, 0.5, 0.9, 1]) {
-        const p = resolvePosition(d, { edge, ratio });
-        const card = cardBounds(d, p);
-        const mouth = mouthOf({
-          x: p.reveal.x + d.bounds.x,
-          y: p.reveal.y + d.bounds.y,
-        });
-        if (card.x < mouth.x && mouth.x < card.x + card.width) continue;
-        const left = card.x + card.width < mouth.x;
-        const tip = left
-          ? card.x + card.width - 12 + TAIL.length
-          : card.x + 12 - TAIL.length;
-        const gap = Math.abs(tip - mouth.x) - BODY_HALF;
-        assert.ok(gap >= 0 && gap <= 12, `${edge} ${ratio} gap ${gap}`);
-        assert.ok(
-          mouth.y > card.y + 40 && mouth.y < card.y + card.height - 30,
-          `${edge} ${ratio} the mouth is level with the card`,
-        );
-      }
+  for (const d of Object.values(panels)) assertTailOnMouth(d);
 });
+
+// The card, its tail and the drag origin all come from one frame origin: a
+// work area that starts below a menu bar (25 px on a notch-less Mac, 38 px with
+// a notch) moves the card and Blink together and the tail stays on the mouth.
+for (const top of [25, 38])
+  test(`the tail stays on the mouth with a work area origin of (0,${top})`, () => {
+    const d = {
+      id: 7,
+      bounds: { x: 0, y: 0, width: 1440, height: 900 },
+      workArea: { x: 0, y: top, width: 1440, height: 900 - top },
+      scaleFactor: 2,
+    };
+    assertTailOnMouth(d, `origin (0,${top}) `);
+    // The same screen moved by its own origin gives the same card, shifted.
+    const moved = {
+      ...d,
+      bounds: { ...d.bounds, x: 1440, y: 12 },
+      workArea: { ...d.workArea, x: 1440, y: d.workArea.y + 12 },
+    };
+    const at = { edge: "right", ratio: 0.5 };
+    const a = cardBounds(d, resolvePosition(d, at));
+    const b = cardBounds(moved, resolvePosition(moved, at));
+    assert.deepEqual([b.x - a.x, b.y - a.y], [1440, 12]);
+    assertTailOnMouth(moved, `moved origin (0,${top}) `);
+  });
 
 test("a nudge moves the card at most 120 px from where it opens and never off the screen", () => {
   const screen = panels["100%"];

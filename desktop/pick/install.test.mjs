@@ -510,6 +510,7 @@ test("on macOS a refused helper asks for Accessibility once and a fresh helper s
   s.spawn = helper.spawn;
   const pick = await s.install();
   assert.equal(pick.started, false);
+  await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(asked, [false, true]);
   assert.equal(notes.length, 1, "the note comes once, before the prompt");
   assert.match(notes[0].message, /Blinkling/);
@@ -529,6 +530,33 @@ test("on macOS a refused helper asks for Accessibility once and a fresh helper s
   await poll();
   assert.equal(pick.started, true);
   assert.equal(helper.spawned.length, 3);
+  pick.dispose();
+});
+
+test("on macOS the permission note stays open without holding the start back, and the prompt waits for it", async () => {
+  const helper = fakeHelper(() => "denied\n");
+  const s = setup();
+  const asked = [];
+  let close;
+  s.electron.dialog = {
+    showMessageBox: () => new Promise((resolve) => (close = resolve)),
+  };
+  s.electron.systemPreferences = {
+    isTrustedAccessibilityClient: (ask) => {
+      asked.push(ask);
+      return false;
+    },
+  };
+  s.shell.platform = "darwin";
+  s.shell.keytap = "/app/Resources/blinkling-keytap";
+  s.spawn = helper.spawn;
+  const pick = await s.install();
+  assert.equal(pick.started, false);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(asked, [false], "the system prompt follows the note");
+  close();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(asked, [false, true]);
   pick.dispose();
 });
 

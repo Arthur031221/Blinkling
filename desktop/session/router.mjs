@@ -500,7 +500,9 @@ export class ChatRouter {
     const chat = this.chats.get(session);
     if (!chat) return;
     chat.live = false;
-    chat.impl.closed?.();
+    // Only a terminal's channel chat answers an open question as closed; the
+    // owned session of a chat without the channel has `closed` as a flag.
+    if (typeof chat.impl.closed === "function") chat.impl.closed();
     // A chat of a session that is gone leaves the card: the newest open
     // session has it, else Blink's own chat.
     if (this.currentKey === session) this.switchTo(this.newest()?.key ?? MAIN);

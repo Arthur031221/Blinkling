@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launch } from "./support.mjs";
 import { background, reveal, sleep } from "./helpers.mjs";
@@ -114,6 +115,15 @@ test("a question asked in Blink while the terminal is busy with its own prompt",
   const { app, page } = await launch({
     env: { BLINKLING_RUNTIME_DIR: runtime },
   });
+  const thrownFile = join(tmpdir(), `live324b-thrown-${process.pid}.txt`);
+  await rm(thrownFile, { force: true });
+  await app.evaluate((_electron, file) => {
+    process.on("uncaughtException", (error) =>
+      process
+        .getBuiltinModule("node:fs")
+        .appendFileSync(file, `${error.stack}\n`),
+    );
+  }, thrownFile);
   const rec = record("busy_terminal", {
     suffix: "-324",
     fps: 2,
@@ -181,6 +191,11 @@ test("a question asked in Blink while the terminal is busy with its own prompt",
     await rec.stop();
     await app.close().catch(() => {});
     await restore();
+    // The last terminal to end takes Blink with it, and a terminal that goes
+    // away must not throw in the main process: an uncaught error there opens a
+    // modal dialog and the app stops answering.
+    const thrown = await readFile(thrownFile, "utf8").catch(() => "");
+    expect(thrown, "nothing thrown in the main process").toBe("");
   }
 });
 

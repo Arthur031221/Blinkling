@@ -243,18 +243,20 @@ export async function installPick({
     started.error?.code !== "MISSING"
   ) {
     if (trusted(false) === false) {
-      // Said once, in the reader's language, before the system's own prompt.
-      if (dialog && once.take("keys-denied")) {
-        const text = pickText(locale());
-        await dialog
-          .showMessageBox({
-            type: "info",
-            message: text("keys.denied"),
-            detail: text("keys.deniedNote"),
-          })
-          .catch(onError);
-      }
-      trusted(true);
+      // Said once, in the reader's language, before the system's own prompt. It is
+      // never waited for: the quit key, the click hook and the cursor poll start
+      // while it is open.
+      const said =
+        dialog && once.take("keys-denied")
+          ? dialog
+              .showMessageBox({
+                type: "info",
+                message: pickText(locale())("keys.denied"),
+                detail: pickText(locale())("keys.deniedNote"),
+              })
+              .catch(onError)
+          : Promise.resolve();
+      said.then(() => trusted(true));
     }
     const setTimer = timers.setTimer ?? setTimeout;
     const poll = () => {

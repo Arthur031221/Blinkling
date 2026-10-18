@@ -61,12 +61,26 @@ test("the progress bubble and the grumble bubble are in the shape Windows clips 
       timeout: 15000,
     });
     await page.waitForTimeout(800);
-    const gone = await app.evaluate(
-      () =>
-        globalThis.blinklingTest.shapeFor("win32").length -
-        globalThis.blinklingTest.shapeFor("linux").length,
+    // What Blink wears is drawn outside its body and is in the Windows shape too,
+    // so the shape is not compared by size: the places the bubbles stood are.
+    const centre = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+    const covers = (shape, b) =>
+      shape.some(
+        (r) =>
+          centre(b).x >= r.x &&
+          centre(b).y >= r.y &&
+          centre(b).x <= r.x + r.width &&
+          centre(b).y <= r.y + r.height,
+      );
+    const windows = await shapeOnWindows(app);
+    const body = await app.evaluate(() =>
+      globalThis.blinklingTest.shapeFor("linux"),
     );
-    expect(gone, "the bubbles leave the shape once they have faded").toBe(0);
+    for (const b of [progress, box])
+      expect(
+        covers(windows, b),
+        "the bubbles leave the shape once they have faded",
+      ).toBe(covers(body, b));
     await rec.stop();
   } finally {
     await app.close();
