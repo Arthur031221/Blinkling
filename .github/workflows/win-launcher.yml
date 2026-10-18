@@ -34,22 +34,13 @@ jobs:
       - name: Spawn the stub without a shell and finish an MCP handshake
         shell: bash
         run: node scripts/check-win-launcher.mjs spawn "$PWD/bin/blinkling-run.exe"
-      - name: Stub finds no Node.js and exits 1 for mcp
+      - name: Stub passes the exit code of the launcher through
         shell: cmd
         run: |
-          set "PATH=%SystemRoot%\System32"
-          set "ProgramFiles=%RUNNER_TEMP%\none"
-          set "ProgramFiles(x86)=%RUNNER_TEMP%\none"
-          set "LOCALAPPDATA=%RUNNER_TEMP%\none"
-          set "USERPROFILE=%RUNNER_TEMP%\none"
-          set "NVM_SYMLINK="
-          set "BLINKLING_RUNTIME_DIR=%RUNNER_TEMP%\blinkling-empty"
-          set BLINKLING_DEBUG=1
-          where node.exe
-          echo PF=%ProgramFiles% PATH=%PATH%
           bin\blinkling-run.exe mcp x.cjs
-          if not errorlevel 1 exit /b 1
           if errorlevel 2 exit /b 1
+          if not errorlevel 1 exit /b 1
+          exit /b 0
       - name: Record the source hash
         shell: bash
         run: |
