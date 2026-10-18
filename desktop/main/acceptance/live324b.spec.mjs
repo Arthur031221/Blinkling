@@ -164,6 +164,7 @@ test("a question asked in Blink while the terminal is busy with its own prompt",
     ).toBeLessThan(blinks[0]);
     rec.frame("both-answers");
   } catch (error) {
+    console.log(`live324b FAIL ${String(error.message).slice(0, 600)}`);
     await save("live324b-debug-A.txt", pane("liveA")).catch(() => {});
     await save("live324b-debug-U.txt", pane("liveU")).catch(() => {});
     await save(
@@ -200,23 +201,29 @@ test("Auto explain stays inside Blink beside linked sessions, and both sessions 
     const users = await card.locator(".gl-user").count();
     const answersBefore = await card.locator(".gl-assistant").count();
     for (const round of [1, 2]) {
-      await app.evaluate(
+      const sent = await app.evaluate(
         (_e, [round, prompt, data]) =>
-          globalThis.blinklingTest.session.send({
-            id: `auto-live-${round}`,
-            text: prompt,
-            attachments: [
-              {
-                id: `auto-img-${round}`,
-                name: "Screen.png",
-                mediaType: "image/png",
-                data,
-              },
-            ],
-            source: "auto-explain",
-          }),
+          globalThis.blinklingTest.session
+            .send({
+              id: crypto.randomUUID(),
+              text: prompt,
+              attachments: [
+                {
+                  id: `auto-img-${round}`,
+                  name: "Screen.png",
+                  mediaType: "image/png",
+                  data,
+                },
+              ],
+              source: "auto-explain",
+            })
+            .then(
+              () => "sent",
+              (error) => `refused: ${error.code ?? ""} ${error.message}`,
+            ),
         [round, EXPLAIN_PROMPT, png],
       );
+      stamp(`round ${round}: ${sent}`);
       await expect
         .poll(() => card.locator(".gl-assistant").count(), { timeout: 90000 })
         .toBe(answersBefore + round);
@@ -253,6 +260,7 @@ test("Auto explain stays inside Blink beside linked sessions, and both sessions 
     await save("quit_notice-324-terminal-U.txt", pane("liveU"));
     rec.frame("quit-notice");
   } catch (error) {
+    console.log(`live324b FAIL ${String(error.message).slice(0, 600)}`);
     await save("live324b-debug-A.txt", pane("liveA")).catch(() => {});
     await save("live324b-debug-U.txt", pane("liveU")).catch(() => {});
     await save(
