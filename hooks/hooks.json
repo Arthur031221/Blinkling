@@ -64,6 +64,18 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_blinkling_blinkling__blinkling_reply",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/mirror.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

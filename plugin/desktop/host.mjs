@@ -305,6 +305,7 @@ export async function startDesktopHost({
                 typeof message.text === "string"
                   ? message.text.slice(0, MIRROR_LIMIT)
                   : "",
+              shared: message.shared === true,
             }),
           });
           return;

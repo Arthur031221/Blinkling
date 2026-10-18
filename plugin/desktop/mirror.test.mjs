@@ -437,6 +437,63 @@ test("a question from Blink in the middle of a typed turn leaves what was writte
   }
 });
 
+test("a shared turn the terminal answers in plain text, with the last message not in the transcript yet, still shows that text once", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
+  const lines = [];
+  const ends = [];
+  const host = await startDesktopHost({
+    directory,
+    descriptor: join(directory, "desktop.json"),
+    onMirror: (line) => lines.push([line.role, line.text]),
+    onTurnEnd: (end) => ends.push([end.session, end.text, end.shared]),
+  });
+  try {
+    await writeFile(
+      join(directory, "sessions.json"),
+      JSON.stringify([{ id: "mine", at: Date.now() }]),
+    );
+    const path = join(directory, "transcript.jsonl");
+    await writeFile(
+      path,
+      transcript(
+        { type: "user", message: { content: "wait, then say done" } },
+        said("a1", calls("Bash")),
+      ),
+    );
+    const prompt = (text) => ({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "mine",
+      prompt: text,
+    });
+    await mirror(prompt("wait, then say done"), directory);
+    await mirror(
+      prompt(
+        '<channel source="plugin:blinkling:blinkling" kind="question" turn="t1">eight plus five</channel>',
+      ),
+      directory,
+    );
+    await mirror(
+      {
+        hook_event_name: "Stop",
+        session_id: "mine",
+        transcript_path: path,
+        last_assistant_message: "done, and I ignored the other message",
+      },
+      directory,
+    );
+    assert.deepEqual(lines, [
+      ["user", "wait, then say done"],
+      ["assistant", "done, and I ignored the other message"],
+    ]);
+    assert.deepEqual(ends, [
+      ["mine", "done, and I ignored the other message", true],
+    ]);
+  } finally {
+    await host.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("the typed prompt's answers are read from the transcript up to the first answer to Blink, and a missing transcript gives none", async () => {
   const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
   try {
@@ -462,6 +519,66 @@ test("the typed prompt's answers are read from the transcript up to the first an
     assert.deepEqual(await typedAnswers(join(directory, "none.jsonl")), []);
     assert.deepEqual(await typedAnswers(undefined), []);
   } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("just before the terminal answers Blink in a shared turn, what it wrote for the typed prompt is already in the chat, once", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "glimpse-mirror-"));
+  const lines = [];
+  const host = await startDesktopHost({
+    directory,
+    descriptor: join(directory, "desktop.json"),
+    onMirror: (line) => lines.push([line.role, line.text]),
+  });
+  try {
+    await writeFile(
+      join(directory, "sessions.json"),
+      JSON.stringify([{ id: "mine", at: Date.now() }]),
+    );
+    const path = join(directory, "transcript.jsonl");
+    await writeFile(
+      path,
+      transcript(
+        { type: "user", message: { content: "run it, then say done" } },
+        said("b1", says("done")),
+        said("b2", calls("mcp__plugin_blinkling_blinkling__blinkling_reply")),
+      ),
+    );
+    const prompt = (text) => ({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "mine",
+      prompt: text,
+    });
+    const before = {
+      hook_event_name: "PreToolUse",
+      session_id: "mine",
+      transcript_path: path,
+      tool_name: "mcp__plugin_blinkling_blinkling__blinkling_reply",
+    };
+    // A turn that is only Blink's own question has nothing to put first.
+    await mirror(
+      prompt('<channel source="plugin:blinkling:blinkling">a</channel>'),
+      directory,
+    );
+    assert.equal(await mirror(before, directory), false);
+    await mirror({ hook_event_name: "Stop", session_id: "mine" }, directory);
+    // A shared turn shows the typed prompt's answer first.
+    await mirror(prompt("run it, then say done"), directory);
+    await mirror(
+      prompt('<channel source="plugin:blinkling:blinkling">b</channel>'),
+      directory,
+    );
+    lines.length = 0;
+    assert.equal(await mirror(before, directory), true);
+    assert.deepEqual(lines, [["assistant", "done"]]);
+    // Other tools are not its business.
+    assert.equal(
+      await mirror({ ...before, tool_name: "Bash" }, directory),
+      false,
+    );
+  } finally {
+    await host.close();
     await rm(directory, { recursive: true, force: true });
   }
 });

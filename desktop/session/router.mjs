@@ -189,6 +189,7 @@ export class ChannelChat {
     if (this.turns.size > KEEP)
       this.turns.delete(this.turns.values().next().value);
     this.sentAt = this.now();
+    this.latest = turn;
     const taken = this.deliver({
       type: "turn",
       turn: turn.id,
@@ -232,13 +233,13 @@ export class ChannelChat {
     clearTimeout(this.waiting);
     return this.active !== undefined;
   }
-  giveUp(turn) {
+  giveUp(turn, { kept = false } = {}) {
     if (this.active !== turn.id) return;
     this.abandoned.add(turn.id);
     // No "done" here: the answer that follows ends the wait on the card.
     clearTimeout(this.timer);
     this.active = undefined;
-    this.onUndelivered?.(turn);
+    this.onUndelivered?.(turn, { kept });
   }
   /** The session is gone: a question still open is answered with that, so the
    * card does not wait for ever. */
@@ -290,8 +291,16 @@ export class ChannelChat {
   }
   /** The terminal's turn ended. An answer written as plain text instead of
    * through the reply tool is still delivered, once. */
-  turnEnd(text) {
+  turnEnd(text, { shared = false } = {}) {
     if (this.active === undefined) return false;
+    // The turn was shared with a prompt typed in the terminal, and the terminal
+    // never answered Blink through the reply tool: what it wrote last is about
+    // the typed prompt, so Blink's own session answers the question, once. The
+    // channel stays, for it did deliver.
+    if (shared && !this.replied && this.latest?.id === this.active) {
+      this.giveUp(this.latest, { kept: true });
+      return true;
+    }
     if (!this.replied && text?.trim()) this.reply(text);
     this.settle();
     return true;
@@ -472,7 +481,9 @@ export class ChatRouter {
         : this.makeBridge(session, cwd);
       chat = { key: session, label, live: true, channel, impl, opened: 0 };
       if (channel) impl.shared = this.main;
-      if (channel) impl.onUndelivered = (turn) => this.fallback(session, turn);
+      if (channel)
+        impl.onUndelivered = (turn, options) =>
+          this.fallback(session, turn, options);
       this.chats.set(session, chat);
     }
     const wasLive = chat.live && chat.opened > 0;
@@ -543,8 +554,8 @@ export class ChatRouter {
   /** A terminal session never took the question. Blink's own session answers
    * it and the answer is written into that session's chat, with one line
    * saying why: the card stays where it is, and Blink's own chat is not used. */
-  fallback(session, turn) {
-    this.onChannelDropped(session);
+  fallback(session, turn, { kept = false } = {}) {
+    if (!kept) this.onChannelDropped(session);
     const chat = this.chats.get(session);
     if (!chat) return Promise.resolve();
     chat.impl.add({
@@ -587,9 +598,11 @@ export class ChatRouter {
       throw error;
     });
   }
-  turnEnd({ session, text }) {
+  turnEnd({ session, text, shared }) {
     const chat = this.chats.get(session);
-    return chat?.impl instanceof ChannelChat ? chat.impl.turnEnd(text) : false;
+    return chat?.impl instanceof ChannelChat
+      ? chat.impl.turnEnd(text, { shared: shared === true })
+      : false;
   }
   images(session) {
     const chat = this.chats.get(session);

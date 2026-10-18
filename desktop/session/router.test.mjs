@@ -297,6 +297,49 @@ test("a question the terminal session never starts on is answered by Blink's own
   await t.close();
 });
 
+test("a question the terminal started on in a turn shared with a typed prompt, and never answered through the reply tool, is answered by Blink's own session once, and the channel stays", async () => {
+  const dropped = [];
+  const t = await setup({ onChannelDropped: (id) => dropped.push(id) });
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  const q = turn("eight plus five");
+  await t.router.send(q);
+  t.router.turnStart({ session: "s1" });
+  assert.ok(
+    t.router.turnEnd({
+      session: "s1",
+      text: "The command is done.",
+      shared: true,
+    }),
+  );
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(t.main.sent.length, 1, "Blink's session got the question");
+  assert.equal(t.main.sent[0].id, q.id);
+  assert.deepEqual(dropped, [], "the channel did deliver, so it stays");
+  assert.equal(
+    t.events.filter(
+      (e) =>
+        e.type === "message" && e.content?.[0]?.text === "The command is done.",
+    ).length,
+    0,
+    "what the terminal wrote for the typed prompt is not taken for the answer",
+  );
+  // When the terminal did answer through the tool, nothing is taken over.
+  const second = await setup({ onChannelDropped: (id) => dropped.push(id) });
+  second.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  const q2 = turn("again");
+  await second.router.send(q2);
+  second.router.turnStart({ session: "s1" });
+  assert.equal(
+    second.router.reply({ session: "s1", text: "13", turn: q2.id }),
+    true,
+  );
+  second.router.turnEnd({ session: "s1", text: "ok", shared: true });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(second.main.sent.length, 0);
+  await second.close();
+  await t.close();
+});
+
 test("a question the terminal session starts on in time, however slowly it then answers, is not taken over", async () => {
   const t = await setup({ deliveryMs: 30 });
   t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });

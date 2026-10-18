@@ -89,7 +89,12 @@ export async function pinToTree() {
   };
 }
 /** Starts a claude terminal in a folder, linked to the Blink of `runtime`. */
-export const startTerminal = (name, folder, runtime) =>
+export const startTerminal = (
+  name,
+  folder,
+  runtime,
+  flags = "--dangerously-load-development-channels plugin:blinkling@blinkling",
+) =>
   tmux(
     "new-session",
     "-d",
@@ -101,7 +106,7 @@ export const startTerminal = (name, folder, runtime) =>
     "45",
     "-c",
     folder,
-    `env BLINKLING_RUNTIME_DIR=${runtime} claude --model haiku --dangerously-load-development-channels plugin:blinkling@blinkling`,
+    `env BLINKLING_RUNTIME_DIR=${runtime} claude --model haiku ${flags}`,
   );
 export const endTerminals = (names) => {
   for (const name of names) {

@@ -81,6 +81,9 @@ export function mirrorLine(payload) {
   };
 }
 
+/** The reply tool, as the terminal names it. */
+const REPLY_TOOL = /^mcp__(?:plugin_blinkling_)?blinkling__blinkling_reply$/;
+
 const TRANSCRIPT_TAIL = 2_000_000;
 const textOf = (content) =>
   typeof content === "string"
@@ -148,8 +151,10 @@ export async function typedAnswers(path) {
       blocks.some(
         (b) => b?.type === "tool_use" && /blinkling_reply$/.test(b.name),
       )
-    )
+    ) {
+      answers.replied = true;
       break;
+    }
   }
   return answers;
 }
@@ -171,10 +176,57 @@ export async function opened(directory, session) {
 export const mirrors = async (directory, session) =>
   Boolean(await opened(directory, session));
 
+/** What was written for the typed prompt of a shared turn goes to the chat. */
+async function mirrorTyped(client, session, transcript, last = "") {
+  let answers = await typedAnswers(transcript);
+  // The last message of a turn can still be on its way to the transcript when
+  // the Stop hook runs: wait a moment for it, and use the hook's own copy of
+  // it if it does not show up.
+  const tail = last.trim().slice(0, 40);
+  for (let i = 0; tail && i < 8; i++) {
+    if (answers.replied || answers.some((a) => a.text.includes(tail))) break;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    answers = await typedAnswers(transcript);
+  }
+  if (tail && !answers.replied && !answers.some((a) => a.text.includes(tail)))
+    answers.push({ uuid: "stop", text: last.trim() });
+  for (const answer of answers) {
+    await client.rpc("mirror", {
+      session,
+      role: "assistant",
+      id: `${String(session)
+        .replace(/[^\w-]/g, "")
+        .slice(0, 40)}-assistant-${createHash("sha256")
+        .update(answer.uuid + answer.text)
+        .digest("hex")
+        .slice(0, 16)}`,
+      text: answer.text.slice(0, MIRROR_LIMIT),
+    });
+  }
+}
+
 export async function mirror(payload, directory = runtimeDirectory()) {
   const line = mirrorLine(payload);
   const event = payload?.hook_event_name;
   const session = payload?.session_id;
+  if (event === "PreToolUse") {
+    // The terminal is about to answer Blink in a turn it shares with a typed
+    // prompt: what it wrote for the typed prompt came first, so it is shown
+    // first, and the answer to Blink follows it.
+    if (
+      !REPLY_TOOL.test(payload.tool_name ?? "") ||
+      typeof session !== "string"
+    )
+      return false;
+    const entry = await opened(directory, session);
+    if (entry?.turn !== "mixed") return false;
+    const found = await discoverDesktop(join(directory, "desktop.json"), {
+      timeoutMs: 1500,
+    });
+    if (!found) return false;
+    await mirrorTyped(found.client, session, payload.transcript_path);
+    return true;
+  }
   const channelTurn = isChannelPrompt(payload?.prompt);
   // Each prompt says what the turn it starts is. A turn that began as Blink's
   // own channel event is answered in Blink through the reply tool, and one
@@ -229,21 +281,17 @@ export async function mirror(payload, directory = runtimeDirectory()) {
     // A prompt typed in the terminal and a question from Blink were answered in
     // one turn. What was written for the typed prompt goes to the chat, and
     // the rest ends Blink's turn as it does for a question of its own.
-    for (const answer of await typedAnswers(payload.transcript_path)) {
-      await found.client.rpc("mirror", {
-        session,
-        role: "assistant",
-        id: `${String(session)
-          .replace(/[^\w-]/g, "")
-          .slice(0, 40)}-assistant-${createHash("sha256")
-          .update(answer.uuid + answer.text)
-          .digest("hex")
-          .slice(0, 16)}`,
-        text: answer.text.slice(0, MIRROR_LIMIT),
-      });
-    }
+    await mirrorTyped(
+      found.client,
+      session,
+      payload.transcript_path,
+      typeof payload.last_assistant_message === "string"
+        ? payload.last_assistant_message
+        : "",
+    );
     await found.client.rpc("turn-end", {
       session,
+      shared: true,
       text:
         typeof payload.last_assistant_message === "string"
           ? payload.last_assistant_message
