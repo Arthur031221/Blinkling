@@ -33,7 +33,7 @@ export const strings = {
     helpAbout: "About",
     syncTitle: "Terminal sync",
     syncLine:
-      "The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.",
+      "The flag lets Blink's chat and this terminal session see each other. Claude Code asks you to confirm it once. Without the flag Blink still works and answers from its own session.",
     hotkeyNone: "Not set",
     quitKeyOff:
       "The quit key could not be registered. Another app may hold it. Press Change and pick another key.",
@@ -72,7 +72,7 @@ export const strings = {
     helpAbout: "關於",
     syncTitle: "終端機同步",
     syncLine:
-      "這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。",
+      "這個旗標讓Blink的聊天和這個終端機工作階段能互相看到，Claude Code會請你確認一次，沒有旗標的話Blink照常運作，只是改由自己的工作階段回答。",
     hotkeyNone: "未設定",
     quitKeyOff:
       "結束快捷鍵註冊失敗，可能被其他程式佔用。按「變更」換一組按鍵。",
@@ -110,7 +110,7 @@ export const strings = {
     helpAbout: "关于",
     syncTitle: "终端同步",
     syncLine:
-      "这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。",
+      "这个标志让Blink的聊天和这个终端会话能互相看到，Claude Code会请你确认一次，没有标志的话Blink照常运行，只是改由自己的会话回答。",
     hotkeyNone: "未设置",
     quitKeyOff: "结束快捷键注册失败，可能被其他程序占用。点“更改”换一组按键。",
     quitHelp: "在任何地方按 {key}，就能立即关闭 Blink，即使它卡住了也一样。",
@@ -149,7 +149,7 @@ export const strings = {
     helpAbout: "このアプリについて",
     syncTitle: "ターミナルとの同期",
     syncLine:
-      "このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。",
+      "このフラグで、Blink のチャットとこのターミナルのセッションがお互いを見られるようになります。Claude Code が一度だけ確認を求めます。フラグなしでも Blink は動き、自分のセッションから答えます。",
     hotkeyNone: "未設定",
     quitKeyOff:
       "終了キーを登録できませんでした。ほかのアプリが使っているかもしれません。「変更」を押して別のキーを選んでください。",
@@ -191,7 +191,7 @@ export const strings = {
     helpAbout: "정보",
     syncTitle: "터미널 동기화",
     syncLine:
-      "이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.",
+      "이 플래그는 Blink의 채팅과 이 터미널 세션이 서로를 볼 수 있게 합니다. Claude Code가 한 번 확인을 요청합니다. 플래그가 없어도 Blink는 동작하고 자기 세션에서 답합니다.",
     hotkeyNone: "설정 안 됨",
     quitKeyOff:
       "종료 키를 등록하지 못했습니다. 다른 앱이 쓰고 있을 수 있습니다. 변경을 눌러 다른 키를 고르세요.",
@@ -232,7 +232,7 @@ export const strings = {
     helpAbout: "Über",
     syncTitle: "Terminal-Sync",
     syncLine:
-      "Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.",
+      "Das Flag lässt Blinks Chat und diese Terminal-Sitzung einander sehen. Claude Code bittet dich einmal um Bestätigung. Ohne das Flag funktioniert Blink weiter und antwortet aus seiner eigenen Sitzung.",
     hotkeyNone: "Nicht gesetzt",
     quitKeyOff:
       "Die Beenden-Taste konnte nicht registriert werden. Vielleicht belegt sie eine andere App. Wähle mit „Ändern“ eine andere Taste.",
@@ -274,7 +274,7 @@ export const strings = {
     helpAbout: "Acerca de",
     syncTitle: "Sincronizar con la terminal",
     syncLine:
-      "La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.",
+      "La opción permite que el chat de Blink y esta sesión de la terminal se vean entre sí. Claude Code te pide confirmarla una vez. Sin ella Blink sigue funcionando y responde desde su propia sesión.",
     hotkeyNone: "Sin definir",
     quitKeyOff:
       "No se pudo registrar la tecla de salida. Puede que otra app la use. Pulsa Cambiar y elige otra tecla.",
@@ -319,7 +319,7 @@ export const strings = {
     helpAbout: "À propos",
     syncTitle: "Synchronisation du terminal",
     syncLine:
-      "L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
+      "L'option permet au chat de Blink et à cette session de terminal de se voir. Claude Code vous demande de la confirmer une fois. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
     hotkeyNone: "Non définie",
     quitKeyOff:
       "La touche pour quitter n'a pas pu être enregistrée. Une autre app l'utilise peut-être. Appuyez sur Modifier et choisissez-en une autre.",
@@ -363,7 +363,7 @@ export const strings = {
     helpAbout: "Sobre",
     syncTitle: "Sincronização com o terminal",
     syncLine:
-      "A opção faz o chat do Blink chegar a esta sessão. O Claude Code pede uma confirmação, uma só vez. Sem ela, o Blink continua funcionando e responde pela própria sessão.",
+      "A opção deixa o chat do Blink e esta sessão do terminal enxergarem um ao outro. O Claude Code pede para você confirmar uma vez. Sem ela o Blink continua funcionando e responde pela sessão dele.",
     hotkeyNone: "Não definida",
     quitKeyOff:
       "Não foi possível registrar a tecla de saída. Outro app pode estar usando. Toque em Mudar e escolha outra tecla.",

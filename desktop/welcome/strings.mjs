@@ -34,7 +34,7 @@ export const strings = {
     connectLead: "Start Claude Code with this command:",
     connectThen: "Then type /blinkling:blinkling.",
     connectLine:
-      "The flag lets Blink's chat reach this session. Claude Code asks you to confirm it once. Without it Blink still works and answers from its own session.",
+      "The flag lets Blink's chat and this terminal session see each other. Claude Code asks you to confirm it once. Without the flag Blink still works and answers from its own session.",
     connectCopy: "Copy",
     connectCopied: "Copied",
   },
@@ -60,7 +60,7 @@ export const strings = {
     connectLead: "用這個指令啟動 Claude Code：",
     connectThen: "然後輸入 /blinkling:blinkling。",
     connectLine:
-      "這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。",
+      "這個旗標讓Blink的聊天和這個終端機工作階段能互相看到，Claude Code會請你確認一次，沒有旗標的話Blink照常運作，只是改由自己的工作階段回答。",
     connectCopy: "複製",
     connectCopied: "已複製",
   },
@@ -86,7 +86,7 @@ export const strings = {
     connectLead: "用这个命令启动 Claude Code：",
     connectThen: "然后输入 /blinkling:blinkling。",
     connectLine:
-      "这个标志让 Blink 的聊天能传到这个会话，Claude Code 会请你确认一次；没有它 Blink 照常工作，由自己的会话回答。",
+      "这个标志让Blink的聊天和这个终端会话能互相看到，Claude Code会请你确认一次，没有标志的话Blink照常运行，只是改由自己的会话回答。",
     connectCopy: "复制",
     connectCopied: "已复制",
   },
@@ -114,7 +114,7 @@ export const strings = {
     connectLead: "次のコマンドで Claude Code を起動します:",
     connectThen: "その後 /blinkling:blinkling と入力します。",
     connectLine:
-      "このフラグで Blink のチャットがこのセッションに届きます。Claude Code が一度だけ確認を求めます。なくても Blink は動き、自分のセッションで答えます。",
+      "このフラグで、Blink のチャットとこのターミナルのセッションがお互いを見られるようになります。Claude Code が一度だけ確認を求めます。フラグなしでも Blink は動き、自分のセッションから答えます。",
     connectCopy: "コピー",
     connectCopied: "コピーしました",
   },
@@ -141,7 +141,7 @@ export const strings = {
     connectLead: "다음 명령으로 Claude Code를 시작하세요:",
     connectThen: "그다음 /blinkling:blinkling 을 입력하세요.",
     connectLine:
-      "이 플래그를 쓰면 Blink의 채팅이 이 세션에 전달됩니다. Claude Code가 한 번 확인을 요청합니다. 없어도 Blink는 작동하며 자체 세션에서 답합니다.",
+      "이 플래그는 Blink의 채팅과 이 터미널 세션이 서로를 볼 수 있게 합니다. Claude Code가 한 번 확인을 요청합니다. 플래그가 없어도 Blink는 동작하고 자기 세션에서 답합니다.",
     connectCopy: "복사",
     connectCopied: "복사됨",
   },
@@ -170,7 +170,7 @@ export const strings = {
     connectLead: "Starte Claude Code mit diesem Befehl:",
     connectThen: "Gib danach /blinkling:blinkling ein.",
     connectLine:
-      "Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.",
+      "Das Flag lässt Blinks Chat und diese Terminal-Sitzung einander sehen. Claude Code bittet dich einmal um Bestätigung. Ohne das Flag funktioniert Blink weiter und antwortet aus seiner eigenen Sitzung.",
     connectCopy: "Kopieren",
     connectCopied: "Kopiert",
   },
@@ -199,7 +199,7 @@ export const strings = {
     connectLead: "Inicia Claude Code con este comando:",
     connectThen: "Luego escribe /blinkling:blinkling.",
     connectLine:
-      "La opción permite que el chat de Blink llegue a esta sesión. Claude Code pide confirmarla una vez. Sin ella, Blink funciona igual y responde desde su propia sesión.",
+      "La opción permite que el chat de Blink y esta sesión de la terminal se vean entre sí. Claude Code te pide confirmarla una vez. Sin ella Blink sigue funcionando y responde desde su propia sesión.",
     connectCopy: "Copiar",
     connectCopied: "Copiado",
   },
@@ -228,7 +228,7 @@ export const strings = {
     connectLead: "Lancez Claude Code avec cette commande :",
     connectThen: "Puis tapez /blinkling:blinkling.",
     connectLine:
-      "L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
+      "L'option permet au chat de Blink et à cette session de terminal de se voir. Claude Code vous demande de la confirmer une fois. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.",
     connectCopy: "Copier",
     connectCopied: "Copié",
   },
@@ -257,7 +257,7 @@ export const strings = {
     connectLead: "Inicie o Claude Code com este comando:",
     connectThen: "Depois digite /blinkling:blinkling.",
     connectLine:
-      "A opção faz o chat do Blink chegar a esta sessão. O Claude Code pede uma confirmação, uma só vez. Sem ela, o Blink continua funcionando e responde pela própria sessão.",
+      "A opção deixa o chat do Blink e esta sessão do terminal enxergarem um ao outro. O Claude Code pede para você confirmar uma vez. Sem ela o Blink continua funcionando e responde pela sessão dele.",
     connectCopy: "Copiar",
     connectCopied: "Copiado",
   },

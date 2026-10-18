@@ -12,14 +12,14 @@
 
 Formerly Glimpselet. Vous utilisez l'ancien plugin ? Exécutez `/plugin uninstall glimpselet@glimpselet` puis `/plugin marketplace remove glimpselet`, et installez Blinkling avec les étapes ci-dessous.
 
-Blinkling place Blink, un petit compagnon vert, dans un coin de votre écran, au-dessus de toutes les applications. Maintenez **Ctrl** (Control sur macOS) et cliquez sur ce que vous voulez demander, ou faites glisser pour prendre une zone. L'élément s'envole vers Blink, vous posez votre question, et la réponse s'ouvre dans une carte de discussion à côté de Blink.
+Blinkling place Blink, un petit compagnon vert, dans un coin de votre écran, au-dessus de toutes les applications. Maintenez Ctrl (Control sur macOS) et cliquez sur ce dont vous voulez parler, ou faites glisser pour prendre une zone. Votre sélection s'envole vers Blink, vous tapez votre question, et la réponse s'ouvre dans une carte de discussion à côté de Blink.
 
-> **Sûr par conception :** Blinkling regarde et explique, rien de plus. Il ne clique, ne tape et ne contrôle jamais vos applications.
+Blinkling regarde et explique, rien de plus. Il ne clique ni ne tape jamais dans vos applications.
 
-Utilise le Claude Code déjà connecté sur cet ordinateur.
+Il utilise le Claude Code auquel vous êtes déjà connecté sur cet ordinateur.
 
 <p align="center">
-<img src="assets/pick.webp" alt="Ctrl et clic sur un paragraphe d’une page arXiv. Sa capture s’envole dans la bouche de Blink, la carte de discussion s’ouvre et la réponse arrive au fil de l’eau."><br>
+<img src="assets/pick.webp" alt="Ctrl et clic sur un paragraphe d'une page arXiv. Sa capture s'envole dans la bouche de Blink, la carte de discussion s'ouvre et la réponse arrive au fil de l'eau."><br>
 Article : Ctrl et clic sur un paragraphe, puis lisez la réponse.
 </p>
 
@@ -29,13 +29,15 @@ Traduire : un passage en arabe, expliqué en anglais.
 </p>
 
 <p align="center">
-<img src="assets/tour.webp" alt="Sur une page publique très dense, le guide marque les parties de la page. Blink tient un bâton pointeur sur l’étape en cours et Suivant parcourt les étapes."><br>
+<img src="assets/tour.webp" alt="Sur une page publique très dense, le guide marque les parties de la page. Blink tient un bâton pointeur sur l'étape en cours et Suivant parcourt les étapes."><br>
 Guide : une page difficile, pas à pas.
 </p>
 
 ## Installation
 
-Il vous faut Claude Code, connecté. Sous Windows, il faut aussi Node.js 22 ou plus récent depuis nodejs.org, installé avant l'étape 1. macOS et Linux n'ont besoin de rien d'autre. Ensuite :
+Il vous faut Claude Code, connecté sur cet ordinateur. Sous Windows, il faut aussi Node.js 22 ou plus récent depuis nodejs.org, que Blinkling ne télécharge pas à votre place. macOS et Linux n'ont besoin de rien d'autre.
+
+Après avoir installé quoi que ce soit, fermez le terminal et ouvrez-en un nouveau, pour qu'il trouve le nouveau programme.
 
 1. Collez cette ligne dans un terminal et appuyez sur Entrée :
 
@@ -43,38 +45,38 @@ Il vous faut Claude Code, connecté. Sous Windows, il faut aussi Node.js 22 ou p
    claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. Dans un terminal, lancez Claude Code avec le canal de Blink :
+2. Lancez Claude Code avec le canal de Blink :
 
    ```text
    claude --dangerously-load-development-channels plugin:blinkling@blinkling
    ```
 
-   L'option permet au chat de Blink d'atteindre cette session. Claude Code demande une seule fois de la confirmer. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.
+   L'option permet au chat de Blink et à cette session de terminal de se voir. Claude Code vous demande de la confirmer une fois. Sans elle, Blink fonctionne quand même et répond depuis sa propre session.
 
-   Puis, dans cette session, lancez :
+   Ensuite, dans cette session, exécutez :
 
    ```text
    /blinkling:blinkling
    ```
 
-3. Sur Mac, autorisez une fois l’**Enregistrement de l’écran** pour Blinkling : Réglages Système, Confidentialité et sécurité. macOS demande aussi une fois l’**Accessibilité**, pour que la touche Ctrl puisse lancer une sélection. Autorisez-la au même endroit.
+3. Sur un Mac, autorisez une fois l'Enregistrement de l'écran pour Blinkling, dans Réglages Système, Confidentialité et sécurité. macOS demande aussi une fois l'Accessibilité, pour que la touche Ctrl puisse lancer une sélection. Autorisez-la au même endroit.
 
-Sous macOS et Linux, Node.js n'a pas besoin d'être installé. Si l'ordinateur n'en a pas, Blinkling télécharge sa propre copie de Node.js (environ 45 Mo, vérifiée avec un SHA-256 fixé) au premier démarrage. Si Claude Code indique alors que Blinkling n'a pas pu se connecter, attendez une minute et lancez `/mcp` pour vous reconnecter. Sous Windows, installez d'abord Node.js 22 ou plus récent depuis nodejs.org. Blinkling n'en télécharge pas.
+Si un Mac ou un ordinateur Linux n'a pas Node.js, Blinkling récupère sa propre copie privée au premier démarrage. Elle pèse environ 45 Mo et est vérifiée par rapport à un SHA-256 fixé. Si, à ce premier démarrage, Claude Code indique que la connexion à Blinkling a échoué, attendez une minute et exécutez `/mcp`.
 
 > [!NOTE]
-> Dans Windows PowerShell 5, utilisez `;` au lieu de `&&`. Étapes animées pour votre ordinateur : [guide d’installation](https://arthur031221.github.io/Blinkling/install/). Autres méthodes, mises à jour et sandbox Linux : [docs/INSTALL.md](docs/INSTALL.md).
+> Dans Windows PowerShell 5, exécutez les deux commandes l'une après l'autre au lieu de les relier avec `&&`. Les étapes animées pour votre ordinateur sont dans le [guide d'installation](https://arthur031221.github.io/Blinkling/install/). Les autres méthodes d'installation, les mises à jour et le bac à sable Linux sont dans [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Pendant la lecture
 
-- **Maintenez Ctrl et cliquez** sur un paragraphe, un bouton ou une image. Blink le prend.
-- **Maintenez Ctrl et faites glisser** pour prendre une zone.
-- La carte de discussion s'ouvre à côté de Blink avec ce que vous avez pris, trois questions rapides et les listes de modèle, d'effort et d'autorisation. Entrée envoie celle qui est en surbrillance.
-- Cliquez sur Blink à tout moment pour parler. La carte de discussion s'ouvre à côté de Blink avec votre conversation.
+- Maintenez Ctrl et cliquez sur un paragraphe, un bouton ou une image, et Blink le prend.
+- Maintenez Ctrl et faites glisser pour prendre une zone.
+- La carte de discussion s'ouvre à côté de Blink avec votre sélection, trois questions rapides et les sélecteurs de modèle, d'effort et d'autorisation. Entrée envoie la question en surbrillance.
+- Cliquez sur Blink à tout moment pour parler. La carte s'ouvre avec votre conversation.
 
 ![Cliquez sur Blink, tapez une question, et la réponse arrive dans la carte de discussion.](assets/ask.webp)
 
-- Le menu de Blink propose capture, visite guidée, Explication automatique (désactivée tant que vous ne l'activez pas) et réglages.
-- L'assistant facultatif pour Chrome ou Edge apporte la structure propre de la page, pour que Blink sache quel paragraphe ou bouton vous avez désigné, ainsi que la capture de page entière, la traduction de la page sur place et un lecteur de PDF. Son bouton de barre d'outils indique s'il est connecté et réveille Blink. Sans lui, Blink fonctionne toujours sur toutes les fenêtres.
+- Le menu de Blink propose la capture, le guide, Explication automatique et les réglages. Explication automatique reste désactivée tant que vous ne l'activez pas.
+- L'assistant de navigateur facultatif pour Chrome ou Edge donne à Blink la structure de la page, ce qui lui permet de savoir quel paragraphe ou quel bouton vous avez désigné. Il ajoute aussi la capture de page entière, la traduction sur place et un lecteur de PDF. Le bouton de la barre d'outils indique s'il est connecté et réveille Blink. Sans lui, Blink fonctionne dans toutes les fenêtres.
 
 ## Raccourcis
 
@@ -85,15 +87,19 @@ Sous macOS et Linux, Node.js n'a pas besoin d'être installé. Si l'ordinateur n
 | Raccourci des Réglages | Ouvrir la superposition de capture                    |
 | Ctrl + Alt + Shift + B | Quitter Blink (sur Mac, Ctrl + Option + Commande + B) |
 
-Choisissez les touches dans les Réglages.
+Vous pouvez changer les touches dans les Réglages.
 
 ## Sessions et confidentialité
 
-Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et affiche la réponse dans la carte de discussion à côté de Blink. Une demande et une réponse terminée de la session de terminal qui a lancé Blink apparaissent d'elles-mêmes dans la discussion de Blink. Le sens inverse, la discussion de Blink dans le terminal, utilise les channels expérimentaux de Claude Code, chargés seulement au démarrage : lancez Claude Code avec `claude --dangerously-load-development-channels plugin:blinkling@blinkling` (`/blinkling:blinkling` l'affiche) et les deux endroits montrent tout. Sans cela, Blink répond depuis sa propre session.
+Blink envoie ce que vous avez sélectionné à votre propre Claude Code connecté et affiche la réponse dans la carte de discussion. Ce que vous tapez dans la session de terminal qui a lancé Blink, et la réponse correspondante, apparaissent aussi dans le chat de Blink.
+
+Le sens inverse, le chat de Blink dans le terminal, passe par les canaux expérimentaux de Claude Code. Ils ne se chargent qu'au démarrage de Claude Code, donc lancez-le avec `claude --dangerously-load-development-channels plugin:blinkling@blinkling`. `/blinkling:blinkling` affiche la même commande.
 
 > [!IMPORTANT]
-> L'assistant du navigateur ne lit une page que lorsque vous la désignez. Il ne lit jamais les champs de mot de passe ni de paiement, et ne communique qu'avec Blinkling sur votre propre ordinateur. Explication automatique reste désactivée tant que vous ne l'activez pas.
+> L'assistant de navigateur ne lit une page que lorsque vous la désignez. Il ne lit jamais les champs de mot de passe ni de paiement, et ne parle qu'à Blinkling sur votre propre ordinateur. L'option Explication automatique reste désactivée tant que vous ne l'activez pas.
 
-Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.6.md)
+Blinkling n'a ni télémétrie ni service de réponses à lui. Ce que vous sélectionnez part vers votre Claude Code, et les conditions et frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur de PDF du navigateur sont des pages protégées, donc Blink y répond à partir de l'écran.
+
+[Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.

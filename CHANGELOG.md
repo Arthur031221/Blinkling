@@ -1,7 +1,10 @@
 # Changelog
 
-## 3.2.6 - unreleased
+## 3.2.6 - 2026-10-18
 
+- Welcome, Settings and the macOS permission guide can be moved from anywhere that is not a control: the whole header and any empty area drag, while buttons, links, fields and code stay clickable and selectable. The window stays inside the work area, a double click on an empty area puts it back, and the place is kept. Acceptance tests drag all three with the real pointer.
+- The nine READMEs are rewritten. They tell you to close the terminal and open a new one after installing anything, give the one command that starts Claude Code with Blink's channel and say what its flag does, and keep Node.js 22 or newer for Windows and the private copy for macOS and Linux.
+- A chat test no longer fails now and then because a delayed save recreated its folder during cleanup.
 - A Mac without Node.js now gets a working install. Every plugin command starts through `bin/blinkling-run` (a shell script, with a small `blinkling-run.exe` stub and a `.cmd` file for the Windows MCP server), which finds Node.js 22 or newer (PATH, Homebrew, Volta, asdf, mise, nvm, fnm) or fetches a private, SHA-256 checked copy into `~/.blinkling/runtime/node`. Hooks exit quietly without Node.js and say so once. A test runs every hook command and the MCP handshake with a PATH that has no node.
 - The README no longer says Node.js is not required on Windows. Windows needs Node.js 22 or newer from nodejs.org, while macOS and Linux fetch a private copy. `.mcp.json` names the extensionless `bin/blinkling-run`: macOS and Linux run the shell script, and Windows resolves the same name to `bin/blinkling-run.exe`, a stub built in CI. CI spawns that exact command without a shell and then installs the plugin into Claude Code 2.1.302 on Windows, where `claude mcp list` reports the server connected. The same check passes on Linux with a PATH that has no Node.js (the launcher fetched its private copy).
 - Every README and the install doc list Node.js 22 or newer as a Windows prerequisite before step 1, and the open command tells a Windows user whose MCP server is down to install it and run `/mcp`, instead of waiting for a download that only macOS and Linux do.

@@ -12,11 +12,11 @@
 
 Formerly Glimpselet. Vom alten Plugin? Führe `/plugin uninstall glimpselet@glimpselet` und `/plugin marketplace remove glimpselet` aus und installiere dann Blinkling mit den Schritten unten.
 
-Blinkling setzt Blink, einen kleinen grünen Begleiter, in die Ecke deines Bildschirms, über alle Apps. Halte **Ctrl** (unter macOS Control) gedrückt und klicke auf das, wonach du fragen willst, oder ziehe einen Bereich auf. Es fliegt in Blink hinein, du fragst, und die Antwort öffnet sich in einer Chatkarte neben Blink.
+Blinkling setzt Blink, einen kleinen grünen Begleiter, in die Ecke deines Bildschirms, über alle Apps. Halte Strg (auf dem Mac Control) gedrückt und klicke auf alles, wonach du fragen willst, oder ziehe einen Bereich auf. Die Auswahl fliegt in Blink hinein, du tippst deine Frage, und die Antwort öffnet sich in einer Chatkarte neben Blink.
 
-> **Sicher von Grund auf:** Blinkling schaut nur hin und erklärt. Es klickt, tippt und steuert nie Ihre Apps.
+Blinkling schaut nur hin und erklärt. Es klickt und tippt nie in deinen Apps.
 
-Nutzt das Claude Code, bei dem du auf diesem Computer schon angemeldet bist.
+Es nutzt das Claude Code, bei dem du auf diesem Computer schon angemeldet bist.
 
 <p align="center">
 <img src="assets/pick.webp" alt="Strg und Klick auf einen Absatz einer arXiv-Seite. Sein Schnappschuss fliegt in Blinks Mund, die Chatkarte öffnet sich und die Antwort läuft ein."><br>
@@ -35,7 +35,9 @@ Anleitung: eine schwer bedienbare Seite, Schritt für Schritt.
 
 ## Installation
 
-Du brauchst Claude Code, angemeldet. Unter Windows brauchst du außerdem Node.js 22 oder neuer von nodejs.org, installiert vor Schritt 1. macOS und Linux brauchen nichts weiter. Dann:
+Du brauchst Claude Code, auf diesem Computer angemeldet. Unter Windows brauchst du außerdem Node.js 22 oder neuer von nodejs.org, das Blinkling nicht für dich herunterlädt. macOS und Linux brauchen sonst nichts.
+
+Wenn du irgendetwas installiert hast, schließe das Terminal und öffne ein neues, damit es das neue Programm findet.
 
 1. Füge diese Zeile in ein Terminal ein und drücke Enter:
 
@@ -43,38 +45,38 @@ Du brauchst Claude Code, angemeldet. Unter Windows brauchst du außerdem Node.js
    claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. Starte Claude Code im Terminal mit dem Blink-Kanal:
+2. Starte Claude Code mit Blinks Kanal:
 
    ```text
    claude --dangerously-load-development-channels plugin:blinkling@blinkling
    ```
 
-   Das Flag lässt den Chat von Blink diese Sitzung erreichen. Claude Code bittet einmal um Bestätigung. Ohne das Flag arbeitet Blink weiter und antwortet aus seiner eigenen Sitzung.
+   Das Flag lässt Blinks Chat und diese Terminal-Sitzung einander sehen. Claude Code bittet dich einmal um Bestätigung. Ohne das Flag funktioniert Blink weiter und antwortet aus seiner eigenen Sitzung.
 
-   Führe dann in dieser Sitzung aus:
+   Führe danach in dieser Sitzung aus:
 
    ```text
    /blinkling:blinkling
    ```
 
-3. Erlaube auf dem Mac einmalig **Bildschirmaufnahme** für Blinkling: Systemeinstellungen, Datenschutz & Sicherheit. macOS fragt außerdem einmal nach **Bedienungshilfen**, damit die Strg-Taste eine Auswahl starten kann. Erlaube es an derselben Stelle.
+3. Erlaube auf dem Mac Blinkling einmal die Bildschirmaufnahme, in den Systemeinstellungen unter Datenschutz & Sicherheit. macOS fragt außerdem einmal nach den Bedienungshilfen, damit die Strg-Taste eine Auswahl starten kann. Erlaube sie an derselben Stelle.
 
-Unter macOS und Linux muss Node.js nicht selbst installiert werden. Hat der Computer keines, lädt Blinkling beim ersten Start eine eigene Kopie von Node.js (etwa 45 MB, gegen eine feste SHA-256 geprüft). Meldet Claude Code beim ersten Start, Blinkling habe sich nicht verbunden, warte eine Minute und verbinde mit `/mcp` neu. Unter Windows installiere zuerst Node.js 22 oder neuer von nodejs.org. Blinkling lädt dort keines nach.
+Hat ein Mac oder Linux-Rechner kein Node.js, holt Blinkling beim ersten Start eine eigene private Kopie. Sie ist etwa 45 MB groß und wird gegen eine festgelegte SHA-256 geprüft. Meldet Claude Code beim ersten Start, die Verbindung zu Blinkling sei fehlgeschlagen, warte eine Minute und führe `/mcp` aus.
 
 > [!NOTE]
-> In Windows PowerShell 5 nimm `;` statt `&&`. Animierte Schritte für deinen Rechner: [Installationsanleitung](https://arthur031221.github.io/Blinkling/install/). Weitere Wege, Updates und die Linux-Sandbox: [docs/INSTALL.md](docs/INSTALL.md).
+> In Windows PowerShell 5 führst du die beiden Befehle nacheinander aus, statt sie mit `&&` zu verbinden. Animierte Schritte für deinen Computer stehen in der [Installationsanleitung](https://arthur031221.github.io/Blinkling/install/). Weitere Installationswege, Updates und die Linux-Sandbox findest du in [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Beim Lesen
 
-- **Halte Strg gedrückt und klicke** auf einen Absatz, eine Schaltfläche oder ein Bild. Blink nimmt es auf.
-- **Halte Strg und ziehe**, um stattdessen einen Bereich aufzunehmen.
-- Die Chatkarte öffnet sich neben Blink mit deiner Auswahl, drei Schnellfragen und den Auswahllisten für Modell, Aufwand und Berechtigung. Enter sendet die markierte Frage.
-- Klicke jederzeit auf Blink, um zu sprechen. Neben Blink öffnet sich die Chatkarte mit deinem Gespräch.
+- Halte Strg gedrückt und klicke auf einen Absatz, eine Schaltfläche oder ein Bild, dann nimmt Blink es mit.
+- Halte Strg gedrückt und ziehe, um stattdessen einen Bereich aufzunehmen.
+- Die Chatkarte öffnet sich neben Blink mit deiner Auswahl, drei schnellen Fragen und den Auswahlfeldern für Modell, Aufwand und Berechtigung. Enter sendet die markierte Frage.
+- Klicke jederzeit auf Blink, um zu sprechen. Die Karte öffnet sich mit deinem bisherigen Gespräch.
 
 ![Klicke auf Blink, tippe eine Frage, und die Antwort läuft in die Chatkarte.](assets/ask.webp)
 
-- Das Menü von Blink bietet Aufnahme, Führung, Automatisch erklären (aus, bis du sie einschaltest) und Einstellungen.
-- Der optionale Browser-Helfer für Chrome oder Edge liefert die eigene Struktur der Seite, damit Blink weiß, auf welchen Absatz oder welche Schaltfläche du gezeigt hast, dazu eine Aufnahme der ganzen Seite, Übersetzung der Seite an Ort und Stelle und einen PDF-Reader. Seine Symbolleistenschaltfläche zeigt, ob er verbunden ist, und weckt Blink. Ohne ihn funktioniert Blink weiterhin in jedem Fenster.
+- Blinks Menü bietet Aufnahme, Guide, Automatisch erklären und Einstellungen. Die Automatisch erklären bleibt aus, bis du sie einschaltest.
+- Der optionale Browser-Helfer für Chrome oder Edge gibt Blink die Struktur der Seite, sodass es weiß, auf welchen Absatz oder welche Schaltfläche du gezeigt hast. Dazu kommen die Aufnahme ganzer Seiten, Übersetzen direkt auf der Seite und ein PDF-Leser. Die Schaltfläche in der Symbolleiste zeigt, ob er verbunden ist, und weckt Blink auf. Ohne ihn funktioniert Blink in jedem Fenster.
 
 ## Tastenkürzel
 
@@ -85,15 +87,19 @@ Unter macOS und Linux muss Node.js nicht selbst installiert werden. Hat der Comp
 | Tastenkürzel in den Einstellungen | Aufnahme-Overlay öffnen                                |
 | Ctrl + Alt + Shift + B            | Blink beenden (auf dem Mac Ctrl + Option + Befehl + B) |
 
-Die Tasten wählst du in den Einstellungen.
+Die Tasten kannst du in den Einstellungen ändern.
 
 ## Sitzungen und Datenschutz
 
-Blink sendet, was du ausgewählt hast, an dein eigenes angemeldetes Claude Code und zeigt die Antwort in der Chatkarte neben Blink. Eine Eingabe und eine fertige Antwort aus der Terminal-Sitzung, die Blink gestartet hat, erscheinen von selbst im Chat von Blink. Die Gegenrichtung, der Chat von Blink im Terminal, nutzt die experimentellen Channels von Claude Code, die nur beim Start geladen werden: Starte Claude Code mit `claude --dangerously-load-development-channels plugin:blinkling@blinkling` (`/blinkling:blinkling` zeigt es an), dann sehen beide Orte alles. Ohne das antwortet Blink aus seiner eigenen Sitzung.
+Blink schickt, was du ausgewählt hast, an dein eigenes, angemeldetes Claude Code und zeigt die Antwort in der Chatkarte. Was du in der Terminal-Sitzung tippst, die Blink gestartet hat, und die Antwort darauf erscheinen ebenfalls in Blinks Chat.
+
+Die andere Richtung, Blinks Chat im Terminal, läuft über die experimentellen Kanäle von Claude Code. Sie werden nur beim Start von Claude Code geladen, starte es also mit `claude --dangerously-load-development-channels plugin:blinkling@blinkling`. `/blinkling:blinkling` gibt denselben Befehl aus.
 
 > [!IMPORTANT]
-> Der Browser-Helfer liest eine Seite nur, wenn du darauf zeigst. Passwort- und Zahlungsfelder werden nie gelesen, und er spricht nur mit Blinkling auf deinem eigenen Rechner. Automatisch erklären bleibt aus, bis du es einschaltest.
+> Der Browser-Helfer liest eine Seite nur, wenn du darauf zeigst. Er liest nie Passwort- oder Zahlungsfelder und spricht nur mit Blinkling auf deinem eigenen Computer. Automatisch erklären bleibt aus, bis du es einschaltest.
 
-Keine Telemetrie und kein vom Herausgeber betriebener Antwortdienst. Was du auswählst, geht an dein Claude Code; es gelten die Bedingungen und Nutzungsgebühren des Anbieters. Browsereinstellungen, Erweiterungsshops und der eingebaute PDF-Viewer des Browsers sind geschützte Seiten: Dort antwortet Blink anhand des Bildschirms. [Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v3.2.6.md)
+Blinkling hat keine Telemetrie und keinen eigenen Antwortdienst. Was du auswählst, geht an dein Claude Code, und es gelten die Bedingungen und Nutzungskosten des Anbieters. Browser-Einstellungen, Erweiterungsshops und der eigene PDF-Viewer des Browsers sind geschützte Seiten, deshalb antwortet Blink dort anhand des Bildschirms.
+
+[Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.

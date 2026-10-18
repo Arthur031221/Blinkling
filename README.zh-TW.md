@@ -1,6 +1,6 @@
 <h1 align="center"><img src="assets/logo.svg" width="72" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-dark.svg" /><img src="assets/brand/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
-<p align="center"><strong>Blink 住在螢幕角落。按住 Ctrl 點一下，答案就來。</strong></p>
+<p align="center"><strong>Blink住在螢幕角落，按住Ctrl點一下，答案就來。</strong></p>
 
 <p align="center">
   <a href="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml"><img src="https://github.com/Arthur031221/Blinkling/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -10,90 +10,96 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-Formerly Glimpselet。從舊外掛升級？請執行 `/plugin uninstall glimpselet@glimpselet` 與 `/plugin marketplace remove glimpselet`，再照下方步驟安裝 Blinkling。
+Formerly Glimpselet，如果你是從舊外掛升級，請先執行`/plugin uninstall glimpselet@glimpselet`和`/plugin marketplace remove glimpselet`，再照下面的步驟安裝Blinkling。
 
-Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。按住 **Ctrl**（macOS 為 Control）點一下想問的東西，或拖曳框出一個區域。內容會飛進 Blink，你開口問，答案會在 Blink 旁邊的聊天卡片中打開。
+Blinkling讓一個叫Blink的綠色小夥伴待在螢幕角落，浮在所有程式上面，按住Ctrl，macOS上是Control，再點一下想問的東西，或拖曳框出一個區域，選到的內容會飛進Blink，你輸入問題，答案就在Blink旁邊的聊天卡片裡打開。
 
-> **設計上就安全：** Blinkling 只看和解說，絕不替你點擊、打字或操作任何程式。
+Blinkling只看和解說，不會在你的程式裡點擊或打字。
 
-使用這台電腦上你已登入的 Claude Code。
+它使用這台電腦上你已經登入的Claude Code。
 
 <p align="center">
-<img src="assets/pick.webp" alt="在 arXiv 頁面按住 Ctrl 點一個段落。它的截圖飛進 Blink 的嘴裡，聊天卡片打開，答案逐字出現。"><br>
-論文：按住 Ctrl 點一段，讀答案。
+<img src="assets/pick.webp" alt="在arXiv頁面按住Ctrl點一個段落，它的截圖飛進Blink的嘴裡，聊天卡片打開，答案逐字出現"><br>
+論文，按住Ctrl點一段，讀答案。
 </p>
 
 <p align="center">
-<img src="assets/translate.webp" alt="在阿拉伯文維基百科頁面選一段文字，送進 Blink，按下翻譯，答案用英文說明這段文字。"><br>
-翻譯：阿拉伯文段落，用英文說明。
+<img src="assets/translate.webp" alt="在阿拉伯文維基百科頁面選一段文字，送進Blink，按下翻譯，答案用英文說明這段文字"><br>
+翻譯，阿拉伯文段落用英文說明。
 </p>
 
 <p align="center">
-<img src="assets/tour.webp" alt="在內容密集的公開網頁按下導覽，Blink 標出頁面各部分，拿著指示棒指向目前這一步，再用下一步往下走。"><br>
-導覽：難操作的頁面，一步一步看。
+<img src="assets/tour.webp" alt="在內容密集的公開網頁按下導覽，Blink標出頁面各部分，拿著指示棒指向目前這一步，再按下一步往下走"><br>
+導覽，難讀的頁面一步一步看。
 </p>
 
 ## 安裝
 
-需要已登入的 Claude Code。在 Windows 上，還要在第 1 步之前從 nodejs.org 安裝 Node.js 22 或更新版本。macOS 和 Linux 不需要其他東西。接著：
+你需要在這台電腦上登入好Claude Code，Windows上還要從nodejs.org安裝Node.js 22或更新版本，Blinkling不會替你下載，macOS和Linux不需要其他東西。
 
-1. 把下面這一行貼到終端機並按 Enter：
+安裝完任何東西後，請關掉終端機再開一個新的，這樣它才找得到剛裝好的程式。
+
+1. 把下面這一行貼到終端機，按Enter。
 
    ```sh
    claude plugin marketplace add Arthur031221/Blinkling && claude plugin install blinkling@blinkling
    ```
 
-2. 在終端機用 Blink 頻道啟動 Claude Code：
+2. 用Blink的頻道啟動Claude Code。
 
    ```text
    claude --dangerously-load-development-channels plugin:blinkling@blinkling
    ```
 
-   這個旗標讓 Blink 的聊天能傳到這個工作階段，Claude Code 會請你確認一次；沒有它 Blink 照常運作，由自己的工作階段回答。
+   這個旗標讓Blink的聊天和這個終端機工作階段能互相看到，Claude Code會請你確認一次，沒有旗標的話Blink照常運作，只是改由自己的工作階段回答。
 
-   接著在那個工作階段中執行：
+   接著在那個工作階段裡執行下面這行。
 
    ```text
    /blinkling:blinkling
    ```
 
-3. 在 Mac 上，一次性允許 Blinkling 使用**螢幕錄製**：系統設定，隱私權與安全性。macOS 還會詢問一次**輔助使用**，這樣按住 Ctrl 才能開始選取；在同一處允許即可。
+3. 在Mac上，到系統設定的隱私權與安全性，一次性允許Blinkling使用螢幕錄製，macOS也會問一次輔助使用，這樣Ctrl鍵才能開始選取，同樣在那裡允許就好。
 
-在 macOS 和 Linux 上不需要自己安裝 Node.js。這台電腦沒有的話，Blinkling 第一次啟動時會下載一份專用的 Node.js（約 45 MB，並以固定的 SHA-256 核對）。第一次啟動若看到 Claude Code 說 Blinkling 連線失敗，請等一分鐘，再執行 `/mcp` 重新連線。在 Windows 上請先從 nodejs.org 安裝 Node.js 22 或更新版本，Blinkling 在那裡不會下載。
+Mac或Linux電腦如果沒有Node.js，Blinkling第一次啟動時會自己取得一份專用的，大小約45 MB，並用固定的SHA-256核對，第一次啟動時如果Claude Code說Blinkling連線失敗，請等一分鐘再執行`/mcp`。
 
 > [!NOTE]
-> 在 Windows PowerShell 5 中，用 `;` 取代 `&&`。適合你電腦的動畫步驟：[安裝指南](https://arthur031221.github.io/Blinkling/install/)。其他安裝方式、更新與 Linux 沙盒：[docs/INSTALL.md](docs/INSTALL.md)。
+> 在Windows PowerShell 5裡，兩個指令請一個接一個執行，不要用`&&`串在一起，適合你電腦的動畫步驟在[安裝指南](https://arthur031221.github.io/Blinkling/install/)，其他安裝方式、更新和Linux沙盒在[docs/INSTALL.md](docs/INSTALL.md)。
 
 ## 邊讀邊用
 
-- **按住 Ctrl 並點一下**段落、按鈕或圖片，Blink 就會取下它。
-- **按住 Ctrl 並拖曳**則改為取一個區域。
-- 聊天卡片會在 Blink 旁邊打開，帶著你取的內容、三個快速提問，以及模型、強度和權限的選擇，按 Enter 送出反白的那一個。
-- 隨時點 Blink 就能對話。聊天卡片會在 Blink 旁邊打開，接續你們的對話。
+- 按住Ctrl點一下段落、按鈕或圖片，Blink就會把它取下來。
+- 按住Ctrl拖曳，改為取一個區域。
+- 聊天卡片會在Blink旁邊打開，帶著你取的內容、三個快速提問，以及模型、強度和權限的選擇，按Enter送出反白的那一個。
+- 隨時點Blink就能對話，卡片會帶出你們之前的對話。
 
-![點 Blink，輸入問題，答案會流進聊天卡片。](assets/ask.webp)
+![點Blink，輸入問題，答案會流進聊天卡片](assets/ask.webp)
 
-- Blink 的選單有截圖、導覽、自動解說（預設關閉）與設定。
-- 選用的 Chrome／Edge 瀏覽器小幫手會提供網頁本身的結構，讓 Blink 知道你指的是哪一段或哪個按鈕，另有整頁截圖、原地翻譯網頁與 PDF 閱讀器。工具列按鈕會顯示是否已連線，並可喚醒 Blink。沒有它，Blink 在每個視窗仍可使用。
+- Blink的選單有截圖、導覽、自動解說和設定，自動解說在你開啟前一直是關的。
+- 選用的Chrome或Edge瀏覽器小幫手會提供網頁本身的結構，讓Blink知道你指的是哪一段或哪個按鈕，另外還有整頁截圖、原地翻譯和PDF閱讀器，工具列按鈕會顯示是否已連線，也能喚醒Blink，沒有它的話，Blink在每個視窗仍然能用。
 
 ## 快捷鍵
 
-| 快捷鍵                 | 操作                                               |
-| ---------------------- | -------------------------------------------------- |
-| Ctrl + 點一下          | 詢問指標下的東西                                   |
-| Ctrl + 拖曳            | 取一個區域                                         |
-| 設定中的快捷鍵         | 開啟截圖覆蓋層                                     |
-| Ctrl + Alt + Shift + B | 結束 Blink（Mac 上為 Ctrl + Option + Command + B） |
+| 快捷鍵                 | 操作                                            |
+| ---------------------- | ----------------------------------------------- |
+| Ctrl加點一下           | 詢問指標下的東西                                |
+| Ctrl加拖曳             | 取一個區域                                      |
+| 設定中的快捷鍵         | 開啟截圖覆蓋層                                  |
+| Ctrl + Alt + Shift + B | 結束Blink，Mac上改按Ctrl + Option + Command + B |
 
-按鍵可在設定中更改。
+按鍵可以在設定裡更改。
 
 ## 對話與隱私
 
-Blink 會把你選取的內容送給你自己已登入的 Claude Code，並把答案顯示在 Blink 旁邊的聊天卡片中。在啟動 Blink 的終端機工作階段輸入的提問和完成的答案，會自動出現在 Blink 的聊天中。反方向，也就是讓 Blink 的聊天出現在終端機，用的是 Claude Code 的實驗性 channels，只能在啟動時載入：用 `claude --dangerously-load-development-channels plugin:blinkling@blinkling` 啟動 Claude Code（`/blinkling:blinkling` 會顯示這條指令），兩邊就都看得到全部內容。不這樣做時，Blink 用自己的工作階段回答。
+Blink會把你選取的內容送給你自己已登入的Claude Code，答案顯示在聊天卡片裡，你在啟動Blink的終端機工作階段輸入的內容和它的答案，也會出現在Blink的聊天中。
+
+反方向，也就是讓Blink的聊天出現在終端機，走的是Claude Code實驗性的channels，它們只在Claude Code啟動時載入，所以請用`claude --dangerously-load-development-channels plugin:blinkling@blinkling`啟動，`/blinkling:blinkling`也會印出同一行指令。
 
 > [!IMPORTANT]
-> 瀏覽器小幫手只在你指向網頁時讀取該頁。密碼與付款欄位一律不讀取，且只與你電腦上的 Blinkling 通訊。自動解說在你開啟前保持關閉。
+> 瀏覽器小幫手只在你指向網頁時才讀那一頁，不會讀密碼和付款欄位，只和你電腦上的Blinkling溝通，自動解說在你開啟前一直是關的。
 
-沒有遙測，也沒有發行者經營的回答服務。你選取的內容會送到你的 Claude Code；適用供應商條款與用量費用。瀏覽器設定、擴充功能商店與瀏覽器內建的 PDF 檢視器屬受保護頁面：在那裡 Blink 只依螢幕畫面回答。 [隱私](docs/SECURITY.md) | [使用說明](docs/USAGE.md) | [版本說明](docs/releases/v3.2.6.md)
+Blinkling沒有遙測，也沒有自己的回答服務，你選取的內容只會送到你的Claude Code，供應商的條款和用量費用照常適用，瀏覽器設定、擴充功能商店和瀏覽器內建的PDF檢視器是受保護頁面，在那裡Blink只能依螢幕畫面回答。
+
+[隱私](docs/SECURITY.md) | [使用說明](docs/USAGE.md) | [版本說明](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.
