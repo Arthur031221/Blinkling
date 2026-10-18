@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { launch, move, click, key, native } from "./support.mjs";
-import { background, onBlink, clickBlink, reveal } from "./helpers.mjs";
-import { place, cardPage, cardShown, machine, clickIn } from "./walk.mjs";
+import { launch, click, key, native } from "./support.mjs";
+import { background, clickBlink, reveal } from "./helpers.mjs";
+import { place, cardPage, cardShown, clickIn } from "./walk.mjs";
 import { record } from "./record.mjs";
 
 const cardEmit = (app, event) =>
@@ -31,7 +31,6 @@ const openCard = (page) =>
   page.evaluate(() =>
     window.blinkling.shell({ type: "click", permission: true }),
   );
-const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 test("stuck: the card and the permission bubble each close with Esc, a click outside and the close button, also after Blink changed its edge", async () => {
   test.setTimeout(240000);
