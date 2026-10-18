@@ -2,6 +2,7 @@
 
 ## 3.2.6 - unreleased
 
+- A Mac without Node.js now gets a working install. Every plugin command starts through `bin/blinkling-run.cmd`, which finds Node.js 22 or newer (PATH, Homebrew, Volta, asdf, mise, nvm, fnm) or fetches a private, SHA-256 checked copy into `~/.blinkling/runtime/node`. Hooks exit quietly without Node.js and say so once. A test runs every hook command and the MCP handshake with a PATH that has no node.
 - A card, its tail and a dropped Blink are measured from Blink's real window frame, so they stay together where the frame starts below the display's corner.
 - One question has one answer: the first reply is final. A later reply is told it came late and changes nothing.
 - On macOS a click away from Blinkling is heard before Input Monitoring is allowed, by a second helper mode that only reads the mouse buttons and stops once the key tap is up.

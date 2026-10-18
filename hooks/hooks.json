@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/start.mjs\" --background",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd\" start \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/start.mjs\" --background",
             "timeout": 180
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/start.mjs\" --stop",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd\" hook \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/start.mjs\" --stop",
             "timeout": 20
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/notice.mjs\"",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd\" notice \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/notice.mjs\"",
             "timeout": 5
           }
         ]
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/mirror.mjs\"",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd\" hook \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/mirror.mjs\"",
             "async": true
           }
         ]
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/mirror.mjs\"",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd\" hook \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/mirror.mjs\"",
             "async": true
           }
         ]
@@ -59,7 +59,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/quiet.mjs\"",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd\" hook \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/quiet.mjs\"",
             "timeout": 5
           }
         ]
@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/mirror.mjs\"",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd\" hook \"${CLAUDE_PLUGIN_ROOT}/plugin/desktop/mirror.mjs\"",
             "timeout": 5
           }
         ]

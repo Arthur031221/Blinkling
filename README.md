@@ -59,6 +59,8 @@ You need Claude Code, signed in. Then:
 
 3. On a Mac, allow **Screen Recording** for Blinkling once: System Settings, Privacy & Security. macOS also asks for **Accessibility** once, so the Ctrl key can start a pick. Allow it in the same place.
 
+Node.js is not required. If this computer has none, Blinkling fetches a private copy of Node.js (about 45 MB, checked against a pinned SHA-256) the first time it starts. If Claude Code says Blinkling failed to connect on that first start, wait a minute and run `/mcp` to reconnect.
+
 > [!NOTE]
 > In Windows PowerShell 5, use `;` instead of `&&`. Animated steps for your computer: [install guide](https://arthur031221.github.io/Blinkling/install/). Other ways to install, updates and the Linux sandbox: [docs/INSTALL.md](docs/INSTALL.md).
 

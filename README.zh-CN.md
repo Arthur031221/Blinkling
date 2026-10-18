@@ -59,6 +59,8 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 
 3. 在 Mac 上，一次性允许 Blinkling 使用**屏幕录制**：系统设置，隐私与安全性。macOS 还会询问一次**辅助功能**，这样按住 Ctrl 才能开始选取；在同一处允许即可。
 
+不需要自己安装 Node.js。这台电脑没有的话，Blinkling 第一次启动时会下载一份专用的 Node.js（约 45 MB，并用固定的 SHA-256 校验）。第一次启动若看到 Claude Code 提示 Blinkling 连接失败，请等一分钟，再运行 `/mcp` 重新连接。
+
 > [!NOTE]
 > 在 Windows PowerShell 5 中，用 `;` 代替 `&&`。适合你电脑的动画步骤：[安装指南](https://arthur031221.github.io/Blinkling/install/)。其他安装方式、更新和 Linux 沙盒：[docs/INSTALL.md](docs/INSTALL.md)。
 

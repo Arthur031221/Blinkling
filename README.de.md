@@ -59,6 +59,8 @@ Du brauchst Claude Code, angemeldet. Dann:
 
 3. Erlaube auf dem Mac einmalig **Bildschirmaufnahme** für Blinkling: Systemeinstellungen, Datenschutz & Sicherheit. macOS fragt außerdem einmal nach **Bedienungshilfen**, damit die Strg-Taste eine Auswahl starten kann. Erlaube es an derselben Stelle.
 
+Node.js muss nicht selbst installiert werden. Hat dieser Computer keines, lädt Blinkling beim ersten Start eine eigene Kopie von Node.js (etwa 45 MB, gegen eine feste SHA-256 geprüft). Meldet Claude Code beim ersten Start, Blinkling habe sich nicht verbunden, warte eine Minute und verbinde mit `/mcp` neu.
+
 > [!NOTE]
 > In Windows PowerShell 5 nimm `;` statt `&&`. Animierte Schritte für deinen Rechner: [Installationsanleitung](https://arthur031221.github.io/Blinkling/install/). Weitere Wege, Updates und die Linux-Sandbox: [docs/INSTALL.md](docs/INSTALL.md).
 

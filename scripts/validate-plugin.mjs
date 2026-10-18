@@ -5,6 +5,7 @@ const required = [
   ".claude-plugin/marketplace.json",
   ".mcp.json",
   "bin/blinkling.cjs",
+  "bin/blinkling-run.cmd",
   "bin/extension/manifest.json",
   "bin/extension/popup.html",
   "bin/panel/assets/logo.svg",
@@ -30,7 +31,9 @@ if (marketplace.plugins[0].name !== plugin.name || !plugin.version)
 if (marketplace.plugins.length !== 1 || marketplace.plugins[0].source !== "./")
   throw new Error("marketplace must list this plugin from ./");
 if (
-  mcp.mcpServers.blinkling.args[0] !== "${CLAUDE_PLUGIN_ROOT}/bin/blinkling.cjs"
+  mcp.mcpServers.blinkling.command !==
+    "${CLAUDE_PLUGIN_ROOT}/bin/blinkling-run.cmd" ||
+  mcp.mcpServers.blinkling.args[1] !== "${CLAUDE_PLUGIN_ROOT}/bin/blinkling.cjs"
 )
   throw new Error("MCP config must start the committed standalone bundle");
 const bundle = await readFile("bin/blinkling.cjs", "utf8");
