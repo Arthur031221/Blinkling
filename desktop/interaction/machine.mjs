@@ -344,7 +344,13 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       api.composer({ focus: false }, t);
       const near =
         s.pointerOver || s.overSurface || s.inCorridor || s.overPanel;
-      if (s.surface !== "none" && !near && s.panels === 0 && s.viewer === 0)
+      if (
+        s.surface !== "none" &&
+        !near &&
+        s.panels === 0 &&
+        s.viewer === 0 &&
+        s.windows === 0
+      )
         api.outside(t);
     },
     scrolled(t = clock()) {

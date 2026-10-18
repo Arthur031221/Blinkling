@@ -743,3 +743,22 @@ test("a card opened by anything but a click (a dropped file, a link, the mini bo
   sticky.m.escape(sticky.at.t);
   assert.equal(sticky.read().card, false);
 });
+
+test("a click inside Settings is Blinkling's own: the card stays, and a background click works once Settings is closed", () => {
+  const { m, at, go, read } = rig();
+  m.open("answer", 0); // card open
+  m.pointer(away, at.t, false);
+  go(32);
+  assert.equal(read().surface, "chat");
+  m.windows(1); // Settings opens
+  m.blurred(at.t); // the click in Settings takes the keyboard from the card
+  go(32);
+  assert.equal(read().surface, "chat", "the card stays beside Settings");
+  m.windows(0); // Settings closes
+  go(32);
+  assert.equal(m.outside(at.t), true, "the next background click ends the card");
+  assert.equal(read().surface, "none");
+  // And again for the next capture: the same click works every time.
+  m.open("answer", at.t);
+  assert.equal(m.outside(at.t + 2), true);
+});
