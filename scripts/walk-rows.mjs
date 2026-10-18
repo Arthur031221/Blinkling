@@ -10,20 +10,7 @@ const READMES = [
 ];
 
 export const checks = (k) => {
-  const {
-    spec,
-    gif,
-    has,
-    hasNot,
-    unit,
-    run,
-    mac,
-    must,
-    files,
-    read,
-    root,
-    R3,
-  } = k;
+  const { spec, gif, has, hasNot, unit, run, mac, must, read, root, R3 } = k;
   const vitest = (file) => run("npx", ["vitest", "run", file], file);
   const text = (file) => read(file);
   const perf = () => {

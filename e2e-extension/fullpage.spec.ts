@@ -99,11 +99,15 @@ test("with the extension paired the full page bubble captures the whole page int
 
     // A session that keeps what is sent, so the tiles can be read back.
     await app.evaluate(() => {
-      (globalThis as any).sent = [];
-      (globalThis as any).blinklingTest.features.setSession({
+      const g = globalThis as unknown as {
+        sent: unknown[];
+        blinklingTest: { features: { setSession(session: unknown): void } };
+      };
+      g.sent = [];
+      g.blinklingTest.features.setSession({
         subscribe: () => () => {},
         send: async (turn: unknown) => {
-          (globalThis as any).sent.push(turn);
+          g.sent.push(turn);
         },
         stop: async () => {},
       });
@@ -150,7 +154,14 @@ test("with the extension paired the full page bubble captures the whole page int
     rec.frame("one-chip");
     // A second press is a second capture: one more page chip, each whole.
     await tab.bringToFront();
-    await page.evaluate(() => void (window as any).blinkling.action("capture"));
+    await page.evaluate(
+      () =>
+        void (
+          window as unknown as {
+            blinkling: { action(name: string): unknown };
+          }
+        ).blinkling.action("capture"),
+    );
     await page.waitForTimeout(6000);
     await expect(card.locator(".gl-attachment-chip")).toHaveCount(2);
     for (const name of await card
