@@ -35,7 +35,7 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
 
 ## 설치
 
-로그인한 Claude Code가 필요합니다. 그다음:
+로그인한 Claude Code가 필요합니다. Windows에서는 1단계 전에 nodejs.org에서 Node.js 22 이상도 설치해야 합니다. macOS와 Linux는 그 밖에 필요한 것이 없습니다. 그다음:
 
 1. 터미널에 아래 한 줄을 붙여넣고 Enter를 누르세요:
 

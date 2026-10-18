@@ -53,3 +53,29 @@ describe("the install section of every README", () => {
     });
   }
 });
+
+describe("the Windows Node.js requirement", () => {
+  it("is a prerequisite before step 1 in every README", () => {
+    for (const name of READMES) {
+      const text = section(readFileSync(name, "utf8"));
+      const first = text.search(/^1\. /m);
+      const before = text.slice(0, first);
+      expect(before, name).toMatch(/nodejs\.org/);
+      expect(before, name).toMatch(/22/);
+    }
+  });
+
+  it("is what the open command says when the MCP server is down on Windows", () => {
+    const command = readFileSync("commands/blinkling.md", "utf8");
+    expect(command).toMatch(
+      /On Windows[^.]*Node\.js 22 or newer from nodejs\.org/,
+    );
+    expect(command).toMatch(/On macOS and Linux[^.]*private copy/);
+  });
+
+  it("is not described as unproven in the release notes", () => {
+    const notes = readFileSync("docs/releases/v3.2.6.md", "utf8");
+    expect(notes).not.toMatch(/not yet proven/i);
+    expect(notes).toMatch(/Claude Code 2\.1\.302 on Windows/);
+  });
+});

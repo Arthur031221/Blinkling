@@ -1,6 +1,6 @@
 # Install Blinkling
 
-You need Claude Code on the computer you are using, signed in. Blinkling runs on that computer and uses that Claude Code.
+You need Claude Code on the computer you are using, signed in. Blinkling runs on that computer and uses that Claude Code. On Windows you also need Node.js 22 or newer from nodejs.org, installed before step 1. macOS and Linux need nothing else.
 
 There is an [install guide with animated steps](https://arthur031221.github.io/Blinkling/install/) that picks your computer for you. The same three actions in text:
 

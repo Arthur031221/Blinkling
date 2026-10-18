@@ -35,7 +35,7 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
 
 ## インストール
 
-サインイン済みの Claude Code が必要です。続いて：
+サインイン済みの Claude Code が必要です。Windows では、手順 1 の前に nodejs.org から Node.js 22 以降も入れてください。macOS と Linux は他に何も要りません。続いて：
 
 1. 次の 1 行をターミナルに貼り付けて Enter を押します：
 

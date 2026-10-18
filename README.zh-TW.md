@@ -35,7 +35,7 @@ Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。
 
 ## 安裝
 
-需要已登入的 Claude Code。接著：
+需要已登入的 Claude Code。在 Windows 上，還要在第 1 步之前從 nodejs.org 安裝 Node.js 22 或更新版本。macOS 和 Linux 不需要其他東西。接著：
 
 1. 把下面這一行貼到終端機並按 Enter：
 

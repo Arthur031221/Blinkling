@@ -35,7 +35,7 @@ Guia: uma página difícil, passo a passo.
 
 ## Instalação
 
-Você precisa do Claude Code com a sessão iniciada. Depois:
+Você precisa do Claude Code com a sessão iniciada. No Windows, você também precisa do Node.js 22 ou mais recente de nodejs.org, instalado antes do passo 1. macOS e Linux não precisam de mais nada. Depois:
 
 1. Cole esta linha em um terminal e pressione Enter:
 

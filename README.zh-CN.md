@@ -35,7 +35,7 @@ Blinkling 让绿色小伙伴 Blink 待在屏幕角落，浮在所有程序之上
 
 ## 安装
 
-需要已登录的 Claude Code。然后：
+需要已登录的 Claude Code。在 Windows 上，还要在第 1 步之前从 nodejs.org 安装 Node.js 22 或更新版本。macOS 和 Linux 不需要其他东西。然后：
 
 1. 把下面这一行粘贴到终端并按回车：
 
