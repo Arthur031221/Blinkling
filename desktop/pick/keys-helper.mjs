@@ -50,6 +50,7 @@ function reap(proc) {
  * process, so a permission granted meanwhile is seen. */
 export function createHelperKeySource({
   command,
+  args = [],
   spawn,
   handle,
   onError = () => {},
@@ -109,7 +110,7 @@ export function createHelperKeySource({
           }
         };
         try {
-          proc = spawn(command, [], { stdio: ["pipe", "pipe", "ignore"] });
+          proc = spawn(command, args, { stdio: ["pipe", "pipe", "ignore"] });
         } catch (error) {
           return settle(error);
         }

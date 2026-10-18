@@ -8,8 +8,13 @@
 // write(2) on a non-blocking pipe, so a slow or dead parent costs events and
 // never time.
 //
-// Lines on stdout: "ready listen|active", "denied", "kd|ku <code>", "md 0",
-// "wh 0". Codes are the uiohook scancodes the pick gate already uses.
+// With --buttons it creates no tap: it reads the state of the mouse buttons,
+// which macOS answers without any permission, and prints "md 0" on each press.
+// That keeps a click away from Blinkling noticed while Input Monitoring and
+// Accessibility are still off.
+//
+// Lines on stdout: "ready listen|active|buttons", "denied", "kd|ku <code>",
+// "md 0", "wh 0". Codes are the uiohook scancodes the pick gate already uses.
 // Build: clang -O2 -arch arm64 -arch x86_64 -framework ApplicationServices
 //        -framework CoreFoundation keytap.c -o blinkling-keytap
 
@@ -145,8 +150,49 @@ static int selftest(void) {
   return ok ? 0 : 1;
 }
 
+// The parent closing our stdin, or dying, ends us.
+static void watch_parent(void) {
+  dispatch_source_t watch = dispatch_source_create(
+      DISPATCH_SOURCE_TYPE_READ, STDIN_FILENO, 0,
+      dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+  dispatch_source_set_event_handler(watch, ^{
+    char buffer[64];
+    ssize_t n = read(STDIN_FILENO, buffer, sizeof buffer);
+    if (n == 0 || (n < 0 && errno != EAGAIN && errno != EINTR)) _exit(0);
+  });
+  dispatch_resume(watch);
+}
+
+// Presses seen by reading the buttons every 10 ms. No event tap, no permission.
+static int buttons_only(void) {
+  watch_parent();
+  static int was_down = 0;
+  dispatch_source_t timer = dispatch_source_create(
+      DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+  dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, 10 * NSEC_PER_MSEC,
+                            2 * NSEC_PER_MSEC);
+  dispatch_source_set_event_handler(timer, ^{
+    int down =
+        CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState,
+                                 kCGMouseButtonLeft) ||
+        CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState,
+                                 kCGMouseButtonRight);
+    if (down && !was_down) emit("md", 0);
+    was_down = down;
+  });
+  dispatch_resume(timer);
+  emit_word("ready buttons\n");
+  dispatch_main();
+  return 0;
+}
+
 int main(int argc, char **argv) {
   if (argc > 1 && strcmp(argv[1], "--selftest") == 0) return selftest();
+  if (argc > 1 && strcmp(argv[1], "--buttons") == 0) {
+    int flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
+    if (flags >= 0) fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
+    return buttons_only();
+  }
   if (argc > 1 && strcmp(argv[1], "--version") == 0) {
     puts("blinkling-keytap 1");
     return 0;
@@ -176,16 +222,7 @@ int main(int argc, char **argv) {
     return 3;
   }
 
-  // The parent closing our stdin, or dying, ends us.
-  dispatch_source_t watch = dispatch_source_create(
-      DISPATCH_SOURCE_TYPE_READ, STDIN_FILENO, 0,
-      dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
-  dispatch_source_set_event_handler(watch, ^{
-    char buffer[64];
-    ssize_t n = read(STDIN_FILENO, buffer, sizeof buffer);
-    if (n == 0 || (n < 0 && errno != EAGAIN && errno != EINTR)) _exit(0);
-  });
-  dispatch_resume(watch);
+  watch_parent();
 
   CFRunLoopSourceRef source =
       CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0);

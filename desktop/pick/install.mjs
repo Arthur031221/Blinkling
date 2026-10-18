@@ -226,6 +226,26 @@ export async function installPick({
       : createKeySource({ load: loadKeys, handle: heard, onError });
   const started =
     env.BLINKLING_PICK_KEYS === "0" ? { ok: false } : await source.start();
+  // Until the key tap is allowed, a click away from Blinkling is still heard: a
+  // second helper reads the mouse buttons, which macOS answers without any
+  // permission. It only ever reports presses and stops once the tap is up.
+  const buttons =
+    platform === "darwin"
+      ? createHelperKeySource({
+          command:
+            shell.keytap ??
+            keytapPath({
+              appDir: fileURLToPath(new URL("..", import.meta.url)),
+            }),
+          args: ["--buttons"],
+          spawn,
+          handle: (event) => {
+            if (event.type === "mousedown") shell.mousedown?.();
+          },
+          onError,
+          ...timers,
+        })
+      : null;
 
   // macOS only lets an app listen for keys once it is allowed to. The first
   // refusal raises the system's own prompt (it lists the app and opens the
@@ -242,6 +262,7 @@ export async function installPick({
     platform === "darwin" &&
     started.error?.code !== "MISSING"
   ) {
+    void buttons.start();
     if (trusted(false) === false) {
       // Said once, in the reader's language, before the system's own prompt. It is
       // never waited for: the quit key, the click hook and the cursor poll start
@@ -263,7 +284,8 @@ export async function installPick({
       retry = setTimer(async () => {
         if (disposed) return;
         const next = await source.start();
-        if (!next.ok && next.error?.code !== "MISSING") poll();
+        if (next.ok) buttons.stop();
+        else if (next.error?.code !== "MISSING") poll();
       }, RETRY_MS);
     };
     poll();
@@ -311,6 +333,7 @@ export async function installPick({
       disposed = true;
       if (retry !== null) (timers.clearTimer ?? clearTimeout)(retry);
       source.stop();
+      buttons?.stop();
       keys.dispose();
       quick.dispose();
       layer.dispose();

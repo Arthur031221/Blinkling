@@ -455,19 +455,26 @@ test("MV-2: pick and privacy test hooks both hang on blinklingTest, in either in
 /** A stand-in for the macOS key tap process. */
 function fakeHelper(answers) {
   const spawned = [];
-  const spawn = (command) => {
+  // The second helper that only reads the mouse buttons while the tap is refused.
+  const buttons = [];
+  const spawn = (command, args = []) => {
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stdout.setEncoding = () => {};
     proc.stdin = { destroy() {} };
     proc.killed = false;
     proc.kill = () => (proc.killed = true);
+    if (args.includes("--buttons")) {
+      buttons.push({ command, args, proc });
+      setImmediate(() => proc.stdout.emit("data", "ready buttons\n"));
+      return proc;
+    }
     spawned.push({ command, proc });
     const answer = answers(spawned.length);
     setImmediate(() => proc.stdout.emit("data", answer));
     return proc;
   };
-  return { spawn, spawned };
+  return { spawn, spawned, buttons };
 }
 
 test("on macOS the keys come from the helper process and uiohook is never loaded", async () => {
@@ -627,5 +634,54 @@ test("a mouse button pressed anywhere on Windows reaches the shell through the g
   assert.equal(presses, 1);
   s.hooks.find(([type]) => type === "keydown")[1]({ keycode: 30 });
   assert.equal(presses, 1);
+  pick.dispose();
+});
+
+test("on macOS a click away is still heard while the key tap is refused, and the button reader stops once the tap is up", async () => {
+  let allowed = false;
+  const helper = fakeHelper(() => (allowed ? "ready active\n" : "denied\n"));
+  const s = setup();
+  const clicks = [];
+  s.shell.mousedown = () => clicks.push("down");
+  s.electron.systemPreferences = {
+    isTrustedAccessibilityClient: () => allowed,
+  };
+  s.shell.platform = "darwin";
+  s.shell.keytap = "/app/Resources/blinkling-keytap";
+  s.spawn = helper.spawn;
+  const pick = await s.install();
+  assert.equal(pick.started, false);
+  assert.equal(helper.buttons.length, 1, "the button reader starts at once");
+  assert.deepEqual(helper.buttons[0].args, ["--buttons"]);
+  await new Promise((resolve) => setImmediate(resolve));
+  helper.buttons[0].proc.stdout.emit("data", "md 0\n");
+  assert.deepEqual(
+    clicks,
+    ["down"],
+    "a press reaches the shell without the tap",
+  );
+  allowed = true;
+  await s.timers
+    .filter((t) => t.ms === 2000)
+    .at(-1)
+    .fn();
+  assert.equal(pick.started, true);
+  assert.equal(
+    helper.buttons[0].proc.killed,
+    true,
+    "stopped once the tap works",
+  );
+  pick.dispose();
+});
+
+test("on macOS no button reader runs while the key tap works", async () => {
+  const helper = fakeHelper(() => "ready listen\n");
+  const s = setup();
+  s.shell.platform = "darwin";
+  s.shell.keytap = "/app/Resources/blinkling-keytap";
+  s.spawn = helper.spawn;
+  const pick = await s.install();
+  assert.equal(pick.started, true);
+  assert.equal(helper.buttons.length, 0);
   pick.dispose();
 });
