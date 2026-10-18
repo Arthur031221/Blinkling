@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { PNG } from "pngjs";
 import { launch, move, native } from "./support.mjs";
-import { background, reveal } from "./helpers.mjs";
+import { background, onBlink, reveal } from "./helpers.mjs";
 import { record } from "./record.mjs";
 
 /** Rows of checklist-324 that need only the app: the first click after start
@@ -44,6 +44,8 @@ test("a click in the first second after start throws nothing and logs no error",
     await page.waitForTimeout(1500);
     expect(errors, "no error from an early click").toEqual([]);
     expect(await app.evaluate(() => !!globalThis.blinklingTest)).toBe(true);
+    // Still alive after the clicks: Blink comes out to the pointer.
+    await onBlink(page);
     rec.frame("running");
   } finally {
     await rec.stop();
