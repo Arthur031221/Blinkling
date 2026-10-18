@@ -128,7 +128,7 @@ export const PIECES = ["opus", "sonnet", "haiku", "fable"];
 const REACH = {
   opus: [[59, -5, 141, 45]],
   sonnet: [[37, 63, 163, 121]],
-  haiku: [[147, 17, 195, 57]],
+  haiku: [[143, 13, 199, 61]],
   fable: [[47, -23, 153, 53]],
 };
 export const pieceBoxes = (family) => REACH[family] ?? [];

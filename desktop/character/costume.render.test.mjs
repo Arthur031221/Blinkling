@@ -73,11 +73,21 @@ test("a model scene plays once, then only the piece stays, and the scene is not 
     // Only the piece is left, which reaches as far as it does when just worn.
     const worn = rig();
     run(worn, { outfit: family }, 0, 1);
-    assert.deepEqual(
-      blink.ornaments(),
-      worn.ornaments(),
+    // The boxes follow the body, which breathes, so they agree to a pixel.
+    const round = (list) =>
+      list.map((poly) => poly.map((p) => [Math.round(p.x), Math.round(p.y)]));
+    assert.equal(
+      blink.ornaments().length,
+      worn.ornaments().length,
       `${family} leaves props behind`,
     );
+    for (const [i, poly] of round(blink.ornaments()).entries())
+      for (const [j, p] of poly.entries())
+        for (const k of [0, 1])
+          assert.ok(
+            Math.abs(p[k] - round(worn.ornaments())[i][j][k]) <= 1,
+            `${family} leaves props behind`,
+          );
     assert.equal(
       blink.svg.innerHTML.split(MARK[family]).length - 1,
       blink.svg.innerHTML.split(MARK[family]).length - 1,

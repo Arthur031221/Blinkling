@@ -598,18 +598,27 @@ export function mountBlink(host) {
       const out = [];
       // What a costume play draws beyond the body: boxes in the drawing.
       const placed = edgeTransform(ctx.outer, FEET.x, PEEK_EDGE);
-      for (const [x1, y1, x2, y2] of [
-        ...(ctx.play?.bounds ?? []),
-        ...(ctx.wearing ? pieceBoxes(ctx.wearing) : []),
+      // At the right edge the pieces are mirrored (and on the way there they
+      // turn over), so the box covers both sides.
+      const wornBoxes = () => {
+        const boxes = ctx.wearing ? pieceBoxes(ctx.wearing) : [];
+        return ctx.edge === "right"
+          ? [...boxes, ...boxes.map(([a, b, c, d]) => [200 - c, b, 200 - a, d])]
+          : boxes;
+      };
+      const box = ([x1, y1, x2, y2]) => [
+        { x: x1, y: y1 },
+        { x: x2, y: y1 },
+        { x: x2, y: y2 },
+        { x: x1, y: y2 },
+      ];
+      // A play's boxes are in the figure's own drawing, a worn piece moves
+      // with the body, so the pose (the peek lowers and rolls it) goes first.
+      for (const [boxes, apply] of [
+        [ctx.play?.bounds ?? [], (v) => placed.apply(v)],
+        [wornBoxes(), figurePoint],
       ])
-        out.push(
-          [
-            { x: x1, y: y1 },
-            { x: x2, y: y1 },
-            { x: x2, y: y2 },
-            { x: x1, y: y2 },
-          ].map((v) => screen(placed.apply(v))),
-        );
+        for (const b of boxes) out.push(box(b).map((v) => screen(apply(v))));
       const m = ctx.last?.attach?.match(
         /class="guide-stick"[^>]*><path d="M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)"/,
       );
