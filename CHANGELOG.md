@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.2.5 - 2026-10-18
+
+- The chat card can be resized by dragging its edges and corners, within limits, and it keeps its size. A card beside a low Blink reaches the bottom of the work area.
+- The chat list shows live sessions only, with one chat per live session. Every live chat has the model and effort pickers and the quick chips. A capture goes to the newest session, and Auto explain and a dropped question are answered inside the session's own chat.
+- Answers are drawn like a chat answer: headings, nested lists, tables with alignment, quotes, inline code and highlighted fenced code in monospace. The history stays at the newest message when the layout grows.
+- Under every answer there are copy, ask again, read aloud and its time. Under every message there are its time, a delivered mark, copy and edit. Every copy goes through the system clipboard, so the code copy button works.
+- The Guide ignores clicks on its own marks, labels, panel and buttons, and a click on the background ends it at every phase. Step 1 comes first with its place in the tour, and a closed guide can be shown again without a new run. On macOS and Windows the card and Blink are raised over the guide's marks, so no frame crosses the card.
+- Auto explain stays inside Blink and is stopped there, and its answer opens the card. A draft that sits idle no longer holds it back, turning it on asks even with a draft in the card, and End tour frees Blink's session.
+- Each model has its own transformation scene and leaves one signature piece on Blink, and each effort level has its own one-off show with props. A Settings switch turns the costume effects off, and the choice is kept across restarts. The piece stays on while Blink peeks at an edge, and it is mirrored at the right edge like the left.
+- Models are labelled Opus 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5.1 everywhere.
+- The card opens when Blink's renderer reports that the swallow is done, with the timer only as an upper bound, and a failed flight still waits for the swallow before the card opens.
+- The permission bubble closes with Esc, with its own close button and with a click on the background. A card that opened without focus closes with Esc.
+- On X11 the screen is read after four settle frames instead of eight, so Blink is out of sight about 60 ms less.
+- On Windows the window shape Blink is clipped to follows what a model leaves on Blink, including the props, the guide stick and the pose of a worn piece, and the hit check reads that shape. A long press on any part of the drawn Blink picks it up, and one outside falls through.
+- When a question from Blink arrives while a typed prompt is still being answered, the terminal's own answer is no longer swallowed. It is read from the transcript and shown in the chat first, and Blink answers once after it if the terminal ignored the question.
+- A very long page is cut at the tile limit and still gives a full page chip, so a paired browser no longer falls back to the visible part.
+- Smaller: a picked paragraph or text file reaches the terminal as its text, an unset quit key says so in Settings, the first start notice never blocks, a press on a resize handle no longer snaps the card, and the docs no longer describe the small composer.
+
 ## 3.2.4 - 2026-10-18
 
 - The card's paper is solid where the message list starts, so an answer's text never mixes with the page behind the card, and the four demos are recorded again with it.
