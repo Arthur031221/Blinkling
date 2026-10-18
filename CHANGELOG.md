@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.2.6 - unreleased
+
+- A card, its tail and a dropped Blink are measured from Blink's real window frame, so they stay together where the frame starts below the display's corner.
+- One question has one answer: the first reply is final. A later reply is told it came late and changes nothing.
+- On macOS a click away from Blinkling is heard before Input Monitoring is allowed, by a second helper mode that only reads the mouse buttons and stops once the key tap is up.
+- A click inside Settings or the welcome no longer closes the card, and the next click on the background still ends it.
+- The translate demo is recorded with the app pinned to English, its answer text is kept with the recording, and a test reads that the answer is in the language its caption names.
+- Desktop tests pass on Node 22 as well as 24, because a request that waits keeps the event loop alive. The conversation spec expects Haiku 5.5.
+- What is and is not isolated between chats: a card follows its own session's chat and its history, but an answer to a capture, Auto explain or a dropped question comes from Blink's own shared session, whose model, effort and context every chat uses.
+
 ## 3.2.5 - 2026-10-18
 
 - The chat card can be resized by dragging its edges and corners, within limits, and it keeps its size. A card beside a low Blink reaches the bottom of the work area.
