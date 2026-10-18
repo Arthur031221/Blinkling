@@ -756,7 +756,11 @@ test("a click inside Settings is Blinkling's own: the card stays, and a backgrou
   assert.equal(read().surface, "chat", "the card stays beside Settings");
   m.windows(0); // Settings closes
   go(32);
-  assert.equal(m.outside(at.t), true, "the next background click ends the card");
+  assert.equal(
+    m.outside(at.t),
+    true,
+    "the next background click ends the card",
+  );
   assert.equal(read().surface, "none");
   // And again for the next capture: the same click works every time.
   m.open("answer", at.t);
