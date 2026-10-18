@@ -59,7 +59,7 @@ Você precisa do Claude Code com a sessão iniciada. Depois:
 
 3. No Mac, permita uma vez a **Gravação de Tela** para o Blinkling: Ajustes do Sistema, Privacidade e Segurança. O macOS também pede **Acessibilidade** uma vez, para que a tecla Ctrl possa iniciar uma seleção. Permita no mesmo lugar.
 
-Você não precisa instalar o Node.js. Se este computador não tiver, o Blinkling baixa uma cópia própria do Node.js (cerca de 45 MB, conferida com um SHA-256 fixo) na primeira vez que inicia. Se nessa primeira vez o Claude Code disser que o Blinkling não conseguiu conectar, espere um minuto e execute `/mcp` para reconectar.
+No macOS e no Linux, você não precisa instalar o Node.js. Se o computador não tiver, o Blinkling baixa uma cópia própria do Node.js (cerca de 45 MB, conferida com um SHA-256 fixo) na primeira vez que inicia. Se nessa primeira vez o Claude Code disser que o Blinkling não conseguiu conectar, espere um minuto e execute `/mcp` para reconectar. No Windows, instale antes o Node.js 22 ou mais recente em nodejs.org; o Blinkling não baixa um lá.
 
 > [!NOTE]
 > No Windows PowerShell 5, use `;` em vez de `&&`. Passos animados para o seu computador: [guia de instalação](https://arthur031221.github.io/Blinkling/install/). Outras formas de instalar, atualizações e o sandbox do Linux: [docs/INSTALL.md](docs/INSTALL.md).
@@ -94,6 +94,6 @@ O Blink envia o que você escolheu ao seu próprio Claude Code com sessão inici
 > [!IMPORTANT]
 > O assistente do navegador só lê uma página quando você a aponta. Ele nunca lê campos de senha ou de pagamento e só se comunica com o Blinkling no seu próprio computador. Explicação automática fica desligada até você ligar.
 
-Sem telemetria nem serviço de respostas operado pelo editor. O que você escolhe vai para o seu Claude Code; valem os termos e os custos de uso do provedor. As configurações do navegador, as lojas de extensões e o visualizador de PDF do próprio navegador são páginas protegidas: ali o Blink responde a partir da tela. [Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v3.2.5.md)
+Sem telemetria nem serviço de respostas operado pelo editor. O que você escolhe vai para o seu Claude Code; valem os termos e os custos de uso do provedor. As configurações do navegador, as lojas de extensões e o visualizador de PDF do próprio navegador são páginas protegidas: ali o Blink responde a partir da tela. [Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.

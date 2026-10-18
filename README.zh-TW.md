@@ -59,7 +59,7 @@ Blinkling 讓小綠伙伴 Blink 待在螢幕角落，浮在所有程式之上。
 
 3. 在 Mac 上，一次性允許 Blinkling 使用**螢幕錄製**：系統設定，隱私權與安全性。macOS 還會詢問一次**輔助使用**，這樣按住 Ctrl 才能開始選取；在同一處允許即可。
 
-不需要自己安裝 Node.js。這台電腦沒有的話，Blinkling 第一次啟動時會下載一份專用的 Node.js（約 45 MB，並以固定的 SHA-256 核對）。第一次啟動若看到 Claude Code 說 Blinkling 連線失敗，請等一分鐘，再執行 `/mcp` 重新連線。
+在 macOS 和 Linux 上不需要自己安裝 Node.js。這台電腦沒有的話，Blinkling 第一次啟動時會下載一份專用的 Node.js（約 45 MB，並以固定的 SHA-256 核對）。第一次啟動若看到 Claude Code 說 Blinkling 連線失敗，請等一分鐘，再執行 `/mcp` 重新連線。在 Windows 上請先從 nodejs.org 安裝 Node.js 22 或更新版本，Blinkling 在那裡不會下載。
 
 > [!NOTE]
 > 在 Windows PowerShell 5 中，用 `;` 取代 `&&`。適合你電腦的動畫步驟：[安裝指南](https://arthur031221.github.io/Blinkling/install/)。其他安裝方式、更新與 Linux 沙盒：[docs/INSTALL.md](docs/INSTALL.md)。
@@ -94,6 +94,6 @@ Blink 會把你選取的內容送給你自己已登入的 Claude Code，並把�
 > [!IMPORTANT]
 > 瀏覽器小幫手只在你指向網頁時讀取該頁。密碼與付款欄位一律不讀取，且只與你電腦上的 Blinkling 通訊。自動解說在你開啟前保持關閉。
 
-沒有遙測，也沒有發行者經營的回答服務。你選取的內容會送到你的 Claude Code；適用供應商條款與用量費用。瀏覽器設定、擴充功能商店與瀏覽器內建的 PDF 檢視器屬受保護頁面：在那裡 Blink 只依螢幕畫面回答。 [隱私](docs/SECURITY.md) | [使用說明](docs/USAGE.md) | [版本說明](docs/releases/v3.2.5.md)
+沒有遙測，也沒有發行者經營的回答服務。你選取的內容會送到你的 Claude Code；適用供應商條款與用量費用。瀏覽器設定、擴充功能商店與瀏覽器內建的 PDF 檢視器屬受保護頁面：在那裡 Blink 只依螢幕畫面回答。 [隱私](docs/SECURITY.md) | [使用說明](docs/USAGE.md) | [版本說明](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.

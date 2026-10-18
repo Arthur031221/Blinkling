@@ -1,0 +1,65 @@
+name: win-launcher
+
+on:
+  push:
+    branches: [main, win-launcher]
+    paths:
+      - "native/win-launcher/**"
+      - "bin/blinkling-run*"
+      - "scripts/check-win-launcher.mjs"
+      - ".github/workflows/win-launcher.yml"
+  pull_request:
+    paths:
+      - "native/win-launcher/**"
+      - "bin/blinkling-run*"
+  workflow_dispatch:
+
+env:
+  # Automated runs never create Remote Control sessions in anyone's account.
+  BLINKLING_REMOTE: "0"
+
+jobs:
+  stub:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build the stub
+        shell: bash
+        run: |
+          gcc -O2 -Wall -municode -s -o "$RUNNER_TEMP/blinkling-run.exe" native/win-launcher/blinkling-run.c
+          sha256sum "$RUNNER_TEMP/blinkling-run.exe"
+      - name: Spawn the stub without a shell and finish an MCP handshake
+        shell: bash
+        run: node scripts/check-win-launcher.mjs spawn "$RUNNER_TEMP/blinkling-run.exe"
+      - name: Stub finds no Node.js and exits 1 for mcp
+        shell: cmd
+        run: |
+          set "PATH=%SystemRoot%\System32"
+          set "ProgramFiles=%RUNNER_TEMP%\none"
+          set "ProgramFiles(x86)=%RUNNER_TEMP%\none"
+          set "LOCALAPPDATA=%RUNNER_TEMP%\none"
+          set "USERPROFILE=%RUNNER_TEMP%\none"
+          set "NVM_SYMLINK="
+          copy /y "%RUNNER_TEMP%\blinkling-run.exe" bin\blinkling-run.exe
+          bin\blinkling-run.exe mcp x.cjs
+          if not errorlevel 1 exit /b 1
+          if errorlevel 2 exit /b 1
+      - name: Record the source hash
+        shell: bash
+        run: |
+          cp "$RUNNER_TEMP/blinkling-run.exe" bin/blinkling-run.exe
+          node scripts/check-win-launcher.mjs source --record
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blinkling-run-exe
+          path: |
+            bin/blinkling-run.exe
+            bin/blinkling-run.exe.sha256-src
+      - name: Committed exe matches its source
+        shell: bash
+        run: |
+          git ls-files --error-unmatch bin/blinkling-run.exe >/dev/null 2>&1 || { echo "bin/blinkling-run.exe is not committed. Download the artifact and commit it."; exit 1; }
+          git diff --quiet -- bin/blinkling-run.exe.sha256-src || { echo "The committed source hash is stale. Download the artifact and commit it."; exit 1; }

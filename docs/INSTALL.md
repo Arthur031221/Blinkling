@@ -49,9 +49,9 @@ Then run `/reload-plugins`. To let Blink's chat reach the session, restart Claud
 
 ## A computer without Node.js
 
-The plugin does not need Node.js installed. Claude Code's native installer brings none, so every plugin command starts through `bin/blinkling-run.cmd`, one file that is a shell script on macOS and Linux and a batch file on Windows. It looks for Node.js 22 or newer in this order: the path it remembered, the `PATH`, Homebrew and `/usr/local`, Volta, asdf and mise, the newest nvm or fnm install, and a private copy in `~/.blinkling/runtime/node`. If there is none on macOS or Linux, the MCP server start and the first prompt fetch Node.js 24 from nodejs.org into that private folder (about 45 MB) and check it against a SHA-256 pinned in the script. Nothing is installed system wide.
+On macOS and Linux the plugin does not need Node.js installed. Claude Code's native installer brings none, so every plugin command starts through `bin/blinkling-run`, a shell script. On Windows the MCP server starts through `bin/blinkling-run.exe`, a small stub that runs `bin/blinkling-run.cmd`, because Claude Code starts MCP servers without a shell and cannot run a bare `.cmd` file. Windows hooks run `bin/blinkling-run` through Git Bash. It looks for Node.js 22 or newer in this order: the path it remembered, the `PATH`, Homebrew and `/usr/local`, Volta, asdf and mise, the newest nvm or fnm install, and a private copy in `~/.blinkling/runtime/node`. If there is none on macOS or Linux, the MCP server start and the first prompt fetch Node.js 24 from nodejs.org into that private folder (about 45 MB) and check it against a SHA-256 pinned in the script. Nothing is installed system wide.
 
-While the copy downloads, Claude Code may show that the Blinkling MCP server failed to connect. Wait a minute, then run `/mcp` and reconnect `blinkling`. Hooks never print an error without Node.js. They exit quietly, and one line in the terminal says what is happening, once. On Windows the file only looks for an installed Node.js (the `PATH`, `Program Files`, nvm for Windows, Volta); without one the MCP server says to install Node.js 22 or newer from nodejs.org, and hooks stay silent.
+While the copy downloads, Claude Code may show that the Blinkling MCP server failed to connect. Wait a minute, then run `/mcp` and reconnect `blinkling`. Hooks never print an error without Node.js. They exit quietly, and one line in the terminal says what is happening, once. On Windows Node.js 22 or newer is required: the launcher only looks for an installed one (the `PATH`, `Program Files`, nvm for Windows, Volta). Without one the MCP server says to install Node.js 22 or newer from nodejs.org, and hooks stay silent.
 
 ## Run a source checkout
 
@@ -67,7 +67,7 @@ node -p "require('./.claude-plugin/plugin.json').version"
 claude --plugin-dir "$PWD"
 ```
 
-The version check must print **3.2.5**. In the session that the last command opens, run `/blinkling:blinkling`. The `--plugin-dir` flag loads your checkout for that session, so use it each time you start Claude Code from source, and restart the session after rebuilding.
+The version check must print **3.2.6**. In the session that the last command opens, run `/blinkling:blinkling`. The `--plugin-dir` flag loads your checkout for that session, so use it each time you start Claude Code from source, and restart the session after rebuilding.
 
 A checkout has no pinned release until the release workflow commits one. Until then `plugin/desktop/manifest.json` lists no builds, and `/blinkling:blinkling` says so instead of downloading anything.
 

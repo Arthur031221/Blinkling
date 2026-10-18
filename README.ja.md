@@ -59,7 +59,7 @@ Blinkling は、小さな緑の相棒 Blink を画面の隅に置き、すべて
 
 3. Mac では、Blinkling の**画面収録**を一度だけ許可します：システム設定、プライバシーとセキュリティ。macOS は Ctrl キーで選択を始められるよう、**アクセシビリティ**も一度だけ尋ねます。同じ場所で許可してください。
 
-Node.js を自分で入れる必要はありません。このコンピュータに無い場合、Blinkling は初回起動時に専用の Node.js（約 45 MB、固定の SHA-256 で検証）を取得します。初回に Claude Code が Blinkling の接続失敗と表示したら、1 分ほど待って `/mcp` で再接続してください。
+macOS と Linux では Node.js を自分で入れる必要はありません。コンピュータに無い場合、Blinkling は初回起動時に専用の Node.js（約 45 MB、固定の SHA-256 で検証）を取得します。初回に Claude Code が Blinkling の接続失敗と表示したら、1 分ほど待って `/mcp` で再接続してください。Windows では、先に nodejs.org から Node.js 22 以降を入れてください。Blinkling は Windows では取得しません。
 
 > [!NOTE]
 > Windows PowerShell 5 では `&&` の代わりに `;` を使います。お使いのコンピューター向けのアニメーション付き手順：[インストールガイド](https://arthur031221.github.io/Blinkling/install/)。その他の方法、更新、Linux のサンドボックス：[docs/INSTALL.md](docs/INSTALL.md)。
@@ -94,6 +94,6 @@ Blink は選んだ内容を、あなた自身のサインイン済み Claude Cod
 > [!IMPORTANT]
 > ブラウザーヘルパーは、あなたが指したときだけそのページを読みます。パスワードや支払いの欄は一切読まず、あなたのコンピューター上の Blinkling とだけ通信します。自動解説はオンにするまでオフです。
 
-テレメトリーも、公開元が運営する回答サービスもありません。選んだ内容はあなたの Claude Code に送られ、プロバイダーの規約と利用料金が適用されます。ブラウザー設定、拡張機能ストア、ブラウザー内蔵の PDF ビューアーは保護されたページで、そこでは Blink は画面から答えます。 [プライバシー](docs/SECURITY.md) | [使い方](docs/USAGE.md) | [リリースノート](docs/releases/v3.2.5.md)
+テレメトリーも、公開元が運営する回答サービスもありません。選んだ内容はあなたの Claude Code に送られ、プロバイダーの規約と利用料金が適用されます。ブラウザー設定、拡張機能ストア、ブラウザー内蔵の PDF ビューアーは保護されたページで、そこでは Blink は画面から答えます。 [プライバシー](docs/SECURITY.md) | [使い方](docs/USAGE.md) | [リリースノート](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.

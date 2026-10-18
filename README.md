@@ -59,7 +59,7 @@ You need Claude Code, signed in. Then:
 
 3. On a Mac, allow **Screen Recording** for Blinkling once: System Settings, Privacy & Security. macOS also asks for **Accessibility** once, so the Ctrl key can start a pick. Allow it in the same place.
 
-Node.js is not required. If this computer has none, Blinkling fetches a private copy of Node.js (about 45 MB, checked against a pinned SHA-256) the first time it starts. If Claude Code says Blinkling failed to connect on that first start, wait a minute and run `/mcp` to reconnect.
+On macOS and Linux, Node.js is not required. If the computer has none, Blinkling fetches a private copy of Node.js (about 45 MB, checked against a pinned SHA-256) the first time it starts. If Claude Code says Blinkling failed to connect on that first start, wait a minute and run `/mcp` to reconnect. On Windows, install Node.js 22 or newer from nodejs.org first. Blinkling does not fetch one there.
 
 > [!NOTE]
 > In Windows PowerShell 5, use `;` instead of `&&`. Animated steps for your computer: [install guide](https://arthur031221.github.io/Blinkling/install/). Other ways to install, updates and the Linux sandbox: [docs/INSTALL.md](docs/INSTALL.md).
@@ -94,6 +94,6 @@ Blink sends what you picked to your own signed-in Claude Code and shows the answ
 > [!IMPORTANT]
 > The browser helper reads a page only when you point at it. Password and payment fields are never read, and it talks only to Blinkling on your own computer. Auto explain is off until you turn it on.
 
-No telemetry or publisher-operated answer service. What you pick goes to your Claude Code. Provider terms and usage charges apply. Browser settings, extension stores and the browser's own PDF viewer are protected pages: Blink answers from the screen there. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v3.2.5.md)
+No telemetry or publisher-operated answer service. What you pick goes to your Claude Code. Provider terms and usage charges apply. Browser settings, extension stores and the browser's own PDF viewer are protected pages: Blink answers from the screen there. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.

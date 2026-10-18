@@ -17,7 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // A Mac that has Claude Code's native installer and no Node.js: the plugin
 // must still start, and a hook must never print an error.
 const repo = resolve(".");
-const wrapper = join(repo, "bin", "blinkling-run.cmd");
+const wrapper = join(repo, "bin", "blinkling-run");
 const realNode = process.execPath;
 const TOOLS = [
   "sh",
@@ -119,7 +119,7 @@ describe("every hook command without node", () => {
     expect(commands.length).toBeGreaterThanOrEqual(6);
     for (const command of commands) {
       expect(command).not.toMatch(/^node /);
-      expect(command).toContain("bin/blinkling-run.cmd");
+      expect(command).toContain("bin/blinkling-run");
     }
   });
 

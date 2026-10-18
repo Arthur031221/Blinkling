@@ -59,7 +59,7 @@ Blinkling은 작은 초록색 친구 Blink를 화면 구석, 모든 앱 위에 �
 
 3. Mac에서는 Blinkling의 **화면 기록**을 한 번 허용하세요: 시스템 설정, 개인정보 보호 및 보안. macOS는 Ctrl 키로 선택을 시작할 수 있도록 **손쉬운 사용**도 한 번 요청합니다. 같은 곳에서 허용하세요.
 
-Node.js를 따로 설치할 필요는 없습니다. 이 컴퓨터에 없으면 Blinkling이 처음 시작할 때 전용 Node.js(약 45 MB, 고정된 SHA-256으로 검증)를 내려받습니다. 처음 시작할 때 Claude Code가 Blinkling 연결 실패를 알리면 1분 기다린 뒤 `/mcp`로 다시 연결하세요.
+macOS와 Linux에서는 Node.js를 따로 설치할 필요가 없습니다. 컴퓨터에 없으면 Blinkling이 처음 시작할 때 전용 Node.js(약 45 MB, 고정된 SHA-256으로 검증)를 내려받습니다. 처음 시작할 때 Claude Code가 Blinkling 연결 실패를 알리면 1분 기다린 뒤 `/mcp`로 다시 연결하세요. Windows에서는 먼저 nodejs.org에서 Node.js 22 이상을 설치하세요. Blinkling은 Windows에서 내려받지 않습니다.
 
 > [!NOTE]
 > Windows PowerShell 5에서는 `&&` 대신 `;`을 사용하세요. 내 컴퓨터용 애니메이션 단계: [설치 안내](https://arthur031221.github.io/Blinkling/install/). 다른 설치 방법, 업데이트, Linux 샌드박스: [docs/INSTALL.md](docs/INSTALL.md).
@@ -94,6 +94,6 @@ Blink는 고른 내용을 로그인된 본인의 Claude Code로 보내고, 답�
 > [!IMPORTANT]
 > 브라우저 도우미는 사용자가 가리킬 때만 그 페이지를 읽습니다. 비밀번호와 결제 입력란은 절대 읽지 않으며, 사용자 컴퓨터의 Blinkling하고만 통신합니다. 자동 설명은 켜기 전까지 꺼져 있습니다.
 
-원격 측정도, 게시자가 운영하는 답변 서비스도 없습니다. 고른 내용은 본인의 Claude Code로 전송되며 제공업체 약관과 사용 요금이 적용됩니다. 브라우저 설정, 확장 프로그램 스토어, 브라우저 내장 PDF 뷰어는 보호된 페이지이며, 그곳에서는 Blink가 화면만 보고 답합니다. [개인정보](docs/SECURITY.md) | [사용법](docs/USAGE.md) | [릴리스 노트](docs/releases/v3.2.5.md)
+원격 측정도, 게시자가 운영하는 답변 서비스도 없습니다. 고른 내용은 본인의 Claude Code로 전송되며 제공업체 약관과 사용 요금이 적용됩니다. 브라우저 설정, 확장 프로그램 스토어, 브라우저 내장 PDF 뷰어는 보호된 페이지이며, 그곳에서는 Blink가 화면만 보고 답합니다. [개인정보](docs/SECURITY.md) | [사용법](docs/USAGE.md) | [릴리스 노트](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.

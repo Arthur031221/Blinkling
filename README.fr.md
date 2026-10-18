@@ -59,7 +59,7 @@ Il vous faut Claude Code, connecté. Ensuite :
 
 3. Sur Mac, autorisez une fois l’**Enregistrement de l’écran** pour Blinkling : Réglages Système, Confidentialité et sécurité. macOS demande aussi une fois l’**Accessibilité**, pour que la touche Ctrl puisse lancer une sélection. Autorisez-la au même endroit.
 
-Node.js n'a pas besoin d'être installé. Si cet ordinateur n'en a pas, Blinkling télécharge sa propre copie de Node.js (environ 45 Mo, vérifiée avec un SHA-256 fixé) au premier démarrage. Si Claude Code indique alors que Blinkling n'a pas pu se connecter, attendez une minute et lancez `/mcp` pour vous reconnecter.
+Sous macOS et Linux, Node.js n'a pas besoin d'être installé. Si l'ordinateur n'en a pas, Blinkling télécharge sa propre copie de Node.js (environ 45 Mo, vérifiée avec un SHA-256 fixé) au premier démarrage. Si Claude Code indique alors que Blinkling n'a pas pu se connecter, attendez une minute et lancez `/mcp` pour vous reconnecter. Sous Windows, installez d'abord Node.js 22 ou plus récent depuis nodejs.org. Blinkling n'en télécharge pas.
 
 > [!NOTE]
 > Dans Windows PowerShell 5, utilisez `;` au lieu de `&&`. Étapes animées pour votre ordinateur : [guide d’installation](https://arthur031221.github.io/Blinkling/install/). Autres méthodes, mises à jour et sandbox Linux : [docs/INSTALL.md](docs/INSTALL.md).
@@ -94,6 +94,6 @@ Blink envoie ce que vous avez choisi à votre propre Claude Code connecté et af
 > [!IMPORTANT]
 > L'assistant du navigateur ne lit une page que lorsque vous la désignez. Il ne lit jamais les champs de mot de passe ni de paiement, et ne communique qu'avec Blinkling sur votre propre ordinateur. Explication automatique reste désactivée tant que vous ne l'activez pas.
 
-Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.5.md)
+Aucune télémétrie ni service de réponses exploité par l'éditeur. Ce que vous choisissez va à votre Claude Code ; les conditions et les frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur PDF intégré du navigateur sont des pages protégées : Blink y répond à partir de l'écran. [Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.6.md)
 
 Assisted by Claude/Codex.
