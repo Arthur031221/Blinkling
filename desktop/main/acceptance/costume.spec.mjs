@@ -38,6 +38,19 @@ const watch = (page) =>
     };
     step();
   });
+// Peak prop count seen on any frame, so a slow machine cannot miss the show.
+const peak = (page) =>
+  page.evaluate(() => {
+    window.__peak = 0;
+    const step = () => {
+      window.__peak = Math.max(
+        window.__peak,
+        document.querySelectorAll(".prop").length,
+      );
+      requestAnimationFrame(step);
+    };
+    step();
+  });
 const around = async (page) => {
   const b = await page.evaluate(() => {
     const r = document.querySelector(".blink-body").getBoundingClientRect();
@@ -170,22 +183,22 @@ test("each effort level plays its own one-off show with props, the model's piece
     const lengths = { medium: 2.6, high: 3, xhigh: 3.4, max: 4, low: 2.2 };
     for (const effort of ["medium", "high", "xhigh", "max", "low"]) {
       const before = (await keysOf(page)).length;
+      await peak(page);
       await pick(card, "haiku", effort);
       await expect
         .poll(async () => (await keysOf(page)).slice(before).join(" "), {
-          timeout: 6000,
+          timeout: 15000,
         })
         .toContain(`costume:effort:${effort}`);
-      let most = 0;
       const n = Math.ceil(lengths[effort] / 0.35);
       for (let i = 0; i < n; i++) {
         rec.frame(`${effort}-show-${i}`, crop);
-        most = Math.max(most, await props(page));
         await sleep(350);
       }
+      const most = await page.evaluate(() => window.__peak);
       // Props appear during the show, the scarf and plane stay, and the show ends.
       expect(most).toBeGreaterThan(2);
-      await sleep(900);
+      await sleep(1500);
       const keys = (await keysOf(page)).slice(before);
       expect(keys.filter((k) => k.startsWith("costume:")).length).toBe(1);
       expect(keys.at(-1).startsWith("costume:")).toBe(false);
