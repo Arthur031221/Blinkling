@@ -17,17 +17,20 @@ if not defined NODE for /f "delims=" %%P in ('where node.exe 2^>nul') do (
   )
 )
 if not defined NODE (
+  if defined BLINKLING_DEBUG echo [debug] none found, state=%STATE% 1>&2
   if /i "%MODE%"=="mcp" (
     echo Blinkling needs Node.js 22 or newer. Install it from https://nodejs.org and restart Claude Code. 1>&2
     exit /b 1
   )
   exit /b 0
 )
+if defined BLINKLING_DEBUG echo [debug] node=%NODE% 1>&2
 shift /1
 set "ARGS="
 :collect
 if "%~1"=="" goto run
 set ARGS=!ARGS! "%~1"
+if defined BLINKLING_DEBUG echo [debug] node=%NODE% 1>&2
 shift /1
 goto collect
 :run
