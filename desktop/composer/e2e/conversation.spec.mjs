@@ -105,7 +105,7 @@ test("plus, paste, drop, remove, text files and acknowledged picker rejection", 
     ]);
     await options.getByRole("option", { name: "Sonnet 5.5" }).click();
     // The selection is only shown once Claude confirms it.
-    await expect(modelPicker).toHaveAttribute("aria-label", "模型: Haiku 4.5");
+    await expect(modelPicker).toHaveAttribute("aria-label", "模型: Haiku 5.5");
     await expect(modelPicker).toHaveAttribute("aria-label", "模型: Sonnet 5.5");
     await effortPicker.click();
     await card

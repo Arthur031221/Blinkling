@@ -79,7 +79,6 @@ export function persistentRequest({
         waiting.delete(id);
         reject(new Error("helper timed out"));
       }, timeout);
-      timer.unref?.();
       waiting.set(id, { resolve, reject, timer });
       proc.stdin.write(
         JSON.stringify({ id, cmd, window: payload ?? {} }) + "\n",
@@ -124,7 +123,6 @@ export function oneShotRequest({
         proc.kill();
         reject(new Error("helper timed out"));
       }, timeout);
-      timer.unref?.();
       proc.stdout.setEncoding("utf8");
       proc.stdout.on("data", (chunk) => (out += chunk));
       proc.on("error", (error) => {
