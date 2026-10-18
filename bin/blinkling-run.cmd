@@ -24,13 +24,13 @@ if not defined NODE (
   )
   exit /b 0
 )
-if defined BLINKLING_DEBUG echo [debug] node=%NODE% 1>&2
+if defined BLINKLING_DEBUG echo [debug] node=%NODE% PF=%ProgramFiles% PATH=%PATH% STATE=%STATE% 1>&2
 shift /1
 set "ARGS="
 :collect
 if "%~1"=="" goto run
 set ARGS=!ARGS! "%~1"
-if defined BLINKLING_DEBUG echo [debug] node=%NODE% 1>&2
+if defined BLINKLING_DEBUG echo [debug] node=%NODE% PF=%ProgramFiles% PATH=%PATH% STATE=%STATE% 1>&2
 shift /1
 goto collect
 :run
