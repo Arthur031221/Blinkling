@@ -1,42 +1,42 @@
 {
   "schemaVersion": 1,
-  "version": "3.2.6",
+  "version": "3.2.7",
   "builds": [
     {
       "os": "darwin",
       "arch": "arm64",
       "archive": "zip",
       "entry": "Blinkling.app/Contents/MacOS/Blinkling",
-      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-mac-arm64.zip",
-      "sha256": "48353511d0f49f5a55f9bfb40d96661a664b4365dbf6fe3689d4b6a10a5210e4",
-      "size": 129179086
+      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.7/Blinkling-3.2.7-mac-arm64.zip",
+      "sha256": "d87141ec293fbf5bf7051eadce3ea7541c26a239ba3c2951887e1423049c8e32",
+      "size": 129187655
     },
     {
       "os": "darwin",
       "arch": "x64",
       "archive": "zip",
       "entry": "Blinkling.app/Contents/MacOS/Blinkling",
-      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-mac-x64.zip",
-      "sha256": "4ef4fa222c92d193b38eb62c74dd68c3009dd1e3a9e4b693087aa721401134ff",
-      "size": 134602134
+      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.7/Blinkling-3.2.7-mac-x64.zip",
+      "sha256": "eca16555416d0225ed8691c7edb57a6b804792483ce6dcec8ac7eb4875fdb649",
+      "size": 134610707
     },
     {
       "os": "win32",
       "arch": "x64",
       "archive": "file",
-      "entry": "Blinkling-3.2.6-win-x64.exe",
-      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-win-x64.exe",
-      "sha256": "a4982257be9e5f360460e0030f2cd488eccf4ae2f275db30423cbf015174bb20",
-      "size": 110075970
+      "entry": "Blinkling-3.2.7-win-x64.exe",
+      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.7/Blinkling-3.2.7-win-x64.exe",
+      "sha256": "3c9622bff6d669af38b96ce939ad688d77f20ca482db30d3af0db2b79ac6ae5d",
+      "size": 110083732
     },
     {
       "os": "linux",
       "arch": "x64",
       "archive": "file",
-      "entry": "Blinkling-3.2.6-linux-x64.AppImage",
-      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.6/Blinkling-3.2.6-linux-x64.AppImage",
-      "sha256": "3ab63c1a2a1e48826830e64f71943c0c370fb62d70ac356de2d45035e6e9fd11",
-      "size": 126354988
+      "entry": "Blinkling-3.2.7-linux-x64.AppImage",
+      "url": "https://github.com/Arthur031221/Blinkling/releases/download/v3.2.7/Blinkling-3.2.7-linux-x64.AppImage",
+      "sha256": "527c8c1c39ef56681bf5b9fda8a5eb10282cfd0cadd6068fe3bfbf6adadefca5",
+      "size": 126363136
     }
   ]
 }
