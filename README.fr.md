@@ -10,8 +10,6 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-Formerly Glimpselet. Vous utilisez l'ancien plugin ? Exécutez `/plugin uninstall glimpselet@glimpselet` puis `/plugin marketplace remove glimpselet`, et installez Blinkling avec les étapes ci-dessous.
-
 Blinkling place Blink, un petit compagnon vert, dans un coin de votre écran, au-dessus de toutes les applications. Maintenez Ctrl (Control sur macOS) et cliquez sur ce dont vous voulez parler, ou faites glisser pour prendre une zone. Votre sélection s'envole vers Blink, vous tapez votre question, et la réponse s'ouvre dans une carte de discussion à côté de Blink.
 
 Blinkling regarde et explique, rien de plus. Il ne clique ni ne tape jamais dans vos applications.

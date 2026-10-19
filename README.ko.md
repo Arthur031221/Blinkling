@@ -10,8 +10,6 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-Formerly Glimpselet. 이전 플러그인을 쓰고 있다면 `/plugin uninstall glimpselet@glimpselet` 과 `/plugin marketplace remove glimpselet` 를 실행한 뒤 아래 단계로 Blinkling 을 설치하세요.
-
 Blinkling은 Blink라는 작은 초록색 친구를 화면 모서리, 모든 앱 위에 둡니다. Ctrl(macOS에서는 Control)을 누른 채 묻고 싶은 것을 클릭하거나, 드래그해서 영역을 가져옵니다. 선택한 것이 Blink로 날아 들어가고, 질문을 입력하면 답이 Blink 옆 채팅 카드에 열립니다.
 
 Blinkling은 보고 설명하기만 합니다. 앱에서 클릭하거나 입력하는 일은 절대 없습니다.

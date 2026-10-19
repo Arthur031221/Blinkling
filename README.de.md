@@ -10,8 +10,6 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-Formerly Glimpselet. Vom alten Plugin? Führe `/plugin uninstall glimpselet@glimpselet` und `/plugin marketplace remove glimpselet` aus und installiere dann Blinkling mit den Schritten unten.
-
 Blinkling setzt Blink, einen kleinen grünen Begleiter, in die Ecke deines Bildschirms, über alle Apps. Halte Strg (auf dem Mac Control) gedrückt und klicke auf alles, wonach du fragen willst, oder ziehe einen Bereich auf. Die Auswahl fliegt in Blink hinein, du tippst deine Frage, und die Antwort öffnet sich in einer Chatkarte neben Blink.
 
 Blinkling schaut nur hin und erklärt. Es klickt und tippt nie in deinen Apps.

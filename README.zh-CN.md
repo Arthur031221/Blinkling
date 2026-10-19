@@ -10,8 +10,6 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Português](README.pt-BR.md)
 
-Formerly Glimpselet，如果你是从旧插件升级，请先运行`/plugin uninstall glimpselet@glimpselet`和`/plugin marketplace remove glimpselet`，再按下面的步骤安装Blinkling。
-
 Blinkling让一个叫Blink的绿色小伙伴待在屏幕角落，浮在所有程序上面，按住Ctrl，macOS上是Control，再点一下想问的东西，或拖动框出一个区域，选到的内容会飞进Blink，你输入问题，答案就在Blink旁边的聊天卡片里打开。
 
 Blinkling只看和讲解，不会在你的程序里点击或打字。
