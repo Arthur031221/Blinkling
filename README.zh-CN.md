@@ -1,4 +1,4 @@
-<h1 align="center"><img src="assets/blink-lazy.gif" width="110" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-dark.svg" /><img src="assets/brand/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
+<h1 align="center"><img src="assets/blink-wave.gif" width="80" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-dark.svg" /><img src="assets/brand/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
 <p align="center"><strong>Blink住在屏幕角落，按住Ctrl点一下，答案就来。</strong></p>
 

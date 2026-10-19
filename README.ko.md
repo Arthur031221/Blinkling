@@ -1,4 +1,4 @@
-<h1 align="center"><img src="assets/blink-lazy.gif" width="110" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-dark.svg" /><img src="assets/brand/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
+<h1 align="center"><img src="assets/blink-wave.gif" width="80" alt="" /><br /><picture><source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-dark.svg" /><img src="assets/brand/wordmark-light.svg" width="260" alt="Blinkling" /></picture></h1>
 
 <p align="center"><strong>Blink는 화면 구석에 삽니다. Ctrl을 누른 채 클릭하면 답이 옵니다.</strong></p>
 
