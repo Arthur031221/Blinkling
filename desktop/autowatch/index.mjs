@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createDiff } from "./diff.mjs";
+import { languageName } from "../overlay/schema.mjs";
 import {
   ChangePolicy,
   difference,
@@ -8,11 +9,11 @@ import {
 } from "./policy.mjs";
 /** A usage limit that did not say when it ends holds auto explain this long. */
 export const LIMIT_FALLBACK_MS = 30 * 60 * 1000;
-/** What every automatic explanation asks. This is the one prompt in the app
- * that asks for a length: a few short paragraphs, because the card is read at a
- * glance while the user works. */
-export const EXPLAIN_PROMPT =
-  "Only look and explain. Never click, type, control another app, edit files, or use tools. In a few short paragraphs, say what this window or screen is doing and what matters most on it. Write in the language shown on the screen. No preamble and no follow-up questions.";
+/** What every automatic explanation asks: one or two short sentences, in the
+ * language chosen in Blinkling's settings, like Blink muttering to itself. */
+export const explainPrompt = (language = "English") =>
+  `Only look and explain. Never click, type, control another app, edit files, or use tools. In one or two short sentences, say what this window or screen is showing. Write in ${language}. No preamble, no lists and no follow-up questions.`;
+export const EXPLAIN_PROMPT = explainPrompt();
 /** All producers share SessionBridge. Sampling itself never starts Claude.
  * Global idle time conservatively pauses on keyboard AND mouse activity, avoiding
  * an extra Accessibility permission or collecting the user's keystrokes. */
@@ -26,13 +27,14 @@ export class AutoWatch {
     typing = () => false,
     busy = () => false,
     quiet = () => false,
+    language = () => "en",
     intervalMs = MIN_INTERVAL_MS,
     now = Date.now,
     onState = () => {},
     policy = new ChangePolicy(),
     diff,
   }) {
-    if (intervalMs < 3000)
+    if (intervalMs < 1000)
       throw Error("Auto explain sampling must be low rate");
     Object.assign(this, {
       session,
@@ -43,6 +45,7 @@ export class AutoWatch {
       typing,
       busy,
       quiet,
+      language,
       intervalMs,
       now,
       onState,
@@ -131,7 +134,7 @@ export class AutoWatch {
   held() {
     if (this.quiet()) return true;
     if (this.askNow) return false;
-    return this.busy() || this.typing() || this.idleSeconds() < 3;
+    return this.busy() || this.typing() || this.idleSeconds() < 2;
   }
   async tick() {
     if (!this.enabled || this.running || this.pending || !this.session) return;
@@ -208,7 +211,7 @@ export class AutoWatch {
       if (!ok) return;
       const turn = {
         id: randomUUID(),
-        text: EXPLAIN_PROMPT,
+        text: explainPrompt(languageName(this.language()) || "English"),
         attachments: [capture.image],
         source: "auto-explain",
       };

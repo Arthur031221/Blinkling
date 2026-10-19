@@ -15,11 +15,28 @@ export const r3 =
   process.env.BLINKLING_R3_DIR ?? "/home/levi/oss-engine/reports/glimpse-v3/r3";
 const phase = process.env.BLINKLING_R3_PHASE === "before" ? "before" : "after";
 const size = () => {
-  const out = execFileSync("xdpyinfo", [], { encoding: "utf8" });
-  return /dimensions:\s+(\d+x\d+)/.exec(out)[1];
+  // A loaded host can refuse a fork for a moment: ask again before failing.
+  for (let attempt = 0; ; attempt++)
+    try {
+      const out = execFileSync("xdpyinfo", [], { encoding: "utf8" });
+      return /dimensions:\s+(\d+x\d+)/.exec(out)[1];
+    } catch (error) {
+      if (error.code !== "EAGAIN" || attempt >= 20) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+    }
 };
-const grab = (args) =>
-  execFileSync("ffmpeg", ["-v", "error", "-y", ...args], { stdio: "ignore" });
+const grab = (args) => {
+  // ffmpeg starts threads; a host at its process limit refuses one now and then.
+  for (let attempt = 0; ; attempt++)
+    try {
+      return execFileSync("ffmpeg", ["-v", "error", "-y", ...args], {
+        stdio: "ignore",
+      });
+    } catch (error) {
+      if (attempt >= 8) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 400);
+    }
+};
 
 /** Starts an x11grab of the whole display. `frame(label)` saves a PNG now;
  * `stop()` ends the video and, for the after phase, writes the GIF. A clip
@@ -55,6 +72,7 @@ export function record(id, { fps = 15, suffix = "", also = [] } = {}) {
     { stdio: ["pipe", "ignore", "inherit"] },
   );
   const frames = [];
+  const began = Date.now();
   return {
     work,
     frame(label, crop) {
@@ -91,6 +109,10 @@ export function record(id, { fps = 15, suffix = "", also = [] } = {}) {
       return (stopped = this.finish());
     },
     async finish() {
+      // ffmpeg needs a moment to open the display; a clip stopped before its
+      // first frame has nothing to turn into a GIF.
+      const wait = 2000 - (Date.now() - began);
+      if (wait > 0) await new Promise((done) => setTimeout(done, wait));
       run.stdin.write("q");
       await new Promise((done) => run.on("close", done));
       if (!existsSync(video)) return null;

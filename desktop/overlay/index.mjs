@@ -22,13 +22,17 @@ function initialHandlers() {
   ipcMain.on("blinkling:overlay:regions", (e, list) => {
     entryFor(e).regions = regionsOf(list);
   });
+  ipcMain.on("blinkling:overlay:nav", (e, dir) => {
+    const entry = entryFor(e);
+    if (["back", "next", "end"].includes(dir)) entry.win.emit("nav", dir);
+  });
   ipcMain.on("blinkling:overlay:mark-click", (e, n) => {
     const entry = entryFor(e);
     if (Number.isInteger(n) && n >= 1 && n <= 99)
       entry.win.emit("mark-click", n);
   });
 }
-const KINDS = new Set(["badge", "label", "mark"]);
+const KINDS = new Set(["badge", "label", "mark", "note"]);
 const finite = (n) => Number.isFinite(n) && Math.abs(n) < 100000;
 /** What the renderer says it drew, as [kind, x, y, width, height] in display
  * coordinates. */

@@ -116,7 +116,7 @@ test("selection and turn admission serialize, displaying only acknowledged appli
   const selected = c.select({ model: "sonnet", effort: "high" });
   const sent = c.send("Hi");
   await new Promise((r) => setImmediate(r));
-  assert.equal(c.state().selection.model, "haiku");
+  assert.equal(c.state().selection.model, "sonnet");
   assert.equal(c.state().selecting, true);
   assert.equal(bridge.turns.length, 0);
   gate.resolve({ model: "claude-sonnet-5-5", effort: "high" });
@@ -124,9 +124,6 @@ test("selection and turn admission serialize, displaying only acknowledged appli
   assert.equal(c.state().selection.model, "claude-sonnet-5-5");
   assert.equal(bridge.turns.length, 1);
   assert.equal(calls.length, 1);
-  await assert.rejects(c.select({ model: "haiku", effort: "low" }), {
-    code: "busy",
-  });
   c.dispose();
 });
 
@@ -209,7 +206,7 @@ test("edits and new attachments made during send admission survive the clear", a
   c.dispose();
 });
 
-test("remote answer activity disables selection and enables stop", async () => {
+test("remote answer activity keeps selection open and enables stop", async () => {
   const bridge = session();
   let interrupted = 0;
   bridge.stop = async () => {
@@ -218,9 +215,9 @@ test("remote answer activity disables selection and enables stop", async () => {
   const c = createComposer({ session: bridge });
   bridge.emit({ type: "delta", id: "remote", text: "Hi" });
   assert.equal(c.state().busy, true);
-  await assert.rejects(c.select({ model: "sonnet", effort: "high" }), {
-    code: "busy",
-  });
+  // The lists stay usable while an answer runs: the choice is shown at once.
+  await c.select({ model: "sonnet", effort: "high" });
+  assert.deepEqual(c.state().selection, { model: "sonnet", effort: "high" });
   await c.stop();
   assert.equal(interrupted, 1);
   bridge.emit({ type: "done", turnId: "remote" });
@@ -325,4 +322,26 @@ test("a seed is checked before it reaches the card", () => {
       }),
     { code: "too-many-files" },
   );
+});
+
+test("a choice is shown from the first frame and rolled back when refused", async () => {
+  const bridge = session();
+  bridge.select = async (s) => ({ model: "sonnet", effort: "low", ...s });
+  const c = createComposer({ session: bridge });
+  assert.deepEqual(c.state().selection, {
+    model: "sonnet",
+    effort: "low",
+    permissionMode: "default",
+  });
+  const seen = [];
+  c.subscribe((s) => seen.push(s.selection.permissionMode));
+  await c.select({ permissionMode: "plan" });
+  assert.ok(seen.includes("plan"));
+  assert.equal(c.state().selection.permissionMode, "plan");
+  bridge.select = async () => {
+    throw Error("refused");
+  };
+  await assert.rejects(c.select({ model: "haiku" }));
+  assert.equal(c.state().selection.model, "sonnet");
+  c.dispose();
 });

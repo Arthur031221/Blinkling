@@ -147,9 +147,9 @@ test("a Blink that stopped answering is ended and its endpoint cleared; anything
 
 test("a Blink of another version than the plugin's is replaced, the same version is reused", async () => {
   const { isOtherBuild } = await import("./launcher.mjs");
-  const manifest = { version: "3.2.6" };
+  const manifest = { version: "3.2.7" };
   assert.equal(isOtherBuild({ status: { version: "3.2.0" } }, manifest), true);
-  assert.equal(isOtherBuild({ status: { version: "3.2.6" } }, manifest), false);
+  assert.equal(isOtherBuild({ status: { version: "3.2.7" } }, manifest), false);
   assert.equal(isOtherBuild({ status: {} }, manifest), false);
   assert.equal(isOtherBuild(null, manifest), false);
 });

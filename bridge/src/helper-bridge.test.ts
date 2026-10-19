@@ -41,7 +41,18 @@ const page = {
   tabId: 3,
   incognito: false,
 };
-const frame = { screenX: 10, screenY: 20, devicePixelRatio: 2, zoom: 1 };
+const frame = {
+  screenX: 10,
+  screenY: 20,
+  devicePixelRatio: 2,
+  zoom: 1,
+  scrollX: 0,
+  scrollY: 340,
+  pageWidth: 1280,
+  pageHeight: 4200,
+  viewWidth: 1280,
+  viewHeight: 720,
+};
 const element = (extra: Record<string, unknown> = {}) => ({
   id: "e1",
   kind: "paragraph",

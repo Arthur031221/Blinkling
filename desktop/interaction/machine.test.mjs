@@ -370,7 +370,7 @@ test("a click outside closes the card even over a streaming answer or a draft, a
   assert.equal(again.read().card, false);
 });
 
-test("an answer that goes on streaming after the click outside does not open the card again and Blink goes back to its edge", () => {
+test("an answer that goes on streaming after the click outside does not open the card mid-way, Blink goes back to its edge, and the finished answer opens the card", () => {
   const { m, at, go, read } = rig();
   m.answerStart(0);
   at.t = 10;
@@ -387,9 +387,9 @@ test("an answer that goes on streaming after the click outside does not open the
   const fx = go(1000);
   assert.equal(types(fx).includes("open-chat"), false);
   m.answerEnd(40, at.t);
-  go(timing.retreat + 100);
-  assert.equal(read().card, false, "the finished answer waits in the history");
-  assert.equal(types(m.take()).includes("open-chat"), false);
+  assert.equal(read().card, true, "the finished answer opens the card");
+  assert.equal(types(m.take()).includes("open-chat"), true);
+  m.close(at.t);
   // The next question opens the card as usual.
   m.answerStart(at.t);
   assert.equal(read().card, true);
@@ -765,4 +765,70 @@ test("a click inside Settings is Blinkling's own: the card stays, and a backgrou
   // And again for the next capture: the same click works every time.
   m.open("answer", at.t);
   assert.equal(m.outside(at.t + 2), true);
+});
+
+test("a typed question whose card lost focus or was clicked away opens the card when the answer is done", () => {
+  for (const away of ["outside", "blurred"]) {
+    const { m, at, read } = rig();
+    m.click(0);
+    m.composer({ focus: true, text: true }, 1);
+    m.answerStart(5);
+    at.t = 20;
+    m[away](20);
+    assert.equal(read().card, false, away);
+    m.take();
+    m.answerEnd(30, 3000);
+    assert.equal(read().card, true, `${away}: card opens at the end`);
+    assert.equal(types(m.take()).includes("open-chat"), true);
+  }
+});
+
+test("a capture question whose card was closed by the next capture opens the card when the answer is done", () => {
+  const { m, read } = rig();
+  m.capture(true, 0);
+  m.capture(false, 100);
+  m.click(200);
+  m.answerStart(300);
+  m.outside(400);
+  m.capture(true, 500);
+  m.capture(false, 600);
+  assert.equal(read().card, false);
+  m.answerEnd(20, 3000);
+  assert.equal(read().card, true);
+});
+
+test("Esc or the close button on a streaming answer keeps the card shut at its end, and the next question opens it", () => {
+  for (const how of ["escape", "close"]) {
+    const { m, read } = rig();
+    m.answerStart(0);
+    m[how](10);
+    m.take();
+    m.answerEnd(10, 2000);
+    assert.equal(read().card, false, how);
+    m.answerStart(3000);
+    assert.equal(read().card, true);
+  }
+});
+
+test("a capture that starts with the card open closes the card first, a pinned card or one with a panel stays, and a second capture changes nothing", () => {
+  const { m, read } = rig();
+  m.click(0);
+  assert.equal(read().card, true);
+  m.take();
+  m.capture(true, 10);
+  assert.equal(read().card, false);
+  assert.equal(types(m.take()).includes("close-chat"), true);
+  m.capture(true, 20);
+  m.capture(false, 30);
+  m.capture(false, 40);
+  const pinned = rig();
+  pinned.m.click(0);
+  pinned.m.pin(true, 1);
+  pinned.m.capture(true, 10);
+  assert.equal(pinned.read().card, true);
+  const panel = rig();
+  panel.m.click(0);
+  panel.m.panels(1);
+  panel.m.capture(true, 10);
+  assert.equal(panel.read().card, true);
 });

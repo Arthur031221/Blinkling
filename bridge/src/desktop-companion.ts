@@ -102,6 +102,28 @@ export class DesktopCompanion {
       res.end(JSON.stringify({ result }));
       return;
     }
+    if (message.method === "scroll-page") {
+      const controller = new AbortController();
+      res.once("close", () => controller.abort());
+      const valid = (n: unknown) =>
+        Number.isFinite(n) && Math.abs(n as number) < 1e7;
+      const point = message.point;
+      res.end(
+        JSON.stringify({
+          ok: await this.extension.scrollPage(
+            {
+              ...(valid(message.x) ? { x: message.x } : {}),
+              ...(valid(message.y) ? { y: message.y } : {}),
+            },
+            point && valid(point.x) && valid(point.y)
+              ? { x: point.x, y: point.y }
+              : undefined,
+            controller.signal,
+          ),
+        }),
+      );
+      return;
+    }
     if (message.method === "translate-page") {
       const controller = new AbortController();
       res.once("close", () => controller.abort());

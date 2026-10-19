@@ -124,11 +124,10 @@ each(
 );
 
 each(
-  "before a selection exists the trigger names its job and cannot open",
+  "before a selection exists the lists open on the starting choice",
   (locale) => {
     const t = setup({ selection: null, locale });
-    assert.equal(t.trigger(t.tr("model")).textContent, t.tr("model"));
-    assert.equal(t.trigger(t.tr("model")).disabled, true);
+    assert.equal(t.trigger(t.tr("model")).disabled, false);
     t.dispose();
   },
 );

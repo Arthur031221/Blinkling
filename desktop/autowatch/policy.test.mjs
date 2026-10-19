@@ -107,7 +107,7 @@ test("A-1: a navigation soon after an explanation is not held back for 45 s", ()
   );
 });
 test("A-1: the cooldown is one short constant that the default policy uses", () => {
-  assert.ok(COOLDOWN_MS >= INTERVAL && COOLDOWN_MS <= 15000);
+  assert.ok(COOLDOWN_MS >= MIN_INTERVAL_MS && COOLDOWN_MS <= 15000);
   assert.equal(new ChangePolicy().cooldownMs, COOLDOWN_MS);
 });
 // PV-4: scroll-aware change detection. Fixture frames are real renders of a long
@@ -163,8 +163,8 @@ test("PV-4: a nudge never fires, and the section reached after it does within th
   assert.ok(fired !== null && fired <= DETECTION_BUDGET_MS, `fired ${fired}`);
 });
 test("PV-4: the detection budget is one short constant at the sampling floor", () => {
-  assert.ok(DETECTION_BUDGET_MS <= 10000);
-  assert.ok(MIN_INTERVAL_MS === 3000);
+  assert.ok(DETECTION_BUDGET_MS <= 4000);
+  assert.ok(MIN_INTERVAL_MS === 1000);
   const p = new ChangePolicy();
   assert.ok(
     (p.settleSamples + 1) * MIN_INTERVAL_MS <= DETECTION_BUDGET_MS,

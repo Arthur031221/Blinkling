@@ -26,6 +26,13 @@ const reasons = {
   connecting: "Not connected to Claude Code yet",
   empty: "Nothing to send",
 };
+/** What the lists show until the session has told its own selection, so the
+ * model, effort and permission can be chosen from the first frame. */
+export const startSelection = Object.freeze({
+  model: "sonnet",
+  effort: "low",
+  permissionMode: "default",
+});
 export const failure = (code) =>
   Object.assign(new Error(reasons[code] ?? code), { code });
 export const attachmentLimits = Object.freeze({
@@ -145,7 +152,7 @@ export function createComposer({
     selecting,
     stopping,
     error,
-    selection: selection && structuredClone(selection),
+    selection: structuredClone(selection ?? startSelection),
   });
   const notify = () => {
     if (!disposed) for (const fn of listeners) fn(state());
@@ -276,10 +283,17 @@ export function createComposer({
     },
     select(next) {
       return enqueue(async () => {
-        if (busy) throw failure("busy");
         if (!session) throw failure("connecting");
+        // A choice made while an answer runs is queued behind it by the
+        // session: the card shows it at once and puts the old one back only
+        // when the session refuses it.
+        const before = selection && structuredClone(selection);
         selecting = true;
         error = "";
+        selection = {
+          ...(selection ?? startSelection),
+          ...structuredClone(next),
+        };
         notify();
         try {
           const applied = await session.select(structuredClone(next));
@@ -292,6 +306,7 @@ export function createComposer({
           selection = structuredClone(applied);
           return structuredClone(selection);
         } catch (e) {
+          selection = before;
           error = "switch-failed";
           throw e;
         } finally {

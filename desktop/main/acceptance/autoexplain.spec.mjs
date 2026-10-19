@@ -11,10 +11,10 @@ const cardOpen = (app) =>
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
 
-test("auto_explain_popup: an Auto explain answer opens the card by itself, stays inside Blink (no terminal is asked), and is answered once", async () => {
+test("r7_auto_mutter: an Auto explain answer is muttered in a bubble beside Blink, the card stays shut and keeps the record, no terminal is asked, answered once", async () => {
   test.setTimeout(120000);
   const { app, page } = await launch();
-  const rec = record("auto_explain_popup", { suffix: "-324" });
+  const rec = record("r7_auto_mutter", { suffix: "-327" });
   try {
     await background(app);
     await reveal(page);
@@ -31,6 +31,7 @@ test("auto_explain_popup: an Auto explain answer opens the card by itself, stays
       main.send = async (turn) => {
         t.mainSent.push(turn.id);
         const id = `auto-${turn.id}`;
+        main.active = turn.id;
         setTimeout(() => {
           main.emit({ type: "delta", id, text: "A page about " });
           main.emit({ type: "delta", id, text: "the weather." });
@@ -40,6 +41,7 @@ test("auto_explain_popup: an Auto explain answer opens the card by itself, stays
             role: "assistant",
             content: [{ type: "text", text: "A page about the weather." }],
           });
+          main.active = undefined;
           main.emit({ type: "done", turnId: turn.id });
         }, 400);
       };
@@ -55,14 +57,22 @@ test("auto_explain_popup: an Auto explain answer opens the card by itself, stays
         source: "auto-explain",
       }),
     );
+    const bubble = page.locator("#mutter");
+    await expect(bubble).toHaveAttribute("data-shown", "true", {
+      timeout: 8000,
+    });
+    await expect(bubble).toHaveText("A page about the weather.");
+    rec.frame("mutter");
+    await page.waitForTimeout(1200);
+    expect(await cardOpen(app), "the card stays shut").toBe(false);
+    await app.evaluate(() => globalThis.blinklingTest.openComposer({}));
     await expect.poll(() => cardOpen(app), { timeout: 8000 }).toBe(true);
-    rec.frame("card-opened");
     const card = cardPage(app);
     await expect(card.locator(".gl-chat-message").last()).toContainText(
       "A page about the weather.",
     );
-    await page.waitForTimeout(1500);
-    rec.frame("answer");
+    rec.frame("record");
+    await page.waitForTimeout(800);
     const seen = await app.evaluate(() => ({
       frames: globalThis.blinklingTest.frames.length,
       main: globalThis.blinklingTest.mainSent.length,

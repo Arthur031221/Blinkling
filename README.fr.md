@@ -100,6 +100,6 @@ Le sens inverse, le chat de Blink dans le terminal, passe par les canaux expéri
 
 Blinkling n'a ni télémétrie ni service de réponses à lui. Ce que vous sélectionnez part vers votre Claude Code, et les conditions et frais d'utilisation du fournisseur s'appliquent. Les réglages du navigateur, les boutiques d'extensions et le lecteur de PDF du navigateur sont des pages protégées, donc Blink y répond à partir de l'écran.
 
-[Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.6.md)
+[Confidentialité](docs/SECURITY.md) | [Utilisation](docs/USAGE.md) | [Notes de version](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

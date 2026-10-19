@@ -100,6 +100,6 @@ Blink会把你选取的内容发给你自己已登录的Claude Code，答案显�
 
 Blinkling没有遥测，也没有自己的回答服务，你选取的内容只会发到你的Claude Code，提供商的条款和用量费用照常适用，浏览器设置、扩展商店和浏览器内置的PDF查看器是受保护页面，在那里Blink只能依屏幕画面回答。
 
-[隐私](docs/SECURITY.md) | [使用说明](docs/USAGE.md) | [版本说明](docs/releases/v3.2.6.md)
+[隐私](docs/SECURITY.md) | [使用说明](docs/USAGE.md) | [版本说明](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

@@ -34,6 +34,9 @@ const fakeBridge = (name) => {
     async send(turn) {
       sent.push(turn);
     },
+    async record(lines) {
+      for (const line of lines) bridge.emit({ type: "message", ...line });
+    },
     select: async (s) => s,
     stop: async () => {},
     connect: async () => {},
@@ -804,4 +807,45 @@ test("stopping an auto explain in a terminal's chat, or the guide's own turn, st
   await t.router.stop({ own: true });
   assert.equal(stops, 2, "so is the guide's turn");
   await t.close();
+});
+
+test("a guide record lands in the chat on screen, in Blink's own chat or in a terminal's", async () => {
+  const t = await setup();
+  const lines = [
+    {
+      id: "g-user",
+      role: "user",
+      content: [{ type: "text", text: "Guide me" }],
+    },
+    {
+      id: "g-ai",
+      role: "assistant",
+      content: [{ type: "text", text: "1. Search" }],
+    },
+  ];
+  await t.router.record(lines);
+  const ids = () =>
+    t.events.filter((e) => e.type === "message").map((e) => [e.id, e.role]);
+  assert.deepEqual(ids(), [
+    ["g-user", "user"],
+    ["g-ai", "assistant"],
+  ]);
+  t.router.link({ session: "s1", cwd: "/work/alpha", channel: true });
+  t.router.switchTo("s1");
+  t.events.length = 0;
+  await t.router.record(lines.map((l) => ({ ...l, id: `t-${l.id}` })));
+  assert.deepEqual(ids(), [
+    ["t-g-user", "user"],
+    ["t-g-ai", "assistant"],
+  ]);
+  assert.equal(t.frames.length, 0, "the terminal is not asked");
+  await t.close();
+});
+
+test("the router is working while the chat on screen or Blink's own chat answers", () => {
+  const main = { working: false, subscribe: () => () => {}, state: {} };
+  const router = new ChatRouter({ main });
+  assert.equal(router.working, false);
+  main.working = true;
+  assert.equal(router.working, true);
 });

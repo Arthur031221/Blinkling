@@ -59,6 +59,7 @@ test("a click on the background closes the card and Blink peeks, also while an a
       expect(await cardOpen(app), "no reopen while streaming").toBe(false);
     }
     // Blink is back at its edge as one unit with the card, not held out.
+    // (The finished answer then opens the card again, below.)
     await expect
       .poll(
         () =>
@@ -83,10 +84,11 @@ test("a click on the background closes the card and Blink peeks, also while an a
     });
     await emit(app, { type: "done", id: "a1" });
     await page.waitForTimeout(1500);
-    expect(await cardOpen(app), "the finished answer does not reopen").toBe(
-      false,
-    );
-    rec.frame("done-closed");
+    await expect.poll(() => cardOpen(app), { timeout: 4000 }).toBe(true);
+    rec.frame("done-opens-card");
+    await page.waitForTimeout(600);
+    clickAway(b);
+    await expect.poll(() => cardOpen(app), { timeout: 3000 }).toBe(false);
     expect(peeked).toBeTruthy();
     // A pinned card ignores the click.
     await reveal(page);

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { readFile } from "node:fs/promises";
-import { GuideController, closingMessage, REOPEN_MS } from "./guide.mjs";
+import { GuideController, closingMessage } from "./guide.mjs";
 import { STRINGS } from "./strings.mjs";
 import { collectTurn } from "./turn.mjs";
 const guide = {
@@ -118,6 +118,10 @@ function fakes() {
     return pointing.result ?? true;
   };
   pointing.focus = (which) => pointing.focused.push(which);
+  pointing.onNav = (fn) => {
+    overlay.on("nav", fn);
+    return () => overlay.off("nav", fn);
+  };
   pointing.clear = (reason) => {
     pointing.cleared.push(reason);
     overlay.emit("dismissed", reason);
@@ -481,7 +485,8 @@ test("failure and closing bubbles speak the user's language, not Chinese for eve
   const finished = de.events.at(-1);
   assert.equal(finished.phase, "finished");
   assert.equal(finished.bubbles[0], closingMessage("de"));
-  assert.match(finished.bubbles[0], /Übersicht/);
+  assert.match(finished.bubbles[0], /Anleitung/);
+  assert.doesNotMatch(finished.bubbles[0], /Übersicht/);
 });
 
 test("every locale has every guide sentence, with Blinkling kept as written", () => {
@@ -514,35 +519,13 @@ test("a step carries the screen rectangles of its regions, and ending the tour f
   assert.equal(dismissed, "user", "the capture is let go");
 });
 
-test("the finished guide is kept and shows again from step 1 without a new run", async () => {
+test("ending a guide leaves no offer to show it again", async () => {
   const r = rig([JSON.stringify(threeSteps())]);
   await r.controller.start("1");
-  r.controller.next();
   r.controller.dismiss();
   assert.equal(r.events.at(-1).phase, "dismissed");
-  assert.equal(r.events.at(-1).again, true, "the card offers it again");
-  const shown = r.pointing.shown.length;
-  assert.equal(await r.controller.reopen(), true);
-  assert.equal(r.turns.length, 1, "no new run");
-  assert.equal(r.pointing.shown.length, shown + 1, "the marks are drawn again");
-  assert.equal(r.events.at(-1).phase, "step");
-  assert.equal(r.events.at(-1).index, 0);
-  assert.equal(r.events.at(-1).total, 3);
-  r.controller.dispose();
-});
-test("a guide is not offered again once the page changed or it is old", async () => {
-  let now = 1000;
-  const r = rig([JSON.stringify(threeSteps())], { now: () => now });
-  await r.controller.start("1");
-  r.overlay.emit("dismissed", "content-changed");
-  assert.equal(r.events.at(-1).again, false);
-  assert.equal(await r.controller.reopen(), false);
-  await r.controller.start("1").catch(() => {});
-  const fresh = rig([JSON.stringify(threeSteps())], { now: () => now });
-  await fresh.controller.start("1");
-  now += REOPEN_MS + 1;
-  assert.equal(fresh.controller.canReopen(), false);
-  fresh.controller.dispose();
+  assert.equal("again" in r.events.at(-1), false);
+  assert.equal(typeof r.controller.reopen, "undefined");
   r.controller.dispose();
 });
 test("closing a guide that still looks at the screen clears what the card showed", async () => {
@@ -557,4 +540,95 @@ test("closing a guide that still looks at the screen clears what the card showed
   await running;
   assert.equal(r.events.at(-1).phase, "dismissed", "nothing draws afterwards");
   r.controller.dispose();
+});
+
+const anchorFake = (ok = true) => {
+  const calls = { attached: [], revealed: [], detached: 0 };
+  return {
+    calls,
+    attach: async (rects) => {
+      calls.attached.push(rects);
+      return ok;
+    },
+    reveal: async (n) => calls.revealed.push(n),
+    detach: () => calls.detached++,
+  };
+};
+const noted = (r) => {
+  const out = [];
+  r.pointing.note = (arg) => out.push(arg);
+  r.pointing.keep = (arg) => out.push({ keep: arg });
+  return out;
+};
+
+test("each step's explanation is a note under its mark and Next scrolls the page to it", async () => {
+  const anchor = anchorFake();
+  const r = rig([JSON.stringify(threeSteps())], { anchor });
+  const out = noted(r);
+  await r.controller.start("1");
+  assert.deepEqual(anchor.calls.attached[0], [
+    { n: 1, x: 10, y: 10, width: 100, height: 80 },
+  ]);
+  assert.deepEqual(out[0], { keep: { anchored: true, hold: true } });
+  assert.equal(out[1].n, 1);
+  assert.equal(out[1].text, "Step one.");
+  assert.equal(out[1].hint, "", "anchored marks have nothing to apologise for");
+  assert.equal(out[1].count, "1 / 3");
+  assert.equal(out[1].canBack, false);
+  assert.deepEqual(anchor.calls.revealed, [], "the first step needs no scroll");
+  r.controller.next();
+  assert.equal(out.at(-1).text, "Step two.");
+  assert.deepEqual(anchor.calls.revealed, [1]);
+  r.controller.back();
+  assert.equal(out.at(-1).text, "Step one.");
+  assert.equal(anchor.calls.revealed.length, 2);
+  r.overlay.emit("dismissed", "user");
+  assert.equal(anchor.calls.detached >= 1, true);
+});
+
+test("without the browser helper the marks keep the screen and the note says so", async () => {
+  const anchor = anchorFake(false);
+  const r = rig([JSON.stringify(threeSteps())], { anchor });
+  const out = noted(r);
+  await r.controller.start("1");
+  assert.deepEqual(out[0], { keep: { anchored: false, hold: true } });
+  assert.match(out[1].hint, /./);
+  r.controller.next();
+  assert.deepEqual(anchor.calls.revealed, [], "nothing to scroll");
+});
+
+test("the note's own Previous, Next and End drive the guide", async () => {
+  const r = rig([JSON.stringify(threeSteps())], { anchor: anchorFake() });
+  noted(r);
+  await r.controller.start("1");
+  r.overlay.emit("nav", "next");
+  assert.equal(r.events.at(-1).index, 1);
+  r.overlay.emit("nav", "back");
+  assert.equal(r.events.at(-1).index, 0);
+});
+
+test("the guide goes into the chat as the screen on the user side and the steps on the answer side", async () => {
+  const lines = [];
+  const r = rig([JSON.stringify(threeSteps())], {
+    record: async (l) => lines.push(...l),
+  });
+  await r.controller.start("1");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(
+    lines.map((l) => l.role),
+    ["user", "assistant"],
+  );
+  assert.equal(lines[0].content[0].type, "image");
+  assert.match(lines[1].content[0].text, /1\. Step one\./);
+  assert.match(lines[1].content[0].text, /3\. Step three\./);
+});
+
+test("a record that fails does not stop the guide", async () => {
+  const r = rig([JSON.stringify(threeSteps())], {
+    record: async () => {
+      throw Error("disk");
+    },
+  });
+  await r.controller.start("1");
+  assert.equal(r.events.at(-1).phase, "step");
 });

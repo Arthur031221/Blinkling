@@ -20,7 +20,7 @@ export class DesktopSessionBridge {
     userDataDir,
     cwd,
     executable = "claude",
-    selection = { model: "haiku", effort: "low" },
+    selection = { model: "sonnet", effort: "low" },
     transportFactory = () => new OwnedSession(),
     readTranscript: read = readTranscript,
     retry = {},
@@ -154,6 +154,14 @@ export class DesktopSessionBridge {
       if (typeof this.cwd !== "string" || !this.cwd)
         throw new Error("Invalid saved session working directory");
       this.state.cwd = this.cwd;
+      // Until the user has chosen, the starting value follows the current
+      // default, so a session saved under the old Haiku default moves to it.
+      if (
+        !this.state.chosen &&
+        this.state.selection?.model === "haiku" &&
+        this.state.selection?.effort === "low"
+      )
+        this.state.selection = { ...this.initialSelection };
       validateSelection(this.state.selection);
       await this.store.save(this.state);
       await this.openTransport();
@@ -460,6 +468,27 @@ export class DesktopSessionBridge {
         .catch(() => this.fail("persistence"));
     }, timing.checkpoint);
   }
+  /** True from the moment a question is taken until its answer is done or has
+   * failed: the turn that runs, or one waiting for the session to start. */
+  get working() {
+    if (this.closed || !this.state) return false;
+    if (this.active !== undefined) return true;
+    return (
+      this.status.state !== "blocked" &&
+      this.state.turns.some((item) => item.state === "queued")
+    );
+  }
+  /** Writes lines into the chat that no model turn made, such as a guide:
+   * the picture it was drawn from on the reader's side and a readable account
+   * of it on the answer side. Each is `{id, role, content}`. */
+  async record(lines) {
+    for (const line of lines)
+      this.upsert(
+        { type: "message", ...line, record: true, at: line.at ?? Date.now() },
+        true,
+      );
+    await this.store.save(this.state).catch(() => {});
+  }
   upsert(message, emit = false) {
     if (!message) return;
     message = this.withoutAutoPrompt(message);
@@ -475,7 +504,9 @@ export class DesktopSessionBridge {
     return this.enqueue(async () => {
       validateSelection(selection);
       await this.waitIdle();
-      if (!this.ready) throw new Error("Session is reconnecting");
+      // While the session reconnects the choice is kept and the next start
+      // runs with it, so the lists never refuse a pick.
+      if (!this.ready) return this.remember(selection);
       this.selecting = true;
       const previous = { ...this.state.selection };
       try {
@@ -490,6 +521,7 @@ export class DesktopSessionBridge {
         )
           throw new Error("Claude did not apply the requested selection");
         this.state.selection = applied;
+        this.state.chosen = true;
         await this.store.save(this.state);
         this.emit({ type: "selection", applied });
         return { ...applied };
@@ -511,6 +543,23 @@ export class DesktopSessionBridge {
         await this.pump();
       }
     });
+  }
+  async remember(selection) {
+    const kept = {
+      model: selection.model,
+      effort: selection.effort,
+      ...(selection.permissionMode
+        ? { permissionMode: selection.permissionMode }
+        : {}),
+    };
+    this.initialSelection = kept;
+    if (this.state) {
+      this.state.selection = kept;
+      this.state.chosen = true;
+      await this.store.save(this.state);
+    }
+    this.emit({ type: "selection", applied: { ...kept } });
+    return { ...kept };
   }
   waitIdle() {
     if (this.closed) return Promise.reject(new Error("Session closed"));

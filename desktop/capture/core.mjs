@@ -70,7 +70,7 @@ export const fadeDuration = (reduced) => (reduced ? 0 : duration.fast);
  * once the target opacity is on screen. */
 export function fadeScript(
   to,
-  { duration: ms, easing: curve, reduced, instant = false },
+  { duration: ms, easing: curve, reduced, instant = false, level = 0 },
 ) {
   return `(() => {
   const root = document.documentElement;
@@ -81,7 +81,7 @@ export function fadeScript(
   let fade = root.getAnimations().find((a) => a.id === name);
   if (!fade && ${to} === 1) return Promise.resolve();
   if (!fade) {
-    fade = root.animate([{ opacity: 1 }, { opacity: 0 }], {
+    fade = root.animate([{ opacity: 1 }, { opacity: ${level} }], {
       id: name,
       duration: ${ms},
       easing: ${JSON.stringify(curve)},
@@ -110,8 +110,9 @@ export function fadeScript(
 /** Fades one own window's page to opacity 0 or 1. The window itself is never
  * hidden, moved or re-shown, so nothing pops and nothing is re-activated. Out
  * is at once, because every frame Blink is gone is seen; back in is a fade. */
-export function fadeWindow(win, to, reduced = false) {
+export function fadeWindow(win, to, reduced = false, level = 0) {
   const script = fadeScript(to, {
+    level,
     duration: fadeDuration(reduced),
     easing: easing.standard,
     reduced,
@@ -137,7 +138,9 @@ export class SurfaceGuard {
   constructor(
     windows,
     {
-      fade = (win, to) => fadeWindow(win, to),
+      fade = (win, to, level) => fadeWindow(win, to, false, level),
+      // How much of a window stays: Blink stays faint in the picture, the rest goes.
+      level = () => 0,
       // The page is clear; let the compositor present that frame before the read.
       settle = () => frames(SETTLE_FRAMES),
       // A window the system keeps out of every screen read needs no hiding.
@@ -147,6 +150,7 @@ export class SurfaceGuard {
     this.keep = keep;
     this.windows = windows;
     this.fade = fade;
+    this.level = level;
     this.settle = settle;
   }
   run(task, signal) {
@@ -162,7 +166,9 @@ export class SurfaceGuard {
         );
         for (const w of fresh) faded.add(w);
         await Promise.all(
-          fresh.map((w) => Promise.resolve(this.fade(w, 0)).catch(() => {})),
+          fresh.map((w) =>
+            Promise.resolve(this.fade(w, 0, this.level(w))).catch(() => {}),
+          ),
         );
         return fresh.length;
       };

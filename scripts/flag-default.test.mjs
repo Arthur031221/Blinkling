@@ -114,6 +114,7 @@ describe("the other places that tell a person how to start", () => {
     "docs/releases/v3.2.4.md",
     "docs/releases/v3.2.5.md",
     "docs/releases/v3.2.6.md",
+    "docs/releases/v3.2.7.md",
   ];
   for (const path of files)
     it(path, () => {

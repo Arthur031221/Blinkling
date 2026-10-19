@@ -281,7 +281,12 @@ const cardAt = (at = shown()) =>
   );
 /** The size the reader gave the card: the drag in progress, else the one kept. */
 const cardSize = () =>
-  resizing?.size ?? sizeFrom(store.cardSize, display.workArea);
+  guiding
+    ? null
+    : (resizing?.size ?? sizeFrom(store.cardSize, display.workArea));
+/** While a guide runs the card is the small one that fits its two buttons, whatever
+ * size the reader gave the full card: it would stand empty otherwise. */
+let guiding = false;
 /** A card resize in progress: the edge, the size it began with and the nudge. */
 let resizing = null;
 /** What the guide step on show is about, in screen DIP: the card keeps off it. */
@@ -893,21 +898,22 @@ const send = (event) => {
   // card opens when the picture has been eaten, not before.
   else if (event.type === "capture-status") {
     if (event.message && event.state === "error") flow((m) => m.notice());
-    capturing(event.state === "working");
+    capturing(event.state === "working" || event.state === "started");
   } else if (event.type === "guide") {
     const rects = Array.isArray(event.rects) ? event.rects : [];
-    if (JSON.stringify(rects) !== JSON.stringify(guideRects)) {
+    const compact = event.phase !== "dismissed" && event.phase !== "error";
+    if (
+      JSON.stringify(rects) !== JSON.stringify(guideRects) ||
+      compact !== guiding
+    ) {
       guideRects = rects;
+      guiding = compact;
       placeCard();
     }
     flow((m) => {
       // The failure is noticed first, so the card it opened is read, not closed.
       if (event.phase === "error") m.notice();
-      m.guide(
-        event.phase !== "dismissed" && event.phase !== "error",
-        undefined,
-        Boolean(event.again),
-      );
+      m.guide(event.phase !== "dismissed" && event.phase !== "error");
     });
   }
 };
@@ -958,6 +964,17 @@ const session = new ChatRouter({
     }),
 });
 session.subscribe(send, { visible: true });
+// Blink thinks for exactly as long as an answer is being worked on, whoever
+// asked (the card, a chip, Auto explain, a guide) and however it ends.
+let workingNow = false;
+const syncWorking = () => {
+  const on = Boolean(session.working);
+  if (on === workingNow) return;
+  workingNow = on;
+  send({ type: "working", on });
+};
+session.subscribe(syncWorking, { visible: true });
+setInterval(syncWorking, timing.workingPoll).unref();
 // Pointing, the pick layer and the privacy guard share one locator. It is
 // reached through this stand-in so an e2e run can swap in recorded elements
 // (blinklingTest.locator.set); until the real one exists nothing is found.
@@ -1020,16 +1037,36 @@ function revealReference(ref) {
     composer.webContents.send("blinkling:mark-click", { ref }),
   );
 }
-// An answer opens the card by itself and closes it by the reading rule.
+// An answer opens the card by itself and closes it by the reading rule. An
+// Auto explain answer is muttered in a small bubble beside Blink instead: the
+// card stays shut and keeps the record of it.
 let answerWords = 0;
+let muttered = "";
+let mutteredTurn;
+let mutteredFor;
 session.subscribe(
   (event) => {
     if (event.type === "delta") {
+      if (session.isAuto()) {
+        if (mutteredFor !== session.main.active) muttered = "";
+        mutteredFor = session.main.active;
+        muttered += String(event.text ?? "");
+        send({ type: "mutter", text: muttered, final: false });
+        return;
+      }
       answerWords += String(event.text ?? "")
         .split(/\s+/)
         .filter(Boolean).length;
       if (!machine.read().streaming) flow((m) => m.answerStart());
     } else if (event.type === "done") {
+      if (mutteredTurn !== undefined && event.turnId === mutteredTurn) return;
+      if (session.endAuto(event.turnId)) {
+        mutteredTurn = event.turnId;
+        const text = session.answerOf(event.turnId) || muttered.trim();
+        muttered = "";
+        send({ type: "mutter", text, final: true });
+        return;
+      }
       flow((m) => m.answerEnd(answerWords, undefined, { keep: autoExplain }));
       answerWords = 0;
     }
@@ -1114,8 +1151,11 @@ ipcMain.handle("blinkling:send", async (event, turn) => {
   flow((m) => m.answerStart());
   try {
     await session.send(await answers.ask(turn));
+    syncWorking();
   } catch (error) {
     flow((m) => m.answerFailed());
+    workingNow = false;
+    send({ type: "working", on: false });
     throw error;
   }
 });
@@ -1428,6 +1468,7 @@ features = installCaptureGuide({
   onState: (state) => send({ type: "capture-status", ...state }),
   fullPage: (signal, progress) => companionHost.fullPage(signal, progress),
   companion: () => companionConnected(companionHost),
+  host: companionHost,
 });
 for (const action of featureActions)
   registerAction(action, () => features.handle(action));
@@ -1735,13 +1776,10 @@ hookedPress = createHookedPress({
   picking: () => pickingOn,
   outside: () => backgroundPress(),
 });
-/** A press on the background ends what is up: the card, the bubbles, and a guide
- * whether it still looks at the screen, shows its marks or its steps. */
+/** A press on the background folds away the card and the bubbles. A guide's
+ * marks and notes stay: only End guide, Esc or a changed page take them away. */
 function backgroundPress() {
-  const closed = flow((m) => m.outside());
-  const guide = features?.guide;
-  if (closed !== false && (guide?.controller || guide?.guide))
-    void features.handle("guide-dismiss");
+  flow((m) => m.outside());
 }
 function over(p) {
   const local = localPoint(p, frame());

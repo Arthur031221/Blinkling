@@ -44,6 +44,14 @@ export type PageElements = {
     screenY: number;
     devicePixelRatio: number;
     zoom: number;
+    /** Where the viewport stands on the page, and the page's size, in CSS pixels. */
+    scrollX: number;
+    scrollY: number;
+    pageWidth: number;
+    pageHeight: number;
+    /** The visible part of the page, in CSS pixels. */
+    viewWidth: number;
+    viewHeight: number;
   };
   elements: PageElement[];
 };
@@ -103,6 +111,13 @@ export function startDesktopHost(options?: {
     /** Skip the helper's short cache, for the read a click depends on. */
     fresh?: boolean;
   }) => Promise<PageElements | null>;
+  /** Scrolls the page under a screen point (DIP) to page coordinates (CSS pixels). */
+  scrollPage: (options?: {
+    point?: { x: number; y: number };
+    x?: number;
+    y?: number;
+    signal?: AbortSignal;
+  }) => Promise<{ ok: boolean }>;
   translatePage: (options?: {
     on?: boolean;
     signal?: AbortSignal;

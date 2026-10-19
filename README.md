@@ -98,6 +98,6 @@ The other direction, Blink's chat showing up in the terminal, goes through Claud
 > [!IMPORTANT]
 > The browser helper reads a page only when you point at it. It never reads password or payment fields, and it talks only to Blinkling on your own computer. Auto explain stays off until you turn it on.
 
-Blinkling has no telemetry and no answer service of its own. What you pick goes to your Claude Code, and the provider's terms and usage charges apply. Browser settings, extension stores and the browser's own PDF viewer are protected pages, so Blink answers from the screen there. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v3.2.6.md)
+Blinkling has no telemetry and no answer service of its own. What you pick goes to your Claude Code, and the provider's terms and usage charges apply. Browser settings, extension stores and the browser's own PDF viewer are protected pages, so Blink answers from the screen there. [Privacy](docs/SECURITY.md) | [Usage](docs/USAGE.md) | [Release notes](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

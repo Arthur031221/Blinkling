@@ -77,31 +77,27 @@ export function mountGuidePanel({ host, tr, onAction }) {
 
   return {
     update(event) {
-      const offer = event.phase === "dismissed" && event.again;
-      host.hidden = event.phase === "dismissed" && !offer;
+      host.hidden = event.phase === "dismissed";
+      // A step's explanation stands under its mark on the page; the card keeps
+      // only where the tour is and the buttons.
       const texts =
-        event.bubbles ??
-        (event.phase === "thinking"
-          ? [tr("guide-thinking")]
-          : offer
-            ? [tr("guide-again-note")]
-            : []);
+        event.phase === "step"
+          ? []
+          : (event.bubbles ??
+            (event.phase === "thinking" ? [tr("guide-thinking")] : []));
       texts.forEach((text, index) => bubble(index, text));
       for (const node of bubbles.splice(texts.length)) node.remove();
       head(
         event.phase === "step"
-          ? [
-              tr("guide-step", { n: event.index + 1, total: event.total }),
-              event.title,
-            ]
-              .filter(Boolean)
-              .join(" · ")
+          ? tr("guide-step", { n: event.index + 1, total: event.total })
           : "",
       );
       list(event.phase === "overview" ? event.steps : null);
       if (listNode) host.append(listNode);
 
       const wanted = [];
+      if (event.phase === "thinking")
+        wanted.push(button("dismiss", tr("guide-dismiss"), "guide-dismiss"));
       if (event.phase === "overview")
         wanted.push(
           button("next", tr("guide-start"), "guide-next", event.canNext),
@@ -116,16 +112,13 @@ export function mountGuidePanel({ host, tr, onAction }) {
             "guide-next",
             event.canNext,
           ),
-          button("overview", tr("guide-overview"), "guide-overview"),
           button("dismiss", tr("guide-dismiss"), "guide-dismiss"),
         );
       if (event.phase === "finished")
         wanted.push(
           button("back", tr("guide-back"), "guide-back", event.canBack),
-          button("overview", tr("guide-overview"), "guide-overview"),
           button("dismiss", tr("guide-dismiss"), "guide-dismiss"),
         );
-      if (offer) wanted.push(button("again", tr("guide-again"), "guide-again"));
       if (event.phase === "error")
         wanted.push(
           button("retry", tr("guide-retry"), "guide-retry"),

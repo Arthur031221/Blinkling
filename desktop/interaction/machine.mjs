@@ -63,6 +63,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     held: false,
     streaming: false,
     dismissed: false,
+    declined: false,
     leftAt: null,
     capture: 0,
     eatingUntil: 0,
@@ -313,10 +314,13 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     },
     escape(t = clock()) {
       if (s.viewer > 0) return;
-      if (s.surface === "chat") closeChat(t, "escape");
-      else if (s.surface === "menu") closeMenu(t, "escape");
+      if (s.surface === "chat") {
+        if (s.streaming) s.declined = true;
+        closeChat(t, "escape");
+      } else if (s.surface === "menu") closeMenu(t, "escape");
     },
     close(t = clock()) {
+      if (s.streaming) s.declined = true;
       closeChat(t, "close");
     },
     /** A bubble was used to take a picture: the menu has done its job and
@@ -377,7 +381,13 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     /** A capture or the Ctrl pick is in progress: Blink comes out to take part
      * and stays out until it is over. */
     capture(open, t = clock()) {
+      const first = open && s.capture === 0;
       s.capture = Math.max(0, s.capture + (open ? 1 : -1));
+      // The picture is taken of a screen without the card: an open card that
+      // is not pinned closes first, and the capture brings it back.
+      if (first && s.surface === "chat" && !s.pinned && s.panels === 0) {
+        closeChat(t, "capture");
+      }
       if (open) pullOut(t);
       else engage(t);
     },
@@ -400,6 +410,7 @@ export function createMachine({ now: clock = () => 0 } = {}) {
     answerStart(t = clock()) {
       s.streaming = true;
       s.dismissed = false;
+      s.declined = false;
       s.guideOnly = false;
       s.answered = false;
       s.readUntil = null;
@@ -413,6 +424,12 @@ export function createMachine({ now: clock = () => 0 } = {}) {
       s.streaming = false;
       s.dismissed = false;
       s.answered = true;
+      // A card that was clicked away or lost focus while the answer was on its
+      // way opens for the finished answer. Only Esc or the close button on
+      // that very answer keeps it shut.
+      if (s.surface !== "chat" && !s.declined && !s.guiding)
+        openChat(t, "answer");
+      s.declined = false;
       engage(t);
       s.readUntil = keep ? null : t + readingMs(words);
       emit("answer-done", { words });

@@ -236,6 +236,9 @@ export class ChannelChat {
     return true;
   }
   /** The session began on the question (a prompt hook) or answered it. */
+  get answering() {
+    return this.active !== undefined;
+  }
   started() {
     clearTimeout(this.waiting);
     return this.active !== undefined;
@@ -354,6 +357,8 @@ export class ChatRouter {
     this.locale = locale;
     this.onChannelDropped = onChannelDropped;
     this.main = main;
+    /** Turns Auto explain asked: their answer is muttered, not shown in the card. */
+    this.autoIds = new Set();
     this.makeBridge = makeBridge;
     this.makeChannel = makeChannel;
     this.deliver = deliver;
@@ -377,6 +382,14 @@ export class ChatRouter {
   }
   get status() {
     return this.current.impl.status;
+  }
+  /** An answer is being worked on, here or in Blink's own chat (Auto explain). */
+  get working() {
+    const { impl } = this.current;
+    return Boolean(
+      (impl instanceof ChannelChat ? impl.answering : impl.working) ||
+        this.main.working,
+    );
   }
   /** Blink's own conversation is the one with a remote identity. */
   identity() {
@@ -639,16 +652,62 @@ export class ChatRouter {
         });
     }
   }
+  /** Writes lines no model turn made (a guide: the picture on the reader's
+   * side, the account of it on the answer side) into the chat on screen. */
+  async record(lines) {
+    const chat = this.current;
+    if (chat.key === MAIN) return chat.impl.record(lines);
+    for (const line of lines)
+      chat.impl.add({
+        id: line.id,
+        role: line.role,
+        content: line.content,
+        record: true,
+      });
+  }
+  /** True while `turnId` is an Auto explain turn; `end` forgets it. */
+  isAuto(turnId = this.main.active) {
+    return turnId !== undefined && this.autoIds.has(turnId);
+  }
+  endAuto(turnId) {
+    return this.autoIds.delete(turnId);
+  }
+  /** The words of the answer to `turnId` in Blink's own conversation. */
+  answerOf(turnId) {
+    const messages = this.main.state?.messages ?? [];
+    const start = messages.findIndex(
+      (m) => m.role === "user" && m.id === turnId,
+    );
+    if (start < 0) return "";
+    const words = [];
+    for (const m of messages.slice(start + 1)) {
+      if (m.role === "user") break;
+      for (const block of m.content ?? [])
+        if (block.type === "text" && block.text) words.push(block.text);
+    }
+    return words.join("\n\n").trim();
+  }
   async send(turn) {
     await this.admit(turn);
+    if (turn?.source === "auto-explain") {
+      this.autoIds.add(turn.id);
+      if (this.autoIds.size > 20)
+        this.autoIds.delete(this.autoIds.values().next().value);
+    }
     // Auto explain is Blink's own question: a terminal session is never asked
     // it. Its answer is written into the chat on screen.
     if (turn?.source === "auto-explain" && this.current.key !== MAIN)
-      return this.viaMain(this.current, turn);
+      return this.viaMain(this.current, turn).catch((error) => {
+        this.autoIds.delete(turn.id);
+        throw error;
+      });
     const chat = INTERNAL.has(turn?.source)
       ? this.chats.get(MAIN)
       : this.current;
-    return chat.impl.send(turn);
+    return chat.impl.send(turn).catch((error) => {
+      this.autoIds.delete(turn?.id);
+      throw error;
+    });
   }
   select(selection) {
     return this.current.impl.select(selection);

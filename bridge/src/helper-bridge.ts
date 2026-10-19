@@ -38,6 +38,14 @@ export type ElementsResult = {
     screenY: number;
     devicePixelRatio: number;
     zoom: number;
+    /** Where the viewport stands on the page, and how big the page is, in CSS pixels. */
+    scrollX: number;
+    scrollY: number;
+    pageWidth: number;
+    pageHeight: number;
+    /** The visible part of the page, in CSS pixels. */
+    viewWidth: number;
+    viewHeight: number;
   };
   elements: HelperElement[];
   /** The text the user has selected on the page, if any. */
@@ -148,6 +156,12 @@ export function readElements(value: unknown): ElementsResult | null {
       screenY: finite(frame.screenY),
       devicePixelRatio: finite(frame.devicePixelRatio, 1) || 1,
       zoom: finite(frame.zoom, 1) || 1,
+      scrollX: finite(frame.scrollX),
+      scrollY: finite(frame.scrollY),
+      pageWidth: finite(frame.pageWidth),
+      pageHeight: finite(frame.pageHeight),
+      viewWidth: finite(frame.viewWidth),
+      viewHeight: finite(frame.viewHeight),
     },
     elements,
     ...(selection ? { selection } : {}),
@@ -400,6 +414,22 @@ export class HelperBridge {
       reply?.ok === false ? null : readElements(reply?.result ?? null);
     if (reply) this.cache = { key, at: this.now(), value };
     return value;
+  }
+
+  /** Scrolls the page under `point` so the viewport's top left stands at the
+   * page coordinates `to` (a missing axis stays). */
+  async scrollPage(
+    to: { x?: number; y?: number },
+    point?: { x: number; y: number },
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    this.cache = undefined;
+    const reply = await this.request(
+      { type: "scroll-page", point, x: to.x, y: to.y },
+      4000,
+      signal,
+    );
+    return reply?.ok === true;
   }
 
   async translatePage(on: boolean, signal?: AbortSignal): Promise<boolean> {

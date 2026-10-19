@@ -65,6 +65,12 @@ const fakeSession = (app) =>
       stop: async () => {},
     });
   }, REGIONS);
+const noteText = (app) =>
+  app
+    .windows()
+    .find((p) => p.url().includes("/overlay/"))
+    ?.evaluate(() => document.querySelector(".note p")?.textContent ?? "") ??
+  "";
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
 /** The drawn stick as the screen sees it: where it starts and where it ends. */
@@ -152,9 +158,10 @@ test("the pointer stick aims at the box of the step being shown, on every step",
           .waitFor({ timeout: 5000 });
         for (; shown < i; shown++) await button("guide-next").click();
         for (; shown > i; shown--) await button("guide-back").click();
-        await expect(cardPage(app).locator(".gl-guide")).toContainText(
-          `Look at the ${REGIONS[i].label}.`,
-        );
+        // The step's words sit under its mark, not in the card.
+        await expect
+          .poll(() => noteText(app), { timeout: 5000 })
+          .toContain(`Look at the ${REGIONS[i].label}.`);
         await page.waitForTimeout(900);
         const s = await stick(page);
         const origin = await app.evaluate(() =>

@@ -1136,3 +1136,81 @@ test("PV-1: a hook that throws blocks the turn, and a hook cannot mutate it", as
   assert.equal(kids[0].sent[0].text, "What?");
   assert.equal(kids[0].sent[0].attachments.length, 1);
 });
+
+test("a choice made before the session is ready is kept, not refused, and applied when it connects", async (t) => {
+  const { bridge, events } = await setup(t);
+  await bridge.start();
+  bridge.ready = false; // the connection dropped and is being retried
+  const kept = await bridge.select({
+    model: "opus",
+    effort: "high",
+    permissionMode: "plan",
+  });
+  assert.deepEqual(kept, {
+    model: "opus",
+    effort: "high",
+    permissionMode: "plan",
+  });
+  assert.deepEqual(
+    events.filter((e) => e.type === "selection").at(-1).applied,
+    kept,
+  );
+  assert.equal(bridge.state.chosen, true);
+  assert.deepEqual((await bridge.store.load()).selection, kept);
+});
+
+test("a fresh bridge starts on Sonnet at low effort", async (t) => {
+  const { bridge } = await setup(t);
+  assert.deepEqual(bridge.initialSelection, { model: "sonnet", effort: "low" });
+});
+
+test("a recorded exchange shows to visible subscribers and is kept, with no model turn", async (t) => {
+  const { bridge, children, events } = await setup(t);
+  await bridge.connect();
+  const visible = [];
+  bridge.subscribe((event) => visible.push(event), { visible: true });
+  await bridge.record([
+    {
+      id: "g-user",
+      role: "user",
+      content: [{ type: "text", text: "Guide me" }],
+    },
+    {
+      id: "g-ai",
+      role: "assistant",
+      content: [{ type: "text", text: "1. Search" }],
+    },
+  ]);
+  const shown = visible.filter((e) => e.type === "message");
+  assert.deepEqual(
+    shown.map((e) => [e.id, e.role]),
+    [
+      ["g-user", "user"],
+      ["g-ai", "assistant"],
+    ],
+  );
+  assert.equal(children[0].sent.length, 0, "nothing was sent to the model");
+  assert.deepEqual(
+    bridge.state.messages.map((m) => m.id),
+    ["g-user", "g-ai"],
+  );
+  const late = [];
+  bridge.subscribe((event) => late.push(event), { visible: true });
+  assert.match(JSON.stringify(late), /1\. Search/, "history replays it");
+  assert.ok(events.length >= 0);
+});
+
+test("working is true from the moment a question is taken until its answer is done, whoever asked", async (t) => {
+  const { bridge, children } = await setup(t);
+  await bridge.connect();
+  assert.equal(bridge.working, false);
+  for (const source of ["composer", "quick-ask", "auto-explain", "guide"]) {
+    const value = turn(source);
+    await bridge.send(value);
+    assert.equal(bridge.working, true, `${source} is being answered`);
+    await waitFor(() => children[0].sent.some((s) => s.id === value.id));
+    children[0].finish(value);
+    await waitFor(() => bridge.working === false);
+  }
+  assert.equal(bridge.working, false);
+});

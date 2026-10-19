@@ -42,7 +42,8 @@ function play(blink, t0, o, seconds, each) {
 }
 
 test("eating follows the sheet: mouth wide, the picture sucked in, chew, gulp, sparkle", () => {
-  const at = (k) => eating(k);
+  // The sheet's own clock; the motion runs 1.8 times as fast.
+  const at = (k) => eating(k / 1.8);
   assert.equal(at(0.2).mouth, "gulp");
   assert.ok(at(0.4).mp > 0.95, "the mouth is wide when the picture arrives");
   assert.deepEqual(at(0.6).L, [100, 30, 130, 30], "hands up to the mouth");
@@ -55,8 +56,8 @@ test("eating follows the sheet: mouth wide, the picture sucked in, chew, gulp, s
   const hop = Math.min(...[2.45, 2.55, 2.65].map((k) => at(k).y));
   assert.ok(hop <= -2.5, `swallow hop ${hop}`);
   assert.ok(at(3.0).faceExtra.includes(STAR), "a sparkle follows the gulp");
-  assert.ok(!at(EAT_FOR).faceExtra.includes("NaN"));
-  assert.equal(at(EAT_FOR - 0.01).mouth, "smile");
+  assert.ok(!eating(EAT_FOR).faceExtra.includes("NaN"));
+  assert.equal(eating(EAT_FOR - 0.01).mouth, "smile");
 });
 
 test("an eat plays in the drawing and then gives the face back", () => {

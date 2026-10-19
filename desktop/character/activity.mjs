@@ -21,12 +21,20 @@ export function createActivityState({ wall = Date.now } = {}) {
     blocked = false,
     lock = false,
     watching = false,
+    working = false,
     resetAt = null;
   let limited = false;
   return {
     accept(event, now) {
       if (event.type === "guard") lock = !!event.lock;
       if (event.type === "watching") watching = !!event.on;
+      // The shell says when an answer is being worked on and when it is over,
+      // whichever way it was asked and however it ended.
+      if (event.type === "working") {
+        working = !!event.on;
+        if (working) talking = false;
+        else if (expression === "thinking") expression = "idle";
+      }
       if (event.type === "usage-limit") {
         // A null reset time ends the limit; a missing one means "until told".
         limited = event.resetAt !== null;
@@ -50,7 +58,14 @@ export function createActivityState({ wall = Date.now } = {}) {
         if (expression === "finished") finishedAt = now;
         if (expression === "error") failedAt = now;
       }
-      if (event.type === "message" && event.role === "user") {
+      // A line replayed from history or written by Blink (a guide's record)
+      // is not a question being asked.
+      if (
+        event.type === "message" &&
+        event.role === "user" &&
+        !event.replay &&
+        !event.record
+      ) {
         expression = "thinking";
         talking = false;
       }
@@ -77,14 +92,14 @@ export function createActivityState({ wall = Date.now } = {}) {
         permission: expression === "permission",
         usageLimit: active ? { resetAt } : false,
         error: expression === "error",
-        thinking: expression === "thinking" && !talking,
-        talking,
+        thinking: working || (expression === "thinking" && !talking),
+        talking: talking && !working,
         watching,
       });
       return {
         expression,
         connection,
-        talking,
+        talking: talking && !working,
         face,
         detail,
         dot: DOT[connection] ?? null,

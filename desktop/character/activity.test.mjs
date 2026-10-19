@@ -146,3 +146,26 @@ test("a failed action worries Blink for a few seconds only, so it can grumble ag
   assert.equal(state.read(20_000).expression, "error");
   assert.equal(state.read(90_000).expression, "error");
 });
+
+test("Blink thinks for exactly as long as an answer is worked on, whoever asked, and a replayed or written line is no question", () => {
+  const state = createActivityState();
+  state.accept({ type: "status", state: "connected" }, 0);
+  state.accept({ type: "message", role: "user", replay: true }, 5);
+  state.accept({ type: "message", role: "user", record: true }, 6);
+  assert.equal(state.read(6).face, "idle");
+  state.accept({ type: "working", on: true }, 10);
+  assert.equal(state.read(10).face, "thinking");
+  // The text streaming in does not end it: the answer is not complete yet.
+  state.accept({ type: "delta" }, 20);
+  assert.equal(state.read(20).face, "thinking");
+  assert.equal(state.read(20).talking, false);
+  state.accept({ type: "working", on: false }, 30);
+  state.accept({ type: "done" }, 31);
+  assert.notEqual(state.read(31).face, "thinking");
+  // A turn that failed with no `done` stops at once as well.
+  state.accept({ type: "sending" }, 2000);
+  state.accept({ type: "working", on: true }, 2001);
+  assert.equal(state.read(2001).face, "thinking");
+  state.accept({ type: "working", on: false }, 2100);
+  assert.equal(state.read(2100).face, "idle");
+});

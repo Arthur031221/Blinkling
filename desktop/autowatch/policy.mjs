@@ -12,19 +12,19 @@ export function fingerprint(bitmap) {
   return result;
 }
 /** Minimum time between two automatic explanations. The one place to tune it. */
-export const COOLDOWN_MS = 12000;
+export const COOLDOWN_MS = 5000;
 /** Sampling never goes faster than this; it is also the interval auto explain uses. */
-export const MIN_INTERVAL_MS = 3000;
+export const MIN_INTERVAL_MS = 1000;
 /** From the baseline sample to the capture being sent: one sample to see the
  * change and `settleSamples` more to see it hold still, all at the floor interval. */
-export const DETECTION_BUDGET_MS = 10000;
+export const DETECTION_BUDGET_MS = 4000;
 const W = 32,
   H = 18;
 /** Two white pages share most pixels, so a navigation moves the mean only a
  * little while still changing the structure of many cells. Cursor blink, caret
  * movement and a clock tick stay far below the limits. */
-const BROAD = { mean: 0.1, fraction: 0.3 };
-const STRUCTURAL = { mean: 0.008, cell: 0.06, fraction: 0.03 };
+const BROAD = { mean: 0.07, fraction: 0.2 };
+const STRUCTURAL = { mean: 0.005, cell: 0.06, fraction: 0.02 };
 /** A scroll moves text up or down as a whole. If shifting one frame by a few
  * rows makes it match the other, nothing new was read, however much text moved.
  * Beyond MAX_SHIFT rows (about half a screen) it is a different part of the page. */
@@ -114,7 +114,7 @@ export class ChangePolicy {
     { now, idleSeconds, busy = false, typing = false },
     compare = difference,
   ) {
-    if (busy || typing || idleSeconds < 3) {
+    if (busy || typing || idleSeconds < 2) {
       this.pause();
       return false;
     }

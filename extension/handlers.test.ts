@@ -55,7 +55,15 @@ function setup(url = "https://example.test/", over: object = {}) {
       ? [{ result: undefined }]
       : [
           {
-            result: { innerWidth: 984, innerHeight: 700, devicePixelRatio: 2 },
+            result: {
+              innerWidth: 984,
+              innerHeight: 700,
+              devicePixelRatio: 2,
+              scrollX: 0,
+              scrollY: 640,
+              pageWidth: 984,
+              pageHeight: 4200,
+            },
           },
         ],
   );
@@ -106,6 +114,12 @@ describe("helper handlers", () => {
       screenY: 142,
       devicePixelRatio: 2,
       zoom: 1,
+      scrollX: 0,
+      scrollY: 640,
+      viewWidth: 984,
+      viewHeight: 700,
+      pageWidth: 984,
+      pageHeight: 4200,
     });
     expect(reply.result.elements[0].secure).toBe(true);
     expect(reply.result.selection).toEqual({
@@ -117,6 +131,36 @@ describe("helper handlers", () => {
       type: "blinkling:elements",
       near: { x: 192, y: 158 },
     });
+  });
+
+  it("scrolls the page under the point to the page coordinates it is given", async () => {
+    const { executeScript } = setup();
+    executeScript.mockImplementation(async (details: { files?: string[] }) => [
+      { result: details.files ? undefined : true },
+    ]);
+    const reply = await createHandlers(helper).handle(
+      { type: "scroll-page", id: "1", point: { x: 300, y: 300 }, y: 1200 },
+      context(),
+    );
+    expect(reply).toEqual({ ok: true });
+    const scrolled = executeScript.mock.calls.find(
+      ([details]) => (details as { func?: unknown }).func,
+    );
+    expect(scrolled?.[0]).toMatchObject({
+      target: { tabId: 4 },
+      args: [null, 1200],
+    });
+  });
+
+  it("does not scroll a page an extension cannot enter", async () => {
+    const { executeScript } = setup("chrome://settings");
+    expect(
+      await createHandlers(helper).handle(
+        { type: "scroll-page", id: "1", y: 10 },
+        context(),
+      ),
+    ).toEqual({ ok: false });
+    expect(executeScript).not.toHaveBeenCalled();
   });
 
   it("returns null for pages an extension cannot read", async () => {

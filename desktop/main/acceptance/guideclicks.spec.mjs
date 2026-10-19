@@ -68,6 +68,12 @@ const fakeSession = (app, delay = 150) =>
       stop: async () => {},
     });
   }, delay);
+const noteText = (app) =>
+  app
+    .windows()
+    .find((p) => p.url().includes("/overlay/"))
+    ?.evaluate(() => document.querySelector(".note p")?.textContent ?? "") ??
+  "";
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
 const cardWindow = (app) =>
@@ -123,7 +129,8 @@ async function ready(app, page, delay) {
   };
   return { frame, start: () => clickAt(at) };
 }
-const emptySpot = (frame) => ({ x: frame.x + 140, y: frame.y + 170 });
+// Below every mark and note the steps draw, so the press is a background one.
+const emptySpot = (frame) => ({ x: frame.x + 140, y: frame.y + 700 });
 
 test("a click on a mark, a label, the step panel or a button is never a background click, and a real background click ends the guide, also while it still looks and while all the marks show", async () => {
   test.setTimeout(180000);
@@ -140,20 +147,16 @@ test("a click on a mark, a label, the step panel or a button is never a backgrou
     await clickAt(emptySpot(frame));
     await expect.poll(() => cardShown(app), { timeout: 3000 }).toBe(false);
     rec.frame("looking-closed");
-    // The answer that arrives later draws nothing.
-    await page.waitForTimeout(4200);
-    expect(await overlayShown(app), "nothing drawn after the close").toBe(
-      false,
-    );
-    expect(await cardShown(app)).toBe(false);
+    // The guide goes on without the card: its answer still draws the marks.
+    await expect.poll(() => overlayShown(app), { timeout: 8000 }).toBe(true);
   } finally {
     await rec.stop();
     await app.close();
   }
-  const second = await launch();
+  const pair = await launch();
   const rec2 = record("guide_clicks_marks", { suffix: "-324" });
   try {
-    const { app, page } = second;
+    const { app, page } = pair;
     const { frame, start } = await ready(app, page, 300);
     await start();
     await expect(cardPage(app).locator(".gl-guide-head")).toContainText(
@@ -163,9 +166,6 @@ test("a click on a mark, a label, the step panel or a button is never a backgrou
       },
     );
     await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(true);
-    // Every mark at once.
-    await clickIn(app, guideButton(app, "guide-overview"));
-    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(2);
     await page.waitForTimeout(600);
     rec2.frame("all-marks");
     const parts = await regions(app);
@@ -184,11 +184,8 @@ test("a click on a mark, a label, the step panel or a button is never a backgrou
       expect(await cardShown(app), `${kind}: card stays`).toBe(true);
       rec2.frame(`after-${kind}`);
     }
-    // A click on a mark shows the step it is about; the list comes back by its button.
-    await clickIn(app, guideButton(app, "guide-overview"));
-    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(2);
     // The step panel and its buttons, too.
-    await clickIn(app, cardPage(app).locator(".gl-guide-step").nth(1));
+    await clickIn(app, guideButton(app, "guide-next"));
     await expect(cardPage(app).locator(".gl-guide-head")).toContainText(/2.*2/);
     await clickIn(app, cardPage(app).locator(".gl-guide-head"));
     await page.waitForTimeout(500);
@@ -197,20 +194,21 @@ test("a click on a mark, a label, the step panel or a button is never a backgrou
     await clickIn(app, guideButton(app, "guide-back"));
     await expect(cardPage(app).locator(".gl-guide-head")).toContainText(/1.*2/);
     rec2.frame("after-panel");
-    // Back on the overview: a click on the page behind ends everything.
-    await clickIn(app, guideButton(app, "guide-overview"));
-    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(2);
+    // A click on the page behind folds the card away; the marks stay.
     await clickAt(emptySpot(frame));
     await expect.poll(() => cardShown(app), { timeout: 3000 }).toBe(false);
-    await expect.poll(() => overlayShown(app), { timeout: 3000 }).toBe(false);
+    await page.waitForTimeout(500);
+    expect(await overlayShown(app), "marks stay when the card folds").toBe(
+      true,
+    );
     rec2.frame("closed");
   } finally {
     await rec2.stop();
-    await second.app.close();
+    await pair.app.close();
   }
 });
 
-test("a closed guide comes back from the card with no new run of the model, from step 1 and with its place in the tour", async () => {
+test("a closed guide leaves no offer to show it again, and no new run of the model", async () => {
   test.setTimeout(180000);
   const { app, page } = await launch();
   const rec = record("guide_reopen", { suffix: "-324" });
@@ -219,9 +217,7 @@ test("a closed guide comes back from the card with no new run of the model, from
     await start();
     await expect(cardPage(app).locator(".gl-guide-head")).toContainText(
       /1.*2/,
-      {
-        timeout: 8000,
-      },
+      { timeout: 8000 },
     );
     await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(true);
     const asked = await turnCount(app);
@@ -231,27 +227,10 @@ test("a closed guide comes back from the card with no new run of the model, from
     rec.frame("step-2");
     await clickIn(app, guideButton(app, "guide-dismiss"));
     await expect.poll(() => overlayShown(app), { timeout: 4000 }).toBe(false);
-    await expect(guideButton(app, "guide-again")).toBeVisible({
-      timeout: 3000,
-    });
-    await page.waitForTimeout(400);
-    rec.frame("offer");
-    await clickIn(app, guideButton(app, "guide-again"));
-    await expect(cardPage(app).locator(".gl-guide-head")).toContainText(
-      /1.*2/,
-      {
-        timeout: 5000,
-      },
-    );
-    await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(true);
     await page.waitForTimeout(600);
-    rec.frame("again");
-    expect(await turnCount(app), "no new run of the model").toBe(asked);
-    // The same works after Esc.
-    await guideButton(app, "guide-dismiss").click();
-    await expect(guideButton(app, "guide-again")).toBeVisible({
-      timeout: 3000,
-    });
+    rec.frame("ended");
+    await expect(guideButton(app, "guide-again")).toHaveCount(0);
+    await expect(cardPage(app).locator(".gl-guide button")).toHaveCount(0);
     expect(await turnCount(app)).toBe(asked);
   } finally {
     await rec.stop();
@@ -272,9 +251,9 @@ test("a guide opens on step 1 of N, shown in the card's language, and every step
         timeout: 8000,
       },
     );
-    await expect(cardPage(app).locator(".gl-guide")).toContainText(
-      "Read the heading.",
-    );
+    await expect
+      .poll(() => noteText(app), { timeout: 5000 })
+      .toContain("Read the heading.");
     await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(0);
     await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(true);
     // Only the first step's mark is up.
@@ -283,12 +262,11 @@ test("a guide opens on step 1 of N, shown in the card's language, and every step
     console.log(`guide steps: ${first.length} badges and labels on step 1`);
     expect(first.length).toBeGreaterThan(0);
     rec.frame("step-1");
-    await clickIn(app, guideButton(app, "guide-overview"));
-    await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(2);
+    await clickIn(app, guideButton(app, "guide-next"));
     await page.waitForTimeout(700);
-    const all = await regions(app, ["badge", "label"]);
-    console.log(`guide steps: ${all.length} badges and labels on show all`);
-    expect(all.length).toBeGreaterThan(first.length);
+    const next = await regions(app, ["badge", "label"]);
+    console.log(`guide steps: ${next.length} badges and labels on step 2`);
+    expect(next.length).toBeGreaterThan(0);
     rec.frame("all-steps");
   } finally {
     await rec.stop();

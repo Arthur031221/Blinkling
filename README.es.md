@@ -100,6 +100,6 @@ La otra dirección, el chat de Blink en la terminal, usa los canales experimenta
 
 Blinkling no tiene telemetría ni un servicio de respuestas propio. Lo que eliges va a tu Claude Code, y se aplican las condiciones y los costes de uso del proveedor. Los ajustes del navegador, las tiendas de extensiones y el visor de PDF del propio navegador son páginas protegidas, así que ahí Blink responde a partir de la pantalla.
 
-[Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de la versión](docs/releases/v3.2.6.md)
+[Privacidad](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas de la versión](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

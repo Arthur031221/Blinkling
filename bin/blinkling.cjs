@@ -41948,6 +41948,25 @@ var DesktopCompanion = class {
       res.end(JSON.stringify({ result }));
       return;
     }
+    if (message.method === "scroll-page") {
+      const controller2 = new AbortController();
+      res.once("close", () => controller2.abort());
+      const valid = (n) => Number.isFinite(n) && Math.abs(n) < 1e7;
+      const point = message.point;
+      res.end(
+        JSON.stringify({
+          ok: await this.extension.scrollPage(
+            {
+              ...valid(message.x) ? { x: message.x } : {},
+              ...valid(message.y) ? { y: message.y } : {}
+            },
+            point && valid(point.x) && valid(point.y) ? { x: point.x, y: point.y } : void 0,
+            controller2.signal
+          )
+        })
+      );
+      return;
+    }
     if (message.method === "translate-page") {
       const controller2 = new AbortController();
       res.once("close", () => controller2.abort());
@@ -42911,7 +42930,13 @@ function readElements(value) {
       screenX: finite(frame.screenX),
       screenY: finite(frame.screenY),
       devicePixelRatio: finite(frame.devicePixelRatio, 1) || 1,
-      zoom: finite(frame.zoom, 1) || 1
+      zoom: finite(frame.zoom, 1) || 1,
+      scrollX: finite(frame.scrollX),
+      scrollY: finite(frame.scrollY),
+      pageWidth: finite(frame.pageWidth),
+      pageHeight: finite(frame.pageHeight),
+      viewWidth: finite(frame.viewWidth),
+      viewHeight: finite(frame.viewHeight)
     },
     elements,
     ...selection ? { selection } : {}
@@ -43112,6 +43137,17 @@ var HelperBridge = class {
     const value = reply?.ok === false ? null : readElements(reply?.result ?? null);
     if (reply) this.cache = { key, at: this.now(), value };
     return value;
+  }
+  /** Scrolls the page under `point` so the viewport's top left stands at the
+   * page coordinates `to` (a missing axis stays). */
+  async scrollPage(to, point, signal) {
+    this.cache = void 0;
+    const reply = await this.request(
+      { type: "scroll-page", point, x: to.x, y: to.y },
+      4e3,
+      signal
+    );
+    return reply?.ok === true;
   }
   async translatePage(on, signal) {
     const reply = await this.request(
@@ -43657,7 +43693,7 @@ async function createBlinkling(options = {}) {
     onClear: () => onClear()
   }).start();
   const server = new McpServer(
-    { name: "blinkling", version: "3.2.6" },
+    { name: "blinkling", version: "3.2.7" },
     {
       capabilities: { experimental: { "claude/channel": {} } },
       instructions: SYNC_INSTRUCTIONS

@@ -100,6 +100,6 @@ Blink는 선택한 것을 로그인된 본인의 Claude Code로 보내고 답을
 
 Blinkling에는 텔레메트리도, 자체 답변 서비스도 없습니다. 선택한 내용은 본인의 Claude Code로 가고, 제공자의 약관과 사용 요금이 적용됩니다. 브라우저 설정, 확장 프로그램 스토어, 브라우저 자체 PDF 뷰어는 보호된 페이지라서 그곳에서는 Blink가 화면을 보고 답합니다.
 
-[개인정보](docs/SECURITY.md) | [사용법](docs/USAGE.md) | [릴리스 노트](docs/releases/v3.2.6.md)
+[개인정보](docs/SECURITY.md) | [사용법](docs/USAGE.md) | [릴리스 노트](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

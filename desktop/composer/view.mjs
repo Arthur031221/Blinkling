@@ -458,7 +458,9 @@ export function mountComposer(
     if (text.value !== state.draft) text.value = state.draft;
     hold();
     pickers.apply(state.selection);
-    const locked = state.busy || state.selecting || !state.selection;
+    // Only a choice that is on its way locks the lists; a running answer does
+    // not, the session applies the choice when the answer is done.
+    const locked = state.selecting && !state.busy;
     pickers.setDisabled(locked);
     model.trigger.setAttribute("aria-busy", String(state.selecting));
     busyNow = state.busy;

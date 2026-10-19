@@ -221,7 +221,18 @@ it("host.elements, translatePage and openPdfReader reach the helper end to end",
                 tabId: 9,
                 incognito: false,
               },
-              frame: { screenX: 0, screenY: 90, devicePixelRatio: 1, zoom: 1 },
+              frame: {
+                screenX: 0,
+                screenY: 90,
+                devicePixelRatio: 1,
+                zoom: 1,
+                scrollX: 0,
+                scrollY: 640,
+                pageWidth: 1200,
+                pageHeight: 5000,
+                viewWidth: 1200,
+                viewHeight: 800,
+              },
               elements: [
                 {
                   id: "pw",
@@ -235,6 +246,14 @@ it("host.elements, translatePage and openPdfReader reach the helper end to end",
                 },
               ],
             },
+          }),
+        );
+      if (message.type === "scroll-page")
+        socket.send(
+          JSON.stringify({
+            type: "scroll-page-result",
+            id: message.id,
+            ok: message.y === 1200,
           }),
         );
       if (
@@ -256,9 +275,25 @@ it("host.elements, translatePage and openPdfReader reach the helper end to end",
       name: "",
       text: "",
     });
+    expect(result?.frame).toMatchObject({
+      scrollY: 640,
+      pageWidth: 1200,
+      pageHeight: 5000,
+      viewHeight: 800,
+    });
+    expect(
+      await app.host.scrollPage({ point: { x: 50, y: 150 }, y: 1200 }),
+    ).toEqual({ ok: true });
+    expect(await app.host.scrollPage({ y: 99 })).toEqual({ ok: false });
     expect(await app.host.translatePage({ on: true })).toEqual({ ok: true });
     expect(await app.host.openPdfReader()).toEqual({ ok: true });
-    expect(seen).toEqual(["elements", "translate-page", "open-pdf-reader"]);
+    expect(seen).toEqual([
+      "elements",
+      "scroll-page",
+      "scroll-page",
+      "translate-page",
+      "open-pdf-reader",
+    ]);
     socket.terminate();
   } finally {
     await app.close();

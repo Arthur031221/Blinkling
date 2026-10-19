@@ -9,8 +9,6 @@ import {
 import { collectTurn } from "./turn.mjs";
 import { guideStrings } from "./strings.mjs";
 import { pickLocale } from "../shared/i18n.mjs";
-/** How long a finished guide stays on offer for a second showing. */
-export const REOPEN_MS = 15 * 60 * 1000;
 const FULL_WIDTH = new Set(["zh-TW", "zh-CN", "ja"]);
 /** The one sentence a failure bubble shows: what went wrong, in plain words and
  * in the user's language (`locale` is a tag or a locale list). */
@@ -44,6 +42,8 @@ export class GuideController {
     onEnd = () => {},
     pageText = async () => "",
     language = () => "",
+    anchor = null,
+    record = async () => {},
     timeoutMs,
     now = () => Date.now(),
   }) {
@@ -56,19 +56,27 @@ export class GuideController {
       onEnd,
       pageText,
       language,
+      anchor,
+      record,
       timeoutMs,
       now,
     });
-    this.last = null;
     this.dismissals = 0;
-    this.dismissed = (reason) => {
+    this.dismissed = () => {
       this.guide = null;
-      // A guide the page has outgrown is not offered again.
-      if (reason && reason !== "user" && reason !== "closed") this.last = null;
+      this.anchor?.detach();
+      this.anchored = false;
       this.dismissals++;
-      this.onGuide({ phase: "dismissed", again: this.canReopen() });
+      this.onGuide({ phase: "dismissed" });
     };
     overlay.on("dismissed", this.dismissed);
+    // The note under a mark has its own Previous, Next and End.
+    this.navigated = (dir) => {
+      if (dir === "next") this.next();
+      else if (dir === "back") this.back();
+      else if (dir === "end") this.dismiss();
+    };
+    this.offNav = pointing.onNav?.(this.navigated);
   }
   async start(displayId, existingCapture) {
     this.dismiss();
@@ -99,11 +107,23 @@ export class GuideController {
       if (controller.signal.aborted) return;
       const guide = parseGuide(text, capture);
       stage = "draw";
+      this.capture_ = capture;
+      // Marks are kept in page coordinates when the browser helper can read the
+      // page; they are saved before the first draw so no scroll is missed.
+      const anchored = await this.anchor
+        ?.attach(
+          guide.sections.map((section, i) => ({
+            n: i + 1,
+            ...this.screenRect(section),
+          })),
+        )
+        .catch(() => false);
       const drawn = await this.pointing.show(guideRefs(guide), {
         displayId: capture.display.id,
         capture,
         snap: false,
       });
+      if (controller.signal.aborted || !drawn) this.anchor?.detach();
       if (controller.signal.aborted) {
         if (drawn) this.pointing.clear("user");
         return;
@@ -112,10 +132,13 @@ export class GuideController {
         this.fail(Error("nothing to draw"), stage);
         return;
       }
+      // The marks and notes stay when the card is closed or moved; only End
+      // guide (or a page that changed) takes them away.
+      this.anchored = anchored === true;
+      this.pointing.keep?.({ anchored: this.anchored, hold: true });
       this.guide = guide;
-      this.capture_ = capture;
       this.ended = false;
-      this.last = { guide, capture, at: this.now(), displayId };
+      void this.recordGuide(guide, capture);
       // Step 1 first; every step at once is the reader's choice.
       this.index = -1;
       this.step(0);
@@ -134,7 +157,7 @@ export class GuideController {
     this.onGuide({ phase: "error", message, bubbles: [message], retry: true });
     this.failed = true;
   }
-  step(index) {
+  step(index, { scroll = false } = {}) {
     if (
       !this.guide ||
       !Number.isInteger(index) ||
@@ -143,7 +166,11 @@ export class GuideController {
     )
       return;
     this.index = index;
-    this.pointing.focus(stepNumbers(this.guide, index), { solo: true });
+    const marks = stepNumbers(this.guide, index);
+    this.pointing.focus(marks, { solo: true });
+    // Back and Next jump the page to the step, like following a link.
+    if (scroll && this.anchored) void this.anchor.reveal(marks[0]);
+    this.note(index, marks[0]);
     this.onGuide({
       phase: "step",
       index,
@@ -160,13 +187,67 @@ export class GuideController {
   next() {
     if (!this.guide) return;
     if (this.index >= this.guide.steps.length - 1) this.finish();
-    else this.step(this.index + 1);
+    else this.step(this.index + 1, { scroll: true });
   }
   back() {
     if (!this.guide) return;
     if (this.index >= this.guide.steps.length)
-      this.step(this.guide.steps.length - 1);
-    else if (this.index > 0) this.step(this.index - 1);
+      this.step(this.guide.steps.length - 1, { scroll: true });
+    else if (this.index > 0) this.step(this.index - 1, { scroll: true });
+  }
+  /** The step's explanation, directly under its mark on the page. */
+  note(index, n) {
+    const t = guideStrings(this.language());
+    const step = this.guide.steps[index];
+    const last = index === this.guide.steps.length - 1;
+    this.pointing.note?.({
+      n,
+      text: step.note,
+      hint: this.anchored ? "" : t("screenOnly"),
+      count: `${index + 1} / ${this.guide.steps.length}`,
+      labels: {
+        back: t("back"),
+        next: t(last ? "done" : "next"),
+        end: t("end"),
+      },
+      canBack: index > 0,
+      canNext: true,
+    });
+  }
+  /** The guide goes into the chat as an exchange: the screen it looked at on
+   * the reader's side, what it found and the steps on the answer's side. */
+  async recordGuide(guide, capture) {
+    try {
+      const t = guideStrings(this.language());
+      const id = randomUUID();
+      const steps = guide.steps.map((s, i) => `${i + 1}. ${s.note}`);
+      await this.record([
+        {
+          id: `guide-${id}`,
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: capture.image.mediaType,
+                data: capture.image.data,
+              },
+            },
+            { type: "text", text: t("asked") },
+          ],
+        },
+        {
+          id: `guide-${id}-answer`,
+          role: "assistant",
+          content: [
+            { type: "text", text: [guide.purpose, ...steps].join("\n\n") },
+          ],
+        },
+      ]);
+    } catch {
+      /* The tour does not depend on its record. */
+    }
   }
   /** The label of the first region a step points at. */
   title(index) {
@@ -196,20 +277,25 @@ export class GuideController {
   rects(index = null) {
     const display = this.capture_?.display;
     if (!display || !this.guide) return [];
-    const w = display.bounds.width / this.capture_.pixelWidth,
-      h = display.bounds.height / this.capture_.pixelHeight;
     const ids =
       index === null
         ? this.guide.sections.map((s) => s.id)
         : this.guide.steps[index].regionIds;
     return this.guide.sections
       .filter((s) => ids.includes(s.id))
-      .map((s) => ({
-        x: Math.round(display.bounds.x + s.rect.x * w),
-        y: Math.round(display.bounds.y + s.rect.y * h),
-        width: Math.round(s.rect.width * w),
-        height: Math.round(s.rect.height * h),
-      }));
+      .map((s) => this.screenRect(s));
+  }
+  /** A section's rectangle in screen DIP, from the screenshot's pixels. */
+  screenRect(section) {
+    const display = this.capture_.display;
+    const w = display.bounds.width / this.capture_.pixelWidth,
+      h = display.bounds.height / this.capture_.pixelHeight;
+    return {
+      x: Math.round(display.bounds.x + section.rect.x * w),
+      y: Math.round(display.bounds.y + section.rect.y * h),
+      width: Math.round(section.rect.width * w),
+      height: Math.round(section.rect.height * h),
+    };
   }
   /** A click on mark `n` shows the first step that is about it. */
   focusMark(n) {
@@ -217,7 +303,7 @@ export class GuideController {
     const index = this.guide.steps.findIndex((_, i) =>
       stepNumbers(this.guide, i).includes(n),
     );
-    if (index >= 0) this.step(index);
+    if (index >= 0) this.step(index, { scroll: true });
   }
   /** The tour ran out of steps: show every mark again, say goodbye, and hand
    * the saver what it needs once. */
@@ -226,6 +312,7 @@ export class GuideController {
     const total = this.guide.steps.length;
     this.index = total;
     this.pointing.focus(null);
+    this.pointing.note?.(null);
     this.onGuide({
       phase: "finished",
       aim: null,
@@ -241,40 +328,6 @@ export class GuideController {
       this.onEnd(guideEnd(this.guide, this.capture_));
     }
   }
-  /** Whether the last finished guide of the screen can be shown again without
-   * a new run: it is kept until the page changes, a new guide runs, or it is
-   * old. */
-  canReopen() {
-    return !!this.last && this.now() - this.last.at < REOPEN_MS;
-  }
-  /** Shows the kept guide again from its first step; no AI run. */
-  async reopen() {
-    if (!this.canReopen()) return false;
-    const { guide, capture } = this.last;
-    this.dismiss();
-    this.onGuide({ phase: "thinking" });
-    let drawn = false;
-    try {
-      drawn = await this.pointing.show(guideRefs(guide), {
-        displayId: capture.display.id,
-        capture,
-        snap: false,
-      });
-    } catch (error) {
-      this.fail(error, "draw");
-      return false;
-    }
-    if (!drawn) {
-      this.fail(Error("nothing to draw"), "draw");
-      return false;
-    }
-    this.guide = guide;
-    this.capture_ = capture;
-    this.ended = true;
-    this.index = -1;
-    this.step(0);
-    return true;
-  }
   /** Reruns the failed guide on a fresh capture of the same display. */
   retry() {
     return this.lastDisplay === undefined
@@ -285,6 +338,7 @@ export class GuideController {
     if (!this.guide) return;
     this.index = -1;
     this.pointing.focus(null);
+    this.pointing.note?.(null);
     this.onGuide({
       phase: "overview",
       index: -1,
@@ -314,12 +368,13 @@ export class GuideController {
     // Whatever the card showed (the looking, an error, a step) goes with it.
     if (had && this.dismissals === seen) {
       this.dismissals++;
-      this.onGuide({ phase: "dismissed", again: this.canReopen() });
+      this.onGuide({ phase: "dismissed" });
     }
   }
   dispose() {
     this.dismiss();
     this.overlay.removeListener("dismissed", this.dismissed);
+    this.offNav?.();
   }
 }
 /** What k4's saver takes: {title, steps, explanation, shots}. */

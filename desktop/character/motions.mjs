@@ -16,10 +16,12 @@ export const DIZZY_FOR = SWAY_FOR + FALL_FOR;
 /** How long Blink takes to eat a capture, in seconds, and how long it has had the
  * mouth open before the picture is sucked in. The sheet's own clock starts when the
  * picture is shown; ours starts at the moment the mouth begins to open. */
-export const EAT_FOR = 4.2;
+/** The sheet's motion runs this much faster, so the card is not kept waiting. */
+const EAT_SPEED = 1.8;
+export const EAT_FOR = 4.2 / EAT_SPEED;
 const EAT_LEAD = 0.6;
 /** When, in the same clock, the gulp is over: the card may open then. */
-export const EAT_SWALLOWED = 3.4 - EAT_LEAD;
+export const EAT_SWALLOWED = (3.4 - EAT_LEAD) / EAT_SPEED;
 /** How long each of the other one-off motions lasts, in seconds. */
 export const APPEAR_FOR = 4.4;
 export const LEAVE_FOR = 2.4;
@@ -295,7 +297,7 @@ export function peek(t, edge = "left") {
  * gulps and a sparkle follows. `k` is the time since the mouth began to open; the
  * numbers are those of the motion sheet. */
 export function eating(k) {
-  const t = k + EAT_LEAD;
+  const t = k * EAT_SPEED + EAT_LEAD;
   const open = ease(seg(t, 0.6, 0.95)) * (1 - ease(seg(t, 2, 2.15)));
   const chew = t > 2.1 && t < 3.1;
   const swallow = t >= 3.1 && t < 3.4;

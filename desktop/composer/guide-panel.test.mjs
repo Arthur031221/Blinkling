@@ -15,8 +15,6 @@ const labels = {
   "guide-close": "Close",
   "guide-start": "Start",
   "guide-step": "Step {n} of {total}",
-  "guide-again": "Show the guide again",
-  "guide-again-note": "The last guide is kept.",
 };
 const rig = () => {
   const { document } = new JSDOM("<section></section>").window;
@@ -45,21 +43,22 @@ test("a repeated event leaves the pill where it is, so it does not enter again",
   assert.equal(pill.textContent, "Reading the screen");
   panel.update({ type: "guide", phase: "thinking" });
   assert.equal(host.querySelector(".gl-answer-bubble"), pill);
-  assert.equal(host.children.length, 1);
+  assert.equal(host.children.length, 2, "the line and the End button");
 });
 
+const finished = (extra) => ({ type: "guide", phase: "finished", ...extra });
 test("a changed text updates the same pill and a new one is added after it", () => {
   const { host, panel } = rig();
-  panel.update(step());
+  panel.update(finished({ bubbles: ["Click Save"] }));
   const [first] = host.querySelectorAll(".gl-answer-bubble");
-  panel.update(step({ bubbles: ["Click Save now", "Then close"] }));
+  panel.update(finished({ bubbles: ["Click Save now", "Then close"] }));
   const pills = [...host.querySelectorAll(".gl-answer-bubble")];
   assert.equal(pills[0], first);
   assert.deepEqual(
     pills.map((p) => p.textContent),
     ["Click Save now", "Then close"],
   );
-  panel.update(step());
+  panel.update(finished({ bubbles: ["Click Save"] }));
   assert.equal(host.querySelectorAll(".gl-answer-bubble").length, 1);
 });
 
@@ -84,19 +83,19 @@ test("each phase shows its own buttons and a dismissed guide hides the panel", (
   const shown = () =>
     [...host.querySelectorAll("button")].map((b) => b.dataset.action);
   panel.update(step());
-  assert.deepEqual(shown(), [
-    "guide-back",
-    "guide-next",
-    "guide-overview",
-    "guide-dismiss",
-  ]);
+  assert.deepEqual(shown(), ["guide-back", "guide-next", "guide-dismiss"]);
+  assert.equal(
+    host.querySelector(".gl-answer-bubble"),
+    null,
+    "the explanation stands under the mark on the page, not in the card",
+  );
   panel.update({
     type: "guide",
     phase: "finished",
     bubbles: ["Bye"],
     canBack: true,
   });
-  assert.deepEqual(shown(), ["guide-back", "guide-overview", "guide-dismiss"]);
+  assert.deepEqual(shown(), ["guide-back", "guide-dismiss"]);
   panel.update({
     type: "guide",
     phase: "error",
@@ -119,57 +118,39 @@ test("a guide line sits in the card flow and enters with transform and opacity o
   assert.doesNotMatch(frames, /width|height|margin|padding|top|left/);
 });
 
-test("a step shows where the tour is above its text, and the overview lists the steps", () => {
-  const { host, panel, actions } = rig();
-  panel.update(step({ index: 1, total: 4, title: "Results" }));
+test("a step says its number out of the total, with no title and no overview button", () => {
+  const { host, panel } = rig();
+  panel.update(step({ index: 1, total: 4, title: "Results", canBack: true }));
   assert.equal(host.firstChild.className, "gl-guide-head");
-  assert.equal(host.firstChild.textContent, "Step 2 of 4 · Results");
+  assert.equal(host.firstChild.textContent, "Step 2 of 4");
+  assert.equal(
+    [...host.querySelectorAll("button")].some(
+      (b) => b.dataset.action === "guide-overview",
+    ),
+    false,
+  );
+});
+
+test("while the screen is read the card has an End button", () => {
+  const { host, panel, actions } = rig();
+  panel.update({ type: "guide", phase: "thinking" });
+  const end = host.querySelector("button");
+  assert.equal(end.dataset.action, "guide-dismiss");
+  end.click();
+  assert.deepEqual(actions, ["guide-dismiss"]);
+});
+
+test("a closed guide leaves nothing in the card, not even an offer to show it again", () => {
+  const { host, panel } = rig();
   panel.update({
     type: "guide",
-    phase: "overview",
-    bubbles: ["A report."],
+    phase: "step",
+    index: 0,
+    total: 3,
     canNext: true,
-    steps: [
-      { title: "Intro", note: "Read it" },
-      { title: "Results", note: "Compare" },
-    ],
   });
-  assert.equal(host.querySelector(".gl-guide-head"), null);
-  const rows = [...host.querySelectorAll(".gl-guide-step")];
-  assert.deepEqual(
-    rows.map((r) => [r.textContent, r.dataset.action]),
-    [
-      ["1  Intro", "guide-step-1"],
-      ["2  Results", "guide-step-2"],
-    ],
-  );
-  rows[1].click();
-  assert.deepEqual(actions, ["guide-step-2"]);
-  panel.update(step({ index: 0, total: 2, title: "Intro" }));
-  assert.equal(host.querySelectorAll(".gl-guide-step").length, 0);
-});
-
-test("a step says its number out of the total even with no title, and offers all steps at once", () => {
-  const { host, panel, actions } = rig();
-  panel.update(step({ index: 0, total: 4, canBack: false }));
-  assert.equal(host.querySelector(".gl-guide-head").textContent, "Step 1 of 4");
-  const all = [...host.querySelectorAll("button")].find(
-    (b) => b.dataset.action === "guide-overview",
-  );
-  assert.ok(all, "a clear way to show every step");
-  all.click();
-  assert.deepEqual(actions, ["guide-overview"]);
-});
-
-test("a closed guide that is kept offers to show it again, and drops the offer when it is gone", () => {
-  const { host, panel, actions } = rig();
-  panel.update({ type: "guide", phase: "dismissed", again: true });
-  assert.equal(host.hidden, false);
-  const again = host.querySelector("button");
-  assert.equal(again.textContent, "Show the guide again");
-  again.click();
-  assert.deepEqual(actions, ["guide-again"]);
-  panel.update({ type: "guide", phase: "dismissed", again: false });
+  panel.update({ type: "guide", phase: "dismissed" });
   assert.equal(host.hidden, true);
   assert.equal(host.querySelector("button"), null);
+  assert.equal(host.textContent, "");
 });

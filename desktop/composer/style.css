@@ -222,6 +222,9 @@ a:focus-visible {
 .gl-touring > .gl-chat-history,
 .gl-touring > .gl-quick-asks,
 .gl-touring > .gl-quick-line,
+.gl-touring > .gl-composer,
+.gl-touring > .gl-composer-error,
+.gl-touring > .gl-notice,
 .gl-touring .gl-attachments {
   display: none;
 }

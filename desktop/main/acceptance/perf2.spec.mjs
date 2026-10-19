@@ -188,9 +188,24 @@ for (const scale of [1, 2])
       );
 
       // Typing in the card.
-      if (!(await cardShown(app))) await ask("click");
+      // The guide keeps the card small until it ends; the capture closed the
+      // card when it began, and a click on Blink opens it again.
+      await ask("guide-dismiss");
+      await expect
+        .poll(
+          () =>
+            app.evaluate(() => !globalThis.blinklingTest.features.capture.busy),
+          { timeout: 20000 },
+        )
+        .toBe(true);
+      if (!(await cardShown(app)))
+        await page.evaluate(() =>
+          window.blinkling.shell({ type: "click", permission: true }),
+        );
       await expect.poll(() => cardShown(app)).toBe(true);
       await install(card());
+      // A card that has just opened is still settling.
+      await page.waitForTimeout(1200);
       // A person clicks into the box; the keys then go where the window manager
       // has put the focus.
       const box = await card().evaluate(() => {

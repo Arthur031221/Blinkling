@@ -1,6 +1,15 @@
 import { EventEmitter } from "node:events";
 import { captureMatchesDisplay } from "./schema.mjs";
-const COMMANDS = ["pulse", "focus", "solo", "fade", "revive", "cover"];
+const COMMANDS = [
+  "pulse",
+  "focus",
+  "solo",
+  "fade",
+  "revive",
+  "cover",
+  "shift",
+  "note",
+];
 export class OverlayService extends EventEmitter {
   constructor({
     onDismiss = () => {},
@@ -129,6 +138,10 @@ export class OverlayService extends EventEmitter {
       if (this.window === window) this.emit("mark-click", n);
     };
     window.on("mark-click", this.markClick);
+    this.navigate = (dir) => {
+      if (this.window === window) this.emit("nav", dir);
+    };
+    window.on("nav", this.navigate);
     this.emit("shown", capture);
     return true;
   }
@@ -139,7 +152,7 @@ export class OverlayService extends EventEmitter {
       this.window.webContents.send("blinkling:overlay:step", index);
     this.emit("step", index);
   }
-  /** pulse, focus, solo, fade, revive and cover drive the marks that are already drawn. */
+  /** pulse, focus, solo, fade, revive, cover, shift and note drive the marks that are already drawn. */
   command(name, arg) {
     if (!COMMANDS.includes(name))
       throw Error(`Unknown overlay command ${name}`);
@@ -164,6 +177,7 @@ export class OverlayService extends EventEmitter {
     if (active) this.escape?.unregister("Escape");
     if (window && !window.isDestroyed()) {
       window.removeListener("mark-click", this.markClick);
+      window.removeListener("nav", this.navigate);
       window.removeListener("closed", this.closed);
       this.release(window);
     }

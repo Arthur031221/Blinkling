@@ -9,6 +9,8 @@ export const easing = Object.freeze({
 });
 
 /** Critically damped spring frequencies: crisp for interface, soft for Blink's body. */
+/** How much of Blink stays in a screenshot and while a capture runs. */
+export const FAINT = 0.3;
 export const springs = Object.freeze({ crisp: 18, soft: 12 });
 
 /** Behaviour timings the spec names, kept beside the motion tokens. */
@@ -31,8 +33,10 @@ export const timing = Object.freeze({
   edgeSpeed: 500,
   // The genie into Blink's mouth: long enough to read as being sucked in, and
   // the wait that lets Blink open its mouth before the picture starts to move.
-  genie: 600,
-  eatLead: 260,
+  genie: 400,
+  eatLead: 160,
+  // How often the shell checks whether Blink has an answer in hand to think about.
+  workingPoll: 400,
   // A capture that takes longer than this says it has begun.
   captureSlow: 400,
   // How long a button says it copied before it says Copy again.

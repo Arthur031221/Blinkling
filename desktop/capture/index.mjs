@@ -142,6 +142,7 @@ export class DesktopCaptureService {
     list = windowsOn,
     permission,
     limits = {},
+    level,
   } = {}) {
     // Busy must always clear: no step may hang the service for longer than this.
     this.limits = {
@@ -156,10 +157,10 @@ export class DesktopCaptureService {
     this.onStage = onStage;
     this.overlays = overlays;
     this.list = list;
-    this.guard = new SurfaceGuard(() => [
-      ...windows(),
-      ...this.overlays.windows,
-    ]);
+    this.guard = new SurfaceGuard(
+      () => [...windows(), ...this.overlays.windows],
+      level ? { level } : undefined,
+    );
     this.store = new IntentStore(
       join(app.getPath("userData"), "capture-intent.json"),
     );

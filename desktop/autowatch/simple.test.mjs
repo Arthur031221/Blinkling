@@ -112,7 +112,7 @@ test("a change seen at once still waits for the cool-down before it asks", async
     state.done({ type: "done", turnId: turns[0].id });
     state.idle = 10;
     state.value = 230;
-    for (const at of [3000, 6000, 9000]) {
+    for (const at of [1000, 2000, 3000]) {
       state.now = at;
       await watch.tick();
     }

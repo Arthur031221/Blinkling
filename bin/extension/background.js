@@ -605,12 +605,26 @@ function createHandlers(helper) {
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
         devicePixelRatio: window.devicePixelRatio,
-        contentType: document.contentType
+        contentType: document.contentType,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+        pageWidth: document.documentElement.scrollWidth,
+        pageHeight: document.documentElement.scrollHeight
       })
     }).catch(() => []);
     if (!measured?.result || measured.result.contentType === "application/pdf")
       return { ok: true, result: null };
-    const frame = viewportFrame(target.window, measured.result, zoom);
+    const frame = {
+      ...viewportFrame(target.window, measured.result, zoom),
+      // Where the viewport stands on the page: marks kept in page coordinates
+      // follow a scroll with it.
+      scrollX: measured.result.scrollX,
+      scrollY: measured.result.scrollY,
+      viewWidth: measured.result.innerWidth,
+      viewHeight: measured.result.innerHeight,
+      pageWidth: measured.result.pageWidth,
+      pageHeight: measured.result.pageHeight
+    };
     const screen = point(request.point);
     const page = await askPage(target.tab)({
       type: "blinkling:elements",
@@ -698,6 +712,24 @@ function createHandlers(helper) {
     });
     return { ok: true };
   }
+  async function scrollPage(request) {
+    const target = await targetTab(point(request.point));
+    if (!target || !await injectPageScript(target.tab)) return { ok: false };
+    const wanted = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
+    const [done] = await chrome.scripting.executeScript({
+      target: { tabId: target.tab.id },
+      func: (x, y) => {
+        window.scrollTo({
+          left: x ?? window.scrollX,
+          top: y ?? window.scrollY,
+          behavior: "instant"
+        });
+        return true;
+      },
+      args: [wanted(request.x), wanted(request.y)]
+    }).catch(() => []);
+    return { ok: done?.result === true };
+  }
   return {
     translating: (tabId) => translations.has(tabId),
     async handle(request, context) {
@@ -706,6 +738,8 @@ function createHandlers(helper) {
           return elements(request);
         case "full-page":
           return fullPage(request, context);
+        case "scroll-page":
+          return scrollPage(request);
         case "translate-page":
           return translatePage(request, context);
         case "open-pdf-reader":

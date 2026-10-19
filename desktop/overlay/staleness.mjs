@@ -75,6 +75,9 @@ export class StalenessWatch {
           });
   }
   async tick() {
+    // Marks that follow the page scroll with it: the screen moving under them
+    // is expected, so the picture says nothing about whether they are stale.
+    if (this.overlay.anchored) return;
     if (this.busy || !this.overlay.window || !this.detector) return;
     this.busy = true;
     const { capture, window: win } = this.overlay,

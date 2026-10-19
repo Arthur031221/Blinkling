@@ -100,6 +100,6 @@ O outro sentido, o chat do Blink no terminal, passa pelos canais experimentais d
 
 O Blinkling não tem telemetria nem serviço de respostas próprio. O que você seleciona vai para o seu Claude Code, e valem os termos e os custos de uso do provedor. As configurações do navegador, as lojas de extensões e o visualizador de PDF do próprio navegador são páginas protegidas, então o Blink responde ali a partir da tela.
 
-[Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v3.2.6.md)
+[Privacidade](docs/SECURITY.md) | [Uso](docs/USAGE.md) | [Notas da versão](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

@@ -52,6 +52,7 @@ function path(d, className) {
   el.setAttribute("class", className);
   return el;
 }
+const offsets = new Map();
 function clear() {
   for (const run of running) run.cancel();
   running = [];
@@ -70,8 +71,11 @@ function outlineStrips({ x, y, width, height }, t = 10) {
     [x + width - t / 2, y - t / 2, t, height + t],
   ];
 }
+let current = null;
 async function draw(view) {
   clear();
+  current = view;
+  offsets.clear();
   document.documentElement.dataset.theme = view.theme;
   svg.setAttribute("viewBox", `0 0 ${view.width} ${view.height}`);
   svg.setAttribute("preserveAspectRatio", "none");
@@ -207,13 +211,17 @@ async function draw(view) {
   document.body.dataset.drawn = view.seq;
 }
 // What a click must not treat as the background: only what is on show.
-let reported = [],
+let noteMask = null,
+  reported = [],
   hidden = new Set();
 function report() {
   window.guideOverlay.regions(
     reported
-      .filter((r) => !hidden.has(r[5]))
-      .map(([kind, x, y, w, h]) => [kind, x, y, w, h]),
+      .filter((r) => !hidden.has(r[5]) && offsets.get(r[5])?.visible !== false)
+      .map(([kind, x, y, w, h, n]) => {
+        const o = offsets.get(n);
+        return [kind, x + (o?.dx ?? 0), y + (o?.dy ?? 0), w, h];
+      }),
   );
 }
 const numbers = (arg) =>
@@ -275,6 +283,102 @@ const commands = {
           .map((r) => `M${r.x} ${r.y}h${r.width}v${r.height}h${-r.width}Z`)
           .join(" ")}")`
       : "";
+  },
+  // The page scrolled: `arg` is [{n, dx, dy, visible}], how far each mark is
+  // from where it was drawn. CSS `translate` is its own property, so it never
+  // fights the transform the entrance and focus animations run on.
+  shift(arg) {
+    for (const move of Array.isArray(arg) ? arg : []) {
+      if (![move?.dx, move?.dy].every(Number.isFinite)) continue;
+      offsets.set(move.n, move);
+      for (const item of items.filter((i) => i.drawing.number === move.n))
+        for (const el of [item.group, item.badge, item.label, item.note]) {
+          if (!el) continue;
+          el.style.translate = `${move.dx}px ${move.dy}px`;
+          el.style.visibility = move.visible === false ? "hidden" : "";
+        }
+    }
+    report();
+  },
+  // The step's explanation, directly under its mark, with back, next and end.
+  // `arg` is {n, text, count, labels: {back, next, end}, canBack, canNext} or
+  // null to take it away.
+  note(arg) {
+    // The note is drawn over the page like a label: the staleness watch does
+    // not read it as the screen changing.
+    if (window.overlayMasks && noteMask)
+      window.overlayMasks = window.overlayMasks.filter((m) => m !== noteMask);
+    noteMask = null;
+    for (const item of items)
+      if (item.note) {
+        item.note.remove();
+        item.note = null;
+      }
+    reported = reported.filter((r) => r[0] !== "note");
+    document.body.dataset.note = "";
+    const item = arg && items.find((i) => i.drawing.number === arg.n);
+    if (!item) return report();
+    const el = document.createElement("div");
+    el.className = "note";
+    const text = document.createElement("p");
+    text.textContent = String(arg.text ?? "");
+    const row = document.createElement("div");
+    row.className = "note-row";
+    const count = document.createElement("span");
+    count.textContent = String(arg.count ?? "");
+    row.append(count);
+    for (const [dir, label, on] of [
+      ["back", arg.labels?.back, arg.canBack !== false],
+      ["next", arg.labels?.next, arg.canNext !== false],
+      ["end", arg.labels?.end, true],
+    ]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.nav = dir;
+      b.textContent = label ?? dir;
+      b.disabled = !on;
+      b.addEventListener("click", () => window.guideOverlay.nav(dir));
+      row.append(b);
+    }
+    el.append(text);
+    if (arg.hint) {
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.textContent = String(arg.hint);
+      el.append(hint);
+    }
+    el.append(row);
+    labels.append(el);
+    const box = el.getBoundingClientRect();
+    const r = item.drawing.rect;
+    const x = Math.min(
+      Math.max(8, r.x),
+      Math.max(8, current.width - box.width - 8),
+    );
+    let y = r.y + r.height + 10;
+    if (y + box.height > current.height - 8) y = r.y - box.height - 10;
+    y = Math.min(Math.max(8, y), Math.max(8, current.height - box.height - 8));
+    Object.assign(el.style, { left: `${x}px`, top: `${y}px` });
+    const o = offsets.get(arg.n);
+    if (o) {
+      el.style.translate = `${o.dx}px ${o.dy}px`;
+      el.style.visibility = o.visible === false ? "hidden" : "";
+    }
+    item.note = el;
+    noteMask = { x, y, width: box.width, height: box.height };
+    window.overlayMasks = [...(window.overlayMasks ?? []), noteMask];
+    const sx = innerWidth / current.width,
+      sy = innerHeight / current.height;
+    reported.push([
+      "note",
+      x * sx,
+      y * sy,
+      box.width * sx,
+      box.height * sy,
+      arg.n,
+    ]);
+    report();
+    document.body.dataset.note = String(arg.n);
   },
   fade() {
     stage.classList.add("faded");

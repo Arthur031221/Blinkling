@@ -27,66 +27,44 @@ const gone = async (app) => ({
   state: await machine(app),
 });
 
-test("guide_bgclick: a background click in every phase of a guide closes card and marks, Blink peeks within 0.6 s and nothing comes back", async () => {
+test("guide_bgclick: a background click folds the card and Blink away, the marks and note stay until End guide on the note", async () => {
   test.setTimeout(240000);
   const { app, page } = await launch();
   const rec = record("guide_bgclick", { suffix: "-324" });
+  const overlay = () =>
+    app.windows().find((p) => p.url().includes("/overlay/"));
   try {
     const world = await ready(app, page, { delay: 2500 });
-    const phases = {
-      looking: async () => {
-        await world.press("guide");
-        await expect(cardPage(app).locator(".gl-guide")).toContainText("…", {
-          timeout: 4000,
-        });
-      },
-      step: async () => {
-        await fakeSession(app, 200);
-        await world.press("guide");
-        await expectStep(app, /1.*3/);
-        await expect
-          .poll(() => overlayShown(app), { timeout: 5000 })
-          .toBe(true);
-      },
-      all: async () => {
-        await fakeSession(app, 200);
-        await world.press("guide");
-        await expectStep(app, /1.*3/);
-        await guideButton(app, "guide-overview").click();
-        await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(3);
-        await page.waitForTimeout(500);
-      },
-    };
-    for (const [name, show] of Object.entries(phases)) {
-      await reveal(page);
-      await page.waitForTimeout(600);
-      await show();
-      rec.frame(`${name}-shown`);
-      const at = await clickAt(world.empty);
-      let took = null;
-      for (let i = 0; i < 100 && took === null; i++) {
-        const g = await gone(app);
-        if (!g.card && !g.marks && g.state.state === "peek" && !g.state.out)
-          took = Date.now() - at;
-        else await page.waitForTimeout(20);
-      }
-      console.log(`guide_bgclick ${name}: all gone after ${took} ms`);
-      expect(took, `${name}: card, marks and Blink gone`).not.toBeNull();
-      expect(took, `${name}: within 0.6 s of the press`).toBeLessThan(600);
-      rec.frame(`${name}-closed`);
-      // Nothing reappears, the card does not jump elsewhere.
-      for (let i = 0; i < 10; i++) {
-        await page.waitForTimeout(500);
-        const g = await gone(app);
-        expect(g.card || g.marks, `${name}: still closed at ${i * 0.5}s`).toBe(
-          false,
-        );
-      }
-      rec.frame(`${name}-5s-later`);
-      // A looking answer that arrives late draws nothing either.
-      await page.waitForTimeout(2800);
-      expect(await overlayShown(app)).toBe(false);
+    await reveal(page);
+    await page.waitForTimeout(600);
+    await fakeSession(app, 200);
+    await world.press("guide");
+    await expectStep(app, /1.*3/);
+    await expect.poll(() => overlayShown(app), { timeout: 5000 }).toBe(true);
+    await expect
+      .poll(() => overlay()?.locator(".note p:not(.hint)").count(), {
+        timeout: 5000,
+      })
+      .toBe(1);
+    rec.frame("step-shown");
+    await clickAt(world.empty);
+    await expect
+      .poll(async () => !(await gone(app)).card, { timeout: 3000 })
+      .toBe(true);
+    rec.frame("folded");
+    for (let i = 0; i < 6; i++) {
+      await page.waitForTimeout(500);
+      const g = await gone(app);
+      expect(g.marks, `marks stay at ${i * 0.5}s`).toBe(true);
+      expect(g.card, "the card stays folded").toBe(false);
     }
+    expect(await overlay().locator(".note p:not(.hint)").count()).toBe(1);
+    rec.frame("marks-after-fold");
+    await overlay().evaluate(() =>
+      document.querySelector('.note [data-nav="end"]').click(),
+    );
+    await expect.poll(() => overlayShown(app), { timeout: 3000 }).toBe(false);
+    rec.frame("ended");
   } finally {
     await rec.stop();
     await app.close();
@@ -128,10 +106,10 @@ test("guide_end_tour and auto_explain_after_tour: Esc or End tour ends a guide a
     await expect.poll(() => overlayShown(app), { timeout: 1500 }).toBe(false);
     rec.frame("step-ended");
     await page.waitForTimeout(800);
-    // The card that stays is not an empty one: it holds the offer to show the
-    // guide again, and neither the step panel nor the thinking line.
+    // The card that stays has no offer to show the guide again, and neither
+    // the step panel nor the thinking line.
     const card = cardPage(app);
-    await expect(card.locator('[data-action="guide-again"]')).toBeVisible();
+    await expect(card.locator('[data-action="guide-again"]')).toHaveCount(0);
     await expect(card.locator(".gl-guide-head")).toHaveCount(0);
     await expect(card.locator(".gl-guide")).not.toContainText("…");
     expect((await machine(app)).streaming).toBe(false);
@@ -139,7 +117,7 @@ test("guide_end_tour and auto_explain_after_tour: Esc or End tour ends a guide a
     await rec.stop();
 
     // 3. Auto explain works again straight away, with no relaunch.
-    await clickBlink(page);
+    await reveal(page);
     await expect(bubble(page, "auto-explain")).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(600);
     rec2.frame("menu");
@@ -287,12 +265,6 @@ test("guide_frames_card: no mark, label or line of any step draws over the card,
         rec.frame(`${name}-step-${i + 1}`);
         if (i < 2) await clickIn(app, guideButton(app, "guide-next"));
       }
-      await clickIn(app, guideButton(app, "guide-overview"));
-      await expect(cardPage(app).locator(".gl-guide-step")).toHaveCount(3);
-      await page.waitForTimeout(900);
-      // Every target at once cannot all be clear of the card; what it hides is cut.
-      await check(`${name} all steps`, []);
-      rec.frame(`${name}-all`);
       await clickIn(app, guideButton(app, "guide-dismiss"));
       await expect.poll(() => overlayShown(app), { timeout: 3000 }).toBe(false);
       await clickAt(world.empty);

@@ -342,3 +342,49 @@ test("what the card covers is cut out of the marks, and the cut goes when the ca
   card.emit("bounds", null);
   assert.equal(overlay.commands.length, sent, "nothing new to say");
 });
+
+test("a scrolled page shifts the badges with the marks, and a mark out of view has none", async () => {
+  const { overlay, pointing, cursor } = rig();
+  await pointing.show(refs, { displayId: DISPLAY.id });
+  const before = pointing.badges().find((b) => b.n === 1);
+  pointing.shift([{ n: 1, dx: 5, dy: -40, visible: true }]);
+  assert.deepEqual(overlay.commands.at(-1), [
+    "shift",
+    [{ n: 1, dx: 5, dy: -40, visible: true }],
+  ]);
+  const after = pointing.badges().find((b) => b.n === 1);
+  assert.equal(after.x, before.x + 5);
+  assert.equal(after.y, before.y - 40);
+  pointing.shift([{ n: 1, dx: 5, dy: -4000, visible: false }]);
+  assert.equal(
+    pointing.badges().some((b) => b.n === 1),
+    false,
+  );
+  void cursor;
+});
+
+test("held marks stay when the card closes, and ending them clears the hold", async () => {
+  const { overlay, card, pointing } = rig();
+  await pointing.show(refs, { displayId: DISPLAY.id });
+  pointing.keep({ anchored: true, hold: true });
+  assert.equal(overlay.anchored, true);
+  card.emit("fade");
+  assert.equal(
+    overlay.commands.some(([n]) => n === "fade"),
+    false,
+  );
+  pointing.note({ n: 1, text: "Look here" });
+  assert.deepEqual(overlay.commands.at(-1), [
+    "note",
+    { n: 1, text: "Look here" },
+  ]);
+  pointing.clear();
+  assert.equal(overlay.anchored, false);
+  await pointing.show(refs, { displayId: DISPLAY.id });
+  card.emit("fade");
+  assert.equal(
+    overlay.commands.some(([n]) => n === "fade"),
+    true,
+    "an answer's marks still fade with the card",
+  );
+});

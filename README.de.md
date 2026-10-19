@@ -100,6 +100,6 @@ Die andere Richtung, Blinks Chat im Terminal, läuft über die experimentellen K
 
 Blinkling hat keine Telemetrie und keinen eigenen Antwortdienst. Was du auswählst, geht an dein Claude Code, und es gelten die Bedingungen und Nutzungskosten des Anbieters. Browser-Einstellungen, Erweiterungsshops und der eigene PDF-Viewer des Browsers sind geschützte Seiten, deshalb antwortet Blink dort anhand des Bildschirms.
 
-[Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v3.2.6.md)
+[Datenschutz](docs/SECURITY.md) | [Nutzung](docs/USAGE.md) | [Versionshinweise](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

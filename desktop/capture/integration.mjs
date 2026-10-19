@@ -8,7 +8,7 @@ import {
 } from "electron";
 import { DesktopCaptureService, screenImage } from "./index.mjs";
 import { systemLocale } from "../shared/i18n.mjs";
-import { timing } from "../shared/motion.mjs";
+import { FAINT, timing } from "../shared/motion.mjs";
 import { captureText } from "./strings.mjs";
 import { createProgress } from "./progress.mjs";
 import { HotkeyRegistry, HotkeyStore, DEFAULT_HOTKEY } from "./hotkey.mjs";
@@ -17,6 +17,7 @@ import { GuideController } from "../overlay/guide.mjs";
 import { MAX_STEPS } from "../overlay/schema.mjs";
 import { createPointing } from "../pointing/index.mjs";
 import { StalenessWatch } from "../overlay/staleness.mjs";
+import { createAnchor } from "../overlay/anchor.mjs";
 import { maskBitmap } from "../overlay/change.mjs";
 import { middle, sample } from "./sample.mjs";
 import { AutoWatch } from "../autowatch/index.mjs";
@@ -29,7 +30,6 @@ export const featureActions = new Set([
   "guide-overview",
   "guide-dismiss",
   "guide-retry",
-  "guide-again",
   ...Array.from({ length: MAX_STEPS }, (_, i) => `guide-step-${i + 1}`),
 ]);
 /** Shell/composer/session builders bind only these service hooks. Feature IPC is
@@ -59,6 +59,7 @@ export function installCaptureGuide({
   busy = () => false,
   fullPage,
   companion = () => false,
+  host,
   guard = () => true,
   hotkeyStore = new HotkeyStore(join(app.getPath("userData"), "hotkey.json")),
 }) {
@@ -79,6 +80,8 @@ export function installCaptureGuide({
   const pointing = createPointing({ locator, overlay, card, cursor });
   const capture = new DesktopCaptureService({
     windows: () => [...windows(), overlay.window].filter(Boolean),
+    // Blink stays faint in the picture; the card and the rest are gone.
+    level: (win) => (win === blink ? FAINT : 0),
     // The picture is here: whatever was said about progress goes before Blink
     // starts to eat, so nothing is left standing beside it.
     onCapture: (taken) => {
@@ -91,11 +94,20 @@ export function installCaptureGuide({
   });
   // The overlays exist, hidden, before anyone asks for a capture.
   const overlaysReady = capture.start().catch(() => {});
+  // Marks follow the page when the browser helper can read it.
+  const anchor = createAnchor({
+    host,
+    available: async () => !!host && (await companion()),
+    onShift: (moves) => pointing.shift(moves),
+    onLost: (reason) => overlay.dismiss(reason),
+  });
   const guide = new GuideController({
     session,
     overlay,
     capture,
     pointing,
+    anchor,
+    record: (lines) => guide.session?.record?.(lines),
     onGuide,
     onEnd,
     pageText,
@@ -154,6 +166,7 @@ export function installCaptureGuide({
       idleSeconds: () => powerMonitor.getSystemIdleTime(),
       busy,
       quiet: () => !!guide.controller || !!overlay.capture,
+      language: () => systemLocale({ app }),
       onState,
     });
   auto = makeAuto(session);
@@ -175,6 +188,9 @@ export function installCaptureGuide({
     if (!guard() || capture.busy) return say("error", "busy");
     let failed = false;
     progress.begin();
+    // The capture is under way from this press: the card shuts and Blink goes
+    // faint before the first pixel is read, not only when it turns slow.
+    onState({ state: "started" });
     try {
       return await run();
     } catch (error) {
@@ -236,7 +252,6 @@ export function installCaptureGuide({
         else await startGuide(() => guide.start(displayId()));
       }
       if (action === "guide-retry") await startGuide(() => guide.retry());
-      if (action === "guide-again") await guide.reopen();
       if (action === "auto-explain") {
         if (auto.enabled) auto.disable();
         else
@@ -250,7 +265,9 @@ export function installCaptureGuide({
           }
       }
       if (action.startsWith("guide-step-"))
-        guide.step(Number(action.slice("guide-step-".length)) - 1);
+        guide.step(Number(action.slice("guide-step-".length)) - 1, {
+          scroll: true,
+        });
       if (action === "guide-next") guide.next();
       if (action === "guide-back") guide.back();
       if (action === "guide-overview") guide.overview();
@@ -269,6 +286,7 @@ export function installCaptureGuide({
     dispose() {
       capture.dispose();
       guide.dispose();
+      anchor.detach();
       pointing.clear("dispose");
       auto.dispose();
       stale.dispose();

@@ -100,6 +100,6 @@ Blink は、選んだものをあなた自身のサインイン済みの Claude 
 
 Blinkling にはテレメトリーも、独自の回答サービスもありません。選んだものはあなたの Claude Code に送られ、プロバイダーの規約と利用料金が適用されます。ブラウザの設定、拡張機能ストア、ブラウザ内蔵の PDF ビューアーは保護されたページなので、そこでは Blink は画面から答えます。
 
-[プライバシー](docs/SECURITY.md) | [使い方](docs/USAGE.md) | [リリースノート](docs/releases/v3.2.6.md)
+[プライバシー](docs/SECURITY.md) | [使い方](docs/USAGE.md) | [リリースノート](docs/releases/v3.2.7.md)
 
 Assisted by Claude/Codex.

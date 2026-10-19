@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { AutoWatch, LIMIT_FALLBACK_MS } from "./index.mjs";
+import { AutoWatch, LIMIT_FALLBACK_MS, explainPrompt } from "./index.mjs";
 import { difference } from "./policy.mjs";
 test("permission recovery resumes exactly one automatic explanation after typing stops", async () => {
   let idle = 0,
@@ -427,16 +427,19 @@ test("PV-4: a scroll nudge never explains, the next section does, within the det
     watch.dispose();
   }
 });
-test("PV-4: the prompt asks for a few short paragraphs, as the one prompt that sets a length", async () => {
+test("B2: the prompt asks for one or two short sentences, in the language chosen in settings", async () => {
   const { watch, turns, state } = rig();
   try {
+    watch.language = () => "zh-TW";
     watch.enable();
     await watch.tick();
     state.page = "docSection2";
     await watch.tick();
     await watch.tick();
-    assert.match(turns[0].text, /few short paragraphs/);
+    assert.match(turns[0].text, /one or two short sentences/);
     assert.match(turns[0].text, /Never click/);
+    assert.match(turns[0].text, /Write in Traditional Chinese/);
+    assert.match(explainPrompt(), /Write in English/);
   } finally {
     watch.dispose();
   }
@@ -496,9 +499,9 @@ test("PV-2: auto explain samples and captures only the active display, at a low 
     rmSync(scratch, { recursive: true, force: true });
   });
   assert.throws(
-    () => new AutoWatch({ intervalMs: 1000 }),
+    () => new AutoWatch({ intervalMs: 500 }),
     /low rate/,
-    "a sampling interval under three seconds is refused",
+    "a sampling interval under one second is refused",
   );
   let active = "2",
     value = 20,

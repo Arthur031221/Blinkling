@@ -118,7 +118,7 @@ export async function startDesktopHost({
   chatImages = async () => [],
   descriptor = endpointPath(),
   directory = runtimeDirectory(),
-  version = "3.2.6",
+  version = "3.2.7",
 } = {}) {
   await privateDirectory(directory);
   const token = randomBytes(32).toString("hex");
@@ -595,6 +595,16 @@ export async function startDesktopHost({
         8000,
       );
       return value?.result ?? null;
+    },
+    /** Scrolls the page under `point` (screen DIP) so its viewport's top left
+     * stands at the page coordinates `x`, `y` (CSS pixels); a missing axis stays. */
+    async scrollPage({ point, x, y, signal } = {}) {
+      const value = await callCompanion(
+        { method: "scroll-page", point, x, y },
+        signal,
+        6000,
+      );
+      return { ok: value?.ok === true };
     },
     /** Translates the current page in place, or restores it with `on: false`. */
     async translatePage({ on = true, signal } = {}) {

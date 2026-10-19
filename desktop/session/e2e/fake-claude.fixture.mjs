@@ -34,7 +34,25 @@ let applied = {
   model: args[args.indexOf("--model") + 1],
   effort: args[args.indexOf("--effort") + 1],
 };
-const send = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
+// Every line goes out in order, also one that is cut in two on the wire.
+let wire = Promise.resolve();
+const send = (event) => {
+  wire = wire.then(() => process.stdout.write(`${JSON.stringify(event)}\n`));
+};
+const sendSplit = (event) => {
+  const bytes = Buffer.from(`${JSON.stringify(event)}\n`, "utf8");
+  const cut = bytes.length - 12;
+  wire = wire.then(
+    () =>
+      new Promise((resolve) => {
+        process.stdout.write(bytes.subarray(0, cut));
+        setTimeout(() => {
+          process.stdout.write(bytes.subarray(cut));
+          resolve();
+        }, 5);
+      }),
+  );
+};
 let active;
 const log = (event) => {
   const file = transcriptPath(process.cwd(), localId);
@@ -176,12 +194,17 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       think ||
       process.env.BLINKLING_TEST_SLOW === "1" ||
       frame.message.content.at(-1).text?.startsWith("slow:");
-    const pieces = slow
-      ? ["First sentence. ", "Second one ", "is longer. ", "And a third."]
-      : ["OK."];
+    // "cjk:" streams words that are not ASCII, and cuts every line in the middle
+    // of a character on the wire, as a pipe may.
+    const cjk = frame.message.content.at(-1).text?.startsWith("cjk:");
+    const pieces = cjk
+      ? ["這個畫面是設定頁，", "可以改語言。", " 🙂 café ひらがな 한글"]
+      : slow
+        ? ["First sentence. ", "Second one ", "is longer. ", "And a third."]
+        : ["OK."];
     const id = `msg_${randomUUID()}`;
     const delta = (text) =>
-      send({
+      (cjk ? sendSplit : send)({
         type: "stream_event",
         uuid: randomUUID(),
         event: {

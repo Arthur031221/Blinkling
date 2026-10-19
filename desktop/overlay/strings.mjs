@@ -14,8 +14,15 @@ export const STRINGS = Object.freeze({
     unreadable: "Claude's reply was not in a format Blinkling can read",
     reported: "Claude reported a problem ({detail})",
     unknown: "unknown cause",
+    back: "Previous",
+    next: "Next",
+    done: "Done",
+    end: "End guide",
+    screenOnly:
+      "Marks follow the screen, not the page. Install the browser helper to keep them on the text when you scroll.",
+    asked: "Guide me through this screen",
     closing:
-      "That is the end of the guide. Press “Overview” to see it again, or just ask me.",
+      "That is the end of the guide. Just ask me if you want to go over any part again.",
   },
   "zh-TW": {
     failure: "導覽暫時無法完成",
@@ -27,7 +34,14 @@ export const STRINGS = Object.freeze({
     unreadable: "Claude 的回覆不是我能讀的格式",
     reported: "Claude 回報了問題（{detail}）",
     unknown: "原因不明",
-    closing: "導覽到這裡結束。想再看一次可以按「總覽」，也可以直接問我。",
+    back: "上一步",
+    next: "下一步",
+    done: "完成",
+    end: "結束導覽",
+    screenOnly:
+      "目前以螢幕位置標示，捲動頁面時標記不會跟著動。裝上瀏覽器輔助程式就能固定在內容上。",
+    asked: "帶我看這個畫面",
+    closing: "導覽到這裡結束。想再看哪一段，直接問我就好。",
   },
   "zh-CN": {
     failure: "导览暂时无法完成",
@@ -39,7 +53,14 @@ export const STRINGS = Object.freeze({
     unreadable: "Claude 的回复不是我能读的格式",
     reported: "Claude 报告了问题（{detail}）",
     unknown: "原因不明",
-    closing: "导览到这里结束。想再看一次可以按“总览”，也可以直接问我。",
+    back: "上一步",
+    next: "下一步",
+    done: "完成",
+    end: "结束导览",
+    screenOnly:
+      "目前按屏幕位置标示，滚动页面时标记不会跟着动。装上浏览器辅助程序就能固定在内容上。",
+    asked: "带我看这个画面",
+    closing: "导览到这里结束。想再看哪一段，直接问我就好。",
   },
   ja: {
     failure: "ガイドを完了できませんでした",
@@ -51,8 +72,15 @@ export const STRINGS = Object.freeze({
     unreadable: "Claude の返事を読み取れない形式でした",
     reported: "Claude から問題が報告されました（{detail}）",
     unknown: "原因不明",
+    back: "前へ",
+    next: "次へ",
+    done: "完了",
+    end: "ガイドを終了",
+    screenOnly:
+      "画面上の位置で表示しています。スクロールすると印は動きません。ブラウザ補助を入れると内容に固定できます。",
+    asked: "この画面を案内して",
     closing:
-      "ガイドはここまでです。もう一度見るには「概要」を押すか、そのまま聞いてください。",
+      "ガイドはここまでです。もう一度見たいところは、そのまま聞いてください。",
   },
   ko: {
     failure: "안내를 끝내지 못했어요",
@@ -64,8 +92,14 @@ export const STRINGS = Object.freeze({
     unreadable: "Claude의 답을 읽을 수 없는 형식이었어요",
     reported: "Claude가 문제를 알려 왔어요 ({detail})",
     unknown: "원인 불명",
-    closing:
-      "안내는 여기까지예요. 다시 보려면 '개요'를 누르거나 바로 물어보세요.",
+    back: "이전",
+    next: "다음",
+    done: "완료",
+    end: "안내 끝내기",
+    screenOnly:
+      "화면 위치로 표시하고 있어요. 스크롤하면 표시가 따라가지 않아요. 브라우저 도우미를 설치하면 내용에 고정돼요.",
+    asked: "이 화면을 안내해 줘",
+    closing: "안내는 여기까지예요. 다시 보고 싶은 부분은 그냥 물어봐 주세요.",
   },
   de: {
     failure: "Die Führung konnte nicht abgeschlossen werden",
@@ -78,8 +112,15 @@ export const STRINGS = Object.freeze({
       "Claudes Antwort hatte ein Format, das Blinkling nicht lesen kann",
     reported: "Claude meldete ein Problem ({detail})",
     unknown: "Ursache unbekannt",
+    back: "Zurück",
+    next: "Weiter",
+    done: "Fertig",
+    end: "Anleitung beenden",
+    screenOnly:
+      "Die Markierungen folgen dem Bildschirm, nicht der Seite. Mit dem Browser-Helfer bleiben sie beim Scrollen am Text.",
+    asked: "Führe mich durch diesen Bildschirm",
     closing:
-      "Hier endet die Führung. Mit „Übersicht“ siehst du sie noch einmal, oder frag mich einfach.",
+      "Das war die Anleitung. Fragen Sie mich einfach, wenn Sie einen Teil noch einmal sehen möchten.",
   },
   es: {
     failure: "La guía no pudo terminar",
@@ -93,8 +134,15 @@ export const STRINGS = Object.freeze({
       "La respuesta de Claude no tenía un formato que Blinkling pueda leer",
     reported: "Claude informó de un problema ({detail})",
     unknown: "causa desconocida",
+    back: "Anterior",
+    next: "Siguiente",
+    done: "Listo",
+    end: "Terminar guía",
+    screenOnly:
+      "Las marcas siguen la pantalla, no la página. Con el ayudante del navegador se quedan en el texto al desplazarte.",
+    asked: "Guíame por esta pantalla",
     closing:
-      "Aquí termina la guía. Pulsa «Resumen» para verla otra vez, o simplemente pregúntame.",
+      "Aquí termina la guía. Pregúntame si quieres repasar alguna parte.",
   },
   fr: {
     failure: "Le guide n’a pas pu se terminer",
@@ -107,8 +155,15 @@ export const STRINGS = Object.freeze({
       "La réponse de Claude n’était pas dans un format que Blinkling sait lire",
     reported: "Claude a signalé un problème ({detail})",
     unknown: "cause inconnue",
+    back: "Précédent",
+    next: "Suivant",
+    done: "Terminé",
+    end: "Terminer le guide",
+    screenOnly:
+      "Les repères suivent l'écran, pas la page. Avec l'assistant du navigateur, ils restent sur le texte quand vous défilez.",
+    asked: "Guide-moi sur cet écran",
     closing:
-      "Le guide s’arrête ici. Appuyez sur « Aperçu » pour le revoir, ou posez-moi simplement une question.",
+      "Le guide s'arrête ici. Demandez-moi si vous voulez revoir une partie.",
   },
   "pt-BR": {
     failure: "O guia não pôde terminar",
@@ -121,8 +176,15 @@ export const STRINGS = Object.freeze({
       "A resposta do Claude não estava num formato que o Blinkling consegue ler",
     reported: "O Claude relatou um problema ({detail})",
     unknown: "causa desconhecida",
+    back: "Anterior",
+    next: "Próximo",
+    done: "Concluir",
+    end: "Encerrar guia",
+    screenOnly:
+      "As marcas seguem a tela, não a página. Instale o ajudante do navegador para mantê-las no texto ao rolar.",
+    asked: "Guie-me por esta tela",
     closing:
-      "O guia termina aqui. Toque em “Visão geral” para ver de novo, ou simplesmente me pergunte.",
+      "O guia termina aqui. É só me perguntar se quiser rever alguma parte.",
   },
 });
 

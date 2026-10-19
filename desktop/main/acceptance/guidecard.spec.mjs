@@ -69,6 +69,12 @@ const fakeSession = (app) =>
       stop: async () => {},
     });
   }, REGIONS);
+const noteText = (app) =>
+  app
+    .windows()
+    .find((p) => p.url().includes("/overlay/"))
+    ?.evaluate(() => document.querySelector(".note p")?.textContent ?? "") ??
+  "";
 const cardPage = (app) =>
   app.windows().find((p) => p.url().includes("surface=card"));
 const cardWindow = (app) =>
@@ -121,9 +127,10 @@ test("during a guide the card keeps off the step's target, fits its window and t
     const clipped = [];
     for (let i = 0; i < REGIONS.length; i++) {
       if (i > 0) await button("guide-next").click();
-      await expect(cardPage(app).locator(".gl-guide")).toContainText(
-        `Look at the ${REGIONS[i].label}.`,
-      );
+      // The step's words sit under its mark, not in the card.
+      await expect
+        .poll(() => noteText(app), { timeout: 5000 })
+        .toContain(`Look at the ${REGIONS[i].label}.`);
       await page.waitForTimeout(900);
       const card = await cardWindow(app);
       console.log(

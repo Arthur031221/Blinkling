@@ -4,7 +4,7 @@ Start Claude Code with `claude --dangerously-load-development-channels plugin:bl
 
 **Hold Ctrl and click** a thing to ask about it, or **hold Ctrl and drag** to take an area. What you took flies into Blink and the card opens with it in its own box. Pick one of the three quick asks, or type; Enter sends the highlighted one. Answers arrive beside Blink and point at what they talk about. Click Blink to reopen the last conversation.
 
-Blink's menu holds the secondary tools: capture overlay, guide, auto explain and settings. Auto explain is off until you turn it on and never draws marks.
+Blink's menu holds the secondary tools: capture overlay, guide, auto explain and settings. Auto explain is off until you turn it on and never draws marks. Its answer is a short line in a small bubble next to Blink, and the chat keeps a record of it.
 
 ## With the companion
 

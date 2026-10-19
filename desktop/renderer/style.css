@@ -212,9 +212,11 @@ button svg {
 #grumble[data-side="right"]::after {
   right: -28px;
 }
-/* What a slow capture is doing, in a small bubble beside Blink's mouth while
+/* What Blink mutters about an Auto explain shares the look of the progress
+ * bubble: one or two sentences beside its mouth, no card. What a slow capture is doing, in a small bubble beside Blink's mouth while
  * the card stays shut. Only opacity and transform change. */
-#status {
+#status,
+#mutter {
   position: absolute;
   left: 0;
   top: 0;
@@ -231,14 +233,17 @@ button svg {
   opacity: 0;
   will-change: transform, opacity;
 }
-#status[data-shown="true"] {
+#status[data-shown="true"],
+#mutter[data-shown="true"] {
   opacity: 1;
   transition: opacity var(--motion-base) var(--ease-enter);
 }
-#status[data-shown="false"] {
+#status[data-shown="false"],
+#mutter[data-shown="false"] {
   transition: opacity var(--motion-base) var(--ease-exit);
 }
-#status::after {
+#status::after,
+#mutter::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -249,15 +254,22 @@ button svg {
   border: 1px solid var(--line);
   transform: rotate(45deg);
 }
-#status[data-side="right"]::after {
+#status[data-side="right"]::after,
+#mutter[data-side="right"]::after {
   left: -6px;
   border-right: 0;
   border-top: 0;
 }
-#status[data-side="left"]::after {
+#status[data-side="left"]::after,
+#mutter[data-side="left"]::after {
   right: -6px;
   border-left: 0;
   border-bottom: 0;
+}
+#mutter {
+  max-width: 260px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 #permission-alert {
   position: absolute;

@@ -77,6 +77,9 @@ export function createPointing({
     if (interactive) overlay.setInteractive?.(false);
     interactive = false;
     state = null;
+    shifts = new Map();
+    held = false;
+    if (overlay) overlay.anchored = false;
   }
   overlay.on("dismissed", stop);
   overlay.on("mark-click", (n) => {
@@ -107,8 +110,11 @@ export function createPointing({
     cardAt = rect;
     cover();
   });
-  card?.on("fade", () => state && overlay.command("fade"));
-  card?.on("revive", () => state && overlay.command("revive"));
+  // A guide keeps its marks and notes whether or not the card is open: they go
+  // only when the guide ends.
+  let held = false;
+  card?.on("fade", () => state && !held && overlay.command("fade"));
+  card?.on("revive", () => state && !held && overlay.command("revive"));
 
   async function resolve(ref, ctx) {
     const base = { n: ref.n, number: ref.n, label: ref.label ?? "", steps: [] };
@@ -159,13 +165,23 @@ export function createPointing({
     };
   }
 
+  // How far the page scroll has carried each mark from where it was drawn.
+  let shifts = new Map();
   const badges = () => {
     if (!state) return [];
     const o = state.capture.display.bounds;
-    return state.drawings.map((d) => {
-      const b = badgeRect(d.rect, o);
-      return { ...b, n: d.n, x: b.x + o.x, y: b.y + o.y };
-    });
+    return state.drawings
+      .filter((d) => shifts.get(d.n)?.visible !== false)
+      .map((d) => {
+        const b = badgeRect(d.rect, o);
+        const s = shifts.get(d.n);
+        return {
+          ...b,
+          n: d.n,
+          x: b.x + o.x + (s?.dx ?? 0),
+          y: b.y + o.y + (s?.dy ?? 0),
+        };
+      });
   };
 
   const api = {
@@ -203,6 +219,7 @@ export function createPointing({
         inFlight--;
       });
       if (shown === false || mine !== generation) return false;
+      shifts = new Map();
       state = { capture: shownCapture, drawings, window };
       covering = false;
       cover();
@@ -222,6 +239,26 @@ export function createPointing({
     focus(which, { solo = false } = {}) {
       if (state)
         overlay.command(solo && which !== null ? "solo" : "focus", which);
+    },
+    /** Marks that follow the page (`anchored`) are not judged by the screen
+     * changing under them; `hold` keeps them when the card closes. */
+    keep({ anchored = false, hold = false } = {}) {
+      held = hold;
+      overlay.anchored = anchored;
+    },
+    /** [{n, dx, dy, visible}]: the page scrolled, move those marks along. */
+    shift(moves) {
+      if (!state) return;
+      for (const m of moves) shifts.set(m.n, m);
+      overlay.command("shift", moves);
+    },
+    /** The step's explanation under mark `arg.n`; null takes it away. */
+    note(arg) {
+      if (state) overlay.command("note", arg);
+    },
+    onNav(fn) {
+      overlay.on("nav", fn);
+      return () => overlay.removeListener("nav", fn);
     },
     clear(reason = "user") {
       generation++;
@@ -247,7 +284,7 @@ export function createPointing({
       if (!point) return;
       const over =
         badges().some((b) => contains(b, point)) ||
-        (overlay.regions?.(["badge", "label"]) ?? []).some((r) =>
+        (overlay.regions?.(["badge", "label", "note"]) ?? []).some((r) =>
           contains(r, point),
         );
       if (over === interactive) return;

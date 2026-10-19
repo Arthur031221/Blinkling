@@ -9,12 +9,14 @@ import { applyText, windowText, GRUMBLES } from "./strings.mjs";
 import {
   cssVariables,
   duration,
+  FAINT,
   frameLog,
   springs,
 } from "../shared/motion.mjs";
 import { documentLocale, setDocumentLocale } from "../shared/i18n.mjs";
 import { menuText } from "../menu/strings.mjs";
 import { createGrumbler } from "../character/grumble.mjs";
+import { createMutter } from "./mutter.mjs";
 import { gazeAt } from "../character/touch.mjs";
 import { createHitOverlay } from "./debug-hit.mjs";
 const api = window.blinkling;
@@ -30,6 +32,8 @@ const grumbler = createGrumbler({ count: GRUMBLES });
 const grumble = document.querySelector("#grumble");
 let grumbling = null;
 const status = document.querySelector("#status");
+const mutter = createMutter({ node: document.querySelector("#mutter") });
+const mutterNode = document.querySelector("#mutter");
 // When each one-off motion last started. Main decides when one plays and sends
 // it as a motion event; the pose picks the newest that is still running.
 const at = {
@@ -62,6 +66,7 @@ let hitOverlay = null,
   pointerOver = false,
   pointer = null,
   picking = false,
+  capturing = false,
   dragPointer = null,
   /** Where the held pointer puts Blink, read from its own events. */
   held = null,
@@ -190,6 +195,7 @@ function accept(value) {
     held = null;
   }
   shell = value;
+  if (value.chatOpen) mutter.hide();
   document.documentElement.dataset.edge = shell.position.edge;
   document.documentElement.dataset.theme = shell.theme;
   menu?.setAuto(shell.autoExplain);
@@ -263,6 +269,10 @@ async function action(id) {
   host.addEventListener("pointerup", release);
   host.addEventListener("pointercancel", release);
   let gliding = false;
+  // Blink is faint while a pick or a capture runs, so the picture has no solid
+  // Blink in it, and the reader sees it is busy with the screen.
+  const alphaFor = (revealed) =>
+    picking || capturing ? FAINT : revealed ? 1 : 0.4;
   function frame(now) {
     const began = performance.now(),
       dt = (now - last) / 1000;
@@ -282,7 +292,7 @@ async function action(id) {
     for (const [key, vkey, t] of [
       ["x", "vx", target.x],
       ["y", "vy", target.y],
-      ["alpha", "va", revealed ? 1 : 0.4],
+      ["alpha", "va", alphaFor(revealed)],
     ]) {
       const q =
         shell.drag && key !== "alpha"
@@ -311,7 +321,7 @@ async function action(id) {
     if (
       Math.abs(current.x - target.x) > 0.5 ||
       Math.abs(current.y - target.y) > 0.5 ||
-      Math.abs(current.alpha - (revealed ? 1 : 0.4)) > 0.005
+      Math.abs(current.alpha - alphaFor(revealed)) > 0.005
     )
       logFrame("peek", {
         x: current.x - 74,
@@ -393,6 +403,7 @@ async function action(id) {
         status,
         status.dataset.shown === "true" ? placeStatus(status, current) : null,
       ],
+      [mutterNode, mutter.shown ? placeStatus(mutterNode, current) : null],
     ];
     // The machine in main decides when the fan shows: after the pointer has
     // rested on Blink, never over an open card.
@@ -494,11 +505,15 @@ api.onEvent((event) => {
   if (event.type === "bubbles-clear") {
     statusPutAway = status.dataset.shown === "true" || statusPutAway;
     status.dataset.shown = "false";
+    mutter.hide();
     if (!permission.hidden) permissionPutAway = true;
     return;
   }
+  if (event.type === "mutter") mutter.accept(event);
   if (event.type === "capture-status") {
-    if (event.state !== "working") statusPutAway = false;
+    // "started" is the press itself: Blink goes faint before any message.
+    capturing = event.state === "working" || event.state === "started";
+    if (!capturing) statusPutAway = false;
     const on =
       event.state === "working" && Boolean(event.message) && !statusPutAway;
     if (on) status.textContent = event.message;

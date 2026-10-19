@@ -60,6 +60,28 @@ test("actual child completes handshake, streams image turns, applies controls an
   await child.dispose();
   assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
 });
+test("words that are not ASCII arrive whole when the wire cuts a character in two", async (t) => {
+  const { child } = await setup(t);
+  const words = [];
+  const done = new Promise((resolve) =>
+    child.on("event", (event) => {
+      const delta = event.event?.delta;
+      if (delta?.type === "text_delta") words.push(delta.text);
+      if (event.type === "result") resolve();
+    }),
+  );
+  await child.send({
+    id: randomUUID(),
+    text: "cjk: 說明這個畫面",
+    attachments: [],
+  });
+  await done;
+  assert.equal(
+    words.join(""),
+    "這個畫面是設定頁，可以改語言。 🙂 café ひらがな 한글",
+  );
+  assert.ok(!words.join("").includes("\ufffd"));
+});
 test("the permission mode is set on the live child and tracked by the transport", async (t) => {
   const { child } = await setup(t);
   assert.equal((await child.getSelection()).permissionMode, "default");

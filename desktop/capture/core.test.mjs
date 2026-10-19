@@ -251,3 +251,36 @@ test("a faded surface is given long enough to be presented before the screen is 
   assert.ok(SETTLE_FRAMES >= (process.platform === "linux" ? 4 : 8));
   assert.ok(marks[1] >= SETTLE_FRAMES * timing.frame * 0.9, `${marks[1]} ms`);
 });
+
+test("surface guard leaves Blink as faint as it is told to and takes everything else out", async () => {
+  const seen = [];
+  const win = (name) => ({
+    isDestroyed: () => false,
+    isVisible: () => true,
+    name,
+  });
+  const all = [win("Blink"), win("card")];
+  const guard = new SurfaceGuard(() => all, {
+    ...quickly,
+    level: (w) => (w.name === "Blink" ? 0.3 : 0),
+    fade: async (w, to, level) => seen.push([w.name, to, level]),
+  });
+  await guard.run(async () => {});
+  assert.deepEqual(seen.slice(0, 2), [
+    ["Blink", 0, 0.3],
+    ["card", 0, 0],
+  ]);
+  assert.match(
+    fadeScript(0, {
+      duration: 0,
+      easing: "linear",
+      reduced: false,
+      level: 0.3,
+    }),
+    /opacity: 0\.3/,
+  );
+  assert.match(
+    fadeScript(0, { duration: 0, easing: "linear", reduced: false }),
+    /opacity: 0 \}/,
+  );
+});
